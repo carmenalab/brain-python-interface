@@ -2,9 +2,10 @@ import time
 import random
 import pygame
 
-from riglib import experiment, gendots, reward, options
+from riglib import gendots, reward, options
+from riglib.experiment import Pygame
 
-class Dots(experiment.Pygame.Pygame):
+class Dots(Pygame.Pygame):
     def __init__(self, *args, **kwargs):
         super(Dots, self).__init__(*args, **kwargs)
         self.width, self.height = self.surf.get_size()
