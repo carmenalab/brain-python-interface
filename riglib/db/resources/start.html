@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Start a new task</title>
+	<link type="text/css" href="/static/css/smoothness/jquery-ui-1.8.16.custom.css" rel="stylesheet" />	
+	<script type="text/javascript" src="/static/js/jquery-1.6.2.min.js"></script>
+	<script type="text/javascript" src="/static/js/jquery-ui-1.8.16.custom.min.js"></script>
+	<script type="text/javascript">
+		$(function() {
+			$("#tabs").tabs().addClass('ui-tabs-vertical ui-helper-clearfix');
+			$("#tabs ul.ui-tabs-nav>li").removeClass('ui-corner-top').addClass('ui-corner-left');
+			$("#tabs").bind( "tabsselect", function(event, ui) {
+				alert("boo!");
+			});
+		});
+	</script>
+	<style class='text/css'>
+		* { font-size:10pt;}
+		ul.features {
+			margin:0px;
+			padding:0px;
+			list-style-type:none;
+		}
+		.ui-tabs-vertical { border:none; }
+		.ui-tabs-vertical .ui-tabs-nav { padding: .2em .1em .2em .2em; float: left; width: 12em; }
+		.ui-tabs-vertical .ui-tabs-nav li { clear: left; width: 100%; border-bottom-width: 1px !important; border-right-width: 0 !important; margin: 0 -1px .2em 0; }
+		.ui-tabs-vertical .ui-tabs-nav li a { display:block; }
+		.ui-tabs-vertical .ui-tabs-nav li.ui-tabs-selected { padding-bottom: 0; padding-right: .1em; border-right-width: 1px; border-right-width: 1px; }
+		.ui-tabs-vertical .ui-tabs-panel { padding: 1em; float: left; width: 60em; border:1px solid; margin-left:-1px;}
+		div.task-options { float:left; width:30em; }
+		div.task-notes { float:left; width:30em; }
+		div.task-notes textarea { width:27em; height:20em;}
+		div.clear { clear:both; }
+		input.submit { float:right; }
+		fieldset {
+			border:1px solid;
+			border-radius:4px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="tabs">
+		<ul>
+			{% for name, task in tasks.items() %}
+			{% if task is not None %}
+			<li><a href="#tabs-{{escape(name)}}">{{escape(name)}}</a></li>
+			{% end %}
+			{% end %}
+		</ul>
+		{% for (name, task), tasktraits in zip(tasks.items(), alltraits) %}
+		{% if task is not None %}
+		<div id="tabs-{{escape(name)}}">
+			<form>
+			<div class='task-options'>
+				<fieldset>
+				<legend>Features</legend>
+				<ul class='features'>
+					{% for n, feat in features.items() %}
+					<li><input type="checkbox" name='tasks' value="{{escape(n)}}" /> {{escape(n)}} </li>
+					{% end %}
+				</ul>
+				</fieldset>
+				<fieldset>
+				<legend>Parameters</legend>
+				<ul id="{{escape(name)}}-params">
+					{% for n, num in tasktraits %}
+					<li>{{escape(n)}} 
+						{% for i in range(num) %}
+					 		<input name="{{escape(n)}}-{{i}}" type="text" />
+					 	{% end %}
+					</li>
+					{% end %}
+				</ul>
+				</fieldset>
+			</div>
+			<div class='task-notes'>
+				<fieldset>
+				<legend> Notes: </legend>
+				<textarea name="notes"></textarea>
+				</fieldset>
+			</div>
+			<div class='clear'></div>
+			<input class='submit' type="submit" value="Start task" />
+			</form>
+		</div>
+		{% end %}
+		{% end %}
+	</div>
+</body>
+</html>
