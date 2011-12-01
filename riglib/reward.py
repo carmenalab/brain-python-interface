@@ -90,8 +90,6 @@ class System(traits.HasTraits, threading.Thread):
             ]
         #self.reset_stats()
 
-        #self.reset_stats()
-
     def _parse_status(self, msg):
         msg = cStringIO.StringIO(msg)
         output = {}
