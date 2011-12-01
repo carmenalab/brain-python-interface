@@ -67,11 +67,9 @@ def make_experiment(exp_class, feats=()):
 
 def consolerun(exp_class, features=(), **kwargs):
     Class = make_experiment(exp_class, features)
-    print Class.mro()
     exp = Class(**kwargs)
     exp.start()
-    exp.configure_traits()
-    
+    raw_input("End? ")    
     exp.end_task()
     print "Waiting to end..."
     exp.join()
