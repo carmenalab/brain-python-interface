@@ -1,43 +1,7 @@
 import os
-import time
 import pygame
-import numpy as np
 
-from __init__ import options
-
-class Experiment(object):
-    status = dict(
-        wait = dict(start_trial="trial", premature="penalty"),
-        trial = dict(correct="reward", incorrect="penalty", timeout="penalty"),
-        reward = dict(restart="wait"),
-        penalty = dict(restart="wait"),
-    )
-    state = "wait"
-
-    def trigger_event(self, event):
-        self.set_state(self.status[self.state][event])
-    
-    def set_state(self, condition):
-        self.state = condition
-        self.start_time = time.time()
-        print condition
-        if hasattr(self, "_start_%s"%condition):
-            getattr(self, "_start_%s"%condition)()
-
-    def run(self):
-        self.set_state(self.state)
-        while self.state is not None:
-            if hasattr(self, "_while_%s"%self.state):
-                getattr(self, "_while_%s"%self.state)()
-            
-            for event, state in self.status[self.state].items():
-                if hasattr(self, "_test_%s"%event):
-                    if getattr(self, "_test_%s"%event)(time.time() - self.start_time):
-                        self.trigger_event(event)
-                        break;
-
-class LogExperiment(Experiment):
-    pass
+from __init__ import Experiment, options
 
 class Pygame(Experiment):
     background = (0,0,0)
@@ -45,6 +9,7 @@ class Pygame(Experiment):
     fps = 60
 
     def __init__(self):
+        super(Pygame, self).__init__()
         os.environ['SDL_VIDEO_WINDOW_POS'] = "2560,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
@@ -102,12 +67,3 @@ class Pygame(Experiment):
             return ts > options['penalty_time']
         elif self.state == "reward":
             return ts > options['reward_time']
-
-import button
-class PygameButton(Pygame):
-    def __init__(self):
-        super(PygameButton, self).__init__()
-        self.button = button.Button()
-    
-    def _get_event(self):
-        return self.button.pressed() or super(PygameButton, self)._get_event()
