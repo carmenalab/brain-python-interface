@@ -1,0 +1,9 @@
+digraph g {
+	wait -> trial [label="start trial"]
+	wait -> penalty [label="premature!"]
+	trial -> reward [label="correct"]
+	trial -> penalty [label="incorrect"]
+	trial -> penalty [label="timeout"]
+	reward -> wait
+	penalty -> wait
+}
