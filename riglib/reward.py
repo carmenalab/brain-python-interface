@@ -88,6 +88,7 @@ class System(traits.HasTraits, threading.Thread):
             (5, "dispenser_ID", None),
             (1, "firmware_version", _parse_num(1, .1))
             ]
+
         #self.reset_stats()
 
     def _parse_status(self, msg):
@@ -140,7 +141,7 @@ class System(traits.HasTraits, threading.Thread):
     
     def reset(self):
         self._write("@CPSNNN")
-    
+
     def reset_stats(self):
         self._write("@CRSNNN")
     
