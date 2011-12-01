@@ -2,7 +2,12 @@ from riglib.experiment import consolerun
 from riglib.tasks import Dots
 
 if __name__ == "__main__":
-    import json
-    options = json.load(open("options.json"))
-    options['rand_start'] = tuple(options['rand_start'])
+    options = {
+        "flat_proportion": 0.5, 
+        "penalty_time": 5,
+        "ignore_time": 4, 
+        "rand_start": (1, 10), 
+        "reward_time": 5, 
+        "timeout_time": 4
+    }
     consolerun(Dots, ("autostart","button","ignore_correctness"), **options)
