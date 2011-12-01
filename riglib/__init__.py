@@ -1,9 +1,5 @@
 import serial
 import reward_msg
-from options import reset as resetoptions
-from options import save as saveoptions
-from options import options
-
 
 try:
 	port

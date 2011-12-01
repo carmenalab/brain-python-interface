@@ -2,11 +2,12 @@ import os
 import time
 import threading
 
-from ..options import options
+import traits.api as traits
+
 import Pygame
 import features
 
-class Experiment(threading.Thread):
+class Experiment(traits.HasTraits, threading.Thread):
     status = dict(
         wait = dict(start_trial="trial", premature="penalty", stop=None),
         trial = dict(correct="reward", incorrect="penalty", timeout="penalty"),
@@ -15,6 +16,10 @@ class Experiment(threading.Thread):
     )
     state = "wait"
     stop = False
+
+    def __init__(self, **kwargs):
+        traits.HasTraits.__init__(self, **kwargs)
+        threading.Thread.__init__(self)
 
     def trigger_event(self, event):
         self.set_state(self.status[self.state][event])
@@ -60,11 +65,13 @@ def make_experiment(exp_class, feats=()):
     clslist = clslist + tuple(f for f in feats if f not in allfeats) + (exp_class,)
     return type(exp_class.__name__, clslist, dict())
 
-def consolerun(exp_class, features=()):
-    experiment = make_experiment(exp_class, features)
-    exp = experiment()
+def consolerun(exp_class, features=(), **kwargs):
+    Class = make_experiment(exp_class, features)
+    print Class.mro()
+    exp = Class(**kwargs)
     exp.start()
-    raw_input("End?")
+    exp.configure_traits()
+    
     exp.end_task()
     print "Waiting to end..."
     exp.join()

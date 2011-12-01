@@ -1,15 +1,19 @@
 import os
 import pygame
 
-from __init__ import Experiment, options
+import traits.api as traits
+
+from __init__ import Experiment
 
 class Pygame(Experiment):
     background = (0,0,0)
-    timeout = 10
     fps = 60
 
-    def __init__(self):
-        super(Pygame, self).__init__()
+    timeout_time = traits.Float(4.)
+    penalty_time = traits.Float(5.)
+
+    def __init__(self, **kwargs):
+        super(Pygame, self).__init__(**kwargs)
         os.environ['SDL_VIDEO_WINDOW_POS'] = "2560,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
@@ -60,10 +64,10 @@ class Pygame(Experiment):
         raise NotImplementedError
     
     def _test_timeout(self, ts):
-        return ts > options['timeout_time']
+        return ts > self.timeout_time
     
     def _test_restart(self, ts):
         if self.state == "penalty":
-            return ts > options['penalty_time']
+            return ts > self.penalty_time
         elif self.state == "reward":
-            return ts > options['reward_time']
+            return ts > self.penalty_time

@@ -2,12 +2,17 @@ import time
 import random
 import pygame
 
-from riglib import gendots, reward, options
+import traits.api as traits
+
+from riglib import gendots, reward
 from riglib.experiment import Pygame
 
 class Dots(Pygame.Pygame):
-    def __init__(self, *args, **kwargs):
-        super(Dots, self).__init__(*args, **kwargs)
+    flat_proportion = traits.Float(0.5)
+    ignore_time = traits.Float(4.)
+
+    def __init__(self, **kwargs):
+        super(Dots, self).__init__(**kwargs)
         self.width, self.height = self.surf.get_size()
         mask = gendots.squaremask()
         mid = self.height / 2 - mask.shape[0] / 2
@@ -16,19 +21,18 @@ class Dots(Pygame.Pygame):
 
         self.mask = mask
         self.coords = (lc, mid), (rc, mid)
-
+    
     def draw_frame(self):
         self.surf.blit(self.sleft, self.coords[0])
         self.surf.blit(self.sright, self.coords[1])
     
     def _start_reward(self):
-        '''Dispense reward'''
         if reward is not None:
             reward.reward(reward_time*1000.)
     
     def _start_trial(self):
         left, right, flat = gendots.generate(self.mask)
-        if random.random() > options['flat_proportion']:
+        if random.random() > self.flat_proportion:
             self._popout = True
             sleft = pygame.surfarray.make_surface((left>0).T)
             sright = pygame.surfarray.make_surface((right>0).T)
@@ -45,7 +49,7 @@ class Dots(Pygame.Pygame):
         return self.event is not None
     
     def _test_correct(self, ts):
-        return (not self._popout and ts > options['ignore_time']) or (self._popout and self.event is not None)
+        return (not self._popout and ts > self.ignore_time) or (self._popout and self.event is not None)
 
     def _test_incorrect(self, ts):
-        return (self._popout and ts > options['ignore_time']) or (not self._popout and self.event is not None)
+        return (self._popout and ts > self.ignore_time) or (not self._popout and self.event is not None)

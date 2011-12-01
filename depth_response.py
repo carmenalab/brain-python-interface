@@ -1,5 +1,8 @@
-from riglib import experiment
-from dots import Dots
+from riglib.experiment import consolerun
+from riglib.tasks import Dots
 
 if __name__ == "__main__":
-    experiment.consolerun(Dots, ("autostart","button"))
+    import json
+    options = json.load(open("options.json"))
+    options['rand_start'] = tuple(options['rand_start'])
+    consolerun(Dots, ("autostart","button"), **options)
