@@ -88,6 +88,7 @@ class System(traits.HasTraits, threading.Thread):
             (5, "dispenser_ID", None),
             (1, "firmware_version", _parse_num(1, .1))
             ]
+        #self.reset_stats()
 
         #self.reset_stats()
 
@@ -141,6 +142,13 @@ class System(traits.HasTraits, threading.Thread):
     
     def reset(self):
         self._write("@CPSNNN")
+    
+    def reset_stats(self):
+        self._write("@CRSNNN")
+    
+    def drain(self, status=None):
+        mode = ("D", "E")[self.drain_status == "Disabled" if status is None else status]
+        self._write("@CNS%sNN"%mode)
 
     def reset_stats(self):
         self._write("@CRSNNN")
