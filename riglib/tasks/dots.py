@@ -24,7 +24,7 @@ class Dots(Pygame.Pygame):
         self.coords = (lc, mid), (rc, mid)
     
     def _while_penalty(self):
-        self.surf.fill((255,0,0))
+        self.surf.fill((181,0,45))
         pygame.display.flip()
     
     def draw_frame(self):
