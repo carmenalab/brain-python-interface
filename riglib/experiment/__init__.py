@@ -89,7 +89,7 @@ class TrialTypes(LogExperiment):
             while self.trial_probs[i] is not None:
                 i += 1
             self.trial_probs[i] = 1 - prob
-        
+
         probs = np.insert(np.cumsum(self.trial_probs), 0, 0)
         assert probs[-1] == 1
         self.probs = np.array([probs[:-1], probs[1:]]).T
