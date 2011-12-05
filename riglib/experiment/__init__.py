@@ -1,5 +1,6 @@
 import os
 import time
+import random
 import threading
 
 import traits.api as traits
@@ -52,7 +53,54 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.stop = True
 
 class LogExperiment(Experiment):
-    pass
+    state_log = []
+    event_log = []
+
+    def trigger_event(self, event):
+        self.event_log.append((self.state, event, time.time()))
+        super(LogExperiment, self).trigger_event(event)
+
+    def set_state(self, condition):
+        self.state_log.append((condition, time.time()))
+        super(LogExperiment, self).set_state(condition)
+
+class TrialTypes(LogExperiment):
+    trial_types = []
+    status = dict(
+        wait = dict(start_trial="picktrial", premature="penalty", stop=None),
+        reward = dict(restart="wait"),
+        penalty = dict(restart="wait"),
+    )
+
+    def __init__(self, **kwargs):
+        super(TrialTypes, self).__init__(**kwargs)
+        assert len(self.trial_types) > 0
+
+        if self.trial_probs is None:
+            self.trial_probs = [float(i+1) / len(self.trial_types) for i in range(len(self.trial_types))]
+        elif any([i is None for i in self.trial_probs]):
+            #Fix up the missing NONE entry
+            assert sum([i is None for i in self.trial_probs]) == 1, "Too many None entries for probabilities, only one allowed!"
+            prob = sum([i for i in self.trial_probs if i is not None])
+            i = 0
+            while self.trial_probs[i] is not None:
+                i += 1
+            self.trial_probs[i] = 1 - prob
+        
+        
+
+        for ttype, (low, high) in zip(self.trial_types, probs):
+            self.status[ttype] = {
+                "%s_correct"%ttype:"reward", 
+                "%s_incorrect"%ttype:"penalty", 
+                "timeout":"penalty" }
+
+            def func(self):
+                return low <= self.trial_rand < high
+            setattr(self, "_test_%s"%ttype, func)
+    
+    def _start_picktrial(self):
+        self.trial_rand = random.random()
 
 def make_experiment(exp_class, feats=()):
     allfeats = dict(

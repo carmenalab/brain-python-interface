@@ -5,14 +5,18 @@ import pygame
 import traits.api as traits
 
 from riglib import gendots, reward
-from riglib.experiment import Pygame
+from riglib.experiment import Pygame, LogExperiment, TrialTypes
 
-class Dots(Pygame.Pygame):
-    flat_proportion = traits.Float(0.5)
+class Dots(LogExperiment, Pygame.Pygame, TrialTypes):
+    trial_types = ["flat", "depth"]
+    trial_probs = None
+
     ignore_time = traits.Float(4.)
 
     def __init__(self, **kwargs):
         super(Dots, self).__init__(**kwargs)
+        TrialTypes.__init__(self)
+
         self.width, self.height = self.surf.get_size()
         mask = gendots.squaremask()
         mid = self.height / 2 - mask.shape[0] / 2
