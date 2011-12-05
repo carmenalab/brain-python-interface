@@ -21,7 +21,7 @@ class Dots(Pygame.Pygame):
         rc = 3*self.width / 4 - mask.shape[1] / 2
 
         self.mask = mask
-        self.coords = (lc, mid), (rc, mid
+        self.coords = (lc, mid), (rc, mid)
     
     def _while_penalty(self):
         self.surf.fill((255,0,0))
