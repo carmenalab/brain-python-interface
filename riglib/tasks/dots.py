@@ -27,10 +27,6 @@ class Dots(TrialTypes, Pygame.Pygame):
         self.surf.fill((181,0,45))
         pygame.display.flip()
     
-    def draw_frame(self):
-        self.surf.blit(self.sleft, self.coords[0])
-        self.surf.blit(self.sright, self.coords[1])
-    
     def _start_reward(self):
         if reward is not None:
             reward.reward(self.reward_time*1000.)
