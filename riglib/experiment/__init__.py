@@ -93,6 +93,13 @@ class TrialTypes(LogExperiment):
         assert probs[-1] == 1
         self.probs = np.array([probs[:-1], probs[1:]]).T
         
+<<<<<<< HEAD
+=======
+        probs = np.insert(np.cumsum(self.trial_probs), 0, 0)
+        assert probs[-1] == 1
+        self.trial_probs = np.array([probs[:-1], probs[1:]]).T
+        
+>>>>>>> Possibly the working variety of both LogExperiment as well as trialtypes. Trialtypes is poorly documented for now, but will be a very useful feature
         for ttype in self.trial_types:
             self.status[ttype] = {
                 "%s_correct"%ttype :"reward", 
@@ -101,7 +108,11 @@ class TrialTypes(LogExperiment):
     
     def _start_picktrial(self):
         rand = random.random()
+<<<<<<< HEAD
         for i, (low, high) in enumerate(self.probs):
+=======
+        for i, (low, high) in enumerate(self.trial_probs):
+>>>>>>> Possibly the working variety of both LogExperiment as well as trialtypes. Trialtypes is poorly documented for now, but will be a very useful feature
             if low <= rand < high:
                 self.set_state(self.trial_types[i])
                 break;
@@ -126,6 +137,7 @@ def consolerun(exp_class, features=(), **kwargs):
     exp.end_task()
     print "Waiting to end..."
     exp.join()
+<<<<<<< HEAD
     return exp
 
 def report(exp):
@@ -167,3 +179,6 @@ def print_report(report):
         repstr.append("%8s: %g%%, RT=%g"%(tname, cper, cRT))
     repstr.insert(0, "%8s: %d"%("total", ttrial))
     print "\n".join(repstr)
+=======
+    return exp
+>>>>>>> Possibly the working variety of both LogExperiment as well as trialtypes. Trialtypes is poorly documented for now, but will be a very useful feature
