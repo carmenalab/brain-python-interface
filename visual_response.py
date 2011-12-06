@@ -10,4 +10,6 @@ if __name__ == "__main__":
         "reward_time": 5, 
         "timeout_time": 3
     }
-    consolerun(Dots, ("autostart","button","ignore_correctness"), **options)
+    exp = consolerun(Dots, ("autostart","button","ignore_correctness"), **options)
+    print exp.event_log
+    print exp.state_log

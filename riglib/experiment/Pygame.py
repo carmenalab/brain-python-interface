@@ -1,11 +1,9 @@
 import os
 import pygame
 
-import traits.api as traits
+from __init__ import LogExperiment, traits
 
-from __init__ import Experiment
-
-class Pygame(Experiment):
+class Pygame(LogExperiment):
     background = (0,0,0)
     fps = 60
 
@@ -29,7 +27,7 @@ class Pygame(Experiment):
     def draw_frame(self):
         raise NotImplementedError
     
-    def _clear_screen(self):
+    def clear_screen(self):
         self.surf.fill(self.background)
         pygame.display.flip()
     
@@ -37,23 +35,23 @@ class Pygame(Experiment):
         for e in pygame.event.get(pygame.KEYDOWN):
             return (e.key, e.type)
     
-    def _flip_wait(self):
+    def flip_wait(self):
         pygame.display.flip()
         self.event = self._get_event()
         self.clock.tick_busy_loop(self.fps)
     
     def _while_wait(self):
         self.surf.fill(self.background)
-        self._flip_wait()
+        self.flip_wait()
     
     def _while_trial(self):
         self.draw_frame()
-        self._flip_wait()
+        self.flip_wait()
     
     def _while_reward(self):
-        self._clear_screen()
+        self.clear_screen()
     def _while_penalty(self):
-        self._clear_screen()
+        self.clear_screen()
         
     def _test_start_trial(self, ts):
         return self.event is not None
@@ -67,8 +65,8 @@ class Pygame(Experiment):
     def _test_timeout(self, ts):
         return ts > self.timeout_time
     
-    def _test_restart(self, ts):
-        if self.state == "penalty":
-            return ts > self.penalty_time
-        elif self.state == "reward":
-            return ts > self.reward_time
+    def _test_post_reward(self, ts):
+        return ts > self.reward_time
+    
+    def _test_post_penalty(self, ts):
+        return ts > self.penalty_time

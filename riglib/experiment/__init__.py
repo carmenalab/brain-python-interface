@@ -2,8 +2,12 @@ import os
 import time
 import random
 import threading
+import numpy as np
 
-import traits.api as traits
+try:
+    import traits.api as traits
+except ImportError:
+    import enthought.traits.api as traits
 
 import Pygame
 import features
@@ -12,8 +16,8 @@ class Experiment(traits.HasTraits, threading.Thread):
     status = dict(
         wait = dict(start_trial="trial", premature="penalty", stop=None),
         trial = dict(correct="reward", incorrect="penalty", timeout="penalty"),
-        reward = dict(restart="wait"),
-        penalty = dict(restart="wait"),
+        reward = dict(post_reward="wait"),
+        penalty = dict(post_penalty="wait"),
     )
     state = "wait"
     stop = False
@@ -66,10 +70,11 @@ class LogExperiment(Experiment):
 
 class TrialTypes(LogExperiment):
     trial_types = []
+    trial_probs = None
     status = dict(
         wait = dict(start_trial="picktrial", premature="penalty", stop=None),
-        reward = dict(restart="wait"),
-        penalty = dict(restart="wait"),
+        reward = dict(post_reward="wait"),
+        penalty = dict(post_penalty="wait"),
     )
 
     def __init__(self, **kwargs):
@@ -77,7 +82,7 @@ class TrialTypes(LogExperiment):
         assert len(self.trial_types) > 0
 
         if self.trial_probs is None:
-            self.trial_probs = [float(i+1) / len(self.trial_types) for i in range(len(self.trial_types))]
+            self.trial_probs = [1./len(self.trial_types)] * len(self.trial_types)
         elif any([i is None for i in self.trial_probs]):
             #Fix up the missing NONE entry
             assert sum([i is None for i in self.trial_probs]) == 1, "Too many None entries for probabilities, only one allowed!"
@@ -87,20 +92,22 @@ class TrialTypes(LogExperiment):
                 i += 1
             self.trial_probs[i] = 1 - prob
         
-        probs = self.trial_probs
-
-        for ttype, (low, high) in zip(self.trial_types, probs):
+        probs = np.insert(np.cumsum(self.trial_probs), 0, 0)
+        assert probs[-1] == 1
+        self.trial_probs = np.array([probs[:-1], probs[1:]]).T
+        
+        for ttype in self.trial_types:
             self.status[ttype] = {
-                "%s_correct"%ttype:"reward", 
-                "%s_incorrect"%ttype:"penalty", 
+                "%s_correct"%ttype :"reward", 
+                "%s_incorrect"%ttype :"penalty", 
                 "timeout":"penalty" }
-
-            def func(self):
-                return low <= self.trial_rand < high
-            setattr(self, "_test_%s"%ttype, func)
     
     def _start_picktrial(self):
-        self.trial_rand = random.random()
+        rand = random.random()
+        for i, (low, high) in enumerate(self.trial_probs):
+            if low <= rand < high:
+                self.set_state(self.trial_types[i])
+                break;
 
 def make_experiment(exp_class, feats=()):
     allfeats = dict(
@@ -121,3 +128,4 @@ def consolerun(exp_class, features=(), **kwargs):
     exp.end_task()
     print "Waiting to end..."
     exp.join()
+    return exp

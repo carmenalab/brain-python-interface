@@ -2,20 +2,17 @@ import time
 import random
 import pygame
 
-import traits.api as traits
+from .. import gendots, reward
+from ..experiment import Pygame, LogExperiment, TrialTypes, traits
 
-from riglib import gendots, reward
-from riglib.experiment import Pygame, LogExperiment, TrialTypes
-
-class Dots(LogExperiment, Pygame.Pygame, TrialTypes):
+class Dots(TrialTypes, Pygame.Pygame):
     trial_types = ["flat", "depth"]
-    trial_probs = None
 
     ignore_time = traits.Float(4.)
 
     def __init__(self, **kwargs):
         super(Dots, self).__init__(**kwargs)
-        TrialTypes.__init__(self)
+        Pygame.Pygame.__init__(self, **kwargs)
 
         self.width, self.height = self.surf.get_size()
         mask = gendots.squaremask()
@@ -38,26 +35,38 @@ class Dots(LogExperiment, Pygame.Pygame, TrialTypes):
         if reward is not None:
             reward.reward(self.reward_time*1000.)
     
-    def _start_trial(self):
+    def _start_depth(self):
         left, right, flat = gendots.generate(self.mask)
-        if random.random() > self.flat_proportion:
-            self._popout = True
-            sleft = pygame.surfarray.make_surface((left>0).T)
-            sright = pygame.surfarray.make_surface((right>0).T)
-            sleft.set_palette([(0,0,0,255), (255,255,255,255)])
-            sright.set_palette([(0,0,0,255), (255,255,255,255)])
-            self.sleft, self.sright = sleft, sright
-        else:
-            self._popout = False
-            sflat = pygame.surfarray.make_surface(flat>0)
-            sflat.set_palette([(0,0,0,255), (255,255,255,255)])
-            self.sleft, self.sright = sflat, sflat
+        sleft = pygame.surfarray.make_surface((left>0).T)
+        sright = pygame.surfarray.make_surface((right>0).T)
+        sleft.set_palette([(0,0,0,255), (255,255,255,255)])
+        sright.set_palette([(0,0,0,255), (255,255,255,255)])
+        self.sleft, self.sright = sleft, sright
+
+    def _start_flat(self):
+        left, right, flat = gendots.generate(self.mask)
+        sflat = pygame.surfarray.make_surface(flat>0)
+        sflat.set_palette([(0,0,0,255), (255,255,255,255)])
+        self.sflat = sflat
+    
+    def _while_depth(self):
+        self.surf.blit(self.sleft, self.coords[0])
+        self.surf.blit(self.sright, self.coords[1])
+        self.flip_wait()
+    
+    def _while_flat(self):
+        self.surf.blit(self.sflat, self.coords[0])
+        self.surf.blit(self.sflat, self.coords[1])
+        self.flip_wait()
     
     def _test_premature(self, ts):
         return self.event is not None
     
-    def _test_correct(self, ts):
-        return (not self._popout and ts > self.ignore_time) or (self._popout and self.event is not None)
-
-    def _test_incorrect(self, ts):
-        return (self._popout and ts > self.ignore_time) or (not self._popout and self.event is not None)
+    def _test_flat_correct(self, ts):
+        return ts > self.ignore_time
+    
+    def _test_flat_incorrect(self, ts):
+        return self.event is not None
+    
+    def _test_depth_correct(self, ts):
+        return self.event is not None

@@ -1,6 +1,6 @@
 import random
 
-import traits.api as traits
+from . import traits
 
 from .. import button
 
@@ -33,6 +33,15 @@ class ButtonOnly(Button):
         return self.button.pressed()
 
 class IgnoreCorrectness(object):
+    def __init__(self, **kwargs):
+        super(IgnoreCorrectness, self).__init__(**kwargs)
+        if hasattr(self, "trial_types"):
+            for ttype in self.trial_types:
+                del self.status[ttype]["%s_correct"%ttype]
+                del self.status[ttype]["%s_incorrect"%ttype]
+                self.status[ttype]["correct"] = "reward"
+                self.status[ttype]["incorrect"] = "penalty"
+
     def _test_correct(self, ts):
         return self.event is not None
 
