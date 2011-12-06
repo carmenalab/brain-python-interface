@@ -11,6 +11,7 @@ class Pygame(Experiment):
 
     timeout_time = traits.Float(4.)
     penalty_time = traits.Float(5.)
+    reward_time = traits.Float(5.)
 
     def __init__(self, **kwargs):
         super(Pygame, self).__init__(**kwargs)
@@ -70,4 +71,4 @@ class Pygame(Experiment):
         if self.state == "penalty":
             return ts > self.penalty_time
         elif self.state == "reward":
-            return ts > self.penalty_time
+            return ts > self.reward_time

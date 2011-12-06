@@ -10,7 +10,6 @@ from riglib.experiment import Pygame
 class Dots(Pygame.Pygame):
     flat_proportion = traits.Float(0.5)
     ignore_time = traits.Float(4.)
-    reward_time = traits.Float(4.)
 
     def __init__(self, **kwargs):
         super(Dots, self).__init__(**kwargs)
