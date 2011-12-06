@@ -87,7 +87,7 @@ class TrialTypes(LogExperiment):
                 i += 1
             self.trial_probs[i] = 1 - prob
         
-        
+        probs = self.trial_probs
 
         for ttype, (low, high) in zip(self.trial_types, probs):
             self.status[ttype] = {
