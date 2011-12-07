@@ -8,6 +8,7 @@ from ..experiment import Pygame, LogExperiment, TrialTypes, traits
 class Dots(TrialTypes, Pygame.Pygame):
     trial_types = ["flat", "depth"]
 
+    trial_probs = traits.Array
     ignore_time = traits.Float(4.)
 
     def __init__(self, **kwargs):
