@@ -4,6 +4,7 @@ from . import traits
 from riglib import button
 
 class Autostart(traits.HasTraits):
+    '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
     rand_start = traits.Tuple((1, 10))
 
     def _start_wait(self):
@@ -35,6 +36,7 @@ class Button(object):
         return super(Button, self)._get_event()
 
 class ButtonOnly(Button):
+    '''Forces the experiment to respond exclusively to the FTDI button, not to any keybooard events'''
     def _get_event(self):
         assert self.button is not None
         return self.button.pressed()

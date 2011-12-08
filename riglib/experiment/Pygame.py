@@ -7,11 +7,11 @@ from experiment import LogExperiment
 class Pygame(LogExperiment):
     background = (0,0,0)
     fps = 60
-
-    timeout_time = traits.Float(4.)
-    penalty_time = traits.Float(5.)
-    reward_time = traits.Float(5.)
     
+    timeout_time = traits.Float(4., desc="Timmout (in seconds) during a trial while waiting for a response")
+    penalty_time = traits.Float(5., desc="Length of penalty (in seconds) for incorrect and premature responses")
+    reward_time = traits.Float(5., desc="Length of reward (in seconds)")
+
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "2560,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
