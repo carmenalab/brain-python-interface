@@ -9,6 +9,8 @@ urlpatterns = patterns('',
     # (r'^db/', include('db.foo.urls')),
     (r'^start_task/', 'tasks.views.start_task'),
 
+    (r'^start_task/', 'tasks.views.start_task'),
+
     # Uncomment the admin/doc line below to enable admin documentation:
     (r'^admin/doc/', include('django.contrib.admindocs.urls')),
 
