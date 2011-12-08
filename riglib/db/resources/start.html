@@ -55,17 +55,20 @@
 			<div class='task-options'>
 				<fieldset>
 				<legend>Features</legend>
-				<ul class='features'>
-					{% for n, feat in features.items() %}
-					<li><input type="checkbox" name='tasks' value="{{escape(n)}}" /> {{escape(n)}} </li>
-					{% end %}
+				<ul id='features'>
+				{% for n, feat in features.items() %}
+					<li title='{{escape(feat.__doc__)}}'>
+						<input type="checkbox" name='tasks' id='{{escape(n)}}' value="{{escape(n)}}"/> 
+						<label for='{{escape(n)}}'>{{escape(n)}}</label>
+					</li>
+				{% end %}
 				</ul>
 				</fieldset>
 				<fieldset>
 				<legend>Parameters</legend>
 				<ul id="{{escape(name)}}-params">
-					{% for n, num in tasktraits %}
-					<li>{{escape(n)}} 
+					{% for n, num, desc in tasktraits %}
+					<li title='{{escape(desc) if desc is not None else ""}}'>{{escape(n)}} 
 						{% for i in range(num) %}
 					 		<input name="{{escape(n)}}-{{i}}" type="text" />
 					 	{% end %}
