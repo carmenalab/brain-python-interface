@@ -154,5 +154,5 @@ try:
     reward = System(port=port)
     reward.start()
 except:
-    "Reward system not found"
+    print "Reward system not found"
     reward = None
