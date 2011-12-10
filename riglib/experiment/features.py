@@ -13,6 +13,9 @@ class Autostart(traits.HasTraits):
         
     def _test_start_trial(self, ts):
         return ts > self.wait_time
+    
+    def _test_premature(self, ts):
+        return self.event is not None
 
 class Button(object):
     def __init__(self, **kwargs):

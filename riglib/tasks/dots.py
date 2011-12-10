@@ -56,9 +56,6 @@ class Dots(TrialTypes, Pygame.Pygame):
         self.surf.blit(self.sflat, self.coords[1])
         self.flip_wait()
     
-    def _test_premature(self, ts):
-        return self.event is not None
-    
     def _test_flat_correct(self, ts):
         return ts > self.ignore_time
     
