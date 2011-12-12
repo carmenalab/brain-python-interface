@@ -1,5 +1,5 @@
 from riglib.experiment import consolerun
-from riglib.tasks import Dots
+from tasks import Dots
 
 if __name__ == "__main__":
     options = {

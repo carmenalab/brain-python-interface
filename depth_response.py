@@ -1,5 +1,5 @@
-from riglib.experiment import consolerun, report, print_report
-from riglib.tasks import Dots
+from riglib.experiment import consolerun
+from tasks import Dots
 
 if __name__ == "__main__":
     options = {
@@ -11,4 +11,3 @@ if __name__ == "__main__":
         "trial_probs": [0.5, None]
     }
     exp = consolerun(Dots, ("autostart","button"), **options)
-    print_report(report(exp))

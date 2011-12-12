@@ -149,10 +149,14 @@ class System(traits.HasTraits, threading.Thread):
         self._write("@CNS%sNN"%mode)
 
 try:
-    import serial
-    port = serial.Serial("/dev/ttyUSB0", baudrate=38400)
-    reward = System(port=port)
-    reward.start()
-except:
-    print "Reward system not found"
-    reward = None
+    port
+    reward
+except NameError:
+    try:
+        import serial
+        port = serial.Serial("/dev/ttyUSB0", baudrate=38400)
+        reward = System(port=port)
+        reward.start()
+    except:
+        print "Reward system not found"
+        reward = None

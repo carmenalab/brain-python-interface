@@ -1,7 +1,6 @@
 import random
 
 from . import traits
-
 from .. import button
 
 class Autostart(traits.HasTraits):
