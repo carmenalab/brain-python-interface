@@ -45,6 +45,8 @@ class Experiment(traits.HasTraits, threading.Thread):
             for event, state in self.status[self.state].items():
                 if hasattr(self, "_test_%s"%event):
                     if getattr(self, "_test_%s"%event)(time.time() - self.start_time):
+                        if hasattr(self, "_end_%s"%self.state):
+                            getattr(self, "_end_%s"%self.state)()
                         self.trigger_event(event)
                         break;
     
@@ -72,7 +74,10 @@ class Sequence(LogExperiment):
         super(Sequence, self).__init__(**kwargs)
     
     def _start_trial(self):
-        return self.gen.next()
+        try:
+            return self.gen.next()
+        except StopIteration:
+            self.end_task()
 
 class TrialTypes(LogExperiment):
     trial_types = []
