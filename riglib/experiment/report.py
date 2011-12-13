@@ -1,5 +1,5 @@
 import numpy as np
-from __init__ import LogExperiment, TrialTypes
+from experiment import LogExperiment, TrialTypes
 
 def report(exp):
     assert isinstance(exp, LogExperiment), "Cannot report on non-logged experiments"

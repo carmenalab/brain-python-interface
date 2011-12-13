@@ -1,7 +1,8 @@
 import os
 import pygame
 
-from __init__ import LogExperiment, traits
+from . import traits
+from experiment import LogExperiment
 
 class Pygame(LogExperiment):
     background = (0,0,0)
