@@ -10,4 +10,4 @@ if __name__ == "__main__":
         "timeout_time": 3,
         "trial_probs": [0.5, None], 
     }
-    exp = consolerun(RDS, ("autostart","button", "ignore_correctness"), **options)
+    exp = consolerun(RDS_half, ("autostart","button"), **options)

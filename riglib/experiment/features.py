@@ -1,7 +1,7 @@
 import random
 
 from . import traits
-from .. import button
+from riglib import button
 
 class Autostart(traits.HasTraits):
     rand_start = traits.Tuple((1, 10))
@@ -26,8 +26,11 @@ class Button(object):
             self.button = None
     
     def _get_event(self):
-        return (self.button is not None and self.button.pressed()) or \
-                super(Button, self)._get_event()
+        if self.button is not None:
+            btn = self.button.pressed()
+            if btn is not False:
+                return btn
+        return super(Button, self)._get_event()
 
 class ButtonOnly(Button):
     def _get_event(self):
