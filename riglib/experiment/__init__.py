@@ -30,7 +30,10 @@ def make(exp_class, feats=()):
 
 def consolerun(exp_class, features=(), probs=None, **kwargs):
     Class = make(exp_class, features)
-    gen = generate.endless(Class, probs)
+    if probs is None or isinstance(probs, (list, tuple, np.ndarray)):
+        gen = generate.endless(Class, probs)
+    else:
+        gen = probs
     exp = Class(gen, **kwargs)
     exp.start()
     while raw_input().strip() != "q":
