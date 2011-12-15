@@ -19,6 +19,7 @@ class Autostart(traits.HasTraits):
 class Button(object):
     def __init__(self, *args, **kwargs):
         super(Button, self).__init__(*args, **kwargs)
+        self.event = None
         try:
             self.button = button.Button()
         except:
@@ -30,6 +31,7 @@ class Button(object):
             btn = self.button.pressed()
             if btn is not False:
                 return btn
+                
         return super(Button, self)._get_event()
 
 class ButtonOnly(Button):
