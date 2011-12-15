@@ -91,6 +91,8 @@ class TrialTypes(Sequence):
                 "%s_correct"%ttype :"reward", 
                 "%s_incorrect"%ttype :"penalty", 
                 "timeout":"penalty" }
+            #Associate all trial type endings to the end_trial function defined by Sequence
+            setattr(self, "_end_%s"%ttype, self._end_trial)
     
     def _start_picktrial(self):
         self.set_state(self.next_trial)

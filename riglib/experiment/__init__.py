@@ -2,6 +2,7 @@ import os
 import time
 import random
 import threading
+
 import numpy as np
 
 try:
@@ -10,11 +11,13 @@ except ImportError:
     import enthought.traits.api as traits
 
 import features
+import generate
+
 from report import report, print_report
 from experiment import Experiment, LogExperiment, Sequence, TrialTypes
 from Pygame import Pygame
 
-def make_experiment(exp_class, feats=()):
+def make(exp_class, feats=()):
     allfeats = dict(
         button=features.Button,
         button_only=features.ButtonOnly,
@@ -25,9 +28,10 @@ def make_experiment(exp_class, feats=()):
     clslist = clslist + tuple(f for f in feats if f not in allfeats) + (exp_class,)
     return type(exp_class.__name__, clslist, dict())
 
-def consolerun(exp_class, features=(), **kwargs):
-    Class = make_experiment(exp_class, features)
-    exp = Class(**kwargs)
+def consolerun(exp_class, features=(), probs=None, **kwargs):
+    Class = make(exp_class, features)
+    gen = generate.endless(Class, probs)
+    exp = Class(gen, **kwargs)
     exp.start()
     while raw_input().strip() != "q":
         print_report(report(exp))

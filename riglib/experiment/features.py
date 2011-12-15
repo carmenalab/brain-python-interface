@@ -17,8 +17,8 @@ class Autostart(traits.HasTraits):
         return self.event is not None
 
 class Button(object):
-    def __init__(self, **kwargs):
-        super(Button, self).__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(Button, self).__init__(*args, **kwargs)
         try:
             self.button = button.Button()
         except:
@@ -38,8 +38,8 @@ class ButtonOnly(Button):
         return self.button.pressed()
 
 class IgnoreCorrectness(object):
-    def __init__(self, **kwargs):
-        super(IgnoreCorrectness, self).__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(IgnoreCorrectness, self).__init__(*args, **kwargs)
         if hasattr(self, "trial_types"):
             for ttype in self.trial_types:
                 del self.status[ttype]["%s_correct"%ttype]

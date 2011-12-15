@@ -1,28 +1,42 @@
 import random
+import numpy as np
 from experiment import TrialTypes
 
-def expgen(exp, probs=None, length=None):
-    assert isinstance(exp, TrialTypes)
-    if length is None:
-        if probs is None:
-            while True:
-                yield random.choice(exp.trial_types)
-        else:
-            assert len(probs) == len(exp.trial_types)
-            #Fix up the missing NONE entry
-            assert sum([i is None for i in self.probs]) == 1, "Too many None entries for probabilities, only one allowed!"
-            prob = sum([i for i in probs if i is not None])
-            i = 0
-            while probs is not None:
-                i += 1
-            probs[i] = 1 - prob
-        probs = np.insert(np.cumsum(probs), 0, 0)
-        assert probs[-1] == 1
-        probs = np.array([probs[:-1], probs[1:]]).T
+def sequence(length, probs=2):
+    '''Generates a sequence of numbers with the given probabilities.
+    If probs is not a list, generate a uniformly distributed set of options.'''
+    try:
+        opts = len(probs)
+        probs = _fix_missing(probs)
+    except TypeError:
+        opts = probs
+        probs = [1 / float(opts)] * opts
+    return np.random.permutation([i for i, p in enumerate(probs) for _ in xrange(int(length*p))])
+    
+
+def endless(exp, probs=None):
+    if probs is None:
+        while True:
+            yield random.choice(exp.trial_types)
+    else:
+        assert len(probs) == len(exp.trial_types)
+        probs = np.insert(np.cumsum(_fix_missing(probs)), 0, 0)
+        assert probs[-1] == 1, "Probabilities do not add up to 1!"
         while True:
             rand = random.random()
-            for i, (low, high) in enumerate(probs):
-                if low <= rand < high:
-                    yield exp.trial_types[i]
-    else:
-        
+            p = np.nonzero(rand < probs)[0].min()
+            print p, rand
+            yield exp.trial_types[p-1]
+
+def runseq(exp, seq):
+    assert max(seq)+1 == len(exp.trial_types)
+    for s in seq:
+        yield exp.trial_types[s]
+
+def _fix_missing(probs):
+    '''Takes a probability list with possibly None entries, and fills it up'''
+    total, n = map(sum, zip(*((i, 1) for i in probs if i is not None)))
+    if n < len(probs):
+        p = (1 - total) / (len(probs) - n)
+        probs = [i or p for i in probs]
+    return probs

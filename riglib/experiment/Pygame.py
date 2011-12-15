@@ -11,9 +11,8 @@ class Pygame(LogExperiment):
     timeout_time = traits.Float(4.)
     penalty_time = traits.Float(5.)
     reward_time = traits.Float(5.)
-
-    def __init__(self, **kwargs):
-        super(Pygame, self).__init__(**kwargs)
+    
+    def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "2560,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()

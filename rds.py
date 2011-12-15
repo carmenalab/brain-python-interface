@@ -8,6 +8,5 @@ if __name__ == "__main__":
         "rand_start": (1, 10), 
         "reward_time": 5, 
         "timeout_time": 3,
-        "trial_probs": [0.5, None], 
     }
-    exp = consolerun(RDS, ("autostart","button", "ignore_correctness"), **options)
+    exp = consolerun(RDS, ("autostart","button", "ignore_correctness"), probs=[0.5, None], **options)
