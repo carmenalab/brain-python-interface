@@ -6,7 +6,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     (r'^start_task/', 'tracker.views.start_task'),
-    (r'^get_info/', 'tracker.views.get_info'),
+    (r'^ajax/exp_info/(?P<taskname>\w+)/', 'tracker.views.exp_info'),
     # Uncomment the admin/doc line below to enable admin documentation:
     (r'^admin/doc/', include('django.contrib.admindocs.urls')),
 

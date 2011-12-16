@@ -2,13 +2,14 @@ import os
 import sys
 cwd = os.path.split(os.path.abspath(__file__))[0]
 sys.path.insert(0, os.path.join(cwd, "..", ".."))
+import json
 
 from django.http import HttpResponse
 
-from tracker.models import TaskEntry
+from tracker.models import TaskEntry, Task
 
 from riglib import experiment
-from tasks import RDS
+import tasks
 
 expqueue = []
 
@@ -18,5 +19,9 @@ def start_task(request):
 	#Exp().start()
 	return HttpResponse("Bleh")
 
-def get_info(request):
-	return HttpResponse(expqueue[0].class_editable_traits())
+def exp_info(request, taskname):
+	base = tasks.tasklist[taskname]
+	Exp = experiment.make(base, feats=[k for k,v in request.GET.items() if v])
+	traits = Exp.class_traits()
+	data = dict([ (name, (traits[name].desc, traits[name].default)) for name in Exp.class_editable_traits()])
+	return HttpResponse(json.dumps(data), mimetype="application/json")
