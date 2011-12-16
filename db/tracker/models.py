@@ -1,23 +1,23 @@
 from django.db import models
 
-class Tasks(models.Model):
+class Task(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
         return self.name
 
-class Features(models.Model):
+class Feature(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
         return self.name
 
-class Varieties(models.Model):
+class System(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
         return self.name
 
 class TaskEntry(models.Model):
-    task = models.ForeignKey(Tasks)
-    feats = models.ManyToManyField(Features)
+    task = models.ForeignKey(Task)
+    feats = models.ManyToManyField(Feature)
     params = models.TextField()
     notes = models.TextField()
     report = models.TextField()
@@ -27,5 +27,5 @@ class Calibration(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=128)
     notes = models.TextField()
-    variety = models.ForeignKey(Varieties)
+    system = models.ForeignKey(System)
     data = models.TextField()

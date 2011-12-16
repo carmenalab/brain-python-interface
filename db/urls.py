@@ -5,12 +5,8 @@ from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = patterns('',
-    # Example:
-    # (r'^db/', include('db.foo.urls')),
-    (r'^start_task/', 'tasks.views.start_task'),
-
-    (r'^start_task/', 'tasks.views.start_task'),
-
+    (r'^start_task/', 'tracker.views.start_task'),
+    (r'^get_info/', 'tracker.views.get_info'),
     # Uncomment the admin/doc line below to enable admin documentation:
     (r'^admin/doc/', include('django.contrib.admindocs.urls')),
 
