@@ -1,0 +1,32 @@
+<form>
+	<div class='task-options'>
+		<fieldset>
+		<legend>Features</legend>
+		<ul class='features'>
+			{% for n, feat in features.items() %}
+			<li><input type="checkbox" name='features' value="{{escape(n)}}" /> {{escape(n)}} </li>
+			{% end %}
+		</ul>
+		</fieldset>
+		<fieldset>
+		<legend>Parameters</legend>
+		<ul id="params">
+			{% for n, num in tasktraits %}
+			<li>{{escape(n)}} 
+				{% for i in range(num) %}
+			 		<input name="{{escape(n)}}-{{i}}" type="text" />
+			 	{% end %}
+			</li>
+			{% end %}
+		</ul>
+		</fieldset>
+	</div>
+	<div class='task-notes'>
+		<fieldset>
+		<legend> Notes: </legend>
+		<textarea name="notes"></textarea>
+		</fieldset>
+	</div>
+	<div class='clear'></div>
+	<input class='submit' type="submit" value="Start task" />
+</form>

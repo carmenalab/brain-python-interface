@@ -1,3 +1,5 @@
+import os
+cwd = os.path.split(os.path.abspath(__file__))[0]
 # Django settings for db project.
 
 DEBUG = True
@@ -8,8 +10,7 @@ ADMINS = (
 )
 
 MANAGERS = ADMINS
-import os
-cwd = os.path.split(os.path.abspath(__file__))[0]
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
@@ -79,17 +80,23 @@ MIDDLEWARE_CLASSES = (
 ROOT_URLCONF = 'db.urls'
 
 TEMPLATE_DIRS = (
-    # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
+    os.path.join(cwd, "html", "templates"),
 )
 
+STATIC_URL = "/static/"
+
+STATICFILES_DIRS = (
+    os.path.join(cwd, "html", "static"),
+    "/usr/share/pyshared/django/contrib/"
+)
+ADMIN_MEDIA_PREFIX = '/static/admin/'
 INSTALLED_APPS = (
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.messages',
+    'django.contrib.staticfiles',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:

@@ -5,8 +5,8 @@ from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = patterns('',
-    (r'^start_task/', 'tracker.views.start_task'),
-    (r'^ajax/exp_info/(?P<taskname>\w+)/', 'tracker.views.exp_info'),
+	(r'^$', 'tracker.views.list'),
+    (r'^ajax/exp_info/(?P<taskname>\w+)/', 'tracker.ajax.exp_info'),
     # Uncomment the admin/doc line below to enable admin documentation:
     (r'^admin/doc/', include('django.contrib.admindocs.urls')),
 
