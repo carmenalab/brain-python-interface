@@ -10,44 +10,56 @@
 var content = $("div#content")
 function startnew() {
 	if ($("#newentry").length == 0) {
-		$("#addbtn").hide()
-		$("#main tbody").append("\
-		<tr id='newentry' class='rowactive'>\
-			<td class='colDate'>Now</td>\
-			<td class='colSubj'>\
-				<select id='subjects'>\
-					{% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>\
-					{% endfor %}\
-				</select>\
-			</td>\
-			<td class='colTask'>\
-				<select id='tasks'>\
-					{% for t in tasks %}<option value='{{t.id}}'>{{ t.name }}</option>\
-					{% endfor %}\
-				</select>\
-			</td>\
-		</tr>")
+		$("#addbtn").hide();
+		$("#main tbody").append(
+		"<tr id='newentry' class='rowactive'>"+
+		"	<td class='colDate'>Now</td>"+
+		"	<td class='colSubj'>"+
+		"		<select id='subjects'>"+
+		"			{% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>"+
+		"			{% endfor %}"+
+		"		</select>"+
+		"	</td>"+
+		"	<td class='colTask'>"+
+		"		<select id='tasks'>"+
+		"			{% for t in tasks %}<option value='{{t.id}}'>{{ t.name }}</option>"+
+		"			{% endfor %}"+
+		"		</select>"+
+		"	</td>"+
+		"</tr>");
 	}
 }
-function TaskEntry(id){
-	this.tr = $(id);
+$(document).ready(function() {
+	new TaskEntry($("table#main tbody>tr").attr("id"))
+})
+function TaskEntry(idx){
+	this.idx = parseInt(idx.match(/row(\d+)/)[1])
+	this.tr = $("#"+idx)
+	var _this = this
+	this.tr.click(function() { _this.activate(); })
 }
 TaskEntry.prototype.activate = function() {
-	content.append();
-	content.show("drop")
+	this.tr.addClass("rowactive")
+	var _this = this;
+	$.get("info/"+this.idx, {}, function(data) {
+		$("div#content").html(data);
+		$("div#content").show("drop");
+	})
 }
 </script>
 <style type='text/css'>
 	div.clear { clear:both; }
 	body {
+		padding:0px;
+		margin:0px;
 		font-family:sans;
 		font-size:10pt;
 	}
 	#addbtn { margin:0.5em;padding:0.2em;}
-	div#table { float:left; }
 	table#main { 
+		width:100%;
 		border-collapse:collapse;
-		border-color:#CCC;
+		border-color:#DDD;
 	}
 	table#main td{
 		padding:0.5em;
@@ -63,41 +75,69 @@ TaskEntry.prototype.activate = function() {
 		cursor:pointer;
 	}
 	table#main tbody>tr:hover {
-		background:#CCC;
+		background:#EEE;
 	}
-	.colDate {	min-width:150px;}
-	.colSubj {	min-width:100px;}
-	.colTask {	min-width:100px;}
+	th { text-align:left;}
+	.colDate {	min-width:180px;}
+	.colSubj {	min-width:70px;}
+	.colTask {	min-width:70px;}
 	.rowactive td { 
 		position:relative; 
 		z-index:10;
-		background-color:white;
+		background-color:#FAFAFA;
 	}
+	div#leftpane { float:left; width:30%; }
+	div#rightpane { float:left; width:70%; }
 	div#content { 
+		padding:0.5em;
 		display:none;
-		float:left; 
-		border-left:1px solid;
+		border-left:1px solid #DDD;
 		margin-left:-1px;
+		background-color:#FAFAFA;
+	}
+	fieldset { 
+		margin:0.5em;
+		border:1px solid; 
+		border-radius:3px;
+	}
+	ul {
+		margin:0px;
+		padding:0px;
+		list-style-type:none;
+	}
+	ul#params .traitname { float:left; width:100px; margin:5px 0px; }
+	ul#params input { float:left; }
+	div.options { float:left; width:40%; }
+	div.notes { float:left; width:60%; }
+	div.notes textarea {
+		width:100%;
+		height:28em;
+		font-family:sans;
+	}
+	div.notes fieldset {
+		height:30em;
 	}
 </style>
 </head>
 <body>
-	<div id='table'>
-	<table id='main'>
-		<thead>
-		<tr><th class='colDate'>Date</th><th class='colSubj'>Who</th><th class='colTask'>Task</th></tr>
-		</thead>
-		<tbody>
-		{% for e in entries %}
-			<tr><td class='colDate'>{{e.date}}</td>
-			<td class='colSubj'>{{e.subject.name}}</td>
-			<td class='colTask'>{{e.task.name}}</td></tr>
-		{% endfor %}
-		</tbody>
-	</table>
-	<input id='addbtn' type='button' value='Add new entry' onclick='startnew()' />
+	<div id='leftpane'>
+		<table id='main'>
+			<thead>
+			<tr><th class='colDate'>Date</th><th class='colSubj'>Who</th><th class='colTask'>Task</th></tr>
+			</thead>
+			<tbody>
+			{% for e in entries %}
+				<tr id='row{{e.id}}'><td class='colDate'>{{e.date}}</td>
+				<td class='colSubj'>{{e.subject.name}}</td>
+				<td class='colTask'>{{e.task.name}}</td></tr>
+			{% endfor %}
+			</tbody>
+		</table>
+		<input id='addbtn' type='button' value='Add new entry' onclick='startnew()' />
 	</div>
-	<div id='content'>
+	<div id="rightpane">
+		<div id='content'>
+		</div>
 	</div>
 </body>
 </html>

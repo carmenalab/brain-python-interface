@@ -17,15 +17,16 @@ from report import report, print_report
 from experiment import Experiment, LogExperiment, Sequence, TrialTypes
 from Pygame import Pygame
 
+featlist = dict(
+    autostart=features.Autostart, 
+    button=features.Button, 
+    button_only=features.ButtonOnly, 
+    ignore_correctness=features.IgnoreCorrectness
+)
+
 def make(exp_class, feats=()):
-    allfeats = dict(
-        button=features.Button,
-        button_only=features.ButtonOnly,
-        autostart=features.Autostart,
-        ignore_correctness=features.IgnoreCorrectness
-    )
-    clslist = tuple(allfeats[f] for f in feats if f in allfeats)
-    clslist = clslist + tuple(f for f in feats if f not in allfeats) + (exp_class,)
+    clslist = tuple(featlist[f] for f in feats if f in featlist)
+    clslist = clslist + tuple(f for f in feats if f not in featlist) + (exp_class,)
     return type(exp_class.__name__, clslist, dict())
 
 def consolerun(exp_class, features=(), probs=None, **kwargs):

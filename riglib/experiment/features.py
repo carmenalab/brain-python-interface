@@ -18,6 +18,7 @@ class Autostart(traits.HasTraits):
         return self.event is not None
 
 class Button(object):
+    '''Adds the ability to respond to the button, as well as to keyboard responses'''
     def __init__(self, *args, **kwargs):
         super(Button, self).__init__(*args, **kwargs)
         self.event = None
@@ -42,6 +43,7 @@ class ButtonOnly(Button):
         return self.button.pressed()
 
 class IgnoreCorrectness(object):
+    '''Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
     def __init__(self, *args, **kwargs):
         super(IgnoreCorrectness, self).__init__(*args, **kwargs)
         if hasattr(self, "trial_types"):
