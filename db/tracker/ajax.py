@@ -3,13 +3,31 @@ import json
 from django.http import HttpResponse
 
 import views
+from models import TaskEntry, Feature
 
-import tasks
 from riglib import experiment
+from tasks import tasklist
 
-def exp_info(request, taskname):
-	base = tasks.tasklist[taskname]
+def _respond(data):
+	return HttpResponse(json.dumps(data), mimetype="application/json")
+
+def task_params(request, taskname):
+	base = tasklist[taskname]
 	Exp = experiment.make(base, feats=[k for k,v in request.GET.items() if v])
 	traits = Exp.class_traits()
-	data = dict([ (name, (traits[name].desc, traits[name].default)) for name in Exp.class_editable_traits()])
-	return HttpResponse(json.dumps(data), mimetype="application/json")
+	data = dict([ (name, (traits[name].desc, str(traits[name].default))) for name in Exp.class_editable_traits()])
+	return _respond(data)
+
+def exp_info(request, idx):
+	entry = TaskEntry.objects.get(pk=idx)
+	sfeats = dict([(f.name, f in entry.feats.all()) for f in Feature.objects.all()])
+	params = json.loads(entry.params)
+	
+	Exp = experiment.make(tasklist[entry.task.name], feats=[f.name for f in entry.feats.all()])
+	traits = Exp.class_traits()
+	traitval = dict([
+		(name, (traits[name].desc, str(params[name])
+			if name in params else str(traits[name].default)) )
+			for name in Exp.class_editable_traits()  ])
+	data = {"params":traitval, "notes":entry.notes, "features":sfeats}
+	return _respond(data)

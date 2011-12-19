@@ -1,0 +1,69 @@
+div.clear { clear:both; }
+body {
+	padding:0px;
+	margin:0px;
+	font-family:sans;
+	font-size:10pt;
+}
+#addbtn { margin:0.5em;padding:0.2em;}
+table#main { 
+	width:100%;
+	border-collapse:collapse;
+	border-color:#DDD;
+}
+table#main td{
+	padding:0.5em;
+	border-bottom:1px solid;
+	border-color:inherit;
+}
+table#main th {
+	padding:0.8em;
+	border-bottom:1px solid;
+	border-color:inherit;
+}
+table#main tr {
+	cursor:pointer;
+}
+table#main tbody>tr:hover {
+	background:#EEE;
+}
+th { text-align:left;}
+.colDate {	min-width:180px;}
+.colSubj {	min-width:70px;}
+.colTask {	min-width:70px;}
+.rowactive td { 
+	position:relative; 
+	z-index:10;
+	background-color:#FAFAFA;
+}
+div#leftpane { float:left; width:30%; }
+div#rightpane { float:left; width:70%; }
+div#content { 
+	padding:0.5em;
+	display:none;
+	border-left:1px solid #DDD;
+	margin-left:-1px;
+	background-color:#FAFAFA;
+}
+fieldset { 
+	margin:0.5em;
+	border:1px solid; 
+	border-radius:3px;
+}
+ul {
+	margin:0px;
+	padding:0px;
+	list-style-type:none;
+}
+ul .traitname { float:left; width:100px; margin:5px 0px; }
+#parameters input { float:left; }
+div.options { float:left; width:35%; }
+div.rightside { float:left; width:65%; }
+div.rightside textarea {
+	width:100%;
+	height:28em;
+	font-family:sans;
+}
+div.rightside fieldset#notes {
+	height:30em;
+}

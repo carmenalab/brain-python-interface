@@ -4,10 +4,11 @@
 <html>
 <head>
 <title>Task Entries</title>
+<link rel="stylesheet" type="text/css" href="{{STATIC_PREFIX}}/resources/css/list.css" />
 <script src='{{ STATIC_PREFIX }}resources/js/jquery-1.6.2.min.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/jquery-ui-1.8.16.custom.min.js' type='text/javascript'></script>
+<script src='{{ STATIC_PREFIX }}resources/js/list.js' type='text/javascript'></script>
 <script type='text/javascript'>
-var content = $("div#content")
 function startnew() {
 	if ($("#newentry").length == 0) {
 		$("#addbtn").hide();
@@ -27,97 +28,43 @@ function startnew() {
 		"		</select>"+
 		"	</td>"+
 		"</tr>");
+		var newtask = new TaskEntry(-1);
+		newtask.activate();
+		entries.push(newtask)
 	}
 }
-$(document).ready(function() {
-	new TaskEntry($("table#main tbody>tr").attr("id"))
-})
-function TaskEntry(idx){
-	this.idx = parseInt(idx.match(/row(\d+)/)[1])
-	this.tr = $("#"+idx)
-	var _this = this
-	this.tr.click(function() { _this.activate(); })
-}
+
 TaskEntry.prototype.activate = function() {
-	this.tr.addClass("rowactive")
-	var _this = this;
-	$.get("info/"+this.idx, {}, function(data) {
-		$("div#content").html(data);
-		$("div#content").show("drop");
-	})
+	for (var i in entries)
+		entries[i].deactivate()
+	
+	this.tr.addClass("rowactive");
+	$("#content").html("<form><div class='options'></div><div class='rightside'></div><div class='clear'></div></form>")
+	this._add_fieldset("Sequence", "options")
+	this._add_fieldset("Features", "options")
+	this._add_fieldset("Parameters", "options")
+	this._add_fieldset("Report", "rightside")
+	this._add_fieldset("Notes", "rightside")
+	$("#notes").append("<textarea name='notes'></textarea>")
+	$("#parameters").append("<ul></ul>")
+	$("#features").append("<ul></ul>")
+	{% for name, desc in feats.items %}$("#features ul").append(
+		"<li title='{{desc}}'>\n"+
+		"	<input type='checkbox' name='{{name}}' id='{{name}}'/>\n"+
+		"	<label for='{{name}}'>{{name}}</label>\n"+
+		"</li>\n");
+	{% endfor %}
+	if (this.newentry) {
+		var _this = this;
+		this._query_params();
+		$("#features input").change(function() {
+			_this._query_params();
+		})
+	} else {
+		this.populate();
+	}
 }
 </script>
-<style type='text/css'>
-	div.clear { clear:both; }
-	body {
-		padding:0px;
-		margin:0px;
-		font-family:sans;
-		font-size:10pt;
-	}
-	#addbtn { margin:0.5em;padding:0.2em;}
-	table#main { 
-		width:100%;
-		border-collapse:collapse;
-		border-color:#DDD;
-	}
-	table#main td{
-		padding:0.5em;
-		border-bottom:1px solid;
-		border-color:inherit;
-	}
-	table#main th {
-		padding:0.8em;
-		border-bottom:1px solid;
-		border-color:inherit;
-	}
-	table#main tr {
-		cursor:pointer;
-	}
-	table#main tbody>tr:hover {
-		background:#EEE;
-	}
-	th { text-align:left;}
-	.colDate {	min-width:180px;}
-	.colSubj {	min-width:70px;}
-	.colTask {	min-width:70px;}
-	.rowactive td { 
-		position:relative; 
-		z-index:10;
-		background-color:#FAFAFA;
-	}
-	div#leftpane { float:left; width:30%; }
-	div#rightpane { float:left; width:70%; }
-	div#content { 
-		padding:0.5em;
-		display:none;
-		border-left:1px solid #DDD;
-		margin-left:-1px;
-		background-color:#FAFAFA;
-	}
-	fieldset { 
-		margin:0.5em;
-		border:1px solid; 
-		border-radius:3px;
-	}
-	ul {
-		margin:0px;
-		padding:0px;
-		list-style-type:none;
-	}
-	ul#params .traitname { float:left; width:100px; margin:5px 0px; }
-	ul#params input { float:left; }
-	div.options { float:left; width:40%; }
-	div.notes { float:left; width:60%; }
-	div.notes textarea {
-		width:100%;
-		height:28em;
-		font-family:sans;
-	}
-	div.notes fieldset {
-		height:30em;
-	}
-</style>
 </head>
 <body>
 	<div id='leftpane'>
