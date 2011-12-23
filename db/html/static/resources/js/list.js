@@ -15,6 +15,7 @@ function TaskEntry(idx){
 		$("#tasks").change(function() {
 			_this.task = $("#tasks option").filter(":selected").text()
 			_this._query_params()
+			_this._query_sequences()
 		})
 	} else {
 		this.newentry = false
@@ -60,11 +61,59 @@ TaskEntry.prototype._query_params = function() {
 		}
 	})
 }
+TaskEntry.prototype._query_sequences = function() {
+	var _this = this;
+	$.getJSON("ajax/task_seq/"+this.task, {}, function(data) {
+		$("#sequence #seqlist").replaceWith("<select id='seqlist' name='seq_name'></select>");
+		for (var i in data) 
+			$("#sequence #seqlist").append("<option value='"+i+"'>"+data[i]+"</option");
+		$("#sequence #seqlist").append("<option value='new'>Create New...</option>");
+		if ($("#sequence #seqlist").attr("value") == "new")
+			_this.make_sequence();
+		$("#sequence #seqlist").change(function() {
+			if ($(this).attr("value") == "new")
+				_this.make_sequence();
+		})
+		_this._query_seqdata()
+		_this._update_seqparams()
+	})
+}
+TaskEntry.prototype._query_seqdata = function() {
+	if ($("#sequence #seqlist")[0].tagName == "SELECT") {
+		var _this = this;
+		var idx = $("#sequence #seqlist").attr("value");
+		$.getJSON("ajax/seq_data/"+idx, {}, function(data) {
+			_this.update_seqdata(data)
+		})
+	}
+}
+TaskEntry.prototype._update_seqparams = function() {
+	var idx = $("#sequence #seqgen").attr("value");
+	var params = genparams[idx][1].split(",")
+	if (genparams[idx][2])
+		params.push("length")
+	$("#sequence #seqparams").html("")
+	for (var i in params) {
+		$("#sequence #seqparams").append("<label class='traitname' for='seq_"+params[i]+"'>"+
+			params[i]+"</label><input id='seq_"+params[i]+"' type='text' name='"+params[i]+"' />")
+	}
+}
+
+TaskEntry.prototype.update_seqdata = function(data) {
+	$("#sequence #seqgen option").filter(function() {
+		return $(this).attr("value") == data['genid'];
+	}).attr("selected", "selected")
+	this._update_seqparams()
+	for (var i in data['params']) {
+		$("#sequence #seq_"+i).attr("value", data['params'][i])
+	}
+}
+
 TaskEntry.prototype.deactivate = function() {
 	this.tr.removeClass("rowactive");
 	this.active = false;
 	if (this.newentry) {
-		//Delete this row entirely
+		//Delete this row entirely4
 		entries.pop();
 		this.tr.remove()
 		$("#addbtn").show()
@@ -87,4 +136,11 @@ TaskEntry.prototype.populate = function() {
 		}
 		$("#content input,select").attr("disabled", true)
 	})
+}
+
+function SequenceEditor() {
+	
+}
+SequenceEditor.prototype.activate = function() {
+	
 }

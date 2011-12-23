@@ -3,7 +3,7 @@ import json
 from django.http import HttpResponse
 
 import views
-from models import TaskEntry, Feature
+from models import TaskEntry, Feature, Sequence, Task
 
 from riglib import experiment
 from tasks import tasklist
@@ -31,3 +31,12 @@ def exp_info(request, idx):
 			for name in Exp.class_editable_traits()  ])
 	data = {"params":traitval, "notes":entry.notes, "features":sfeats}
 	return _respond(data)
+
+def task_seq(request, taskname):
+	task = Task.objects.filter(name=taskname)
+	seqs = Sequence.objects.filter(task=task[0].id)
+	return _respond(dict([(s.id, s.name) for s in seqs]))
+
+def seq_data(request, idx):
+	seq = Sequence.objects.get(pk=idx)
+	return _respond(dict(idx=seq.id, genid=seq.generator.id, params=json.loads(seq.params)))

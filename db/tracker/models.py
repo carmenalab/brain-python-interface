@@ -20,6 +20,25 @@ class Subject(models.Model):
     def __unicode__(self):
         return self.name
 
+class Generator(models.Model):
+    name = models.CharField(max_length=128)
+    params = models.TextField()
+    static = models.BooleanField()
+
+    def __unicode__(self):
+        return self.name
+
+class Sequence(models.Model):
+    date = models.DateTimeField(auto_now_add=True)
+    generator = models.ForeignKey(Generator)
+    name = models.CharField(max_length=128)
+    params = models.TextField()
+    sequence = models.TextField(blank=True)
+    task = models.ForeignKey(Task)
+
+    def __unicode__(self):
+        return self.name
+
 class TaskEntry(models.Model):
     subject = models.ForeignKey(Subject)
     date = models.DateTimeField(auto_now_add=True)
@@ -28,6 +47,7 @@ class TaskEntry(models.Model):
     params = models.TextField()
     report = models.TextField()
     notes = models.TextField()
+    sequence = models.ForeignKey(Sequence)
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject)
@@ -37,7 +57,12 @@ class Calibration(models.Model):
     system = models.ForeignKey(System)
     path = models.CharField(max_length=256)
 
+    def __unicode__(self):
+        return self.name
+
 class DataFile(models.Model):
+    date = models.DateTimeField(auto_now_add=True)
+    local = models.BooleanField()
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System)
-    taskentry = models.ForeignKey(TaskEntry)
+    entruy = models.ForeignKey(TaskEntry)

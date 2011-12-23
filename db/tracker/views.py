@@ -6,7 +6,7 @@ import json
 
 from django.shortcuts import render_to_response
 
-from tracker.models import TaskEntry, Task, Subject, Feature
+from tracker.models import TaskEntry, Task, Subject, Feature, Generator
 
 from riglib import experiment
 from tasks import tasklist
@@ -17,10 +17,7 @@ def list(request):
 	tlist = Task.objects.all().order_by("name")
 	subjects = Subject.objects.all().order_by("name")
 	featdoc = dict([(f.name, featlist[f.name].__doc__) for f in Feature.objects.all()])
-	return render_to_response('list.html', dict(entries=entries, subjects=subjects, tasks=tlist, feats=featdoc))
-
-def exp_content(request, entryid):
-	entry = TaskEntry.objects.get(pk=entryid)
-	#Create a True/False dictionary for selected features
-	
-	return render_to_response("exp_content.html", dict(entry=entry, selected=sfeats, params=traitval, done=True))
+	gens = Generator.objects.all().order_by("name")
+	jsongens = json.dumps(dict([(g.id, (g.name, g.params, g.static)) for g in gens]))
+	print jsongens
+	return render_to_response('list.html', dict(entries=entries, subjects=subjects, tasks=tlist, feats=featdoc, gens=jsongens))

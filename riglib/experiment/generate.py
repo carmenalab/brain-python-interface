@@ -2,18 +2,6 @@ import random
 import numpy as np
 from experiment import TrialTypes
 
-def sequence(length, probs=2):
-    '''Generates a sequence of numbers with the given probabilities.
-    If probs is not a list, generate a uniformly distributed set of options.'''
-    try:
-        opts = len(probs)
-        probs = _fix_missing(probs)
-    except TypeError:
-        opts = probs
-        probs = [1 / float(opts)] * opts
-    return np.random.permutation([i for i, p in enumerate(probs) for _ in xrange(int(length*p))])
-    
-
 def endless(exp, probs=None):
     if probs is None:
         while True:
@@ -28,10 +16,27 @@ def endless(exp, probs=None):
             print p, rand
             yield exp.trial_types[p-1]
 
-def runseq(exp, seq):
-    assert max(seq)+1 == len(exp.trial_types)
-    for s in seq:
-        yield exp.trial_types[s]
+def sequence(length, probs=2):
+    '''Generates a sequence of numbers with the given probabilities.
+    If probs is not a list, generate a uniformly distributed set of options.'''
+    try:
+        opts = len(probs)
+        probs = _fix_missing(probs)
+    except TypeError:
+        opts = probs
+        probs = [1 / float(opts)] * opts
+    return np.random.permutation([i for i, p in enumerate(probs) for _ in xrange(int(length*p))])
+
+def runseq(exp, seq=None, reps=1):
+    if hasattr(exp, "trial_types"):
+        assert max(seq)+1 == len(exp.trial_types)
+        for _ in range(reps):
+            for s in seq:
+                yield exp.trial_types[s]
+    else:
+        for _ in range(reps):
+            for s in seq:
+                yield s
 
 def _fix_missing(probs):
     '''Takes a probability list with possibly None entries, and fills it up'''

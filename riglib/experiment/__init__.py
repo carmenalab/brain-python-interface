@@ -17,11 +17,21 @@ from report import report, print_report
 from experiment import Experiment, LogExperiment, Sequence, TrialTypes
 from Pygame import Pygame
 
+from tasks import redgreen
+
 featlist = dict(
     autostart=features.Autostart, 
     button=features.Button, 
     button_only=features.ButtonOnly, 
     ignore_correctness=features.IgnoreCorrectness
+)
+genlist = dict(
+    endless=generate.endless,
+    redgreen_rand=redgreen.randcoords,
+
+    #These are static generators
+    trialtypes=generate.sequence,
+    redgreen=redgreen.gencoords,
 )
 
 def make(exp_class, feats=()):

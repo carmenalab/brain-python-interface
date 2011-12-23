@@ -55,7 +55,7 @@ ul {
 	padding:0px;
 	list-style-type:none;
 }
-ul .traitname { float:left; width:100px; margin:5px 0px; }
+.traitname { float:left; width:100px; margin:5px 0px; }
 #parameters input { float:left; }
 div.options { float:left; width:35%; }
 div.rightside { float:left; width:65%; }
