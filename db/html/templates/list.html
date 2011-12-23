@@ -39,6 +39,7 @@ function startnew() {
 }
 
 TaskEntry.prototype.activate = function() {
+	$("#content").hide()
 	for (var i in entries)
 		entries[i].deactivate()
 	
@@ -50,42 +51,26 @@ TaskEntry.prototype.activate = function() {
 	this._add_fieldset("Report", "rightside")
 	this._add_fieldset("Notes", "rightside")
 
-	$("#sequence").append("<label class='traitname' for='seqlist'>Name:</label>"+
-		"<select id='seqlist' name='seq_name'></select><div class='clear'></div>");
-	$("#sequence").append("<label class='traitname' for='seqgen'>Generator:</label>"+
-		"<select id='seqgen' name='seq_gen'></select><div class='clear'></div>");
-	for (var i in genparams)
-		$("#sequence #seqgen").append("<option value='"+i+"'>"+genparams[i][0]+"</option>");
-	$("#sequence").append("<div id='seqparams'></div>");
-	$("#sequence #seqgen").change(function() {
-		_this._update_seqparams()
-	})
-	
-
+	var html = "";
 	$("#notes").append("<textarea name='notes'></textarea>")
 	$("#parameters").append("<ul></ul>")
 	$("#features").append("<ul></ul>")
-	{% for name, desc in feats.items %}$("#features ul").append(
-		"<li title='{{desc}}'>\n"+
+	{% for name, desc in feats.items %}html += "<li title='{{desc}}'>\n"+
 		"	<input type='checkbox' name='{{name}}' id='{{name}}'/>\n"+
 		"	<label for='{{name}}'>{{name}}</label>\n"+
-		"</li>\n");
+		"</li>\n";
 	{% endfor %}
+	$("#features ul").append(html);
 	if (this.newentry) {
 		var _this = this;
 		this._query_params();
-		this._query_sequences();
-		$("#features input").change(function() {
-			_this._query_params();
-		})
+		$("#features input").change(function() { _this._query_params();	});
+		this.sequence = new SequenceEditor();
 	} else {
 		this.populate();
 	}
 }
 
-TaskEntry.prototype.make_sequence = function() {
-	$("#sequence #seqlist").replaceWith("<input id='seqlist' name='seq_name' type='text' />");
-}
 </script>
 </head>
 <body>

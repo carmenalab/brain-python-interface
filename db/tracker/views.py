@@ -19,5 +19,4 @@ def list(request):
 	featdoc = dict([(f.name, featlist[f.name].__doc__) for f in Feature.objects.all()])
 	gens = Generator.objects.all().order_by("name")
 	jsongens = json.dumps(dict([(g.id, (g.name, g.params, g.static)) for g in gens]))
-	print jsongens
 	return render_to_response('list.html', dict(entries=entries, subjects=subjects, tasks=tlist, feats=featdoc, gens=jsongens))

@@ -17,7 +17,7 @@ table#main td{
 	border-color:inherit;
 }
 table#main th {
-	padding:0.8em;
+	padding:0.8em 0.5em;
 	border-bottom:1px solid;
 	border-color:inherit;
 }
@@ -55,15 +55,25 @@ ul {
 	padding:0px;
 	list-style-type:none;
 }
-.traitname { float:left; width:100px; margin:5px 0px; }
+.traitname { float:left; width:35%; min-width:100px; margin:5px 0px; }
 #parameters input { float:left; }
 div.options { float:left; width:35%; }
+div.options select { max-width:62%;}
+div.options input[type=text] { width:62%; }
 div.rightside { float:left; width:65%; }
 div.rightside textarea {
 	width:100%;
-	height:28em;
+	height:100%;
 	font-family:sans;
+	border:none;
+	background-color:inherit;
 }
 div.rightside fieldset#notes {
 	height:30em;
+}
+input[type=text] { 
+	border:1px solid;
+	border-color:#CCC;
+	padding:2px;
+	border-radius:2px;
 }

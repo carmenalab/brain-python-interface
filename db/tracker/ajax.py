@@ -29,14 +29,18 @@ def exp_info(request, idx):
 		(name, (traits[name].desc, str(params[name])
 			if name in params else str(traits[name].default)) )
 			for name in Exp.class_editable_traits()  ])
-	data = {"params":traitval, "notes":entry.notes, "features":sfeats}
+	data = dict(params=traitval, notes=entry.notes, features=sfeats, seqid=entry.sequence.id)
 	return _respond(data)
 
-def task_seq(request, taskname):
-	task = Task.objects.filter(name=taskname)
-	seqs = Sequence.objects.filter(task=task[0].id)
+def task_seq(request, idx):
+	seqs = Sequence.objects.filter(task=idx)
 	return _respond(dict([(s.id, s.name) for s in seqs]))
 
 def seq_data(request, idx):
 	seq = Sequence.objects.get(pk=idx)
-	return _respond(dict(idx=seq.id, genid=seq.generator.id, params=json.loads(seq.params)))
+	return _respond(dict(
+		idx=seq.id, 
+		genid=seq.generator.id, 
+		params=json.loads(seq.params), 
+		static=(seq.sequence != ''),
+	))
