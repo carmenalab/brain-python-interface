@@ -32,8 +32,8 @@ class Sequence(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     generator = models.ForeignKey(Generator)
     name = models.CharField(max_length=128)
-    params = models.TextField()
-    sequence = models.TextField(blank=True)
+    params = models.TextField() #json data
+    sequence = models.TextField(blank=True) #pickle data
     task = models.ForeignKey(Task)
 
     def __unicode__(self):

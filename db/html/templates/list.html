@@ -44,12 +44,20 @@ TaskEntry.prototype.activate = function() {
 		entries[i].deactivate()
 	
 	this.tr.addClass("rowactive");
-	$("#content").html("<form><div class='options'></div><div class='rightside'></div><div class='clear'></div></form>")
-	this._add_fieldset("Sequence", "options")
-	this._add_fieldset("Features", "options")
-	this._add_fieldset("Parameters", "options")
-	this._add_fieldset("Report", "rightside")
-	this._add_fieldset("Notes", "rightside")
+	var html = "<form id='experiment' action='javascript:start_experiment();'>";
+	html += "	{% csrf_token %}";
+	html += "	<div class='options'></div>";
+	html += "	<div class='rightside'></div>";
+	html += "	<div class='clear'></div>";
+	html += "	<input type='submit' value='Start Experiment' />";
+	html += "</form>";
+	$("#content").html(html);
+
+	this._add_fieldset("Sequence", "options");
+	this._add_fieldset("Features", "options");
+	this._add_fieldset("Parameters", "options");
+	this._add_fieldset("Report", "rightside");
+	this._add_fieldset("Notes", "rightside");
 
 	var html = "";
 	$("#notes").append("<textarea name='notes'></textarea>")
@@ -66,6 +74,7 @@ TaskEntry.prototype.activate = function() {
 		this._query_params();
 		$("#features input").change(function() { _this._query_params();	});
 		this.sequence = new SequenceEditor();
+		$("#content input[type='submit']").show();
 	} else {
 		this.populate();
 	}

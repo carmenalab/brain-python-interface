@@ -69,11 +69,19 @@ div.rightside textarea {
 	background-color:inherit;
 }
 div.rightside fieldset#notes {
-	height:30em;
+	height:25em;
 }
 input[type=text] { 
 	border:1px solid;
 	border-color:#CCC;
 	padding:2px;
 	border-radius:2px;
+}
+#experiment input[type='submit'] {
+	display:none;
+	float:right;
+	margin:8px;
+	padding:8px;
+	font-size:16pt;
+	box-shadow: 0 0 5px blue;
 }

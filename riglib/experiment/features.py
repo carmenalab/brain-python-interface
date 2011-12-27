@@ -1,7 +1,13 @@
 import random
 
 from . import traits
-from riglib import button
+from riglib import button, reward
+
+class RewardSystem(traits.HasTraits):
+    '''Use the reward system during the reward phase'''
+    def _start_reward(self):
+        if reward is not None:
+            reward.reward(self.reward_time*1000.)
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''

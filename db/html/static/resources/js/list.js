@@ -4,6 +4,32 @@ $(document).ready(function() {
 		entries.push(new TaskEntry(this.id));
 	})
 })
+
+function start_experiment() {
+	var data = new Object();
+	data['subject'] = $("#subjects").attr("value");
+	data['task'] = $("#tasks").attr("value");
+	data['feats'] = new Array();
+	$("#experiment #features input").each(function() {
+		if ($(this).attr("checked"))
+			data['feats'].push(this.name);
+	})
+	data['params'] = new Object();
+	$("#experiment #parameters input").each(function() {
+		data['params'][this.name] = this.value;
+	})
+	data['sequence'] = entries[entries.length-1].sequence.get_data();
+
+	var form = new Object();
+	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
+	form['data'] = JSON.stringify(data);
+	console.log(form);
+
+	$.post("start", form, function(data) {
+		console.log(data);
+	})
+}
+
 function TaskEntry(idx){
 	if (idx == -1) {
 		//This is a new row, need to set task name
@@ -65,17 +91,20 @@ TaskEntry.prototype.deactivate = function() {
 	this.tr.removeClass("rowactive");
 	this.active = false;
 	if (this.newentry) {
-		//Delete this row entirely4
+		//Delete this row entirely
 		entries.pop();
 		this.tr.remove()
 		$("#addbtn").show()
 	}
 }
-
+TaskEntry.prototype.disable = function() {
+	$("#parameters input, #features input").attr("disabled", "disabled");
+	this.sequence.disable();
+}
 TaskEntry.prototype.populate = function() {
 	var _this = this;
 	$.getJSON("ajax/exp_info/"+this.idx, {}, function(data) {
-		_this.sequence = new SequenceEditor(data['seqid'])
+		_this.sequence = new SequenceEditor(data['seqid']);
 		_this._setup_params(data['params']);
 		$("#notes textarea").html(data['notes']);
 		for (var name in data['features']) {
@@ -83,11 +112,11 @@ TaskEntry.prototype.populate = function() {
 				$("#features input#"+name).attr("checked", "checked");
 			}
 		}
+		_this.disable();
 		if (!_this.active) {
 			$("#content").show("drop");
 			_this.active = true;
 		}
-		$("#content input,select").attr("disabled", true)
 	})
 }
 
@@ -208,7 +237,7 @@ SequenceEditor.prototype.set_data = function(data, editable) {
 		$("#seqstatic").attr("checked", "checked")
 
 	//Disable all the inputs
-	$("#seqgen, #seqparams input, #seqstatic").attr("disabled", "disabled");
+	this.disable();
 	//Only allow editing on new entries
 	if (typeof(editable) == "undefined" || editable) {
 		var _this = this;
@@ -218,4 +247,20 @@ SequenceEditor.prototype.set_data = function(data, editable) {
 			_this.edit(); 
 		})
 	}
+}
+SequenceEditor.prototype.disable = function() {
+	$("#seqgen, #seqparams input, #seqstatic").attr("disabled", "disabled");
+}
+SequenceEditor.prototype.get_data = function() {
+	if ($("#sequence #seqlist").get(0).tagName == "INPUT") {
+		//This is a new sequence, create new!
+		var data = {};
+		data['name'] = $("#seqlist").attr("value");
+		data['generator'] = $("#seqgen").attr("value");
+		data['params'] = {};
+		$("#seqparams input").each(function() { data['params'][this.name] = this.value; });
+		data['static'] = $("#seqstatic").attr("checked") == "checked";
+		return data;
+	}
+	return $("#sequence #seqlist").attr("value");
 }

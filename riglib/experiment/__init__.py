@@ -7,8 +7,10 @@ import numpy as np
 
 try:
     import traits.api as traits
+    import traits.trait_types as trait_types
 except ImportError:
     import enthought.traits.api as traits
+    import enthought.traits.trait_types as trait_types
 
 import features
 import generate
@@ -23,7 +25,8 @@ featlist = dict(
     autostart=features.Autostart, 
     button=features.Button, 
     button_only=features.ButtonOnly, 
-    ignore_correctness=features.IgnoreCorrectness
+    ignore_correctness=features.IgnoreCorrectness,
+    reward_system = features.RewardSystem,
 )
 genlist = dict(
     endless=generate.endless,
@@ -33,6 +36,8 @@ genlist = dict(
     trialtypes=generate.sequence,
     redgreen=redgreen.gencoords,
 )
+
+typemap = {trait_types.Tuple:tuple}
 
 def make(exp_class, feats=()):
     clslist = tuple(featlist[f] for f in feats if f in featlist)

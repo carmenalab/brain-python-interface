@@ -10,7 +10,7 @@ class Pygame(LogExperiment):
     
     timeout_time = traits.Float(4., desc="Timmout (in seconds) during a trial while waiting for a response")
     penalty_time = traits.Float(5., desc="Length of penalty (in seconds) for incorrect and premature responses")
-    reward_time = traits.Float(5., desc="Length of reward (in seconds)")
+    reward_time = traits.Float(5, desc='Time of reward in seconds')
 
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "2560,0"

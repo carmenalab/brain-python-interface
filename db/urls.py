@@ -10,9 +10,9 @@ urlpatterns = patterns('',
     (r'^ajax/task_seq/(?P<idx>\d+)/', "tracker.ajax.task_seq"),
     (r'^ajax/exp_info/(?P<idx>\d+)/', 'tracker.ajax.exp_info'),
     (r'^ajax/seq_data/(?P<idx>\d+)/', 'tracker.ajax.seq_data'),
+    (r'^start/?', 'tracker.ajax.start_experiment'),
     # Uncomment the admin/doc line below to enable admin documentation:
     (r'^admin/doc/', include('django.contrib.admindocs.urls')),
-
     # Uncomment the next line to enable the admin:
     (r'^admin/', include(admin.site.urls)),
 )
