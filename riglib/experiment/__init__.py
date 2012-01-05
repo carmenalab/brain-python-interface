@@ -40,8 +40,14 @@ genlist = dict(
 typemap = {trait_types.Tuple:tuple}
 
 def make(exp_class, feats=()):
-    clslist = tuple(featlist[f] for f in feats if f in featlist)
-    clslist = clslist + tuple(f for f in feats if f not in featlist) + (exp_class,)
+    clslist = []
+    for f in feats:
+        if f in featlist:
+            clslist.append(featlist[f])
+        else:
+            clslist.append(f)
+            
+    clslist = tuple(clslist) + (exp_class,)
     return type(exp_class.__name__, clslist, dict())
 
 def consolerun(exp_class, features=(), probs=None, **kwargs):

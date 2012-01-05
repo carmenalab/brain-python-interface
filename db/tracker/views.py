@@ -7,7 +7,8 @@ import json
 from django.template import RequestContext
 from django.shortcuts import render_to_response
 
-from tracker.models import TaskEntry, Task, Subject, Feature, Generator
+from . import  expqueue
+from models import TaskEntry, Task, Subject, Feature, Generator
 
 from riglib import experiment
 from tasks import tasklist
@@ -20,7 +21,9 @@ def list(request):
 	featdoc = dict([(f.name, featlist[f.name].__doc__) for f in Feature.objects.all()])
 	gens = Generator.objects.all().order_by("name")
 	jsongens = json.dumps(dict([(g.id, (g.name, g.params, g.static)) for g in gens]))
+
 	return render_to_response('list.html', dict(
+		running=expqueue[0][0] if len(expqueue) > 0 else None,
 		entries=entries, 
 		subjects=subjects, 
 		tasks=tlist, 

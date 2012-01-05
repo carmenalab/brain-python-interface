@@ -16,7 +16,7 @@ var genparams = {{gens}};
 function startnew() {
 	if ($("#newentry").length == 0) {
 		$("#addbtn").hide();
-		$("#main tbody").append(
+		$("#main tbody tr").first().before(
 		"<tr id='newentry' class='rowactive'>"+
 		"	<td class='colDate'>Now</td>"+
 		"	<td class='colSubj'>"+
@@ -40,16 +40,21 @@ function startnew() {
 
 TaskEntry.prototype.activate = function() {
 	$("#content").hide()
-	for (var i in entries)
-		entries[i].deactivate()
+	for (var i in entries) {
+		entries[i].deactivate();
+	}
 	
-	this.tr.addClass("rowactive");
-	var html = "<form id='experiment' action='javascript:start_experiment();'>";
+	this.tr.addClass("active rowactive");
+	$("#content").addClass("active");
+	if (this.running)
+		$("#content").addClass("running");
+	var status = this.running ? "stop" : "start";
+	var html = "<form id='experiment' action='javascript:"+status+"_experiment();'>";
 	html += "	{% csrf_token %}";
 	html += "	<div class='options'></div>";
 	html += "	<div class='rightside'></div>";
+	html += "	<input type='submit' value='S"+status.substr(1)+" Experiment' />";
 	html += "	<div class='clear'></div>";
-	html += "	<input type='submit' value='Start Experiment' />";
 	html += "</form>";
 	$("#content").html(html);
 
@@ -76,6 +81,8 @@ TaskEntry.prototype.activate = function() {
 		this.sequence = new SequenceEditor();
 		$("#content input[type='submit']").show();
 	} else {
+		if (this.running)
+			$("#content input[type='submit']").show();
 		this.populate();
 	}
 }
@@ -90,7 +97,8 @@ TaskEntry.prototype.activate = function() {
 			</thead>
 			<tbody>
 			{% for e in entries %}
-				<tr id='row{{e.id}}'><td class='colDate'>{{e.date}}</td>
+				<tr id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
+				<td class='colDate'>{{e.date}}</td>
 				<td class='colSubj'>{{e.subject.name}}</td>
 				<td class='colTask'>{{e.task.name}}</td></tr>
 			{% endfor %}

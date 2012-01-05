@@ -4,6 +4,7 @@ from experiment import LogExperiment, TrialTypes
 def report(exp):
     assert isinstance(exp, LogExperiment), "Cannot report on non-logged experiments"
     ttypes = exp.trial_types if isinstance(exp, TrialTypes) else ["trial"]
+    print ttypes
     trials = dict([(t, dict(correct=[], incorrect=[], timeout=[])) for t in ttypes])
     report = dict(rewards=0, prematures=[], trials=trials)
     trial = None

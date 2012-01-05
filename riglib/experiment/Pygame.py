@@ -70,3 +70,7 @@ class Pygame(LogExperiment):
     
     def _test_post_penalty(self, ts):
         return ts > self.penalty_time
+    
+    def _start_None(self):
+        pygame.display.quit()
+        

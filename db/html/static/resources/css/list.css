@@ -34,8 +34,10 @@ th { text-align:left;}
 .rowactive td { 
 	position:relative; 
 	z-index:10;
-	background-color:#FAFAFA;
 }
+.active td, .active { background-color:#FAFAFA; }
+.running td, .running { background-color:#DFD; }
+
 div#leftpane { float:left; width:30%; }
 div#rightpane { float:left; width:70%; }
 div#content { 
@@ -43,7 +45,6 @@ div#content {
 	display:none;
 	border-left:1px solid #DDD;
 	margin-left:-1px;
-	background-color:#FAFAFA;
 }
 fieldset { 
 	margin:0.5em;

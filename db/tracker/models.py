@@ -44,10 +44,17 @@ class TaskEntry(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     task = models.ForeignKey(Task)
     feats = models.ManyToManyField(Feature)
+    sequence = models.ForeignKey(Sequence)
+
     params = models.TextField()
     report = models.TextField()
     notes = models.TextField()
-    sequence = models.ForeignKey(Sequence)
+
+    def __unicode__(self):
+        return "{date}: {subj} on {task} task".format(
+            date=self.date.strftime("%h. %e, %Y, %l:%M %p"),
+            subj=self.subject.name,
+            task=self.task.name)
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject)

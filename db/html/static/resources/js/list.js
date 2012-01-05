@@ -23,10 +23,19 @@ function start_experiment() {
 	var form = new Object();
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(data);
-	console.log(form);
 
-	$.post("start", form, function(data) {
-		console.log(data);
+	$.post("start", form, function(data) { entries[entries.length-1]._running(data); })
+}
+function stop_experiment() {
+	$.getJSON("stop", {}, function(data) {
+		if (data == "success") {
+			$("#content input[type='submit']").hide();
+			$("table#main tbody>tr").removeClass("running");
+			$("#content").removeClass("running");
+			$("#addbtn").show()
+			for (var i in entries)
+				entries[i].running = false;
+		}
 	})
 }
 
@@ -46,13 +55,18 @@ function TaskEntry(idx){
 		this.idx = parseInt(idx.match(/row(\d+)/)[1])
 		this.tr = $("#"+idx)
 	}
-	this.active = false
-	var _this = this
+	this.active = false;
+	this.running = this.tr.hasClass("running");
+	var _this = this;
 	this.tr.click(function() {
 		if (!_this.active) {
 			_this.activate(); 
 		}
 	})
+	if (this.running) {
+		this.activate();
+		$("#addbtn").hide()
+	}
 }
 TaskEntry.prototype._add_fieldset = function(name, where) {
 	$("#content div."+where).append(
@@ -65,7 +79,7 @@ TaskEntry.prototype._setup_params = function(params) {
 	for (var i in params) {
 		html += "<li title='"+params[i][0]+"'>\n"+
 			"	<label class='traitname' for='"+i+"'>"+i+"</label>\n"+
-			"	<input id='"+i+"' name='"+i+"' type='text' value='"+params[i][1]+"' />"+
+			"	<input id='"+i+"' name='"+i+"' type='text' value='"+JSON.stringify(params[i][1])+"' />"+
 			"<div class='clear'></div></li>";
 	}
 	$("#parameters ul").append(html);
@@ -86,9 +100,25 @@ TaskEntry.prototype._query_params = function() {
 		}
 	})
 }
+TaskEntry.prototype._running = function(data) {
+	this.newentry = false;
+	this.running = true;
+	this.disable();
+	this.idx = data['id'];
+
+	$("#newentry td.colDate").html(data['date']);
+	$("#newentry td.colSubj").html(data['subj']);
+	$("#newentry td.colTask").html(data['task']);
+	$("#newentry").attr("id", "row"+data['id']);
+	$("#content input[type='submit']").attr("value", "Stop Experiment");
+	$("#content form").attr("action", "javascript:stop_experiment();");
+	$("#content").addClass("running");
+	this.tr.addClass("running");
+}
 
 TaskEntry.prototype.deactivate = function() {
-	this.tr.removeClass("rowactive");
+	this.tr.removeClass("active rowactive");
+	$("#content").removeClass("running");
 	this.active = false;
 	if (this.newentry) {
 		//Delete this row entirely
@@ -100,11 +130,13 @@ TaskEntry.prototype.deactivate = function() {
 TaskEntry.prototype.disable = function() {
 	$("#parameters input, #features input").attr("disabled", "disabled");
 	this.sequence.disable();
+	if (this.newentry)
+		$("#subjects input, #tasks input").attr("disabled", "disabled");
 }
 TaskEntry.prototype.populate = function() {
 	var _this = this;
 	$.getJSON("ajax/exp_info/"+this.idx, {}, function(data) {
-		_this.sequence = new SequenceEditor(data['seqid']);
+		_this.sequence = new SequenceEditor(data['task'], data['seqid']);
 		_this._setup_params(data['params']);
 		$("#notes textarea").html(data['notes']);
 		for (var name in data['features']) {
@@ -123,7 +155,7 @@ TaskEntry.prototype.populate = function() {
 
 
 
-function SequenceEditor(idx) {
+function SequenceEditor(task, idx) {
 	var html = "<legend>Sequence</legend>";
 	html += "<label class='traitname' for='seqlist'>Name:</label>";
 	html += "<select id='seqlist' name='seq_name'></select><div class='clear'></div>";
@@ -144,7 +176,7 @@ function SequenceEditor(idx) {
 		$("#tasks").change(function() { _this._query_sequences($(this).attr("value")); });
 		this._query_sequences($("#tasks").attr("value"));
 	} else {
-		this._query_sequences(idx, false);
+		this._query_sequences(task)
 	}
 }
 SequenceEditor.prototype._update_params = function() {
@@ -167,7 +199,7 @@ SequenceEditor.prototype._update_params = function() {
 	}
 	$("#sequence #seqparams").html(html)
 }
-SequenceEditor.prototype._query_sequences = function(task, editable) {
+SequenceEditor.prototype._query_sequences = function(task) {
 	var _this = this;
 	$.getJSON("ajax/task_seq/"+task, {}, function(data) {
 		$("#sequence #seqlist").replaceWith("<select id='seqlist' name='seq_name'></select>");
@@ -175,13 +207,17 @@ SequenceEditor.prototype._query_sequences = function(task, editable) {
 		for (var i in data) 
 			html += "<option value='"+i+"'>"+data[i]+"</option>";
 		$("#sequence #seqlist").append(html+"<option value='new'>Create New...</option>");
-
-		if (typeof(editable) == "undefined")
-			$("#sequence #seqlist").change(function() { _this._query_data(); });
-		else
-			$("#sequence #seqlist").attr("disabled", "disabled");
+		$("#sequence #seqlist").change(function() { _this._query_data(); });
 		
-		_this._query_data(editable);
+		if (typeof(_this.idx) != "undefined") {
+			$("#sequence #seqlist").attr("disabled", "disabled");
+			$("#sequence #seqlist option").each(function() {
+				if (this.value == _this.idx)
+					$(this).attr("selected", "selected");
+			})
+			_this._query_data(false);
+		} else
+			_this._query_data(true);
 	})
 }
 SequenceEditor.prototype._query_data = function(editable) {
@@ -230,7 +266,7 @@ SequenceEditor.prototype.set_data = function(data, editable) {
 	//Setup parameters
 	this._update_params()
 	for (var i in data['params']) {
-		$("#sequence #seq_"+i).attr("value", data['params'][i])
+		$("#sequence #seq_"+i).attr("value", JSON.stringify(data['params'][i]))
 	}
 	//Setup static
 	if (data['static'])
