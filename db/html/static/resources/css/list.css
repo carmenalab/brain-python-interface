@@ -86,3 +86,4 @@ input[type=text] {
 	font-size:16pt;
 	box-shadow: 0 0 5px blue;
 }
+#copybtn { display:none; }

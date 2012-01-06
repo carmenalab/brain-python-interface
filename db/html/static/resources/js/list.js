@@ -7,8 +7,8 @@ $(document).ready(function() {
 
 function start_experiment() {
 	var data = new Object();
-	data['subject'] = $("#subjects").attr("value");
-	data['task'] = $("#tasks").attr("value");
+	data['subject_id'] = $("#subjects").attr("value");
+	data['task_id'] = $("#tasks").attr("value");
 	data['feats'] = new Array();
 	$("#experiment #features input").each(function() {
 		if ($(this).attr("checked"))
@@ -24,17 +24,22 @@ function start_experiment() {
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(data);
 
-	$.post("start", form, function(data) { entries[entries.length-1]._running(data); })
+	$.post("start", form, function(data) { 
+		$("#newentry td.colDate").html(data['date']);
+		$("#newentry td.colSubj").html(data['subj']);
+		$("#newentry td.colTask").html(data['task']);
+		$("#newentry").attr("id", "row"+data['id']);
+		entries[entries.length-1].idx = data['id'];
+		entries[entries.length-1]._runstart(); 
+	})
 }
 function stop_experiment() {
 	$.getJSON("stop", {}, function(data) {
 		if (data == "success") {
-			$("#content input[type='submit']").hide();
-			$("table#main tbody>tr").removeClass("running");
-			$("#content").removeClass("running");
-			$("#addbtn").show()
 			for (var i in entries)
-				entries[i].running = false;
+				if (entries[i].running)
+					break;
+			entries[i]._runstop()
 		}
 	})
 }
@@ -43,12 +48,10 @@ function TaskEntry(idx){
 	if (idx == -1) {
 		//This is a new row, need to set task name
 		this.newentry = true
-		this.task = $("#tasks option").filter(":selected").text()
 		this.tr = $("#newentry")
 		var _this = this;
 		$("#tasks").change(function() {
-			_this.task = $("#tasks option").filter(":selected").text()
-			_this._query_params()
+			_this._query_params($("#tasks option").filter(":selected").text())
 		})
 	} else {
 		this.newentry = false
@@ -60,13 +63,14 @@ function TaskEntry(idx){
 	var _this = this;
 	this.tr.click(function() {
 		if (!_this.active) {
-			_this.activate(); 
+			_this.activate();
 		}
 	})
 	if (this.running) {
 		this.activate();
 		$("#addbtn").hide()
 	}
+
 }
 TaskEntry.prototype._add_fieldset = function(name, where) {
 	$("#content div."+where).append(
@@ -84,14 +88,14 @@ TaskEntry.prototype._setup_params = function(params) {
 	}
 	$("#parameters ul").append(html);
 }
-TaskEntry.prototype._query_params = function() {
+TaskEntry.prototype._query_params = function(task) {
 	var data = {}
 	$("#features input").filter(":checked").each(function(i) {
 		data[$(this).attr("name")] = true
 	})
 
 	var _this = this;
-	$.getJSON("ajax/task_params/"+this.task, data, function(data){
+	$.getJSON("ajax/task_params/"+task, data, function(data){
 		$("#parameters ul").html("");
 		_this._setup_params(data);
 		if (!_this.active) {
@@ -100,20 +104,22 @@ TaskEntry.prototype._query_params = function() {
 		}
 	})
 }
-TaskEntry.prototype._running = function(data) {
+TaskEntry.prototype._runstart = function(data) {
 	this.newentry = false;
 	this.running = true;
 	this.disable();
-	this.idx = data['id'];
-
-	$("#newentry td.colDate").html(data['date']);
-	$("#newentry td.colSubj").html(data['subj']);
-	$("#newentry td.colTask").html(data['task']);
-	$("#newentry").attr("id", "row"+data['id']);
+	
 	$("#content input[type='submit']").attr("value", "Stop Experiment");
 	$("#content form").attr("action", "javascript:stop_experiment();");
 	$("#content").addClass("running");
 	this.tr.addClass("running");
+}
+TaskEntry.prototype._runstop = function(data) {
+	this.running = false;
+	$("#content").removeClass("running");
+	this.tr.removeClass("running");
+	$("#content input[type='submit']").hide()
+	$("#content form").removeAttr("action");
 }
 
 TaskEntry.prototype.deactivate = function() {
@@ -133,9 +139,9 @@ TaskEntry.prototype.disable = function() {
 	if (this.newentry)
 		$("#subjects input, #tasks input").attr("disabled", "disabled");
 }
-TaskEntry.prototype.populate = function() {
+TaskEntry.prototype.populate = function(idx, disable) {
 	var _this = this;
-	$.getJSON("ajax/exp_info/"+this.idx, {}, function(data) {
+	$.getJSON("ajax/exp_info/"+idx, {}, function(data) {
 		_this.sequence = new SequenceEditor(data['task'], data['seqid']);
 		_this._setup_params(data['params']);
 		$("#notes textarea").html(data['notes']);
@@ -144,7 +150,8 @@ TaskEntry.prototype.populate = function() {
 				$("#features input#"+name).attr("checked", "checked");
 			}
 		}
-		_this.disable();
+		if (typeof(disable) == "undefined" || disable)
+			_this.disable();
 		if (!_this.active) {
 			$("#content").show("drop");
 			_this.active = true;
@@ -299,4 +306,16 @@ SequenceEditor.prototype.get_data = function() {
 		return data;
 	}
 	return $("#sequence #seqlist").attr("value");
+}
+
+
+function Report(update, data) {
+	this.obj = $("#content #report");
+
+	var html = "";
+	if (typeof(update) != "undefined" && update ) {
+		html += "<label for='id"
+	} else {
+		
+	}
 }

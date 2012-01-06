@@ -1,13 +1,9 @@
-import os
-import sys
-cwd = os.path.split(os.path.abspath(__file__))[0]
-sys.path.insert(0, os.path.join(cwd, "..", ".."))
 import json
 
 from django.template import RequestContext
 from django.shortcuts import render_to_response
 
-from . import  expqueue
+from track import tracker
 from models import TaskEntry, Task, Subject, Feature, Generator
 
 from riglib import experiment
@@ -23,7 +19,7 @@ def list(request):
 	jsongens = json.dumps(dict([(g.id, (g.name, g.params, g.static)) for g in gens]))
 
 	return render_to_response('list.html', dict(
-		running=expqueue[0][0] if len(expqueue) > 0 else None,
+		running=tracker._entry.id if tracker.running else None,
 		entries=entries, 
 		subjects=subjects, 
 		tasks=tlist, 

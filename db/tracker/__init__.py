@@ -1,12 +1,6 @@
-import json
-from models import TaskEntry
+import os
+import sys
+cwd = os.path.split(os.path.abspath(__file__))[0]
+sys.path.insert(0, os.path.join(cwd, "..", ".."))
 
-expqueue = []
-
-class CommitFeat(object):
-	def _start_None(self):
-		super(CommitFeat, self)._start_None()
-		te = TaskEntry.objects.get(pk=expqueue[0][0])
-		te.report = json.dumps(expqueue[0][1].event_log)
-		te.save()
-		expqueue.pop()
+os.nice(2)

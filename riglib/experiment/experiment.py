@@ -50,8 +50,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.stop = True
 
 class LogExperiment(Experiment):
-    state_log = []
-    event_log = []
+    def __init__(self, **kwargs):
+        self.state_log = []
+        self.event_log = []
+        super(LogExperiment, self).__init__(**kwargs)
 
     def trigger_event(self, event):
         self.event_log.append((self.state, event, time.time()))

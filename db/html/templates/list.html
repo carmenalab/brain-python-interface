@@ -13,11 +13,10 @@
 var genparams = {{gens}};
 {% endautoescape %}
 
-function startnew() {
+function startnew(copyid) {
 	if ($("#newentry").length == 0) {
 		$("#addbtn").hide();
-		$("#main tbody tr").first().before(
-		"<tr id='newentry' class='rowactive'>"+
+		html = "<tr id='newentry' class='rowactive'>"+
 		"	<td class='colDate'>Now</td>"+
 		"	<td class='colSubj'>"+
 		"		<select id='subjects'>"+
@@ -31,14 +30,32 @@ function startnew() {
 		"			{% endfor %}"+
 		"		</select>"+
 		"	</td>"+
-		"</tr>");
+		"</tr>";
+		if ($("#main tbody tr").length == 0)
+			$("#main tbody").append(html);
+		else
+			$("#main tbody tr").first().before(html);
+
 		var newtask = new TaskEntry(-1);
-		newtask.activate();
+		//Copy data from another entry
+		if (typeof(copyid) != "undefined") {
+			$("#subjects option").each(function() {
+				if ($("#row"+copyid+" td.colSubj").text() == $(this).html())
+					$(this).attr("selected", "selected");
+			})
+			$("#tasks option").each(function() {
+				if ($("#row"+copyid+" td.colTask").text() == $(this).html())
+					$(this).attr("selected", "selected");
+			})
+			newtask.activate(copyid);
+		} else {
+			newtask.activate();
+		}
 		entries.push(newtask)
 	}
 }
 
-TaskEntry.prototype.activate = function() {
+TaskEntry.prototype.activate = function(idx) {
 	$("#content").hide()
 	for (var i in entries) {
 		entries[i].deactivate();
@@ -53,6 +70,7 @@ TaskEntry.prototype.activate = function() {
 	html += "	{% csrf_token %}";
 	html += "	<div class='options'></div>";
 	html += "	<div class='rightside'></div>";
+	html += "	<input id='copybtn' type='button' onclick='startnew("+this.idx+")' value='Copy parameters' />";
 	html += "	<input type='submit' value='S"+status.substr(1)+" Experiment' />";
 	html += "	<div class='clear'></div>";
 	html += "</form>";
@@ -74,16 +92,23 @@ TaskEntry.prototype.activate = function() {
 		"</li>\n";
 	{% endfor %}
 	$("#features ul").append(html);
-	if (this.newentry) {
+
+	if (typeof(idx) != "undefined") {
+		this.populate(idx, false);
+		$("#content input[type='submit']").show();
+	} else if (this.newentry) {
 		var _this = this;
-		this._query_params();
-		$("#features input").change(function() { _this._query_params();	});
+		this._query_params($("#tasks option").filter(":selected").text());
+		$("#features input").change(function() { 
+			_this._query_params($("#tasks option").filter(":selected").text());	
+		});
 		this.sequence = new SequenceEditor();
 		$("#content input[type='submit']").show();
 	} else {
 		if (this.running)
 			$("#content input[type='submit']").show();
-		this.populate();
+		this.populate(this.idx);
+		$("#copybtn").show()
 	}
 }
 
