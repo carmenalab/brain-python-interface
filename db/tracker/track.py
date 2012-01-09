@@ -34,20 +34,20 @@ class Track(threading.Thread):
 		try:
 			cmd, data = pipe_db.recv()
 			while cmd is not None:
-				try:
-					if cmd == "start":
-						exp = self._start(data)
-						exp.start()
-						pipe_db.send(data)
-						self._running.value = True
-					elif cmd == "stop":	
-						exp.end_task()
-						pipe_db.send("success")
-						self._running.value = False
-					elif cmd == "report":
-						pipe_db.send(experiment.report(exp))
-				except Exception as e:
-					pipe_db.send(e)
+#				try:
+				if cmd == "start":
+					exp = self._start(data)
+					exp.start()
+					pipe_db.send(data)
+					self._running.value = True
+				elif cmd == "stop":	
+					exp.end_task()
+					pipe_db.send("success")
+					self._running.value = False
+				elif cmd == "report":
+					pipe_db.send(experiment.report(exp))
+#				except Exception as e:
+#					pipe_db.send(e)
 				
 				cmd, data = pipe_db.recv()
 		finally:

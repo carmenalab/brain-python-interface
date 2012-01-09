@@ -19,7 +19,7 @@ class Button(object):
     def pressed(self):
         status = False
         cur = self._check()
-        if cur in [1, 2] and self.last == 0:
+        if cur in [1, 2, 4, 8] and self.last == 0:
             status = cur
             
         self.last = cur
