@@ -120,6 +120,8 @@ TaskEntry.prototype._runstop = function(data) {
 	this.tr.removeClass("running");
 	$("#content input[type='submit']").hide()
 	$("#content form").removeAttr("action");
+	$("#addbtn").show()
+	$("#copybtn").show()
 }
 
 TaskEntry.prototype.deactivate = function() {
@@ -142,7 +144,8 @@ TaskEntry.prototype.disable = function() {
 TaskEntry.prototype.populate = function(idx, disable) {
 	var _this = this;
 	$.getJSON("ajax/exp_info/"+idx, {}, function(data) {
-		_this.sequence = new SequenceEditor(data['task'], data['seqid']);
+		d = typeof(disable) == "undefined" ? true : disable;
+		_this.sequence = new SequenceEditor(data['task'], data['seqid'], !d);
 		_this._setup_params(data['params']);
 		$("#notes textarea").html(data['notes']);
 		for (var name in data['features']) {
@@ -150,8 +153,9 @@ TaskEntry.prototype.populate = function(idx, disable) {
 				$("#features input#"+name).attr("checked", "checked");
 			}
 		}
-		if (typeof(disable) == "undefined" || disable)
+		if (typeof(disable) == "undefined" || disable) {
 			_this.disable();
+		}
 		if (!_this.active) {
 			$("#content").show("drop");
 			_this.active = true;
@@ -162,7 +166,7 @@ TaskEntry.prototype.populate = function(idx, disable) {
 
 
 
-function SequenceEditor(task, idx) {
+function SequenceEditor(task, idx, editable) {
 	var html = "<legend>Sequence</legend>";
 	html += "<label class='traitname' for='seqlist'>Name:</label>";
 	html += "<select id='seqlist' name='seq_name'></select><div class='clear'></div>";
@@ -174,6 +178,8 @@ function SequenceEditor(task, idx) {
 	$("#sequence").html(html);
 	for (var i in genparams)
 		$("#sequence #seqgen").append("<option value='"+i+"'>"+genparams[i][0]+"</option>");
+
+	this.editable = typeof(editable) == "undefined" ? typeof(idx) == "undefined" : editable;
 	
 	var _this = this;
 	$("#sequence #seqgen").change(function() { _this._update_params(); });
@@ -216,27 +222,27 @@ SequenceEditor.prototype._query_sequences = function(task) {
 		$("#sequence #seqlist").append(html+"<option value='new'>Create New...</option>");
 		$("#sequence #seqlist").change(function() { _this._query_data(); });
 		
-		if (typeof(_this.idx) != "undefined") {
+		if (!_this.editable)
 			$("#sequence #seqlist").attr("disabled", "disabled");
+		
+		if (typeof(_this.idx) != "undefined") {
 			$("#sequence #seqlist option").each(function() {
 				if (this.value == _this.idx)
 					$(this).attr("selected", "selected");
 			})
-			_this._query_data(false);
-		} else
-			_this._query_data(true);
+		}
+		_this._query_data();
 	})
 }
-SequenceEditor.prototype._query_data = function(editable) {
+SequenceEditor.prototype._query_data = function() {
 	var data_id = $("#sequence #seqlist").attr("value");
 
 	var _this = this;
 	if (data_id == "new") {
 		this._update_params();
 		this.edit();
-	}
-	else
-		$.getJSON("ajax/seq_data/"+data_id, {}, function(data) { _this.set_data(data, editable); })
+	} else
+		$.getJSON("ajax/seq_data/"+data_id, {}, function(data) { _this.set_data(data); })
 }
 SequenceEditor.prototype._make_name = function() {
 	var gen = $("#sequence #seqgen option").filter(":selected").text()
@@ -265,7 +271,7 @@ SequenceEditor.prototype.edit = function() {
 	})
 }
 
-SequenceEditor.prototype.set_data = function(data, editable) {
+SequenceEditor.prototype.set_data = function(data) {
 	//Setup generator
 	$("#sequence #seqgen option").filter(function() {
 		return $(this).attr("value") == data['genid'];
@@ -282,7 +288,7 @@ SequenceEditor.prototype.set_data = function(data, editable) {
 	//Disable all the inputs
 	this.disable();
 	//Only allow editing on new entries
-	if (typeof(editable) == "undefined" || editable) {
+	if (this.editable) {
 		var _this = this;
 		//Add a callback to enable editing
 		$("#sequence #seqparams").bind("click.edit", function() { 
@@ -293,6 +299,8 @@ SequenceEditor.prototype.set_data = function(data, editable) {
 }
 SequenceEditor.prototype.disable = function() {
 	$("#seqgen, #seqparams input, #seqstatic").attr("disabled", "disabled");
+	$("#seqparams input").attr("disabled", "disabled");
+	$("#seqstatic").attr("disabled", "disabled");	
 }
 SequenceEditor.prototype.get_data = function() {
 	if ($("#sequence #seqlist").get(0).tagName == "INPUT") {

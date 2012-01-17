@@ -160,8 +160,9 @@ try:
     reward
 except NameError:
     try:
+        import glob
         import serial
-        port = serial.Serial("/dev/ttyUSB0", baudrate=38400)
+        port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
         reward = System(port=port)
         reward.start()
     except:

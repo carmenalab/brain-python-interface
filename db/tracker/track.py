@@ -82,15 +82,19 @@ class Track(threading.Thread):
 						gen=seqdb.generator.name, 
 						params=json.loads(seqdb.params), 
 						static=seqdb.generator.static))
+			elif cmd == "taskget":
+				task = Task.objects.get(pk=data)
+				self.pipe_disp.send(dict(id=task.id, name=task.name))
 			
 			cmd, data = self.pipe_disp.recv()
 		
 		print "quit thread"
 	
 	def _start(self, data):
-		task = Task.objects.get(pk=data['task_id'])
-		Exp = experiment.make(tasklist[task.name], feats=[self.commitfeat]+data['feats'])
-		seqid, gen, args = self._sequence(data['sequence'], task.pk)
+		self._pipe_disp.send(("taskget", data['task_id']))
+		task = self._pipe_disp.recv()
+		Exp = experiment.make(tasklist[task['name']], feats=[self.commitfeat]+data['feats'])
+		seqid, gen, args = self._sequence(data['sequence'], task['id'])
 		gen = gen(Exp, **args)
 		del data['sequence']
 		data['sequence_id'] = seqid

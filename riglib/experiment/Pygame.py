@@ -13,7 +13,7 @@ class Pygame(LogExperiment):
     reward_time = traits.Float(5, desc='Time of reward in seconds')
 
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "2560,0"
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "1024,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
 
