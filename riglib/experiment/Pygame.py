@@ -8,7 +8,7 @@ class Pygame(LogExperiment):
     background = (0,0,0)
     fps = 60
     
-    timeout_time = traits.Float(4., desc="Timmout (in seconds) during a trial while waiting for a response")
+    timeout_time = traits.Float(4., desc="Timeout (in seconds) during a trial while waiting for a response")
     penalty_time = traits.Float(5., desc="Length of penalty (in seconds) for incorrect and premature responses")
     reward_time = traits.Float(5, desc='Time of reward in seconds')
 
