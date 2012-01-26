@@ -78,7 +78,7 @@ input[type=text] {
 	padding:2px;
 	border-radius:2px;
 }
-#experiment input[type='submit'] {
+#experiment .startbtn {
 	display:none;
 	float:right;
 	margin:8px;

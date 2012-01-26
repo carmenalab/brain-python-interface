@@ -66,12 +66,14 @@ TaskEntry.prototype.activate = function(idx) {
 	if (this.running)
 		$("#content").addClass("running");
 	var status = this.running ? "stop" : "start";
-	var html = "<form id='experiment' action='javascript:"+status+"_experiment();'>";
+	var btnname = "S"+status.substr(1)+" Experiment";
+	var html = "<form id='experiment'>";
 	html += "	{% csrf_token %}";
 	html += "	<div class='options'></div>";
 	html += "	<div class='rightside'></div>";
 	html += "	<input id='copybtn' type='button' onclick='startnew("+this.idx+")' value='Copy parameters' />";
-	html += "	<input type='submit' value='S"+status.substr(1)+" Experiment' />";
+	html += "	<input id='startbtn' class='startbtn' type='button' value='"+btnname+"' onclick='"+status+"_experiment()' />";
+	html += "	<input id='testbtn' class='startbtn' type='button' value='Test' onclick='test_experiment()' />";
 	html += "	<div class='clear'></div>";
 	html += "</form>";
 	$("#content").html(html);
@@ -95,7 +97,7 @@ TaskEntry.prototype.activate = function(idx) {
 
 	if (typeof(idx) != "undefined") {
 		this.populate(idx, false);
-		$("#content input[type='submit']").show();
+		$("#content .startbtn").show();
 	} else if (this.newentry) {
 		var _this = this;
 		this._query_params($("#tasks option").filter(":selected").text());
@@ -103,10 +105,10 @@ TaskEntry.prototype.activate = function(idx) {
 			_this._query_params($("#tasks option").filter(":selected").text());	
 		});
 		this.sequence = new SequenceEditor();
-		$("#content input[type='submit']").show();
+		$("#content .startbtn").show();
 	} else {
 		if (this.running)
-			$("#content input[type='submit']").show();
+			$("#content .startbtn").show();
 		this.populate(this.idx);
 		$("#copybtn").show()
 	}

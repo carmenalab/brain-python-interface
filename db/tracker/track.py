@@ -1,5 +1,6 @@
 import json
 import cPickle
+import traceback
 import threading
 import multiprocessing as mp
 
@@ -21,7 +22,7 @@ class Track(threading.Thread):
 				tracker._record(self.event_log)
 		self.commitfeat = CommitFeat
 
-		self._running = mp.Value('b', False)
+		self._running = mp.Value('b', 0)
 		self.proc = mp.Process(target=self._proc, args=(self._pipe_disp, self._pipe_db))
 		self.proc.start()
 		self.start()
@@ -34,20 +35,21 @@ class Track(threading.Thread):
 		try:
 			cmd, data = pipe_db.recv()
 			while cmd is not None:
-#				try:
-				if cmd == "start":
-					exp = self._start(data)
-					exp.start()
-					pipe_db.send(data)
-					self._running.value = True
-				elif cmd == "stop":	
-					exp.end_task()
-					pipe_db.send("success")
-					self._running.value = False
-				elif cmd == "report":
-					pipe_db.send(experiment.report(exp))
-#				except Exception as e:
-#					pipe_db.send(e)
+				try:
+					if cmd in ["start", "test"]:
+						exp = self._start(data, save=cmd=="start")
+						exp.start()
+						pipe_db.send(data)
+						self._running.value = dict(start=1,test=2)[cmd]
+					elif cmd == "stop":	
+						exp.end_task()
+						pipe_db.send("success")
+						self._running.value = 0
+					elif cmd == "report":
+						pipe_db.send(experiment.report(exp))
+				except Exception as e:
+					traceback.print_exc()
+					pipe_db.send(e)
 				
 				cmd, data = pipe_db.recv()
 		finally:
@@ -59,13 +61,17 @@ class Track(threading.Thread):
 		cmd, data = self.pipe_disp.recv()
 		while cmd is not None:
 			if cmd == "record":
-				self._entry.report = json.dumps(data)
-				self._entry.save()
+				if not self._test:
+					self._entry.report = json.dumps(data)
+					self._entry.save()
 				self._running.value = False
-			elif cmd in ["seqget", "seqsave"]:
+			elif cmd == "taskget":
+				task = Task.objects.get(pk=data)
+				self.pipe_disp.send(dict(id=task.id, name=task.name))
+			elif cmd in ["seqget", "seqmake", "seqsave"]:
 				if cmd == "seqget":
 					seqdb = Sequence.objects.get(pk=data)
-				elif cmd == "seqsave":
+				else:
 					static = data['static']
 					del data['static']
 					data['params'] = json.dumps(data['params'])
@@ -73,28 +79,26 @@ class Track(threading.Thread):
 					if static:
 						gen = experiment.genlist[seqdb.generator.name]
 						seqdb.sequence = cPickle.dumps(gen(**json.loads(seqdb.params)))
-					seqdb.save()
+					if cmd == "seqsave":
+						seqdb.save()
 				
 				if seqdb.sequence != '':
-					self.pipe_disp.send(dict(id=seqdb.pk, seq=cPickle.loads(seqdb.sequence)))
+					self.pipe_disp.send(dict(id=seqdb.id, seq=cPickle.loads(seqdb.sequence)))
 				else:
 					self.pipe_disp.send(dict(id=seqdb.id, 
 						gen=seqdb.generator.name, 
 						params=json.loads(seqdb.params), 
 						static=seqdb.generator.static))
-			elif cmd == "taskget":
-				task = Task.objects.get(pk=data)
-				self.pipe_disp.send(dict(id=task.id, name=task.name))
 			
 			cmd, data = self.pipe_disp.recv()
 		
 		print "quit thread"
 	
-	def _start(self, data):
+	def _start(self, data, save=True):
 		self._pipe_disp.send(("taskget", data['task_id']))
 		task = self._pipe_disp.recv()
 		Exp = experiment.make(tasklist[task['name']], feats=[self.commitfeat]+data['feats'])
-		seqid, gen, args = self._sequence(data['sequence'], task['id'])
+		seqid, gen, args = self._sequence(data['sequence'], task['id'], save)
 		gen = gen(Exp, **args)
 		del data['sequence']
 		data['sequence_id'] = seqid
@@ -117,7 +121,7 @@ class Track(threading.Thread):
 		'''Display-side process for saving event_log'''
 		self._pipe_disp.send(("record", log))
 	
-	def _sequence(self, data, taskid):
+	def _sequence(self, data, taskid, save=True):
 		'''Display-side process for fetching or saving a sequence'''
 		if isinstance(data, dict):
 			#parse the text input, save a new sequence object
@@ -128,7 +132,7 @@ class Track(threading.Thread):
 				name=data['name'], 
 				params=params,
 				static=data['static'])
-			self._pipe_disp.send(("seqsave", seqdb))
+			self._pipe_disp.send((("seqmake", "seqsave")[save], seqdb))
 		else:
 			self._pipe_disp.send(("seqget", int(data)))
 		
@@ -145,20 +149,28 @@ class Track(threading.Thread):
 	def running(self):
 		return self._running.value == 1
 	
-	def new(self, data):
-		self.pipe_db.send(("start", data))
+	@property
+	def testing(self):
+		return self._running.value == 2
+	
+	def new(self, data, save=True):
+		self.pipe_db.send((("test", "start")[save], data))
 		data = self.pipe_db.recv()
 		if isinstance(data, Exception):
-			raise data
+			raise e
 		
 		feats = data['feats']
 		del data['feats']
 		data['params'] = json.dumps(data['params'])
 		self._entry = TaskEntry(**data)
-		self._entry.save()
-		for feat in feats:
-			f = Feature.objects.get(name=feat)
-			self._entry.feats.add(f.pk)
+		if save:
+			self._test = False
+			self._entry.save()
+			for feat in feats:
+				f = Feature.objects.get(name=feat)
+				self._entry.feats.add(f.pk)
+		else:
+			self._test = True
 
 		return self._entry
 

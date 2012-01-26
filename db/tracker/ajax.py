@@ -45,28 +45,28 @@ def seq_data(request, idx):
 		static=(seq.sequence != ''),
 	))
 
-def start_experiment(request):
+def start_experiment(request, test=False):
 	#make sure we don't have an already-running experiment
-	if tracker.running:
+	if tracker.running or tracker.testing:
 		return _respond("fail")
 	
 	data = json.loads(request.POST['data'])
-	te = tracker.new(data)
-	print te
-	return _respond(dict(
-		id=te.pk, 
-		date=te.date.strftime("%h. %e, %Y, %l:%M %p"), 
-		subj=te.subject.name, 
-		task=te.task.name))
+	te = tracker.new(data, save=not test)
+	response = dict( id=te.id, subj=te.subject.name, task=te.task.name)
+	if te.date is not None:
+		response['date'] = te.date.strftime("%h. %e, %Y, %l:%M %p") 
+	return _respond(response)
 
 def stop_experiment(request):
 	#make sure that there exists an experiment to stop
-	if not tracker.running:
+	if not (tracker.running or tracker.testing):
 		return _respond("fail")
+
+	testing = tracker.testing
 	tracker.stop()
-	return _respond("success")
+	return _respond(("success", "testing")[testing])
 
 def report(request):
-	#if not tracker.running:
-	#	return _respond("fail")
+	if not (tracker.running or tracker.testing):
+		return _respond("fail")
 	return _respond(tracker.report())

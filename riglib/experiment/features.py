@@ -41,6 +41,10 @@ class Button(object):
                 return btn
                 
         return super(Button, self)._get_event()
+    
+    def _start_None(self):
+        del self.button
+        super(Button, self)._start_None()
 
 class ButtonOnly(Button):
     '''Forces the experiment to respond exclusively to the FTDI button, not to any keybooard events'''
