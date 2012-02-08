@@ -85,15 +85,18 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
     pass
 
 def run(status=None):
-    server = SimpleXMLRPCServer(("localhost", 8001), requestHandler=RequestHandler, allow_none=True)
-    server.register_introspection_functions()
-    server.register_instance(ExpRun())
+    try:
+        server = SimpleXMLRPCServer(("localhost", 8001), requestHandler=RequestHandler, allow_none=True)
+        server.register_introspection_functions()
+        server.register_instance(ExpRun())
 
-    while status is None or status.value == 1:
-        try:
-            server.handle_request()
-        except KeyboardInterrupt:
-            status.value = 0
+        while status is None or status.value == 1:
+            try:
+                server.handle_request()
+            except KeyboardInterrupt:
+                status.value = 0
+    except:
+        pass
 
 if __name__ == "__main__":
     run()
