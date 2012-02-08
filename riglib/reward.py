@@ -1,6 +1,9 @@
+import glob
 import struct
 import threading
 import cStringIO
+
+import serial
 
 try:
     import traits.api as traits
@@ -24,7 +27,7 @@ class _parse_num(object):
 
 class System(traits.HasTraits, threading.Thread):
     _running = True
-    port = traits.Instance("serial.Serial")
+    port = traits.Instance(serial.Serial)
 
     reward_mode = traits.Enum("Time", "Volume", "Count")
     sensor_status = traits.Bool
@@ -155,16 +158,11 @@ class System(traits.HasTraits, threading.Thread):
         mode = ("D", "E")[self.drain_status == "Disabled" if status is None else status]
         self._write("@CNS%sNN"%mode)
 
-try:
-    port
-    reward
-except NameError:
+def open():
     try:
-        import glob
-        import serial
         port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
         reward = System(port=port)
         reward.start()
+        return reward
     except:
         print "Reward system not found"
-        reward = None

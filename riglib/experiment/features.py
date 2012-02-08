@@ -7,7 +7,7 @@ class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
     def __init__(self, *args, **kwargs):
         super(RewardSystem, self).__init__(*args, **kwargs)
-        self.reward = reward.Basic()
+        self.reward = reward.open()
 
     def _start_reward(self):
         if reward is not None:
