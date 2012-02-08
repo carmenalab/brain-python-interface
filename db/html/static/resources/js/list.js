@@ -34,7 +34,7 @@ function test_experiment() {
 function stop_experiment() {
 	$(window).unbind("unload");
 	$.getJSON("stop", {}, function(data) {
-		if (data == "success") {
+		if (data == "running") {
 			for (var i in entries)
 				if (entries[i].running)
 					break;

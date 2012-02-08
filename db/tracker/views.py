@@ -3,12 +3,12 @@ import json
 from django.template import RequestContext
 from django.shortcuts import render_to_response
 
-from track import tracker
 from models import TaskEntry, Task, Subject, Feature, Generator
 
 from riglib import experiment
 from tasks import tasklist
 from riglib.experiment import featlist
+from ajax import display
 
 def list(request):
 	entries = TaskEntry.objects.all().order_by("-date")[:100]
@@ -19,7 +19,7 @@ def list(request):
 	jsongens = json.dumps(dict([(g.id, (g.name, g.params, g.static)) for g in gens]))
 
 	return render_to_response('list.html', dict(
-		running=tracker._entry.id if tracker.running else None,
+		running=display.get_expidx() if display.get_status() == "running" else None,
 		entries=entries, 
 		subjects=subjects, 
 		tasks=tlist, 

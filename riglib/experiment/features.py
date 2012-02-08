@@ -5,6 +5,10 @@ from riglib import button, reward
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
+    def __init__(self, *args, **kwargs):
+        super(RewardSystem, self).__init__(*args, **kwargs)
+        self.reward = reward.open()
+
     def _start_reward(self):
         if reward is not None:
             reward.reward(self.reward_time*1000.)
@@ -13,12 +17,16 @@ class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
     rand_start = traits.Tuple((1, 10))
 
+    def __init__(self, *args, **kwargs):
+        self.pause = False
+        super(Autostart, self).__init__(*args, **kwargs)
+
     def _start_wait(self):
         s, e = self.rand_start
         self.wait_time = random.random()*(e-s) + s
         
     def _test_start_trial(self, ts):
-        return ts > self.wait_time
+        return ts > self.wait_time and not self.pause
     
     def _test_premature(self, ts):
         return self.event is not None

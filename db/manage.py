@@ -8,4 +8,13 @@ except ImportError:
     sys.exit(1)
 
 if __name__ == "__main__":
+    import os
+    import sys
+    import multiprocessing as mp
+    cwd = os.path.abspath(os.path.split(__file__)[0])
+    sys.path.append(os.path.join(cwd, ".."))
+    from riglib import runner
+    status = mp.Value('b', 1)
+    mp.Process(target=runner.run, args=(status,)).start()
     execute_manager(settings)
+    status.value = 0
