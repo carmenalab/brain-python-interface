@@ -1,6 +1,12 @@
+import glob
+import time
 import struct
+import binascii
 import threading
 import cStringIO
+import traceback
+
+import serial
 
 try:
     import traits.api as traits
@@ -8,7 +14,8 @@ except:
     import enthought.traits.api as traits
 
 def _xsum(msg):
-    return chr(sum([ord(c) for c in msg]) % 256)
+    chrval = map(lambda x: int(''.join(x), 16), zip(*[iter(binascii.b2a_hex(msg))]*2))
+    return chr(sum(chrval) % 256)
 
 class _parse_num(object):
     types = {1:'<B', 2:'<H', 4:'<I'}
@@ -21,6 +28,29 @@ class _parse_num(object):
             msg += "\x00"
         i, = struct.unpack(self.t, msg)
         return i*self.m
+
+class Basic(object):
+    def __init__(self):
+        self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[-1], baudrate=38400)
+        self.reset()
+
+    def _write(self, msg):
+        fmsg = msg+_xsum(msg)
+        print "sending %r"%fmsg
+        self.port.flushOutput()
+        self.port.flushInput()
+        self.port.write(fmsg)
+
+    def reward(self, length):
+        length /= .1
+        self._write(struct.pack('<ccxHxx', '@', 'G', length))
+        print repr(self.port.read(self.port.inWaiting()))
+
+    def reset(self):
+        self._write("@CPSNNN")
+        print repr(self.port.read(self.port.inWaiting()))
+        
+
 
 class System(traits.HasTraits, threading.Thread):
     _running = True
@@ -46,6 +76,7 @@ class System(traits.HasTraits, threading.Thread):
     def __init__(self, **kwargs):
         super(System, self).__init__(**kwargs)
         threading.Thread.__init__(self)
+        self.plock = threading.Lock()
         self.daemon = True
         self._messages = dict([
             ("&D",(37, "Data", self._parse_status)), 
@@ -108,12 +139,20 @@ class System(traits.HasTraits, threading.Thread):
     def run(self):
         while self._running:
             header = self.port.read(2)
-            msg = self.port.read(self._messages[header][0] - 2)
-            #assert _xsum(header+msg[-1]) == msg[-1], "Wrong checksum! %s"%msg
-            if len(self._messages[header]) > 2:
-                self._messages[header][-1](msg)
-            else:
-                print self._messages[header], msg
+            print "recieved %r"%header
+            try:
+                self.plock.acquire()
+                msg = self.port.read(self._messages[header][0] - 2)
+                self.plock.release()
+                assert _xsum(header+msg[:-1]) == msg[-1], "Wrong checksum! %s"%msg
+                if len(self._messages[header]) > 2:
+                    self._messages[header][-1](msg)
+                else:
+                    print self._messages[header], repr(msg)
+            except:
+                traceback.print_exc()
+                time.sleep(10)
+                print repr(msg),repr(self.port.read(self.port.inWaiting()))
     
     def reward(self, time=500, volume=None):
         '''Returns the string used to output a time or volume reward.
@@ -128,12 +167,13 @@ class System(traits.HasTraits, threading.Thread):
         assert (volume is None and time is not None) or \
             (volume is not None and time is None)
         time /= .1
-        
         self._write(struct.pack('<ccxHxx', '@', 'G', time))
     
     def _write(self, msg):
         fmsg = msg+_xsum(msg)
+        self.plock.acquire()
         self.port.write(fmsg)
+        self.plock.release()
     
     def update(self):
         self._write("@CNSNNN")
@@ -148,13 +188,9 @@ class System(traits.HasTraits, threading.Thread):
         mode = ("D", "E")[self.drain_status == "Disabled" if status is None else status]
         self._write("@CNS%sNN"%mode)
 
-    def reset_stats(self):
-        self._write("@CRSNNN")
-    
-    def drain(self, status=None):
-        mode = ("D", "E")[self.drain_status == "Disabled" if status is None else status]
-        self._write("@CNS%sNN"%mode)
-
+reward = Basic() 
+'''
+print "blah"
 try:
     port
     reward
@@ -165,6 +201,9 @@ except NameError:
         port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
         reward = System(port=port)
         reward.start()
+	reward.reset()
     except:
         print "Reward system not found"
         reward = None
+'''
+
