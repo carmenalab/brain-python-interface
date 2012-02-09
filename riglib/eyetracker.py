@@ -18,8 +18,7 @@ class System(object):
     
     def get(self):
         self.tracker.waitForData(100, 1, 0)
-        assert self.tracker.getNextData() != 0
-        samp = self.tracker.getFloatData()
+        samp = self.tracker.getNewestSample()
         if samp is not None:
             return samp.getLeftEye().getRawPupil()
     

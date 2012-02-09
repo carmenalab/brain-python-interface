@@ -40,6 +40,9 @@ class MemTrack(object):
             motion = self._update_motion,
         )
         self.procs = dict()
+        self.proxy = dict(
+            eyetracker=ObjProxy(),
+        )
     
     def start(self, modalities=None):
         if modalities is None:
