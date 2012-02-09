@@ -66,7 +66,12 @@ class MemTrack(object):
         system.start()
         size = self.size['eyetracker']
         msize = self.msize['eyetracker']
+        proxy = self.proxy['eyetracker']
         while idx.value > 0:
+            func = proxy.cmd.get_nowait()
+            if func is not None:
+                proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
+
             xy = system.get()
             if xy is not None:
                 lock.acquire()
@@ -100,6 +105,24 @@ class MemTrack(object):
     
     def __del__(self):
         self.stopall()
+
+class ObjProxy(object):
+    def __init__(self):
+        self.cmd = mp.Queue()
+        self.pipe, self._pipe = mp.Pipe()
+    
+    def __getattr__(self, attr):
+        return FuncProxy(attr, self.cmd, self._pipe)
+
+class FuncProxy(object):
+    def __init__(self, name, cmdqueue, pipe):
+        self.cmd = cmdqueue
+        self.pipe = pipe
+        self.name = name
+
+    def __call__(self, *args, **kwargs):
+        self.cmd.put((self.name, args, kwargs))
+        return self.pipe.recv()
 
 if __name__ == "__main__":
     track = MemTrack()

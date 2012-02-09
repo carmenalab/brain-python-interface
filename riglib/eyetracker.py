@@ -4,7 +4,7 @@ import pylink
 class System(object):
     def __init__(self, address='10.0.0.2'):
         self.tracker = pylink.EyeLink(address)
-        self.edfname = "%s.edf"%time.strftime("%Y-%m-%d_%I:%M:%p")
+        self.edfname = "%s.edf"%time.strftime("%Y%m%d") #%Y-%m-%d_%I:%M:%p
         self.tracker.openDataFile(self.edfname)
         self.tracker.setOfflineMode()
     
