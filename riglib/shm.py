@@ -71,10 +71,11 @@ class MemTrack(object):
         msize = self.msize['eyetracker']
         proxy = self.proxy['eyetracker']
         while idx.value > 0:
-            func = proxy.cmd.get_nowait()
-            if func is not None:
+            try:
+                func = proxy.cmd.get_nowait()
                 proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
-
+            except:
+                pass
             xy = system.get()
             if xy is not None:
                 lock.acquire()

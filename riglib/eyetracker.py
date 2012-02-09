@@ -20,7 +20,7 @@ class System(object):
         self.tracker.waitForData(100, 1, 0)
         samp = self.tracker.getNewestSample()
         if samp is not None:
-            return samp.getLeftEye().getRawPupil()
+            return samp.getLeftEye().getGaze()
     
     def retrieve(self, filename):
         self.tracker.setOfflineMode()
