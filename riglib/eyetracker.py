@@ -2,7 +2,7 @@ import time
 import pylink
 
 class System(object):
-    def __init__(self, address=None):
+    def __init__(self, address='10.0.0.2'):
         self.tracker = pylink.EyeLink(address)
         self.edfname = "%s.edf"%time.strftime("%Y-%m-%d_%I:%M:%p")
         self.tracker.openDataFile(self.edfname)
@@ -11,9 +11,14 @@ class System(object):
     def start(self):
         self.tracker.startRecording(1,0,1,0)
         pylink.beginRealTimeMode(100)
+
+    def stop(self):
+        self.tracker.stopRecording()
+        pylink.endRealTimeMode()
     
     def get(self):
         self.tracker.waitForData(100, 1, 0)
+        assert self.tracker.getNextData() != 0
         samp = self.tracker.getFloatData()
         if samp is not None:
             return samp.getLeftEye().getRawPupil()
