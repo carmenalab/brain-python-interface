@@ -1,11 +1,11 @@
 import random
 
 from . import traits
-from riglib import button, reward
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
     def __init__(self, *args, **kwargs):
+        from riglib import reward
         super(RewardSystem, self).__init__(*args, **kwargs)
         self.reward = reward.open()
 
@@ -34,6 +34,7 @@ class Autostart(traits.HasTraits):
 class Button(object):
     '''Adds the ability to respond to the button, as well as to keyboard responses'''
     def __init__(self, *args, **kwargs):
+        from riglib import button
         super(Button, self).__init__(*args, **kwargs)
         try:
             self.button = button.Button()

@@ -2,7 +2,7 @@ from riglib.experiment import consolerun
 from tasks import Dots
 
 if __name__ == "__main__":
-	probabilities = [0.5, None]
+    probabilities = [0.5, None]
     options = {
         "penalty_time": 5,
         "ignore_time": 4, 
@@ -10,4 +10,4 @@ if __name__ == "__main__":
         "reward_time": 5, 
         "timeout_time": 3,
     }
-    exp = consolerun(Dots, ("autostart","button"), probabilities, **options)
+    exp = consolerun(Dots, ("autostart",), probabilities, **options)
