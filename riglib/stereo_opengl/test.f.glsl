@@ -1,10 +1,15 @@
 #version 110
 
-uniform mat4 p_matrix, mv_matrix;
+uniform mat4 p_matrix, xfm;
 uniform sampler2D texture;
 
 varying vec3 vert;
 varying vec2 texcoord;
+
+varying vec3 frag_position, frag_normal;
+varying vec2 frag_texcoord;
+varying float frag_shininess;
+varying vec4 frag_specular;
 
 const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
 const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
@@ -13,11 +18,11 @@ const vec4 light_specular = vec4(1.0, 1.0, 1.0, 1.0);
 
 void main()
 {
-    vec3 mv_light_direction = (mv_matrix * vec4(light_direction, 0.0)).xyz,
+    vec3 mv_light_direction = (xfm * vec4(light_direction, 0.0)).xyz,
          normal = normalize(frag_normal),
          eye = normalize(frag_position),
          reflection = reflect(mv_light_direction, normal);
-
+    
     vec4 frag_diffuse = texture2D(texture, frag_texcoord);
     vec4 diffuse_factor
         = max(-dot(normal, mv_light_direction), 0.0) * light_diffuse;

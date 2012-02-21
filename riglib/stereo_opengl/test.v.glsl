@@ -1,6 +1,6 @@
 #version 110
 
-uniform mat4 p_matrix, mv_matrix;
+uniform mat4 p_matrix, xfm;
 uniform sampler2D texture;
 
 attribute vec3 position, normal;
@@ -15,10 +15,10 @@ varying vec4 frag_specular;
 
 void main()
 {
-    vec4 eye_position = mv_matrix * vec4(position, 1.0);
+    vec4 eye_position = xfm * vec4(position, 1.0);
     gl_Position = p_matrix * eye_position;
     frag_position = eye_position.xyz;
-    frag_normal   = (mv_matrix * vec4(normal, 0.0)).xyz;
+    frag_normal   = (xfm * vec4(normal, 0.0)).xyz;
     frag_texcoord = texcoord;
     frag_shininess = shininess;
     frag_specular = specular;

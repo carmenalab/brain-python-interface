@@ -30,9 +30,33 @@ class Model(object):
                         [0,0,0,1]])
         self.xfm = np.dot(self.xfm, mat)
         return self
+    
+    def rotate_x(self, t):
+        mat = np.array([[1,0,        0,         0],
+                        [0,np.cos(t),-np.sin(t),0],
+                        [0,np.sin(t), np.cos(t),0],
+                        [0,0,        0,         1]])
+        self.xfm = np.dot(self.xfm, mat)
+        return self
+    
+    def rotate_y(self, t):
+        mat = np.array([[ np.cos(t),0,np.sin(t),0],
+                        [ 0,        1,0,        0],
+                        [-np.sin(t),0,np.cos(t),0],
+                        [ 0,0,      0,         1]])
+        self.xfm = np.dot(self.xfm, mat)
+        return self
+
+    def rotate_z(self, t):
+        mat = np.array([[np.cos(t),-np.sin(t),0,0],
+                        [np.sin(t), np.cos(t),0,0],
+                        [0,         0,        1,0],
+                        [0,         0,        0,1]])
+        self.xfm = np.dot(self.xfm, mat)
+        return self
 
     def draw(self, xfm=np.eye(4)):
-        glUniformMatrix4fv(self.ctx.uniforms.xfm, 1, GL_FALSE, np.dot(xfm, self.xfm))
+        self.ctx.uniforms.xfm = self.xfm
 
 class Texture2D(object):
     def __init__(self, ctx, tex, 
@@ -73,11 +97,10 @@ class Texture2D(object):
         self.ctx = ctx
         self.tex = gltex
         self.size = size
-        
-        glUniform1i(self.ctx.uniforms['texture'], 0)
 
     def set(self):
         glActiveTexture(GL_TEXTURE0)
+        self.ctx.uniforms['texture'] = 0
         glBindTexture(GL_TEXTURE_2D, self.tex)
 
 class TexModel(Model):
@@ -107,7 +130,7 @@ builtins = dict([ (n[9:].lower(), getattr(glut, n))
                     for n in dir(glut) 
                     if "glutSolid" in n])
 class Builtins(Model):
-    def __init__(self, ctx, model, *args, xfm=np.eye(4)):
+    def __init__(self, ctx, model, xfm=np.eye(4), *args):
         super(Builtins, self).__init__(ctx, xfm)
         assert model in builtins
         self.model = builtins['model']
@@ -132,13 +155,19 @@ class TriMesh(Model):
         self.vbuf = glGenBuffers(1)
         self.ebuf = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
-        glBufferData(GL_ARRAY_BUFFER, self.vbuf.ravel(), GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, self.verts.ravel(), GL_STATIC_DRAW)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebuf)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.polys, GL_STATIC_DRAW)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.polys.ravel(), GL_STATIC_DRAW)
+
+        if tcoords is not None:
+            self.tbuf = glGenBuffers(1)
+            glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
+            glBufferData(GL_ARRAY_BUFFER, self.tcoords.ravel(), GL_STATIC_DRAW)
     
     def draw(self, xfm=np.eye(4)):
         super(TriMesh, self).draw(xfm)
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbuf);
+        glEnableVertexAttribArray(self.ctx.attributes['vert'])
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
         glVertexAttribPointer(
             self.ctx.attributes['vert'],# attribute
             len(self.verts),            # size
@@ -147,7 +176,14 @@ class TriMesh(Model):
             32*4,                       # stride
             0                           # array buffer offset
         )
-        glEnableVertexAttribArray(self.ctx.attributes['vert'])
+
+        if self.tcoords is not None:
+            glEnableVertexAttribArray(self.ctx.attributes['texcoords'])
+            glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
+            glVertexAttribPointer(
+                self.ctx.attributes['texcoords'], len(self.tcoords), 
+                GL_FLOAT, GL_FALSE, 32*2, 0
+            )
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebuf);
         glDrawElements(
@@ -157,6 +193,8 @@ class TriMesh(Model):
             0                       # element array buffer offset
         )
         glDisableVertexAttribArray(self.ctx.attributes['vert'])
+        if self.tcoords is not None:
+            glDisableVertexAttribArray(self.ctx.attributes['texcoords'])
 
 class PolyMesh(TriMesh):
     '''This model accepts arbitrary polygons. It first triangulates all polys
