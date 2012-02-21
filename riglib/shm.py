@@ -74,7 +74,7 @@ class MemTrack(object):
             func = proxy.cmd.get_nowait()
             if func is not None:
                 proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
-
+            print "get"
             xy = system.get()
             if xy is not None:
                 lock.acquire()
