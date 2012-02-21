@@ -1,5 +1,6 @@
 if __name__ == "__main__":
-    from window import Window
-    window = Window([])
-    window.screen_init()
-    
+    from window import Test
+    from models import Builtins
+    win = Test()
+    win.add_model(Builtins("teapot", 1))
+    win.start()
