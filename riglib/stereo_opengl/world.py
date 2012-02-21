@@ -9,7 +9,7 @@ def frustum(l, r, u, b, n, f):
     return np.array([[2*n / nrl, 0, rl / nrl, 0],
                      [0, 2*n / ntb, tb / ntb, 0],
                      [0,0,-fn / nfn, -2*f*n / nfn],
-                     [0,0,-1,0]], dtype=np.float32)
+                     [0,0,-1,0]])
 
 def perspective(angle, aspect, near, far):
     '''Generates a perspective transform matrix'''
@@ -18,7 +18,7 @@ def perspective(angle, aspect, near, far):
     return np.array([[1./ta, 0,0,0],
                      [0, aspect/ta, 0,0],
                      [0,0,fn/nfn, -2*far*near/nfn],
-                     [0,0,1,0]], dtype=np.float32)
+                     [0,0,1,0]])
 
 def _make_shader(stype, src):
     shader = glCreateShader(stype)
@@ -75,14 +75,14 @@ class _getter(object):
                 func = globals()['glUniformMatrix%sfv'%fname]
                 #We need to transpose all numpy matrices since numpy is row-major
                 #and opengl is column-major
-                func(self.cache[attr], nmats, GL_TRUE, val.ravel())
+                func(self.cache[attr], nmats, GL_TRUE, val.astype(np.float32).ravel())
         elif isinstance(val, (list, tuple, np.ndarray)):
             #glUniform\d[if]v
             if isinstance(val[0], (tuple, list, np.ndarray)):
                 assert len(val[0]) <= 4
                 t = _typename[type(val[0][0])]
                 func = globals()['glUniform%d%sv'%(len(val[0]), t)]
-                func(self.cache[attr], len(val), np.array(val).ravel())
+                func(self.cache[attr], len(val), np.array(val).astype(np.float32).ravel())
             else:
                 t = _typename[type(val[0])]
                 func = globals()['glUniform%d%sv'%(len(val[0]), t)]

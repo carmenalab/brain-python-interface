@@ -3,7 +3,7 @@ import numpy as np
 from models import TriMesh
 
 class Cylinder(TriMesh):
-    def __init__(self, ctx, height=1, radius=1, segments=36, xfm=np.eye(4)):
+    def __init__(self, height=1, radius=1, segments=36, xfm=np.eye(4)):
         theta = np.linspace(0, 2*np.pi, segments)
         unit = np.array([np.cos(theta), np.sin(theta), np.ones(segments)]).T
 
@@ -19,4 +19,4 @@ class Cylinder(TriMesh):
         n = 1./segments
         tcoord = np.vstack([tcoord*[n,1], tcoord*[n,0]])
 
-        super(Cylinder, self).__init__(ctx, pts, polys, tcoords=tcoord, xfm=xfm)
+        super(Cylinder, self).__init__(pts, np.array(polys), tcoords=tcoord, xfm=xfm)

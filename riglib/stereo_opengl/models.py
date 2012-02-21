@@ -6,9 +6,8 @@ from OpenGL import GLUT as glut
 from scipy.spatial import Delaunay
 
 class Model(object):
-    def __init__(self, ctx, xfm=np.eye(4)):
+    def __init__(self, xfm=np.eye(4)):
         self.xfm = xfm
-        self.ctx = ctx
     
     def translate(self, x, y, z):
         mat = np.array([[1,0,0,x],
@@ -55,15 +54,13 @@ class Model(object):
         self.xfm = np.dot(self.xfm, mat)
         return self
 
-    def draw(self, xfm=np.eye(4)):
-        self.ctx.uniforms.xfm = self.xfm
+    def draw(self, ctx, xfm=np.eye(4)):
+        glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, np.dot(xfm, self.xfm).astype(np.float32))
 
 class Texture2D(object):
-    def __init__(self, ctx, tex, 
-        magfilter=GL_LINEAR, 
-        minfilter=GL_LINEAR, 
-        wrap_x=GL_CLAMP_TO_EDGE, 
-        wrap_y=GL_CLAMP_TO_EDGE):
+    def __init__(self, tex, 
+        magfilter=GL_LINEAR, minfilter=GL_LINEAR, 
+        wrap_x=GL_CLAMP_TO_EDGE, wrap_y=GL_CLAMP_TO_EDGE):
 
         if isinstance(tex, np.ndarray):
             if tex.max() <= 1:
@@ -94,59 +91,58 @@ class Texture2D(object):
             tex                         #pixels
         )
         
-        self.ctx = ctx
         self.tex = gltex
         self.size = size
 
-    def set(self):
+    def set(self, ctx):
         glActiveTexture(GL_TEXTURE0)
-        self.ctx.uniforms['texture'] = 0
+        glUniform1i(ctx.uniforms['texture'], 0)
         glBindTexture(GL_TEXTURE_2D, self.tex)
 
 class TexModel(Model):
-    def __init__(self, ctx, tex, xfm=np.eye(4)):
-        super(TexModel, self).__init__(ctx, xfm)
+    def __init__(self, tex, xfm=np.eye(4)):
+        super(TexModel, self).__init__(xfm)
         self.tex = tex
     
-    def draw(self, xfm=np.eye(4)):
-        self.tex.set()
-        super(TexModel, self).draw(xfm)
+    def draw(self, ctx, xfm=np.eye(4)):
+        self.tex.set(ctx)
+        super(TexModel, self).draw(ctx, xfm)
 
 
 class Group(Model):
-    def __init__(self, ctx, models, xfm=np.eye(4)):
-        super(Group, self).__init__(ctx, xfm)
+    def __init__(self, models, xfm=np.eye(4)):
+        super(Group, self).__init__(xfm)
         self.models = models
     
-    def draw(self, xfm=np.eye(4)):
+    def draw(self, ctx, xfm=np.eye(4)):
         for model in self.models:
-            model.draw(np.dot(xfm, self.xfm))
+            return model.draw(ctx, np.dot(xfm, self.xfm))
     
     def add(self, model):
-        self.model.append(model)
+        self.models.append(model)
     
 
 builtins = dict([ (n[9:].lower(), getattr(glut, n)) 
                     for n in dir(glut) 
                     if "glutSolid" in n])
 class Builtins(Model):
-    def __init__(self, ctx, model, xfm=np.eye(4), *args):
-        super(Builtins, self).__init__(ctx, xfm)
+    def __init__(self, model, xfm=np.eye(4), *args):
+        super(Builtins, self).__init__(xfm)
         assert model in builtins
         self.model = builtins['model']
         self.args = args
     
-    def draw(self, xfm=np.eye(4)):
+    def draw(self, ctx, xfm=np.eye(4)):
         glPushMatrix()
         glLoadMatrixf(np.dot(xfm, self.xfm).ravel())
         self.model(*self.args)
         glPopMatrix()
 
 class TriMesh(Model):
-    def __init__(self, ctx, verts, polys, tcoords=None, xfm=np.eye(4)):
-        super(TriMesh, self).__init__(ctx, xfm)
+    def __init__(self, verts, polys, tcoords=None, xfm=np.eye(4)):
+        super(TriMesh, self).__init__(xfm)
         if verts.shape[1] == 3:
-            verts = np.hstack([verts, np.ones(len(verts),)])
+            verts = np.hstack([verts, np.ones((len(verts),1))])
 
         self.verts = verts
         self.polys = polys
@@ -155,33 +151,29 @@ class TriMesh(Model):
         self.vbuf = glGenBuffers(1)
         self.ebuf = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
-        glBufferData(GL_ARRAY_BUFFER, self.verts.ravel(), GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, 
+            self.verts.astype(np.float32).ravel(), GL_STATIC_DRAW)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebuf)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.polys.ravel(), GL_STATIC_DRAW)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
+            self.polys.astype(np.float32).ravel(), GL_STATIC_DRAW)
 
         if tcoords is not None:
             self.tbuf = glGenBuffers(1)
             glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
             glBufferData(GL_ARRAY_BUFFER, self.tcoords.ravel(), GL_STATIC_DRAW)
     
-    def draw(self, xfm=np.eye(4)):
-        super(TriMesh, self).draw(xfm)
-        glEnableVertexAttribArray(self.ctx.attributes['vert'])
+    def draw(self, ctx, xfm=np.eye(4)):
+        super(TriMesh, self).draw(ctx, xfm)
+        glEnableVertexAttribArray(ctx.attributes['position'])
         glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
-        glVertexAttribPointer(
-            self.ctx.attributes['vert'],# attribute
-            len(self.verts),            # size
-            GL_FLOAT,                   # type
-            GL_FALSE,                   # normalized?
-            32*4,                       # stride
-            0                           # array buffer offset
-        )
+        glVertexAttribPointer( ctx.attributes['position'],
+            4, GL_FLOAT, GL_FALSE, 32*4, 0)
 
         if self.tcoords is not None:
-            glEnableVertexAttribArray(self.ctx.attributes['texcoords'])
+            glEnableVertexAttribArray(ctx.attributes['texcoord'])
             glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
             glVertexAttribPointer(
-                self.ctx.attributes['texcoords'], len(self.tcoords), 
+                ctx.attributes['texcoord'], 2, 
                 GL_FLOAT, GL_FALSE, 32*2, 0
             )
 
@@ -192,14 +184,16 @@ class TriMesh(Model):
             GL_UNSIGNED_SHORT,      # type
             0                       # element array buffer offset
         )
-        glDisableVertexAttribArray(self.ctx.attributes['vert'])
+        glDisableVertexAttribArray(ctx.attributes['position'])
         if self.tcoords is not None:
-            glDisableVertexAttribArray(self.ctx.attributes['texcoords'])
+            glDisableVertexAttribArray(ctx.attributes['texcoord'])
+        
+        return np.dot(self.verts, np.dot(xfm, self.xfm).T)
 
 class PolyMesh(TriMesh):
     '''This model accepts arbitrary polygons. It first triangulates all polys
     then submits it to TriMesh'''
-    def __init__(self, ctx, verts, polys, tcoords=None, xfm=np.eye(4)):
+    def __init__(self, verts, polys, tcoords=None, xfm=np.eye(4)):
         plist = []
         for poly in polys:
             if len(poly) > 3:
@@ -210,4 +204,4 @@ class PolyMesh(TriMesh):
             else:
                 plist.append(poly)
         
-        super(PolyMesh, self).__init__(ctx, verts, np.array(plist), tcoords, xfm)
+        super(PolyMesh, self).__init__(verts, np.array(plist), tcoords, xfm)
