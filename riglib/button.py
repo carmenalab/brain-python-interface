@@ -1,7 +1,11 @@
+import threading
+import Queue
 import ftdi
+import time
 
-class Button(object):
+class Button(threading.Thread):
     def __init__(self):
+        super(Button, self).__init__()
         self.port = None
         port = ftdi.ftdi_new()
         usb_open = ftdi.ftdi_usb_open_string(port, "s:0x403:0x6001:2eb80091")
@@ -9,7 +13,18 @@ class Button(object):
         
         ftdi.ftdi_set_bitmode(port, 0xFF, ftdi.BITMODE_BITBANG)
         self.port = port
-        self.last = self._check()
+        self.queue = Queue.Queue()
+        self.daemon = True
+        self.start()
+       
+    def run(self):
+        last = None
+        while True:
+            k = self._check()
+            if last == 0 and k != 0:
+                self.queue.put(k)
+            last = k
+            time.sleep(0.01)
     
     def _check(self):
         test = ' '
@@ -17,13 +32,10 @@ class Button(object):
         return ord(test)
     
     def pressed(self):
-        status = False
-        cur = self._check()
-        if cur in [1, 2, 4, 8] and self.last == 0:
-            status = cur
-            
-        self.last = cur
-        return status
+        try:
+            return self.queue.get_nowait()
+        except:
+            return None
     
     def __del__(self):
         if self.port is not None:
@@ -31,3 +43,10 @@ class Button(object):
             ftdi.ftdi_usb_close(self.port)
             ftdi.ftdi_deinit(self.port)
 
+if __name__ == "__main__":
+    import time
+    btn = Button()
+    while True:
+        k = btn.pressed()
+        if k is not None:
+            print k

@@ -191,9 +191,10 @@ class System(traits.HasTraits, threading.Thread):
 
 def open():
     try:
-        port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
-        reward = System(port=port)
-        reward.start()
+        #port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
+        #reward = System(port=port)
+        #reward.start()
+        reward = Basic()
         return reward
     except:
         print "Reward system not found"

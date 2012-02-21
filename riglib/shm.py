@@ -12,7 +12,7 @@ update_freq = dict(
 #Size of a single time slice for each modality
 size = dict(
     eyetracker=2,
-    motion=32,
+    motion=32*3,
     neuron=256,
 )
 
@@ -71,10 +71,12 @@ class MemTrack(object):
         msize = self.msize['eyetracker']
         proxy = self.proxy['eyetracker']
         while idx.value > 0:
-            func = proxy.cmd.get_nowait()
-            if func is not None:
+            try:
+                func = proxy.cmd.get_nowait()
                 proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
             print "get"
+            except:
+                pass
             xy = system.get()
             if xy is not None:
                 lock.acquire()
@@ -104,7 +106,25 @@ class MemTrack(object):
             self.locks[mode].release()
     
     def _update_motion(self, lock, data, idx):
-        pass
+        import motiontracker
+        system = motiontracker.System()
+        system.start()
+        size = self.size['motion']
+        msize = self.msize['motion']
+        proxy = self.proxy['motion']
+        while idx.value > 0:
+            try:
+                func = proxy.cmd.get_nowait()
+                proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
+            except:
+                pass
+            xy = system.get()
+            if xy is not None:
+                lock.acquire()
+                i = idx.value % msize
+                data[i*size:(i+1)*size] = xy.ravel()
+                idx.value += 1
+                lock.release()
     
     def __del__(self):
         self.stopall()

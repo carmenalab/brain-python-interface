@@ -1,17 +1,17 @@
 import random
 
 from . import traits
-from riglib import button, reward
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
     def __init__(self, *args, **kwargs):
+        from riglib import reward
         super(RewardSystem, self).__init__(*args, **kwargs)
         self.reward = reward.open()
 
     def _start_reward(self):
-        if reward is not None:
-            reward.reward(self.reward_time*1000.)
+        if self.reward is not None:
+            self.reward.reward(self.reward_time*1000.)
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
@@ -34,8 +34,8 @@ class Autostart(traits.HasTraits):
 class Button(object):
     '''Adds the ability to respond to the button, as well as to keyboard responses'''
     def __init__(self, *args, **kwargs):
+        from riglib import button
         super(Button, self).__init__(*args, **kwargs)
-        self.event = None
         try:
             self.button = button.Button()
         except:
@@ -45,10 +45,15 @@ class Button(object):
     def _get_event(self):
         if self.button is not None:
             btn = self.button.pressed()
-            if btn is not False:
+            if btn is not None:
                 return btn
                 
         return super(Button, self)._get_event()
+    
+    def _while_penalty(self):
+        #Clear out the button buffers
+        self.button.pressed()
+        super(Button, self)._while_penalty()
     
     def _start_None(self):
         del self.button
