@@ -22,6 +22,7 @@ void main()
          normal = normalize(frag_normal),
          eye = normalize(frag_position),
          reflection = reflect(mv_light_direction, normal);
+    gl_FragColor = vec4(normalize(frag_position), 1.0);
     
     vec4 frag_diffuse = texture2D(texture, frag_texcoord);
     vec4 diffuse_factor
@@ -31,6 +32,7 @@ void main()
     vec4 specular_factor
         = max(pow(-dot(reflection, eye), frag_shininess), 0.0) * light_specular;
     
-    gl_FragColor = specular_factor * frag_specular
-        + ambient_diffuse_factor * frag_diffuse;
+    /*gl_FragColor = specular_factor * frag_specular
+        + ambient_diffuse_factor * frag_diffuse;*/
+    gl_FragColor = vec4(1.0,0.0,0.0,1.0);
 }

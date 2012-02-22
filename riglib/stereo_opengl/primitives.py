@@ -19,4 +19,4 @@ class Cylinder(TriMesh):
         n = 1./segments
         tcoord = np.vstack([tcoord*[n,1], tcoord*[n,0]])
 
-        super(Cylinder, self).__init__(pts, np.array(polys), tcoords=tcoord, xfm=xfm)
+        super(Cylinder, self).__init__(pts, np.array(polys),  xfm=xfm)

@@ -31,6 +31,7 @@ class Model(object):
         return self
     
     def rotate_x(self, t):
+        t = np.radians(t)
         mat = np.array([[1,0,        0,         0],
                         [0,np.cos(t),-np.sin(t),0],
                         [0,np.sin(t), np.cos(t),0],
@@ -39,6 +40,7 @@ class Model(object):
         return self
     
     def rotate_y(self, t):
+        t = np.radians(t)
         mat = np.array([[ np.cos(t),0,np.sin(t),0],
                         [ 0,        1,0,        0],
                         [-np.sin(t),0,np.cos(t),0],
@@ -47,6 +49,7 @@ class Model(object):
         return self
 
     def rotate_z(self, t):
+        t = np.radians(t)
         mat = np.array([[np.cos(t),-np.sin(t),0,0],
                         [np.sin(t), np.cos(t),0,0],
                         [0,         0,        1,0],

@@ -13,12 +13,12 @@ def frustum(l, r, u, b, n, f):
 
 def perspective(angle, aspect, near, far):
     '''Generates a perspective transform matrix'''
-    ta = np.tan(np.radians(angle))
+    f = 1./ np.tan(np.radians(angle))
     fn, nfn = far + near, far - near
-    return np.array([[1./ta, 0,0,0],
-                     [0, aspect/ta, 0,0],
-                     [0,0,fn/nfn, -2*far*near/nfn],
-                     [0,0,1,0]])
+    return np.array([[f/aspect, 0,    0,      0],
+                     [0,        f,    0,      0],
+                     [0,        0, fn/nfn, 2*far*near/nfn],
+                     [0,        0,   -1,      0]])
 
 def _make_shader(stype, src):
     shader = glCreateShader(stype)

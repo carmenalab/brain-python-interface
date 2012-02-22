@@ -17,9 +17,10 @@ void main()
 {
     vec4 eye_position = xfm * vec4(position, 1.0);
     gl_Position = p_matrix * eye_position;
+
     frag_position = eye_position.xyz;
-    frag_normal   = (xfm * vec4(normal, 0.0)).xyz;
+    /*frag_normal   = (xfm * vec4(normal, 0.0)).xyz;
     frag_texcoord = texcoord;
     frag_shininess = shininess;
-    frag_specular = specular;
+    frag_specular = specular;*/
 }

@@ -3,4 +3,4 @@ if __name__ == "__main__":
     from primitives import Cylinder
     win = Test()
     win.add_model(Cylinder())
-    win.start()
+    win.run()
