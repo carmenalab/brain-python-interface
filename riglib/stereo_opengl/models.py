@@ -12,15 +12,18 @@ class Model(object):
     def init(self):
         pass
     
-    def translate(self, x, y, z):
+    def translate(self, x, y, z, reset=False):
         mat = np.array([[1,0,0,x],
                         [0,1,0,y],
                         [0,0,1,z],
                         [0,0,0,1]])
-        self.xfm = np.dot(self.xfm, mat)
+        if reset:
+            self.xfm = mat
+        else:
+            self.xfm = np.dot(self.xfm, mat)
         return self
     
-    def scale(self, x, y=None, z=None):
+    def scale(self, x, y=None, z=None, reset=False):
         if y is None:
             y = x
         if z is None:
@@ -30,34 +33,48 @@ class Model(object):
                         [0,y,0,0],
                         [0,0,z,0],
                         [0,0,0,1]])
-        self.xfm = np.dot(self.xfm, mat)
+        
+        if reset:
+            self.xfm = mat
+        else:
+            self.xfm = np.dot(self.xfm, mat)
         return self
     
-    def rotate_x(self, t):
+    def rotate_x(self, t, reset=False):
         t = np.radians(t)
         mat = np.array([[1,0,        0,         0],
                         [0,np.cos(t),-np.sin(t),0],
                         [0,np.sin(t), np.cos(t),0],
                         [0,0,        0,         1]])
-        self.xfm = np.dot(self.xfm, mat)
+        if reset:
+            self.xfm = mat
+        else:
+            self.xfm = np.dot(self.xfm, mat)
         return self
     
-    def rotate_y(self, t):
+    def rotate_y(self, t, reset=False):
         t = np.radians(t)
         mat = np.array([[ np.cos(t),0,np.sin(t),0],
                         [ 0,        1,0,        0],
                         [-np.sin(t),0,np.cos(t),0],
                         [ 0,0,      0,         1]])
-        self.xfm = np.dot(self.xfm, mat)
+        if reset:
+            self.xfm = mat
+        else:
+            self.xfm = np.dot(self.xfm, mat)
         return self
 
-    def rotate_z(self, t):
+    def rotate_z(self, t, reset=False):
         t = np.radians(t)
         mat = np.array([[np.cos(t),-np.sin(t),0,0],
                         [np.sin(t), np.cos(t),0,0],
                         [0,         0,        1,0],
                         [0,         0,        0,1]])
-        self.xfm = np.dot(self.xfm, mat)
+        if reset:
+            self.xfm = mat
+        else:
+            self.xfm = np.dot(self.xfm, mat)
+
         return self
 
     def draw(self, ctx, xfm=np.eye(4)):

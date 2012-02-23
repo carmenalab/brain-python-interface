@@ -1,3 +1,4 @@
+from __future__ import division
 import os
 import threading
 import operator
@@ -17,6 +18,7 @@ class Window(LogExperiment):
     status = dict(draw=dict(stop=None))
     state = "draw"
     stop = False
+    window_size = (960, 270)
 
     background = (0,0,0,1)
     fps = 60
@@ -33,7 +35,7 @@ class Window(LogExperiment):
         pygame.init()
 
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
-        pygame.display.set_mode((800,600), flags)
+        pygame.display.set_mode(self.window_size, flags)
         self.clock = pygame.time.Clock()
 
         glEnable(GL_BLEND)
@@ -43,10 +45,13 @@ class Window(LogExperiment):
         glDepthFunc(GL_LESS)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_TEXTURE_2D)
-        glViewport(0,0,800,600)
 
-        self.ctx = Context(open(os.path.join(cwd, "test.v.glsl")), open(os.path.join(cwd, "test.f.glsl")))
-        self.projection = perspective(self.fov/2, 800./600, 0.0625, 256)
+        self.ctx = Context(
+            open(os.path.join(cwd, "test.v.glsl")), 
+            open(os.path.join(cwd, "test.f.glsl")))
+        w, h = self.window_size
+        self.projection = perspective(self.fov/2, (w/2)/h, 0.0625, 256.)
+
         #this effectively determines the modelview matrix
         self.world = Group(self.models).rotate_x(-90).translate(*map(operator.neg, self.eyepos))
         self.world.init()
@@ -63,13 +68,21 @@ class Window(LogExperiment):
             return (e.key, e.type)
     
     def _while_draw(self):
+        w, h = self.window_size
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glUseProgram(self.ctx.program)
-        self.ctx.uniforms['p_matrix'] = self.projection
-        self.world.draw(self.ctx)
+        
+        for side, projection in enumerate(['left', 'right']):
+            glViewport((0, int(w/2))[side], 0, int(w/2), h)
+            self.ctx.uniforms['p_matrix'] = self.projection
+            self.world.draw(self.ctx)
+        
         pygame.display.flip()
         self.clock.tick(self.fps)
         self.event = self._get_event()
+    
+    def _start_None(self):
+        pygame.display.quit()
     
     def _test_stop(self, ts):
         return self.stop or self.event is not None and self.event[0] == 27
