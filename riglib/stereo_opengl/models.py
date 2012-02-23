@@ -9,6 +9,9 @@ class Model(object):
     def __init__(self, xfm=np.eye(4)):
         self.xfm = xfm
     
+    def init(self):
+        pass
+    
     def translate(self, x, y, z):
         mat = np.array([[1,0,0,x],
                         [0,1,0,y],
@@ -64,7 +67,7 @@ class Texture2D(object):
     def __init__(self, tex, 
         magfilter=GL_LINEAR, minfilter=GL_LINEAR, 
         wrap_x=GL_CLAMP_TO_EDGE, wrap_y=GL_CLAMP_TO_EDGE):
-
+        self.opts = dict(magfilter=magfilter, minfilter=minfilter, wrap_x=wrap_x, wrap_y=wrap_y)
         if isinstance(tex, np.ndarray):
             if tex.max() <= 1:
                 tex *= 255
@@ -79,23 +82,25 @@ class Texture2D(object):
             im = pygame.image.load(tex)
             size = tex.get_size()
             tex = pygame.image.tostring(im, 'RGBA')
-        
+        self.texstr = tex
+        self.size = size
+
+    def init(self):
         gltex = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, gltex)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minfilter);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magfilter);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     wrap_x);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     wrap_y);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, self.opts['minfilter'])
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, self.opts['magfilter'])
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     self.opts['wrap_x'])
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     self.opts['wrap_y'])
         glTexImage2D(
             GL_TEXTURE_2D, 0,           #target, level
             GL_RGB8,                    #internal format
-            size[0], size[1], 0,      #width, height, border
+            self.size[0], self.size[1], 0,      #width, height, border
             GL_RGBA, GL_UNSIGNED_BYTE,  #external format, type
-            tex                         #pixels
+            self.texstr                         #pixels
         )
         
         self.tex = gltex
-        self.size = size
 
     def set(self, ctx):
         glActiveTexture(GL_TEXTURE0)
@@ -116,7 +121,11 @@ class Group(Model):
     def __init__(self, models, xfm=np.eye(4)):
         super(Group, self).__init__(xfm)
         self.models = models
-    
+
+    def init(self):
+        for model in self.models:
+            model.init()
+
     def draw(self, ctx, xfm=np.eye(4)):
         for model in self.models:
             model.draw(ctx, np.dot(xfm, self.xfm))
@@ -150,7 +159,8 @@ class TriMesh(Model):
         self.verts = verts
         self.polys = polys
         self.tcoords = tcoords
-
+    
+    def init(self):
         self.vbuf = glGenBuffers(1)
         self.ebuf = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
@@ -160,7 +170,7 @@ class TriMesh(Model):
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
             self.polys.astype(np.uint16).ravel(), GL_STATIC_DRAW)
 
-        if tcoords is not None:
+        if self.tcoords is not None:
             self.tbuf = glGenBuffers(1)
             glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
             glBufferData(GL_ARRAY_BUFFER, 

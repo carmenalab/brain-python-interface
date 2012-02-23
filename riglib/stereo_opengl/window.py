@@ -25,12 +25,14 @@ class Window(LogExperiment):
     def draw(self):
         pass
 '''
+eye = [0, -2, 0.5]
 class Test(threading.Thread):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super(Test, self).__init__()
-        pygame.init()
-        eye = [0, -2, 0.5]
+        self.models = []
 
+    def init(self):
+        pygame.init()
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
         pygame.display.set_mode((800,600), flags)
         self.clock = pygame.time.Clock()
@@ -46,12 +48,14 @@ class Test(threading.Thread):
         self.ctx = Context(open("test.v.glsl"), open("test.f.glsl"))
         self.projection = perspective(45, 800./600, 0.0625, 256)
         #this effectively determines the modelview matrix
-        self.world = Group([]).rotate_x(-90).translate(-eye[0], -eye[1], -eye[2])
-        
+        self.world = Group(self.models).rotate_x(-90).translate(-eye[0], -eye[1], -eye[2])
+        self.world.init()
+
     def add_model(self, model):
-        self.world.add(model)
+        self.models.append(model)
     
     def run(self):
+        self.init()
         run = True
         glViewport(0,0,800,600)
         while run:
@@ -66,6 +70,6 @@ class Test(threading.Thread):
             e = pygame.event.get(pygame.KEYDOWN)
             if len(e) > 0 and e[-1].key == 27:
                 run = False
-            self.clock.tick()
+            self.clock.tick(15)
 
         pygame.display.quit()
