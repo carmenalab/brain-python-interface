@@ -119,7 +119,7 @@ class Group(Model):
     
     def draw(self, ctx, xfm=np.eye(4)):
         for model in self.models:
-            return model.draw(ctx, np.dot(xfm, self.xfm))
+            model.draw(ctx, np.dot(xfm, self.xfm))
     
     def add(self, model):
         self.models.append(model)
@@ -158,40 +158,39 @@ class TriMesh(Model):
             self.verts.astype(np.float32).ravel(), GL_STATIC_DRAW)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebuf)
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
-            self.polys.astype(np.float32).ravel(), GL_STATIC_DRAW)
+            self.polys.astype(np.uint16).ravel(), GL_STATIC_DRAW)
 
         if tcoords is not None:
             self.tbuf = glGenBuffers(1)
             glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
-            glBufferData(GL_ARRAY_BUFFER, self.tcoords.ravel(), GL_STATIC_DRAW)
+            glBufferData(GL_ARRAY_BUFFER, 
+                self.tcoords.astype(np.float32).ravel(), GL_STATIC_DRAW)
     
     def draw(self, ctx, xfm=np.eye(4)):
         super(TriMesh, self).draw(ctx, xfm)
         glEnableVertexAttribArray(ctx.attributes['position'])
         glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
         glVertexAttribPointer( ctx.attributes['position'],
-            4, GL_FLOAT, GL_FALSE, 32*4, 0)
-
+            4, GL_FLOAT, GL_FALSE, 4*4, GLvoidp(0))
+        
         if self.tcoords is not None:
             glEnableVertexAttribArray(ctx.attributes['texcoord'])
             glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
             glVertexAttribPointer(
                 ctx.attributes['texcoord'], 2, 
-                GL_FLOAT, GL_FALSE, 32*2, 0
-            )
-
+                GL_FLOAT, GL_FALSE, 4*2, GLvoidp(0))
+        
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebuf);
         glDrawElements(
             GL_TRIANGLES,           # mode
-            len(self.polys),        # count
+            len(self.polys)*3,      # count
             GL_UNSIGNED_SHORT,      # type
-            0                       # element array buffer offset
+            GLvoidp(0)              # element array buffer offset
         )
         glDisableVertexAttribArray(ctx.attributes['position'])
         if self.tcoords is not None:
             glDisableVertexAttribArray(ctx.attributes['texcoord'])
         
-        return np.dot(self.verts, np.dot(xfm, self.xfm).T)
 
 class PolyMesh(TriMesh):
     '''This model accepts arbitrary polygons. It first triangulates all polys

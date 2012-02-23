@@ -1,10 +1,6 @@
 #version 110
 
-uniform mat4 p_matrix, xfm;
 uniform sampler2D texture;
-
-varying vec3 vert;
-varying vec2 texcoord;
 
 varying vec3 frag_position, frag_normal;
 varying vec2 frag_texcoord;
@@ -18,12 +14,12 @@ const vec4 light_specular = vec4(1.0, 1.0, 1.0, 1.0);
 
 void main()
 {
+    /*
     vec3 mv_light_direction = (xfm * vec4(light_direction, 0.0)).xyz,
          normal = normalize(frag_normal),
          eye = normalize(frag_position),
          reflection = reflect(mv_light_direction, normal);
-    gl_FragColor = vec4(normalize(frag_position), 1.0);
-    
+
     vec4 frag_diffuse = texture2D(texture, frag_texcoord);
     vec4 diffuse_factor
         = max(-dot(normal, mv_light_direction), 0.0) * light_diffuse;
@@ -31,8 +27,9 @@ void main()
         = diffuse_factor + light_ambient;
     vec4 specular_factor
         = max(pow(-dot(reflection, eye), frag_shininess), 0.0) * light_specular;
-    
-    /*gl_FragColor = specular_factor * frag_specular
-        + ambient_diffuse_factor * frag_diffuse;*/
+
+    gl_FragColor = specular_factor * frag_specular
+        + ambient_diffuse_factor * frag_diffuse;
+    */
     gl_FragColor = vec4(1.0,0.0,0.0,1.0);
 }
