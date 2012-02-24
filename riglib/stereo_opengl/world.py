@@ -1,36 +1,8 @@
+import os
 import numpy as np
 from OpenGL.GL import *
 
-def frustum(l, r, u, b, n, f):
-    '''Emulates glFrustum'''
-    rl, nrl = r + l, r - l
-    tb, ntb = t + b, t - b
-    fn, nfn = f + n, f - n
-    return np.array([[2*n / nrl, 0, rl / nrl, 0],
-                     [0, 2*n / ntb, tb / ntb, 0],
-                     [0,0,-fn / nfn, -2*f*n / nfn],
-                     [0,0,-1,0]])
-
-def perspective(angle, aspect, near, far):
-    '''Generates a perspective transform matrix'''
-    f = 1./ np.tan(np.radians(angle))
-    fn, nfn = far + near, far - near
-    return np.array([[f/aspect, 0,    0,      0],
-                     [0,        f,    0,      0],
-                     [0,        0, fn/nfn, 2*far*near/nfn],
-                     [0,        0,   -1,      0]])
-
-def _make_shader(stype, src):
-    shader = glCreateShader(stype)
-    glShaderSource(shader, src)
-    glCompileShader(shader)
-
-    if not glGetShaderiv(shader, GL_COMPILE_STATUS):
-        err = glGetShaderInfoLog(shader)
-        glDeleteShader(shader)
-        raise Exception(err)
-    return shader
-
+cwd = os.path.abspath(os.path.split(__file__)[0])
 _mattypes = {
     (4,4):"4", (3,3):"3", (2,2):"2", 
     (2,3):"2x3",(3,2):"3x2",
@@ -91,20 +63,60 @@ class _getter(object):
             #single value, push with glUniform1
             globals()['glUniform1%s'%_typename[type(val)]](self.cache[attr], val)
 
-class Context(object):
-    def __init__(self, vshade, fshade):
-        self.vshade = _make_shader(GL_VERTEX_SHADER, vshade.read())
-        self.fshade = _make_shader(GL_FRAGMENT_SHADER, fshade.read())
-
+class ShaderProgram(object):
+    def __init__(self, shaders):
+        self.shaders = shaders
         self.program = glCreateProgram()
-        glAttachShader(self.program, self.vshade)
-        glAttachShader(self.program, self.fshade)
+        for shader in shaders:
+            glAttachShader(self.program, shader)
         glLinkProgram(self.program)
 
         if not glGetProgramiv(self.program, GL_LINK_STATUS):
             err = glGetProgramInfoLog(self.program)
             glDeleteProgram(self.program)
             raise Exception(err)
-    
+        
         self.attributes = _getter("Attrib", self.program)
         self.uniforms = _getter("Uniform", self.program)
+    
+    def draw(self, models, projection):
+        glUseProgram(self.program)
+        self.uniforms["p_matrix"] = projection
+        for drawfunc in models:
+            drawfunc(self)
+
+class World(object):
+    def __init__(self, shaders, programs):
+        self.shaders = dict()
+        for k, v in shaders.items():
+            print "Compiling shader %s..."%k
+            self._make_shader(k, *v)
+        
+        self.programs = dict()
+        for name, shaders in programs.items():
+            shaders = [self.shaders[i] for i in shaders]
+            sp = ShaderProgram(shaders)
+            self.programs[name] = sp
+    
+    def _make_shader(self, name, stype, filename):
+        src = open(os.path.join(cwd, "shaders", filename))
+        shader = glCreateShader(stype)
+        glShaderSource(shader, src)
+        glCompileShader(shader)
+
+        if not glGetShaderiv(shader, GL_COMPILE_STATUS):
+            err = glGetShaderInfoLog(shader)
+            glDeleteShader(shader)
+            raise Exception(err)
+        
+        self.shaders[name] = shader
+    
+    def draw(self, root, projection):
+        collect = dict((k, []) for k in self.programs.keys())
+
+        for pname, drawfunc in root.render_queue():
+            assert pname in collect
+            collect[pname].append(drawfunc)
+        
+        for name, program in self.programs.items():
+            program.draw(collect[name], projection)

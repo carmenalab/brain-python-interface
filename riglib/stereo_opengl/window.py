@@ -9,10 +9,9 @@ from OpenGL.GL import *
 
 from riglib.experiment import LogExperiment, traits
 
-from world import Context, perspective
+from world import World
 from models import Group
-
-cwd = os.path.abspath(os.path.split(__file__)[0])
+from utils import perspective
 
 class Window(LogExperiment):
     status = dict(draw=dict(stop=None))
@@ -22,7 +21,7 @@ class Window(LogExperiment):
 
     background = (0,0,0,1)
     fps = 60
-    fov = 90
+    fov = 75
 
     def __init__(self, *args, **kwargs):
         super(Window, self).__init__()
@@ -44,17 +43,28 @@ class Window(LogExperiment):
         glClearDepth(1.0)
         glDepthFunc(GL_LESS)
         glEnable(GL_DEPTH_TEST)
+        glEnable(GL_CULL_FACE)
         glEnable(GL_TEXTURE_2D)
 
-        self.ctx = Context(
-            open(os.path.join(cwd, "test.v.glsl")), 
-            open(os.path.join(cwd, "test.f.glsl")))
+        self.world = World(
+            shaders=dict(
+                passthru=(GL_VERTEX_SHADER, "passthrough.v.glsl"),
+                flat_geom=(GL_GEOMETRY_SHADER, "flat_shade.g.glsl"),
+                #smooth_geom=(GL_GEOMETRY_SHADER, "smooth_shade.g.glsl"),
+                phong=(GL_FRAGMENT_SHADER, "phong.f.glsl")), 
+            programs=dict(
+                flat=("passthru","flat_geom","phong"),
+                default=("passthru", "phong"),
+                #smooth=("passthru", "smooth_geom", "phong"),
+            )
+        )
+        
         w, h = self.window_size
         self.projection = perspective(self.fov/2, (w/2)/h, 0.0625, 256.)
 
         #this effectively determines the modelview matrix
-        self.world = Group(self.models).rotate_x(-90).translate(*map(operator.neg, self.eyepos))
-        self.world.init()
+        self.root = Group(self.models).rotate_x(-90).translate(*map(operator.neg, self.eyepos))
+        self.root.init()
 
     def add_model(self, model):
         self.models.append(model)
@@ -70,12 +80,10 @@ class Window(LogExperiment):
     def _while_draw(self):
         w, h = self.window_size
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glUseProgram(self.ctx.program)
-        
+                
         for side, projection in enumerate(['left', 'right']):
             glViewport((0, int(w/2))[side], 0, int(w/2), h)
-            self.ctx.uniforms['p_matrix'] = self.projection
-            self.world.draw(self.ctx)
+            self.world.draw(self.root, self.projection)
         
         pygame.display.flip()
         self.clock.tick(self.fps)
