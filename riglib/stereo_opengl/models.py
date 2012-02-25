@@ -1,3 +1,4 @@
+import functools
 import Image
 import pygame
 import numpy as np
@@ -6,19 +7,17 @@ from OpenGL import GLUT as glut
 from scipy.spatial import Delaunay
 
 class Model(object):
-    def __init__(self, xfm=np.eye(4), shader="default", color=(0.5, 0.5, 0.5, 1)):
-        self.xfm = xfm
+    def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), shininess=0.5):
+        self.xfm = np.eye(4)
         self.shader = shader
         self.color = color
+        self.shininess = shininess
     
     def init(self):
         pass
     
     def render_queue(self, xfm=np.eye(4)):
-        def draw_queue(ctx):
-            self.draw(ctx, xfm)
-            
-        yield self.shader, draw_queue
+        yield self.shader, None, functools.partial(self.draw, xfm=xfm)
     
     def translate(self, x, y, z, reset=False):
         mat = np.array([[1,0,0,x],
@@ -28,7 +27,7 @@ class Model(object):
         if reset:
             self.xfm = mat
         else:
-            self.xfm = np.dot(self.xfm, mat)
+            self.xfm = np.dot(mat, self.xfm)
         return self
     
     def scale(self, x, y=None, z=None, reset=False):
@@ -45,7 +44,7 @@ class Model(object):
         if reset:
             self.xfm = mat
         else:
-            self.xfm = np.dot(self.xfm, mat)
+            self.xfm = np.dot(mat, self.xfm)
         return self
     
     def rotate_x(self, t, reset=False):
@@ -57,7 +56,7 @@ class Model(object):
         if reset:
             self.xfm = mat
         else:
-            self.xfm = np.dot(self.xfm, mat)
+            self.xfm = np.dot(mat, self.xfm)
         return self
     
     def rotate_y(self, t, reset=False):
@@ -69,7 +68,7 @@ class Model(object):
         if reset:
             self.xfm = mat
         else:
-            self.xfm = np.dot(self.xfm, mat)
+            self.xfm = np.dot(mat, self.xfm)
         return self
 
     def rotate_z(self, t, reset=False):
@@ -81,14 +80,15 @@ class Model(object):
         if reset:
             self.xfm = mat
         else:
-            self.xfm = np.dot(self.xfm, mat)
+            self.xfm = np.dot(mat, self.xfm)
 
         return self
 
     def draw(self, ctx, xfm=np.eye(4)):
         glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, np.dot(xfm, self.xfm).astype(np.float32))
+        glUniform1f(ctx.uniforms.shininess, self.shininess)
 
-class Texture2D(object):
+class Texture(object):
     def __init__(self, tex, 
         magfilter=GL_LINEAR, minfilter=GL_LINEAR, 
         wrap_x=GL_CLAMP_TO_EDGE, wrap_y=GL_CLAMP_TO_EDGE):
@@ -126,27 +126,30 @@ class Texture2D(object):
         )
         
         self.tex = gltex
-
-    def set(self, ctx):
-        glActiveTexture(GL_TEXTURE0)
-        glUniform1i(ctx.uniforms['texture'], 0)
+    
+    def set(self, idx):
+        glActiveTexture(globals()['GL_ACTIVE%d'%idx])
         glBindTexture(GL_TEXTURE_2D, self.tex)
+        glUniform1i(ctx.uniforms['texture'], idx)
 
 class TexModel(Model):
-    def __init__(self, tex=None, xfm=np.eye(4), shader="default", color=(0.5,0.5,0.5,1)):
-        color = (0,0,0,1) if tex is not None else color
-        super(TexModel, self).__init__(xfm, shader, color=color )
-        self.tex = tex
+    def __init__(self, tex=None, **kwargs):
+        if tex is not None:
+            kwargs['color'] = (0,0,0,1)
+        super(TexModel, self).__init__(**kwargs)
+        if isinstance(tex, Texture):
+            #only single texture, assume it's full weight
+            tex = [(tex, (1.,1.,1.,1.))]
+        
+        self.texs = tex
     
-    def draw(self, ctx, xfm=np.eye(4)):
-        if self.tex is not None:
-            self.tex.set(ctx)
-        super(TexModel, self).draw(ctx, xfm)
-
+    def render_queue(self, xfm):
+        ntex = len(self.texs) if self.texs is not None else 0
+        yield self.shader, functools.partial(self.draw, xfm=xfm), ntex
 
 class Group(Model):
-    def __init__(self, models, xfm=np.eye(4)):
-        super(Group, self).__init__(xfm)
+    def __init__(self, models):
+        super(Group, self).__init__()
         self.models = models
 
     def init(self):
@@ -187,10 +190,8 @@ class Builtins(Model):
 
 class TriMesh(TexModel):
     '''Basic triangle mesh model. Houses the GL functions for making buffers and displaying triangles'''
-    def __init__(self, verts, polys, normals=None, tcoords=None, 
-        xfm=np.eye(4), shader="default", tex=None, color=(0.5,0.5,0.5,1)):
-
-        super(TriMesh, self).__init__(xfm=xfm, shader=shader, color=color, tex=tex)
+    def __init__(self, verts, polys, normals=None, tcoords=None, **kwargs):
+        super(TriMesh, self).__init__(**kwargs)
         if verts.shape[1] == 3:
             verts = np.hstack([verts, np.ones((len(verts),1))])
         if normals.shape[1] == 3:
@@ -260,8 +261,7 @@ class TriMesh(TexModel):
 
 class FlatMesh(TriMesh):
     '''Takes smoothed or no-normal meshes and gives them a flat shading'''
-    def __init__(self, verts, polys, tcoords=None, normals=None,
-        xfm=np.eye(4), shader="default", tex=None, color=(0.5,0.5,0.5,1)):
+    def __init__(self, verts, polys, normals=None, **kwargs):
         checked = dict()
         normals = []
         nverts = []
@@ -286,5 +286,5 @@ class FlatMesh(TriMesh):
             npolys.append(npoly)
         
 
-        super(FlatMesh, self).__init__(np.array(nverts), np.array(npolys), normals=np.array(normals),
-            tcoords=tcoords, xfm=xfm, tex=tex, shader=shader, color=color)
+        super(FlatMesh, self).__init__(np.array(nverts), np.array(npolys), 
+            normals=np.array(normals), **kwargs)

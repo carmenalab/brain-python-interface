@@ -2,13 +2,15 @@ import time
 import numpy as np
 import pygame
 
-from window import Window
-from primitives import Cylinder, Plane
+from window import Window, Anaglyph
+from primitives import Cylinder, Plane, Sphere
 from models import FlatMesh, Group
 
-FlatCyl = type("FlatCyl", (Cylinder, FlatMesh), globals())
-fc = FlatCyl(height=10, segments=12, color=(0.3, 0.3, 0.6,1))
-fcg = Group([fc]).translate(-2,10,0).rotate_y(90)
+FlatSphere = type("FlatSphere", (Sphere, FlatMesh), globals())
+sphere = FlatSphere(radius=8, segments=16, color=(0.6,0.4,0.4,1), shininess=50).translate(10,-10,-4)
+
+fc = Cylinder(height=20, segments=20, color=(0.3, 0.3, 0.6,1), shininess=10)
+fcg = Group([fc]).rotate_y(90)
 
 class Test(Window):
     def _while_draw(self):
@@ -18,13 +20,14 @@ class Test(Window):
         if self.event is not None:
             kn = pygame.key.name(self.event[0])
             if kn == "left":
-                fcg.rotate_x(5)
+                fc.rotate_x(5)
             elif kn == "right":
-                fcg.rotate_x(-5)
+                fc.rotate_x(-5)
 
 
 if __name__ == "__main__":
     win = Test()
-    win.add_model(Cylinder(height=2, segments=128, color=(0.6,0.4,0.4,1)).translate(1,2,-1))
+    win.add_model(sphere)
     win.add_model(fcg)
-    win.run()
+    win.start()
+    win.join()
