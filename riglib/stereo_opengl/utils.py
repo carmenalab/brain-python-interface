@@ -20,7 +20,19 @@ def perspective(angle, aspect, near, far):
                      [0,        0, fn/nfn, 2*far*near/nfn],
                      [0,        0,   -1,      0]])
 
-def cloudy_tex(size=(512,512)):
+def offaxis_frustra(winsize, fov, near, far, focal_dist, iod):
+    aspect = winsize[0] / winsize[1]
+    wdiv2 = near * np.tan(np.radians(fov) / 2)
+
+    t, b = wdiv2, -wdiv2
+    l = -aspect * wdiv2 - 0.5*iod*near / focal_dist
+    r = -aspect * wdiv2 + 0.5*iod*near / focal_dist
+
+    left = frustrum(l, -l, t, b, near, far)
+    right = frustrum(r, -r, t, b, near, far)
+
+
+def cloudy_tex(size=(512,512)
     im = np.random.randn(*size)
     grid = np.mgrid[-1:1:size[0]*1j, -1:1:size[1]*1j]
     mask = 1/(grid**2).sum(0)

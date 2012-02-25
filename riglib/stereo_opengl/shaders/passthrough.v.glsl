@@ -1,30 +1,29 @@
-#version 150
+#version 110
 
 uniform mat4 p_matrix;
 uniform mat4 xfm;
 uniform sampler2D texture;
 uniform vec4 basecolor;
 
-in vec4 position;
-in vec2 texcoord;
-in vec4 normal;
+attribute vec4 position;
+attribute vec2 texcoord;
+attribute vec4 normal;
 
 /*
 out float shininess;
 out vec4 specular;
 */
-out VertexData {
-    vec3 position;
-    vec3 normal;
-    vec2 texcoord;
-} VertexOut;
+
+varying vec3 vposition;
+varying vec3 vnormal;
+varying vec2 vtexcoord;
 
 void main(void)
 {
     vec4 eye_position = xfm * position;
     gl_Position = p_matrix * eye_position;
-
-    VertexOut.position = eye_position.xyz;
-    VertexOut.texcoord = texcoord;
-    VertexOut.normal   = (xfm * vec4(normal.xyz,0)).xyz;
+    
+    vposition = eye_position.xyz;
+    vnormal   = (xfm * vec4(normal.xyz, 0.0)).xyz;
+    vtexcoord = texcoord;
 }

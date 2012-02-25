@@ -18,10 +18,11 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
     window_size = (960, 270)
+    iod = 2.5
 
     background = (0,0,0,1)
     fps = 60
-    fov = 75
+    fov = 60
 
     def __init__(self, *args, **kwargs):
         super(Window, self).__init__()
@@ -32,28 +33,28 @@ class Window(LogExperiment):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "1680,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
-
+        pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
         pygame.display.set_mode(self.window_size, flags)
         self.clock = pygame.time.Clock()
 
         glEnable(GL_BLEND)
+        glDepthFunc(GL_LEQUAL)
+        glEnable(GL_DEPTH_TEST) 
+        glEnable(GL_TEXTURE_2D)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glClearColor(*self.background)
         glClearDepth(1.0)
-        glDepthFunc(GL_LESS)
-        glEnable(GL_DEPTH_TEST)
-        glEnable(GL_CULL_FACE)
-        glEnable(GL_TEXTURE_2D)
-
-        self.world = World(
+        glDepthMask(GL_TRUE)
+        
+        self.programs = Programs(
             shaders=dict(
                 passthru=(GL_VERTEX_SHADER, "passthrough.v.glsl"),
-                flat_geom=(GL_GEOMETRY_SHADER, "flat_shade.g.glsl"),
+                #flat_geom=(GL_GEOMETRY_SHADER, "flat_shade.g.glsl"),
                 #smooth_geom=(GL_GEOMETRY_SHADER, "smooth_shade.g.glsl"),
                 phong=(GL_FRAGMENT_SHADER, "phong.f.glsl")), 
             programs=dict(
-                flat=("passthru","flat_geom","phong"),
+                #flat=("passthru","flat_geom","phong"),
                 default=("passthru", "phong"),
                 #smooth=("passthru", "smooth_geom", "phong"),
             )
@@ -63,8 +64,9 @@ class Window(LogExperiment):
         self.projection = perspective(self.fov/2, (w/2)/h, 0.0625, 256.)
 
         #this effectively determines the modelview matrix
-        self.root = Group(self.models).rotate_x(-90).translate(*map(operator.neg, self.eyepos))
-        self.root.init()
+        world = Group(self.models).rotate_x(-90).translate(*map(operator.neg, self.eyepos))
+        
+        self.group = 
 
     def add_model(self, model):
         self.models.append(model)
@@ -80,13 +82,12 @@ class Window(LogExperiment):
     def _while_draw(self):
         w, h = self.window_size
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-                
         for side, projection in enumerate(['left', 'right']):
             glViewport((0, int(w/2))[side], 0, int(w/2), h)
-            self.world.draw(self.root, self.projection)
+            self.world.draw(self.root, self.projection, self.root.xfm)
         
         pygame.display.flip()
-        self.clock.tick(self.fps)
+        self.clock.tick()
         self.event = self._get_event()
     
     def _start_None(self):

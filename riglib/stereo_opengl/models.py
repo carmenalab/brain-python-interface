@@ -6,7 +6,7 @@ from OpenGL import GLUT as glut
 from scipy.spatial import Delaunay
 
 class Model(object):
-    def __init__(self, xfm=np.eye(4), shader="flat", color=(0.5, 0.5, 0.5)):
+    def __init__(self, xfm=np.eye(4), shader="default", color=(0.5, 0.5, 0.5, 1)):
         self.xfm = xfm
         self.shader = shader
         self.color = color
@@ -17,7 +17,7 @@ class Model(object):
     def render_queue(self, xfm=np.eye(4)):
         def draw_queue(ctx):
             self.draw(ctx, xfm)
-
+            
         yield self.shader, draw_queue
     
     def translate(self, x, y, z, reset=False):
@@ -133,12 +133,14 @@ class Texture2D(object):
         glBindTexture(GL_TEXTURE_2D, self.tex)
 
 class TexModel(Model):
-    def __init__(self, tex, xfm=np.eye(4), shader="flat"):
-        super(TexModel, self).__init__(xfm, shader, color=(0,0,0,1))
+    def __init__(self, tex=None, xfm=np.eye(4), shader="default", color=(0.5,0.5,0.5,1)):
+        color = (0,0,0,1) if tex is not None else color
+        super(TexModel, self).__init__(xfm, shader, color=color )
         self.tex = tex
     
     def draw(self, ctx, xfm=np.eye(4)):
-        self.tex.set(ctx)
+        if self.tex is not None:
+            self.tex.set(ctx)
         super(TexModel, self).draw(ctx, xfm)
 
 
@@ -183,14 +185,16 @@ class Builtins(Model):
         self.model(*self.args)
         glPopMatrix()
 
-class TriMesh(Model):
-    def __init__(self, verts, polys, 
-        normals=None, tcoords=None, 
-        xfm=np.eye(4), shader="flat", color=(0.5,0.5,0.5,1)):
+class TriMesh(TexModel):
+    '''Basic triangle mesh model. Houses the GL functions for making buffers and displaying triangles'''
+    def __init__(self, verts, polys, normals=None, tcoords=None, 
+        xfm=np.eye(4), shader="default", tex=None, color=(0.5,0.5,0.5,1)):
 
-        super(TriMesh, self).__init__(xfm, shader, color)
+        super(TriMesh, self).__init__(xfm=xfm, shader=shader, color=color, tex=tex)
         if verts.shape[1] == 3:
             verts = np.hstack([verts, np.ones((len(verts),1))])
+        if normals.shape[1] == 3:
+            normals = np.hstack([normals, np.ones((len(normals),1))])
 
         self.verts = verts
         self.polys = polys
@@ -233,6 +237,7 @@ class TriMesh(Model):
             glVertexAttribPointer(
                 ctx.attributes['texcoord'], 2, 
                 GL_FLOAT, GL_FALSE, 4*2, GLvoidp(0))
+
         if self.normals is not None:
             glEnableVertexAttribArray(ctx.attributes['normal'])
             glBindBuffer(GL_ARRAY_BUFFER, self.nbuf)
@@ -252,20 +257,34 @@ class TriMesh(Model):
             glDisableVertexAttribArray(ctx.attributes['texcoord'])
         if self.normals is not None:
             glDisableVertexAttribArray(ctx.attributes['normal'])
+
+class FlatMesh(TriMesh):
+    '''Takes smoothed or no-normal meshes and gives them a flat shading'''
+    def __init__(self, verts, polys, tcoords=None, normals=None,
+        xfm=np.eye(4), shader="default", tex=None, color=(0.5,0.5,0.5,1)):
+        checked = dict()
+        normals = []
+        nverts = []
+        npolys = []
+
+        for i, poly in enumerate(polys):
+            v1 = verts[poly[1]] - verts[poly[0]]
+            v2 = verts[poly[2]] - verts[poly[0]]
+            nvec = tuple(np.cross(v1, v2))
+
+            npoly = []
+            for v in poly:
+                vert = tuple(verts[v])
+                if (vert, nvec) not in checked:
+                    checked[(vert, nvec)] = len(nverts)
+                    npoly.append(len(nverts))
+                    nverts.append(vert)
+                    normals.append(nvec)
+                else:
+                    npoly.append(checked[(vert, nvec)])
+
+            npolys.append(npoly)
         
 
-class PolyMesh(TriMesh):
-    '''This model accepts arbitrary polygons. It first triangulates all polys
-    then submits it to TriMesh'''
-    def __init__(self, verts, polys, tcoords=None, xfm=np.eye(4)):
-        plist = []
-        for poly in polys:
-            if len(poly) > 3:
-                #We have a non-triangle, let's triangulate it
-                dl = Delaunay(verts[tuple(poly), :])
-                for p in dl.vertices:
-                    plist.append([poly[i] for i in p])
-            else:
-                plist.append(poly)
-        
-        super(PolyMesh, self).__init__(verts, np.array(plist), tcoords, xfm)
+        super(FlatMesh, self).__init__(np.array(nverts), np.array(npolys), normals=np.array(normals),
+            tcoords=tcoords, xfm=xfm, tex=tex, shader=shader, color=color)

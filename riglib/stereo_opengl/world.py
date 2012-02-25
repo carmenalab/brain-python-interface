@@ -79,13 +79,14 @@ class ShaderProgram(object):
         self.attributes = _getter("Attrib", self.program)
         self.uniforms = _getter("Uniform", self.program)
     
-    def draw(self, models, projection):
+    def draw(self, models, projection, modelview):
         glUseProgram(self.program)
         self.uniforms["p_matrix"] = projection
+        self.uniforms["modelview"] = modelview
         for drawfunc in models:
             drawfunc(self)
 
-class World(object):
+class Renderer(object):
     def __init__(self, shaders, programs):
         self.shaders = dict()
         for k, v in shaders.items():
@@ -111,7 +112,7 @@ class World(object):
         
         self.shaders[name] = shader
     
-    def draw(self, root, projection):
+    def draw(self, root, projection, modelview):
         collect = dict((k, []) for k in self.programs.keys())
 
         for pname, drawfunc in root.render_queue():
@@ -119,4 +120,4 @@ class World(object):
             collect[pname].append(drawfunc)
         
         for name, program in self.programs.items():
-            program.draw(collect[name], projection)
+            program.draw(collect[name], projection, modelview)
