@@ -1,23 +1,29 @@
 import functools
 import Image
+
 import pygame
 import numpy as np
 from OpenGL.GL import *
 from OpenGL import GLUT as glut
-from scipy.spatial import Delaunay
 
 class Model(object):
     def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), shininess=0.5):
-        self.xfm = np.eye(4)
         self.shader = shader
+        self.xfm = np.eye(4)
         self.color = color
         self.shininess = shininess
     
     def init(self):
         pass
     
-    def render_queue(self, xfm=np.eye(4)):
-        yield self.shader, None, functools.partial(self.draw, xfm=xfm)
+    def render_queue(self, xfm=np.eye(4), shader=None, **kwargs):
+        '''Yields the shader, texture, and the partial drawfunc for queueing'''
+        #Ignore other kwargs -- what do they mean?
+        pfunc = functools.partial(self.draw, xfm=xfm)
+        if shader is not None:
+            yield shader, pfunc, None
+        else:
+            yield self.shader, pfunc, None
     
     def translate(self, x, y, z, reset=False):
         mat = np.array([[1,0,0,x],
@@ -35,7 +41,7 @@ class Model(object):
             y = x
         if z is None:
             z = x
-
+        
         mat = np.array([[x,0,0,0],
                         [0,y,0,0],
                         [0,0,z,0],
@@ -84,9 +90,10 @@ class Model(object):
 
         return self
 
-    def draw(self, ctx, xfm=np.eye(4)):
+    def draw(self, ctx, xfm=np.eye(4), **kwargs):
         glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, np.dot(xfm, self.xfm).astype(np.float32))
-        glUniform1f(ctx.uniforms.shininess, self.shininess)
+        glUniform4f(ctx.uniforms.basecolor, *self.color if "color" not in kwargs else kwargs['color'])
+        glUniform1f(ctx.uniforms.shininess, self.shininess if "shininess" not in kwargs else kwargs['shininess'])
 
 class Texture(object):
     def __init__(self, tex, 
@@ -143,9 +150,14 @@ class TexModel(Model):
         
         self.texs = tex
     
-    def render_queue(self, xfm):
-        ntex = len(self.texs) if self.texs is not None else 0
-        yield self.shader, functools.partial(self.draw, xfm=xfm), ntex
+    def render_queue(self, xfm=np.eye(4), shader=None, **kwargs):
+        #Ignore other kwargs -- what do they mean?
+        l = len(self.texs) if self.texs is not None else 0
+        pfunc = functools.partial(self.draw, xfm=xfm)
+        if shader is not None:
+            yield shader, pfunc, l
+        else:
+            yield self.shader, pfunc, l
 
 class Group(Model):
     def __init__(self, models):
@@ -156,14 +168,14 @@ class Group(Model):
         for model in self.models:
             model.init()
     
-    def render_queue(self, xfm=np.eye(4)):
+    def render_queue(self, xfm=np.eye(4), **kwargs):
         for model in self.models:
-            for out in model.render_queue(np.dot(xfm, self.xfm)):
+            for out in model.render_queue(np.dot(xfm, self.xfm), **kwargs):
                 yield out
     
-    def draw(self, ctx, xfm=np.eye(4)):
+    def draw(self, ctx, xfm=np.eye(4), **kwargs):
         for model in self.models:
-            model.draw(ctx, np.dot(xfm, self.xfm))
+            model.draw(ctx, np.dot(xfm, self.xfm), **kwargs)
     
     def add(self, model):
         self.models.append(model)
@@ -226,7 +238,6 @@ class TriMesh(TexModel):
     
     def draw(self, ctx, xfm=np.eye(4)):
         super(TriMesh, self).draw(ctx, xfm)
-        glUniform4f(ctx.uniforms['basecolor'], *self.color)
         glEnableVertexAttribArray(ctx.attributes['position'])
         glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
         glVertexAttribPointer( ctx.attributes['position'],

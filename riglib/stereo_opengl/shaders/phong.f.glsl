@@ -27,17 +27,14 @@ void main() {
          eye = normalize(-vposition),
          reflection = normalize(-reflect(mv_light_direction, normal));
     
-    vec4 frag_diffuse = basecolor;
-    for (i=0; i<0; i++) {
-        frag_diffuse += texweight[i] * texture2D(textures[i], vtexcoord);
-    }
+    vec4 frag_diffuse = texweight[0] * texture2D(textures[0], vtexcoord) + basecolor;
 
     vec4 diffuse_factor
         = max(-dot(normal, mv_light_direction), 0.0) * light_diffuse;
     vec4 ambient_diffuse_factor = diffuse_factor + light_ambient;
     
     vec4 specular_factor
-        = clamp(pow(max(dot(-reflection, eye), 0.0), vshininess), 0, 1) * light_specular;
+        = pow(max(dot(-reflection, eye), 0.0), vshininess) * light_specular;
     
     gl_FragColor =  ambient_diffuse_factor * frag_diffuse + specular_factor*spec_color;
 

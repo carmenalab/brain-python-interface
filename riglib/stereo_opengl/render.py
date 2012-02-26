@@ -116,13 +116,11 @@ class Renderer(object):
         self.shaders = dict()
         for k, v in shaders.items():
             print "Compiling shader %s..."%k
-            self._make_shader(k, *v)
+            self.add_shader(k, *v)
         
         self.programs = dict()
         for name, shaders in programs.items():
-            shaders = [self.shaders[i] for i in shaders]
-            sp = ShaderProgram(shaders)
-            self.programs[name] = sp
+            self.add_program(name, shaders)
         
         maxtex = glGetIntegerv(GL_MAX_TEXTURE_COORDS)
         self.texavail = set(globals()['GL_TEXTURE%d'%i] for i in range(maxtex))
@@ -130,8 +128,18 @@ class Renderer(object):
 
         self.fbo = glGenFramebuffers(1)
         self.frametexs = dict()
+
+        self.render_queue = None
+
+    def queue_render(self, root, shader=None):
+        rq = dict((k, []) for k in self.programs.keys())
+
+        for pname, tex, drawfunc in root.render_queue(shader=shader):
+            rq[pname].append((tex,drawfunc))
+        
+        self.render_queue = rq
     
-    def _make_shader(self, name, stype, filename):
+    def add_shader(self, name, stype, filename):
         src = open(os.path.join(cwd, "shaders", filename))
         shader = glCreateShader(stype)
         glShaderSource(shader, src)
@@ -153,14 +161,17 @@ class Renderer(object):
         
         return self.texunit[tex]
     
-    def draw(self, root, **kwargs):
-        collect = dict((k, []) for k in self.programs.keys())
-
-        for pname, tex, drawfunc in root.render_queue():
-            collect[pname].append((tex,drawfunc))
+    def add_program(self, name, shaders):
+        shaders = [self.shaders[i] for i in shaders]
+        sp = ShaderProgram(shaders)
+        self.programs[name] = sp
+    
+    def draw(self, root, requeue=False, **kwargs):
+        if requeue or self.render_queue is None:
+            self.queue_render(root)
         
         for name, program in self.programs.items():
-            program.draw(collect[name], **kwargs)
+            program.draw(self.render_queue[name], **kwargs)
     
     def draw_to_fbo(self, root, **kwargs):
         glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)

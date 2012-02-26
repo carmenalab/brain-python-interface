@@ -12,7 +12,7 @@ sphere = FlatSphere(radius=8, segments=16, color=(0.6,0.4,0.4,1), shininess=50).
 fc = Cylinder(height=20, segments=20, color=(0.3, 0.3, 0.6,1), shininess=10)
 fcg = Group([fc]).rotate_y(90)
 
-class Test(Window):
+class Test(Anaglyph):
     def _while_draw(self):
         #ts = time.time() - self.start_time
         #fc.rotate_x((ts/10.)*360, reset=True)
@@ -26,8 +26,8 @@ class Test(Window):
 
 
 if __name__ == "__main__":
-    win = Test()
+    win = Test(window_size=(1920,1080))
+    win.add_model(Plane(500,100).translate(-250, 0, -50))
     win.add_model(sphere)
     win.add_model(fcg)
-    win.start()
-    win.join()
+    win.run()

@@ -3,9 +3,20 @@ from numpy import pi
 
 from models import TriMesh
 
+class Plane(TriMesh):
+    def __init__(self, width=1, height=1, **kwargs):
+        pts = np.array([[0,0,0],
+                        [width,0,0],
+                        [width,height,0],
+                        [0,height,0]])
+        polys = [(0,1,3),(1,2,3)]
+        tcoords = np.array([[0,0],[1,0],[1,1],[0,1]])
+        normals = [(0,0,1)]*4
+        super(Plane, self).__init__(pts, np.array(polys), 
+                tcoords=tcoords, normals=np.array(normals), **kwargs)
+
 class Cylinder(TriMesh):
     def __init__(self, height=1, radius=1, segments=36, **kwargs):
-
         theta = np.linspace(0, 2*np.pi, segments, endpoint=False)
         unit = np.array([np.cos(theta), np.sin(theta), np.ones(segments)]).T
 
@@ -25,18 +36,6 @@ class Cylinder(TriMesh):
 
         super(Cylinder, self).__init__(pts, np.array(polys), 
             tcoords=tcoord, normals=normals, **kwargs)
-
-class Plane(TriMesh):
-    def __init__(self, width=1, height=1, **kwargs):
-        pts = np.array([[0,0,0],
-                        [width,0,0],
-                        [width,height,0],
-                        [0,height,0]])
-        polys = [(0,1,3),(1,2,3)]
-        tcoords = np.array([[0,0],[1,0],[1,1],[0,1]])
-        normals = [(0,0,1)]*4
-        super(Plane, self).__init__(pts, np.array(polys), 
-                tcoords=tcoords, normals=np.array(normals), **kwargs)
 
 class Sphere(TriMesh):
     def __init__(self, radius=1, segments=36, **kwargs):

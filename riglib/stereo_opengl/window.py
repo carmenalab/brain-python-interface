@@ -18,13 +18,13 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    #window_size = (3840, 1080)
-    window_size = (960, 270)
+    window_size = (3840, 1080)
+    #window_size = (960, 270)
     background = (0,0,0,1)
     fps = 60
 
     #Screen parameters, all in centimeters -- adjust for monkey
-    screen_dist = 40
+    screen_dist = 35
     iod = 6.7
     fov = 45
 
@@ -54,18 +54,14 @@ class Window(LogExperiment):
         self.renderer = Renderer(
             shaders=dict(
                 passthru=(GL_VERTEX_SHADER, "passthrough.v.glsl"),
-                #flat_geom=(GL_GEOMETRY_SHADER, "flat_shade.g.glsl"),
-                #smooth_geom=(GL_GEOMETRY_SHADER, "smooth_shade.g.glsl"),
                 phong=(GL_FRAGMENT_SHADER, "phong.f.glsl")), 
             programs=dict(
-                #flat=("passthru","flat_geom","phong"),
                 default=("passthru", "phong"),
-                #smooth=("passthru", "smooth_geom", "phong"),
             )
         )
         
         w, h = self.window_size
-        self.projections = offaxis_frusta((w/2,h), self.fov, 0.1, 1024, self.screen_dist, self.iod)
+        self.projections = offaxis_frusta((w/2,h), self.fov, 1, 1024, self.screen_dist, self.iod)
 
         #this effectively determines the modelview matrix
         world = Group(self.models).translate(0, self.screen_dist, 0).rotate_x(-90)
@@ -104,28 +100,26 @@ class Window(LogExperiment):
         return self.stop or self.event is not None and self.event[0] == 27
 
 class Anaglyph(Window):
+    def __init__(self, window_size=None, **kwargs):
+        super(Anaglyph, self).__init__(**kwargs)
+        self.window_size = None
+
     def init(self):
         pygame.init()
-        info = pygame.display.Info()
-        self.window_size = info.current_w, info.current_h
+        if self.window_size is None:
+            info = pygame.display.Info()
+            self.window_size = info.current_w, info.current_h
         super(Anaglyph, self).init()
         w, h = self.window_size
         self.projections = offaxis_frusta((w,h), self.fov, 0.1, 1024, 40, self.iod)
-        self.renderer = Renderer(
-            shaders=dict(
-                passthru=(GL_VERTEX_SHADER, "passthrough.v.glsl"),
-                phong=(GL_FRAGMENT_SHADER, "phong_anaglyph.f.glsl")), 
-            programs=dict(
-                default=("passthru", "phong"),
-            )
-        )
+        self.renderer.add_shader("anaphong", GL_FRAGMENT_SHADER, "phong_anaglyph.f.glsl")
+        #replace old phong shader with anaphong
+        self.renderer.add_program("default", ("passthru", "anaphong"))
         self.renderer.make_frametex("color", self.window_size)
 
     def _while_draw(self):
-        def activate_tex(ctx):
-            glActiveTexture(GL_TEXTURE0)
-            glBindTexture(GL_TEXTURE_2D, self.renderer.frametexs['color'])
-            ctx.uniforms['fbo'] = 0
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, self.renderer.frametexs['color'])
 
         w, h = self.window_size
         glClear(GL_COLOR_BUFFER_BIT)
@@ -137,7 +131,7 @@ class Anaglyph(Window):
         glClear(GL_DEPTH_BUFFER_BIT)
         self.root.translate(0.5*self.iod, 0, 0, reset=True)
         mv = np.dot(self.root.xfm, self.root.models[0].xfm)
-        self.renderer.draw(self.root, p_matrix=self.projections[1], modelview=mv, activate_tex=activate_tex)
+        self.renderer.draw(self.root, p_matrix=self.projections[1], modelview=mv, fbo=0)
         
         pygame.display.flip()
         self.clock.tick()
