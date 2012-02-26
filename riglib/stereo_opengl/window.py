@@ -102,7 +102,7 @@ class Window(LogExperiment):
 class Anaglyph(Window):
     def __init__(self, window_size=None, **kwargs):
         super(Anaglyph, self).__init__(**kwargs)
-        self.window_size = None
+        self.window_size = window_size
 
     def init(self):
         pygame.init()
@@ -111,27 +111,32 @@ class Anaglyph(Window):
             self.window_size = info.current_w, info.current_h
         super(Anaglyph, self).init()
         w, h = self.window_size
-        self.projections = offaxis_frusta((w,h), self.fov, 0.1, 1024, 40, self.iod)
+        self.projections = offaxis_frusta((w,h), self.fov, 1, 1024, 40, self.iod)
         self.renderer.add_shader("anaphong", GL_FRAGMENT_SHADER, "phong_anaglyph.f.glsl")
         #replace old phong shader with anaphong
-        self.renderer.add_program("default", ("passthru", "anaphong"))
+        #self.renderer.add_program("default", ("passthru", "anaphong"))
         self.renderer.make_frametex("color", self.window_size)
 
     def _while_draw(self):
-        glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D, self.renderer.frametexs['color'])
+#        glActiveTexture(GL_TEXTURE0)
+#        glBindTexture(GL_TEXTURE_2D, self.renderer.frametexs['color'])
 
         w, h = self.window_size
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
         glClear(GL_COLOR_BUFFER_BIT)
         glClear(GL_DEPTH_BUFFER_BIT)
         glViewport(0,0,w,h)
+
+        glColorMask(GL_TRUE, GL_FALSE, GL_FALSE, GL_TRUE)
         self.root.translate(0.5*self.iod, 0, 0, reset=True)
         mv = np.dot(self.root.xfm, self.root.models[0].xfm)
-        self.renderer.draw_to_fbo(self.root, p_matrix=self.projections[0], modelview=mv)
+        self.renderer.draw(self.root, p_matrix=self.projections[0], modelview=mv)
+
         glClear(GL_DEPTH_BUFFER_BIT)
-        self.root.translate(0.5*self.iod, 0, 0, reset=True)
+        glColorMask(GL_FALSE, GL_TRUE, GL_TRUE, GL_TRUE)
+        self.root.translate(-0.5*self.iod, 0, 0, reset=True)
         mv = np.dot(self.root.xfm, self.root.models[0].xfm)
-        self.renderer.draw(self.root, p_matrix=self.projections[1], modelview=mv, fbo=0)
+        self.renderer.draw(self.root, p_matrix=self.projections[1], modelview=mv)
         
         pygame.display.flip()
         self.clock.tick()

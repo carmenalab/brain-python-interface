@@ -13,7 +13,7 @@ def frustum(l, r, t, b, n, f):
 
 def perspective(angle, aspect, near, far):
     '''Generates a perspective transform matrix'''
-    f = 1./ np.tan(np.radians(angle))
+    f = 1./ np.tan(np.radians(angle) / 2)
     fn, nfn = far + near, far - near
     return np.array([[f/aspect, 0,    0,               0],
                      [0,        f,    0,               0],
@@ -24,7 +24,7 @@ def offaxis_frusta(winsize, fov, near, far, focal_dist, iod):
     aspect = winsize[0] / winsize[1]
     top = near * np.tan(np.radians(fov) / 2)
     right = aspect*top
-    fshift = 0.5*iod*near / focal_dist
+    fshift = (iod/2) * near / focal_dist
 
     left = frustum(-right+fshift, right+fshift, top, -top, near, far)
     right = frustum(-right-fshift, right-fshift, top, -top, near, far)

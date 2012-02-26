@@ -130,14 +130,6 @@ class Renderer(object):
         self.frametexs = dict()
 
         self.render_queue = None
-
-    def queue_render(self, root, shader=None):
-        rq = dict((k, []) for k in self.programs.keys())
-
-        for pname, tex, drawfunc in root.render_queue(shader=shader):
-            rq[pname].append((tex,drawfunc))
-        
-        self.render_queue = rq
     
     def add_shader(self, name, stype, filename):
         src = open(os.path.join(cwd, "shaders", filename))
@@ -166,12 +158,14 @@ class Renderer(object):
         sp = ShaderProgram(shaders)
         self.programs[name] = sp
     
-    def draw(self, root, requeue=False, **kwargs):
-        if requeue or self.render_queue is None:
-            self.queue_render(root)
+    def draw(self, root, shader=None, **kwargs):
+        queue = dict((k, []) for k in self.programs.keys())
+
+        for pname, tex, drawfunc in root.render_queue(shader=shader):
+            queue[pname].append((tex,drawfunc))
         
         for name, program in self.programs.items():
-            program.draw(self.render_queue[name], **kwargs)
+            program.draw(queue[name], **kwargs)
     
     def draw_to_fbo(self, root, **kwargs):
         glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)

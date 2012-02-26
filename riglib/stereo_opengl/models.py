@@ -243,14 +243,14 @@ class TriMesh(TexModel):
         glVertexAttribPointer( ctx.attributes['position'],
             4, GL_FLOAT, GL_FALSE, 4*4, GLvoidp(0))
         
-        if self.tcoords is not None:
+        if self.tcoords is not None and ctx.attributes['texcoord'] != -1:
             glEnableVertexAttribArray(ctx.attributes['texcoord'])
             glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
             glVertexAttribPointer(
                 ctx.attributes['texcoord'], 2, 
                 GL_FLOAT, GL_FALSE, 4*2, GLvoidp(0))
 
-        if self.normals is not None:
+        if self.normals is not None and ctx.attributes['normal'] != -1:
             glEnableVertexAttribArray(ctx.attributes['normal'])
             glBindBuffer(GL_ARRAY_BUFFER, self.nbuf)
             glVertexAttribPointer(
@@ -265,9 +265,9 @@ class TriMesh(TexModel):
             GLvoidp(0)              # element array buffer offset
         )
         glDisableVertexAttribArray(ctx.attributes['position'])
-        if self.tcoords is not None:
+        if self.tcoords is not None and ctx.attributes['texcoord'] != -1:
             glDisableVertexAttribArray(ctx.attributes['texcoord'])
-        if self.normals is not None:
+        if self.normals is not None and ctx.attributes['normal'] != -1:
             glDisableVertexAttribArray(ctx.attributes['normal'])
 
 class FlatMesh(TriMesh):
