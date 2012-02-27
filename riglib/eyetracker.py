@@ -19,7 +19,6 @@ class System(object):
         pylink.endRealTimeMode()
     
     def get(self):
-        self.tracker.waitForData(100, 1, 0)
         samp = self.tracker.getNewestSample()
         if samp is not None:
             return samp.getLeftEye().getGaze()

@@ -74,6 +74,7 @@ class MemTrack(object):
             try:
                 func = proxy.cmd.get_nowait()
                 proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
+            print "get"
             except:
                 pass
             xy = system.get()
