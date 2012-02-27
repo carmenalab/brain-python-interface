@@ -50,8 +50,10 @@ class Pygame(LogExperiment):
     
     def _while_reward(self):
         self.clear_screen()
+        
     def _while_penalty(self):
-        self.clear_screen()
+        self.surf.fill((181,0,45))
+        self.flip_wait()
         
     def _test_start_trial(self, ts):
         return self.event is not None
