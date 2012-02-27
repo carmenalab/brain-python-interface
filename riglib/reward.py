@@ -32,7 +32,7 @@ class _parse_num(object):
 
 class Basic(object):
     def __init__(self):
-        self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[-1], baudrate=38400)
+        self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
         self.reset()
 
     def _write(self, msg):
