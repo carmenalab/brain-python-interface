@@ -93,7 +93,7 @@ class ShaderProgram(object):
         self.attributes = _getter("Attrib", self.program)
         self.uniforms = _getter("Uniform", self.program)
     
-    def draw(self, models, **kwargs):
+    def draw(self, ctx, models, **kwargs):
         glUseProgram(self.program)
         for name, v in kwargs.items():
             if name in self.uniforms:
@@ -102,9 +102,12 @@ class ShaderProgram(object):
                 self.attributes[name] = v
             elif hasattr(v, "__call__"):
                 v(self)
-        
-        for drawfunc, tex in models:
-            drawfunc(self)
+
+        for tex, funcs in models.items():
+            if tex is not None:
+                glUniform1i(self.uniforms.texture, ctx.texunits[tex][0])
+            for drawfunc in funcs:
+                drawfunc(self)
 
 fbotypes = dict(
     depth=(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT), 
@@ -123,13 +126,29 @@ class Renderer(object):
             self.add_program(name, shaders)
         
         maxtex = glGetIntegerv(GL_MAX_TEXTURE_COORDS)
-        self.texavail = set(globals()['GL_TEXTURE%d'%i] for i in range(maxtex))
+        self.texavail = set((i, globals()['GL_TEXTURE%d'%i]) for i in range(maxtex))
         self.texunits = dict()
 
-        self.fbo = glGenFramebuffers(1)
+        self.fbos = dict()
         self.frametexs = dict()
 
         self.render_queue = None
+    
+    def _queue_render(self, root, shader=None):
+        queue = dict((k, dict()) for k in self.programs.keys())
+
+        for pname, drawfunc, tex in root.render_queue(shader=shader):
+            if tex not in queue[pname]:
+                queue[pname][tex] = []
+            queue[pname][tex].append(drawfunc)
+        
+        for pname in self.programs.keys():
+            assert len(self.texavail) > len(queue[pname])
+            for tex in queue[pname].keys():
+                if tex is not None:
+                    self.add_texunit(tex)
+        
+        self.render_queue = queue
     
     def add_shader(self, name, stype, filename):
         src = open(os.path.join(cwd, "shaders", filename))
@@ -145,13 +164,14 @@ class Renderer(object):
         self.shaders[name] = shader
 
     def add_texunit(self, tex):
+        '''Input a Texture object, output a tuple (index, TexUnit)'''
         if tex not in self.texunits:
             unit = self.texavail.pop()
-            glActiveTexture(unit)
-            glBindTexture(GL_TEXTURE_2D, tex)
+            glActiveTexture(unit[1])
+            glBindTexture(GL_TEXTURE_2D, tex.tex)
             self.texunits[tex] = unit
         
-        return self.texunit[tex]
+        return self.texunits[tex]
     
     def add_program(self, name, shaders):
         shaders = [self.shaders[i] for i in shaders]
@@ -159,16 +179,14 @@ class Renderer(object):
         self.programs[name] = sp
     
     def draw(self, root, shader=None, **kwargs):
-        queue = dict((k, []) for k in self.programs.keys())
-
-        for pname, tex, drawfunc in root.render_queue(shader=shader):
-            queue[pname].append((tex,drawfunc))
+        if self.render_queue is None:
+            self._queue_render(root, shader)
         
         for name, program in self.programs.items():
-            program.draw(queue[name], **kwargs)
+            program.draw(self, self.render_queue[name], **kwargs)
     
-    def draw_to_fbo(self, root, **kwargs):
-        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
+    def draw_to_fbo(self, kind, root, **kwargs):
+        glBindFramebuffer(GL_FRAMEBUFFER, self.fbos[kind])
         #Erase old buffer info
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         self.draw(root, **kwargs)
@@ -188,13 +206,18 @@ class Renderer(object):
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP)
         glTexImage2D(GL_TEXTURE_2D, 0, texform, w, h, 0, textype, dtype, 0)
         glBindTexture(GL_TEXTURE_2D, 0)
-        
-        #Bind the texture to the renderer's framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
-        glFramebufferTexture2D(GL_FRAMEBUFFER, fbtype, GL_TEXTURE_2D, frametex, 0)
-        glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
         self.frametexs[kind] =  frametex
+    
+    def make_fbo(self, name, kinds):
+        fbo = glGenFramebuffers(1)
+        #Bind the texture to the renderer's framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, )
+        for kind in kinds:
+            texform, textype, dtype, fbtype = fbotypes[kind]
+            glFramebufferTexture2D(GL_FRAMEBUFFER, fbtype, GL_TEXTURE_2D, self.frametexs[kind], 0)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        self.fbos[name] = fbo
 
 def test():
     import pygame

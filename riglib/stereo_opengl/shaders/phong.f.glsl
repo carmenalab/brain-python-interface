@@ -2,8 +2,9 @@
 
 uniform mat4 modelview;
 uniform vec4 basecolor;
-uniform vec4 texweight[20];
-uniform sampler2D textures[20];
+uniform vec4 spec_color;
+
+uniform sampler2D texture;
 uniform sampler2D fbo;
 
 varying vec3 vposition;
@@ -16,8 +17,6 @@ const vec4 light_diffuse = vec4(0.6, 0.6, 0.6, 0.0);
 const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 const vec4 light_specular = vec4(1.0, 1.0, 1.0, 1.0);
 
-const vec4 spec_color = vec4(1.0);
-
 const vec4 ltint = vec4(1, 0, 0.5, 1);
 const vec4 rtint = vec4(0, 1, 0.5, 1);
 
@@ -28,7 +27,7 @@ void main() {
          eye = normalize(-vposition),
          reflection = normalize(-reflect(mv_light_direction, normal));
     
-    vec4 frag_diffuse = texweight[0] * texture2D(textures[0], vtexcoord) + basecolor;
+    vec4 frag_diffuse = texture2D(texture, vtexcoord) + basecolor;
 
     vec4 diffuse_factor
         = max(-dot(normal, mv_light_direction), 0.0) * light_diffuse;

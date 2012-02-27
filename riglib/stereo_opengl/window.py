@@ -18,14 +18,14 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    window_size = (3840, 1080)
-    #window_size = (960, 270)
+    #window_size = (3840, 1080)
+    window_size = (960, 270)
     background = (0,0,0,1)
     fps = 60
 
     #Screen parameters, all in centimeters -- adjust for monkey
     screen_dist = 35
-    iod = 6.7
+    iod = 2.5
     fov = 45
 
     def __init__(self, *args, **kwargs):
@@ -38,7 +38,7 @@ class Window(LogExperiment):
         pygame.init()
 
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
-        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
+        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.FULLSCREEN
         pygame.display.set_mode(self.window_size, flags)
         self.clock = pygame.time.Clock()
 
@@ -62,12 +62,19 @@ class Window(LogExperiment):
         
         w, h = self.window_size
         self.projections = offaxis_frusta((w/2,h), self.fov, 1, 1024, self.screen_dist, self.iod)
-
+        
         #this effectively determines the modelview matrix
-        world = Group(self.models).translate(0, self.screen_dist, 0).rotate_x(-90)
+        self.world = Group(self.models)
+        #up vector is always (0,0,1), why would I ever need to roll the camera?!
+        self.set_eye((0,-self.screen_dist,0), (0,0))
         #Need to add extra Group to translate the eyes without affecting the modelview
-        self.root = Group([world])
+        self.root = Group([self.world])
         self.root.init()
+    
+    def set_eye(self, pos, vec, reset=True):
+        '''Set the eye's position and direction. Camera starts at (0,0,0), pointing towards positive y'''
+        self.world.translate(-pos[0], -pos[1], -pos[2], reset=True).rotate_x(-90)
+        self.world.rotate_x(vec[1]).rotate_y(vec[0])
 
     def add_model(self, model):
         self.models.append(model)
@@ -98,11 +105,44 @@ class Window(LogExperiment):
     
     def _test_stop(self, ts):
         return self.stop or self.event is not None and self.event[0] == 27
+    
+class FPScontrol(Window):
+    '''A mixin that adds a WASD + Mouse controller to the window. 
+    Use WASD to move in XY plane, q to go down, e to go up'''
+
+    def init(self):
+        super(FPScontrol, self).init()
+        pygame.event.set_grab(True)
+        pygame.mouse.set_visible(False)
+        self.eyepos = [0,-self.screen_dist, 0]
+        self.eyevec = [0,0]
+        self.wasd = [False, False, False, False, False, False]
+
+    def _get_event(self):
+        retme = None
+        for e in pygame.event.get([pygame.MOUSEMOTION, pygame.KEYDOWN, pygame.KEYUP, pygame.QUIT]):
+            moved = any(self.wasd)
+            if e.type == pygame.MOUSEMOTION:
+                self.eyevec[0] += 0.5*e.rel[0]
+                self.eyevec[1] += 0.5*e.rel[1]
+                moved = True
+            elif e.type == pygame.KEYDOWN:
+                kn = pygame.key.name(e.key)
+                if kn in ["escape", "q"]:
+                    self.stop = True
+                retme = (e.key, e.type)
+            elif e.type == pygame.QUIT:
+                self.stop = True
+
+            if moved:
+                self.set_eye(self.eyepos, self.eyevec, reset=True)
+        return retme
 
 class Anaglyph(Window):
     def __init__(self, window_size=None, **kwargs):
         super(Anaglyph, self).__init__(**kwargs)
         self.window_size = window_size
+        self.iod = 2.5
 
     def init(self):
         pygame.init()
@@ -111,16 +151,13 @@ class Anaglyph(Window):
             self.window_size = info.current_w, info.current_h
         super(Anaglyph, self).init()
         w, h = self.window_size
-        self.projections = offaxis_frusta((w,h), self.fov, 1, 1024, 40, self.iod)
+        self.projections = offaxis_frusta((w,h), self.fov, 1, 1024, self.screen_dist, self.iod)
         self.renderer.add_shader("anaphong", GL_FRAGMENT_SHADER, "phong_anaglyph.f.glsl")
         #replace old phong shader with anaphong
         #self.renderer.add_program("default", ("passthru", "anaphong"))
         self.renderer.make_frametex("color", self.window_size)
 
     def _while_draw(self):
-#        glActiveTexture(GL_TEXTURE0)
-#        glBindTexture(GL_TEXTURE_2D, self.renderer.frametexs['color'])
-
         w, h = self.window_size
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
         glClear(GL_COLOR_BUFFER_BIT)

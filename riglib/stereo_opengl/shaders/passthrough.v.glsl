@@ -5,9 +5,6 @@ uniform mat4 xfm;
 uniform vec4 basecolor;
 uniform float shininess;
 
-uniform vec4 texweight[20];
-uniform sampler2D textures[20];
-
 attribute vec4 position;
 attribute vec2 texcoord;
 attribute vec4 normal;

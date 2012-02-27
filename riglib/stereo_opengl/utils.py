@@ -36,4 +36,5 @@ def cloudy_tex(size=(512,512)):
     grid = np.mgrid[-1:1:size[0]*1j, -1:1:size[1]*1j]
     mask = 1/(grid**2).sum(0)
     fim = np.fft.fftshift(np.fft.fft2(im))
-    return np.abs(np.fft.ifft2(np.fft.fftshift(mask * fim)))
+    im = np.abs(np.fft.ifft2(np.fft.fftshift(mask * fim)))
+    return im / im.max()

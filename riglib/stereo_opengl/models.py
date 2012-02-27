@@ -1,29 +1,45 @@
-import functools
-import Image
-
 import pygame
 import numpy as np
 from OpenGL.GL import *
 from OpenGL import GLUT as glut
 
+max_multitex = 3
+
 class Model(object):
-    def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), shininess=0.5):
+    def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), 
+        shininess=0.5, specular_color=(1.,1.,1.,1.)):
         self.shader = shader
+        self.parent = None
         self.xfm = np.eye(4)
         self.color = color
         self.shininess = shininess
+        self.spec_color = specular_color
+
+        self._xfm = self.xfm
+    
+    def __setattr__(self, attr, xfm):
+        '''Checks if the xfm was changed, and updates its xfm'''
+        val = super(Model, self).__setattr__(attr, xfm)
+        if attr == "xfm":
+            self._recache_xfm()
+
+        return val
+    
+    def _recache_xfm(self):
+        if self.parent is not None:
+            self._xfm = np.dot(self.parent._xfm, self.xfm)
+        else:
+            self._xfm = self.xfm
     
     def init(self):
         pass
     
-    def render_queue(self, xfm=np.eye(4), shader=None, **kwargs):
+    def render_queue(self, shader=None):
         '''Yields the shader, texture, and the partial drawfunc for queueing'''
-        #Ignore other kwargs -- what do they mean?
-        pfunc = functools.partial(self.draw, xfm=xfm)
         if shader is not None:
-            yield shader, pfunc, None
+            yield shader, self.draw, None
         else:
-            yield self.shader, pfunc, None
+            yield self.shader, self.draw, None
     
     def translate(self, x, y, z, reset=False):
         mat = np.array([[1,0,0,x],
@@ -90,10 +106,45 @@ class Model(object):
 
         return self
 
-    def draw(self, ctx, xfm=np.eye(4), **kwargs):
-        glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, np.dot(xfm, self.xfm).astype(np.float32))
-        glUniform4f(ctx.uniforms.basecolor, *self.color if "color" not in kwargs else kwargs['color'])
+    def draw(self, ctx, **kwargs):
+        glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, self._xfm.astype(np.float32))
+        glUniform4f(ctx.uniforms.basecolor, *(self.color if "color" not in kwargs else kwargs['color']))
+        glUniform4f(ctx.uniforms.spec_color, *(self.spec_color if "specular_color" not in kwargs else kwargs['spec_color']))
         glUniform1f(ctx.uniforms.shininess, self.shininess if "shininess" not in kwargs else kwargs['shininess'])
+
+class Group(Model):
+    def __init__(self, models=()):
+        self._xfm = np.eye(4)
+        self.models = []
+        for model in models:
+            self.add(model)
+        super(Group, self).__init__()
+
+    def init(self):
+        for model in self.models:
+            model.init()
+    
+    def render_queue(self, xfm=np.eye(4), **kwargs):
+        for model in self.models:
+            for out in model.render_queue(**kwargs):
+                yield out
+    
+    def draw(self, ctx, **kwargs):
+        for model in self.models:
+            model.draw(ctx, **kwargs)
+    
+    def add(self, model):
+        self.models.append(model)
+        model.parent = self
+        model._recache_xfm()
+    
+    def __getitem__(self, idx):
+        return self.models[idx]
+    
+    def _recache_xfm(self):
+        super(Group, self)._recache_xfm()
+        for model in self.models:
+            model._recache_xfm()
 
 class Texture(object):
     def __init__(self, tex, 
@@ -104,18 +155,16 @@ class Texture(object):
             if tex.max() <= 1:
                 tex *= 255
             if len(tex.shape) < 3:
-                tex = np.tile(tex, [1,1,4])
+                tex = np.tile(tex, [4, 1, 1]).T
             size = tex.shape[:2]
             tex = tex.astype(np.uint8).tostring()
-        elif isinstance(tex, Image):
-            size = tex.size
-            tex = tex.tostring()
         elif isinstance(tex, str):
             im = pygame.image.load(tex)
             size = tex.get_size()
             tex = pygame.image.tostring(im, 'RGBA')
         self.texstr = tex
         self.size = size
+        self.tex = None
 
     def init(self):
         gltex = glGenTextures(1)
@@ -135,72 +184,55 @@ class Texture(object):
         self.tex = gltex
     
     def set(self, idx):
-        glActiveTexture(globals()['GL_ACTIVE%d'%idx])
+        glActiveTexture(GL_ACTIVE0+idx)
         glBindTexture(GL_TEXTURE_2D, self.tex)
         glUniform1i(ctx.uniforms['texture'], idx)
+
+class MultiTex(object):
+    '''This is not ready yet!'''
+    def __init__(self, textures, weights):
+        raise NotImplementedError
+        assert len(textures) < max_multitex
+        self.texs = textures
+        self.weights = weights
 
 class TexModel(Model):
     def __init__(self, tex=None, **kwargs):
         if tex is not None:
             kwargs['color'] = (0,0,0,1)
         super(TexModel, self).__init__(**kwargs)
-        if isinstance(tex, Texture):
-            #only single texture, assume it's full weight
-            tex = [(tex, (1.,1.,1.,1.))]
         
-        self.texs = tex
+        self.tex = tex
     
-    def render_queue(self, xfm=np.eye(4), shader=None, **kwargs):
-        #Ignore other kwargs -- what do they mean?
-        l = len(self.texs) if self.texs is not None else 0
-        pfunc = functools.partial(self.draw, xfm=xfm)
-        if shader is not None:
-            yield shader, pfunc, l
-        else:
-            yield self.shader, pfunc, l
-
-class Group(Model):
-    def __init__(self, models):
-        super(Group, self).__init__()
-        self.models = models
-
     def init(self):
-        for model in self.models:
-            model.init()
-    
-    def render_queue(self, xfm=np.eye(4), **kwargs):
-        for model in self.models:
-            for out in model.render_queue(np.dot(xfm, self.xfm), **kwargs):
-                yield out
-    
-    def draw(self, ctx, xfm=np.eye(4), **kwargs):
-        for model in self.models:
-            model.draw(ctx, np.dot(xfm, self.xfm), **kwargs)
-    
-    def add(self, model):
-        self.models.append(model)
-    
-    def __getitem__(self, idx):
-        return self.models[idx]
+        super(TexModel, self).init()
+        if self.tex.tex is None:
+            self.tex.init()
+        
+    def render_queue(self, shader=None, **kwargs):
+        if shader is not None:
+            yield shader, self.draw, self.tex4
+        else:
+            yield self.shader, self.draw, self.tex
     
 
 builtins = dict([ (n[9:].lower(), getattr(glut, n)) 
                     for n in dir(glut) 
                     if "glutSolid" in n])
 class Builtins(Model):
-    def __init__(self, model, xfm=np.eye(4), *args):
+    def __init__(self, model, shader="fixedfunc", *args):
         super(Builtins, self).__init__(xfm)
         assert model in builtins
         self.model = builtins['model']
         self.args = args
     
-    def draw(self, ctx, xfm=np.eye(4)):
+    def draw(self, ctx):
         glPushMatrix()
         glLoadMatrixf(np.dot(xfm, self.xfm).ravel())
         self.model(*self.args)
         glPopMatrix()
 
-class TriMesh(TexModel):
+class TriMesh(Model):   
     '''Basic triangle mesh model. Houses the GL functions for making buffers and displaying triangles'''
     def __init__(self, verts, polys, normals=None, tcoords=None, **kwargs):
         super(TriMesh, self).__init__(**kwargs)
@@ -215,6 +247,7 @@ class TriMesh(TexModel):
         self.normals = normals
     
     def init(self):
+        super(TriMesh, self).init()
         self.vbuf = glGenBuffers(1)
         self.ebuf = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
@@ -236,8 +269,8 @@ class TriMesh(TexModel):
             glBufferData(GL_ARRAY_BUFFER,
                 self.normals.astype(np.float32).ravel(), GL_STATIC_DRAW)
     
-    def draw(self, ctx, xfm=np.eye(4)):
-        super(TriMesh, self).draw(ctx, xfm)
+    def draw(self, ctx):
+        super(TriMesh, self).draw(ctx)
         glEnableVertexAttribArray(ctx.attributes['position'])
         glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
         glVertexAttribPointer( ctx.attributes['position'],
