@@ -137,9 +137,9 @@ class Renderer(object):
         vbuf = glGenBuffers(1)
         ebuf = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, vbuf)
-        glBufferData(GL_ARRAY_BUFFER, np.array([(-1,-1), (1,-1), (1,1), (-1,1)]).astype(np.float32), GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, np.array([(-1,-1, 0, 1), (1,-1, 0, 1), (1,1, 0, 1), (-1,1, 0, 1)]).astype(np.float32), GL_STATIC_DRAW)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebuf)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, np.array([(0,1,3),(1,2,3)]).astype(np.uint16).ravel(), GL_STATIC_DRAW)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, np.array([(0,1,2),(0,2,3)]).astype(np.uint16).ravel(), GL_STATIC_DRAW)
         self.fsquad_buf = vbuf, ebuf
     
     def _queue_render(self, root, shader=None):
@@ -208,7 +208,7 @@ class Renderer(object):
         glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo)
         glDrawBuffers(fbo.types)
         #Erase old buffer info
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+        #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         self.draw(root, **kwargs)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
     
@@ -274,28 +274,26 @@ class FBO(object):
     def _maketex(self, kind, size, 
         magfilt=GL_NEAREST, minfilt=GL_NEAREST, 
         wrap_x=GL_CLAMP, wrap_y=GL_CLAMP):
-
-        assert kind in fbotypes
         texform, textype, dtype, fbtype = fbotypes[kind]
 
         #First, create a texture
         frametex = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, frametex)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magfilt)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minfilt)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_x)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_y)
         glTexImage2D(GL_TEXTURE_2D, 0, texform, size[0], size[1], 0, textype, dtype, 0)
         glBindTexture(GL_TEXTURE_2D, 0)
 
         return frametex
 
 class SSAOrender(object):
-    def __init__(self, shaders, programs, win_size):
+    def __init__(self, shaders, programs, win_size, clips=(1., 1024.)):
         self.renderer = Renderer(shaders, programs)
         self.renderer.add_shader("fsquad", GL_VERTEX_SHADER, "fsquad.v.glsl")
         self.renderer.add_shader("ssao_pass1", GL_FRAGMENT_SHADER, "ssao_pass1.f.glsl", "phong.f.glsl")
-        self.renderer.add_shader("ssao_pass2", GL_FRAGMENT_SHADER, "ssao_pass2.f.glsl", "phong.f.glsl")
+        self.renderer.add_shader("ssao_pass2", GL_FRAGMENT_SHADER, "ssao_pass2.f.glsl")
 
         #override the default shader with this passthru + ssao_pass1 to store depth
         self.renderer.add_program("ssao_pass1", ("passthru", "ssao_pass1"))
@@ -306,10 +304,21 @@ class SSAOrender(object):
         randtex = randtex.sum(-1)
         self.rnm = Texture(randtex.T)
         self.rnm.init()
+        print self.renderer.get_texunit(self.rnm)
+        self.colors, tu = self.renderer.texavail.pop()
+        glActiveTexture(tu)
+        glBindTexture(GL_TEXTURE_2D, self.fbo.colors[0])
+
+        self.normalMap, tu = self.renderer.texavail.pop()
+        glActiveTexture(tu)
+        glBindTexture(GL_TEXTURE_2D, self.fbo.colors[1])
+        self.clips = clips
 
     def draw(self, root, **kwargs):
-        self.renderer.draw_to_fbo(self.fbo, root, shader="ssao_pass1", **kwargs)
-        self.renderer.draw_fsquad("ssao_pass2", colors=self.fbo.colors[0], normalMap=self.fbo.colors[1], rnm=self.rnm.tex)
+        self.renderer.draw_to_fbo(self.fbo, root, shader="ssao_pass1", 
+            nearclip=self.clips[0], farclip=self.clips[1], **kwargs)
+        self.renderer.draw_fsquad("ssao_pass2", colors=self.colors, normalMap=self.normalMap, 
+            rnm=self.renderer.get_texunit(self.rnm)[0])
 
 
 def test():

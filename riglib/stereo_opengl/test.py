@@ -14,14 +14,14 @@ sphere = FlatSphere(radius=8, color=(0.6,0.4,0.4,1), shininess=50).translate(10,
 fc = Cylinder(height=20, segments=20, color=(0.3, 0.3, 0.6,1), specular_color=(0.,0,0,0))
 fcg = Group([fc]).rotate_y(90)
 
-class Test(Anaglyph):
+class Test(Window):
     def _while_draw(self):
         ts = time.time() - self.start_time
         fc.rotate_x((ts/5.)*360, reset=True)
         super(Test, self)._while_draw()
 
 if __name__ == "__main__":
-    win = Test(window_size=(1920,1080))
+    win = Test(window_size=(1280, 640))
     tex = Texture(cloudy_tex((1024,1024)))
     win.add_model(TexPlane(200,100, tex=tex).translate(-100, 0, -15))
     win.add_model(Sphere(radius=4, color=(0., 0.4, 0., 1), shininess=30).translate(-20, 20, -11))
