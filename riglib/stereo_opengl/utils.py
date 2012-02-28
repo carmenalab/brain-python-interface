@@ -1,5 +1,6 @@
 from __future__ import division
 import numpy as np
+from models import Texture
 
 def frustum(l, r, t, b, n, f):
     '''Emulates glFrustum'''
@@ -26,9 +27,13 @@ def offaxis_frusta(winsize, fov, near, far, focal_dist, iod):
     right = aspect*top
     fshift = (iod/2) * near / focal_dist
 
+    lxfm, rxfm = np.eye(4), np.eye(4)
+    lxfm[:3,-1] = [0.5*iod, 0, 0]
+    rxfm[:3,-1] = [-0.5*iod, 0, 0]
+
     left = frustum(-right+fshift, right+fshift, top, -top, near, far)
     right = frustum(-right-fshift, right-fshift, top, -top, near, far)
-    return left, right
+    return np.dot(left, lxfm), np.dot(right, rxfm)
 
 
 def cloudy_tex(size=(512,512)):
@@ -37,4 +42,5 @@ def cloudy_tex(size=(512,512)):
     mask = 1/(grid**2).sum(0)
     fim = np.fft.fftshift(np.fft.fft2(im))
     im = np.abs(np.fft.ifft2(np.fft.fftshift(mask * fim)))
-    return im / im.max()
+    im -= im.min()
+    return Texture(im / im.max())

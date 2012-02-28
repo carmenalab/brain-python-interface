@@ -147,15 +147,21 @@ class Group(Model):
             model._recache_xfm()
 
 class Texture(object):
-    def __init__(self, tex, 
+    def __init__(self, tex, size=None,
         magfilter=GL_LINEAR, minfilter=GL_LINEAR, 
-        wrap_x=GL_CLAMP_TO_EDGE, wrap_y=GL_CLAMP_TO_EDGE):
-        self.opts = dict(magfilter=magfilter, minfilter=minfilter, wrap_x=wrap_x, wrap_y=wrap_y)
+        wrap_x=GL_CLAMP_TO_EDGE, wrap_y=GL_CLAMP_TO_EDGE,
+        iformat=GL_RGB8, exformat=GL_RGBA, dtype=GL_UNSIGNED_BYTE):
+
+        self.opts = dict(
+            magfilter=magfilter, minfilter=minfilter, 
+            wrap_x=wrap_x, wrap_y=wrap_y,
+            iformat=iformat, exformat=exformat, dtype=dtype)
+
         if isinstance(tex, np.ndarray):
             if tex.max() <= 1:
                 tex *= 255
             if len(tex.shape) < 3:
-                tex = np.tile(tex, [4, 1, 1]).T
+                tex = np.tile(tex, [3, 1, 1]).T
             if tex.shape[-1] == 3:
                 tex = np.dstack([tex, np.ones(tex.shape[:-1])])
             size = tex.shape[:2]
@@ -164,6 +170,7 @@ class Texture(object):
             im = pygame.image.load(tex)
             size = tex.get_size()
             tex = pygame.image.tostring(im, 'RGBA')
+        
         self.texstr = tex
         self.size = size
         self.tex = None
@@ -176,19 +183,18 @@ class Texture(object):
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     self.opts['wrap_x'])
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     self.opts['wrap_y'])
         glTexImage2D(
-            GL_TEXTURE_2D, 0,           #target, level
-            GL_RGB8,                    #internal format
-            self.size[0], self.size[1], 0,      #width, height, border
-            GL_RGBA, GL_UNSIGNED_BYTE,  #external format, type
-            self.texstr                         #pixels
+            GL_TEXTURE_2D, 0,                           #target, level
+            self.opts['iformat'],                       #internal format
+            self.size[0], self.size[1], 0,              #width, height, border
+            self.opts['exformat'], self.opts['dtype'],  #external format, type
+            self.texstr if self.texstr is not None else 0   #pixels
         )
         
         self.tex = gltex
     
     def set(self, idx):
-        glActiveTexture(GL_ACTIVE0+idx)
+        glActiveTexture(GL_TEXTURE0+idx)
         glBindTexture(GL_TEXTURE_2D, self.tex)
-        glUniform1i(ctx.uniforms['texture'], idx)
 
 class MultiTex(object):
     '''This is not ready yet!'''
