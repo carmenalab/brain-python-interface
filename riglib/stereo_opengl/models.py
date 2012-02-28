@@ -156,6 +156,8 @@ class Texture(object):
                 tex *= 255
             if len(tex.shape) < 3:
                 tex = np.tile(tex, [4, 1, 1]).T
+            if tex.shape[-1] == 3:
+                tex = np.dstack([tex, np.ones(tex.shape[:-1])])
             size = tex.shape[:2]
             tex = tex.astype(np.uint8).tostring()
         elif isinstance(tex, str):
@@ -211,7 +213,7 @@ class TexModel(Model):
         
     def render_queue(self, shader=None, **kwargs):
         if shader is not None:
-            yield shader, self.draw, self.tex4
+            yield shader, self.draw, self.tex
         else:
             yield self.shader, self.draw, self.tex
     

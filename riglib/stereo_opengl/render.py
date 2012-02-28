@@ -3,6 +3,8 @@ import ctypes
 import numpy as np
 from OpenGL.GL import *
 
+from models import Texture
+
 cwd = os.path.abspath(os.path.split(__file__)[0])
 _mattypes = {
     (4,4):"4", (3,3):"3", (2,2):"2", 
@@ -106,14 +108,11 @@ class ShaderProgram(object):
         for tex, funcs in models.items():
             if tex is not None:
                 glUniform1i(self.uniforms.texture, ctx.texunits[tex][0])
+            else:
+                glUniform1i(self.uniforms.texture, 0)
             for drawfunc in funcs:
                 drawfunc(self)
 
-fbotypes = dict(
-    depth=(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT), 
-    stencil=(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, GL_STENCIL_ATTACHMENT), 
-    color=(GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0)
-)
 class Renderer(object):
     def __init__(self, shaders, programs):
         self.shaders = dict()
@@ -126,13 +125,22 @@ class Renderer(object):
             self.add_program(name, shaders)
         
         maxtex = glGetIntegerv(GL_MAX_TEXTURE_COORDS)
-        self.texavail = set((i, globals()['GL_TEXTURE%d'%i]) for i in range(maxtex))
+        #Use first texture unit as the "blank" texture
+        self.texavail = set((i, globals()['GL_TEXTURE%d'%i]) for i in range(1, maxtex))
         self.texunits = dict()
 
         self.fbos = dict()
         self.frametexs = dict()
 
         self.render_queue = None
+
+        vbuf = glGenBuffers(1)
+        ebuf = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, vbuf)
+        glBufferData(GL_ARRAY_BUFFER, np.array([(-1,-1), (1,-1), (1,1), (-1,1)]).astype(np.float32), GL_STATIC_DRAW)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebuf)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, np.array([(0,1,3),(1,2,3)]).astype(np.uint16).ravel(), GL_STATIC_DRAW)
+        self.fsquad_buf = vbuf, ebuf
     
     def _queue_render(self, root, shader=None):
         queue = dict((k, dict()) for k in self.programs.keys())
@@ -146,24 +154,11 @@ class Renderer(object):
             assert len(self.texavail) > len(queue[pname])
             for tex in queue[pname].keys():
                 if tex is not None:
-                    self.add_texunit(tex)
+                    self.get_texunit(tex)
         
         self.render_queue = queue
     
-    def add_shader(self, name, stype, filename):
-        src = open(os.path.join(cwd, "shaders", filename))
-        shader = glCreateShader(stype)
-        glShaderSource(shader, src)
-        glCompileShader(shader)
-
-        if not glGetShaderiv(shader, GL_COMPILE_STATUS):
-            err = glGetShaderInfoLog(shader)
-            glDeleteShader(shader)
-            raise Exception(err)
-        
-        self.shaders[name] = shader
-
-    def add_texunit(self, tex):
+    def get_texunit(self, tex):
         '''Input a Texture object, output a tuple (index, TexUnit)'''
         if tex not in self.texunits:
             unit = self.texavail.pop()
@@ -172,6 +167,30 @@ class Renderer(object):
             self.texunits[tex] = unit
         
         return self.texunits[tex]
+    
+    def add_shader(self, name, stype, filename, *includes):
+        src = []
+        main = open(os.path.join(cwd, "shaders", filename))
+        version = main.readline().strip()
+        for inc in includes:
+            incfile = open(os.path.join(cwd, "shaders", inc))
+            ver = incfile.readline().strip()
+            assert ver == version, "Version: %s, %s"%(ver, version)
+            src.append(incfile.read())
+            incfile.close()
+        src.append(main.read())
+        main.close()
+
+        shader = glCreateShader(stype)
+        glShaderSource(shader, "\n".join(src))
+        glCompileShader(shader)
+
+        if not glGetShaderiv(shader, GL_COMPILE_STATUS):
+            err = glGetShaderInfoLog(shader)
+            glDeleteShader(shader)
+            raise Exception(err)
+        
+        self.shaders[name] = shader
     
     def add_program(self, name, shaders):
         shaders = [self.shaders[i] for i in shaders]
@@ -185,16 +204,78 @@ class Renderer(object):
         for name, program in self.programs.items():
             program.draw(self, self.render_queue[name], **kwargs)
     
-    def draw_to_fbo(self, kind, root, **kwargs):
-        glBindFramebuffer(GL_FRAMEBUFFER, self.fbos[kind])
+    def draw_to_fbo(self, fbo, root, **kwargs):
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo)
+        glDrawBuffers(fbo.types)
         #Erase old buffer info
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         self.draw(root, **kwargs)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
     
-    def make_frametex(self, kind, frame_size):
+    def draw_fsquad(self, shader, **kwargs):
+        ctx = self.programs[shader]
+        glUseProgram(ctx.program)
+        for name, arg in kwargs.items():
+            ctx.uniforms[name] = arg
+        
+        glEnableVertexAttribArray(ctx.attributes['position'])
+        glBindBuffer(GL_ARRAY_BUFFER, self.fsquad_buf[0])
+        glVertexAttribPointer(ctx.attributes['position'],
+            4, GL_FLOAT, GL_FALSE, 4*4, GLvoidp(0))
+        
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.fsquad_buf[1]);
+        glDrawElements(
+            GL_TRIANGLES,           # mode
+            6,      # count
+            GL_UNSIGNED_SHORT,      # type
+            GLvoidp(0)              # element array buffer offset
+        )
+        glDisableVertexAttribArray(ctx.attributes['position'])
+
+
+fbotypes = dict(
+    depth=(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT), 
+    stencil=(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, GL_STENCIL_ATTACHMENT), 
+    colors=(GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0)
+)
+class FBO(object):
+    def __init__(self, attachments, size, ncolors=1):
+        self.colors = []
+        self.types = []
+
+        fbo = glGenFramebuffers(1)
+        #Bind the texture to the renderer's framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+
+        if "colors" in attachments:
+            for i in range(ncolors):
+                tex = self._maketex("colors", size)
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+i, GL_TEXTURE_2D, tex, 0)
+                self.colors.append(tex)
+                self.types.append(GL_COLOR_ATTACHMENT0+i)
+            attachments.remove("colors")
+        
+        for kind in attachments:
+            texform, textype, dtype, fbtype = fbotypes[kind]
+            tex = self._maketex(kind, size=size)
+            glFramebufferTexture2D(GL_FRAMEBUFFER, fbtype, GL_TEXTURE_2D, tex, 0)
+            self.types.append(fbtype)
+        
+        #We always need a depth buffer! Otherwise occlusion will be messed up
+        if "depth" not in attachments:
+            rb = glGenRenderbuffers(1)
+            glBindRenderbuffer(GL_RENDERBUFFER, rb)
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, size[0], size[1])
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb)
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        self.fbo = fbo
+    
+    def _maketex(self, kind, size, 
+        magfilt=GL_NEAREST, minfilt=GL_NEAREST, 
+        wrap_x=GL_CLAMP, wrap_y=GL_CLAMP):
+
         assert kind in fbotypes
-        w, h = frame_size
         texform, textype, dtype, fbtype = fbotypes[kind]
 
         #First, create a texture
@@ -204,20 +285,32 @@ class Renderer(object):
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP)
-        glTexImage2D(GL_TEXTURE_2D, 0, texform, w, h, 0, textype, dtype, 0)
+        glTexImage2D(GL_TEXTURE_2D, 0, texform, size[0], size[1], 0, textype, dtype, 0)
         glBindTexture(GL_TEXTURE_2D, 0)
 
-        self.frametexs[kind] =  frametex
-    
-    def make_fbo(self, name, kinds):
-        fbo = glGenFramebuffers(1)
-        #Bind the texture to the renderer's framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, )
-        for kind in kinds:
-            texform, textype, dtype, fbtype = fbotypes[kind]
-            glFramebufferTexture2D(GL_FRAMEBUFFER, fbtype, GL_TEXTURE_2D, self.frametexs[kind], 0)
-        glBindFramebuffer(GL_FRAMEBUFFER, 0)
-        self.fbos[name] = fbo
+        return frametex
+
+class SSAOrender(object):
+    def __init__(self, shaders, programs, win_size):
+        self.renderer = Renderer(shaders, programs)
+        self.renderer.add_shader("fsquad", GL_VERTEX_SHADER, "fsquad.v.glsl")
+        self.renderer.add_shader("ssao_pass1", GL_FRAGMENT_SHADER, "ssao_pass1.f.glsl", "phong.f.glsl")
+        self.renderer.add_shader("ssao_pass2", GL_FRAGMENT_SHADER, "ssao_pass2.f.glsl", "phong.f.glsl")
+
+        #override the default shader with this passthru + ssao_pass1 to store depth
+        self.renderer.add_program("ssao_pass1", ("passthru", "ssao_pass1"))
+        self.renderer.add_program("ssao_pass2", ("fsquad", "ssao_pass2"))
+        
+        self.fbo = FBO(["colors"], ncolors=2, size=(win_size[0] / 2, win_size[1] / 2))
+        randtex = np.random.rand(3, 128, 128)
+        randtex = randtex.sum(-1)
+        self.rnm = Texture(randtex.T)
+        self.rnm.init()
+
+    def draw(self, root, **kwargs):
+        self.renderer.draw_to_fbo(self.fbo, root, shader="ssao_pass1", **kwargs)
+        self.renderer.draw_fsquad("ssao_pass2", colors=self.fbo.colors[0], normalMap=self.fbo.colors[1], rnm=self.rnm.tex)
+
 
 def test():
     import pygame
@@ -227,7 +320,7 @@ def test():
     return Renderer(
                 shaders=dict(
                     passthru=(GL_VERTEX_SHADER, "passthrough.v.glsl"),
-                    phong=(GL_FRAGMENT_SHADER, "phong_anaglyph.f.glsl")), 
+                    phong=(GL_FRAGMENT_SHADER, "default.f.glsl", "phong.f.glsl")), 
                 programs=dict(
                     default=("passthru", "phong"),
                 )

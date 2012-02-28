@@ -9,7 +9,7 @@ from OpenGL.GL import *
 
 from riglib.experiment import LogExperiment, traits
 
-from render import Renderer
+from render import Renderer, SSAOrender
 from models import Group
 from utils import offaxis_frusta
 
@@ -38,7 +38,8 @@ class Window(LogExperiment):
         pygame.init()
 
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
-        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.FULLSCREEN
+        pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,1)
+        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
         pygame.display.set_mode(self.window_size, flags)
         self.clock = pygame.time.Clock()
 
@@ -51,13 +52,14 @@ class Window(LogExperiment):
         glClearDepth(1.0)
         glDepthMask(GL_TRUE)
         
-        self.renderer = Renderer(
+        self.renderer = SSAOrender(
             shaders=dict(
                 passthru=(GL_VERTEX_SHADER, "passthrough.v.glsl"),
-                phong=(GL_FRAGMENT_SHADER, "phong.f.glsl")), 
+                default=(GL_FRAGMENT_SHADER, "default.f.glsl", "phong.f.glsl")),
             programs=dict(
-                default=("passthru", "phong"),
-            )
+                default=("passthru", "default"),
+            ),
+            win_size=self.window_size
         )
         
         w, h = self.window_size
@@ -152,11 +154,11 @@ class Anaglyph(Window):
         super(Anaglyph, self).init()
         w, h = self.window_size
         self.projections = offaxis_frusta((w,h), self.fov, 1, 1024, self.screen_dist, self.iod)
-        self.renderer.add_shader("anaphong", GL_FRAGMENT_SHADER, "phong_anaglyph.f.glsl")
+        #self.renderer.add_shader("anaphong", GL_FRAGMENT_SHADER, "phong_anaglyph.f.glsl")
         #replace old phong shader with anaphong
         #self.renderer.add_program("default", ("passthru", "anaphong"))
-        self.renderer.make_frametex("color", self.window_size)
-
+        #self.renderer.make_frametex("color", self.window_size)
+    
     def _while_draw(self):
         w, h = self.window_size
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)

@@ -17,14 +17,14 @@ fcg = Group([fc]).rotate_y(90)
 class Test(Anaglyph):
     def _while_draw(self):
         ts = time.time() - self.start_time
-        fc.rotate_x((ts/10.)*360, reset=True)
+        fc.rotate_x((ts/5.)*360, reset=True)
         super(Test, self)._while_draw()
 
 if __name__ == "__main__":
-    win = Test()
-    tex = Texture(cloudy_tex((2048,2048)))
-    win.add_model(TexPlane(200,100, tex=tex).translate(-100, 0, -30))
-    win.add_model(Sphere(radius=4, color=(0., 0.4, 0., 1), shininess=30).translate(-20, 10, 0))
+    win = Test(window_size=(1920,1080))
+    tex = Texture(cloudy_tex((1024,1024)))
+    win.add_model(TexPlane(200,100, tex=tex).translate(-100, 0, -15))
+    win.add_model(Sphere(radius=4, color=(0., 0.4, 0., 1), shininess=30).translate(-20, 20, -11))
     win.add_model(sphere)
     win.add_model(fcg)
-    win.start()
+    win.run()
