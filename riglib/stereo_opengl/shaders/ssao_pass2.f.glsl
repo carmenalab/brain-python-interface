@@ -2,7 +2,6 @@
 
 uniform sampler2D rnm;
 uniform sampler2D normalMap;
-uniform sampler2D colors;
 
 varying vec2 uv;
 const float totStrength = 1.38;
@@ -53,5 +52,5 @@ void main(void) {
    
    // output the result
    //gl_FragColor = vec4(1.0+bl*invSamples);
-   gl_FragColor = texture2D(colors, uv);
+   gl_FragColor = vec4(texture2D(normalMap, uv).rgb, 1.0);
 }

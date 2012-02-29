@@ -3,8 +3,6 @@ import numpy as np
 from OpenGL.GL import *
 from OpenGL import GLUT as glut
 
-max_multitex = 3
-
 class Model(object):
     def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), 
         shininess=0.5, specular_color=(1.,1.,1.,1.)):
@@ -191,10 +189,11 @@ class Texture(object):
         )
         
         self.tex = gltex
-    
+    '''
     def set(self, idx):
         glActiveTexture(GL_TEXTURE0+idx)
         glBindTexture(GL_TEXTURE_2D, self.tex)
+    '''
 
 class MultiTex(object):
     '''This is not ready yet!'''

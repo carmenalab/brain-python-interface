@@ -1,6 +1,9 @@
 import numpy as np
 from OpenGL.GL import *
 
+from render import Renderer
+from models import Texture
+
 fbotypes = dict(
     depth=(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT), 
     stencil=(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, GL_STENCIL_ATTACHMENT), 
@@ -45,6 +48,10 @@ class FBO(object):
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
 class FBOrender(Renderer):
+    def __init__(self, fbo, *args, **kwargs):
+        super(FBOrender, self).__init__(*args, **kwargs)
+        self.fbo = fbo
+
     def draw_fsquad(self, shader, **kwargs):
         ctx = self.programs[shader]
         glUseProgram(ctx.program)
@@ -59,12 +66,12 @@ class FBOrender(Renderer):
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.fsquad_buf[1]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, GLvoidp(0))
         glDisableVertexAttribArray(ctx.attributes['position'])
-        
-    def draw_to_fbo(self, fbo, root, **kwargs):
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo.fbo)
-        glDrawBuffers(fbo.types)
+
+    def draw_to_fbo(self, root, **kwargs):
+        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo.fbo)
+        glDrawBuffers(self.fbo.types)
         #Erase old buffer info
-        #glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
-        self.draw(root, **kwargs)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+        super(FBOrender, self).draw(root, **kwargs)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
     

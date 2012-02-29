@@ -27,8 +27,6 @@ class Window(LogExperiment):
     iod = 2.5
     fov = 45
 
-    renderer = stereo.LeftRight
-
     def __init__(self, *args, **kwargs):
         super(Window, self).__init__(**kwargs)
         self.models = []
@@ -53,7 +51,7 @@ class Window(LogExperiment):
         glClearDepth(1.0)
         glDepthMask(GL_TRUE)
         
-        self.renderer = self.renderer(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
+        self.renderer = self._get_renderer()
         
         #this effectively determines the modelview matrix
         self.world = Group(self.models)
@@ -61,7 +59,6 @@ class Window(LogExperiment):
 
         #up vector is always (0,0,1), why would I ever need to roll the camera?!
         self.set_eye((0,-self.screen_dist,0), (0,0))
-        #Need to add extra Group to translate the eyes without affecting the modelview
     
     def set_eye(self, pos, vec, reset=True):
         '''Set the eye's position and direction. Camera starts at (0,0,0), pointing towards positive y'''
@@ -74,6 +71,9 @@ class Window(LogExperiment):
     def run(self):
         self.init()
         return super(Window, self).run()
+    
+    def _get_renderer(self):
+        return stereo.LeftRight(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
     
     def _get_event(self):
         for e in pygame.event.get(pygame.KEYDOWN):

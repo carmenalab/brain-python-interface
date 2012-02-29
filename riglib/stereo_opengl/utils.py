@@ -27,6 +27,7 @@ def offaxis_frusta(winsize, fov, near, far, focal_dist, iod):
     right = aspect*top
     fshift = (iod/2) * near / focal_dist
 
+    #multiply in the iod modelview transform
     lxfm, rxfm = np.eye(4), np.eye(4)
     lxfm[:3,-1] = [0.5*iod, 0, 0]
     rxfm[:3,-1] = [-0.5*iod, 0, 0]
@@ -34,7 +35,6 @@ def offaxis_frusta(winsize, fov, near, far, focal_dist, iod):
     left = frustum(-right+fshift, right+fshift, top, -top, near, far)
     right = frustum(-right-fshift, right-fshift, top, -top, near, far)
     return np.dot(left, lxfm), np.dot(right, rxfm)
-
 
 def cloudy_tex(size=(512,512)):
     im = np.random.randn(*size)
