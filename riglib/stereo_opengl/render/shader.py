@@ -104,6 +104,8 @@ class ShaderProgram(object):
             if tex is not None:
                 glUniform1i(self.uniforms.texture, ctx.texunits[tex][0])
             else:
+                glActiveTexture(GL_TEXTURE0)
+                glBindTexture(GL_TEXTURE_2D, 0)
                 glUniform1i(self.uniforms.texture, 0)
             for drawfunc in funcs:
                 drawfunc(self)

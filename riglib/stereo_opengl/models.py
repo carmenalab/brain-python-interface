@@ -189,11 +189,12 @@ class Texture(object):
         )
         
         self.tex = gltex
-    '''
+    
     def set(self, idx):
         glActiveTexture(GL_TEXTURE0+idx)
         glBindTexture(GL_TEXTURE_2D, self.tex)
-    '''
+
+
 
 class MultiTex(object):
     '''This is not ready yet!'''

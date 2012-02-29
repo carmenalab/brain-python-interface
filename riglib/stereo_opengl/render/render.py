@@ -1,4 +1,5 @@
 import os
+import operator
 import numpy as np
 from OpenGL.GL import *
 
@@ -36,6 +37,8 @@ class Renderer(object):
         #Set up the texture units
         maxtex = glGetIntegerv(GL_MAX_TEXTURE_COORDS)
         #Use first texture unit as the "blank" texture
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, 0)
         self.texavail = set((i, globals()['GL_TEXTURE%d'%i]) for i in range(1, maxtex))
         self.texunits = dict()
 
@@ -59,7 +62,7 @@ class Renderer(object):
             queue[pname][tex].append(drawfunc)
         
         for pname in self.programs.keys():
-            assert len(self.texavail) > len(queue[pname])
+            #assert len(self.texavail) > len(queue[pname])
             for tex in queue[pname].keys():
                 if tex is not None:
                     self.get_texunit(tex)
@@ -108,15 +111,19 @@ class Renderer(object):
     
     def draw(self, root, shader=None, requeue=False, **kwargs):
         if self.render_queue is None or requeue:
-            self._queue_render(root, shader)
+            self._queue_render(root)
         
         if "p_matrix" not in kwargs:
             kwargs['p_matrix'] = self.projection
         if "modelview" not in kwargs:
             kwargs['modelview'] = root.xfm
         
-        for name, program in self.programs.items():
-            program.draw(self, self.render_queue[name], **kwargs)
+        if shader is not None:
+            for items in self.render_queue.values():
+                self.programs[shader].draw(self, items, **kwargs)
+        else:
+            for name, program in self.programs.items():
+                program.draw(self, self.render_queue[name], **kwargs)
 
 def test():
     import pygame

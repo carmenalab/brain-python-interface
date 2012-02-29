@@ -2,6 +2,7 @@
 
 uniform mat4 p_matrix;
 uniform mat4 xfm;
+uniform mat4 modelview;
 uniform vec4 basecolor;
 uniform float shininess;
 

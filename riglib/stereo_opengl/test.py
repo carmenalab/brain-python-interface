@@ -5,21 +5,22 @@ import pygame
 from window import Window, FPScontrol
 from primitives import Cylinder, Plane, Sphere
 from models import FlatMesh, Group, Texture, TexModel
-from render import ssao
+from render import ssao, stereo, Renderer
 from utils import cloudy_tex
 
 FlatSphere = type("FlatSphere", (Sphere, FlatMesh), globals())
 TexPlane = type("TexPlane", (Plane, TexModel), globals())
-sphere = FlatSphere(radius=8, color=(0.6,0.4,0.4,1), shininess=50).translate(10,20,-4)
+sphere = FlatSphere(radius=8, color=(0.6,0.2,0.2,1), shininess=50).translate(10,20,-4)
 
-fc = Cylinder(height=20, segments=20, color=(0.3, 0.3, 0.6,1), specular_color=(0.,0,0,0))
+fc = Cylinder(height=20, segments=20, color=(0.3, 0.3, 0.6,1), specular_color=(0.,0,0,0)).rotate_x(60)
 fcg = Group([fc]).rotate_y(90)
 
 forearm = Group([Cylinder(radius=2.5, height=20).rotate_y(90), Sphere(3).translate(-20,0,0)])
 
+mirrorSSAO = type("mirroSSAO", (ssao.SSAO, stereo.MirrorDisplay), globals())
 class Test(Window):
     def _get_renderer(self):
-        return ssao.SSAO(self.window_size, self.fov, 1., 1024.)
+        return mirrorSSAO(self.window_size, self.fov, 1., 512., 35, 2.512)
 
     def _while_draw(self):
         ts = time.time() - self.start_time

@@ -43,7 +43,7 @@ class Window(LogExperiment):
         self.clock = pygame.time.Clock()
 
         glEnable(GL_BLEND)
-        glDepthFunc(GL_LEQUAL)
+        glDepthFunc(GL_LESS)
         glEnable(GL_DEPTH_TEST) 
         glEnable(GL_TEXTURE_2D)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -73,7 +73,7 @@ class Window(LogExperiment):
         return super(Window, self).run()
     
     def _get_renderer(self):
-        return stereo.LeftRight(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
+        return stereo.MirrorDisplay(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
     
     def _get_event(self):
         for e in pygame.event.get(pygame.KEYDOWN):
