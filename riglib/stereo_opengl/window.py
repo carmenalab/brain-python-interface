@@ -17,8 +17,8 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    #window_size = (3840, 1080)
-    window_size = (960, 270)
+    window_size = (3840, 1080)
+    #window_size = (960, 270)
     background = (0,0,0,1)
     fps = 60
 
@@ -83,7 +83,7 @@ class Window(LogExperiment):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self.renderer.draw(self.world)
         pygame.display.flip()
-        self.clock.tick()
+        self.clock.tick(self.fps)
         self.event = self._get_event()
     
     def _start_None(self):

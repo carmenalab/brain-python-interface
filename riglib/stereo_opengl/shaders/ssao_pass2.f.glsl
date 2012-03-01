@@ -13,11 +13,11 @@ uniform float nearclip;
 uniform float farclip;
 
 varying vec2 uv;
-const float totStrength = 1.4;
+const float totStrength = 1.38;
 const float strength = 0.07;
 const float offset = 18.0;
-const float falloff = 0.000001;
-const float rad = 0.006;
+const float falloff = 0.000002;
+const float rad = .006;
 #define SAMPLES 10 // 10 is good
 const float invSamples = -totStrength/10.;
 
@@ -29,7 +29,7 @@ float LinearizeDepth(vec2 uv) {
 }
 
 void main(void) {
-   vec3 pSphere[10];
+   vec3 pSphere[16];
    pSphere[0] = vec3(-0.010735935, 0.01647018, 0.0062425877);
    pSphere[1] = vec3(-0.06533369, 0.3647007, -0.13746321);
    pSphere[2] = vec3(-0.6539235, -0.016726388, -0.53000957);
@@ -40,7 +40,13 @@ void main(void) {
    pSphere[7] = vec3(0.019100213, 0.29652783, 0.066237666);
    pSphere[8] = vec3(0.8765323, 0.011236004, 0.28265962);
    pSphere[9] = vec3(0.29264435, -0.40794238, 0.15964167);
-
+   pSphere[10] = vec3(0.010350345, -0.58698344, 0.0046293875);
+   pSphere[11] = vec3(-0.08972908, -0.49408212, 0.3287904);
+   pSphere[12] = vec3(0.7119986, -0.0154690035, -0.09183723);
+   pSphere[13] = vec3(-0.053382345, 0.059675813, -0.5411899);
+   pSphere[14] = vec3(0.035267662, -0.063188605, 0.54602677);
+   pSphere[15] = vec3(-0.47761092, 0.2847911, -0.0271716);
+   
    // grab a normal for reflecting the sample rays later on
    vec3 fres = normalize((texture2D(rnm,uv*offset).xyz*2.0) - vec3(1.0));
    
@@ -65,20 +71,19 @@ void main(void) {
    for(int i=0; i<SAMPLES;i++) {
       // get a vector (randomized inside of a sphere with radius 1.0) from a texture and reflect it
       ray = radD*reflect(pSphere[i],fres);
- 
+      
       // get the depth of the occluder fragment
-      occUV = ep.xy + sign(dot(ray,norm))*ray.xy;
+      occUV = (ep + sign(dot(ray,norm))*ray).xy;
       // if depthDifference is negative = occluder is behind current fragment
       depthDifference = currentPixelDepth-LinearizeDepth(occUV);
- 
+      
       // calculate the difference between the normals as a weight of
       // the falloff equation, starts at falloff and is kind of 1/x^2 falling
       bl += step(falloff,depthDifference)*
             (1.0-dot(texture2D(normalMap,occUV).xyz,norm))*
             (1.0-smoothstep(falloff,strength,depthDifference));
    }
-   //gl_FragColor = texture2D(normalMap, uv);
+   //gl_FragColor = 0.5*(normalize(vec4(depthDifference))+1.0);
    // output the result
-   gl_FragColor.r = 1.0+totStrength*bl*invSamples;
-   //gl_FragColor = vec4(LinearizeDepth(uv));
+   gl_FragColor = vec4(1.0+bl*invSamples);
 }

@@ -31,7 +31,8 @@ class SSAO(FBOrender):
 
         randtex = np.random.rand(3, 128, 128)
         randtex /= randtex.sum(0)
-        self.rnm = Texture(randtex.T)
+        self.rnm = Texture(randtex.T, wrap_x=GL_REPEAT, wrap_y=GL_REPEAT, 
+            magfilter=GL_NEAREST, minfilter=GL_NEAREST)
         self.rnm.init()
 
         self.clips = args[2], args[3]
@@ -40,12 +41,14 @@ class SSAO(FBOrender):
         #First, draw the whole damned scene, but only read the normals and depth into ssao
         glViewport( 0,0, self.size[0]/self.sf, self.size[1]/self.sf)
         self.draw_to_fbo(self.normdepth, root, shader="ssao_pass1", **kwargs)
-        #inspect_tex(self.normdepth.texs['colors'][0], self.size[0]/self.sf)
+        
         #Now, do the actual ssao calculations, and draw it into ping
         self.draw_fsquad_to_fbo(self.pong, "ssao_pass2", 
             nearclip=self.clips[0], farclip=self.clips[1], 
             normalMap=self.normdepth.texs['colors'][0], depthMap=self.normdepth.texs['depth'], 
             rnm=self.rnm)
+        
+        inspect_tex(self.pong.texs['colors'][0], self.size[1]/self.sf)
         
         #Reset the texture, draw into ping with hblur
         self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong.texs['colors'][0])
