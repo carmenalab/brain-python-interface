@@ -19,12 +19,13 @@ const float offset = 18.0;
 const float falloff = 0.000002;
 const float rad = .006;
 #define SAMPLES 10 // 10 is good
-const float invSamples = -totStrength/10.;
+const float invSamples = -1./10.;
 
 float LinearizeDepth(vec2 uv) {
    float n = nearclip; // camera z near
    float f = farclip; // camera z far
-   float z = texture2D(depthMap, uv).x;
+   vec4 d = texture2D(depthMap, uv);
+   float z = (d.x + d.y + d.z)/3.;
    return (2.0 * n) / (f + n - z * (f - n));
 }
 
@@ -71,9 +72,10 @@ void main(void) {
    for(int i=0; i<SAMPLES;i++) {
       // get a vector (randomized inside of a sphere with radius 1.0) from a texture and reflect it
       ray = radD*reflect(pSphere[i],fres);
-      
-      // get the depth of the occluder fragment
-      occUV = (ep + sign(dot(ray,norm))*ray).xy;
+ 
+      // get the coordinate of the occluder fragment
+      occUV = ep.xy + sign(dot(ray,norm))*ray.xy;
+
       // if depthDifference is negative = occluder is behind current fragment
       depthDifference = currentPixelDepth-LinearizeDepth(occUV);
       
@@ -83,7 +85,6 @@ void main(void) {
             (1.0-dot(texture2D(normalMap,occUV).xyz,norm))*
             (1.0-smoothstep(falloff,strength,depthDifference));
    }
-   //gl_FragColor = 0.5*(normalize(vec4(depthDifference))+1.0);
    // output the result
    gl_FragColor = vec4(1.0+bl*invSamples);
 }

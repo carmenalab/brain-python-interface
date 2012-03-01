@@ -37,6 +37,22 @@ def offaxis_frusta(winsize, fov, near, far, focal_dist, iod):
     right = frustum(-right-fshift, right-fshift, top, -top, near, far)
     return np.dot(left, lxfm), np.dot(right, rxfm)
 
+def mirror_frusta(winsize, fov, near, far, focal_dist, iod):
+    aspect = winsize[0] / winsize[1]
+    top = near * np.tan(np.radians(fov) / 2)
+    right = aspect*top
+
+    #multiply in the iod modelview transform
+    lxfm, rxfm = np.eye(4), np.eye(4)
+    lxfm[:3,-1] = [0.5*iod, 0, 0]
+    lxfm[0,0] = -1
+    rxfm[:3,-1] = [-0.5*iod, 0, 0]
+    rxfm[0,0] = -1
+
+    left = frustum(-right, right, top, -top, near, far)
+    right = frustum(-right, right, top, -top, near, far)
+    return np.dot(left, lxfm), np.dot(right, rxfm)
+
 def cloudy_tex(size=(512,512)):
     im = np.random.randn(*size)
     grid = np.mgrid[-1:1:size[0]*1j, -1:1:size[1]*1j]
