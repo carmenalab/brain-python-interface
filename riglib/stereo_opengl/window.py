@@ -37,8 +37,8 @@ class Window(LogExperiment):
         pygame.init()
 
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
-        #pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,1)
-        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
+        pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,1)
+        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.NOFRAME
         pygame.display.set_mode(self.window_size, flags)
         self.clock = pygame.time.Clock()
 

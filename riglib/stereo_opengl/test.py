@@ -17,7 +17,7 @@ fcg = Group([fc]).rotate_y(90)
 
 forearm = Group([Cylinder(radius=2.5, height=20).rotate_y(90), Sphere(3).translate(-20,0,0)])
 
-class Test(FPScontrol, Window):
+class Test(Window):
     def _get_renderer(self):
         mirrorSSAO = type("mirroSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
         return mirrorSSAO(self.window_size, self.fov, 1., 512., self.screen_dist, self.iod)
