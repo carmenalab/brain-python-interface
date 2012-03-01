@@ -17,20 +17,22 @@ fcg = Group([fc]).rotate_y(90)
 
 forearm = Group([Cylinder(radius=2.5, height=20).rotate_y(90), Sphere(3).translate(-20,0,0)])
 
-mirrorSSAO = type("mirroSSAO", (ssao.SSAO, stereo.MirrorDisplay), globals())
 class Test(Window):
     def _get_renderer(self):
-        return mirrorSSAO(self.window_size, self.fov, 1., 512., 35, 2.512)
+        mirrorSSAO = type("mirroSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
+        return mirrorSSAO(self.window_size, self.fov, 1., 512., 35, 2.5)
 
     def _while_draw(self):
         ts = time.time() - self.start_time
         fc.rotate_x((ts/5.)*360, reset=True)
         super(Test, self)._while_draw()
+        self.renderer.draw_done()
 
 if __name__ == "__main__":
-    win = Test(window_size=(1280, 640))
-    tex = cloudy_tex()
-    win.add_model(TexPlane(200,100, tex=tex).translate(-100, 0, -15))
+    win = Test()
+    tex = cloudy_tex((1024, 1024))
+    win.add_model(TexPlane(400,500, tex=tex).translate(-200, -20, -15))
+    win.add_model(TexPlane(400,200, tex=tex).rotate_x(90).translate(-200, 200,-15))
     win.add_model(Sphere(radius=4, color=(0., 0.4, 0., 1), shininess=30).translate(-20, 20, -11))
     win.add_model(sphere)
     win.add_model(fcg)

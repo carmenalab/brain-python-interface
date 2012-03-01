@@ -2,7 +2,7 @@
 uniform sampler2D tex; // this should hold the texture rendered by the horizontal blur pass
 varying vec2 uv;
  
-const float blurSize = 1.0/512.0;
+const float blurSize = 1.0/640.0;
  
 void main(void)
 {

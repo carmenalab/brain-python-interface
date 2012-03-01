@@ -2,7 +2,7 @@
 uniform sampler2D tex; // the texture with the scene you want to blur
 varying vec2 uv;
  
-const float blurSize = 1.0/512.0; // I've chosen this size because this will result in that every step will be one pixel wide if the tex texture is of size 512x512
+const float blurSize = 1.0/640.0;
  
 void main(void)
 {

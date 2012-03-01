@@ -1,6 +1,8 @@
 import numpy as np
 from OpenGL.GL import *
 
+from models import Texture
+
 _mattypes = {
     (4,4):"4", (3,3):"3", (2,2):"2", 
     (2,3):"2x3",(3,2):"3x2",
@@ -93,19 +95,20 @@ class ShaderProgram(object):
     def draw(self, ctx, models, **kwargs):
         glUseProgram(self.program)
         for name, v in kwargs.items():
-            if name in self.uniforms:
+            if isinstance(v, Texture):
+                self.uniforms[name] = ctx.get_texunit(v)
+            elif name in self.uniforms:
                 self.uniforms[name] = v
             elif name in self.attributes:
                 self.attributes[name] = v
             elif hasattr(v, "__call__"):
                 v(self)
-
+        
         for tex, funcs in models.items():
-            if tex is not None:
-                glUniform1i(self.uniforms.texture, ctx.texunits[tex][0])
+            if tex is None:
+                self.uniforms.texture = ctx.get_texunit("None")
             else:
-                glActiveTexture(GL_TEXTURE0)
-                glBindTexture(GL_TEXTURE_2D, 0)
-                glUniform1i(self.uniforms.texture, 0)
+                self.uniforms.texture = ctx.get_texunit(tex)
+
             for drawfunc in funcs:
                 drawfunc(self)

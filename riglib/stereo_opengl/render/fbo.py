@@ -52,13 +52,21 @@ class FBO(object):
         self.fbo = fbo
         assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    
+    def clear(self):
+        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
 class FBOrender(Renderer):
     def draw_fsquad(self, shader, **kwargs):
         ctx = self.programs[shader]
         glUseProgram(ctx.program)
-        for name, arg in kwargs.items():
-            ctx.uniforms[name] = arg
+        for name, v in kwargs.items():
+            if isinstance(v, Texture):
+                ctx.uniforms[name] = self.get_texunit(v)
+            else:
+                ctx.uniforms[name] = v
         
         glEnableVertexAttribArray(ctx.attributes['position'])
         glBindBuffer(GL_ARRAY_BUFFER, self.fsquad_buf[0])

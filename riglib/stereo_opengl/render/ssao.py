@@ -4,13 +4,16 @@ from OpenGL.GL import *
 from render import Renderer
 from fbo import FBOrender, FBO
 from models import Texture
+from utils import inspect_tex
 
 class SSAO(FBOrender):
-    def __init__(self, window_size, *args, **kwargs):
-        self.ssao = FBO(["colors", "depth"], size=(window_size[0] / 2, window_size[1] / 2))
-        self.ping = FBO(['colors'], size=(window_size[0] / 2, window_size[1] / 2))
-        self.pong = FBO(["colors"], size=(window_size[0] / 2, window_size[1] / 2))
-        super(SSAO, self).__init__(window_size, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(SSAO, self).__init__(*args, **kwargs)
+        self.sf = 2
+        w, h = self.size[0] / self.sf, self.size[1] / self.sf
+        self.normdepth = FBO(["colors", "depth"], size=(w,h))
+        self.ping = FBO(['colors'], size=(w,h))
+        self.pong = FBO(["colors"], size=(w,h))
 
         self.add_shader("fsquad", GL_VERTEX_SHADER, "fsquad.v.glsl")
         self.add_shader("ssao_pass1", GL_FRAGMENT_SHADER, "ssao_pass1.f.glsl")
@@ -30,50 +33,35 @@ class SSAO(FBOrender):
         randtex /= randtex.sum(0)
         self.rnm = Texture(randtex.T)
         self.rnm.init()
-        self.get_texunit(self.rnm)
-        self.get_texunit(self.ssao.texs['colors'][0])
-        self.get_texunit(self.ssao.texs['depth'])
-        self.get_texunit(self.ping.texs['colors'][0])
-        self.get_texunit(self.pong.texs['colors'][0])
 
-        self.clips = args[1], args[2]
+        self.clips = args[2], args[3]
 
     def draw(self, root, **kwargs):
-        glClear(GL_COLOR_BUFFER_BIT)
         #First, draw the whole damned scene, but only read the normals and depth into ssao
-        old_size = self.size
-        self.size = self.size[0]/2, self.size[1]/2
-        glViewport(0,0,self.size[0], self.size[1])
-        self.draw_to_fbo(self.ssao, root, shader="ssao_pass1", **kwargs)
-        
-        #reset all the textures because opengl is stupid
-        nm, tu = self.get_texunit(self.ssao.texs['colors'][0])
-        dm, tu = self.get_texunit(self.ssao.texs['depth'])
-        rnm, tu = self.get_texunit(self.rnm)
-        ping, tu = self.get_texunit(self.ping.texs['colors'][0])
-        pong, tu = self.get_texunit(self.pong.texs['colors'][0])
-        #Why do I get unbound?
-        self.ssao.texs['colors'][0].set(nm)
-        self.ssao.texs['depth'].set(dm)
-
-        #Now, do the actual ssao calculations, and raw it into ping
+        glViewport( 0,0, self.size[0]/self.sf, self.size[1]/self.sf)
+        self.draw_to_fbo(self.normdepth, root, shader="ssao_pass1", **kwargs)
+        #inspect_tex(self.normdepth.texs['colors'][0], self.size[0]/self.sf)
+        #Now, do the actual ssao calculations, and draw it into ping
         self.draw_fsquad_to_fbo(self.pong, "ssao_pass2", 
             nearclip=self.clips[0], farclip=self.clips[1], 
-            normalMap=nm, depthMap=dm, rnm=rnm)
+            normalMap=self.normdepth.texs['colors'][0], depthMap=self.normdepth.texs['depth'], 
+            rnm=self.rnm)
         
         #Reset the texture, draw into ping with hblur
-        self.pong.texs['colors'][0].set(pong)
-        self.draw_fsquad_to_fbo(self.ping, "hblur", tex=pong)
+        self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong.texs['colors'][0])
         #Reset the texture draw into pong with vblur
-        self.ping.texs['colors'][0].set(ping)
-        self.draw_fsquad_to_fbo(self.pong, "vblur", tex=ping)
-        
-        #Now pong should contain the shadow
-        self.pong.texs['colors'][0].set(pong)
-        self.size = old_size
-        glViewport(0,0,self.size[0], self.size[1])
-        #np.save("/tmp/test.npy", np.fromstring(glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE), dtype=np.uint8).reshape(-1,640,4))
-        super(SSAO, self).draw(root, shader="ssao_pass3", shadow=pong, 
-            width=float(self.size[0]), height=float(self.size[1]))
+        self.draw_fsquad_to_fbo(self.pong, "vblur", tex=self.ping.texs['colors'][0])
 
+        #Actually draw the final image to the screen
+        glViewport(self.drawpos[0], self.drawpos[1], self.size[0], self.size[1])
+        super(SSAO, self).draw(root, shader="ssao_pass3", shadow=self.pong.texs['colors'][0], 
+            window=[float(self.drawpos[0]), self.drawpos[1], self.size[0], self.size[1]], **kwargs)
+        #inspect_tex(self.pong.texs['colors'][0], self.size[0]/self.sf)
         
+        self.draw_done()
+    
+    def draw_done(self):
+        super(SSAO, self).draw_done()
+        self.normdepth.clear()
+        self.ping.clear()
+        self.pong.clear()

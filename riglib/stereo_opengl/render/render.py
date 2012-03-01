@@ -8,10 +8,14 @@ from shader import ShaderProgram
 
 cwd = os.path.join(os.path.abspath(os.path.split(__file__)[0]), "..")
 
+class _textrack(object):
+    pass
+
 class Renderer(object):
     def __init__(self, window_size, fov, near, far, shaders=None, programs=None):
         self.render_queue = None
         self.size = window_size
+        self.drawpos = 0,0
         w, h = window_size
         self.projection = perspective(fov, w / h, near, far)
 
@@ -35,12 +39,7 @@ class Renderer(object):
             self.add_program(name, shaders)
         
         #Set up the texture units
-        maxtex = glGetIntegerv(GL_MAX_TEXTURE_COORDS)
-        #Use first texture unit as the "blank" texture
-        glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D, 0)
-        self.texavail = set((i, globals()['GL_TEXTURE%d'%i]) for i in range(1, maxtex))
-        self.texunits = dict()
+        self.reset_texunits()
 
         #Generate the default fullscreen quad
         verts = np.array([(-1,-1,0,1), (1,-1,0,1), (1,1,0,1), (-1,1,0,1)]).astype(np.float32)
@@ -74,11 +73,20 @@ class Renderer(object):
         if tex not in self.texunits:
             unit = self.texavail.pop()
             glActiveTexture(unit[1])
-            glBindTexture(GL_TEXTURE_2D, tex.tex)
-            print "binding %s to %s"%(tex.tex, unit[1])
-            self.texunits[tex] = unit
+            if tex == "None":
+                glBindTexture(GL_TEXTURE_2D, 0)
+            else:
+                glBindTexture(GL_TEXTURE_2D, tex.tex)
+            #print "Binding %r to %d"%(tex, unit[0])
+            self.texunits[tex] = unit[0]
         
         return self.texunits[tex]
+    
+    def reset_texunits(self):
+        maxtex = glGetIntegerv(GL_MAX_TEXTURE_COORDS)
+        #Use first texture unit as the "blank" texture
+        self.texavail = set((i, globals()['GL_TEXTURE%d'%i]) for i in range(maxtex))
+        self.texunits = dict()
     
     def add_shader(self, name, stype, filename, *includes):
         src = []
@@ -124,6 +132,9 @@ class Renderer(object):
         else:
             for name, program in self.programs.items():
                 program.draw(self, self.render_queue[name], **kwargs)
+    
+    def draw_done(self):
+        self.reset_texunits()
 
 def test():
     import pygame

@@ -1,4 +1,9 @@
 #version 120
+/*
+ * Screen-space ambient occlusion code modified from 
+ * http://www.gamerendering.com/2009/01/14/ssao/
+ *
+ */
 
 uniform sampler2D rnm;
 uniform sampler2D normalMap;
@@ -8,20 +13,19 @@ uniform float nearclip;
 uniform float farclip;
 
 varying vec2 uv;
-const float totStrength = 1.38;
-const float strength = 0.08;
+const float totStrength = 1.4;
+const float strength = 0.07;
 const float offset = 18.0;
-const float falloff = 0.000002;
+const float falloff = 0.000001;
 const float rad = 0.006;
 #define SAMPLES 10 // 10 is good
-const float invSamples = -1.38/10.0;
+const float invSamples = -totStrength/10.;
 
-float LinearizeDepth(vec2 uv)
-{
-  float n = nearclip; // camera z near
-  float f = farclip; // camera z far
-  float z = texture2D(depthMap, uv).x;
-  return (2.0 * n) / (f + n - z * (f - n));
+float LinearizeDepth(vec2 uv) {
+   float n = nearclip; // camera z near
+   float f = farclip; // camera z far
+   float z = texture2D(depthMap, uv).x;
+   return (2.0 * n) / (f + n - z * (f - n));
 }
 
 void main(void) {
@@ -39,7 +43,7 @@ void main(void) {
 
    // grab a normal for reflecting the sample rays later on
    vec3 fres = normalize((texture2D(rnm,uv*offset).xyz*2.0) - vec3(1.0));
- 
+   
    vec4 currentPixelSample = texture2D(normalMap,uv);
    float currentPixelDepth = LinearizeDepth(uv);
  
@@ -49,7 +53,7 @@ void main(void) {
    vec3 norm = currentPixelSample.xyz;
  
    float bl = 0.0;
-   // adjust for the depth ( not shure if this is good..)
+   // adjust for the depth ( not sure if this is good..)
    float radD = rad/currentPixelDepth;
  
    //vec3 ray, se, occNorm;
@@ -63,15 +67,18 @@ void main(void) {
       ray = radD*reflect(pSphere[i],fres);
  
       // get the depth of the occluder fragment
-      occUV = vec3(ep + sign(dot(ray,norm))*ray).xy;
-    // if depthDifference is negative = occluder is behind current fragment
+      occUV = ep.xy + sign(dot(ray,norm))*ray.xy;
+      // if depthDifference is negative = occluder is behind current fragment
       depthDifference = currentPixelDepth-LinearizeDepth(occUV);
  
-      // calculate the difference between the normals as a weight
- // the falloff equation, starts at falloff and is kind of 1/x^2 falling
-      bl += step(falloff,depthDifference)*(1.0-dot(texture2D(normalMap,occUV).xyz,norm))*(1.0-smoothstep(falloff,strength,depthDifference));
+      // calculate the difference between the normals as a weight of
+      // the falloff equation, starts at falloff and is kind of 1/x^2 falling
+      bl += step(falloff,depthDifference)*
+            (1.0-dot(texture2D(normalMap,occUV).xyz,norm))*
+            (1.0-smoothstep(falloff,strength,depthDifference));
    }
-   
+   //gl_FragColor = texture2D(normalMap, uv);
    // output the result
-   gl_FragColor.r = 1.0+bl*invSamples;
+   gl_FragColor.r = 1.0+totStrength*bl*invSamples;
+   //gl_FragColor = vec4(LinearizeDepth(uv));
 }
