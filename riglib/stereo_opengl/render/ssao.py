@@ -9,7 +9,7 @@ from utils import inspect_tex
 class SSAO(FBOrender):
     def __init__(self, *args, **kwargs):
         super(SSAO, self).__init__(*args, **kwargs)
-        self.sf = 2
+        self.sf = 3
         w, h = self.size[0] / self.sf, self.size[1] / self.sf
         self.normdepth = FBO(["colors", "depth"], size=(w,h))
         self.ping = FBO(['colors'], size=(w,h))

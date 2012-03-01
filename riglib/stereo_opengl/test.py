@@ -26,6 +26,8 @@ class Test(Window):
         ts = time.time() - self.start_time
         fc.rotate_x((ts/5.)*360, reset=True)
         super(Test, self)._while_draw()
+        if int(ts) % 5 == 0:
+            print self.clock.get_fps()
         self.renderer.draw_done()
 
 if __name__ == "__main__":
