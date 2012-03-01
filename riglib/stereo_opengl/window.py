@@ -63,7 +63,7 @@ class Window(LogExperiment):
     def set_eye(self, pos, vec, reset=True):
         '''Set the eye's position and direction. Camera starts at (0,0,0), pointing towards positive y'''
         self.world.translate(-pos[0], -pos[1], -pos[2], reset=True).rotate_x(-90)
-        self.world.rotate_x(vec[1]).rotate_y(vec[0])
+        self.world.rotate_y(vec[0]).rotate_x(vec[1])
 
     def add_model(self, model):
         self.models.append(model)
@@ -109,8 +109,8 @@ class FPScontrol(Window):
         for e in pygame.event.get([pygame.MOUSEMOTION, pygame.KEYDOWN, pygame.KEYUP, pygame.QUIT]):
             moved = any(self.wasd)
             if e.type == pygame.MOUSEMOTION:
-                self.eyevec[0] += 0.5*e.rel[0]
-                self.eyevec[1] += 0.5*e.rel[1]
+                self.eyevec[0] += 0.1*e.rel[0]
+                self.eyevec[1] += 0.1*e.rel[1]
                 moved = True
             elif e.type == pygame.KEYDOWN:
                 kn = pygame.key.name(e.key)

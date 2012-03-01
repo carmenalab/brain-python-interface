@@ -48,8 +48,6 @@ class SSAO(FBOrender):
             normalMap=self.normdepth.texs['colors'][0], depthMap=self.normdepth.texs['depth'], 
             rnm=self.rnm)
         
-        inspect_tex(self.pong.texs['colors'][0], self.size[1]/self.sf)
-        
         #Reset the texture, draw into ping with hblur
         self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong.texs['colors'][0])
         #Reset the texture draw into pong with vblur
@@ -59,7 +57,6 @@ class SSAO(FBOrender):
         glViewport(self.drawpos[0], self.drawpos[1], self.size[0], self.size[1])
         super(SSAO, self).draw(root, shader="ssao_pass3", shadow=self.pong.texs['colors'][0], 
             window=[float(self.drawpos[0]), self.drawpos[1], self.size[0], self.size[1]], **kwargs)
-        #inspect_tex(self.pong.texs['colors'][0], self.size[0]/self.sf)
         
         self.draw_done()
     
