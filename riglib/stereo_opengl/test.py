@@ -4,7 +4,8 @@ import pygame
 
 from window import Window, FPScontrol
 from primitives import Cylinder, Plane, Sphere
-from models import FlatMesh, Group, Texture, TexModel
+from models import FlatMesh, Group
+from textures import Texture, TexModel
 from render import ssao, stereo, Renderer
 from utils import cloudy_tex
 

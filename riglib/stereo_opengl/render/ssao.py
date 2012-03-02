@@ -3,15 +3,16 @@ from OpenGL.GL import *
 
 from render import Renderer
 from fbo import FBOrender, FBO
-from models import Texture
-from utils import inspect_tex
+from textures import Texture
 
 class SSAO(FBOrender):
     def __init__(self, *args, **kwargs):
         super(SSAO, self).__init__(*args, **kwargs)
         self.sf = 2
         w, h = self.size[0] / self.sf, self.size[1] / self.sf
-        self.normdepth = FBO([("color0", Texture(None, size=(w,h), iformat=4, exformat=GL_RGBA, dtype=GL_FLOAT))], size=(w,h))
+        ndtex = Texture(None, size=(w,h), iformat=4, exformat=GL_RGBA, 
+                dtype=GL_FLOAT, magfilter=GL_NEAREST, minfilter=GL_NEAREST)
+        self.normdepth = FBO([("color0", ndtex)], size=(w,h))
         self.ping = FBO(['color0'], size=(w,h))
         self.pong = FBO(["color0"], size=(w,h))
 

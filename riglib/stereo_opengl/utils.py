@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-from models import Texture
+from textures import Texture
 from OpenGL.GL import glBindTexture, glGetTexImage, GL_TEXTURE_2D, GL_RGBA, GL_UNSIGNED_BYTE
 
 def frustum(l, r, t, b, n, f):
@@ -61,8 +61,3 @@ def cloudy_tex(size=(512,512)):
     im = np.abs(np.fft.ifft2(np.fft.fftshift(mask * fim)))
     im -= im.min()
     return Texture(im / im.max())
-
-def inspect_tex(tex, width):
-    glBindTexture(GL_TEXTURE_2D, tex.tex)
-    imstr = glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE)
-    np.save("/tmp/test.npy", np.fromstring(imstr, dtype=np.uint8).reshape(width, -1,4))
