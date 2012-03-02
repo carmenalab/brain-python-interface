@@ -11,51 +11,65 @@ fbotypes = dict(
 )
 
 class FBO(object):
-    def __init__(self, attachments, size, ncolors=1, **kwargs):
-        self.texs = dict(colors=[])
-        self.types = []
+    def __init__(self, attachments, size=None, ncolors=1, **kwargs):
+        maxcolors = xrange(glGetInteger(GL_MAX_COLOR_ATTACHMENTS))
+        self.names = dict(("color%d"%i, GL_COLOR_ATTACHMENT0+i) for i in maxcolors)
+        self.names["depth"] = GL_DEPTH_ATTACHMENT
+        self.names["stencil"] = GL_STENCIL_ATTACHMENT
 
-        fbo = glGenFramebuffers(1)
-        #Bind the texture to the renderer's framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+        self.textures = dict()
 
-        if "colors" in attachments:
-            for i in range(ncolors):
-                tex = Texture(None, size=size, **kwargs)
-                tex.init()
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0+i, GL_TEXTURE_2D, tex.tex, 0)
-                self.texs['colors'].append(tex)
-                self.types.append(GL_COLOR_ATTACHMENT0+i)
-            attachments.remove("colors")
+        self.fbo = glGenFramebuffers(1)
+        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
         
-        for kind in attachments:
-            texform, textype, dtype, fbtype = fbotypes[kind]
-            tex = Texture(None, size=size, iformat=texform, exformat=textype, dtype=dtype, magfilter=GL_NEAREST, minfilter=GL_NEAREST)
-            tex.init()
-            glFramebufferTexture2D(GL_FRAMEBUFFER, fbtype, GL_TEXTURE_2D, tex.tex, 0)
-            self.texs[kind] = tex
-            #self.types.append(fbtype)
+        for attach in attachments:
+            if isinstance(attach, str):
+                if attach.startswith("color"):
+                    idx = int(attach[5:])
+                    attach = "colors"
+                iform, exform, dtype, attachment = fbotypes[attach]
+                texture = Texture(None, size=size, iformat=iform, exformat=exform, dtype=dtype)
+                texture.init()
+                if attach == "colors":
+                    attachment += idx
+            else:
+                attachment, texture = attach
+                if attachment in self.names:
+                    attachment = self.names[attachment]
+                if texture.tex is None:
+                    texture.init()
+                glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture.tex, 0)
+
+            self.textures[attachment] = texture
         
         #We always need a depth buffer! Otherwise occlusion will be messed up
-        
-        if "depth" not in attachments:
+        if GL_DEPTH_ATTACHMENT not in self.textures:
             rb = glGenRenderbuffers(1)
             glBindRenderbuffer(GL_RENDERBUFFER, rb)
             glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, size[0], size[1])
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb)
                 
-        if len(self.types) > 0:
-            glDrawBuffers(self.types)
+        types = [t for t in self.textures.keys() if 
+            t !=GL_DEPTH_ATTACHMENT and 
+            t != GL_STENCIL_ATTACHMENT and 
+            t != GL_DEPTH_STENCIL_ATTACHMENT]
+        if len(types) > 0:
+            glDrawBuffers(types)
         else:
             glDrawBuffers(GL_NONE)
         
-        self.fbo = fbo
         assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
     
+    def __getitem__(self, idx):
+        if isinstance(idx, str):
+            return self.textures[self.names[idx]]
+        
+        return self.textures[idx]
+    
     def clear(self):
         glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
 class FBOrender(Renderer):

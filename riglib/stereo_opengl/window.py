@@ -32,7 +32,7 @@ class Window(LogExperiment):
         self.models = []
 
     def init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "1680,0"
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
 

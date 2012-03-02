@@ -9,11 +9,11 @@ from utils import inspect_tex
 class SSAO(FBOrender):
     def __init__(self, *args, **kwargs):
         super(SSAO, self).__init__(*args, **kwargs)
-        self.sf = 3
+        self.sf = 2
         w, h = self.size[0] / self.sf, self.size[1] / self.sf
-        self.normdepth = FBO(["colors", "depth"], size=(w,h))
-        self.ping = FBO(['colors'], size=(w,h))
-        self.pong = FBO(["colors"], size=(w,h))
+        self.normdepth = FBO([("color0", Texture(None, size=(w,h), iformat=4, exformat=GL_RGBA, dtype=GL_FLOAT))], size=(w,h))
+        self.ping = FBO(['color0'], size=(w,h))
+        self.pong = FBO(["color0"], size=(w,h))
 
         self.add_shader("fsquad", GL_VERTEX_SHADER, "fsquad.v.glsl")
         self.add_shader("ssao_pass1", GL_FRAGMENT_SHADER, "ssao_pass1.f.glsl")
@@ -45,17 +45,15 @@ class SSAO(FBOrender):
         #Now, do the actual ssao calculations, and draw it into ping
         self.draw_fsquad_to_fbo(self.pong, "ssao_pass2", 
             nearclip=self.clips[0], farclip=self.clips[1], 
-            normalMap=self.normdepth.texs['colors'][0], depthMap=self.normdepth.texs['depth'], 
-            rnm=self.rnm)
+            normalMap=self.normdepth['color0'], rnm=self.rnm)
         
-        #Reset the texture, draw into ping with hblur
-        self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong.texs['colors'][0])
-        #Reset the texture draw into pong with vblur
-        self.draw_fsquad_to_fbo(self.pong, "vblur", tex=self.ping.texs['colors'][0])
+        #Reset the texture, draw into ping with blur
+        self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong['color0'])
+        self.draw_fsquad_to_fbo(self.pong, "vblur", tex=self.ping['color0'])
 
         #Actually draw the final image to the screen
         glViewport(self.drawpos[0], self.drawpos[1], self.size[0], self.size[1])
-        super(SSAO, self).draw(root, shader="ssao_pass3", shadow=self.pong.texs['colors'][0], 
+        super(SSAO, self).draw(root, shader="ssao_pass3", shadow=self.pong['color0'], 
             window=[float(self.drawpos[0]), self.drawpos[1], self.size[0], self.size[1]], **kwargs)
         
         self.draw_done()

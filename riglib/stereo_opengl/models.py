@@ -144,6 +144,7 @@ class Group(Model):
         for model in self.models:
             model._recache_xfm()
 
+textypes = {GL_UNSIGNED_BYTE:np.uint8, GL_FLOAT:np.float32}
 class Texture(object):
     def __init__(self, tex, size=None,
         magfilter=GL_LINEAR, minfilter=GL_LINEAR, 
@@ -193,7 +194,13 @@ class Texture(object):
     def set(self, idx):
         glActiveTexture(GL_TEXTURE0+idx)
         glBindTexture(GL_TEXTURE_2D, self.tex)
-
+    
+    def get(self):
+        current = glGetInteger(GL_TEXTURE_BINDING_2D)
+        glBindTexture(GL_TEXTURE_2D, self.tex)
+        texstr = glGetTexImage2D(GL_TEXTURE_2D, 0, self.opts['exformat'], self.opts['dtype'])
+        glBindTexture(GL_TEXTURE_2D, current)
+        return np.fromstring(texstr, dtype=textypes[self.opts['dtype']]).reshape(*self.size)
 
 
 class MultiTex(object):
