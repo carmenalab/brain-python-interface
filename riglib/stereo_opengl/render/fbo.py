@@ -32,22 +32,22 @@ class FBO(object):
                 texture.init()
                 if attach == "colors":
                     attachment += idx
+                glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture.tex, 0)
+                self.textures[attachment] = texture
             else:
                 attachment, texture = attach
                 if attachment in self.names:
                     attachment = self.names[attachment]
-                if texture.tex is None:
-                    texture.init()
-                glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture.tex, 0)
-
-            self.textures[attachment] = texture
-        
-        #We always need a depth buffer! Otherwise occlusion will be messed up
-        if GL_DEPTH_ATTACHMENT not in self.textures:
-            rb = glGenRenderbuffers(1)
-            glBindRenderbuffer(GL_RENDERBUFFER, rb)
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, size[0], size[1])
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb)
+                if texture is None and attachment == GL_DEPTH_ATTACHMENT:
+                    rb = glGenRenderbuffers(1)
+                    glBindRenderbuffer(GL_RENDERBUFFER, rb)
+                    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, size[0], size[1])
+                    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb)
+                else:
+                    if texture.tex is None:
+                        texture.init()
+                    glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture.tex, 0)
+                    self.textures[attachment] = texture
                 
         types = [t for t in self.textures.keys() if 
             t !=GL_DEPTH_ATTACHMENT and 

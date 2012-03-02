@@ -8,11 +8,10 @@ from textures import Texture
 class SSAO(FBOrender):
     def __init__(self, *args, **kwargs):
         super(SSAO, self).__init__(*args, **kwargs)
-        self.sf = 2
+        self.sf = 3
         w, h = self.size[0] / self.sf, self.size[1] / self.sf
-        ndtex = Texture(None, size=(w,h), iformat=4, exformat=GL_RGBA, 
-                dtype=GL_FLOAT, magfilter=GL_NEAREST, minfilter=GL_NEAREST)
-        self.normdepth = FBO([("color0", ndtex)], size=(w,h))
+        
+        self.normdepth = FBO(["color0", "depth"], size=(w,h))
         self.ping = FBO(['color0'], size=(w,h))
         self.pong = FBO(["color0"], size=(w,h))
 
@@ -40,27 +39,36 @@ class SSAO(FBOrender):
 
     def draw(self, root, **kwargs):
         #First, draw the whole damned scene, but only read the normals and depth into ssao
+        glPushAttrib(GL_VIEWPORT_BIT)
         glViewport( 0,0, self.size[0]/self.sf, self.size[1]/self.sf)
         self.draw_to_fbo(self.normdepth, root, shader="ssao_pass1", **kwargs)
         
         #Now, do the actual ssao calculations, and draw it into ping
-        self.draw_fsquad_to_fbo(self.pong, "ssao_pass2", 
-            nearclip=self.clips[0], farclip=self.clips[1], 
-            normalMap=self.normdepth['color0'], rnm=self.rnm)
+        self.draw_fsquad_to_fbo(self.pong, "ssao_pass2", rnm=self.rnm,
+            normalMap=self.normdepth['color0'], depthMap=self.normdepth['depth'],
+            nearclip=self.clips[0], farclip=self.clips[1] )
         
         #Reset the texture, draw into ping with blur
         self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong['color0'])
         self.draw_fsquad_to_fbo(self.pong, "vblur", tex=self.ping['color0'])
-
-        #Actually draw the final image to the screen
-        glViewport(self.drawpos[0], self.drawpos[1], self.size[0], self.size[1])
-        super(SSAO, self).draw(root, shader="ssao_pass3", shadow=self.pong['color0'], 
-            window=[float(self.drawpos[0]), self.drawpos[1], self.size[0], self.size[1]], **kwargs)
         
-        self.draw_done()
+        glPopAttrib()
+        #Actually draw the final image to the screen
+        win = glGetIntegerv(GL_VIEWPORT)
+        #Why is this call necessary at all?!
+        glViewport(*win)
+        #glViewport(self.drawpos[0], self.drawpos[1], self.size[0], self.size[1])
+        #win = [float(self.drawpos[0])/2., self.drawpos[1], 1, 1./self.size[1]]
+        super(SSAO, self).draw(root, shader="ssao_pass3", shadow=self.pong['color0'], 
+            window=[float(i) for i in win], **kwargs)
+        
+        #self.draw_done()
     
-    def draw_done(self):
-        super(SSAO, self).draw_done()
+    def clear(self):
         self.normdepth.clear()
         self.ping.clear()
         self.pong.clear()
+    
+    def draw_done(self):
+        super(SSAO, self).draw_done()
+        self.clear()

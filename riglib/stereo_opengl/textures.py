@@ -8,7 +8,7 @@ class Texture(object):
     def __init__(self, tex, size=None,
         magfilter=GL_LINEAR, minfilter=GL_LINEAR, 
         wrap_x=GL_CLAMP_TO_EDGE, wrap_y=GL_CLAMP_TO_EDGE,
-        iformat=GL_RGB8, exformat=GL_RGBA, dtype=GL_UNSIGNED_BYTE):
+        iformat=GL_RGBA8, exformat=GL_RGBA, dtype=GL_UNSIGNED_BYTE):
 
         self.opts = dict(
             magfilter=magfilter, minfilter=minfilter, 
@@ -54,12 +54,16 @@ class Texture(object):
         glActiveTexture(GL_TEXTURE0+idx)
         glBindTexture(GL_TEXTURE_2D, self.tex)
     
-    def get(self):
+    def get(self, filename=None):
         current = glGetInteger(GL_TEXTURE_BINDING_2D)
         glBindTexture(GL_TEXTURE_2D, self.tex)
-        texstr = glGetTexImage2D(GL_TEXTURE_2D, 0, self.opts['exformat'], self.opts['dtype'])
+        texstr = glGetTexImage(GL_TEXTURE_2D, 0, self.opts['exformat'], self.opts['dtype'])
         glBindTexture(GL_TEXTURE_2D, current)
-        return np.fromstring(texstr, dtype=textypes[self.opts['dtype']]).reshape(*self.size)
+        im = np.fromstring(texstr, dtype=textypes[self.opts['dtype']])
+        im.shape = (self.size[1], self.size[0], -1)
+        if filename is not None:
+            np.save(filename, im)
+        return im
 
 
 class MultiTex(object):

@@ -12,10 +12,8 @@ class RightLeft(Renderer):
     
     def draw(self, root, **kwargs):
         w, h = self.size
-        self.drawpos = 0,0
         glViewport(w, 0, w, h)
         super(RightLeft, self).draw(root, p_matrix=self.projections[0], **kwargs)
-        self.drawpos = w,0
         glViewport(0, 0, w, h)
         super(RightLeft, self).draw(root, p_matrix=self.projections[1], **kwargs)
 
@@ -48,3 +46,5 @@ class MirrorDisplay(Renderer):
         self.drawpos = 0,0
         glViewport(0, 0, w, h)
         super(MirrorDisplay, self).draw(root, p_matrix=self.projections[1], **kwargs)
+
+
