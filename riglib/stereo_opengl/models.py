@@ -5,7 +5,7 @@ from OpenGL import GLUT as glut
 
 class Model(object):
     def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), 
-        shininess=0.5, specular_color=(1.,1.,1.,1.)):
+        shininess=10, specular_color=(1.,1.,1.,1.)):
         self.shader = shader
         self.parent = None
         self.xfm = np.eye(4)

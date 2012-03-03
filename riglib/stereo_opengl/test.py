@@ -16,29 +16,30 @@ bounce = FlatSphere(radius=8, color=(0.6,0.2,0.2,1), shininess=50).translate(10,
 fc = Cylinder(height=20, segments=20, color=(0.3, 0.3, 0.6,1), shininess=20).rotate_x(60)
 fcg = Group([fc]).rotate_y(90)
 
-forearm = Group([Cylinder(radius=2.5, height=20).rotate_y(-90).translate(-20, 0, 0), Sphere(3)])
+forearm = Group([Cylinder(radius=2.5, height=20).rotate_y(90), Sphere(3).translate(20, 0, 0)]).translate(-20, 0, 0).rotate_y(90)
 upperarm = Group([
-    Cylinder(radius=2.5, height=20).rotate_y(90), 
+    Cylinder(radius=2.5, height=20).rotate_y(-90), 
     Sphere(3).translate(-20, 0, 0), 
-    forearm]).rotate_y(-30)
+    forearm
+    ]).rotate_y(-30)
 arm = Group([upperarm])
 
 class Test(FPScontrol, Window):
     def _get_renderer(self):
-        mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
+        mirrorSSAO = type("mirrorSSAO", (stereo.RightLeft, ssao.SSAO), globals())
         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _while_draw(self):
         ts = time.time() - self.start_time
         arm.rotate_x((ts/5.)*360, reset=True)
-        forearm.rotate_y((ts/3.)*360, reset=True)
+        #forearm.rotate_y((ts/3.)*360, reset=True)
         super(Test, self)._while_draw()
         if int(ts) % 5 == 0:
             print self.clock.get_fps()
         self.renderer.draw_done()
 
 if __name__ == "__main__":
-    win = Test(window_size=(800,600))
+    win = Test(window_size=(1366, 400))
     tex = cloudy_tex((1024, 1024))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).translate(-250, -250, -15))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
