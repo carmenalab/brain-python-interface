@@ -40,11 +40,9 @@ class MirrorDisplay(Renderer):
     
     def draw(self, root, **kwargs):
         w, h = self.size
-        self.drawpos = w,0
-        glViewport(w, 0, w, h)
-        super(MirrorDisplay, self).draw(root, p_matrix=self.projections[0], **kwargs)
-        self.drawpos = 0,0
         glViewport(0, 0, w, h)
+        super(MirrorDisplay, self).draw(root, p_matrix=self.projections[0], **kwargs)
+        glViewport(w, 0, w, h)
         super(MirrorDisplay, self).draw(root, p_matrix=self.projections[1], **kwargs)
 
 

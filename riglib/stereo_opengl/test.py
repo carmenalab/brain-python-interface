@@ -53,7 +53,7 @@ class Test(FPScontrol, Window):
     def _while_draw(self):
         ts = time.time() - self.start_time
         arm.rotate_x((ts/5.)*360, reset=True)
-        #forearm.rotate_y((ts/3.)*360, reset=True)
+        forearm.rotate_y((ts/3.)*360, reset=True)
         super(Test, self)._while_draw()
         if int(ts) % 5 == 0:
             print self.clock.get_fps()
