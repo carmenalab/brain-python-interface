@@ -1,3 +1,5 @@
+from __future__ import division
+
 import time
 import numpy as np
 import pygame
@@ -9,36 +11,60 @@ from textures import Texture, TexModel
 from render import ssao, stereo, Renderer
 from utils import cloudy_tex
 
+def elbowpos(target, upperarm=20, lowerarm=20):
+    m = upperarm
+    n = lowerarm
+    x, y, z = target
+
+    a = (m**2*x**2+y*np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*x**2+x**4+x**2*y**2)/(2*x*(x**2+y**2))
+    b = (m**2*y-np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*y+x**2*y+y**3)/(2*(x**2+y**2))
+
+    return a, b, z/2
+
+def rotations(target, elbow):
+    '''Assumes the initial position will be (0,0,0) and initial rotation to be 
+    (0,0,1) on both upperarm and forearm'''
+    target, elbow = np.array(target), np.array(elbow)
+    r1, r2 = [0,0,0], [0,0,0]
+    elbow /= np.sqrt((elbow**2).sum())
+    r1[1] = np.arccos(elbow[2])*np.sign(elbow[2])
+    r1[2] = np.arcsin(elbow[1] / np.arcsin(elbow[2]))
+    print elbow[1] / np.arcsin(elbow[2])
+    return r1, r2
+
+
 FlatSphere = type("FlatSphere", (Sphere, FlatMesh), globals())
 TexPlane = type("TexPlane", (Plane, TexModel), globals())
 bounce = FlatSphere(radius=8, color=(0.6,0.2,0.2,1), shininess=50).translate(10,20,-15)
 
-fc = Cylinder(height=20, segments=20, color=(0.3, 0.3, 0.6,1), shininess=20).rotate_x(60)
-fcg = Group([fc]).rotate_y(90)
 
-forearm = Group([Cylinder(radius=2.5, height=20).rotate_y(-90).translate(-20, 0, 0), Sphere(3)])
+forearm = Group([Cylinder(radius=1, height=20), Sphere(1.5).translate(0, 0, 20)])
 upperarm = Group([
-    Cylinder(radius=2.5, height=20).rotate_y(90), 
-    Sphere(3).translate(-20, 0, 0), 
-    forearm]).rotate_y(-30)
+    Cylinder(radius=1, height=20), Sphere(1.5).translate(0, 0, 20), 
+    Group([forearm]).translate(0, 0, 20) ]).rotate_y(-30)
 arm = Group([upperarm])
 
 class Test(FPScontrol, Window):
     def _get_renderer(self):
-        mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
+        mirrorSSAO = type("mirrorSSAO", (stereo.RightLeft, ssao.SSAO), globals())
         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _while_draw(self):
         ts = time.time() - self.start_time
-        arm.rotate_x((ts/5.)*360, reset=True)
-        forearm.rotate_y((ts/3.)*360, reset=True)
+        t = (ts/5.)*2*np.pi
+        #target = np.cos(t), 10, np.sin(t)
+        target = [1,1,1]
+        r1, r2 = rotations(target, elbowpos(target))
+        upperarm.rotate_y(r1[1], reset=True).rotate_z(r1[2])
+        #upperarm.rotate_y((ts/3.)*360, reset=True)
+        #forearm.rotate_x((ts/5.)*360, reset=True)
         super(Test, self)._while_draw()
         if int(ts) % 5 == 0:
             print self.clock.get_fps()
         self.renderer.draw_done()
 
 if __name__ == "__main__":
-    win = Test(window_size=(800,600))
+    win = Test(window_size=(1920,540))
     tex = cloudy_tex((1024, 1024))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).translate(-250, -250, -15))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))

@@ -16,8 +16,8 @@ varying vec2 uv;
 const float totStrength = 1.38;
 const float strength = 0.08;
 const float offset = 17.0;
-const float falloff = 0.000001;
-const float rad = .006;
+const float falloff = 0.0000001;
+const float rad = .004;
 #define SAMPLES 16 // 10 is good
 const float invSamples = -totStrength/16.;
 

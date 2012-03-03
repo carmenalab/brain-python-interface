@@ -49,8 +49,8 @@ class SSAO(FBOrender):
             nearclip=self.clips[0], farclip=self.clips[1] )
         
         #Reset the texture, draw into ping with blur
-        self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong['color0'])
-        self.draw_fsquad_to_fbo(self.pong, "vblur", tex=self.ping['color0'])
+        self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong['color0'], blur=1./(self.size[0]/self.sf))
+        self.draw_fsquad_to_fbo(self.pong, "vblur", tex=self.ping['color0'], blur=1./(self.size[0]/self.sf))
         
         glPopAttrib()
         #Actually draw the final image to the screen
