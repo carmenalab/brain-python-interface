@@ -3,12 +3,14 @@ import numpy as np
 from OpenGL.GL import *
 from OpenGL import GLUT as glut
 
+from xfm import Transform
+
 class Model(object):
     def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), 
         shininess=10, specular_color=(1.,1.,1.,1.)):
         self.shader = shader
         self.parent = None
-        self.xfm = np.eye(4)
+        self.xfm = Transform()
         self.color = color
         self.shininess = shininess
         self.spec_color = specular_color
@@ -25,12 +27,28 @@ class Model(object):
     
     def _recache_xfm(self):
         if self.parent is not None:
-            self._xfm = np.dot(self.parent._xfm, self.xfm)
+            self._xfm = np.dot(self.parent._xfm, self.xfm.to_mat())
         else:
-            self._xfm = self.xfm
+            self._xfm = self.xfm.to_mat()
     
     def init(self):
         pass
+
+    def rotate_x(self, deg, reset=False):
+        self.xfm.rotate_x(np.radians(deg), reset=reset)
+        return self
+
+    def rotate_y(self, deg, reset=False):
+        self.xfm.rotate_y(np.radians(deg), reset=reset)
+        return self
+
+    def rotate_z(self, deg, reset=False):
+        self.xfm.rotate_z(np.radians(deg), reset=reset)
+        return self
+
+    def translate(self, x, y, z, reset=False):
+        self.xfm.translate(x,y,z, reset=reset)
+        return self
     
     def render_queue(self, shader=None):
         '''Yields the shader, texture, and the partial drawfunc for queueing'''
@@ -38,71 +56,6 @@ class Model(object):
             yield shader, self.draw, None
         else:
             yield self.shader, self.draw, None
-    
-    def translate(self, x, y, z, reset=False):
-        mat = np.array([[1,0,0,x],
-                        [0,1,0,y],
-                        [0,0,1,z],
-                        [0,0,0,1]])
-        if reset:
-            self.xfm = mat
-        else:
-            self.xfm = np.dot(mat, self.xfm)
-        return self
-    
-    def scale(self, x, y=None, z=None, reset=False):
-        if y is None:
-            y = x
-        if z is None:
-            z = x
-        
-        mat = np.array([[x,0,0,0],
-                        [0,y,0,0],
-                        [0,0,z,0],
-                        [0,0,0,1]])
-        
-        if reset:
-            self.xfm = mat
-        else:
-            self.xfm = np.dot(mat, self.xfm)
-        return self
-    
-    def rotate_x(self, t, reset=False):
-        t = np.radians(t)
-        mat = np.array([[1,0,        0,         0],
-                        [0,np.cos(t),-np.sin(t),0],
-                        [0,np.sin(t), np.cos(t),0],
-                        [0,0,        0,         1]])
-        if reset:
-            self.xfm = mat
-        else:
-            self.xfm = np.dot(mat, self.xfm)
-        return self
-    
-    def rotate_y(self, t, reset=False):
-        t = np.radians(t)
-        mat = np.array([[ np.cos(t),0,np.sin(t),0],
-                        [ 0,        1,0,        0],
-                        [-np.sin(t),0,np.cos(t),0],
-                        [ 0,0,      0,         1]])
-        if reset:
-            self.xfm = mat
-        else:
-            self.xfm = np.dot(mat, self.xfm)
-        return self
-
-    def rotate_z(self, t, reset=False):
-        t = np.radians(t)
-        mat = np.array([[np.cos(t),-np.sin(t),0,0],
-                        [np.sin(t), np.cos(t),0,0],
-                        [0,         0,        1,0],
-                        [0,         0,        0,1]])
-        if reset:
-            self.xfm = mat
-        else:
-            self.xfm = np.dot(mat, self.xfm)
-
-        return self
 
     def draw(self, ctx, **kwargs):
         glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, self._xfm.astype(np.float32))

@@ -2,16 +2,25 @@ import numpy as np
 
 class Quaternion(object):
     def __init__(self, w=1, x=0, y=0, z=0):
-        self.quat = np.array([w, x, y, z])
+        if isinstance(w, (list, tuple, np.ndarray)):
+            #Allows the use of a quaternion as a vector
+            self.quat = np.array([0, w[0], w[1], w[2]])
+        else:
+            self.quat = np.array([w, x, y, z])
     
     def __str__(self):
         return "%f+%fi+%fj+%fk"%self.quat
     
     def norm(self):
         self.quat /= np.sqrt((self.quat**2).sum())
+        return self
     
     def conj(self):
         return Quaternion(w, -x, -y, -z)
+
+    @property
+    def H(self):
+        return self.conj()
     
     def __getattr__(self, attr):
         if attr in ["w", "scalar"]:
@@ -27,11 +36,11 @@ class Quaternion(object):
         else:
             super(Quaternion, self).__getattr__(self, attr)
     
-    def __mult__(self, other):
+    def __mul__(self, other):
         if isinstance(other, Quaternion):
             w = self.w*other.w   - np.dot(self.vec, other.vec)
             v = self.w*other.vec + other.w*self.vec + np.cross(self.vec, other.vec)
-            return Quaternion(w, *v)
+            return Quaternion(w, *v).norm()
         elif isinstance(other, np.ndarray):
             #rotate a vector, will need to be implemented in GLSL eventually
             conj = self.conj
@@ -40,13 +49,39 @@ class Quaternion(object):
             nw = self.w*w - np.dot(self.vec, vec)
             pts = self.w*vec + w*self.vec + np.cross(self.vec, vec)
             return nw, pts
+        raise ValueError
+
+    def to_mat(self):
+        a, b, c, d = self.quat
+        return np.array([
+            [a**2+b**2-c**2-d**2,       2*b*c-2*a*d,            2*b*d+2*a*c,        0],
+            [   2*b*c+2*a*d,       a**2-b**2+c**2-d**2,         2*c*d-2*a*b,        0],
+            [   2*b*d-2*a*c,            2*c*d+2*a*b,        a**2-b**2-c**2+d**2,    0],
+            [   0,                      0,                          0,              1]])
+
+    def rotate_to(self, vec):
+        svec = self.vec / np.sqrt((self.vec**2).sum())
+        nvec = nvec = vec2 / np.sqrt((vec2**2).sum())
+        rad = np.arccos(np.dot(svec, nvec))
+        axis = np.cross(svec, nvec)
+        self = self.from_axisangle(axis, rad)*self
+
+    @classmethod
+    def rotate_vecs(cls, vec1, vec2):
+        '''Get the quaternion which rotates a vector onto another one'''
+        vec1, vec2 = np.array(vec1), np.array(vec2)
+        svec = vec1 / np.sqrt((vec1**2).sum())
+        nvec = vec2 / np.sqrt((vec2**2).sum())
+        rad = np.arccos(np.dot(svec, nvec))
+        axis = np.cross(svec, nvec)
+        return cls.from_axisangle(axis, rad)
     
     @classmethod
-    def from_axisangle(cls, axis, angle):
+    def from_axisangle(cls, axis, rad):
         #normalize the axis first
-        axis /= np.sqrt((axis**2).sum())
-        w = np.cos(angle*0.5)
-        v = axis / np.sqrt((axis**2).sum()) * np.sine(angle*0.5)
+        axis /= np.sqrt((rad**2).sum())
+        w = np.cos(rad*0.5)
+        v = axis / np.sqrt((axis**2).sum()) * np.sin(rad*0.5)
         return cls(w, *v)
 
 class Transform(object):
@@ -54,26 +89,57 @@ class Transform(object):
         self.move = np.array(move)
         self.scale = scale
         self.rotate = rotate if rotate is not None else Quaternion()
+
+    def __str__(self):
+        return "Rotate %s, then scale %s, then translate %s"%(self.rotate, self.scale, self.move)
     
-    def __mult__(self, other):
-        assert isinstance(other, Transform)
-        move = other.rotate*self.move + other.move
-        scale = self.scale * other.scale
-        rot = self.rotate * other.rotate
-        return Transform(move, scale, rot)
+    def __mul__(self, other):
+        if isinstance(other, Transform):
+            #Pre-multiply the other transform, then apply self
+            move = self.rotate * other.move + self.move
+            scale = self.scale * other.scale
+            rot = self.rotate * other.rotate
+            return Transform(move, scale, rot)
+
+        elif isinstance(other, Quaternion):
+            #Apply the quaternion directly to current rotation
+            return Transform(self.move, self.scale, other.rotate * self.rotate)
+
+    def translate(self, x, y, z, reset=False):
+        if reset:
+            self.move[:] = x,y,z
+        else:
+            self.move += x,y,z
+        return self
+
+    def rotate_x(self, rad, reset=False):
+        rotate = Quaternion.from_axisangle((1,0,0), rad)
+        if reset:
+            self.rotate = rotate
+        else:
+            self.rotate = rotate * self.rotate
+        return self
+
+    def rotate_y(self, rad, reset=False):
+        rotate = Quaternion.from_axisangle((0,1,0), rad)
+        if reset:
+            self.rotate = rotate
+        else:
+            self.rotate = rotate * self.rotate
+        return self
+
+    def rotate_z(self, rad, reset=False):
+        rotate = Quaternion.from_axisangle((0,0,1), rad)
+        if reset:
+            self.rotate = rotate
+        else:
+            self.rotate = rotate * self.rotate
+        return self
     
     def to_mat(self):
-        a = self.rot.w
-        b, c, d = self.rot.vec
-
-        rot = np.array([
-            [a**2+b**2-c**2-d**2,       2*b*c-2*a*d,            2*b*d+2*a*c,        0],
-            [   2*b*c+2*a*d,       a**2-b**2+c**2-d**2,         2*c*d-2*a*b,        0],
-            [   2*b*d-2*a*c,            2*c*d+2*a*b,        a**2-b**2-c**2+d**2,    0],
-            [   0,                      0,                          0,              1]])
         scale = np.eye(4)
-        scale[(0,0), (1,1), (2,2)] = self.scale
+        scale[(0,1,2), (0,1,2)] = self.scale
         move = np.eye(4)
         move[:3, -1] = self.move
 
-        return np.dot(move, np.dot(scale, rot))
+        return np.dot(move, np.dot(scale, self.rotate.to_mat()))
