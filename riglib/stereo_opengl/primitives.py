@@ -77,6 +77,11 @@ class Sphere(TriMesh):
         for i in range(segments-1):
             bottom[i+1,:] = (allpointinds[-1], lastcirc[i], lastcirc[i+1])
         triangles = np.vstack([triangles, bottom])
+        
+        normals = vertices/radius
+        hcoord = np.atan2(normals[:,1]/normals[:,0])
+        vcoord = np.atan2(normals[:,2]/np.sqrt(vertices[:,0]**2 + vertices[:,1]**2))
+        tcoord = np.array([hcoord, vcoord])
 
         super(Sphere, self).__init__(vertices, np.array(triangles), 
-            normals=vertices / radius, **kwargs)
+            tcoords=tcoord, normals=normals, **kwargs)
