@@ -1,4 +1,5 @@
 import random
+import pygame
 
 from . import traits
 
@@ -33,37 +34,25 @@ class Autostart(traits.HasTraits):
 
 class Button(object):
     '''Adds the ability to respond to the button, as well as to keyboard responses'''
-    def __init__(self, *args, **kwargs):
-        from riglib import button
-        super(Button, self).__init__(*args, **kwargs)
-        try:
-            self.button = button.Button()
-        except:
-            print "Cannot find ftdi button"
-            self.button = None
-    
     def _get_event(self):
-        if self.button is not None:
-            btn = self.button.pressed()
-            if btn is not None:
-                return btn
+        for btn in pygame.event.get(pygame.MOUSEBUTTONDOWN):
+            return {1:1, 3:4}[btn.button]
                 
         return super(Button, self)._get_event()
     
     def _while_penalty(self):
         #Clear out the button buffers
-        self.button.pressed()
+        pygame.event.pump()
         super(Button, self)._while_penalty()
     
-    def _start_None(self):
-        del self.button
-        super(Button, self)._start_None()
+    def _while_wait(self):
+        pygame.event.pump()
+        super(Button, self)._while_wait()
 
 class ButtonOnly(Button):
     '''Forces the experiment to respond exclusively to the FTDI button, not to any keybooard events'''
     def _get_event(self):
-        assert self.button is not None
-        return self.button.pressed()
+        pygame.event.get(pygame.MOUSEBUTTONDOWN)
 
 class IgnoreCorrectness(object):
     '''Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
