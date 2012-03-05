@@ -96,7 +96,7 @@ class Transform(object):
     def __mul__(self, other):
         if isinstance(other, Transform):
             #Pre-multiply the other transform, then apply self
-            move = self.rotate * other.move + self.move
+            move = self.rotate * self.move + other.move
             scale = self.scale * other.scale
             rot = self.rotate * other.rotate
             return Transform(move, scale, rot)
