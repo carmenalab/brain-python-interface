@@ -15,7 +15,6 @@ uniform float farclip;
 varying vec2 uv;
 const float totStrength = 1.38;
 const float strength = 0.08;
-const float offset = 17.0;
 const float falloff = 0.0000001;
 const float rad = .004;
 #define SAMPLES 16 // 10 is good
@@ -48,7 +47,7 @@ void main(void) {
     pSphere[15] = vec3(-0.47761092, 0.2847911, -0.0271716);
 
     // grab a normal for reflecting the sample rays later on
-    vec3 fres = normalize((texture2D(rnm,uv*offset).xyz*2.0) - vec3(1.0));
+    vec3 fres = normalize((texture2D(rnm,uv).xyz*2.0) - vec3(1.0));
 
     vec3 norm = normalize(texture2D(normalMap,uv).xyz);
     float depth = lindepth(uv);

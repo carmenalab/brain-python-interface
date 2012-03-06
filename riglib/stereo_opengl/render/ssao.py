@@ -8,7 +8,7 @@ from textures import Texture
 class SSAO(FBOrender):
     def __init__(self, *args, **kwargs):
         super(SSAO, self).__init__(*args, **kwargs)
-        self.sf = 3
+        self.sf = 2
         w, h = self.size[0] / self.sf, self.size[1] / self.sf
         
         self.normdepth = FBO(["color0", "depth"], size=(w,h))
@@ -29,7 +29,7 @@ class SSAO(FBOrender):
         self.add_program("vblur", ("fsquad", "vblur"))
         self.add_program("ssao_pass3", ("passthru", "ssao_pass3"))
 
-        randtex = np.random.rand(3, 128, 128)
+        randtex = np.random.rand(3, w, h)
         randtex /= randtex.sum(0)
         self.rnm = Texture(randtex.T, wrap_x=GL_REPEAT, wrap_y=GL_REPEAT, 
             magfilter=GL_NEAREST, minfilter=GL_NEAREST)
@@ -48,7 +48,7 @@ class SSAO(FBOrender):
             normalMap=self.normdepth['color0'], depthMap=self.normdepth['depth'],
             nearclip=self.clips[0], farclip=self.clips[1] )
         
-        #Reset the texture, draw into ping with blur
+        #Blur the textures
         self.draw_fsquad_to_fbo(self.ping, "hblur", tex=self.pong['color0'], blur=1./(self.size[0]/self.sf))
         self.draw_fsquad_to_fbo(self.pong, "vblur", tex=self.ping['color0'], blur=1./(self.size[0]/self.sf))
         

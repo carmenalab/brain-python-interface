@@ -16,7 +16,7 @@ class Model(object):
         self.shininess = shininess
         self.spec_color = specular_color
 
-        self._xfm = self.xfm.to_mat()
+        self._xfm = self.xfm
     
     def __setattr__(self, attr, xfm):
         '''Checks if the xfm was changed, and recaches the _xfm which is sent to the shader'''
@@ -28,9 +28,9 @@ class Model(object):
     
     def _recache_xfm(self):
         if self.parent is not None:
-            self._xfm = (self.parent.xfm*self.xfm).to_mat()
+            self._xfm = self.parent._xfm * self.xfm
         else:
-            self._xfm = self.xfm.to_mat()
+            self._xfm = self.xfm
     
     def init(self):
         pass
@@ -63,7 +63,7 @@ class Model(object):
             yield self.shader, self.draw, None
 
     def draw(self, ctx, **kwargs):
-        glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, self._xfm.astype(np.float32))
+        glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, self._xfm.to_mat().astype(np.float32))
         glUniform4f(ctx.uniforms.basecolor, *(self.color if "color" not in kwargs else kwargs['color']))
         glUniform4f(ctx.uniforms.spec_color, *(self.spec_color if "specular_color" not in kwargs else kwargs['spec_color']))
         glUniform1f(ctx.uniforms.shininess, self.shininess if "shininess" not in kwargs else kwargs['shininess'])

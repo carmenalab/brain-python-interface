@@ -124,7 +124,7 @@ class Renderer(object):
         if "p_matrix" not in kwargs:
             kwargs['p_matrix'] = self.projection
         if "modelview" not in kwargs:
-            kwargs['modelview'] = root.xfm
+            kwargs['modelview'] = root._xfm.to_mat()
         
         if shader is not None:
             for items in self.render_queue.values():
