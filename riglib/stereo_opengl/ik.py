@@ -4,6 +4,10 @@ from __future__ import division
 import numpy as np
 
 from xfm import Quaternion
+from models import Group
+from primitives import Cylinder, Sphere
+from textures import TexModel
+from utils import cloudy_tex
 
 class TwoJoint(object):
     '''Models a two-joint IK system (arm, leg, etc). Constrains the system by 
@@ -47,3 +51,21 @@ class TwoJoint(object):
             Quaternion.rotate_vecs((0,0,1), target-elbow)).norm()
         
         self.upperarm._recache_xfm()
+
+TexCylinder = type("TexCylinder", (Cylinder, TexModel), dict())
+class RobotArm(Group):
+    def __init__(self, radii=(2, 1.5), lengths=(15, 20), **kwargs):
+        tex = cloudy_tex()
+        self.forearm = Group([
+            TexCylinder(radius=radii[1], height=lengths[1], tex=tex, shininess=50), 
+            Sphere(radii[1]+0.5).translate(0, 0, 20)]).translate(0,0,20)
+        self.upperarm = Group([
+            Sphere(radii[0]+0.5),
+            TexCylinder(radius=radii[0], height=lengths[0], tex=tex, shininess=50), 
+            Sphere(radii[0]+0.5).translate(0, 0, 20),
+            self.forearm])
+        self.system = TwoJoint(self.upperarm, self.forearm)
+        super(RobotArm, self).__init__([self.upperarm], **kwargs)
+
+    def set(self, target):
+        self.system.set(target)
