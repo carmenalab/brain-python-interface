@@ -4,7 +4,6 @@ from OpenGL.GL import *
 from OpenGL import GLUT as glut
 
 from xfm import Transform
-np.set_printoptions(suppress=True)
 
 class Model(object):
     def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), 

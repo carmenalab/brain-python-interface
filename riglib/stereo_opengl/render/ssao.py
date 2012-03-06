@@ -8,7 +8,7 @@ from textures import Texture
 class SSAO(FBOrender):
     def __init__(self, *args, **kwargs):
         super(SSAO, self).__init__(*args, **kwargs)
-        self.sf = 2
+        self.sf = 3
         w, h = self.size[0] / self.sf, self.size[1] / self.sf
         
         self.normdepth = FBO(["color0", "depth"], size=(w,h))
@@ -57,8 +57,7 @@ class SSAO(FBOrender):
         win = glGetIntegerv(GL_VIEWPORT)
         #Why is this call necessary at all?!
         glViewport(*win)
-        #glViewport(self.drawpos[0], self.drawpos[1], self.size[0], self.size[1])
-        #win = [float(self.drawpos[0])/2., self.drawpos[1], 1, 1./self.size[1]]
+        
         super(SSAO, self).draw(root, shader="ssao_pass3", shadow=self.pong['color0'], 
             window=[float(i) for i in win], **kwargs)
         

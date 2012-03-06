@@ -24,16 +24,26 @@ class TwoJoint(object):
         #it is ONE of the solutions to this system of equations:
         # a^2 + b^2 + (z/2)^2 = m^2
         # (x-a)^2 + (y-b)^2 + (z/2)^2 = n^2
-        a = (m**2*x**2+y*np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*x**2+x**4+x**2*y**2)/(2*x*(x**2+y**2))
-        b = (m**2*y-np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*y+x**2*y+y**3)/(2*(x**2+y**2))
-
+        if x > 0:
+            a = (m**2*x**2+y*np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*x**2+x**4+x**2*y**2)/(2*x*(x**2+y**2))
+            b = (m**2*y-np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*y+x**2*y+y**3)/(2*(x**2+y**2))
+        else:
+            a = (m**2*x**2-y*np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*x**2+x**4+x**2*y**2)/(2*x*(x**2+y**2))
+            b = (m**2*y+np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*y+x**2*y+y**3)/(2*(x**2+y**2))
         return a, b, z/2
 
     def set(self, target):
+        '''Sets the endpoint coordinate for the two-joint system'''
+        #Make sure the target is actually achievable
         assert np.linalg.norm(target) <= self.tlen
         elbow = np.array(self._midpos(target))
         
-        self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), elbow)
+        #rotate the upperarm to the elbow
+        self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), elbow).norm()
+
+        #this broke my mind for 2 hours at least, so I cheated
+        #Rotate first to (0,0,1), then rotate to the target-elbow
+        self.forearm.xfm.rotate = (Quaternion.rotate_vecs(elbow, (0,0,1)) *
+            Quaternion.rotate_vecs((0,0,1), target-elbow)).norm()
+        
         self.upperarm._recache_xfm()
-        self.forearm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), np.array(target)-elbow)
-        self.forearm._xfm = self.forearm.xfm.to_mat()

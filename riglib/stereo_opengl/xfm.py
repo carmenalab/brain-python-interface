@@ -1,4 +1,5 @@
 import numpy as np
+np.set_printoptions(suppress=True)
 
 class Quaternion(object):
     def __init__(self, w=1, x=0, y=0, z=0):
@@ -97,7 +98,7 @@ class Transform(object):
     def __mul__(self, other):
         if isinstance(other, Transform):
             #Pre-multiply the other transform, then apply self
-            move = other.rotate*self.move + self.rotate*other.move
+            move = self.move + self.rotate*other.move
             scale = self.scale * other.scale
             rot = self.rotate * other.rotate
             return Transform(move, scale, rot)
@@ -149,15 +150,12 @@ class Transform(object):
         return np.dot(move, np.dot(scale, self.rotate.to_mat()))
 
 def test():
-    world = Transform()
-    world.rotate_x(np.radians(-90))
-    obj = Transform().translate(0,10,0)
-    assert np.allclose((world*obj)((0,0,1)), [0,1,-10])
+    world = Transform().rotate_x(np.radians(-90))
+    eye = Transform().translate(0,35,0)
+    obj = Transform().translate(0,10,5)
+    assert np.allclose((world*eye*obj)((0,0,1)), [0,6,-45])
     obj.rotate_y(np.radians(-90))
-    assert np.allclose((world*obj)((0,0,1)), [-1, 0, -10])
+    assert np.allclose((world*eye*obj)((0,0,1)), [-1, 5, -45])
     obj.rotate_z(np.radians(-90))
-    assert np.allclose((world*obj)((0,0,1)), [0,0,-11])
-    assert np.allclose(np.dot((world*obj).to_mat(), [0,0,1,1]), [0,0,-11, 1])
-
-    obj2 = Transform().translate(0, 15, 0)
-    return (world*obj*obj2)
+    assert np.allclose((world*eye*obj)((0,0,1)), [0,5,-46])
+    assert np.allclose(np.dot((world*eye*obj).to_mat(), [0,0,1,1]), [0,5,-46, 1])
