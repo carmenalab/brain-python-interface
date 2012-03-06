@@ -217,3 +217,32 @@ class FlatMesh(TriMesh):
 
         super(FlatMesh, self).__init__(np.array(nverts), np.array(npolys), 
             normals=np.array(normals), **kwargs)
+
+class PolyMesh(TriMesh):
+    def __init__(self, verts, polys, **kwargs):
+        tripoly = []
+        for poly in polys:
+            for p in zip(poly[1:-1], poly[2:]):
+                tripoly.append((poly[1],)+p)
+        super(PolyMesh, self).__init__(verts, tripoly, **kwargs)
+
+
+def obj_load(filename):
+
+    facesplit = lambda x: x.split('/')
+    verts, polys, normals, tcoords = [], [], [], []
+    objfile = open(filename)
+    for line in objfile:
+        el = line.split()
+        if el[0] == "#":
+            pass
+        elif el[0] == "v":
+            verts.append(map(float, el[1:]))
+        elif el[0] == "vt":
+            tcoords.append(map(float, el[1:]))
+        elif el[0] == "vn":
+            normals.append(map(float, el[1:]))
+        elif el[0] == "f":
+            for v in el[1:]:
+                pass
+            map(facesplit, el[1:])

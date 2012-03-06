@@ -84,7 +84,7 @@ class Window(LogExperiment):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self.renderer.draw(self.world)
         pygame.display.flip()
-        self.clock.tick(15)
+        self.clock.tick(self.fps)
         self.event = self._get_event()
     
     def _start_None(self):
@@ -110,7 +110,8 @@ class FPScontrol(Window):
         for e in pygame.event.get([pygame.MOUSEMOTION, pygame.KEYDOWN, pygame.KEYUP, pygame.QUIT]):
             moved = any(self.wasd)
             if e.type == pygame.MOUSEMOTION:
-                self.world.xfm.rotate *= Quaternion().rotate_y(e.rel[1]).rotate_x(e.rel[0])
+                self.world.xfm.rotate *= Quaternion.from_axisangle((1,0,0), np.radians(e.rel[1]*.1))
+                self.world.xfm.rotate *= Quaternion.from_axisangle((0,0,1), np.radians(e.rel[0]*.1))
                 self.world._recache_xfm()
             elif e.type == pygame.KEYDOWN:
                 kn = pygame.key.name(e.key)
