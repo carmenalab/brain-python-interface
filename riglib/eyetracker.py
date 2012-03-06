@@ -7,21 +7,24 @@ class System(object):
         self.tracker.setOfflineMode()
     
     def start(self, filename=None):
-		self.filename = filename
-		if filename is None:
-			self.filename = "%s.edf"%time.strftime("%Y%m%d") #%Y-%m-%d_%I:%M:%p
+        self.filename = filename
+        if filename is None:
+            self.filename = "%s.edf"%time.strftime("%Y%m%d") #%Y-%m-%d_%I:%M:%p
         self.tracker.openDataFile(self.filename)
         self.tracker.startRecording(1,0,1,0)
-        pylink.beginRealTimeMode(100)
+        #pylink.beginRealTimeMode(100)
 
     def stop(self):
         self.tracker.stopRecording()
         pylink.endRealTimeMode()
     
     def get(self):
-        samp = self.tracker.getNewestSample()
-        if samp is not None:
-            return samp.getLeftEye().getGaze()
+        samp = self.tracker.getNextData()
+        while samp != pylink.SAMPLE_TYPE:
+            time.sleep(1/750.)
+            samp = self.tracker.getNextData()
+        
+        return self.tracker.getFloatData().getRightEye().getGaze()
     
     def retrieve(self, filename):
         self.tracker.setOfflineMode()
