@@ -83,7 +83,7 @@ class Window(LogExperiment):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self.renderer.draw(self.world)
         pygame.display.flip()
-        self.clock.tick()
+        self.clock.tick(15)
         self.event = self._get_event()
     
     def _start_None(self):

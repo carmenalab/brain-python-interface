@@ -35,5 +35,5 @@ class TwoJoint(object):
         
         self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), elbow)
         self.upperarm._recache_xfm()
-        self.lowerarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), np.array(target)-elbow)
-        self.lowerarm._xfm = self.lowerarm.xfm.to_mat()
+        self.forearm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), np.array(target)-elbow)
+        self.forearm._xfm = self.forearm.xfm.to_mat()

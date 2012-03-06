@@ -27,12 +27,12 @@ system = TwoJoint(upperarm, forearm)
 class Test(Window):
     def _get_renderer(self):
         mirrorSSAO = type("mirrorSSAO", (stereo.RightLeft, ssao.SSAO), globals())
-        return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
+        return stereo.RightLeft(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _while_draw(self):
         ts = time.time() - self.start_time
         t = (ts/5.)*2*np.pi
-        system.set((np.cos(t),1,np.sin(t)))
+        #system.set((np.cos(t),1,np.sin(t)))
 
         super(Test, self)._while_draw()
         if int(ts) % 5 == 0:
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).translate(-250, -250, 0).rotate_y(-90).translate(250, 0, 250-15))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).translate(-250, -250, 0).rotate_y(90).translate(-250, 0, 250-15))
-    win.add_model(Sphere(radius=4, color=(0., 0.4, 0., 1), shininess=30).translate(-20, 10, -11))
-    win.add_model(bounce)
-    win.add_model(upperarm)
+    win.add_model(Sphere(radius=4, color=(0., 0.4, 0., 1), shininess=30).translate(0,0,0))
+#    win.add_model(bounce)
+#    win.add_model(upperarm)
     win.run()

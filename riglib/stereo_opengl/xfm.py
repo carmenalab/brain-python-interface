@@ -8,15 +8,15 @@ class Quaternion(object):
         else:
             self.quat = np.array([w, x, y, z])
     
-    def __str__(self):
-        return "%f+%fi+%fj+%fk"%self.quat
+    def __repr__(self):
+        return "%g+%gi+%gj+%gk"%tuple(self.quat)
     
     def norm(self):
         self.quat /= np.sqrt((self.quat**2).sum())
         return self
     
     def conj(self):
-        return Quaternion(w, -x, -y, -z)
+        return Quaternion(self.w, *(-self.vec))
 
     @property
     def H(self):
@@ -41,14 +41,14 @@ class Quaternion(object):
             w = self.w*other.w   - np.dot(self.vec, other.vec)
             v = self.w*other.vec + other.w*self.vec + np.cross(self.vec, other.vec)
             return Quaternion(w, *v).norm()
-        elif isinstance(other, np.ndarray):
+        elif isinstance(other, (np.ndarray, list, tuple)):
             #rotate a vector, will need to be implemented in GLSL eventually
-            conj = self.conj
+            conj = self.H
             w = -np.dot(other, conj.vec)
-            vec = conj.w*other + np.cross(other, conj.vec)
-            nw = self.w*w - np.dot(self.vec, vec)
+            vec = conj.w*np.array(other) + np.cross(other, conj.vec)
+            #nw = self.w*w - np.dot(self.vec, vec)
             pts = self.w*vec + w*self.vec + np.cross(self.vec, vec)
-            return nw, pts
+            return pts
         raise ValueError
 
     def to_mat(self):
@@ -79,7 +79,8 @@ class Quaternion(object):
     @classmethod
     def from_axisangle(cls, axis, rad):
         #normalize the axis first
-        axis /= np.sqrt((rad**2).sum())
+        axis = np.array(axis)
+        axis /= np.sqrt((axis**2).sum())
         w = np.cos(rad*0.5)
         v = axis / np.sqrt((axis**2).sum()) * np.sin(rad*0.5)
         return cls(w, *v)
@@ -90,13 +91,13 @@ class Transform(object):
         self.scale = scale
         self.rotate = rotate if rotate is not None else Quaternion()
 
-    def __str__(self):
+    def __repr__(self):
         return "Rotate %s, then scale %s, then translate %s"%(self.rotate, self.scale, self.move)
     
     def __mul__(self, other):
         if isinstance(other, Transform):
             #Pre-multiply the other transform, then apply self
-            move = self.rotate * self.move + other.move
+            move = self.rotate*self.move + self.rotate*other.move
             scale = self.scale * other.scale
             rot = self.rotate * other.rotate
             return Transform(move, scale, rot)
@@ -104,6 +105,9 @@ class Transform(object):
         elif isinstance(other, Quaternion):
             #Apply the quaternion directly to current rotation
             return Transform(self.move, self.scale, other.rotate * self.rotate)
+
+    def __call__(self, vecs):
+        return self.scale * (self.rotate * vecs) + self.move
 
     def translate(self, x, y, z, reset=False):
         if reset:
@@ -117,7 +121,7 @@ class Transform(object):
         if reset:
             self.rotate = rotate
         else:
-            self.rotate = rotate * self.rotate
+            self.rotate = (rotate * self.rotate).norm()
         return self
 
     def rotate_y(self, rad, reset=False):
@@ -125,7 +129,7 @@ class Transform(object):
         if reset:
             self.rotate = rotate
         else:
-            self.rotate = rotate * self.rotate
+            self.rotate = (rotate * self.rotate).norm()
         return self
 
     def rotate_z(self, rad, reset=False):
@@ -133,7 +137,7 @@ class Transform(object):
         if reset:
             self.rotate = rotate
         else:
-            self.rotate = rotate * self.rotate
+            self.rotate = (rotate * self.rotate).norm()
         return self
     
     def to_mat(self):
@@ -143,3 +147,15 @@ class Transform(object):
         move[:3, -1] = self.move
 
         return np.dot(move, np.dot(scale, self.rotate.to_mat()))
+
+def test():
+    world = Transform()
+    world.rotate_x(np.radians(-90))
+    obj = Transform()
+    obj.translate(0,10,0)
+    assert np.allclose((world*obj)((0,0,1)), [0,1,-10])
+    obj.rotate_y(np.radians(-90))
+    assert np.allclose((world*obj)((0,0,1)), [-1, 0, -10])
+    obj.rotate_z(np.radians(-90))
+    assert np.allclose((world*obj)((0,0,1)), [0,0,-11])
+    assert np.allclose(np.dot((world*obj).to_mat(), [0,0,1,1]), [0,0,-11, 1])

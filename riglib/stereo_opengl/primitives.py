@@ -79,8 +79,8 @@ class Sphere(TriMesh):
         triangles = np.vstack([triangles, bottom])
         
         normals = vertices/radius
-        hcoord = np.atan2(normals[:,1]/normals[:,0])
-        vcoord = np.atan2(normals[:,2]/np.sqrt(vertices[:,0]**2 + vertices[:,1]**2))
+        hcoord = np.arctan2(normals[:,1], normals[:,0])
+        vcoord = np.arctan2(normals[:,2], np.sqrt(vertices[:,0]**2 + vertices[:,1]**2))
         tcoord = np.array([hcoord, vcoord])
 
         super(Sphere, self).__init__(vertices, np.array(triangles), 

@@ -4,21 +4,22 @@ from OpenGL.GL import *
 from OpenGL import GLUT as glut
 
 from xfm import Transform
+np.set_printoptions(suppress=True)
 
 class Model(object):
     def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), 
         shininess=10, specular_color=(1.,1.,1.,1.)):
         self.shader = shader
         self.parent = None
-        self.xfm = Transform()
+        super(Model, self).__setattr__("xfm", Transform())
         self.color = color
         self.shininess = shininess
         self.spec_color = specular_color
 
-        self._xfm = self.xfm
+        self._xfm = self.xfm.to_mat()
     
     def __setattr__(self, attr, xfm):
-        '''Checks if the xfm was changed, and updates its xfm'''
+        '''Checks if the xfm was changed, and recaches the _xfm which is sent to the shader'''
         val = super(Model, self).__setattr__(attr, xfm)
         if attr == "xfm":
             self._recache_xfm()
@@ -27,7 +28,7 @@ class Model(object):
     
     def _recache_xfm(self):
         if self.parent is not None:
-            self._xfm = np.dot(self.parent._xfm, self.xfm.to_mat())
+            self._xfm = (self.parent.xfm*self.xfm).to_mat()
         else:
             self._xfm = self.xfm.to_mat()
     
@@ -36,18 +37,22 @@ class Model(object):
 
     def rotate_x(self, deg, reset=False):
         self.xfm.rotate_x(np.radians(deg), reset=reset)
+        self._recache_xfm()
         return self
 
     def rotate_y(self, deg, reset=False):
         self.xfm.rotate_y(np.radians(deg), reset=reset)
+        self._recache_xfm()
         return self
 
     def rotate_z(self, deg, reset=False):
         self.xfm.rotate_z(np.radians(deg), reset=reset)
+        self._recache_xfm()
         return self
 
     def translate(self, x, y, z, reset=False):
         self.xfm.translate(x,y,z, reset=reset)
+        self._recache_xfm()
         return self
     
     def render_queue(self, shader=None):
@@ -65,11 +70,10 @@ class Model(object):
 
 class Group(Model):
     def __init__(self, models=()):
-        self._xfm = np.eye(4)
+        super(Group, self).__init__()
         self.models = []
         for model in models:
             self.add(model)
-        super(Group, self).__init__()
 
     def init(self):
         for model in self.models:
