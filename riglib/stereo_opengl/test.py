@@ -14,8 +14,8 @@ from ik import RobotArm
 
 from riglib import shm
 
-sys = shm.MemTrack()
-sys.start("motion")
+#sys = shm.MemTrack()
+#sys.start("motion")
 
 FlatSphere = type("FlatSphere", (Sphere, FlatMesh), {})
 TexPlane = type("TexPlane", (Plane, TexModel), {})
@@ -27,17 +27,21 @@ arm = RobotArm()
 class Test(Window):
     def _get_renderer(self):
         mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
-        return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
+        return stereo.Anaglyph(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _while_draw(self):
-        pts = sys.get("motion").reshape(-1, 8, 3)[:,6].mean(0)
-        arm.set(pts[6]*0.1)
+        #pts = sys.get("motion").reshape(-1, 8, 3)[:,6].mean(0)
+        #arm.set(pts[6]*0.1)
+        ts = time.time() - self.start_time
+        t = (ts / 5.) * 2*np.pi
+        t2 = (ts / 2.) * 2*np.pi
+        arm.set((np.cos(t)*10-10, np.sin(t2)*10+20, np.sin(t)*15))
         super(Test, self)._while_draw()
         
         self.renderer.draw_done()
 
 if __name__ == "__main__":
-    win = Test()
+    win = Test(window_size=(1920,1200))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).translate(-250, -250, -15))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_y(-90).translate(250,-250,-15))

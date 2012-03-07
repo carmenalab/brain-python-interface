@@ -54,11 +54,6 @@ class Button(object):
         pygame.event.pump()
         super(Button, self)._while_wait()
 
-class ButtonOnly(Button):
-    '''Forces the experiment to respond exclusively to the FTDI button, not to any keybooard events'''
-    def _get_event(self):
-        pygame.event.get(pygame.MOUSEBUTTONDOWN)
-
 class IgnoreCorrectness(object):
     '''Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
     def __init__(self, *args, **kwargs):
@@ -75,3 +70,20 @@ class IgnoreCorrectness(object):
 
     def _test_incorrect(self, ts):
         return False
+
+class DataSource(object):
+    '''Creates a shared memory tracker to grab cached data from the various data sources'''
+    def __init__(self, *args, **kwargs):
+        from riglib import shm
+        super(DataSource, self).__init__(*args, **kwargs)
+        self.datasource = shm.MemTrack()
+
+class EyeData(DataSource):
+    def init(self):
+        super(EyeData, self).init()
+        self.datasource.start("eyetracker")
+
+class MotionData(DataSource):
+    def init(self):
+        super(MotionData, self).init()
+        self.datasource.start("motion")

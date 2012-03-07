@@ -24,7 +24,6 @@ from tasks import redgreen
 featlist = dict(
     autostart=features.Autostart, 
     button=features.Button, 
-    button_only=features.ButtonOnly, 
     ignore_correctness=features.IgnoreCorrectness,
     reward_system = features.RewardSystem,
 )
