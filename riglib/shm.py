@@ -6,13 +6,13 @@ import numpy as np
 #Update frequency for each modality, for calculating size of shm
 update_freq = dict(
     eyetracker=500,
-    motion=60,
+    motion=480,
     neuron=2048,
 )
 #Size of a single time slice for each modality
 size = dict(
     eyetracker=2,
-    motion=32*3,
+    motion=8*3,
     neuron=256,
 )
 
@@ -91,13 +91,13 @@ class MemTrack(object):
         if self.idx[mode].value > self.msize[mode]:
             data = self.data[mode][i:]+self.data[mode][:i]
         else:
-            data = self.data[mode][:i]
+            data = self.data[mode][:i*size[mode]]
         self.idx[mode].value = 0
         self.locks[mode].release()
         try:
             return np.array(data).reshape(-1, size[mode])
         except:
-            pass
+            print "can't reshape, len(data)=%d, size[mode]=%d"%(len(data), size[mode])
     
     def flush(self):
         for mode in self.procs.keys():
@@ -111,11 +111,11 @@ class MemTrack(object):
         system.start()
         size = self.size['motion']
         msize = self.msize['motion']
-        proxy = self.proxy['motion']
+        #proxy = self.proxy['motion']
         while idx.value > 0:
             try:
                 func = proxy.cmd.get_nowait()
-                proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
+                #proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
             except:
                 pass
             xy = system.get()

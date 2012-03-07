@@ -3,7 +3,8 @@ import numpy as np
 from OWL import *
 
 class System(object):
-    def __init__(self, marker_count=1,server_name='10.0.0.11', init_flags=0):
+    def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=0):
+        self.marker_count = marker_count
         if(owlInit(server_name, init_flags) < 0):
             raise Exception(owl_get_error("init error",owlGetError()))
                 
@@ -17,7 +18,7 @@ class System(object):
         #create a point tracker
         self.tracker = 0
         owlTrackeri(self.tracker, OWL_CREATE, OWL_POINT_TRACKER)
-    
+        
         # set markers
         for i in range(marker_count):
             owlMarkeri(MARKER(self.tracker, i), OWL_SET_LED, i)
@@ -32,14 +33,19 @@ class System(object):
 
     def stop(self):
         if self.filename is not None:
+
             #tell phasespace to stop recording
             pass
         owlSetInteger(OWL_STREAMING, OWL_DISABLE)
     
     def get(self):
         markers=[]
-        coords = np.zeros((32, 3))
-        n = owlGetMarkers(markers, 32)
+        coords = np.zeros((self.marker_count, 3))
+        n = owlGetMarkers(markers, self.marker_count)
+        while n == 0:
+            time.sleep(.001)
+            n = owlGetMarkers(markers, self.marker_count)
+            
         for i in range(n):
             if markers[i].cond > 0:
                 coords[i] = markers[i].x, markers[i].y, markers[i].z
@@ -52,9 +58,9 @@ class System(object):
         pass
 
     def __del__(self):
-        for i in range(marker_count):
+        for i in range(self.marker_count):
             owlMarker(MARKER(self.tracker, i), OWL_CLEAR_MARKER)   
-        self.owlTracker(self.tracker, OWL_DESTROY)
+        owlTracker(self.tracker, OWL_DESTROY)
         owlDone()
 
 def owl_get_error(s, n):

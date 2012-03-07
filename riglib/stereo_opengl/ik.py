@@ -39,16 +39,19 @@ class TwoJoint(object):
     def set(self, target):
         '''Sets the endpoint coordinate for the two-joint system'''
         #Make sure the target is actually achievable
-        assert np.linalg.norm(target) <= self.tlen
-        elbow = np.array(self._midpos(target))
-        
-        #rotate the upperarm to the elbow
-        self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), elbow).norm()
+        if np.linalg.norm(target) > self.tlen:
+            self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), target).norm()
+            self.forearm.xfm.rotate = Quaternion()
+        else:
+            elbow = np.array(self._midpos(target))
+            
+            #rotate the upperarm to the elbow
+            self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), elbow).norm()
 
-        #this broke my mind for 2 hours at least, so I cheated
-        #Rotate first to (0,0,1), then rotate to the target-elbow
-        self.forearm.xfm.rotate = (Quaternion.rotate_vecs(elbow, (0,0,1)) *
-            Quaternion.rotate_vecs((0,0,1), target-elbow)).norm()
+            #this broke my mind for 2 hours at least, so I cheated
+            #Rotate first to (0,0,1), then rotate to the target-elbow
+            self.forearm.xfm.rotate = (Quaternion.rotate_vecs(elbow, (0,0,1)) *
+                Quaternion.rotate_vecs((0,0,1), target-elbow)).norm()
         
         self.upperarm._recache_xfm()
 
@@ -58,11 +61,11 @@ class RobotArm(Group):
         tex = cloudy_tex()
         self.forearm = Group([
             TexCylinder(radius=radii[1], height=lengths[1], tex=tex, shininess=50), 
-            Sphere(radii[1]+0.5).translate(0, 0, 20)]).translate(0,0,20)
+            Sphere(radii[1]+0.5).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
         self.upperarm = Group([
             Sphere(radii[0]+0.5),
             TexCylinder(radius=radii[0], height=lengths[0], tex=tex, shininess=50), 
-            Sphere(radii[0]+0.5).translate(0, 0, 20),
+            Sphere(radii[0]+0.5).translate(0, 0, lengths[0]),
             self.forearm])
         self.system = TwoJoint(self.upperarm, self.forearm)
         super(RobotArm, self).__init__([self.upperarm], **kwargs)
