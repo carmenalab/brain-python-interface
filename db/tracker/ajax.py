@@ -55,7 +55,6 @@ def start_experiment(request, save=True):
     
     data = json.loads(request.POST['data'])
     seq = _sequence(data['task_id'], data['sequence'], save)
-    
 
     te = TaskEntry(
         subject_id=data['subject_id'], 

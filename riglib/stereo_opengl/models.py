@@ -16,6 +16,7 @@ class Model(object):
         self.spec_color = specular_color
 
         self._xfm = self.xfm
+        self.allocated = False
     
     def __setattr__(self, attr, xfm):
         '''Checks if the xfm was changed, and recaches the _xfm which is sent to the shader'''
@@ -32,7 +33,9 @@ class Model(object):
             self._xfm = self.xfm
     
     def init(self):
-        pass
+        allocated = self.allocated
+        self.allocated = True
+        return allocated
 
     def rotate_x(self, deg, reset=False):
         self.xfm.rotate_x(np.radians(deg), reset=reset)
@@ -132,27 +135,29 @@ class TriMesh(Model):
         self.normals = normals
     
     def init(self):
-        super(TriMesh, self).init()
-        self.vbuf = glGenBuffers(1)
-        self.ebuf = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
-        glBufferData(GL_ARRAY_BUFFER, 
-            self.verts.astype(np.float32).ravel(), GL_STATIC_DRAW)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebuf)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
-            self.polys.astype(np.uint16).ravel(), GL_STATIC_DRAW)
-
-        if self.tcoords is not None:
-            self.tbuf = glGenBuffers(1)
-            glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
+        allocated = super(TriMesh, self).init()
+        if not allocated:
+            self.vbuf = glGenBuffers(1)
+            self.ebuf = glGenBuffers(1)
+            glBindBuffer(GL_ARRAY_BUFFER, self.vbuf)
             glBufferData(GL_ARRAY_BUFFER, 
-                self.tcoords.astype(np.float32).ravel(), GL_STATIC_DRAW)
-        
-        if self.normals is not None:
-            self.nbuf = glGenBuffers(1)
-            glBindBuffer(GL_ARRAY_BUFFER, self.nbuf)
-            glBufferData(GL_ARRAY_BUFFER,
-                self.normals.astype(np.float32).ravel(), GL_STATIC_DRAW)
+                self.verts.astype(np.float32).ravel(), GL_STATIC_DRAW)
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebuf)
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
+                self.polys.astype(np.uint16).ravel(), GL_STATIC_DRAW)
+
+            if self.tcoords is not None:
+                self.tbuf = glGenBuffers(1)
+                glBindBuffer(GL_ARRAY_BUFFER, self.tbuf)
+                glBufferData(GL_ARRAY_BUFFER, 
+                    self.tcoords.astype(np.float32).ravel(), GL_STATIC_DRAW)
+            
+            if self.normals is not None:
+                self.nbuf = glGenBuffers(1)
+                glBindBuffer(GL_ARRAY_BUFFER, self.nbuf)
+                glBufferData(GL_ARRAY_BUFFER,
+                    self.normals.astype(np.float32).ravel(), GL_STATIC_DRAW)
+        return allocated
     
     def draw(self, ctx):
         super(TriMesh, self).draw(ctx)
