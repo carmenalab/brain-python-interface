@@ -31,6 +31,7 @@ class Window(LogExperiment):
     def __init__(self, *args, **kwargs):
         super(Window, self).__init__(**kwargs)
         self.models = []
+        self.world = None
 
     def init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
@@ -67,7 +68,13 @@ class Window(LogExperiment):
         self.world.rotate_y(vec[0]).rotate_x(vec[1])
 
     def add_model(self, model):
-        self.models.append(model)
+        if self.world is None:
+            #world doesn't exist yet, add the model to cache
+            self.models.append(model)
+        else:
+            #We're already running, initialize the model and add it to the world
+            model.init()
+            self.world.add(model)
     
     def run(self):
         self.init()

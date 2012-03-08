@@ -42,7 +42,7 @@ class Button(object):
     def _get_event(self):
         for btn in pygame.event.get(pygame.MOUSEBUTTONDOWN):
             return {1:1, 3:4}[btn.button]
-                
+
         return super(Button, self)._get_event()
     
     def _while_penalty(self):
