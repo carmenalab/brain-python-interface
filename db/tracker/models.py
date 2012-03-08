@@ -1,14 +1,26 @@
+import json
+import cPickle
 from django.db import models
+
+from riglib.calibrations import ThinPlate
+from riglib.experiment import featlist, genlist
+from tasks import tasklist
 
 class Task(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
         return self.name
+    
+    def get(self):
+        return tasklist[self.name]
 
 class Feature(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
         return self.name
+    
+    def get(self):
+        return featlist[self.name]
 
 class System(models.Model):
     name = models.CharField(max_length=128)
@@ -27,6 +39,9 @@ class Generator(models.Model):
 
     def __unicode__(self):
         return self.name
+    
+    def get(self):
+        return genlist[self.name]
 
 class Sequence(models.Model):
     date = models.DateTimeField(auto_now_add=True)
@@ -38,6 +53,12 @@ class Sequence(models.Model):
 
     def __unicode__(self):
         return self.name
+    
+    def get(self):
+        if len(self.sequence) > 0:
+            return experiment.generate.runseq(cPickle.loads(self.sequence))
+        return self.generator.get(), json.loads(self.params)
+
 
 class TaskEntry(models.Model):
     subject = models.ForeignKey(Subject)
@@ -60,12 +81,16 @@ class Calibration(models.Model):
     subject = models.ForeignKey(Subject)
     date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=128)
-    notes = models.TextField()
     system = models.ForeignKey(System)
-    path = models.CharField(max_length=256)
+
+    params = models.TextField()
 
     def __unicode__(self):
         return self.name
+    
+    def get(self):
+        return ThinPlate(**json.loads(self.params))
+
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)

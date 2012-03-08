@@ -9,7 +9,9 @@ from models import TaskEntry, Feature, Sequence, Task, Generator, Subject
 from riglib import experiment
 from tasks import tasklist
 
-display = xmlrpclib.ServerProxy("http://localhost:8001/", allow_none=True)
+import tasktrack
+
+display = tasktrack.Tracker()
 
 def _respond(data):
     return HttpResponse(json.dumps(data), mimetype="application/json")
@@ -26,7 +28,7 @@ def exp_info(request, idx):
     sfeats = dict([(f.name, f in entry.feats.all()) for f in Feature.objects.all()])
     params = json.loads(entry.params)
     
-    Exp = experiment.make(tasklist[entry.task.name], feats=[f.name for f in entry.feats.all()])
+    Exp = experiment.make(entry.task.get(), feats=[f.name for f in entry.feats.all()])
     traits = Exp.class_traits()
     traitval = dict([(name, #-->
             (traits[name].desc, params[name]    if name in params else traits[name].default) )
@@ -50,18 +52,19 @@ def seq_data(request, idx):
 
 def start_experiment(request, save=True):
     #make sure we don't have an already-running experiment
-    if display.get_status() is not None:
+    if display.state is not None:
         return _respond("fail")
     
     data = json.loads(request.POST['data'])
-    seq = _sequence(data['task_id'], data['sequence'], save)
+    seq = tasktrack._sequence(data['task_id'], data['sequence'], save)
 
     te = TaskEntry(
         subject_id=data['subject_id'], 
         task_id=data['task_id'], 
-        sequence_id=seq['id'])
-    params = display.make_params(te.task.name, data['feats'], data['params'])
-    te.params = json.dumps(cPickle.loads(params))
+        sequence=seq)
+
+    params = tasktrack.norm_params(te.task.get(), data['feats'], data['params'])
+    te.params = params
     
     saveid = None
     if save:
@@ -71,42 +74,16 @@ def start_experiment(request, save=True):
             te.feats.add(f.pk)
         saveid = te.pk
 
-    display.run(te.task.name, data['feats'], seq, params, saveid)
+    display.start(te.task, data['feats'], seq, params, saveid)
     return _respond(dict(id=te.id, subj=te.subject.name, task=te.task.name))
-
-def _sequence(taskid, data, save=True):
-    if isinstance(data, dict):
-        params = dict([(k, json.loads(v)) for k, v in data['params'].items()])
-        static = data['static']
-        seqdb = Sequence(
-            generator_id=data['generator'], 
-            task_id=taskid,
-            name=data['name'], 
-            params=json.dumps(params))
-        if static:
-            gen = experiment.genlist[seqdb.generator.name]
-            seqdb.sequence = cPickle.dumps(gen(**json.loads(seqdb.params)))
-        
-        if save:
-            seqdb.save()
-    else:
-        seqdb = Sequence.objects.get(pk=data)
-    
-    if seqdb.sequence != '':
-        return dict(id=seqdb.id, seq=cPickle.loads(seqdb.sequence))
-    else:
-        return dict(id=seqdb.id, 
-            gen=seqdb.generator.name, 
-            params=json.loads(seqdb.params), 
-            static=seqdb.generator.static)
 
 def stop_experiment(request):
     #make sure that there exists an experiment to stop
-    if display.get_status() not in ["running", "testing"]:
+    if display.state not in ["running", "testing"]:
         return _respond("fail")
     return _respond(display.stop())
 
 def report(request):
-    if display.get_status() not in ["running", "testing"]:
+    if display.state not in ["running", "testing"]:
         return _respond("fail")
     return _respond(display.report())

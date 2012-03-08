@@ -19,7 +19,7 @@ def list(request):
 	jsongens = json.dumps(dict([(g.id, (g.name, g.params, g.static)) for g in gens]))
 
 	return render_to_response('list.html', dict(
-		running=display.get_expidx() if display.get_status() == "running" else None,
+		running=display.expidx if display.state == "running" else None,
 		entries=entries, 
 		subjects=subjects, 
 		tasks=tlist, 
