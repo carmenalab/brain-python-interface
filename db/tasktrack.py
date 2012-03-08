@@ -181,15 +181,17 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
 def runtask(status, *args):
     os.nice(0)
-    task = Task(*args)
     server = None
     while server is None:
         try:
             server = SimpleXMLRPCServer(("localhost", 8001), requestHandler=RequestHandler, allow_none=True)
             server.register_introspection_functions()
-            server.register_instance(task)
         except:
             pass
+    
+    task = Task(*args)
+    server.register_instance(task)
+    
     while status.value == 1 and task.task.state is not None:
         try:
             server.handle_request()
