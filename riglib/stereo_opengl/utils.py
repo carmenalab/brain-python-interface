@@ -22,14 +22,12 @@ def perspective(angle, aspect, near, far):
                      [0,        0, -fn/nfn, -2*far*near/nfn],
                      [0,        0,   -1,               0]])
 
-def offaxis_frusta(winsize, fov, near, far, focal_dist, iod):
+def offaxis_frusta(winsize, fov, near, far, focal_dist, iod, flip=False):
     aspect = winsize[0] / winsize[1]
     top = near * np.tan(np.radians(fov) / 2)
     right = aspect*top
     fshift = (iod/2) * near / focal_dist
-
-    flip = np.eye(4)
-    flip[0,0] = -1
+    
     #multiply in the iod modelview transform
     lxfm, rxfm = np.eye(4), np.eye(4)
     lxfm[:3,-1] = [0.5*iod, 0, 0]
@@ -37,6 +35,11 @@ def offaxis_frusta(winsize, fov, near, far, focal_dist, iod):
 
     left = frustum(-right+fshift, right+fshift, top, -top, near, far)
     right = frustum(-right-fshift, right-fshift, top, -top, near, far)
+    
+    if flip:
+        flip = np.eye(4)
+        flip[0,0] = -1
+        return np.dot(flip, np.dot(left, lxfm)), np.dot(flip, np.dot(right, rxfm))
 
     return np.dot(left, lxfm), np.dot(right, rxfm)
 

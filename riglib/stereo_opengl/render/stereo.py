@@ -25,15 +25,19 @@ class RightLeft(LeftRight):
         glViewport(0, 0, w, h)
         super(LeftRight, self).draw(root, p_matrix=self.projections[1], **kwargs)
 
-class MirrorDisplay(LeftRight):
+class MirrorDisplay(Renderer):
     '''The mirror display requires a left-right flip, otherwise the sides are messed up'''
-    def __init__(self, *args, **kwargs):
-        super(MirrorDisplay, self).__init__(*args, **kwargs)
-        flip = np.eye(4)
-        flip[0,0] = -1
-
-        self.projections = [np.dot(p, flip) for p in self.projections]
-
+    def __init__(self, window_size, fov, near, far, focal_dist, iod, **kwargs):
+        w, h = window_size
+        super(MirrorDisplay, self).__init__((w/2,h), fov, near, far, **kwargs)
+        self.projections = offaxis_frusta((w/2, h), fov, near, far, focal_dist, iod, flip=True)
+    
+    def draw(self, root, **kwargs):
+        w, h = self.size
+        glViewport(0, 0, w, h)
+        super(MirrorDisplay, self).draw(root, p_matrix=self.projections[0], **kwargs)
+        glViewport(w, 0, w, h)
+        super(MirrorDisplay, self).draw(root, p_matrix=self.projections[1], **kwargs)
 
 class Anaglyph(Renderer):
     def __init__(self, window_size, fov, near, far, focal_dist, iod, **kwargs):
