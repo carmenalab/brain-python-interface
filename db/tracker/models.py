@@ -1,11 +1,14 @@
 import json
 import cPickle
+import inspect
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
 from riglib.calibrations import ThinPlate
 from riglib.experiment import featlist, genlist
 from tasks import tasklist
+
+from json_param import Parameters
 
 class Task(models.Model):
     name = models.CharField(max_length=128)
@@ -69,7 +72,12 @@ class Generator(models.Model):
         real = set(genlist.keys())
         db = set(gen.name for gen in Generator.objects.all())
         for name in real - db:
-            Generator(name=name).save()
+            args = inspect.getargspec(genlist[name]).args
+            static = "length" in args
+            args.remove("exp")
+            args.remove("length")
+            print args, static
+            Generator(name=name, params=",".join(args), static=static).save()
 
         for name in db - real:
             Generator.objects.get(name=name).delete()
@@ -88,7 +96,7 @@ class Sequence(models.Model):
     def get(self):
         if len(self.sequence) > 0:
             return experiment.generate.runseq, cPickle.loads(self.sequence)
-        return self.generator.get(), json.loads(self.params)
+        return self.generator.get(), Parameters(self.params)
 
 
 class TaskEntry(models.Model):
@@ -107,6 +115,12 @@ class TaskEntry(models.Model):
             date=self.date.strftime("%h. %e, %Y, %l:%M %p"),
             subj=self.subject.name,
             task=self.task.name)
+    
+    def get(self, feats=()):
+        Exp = experiment.make(self.task.get(), tuple(f.get() for f in self.feats.all())+feats)
+        gen, gp = self.sequence.get()
+        seq = gen(Exp, **gp)
+        return Exp(seq, **json.loads(self.params, object_hook=param_objhook))
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject)

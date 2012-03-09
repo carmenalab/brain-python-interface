@@ -26,6 +26,8 @@ featlist = dict(
     button=features.Button, 
     ignore_correctness=features.IgnoreCorrectness,
     reward_system = features.RewardSystem,
+    eye_data=features.EyeData,
+    motion_data=features.MotionData
 )
 genlist = dict(
     endless=generate.endless,
@@ -35,8 +37,6 @@ genlist = dict(
     trialtypes=generate.sequence,
     redgreen=redgreen.gencoords,
 )
-
-typemap = {trait_types.Tuple:tuple}
 
 def make(exp_class, feats=()):
     clslist = []
