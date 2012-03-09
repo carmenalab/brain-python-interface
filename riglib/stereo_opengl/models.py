@@ -70,6 +70,15 @@ class Model(object):
         glUniform4f(ctx.uniforms.spec_color, *(self.spec_color if "specular_color" not in kwargs else kwargs['spec_color']))
         glUniform1f(ctx.uniforms.shininess, self.shininess if "shininess" not in kwargs else kwargs['shininess'])
 
+    def attach(self):
+        assert self.parent is not None
+        self.parent.models.append(self)
+
+    def detach(self):
+        assert self.parent is not None
+        self.parent.models.remove(self)
+
+
 class Group(Model):
     def __init__(self, models=()):
         super(Group, self).__init__()

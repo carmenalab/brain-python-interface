@@ -2,6 +2,7 @@ import json
 import cPickle
 import xmlrpclib
 
+import numpy as np
 from django.http import HttpResponse
 
 from models import TaskEntry, Feature, Sequence, Task, Generator, Subject
@@ -13,14 +14,20 @@ import tasktrack
 
 display = tasktrack.Tracker()
 
+class paramencoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        return super(paramencoder, self).default(o)
+
 def _respond(data):
-    return HttpResponse(json.dumps(data), mimetype="application/json")
+    return HttpResponse(json.dumps(data, cls=paramencoder), mimetype="application/json")
 
 def task_params(request, taskname):
     feats = [k for k,v in request.GET.items() if v]
     Exp = experiment.make(tasklist[taskname], feats=feats)
     traits = Exp.class_traits()
-    data = dict([ (name, (traits[name].desc, (traits[name].default))) for name in Exp.class_editable_traits()])
+    data = dict([ (name, (traits[name].desc, traits[name].trait_type.default_value)) for name in Exp.class_editable_traits()])
     return _respond(data)
 
 def exp_info(request, idx):
@@ -31,7 +38,8 @@ def exp_info(request, idx):
     Exp = experiment.make(entry.task.get(), feats=[f.name for f in entry.feats.all()])
     traits = Exp.class_traits()
     traitval = dict([(name, #-->
-            (traits[name].desc, params[name]    if name in params else traits[name].default) )
+            (traits[name].desc, params[name]
+            if name in params else traits[name].default ) )
             for name in Exp.class_editable_traits() ])
     data = dict(task=entry.task_id, params=traitval, notes=entry.notes, features=sfeats, seqid=entry.sequence.id)
     return _respond(data)

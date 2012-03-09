@@ -16,17 +16,9 @@ class ThinPlate(object):
     def __call__(self, data):
         return np.vstack([func(d) for func, d in zip(self.funcs, data.T)]).T
 
-class DataFilter(features.DataSource, traits.HasTraits):
-    '''A feature which gets data from the type named and applies the calibration profile provided'''
-    profiles = traits.List(trait=traits.Instance('models.Calibration'))
-
-    def __init__(self, *args, **kwargs):
-        super(DataFilter, *args, **kwargs)
-        self._datasource = self.datasource
-
-        datasource = self.datasource
-        calibrations = dict((p.name, p.get()) for profile in self.profiles)
-
-        class Proxy(object):
-            def get(self, mode):
-                return self.calibrations[mode]()
+class Affine(object):
+    '''Runs a linear affine interpolation between data and actual'''
+    def __init__(self, data, actual):
+        self.data = data
+        self.actual = actual
+        #self.xfm = np.linalg.lstsq()

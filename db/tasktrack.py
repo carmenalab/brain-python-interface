@@ -69,7 +69,7 @@ def norm_params(task, feats, params):
     Exp = experiment.make(task, feats=feats)
     traits = Exp.class_traits()
     processed = dict()
-    print "norm_pre: ", params
+    
     for name, value in params.items():
         if isinstance(value, (str, unicode)):
             try:
@@ -83,7 +83,6 @@ def norm_params(task, feats, params):
         #Pushing the value through cast ensures that the value is valid
         processed[name] = norm_trait(traits[name], value)
     
-    print "norm_post: ",processed
     return json_params(processed)
 
 class Tracker(object):
@@ -125,10 +124,12 @@ class Tracker(object):
 def _sequence(taskid, data, save=True):
     if isinstance(data, dict):
         params = dict()
+        print data['params']
         for n, p in data['params'].items():
             try:
                 params[n] = json.loads(p)
             except:
+                print p
                 params[n] = ast.literal_eval(p)
         
         seqdb = models.Sequence(generator_id=data['generator'], 
@@ -150,6 +151,7 @@ class Task(object):
     def __init__(self, task, feats, seq, params, saveid=None):
         Exp = experiment.make(task.get(), feats=feats)
         gen, gp = seq.get()
+        sequence = gen(Exp, **gp)
         
         if saveid is not None:
             class CommitFeat(object):
@@ -158,8 +160,7 @@ class Task(object):
                     database.save_log(saveid, self.event_log)
             Exp = experiment.make(tasklist[task], feats=[CommitFeat]+feats)
         
-        #params = norm_params(task.get(), feats, json.loads(params, object_hook=param_objhook))
-        exp = Exp(gen(Exp, **gp), **json.loads(params, object_hook=param_objhook))
+        exp = Exp(sequence, **json.loads(params, object_hook=param_objhook))
         exp.start()
         self.task = exp
 
@@ -198,4 +199,5 @@ def runtask(status, *args):
         except KeyboardInterrupt:
             status.value = 0
     
+    del server
     print "exited"

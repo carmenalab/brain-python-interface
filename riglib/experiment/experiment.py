@@ -50,22 +50,26 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.stop = True
 
 class LogExperiment(Experiment):
+    log_exclude = set()
     def __init__(self, **kwargs):
         self.state_log = []
         self.event_log = []
         super(LogExperiment, self).__init__(**kwargs)
 
     def trigger_event(self, event):
-        self.event_log.append((self.state, event, time.time()))
-        super(LogExperiment, self).trigger_event(event)
+        log = (self.state, event) not in self.log_exclude
+        if log:  
+            self.event_log.append((self.state, event, time.time()))
+        self.set_state(self.status[self.state][event], log=log)
 
-    def set_state(self, condition):
-        self.state_log.append((condition, time.time()))
+    def set_state(self, condition, log=True):
+        if log:
+            self.state_log.append((condition, time.time()))
         super(LogExperiment, self).set_state(condition)
 
 class Sequence(LogExperiment):
     def __init__(self, gen, **kwargs):
-        self.gen = gen
+        self.gen = iter(gen)
         super(Sequence, self).__init__(**kwargs)
         self.next_trial = self.gen.next()
     
