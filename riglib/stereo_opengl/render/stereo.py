@@ -2,7 +2,7 @@ import numpy as np
 from OpenGL.GL import *
 
 from render import Renderer
-from utils import offaxis_frusta, mirror_frusta
+from utils import offaxis_frusta
 
 class LeftRight(Renderer):
     def __init__(self, window_size, fov, near, far, focal_dist, iod, **kwargs):

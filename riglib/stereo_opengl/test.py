@@ -36,9 +36,7 @@ class Test(Window):
         t = (ts / 5.) * 2*np.pi
         t2 = (ts / 2.) * 2*np.pi
         arm.set((np.cos(t)*10-10, np.sin(t2)*10+20, np.sin(t)*15))
-        super(Test, self)._while_draw()
-        
-        self.renderer.draw_done()
+        self.draw_world()
 
 if __name__ == "__main__":
     win = Test(window_size=(1366,768))

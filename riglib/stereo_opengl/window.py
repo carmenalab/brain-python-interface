@@ -79,6 +79,14 @@ class Window(LogExperiment):
     def run(self):
         self.init()
         return super(Window, self).run()
+
+    def draw_world(self):
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self.renderer.draw(self.world)
+        pygame.display.flip()
+        self.renderer.draw_done()
+        self.clock.tick(self.fps)
+        self.event = self._get_event()
     
     def _get_renderer(self):
         return stereo.MirrorDisplay(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
@@ -86,13 +94,6 @@ class Window(LogExperiment):
     def _get_event(self):
         for e in pygame.event.get(pygame.KEYDOWN):
             return (e.key, e.type)
-    
-    def _while_draw(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.renderer.draw(self.world)
-        pygame.display.flip()
-        self.clock.tick(self.fps)
-        self.event = self._get_event()
     
     def _start_None(self):
         pygame.display.quit()
