@@ -6,4 +6,5 @@ try:
     for m in [models.Task, models.Feature, models.Generator]:
         m.populate()
 except:
-    pass
+    import traceback
+    traceback.print_exc()

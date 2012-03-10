@@ -1,6 +1,36 @@
 import time
 import numpy as np
-from OWL import *
+try:
+    from OWL import *
+except:
+    print "Cannot find phasespace driver"
+
+class Simulate(object):
+    def __init__(self, marker_count=8, radius=(10, 2, 5), offset=(-20,0,0), speed=(5,5,4)):
+        self.n = marker_count
+        self.radius = radius
+        self.offset = np.array(offset)
+        self.speed = speed
+
+        self.offsets = np.random.rand(self.n)*np.pi
+
+    def start(self):
+        self.stime = time.time()
+
+    def get(self):
+        ts = (time.time() - self.stime)
+        data = np.zeros((self.n, 3))
+        for i, p in enumerate(self.offsets):
+            x = self.radius[0] * np.cos(ts / self.speed[0] * 2*np.pi + p)
+            y = self.radius[1] * np.sin(ts / self.speed[1] * 2*np.pi + p)
+            z = self.radius[2] * np.sin(ts / self.speed[2] * 2*np.pi + p)
+            data[i] = x,y,z
+            time.sleep(1./480)
+
+        return data + np.random.randn(self.n, 3)*0.1
+
+    def stop(self):
+        return 
 
 class System(object):
     def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=0):

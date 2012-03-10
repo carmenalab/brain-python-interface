@@ -14,7 +14,7 @@ class ThinPlate(object):
             self.funcs.append(f)
 
     def __call__(self, data):
-        return np.vstack([func(d) for func, d in zip(self.funcs, data.T)]).T
+        return np.array([func(d) for func, d in zip(self.funcs, data.T)]).T
 
 class Affine(object):
     '''Runs a linear affine interpolation between data and actual'''

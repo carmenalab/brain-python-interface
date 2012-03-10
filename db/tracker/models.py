@@ -120,7 +120,7 @@ class TaskEntry(models.Model):
         Exp = experiment.make(self.task.get(), tuple(f.get() for f in self.feats.all())+feats)
         gen, gp = self.sequence.get()
         seq = gen(Exp, **gp)
-        return Exp(seq, **json.loads(self.params, object_hook=param_objhook))
+        return Exp(seq, **Parameters(self.params).params)
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject)
@@ -134,7 +134,7 @@ class Calibration(models.Model):
         return self.name
     
     def get(self):
-        return ThinPlate(**json.loads(self.params))
+        return ThinPlate(**Parameters(self.params).params)
 
 
 class DataFile(models.Model):
@@ -142,4 +142,4 @@ class DataFile(models.Model):
     local = models.BooleanField()
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System)
-    entruy = models.ForeignKey(TaskEntry)
+    entry = models.ForeignKey(TaskEntry)

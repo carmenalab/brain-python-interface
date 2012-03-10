@@ -1,5 +1,31 @@
 import time
-import pylink
+import numpy as np
+try:
+    import pylink
+except ImportError:
+    print "Couldn't find eyetracker module"
+
+class Simulate(object):
+    def __init__(self, fixations=[(0,0), (-0.6,0.3), (0.6,0.3)], isi=500, slen=15):
+        import itertools
+        from scipy.interpolate import interp1d
+        flen = range(len(fixations)+1)
+        t = list(itertools.chain(*[(i*isi + slen*i, (i+1)*isi + slen*i) for i in flen]))[:-1]
+        xy = np.append(np.tile(fixations, (1, 2)).reshape(-1, 2), [fixations[0]], axis=0)
+        self.mod = t[-1] / 1000.
+        self.interp = interp1d(np.array(t)/1000., xy, kind='linear', axis=0)
+        self.fixations = fixations
+        self.isi = isi
+
+    def start(self):
+        self.stime = time.time()
+
+    def get(self):
+        time.sleep(1./500.)
+        return self.interp((time.time() - self.stime) % self.mod) + np.random.randn(2)*.01
+
+    def stop(self):
+        return 
 
 class System(object):
     def __init__(self, address='10.0.0.2'):

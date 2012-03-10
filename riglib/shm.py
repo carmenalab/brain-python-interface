@@ -1,152 +1,135 @@
+import os
+import inspect
 import multiprocessing as mp
 from multiprocessing import sharedctypes as shm
 
 import numpy as np
 
-#Update frequency for each modality, for calculating size of shm
-update_freq = dict(
-    eyetracker=500,
-    motion=480,
-    neuron=2048,
-)
-#Size of a single time slice for each modality
-size = dict(
-    eyetracker=2,
-    motion=8*3,
-    neuron=256,
-)
+from riglib import eyetracker, motiontracker
 
-class MemTrack(object):
-    def __init__(self, eyebuf=10, motionbuf=10):
-        esize = eyebuf*update_freq['eyetracker']*size['eyetracker']
-        msize = motionbuf*update_freq['motion']*size['motion']
-        self.size = size
-        self.msize = dict(
-            eyetracker=eyebuf*update_freq['eyetracker'],
-            motion=motionbuf*update_freq['motion']
-        )
-        print "Allocating e=%s, m=%s"%(esize, msize)
-        self.data = dict(
-            eyetracker = shm.RawArray('d', esize),
-            motion = shm.RawArray('d', msize)
-        )
-        self.idx = dict(
-            eyetracker = shm.RawValue('i', -1),
-            motion = shm.RawValue('i', -1),
-        )
-        self.locks = dict(eyetracker=mp.Lock(), motion=mp.Lock())
-        self.funcs = dict(
-            eyetracker = self._update_eyetracker,
-            motion = self._update_motion,
-        )
-        self.procs = dict()
-        self.proxy = dict(
-            eyetracker=ObjProxy(),
-        )
-    
-    def start(self, modalities=None):
-        if modalities is None:
-            modalities = ['eyetracker', 'motion']
-        elif not isinstance(modalities, (list, tuple)):
-            modalities = [modalities]
-        
-        for mode in modalities:
-            self.idx[mode].value = 1
-            args = (self.locks[mode], self.data[mode], self.idx[mode])
-            proc = mp.Process(target=self.funcs[mode], args=args)
-            self.procs[mode] = proc
-            proc.start()
-
-    def stopall(self):
-        for mode in self.procs.keys():
-            #This should force all modalities to exit after the next refresh
-            self.idx[mode].value = -1
-    
-    def _update_eyetracker(self, lock, data, idx):
-        '''Must be run as a separate process, to update the eyetracker data'''
-        import eyetracker
-        system = eyetracker.System()
-        system.start()
-        size = self.size['eyetracker']
-        msize = self.msize['eyetracker']
-        proxy = self.proxy['eyetracker']
-        while idx.value > 0:
-            try:
-                func = proxy.cmd.get_nowait()
-                proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
-                print "get"
-            except:
-                pass
-            xy = system.get()
-            if xy is not None:
-                lock.acquire()
-                i = idx.value % msize
-                data[i*size:(i+1)*size] = xy
-                idx.value += 1
-                lock.release()
-    
-    def get(self, mode):
-        self.locks[mode].acquire()
-        i = self.idx[mode].value % self.msize[mode]
-        if self.idx[mode].value > self.msize[mode]:
-            data = self.data[mode][i:]+self.data[mode][:i]
-        else:
-            data = self.data[mode][:i*size[mode]]
-        self.idx[mode].value = 0
-        self.locks[mode].release()
-        try:
-            return np.array(data).reshape(-1, size[mode])
-        except:
-            print "can't reshape, len(data)=%d, size[mode]=%d"%(len(data), size[mode])
-    
-    def flush(self):
-        for mode in self.procs.keys():
-            self.locks[mode].acquire()
-            self.idx[mode].value = 0
-            self.locks[mode].release()
-    
-    def _update_motion(self, lock, data, idx):
-        import motiontracker
-        system = motiontracker.System()
-        system.start()
-        size = self.size['motion']
-        msize = self.msize['motion']
-        #proxy = self.proxy['motion']
-        while idx.value > 0:
-            try:
-                func = proxy.cmd.get_nowait()
-                #proxy._pipe.send(getattr(system, func[0])(*func[1], **func[2]))
-            except:
-                pass
-            xy = system.get()
-            if xy is not None:
-                lock.acquire()
-                i = idx.value % msize
-                data[i*size:(i+1)*size] = xy.ravel()
-                idx.value += 1
-                lock.release()
-    
-    def __del__(self):
-        self.stopall()
-
-class ObjProxy(object):
-    def __init__(self):
-        self.cmd = mp.Queue()
-        self.pipe, self._pipe = mp.Pipe()
-    
-    def __getattr__(self, attr):
-        return FuncProxy(attr, self.cmd, self._pipe)
+#Update frequency for each datasource, for calculating size of shm
+update_freq = {
+    eyetracker.System:500, motiontracker.System:480,
+    eyetracker.Simulate:500, motiontracker.Simulate:480
+}
 
 class FuncProxy(object):
-    def __init__(self, name, cmdqueue, pipe):
-        self.cmd = cmdqueue
+    def __init__(self, name, pipe, event):
         self.pipe = pipe
         self.name = name
+        self.event = event
 
     def __call__(self, *args, **kwargs):
-        self.cmd.put((self.name, args, kwargs))
+        self.pipe.send((self.name, args, kwargs))
+        self.event.set()
         return self.pipe.recv()
 
+class DataSource(mp.Process):
+    slice_size = 2
+    def __init__(self, source, bufferlen=10, **kwargs):
+        super(DataSource, self).__init__()
+        self.filter = None
+        self.source = source
+        self.source_kwargs = kwargs
+        self.max_size = bufferlen*update_freq[source]
+
+        self.lock = mp.Lock()
+        self.idx = shm.RawValue('l', 0)
+        self.data = shm.RawArray('d', self.max_size*self.slice_size)
+        self.pipe, self._pipe = mp.Pipe()
+        self.cmd_event = mp.Event()
+        self.status = mp.Value('b', 1)
+
+        self.methods = set(inspect.ismethod(getattr(source, n)) for n in dir(source))
+
+    def run(self):
+        self.system = self.source(**self.source_kwargs)
+        self.system.start()
+
+        size = self.slice_size
+        while self.status.value > 0:
+            if self.cmd_event.is_set():
+                cmd, args, kwargs = self._pipe.recv()
+                self.lock.acquire()
+                try:
+                    ret = getattr(self.system, cmd)(*args, **kwargs)
+                except Exception as e:
+                    ret = e
+                self.lock.release()
+                self._pipe.send(ret)
+                self.cmd_event.clear()
+
+            data = self.system.get()
+            if data is not None:
+                self.lock.acquire()
+                i = self.idx.value % self.max_size
+                self.data[i*size:(i+1)*size] = data.ravel()
+                self.idx.value += 1
+                self.lock.release()
+
+        print "ending data collection"
+        self.system.stop()
+
+    def get(self):
+        self.lock.acquire()
+        i = (self.idx.value % self.max_size) * self.slice_size
+        if self.idx.value > self.max_size:
+            data = self.data[i:]+self.data[:i]
+        else:
+            data = self.data[:i]
+        self.idx.value = 0
+        self.lock.release()
+        try:
+            data = np.array(data).reshape(-1, self.slice_size)
+        except:
+            print "can't reshape, len(data)=%d, size[source]=%d"%(len(data), self.slice_size)
+
+        if self.filter is not None:
+            return self.filter(data)
+        return data
+
+    def stop(self):
+        self.status.value = -1
+
+    def __del__(self):
+        self.stop()
+
+    def __getattr__(self, attr):
+        if attr in self.methods:
+            return FuncProxy(attr, self.pipe, self.cmd_event)
+        else:
+            self.pipe.send(("__getattr__", (attr,), {}))
+            self.cmd_event.set()
+            return self.pipe.recv()
+
+class EyeData(DataSource):
+    def __init__(self, **kwargs):
+        super(EyeData, self).__init__(eyetracker.System, **kwargs)
+
+class MotionData(DataSource):
+    def __init__(self, marker_count=8, **kwargs):
+        self.slice_size = marker_count * 3
+        super(MotionData, self).__init__(motiontracker.System, marker_count=marker_count, **kwargs)
+
+    def get(self):
+        data = super(MotionData, self).get()
+        return data.reshape(len(data), -1, 3)
+
+
+class EyeSimulate(DataSource):
+    def __init__(self, **kwargs):
+        super(EyeSimulate, self).__init__(eyetracker.Simulate, **kwargs)
+
+class MotionSimulate(DataSource):
+    def __init__(self, marker_count = 8, **kwargs):
+        self.slice_size = marker_count * 3
+        super(MotionSimulate, self).__init__(motiontracker.Simulate, marker_count=marker_count, **kwargs)
+
+    def get(self):
+        data = super(MotionSimulate, self).get()
+        return data.reshape(len(data), -1, 3)
+
 if __name__ == "__main__":
-    track = MemTrack()
-    track.start("eyetracker")
+    sim = MotionSimulate()
+    sim.start()
+    #sim.get()
