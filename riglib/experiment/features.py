@@ -1,5 +1,6 @@
 import random
 import pygame
+import traceback
 
 from . import traits
 
@@ -40,19 +41,21 @@ class Button(object):
         pygame.mouse.set_visible(False)
 
     def _get_event(self):
+        btnmap = {1:1, 3:4}
         for btn in pygame.event.get(pygame.MOUSEBUTTONDOWN):
-            return {1:1, 3:4}[btn.button]
+            if btn.button in btnmap:
+                return btnmap[btn.button]
 
         return super(Button, self)._get_event()
     
     def _while_penalty(self):
         #Clear out the button buffers
-        pygame.event.pump()
         super(Button, self)._while_penalty()
+        pygame.event.clear()
     
     def _while_wait(self):
-        pygame.event.pump()
         super(Button, self)._while_wait()
+        pygame.event.clear()
 
 class IgnoreCorrectness(object):
     '''Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
