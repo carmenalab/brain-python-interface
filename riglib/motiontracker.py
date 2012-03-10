@@ -32,6 +32,9 @@ class Simulate(object):
     def stop(self):
         return 
 
+    def testfunc(self):
+        return "blah"
+
 class System(object):
     def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=0):
         self.marker_count = marker_count

@@ -40,7 +40,7 @@ class DataSource(mp.Process):
         self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1)
 
-        self.methods = set(inspect.ismethod(getattr(source, n)) for n in dir(source))
+        self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
 
     def run(self):
         self.system = self.source(**self.source_kwargs)
