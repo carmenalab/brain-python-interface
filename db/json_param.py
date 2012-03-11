@@ -4,7 +4,9 @@ import __builtin__
 import ast
 import json
 import numpy as np
-from django.db import models
+
+from tracker import models
+from riglib import calibrations
 
 def param_objhook(obj):
     if '__django_model__' in obj:
@@ -13,7 +15,15 @@ def param_objhook(obj):
     elif '__builtin__' in obj:
         func = getattr(__builtin__, obj['__builtin__'])
         return func(*obj['args'])
+    elif '__class__' in obj:
+        mod = __builtin__.__import__(obj['__module__'], fromlist=[obj['__class__']])
+        return getattr(mod, obj['__class__'])(obj['__dict__'])
     return obj
+
+
+instance_to_model = {
+    calibrations.Profile:models.Calibration,
+}
 
 def norm_trait(trait, value):
     ttype = trait.trait_type.__class__.__name__
@@ -21,12 +31,11 @@ def norm_trait(trait, value):
         if isinstance(value, int):
             #we got a primary key, lookup class name
             cname = trait.trait_type.klass
-            if isinstance(cname, str):
-                #We got a class name, it's probably model.Something
-                #Split it, then get the model from the models module
-                cname = getattr(models, cname.split('.')[-1])
-            #otherwise, the klass is actually the class already, and we can directly instantiate
-
+            if not issubclass(cname, models.models.Model):
+                for i, m in instance_to_model.items():
+                    if issubclass(cname, i):
+                        cname = m
+            
             value = cname.objects.get(pk=value)
         #Otherwise, let's hope it's already an instance
     elif ttype == 'Tuple':
@@ -41,6 +50,12 @@ class Parameters(object):
         self.params = json.loads(rawtext, object_hook=param_objhook)
     
     @classmethod
+    def from_dict(cls, params):
+        c = cls('null')
+        c.params = params
+        return c
+    
+    @classmethod
     def from_html(cls, params):
         processed = dict()
         for name, value in params.items():
@@ -48,9 +63,7 @@ class Parameters(object):
                 processed[name] = json.loads(value, object_hook=param_objhook)
             except:
                 processed[name] = ast.literal_eval(value)
-        c = cls('null')
-        c.params = processed
-        return c
+        return cls.from_dict(cls, processed)
 
     def to_json(self):
         #Fucking retarded ass json implementation in python is retarded as SHIT
@@ -58,7 +71,7 @@ class Parameters(object):
         #the goddamned object before I push it through json
 
         def encode(obj):
-            if isinstance(obj, models.Model):
+            if isinstance(obj, models.models.Model):
                 return dict(
                     __django_model__=obj.__class__.__name__,
                     pk=obj.pk)
@@ -68,6 +81,14 @@ class Parameters(object):
                 return obj.tolist()    
             elif isinstance(obj, dict):
                 return dict((k, encode(v)) for k, v in obj.items())
+            elif isinstance(obj, object) and hasattr(obj, '__dict__'):
+                data = dict(
+                    __module__=obj.__class__.__module__,
+                    __class__=obj.__class__.__name__, 
+                    __dict__=obj.__dict__)
+                if hasattr(obj, '__getstate__'):
+                    data['__dict__'] = obj.__getstate__()
+                return data
             else:
                 return obj
         

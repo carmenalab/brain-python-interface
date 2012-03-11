@@ -1,4 +1,5 @@
 import time
+import itertools
 import numpy as np
 try:
     import pylink
@@ -7,7 +8,6 @@ except ImportError:
 
 class Simulate(object):
     def __init__(self, fixations=[(0,0), (-0.6,0.3), (0.6,0.3)], isi=500, slen=15):
-        import itertools
         from scipy.interpolate import interp1d
         flen = range(len(fixations)+1)
         t = list(itertools.chain(*[(i*isi + slen*i, (i+1)*isi + slen*i) for i in flen]))[:-1]

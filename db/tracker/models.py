@@ -4,11 +4,9 @@ import inspect
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
-from riglib.calibrations import ThinPlate
+from riglib import calibrations
 from riglib.experiment import featlist, genlist
 from tasks import tasklist
-
-from json_param import Parameters
 
 class Task(models.Model):
     name = models.CharField(max_length=128)
@@ -50,6 +48,11 @@ class System(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
         return self.name
+    
+    @staticmethod
+    def populate():
+        System(name="eyetracker").save()
+        System(name="motiontracker").save()
 
 class Subject(models.Model):
     name = models.CharField(max_length=128)
@@ -74,9 +77,10 @@ class Generator(models.Model):
         for name in real - db:
             args = inspect.getargspec(genlist[name]).args
             static = "length" in args
-            args.remove("exp")
-            args.remove("length")
-            print args, static
+            if "exp" in args:
+                args.remove("exp")
+            if "length" in args:
+                args.remove("length")
             Generator(name=name, params=",".join(args), static=static).save()
 
         for name in db - real:
@@ -94,6 +98,7 @@ class Sequence(models.Model):
         return self.name
     
     def get(self):
+        from json_param import Parameters
         if len(self.sequence) > 0:
             return experiment.generate.runseq, cPickle.loads(self.sequence)
         return self.generator.get(), Parameters(self.params)
@@ -117,6 +122,7 @@ class TaskEntry(models.Model):
             task=self.task.name)
     
     def get(self, feats=()):
+        from json_param import Parameters
         Exp = experiment.make(self.task.get(), tuple(f.get() for f in self.feats.all())+feats)
         gen, gp = self.sequence.get()
         seq = gen(Exp, **gp)
@@ -131,10 +137,12 @@ class Calibration(models.Model):
     params = models.TextField()
 
     def __unicode__(self):
-        return self.name
+        return "{date}:{system} calibration for {subj}".format(date=self.date, 
+            subj=self.subject.name, system=self.system.name)
     
     def get(self):
-        return ThinPlate(**Parameters(self.params).params)
+        from json_param import Parameters
+        return getattr(calibrations, self.name)(**Parameters(self.params).params)
 
 
 class DataFile(models.Model):

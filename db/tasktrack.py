@@ -60,9 +60,21 @@ class Task(object):
                 def _start_None(self):
                     super(CommitFeat, self)._start_None()
                     database.save_log(saveid, self.event_log)
-            Exp = experiment.make(task.get(), feats=[CommitFeat]+feats)
-        else:
-            Exp = experiment.make(task.get(), feats=feats)
+            feats.insert(0, CommitFeat)
+
+        if "calibration" in task.name:
+            class SaveCal(object):
+                def _start_None(self):
+                    super(SaveCal, self)._start_None()
+                    caltype = self.calibration.__class__.__name__
+                    params = Parameters.from_dict(self.calibration.__dict__)
+                    if hasattr(self.calibration, '__getstate__'):
+                        params = Parameters.from_dict(self.calibration.__getstate__())
+                    database.save_cal(task.subject.name, self.calibration.system,
+                        name=caltype, params=params.to_json())
+            feats.insert(0, SaveCal)
+        
+        Exp = experiment.make(task.get(), feats=feats)
 
         gen, gp = seq.get()
         sequence = gen(Exp, **gp.params)

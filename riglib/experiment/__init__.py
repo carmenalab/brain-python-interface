@@ -27,7 +27,9 @@ featlist = dict(
     ignore_correctness=features.IgnoreCorrectness,
     reward_system = features.RewardSystem,
     eye_data=features.EyeData,
-    motion_data=features.MotionData
+    calibrated_eye=features.CalibratedEyeData,
+    simulate_eye=features.SimulatedEyeData,
+    motion_data=features.MotionData,
 )
 genlist = dict(
     endless=generate.endless,

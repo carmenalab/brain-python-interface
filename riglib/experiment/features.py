@@ -3,6 +3,7 @@ import pygame
 import traceback
 
 from . import traits
+from riglib import calibrations
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
@@ -48,6 +49,10 @@ class Button(object):
 
         return super(Button, self)._get_event()
     
+    def _while_reward(self):
+        super(Button, self)._while_reward()
+        pygame.event.clear()
+    
     def _while_penalty(self):
         #Clear out the button buffers
         super(Button, self)._while_penalty()
@@ -74,19 +79,50 @@ class IgnoreCorrectness(object):
     def _test_incorrect(self, ts):
         return False
 
-class DataSource(object):
-    '''Creates a shared memory tracker to grab cached data from the various data sources'''
+class EyeData(object):
     def __init__(self, *args, **kwargs):
         from riglib import shm
-        super(DataSource, self).__init__(*args, **kwargs)
-        self.datasource = shm.MemTrack()
+        super(EyeData, self).__init__(*args, **kwargs)
+        self.eyedata = shm.EyeData()
 
-class EyeData(DataSource):
-    def init(self):
-        super(EyeData, self).init()
-        self.datasource.start("eyetracker")
+    def run(self):
+        self.eyedata.start()
+        super(EyeData, self).run()
 
-class MotionData(DataSource):
-    def init(self):
-        super(MotionData, self).init()
-        self.datasource.start("motion")
+class CalibratedEyeData(traits.HasTraits):
+    cal_profile = traits.Instance(calibrations.Profile)
+
+    def __init__(self, *args, **kwargs):
+        from riglib import shm
+        super(CalibratedEyeData, self).__init__(*args, **kwargs)
+        self.eyedata = shm.EyeData()
+        self.eyedata.filter = self.cal_profile
+    
+    def run(self):
+        self.eyedata.start()
+        super(EyeData, self).run()
+
+class SimulatedEyeData(traits.HasTraits):
+    fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
+    fixation_len = traits.Float(0.5, desc="Length of a fixation")
+
+    def __init__(self, *args, **kwargs):
+        from riglib import shm
+        super(SimulatedEyeData, self).__init__(*args, **kwargs)
+        self.eyedata = shm.EyeSimulate(fixations=self.fixations, isi=self.fixation_len*1e3)
+
+    def run(self):
+        self.eyedata.start()
+        super(EyeData, self).run()
+
+class MotionData(traits.HasTraits):
+    marker_count = traits.Int(8, desc="Number of markers to return")
+
+    def __init__(self, *args, **kwargs):
+        from riglib import shm
+        super(EyeData, self).__init__(*args, **kwargs)
+        self.motiondata = shm.MotionData(marker_count=self.marker_count)
+        
+    def run(self):
+        self.motiondata.start()
+        super(EyeData, self).run()

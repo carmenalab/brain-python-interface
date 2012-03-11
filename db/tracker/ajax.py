@@ -10,7 +10,7 @@ from models import TaskEntry, Feature, Sequence, Task, Generator, Subject
 from riglib import experiment
 from tasks import tasklist
 
-from json_param import Parameters
+from json_param import Parameters, instance_to_model
 from tasktrack import tracker as display
 
 class encoder(json.JSONEncoder):
@@ -33,6 +33,7 @@ def task_params(request, taskname):
     for name in Exp.class_editable_traits():
         desc = traits[name].desc
         val = traits[name].trait_type.default_value
+        if traits[name].trait_type
         data[name] = desc, val
 
     return _respond(data)
