@@ -5,8 +5,6 @@ from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
 from riglib import calibrations
-from riglib.experiment import featlist, genlist
-from tasks import tasklist
 
 class Task(models.Model):
     name = models.CharField(max_length=128)
@@ -14,11 +12,13 @@ class Task(models.Model):
         return self.name
     
     def get(self):
-        return tasklist[self.name]
+        from namelist import tasks
+        return tasks[self.name]
 
     @staticmethod
     def populate():
-        real = set(tasklist.keys())
+        from namelist import tasks
+        real = set(tasks.keys())
         db = set(task.name for task in Task.objects.all())
         for name in real - db:
             Task(name=name).save()
@@ -32,11 +32,13 @@ class Feature(models.Model):
         return self.name
     
     def get(self):
-        return featlist[self.name]
+        from namelist import features
+        return features[self.name]
 
     @staticmethod
     def populate():
-        real = set(featlist.keys())
+        from namelist import features
+        real = set(features.keys())
         db = set(feat.name for feat in Feature.objects.all())
         for name in real - db:
             Feature(name=name).save()
@@ -51,8 +53,14 @@ class System(models.Model):
     
     @staticmethod
     def populate():
-        System(name="eyetracker").save()
-        System(name="motiontracker").save()
+        try:
+            System.objects.get(name="eyetracker")
+        except:
+            System(name="eyetracker").save()
+        try:
+            System.objects.get(name="motiontracker")
+        except:
+            System(name="motiontracker").save()
 
 class Subject(models.Model):
     name = models.CharField(max_length=128)
@@ -68,14 +76,16 @@ class Generator(models.Model):
         return self.name
     
     def get(self):
-        return genlist[self.name]
+        from namelist import generators
+        return generators[self.name]
 
     @staticmethod
     def populate():
-        real = set(genlist.keys())
+        from namelist import generators
+        real = set(generators.keys())
         db = set(gen.name for gen in Generator.objects.all())
         for name in real - db:
-            args = inspect.getargspec(genlist[name]).args
+            args = inspect.getargspec(generators[name]).args
             static = "length" in args
             if "exp" in args:
                 args.remove("exp")
@@ -123,10 +133,13 @@ class TaskEntry(models.Model):
     
     def get(self, feats=()):
         from json_param import Parameters
+        from riglib import experiment
         Exp = experiment.make(self.task.get(), tuple(f.get() for f in self.feats.all())+feats)
         gen, gp = self.sequence.get()
-        seq = gen(Exp, **gp)
-        return Exp(seq, **Parameters(self.params).params)
+        seq = gen(Exp, **gp.params)
+        exp = Exp(seq, **Parameters(self.params).params)
+        exp.event_log = json.loads(self.report)
+        return exp
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject)

@@ -88,6 +88,10 @@ class EyeData(object):
     def run(self):
         self.eyedata.start()
         super(EyeData, self).run()
+    
+    def _start_None(self):
+        self.eyedata.stop()
+        super(EyeData, self)._start_None()
 
 class CalibratedEyeData(traits.HasTraits):
     cal_profile = traits.Instance(calibrations.Profile)
@@ -100,7 +104,11 @@ class CalibratedEyeData(traits.HasTraits):
     
     def run(self):
         self.eyedata.start()
-        super(EyeData, self).run()
+        super(CalibratedEyeData, self).run()
+    
+    def _start_None(self):
+        self.eyedata.stop()
+        super(CalibratedEyeData, self)._start_None()
 
 class SimulatedEyeData(traits.HasTraits):
     fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
@@ -113,7 +121,11 @@ class SimulatedEyeData(traits.HasTraits):
 
     def run(self):
         self.eyedata.start()
-        super(EyeData, self).run()
+        super(SimulatedEyeData, self).run()
+    
+    def _start_None(self):
+        self.eyedata.stop()
+        super(SimulatedEyeData, self)._start_None()
 
 class MotionData(traits.HasTraits):
     marker_count = traits.Int(8, desc="Number of markers to return")
@@ -125,4 +137,8 @@ class MotionData(traits.HasTraits):
         
     def run(self):
         self.motiondata.start()
-        super(EyeData, self).run()
+        super(MotionData, self).run()
+    
+    def _start_None(self):
+        self.eyedata.stop()
+        super(MotionData, self)._start_None()

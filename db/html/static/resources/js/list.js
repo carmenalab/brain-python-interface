@@ -79,13 +79,26 @@ TaskEntry.prototype._add_fieldset = function(name, where) {
 			"<legend>"+name+"</legend>\n"+
 		"</fieldset>");
 }
-TaskEntry.prototype._setup_params = function(params) {
+TaskEntry.prototype._setup_params = function(current, params) {
 	var html = "";
-	for (var i in params) {
-		html += "<li title='"+params[i][0]+"'>\n"+
-			"	<label class='traitname' for='"+i+"'>"+i+"</label>\n"+
-			"	<input id='"+i+"' name='"+i+"' type='text' value='"+JSON.stringify(params[i][1])+"' />"+
-			"<div class='clear'></div></li>";
+	for (var name in params) {
+		var desc = params[name][0];
+		var opts = params[name][1];
+		html += "<li title='"+desc+"'>\n"+
+			"	<label class='traitname' for='"+name+"'>"+name.replace("_", " ")+"</label>\n";
+		
+		if (opts instanceof Object && !(opts instanceof Array)){
+			html += "	<select name='"+name+"'>\n";
+			for (var i in opts)
+				html += "		<option value='"+i+"'>"+opts[i]+"</option>\n";
+			html += "	</select>\n"
+		} else {
+			var val = JSON.stringify(opts);
+			if (name in current)
+				val = current[name];
+			html += "	<input id='"+name+"' name='"+name+"' type='text' value='"+val+"' />"
+		}
+		html += "<div class='clear'></div></li>";
 	}
 	$("#parameters ul").append(html);
 }
@@ -95,10 +108,15 @@ TaskEntry.prototype._query_params = function(task) {
 		data[$(this).attr("name")] = true
 	})
 
+	var current_params = new Object();
+	$("#experiment #parameters input").each(function() {
+		current_params[this.name] = this.value;
+	})
+
 	var _this = this;
 	$.getJSON("ajax/task_params/"+task, data, function(data){
 		$("#parameters ul").html("");
-		_this._setup_params(data);
+		_this._setup_params(current_params, data);
 		if (!_this.active) {
 			_this.active = true;
 			$("#content").show("drop");
@@ -191,7 +209,7 @@ TaskEntry.prototype.populate = function(idx, disable) {
 		var d = typeof(disable) == "undefined" ? true : disable;
 		console.log(d);
 		_this.sequence = new SequenceEditor(data['task'], data['seqid'], !d);
-		_this._setup_params(data['params']);
+		_this._setup_params({}, data['params']);
 		$("#notes textarea").html(data['notes']);
 		for (var name in data['features']) {
 			if (data['features'][name]) {

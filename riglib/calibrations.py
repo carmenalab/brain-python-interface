@@ -16,8 +16,8 @@ class ThinPlate(Profile):
     
     def _init(self):
         self.funcs = []
-        for a in actual.T:
-            f = Rbf(*np.vstack([data.T, a]), function='thin_plate', smooth=smooth)
+        for a in self.actual.T:
+            f = Rbf(*np.vstack([self.data.T, a]), function='thin_plate', smooth=self.smooth)
             self.funcs.append(f)
         
     def __call__(self, data):
@@ -38,17 +38,17 @@ def crossval(cls, data, actual,
 
     idx = np.random.permutation(len(actual))
     border = int(proportion*len(actual))
-    trn, val = idx[:b], idx[b:]
+    trn, val = idx[:border], idx[border:]
 
     dim = tuple(range(data.shape[1]/2)), tuple(range(data.shape[1]/2, data.shape[1]))
     ccs = np.zeros(len(xval_range))
     for i, smooth in enumerate(xval_range):
         cal = cls(data[trn], actual[trn], **{parameter:smooth})
-        ccdata = np.hstack([cal(data[val]), self.actual[val]]).T
+        ccdata = np.hstack([cal(data[val]), actual[val]]).T
         ccs[i] = np.corrcoef(ccdata)[dim].mean()
     
     best = xval_range[ccs.argmax()]
-    return cls(data, actual, system=None, **{parameter:best}), best, ccs
+    return cls(data, actual, system=system, **{parameter:best}), best, ccs
 
 class Affine(Profile):
     '''Runs a linear affine interpolation between data and actual'''

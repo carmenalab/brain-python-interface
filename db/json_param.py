@@ -20,11 +20,6 @@ def param_objhook(obj):
         return getattr(mod, obj['__class__'])(obj['__dict__'])
     return obj
 
-
-instance_to_model = {
-    calibrations.Profile:models.Calibration,
-}
-
 def norm_trait(trait, value):
     ttype = trait.trait_type.__class__.__name__
     if ttype == 'Instance':
@@ -63,7 +58,7 @@ class Parameters(object):
                 processed[name] = json.loads(value, object_hook=param_objhook)
             except:
                 processed[name] = ast.literal_eval(value)
-        return cls.from_dict(cls, processed)
+        return cls.from_dict(processed)
 
     def to_json(self):
         #Fucking retarded ass json implementation in python is retarded as SHIT

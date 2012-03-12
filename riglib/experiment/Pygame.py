@@ -17,12 +17,16 @@ class Pygame(LogExperiment):
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
 
-        flags = pygame.DOUBLEBUF | pygame.HWSURFACE
+        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.NOFRAME
         pygame.display.set_mode((3840,1080), flags)
 
         self.surf = pygame.display.get_surface()
         self.clock = pygame.time.Clock()
         self.event = None
+    
+    def run(self):
+        self.screen_init()
+        super(Pygame, self).run()
     
     def draw_frame(self):
         raise NotImplementedError

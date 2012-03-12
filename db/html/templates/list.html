@@ -98,6 +98,10 @@ TaskEntry.prototype.activate = function(idx) {
 	if (typeof(idx) != "undefined") {
 		this.populate(idx, false);
 		$("#content .startbtn").show();
+		var _this = this;
+		$("#features input").change(function() { 
+			_this._query_params($("#tasks option").filter(":selected").text());	
+		});
 	} else if (this.newentry) {
 		var _this = this;
 		this._query_params($("#tasks option").filter(":selected").text());

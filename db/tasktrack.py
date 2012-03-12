@@ -10,7 +10,6 @@ from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 import numpy as np
 
 from riglib import experiment
-from tasks import tasklist
 from tracker import models
 
 from json_param import Parameters
@@ -20,7 +19,6 @@ class Tracker(object):
         self.state = None
         self.task = None
         self.proc = None
-        self.expidx = None
         self.status = mp.Value('b', 1)
 
     def __getattr__(self, attr):
@@ -29,13 +27,12 @@ class Tracker(object):
         except:
             return self.task.__getattr__(attr)
 
-    def start(self, task, feats, seq, params, saveid=None):
+    def start(self, *args):
         self.status.value = 1
-        self.proc = mp.Process(target=runtask, args=(self.status, task, feats, seq, params, saveid))
+        self.proc = mp.Process(target=runtask, args=(self.status,)+args)
         self.proc.start()
         self.task = xmlrpclib.ServerProxy("http://localhost:8001/", allow_none=True)
-        self.state = "testing" if saveid is None else "running"
-        self.expidx = saveid
+        self.state = "testing" if args[-1] is None else "running"
     
     def pause(self):
         self.state = self.task.pause()
@@ -44,7 +41,6 @@ class Tracker(object):
         self.task.end_task()
         state = self.state
         self.state = None
-        self.expidx = None
         try:
             print self.task.get_state()
         except:
@@ -54,7 +50,7 @@ class Tracker(object):
 
 database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 class Task(object):
-    def __init__(self, task, feats, seq, params, saveid=None):
+    def __init__(self, subj, task, feats, seq, params, saveid=None):
         if saveid is not None:
             class CommitFeat(object):
                 def _start_None(self):
@@ -70,8 +66,8 @@ class Task(object):
                     params = Parameters.from_dict(self.calibration.__dict__)
                     if hasattr(self.calibration, '__getstate__'):
                         params = Parameters.from_dict(self.calibration.__getstate__())
-                    database.save_cal(task.subject.name, self.calibration.system,
-                        name=caltype, params=params.to_json())
+                    database.save_cal(subj, self.calibration.system,
+                        caltype, params.to_json())
             feats.insert(0, SaveCal)
         
         Exp = experiment.make(task.get(), feats=feats)
@@ -109,6 +105,7 @@ def runtask(status, *args):
             print "Cannot open server..."
             time.sleep(2.)
     
+    print args
     task = Task(*args)
     server.register_instance(task)
     server.timeout = 0.5
