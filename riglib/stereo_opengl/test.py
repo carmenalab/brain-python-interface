@@ -14,8 +14,8 @@ from ik import RobotArm
 
 from riglib import shm
 
-sys = shm.MemTrack()
-sys.start("motion")
+sys = shm.MotionData()
+sys.start()
 
 FlatSphere = type("FlatSphere", (Sphere, FlatMesh), {})
 TexPlane = type("TexPlane", (Plane, TexModel), {})
@@ -33,8 +33,8 @@ class Test(Window):
         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _while_draw(self):
-        pts = sys.get("motion").reshape(-1, 8, 3)[:,6].mean(0)
-        arm.set(pts*0.1)
+        pts = sys.get()[-1]
+        arm.set(pts[6]*0.1)
         #ts = time.time() - self.start_time
         #t = (ts / 5.) * 2*np.pi
         #t2 = (ts / 2.) * 2*np.pi
