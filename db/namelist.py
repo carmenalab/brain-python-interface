@@ -25,6 +25,7 @@ from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
+#from tasks.manualcontrol import ManualControl
 
 tasks = dict(
     dots=Dots,
@@ -33,6 +34,7 @@ tasks = dict(
     redgreen=RedGreen,
     button=ButtonTask,
     eye_calibration=EyeCal,
+    #manual_control=ManualControl,
 )
 
 from tracker import models
