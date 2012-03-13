@@ -132,7 +132,7 @@ class MotionData(traits.HasTraits):
 
     def __init__(self, *args, **kwargs):
         from riglib import shm
-        super(EyeData, self).__init__(*args, **kwargs)
+        super(MotionData, self).__init__(*args, **kwargs)
         self.motiondata = shm.MotionData(marker_count=self.marker_count)
         
     def run(self):
@@ -140,5 +140,22 @@ class MotionData(traits.HasTraits):
         super(MotionData, self).run()
     
     def _start_None(self):
-        self.eyedata.stop()
+        self.motiondata.stop()
         super(MotionData, self)._start_None()
+
+class MotionSimulate(traits.HasTraits):
+    marker_count = traits.Int(8, desc="Number of markers to return")
+
+    def __init__(self, *args, **kwargs):
+        from riglib import shm
+        super(MotionSimulate, self).__init__(*args, **kwargs)
+        self.motiondata = shm.MotionSimulate(marker_count=self.marker_count, 
+            radius=(100,100,50), offset=(-150,0,0))
+        
+    def run(self):
+        self.motiondata.start()
+        super(MotionSimulate, self).run()
+    
+    def _start_None(self):
+        self.motiondata.stop()
+        super(MotionSimulate, self)._start_None()
