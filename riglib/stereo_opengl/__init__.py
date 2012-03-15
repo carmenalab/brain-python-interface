@@ -1,3 +1,3 @@
 from window import Window
-from renderer import stereo
+from render import stereo
 from textures import Texture

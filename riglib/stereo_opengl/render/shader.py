@@ -1,7 +1,7 @@
 import numpy as np
 from OpenGL.GL import *
 
-from textures import Texture
+from ..textures import Texture
 
 _mattypes = {
     (4,4):"4", (3,3):"3", (2,2):"2", 

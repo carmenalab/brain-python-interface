@@ -2,7 +2,7 @@ import numpy as np
 from OpenGL.GL import *
 
 from render import Renderer
-from textures import Texture
+from ..textures import Texture
 
 fbotypes = dict(
     depth=(GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT), 

@@ -3,7 +3,7 @@ from OpenGL.GL import *
 
 from render import Renderer
 from fbo import FBOrender, FBO
-from textures import Texture
+from ..textures import Texture
 
 class SSAO(FBOrender):
     def __init__(self, *args, **kwargs):

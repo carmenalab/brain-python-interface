@@ -29,7 +29,7 @@ class Window(LogExperiment):
     fov = 45
 
     def __init__(self, *args, **kwargs):
-        super(Window, self).__init__(**kwargs)
+        super(Window, self).__init__(*args, **kwargs)
         self.models = []
         self.world = None
 

@@ -39,6 +39,7 @@ class Cylinder(TriMesh):
 
 class Sphere(TriMesh):
     def __init__(self, radius=1, segments=36, **kwargs):
+        self.radius = radius
         zvals = radius * np.cos(np.linspace(0, np.pi, num=segments))
         circlevals = np.linspace(0, 2*pi, num=segments, endpoint=False)
 

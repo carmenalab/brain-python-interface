@@ -127,7 +127,11 @@ class MotionSimulate(DataSource):
 
     def get(self):
         data = super(MotionSimulate, self).get()
-        return data.reshape(len(data), -1, 3)
+        try:
+            return data.reshape(len(data), -1, 3)
+        except:
+            print "Data size wrong! %d"%len(data)
+            return np.array([])
 
 if __name__ == "__main__":
     sim = MotionSimulate()

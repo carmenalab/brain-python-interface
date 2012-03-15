@@ -3,7 +3,7 @@ import operator
 import numpy as np
 from OpenGL.GL import *
 
-from utils import perspective
+from ..utils import perspective
 from shader import ShaderProgram
 
 cwd = os.path.join(os.path.abspath(os.path.split(__file__)[0]), "..")
