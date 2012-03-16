@@ -162,10 +162,14 @@ class MotionSimulate(traits.HasTraits):
         super(MotionSimulate, self)._start_None()
 
 class AdaptiveGenerator(object):
+    def __init__(self, *args, **kwargs):
+        super(AdaptiveGenerator, self).__init__(*args, **kwargs)
+        assert hasattr(self.generator, "correct"), "Must use adaptive generator!"
+
     def _start_reward(self):
-        self.gen.correct()
+        self.generator.correct()
         super(AdaptiveGenerator, self)._start_reward()
     
     def _start_incorrect(self):
-        self.gen.incorrect()
+        self.generator.incorrect()
         super(AdaptiveGenerator, self)._start_incorrect()

@@ -69,6 +69,7 @@ class LogExperiment(Experiment):
 
 class Sequence(LogExperiment):
     def __init__(self, gen, **kwargs):
+        self.generator = gen
         self.gen = iter(gen)
         super(Sequence, self).__init__(**kwargs)
         self.next_trial = self.gen.next()
