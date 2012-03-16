@@ -82,3 +82,6 @@ class Pygame(LogExperiment):
     
     def _start_reward(self):
         pass
+    
+    def _start_wait(self):
+        pass

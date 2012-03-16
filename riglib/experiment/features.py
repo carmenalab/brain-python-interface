@@ -28,6 +28,7 @@ class Autostart(traits.HasTraits):
     def _start_wait(self):
         s, e = self.rand_start
         self.wait_time = random.random()*(e-s) + s
+        super(Autostart, self)._start_wait()
         
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
@@ -164,12 +165,12 @@ class MotionSimulate(traits.HasTraits):
 class AdaptiveGenerator(object):
     def __init__(self, *args, **kwargs):
         super(AdaptiveGenerator, self).__init__(*args, **kwargs)
-        assert hasattr(self.generator, "correct"), "Must use adaptive generator!"
+        assert hasattr(self.gen, "correct"), "Must use adaptive generator!"
 
     def _start_reward(self):
-        self.generator.correct()
+        self.gen.correct()
         super(AdaptiveGenerator, self)._start_reward()
     
     def _start_incorrect(self):
-        self.generator.incorrect()
+        self.gen.incorrect()
         super(AdaptiveGenerator, self)._start_incorrect()

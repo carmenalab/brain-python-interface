@@ -69,16 +69,17 @@ class LogExperiment(Experiment):
 
 class Sequence(LogExperiment):
     def __init__(self, gen, **kwargs):
-        self.generator = gen
-        self.gen = iter(gen)
+        self.gen = gen
+        assert hasattr(gen, "next"), "gen must be a generator"
         super(Sequence, self).__init__(**kwargs)
-        self.next_trial = self.gen.next()
+        #self.next_trial = self.gen.next()
     
-    def _end_trial(self):
+    def _start_wait(self):
         try:
             self.next_trial = self.gen.next()
         except StopIteration:
             self.end_task()
+        super(Sequence, self)._start_wait()
 
 class TrialTypes(Sequence):
     trial_types = []
@@ -99,7 +100,7 @@ class TrialTypes(Sequence):
                 "%s_incorrect"%ttype :"incorrect", 
                 "timeout":"incorrect" }
             #Associate all trial type endings to the end_trial function defined by Sequence
-            setattr(self, "_end_%s"%ttype, self._end_trial)
+            #setattr(self, "_end_%s"%ttype, self._end_trial)
     
     def _start_picktrial(self):
         self.set_state(self.next_trial)

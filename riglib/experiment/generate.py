@@ -56,23 +56,20 @@ class AdaptiveTrials(object):
         self.new_block()
 
     def new_block(self):
-        print "new block"
         perblock = self.blocklen / len(self.trial_types)
         block = [[t]*perblock for t in self.trial_types]
         self.block = list(itertools.chain(*block))
         random.shuffle(self.block)
 
-    def __iter__(self):
-        while True:
-            if len(self.block) < 1:
-                self.new_block()
-            yield self.block[0]
+    def next(self):
+        if len(self.block) < 1:
+            self.new_block()
+        return self.block[0]
     
     def correct(self):
-        print "removing trial"
         self.block.pop(0)
     
     def incorrect(self):
-        print "appending trial: %r"%self.block
         ondeck = self.block.pop(0)
         self.block.append(ondeck)
+        
