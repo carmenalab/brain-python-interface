@@ -73,6 +73,6 @@ class AdaptiveTrials(object):
         self.block.pop(0)
     
     def incorrect(self):
-        print "appending trial"
+        print "appending trial: %r"%self.block
         ondeck = self.block.pop(0)
         self.block.append(ondeck)
