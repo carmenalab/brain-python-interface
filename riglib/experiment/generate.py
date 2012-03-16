@@ -56,6 +56,7 @@ class AdaptiveTrials(object):
         self.new_block()
 
     def new_block(self):
+        print "new block"
         perblock = self.blocklen / len(self.trial_types)
         block = [[t]*perblock for t in self.trial_types]
         self.block = list(itertools.chain(*block))
@@ -68,8 +69,10 @@ class AdaptiveTrials(object):
             yield self.block[0]
     
     def correct(self):
+        print "removing trial"
         self.block.pop(0)
     
     def incorrect(self):
+        print "appending trial"
         ondeck = self.block.pop(0)
         self.block.append(ondeck)
