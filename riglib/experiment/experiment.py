@@ -95,10 +95,13 @@ class TrialTypes(Sequence):
         for ttype in self.trial_types:
             self.status[ttype] = {
                 "%s_correct"%ttype :"reward", 
-                "%s_incorrect"%ttype :"penalty", 
-                "timeout":"penalty" }
+                "%s_incorrect"%ttype :"incorrect", 
+                "timeout":"incorrect" }
             #Associate all trial type endings to the end_trial function defined by Sequence
             setattr(self, "_end_%s"%ttype, self._end_trial)
     
     def _start_picktrial(self):
         self.set_state(self.next_trial)
+    
+    def _start_incorrect(self):
+        self.set_state("penalty")

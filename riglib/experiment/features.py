@@ -15,6 +15,7 @@ class RewardSystem(traits.HasTraits):
     def _start_reward(self):
         if self.reward is not None:
             self.reward.reward(self.reward_time*1000.)
+        super(RewardSystem, self)._start_reward()
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
@@ -159,3 +160,12 @@ class MotionSimulate(traits.HasTraits):
     def _start_None(self):
         self.motiondata.stop()
         super(MotionSimulate, self)._start_None()
+
+class AdaptiveGenerator(object):
+    def _start_reward(self):
+        self.gen.correct()
+        super(AdaptiveGenerator, self)._start_reward()
+    
+    def _start_incorrect(self):
+        self.gen.incorrect()
+        super(AdaptiveGenerator, self)._start_incorrect()

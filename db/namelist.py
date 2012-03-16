@@ -2,6 +2,7 @@ from riglib import experiment
 
 features = dict(
     autostart=experiment.features.Autostart, 
+    adaptive_generator=experiment.features.AdaptiveGenerator,
     button=experiment.features.Button, 
     ignore_correctness=experiment.features.IgnoreCorrectness,
     reward_system = experiment.features.RewardSystem,
@@ -13,6 +14,7 @@ features = dict(
 
 from tasks import redgreen
 generators = dict(
+    adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
     redgreen_rand=redgreen.randcoords,
 

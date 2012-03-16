@@ -85,7 +85,12 @@ class Generator(models.Model):
         real = set(generators.keys())
         db = set(gen.name for gen in Generator.objects.all())
         for name in real - db:
-            args = inspect.getargspec(generators[name]).args
+            try:
+                args = inspect.getargspec(generators[name]).args
+            except TypeError:
+                args = inspect.getargspec(generators[name].__init__).args
+                args.remove("self")
+            
             static = "length" in args
             if "exp" in args:
                 args.remove("exp")

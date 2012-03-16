@@ -79,4 +79,6 @@ class Pygame(LogExperiment):
     
     def _start_None(self):
         pygame.display.quit()
-        
+    
+    def _start_reward(self):
+        pass
