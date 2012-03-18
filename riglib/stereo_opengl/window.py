@@ -24,9 +24,9 @@ class Window(LogExperiment):
     fps = 60
 
     #Screen parameters, all in centimeters -- adjust for monkey
-    screen_dist = 35
+    fov = np.degrees(np.arctan(14.65/(44.5+3)))*2
+    screen_dist = 44.5+3
     iod = 2.5
-    fov = 45
 
     def __init__(self, *args, **kwargs):
         super(Window, self).__init__(*args, **kwargs)

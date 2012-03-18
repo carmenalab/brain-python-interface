@@ -32,8 +32,9 @@ class Test(Window):
     def _while_draw(self):
         pts = sys.get()[-1]
         arm.set(pts[4]*0.1)
-        #ts = time.time() - self.start_time
-        #t = (ts / 5.) * 2*np.pi
+        ts = time.time() - self.start_time
+        t = (ts / 2.) * 2*np.pi
+        ball.translate(0,100,20*np.abs(np.sin(t))-10, reset=True)
         #t2 = (ts / 2.) * 2*np.pi
         #arm.set((np.cos(t)*10-10, np.sin(t2)*10+20, np.sin(t)*15))        
         self.draw_world()
@@ -48,6 +49,6 @@ if __name__ == "__main__":
     win.add_model(TexSphere(radius=4, shininess=30, tex=tex).translate(-20, 10, -11))
     win.add_model(FlatSphere(radius=8, color=(0.6,0.2,0.2,1), shininess=50).translate(10,20,-15))
     win.add_model(arm.translate(12,-20,0))
-    win.add_model(ball)
+    win.add_model(ball.translate(0, 100, -10))
     win.run()
     sys.stop()
