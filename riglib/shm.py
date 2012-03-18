@@ -113,7 +113,11 @@ class MotionData(DataSource):
 
     def get(self):
         data = super(MotionData, self).get()
-        return data.reshape(len(data), -1, 3)
+        try:
+            return data.reshape(len(data), -1, 3)
+        except:
+            print "Data size wrong! %d"%len(data)
+            return np.array([])
 
 
 class EyeSimulate(DataSource):

@@ -79,7 +79,6 @@ class Sequence(LogExperiment):
             self.next_trial = self.gen.next()
         except StopIteration:
             self.end_task()
-        super(Sequence, self)._start_wait()
 
 class TrialTypes(Sequence):
     trial_types = []

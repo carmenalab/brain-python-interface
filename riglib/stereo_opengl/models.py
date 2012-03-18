@@ -76,7 +76,8 @@ class Model(object):
 
     def detach(self):
         assert self.parent is not None
-        self.parent.models.remove(self)
+        while self in self.parent.models:
+            self.parent.models.remove(self)
 
 
 class Group(Model):

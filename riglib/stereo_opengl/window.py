@@ -101,6 +101,9 @@ class Window(LogExperiment):
     def _test_stop(self, ts):
         return self.stop or self.event is not None and self.event[0] == 27
     
+    def requeue(self):
+        self.renderer._queue_render(self.world)
+    
 class FPScontrol(Window):
     '''A mixin that adds a WASD + Mouse controller to the window. 
     Use WASD to move in XY plane, q to go down, e to go up'''

@@ -123,7 +123,11 @@ class SimulatedEyeData(traits.HasTraits):
 
     def run(self):
         self.eyedata.start()
-        super(SimulatedEyeData, self).run()
+        try:
+            super(SimulatedEyeData, self).run()
+        except KeyboardInterrupt as e:
+            self.eyedata.stop()
+            raise e
     
     def _start_None(self):
         self.eyedata.stop()
@@ -139,7 +143,11 @@ class MotionData(traits.HasTraits):
         
     def run(self):
         self.motiondata.start()
-        super(MotionData, self).run()
+        try:
+            super(MotionData, self).run()
+        except KeyboardInterrupt as e:
+            self.motiondata.stop()
+            raise e
     
     def _start_None(self):
         self.motiondata.stop()

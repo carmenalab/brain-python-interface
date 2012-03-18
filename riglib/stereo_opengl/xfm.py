@@ -1,5 +1,5 @@
+from __future__ import division
 import numpy as np
-np.set_printoptions(suppress=True)
 
 class Quaternion(object):
     def __init__(self, w=1, x=0, y=0, z=0):
@@ -88,7 +88,7 @@ class Quaternion(object):
 
 class Transform(object):
     def __init__(self, move=(0,0,0), scale=1, rotate=None):
-        self.move = np.array(move)
+        self.move = np.array(move, dtype=np.float)
         self.scale = scale
         self.rotate = rotate if rotate is not None else Quaternion()
 
@@ -146,7 +146,7 @@ class Transform(object):
         scale[(0,1,2), (0,1,2)] = self.scale
         move = np.eye(4)
         move[:3, -1] = self.move
-
+        
         return np.dot(move, np.dot(scale, self.rotate.to_mat()))
 
 def test():

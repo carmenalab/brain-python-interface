@@ -36,7 +36,7 @@ class Simulate(object):
         return "blah"
 
 class System(object):
-    def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=0):
+    def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=OWL_MODE2):
         self.marker_count = marker_count
         if(owlInit(server_name, init_flags) < 0):
             raise Exception(owl_get_error("init error",owlGetError()))
