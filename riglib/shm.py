@@ -61,11 +61,14 @@ class DataSource(mp.Process):
 
             data = self.system.get()
             if data is not None:
-                self.lock.acquire()
-                i = self.idx.value % self.max_size
-                self.data[i*size:(i+1)*size] = data.ravel()
-                self.idx.value += 1
-                self.lock.release()
+                try:
+                    self.lock.acquire()
+                    i = self.idx.value % self.max_size
+                    self.data[i*size:(i+1)*size] = data.ravel()
+                    self.idx.value += 1
+                    self.lock.release()
+                except:
+                    print repr(data)
 
         print "ending data collection"
         self.system.stop()

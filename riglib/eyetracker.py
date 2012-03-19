@@ -50,7 +50,7 @@ class System(object):
             time.sleep(1/750.)
             samp = self.tracker.getNextData()
         
-        return self.tracker.getFloatData().getRightEye().getGaze()
+        return np.array(self.tracker.getFloatData().getRightEye().getGaze())
     
     def retrieve(self, filename):
         self.tracker.setOfflineMode()
