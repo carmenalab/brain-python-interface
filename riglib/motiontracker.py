@@ -3,6 +3,7 @@ import numpy as np
 try:
     from OWL import *
 except:
+    OWL_MODE2 = False
     print "Cannot find phasespace driver"
 
 class Simulate(object):

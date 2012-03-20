@@ -74,7 +74,10 @@ class Task(object):
 
         gen, gp = seq.get()
         sequence = gen(Exp, **gp.params)
-        exp = Exp(sequence, **params)
+        if issubclass(Exp, experiment.Sequence):
+            exp = Exp(sequence, **params)
+        else:
+            exp = Exp(**params)
         exp.start()
         self.task = exp
 

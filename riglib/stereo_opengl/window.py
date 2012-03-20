@@ -28,10 +28,11 @@ class Window(LogExperiment):
     screen_dist = 44.5+3
     iod = 2.5
 
-    def __init__(self, *args, **kwargs):
-        super(Window, self).__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super(Window, self).__init__(**kwargs)
         self.models = []
         self.world = None
+        self.event = None
 
     def init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
@@ -97,6 +98,9 @@ class Window(LogExperiment):
     
     def _start_None(self):
         pygame.display.quit()
+
+    def _start_reward(self):
+        pass
     
     def _test_stop(self, ts):
         return self.stop or self.event is not None and self.event[0] == 27

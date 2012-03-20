@@ -13,6 +13,7 @@ features = dict(
 )
 
 from tasks import redgreen
+from tasks import manualcontrol
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
@@ -21,13 +22,14 @@ generators = dict(
     #These are static generators
     trialtypes=experiment.generate.sequence,
     redgreen=redgreen.gencoords,
+    reach_target=manualcontrol.rand_target_sequence,
 )
 
 from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
-#from tasks.manualcontrol import ManualControl
+from tasks.manualcontrol import FixationTraining, ManualControl
 
 tasks = dict(
     dots=Dots,
@@ -36,7 +38,8 @@ tasks = dict(
     redgreen=RedGreen,
     button=ButtonTask,
     eye_calibration=EyeCal,
-    #manual_control=ManualControl,
+    manual_control=ManualControl,
+    fixation_training=FixationTraining,
 )
 
 from tracker import models
