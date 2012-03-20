@@ -60,6 +60,7 @@ class DataSource(mp.Process):
                 self.cmd_event.clear()
 
             data = self.system.get()
+            
             if data is not None:
                 try:
                     self.lock.acquire()

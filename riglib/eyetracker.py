@@ -47,10 +47,12 @@ class System(object):
     def get(self):
         samp = self.tracker.getNextData()
         while samp != pylink.SAMPLE_TYPE:
-            time.sleep(1/750.)
+            time.sleep(.001)
             samp = self.tracker.getNextData()
-        
-        return np.array(self.tracker.getFloatData().getRightEye().getGaze())
+        data = np.array(self.tracker.getFloatData().getLeftEye().getGaze())
+        if data.sum() < -1e4:
+            return None
+        return data
     
     def retrieve(self, filename):
         self.tracker.setOfflineMode()
