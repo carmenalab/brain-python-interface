@@ -58,17 +58,24 @@ class Task(object):
                     database.save_log(saveid, self.event_log)
             feats.insert(0, CommitFeat)
 
-        if "calibration" in task.name:
-            class SaveCal(object):
-                def _start_None(self):
-                    super(SaveCal, self)._start_None()
-                    caltype = self.calibration.__class__.__name__
-                    params = Parameters.from_dict(self.calibration.__dict__)
-                    if hasattr(self.calibration, '__getstate__'):
-                        params = Parameters.from_dict(self.calibration.__getstate__())
-                    database.save_cal(subj, self.calibration.system,
-                        caltype, params.to_json())
-            feats.insert(0, SaveCal)
+            if "calibration" in task.name:
+                class SaveCal(object):
+                    def _start_None(self):
+                        super(SaveCal, self)._start_None()
+                        caltype = self.calibration.__class__.__name__
+                        params = Parameters.from_dict(self.calibration.__dict__)
+                        if hasattr(self.calibration, '__getstate__'):
+                            params = Parameters.from_dict(self.calibration.__getstate__())
+                        database.save_cal(subj, self.calibration.system,
+                            caltype, params.to_json())
+                feats.insert(0, SaveCal)
+            
+            if issubclass(task.get(), features.EyeData):
+                class SaveEyeData(object):
+                    def _start_None(Self):
+                        super(SaveData, self)._start_None()
+                        database.save_data(self.eyefile, "eyetracker", saveid)
+                feats.insert(0, SaveEyeData)
         
         Exp = experiment.make(task.get(), feats=feats)
 

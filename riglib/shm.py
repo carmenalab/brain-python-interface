@@ -5,14 +5,6 @@ from multiprocessing import sharedctypes as shm
 
 import numpy as np
 
-from riglib import eyetracker, motiontracker
-
-#Update frequency for each datasource, for calculating size of shm
-update_freq = {
-    eyetracker.System:500, motiontracker.System:480,
-    eyetracker.Simulate:500, motiontracker.Simulate:480
-}
-
 class FuncProxy(object):
     def __init__(self, name, pipe, event):
         self.pipe = pipe
@@ -31,7 +23,7 @@ class DataSource(mp.Process):
         self.filter = None
         self.source = source
         self.source_kwargs = kwargs
-        self.max_size = bufferlen*update_freq[source]
+        self.bufferlen = bufferlen
 
         self.lock = mp.Lock()
         self.idx = shm.RawValue('l', 0)
@@ -39,12 +31,14 @@ class DataSource(mp.Process):
         self.pipe, self._pipe = mp.Pipe()
         self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1)
+        self.stream = mp.Event()
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
 
     def run(self):
-        self.system = self.source(**self.source_kwargs)
-        self.system.start()
+        system = self.source(**self.source_kwargs)
+        system.start()
+        streaming = True
 
         size = self.slice_size
         while self.status.value > 0:
@@ -52,27 +46,38 @@ class DataSource(mp.Process):
                 cmd, args, kwargs = self._pipe.recv()
                 self.lock.acquire()
                 try:
-                    ret = getattr(self.system, cmd)(*args, **kwargs)
+                    ret = getattr(system, cmd)(*args, **kwargs)
                 except Exception as e:
                     ret = e
                 self.lock.release()
                 self._pipe.send(ret)
                 self.cmd_event.clear()
-
-            data = self.system.get()
             
-            if data is not None:
-                try:
-                    self.lock.acquire()
-                    i = self.idx.value % self.max_size
-                    self.data[i*size:(i+1)*size] = data.ravel()
-                    self.idx.value += 1
-                    self.lock.release()
-                except:
-                    print repr(data)
+            if self.stream.is_set():
+                self.stream.clear()
+                streaming = not streaming
+                if streaming:
+                    self.idx.value = 0
+                    system.start()
+                else:
+                    system.stop()
+
+            if streaming:
+                data = system.get()
+                if data is not None:
+                    try:
+                        self.lock.acquire()
+                        i = self.idx.value % self.max_size
+                        self.data[i*size:(i+1)*size] = np.ravel(data)
+                        self.idx.value += 1
+                        self.lock.release()
+                    except:
+                        print repr(data)
+            else:
+                time.sleep(.001)
 
         print "ending data collection"
-        self.system.stop()
+        system.stop()
 
     def get(self):
         self.lock.acquire()
@@ -92,11 +97,11 @@ class DataSource(mp.Process):
             return self.filter(data)
         return data
 
-    def stop(self):
-        self.status.value = -1
+    def pause(self):
+        self.stream.set()
 
     def __del__(self):
-        self.stop()
+        self.status.value = -1
 
     def __getattr__(self, attr):
         if attr in self.methods:
@@ -108,12 +113,22 @@ class DataSource(mp.Process):
 
 class EyeData(DataSource):
     def __init__(self, **kwargs):
+        from riglib import eyetracker
         super(EyeData, self).__init__(eyetracker.System, **kwargs)
+        self.max_size = self.bufferlen*500
+
+class EyeSimulate(DataSource):
+    def __init__(self, **kwargs):
+        from riglib import eyetracker
+        super(EyeSimulate, self).__init__(eyetracker.Simulate, **kwargs)
+        self.max_size = self.bufferlen*500
 
 class MotionData(DataSource):
     def __init__(self, marker_count=8, **kwargs):
+        from riglib import motiontracker
         self.slice_size = marker_count * 3
         super(MotionData, self).__init__(motiontracker.System, marker_count=marker_count, **kwargs)
+        self.max_size = self.bufferlen*480
 
     def get(self):
         data = super(MotionData, self).get()
@@ -123,15 +138,12 @@ class MotionData(DataSource):
             print "Data size wrong! %d"%len(data)
             return np.array([])
 
-
-class EyeSimulate(DataSource):
-    def __init__(self, **kwargs):
-        super(EyeSimulate, self).__init__(eyetracker.Simulate, **kwargs)
-
 class MotionSimulate(DataSource):
     def __init__(self, marker_count = 8, **kwargs):
+        from riglib import motiontracker
         self.slice_size = marker_count * 3
         super(MotionSimulate, self).__init__(motiontracker.Simulate, marker_count=marker_count, **kwargs)
+        self.max_size = self.bufferlen*480
 
     def get(self):
         data = super(MotionSimulate, self).get()

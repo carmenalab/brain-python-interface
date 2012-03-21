@@ -48,9 +48,8 @@ class ThinPlate(Profile):
 class ThinPlateEye(EyeProfile, ThinPlate):
     pass
 
-def crossval(cls, data, actual, 
-    proportion=0.7, parameter="smooth", 
-    xval_range=np.linspace(0,5,20)**2, system=None):
+def crossval(cls, data, actual, proportion=0.7, parameter="smooth", 
+    xval_range=np.linspace(0,5,20)**2):
     actual = np.array(actual)
     data = np.array(data)
 

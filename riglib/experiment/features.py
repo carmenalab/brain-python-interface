@@ -1,9 +1,12 @@
+import tempfile
 import random
-import pygame
 import traceback
 
-from . import traits
+import pygame
+
 from riglib import calibrations
+
+from . import traits
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
@@ -81,6 +84,26 @@ class IgnoreCorrectness(object):
     def _test_incorrect(self, ts):
         return False
 
+
+class AdaptiveGenerator(object):
+    def __init__(self, *args, **kwargs):
+        super(AdaptiveGenerator, self).__init__(*args, **kwargs)
+        assert hasattr(self.gen, "correct"), "Must use adaptive generator!"
+
+    def _start_reward(self):
+        self.gen.correct()
+        super(AdaptiveGenerator, self)._start_reward()
+    
+    def _start_incorrect(self):
+        self.gen.incorrect()
+        super(AdaptiveGenerator, self)._start_incorrect()
+
+
+
+
+
+
+
 class EyeData(object):
     def __init__(self, *args, **kwargs):
         from riglib import shm
@@ -89,30 +112,35 @@ class EyeData(object):
 
     def run(self):
         self.eyedata.start()
-        super(EyeData, self).run()
+        try:
+            super(EyeData, self).run()
+        except KeyboardInterrupt:
+            self.eyedata.pause()
+            del self.eyedata
     
     def _start_None(self):
-        self.eyedata.stop()
+        self.eyedata.pause()
+        self.eyefile = tempfile.mktemp()
+        print "retrieving data from eyetracker..."
+        self.eyedata.retrieve(self.eyefile)
+        print "Done!"
+        del self.eyedata
         super(EyeData, self)._start_None()
+    
+    def set_state(self, state, **kwargs):
+        self.eyedata.sendMsg(state)
+        super(EyeData, self).set_state(state, **kwargs)
 
-class CalibratedEyeData(traits.HasTraits):
-    cal_profile = traits.Instance(calibrations.Profile)
+class CalibratedEyeData(EyeData):
+    cal_profile = traits.Instance(calibrations.EyeProfile)
 
     def __init__(self, *args, **kwargs):
         from riglib import shm
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
         self.eyedata = shm.EyeData()
         self.eyedata.filter = self.cal_profile
-    
-    def run(self):
-        self.eyedata.start()
-        super(CalibratedEyeData, self).run()
-    
-    def _start_None(self):
-        self.eyedata.stop()
-        super(CalibratedEyeData, self)._start_None()
 
-class SimulatedEyeData(traits.HasTraits):
+class SimulatedEyeData(EyeData):
     fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
     fixation_len = traits.Float(0.5, desc="Length of a fixation")
 
@@ -121,17 +149,6 @@ class SimulatedEyeData(traits.HasTraits):
         super(SimulatedEyeData, self).__init__(*args, **kwargs)
         self.eyedata = shm.EyeSimulate(fixations=self.fixations, isi=self.fixation_len*1e3)
 
-    def run(self):
-        self.eyedata.start()
-        try:
-            super(SimulatedEyeData, self).run()
-        except KeyboardInterrupt as e:
-            self.eyedata.stop()
-            raise e
-    
-    def _start_None(self):
-        self.eyedata.stop()
-        super(SimulatedEyeData, self)._start_None()
 
 class MotionData(traits.HasTraits):
     marker_count = traits.Int(8, desc="Number of markers to return")
@@ -146,39 +163,18 @@ class MotionData(traits.HasTraits):
         try:
             super(MotionData, self).run()
         except KeyboardInterrupt as e:
-            self.motiondata.stop()
+            self.motiondata.pause()
             raise e
     
     def _start_None(self):
-        self.motiondata.stop()
+        self.motiondata.pause()
+        del self.motiondata
         super(MotionData, self)._start_None()
 
-class MotionSimulate(traits.HasTraits):
-    marker_count = traits.Int(8, desc="Number of markers to return")
-
+class MotionSimulate(MotionData):
     def __init__(self, *args, **kwargs):
         from riglib import shm
         super(MotionSimulate, self).__init__(*args, **kwargs)
         self.motiondata = shm.MotionSimulate(marker_count=self.marker_count, 
             radius=(100,100,50), offset=(-150,0,0))
-        
-    def run(self):
-        self.motiondata.start()
-        super(MotionSimulate, self).run()
-    
-    def _start_None(self):
-        self.motiondata.stop()
-        super(MotionSimulate, self)._start_None()
 
-class AdaptiveGenerator(object):
-    def __init__(self, *args, **kwargs):
-        super(AdaptiveGenerator, self).__init__(*args, **kwargs)
-        assert hasattr(self.gen, "correct"), "Must use adaptive generator!"
-
-    def _start_reward(self):
-        self.gen.correct()
-        super(AdaptiveGenerator, self)._start_reward()
-    
-    def _start_incorrect(self):
-        self.gen.incorrect()
-        super(AdaptiveGenerator, self)._start_incorrect()
