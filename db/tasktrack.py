@@ -10,6 +10,7 @@ from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 import numpy as np
 
 from riglib import experiment
+from riglib.experiment import features
 from tracker import models
 
 from json_param import Parameters

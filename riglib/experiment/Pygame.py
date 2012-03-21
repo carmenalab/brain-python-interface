@@ -42,7 +42,7 @@ class Pygame(LogExperiment):
     def flip_wait(self):
         pygame.display.flip()
         self.event = self._get_event()
-        self.clock.tick_busy_loop(self.fps)
+        self.clock.tick(self.fps)
     
     def _while_wait(self):
         self.surf.fill(self.background)

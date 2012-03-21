@@ -124,7 +124,7 @@ class EyeData(object):
         print "retrieving data from eyetracker..."
         self.eyedata.retrieve(self.eyefile)
         print "Done!"
-        del self.eyedata
+        self.eyedata.stop()
         super(EyeData, self)._start_None()
     
     def set_state(self, state, **kwargs):
@@ -168,7 +168,7 @@ class MotionData(traits.HasTraits):
     
     def _start_None(self):
         self.motiondata.pause()
-        del self.motiondata
+        self.motiondata.stop()
         super(MotionData, self)._start_None()
 
 class MotionSimulate(MotionData):

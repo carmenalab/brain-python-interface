@@ -1,5 +1,7 @@
 import os
+import time
 import inspect
+import traceback
 import multiprocessing as mp
 from multiprocessing import sharedctypes as shm
 
@@ -23,8 +25,8 @@ class DataSource(mp.Process):
         self.filter = None
         self.source = source
         self.source_kwargs = kwargs
-        self.bufferlen = bufferlen
-
+        self.max_size = bufferlen*self.update_freq
+        
         self.lock = mp.Lock()
         self.idx = shm.RawValue('l', 0)
         self.data = shm.RawArray('d', self.max_size*self.slice_size)
@@ -39,15 +41,20 @@ class DataSource(mp.Process):
         system = self.source(**self.source_kwargs)
         system.start()
         streaming = True
-
+        
         size = self.slice_size
         while self.status.value > 0:
             if self.cmd_event.is_set():
                 cmd, args, kwargs = self._pipe.recv()
                 self.lock.acquire()
                 try:
-                    ret = getattr(system, cmd)(*args, **kwargs)
+                    if cmd == "getattr":
+                        print "getting %s"%repr(args)
+                        ret = getattr(system, args[0])
+                    else:
+                        ret = getattr(system, cmd)(*args, **kwargs)
                 except Exception as e:
+                    traceback.print_exc()
                     ret = e
                 self.lock.release()
                 self._pipe.send(ret)
@@ -74,6 +81,7 @@ class DataSource(mp.Process):
                     except:
                         print repr(data)
             else:
+                print "paused", self.status.value
                 time.sleep(.001)
 
         print "ending data collection"
@@ -100,35 +108,38 @@ class DataSource(mp.Process):
     def pause(self):
         self.stream.set()
 
-    def __del__(self):
+    def stop(self):
         self.status.value = -1
+    
+    def __del__(self):
+        self.stop()
 
     def __getattr__(self, attr):
         if attr in self.methods:
             return FuncProxy(attr, self.pipe, self.cmd_event)
         else:
-            self.pipe.send(("__getattr__", (attr,), {}))
+            self.pipe.send(("getattr", (attr,), {}))
             self.cmd_event.set()
             return self.pipe.recv()
 
 class EyeData(DataSource):
     def __init__(self, **kwargs):
         from riglib import eyetracker
+        self.update_freq = 500
         super(EyeData, self).__init__(eyetracker.System, **kwargs)
-        self.max_size = self.bufferlen*500
 
 class EyeSimulate(DataSource):
     def __init__(self, **kwargs):
         from riglib import eyetracker
+        self.update_freq = 500
         super(EyeSimulate, self).__init__(eyetracker.Simulate, **kwargs)
-        self.max_size = self.bufferlen*500
 
 class MotionData(DataSource):
     def __init__(self, marker_count=8, **kwargs):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
+        self.update_freq = 480
         super(MotionData, self).__init__(motiontracker.System, marker_count=marker_count, **kwargs)
-        self.max_size = self.bufferlen*480
 
     def get(self):
         data = super(MotionData, self).get()
@@ -142,8 +153,8 @@ class MotionSimulate(DataSource):
     def __init__(self, marker_count = 8, **kwargs):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
+        self.update_freq = 480
         super(MotionSimulate, self).__init__(motiontracker.Simulate, marker_count=marker_count, **kwargs)
-        self.max_size = self.bufferlen*480
 
     def get(self):
         data = super(MotionSimulate, self).get()
@@ -154,6 +165,6 @@ class MotionSimulate(DataSource):
             return np.array([])
 
 if __name__ == "__main__":
-    sim = MotionSimulate()
+    sim = EyeData()
     sim.start()
     #sim.get()

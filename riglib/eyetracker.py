@@ -37,8 +37,8 @@ class System(object):
         if filename is None:
             self.filename = "%s.edf"%time.strftime("%Y%m%d") #%Y-%m-%d_%I:%M:%p
         self.tracker.openDataFile(self.filename)
+        pylink.beginRealTimeMode(100)
         self.tracker.startRecording(1,0,1,0)
-        #pylink.beginRealTimeMode(100)
 
     def stop(self):
         self.tracker.stopRecording()
@@ -56,9 +56,9 @@ class System(object):
     
     def retrieve(self, filename):
         self.tracker.setOfflineMode()
-        pylink.msecDelay(.5)
+        pylink.msecDelay(1)
         self.tracker.closeDataFile()
-        self.tracker.recieveDataFile(self.edfname, filename)
+        self.tracker.receiveDataFile(self.filename, filename)
     
     def sendMsg(self, msg):
         self.tracker.sendMessage(msg)
