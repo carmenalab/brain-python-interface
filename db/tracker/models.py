@@ -119,6 +119,7 @@ class Sequence(models.Model):
             if len(self.sequence) > 0:
                 return generate.runseq, cPickle.loads(self.sequence)
             return generate.runseq, self.generator.get()(**Parameters(self.params).params)
+            
         return self.generator.get(), Parameters(self.params).params
 
 
