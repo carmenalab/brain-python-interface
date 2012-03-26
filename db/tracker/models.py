@@ -113,11 +113,12 @@ class Sequence(models.Model):
         return self.name
     
     def get(self):
+        from riglib.experiment import generate
         from json_param import Parameters
         if self.generator.static:
             if len(self.sequence) > 0:
-                return experiment.generate.runseq, cPickle.loads(self.sequence)
-            return experiment.generate.runseq, self.generator.get(**Parameters(self.params).params)
+                return generate.runseq, cPickle.loads(self.sequence)
+            return generate.runseq, self.generator.get(**Parameters(self.params).params)
         return self.generator.get(), Parameters(self.params)
 
 
