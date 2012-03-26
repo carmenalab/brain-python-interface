@@ -86,12 +86,14 @@ def seq_data(request, idx):
 
 def _sequence(task, data, save=True):
     if isinstance(data, dict):
+        seqparams = Parameters.from_html(data['params'])
         seqdb = Sequence(generator_id=data['generator'], 
             task=task, name=data['name'], 
-            params=Parameters.from_html(data['params']).to_json())
+            params=seqparams.to_json())
             
         if data['static']:
-            seqdb.sequence = seqdb.generator.get()(gen(**params))
+            seq = cPickle.dumps(seqdb.generator.get()(**seqparams.params))
+            seqdb.sequence = seq
         
         if save:
             seqdb.save()
