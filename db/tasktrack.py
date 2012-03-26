@@ -81,7 +81,7 @@ class Task(object):
         Exp = experiment.make(task.get(), feats=feats)
 
         gen, gp = seq.get()
-        sequence = gen(Exp, **gp.params)
+        sequence = gen(Exp, **gp)
         if issubclass(Exp, experiment.Sequence):
             exp = Exp(sequence, **params)
         else:

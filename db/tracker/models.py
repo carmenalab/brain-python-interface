@@ -118,8 +118,8 @@ class Sequence(models.Model):
         if self.generator.static:
             if len(self.sequence) > 0:
                 return generate.runseq, cPickle.loads(self.sequence)
-            return generate.runseq, self.generator.get(**Parameters(self.params).params)
-        return self.generator.get(), Parameters(self.params)
+            return generate.runseq, self.generator.get()(**Parameters(self.params).params)
+        return self.generator.get(), Parameters(self.params).params
 
 
 class TaskEntry(models.Model):

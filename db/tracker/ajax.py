@@ -107,7 +107,7 @@ def start_experiment(request, save=True):
     
     data = json.loads(request.POST['data'])
     entry = TaskEntry(subject_id=data['subject_id'], task_id=data['task_id'])
-    seq = _sequence(entry.task, data['sequence'])
+    seq = _sequence(entry.task, data['sequence'], save=save)
     entry.sequence = seq
     feats = [Feature.objects.get(name=n).get() for n in data['feats']]
     Exp = experiment.make(entry.task.get(), feats)
