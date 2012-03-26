@@ -140,6 +140,25 @@ class CalibratedEyeData(EyeData):
         self.eyedata = shm.EyeData()
         self.eyedata.filter = self.cal_profile
 
+class FixationStart(CalibratedEyeData):
+    fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
+    fixation_dist = traits.Float(50., desc="Distance from center that is considered a broken fixation")
+
+    def __init__(self, *args, **kwargs):
+        super(FixationStart, self).__init__(*args, **kwargs)
+        self.status['wait']['fixation_break'] = "wait"
+        self.log_exclude.add(("wait", "fixation_break"))
+    
+    def _start_wait(self):
+        self.eyedata.get()
+        super(FixationStart, self)._start_wait()
+
+    def _test_fixation_break(self, ts):
+        return (np.sqrt((self.eyedata.get()**2).sum(1)) > self.fixation_dist).any()
+    
+    def _test_start_trial(self, ts):
+        return ts > self.fixation_length
+
 class SimulatedEyeData(EyeData):
     fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
     fixation_len = traits.Float(0.5, desc="Length of a fixation")

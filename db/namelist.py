@@ -9,6 +9,7 @@ features = dict(
     eye_data=experiment.features.EyeData,
     calibrated_eye=experiment.features.CalibratedEyeData,
     simulate_eye=experiment.features.SimulatedEyeData,
+    fixation_start=experiment.features.FixationStart,
     motion_data=experiment.features.MotionData,
 )
 
