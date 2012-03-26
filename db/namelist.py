@@ -30,7 +30,7 @@ from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
-from tasks.manualcontrol import FixationTraining, ManualControl
+from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture
 
 tasks = dict(
     dots=Dots,
@@ -41,6 +41,7 @@ tasks = dict(
     eye_calibration=EyeCal,
     manual_control=ManualControl,
     fixation_training=FixationTraining,
+    target_capture=TargetCapture,
 )
 
 from tracker import models
