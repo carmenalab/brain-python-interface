@@ -101,6 +101,9 @@ class Window(LogExperiment):
 
     def _start_reward(self):
         pass
+
+    def _start_wait(self):
+        pass
     
     def _test_stop(self, ts):
         return self.stop or self.event is not None and self.event[0] == 27
