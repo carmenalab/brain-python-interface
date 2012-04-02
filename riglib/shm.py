@@ -70,7 +70,7 @@ class DataSource(mp.Process):
                     system.stop()
 
             if streaming:
-                data = self._get()
+                data = self._get(system)
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -87,8 +87,8 @@ class DataSource(mp.Process):
         print "ending data collection"
         system.stop()
 
-    def _get(self):
-        return self.system.get()
+    def _get(self, system):
+        return system.get()
 
     def get(self):
         self.lock.acquire()
@@ -148,15 +148,22 @@ class DataSink(mp.Process):
 
 class NidaqSink(DataSink):
     def __init__(self):
-        from riglib import nidaq
-        super(NidaqSink, self).__init__(nidaq.Output())
+        try:
+            from riglib import nidaq
+            super(NidaqSink, self).__init__(nidaq.Output())
+            self.start()
+        except:
+            pass
 
 class DataRelay(DataSource):
     output = NidaqSink()
 
-    def _get(self):
-        data = self.system.get()
-        self.output.send(data)
+    def _get(self, system):
+        data = system.get()
+        try:
+            self.output.send(data)
+        except:
+            print "unable to send output"
         return data
 
 class EyeData(DataRelay):
@@ -186,7 +193,7 @@ class MotionData(DataRelay):
             print "Data size wrong! %d"%len(data)
             return np.array([])
 
-class MotionSimulate(DataSource):
+class MotionSimulate(DataRelay):
     def __init__(self, marker_count = 8, **kwargs):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
@@ -202,6 +209,6 @@ class MotionSimulate(DataSource):
             return np.array([])
 
 if __name__ == "__main__":
-    sim = EyeData()
+    sim = MotionSimulate()
     sim.start()
     #sim.get()
