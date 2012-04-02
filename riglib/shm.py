@@ -130,7 +130,7 @@ class DataSink(mp.Process):
         self.system = system
         self.kwargs = kwargs
         self.pipe, self._pipe = mp.Pipe()
-        self.status = mp.Value(1, 'b')
+        self.status = mp.Value('b', 1)
 
     def run(self):
         system = self.system(**self.kwargs)

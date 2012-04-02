@@ -39,6 +39,7 @@ class Simulate(object):
 class System(object):
     def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=OWL_MODE2):
         self.marker_count = marker_count
+        self.coords = np.zeros((self.marker_count, 3))
         if(owlInit(server_name, init_flags) < 0):
             raise Exception(owl_get_error("init error",owlGetError()))
                 
@@ -73,8 +74,8 @@ class System(object):
         owlSetInteger(OWL_STREAMING, OWL_DISABLE)
     
     def get(self):
-        markers=[]
-        coords = np.nan*np.ones((self.marker_count, 3))
+        markers = []
+        
         n = owlGetMarkers(markers, self.marker_count)
         while n == 0:
             time.sleep(.001)
@@ -82,8 +83,10 @@ class System(object):
             
         for i in range(n):
             if markers[i].cond > 0:
-                coords[i] = markers[i].x, markers[i].y, markers[i].z
-        return coords
+                self.coords[i] = markers[i].x, markers[i].y, markers[i].z
+            else:
+                self.coords[i] = np.nan, np.nan, np.nan
+        return self.coords
         
     def retrieve(self, filename):
         pass
