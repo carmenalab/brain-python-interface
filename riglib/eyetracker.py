@@ -51,7 +51,8 @@ class System(object):
             samp = self.tracker.getNextData()
         data = np.array(self.tracker.getFloatData().getLeftEye().getGaze())
         if data.sum() < -1e4:
-            return None
+            return np.array([np.nan, np.nan])
+            
         return data
     
     def retrieve(self, filename):
