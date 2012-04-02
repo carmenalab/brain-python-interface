@@ -74,7 +74,7 @@ class System(object):
     
     def get(self):
         markers=[]
-        coords = np.zeros((self.marker_count, 3))
+        coords = np.nan*np.ones((self.marker_count, 3))
         n = owlGetMarkers(markers, self.marker_count)
         while n == 0:
             time.sleep(.001)

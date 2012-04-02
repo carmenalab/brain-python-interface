@@ -70,7 +70,7 @@ class DataSource(mp.Process):
                     system.stop()
 
             if streaming:
-                data = system.get()
+                data = self._get()
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -86,6 +86,9 @@ class DataSource(mp.Process):
 
         print "ending data collection"
         system.stop()
+
+    def _get(self):
+        return self.system.get()
 
     def get(self):
         self.lock.acquire()
@@ -122,7 +125,41 @@ class DataSource(mp.Process):
             self.cmd_event.set()
             return self.pipe.recv()
 
-class EyeData(DataSource):
+class DataSink(mp.Process):
+    def __init__(self, system, **kwargs):
+        self.system = system
+        self.kwargs = kwargs
+        self.pipe, self._pipe = mp.Pipe()
+        self.status = mp.Value(1, 'b')
+
+    def run(self):
+        system = self.system(**self.kwargs)
+        while self.status.value > 0:
+            data = self._pipe.recv()
+            system.send(data)
+
+    def send(self, data):
+        self.pipe.send(data)
+
+    def stop(self):
+        self.status.value = 0
+    def __del__(self):
+        self.stop()
+
+class NidaqSink(DataSink):
+    def __init__(self):
+        from riglib import nidaq
+        super(NidaqSink, self).__init__(nidaq.Output())
+
+class DataRelay(DataSource):
+    output = NidaqSink()
+
+    def _get(self):
+        data = self.system.get()
+        self.output.send(data)
+        return data
+
+class EyeData(DataRelay):
     def __init__(self, **kwargs):
         from riglib import eyetracker
         self.update_freq = 500
@@ -134,7 +171,7 @@ class EyeSimulate(DataSource):
         self.update_freq = 500
         super(EyeSimulate, self).__init__(eyetracker.Simulate, **kwargs)
 
-class MotionData(DataSource):
+class MotionData(DataRelay):
     def __init__(self, marker_count=8, **kwargs):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
