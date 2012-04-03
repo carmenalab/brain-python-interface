@@ -59,7 +59,7 @@ class DataSource(mp.Process):
                 self.lock.release()
                 self._pipe.send(ret)
                 self.cmd_event.clear()
-            
+
             if self.stream.is_set():
                 self.stream.clear()
                 streaming = not streaming
@@ -68,7 +68,7 @@ class DataSource(mp.Process):
                     system.start()
                 else:
                     system.stop()
-
+            
             if streaming:
                 data = self._get(system)
                 if data is not None:
@@ -81,7 +81,6 @@ class DataSource(mp.Process):
                     except:
                         print repr(data)
             else:
-                print "paused", self.status.value
                 time.sleep(.001)
 
         print "ending data collection"
@@ -130,16 +129,24 @@ class DataSink(mp.Process):
         self.system = system
         self.kwargs = kwargs
         self.pipe, self._pipe = mp.Pipe()
-        self.status = mp.Value('b', 1)
+        self.status = mp.Value('b', 0)
+
+    def start(self):
+        print "someone started me... wtf??"
+        self.status.value = 1
+        super(DataSink, self).start()
 
     def run(self):
+        print "starting sink proc"
         system = self.system(**self.kwargs)
         while self.status.value > 0:
+            print "i'm running!"
             data = self._pipe.recv()
             system.send(data)
 
     def send(self, data):
-        self.pipe.send(data)
+        if self.status.value > 0:
+            self.pipe.send(data)
 
     def stop(self):
         self.status.value = 0
@@ -150,7 +157,7 @@ class NidaqSink(DataSink):
     def __init__(self):
         try:
             from riglib import nidaq
-            super(NidaqSink, self).__init__(nidaq.Output())
+            super(NidaqSink, self).__init__(nidaq.Output)
             self.start()
         except:
             print "No NiDAQ data"
@@ -160,14 +167,11 @@ class DataRelay(DataSource):
 
     def _get(self, system):
         data = system.get()
-        try:
-            self.output.send(data)
-        except:
-            pass
-            
+        self.output.send(data)
+        
         return data
 
-class EyeData(DataRelay):
+class EyeData(DataSource):
     def __init__(self, **kwargs):
         from riglib import eyetracker
         self.update_freq = 500
@@ -179,7 +183,7 @@ class EyeSimulate(DataSource):
         self.update_freq = 500
         super(EyeSimulate, self).__init__(eyetracker.Simulate, **kwargs)
 
-class MotionData(DataRelay):
+class MotionData(DataSource):
     def __init__(self, marker_count=8, **kwargs):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
@@ -194,7 +198,7 @@ class MotionData(DataRelay):
             print "Data size wrong! %d"%len(data)
             return np.array([])
 
-class MotionSimulate(DataRelay):
+class MotionSimulate(DataSource):
     def __init__(self, marker_count = 8, **kwargs):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
@@ -210,6 +214,6 @@ class MotionSimulate(DataRelay):
             return np.array([])
 
 if __name__ == "__main__":
-    sim = MotionSimulate()
+    sim = MotionData()
     sim.start()
     #sim.get()
