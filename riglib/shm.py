@@ -153,7 +153,7 @@ class NidaqSink(DataSink):
             super(NidaqSink, self).__init__(nidaq.Output())
             self.start()
         except:
-            pass
+            print "No NiDAQ data"
 
 class DataRelay(DataSource):
     output = NidaqSink()
@@ -163,7 +163,8 @@ class DataRelay(DataSource):
         try:
             self.output.send(data)
         except:
-            print "unable to send output"
+            pass
+            
         return data
 
 class EyeData(DataRelay):

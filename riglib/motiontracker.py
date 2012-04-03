@@ -81,11 +81,12 @@ class System(object):
             time.sleep(.001)
             n = owlGetMarkers(markers, self.marker_count)
             
-        for i in range(n):
-            if markers[i].cond > 0:
-                self.coords[i] = markers[i].x, markers[i].y, markers[i].z
+        for i, m in enumerate(markers):
+            if m.cond > 0:
+                self.coords[i] = m.x, m.y, m.z
             else:
                 self.coords[i] = np.nan, np.nan, np.nan
+
         return self.coords
         
     def retrieve(self, filename):
