@@ -80,6 +80,7 @@ class DataSource(mp.Process):
                         self.lock.release()
                     except:
                         print repr(data)
+                self._store(data)
             else:
                 time.sleep(.001)
 
@@ -88,6 +89,9 @@ class DataSource(mp.Process):
 
     def _get(self, system):
         return system.get()
+
+    def _store(self, data):
+        pass
 
     def get(self):
         self.lock.acquire()
@@ -140,7 +144,6 @@ class DataSink(mp.Process):
         print "starting sink proc"
         system = self.system(**self.kwargs)
         while self.status.value > 0:
-            print "i'm running!"
             data = self._pipe.recv()
             system.send(data)
 
@@ -153,18 +156,15 @@ class DataSink(mp.Process):
     def __del__(self):
         self.stop()
 
-class NidaqSink(DataSink):
-    def __init__(self):
-        try:
-            from riglib import nidaq
-            super(NidaqSink, self).__init__(nidaq.Output)
-            self.start()
-        except:
-            print "No NiDAQ data"
+class HDFSink(DataSink):
+    def __init__(self, filename, *args, **kwargs):
+        import tables
+        super(DataSaver, self).__init__(*args, **kwargs)
+        self.h5 = tables.openFile(self.filename, "w")
+        dataname = self.source.__module__
+        self.h5.createEArray("/", )
 
 class DataRelay(DataSource):
-    output = NidaqSink()
-
     def _get(self, system):
         data = system.get()
         self.output.send(data)
