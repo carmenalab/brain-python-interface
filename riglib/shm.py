@@ -7,24 +7,18 @@ from multiprocessing import sharedctypes as shm
 
 import numpy as np
 
-class FuncProxy(object):
-    def __init__(self, name, pipe, event):
-        self.pipe = pipe
-        self.name = name
-        self.event = event
-
-    def __call__(self, *args, **kwargs):
-        self.pipe.send((self.name, args, kwargs))
-        self.event.set()
-        return self.pipe.recv()
+from riglib import datasink, FuncProxy
 
 class DataSource(mp.Process):
     slice_size = 2
+    slice_shape = (2,)
+    
     def __init__(self, source, bufferlen=10, **kwargs):
         super(DataSource, self).__init__()
         self.filter = None
         self.source = source
         self.source_kwargs = kwargs
+        self.bufferlen = bufferlen
         self.max_size = bufferlen*self.update_freq
         
         self.lock = mp.Lock()
@@ -80,7 +74,6 @@ class DataSource(mp.Process):
                         self.lock.release()
                     except:
                         print repr(data)
-                self._store(data)
             else:
                 time.sleep(.001)
 
@@ -88,10 +81,9 @@ class DataSource(mp.Process):
         system.stop()
 
     def _get(self, system):
-        return system.get()
-
-    def _store(self, data):
-        pass
+        data = system.get()
+        datasink.sinks.send(system, data)
+        return data
 
     def get(self):
         self.lock.acquire()
@@ -103,7 +95,7 @@ class DataSource(mp.Process):
         self.idx.value = 0
         self.lock.release()
         try:
-            data = np.array(data).reshape(-1, self.slice_size)
+            data = np.array(data).reshape((-1,)+self.slice_shape)
         except:
             print "can't reshape, len(data)=%d, size[source]=%d"%(len(data), self.slice_size)
 
@@ -128,49 +120,6 @@ class DataSource(mp.Process):
             self.cmd_event.set()
             return self.pipe.recv()
 
-class DataSink(mp.Process):
-    def __init__(self, system, **kwargs):
-        self.system = system
-        self.kwargs = kwargs
-        self.pipe, self._pipe = mp.Pipe()
-        self.status = mp.Value('b', 0)
-
-    def start(self):
-        print "someone started me... wtf??"
-        self.status.value = 1
-        super(DataSink, self).start()
-
-    def run(self):
-        print "starting sink proc"
-        system = self.system(**self.kwargs)
-        while self.status.value > 0:
-            data = self._pipe.recv()
-            system.send(data)
-
-    def send(self, data):
-        if self.status.value > 0:
-            self.pipe.send(data)
-
-    def stop(self):
-        self.status.value = 0
-    def __del__(self):
-        self.stop()
-
-class HDFSink(DataSink):
-    def __init__(self, filename, *args, **kwargs):
-        import tables
-        super(DataSaver, self).__init__(*args, **kwargs)
-        self.h5 = tables.openFile(self.filename, "w")
-        dataname = self.source.__module__
-        self.h5.createEArray("/", )
-
-class DataRelay(DataSource):
-    def _get(self, system):
-        data = system.get()
-        self.output.send(data)
-        
-        return data
-
 class EyeData(DataSource):
     def __init__(self, **kwargs):
         from riglib import eyetracker
@@ -187,31 +136,17 @@ class MotionData(DataSource):
     def __init__(self, marker_count=8, **kwargs):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
+        self.slice_shape = (marker_count, 3)
         self.update_freq = 480
         super(MotionData, self).__init__(motiontracker.System, marker_count=marker_count, **kwargs)
-
-    def get(self):
-        data = super(MotionData, self).get()
-        try:
-            return data.reshape(len(data), -1, 3)
-        except:
-            print "Data size wrong! %d"%len(data)
-            return np.array([])
 
 class MotionSimulate(DataSource):
     def __init__(self, marker_count = 8, **kwargs):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
+        self.slice_shape = (marker_count, 3)
         self.update_freq = 480
         super(MotionSimulate, self).__init__(motiontracker.Simulate, marker_count=marker_count, **kwargs)
-
-    def get(self):
-        data = super(MotionSimulate, self).get()
-        try:
-            return data.reshape(len(data), -1, 3)
-        except:
-            print "Data size wrong! %d"%len(data)
-            return np.array([])
 
 if __name__ == "__main__":
     sim = MotionData()

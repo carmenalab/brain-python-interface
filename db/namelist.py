@@ -8,9 +8,11 @@ features = dict(
     reward_system = experiment.features.RewardSystem,
     eye_data=experiment.features.EyeData,
     calibrated_eye=experiment.features.CalibratedEyeData,
-    simulate_eye=experiment.features.SimulatedEyeData,
+    eye_simulate=experiment.features.SimulatedEyeData,
     fixation_start=experiment.features.FixationStart,
     motion_data=experiment.features.MotionData,
+    motion_simulate=experiment.features.MotionSimulate, 
+    saveHDF=experiment.features.SaveHDF
 )
 
 from tasks import redgreen

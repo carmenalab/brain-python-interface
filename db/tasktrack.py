@@ -116,7 +116,6 @@ def runtask(status, *args):
             print "Cannot open server..."
             time.sleep(2.)
     
-    print args
     task = Task(*args)
     server.register_instance(task)
     server.timeout = 0.5

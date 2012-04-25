@@ -107,8 +107,8 @@ class AdaptiveGenerator(object):
 class EyeData(object):
     def __init__(self, *args, **kwargs):
         from riglib import shm
-        super(EyeData, self).__init__(*args, **kwargs)
         self.eyedata = shm.EyeData()
+        super(EyeData, self).__init__(*args, **kwargs)
 
     def run(self):
         self.eyedata.start()
@@ -136,9 +136,9 @@ class CalibratedEyeData(EyeData):
 
     def __init__(self, *args, **kwargs):
         from riglib import shm
-        super(CalibratedEyeData, self).__init__(*args, **kwargs)
         self.eyedata = shm.EyeData()
-        self.eyedata.filter = self.cal_profile
+        self.eyedata.set_filter(self.cal_profile)
+        super(CalibratedEyeData, self).__init__(*args, **kwargs)
 
 class FixationStart(CalibratedEyeData):
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
@@ -174,9 +174,9 @@ class MotionData(traits.HasTraits):
 
     def __init__(self, *args, **kwargs):
         from riglib import shm
-        super(MotionData, self).__init__(*args, **kwargs)
         self.motiondata = shm.MotionData(marker_count=self.marker_count)
-        
+        super(MotionData, self).__init__(*args, **kwargs)
+
     def run(self):
         self.motiondata.start()
         try:
@@ -190,10 +190,64 @@ class MotionData(traits.HasTraits):
         self.motiondata.stop()
         super(MotionData, self)._start_None()
 
-class MotionSimulate(MotionData):
+class MotionSimulate(traits.HasTraits):
+    marker_count = traits.Int(8, desc="Number of markers to return")
+
     def __init__(self, *args, **kwargs):
         from riglib import shm
-        super(MotionSimulate, self).__init__(*args, **kwargs)
         self.motiondata = shm.MotionSimulate(marker_count=self.marker_count, 
             radius=(100,100,50), offset=(-150,0,0))
+        super(MotionSimulate, self).__init__(*args, **kwargs)
 
+    def run(self):
+        self.motiondata.start()
+        try:
+            super(MotionSimulate, self).run()
+        except KeyboardInterrupt as e:
+            self.motiondata.pause()
+            raise e
+    
+    def _start_None(self):
+        self.motiondata.pause()
+        self.motiondata.stop()
+        super(MotionSimulate, self)._start_None()
+
+class SaveHDF(object):
+    '''Saves any associated MotionData and EyeData into an HDF5 file.'''
+    def __init__(self, *args, **kwargs):
+        super(SaveHDF, self).__init__(*args, **kwargs)
+
+        import tempfile
+        from riglib import datasink
+        self.h5file = tempfile.NamedTemporaryFile()
+        self.sinks = datasink.sinks
+        
+        if isinstance(self, (MotionData, MotionSimulate)):
+            self.sinks.register(self.motiondata)
+        if isinstance(self, EyeData):
+            self.sinks.register(self.eyedata)
+        
+    def run(self):
+        from riglib import hdfwriter
+        self.sinks.start(hdfwriter.HDFWriter, filename=self.h5file.name)
+        try:
+            super(SaveHDF, self).run()
+        except:
+            self.sinks.stop()
+            raise e
+    
+    def _start_None(self):
+        self.sinks.stop()
+        super(SaveHDF, self)._start_None()
+
+class RelayPlexon(object):
+    def __init__(self, *args, **kwargs):
+        super(SaveHDF, self).__init__(self, *args, **kwargs)
+
+        from riglib import datasink, nidaq
+        self.sinks = datasink.sinks
+        self.sinks.add(nidaq.Output)
+        if isinstance(self, MotionData):
+            self.sinks.register(self.motiondata)
+        if isinstance(self, EyeData):
+            self.sinks.register(self.eyedata)
