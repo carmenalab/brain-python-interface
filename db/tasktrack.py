@@ -71,15 +71,24 @@ class Task(object):
                             caltype, params.to_json())
                 feats.insert(0, SaveCal)
             
-            if issubclass(task.get(), features.EyeData):
+            if features.EyeData in feats:
                 class SaveEyeData(object):
-                    def _start_None(Self):
-                        super(SaveData, self)._start_None()
+                    def _start_None(self):
+                        super(SaveEyeData, self)._start_None()
                         database.save_data(self.eyefile, "eyetracker", saveid)
                 feats.insert(0, SaveEyeData)
-        
-        Exp = experiment.make(task.get(), feats=feats)
 
+            if features.SaveHDF in feats:
+                class SaveHDFdata(object):
+                    def _start_None(self):
+                        self.sinks.stop()
+                        super(SaveHDFdata, self)._start_None()
+                        print "saving hdf to database..."
+                        database.save_data(self.h5file.name, "hdf", saveid)
+
+                feats.insert(0, SaveHDFdata)
+
+        Exp = experiment.make(task.get(), feats=feats)
         gen, gp = seq.get()
         sequence = gen(Exp, **gp)
         if issubclass(Exp, experiment.Sequence):

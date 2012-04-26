@@ -7,7 +7,8 @@ from multiprocessing import sharedctypes as shm
 
 import numpy as np
 
-from riglib import datasink, FuncProxy
+import datasink
+from . import FuncProxy
 
 class DataSource(mp.Process):
     slice_size = 2
@@ -30,6 +31,10 @@ class DataSource(mp.Process):
         self.stream = mp.Event()
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+
+    def start(self, *args, **kwargs):
+        self.sinks = datasink.sinks.sinks
+        super(DataSource, self).start(*args, **kwargs)
 
     def run(self):
         system = self.source(**self.source_kwargs)
@@ -64,7 +69,10 @@ class DataSource(mp.Process):
                     system.stop()
             
             if streaming:
-                data = self._get(system)
+                data = system.get()
+                for s in self.sinks:
+                    s.send(system.__class__, data)
+
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -79,11 +87,6 @@ class DataSource(mp.Process):
 
         print "ending data collection"
         system.stop()
-
-    def _get(self, system):
-        data = system.get()
-        datasink.sinks.send(system, data)
-        return data
 
     def get(self):
         self.lock.acquire()

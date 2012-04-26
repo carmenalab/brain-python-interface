@@ -1,7 +1,8 @@
 import inspect
 import traceback
 import multiprocessing as mp
-from riglib import FuncProxy
+
+from . import FuncProxy
 
 class DataSink(mp.Process):
     def __init__(self, output, **kwargs):
@@ -9,40 +10,43 @@ class DataSink(mp.Process):
         self.output = output
         self.kwargs = kwargs
         self.cmd_event = mp.Event()
+        self.cmd_pipe, self._cmd_pipe = mp.Pipe()
         self.pipe, self._pipe = mp.Pipe()
         self.status = mp.Value('b', 1)
         self.methods = set(n for n in dir(output) if inspect.ismethod(getattr(output, n)))
     
     def run(self):
-        print "starting sink proc"
         output = self.output(**self.kwargs)
         while self.status.value > 0:
+            if self._pipe.poll(.001):
+                system, data = self._pipe.recv()
+                output.send(system, data)
+
             if self.cmd_event.is_set():
-                cmd, args, kwargs = self._pipe.recv()
+                cmd, args, kwargs = self._cmd_pipe.recv()
                 try:
                     if cmd == "getattr":
                         print "getting %s"%repr(args)
-                        ret = getattr(system, args[0])
+                        ret = getattr(output, args[0])
                     else:
-                        ret = getattr(system, cmd)(*args, **kwargs)
+                        ret = getattr(output, cmd)(*args, **kwargs)
+                        
                 except Exception as e:
                     traceback.print_exc()
                     ret = e
-                self._pipe.send(ret)
+                self._cmd_pipe.send(ret)
                 self.cmd_event.clear()
 
-            if self._pipe.poll(1):
-                system, data = self._pipe.recv()
-                output.send(system, data)
+        print "ending datasink"
+        del output
     
     def __getattr__(self, attr):
         if attr in self.methods:
-            return FuncProxy(attr, self.pipe, self.cmd_event)
+            return FuncProxy(attr, self.cmd_pipe, self.cmd_event)
         else:
             super(DataSink, self).__getattr__(self, attr)
 
     def send(self, system, data):
-        print "sending data %s"%data
         if self.status.value > 0:
             self.pipe.send((system, data))
 
@@ -62,19 +66,21 @@ class SinkManager(object):
         sink = DataSink(output, systems=self.sources, **kwargs)
         sink.start()
         self.sinks.append(sink)
-        print "blah", sink, self.instances
 
     def register(self, system):
+        print "Registering a %r system"%system
         self.sources.append(system)
-        for s in self.sources:
-            s.register(system)
 
-    def send(self, system, data):
         for s in self.sinks:
-            s.send(system, data)
+            s.register(system)
     
     def stop(self):
         for s in self.sinks:
             s.stop()
 
+    def __iter__(self):
+        for s in self.sinks:
+            yield s
+
+#Data Sink manager singleton to be used by features
 sinks = SinkManager()

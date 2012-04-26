@@ -114,7 +114,7 @@ class EyeData(object):
         self.eyedata.start()
         try:
             super(EyeData, self).run()
-        except KeyboardInterrupt:
+        finally:
             self.eyedata.pause()
             del self.eyedata
     
@@ -181,9 +181,8 @@ class MotionData(traits.HasTraits):
         self.motiondata.start()
         try:
             super(MotionData, self).run()
-        except KeyboardInterrupt as e:
+        finally:
             self.motiondata.pause()
-            raise e
     
     def _start_None(self):
         self.motiondata.pause()
@@ -203,9 +202,8 @@ class MotionSimulate(traits.HasTraits):
         self.motiondata.start()
         try:
             super(MotionSimulate, self).run()
-        except KeyboardInterrupt as e:
+        finally:
             self.motiondata.pause()
-            raise e
     
     def _start_None(self):
         self.motiondata.pause()
@@ -218,7 +216,7 @@ class SaveHDF(object):
         super(SaveHDF, self).__init__(*args, **kwargs)
 
         import tempfile
-        from riglib import datasink
+        from riglib import datasink, hdfwriter
         self.h5file = tempfile.NamedTemporaryFile()
         self.sinks = datasink.sinks
         
@@ -226,15 +224,21 @@ class SaveHDF(object):
             self.sinks.register(self.motiondata)
         if isinstance(self, EyeData):
             self.sinks.register(self.eyedata)
-        
-    def run(self):
-        from riglib import hdfwriter
+
         self.sinks.start(hdfwriter.HDFWriter, filename=self.h5file.name)
+    
+    def run(self):
         try:
             super(SaveHDF, self).run()
-        except:
+        finally:
             self.sinks.stop()
-            raise e
+
+    def set_state(self, condition, **kwargs):
+        for sink in self.sinks:
+            for source in self.sinks.sources:
+                sink.sendMsg(source.source, condition)
+
+        super(SaveHDF, self).set_state(condition, **kwargs)
     
     def _start_None(self):
         self.sinks.stop()

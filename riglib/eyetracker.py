@@ -54,6 +54,7 @@ class System(object):
             return np.array([np.nan, np.nan])
             
         return data
+        
     def set_filter(self, filt):
         self.filter = filt
     
