@@ -246,12 +246,32 @@ class SaveHDF(object):
 
 class RelayPlexon(object):
     def __init__(self, *args, **kwargs):
-        super(SaveHDF, self).__init__(self, *args, **kwargs)
+        super(RelayPlexon, self).__init__(*args, **kwargs)
 
+        import tempfile
         from riglib import datasink, nidaq
         self.sinks = datasink.sinks
-        self.sinks.add(nidaq.Output)
-        if isinstance(self, MotionData):
+        
+        if isinstance(self, (MotionData, MotionSimulate)):
             self.sinks.register(self.motiondata)
         if isinstance(self, EyeData):
             self.sinks.register(self.eyedata)
+
+        self.sinks.start(nidaq.Output)
+    
+    def run(self):
+        try:
+            super(RelayPlexon, self).run()
+        finally:
+            self.sinks.stop()
+
+    def set_state(self, condition, **kwargs):
+        for sink in self.sinks:
+            for source in self.sinks.sources:
+                sink.sendMsg(source.source, condition)
+
+        super(RelayPlexon, self).set_state(condition, **kwargs)
+    
+    def _start_None(self):
+        self.sinks.stop()
+        super(RelayPlexon, self)._start_None()
