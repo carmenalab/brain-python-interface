@@ -1,12 +1,12 @@
+import array
 import struct
 import socket
+import logging
 from collections import namedtuple
 
-import numpy as np
-
 PACKETSIZE = 512
-
 WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit","waveform"])
+logger = logging.getLogger(__name__)
 
 class Connection(object):
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT = (10000)
@@ -25,159 +25,200 @@ class Connection(object):
     SPIKE_CHAN_SORTED_WAVEFORMS = (0x02)
     SPIKE_CHAN_UNSORTED_TIMESTAMPS = (0x04)
     SPIKE_CHAN_UNSORTED_WAVEFORMS = (0x08)
-    
-    dbnames = 'type,Uts,ts,chan,unit,nwave,nword'.split(',')
-    dbtypes = 'hHI4h'
 
     def __init__(self, addr, port):
         self.addr = (addr, port)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect(self.addr)
         self.streaming = False
+
+        self.num_server_dropped = 0
+        self.num_mmf_dropped = 0
+
+        self._init = False
     
     def _recv(self):
+        '''Receives a single PACKETSIZE chunk from the socket'''
         d = ''
         while len(d) < PACKETSIZE:
             d += self.sock.recv(PACKETSIZE - len(d))
         return d
     
-    def init(self, channels, waveforms=True, analog=False):
-        packet = np.zeros(PACKETSIZE / 4., dtype=np.int32)
+    def connect(self, channels, waveforms=True, analog=False):
+        '''Establish a connection with the plexnet remote server, then request and set parameters
+
+        Parameters
+        ----------
+        channels : int
+            Number of channels to initialize through the server
+        waveforms : bool, optional
+            Request spike waveforms?
+        analog : bool, optional
+            Request analog data?
+        '''
+        packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT
         packet[1] = True #timestamp
         packet[2] = waveforms
         packet[3] = analog
         packet[4] = 1 #channels start
         packet[5] = channels+1
-        print "Sent transfer mode command... "
+        logger.debug("Send transfer mode command")
         self.sock.sendall(packet.tostring())
-        resp = struct.unpack('%di'%(PACKETSIZE/4), self._recv())
-        print "recieved %s"%repr(resp)
+        
+        resp = array.array('i', self._recv())
+        logger.debug("Got response from server")
+        if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_MMF_SIZES:
+            self.n_cmd = resp[3]
+            if 0 < self.n_cmd < 32:
+                sup_spike = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_SPIKE_CHANNELS
+                sup_cont = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
+                self.supports_spikes = any([b == sup_spike for b in resp[4:]])
+                self.supports_cont = any([b == sup_cont for b in resp[4:]])
 
-        packet[:] = 0
+        packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
         self.sock.sendall(packet.tostring())
 
-        print "Request parameters..."
+        logger.debug("Request parameters...")
         gotServerArea = False
         while not gotServerArea:
-            resp = struct.unpack('128i', self._recv())
+            resp = array.array('i', self._recv())
             
             if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
                 self.n_spike = resp[15]
                 self.n_cont = resp[17]
                 gotServerArea = True
-        print "Done init!"
+
+        self._init = True
+        logger.info("Connection established!")
         
-    def set_spikes(self, channels=None, waveforms=True):
-        packet = np.zeros(5, dtype=np.int32)
+    def select_spikes(self, channels=None, waveforms=True):
+        '''Sets the channels from which to receive spikes. This function always requests sorted data
+
+        Parameters
+        ----------
+        channels : array_like, optional
+            A list of channels which you want to see spikes from
+        waveforms : bool, optional
+            Request spikes from all selected channels
+        '''
+        assert self._init, "Please initialize the connection first"
+        assert self.supports_spikes, "Server does not support spike streaming!"
+        packet = array.array('i', '\x00'*20)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_SPIKE_CHANNELS
         packet[2] = 1
         packet[3] = self.n_spike
         raw = packet.tostring()
 
-        packet = np.zeros(PACKETSIZE - len(raw), dtype=np.uint8)
         #always send timestamps, waveforms are optional
         bitmask = 1 | waveforms << 1
         if channels is None:
-            packet[:] = bitmask
+            raw += array.array('b', [bitmask]*(PACKETSIZE - 20))
         else:
-            packet[channels] = bitmask
-        raw += packet.tostring()
+            packet = array.array('b', '\x00'*(PACKETSIZE - 20))
+            for c in channels:
+                packet[c] = bitmask
+            raw += packet.tostring()
 
         self.sock.sendall(raw)
     
-    def set_continuous(self, channels=None):
-        packet = np.zeros(5, dtype=np.int32)
+    def select_continuous(self, channels=None):
+        '''Sets the channels from which to receive continuous data'''
+        assert self._init, "Please initialize the connection first"
+        assert self.supports_cont, "Server does not support continuous data streaming!"
+        packet = array.array('i', '\x00'*20)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
         packet[2] = 1
         packet[3] = self.n_cont
         raw = packet.tostring()
 
-        packet = np.zeros(PACKETSIZE - len(raw), dtype=np.uint8)
         if channels is None:
-            packet[:] = 1
+            raw += array.array('b', [1]*(PACKETSIZE - 20))
         else:
-            packet[channels] = 1
-        raw += packet.tostring()
-
+            packet = array.array('b', '\x00'*(PACKETSIZE - 20))
+            for c in channels:
+                packet[c] = bitmask
+            raw += packet.tostring()
+        
         self.sock.sendall(raw)
 
-    def start(self):
-        packet = np.zeros(PACKETSIZE, dtype=np.int32)
+    def start_data(self):
+        '''Start the data pump from plexnet remote'''
+        assert self._init, "Please initialize the connection first"
+        packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_START_DATA_PUMP
         self.sock.sendall(packet.tostring())
         self.streaming = True
-        print "Started plexon stream"
+        logger.info("Started data pump")
 
-    def stop(self):
-        packet = np.zeros(PACKETSIZE, dtype=np.int32)
+    def stop_data(self):
+        '''Stop the data pump from plexnet remote'''
+        assert self._init, "Please initialize the connection first"
+        packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_STOP_DATA_PUMP
         self.sock.sendall(packet.tostring())
         self.streaming = False
-        print "Stopped plexon stream"
+        logger.info("Stopped data pump")
 
     def disconnect(self):
-        packet = np.zeros(PACKETSIZE, dtype=np.int32)
+        '''Disconnect from the plexnet remote server and close all network sockets'''
+        assert self._init, "Please initialize the connection first"
+        packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT
         self.sock.sendall(packet.tostring())
         self.sock.close()
-        print "Disconnected from plexon"
+        logger.info("Disconnected from plexon")
     
     def __del__(self):
         self.disconnect()
 
     def get_data(self):
+        '''A generator which yields packets as they are received'''
+        assert self._init, "Please initialize the connection first"
+        hnames = 'type,Uts,ts,chan,unit,nwave,nword'.split(',')
         while self.streaming:
-            buf = self._recv()
-            #ibuf = np.fromstring(buf[:16], dtype=np.int32)
-            ibuf = struct.unpack('4i', buf[:16])
+            packet = self._recv()
+            ibuf = struct.unpack('4i', packet[:16])
             if ibuf[0] != 1:
                 yield None
             
-            num_server_dropped = ibuf[2]
-            num_mmf_dropped = ibuf[3]
-            #print "new packet %r"%ibuf
-            buf = buf[16:]
+            self.num_server_dropped = ibuf[2]
+            self.num_mmf_dropped = ibuf[3]
+            packet = packet[16:]
             
             while len(buf) > 16:
-                #header = np.fromstring(buf[:16], dtype=self.dbtype)
-                header = dict(zip(self.dbnames, struct.unpack(self.dbtypes, buf[:16])))
-                buf = buf[16:]
+                header = dict(zip(hnames, struct.unpack('hHI4h', packet[:16])))
+                packet = packet[16:]
                 
                 if header['type'] in [0, -1]:
-                    #empty block
                     yield None
-                    break;
-                
-                wavedat = None
-                if header['nwave'] > 0:
-                    l = header['nwave'] * header['nword'] * 2
-                    wavedat = struct.unpack('%dh'%(l/2.), buf[:l])
-                buf = buf[l:]
-                
-                ts = long(header['Uts']) << 32 | header['ts']
-                
-                yield WaveData(type=header['type'], chan=header['chan'],
-                    unit=header['unit'], ts=ts, waveform = wavedat)
-    
-class System(object):
-    def __init__(self, addr=("10.0.0.2", 6000), channels=256, waveforms=False, analog=False):
-        self.conn = Connection(*addr)
-        self.conn.init(channels, waveforms, analog)
-        self.set_spikes(waveforms=waveforms)
-        self.set_continuous()
+                else:
+                    wavedat = None
+                    if header['nwave'] > 0:
+                        l = header['nwave'] * header['nword'] * 2
+                        wavedat = array.array('h', packet[:l])
+                        packet = packet[l:]
+                    
+                    ts = long(header['Uts']) << 32 | header['ts']
+                    yield WaveData(type=header['type'], chan=header['chan'],
+                        unit=header['unit'], ts=ts, waveform = wavedat)
 
 if __name__ == "__main__":
-    import itertools
+    import time
+    #Initialize the connection
     conn = Connection("10.0.0.13", 6000)
-    conn.init(256)
-    conn.set_spikes()
-    conn.start()
-    it = conn.get_data()
-    for i, wave in itertools.izip(xrange(100000), it):
-        wave
+    conn.connect(256) #Request all 256 channels
+    conn.select_spikes() #Select all spike channels, and get waveforms too
+    conn.start() #start the data pump
+
+    data = []
+    waves = conn.get_data()
+    start = time.time()
+    while start - time.time() < 10:
+        data.append(waves.next())
+
+    print "Received %d data packets" % len(data)
+    #Stop the connection
     conn.stop()
     conn.disconnect()
-    
-    
