@@ -36,9 +36,9 @@ class DataSink(mp.Process):
                     ret = e
                 self._cmd_pipe.send(ret)
                 self.cmd_event.clear()
-
-        print "ending datasink"
-        del output
+        
+        output.close()
+        print "ended datasink"
     
     def __getattr__(self, attr):
         if attr in self.methods:

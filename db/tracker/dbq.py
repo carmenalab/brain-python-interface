@@ -32,7 +32,7 @@ def save_data(curfile, system, entry):
     permfile = os.path.join(datapath, system, dataname)
     shutil.move(curfile, permfile)
     DataFile(local=True, path=permfile, system=sys, entry=entry).save()
-    print "Saved datafile for file=%s, system=%s, id=%d (serverside)..."%(curfile, system, entry)
+    print "Saved datafile for file=%s, system=%s, id=%d (serverside)..."%(curfile, system, entry.id)
 
 dispatcher = SimpleXMLRPCDispatcher(allow_none=True)
 dispatcher.register_function(save_log, 'save_log')

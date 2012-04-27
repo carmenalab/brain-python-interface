@@ -17,6 +17,7 @@ class HDFWriter(object):
             self.register(s)
     
     def register(self, system):
+        print "HDFwriter registered %r"%system
         if isinstance(system, shm.DataSource):
             dataname = system.source.__module__.split('.')[-1]
             source = system.source
@@ -42,5 +43,6 @@ class HDFWriter(object):
         row['msg'] = msg
         row.append()
     
-    def __del__(self):
+    def close(self):
+        print "Closed hdf"
         self.h5.close()

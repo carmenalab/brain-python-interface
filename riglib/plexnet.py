@@ -25,9 +25,6 @@ class Connection(object):
     SPIKE_CHAN_SORTED_WAVEFORMS = (0x02)
     SPIKE_CHAN_UNSORTED_TIMESTAMPS = (0x04)
     SPIKE_CHAN_UNSORTED_WAVEFORMS = (0x08)
-
-    dbtype =  np.dtype([("type", np.int16), ("Uts", np.uint16), ("ts", np.int32), 
-        ("chan", np.int16), ("unit", np.int16), ("nwave", np.int16), ("nword", np.int16)])
     
     dbnames = 'type,Uts,ts,chan,unit,nwave,nword'.split(',')
     dbtypes = 'hHI4h'
