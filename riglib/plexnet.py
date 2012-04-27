@@ -6,12 +6,6 @@ import numpy as np
 
 PACKETSIZE = 512
 
-class DataBlock(namedtuple("DataBlock", ['dtype', 'ts', 'chan', 'unit', 'wave'])):
-    __slots__ = ()
-    @classmethod
-    def from_socket(cls, sock):
-        pass
-
 class Connection(object):
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT = (10000)
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT = (10999)
@@ -43,47 +37,88 @@ class Connection(object):
         packet[3] = analog
         packet[4] = 0 #channels start
         packet[5] = channels+1
+        print "Sent transfer mode command..."
         self.sock.sendto(packet.tostring(), self.addr)
         resp = np.fromstring(self.sock.recvfrom(PACKETSIZE)[0], dtype=np.int32)
-        
+        print "recieved %r"%resp
+
         packet[:] = 0
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
         self.socket.sendto(packet.tostring(), self.addr)
 
+        print "Request parameters..."
         gotServerArea = False
         while not gotServerArea:
-            resp = self.sock.recvfrom(PACKETSIZE)
+            resp = np.fromstring(self.sock.recvfrom(PACKETSIZE), dtype=np.int32)
             if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
                 self.n_spike, self.n_cont = resp[[15,17]]
                 gotServerArea = True
+        print "Done init!"
         
-    def set_spikes(self, mask=None, waveforms=True):
-        packet = np.zeros(PACKETSIZE / 4, dtype=np.int32)
+    def set_spikes(self, channels=None, waveforms=True):
+        packet = np.zeros(5, dtype=np.int32)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_SPIKE_CHANNELS
         packet[2] = 1
         packet[3] = self.n_spike
-        
+        raw = packet.tostring()
+
+        packet = np.zeros(PACKETSIZE - len(raw), dtype=np.uint8)
         #always send timestamps, waveforms are optional
         bitmask = 1 | waveforms << 1
-        if mask is None:
-            mask = np.ones(self.n_spike, dtype=np.bool)
+        if channels is None:
+            packet[:] = bitmask
+        else:
+            packet[channels] = bitmask
+        raw += packet.tostring()
 
-        packet[20:][mask] = bitmask
-        self.sock.sendto(packet.tostring(), self.addr)
+        self.sock.sendto(raw, self.addr)
     
-    def set_continuous(self, mask=None):
-        packet = np.zeros(PACKETSIZE / 4, dtype=np.int32)
+    def set_continuous(self, channels=None):
+        packet = np.zeros(5, dtype=np.int32)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
         packet[2] = 1
         packet[3] = self.n_cont
-        if mask is None:
-            mask = np.ones(self.n_cont, dtype=np.bool)
-        packet[20:][mask] = 1
+        raw = packet.tostring()
+
+        packet = np.zeros(PACKETSIZE - len(raw), dtype=np.uint8)
+        if channels is None:
+            packet[:] = 1
+        else:
+            packet[channels] = 1
+        raw += packet.tostring()
+
+        self.sock.sendto(raw, self.addr)
+
+    def start(self):
+        packet = np.zeros(PACKETSIZE, dtype=np.int32)
+        packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_START_DATA_PUMP
         self.sock.sendto(packet.tostring(), self.addr)
+        print "Started plexon stream"
+
+    def stop(self):
+        packet = np.zeros(PACKETSIZE, dtype=np.int32)
+        packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_STOP_DATA_PUMP
+        self.sock.sendto(packet.tostring(), self.addr)
+        print "Stopped plexon stream"
+
+    def disconnect(self):
+        packet = np.zeros(PACKETSIZE, dtype=np.int32)
+        packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT
+        self.sock.sendto(packet.tostring(), self.addr)
+        print "Disconnected from plexon"
+
+    def get_data(self):
+        buf = self.sock.recvfrom(PACKETSIZE)
+        ibuf = np.fromstring(buf, dtype=np.int32)
+        if ibuf[0] != 1:
+            return None
+
+        
+
     
 class System(object):
-    def __init__(self, addr, channels=256, waveforms=False, analog=False):
+    def __init__(self, addr=("10.0.0.2", 6000), channels=256, waveforms=False, analog=False):
         self.conn = Connection(*addr)
         self.conn.init(channels, waveforms, analog)
-        self.set_spikes()
+        self.set_spikes(waveforms=waveforms)
         self.set_continuous()
