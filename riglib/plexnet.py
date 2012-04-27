@@ -6,9 +6,7 @@ import numpy as np
 
 PACKETSIZE = 512
 
-WaveData = namedtuple("WaveData", 
-    ["type", "nblocks", "block_num", "ts", "chan", "unit",
-     "dtype", "nblocks_per_wave", "wave_block_num", "waveform"])
+WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit","waveform"])
 
 class Connection(object):
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT = (10000)
@@ -30,35 +28,47 @@ class Connection(object):
 
     dbtype =  np.dtype([("type", np.int16), ("Uts", np.uint16), ("ts", np.int32), 
         ("chan", np.int16), ("unit", np.int16), ("nwave", np.int16), ("nword", np.int16)])
+    
+    dbnames = 'type,Uts,ts,chan,unit,nwave,nword'.split(',')
+    dbtypes = 'hHI4h'
 
     def __init__(self, addr, port):
         self.addr = (addr, port)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect(self.addr)
+        self.streaming = False
     
-    def init(self, channels, waveforms=True, analog=True):
+    def _recv(self):
+        d = ''
+        while len(d) < PACKETSIZE:
+            d += self.sock.recv(PACKETSIZE - len(d))
+        return d
+    
+    def init(self, channels, waveforms=True, analog=False):
         packet = np.zeros(PACKETSIZE / 4., dtype=np.int32)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT
         packet[1] = True #timestamp
         packet[2] = waveforms
         packet[3] = analog
-        packet[4] = 0 #channels start
+        packet[4] = 1 #channels start
         packet[5] = channels+1
-        print "Sent transfer mode command..."
-        self.sock.sendto(packet.tostring(), self.addr)
-        resp = np.fromstring(self.sock.recvfrom(PACKETSIZE)[0], dtype=np.int32)
-        print "recieved %r"%resp
+        print "Sent transfer mode command... "
+        self.sock.sendall(packet.tostring())
+        resp = struct.unpack('%di'%(PACKETSIZE/4), self._recv())
+        print "recieved %s"%repr(resp)
 
         packet[:] = 0
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
-        self.socket.sendto(packet.tostring(), self.addr)
+        self.sock.sendall(packet.tostring())
 
         print "Request parameters..."
         gotServerArea = False
         while not gotServerArea:
-            resp = np.fromstring(self.sock.recvfrom(PACKETSIZE), dtype=np.int32)
+            resp = struct.unpack('128i', self._recv())
+            
             if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
-                self.n_spike, self.n_cont = resp[[15,17]]
+                self.n_spike = resp[15]
+                self.n_cont = resp[17]
                 gotServerArea = True
         print "Done init!"
         
@@ -78,7 +88,7 @@ class Connection(object):
             packet[channels] = bitmask
         raw += packet.tostring()
 
-        self.sock.sendto(raw, self.addr)
+        self.sock.sendall(raw)
     
     def set_continuous(self, channels=None):
         packet = np.zeros(5, dtype=np.int32)
@@ -94,56 +104,65 @@ class Connection(object):
             packet[channels] = 1
         raw += packet.tostring()
 
-        self.sock.sendto(raw, self.addr)
+        self.sock.sendall(raw)
 
     def start(self):
         packet = np.zeros(PACKETSIZE, dtype=np.int32)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_START_DATA_PUMP
-        self.sock.sendto(packet.tostring(), self.addr)
+        self.sock.sendall(packet.tostring())
+        self.streaming = True
         print "Started plexon stream"
 
     def stop(self):
         packet = np.zeros(PACKETSIZE, dtype=np.int32)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_STOP_DATA_PUMP
-        self.sock.sendto(packet.tostring(), self.addr)
+        self.sock.sendall(packet.tostring())
+        self.streaming = False
         print "Stopped plexon stream"
 
     def disconnect(self):
         packet = np.zeros(PACKETSIZE, dtype=np.int32)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT
-        self.sock.sendto(packet.tostring(), self.addr)
+        self.sock.sendall(packet.tostring())
+        self.sock.close()
         print "Disconnected from plexon"
+    
+    def __del__(self):
+        self.disconnect()
 
     def get_data(self):
-        while True:
-            buf = self.sock.recvfrom(PACKETSIZE)
-            ibuf = np.fromstring(buf[:16], dtype=np.int32)
-            buf = buf[16:]
+        while self.streaming:
+            buf = self._recv()
+            #ibuf = np.fromstring(buf[:16], dtype=np.int32)
+            ibuf = struct.unpack('4i', buf[:16])
             if ibuf[0] != 1:
-                return None
-
+                yield None
+            
             num_server_dropped = ibuf[2]
             num_mmf_dropped = ibuf[3]
-
-            while len(buf) > 0:
-                header = np.fromstring(buf[:16], dtype=self.dbtype)
+            #print "new packet %r"%ibuf
+            buf = buf[16:]
+            
+            while len(buf) > 16:
+                #header = np.fromstring(buf[:16], dtype=self.dbtype)
+                header = dict(zip(self.dbnames, struct.unpack(self.dbtypes, buf[:16])))
+                buf = buf[16:]
+                
                 if header['type'] in [0, -1]:
                     #empty block
                     yield None
                     break;
-                #trim the data
-                buf = buf[16:]
-
+                
                 wavedat = None
                 if header['nwave'] > 0:
                     l = header['nwave'] * header['nword'] * 2
-                    wavedat = np.fromstring(buf[:l], dtype=np.int16)
+                    wavedat = struct.unpack('%dh'%(l/2.), buf[:l])
+                buf = buf[l:]
                 
                 ts = long(header['Uts']) << 32 | header['ts']
                 
                 yield WaveData(type=header['type'], chan=header['chan'],
                     unit=header['unit'], ts=ts, waveform = wavedat)
-
     
 class System(object):
     def __init__(self, addr=("10.0.0.2", 6000), channels=256, waveforms=False, analog=False):
@@ -151,3 +170,17 @@ class System(object):
         self.conn.init(channels, waveforms, analog)
         self.set_spikes(waveforms=waveforms)
         self.set_continuous()
+
+if __name__ == "__main__":
+    import itertools
+    conn = Connection("10.0.0.13", 6000)
+    conn.init(256)
+    conn.set_spikes()
+    conn.start()
+    it = conn.get_data()
+    for i, wave in itertools.izip(xrange(100000), it):
+        wave
+    conn.stop()
+    conn.disconnect()
+    
+    
