@@ -6,6 +6,10 @@ import numpy as np
 
 PACKETSIZE = 512
 
+WaveData = namedtuple("WaveData", 
+    ["type", "nblocks", "block_num", "ts", "chan", "unit",
+     "dtype", "nblocks_per_wave", "wave_block_num", "waveform"])
+
 class Connection(object):
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT = (10000)
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT = (10999)
@@ -23,6 +27,9 @@ class Connection(object):
     SPIKE_CHAN_SORTED_WAVEFORMS = (0x02)
     SPIKE_CHAN_UNSORTED_TIMESTAMPS = (0x04)
     SPIKE_CHAN_UNSORTED_WAVEFORMS = (0x08)
+
+    dbtype =  np.dtype([("type", np.int16), ("Uts", np.uint16), ("ts", np.int32), 
+        ("chan", np.int16), ("unit", np.int16), ("nwave", np.int16), ("nword", np.int16)])
 
     def __init__(self, addr, port):
         self.addr = (addr, port)
@@ -108,12 +115,34 @@ class Connection(object):
         print "Disconnected from plexon"
 
     def get_data(self):
-        buf = self.sock.recvfrom(PACKETSIZE)
-        ibuf = np.fromstring(buf, dtype=np.int32)
-        if ibuf[0] != 1:
-            return None
+        while True:
+            buf = self.sock.recvfrom(PACKETSIZE)
+            ibuf = np.fromstring(buf[:16], dtype=np.int32)
+            buf = buf[16:]
+            if ibuf[0] != 1:
+                return None
 
-        
+            num_server_dropped = ibuf[2]
+            num_mmf_dropped = ibuf[3]
+
+            while len(buf) > 0:
+                header = np.fromstring(buf[:16], dtype=self.dbtype)
+                if header['type'] in [0, -1]:
+                    #empty block
+                    yield None
+                    break;
+                #trim the data
+                buf = buf[16:]
+
+                wavedat = None
+                if header['nwave'] > 0:
+                    l = header['nwave'] * header['nword'] * 2
+                    wavedat = np.fromstring(buf[:l], dtype=np.int16)
+                
+                ts = long(header['Uts']) << 32 | header['ts']
+                
+                yield WaveData(type=header['type'], chan=header['chan'],
+                    unit=header['unit'], ts=ts, waveform = wavedat)
 
     
 class System(object):
