@@ -103,8 +103,10 @@ class Connection(object):
         waveforms : bool, optional
             Request spikes from all selected channels
         '''
-        assert self._init, "Please initialize the connection first"
-        assert self.supports_spikes, "Server does not support spike streaming!"
+        if not self._init:
+            raise ValueError("Please initialize the connection first")
+        if not self.supports_spikes:
+            raise ValueError("Server does not support spike streaming!")
         packet = array.array('i', '\x00'*20)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_SPIKE_CHANNELS
         packet[2] = 1
@@ -125,8 +127,10 @@ class Connection(object):
     
     def select_continuous(self, channels=None):
         '''Sets the channels from which to receive continuous data'''
-        assert self._init, "Please initialize the connection first"
-        assert self.supports_cont, "Server does not support continuous data streaming!"
+        if not self._init:
+            raise ValueError("Please initialize the connection first")
+        if not self.supports_spikes:
+            raise ValueError("Server does not support continuous data streaming!")
         packet = array.array('i', '\x00'*20)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
         packet[2] = 1
@@ -145,7 +149,8 @@ class Connection(object):
 
     def start_data(self):
         '''Start the data pump from plexnet remote'''
-        assert self._init, "Please initialize the connection first"
+        if not self._init:
+            raise ValueError("Please initialize the connection first")
         packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_START_DATA_PUMP
         self.sock.sendall(packet.tostring())
@@ -154,7 +159,8 @@ class Connection(object):
 
     def stop_data(self):
         '''Stop the data pump from plexnet remote'''
-        assert self._init, "Please initialize the connection first"
+        if not self._init:
+            raise ValueError("Please initialize the connection first")
         packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_STOP_DATA_PUMP
         self.sock.sendall(packet.tostring())
@@ -163,7 +169,8 @@ class Connection(object):
 
     def disconnect(self):
         '''Disconnect from the plexnet remote server and close all network sockets'''
-        assert self._init, "Please initialize the connection first"
+        if not self._init:
+            raise ValueError("Please initialize the connection first")
         packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT
         self.sock.sendall(packet.tostring())
