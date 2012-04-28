@@ -212,20 +212,30 @@ class Connection(object):
                         unit=header['unit'], ts=ts, waveform = wavedat)
 
 if __name__ == "__main__":
+    import csv
     import time
-    #Initialize the connection
-    conn = Connection("10.0.0.13", 6000)
-    conn.connect(256) #Request all 256 channels
-    conn.select_spikes() #Select all spike channels, and get waveforms too
-    conn.start_data() #start the data pump
+    import argparse
+    parser = argparse.ArgumentParser(description="Collects plexnet data for a set amount of time")
+    parser.add_argument("time", type=int, help="Length of time to collect samples")
+    parser.add_argument("address", help="Server's address (assumes port 6000)")
+    parser.add_argument("--output", help="Output csv file")
+    args = parser.parse_args()
 
-    data = []
-    waves = conn.get_data()
-    start = time.time()
-    while (time.time()-start) < 10:
-        data.append(waves.next())
+    with open(args['output'], "w") as f:
+        csvfile = csv.writer(f)
 
-    print "Received %d data packets" % len(data)
-    #Stop the connection
-    conn.stop_data()
-    conn.disconnect()
+        #Initialize the connection
+        conn = Connection(args['address'], 6000)
+        conn.connect(256) #Request all 256 channels
+        conn.select_spikes() #Select all spike channels, and get waveforms too
+        conn.start_data() #start the data pump
+
+        waves = conn.get_data()
+        start = time.time()
+        while (time.time()-start) < 10:
+            csvfile.writerows(waves.next())
+
+        print "Received %d data packets" % len(data)
+        #Stop the connection
+        conn.stop_data()
+        conn.disconnect()
