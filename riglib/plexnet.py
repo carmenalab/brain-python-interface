@@ -216,26 +216,29 @@ if __name__ == "__main__":
     import time
     import argparse
     parser = argparse.ArgumentParser(description="Collects plexnet data for a set amount of time")
-    parser.add_argument("time", type=int, help="Length of time to collect samples")
-    parser.add_argument("address", help="Server's address (assumes port 6000)")
-    parser.add_argument("--output", help="Output csv file")
+    parser.add_argument("address",help="Server's address")
+    parser.add_argument("--port", type=int, help="Server's port (defaults to 6000)", default=6000)
+    parser.add_argument("--len", type=float, help="Time (in seconds) to record data", default=10.)
+    parser.add_argument("output", help="Output csv file")
     args = parser.parse_args()
 
-    with open(args['output'], "w") as f:
-        csvfile = csv.writer(f)
+    with open(args.output, "w") as f:
+        csvfile = csv.DictWriter(f, WaveData._fields)
+        csvfile.writeheader()
 
         #Initialize the connection
-        conn = Connection(args['address'], 6000)
+        conn = Connection(args.address, args.port)
         conn.connect(256) #Request all 256 channels
         conn.select_spikes() #Select all spike channels, and get waveforms too
         conn.start_data() #start the data pump
 
         waves = conn.get_data()
         start = time.time()
-        while (time.time()-start) < 10:
-            csvfile.writerows(waves.next())
+        while (time.time()-start) < args.len:
+            wave = waves.next()
+            if wave is not None:
+                csvfile.writerow(dict(wave._asdict()))
 
-        print "Received %d data packets" % len(data)
         #Stop the connection
         conn.stop_data()
         conn.disconnect()
