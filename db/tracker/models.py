@@ -117,7 +117,7 @@ class Sequence(models.Model):
         from json_param import Parameters
         if self.generator.static:
             if len(self.sequence) > 0:
-                return generate.runseq, dict(seq=cPickle.loads(self.sequence))
+                return generate.runseq, dict(seq=cPickle.loads(str(self.sequence)))
             return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))
 
         return self.generator.get(), Parameters(self.params).params
