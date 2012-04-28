@@ -116,7 +116,7 @@ class Connection(object):
         #always send timestamps, waveforms are optional
         bitmask = 1 | waveforms << 1
         if channels is None:
-            raw += array.array('b', [bitmask]*(PACKETSIZE - 20))
+            raw += array.array('b', [bitmask]*(PACKETSIZE - 20)).tostring()
         else:
             packet = array.array('b', '\x00'*(PACKETSIZE - 20))
             for c in channels:
@@ -138,7 +138,7 @@ class Connection(object):
         raw = packet.tostring()
 
         if channels is None:
-            raw += array.array('b', [1]*(PACKETSIZE - 20))
+            raw += array.array('b', [1]*(PACKETSIZE - 20)).tostring()
         else:
             packet = array.array('b', '\x00'*(PACKETSIZE - 20))
             for c in channels:
@@ -194,7 +194,7 @@ class Connection(object):
             self.num_mmf_dropped = ibuf[3]
             packet = packet[16:]
             
-            while len(buf) > 16:
+            while len(packet) > 16:
                 header = dict(zip(hnames, struct.unpack('hHI4h', packet[:16])))
                 packet = packet[16:]
                 
@@ -217,15 +217,15 @@ if __name__ == "__main__":
     conn = Connection("10.0.0.13", 6000)
     conn.connect(256) #Request all 256 channels
     conn.select_spikes() #Select all spike channels, and get waveforms too
-    conn.start() #start the data pump
+    conn.start_data() #start the data pump
 
     data = []
     waves = conn.get_data()
     start = time.time()
-    while start - time.time() < 10:
+    while (time.time()-start) < 10:
         data.append(waves.next())
 
     print "Received %d data packets" % len(data)
     #Stop the connection
-    conn.stop()
+    conn.stop_data()
     conn.disconnect()
