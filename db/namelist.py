@@ -47,6 +47,7 @@ tasks = dict(
     fixation_training=FixationTraining,
     target_capture=TargetCapture,
     movement_training=MovementTraining
+    direction_training=TargetDirection
 )
 
 from tracker import models
