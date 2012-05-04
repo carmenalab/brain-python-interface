@@ -39,7 +39,7 @@ class Simulate(object):
 class System(object):
     def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=OWL_MODE2):
         self.marker_count = marker_count
-        self.coords = np.zeros((self.marker_count, 3))
+        self.coords = np.zeros((self.marker_count, 4))
         if(owlInit(server_name, init_flags) < 0):
             raise Exception(owl_get_error("init error",owlGetError()))
                 
@@ -82,10 +82,7 @@ class System(object):
             n = owlGetMarkers(markers, self.marker_count)
             
         for i, m in enumerate(markers):
-            if m.cond > 0:
-                self.coords[i] = m.x, m.y, m.z
-            else:
-                self.coords[i] = np.nan, np.nan, np.nan
+            self.coords[i] = m.x, m.y, m.z, m.cond
 
         return self.coords
         

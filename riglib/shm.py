@@ -138,9 +138,9 @@ class EyeSimulate(DataSource):
 class MotionData(DataSource):
     def __init__(self, marker_count=8, **kwargs):
         from riglib import motiontracker
-        self.slice_size = marker_count * 3
-        self.slice_shape = (marker_count, 3)
-        self.update_freq = 480
+        self.slice_size = marker_count * 4
+        self.slice_shape = (marker_count, 4)
+        self.update_freq = 240
         super(MotionData, self).__init__(motiontracker.System, marker_count=marker_count, **kwargs)
 
 class MotionSimulate(DataSource):
@@ -148,7 +148,7 @@ class MotionSimulate(DataSource):
         from riglib import motiontracker
         self.slice_size = marker_count * 3
         self.slice_shape = (marker_count, 3)
-        self.update_freq = 480
+        self.update_freq = 240
         super(MotionSimulate, self).__init__(motiontracker.Simulate, marker_count=marker_count, **kwargs)
 
 if __name__ == "__main__":
