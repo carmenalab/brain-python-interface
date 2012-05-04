@@ -64,7 +64,8 @@ class System(object):
         if filename is not None:
             #figure out command to tell phasespace to start a recording
             pass
-        owlSetInteger(OWL_STREAMING, OWL_ENABLE, OWL_INTERPOLATION, 4)
+        owlSetInteger(OWL_STREAMING, OWL_ENABLE)
+        owlSetInteger(OWL_INTERPOLATION, 4)
 
     def stop(self):
         if self.filename is not None:
