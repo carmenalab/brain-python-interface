@@ -37,7 +37,7 @@ class Simulate(object):
         return "blah"
 
 class System(object):
-    def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=(OWL_MODE2 | OWL_POSTPROCESS)):
+    def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=OWL_MODE2):
         self.marker_count = marker_count
         self.coords = np.zeros((self.marker_count, 4))
         if(owlInit(server_name, init_flags) < 0):
@@ -65,7 +65,7 @@ class System(object):
             #figure out command to tell phasespace to start a recording
             pass
         owlSetInteger(OWL_STREAMING, OWL_ENABLE)
-        owlSetInteger(OWL_INTERPOLATION, 4)
+        #owlSetInteger(OWL_INTERPOLATION, 4)
 
     def stop(self):
         if self.filename is not None:
