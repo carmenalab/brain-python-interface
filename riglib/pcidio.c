@@ -62,7 +62,7 @@ uchar _sendshape(char header, uchar ndim, ushort* dims) {
     return 0;
 }
 
-uchar init(char* dev) {
+extern uchar init(char* dev) {
     uint i, nchan;
     ni = comedi_open(dev);
     nchan = comedi_get_n_channels(ni, 0);
@@ -73,11 +73,11 @@ uchar init(char* dev) {
     return 0;
 }
 
-uchar sendMsg(char* msg) {
+extern uchar sendMsg(char* msg) {
     return _send(SEND_MESSAGE, msg);
 }
 
-uint register_sys(char* name, uchar ndim, ushort dims[MAX_DIMS]) {
+extern uint register_sys(char* name, uchar ndim, ushort dims[MAX_DIMS]) {
     uint i;
     uint dlen = (uint) dims[0];
 
@@ -91,7 +91,7 @@ uint register_sys(char* name, uchar ndim, ushort dims[MAX_DIMS]) {
     return nsys++;
 }
 
-uchar sendData(uchar idx, double* data) {
+extern uchar sendData(uchar idx, double* data) {
     uint dlen = systems[idx];
     return _senddata(SEND_DATA, dlen, data);
 }
