@@ -12,6 +12,7 @@
 #define writemask (255 << 16 | 127<<8 | 255)
 
 typedef unsigned int uint;
+typedef unsigned short ushort;
 typedef unsigned char uchar;
 
 comedi_t* ni;
@@ -28,11 +29,11 @@ uchar _send(char header, char* msg) {
         flush = 2;
         comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
         i++;
-    } while (c != '\0');
+    } while (msg[i-1] != '\0');
     return 0;
 }
 //Send a data array
-uchar _send(char header, uint dlen, double* data) {
+uchar _senddata(char header, uint dlen, double* data) {
     uint i, m, flush;
     uchar dstr[sizeof(double)*dlen];
 
@@ -47,12 +48,12 @@ uchar _send(char header, uint dlen, double* data) {
 }
 
 //Send data shape
-uchar _send(char header, uchar ndim, short* dims) {
+uchar _sendshape(char header, uchar ndim, ushort* dims) {
     uint i, m, flush;
     uchar dstr[sizeof(short)*ndim];
 
-    strncpy(dstr, (uchar*)dims, sizeof(short)*ndim);
-    for (i = 0; i < sizeof(short)*ndim; i++) {
+    strncpy(dstr, (uchar*)dims, sizeof(ushort)*ndim);
+    for (i = 0; i < sizeof(ushort)*ndim; i++) {
         m = header << 8 | dstr[i];
         comedi_dio_bitfield2(ni, 0, writemask, &m, 0);
         flush = 2;
@@ -76,23 +77,23 @@ uchar sendMsg(char* msg) {
     return _send(SEND_MESSAGE, msg);
 }
 
-uint register(char* name, uchar ndim, short[MAX_DIMS] dims) {
+uint register_sys(char* name, uchar ndim, ushort dims[MAX_DIMS]) {
     uint i;
     uint dlen = (uint) dims[0];
 
     for (i = 1; i < ndim; i++)
         dlen *= dims[i];
     
-    systems[nsys++] = dlen;
-    _send(idx << 3 | SEND_REGISTER, name);
-    _send(SEND_SHAPE, ndim, dims);
+    systems[nsys] = dlen;
+    _send(nsys << 3 | SEND_REGISTER, name);
+    _sendshape(SEND_SHAPE, ndim, dims);
 
-    return nsys-1;
+    return nsys++;
 }
 
 uchar sendData(uchar idx, double* data) {
     uint dlen = systems[idx];
-    return _send(SEND_DATA, dlen, data);
+    return _senddata(SEND_DATA, dlen, data);
 }
 
 void test_bits() {
@@ -110,10 +111,12 @@ int main(int argc, char* argv) {
     init("/dev/comedi0");
     sendMsg("This is a test!");
     sleep(1);
-    printf("Register motion system at idx %d\n", register("motion", 2, {2,3}));
+    ushort dims[] = {2, 3};
+    double data[] = {1, 2, 3, 4, 5, 6};
+    printf("Register motion system at idx %d\n", register_sys("motion", 2, dims));
     sleep(1);
-    printf("Send simulated data:%d\n", sendData(0, {1, 2, 3, 4, 5, 6}));
-    
+    printf("Send simulated data:%d\n", sendData(0, data));
+
     //test_send();
     printf("I sent all the messages...\n");
 }
