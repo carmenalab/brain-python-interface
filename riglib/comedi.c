@@ -9,7 +9,7 @@
 #define SEND_REGISTER 2
 #define SEND_SHAPE 3
 
-#define writemask (255 << 16 | 127<<8 | 255)
+#define writemask (2 << 16 | 127<<8 | 255)
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
@@ -107,16 +107,18 @@ void test_bits() {
     }
 }
 
-int main(int argc, char* argv) {
+int main(int argc, char** argv) {
     init("/dev/comedi0");
     sendMsg("This is a test!");
     sleep(1);
     ushort dims[] = {2, 3};
     double data[] = {1, 2, 3, 4, 5, 6};
     printf("Register motion system at idx %d\n", register_sys("motion", 2, dims));
+    printf("Register another system at idx %d\n", register_sys("eye", 2, dims));
     sleep(1);
-    printf("Send simulated data:%d\n", sendData(0, data));
+    printf("Send simulated data: %d\n", sendData(0, data));
 
     //test_send();
     printf("I sent all the messages...\n");
+    return 0;
 }
