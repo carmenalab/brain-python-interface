@@ -1,0 +1,66 @@
+Communication protocol for Plexon digital data input
+----------------------------------------------------
+
+Plexon Mode 2 (strobed word) digital input supports 15 bit messages. 
+This is the communication protocol that will be used:
+
+| 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+                                   |                data                   |
+                    |   msg_type   |
+|       aux         |
+
+data -> 8 bit data word
+msg_type -> { 0: data packet, 1: message, 2: register, 3: register shape }
+aux -> depends on what the msg_type is:
+    data packet: 4 bit indicator for data source
+    message: nothing
+    register: 4 bit indicator for currently spelled system
+    register shape: 4 bit indicator for current spelled system
+
+System registration
+-------------------
+When a new system is registered, the string name of the system is sent
+character by character, with each character associated with their sub-
+sequent 4-bit code, all terminated with null. For example, a motion 
+system gets registered, 7 packets are sent:
+    0000 010 bin(ord('m'))
+    0000 010 bin(ord('o'))
+    0000 010 bin(ord('t'))
+    0000 010 bin(ord('i'))
+    0000 010 bin(ord('o'))
+    0000 010 bin(ord('n'))
+    0000 010 \x00
+
+If now an "eye" system gets registered, 4 more packets are sent:
+    0001 010 bin(ord('e'))
+    0001 010 bin(ord('y'))
+    0001 010 bin(ord('e'))
+    0001 010 \x00
+
+After the system name is registered, the shape definition is sent.
+The data shape will be encoded as a sequence of unsigned short 
+(np.uint16) values. For example, if the shape will be (8, 3) for 
+motion:
+    0000 011 0
+    0000 011 3
+    0000 011 0
+    0000 011 8
+
+Messages
+--------
+Messages from the system are sent character by character, with a null
+terminator. If 'test' is sent as the message, 5 packets:
+    0000 001 bin(ord('t'))
+    0000 001 bin(ord('e'))
+    0000 001 bin(ord('s'))
+    0000 001 bin(ord('t'))
+    0000 001 \x00
+
+Data packets
+------------
+All data will be sent as double (np.float). Sending an eye data at (.1, .2) 
+looks like this:
+    0001 000 63     0001 000 201    0001 000 153    0001 000 153
+    0001 000 153    0001 000 153    0001 000 153    0001 000 154
+    0001 000 63     0001 000 185    0001 000 153    0001 000 153
+    0001 000 153    0001 000 153    0001 000 153    0001 000 154
