@@ -7,6 +7,7 @@ except:
     print "Cannot find phasespace driver"
 
 class Simulate(object):
+    update_freq = 240
     def __init__(self, marker_count=8, radius=(10, 2, 5), offset=(-20,0,0), speed=(5,5,4)):
         self.n = marker_count
         self.radius = radius
@@ -19,6 +20,7 @@ class Simulate(object):
         self.stime = time.time()
 
     def get(self):
+        time.sleep(1./self.update_freq)
         ts = (time.time() - self.stime)
         data = np.zeros((self.n, 3))
         for i, p in enumerate(self.offsets):
@@ -26,7 +28,6 @@ class Simulate(object):
             y = self.radius[1] * np.sin(ts / self.speed[1] * 2*np.pi + p)
             z = self.radius[2] * np.sin(ts / self.speed[2] * 2*np.pi + p)
             data[i] = x,y,z
-            time.sleep(1./480)
 
         return data + np.random.randn(self.n, 3)*0.1
 
@@ -36,7 +37,9 @@ class Simulate(object):
     def testfunc(self):
         return "blah"
 
+
 class System(object):
+    update_freq = 240
     def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=OWL_MODE2):
         self.marker_count = marker_count
         self.coords = np.zeros((self.marker_count, 4))
@@ -86,12 +89,6 @@ class System(object):
             self.coords[i] = m.x, m.y, m.z, m.cond
 
         return self.coords
-        
-    def retrieve(self, filename):
-        pass
-    
-    def sendMsg(self, msg):
-        pass
 
     def __del__(self):
         for i in range(self.marker_count):
@@ -107,3 +104,19 @@ def owl_get_error(s, n):
     elif(n == OWL_INVALID_ENUM): return "%s: Invalid Enum" % s
     elif(n == OWL_INVALID_OPERATION): return "%s: Invalid Operation" % s
     else: return "%s: 0x%x" % (s, n)
+
+
+def make_system(marker_count, **kwargs):
+    """This ridiculous function dynamically creates a class with a new init function"""
+    def init(self, **kwargs):
+        super(self.__class__, self).__init__(marker_count=marker_count, **kwargs)
+
+    dtype = np.dtype((np.float, (marker_count, 3)))
+    return type("System", (System,), dict(dtype=dtype, __init__=init))
+
+def make_simulate(marker_count, **kwargs):
+    def init(self, **kwargs):
+        super(self.__class__, self).__init__(marker_count=marker_count, **kwargs)
+
+    dtype = np.dtype((np.float, (marker_count, 3)))
+    return type("Simulate", (Simulate,), dict(dtype=dtype, __init__=init))    

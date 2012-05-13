@@ -2,6 +2,7 @@ import inspect
 import traceback
 import multiprocessing as mp
 
+import source
 from . import FuncProxy
 
 class DataSink(mp.Process):
@@ -26,7 +27,6 @@ class DataSink(mp.Process):
                 cmd, args, kwargs = self._cmd_pipe.recv()
                 try:
                     if cmd == "getattr":
-                        print "getting %s"%repr(args)
                         ret = getattr(output, args[0])
                     else:
                         ret = getattr(output, cmd)(*args, **kwargs)
@@ -63,16 +63,29 @@ class SinkManager(object):
 
     def start(self, output, **kwargs):
         print "sinkmanager start %s"%output
-        sink = DataSink(output, systems=self.sources, **kwargs)
+        sink = DataSink(output, **kwargs)
         sink.start()
+        for source, dtype in self.sources:
+            sink.register(source, dtype)
         self.sinks.append(sink)
 
     def register(self, system):
         print "Registering a %r system"%system
-        self.sources.append(system)
+        if isinstance(system, source.DataSource):
+            name = system.name
+            dtype = system.source.dtype
+        else:
+            name = system.__module__.split(".")[1]
+            dtype = system.dtype
+
+        self.sources.append((name, dtype))
 
         for s in self.sinks:
-            s.register(system)
+            s.register(name, dtype)
+
+    def send(self, system, data):
+        for s in self.sinks:
+            s.send(system, data)
     
     def stop(self):
         for s in self.sinks:
