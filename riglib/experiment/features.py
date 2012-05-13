@@ -106,8 +106,8 @@ class AdaptiveGenerator(object):
 
 class EyeData(object):
     def __init__(self, *args, **kwargs):
-        from riglib import shm
-        self.eyedata = shm.EyeData()
+        from riglib import motiontracker, source
+        self.eyedata = source.DataSource(eyetracker.System)
         super(EyeData, self).__init__(*args, **kwargs)
 
     def run(self):
@@ -135,10 +135,8 @@ class CalibratedEyeData(EyeData):
     cal_profile = traits.Instance(calibrations.EyeProfile)
 
     def __init__(self, *args, **kwargs):
-        from riglib import shm
-        self.eyedata = shm.EyeData()
-        self.eyedata.set_filter(self.cal_profile)
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
+        self.eyedata.set_filter(self.cal_profile)
 
 class FixationStart(CalibratedEyeData):
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
@@ -164,17 +162,17 @@ class SimulatedEyeData(EyeData):
     fixation_len = traits.Float(0.5, desc="Length of a fixation")
 
     def __init__(self, *args, **kwargs):
-        from riglib import shm
+        from riglib import eyetracker, source
+        self.eyedata = source.DataSource(eyetracker.Simulate)
         super(SimulatedEyeData, self).__init__(*args, **kwargs)
-        self.eyedata = shm.EyeSimulate(fixations=self.fixations, isi=self.fixation_len*1e3)
-
 
 class MotionData(traits.HasTraits):
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def __init__(self, *args, **kwargs):
-        from riglib import shm
-        self.motiondata = shm.MotionData(marker_count=self.marker_count)
+        from riglib import motiontracker, source
+        Motion = motiontracker.make_system(self.marker_count)
+        self.motiondata = source.DataSource(Motion)
         super(MotionData, self).__init__(*args, **kwargs)
 
     def run(self):
@@ -193,9 +191,9 @@ class MotionSimulate(traits.HasTraits):
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def __init__(self, *args, **kwargs):
-        from riglib import shm
-        self.motiondata = shm.MotionSimulate(marker_count=self.marker_count, 
-            radius=(100,100,50), offset=(-150,0,0))
+        from riglib import motiontracker, source
+        Motion = motiontracker.make_simulate(self.marker_count)
+        self.motiondata = source.DataSource(Motion, radius=(100,100,50), offset=(-150,0,0))
         super(MotionSimulate, self).__init__(*args, **kwargs)
 
     def run(self):
@@ -216,16 +214,14 @@ class SaveHDF(object):
         super(SaveHDF, self).__init__(*args, **kwargs)
 
         import tempfile
-        from riglib import datasink, hdfwriter
+        from riglib import sink, hdfwriter
         self.h5file = tempfile.NamedTemporaryFile()
-        self.sinks = datasink.sinks
-        
+        self.sinks = sink.sinks
+        self.sinks.start(hdfwriter.HDFWriter, filename=self.h5file.name)
         if isinstance(self, (MotionData, MotionSimulate)):
             self.sinks.register(self.motiondata)
-        if isinstance(self, EyeData):
+        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
-
-        self.sinks.start(hdfwriter.HDFWriter, filename=self.h5file.name)
     
     def run(self):
         try:

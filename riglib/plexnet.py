@@ -5,8 +5,10 @@ import logging
 from collections import namedtuple
 
 PACKETSIZE = 512
-WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit","waveform"])
+
 logger = logging.getLogger(__name__)
+
+WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit","waveform"])
 
 class Connection(object):
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT = (10000)
