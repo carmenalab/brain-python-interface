@@ -7,6 +7,9 @@ except ImportError:
     print "Couldn't find eyetracker module"
 
 class Simulate(object):
+    update_freq = 500
+    dtype = np.dtype((np.float, (2,)))
+
     def __init__(self, fixations=[(0,0), (-0.6,0.3), (0.6,0.3)], isi=500, slen=15):
         from scipy.interpolate import interp1d
         flen = range(len(fixations)+1)
@@ -21,13 +24,16 @@ class Simulate(object):
         self.stime = time.time()
 
     def get(self):
-        time.sleep(1./500.)
+        time.sleep(1./update_freq)
         return self.interp((time.time() - self.stime) % self.mod) + np.random.randn(2)*.01
 
     def stop(self):
         return 
 
 class System(object):
+    update_freq = 500
+    dtype = np.dtype((np.float, (2,)))
+
     def __init__(self, address='10.0.0.2'):
         self.tracker = pylink.EyeLink(address)
         self.tracker.setOfflineMode()
