@@ -59,6 +59,9 @@ extern uchar sendData(uchar idx, char* data) {
     uint sys = systems[idx];
     return _send(sys << 3 | SEND_DATA, data);
 }
+extern uchar closeall(void) {
+    return comedi_close(ni);
+}
 
 void test_bits() {
     uint i, m, flush;

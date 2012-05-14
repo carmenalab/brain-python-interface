@@ -1,5 +1,4 @@
 import tables
-import shm
 
 compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
 

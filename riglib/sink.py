@@ -60,17 +60,21 @@ class SinkManager(object):
     def __init__(self):
         self.sinks = []
         self.sources = []
+        self.registrations = dict()
 
     def start(self, output, **kwargs):
         print "sinkmanager start %s"%output
         sink = DataSink(output, **kwargs)
         sink.start()
+        self.registrations[sink] = set()
         for source, dtype in self.sources:
             sink.register(source, dtype)
+            self.registrations[sink].add((source, dtype))
+        
         self.sinks.append(sink)
+        return sink
 
-    def register(self, system):
-        print "Registering a %r system"%system
+    def register(self, system):  
         if isinstance(system, source.DataSource):
             name = system.name
             dtype = system.source.dtype
@@ -81,8 +85,10 @@ class SinkManager(object):
         self.sources.append((name, dtype))
 
         for s in self.sinks:
-            s.register(name, dtype)
-
+            if (name, dtype) not in self.registrations[s]:
+                self.registrations[s].add((name, dtype))
+                s.register(name, dtype)
+                
     def send(self, system, data):
         for s in self.sinks:
             s.send(system, data)
