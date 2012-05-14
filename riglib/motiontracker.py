@@ -111,7 +111,7 @@ def make_system(marker_count, **kwargs):
     def init(self, **kwargs):
         super(self.__class__, self).__init__(marker_count=marker_count, **kwargs)
 
-    dtype = np.dtype((np.float, (marker_count, 3)))
+    dtype = np.dtype((np.float, (marker_count, 4)))
     return type("System", (System,), dict(dtype=dtype, __init__=init))
 
 def make_simulate(marker_count, **kwargs):
