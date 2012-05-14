@@ -7,6 +7,7 @@
 #define SEND_MESSAGE 1
 #define SEND_REGISTER 2
 #define SEND_SHAPE 3
+#define SEND_ROW 4
 
 #define writemask (2 << 16 | 127<<8 | 255)
 
@@ -27,8 +28,7 @@ uchar _send(char header, char* msg) {
         comedi_dio_bitfield2(ni, 0, writemask, &m, 0);
         flush = 2;
         comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
-        i++;
-    } while (msg[i-1] != '\0');
+    } while (msg[i++] != '\0');
     return 0;
 }
 
@@ -59,6 +59,19 @@ extern uchar sendData(uchar idx, char* data) {
     uint sys = systems[idx];
     return _send(sys << 3 | SEND_DATA, data);
 }
+
+extern uchar sendRow(uchar idx, uint row) {
+    char* msg = (char*) &row;
+    uint i, m, flush, sys = systems[idx];
+
+    for (i = 0; i < sizeof(uint); i++) {
+        m = (sys << 3 | SEND_ROW) << 8 | msg[i];
+        comedi_dio_bitfield2(ni, 0, writemask, &m, 0);
+        flush = 2;
+        comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
+    }
+}
+
 extern uchar closeall(void) {
     return comedi_close(ni);
 }
@@ -75,9 +88,12 @@ void test_bits() {
 }
 
 int main(int argc, char** argv) {
-    init("/dev/comedi0");
-    sendMsg("This is a test!");
-    //test_send();
+    //init("/dev/comedi0");
+    //sendMsg("This is a test!");
+    uint t = 26729;
+    char* m = (char*) &t;
+    printf("%c, %c, %c, %c\n", m[0], m[1], m[2], m[3]);
+
     printf("I sent all the messages...\n");
     return 0;
 }

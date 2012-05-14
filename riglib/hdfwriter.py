@@ -14,7 +14,7 @@ class HDFWriter(object):
         self.msgs = {}
     
     def register(self, name, dtype):
-        print "HDFwriter registered %r"%name
+        print "HDFWriter registered %r"%name
         if dtype.subdtype is not None:
             #just a simple dtype with a shape
             dtype, sliceshape = dtype.subdtype
@@ -31,12 +31,32 @@ class HDFWriter(object):
     def send(self, system, data):
         self.data[system].append([data])
 
-    def sendMsg(self, system, msg):
-        row = self.msgs[system].row
-        row['time'] = len(self.data[system])
-        row['msg'] = msg
-        row.append()
+    def sendMsg(self, msg):
+        for system in self.msgs.keys():
+            row = self.msgs[system].row
+            row['time'] = len(self.data[system])
+            row['msg'] = msg
+            row.append()
     
     def close(self):
         print "Closed hdf"
         self.h5.close()
+
+import nidaq
+class PlexRelayWriter(HDFWriter):
+    def __init__(self, filename, device="/dev/comedi0"):
+        self.ni = nidaq.System(device)
+        super(PlexRelayWriter, self).__init__(filename)
+
+    def register(self, system, dtype):
+        self.ni.register(system, dtype)
+        super(PlexRelayWriter, self).register(system, dtype)
+
+    def send(self, system, data):
+        row = len(self.data[system])
+        self.ni.sendRow(system, row)
+        super(PlexRelayWriter, self).send(system, data)
+
+    def sendMsg(self, msg):
+        self.ni.sendMsg(msg)
+        super(PlexRelayWriter, self).sendMsg(msg)

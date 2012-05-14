@@ -202,6 +202,33 @@ class MotionSimulate(traits.HasTraits):
             self.motiondata.pause()
             self.motiondata.stop()
 
+class RelayHDF(object):
+    '''Sends only the ROW index to Plexon, while saving the file'''
+    def __init__(self, *args, **kwargs):
+        super(RelayHDF, self).__init__(*args, **kwargs)
+
+        import tempfile
+        from riglib import sink, hdfwriter
+        self.sinks = sink.sinks
+        self.h5file = tempfile.NamedTemporaryFile()
+        self.hdf = self.sinks.start(hdfwriter.PlexRelayWriter, filename=self.h5file.name)
+        
+        if isinstance(self, (MotionData, MotionSimulate)):
+            self.sinks.register(self.motiondata)
+        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
+            self.sinks.register(self.eyedata)
+    
+    def run(self):
+        try:
+            super(RelayHDF, self).run()
+        finally:
+            self.hdf.stop()
+
+    def set_state(self, condition, **kwargs):
+        self.hdf.sendMsg(condition)
+        super(RelayHDF, self).set_state(condition, **kwargs)
+
+
 class SaveHDF(object):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
     def __init__(self, *args, **kwargs):
@@ -225,9 +252,7 @@ class SaveHDF(object):
             self.hdf.stop()
 
     def set_state(self, condition, **kwargs):
-        for source, dtype in self.sinks.sources:
-            self.hdf.sendMsg(source, condition)
-
+        self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
 class RelayPlexon(object):

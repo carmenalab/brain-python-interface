@@ -20,3 +20,7 @@ class System(object):
     def send(self, system, data):
         s = self.systems[system]
         pcidio.sendData(s, data.tostring())
+
+    def sendRow(self, system, idx):
+        s = self.systems[system]
+        pcidio.sendRow(s, idx)
