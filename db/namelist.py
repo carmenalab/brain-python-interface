@@ -12,7 +12,8 @@ features = dict(
     fixation_start=experiment.features.FixationStart,
     motion_data=experiment.features.MotionData,
     motion_simulate=experiment.features.MotionSimulate, 
-    saveHDF=experiment.features.SaveHDF
+    saveHDF=experiment.features.SaveHDF,
+    relay_plexon=experiment.features.RelayPlexon
 )
 
 from tasks import redgreen

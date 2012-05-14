@@ -11,9 +11,9 @@ from riglib.stereo_opengl.render import ssao, stereo, Renderer
 from riglib.stereo_opengl.utils import cloudy_tex
 from riglib.stereo_opengl.ik import RobotArm
 
-from riglib import shm
-
-sys = shm.MotionData()
+from riglib import source, motiontracker
+Motion = motiontracker.make_simulate(8)
+sys = source.DataSource(Motion)	
 sys.start()
 
 FlatSphere = type("FlatSphere", (Sphere, FlatMesh), {})

@@ -81,7 +81,6 @@ class Task(object):
             if features.SaveHDF in feats:
                 class SaveHDFdata(object):
                     def _start_None(self):
-                        self.sinks.stop()
                         super(SaveHDFdata, self)._start_None()
                         print "saving hdf to database..."
                         database.save_data(self.h5file.name, "hdf", saveid)

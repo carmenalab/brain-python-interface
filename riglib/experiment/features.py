@@ -106,8 +106,8 @@ class AdaptiveGenerator(object):
 
 class EyeData(object):
     def __init__(self, *args, **kwargs):
-        from riglib import shm
-        self.eyedata = shm.EyeData()
+        from riglib import motiontracker, source
+        self.eyedata = source.DataSource(eyetracker.System)
         super(EyeData, self).__init__(*args, **kwargs)
 
     def run(self):
@@ -135,10 +135,8 @@ class CalibratedEyeData(EyeData):
     cal_profile = traits.Instance(calibrations.EyeProfile)
 
     def __init__(self, *args, **kwargs):
-        from riglib import shm
-        self.eyedata = shm.EyeData()
-        self.eyedata.set_filter(self.cal_profile)
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
+        self.eyedata.set_filter(self.cal_profile)
 
 class FixationStart(CalibratedEyeData):
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
@@ -164,17 +162,19 @@ class SimulatedEyeData(EyeData):
     fixation_len = traits.Float(0.5, desc="Length of a fixation")
 
     def __init__(self, *args, **kwargs):
-        from riglib import shm
+        from riglib import eyetracker, source
+        self.eyedata = source.DataSource(eyetracker.Simulate)
         super(SimulatedEyeData, self).__init__(*args, **kwargs)
-        self.eyedata = shm.EyeSimulate(fixations=self.fixations, isi=self.fixation_len*1e3)
+
 
 
 class MotionData(traits.HasTraits):
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def __init__(self, *args, **kwargs):
-        from riglib import shm
-        self.motiondata = shm.MotionData(marker_count=self.marker_count)
+        from riglib import motiontracker, source
+        Motion = motiontracker.make_system(self.marker_count)
+        self.motiondata = source.DataSource(Motion)
         super(MotionData, self).__init__(*args, **kwargs)
 
     def run(self):
@@ -183,19 +183,15 @@ class MotionData(traits.HasTraits):
             super(MotionData, self).run()
         finally:
             self.motiondata.pause()
-    
-    def _start_None(self):
-        self.motiondata.pause()
-        self.motiondata.stop()
-        super(MotionData, self)._start_None()
+            self.motiondata.stop()
 
 class MotionSimulate(traits.HasTraits):
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def __init__(self, *args, **kwargs):
-        from riglib import shm
-        self.motiondata = shm.MotionSimulate(marker_count=self.marker_count, 
-            radius=(100,100,50), offset=(-150,0,0))
+        from riglib import motiontracker, source
+        Motion = motiontracker.make_simulate(self.marker_count)
+        self.motiondata = source.DataSource(Motion, radius=(100,100,50), offset=(-150,0,0))
         super(MotionSimulate, self).__init__(*args, **kwargs)
 
     def run(self):
@@ -204,11 +200,7 @@ class MotionSimulate(traits.HasTraits):
             super(MotionSimulate, self).run()
         finally:
             self.motiondata.pause()
-    
-    def _start_None(self):
-        self.motiondata.pause()
-        self.motiondata.stop()
-        super(MotionSimulate, self)._start_None()
+            self.motiondata.stop()
 
 class SaveHDF(object):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
@@ -216,62 +208,48 @@ class SaveHDF(object):
         super(SaveHDF, self).__init__(*args, **kwargs)
 
         import tempfile
-        from riglib import datasink, hdfwriter
+        from riglib import sink, hdfwriter
+        self.sinks = sink.sinks
         self.h5file = tempfile.NamedTemporaryFile()
-        self.sinks = datasink.sinks
+        self.hdf = self.sinks.start(hdfwriter.HDFWriter, filename=self.h5file.name)
         
         if isinstance(self, (MotionData, MotionSimulate)):
             self.sinks.register(self.motiondata)
-        if isinstance(self, EyeData):
+        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
-
-        self.sinks.start(hdfwriter.HDFWriter, filename=self.h5file.name)
     
     def run(self):
         try:
             super(SaveHDF, self).run()
         finally:
-            self.sinks.stop()
+            self.hdf.stop()
 
     def set_state(self, condition, **kwargs):
-        for sink in self.sinks:
-            for source in self.sinks.sources:
-                sink.sendMsg(source.source, condition)
+        for source, dtype in self.sinks.sources:
+            self.hdf.sendMsg(source, condition)
 
         super(SaveHDF, self).set_state(condition, **kwargs)
-    
-    def _start_None(self):
-        self.sinks.stop()
-        super(SaveHDF, self)._start_None()
 
 class RelayPlexon(object):
     def __init__(self, *args, **kwargs):
         super(RelayPlexon, self).__init__(*args, **kwargs)
-
-        import tempfile
-        from riglib import datasink, nidaq
-        self.sinks = datasink.sinks
+        
+        from riglib import sink, nidaq
+        self.sinks = sink.sinks
+        self.nidaq = self.sinks.start(nidaq.System)
         
         if isinstance(self, (MotionData, MotionSimulate)):
             self.sinks.register(self.motiondata)
-        if isinstance(self, EyeData):
+        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
-
-        self.sinks.start(nidaq.Output)
     
     def run(self):
         try:
             super(RelayPlexon, self).run()
         finally:
-            self.sinks.stop()
+            self.nidaq.stop()
 
     def set_state(self, condition, **kwargs):
-        for sink in self.sinks:
-            for source in self.sinks.sources:
-                sink.sendMsg(source.source, condition)
-
+        self.nidaq.sendMsg(condition)
         super(RelayPlexon, self).set_state(condition, **kwargs)
-    
-    def _start_None(self):
-        self.sinks.stop()
-        super(RelayPlexon, self)._start_None()
+        

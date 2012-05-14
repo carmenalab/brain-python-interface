@@ -1,38 +1,32 @@
 import tables
-import shm
+
+compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
 
 class MsgTable(tables.IsDescription):
     time = tables.UIntCol()
     msg = tables.StringCol(256)
 
 class HDFWriter(object):
-    def __init__(self, filename, systems=None):
+    def __init__(self, filename):
         print "Saving datafile to %s"%filename
         self.h5 = tables.openFile(filename, "w")
-        self.filter = tables.Filters(complevel=5, complib="zlib", shuffle=True)
         self.data = {}
         self.msgs = {}
-        
-        for s in systems:
-            self.register(s)
     
-    def register(self, system):
-        print "HDFwriter registered %r"%system
-        if isinstance(system, shm.DataSource):
-            dataname = system.source.__module__.split('.')[-1]
-            source = system.source
+    def register(self, name, dtype):
+        print "HDFwriter registered %r"%name
+        if dtype.subdtype is not None:
+            #just a simple dtype with a shape
+            dtype, sliceshape = dtype.subdtype
+            arr = self.h5.createEArray("/", name, tables.Atom.from_dtype(dtype), 
+                shape=(0,)+sliceshape, filters=compfilt)
         else:
-            dataname = system.__module__.split('.')[-1]
-            source = system
-        
-        arr = self.h5.createEArray("/", dataname, tables.FloatAtom(), 
-            shape=(0,)+system.slice_shape, expectedrows=system.bufferlen*100,
-            filters=self.filter)
-        msg = self.h5.createTable("/", dataname+"_msgs", MsgTable,
-            expectedrows=system.bufferlen*100, filters=self.filter)
+            arr = self.h5.createTable("/", name, dtype, filters=compfilt)
 
-        self.data[source] = arr
-        self.msgs[source] = msg
+        msg = self.h5.createTable("/", name+"_msgs", MsgTable, filters=compfilt)
+
+        self.data[name] = arr
+        self.msgs[name] = msg
     
     def send(self, system, data):
         self.data[system].append([data])
