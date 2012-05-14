@@ -1,0 +1,7 @@
+*.pyc
+.*
+*~
+*.o
+*_wrap.c
+*.so
+riglib/nidaq/pcidio.py
