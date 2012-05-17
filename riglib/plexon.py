@@ -3,7 +3,7 @@ import plexnet
 
 class Spikes(object):
     update_freq = 65536
-    dtype = np.dtype([("ts", np.uint64), ("unit", np.uint16)])
+    dtype = np.dtype([("ts", np.uint64), ("chan", np.uint16), ("unit", np.uint16)])
     
     def __init__(self, addr=("10.0.0.13", 6000)):
         self.conn = plexnet.Connection(*addr)
@@ -19,4 +19,7 @@ class Spikes(object):
 
     def get(self):
         d = self.data.next()
-        return np.array([d.ts, d.unit], dtype=self.dtype)
+        while d.type != 5:
+            d = self.data.next()
+
+        return np.array([(d.ts, d.chan, d.unit)], dtype=self.dtype)

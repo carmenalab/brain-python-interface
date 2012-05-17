@@ -122,6 +122,25 @@ class Sequence(models.Model):
 
         return self.generator.get(), Parameters(self.params).params
 
+    def to_json(self):
+        js = dict(name=self.name, state='saved', params=self.params)
+        js['static'] = len(self.sequence) > 0
+        js['generator'] = self.generator.id, self.generator.name
+        return js
+
+    @classmethod
+    def from_json(cls, js):
+        if not isinstance(js, dict):
+            js = json.loads(js)
+        assert js['state'] == "new"
+        genid = js['gen']
+        if isinstance(genid, (tuple, list)):
+            genid = genid[0]
+        
+        seq = cls(generator_id=genid, name=js['name'], params=json.dumps(js['params']))
+        if js['static']:
+            seq.sequence = seq.generator.get()(**Parameters(self.params).params)
+        return seq
 
 class TaskEntry(models.Model):
     subject = models.ForeignKey(Subject)
@@ -149,6 +168,12 @@ class TaskEntry(models.Model):
         exp = Exp(seq, **Parameters(self.params).params)
         exp.event_log = json.loads(self.report)
         return exp
+
+    def to_json(self):
+        js = dict(name=self.task.name, state='completed')
+        js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
+        js['seq'] = self.sequence.to_json()
+        return js
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject)

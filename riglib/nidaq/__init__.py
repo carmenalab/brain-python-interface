@@ -1,6 +1,6 @@
 import pcidio
 
-class System(object):
+class SendAll(object):
     def __init__(self, device="/dev/comedi0"):
         self.systems = dict()
         if pcidio.init(device) != 0:
@@ -24,3 +24,7 @@ class System(object):
     def sendRow(self, system, idx):
         s = self.systems[system]
         pcidio.sendRow(s, idx)
+
+class SendRow(SendAll):
+    def send(self, system, data):
+        pcidio.sendRowCount(self.systems[system])

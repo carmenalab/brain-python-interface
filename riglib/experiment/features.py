@@ -22,7 +22,7 @@ class RewardSystem(traits.HasTraits):
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
-    rand_start = traits.Array(value=(0.5, 2.), shape=(2,), desc="Start interval")
+    rand_start = traits.Tuple((0.5, 2.), desc="Start interval")
 
     def __init__(self, *args, **kwargs):
         self.pause = False
