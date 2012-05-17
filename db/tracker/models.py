@@ -23,8 +23,39 @@ class Task(models.Model):
         for name in real - db:
             Task(name=name).save()
 
-        for name in db - real:
-            Task.objects.get(name=name).delete()
+    def params(self, feats=(), values=None):
+        from riglib import experiment
+        from namelist import instance_to_model
+        if values is None:
+            values = dict()
+
+        if len(feats) > 0 and isinstance(feats[0], (int, float, str)):
+            feats = tuple(Feature.objects.get(pk=int(f)) for f in feats)
+        
+        params = dict()
+        Exp = experiment.make(self.get(), tuple(f.get() for f in feats))
+        ctraits = Exp.class_traits()
+        for trait in Exp.class_editable_traits():
+            varname = dict()
+            varname['type'] = ctraits[trait].trait_type.__class__.__name__
+            varname['default'] = ctraits[trait].default if trait not in values else values[trait]
+            varname['desc'] = ctraits[trait].desc
+            if varname['type'] == "Instance":
+                Model = instance_to_model[ctraits[trait].trait_type.klass]
+                insts = Model.objects.order_by("-date")[:50]
+                varname['options'] = [(i.pk, i.name) for i in insts]
+            params[trait] = varname
+
+        return params
+
+    def sequences(self):
+        seqs = dict()
+        for s in Sequence.objects.filter(task=self.id):
+            seqs[s.id] = dict(name=s.name, params=s.params, 
+                generator=s.generator.id, 
+                static=len(s.sequence) > 0)
+        
+        return seqs
 
 class Feature(models.Model):
     name = models.CharField(max_length=128)
@@ -42,9 +73,6 @@ class Feature(models.Model):
         db = set(feat.name for feat in Feature.objects.all())
         for name in real - db:
             Feature(name=name).save()
-
-        for name in db - real:
-            Feature.objects.get(name=name).delete()
 
 class System(models.Model):
     name = models.CharField(max_length=128)
@@ -98,9 +126,6 @@ class Generator(models.Model):
                 args.remove("length")
             Generator(name=name, params=",".join(args), static=static).save()
 
-        for name in db - real:
-            Generator.objects.get(name=name).delete()
-
 class Sequence(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     generator = models.ForeignKey(Generator)
@@ -123,7 +148,8 @@ class Sequence(models.Model):
         return self.generator.get(), Parameters(self.params).params
 
     def to_json(self):
-        js = dict(name=self.name, state='saved', params=self.params)
+        state = 'saved' if self.pk is not None else "new"
+        js = dict(name=self.name, state=state, params=self.params)
         js['static'] = len(self.sequence) > 0
         js['generator'] = self.generator.id, self.generator.name
         return js
@@ -139,7 +165,7 @@ class Sequence(models.Model):
         
         seq = cls(generator_id=genid, name=js['name'], params=json.dumps(js['params']))
         if js['static']:
-            seq.sequence = seq.generator.get()(**Parameters(self.params).params)
+            seq.sequence = cPickle.dumps(seq.generator.get()(**Parameters(self.params).params))
         return seq
 
 class TaskEntry(models.Model):
@@ -170,10 +196,16 @@ class TaskEntry(models.Model):
         return exp
 
     def to_json(self):
-        js = dict(name=self.task.name, state='completed')
+        state = 'completed' if self.pk is not None else "new"
+        js = dict(task=self.task.name, state=state, params=dict())
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['seq'] = self.sequence.to_json()
+        js['params'] = self.task.params(self.feats.all(), values=json.loads(self.params))
         return js
+
+    @classmethod
+    def from_json(cls, js):
+        pass
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject)
