@@ -199,8 +199,10 @@ class TaskEntry(models.Model):
         state = 'completed' if self.pk is not None else "new"
         js = dict(task=self.task.name, state=state, params=dict())
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
-        js['seq'] = self.sequence.to_json()
         js['params'] = self.task.params(self.feats.all(), values=json.loads(self.params))
+        if self.sequece_id > 0:
+            js['seq'] = self.sequence.to_json()
+            
         return js
 
     @classmethod

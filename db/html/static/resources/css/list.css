@@ -42,7 +42,6 @@ div#leftpane { float:left; width:30%; }
 div#rightpane { float:left; width:70%; }
 div#content { 
 	padding:0.5em;
-	display:none;
 	border-left:1px solid #DDD;
 	margin-left:-1px;
 }
