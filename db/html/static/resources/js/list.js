@@ -1,10 +1,3 @@
-var entries = [];
-$(document).ready(function() {
-	$("table#main tbody>tr").each(function() {
-		entries.push(new TaskEntry(this.id));
-	})
-})
-
 function start_experiment() {
 	var form = new Object();
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
@@ -46,82 +39,28 @@ function stop_experiment() {
 }
 
 function TaskEntry(idx){
-	if (idx == -1) {
-		//This is a new row, need to set task name
-		this.newentry = true
-		this.tr = $("#newentry")
-		var _this = this;
-		$("#tasks").change(function() {
-			_this._query_params($("#tasks option").filter(":selected").text())
-		})
-	} else {
-		this.newentry = false
-		this.idx = parseInt(idx.match(/row(\d+)/)[1])
-		this.tr = $("#"+idx)
-	}
-	this.active = false;
-	this.running = this.tr.hasClass("running");
 	var _this = this;
-	this.tr.click(function() {
-		if (!_this.active) {
-			_this.activate();
-		}
-	})
-	if (this.running) {
-		this.activate();
-		$("#addbtn").hide()
+	if (idx) {
+		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
+		this.tr = $("#"+idx);
+		$.getJSON("ajax/exp_info/"+idx, {}, function (expinfo) {
+			_this.populate(info);
+			$("#content").animate
+		});
+	} else {
+		//This is a new row, need to set task name
+		this.tr = $("#newentry").show();
+		$("#tasks").change(function() {
+			_this._query_params($("#tasks option").filter(":selected").text());
+		})
+		this._query_params($("#tasks option").filter(":selected").text());
 	}
+}
+TaskEntry.prototype.populate = function(info) {
 
-}
-TaskEntry.prototype._add_fieldset = function(name, where) {
-	$("#content div."+where).append(
-		"<fieldset id='"+name.toLowerCase()+"'>\n"+
-			"<legend>"+name+"</legend>\n"+
-		"</fieldset>");
-}
-TaskEntry.prototype._setup_params = function(current, params) {
-	var html = "";
-	for (var name in params) {
-		var desc = params[name][0];
-		var opts = params[name][1];
-		html += "<li title='"+desc+"'>\n"+
-			"	<label class='traitname' for='"+name+"'>"+name.replace("_", " ")+"</label>\n";
-		
-		if (opts instanceof Object && !(opts instanceof Array)){
-			html += "	<select name='"+name+"'>\n";
-			for (var i in opts)
-				html += "		<option value='"+i+"'>"+opts[i]+"</option>\n";
-			html += "	</select>\n"
-		} else {
-			var val = JSON.stringify(opts);
-			if (name in current)
-				val = current[name];
-			html += "	<input id='"+name+"' name='"+name+"' type='text' value='"+val+"' />"
-		}
-		html += "<div class='clear'></div></li>";
-	}
-	$("#parameters ul").append(html);
 }
 TaskEntry.prototype._query_params = function(task) {
-	var data = {}
-	$("#features input").filter(":checked").each(function(i) {
-		data[$(this).attr("name")] = true
-	})
 
-	var current_params = new Object();
-	$("#experiment #parameters input").each(function() {
-		current_params[this.name] = this.value;
-	})
-
-	var _this = this;
-	$.getJSON("ajax/task_params/"+task, data, function(data){
-		$("#parameters ul").html("");
-		_this._setup_params(current_params, data);
-		if (!_this.active) {
-			_this.active = true;
-			$("#content").show("drop");
-		}
-	})
 }
 TaskEntry.prototype._runstart = function(data) {
 	this.newentry = false;
@@ -202,26 +141,4 @@ TaskEntry.prototype.disable = function() {
 	this.sequence.disable();
 	if (this.newentry)
 		$("#subjects input, #tasks input").attr("disabled", "disabled");
-}
-TaskEntry.prototype.populate = function(idx, disable) {
-	var _this = this;
-	$.getJSON("ajax/exp_info/"+idx, {}, function(data) {
-		var d = typeof(disable) == "undefined" ? true : disable;
-		console.log(d);
-		_this.sequence = new SequenceEditor(data['task'], data['seqid'], !d);
-		_this._setup_params({}, data['params']);
-		$("#notes textarea").html(data['notes']);
-		for (var name in data['features']) {
-			if (data['features'][name]) {
-				$("#features input#"+name).attr("checked", "checked");
-			}
-		}
-		if (typeof(disable) == "undefined" || disable) {
-			_this.disable();
-		}
-		if (!_this.active) {
-			$("#content").show("drop");
-			_this.active = true;
-		}
-	})
 }

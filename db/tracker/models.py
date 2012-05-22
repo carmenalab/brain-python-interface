@@ -38,8 +38,10 @@ class Task(models.Model):
         for trait in Exp.class_editable_traits():
             varname = dict()
             varname['type'] = ctraits[trait].trait_type.__class__.__name__
-            varname['default'] = ctraits[trait].default if trait not in values else values[trait]
+            varname['default'] = ctraits[trait].default
             varname['desc'] = ctraits[trait].desc
+            if trait in values:
+                varname['value'] = values[trait]
             if varname['type'] == "Instance":
                 Model = instance_to_model[ctraits[trait].trait_type.klass]
                 insts = Model.objects.order_by("-date")[:50]
@@ -56,6 +58,10 @@ class Task(models.Model):
                 static=len(s.sequence) > 0)
         
         return seqs
+
+    @classmethod
+    def from_json(cls, js):
+        pass
 
 class Feature(models.Model):
     name = models.CharField(max_length=128)
@@ -200,7 +206,7 @@ class TaskEntry(models.Model):
         js = dict(task=self.task.name, state=state, params=dict())
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=json.loads(self.params))
-        if self.sequece_id > 0:
+        if self.sequence_id > 0:
             js['seq'] = self.sequence.to_json()
             
         return js

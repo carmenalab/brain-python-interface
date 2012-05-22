@@ -27,6 +27,9 @@ table#main tr {
 table#main tbody>tr:hover {
 	background:#EEE;
 }
+table#main tr#newentry {
+	display:none;
+}
 th { text-align:left;}
 .colDate {	min-width:180px;}
 .colSubj {	min-width:70px;}
@@ -44,6 +47,7 @@ div#content {
 	padding:0.5em;
 	border-left:1px solid #DDD;
 	margin-left:-1px;
+	display:none;
 }
 fieldset { 
 	margin:0.5em;
