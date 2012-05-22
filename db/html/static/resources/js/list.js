@@ -1,3 +1,15 @@
+var te = null;
+$(document).ready(function() {
+	$("table#main tr").each(function() {
+		if (this.id.match(/row(\d+)/))
+			var idx = this.id;
+			$(this).click(function() {
+				if (te) te.destroy();
+				te = new TaskEntry(idx);
+			})
+	})
+})
+
 function start_experiment() {
 	var form = new Object();
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
@@ -43,24 +55,42 @@ function TaskEntry(idx){
 	if (idx) {
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
 		this.tr = $("#"+idx);
-		$.getJSON("ajax/exp_info/"+idx, {}, function (expinfo) {
-			_this.populate(info);
-			$("#content").animate
+		$.getJSON("ajax/exp_info/"+this.idx, {}, function (expinfo) {
+			_this.populate(expinfo);
+			$("#content").show("slide");
 		});
 	} else {
 		//This is a new row, need to set task name
 		this.tr = $("#newentry").show();
 		$("#tasks").change(function() {
-			_this._query_params($("#tasks option").filter(":selected").text());
+			_this._task_query($("#tasks option").filter(":selected").text());
 		})
-		this._query_params($("#tasks option").filter(":selected").text());
+		this._task_query($("#tasks option").filter(":selected").text());
 	}
+	this.tr.addClass("rowactive active");
 }
 TaskEntry.prototype.populate = function(info) {
-
+	this.params = new Parameters(info['params']);
+	$("#parameters").append(this.params.obj);
+	$(this.params.obj).find("label").addClass("traitname");
+	$("#features input[type=checkbox]").each(function() {
+		for (var idx in info['feats'])
+			if (this.name == info['feats'][idx])
+				this.setAttribute("checked", "checked")
+	})
 }
-TaskEntry.prototype._query_params = function(task) {
-
+TaskEntry.prototype.destroy = function() {
+	$("#content").hide();
+	this.tr.removeClass("rowactive");
+	$("#features input[type=checkbox]").each(function() {
+		this.removeAttribute("checked");
+	})
+	$(this.params.obj).remove()
+	this.tr.removeClass("rowactive active");
+	delete this.params
+}
+TaskEntry.prototype._task_query = function(task) {
+	
 }
 TaskEntry.prototype._runstart = function(data) {
 	this.newentry = false;

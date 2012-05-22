@@ -24,34 +24,6 @@ class encoder(json.JSONEncoder):
 def _respond(data):
     return HttpResponse(json.dumps(data, cls=encoder), mimetype="application/json")
 
-def _default_task_params(task, feats, defaults=None):
-    if defaults is None:
-        defaults = dict()
-
-    Exp = experiment.make(task, feats=feats)
-    traits = Exp.class_traits()
-    data = dict()
-
-    for name in Exp.class_editable_traits():
-        desc = traits[name].desc
-        val = traits[name].trait_type.default_value
-        if name in defaults:
-            val = defaults[name]
-        
-        if traits[name].trait_type.klass is not None:
-            klass = traits[name].trait_type.klass
-            for inst, model in namelist.instance_to_model.items():
-                if issubclass(klass, inst):
-                    models = model.objects.all().order_by("-date")[:10]
-                    val = dict([(m.pk, str(m)) for m in models])
-                    if name in defaults:
-                        val = model.objects.get(pk=defaults[name])
-                        val = {val.pk:repr(val)}
-
-        data[name] = desc, val
-    
-    return data
-
 def task_params(request, taskname):
     feats = [Feature.objects.get(name=name).get() 
         for name,isset in request.GET.items() if isset]
@@ -61,14 +33,7 @@ def task_params(request, taskname):
 
 def exp_info(request, idx):
     entry = TaskEntry.objects.get(pk=idx)
-    sfeats = dict([(f.name, f in entry.feats.all()) for f in Feature.objects.all()])
-    
-    feats=[f.get() for f in entry.feats.all()]
-    eparams = Parameters(entry.params).params
-    params = _default_task_params(entry.task.get(), feats, defaults=eparams)
-    
-    data = dict(task=entry.task_id, params=params, notes=entry.notes, features=sfeats, seqid=entry.sequence.id)
-    return _respond(data)
+    return _respond(entry.to_json())
 
 def task_seq(request, idx):
     seqs = Sequence.objects.filter(task=idx)

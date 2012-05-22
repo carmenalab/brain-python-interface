@@ -1,5 +1,5 @@
 function Parameters(desc) {
-    this.obj = document.createElement("div");
+    this.obj = document.createElement("ul");
     this.traits = {};
     var func;
     var funcs = {
@@ -17,7 +17,7 @@ function Parameters(desc) {
     }
 }
 Parameters.prototype._add = function(name, desc) {
-    var trait = document.createElement("div");
+    var trait = document.createElement("li");
     trait.title = desc;
 
     var label = document.createElement("label");
@@ -28,24 +28,34 @@ Parameters.prototype._add = function(name, desc) {
     return trait;
 }
 Parameters.prototype.add_tuple = function(name, info) {
+    var len = info['default'].length;
     var trait = this._add(name, info['desc']);
-    this.traits[name] = {"obj":trait, "inputs":[]};
+    var wrapper = document.createElement("div");
+    wrapper.style.webkitColumnCount = len;
+    wrapper.style.webkitColumnGap = "2px";
+    wrapper.style.mozColumnCount = len;
+    wrapper.style.mozColumnGap = "2px";
+    wrapper.style.columnCount = len;
+    wrapper.style.columnGap = "2px";
 
-    for (var i=0; i < info['default'].length; i++) {
+    this.traits[name] = {"obj":trait, "inputs":[]};
+    for (var i=0; i < len; i++) {
         var input = document.createElement("input");
         input.type = "text";
         input.name = name+"["+i+"]";
         input.pattern = "[\d\.\-]*";
         input.placeholder = info['default'][i];
         input.title = "A floating point value";
-        if (info['value'])
-            input.value = input['value'][i];
+        if (typeof(info['value']) != "undefined")
+            input.value = info['value'][i].toString();
 
-        trait.appendChild(input);
+        input.style.width = "90%";
+
+        wrapper.appendChild(input);
         this.traits[name]['inputs'].push(input);
     }
+    trait.appendChild(wrapper);
     this.traits[name]['inputs'][0].id = "param_"+name;
-    console.log(trait.firstChild);
     this.obj.appendChild(trait);
 }
 Parameters.prototype.add_int = function (name, info) {
@@ -55,8 +65,8 @@ Parameters.prototype.add_int = function (name, info) {
     input.name = name;
     input.id = "param_"+name;
     input.title = "An integer value"
-    if (info['value'])
-        input.value = input['value'];
+    if (typeof(info['value']) != "undefined")
+        input.value = info['value'];
     else
         input.value = input['default'];
     trait.appendChild(input);
@@ -73,10 +83,10 @@ Parameters.prototype.add_float = function (name, info) {
     input.title = "A floating point value";
     input.pattern = "[\d\.\-]*";
     input.placeholder = info['default'];
-    if (info['value'])
-        input.value = input['value'];
+    if (typeof(info['value']) != "undefined") {
+        input.setAttribute("value", info['value']);
+    }
     trait.appendChild(input);
-
     this.traits[name] = {"obj":trait, "inputs":[input]};
     this.obj.appendChild(trait);
 }
@@ -91,8 +101,8 @@ Parameters.prototype.add_array = function (name, info) {
     input.id = "param_"+name;
     input.title = "An array value";
     input.placeholder = info['default'];
-    if (info['value'])
-        input.value = input['value'];
+    if (typeof(info['value']) != "undefined")
+        input.value = info['value'];
     input.pattern = "[\(\)\[\]\d\.\,\s\-]*";
     trait.appendChild(input);
     this.traits[name] = {"obj":trait, "inputs":[input]};
@@ -108,7 +118,7 @@ Parameters.prototype.add_instance = function(name, info) {
         var opt = document.createElement("option");
         opt.value = options[i][0];
         opt.innerHTML = options[i][1];
-        if ((info['value'] && info['value'] == opt.value) ||
+        if ((typeof(info['value']) != "undefined" && info['value'] == opt.value) ||
             (info['default'] == opt.value))
             opt.setAttribute("selected", "selected");
         input.appendChild(opt);

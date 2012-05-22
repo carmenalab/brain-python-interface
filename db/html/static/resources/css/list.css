@@ -9,7 +9,7 @@ body {
 table#main { 
 	width:100%;
 	border-collapse:collapse;
-	border-color:#DDD;
+	border-color:#AAA;
 }
 table#main td{
 	padding:0.5em;
@@ -42,12 +42,20 @@ th { text-align:left;}
 .running td, .running { background-color:#DFD; }
 
 div#leftpane { float:left; width:30%; }
-div#rightpane { float:left; width:70%; }
+div#rightpane { 
+	left:30%; 
+	width:70%; 
+	height:100%;
+	margin-left:-2px; 
+	position:fixed;
+}
 div#content { 
+	background-color:#FAFAFA;
 	padding:0.5em;
-	border-left:1px solid #DDD;
+	border-left:1px solid #AAA;
 	margin-left:-1px;
 	display:none;
+	height:100%;
 }
 fieldset { 
 	margin:0.5em;
@@ -59,11 +67,12 @@ ul {
 	padding:0px;
 	list-style-type:none;
 }
-.traitname { float:left; width:35%; min-width:80px; margin:5px 0px; }
-#parameters input { float:left; }
+.traitname { float:left; width:40%; min-width:80px; margin:5px 0px; }
+#parameters li { clear:both;}
 div.options { float:left; width:35%; }
 div.options select { max-width:62%;}
-div.options input[type=text] { width:62%; }
+div.options input[type=text] { width:57%; }
+
 div.rightside { float:left; width:65%; }
 div.rightside textarea {
 	width:100%;
