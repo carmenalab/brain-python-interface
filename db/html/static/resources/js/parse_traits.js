@@ -60,11 +60,11 @@ Parameters.prototype.add_tuple = function(name, info) {
     var len = info['default'].length;
     var trait = this._add(name, info['desc']);
     var wrapper = document.createElement("div");
-    wrapper.style.webkitColumnCount = len;
+    wrapper.style.webkitColumnCount = min(len, 4);
     wrapper.style.webkitColumnGap = "2px";
-    wrapper.style.mozColumnCount = len;
+    wrapper.style.mozColumnCount = min(len, 4);
     wrapper.style.mozColumnGap = "2px";
-    wrapper.style.columnCount = len;
+    wrapper.style.columnCount = min(len, 4);
     wrapper.style.columnGap = "2px";
 
     this.traits[name] = {"obj":trait, "inputs":[]};

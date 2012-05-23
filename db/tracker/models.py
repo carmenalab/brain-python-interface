@@ -4,6 +4,8 @@ import inspect
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
+import numpy as np
+
 from riglib import calibrations
 
 def _get_trait_default(trait):
@@ -141,6 +143,33 @@ class Generator(models.Model):
             if "length" in args:
                 args.remove("length")
             Generator(name=name, params=",".join(args), static=static).save()
+
+    def to_json(self, values=None):
+        if values is None:
+            values = dict()
+        gen = self.get()
+        try:
+            args = inspect.getargspec(gen)
+        except TypeError:
+            args = inspect.getargspec(gen.__init__)
+            args.remove("self")
+
+        params = dict()
+        for name, default in zip(args.args, args.defaults):
+            if isinstance(default, (tuple, list)):
+                typename = "Tuple"
+            elif isinstance(default, np.ndarray):
+                typename = "Array"
+            elif isinstance(default, str):
+                typename = "String"
+            else:
+                typename = "Float"
+
+            params[name] = dict(type=typename, default=default, desc='')
+            if name in values:
+                params[name]['value'] = values[name]
+
+        return dict(name=self.name, params=params)
 
 class Sequence(models.Model):
     date = models.DateTimeField(auto_now_add=True)
