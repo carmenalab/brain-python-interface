@@ -1,11 +1,19 @@
 function Sequence(info) {
+    var _this = this;
+    this.params = new Parameters({});
+    $("#seqparams").append(this.params.obj);
     this.init(info);
+    $("#seqgen").change(this._generator.bind(this));
+    $("#seqlist").change(function () {
+        var id = this.value;
+        _this.params.update(info[id].params);
+        $("#seqstatic").attr("checked", info[id].static);
+    })
 }
 Sequence.prototype.init = function(info) {
-    this.info = info;
     this.options = {};
-    var opt;
-    for (var id in info) {
+    var opt, id;
+    for (id in info) {
         opt = document.createElement("option");
         opt.innerHTML = info[id].name;
         opt.value = id;
@@ -13,54 +21,41 @@ Sequence.prototype.init = function(info) {
         $("#seqlist").append(opt);
     }
     $("#seqgen option").filter(":selected").removeAttr("selected");
-    this.set(id);
-}
-Sequence.prototype.set = function(id) {
-    if (typeof(this.info[id]) == "undefined")
-        throw "Cannot find id";
-    var genid = this.info[id].generator[0]
-    $("#seqgen option").each(function() {
-        if (this.value == genid)
-            this.selected = "selected";
-    })
-    $("#seqlist option").each(function() {
-        if (this.value == id)
-            this.selected = "selected";
-    })
-    this._params(this.info[id].params);
-    $("#seqstatic").attr("checked", this.info[id].static);
+    if (typeof(id) != "undefined") {
+        var genid = info[id].generator[0]
+        $("#seqgen option").each(function() {
+            if (this.value == genid)
+                this.selected = "selected";
+        })
+        $("#seqlist option").each(function() {
+            if (this.value == id)
+                this.selected = "selected";
+        })
+        this.params.update(info[id].params);
+        $("#seqstatic").attr("checked", info[id].static);
+    } else {
+        this._generator();
+    }
 }
 Sequence.prototype.update = function(info) {
-    this.destroy();
+    for (var id in this.options)
+        $(this.options[id]).remove()
     this.init(info);
 }
 Sequence.prototype.destroy = function() {
     for (var id in this.options)
         $(this.options[id]).remove()
+    $(this.params.obj).remove()
+    delete this.params
+    $("#seqlist").unbind("change");
+    $("#seqgen").unbind("change");
 }
-Sequence.prototype._params = function(params) {
-    $("#seqparams").html("");
-    var param, label, input;
-    for (var name in params) {
-        param = document.createElement("div");
-        label = document.createElement("label");
-        input = document.createElement("input");
-        input.id = "seq_param_"+name;
-        input.name = "seq_"+name;
-        input.type = "text";
-        if (typeof(params[name]) != "string")
-            input.value = JSON.stringify(params[name]);
-        else
-            input.value = params[name];
-        label.innerHTML = name;
-        label.className = "traitname";
-        label.setAttribute("for", "seq_param_"+name);
-        param.appendChild(label);
-        param.appendChild(input);
-        $("#seqparams").append(param);
-    }
+Sequence.prototype._generator = function() {
+    var genid = $("#seqgen").attr("value");
+    $.getJSON("ajax/gen_info/"+genid+"/", {}, function(info) {
+        this.params.update(info.params);
+    }.bind(this));
 }
-
 
 Sequence.prototype._make_name = function() {
     var gen = $("#sequence #seqgen option").filter(":selected").text()
@@ -69,7 +64,6 @@ Sequence.prototype._make_name = function() {
     var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
 
     $("#sequence #seqparams input").each(function() { txt.push(this.name+"="+this.value); })
-
     return gen+":["+txt.join(", ")+"]"
 }
 Sequence.prototype.edit = function() {

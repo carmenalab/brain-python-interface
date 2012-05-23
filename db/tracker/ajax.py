@@ -33,19 +33,10 @@ def exp_info(request, idx):
     entry = TaskEntry.objects.get(pk=idx)
     return _respond(entry.to_json())
 
-def task_seq(request, idx):
-    seqs = Sequence.objects.filter(task=idx)
-    return _respond(dict([(s.id, s.name) for s in seqs]))
+def gen_info(request, idx):
+    gen = Generator.objects.get(pk=idx)
+    return _respond(gen.to_json())
 
-def seq_data(request, idx):
-    seq = Sequence.objects.get(pk=idx)
-    return _respond(dict(
-        task=seq.task_id,
-        idx=seq.id, 
-        genid=seq.generator.id, 
-        params=Parameters(seq.params), 
-        static=(seq.sequence != ''),
-    ))
 
 def _sequence(task, data, save=True):
     if isinstance(data, dict):

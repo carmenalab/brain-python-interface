@@ -25,6 +25,7 @@ Parameters.prototype._add = function(name, desc) {
     trait.title = desc;
 
     var label = document.createElement("label");
+    label.className = "traitname";
     label.innerHTML = name;
     label.setAttribute("for", "param_"+name);
     trait.appendChild(label);
@@ -60,11 +61,11 @@ Parameters.prototype.add_tuple = function(name, info) {
     var len = info['default'].length;
     var trait = this._add(name, info['desc']);
     var wrapper = document.createElement("div");
-    wrapper.style.webkitColumnCount = min(len, 4);
+    wrapper.style.webkitColumnCount = len < 4? len : 4;
     wrapper.style.webkitColumnGap = "2px";
-    wrapper.style.mozColumnCount = min(len, 4);
+    wrapper.style.mozColumnCount = len < 4? len : 4;
     wrapper.style.mozColumnGap = "2px";
-    wrapper.style.columnCount = min(len, 4);
+    wrapper.style.columnCount = len < 4? len : 4;
     wrapper.style.columnGap = "2px";
 
     this.traits[name] = {"obj":trait, "inputs":[]};

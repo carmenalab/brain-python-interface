@@ -53,10 +53,9 @@ function stop_experiment() {
 
 function TaskEntry(idx){
 	var callback = (function(params, sequence) {
+		this.sequence = new Sequence(sequence);
 		this.params = new Parameters(params);
 		$("#parameters").append(this.params.obj);
-		$(this.params.obj).find("label").addClass("traitname");
-		this.sequence = new Sequence(sequence);
 		$("#content").show("slide");
 	}).bind(this);
 
@@ -124,8 +123,10 @@ TaskEntry.prototype._task_query = function(callback) {
 	$.getJSON("ajax/task_info/"+taskid+"/", feats, function(taskinfo) {
 		if (typeof(callback) == "function")
 			callback(taskinfo.params, taskinfo.sequences);
-		this.params.update(taskinfo.params);
-		$(this.params.obj).find("label").addClass("traitname");
+		else {
+			this.params.update(taskinfo.params);
+			this.sequence.update(taskinfo.sequences);
+		}
 	}.bind(this));
 }
 

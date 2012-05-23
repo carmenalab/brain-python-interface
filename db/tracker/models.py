@@ -150,12 +150,21 @@ class Generator(models.Model):
         gen = self.get()
         try:
             args = inspect.getargspec(gen)
+            names, defaults = args.args, args.defaults
         except TypeError:
             args = inspect.getargspec(gen.__init__)
-            args.remove("self")
+            names, defaults = args.args, args.defaults
+            names.remove("self")
+
+        if self.static:
+            defaults = (None,)+defaults
+        else:
+            #first argument is the experiment
+            names.remove("exp")
+        arginfo = zip(names, defaults)
 
         params = dict()
-        for name, default in zip(args.args, args.defaults):
+        for name, default in arginfo:
             if isinstance(default, (tuple, list)):
                 typename = "Tuple"
             elif isinstance(default, np.ndarray):
@@ -197,7 +206,7 @@ class Sequence(models.Model):
         state = 'saved' if self.pk is not None else "new"
         js = dict(name=self.name, state=state)
         js['static'] = len(self.sequence) > 0
-        js['params'] = Parameters(self.params).params
+        js['params'] = self.generator.to_json(Parameters(self.params).params)['params']
         js['generator'] = self.generator.id, self.generator.name
         return js
 
