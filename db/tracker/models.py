@@ -7,6 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from riglib import calibrations
 
 def _get_trait_default(trait):
+    '''Function which tries to resolve traits' retarded default value system'''
     _, default = trait.default_value()
     if isinstance(default, tuple) and len(default) > 0:
         try:
@@ -50,6 +51,8 @@ class Task(models.Model):
             varname['type'] = ctraits[trait].trait_type.__class__.__name__
             varname['default'] = _get_trait_default(ctraits[trait])
             varname['desc'] = ctraits[trait].desc
+            if trait in values:
+                varname['value'] = values[trait]
             if varname['type'] == "Instance":
                 Model = instance_to_model[ctraits[trait].trait_type.klass]
                 insts = Model.objects.order_by("-date")[:50]

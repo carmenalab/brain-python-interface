@@ -103,15 +103,18 @@ TaskEntry.prototype.destroy = function() {
 			te = new TaskEntry(idx);
 		})
 	} else {
+		//Remove the newentry row
 		this.tr.hide()
+		//Rebind the click action
 		this.tr.click(function() {
 			if (te) te.destroy();
 			te = new TaskEntry(null);
 		})
+		//Clean up event bindings
+		$("#features input").unbind("change");
+		$("#tasks").unbind("change");
 	}
-
 }
-
 TaskEntry.prototype._task_query = function(callback) {
 	var taskid = $("#tasks").attr("value");
 	var feats = {};
@@ -128,6 +131,7 @@ TaskEntry.prototype._task_query = function(callback) {
 			callback();
 	}.bind(this));
 }
+
 TaskEntry.prototype._runstart = function(data) {
 	this.newentry = false;
 	this.running = true;
