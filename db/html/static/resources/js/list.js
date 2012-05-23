@@ -1,12 +1,13 @@
 var te = null;
 $(document).ready(function() {
 	$("table#main tr").each(function() {
-		if (this.id.match(/row(\d+)/))
-			var idx = this.id;
-			$(this).click(function() {
-				if (te) te.destroy();
-				te = new TaskEntry(idx);
-			})
+		var idx = this.id;
+		if (this.id == "newentry")
+			idx = null;
+		$(this).click(function() {
+			if (te) te.destroy();
+			te = new TaskEntry(idx);
+		})
 	})
 })
 
@@ -55,18 +56,23 @@ function TaskEntry(idx){
 	if (idx) {
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
 		this.tr = $("#"+idx);
-		$.getJSON("ajax/exp_info/"+this.idx, {}, function (expinfo) {
+		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			_this.populate(expinfo);
 			$("#content").show("slide");
 		});
 	} else {
 		//This is a new row, need to set task name
+		this.idx = null;
 		this.tr = $("#newentry").show();
-		$("#tasks").change(function() {
-			_this._task_query($("#tasks option").filter(":selected").text());
-		})
-		this._task_query($("#tasks option").filter(":selected").text());
+		this.params = new Parameters({});
+		$("#parameters").append(this.params.obj);
+		$("#tasks").change(this._task_query.bind(this));
+		$("#features input").change(this._task_query.bind(this));
+		this._task_query(function() {
+			$("#content").show("slide");
+		});
 	}
+	this.tr.unbind("click");
 	this.tr.addClass("rowactive active");
 }
 TaskEntry.prototype.populate = function(info) {
@@ -85,12 +91,42 @@ TaskEntry.prototype.destroy = function() {
 	$("#features input[type=checkbox]").each(function() {
 		this.removeAttribute("checked");
 	})
-	$(this.params.obj).remove()
+	try {
+		$(this.params.obj).remove()
+	} catch(e) {}
 	this.tr.removeClass("rowactive active");
 	delete this.params
+	if (this.idx != null) {
+		var idx = "row"+this.idx;
+		this.tr.click(function() {
+			if (te) te.destroy();
+			te = new TaskEntry(idx);
+		})
+	} else {
+		this.tr.hide()
+		this.tr.click(function() {
+			if (te) te.destroy();
+			te = new TaskEntry(null);
+		})
+	}
+
 }
-TaskEntry.prototype._task_query = function(task) {
-	
+
+TaskEntry.prototype._task_query = function(callback) {
+	var taskid = $("#tasks").attr("value");
+	var feats = {};
+	$("#features input").each(function() { 
+		if (this.checked) 
+			feats[this.name] = this.checked;	
+	});
+
+	$.getJSON("ajax/task_info/"+taskid+"/", feats, function(taskinfo) {
+		this.params.update(taskinfo.params);
+		$(this.params.obj).find("label").addClass("traitname");
+
+		if (typeof(callback) == "function")
+			callback();
+	}.bind(this));
 }
 TaskEntry.prototype._runstart = function(data) {
 	this.newentry = false;
@@ -148,17 +184,6 @@ TaskEntry.prototype.get_data = function() {
 	data['sequence'] = entries[entries.length-1].sequence.get_data();
 
 	return data
-}
-TaskEntry.prototype.deactivate = function() {
-	this.tr.removeClass("active rowactive");
-	$("#content").removeClass("running");
-	this.active = false;
-	if (this.newentry) {
-		//Delete this row entirely
-		entries.pop();
-		this.tr.remove()
-		$("#addbtn").show()
-	}
 }
 TaskEntry.prototype.enable = function() {
 	$("#parameters input, #features input").removeAttr("disabled");

@@ -1,5 +1,8 @@
 function Parameters(desc) {
     this.obj = document.createElement("ul");
+    this.init(desc);
+}
+Parameters.prototype.init = function(desc) {
     this.traits = {};
     var func;
     var funcs = {
@@ -8,6 +11,7 @@ function Parameters(desc) {
         "Tuple": this.add_tuple,
         "Array": this.add_array,
         "Instance": this.add_instance,
+        "String":this.add_string,
     }
     for (var name in desc) {
         if (funcs[desc[name]['type']])
@@ -27,6 +31,31 @@ Parameters.prototype._add = function(name, desc) {
 
     return trait;
 }
+Parameters.prototype.update = function(desc) {
+    //Update the parameters descriptor to include the updated values
+    for (var name in desc) {
+        if (typeof(this.traits[name]) != "undefined" &&
+            typeof(desc[name].value) == "undefined") {
+            if (this.traits[name].inputs.length > 1) {
+                var any = false;
+                var tuple = [];
+                for (var i = 0; i < this.traits[name].inputs.length; i++) {
+                    tuple.push(this.traits[name].inputs[i].value);
+                    if (this.traits[name].inputs[i].value)
+                        any = true;
+                }
+                if (any)
+                    desc[name].value = tuple;
+            } else {
+                desc[name].value = this.traits[name].inputs[0].value;
+            }
+        }
+    }
+    //clear out the parameters box
+    this.obj.innerHTML = "";
+    //reinitialize with the updated values
+    this.init(desc);
+}
 Parameters.prototype.add_tuple = function(name, info) {
     var len = info['default'].length;
     var trait = this._add(name, info['desc']);
@@ -44,12 +73,14 @@ Parameters.prototype.add_tuple = function(name, info) {
         input.type = "text";
         input.name = name+"["+i+"]";
         input.pattern = "[\d\.\-]*";
-        input.placeholder = info['default'][i];
+        input.placeholder = JSON.stringify(info['default'][i]);
         input.title = "A floating point value";
-        if (typeof(info['value']) != "undefined")
-            input.value = info['value'][i].toString();
-
         input.style.width = "90%";
+        if (typeof(info['value']) != "undefined")
+            if (typeof(info['value'][i]) != "string")
+                input.value = JSON.stringify(info['value'][i]);
+            else
+                input.value = info['value'][i];
 
         wrapper.appendChild(input);
         this.traits[name]['inputs'].push(input);
@@ -68,12 +99,11 @@ Parameters.prototype.add_int = function (name, info) {
     if (typeof(info['value']) != "undefined")
         input.value = info['value'];
     else
-        input.value = input['default'];
+        input.value = info['default'];
     trait.appendChild(input);
     this.traits[name] = {"obj":trait, "inputs":[input]};
     this.obj.appendChild(trait);
 }
-
 Parameters.prototype.add_float = function (name, info) {
     var trait = this._add(name, info['desc']);
     var input = document.createElement("input");
@@ -91,19 +121,38 @@ Parameters.prototype.add_float = function (name, info) {
     this.obj.appendChild(trait);
 }
 Parameters.prototype.add_array = function (name, info) {
-    if (info['default'].length < 4) 
-        return this.add_tuple(name, info);
-
+    if (info['default'].length < 4) {
+        this.add_tuple(name, info);
+        for (var i=0; i < this.traits[name].inputs.length; i++)
+            this.traits[name].inputs[i].pattern = "[\(\)\[\]\d\.\,\s\-]*";
+    } else {
+        var trait = this._add(name, info['desc']);
+        var input = document.createElement("input");
+        input.type = "text";
+        input.name = name;
+        input.id = "param_"+name;
+        input.title = "An array value";
+        input.placeholder = info['default'];
+        if (typeof(info['value']) == "string")
+            input.value = info['value'];
+        else if (typeof(info['value']) != "undefined")
+            input.value = JSON.stringify(info['value']);
+        input.pattern = "[\(\)\[\]\d\.\,\s\-]*";
+        trait.appendChild(input);
+        this.traits[name] = {"obj":trait, "inputs":[input]};
+        this.obj.appendChild(trait);
+    }
+}
+Parameters.prototype.add_string = function (name, info) {
     var trait = this._add(name, info['desc']);
     var input = document.createElement("input");
     input.type = "text";
     input.name = name;
     input.id = "param_"+name;
-    input.title = "An array value";
     input.placeholder = info['default'];
-    if (typeof(info['value']) != "undefined")
-        input.value = info['value'];
-    input.pattern = "[\(\)\[\]\d\.\,\s\-]*";
+    if (typeof(info['value']) != "undefined") {
+        input.setAttribute("value", info['value']);
+    }
     trait.appendChild(input);
     this.traits[name] = {"obj":trait, "inputs":[input]};
     this.obj.appendChild(trait);

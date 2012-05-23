@@ -6,6 +6,16 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from riglib import calibrations
 
+def _get_trait_default(trait):
+    _, default = trait.default_value()
+    if isinstance(default, tuple) and len(default) > 0:
+        try:
+            func, args, _ = default
+            default = func(*args)
+        except:
+            pass
+    return default
+
 class Task(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
@@ -38,10 +48,8 @@ class Task(models.Model):
         for trait in Exp.class_editable_traits():
             varname = dict()
             varname['type'] = ctraits[trait].trait_type.__class__.__name__
-            varname['default'] = ctraits[trait].default
+            varname['default'] = _get_trait_default(ctraits[trait])
             varname['desc'] = ctraits[trait].desc
-            if trait in values:
-                varname['value'] = values[trait]
             if varname['type'] == "Instance":
                 Model = instance_to_model[ctraits[trait].trait_type.klass]
                 insts = Model.objects.order_by("-date")[:50]

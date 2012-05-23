@@ -6,10 +6,8 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
 	(r'^$', 'tracker.views.list'),
-    (r'^ajax/task_params/(?P<taskname>\w+)/', 'tracker.ajax.task_params'),
-    (r'^ajax/task_seq/(?P<idx>\d+)/', "tracker.ajax.task_seq"),
+    (r'^ajax/task_info/(?P<idx>\d+)/', "tracker.ajax.task_info"),
     (r'^ajax/exp_info/(?P<idx>\d+)/', 'tracker.ajax.exp_info'),
-    (r'^ajax/seq_data/(?P<idx>\d+)/', 'tracker.ajax.seq_data'),
     (r'^ajax/seq_data/(?P<idx>\d+)/', 'tracker.ajax.seq_data'),
     (r'^start/?', 'tracker.ajax.start_experiment'),
     (r'^test/?', 'tracker.ajax.start_experiment', dict(save=False)),

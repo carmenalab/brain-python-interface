@@ -24,12 +24,10 @@ class encoder(json.JSONEncoder):
 def _respond(data):
     return HttpResponse(json.dumps(data, cls=encoder), mimetype="application/json")
 
-def task_params(request, taskname):
-    feats = [Feature.objects.get(name=name).get() 
-        for name,isset in request.GET.items() if isset]
-    task = Task.objects.get(name=taskname).get()
-
-    return _respond(_default_task_params(task, feats))
+def task_info(request, idx):
+    task = Task.objects.get(pk=idx)
+    feats = [Feature.objects.get(name=name) for name, isset in request.GET.items() if isset == "true"]
+    return _respond(dict(params=task.params(feats=feats), sequences=task.sequences()))
 
 def exp_info(request, idx):
     entry = TaskEntry.objects.get(pk=idx)
