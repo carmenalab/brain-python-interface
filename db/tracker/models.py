@@ -65,9 +65,7 @@ class Task(models.Model):
         from json_param import Parameters
         seqs = dict()
         for s in Sequence.objects.filter(task=self.id):
-            seqs[s.id] = dict(name=s.name, params=Parameters(s.params).params, 
-                generator=s.generator.id, 
-                static=len(s.sequence) > 0)
+            seqs[s.id] = s.to_json()
         
         return seqs
 
@@ -168,8 +166,9 @@ class Sequence(models.Model):
     def to_json(self):
         from json_param import Parameters
         state = 'saved' if self.pk is not None else "new"
-        js = dict(name=self.name, state=state, params=Parameters(self.params).params)
+        js = dict(name=self.name, state=state)
         js['static'] = len(self.sequence) > 0
+        js['params'] = Parameters(self.params).params
         js['generator'] = self.generator.id, self.generator.name
         return js
 
@@ -221,7 +220,7 @@ class TaskEntry(models.Model):
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=Parameters(self.params).params)
         if self.sequence_id > 0:
-            js['seq'] = self.sequence.to_json()
+            js['seq'] = {self.sequence.id:self.sequence.to_json()}
             
         return js
 

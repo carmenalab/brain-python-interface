@@ -46,16 +46,15 @@ div#rightpane {
 	left:30%; 
 	width:70%; 
 	height:100%;
-	margin-left:-2px; 
 	position:fixed;
+	overflow:auto;
 }
 div#content { 
 	background-color:#FAFAFA;
 	padding:0.5em;
 	border-left:1px solid #AAA;
-	margin-left:-1px;
 	display:none;
-	height:100%;
+	min-height:100%;
 }
 fieldset { 
 	margin:0.5em;
@@ -69,8 +68,13 @@ ul {
 }
 .traitname { float:left; width:40%; min-width:80px; margin:5px 0px; }
 #parameters li { clear:both;}
+/*#features {
+	column-count:2;
+	-webkit-column-count:2;
+	-moz-column-count:2;
+}*/
 div.options { float:left; width:35%; }
-div.options select { max-width:62%;}
+div.options select { width:57%;}
 div.options input[type=text] { width:57%; }
 
 div.rightside { float:left; width:65%; }

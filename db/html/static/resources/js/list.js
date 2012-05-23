@@ -52,38 +52,35 @@ function stop_experiment() {
 }
 
 function TaskEntry(idx){
-	var _this = this;
+	var callback = (function(params, sequence) {
+		this.params = new Parameters(params);
+		$("#parameters").append(this.params.obj);
+		$(this.params.obj).find("label").addClass("traitname");
+		this.sequence = new Sequence(sequence);
+		$("#content").show("slide");
+	}).bind(this);
+
 	if (idx) {
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
 		this.tr = $("#"+idx);
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
-			_this.populate(expinfo);
-			$("#content").show("slide");
+			$("#features input[type=checkbox]").each(function() {
+				for (var idx in expinfo['feats'])
+					if (this.name == expinfo['feats'][idx])
+						this.setAttribute("checked", "checked")
+			});
+			callback(expinfo['params'], expinfo['seq']);
 		});
 	} else {
 		//This is a new row, need to set task name
 		this.idx = null;
 		this.tr = $("#newentry").show();
-		this.params = new Parameters({});
-		$("#parameters").append(this.params.obj);
 		$("#tasks").change(this._task_query.bind(this));
 		$("#features input").change(this._task_query.bind(this));
-		this._task_query(function() {
-			$("#content").show("slide");
-		});
+		this._task_query(callback);
 	}
 	this.tr.unbind("click");
 	this.tr.addClass("rowactive active");
-}
-TaskEntry.prototype.populate = function(info) {
-	this.params = new Parameters(info['params']);
-	$("#parameters").append(this.params.obj);
-	$(this.params.obj).find("label").addClass("traitname");
-	$("#features input[type=checkbox]").each(function() {
-		for (var idx in info['feats'])
-			if (this.name == info['feats'][idx])
-				this.setAttribute("checked", "checked")
-	})
 }
 TaskEntry.prototype.destroy = function() {
 	$("#content").hide();
@@ -95,6 +92,7 @@ TaskEntry.prototype.destroy = function() {
 		$(this.params.obj).remove()
 	} catch(e) {}
 	this.tr.removeClass("rowactive active");
+	this.sequence.destroy();
 	delete this.params
 	if (this.idx != null) {
 		var idx = "row"+this.idx;
@@ -124,11 +122,10 @@ TaskEntry.prototype._task_query = function(callback) {
 	});
 
 	$.getJSON("ajax/task_info/"+taskid+"/", feats, function(taskinfo) {
+		if (typeof(callback) == "function")
+			callback(taskinfo.params, taskinfo.sequences);
 		this.params.update(taskinfo.params);
 		$(this.params.obj).find("label").addClass("traitname");
-
-		if (typeof(callback) == "function")
-			callback();
 	}.bind(this));
 }
 

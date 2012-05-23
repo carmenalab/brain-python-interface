@@ -1,62 +1,68 @@
-function SequenceEditor(task, idx, editable) {
-    var html = "<legend>Sequence</legend>";
-    html += "<label class='traitname' for='seqlist'>Name:</label>";
-    html += "<select id='seqlist' name='seq_name'></select><div class='clear'></div>";
-    html += "<label class='traitname' for='seqgen'>Generator:</label>";
-    html += "<select id='seqgen' name='seq_gen'></select><div class='clear'></div>";
-    html += "<div id='seqparams'></div>";
-    html += "<div id='seqstatic_div'><input id='seqstatic' type='checkbox' name='static' />";
-    html += "<label for='seqstatic'>Static</label></div>"
-    $("#sequence").html(html);
-    for (var i in genparams)
-        $("#sequence #seqgen").append("<option value='"+i+"'>"+genparams[i][0]+"</option>");
+function Sequence(info) {
+    this.init(info);
 }
-
-
-SequenceEditor.prototype._update_params = function() {
-    var idx = $("#sequence #seqgen").attr("value");
-    var params = genparams[idx][1].split(",")
-
-    //If generator is not static, add a length parameter
-    if (genparams[idx][2]) {
-        params.unshift("length");
-        $("#seqstatic_div").show()
-    } else {
-        $("#seqstatic_div").hide()
+Sequence.prototype.init = function(info) {
+    this.info = info;
+    this.options = {};
+    var opt;
+    for (var id in info) {
+        opt = document.createElement("option");
+        opt.innerHTML = info[id].name;
+        opt.value = id;
+        this.options[id] = opt;
+        $("#seqlist").append(opt);
     }
-
-    var html = "";
-    for (var i in params) {
-        html += "<label class='traitname' for='seq_"+params[i]+"'>"+params[i]+"</label>";
-        html += "<input id='seq_"+params[i]+"' type='text' name='"+params[i]+"' />";
-        html += "<div class='clear'></div>";
-    }
-    $("#sequence #seqparams").html(html)
+    $("#seqgen option").filter(":selected").removeAttr("selected");
+    this.set(id);
 }
-SequenceEditor.prototype._query_sequences = function(task) {
-    var _this = this;
-    $.getJSON("ajax/task_seq/"+task, {}, function(data) {
-        $("#sequence #seqlist").replaceWith("<select id='seqlist' name='seq_name'></select>");
-        var html = "";
-        for (var i in data) 
-            html += "<option value='"+i+"'>"+data[i]+"</option>";
-        $("#sequence #seqlist").append(html+"<option value='new'>Create New...</option>");
-        $("#sequence #seqlist").change(function() { _this._query_data(); });
-        
-        if (!_this.editable)
-            $("#sequence #seqlist").attr("disabled", "disabled");
-        console.log($("#seqlist").attr("disabled"))
-        
-        if (typeof(_this.idx) != "undefined") {
-            $("#sequence #seqlist option").each(function() {
-                if (this.value == _this.idx)
-                    $(this).attr("selected", "selected");
-            })
-        }
-        _this._query_data();
+Sequence.prototype.set = function(id) {
+    if (typeof(this.info[id]) == "undefined")
+        throw "Cannot find id";
+    var genid = this.info[id].generator[0]
+    $("#seqgen option").each(function() {
+        if (this.value == genid)
+            this.selected = "selected";
     })
+    $("#seqlist option").each(function() {
+        if (this.value == id)
+            this.selected = "selected";
+    })
+    this._params(this.info[id].params);
+    $("#seqstatic").attr("checked", this.info[id].static);
 }
-SequenceEditor.prototype._make_name = function() {
+Sequence.prototype.update = function(info) {
+    this.destroy();
+    this.init(info);
+}
+Sequence.prototype.destroy = function() {
+    for (var id in this.options)
+        $(this.options[id]).remove()
+}
+Sequence.prototype._params = function(params) {
+    $("#seqparams").html("");
+    var param, label, input;
+    for (var name in params) {
+        param = document.createElement("div");
+        label = document.createElement("label");
+        input = document.createElement("input");
+        input.id = "seq_param_"+name;
+        input.name = "seq_"+name;
+        input.type = "text";
+        if (typeof(params[name]) != "string")
+            input.value = JSON.stringify(params[name]);
+        else
+            input.value = params[name];
+        label.innerHTML = name;
+        label.className = "traitname";
+        label.setAttribute("for", "seq_param_"+name);
+        param.appendChild(label);
+        param.appendChild(input);
+        $("#seqparams").append(param);
+    }
+}
+
+
+Sequence.prototype._make_name = function() {
     var gen = $("#sequence #seqgen option").filter(":selected").text()
     var txt = [];
     var d = new Date();
@@ -66,7 +72,7 @@ SequenceEditor.prototype._make_name = function() {
 
     return gen+":["+txt.join(", ")+"]"
 }
-SequenceEditor.prototype.edit = function() {
+Sequence.prototype.edit = function() {
     var _this = this;
     var curname = this._make_name();
     $("#sequence #seqlist").replaceWith("<input id='seqlist' name='seq_name' type='text' value='"+curname+"' />");
@@ -83,44 +89,17 @@ SequenceEditor.prototype.edit = function() {
     })
 }
 
-SequenceEditor.prototype.set_data = function(data) {
-    //Setup generator
-    $("#sequence #seqgen option").filter(function() {
-        return $(this).attr("value") == data['genid'];
-    }).attr("selected", "selected");
-    //Setup parameters
-    this._update_params();
-    for (var i in data['params']) {
-        $("#sequence #seq_"+i).attr("value", JSON.stringify(data['params'][i]))
-    }
-    //Setup static
-    if (data['static'])
-        $("#seqstatic").attr("checked", "checked")
 
-    //Disable all the inputs
-    $("#seqgen, #seqparams input, #seqstatic").attr("disabled", "disabled");
-    $("#seqparams input").attr("disabled", "disabled");
-    $("#seqstatic").attr("disabled", "disabled");
-    //Only allow editing on new entries
-    if (this.editable) {
-        var _this = this;
-        //Add a callback to enable editing
-        $("#sequence #seqparams").bind("click.edit", function() { 
-            $("#sequence #seqparams").unbind("click.edit");
-            _this.edit(); 
-        })
-    }
-}
-SequenceEditor.prototype.enable = function() {
+Sequence.prototype.enable = function() {
     $("#seqlist").removeAttr("disabled");
 }
-SequenceEditor.prototype.disable = function() {
+Sequence.prototype.disable = function() {
     $("#seqlist").attr("disabled", "disabled");
     $("#seqgen").attr("disabled", "disabled");
     $("#seqparams input").attr("disabled", "disabled");
     $("#seqstatic").attr("disabled", "disabled");   
 }
-SequenceEditor.prototype.get_data = function() {
+Sequence.prototype.get_data = function() {
     if ($("#sequence #seqlist").get(0).tagName == "INPUT") {
         //This is a new sequence, create new!
         var data = {};
