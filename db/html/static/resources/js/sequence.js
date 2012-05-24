@@ -60,6 +60,8 @@ Sequence.prototype.update = function(info) {
     $("#seqlist").unbind("change");
     for (var id in this.options)
         $(this.options[id]).remove()
+    if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
+        $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'></select>");
     this.init(info);
 }
 Sequence.prototype.destroy = function() {
