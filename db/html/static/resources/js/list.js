@@ -66,6 +66,8 @@ function TaskEntry(idx){
 	if (idx) {
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
 		this.tr = $("#"+idx);
+		$("#copybtn").show();
+		$("#startbtn, #testbtn").hide();
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			$("#features input[type=checkbox]").each(function() {
 				this.checked = false;
@@ -83,6 +85,8 @@ function TaskEntry(idx){
 		$("#tasks").change(this._task_query.bind(this));
 		$("#features input").change(this._task_query.bind(this));
 		this._task_query(callback);
+		$("#copybtn").hide();
+		$("#startbtn, #testbtn").show();
 	}
 	this.tr.unbind("click");
 	this.tr.addClass("rowactive active");
