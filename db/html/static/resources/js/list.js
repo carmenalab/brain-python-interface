@@ -56,7 +56,7 @@ function TaskEntry(idx){
 		this.sequence = new Sequence(sequence);
 		this.params = new Parameters(params);
 		$("#parameters").append(this.params.obj);
-		$("#content").show("slide");
+		$("#content").show("slide", "fast");
 		if (this.idx)
 			this.disable()
 		else
@@ -68,9 +68,11 @@ function TaskEntry(idx){
 		this.tr = $("#"+idx);
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			$("#features input[type=checkbox]").each(function() {
-				for (var idx in expinfo['feats'])
-					if (this.name == expinfo['feats'][idx])
-						this.setAttribute("checked", "checked")
+				this.checked = false;
+				for (var idx in expinfo.feats) {
+					if (this.name == expinfo.feats[idx])
+						this.checked = true;
+				}
 			});
 			callback(expinfo['params'], expinfo['seq']);
 		}.bind(this));
