@@ -114,9 +114,10 @@ Parameters.prototype.add_float = function (name, info) {
     input.title = "A floating point value";
     input.pattern = "[\d\.\-]*";
     input.placeholder = info['default'];
-    if (typeof(info['value']) != "undefined") {
-        input.setAttribute("value", info['value']);
-    }
+    if (typeof(info['value']) == "string")
+        input.value = info.value;
+    else if (typeof(info['value']) != "undefined")
+        input.value = JSON.stringify(info.value);
     trait.appendChild(input);
     this.traits[name] = {"obj":trait, "inputs":[input]};
     this.obj.appendChild(trait);

@@ -25,7 +25,7 @@ table#main tr {
 	cursor:pointer;
 }
 table#main tbody>tr:hover {
-	background:#EEE;
+	background:#DDD;
 }
 table#main tr#newentry {
 	display:none;
@@ -38,7 +38,7 @@ th { text-align:left;}
 	position:relative; 
 	z-index:10;
 }
-.active td, .active { background-color:#FAFAFA; }
+.active td, .active { background-color:#EEE; }
 .running td, .running { background-color:#DFD; }
 
 div#leftpane { float:left; width:30%; }
@@ -48,9 +48,10 @@ div#rightpane {
 	height:100%;
 	position:fixed;
 	overflow:auto;
+	margin-left:-1px;
 }
 div#content { 
-	background-color:#FAFAFA;
+	background-color:#EEE;
 	padding:0.5em;
 	border-left:1px solid #AAA;
 	display:none;
@@ -76,6 +77,7 @@ ul {
 div.options { float:left; width:35%; }
 div.options select { width:57%;}
 div.options input[type=text] { width:57%; }
+div.options input[type=number] { width:57%; }
 
 div.rightside { float:left; width:65%; }
 div.rightside textarea {
@@ -88,9 +90,9 @@ div.rightside textarea {
 div.rightside fieldset#notes {
 	height:25em;
 }
-input[type=text] { 
+input[type=text], input[type=number] { 
 	border:1px solid;
-	border-color:#CCC;
+	border-color:#888;
 	padding:2px;
 	border-radius:2px;
 }

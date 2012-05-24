@@ -57,6 +57,10 @@ function TaskEntry(idx){
 		this.params = new Parameters(params);
 		$("#parameters").append(this.params.obj);
 		$("#content").show("slide");
+		if (this.idx)
+			this.disable()
+		else
+			this.enable()
 	}).bind(this);
 
 	if (idx) {
@@ -69,7 +73,7 @@ function TaskEntry(idx){
 						this.setAttribute("checked", "checked")
 			});
 			callback(expinfo['params'], expinfo['seq']);
-		});
+		}.bind(this));
 	} else {
 		//This is a new row, need to set task name
 		this.idx = null;
@@ -190,12 +194,12 @@ TaskEntry.prototype.get_data = function() {
 TaskEntry.prototype.enable = function() {
 	$("#parameters input, #features input").removeAttr("disabled");
 	this.sequence.enable();
-	if (this.newentry)
+	if (this.idx)
 		$("#subjects input, #tasks input").removeAttr("disabled");
 }
 TaskEntry.prototype.disable = function() {
 	$("#parameters input, #features input").attr("disabled", "disabled");
 	this.sequence.disable();
-	if (this.newentry)
+	if (this.idx)
 		$("#subjects input, #tasks input").attr("disabled", "disabled");
 }
