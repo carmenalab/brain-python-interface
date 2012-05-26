@@ -1,6 +1,13 @@
 function Parameters(desc) {
-    this.obj = document.createElement("ul");
+    this.obj = document.createElement("table");
     this.init(desc);
+}
+Parameters._parse = function(input) {
+    var val = input.value.length > 0? input.value : input.placeholder;
+    if (isNaN(parseFloat(val)))
+        val = '"'+val+'"';
+
+    return val;
 }
 Parameters.prototype.init = function(desc) {
     this.traits = {};
@@ -21,13 +28,15 @@ Parameters.prototype.init = function(desc) {
     }
 }
 Parameters.prototype._add = function(name, desc) {
-    var trait = document.createElement("li");
+    var trait = document.createElement("tr");
     trait.title = desc;
-
+    var td = document.createElement("td");
+    td.className = "param_label";
+    trait.appendChild(td);
     var label = document.createElement("label");
     label.innerHTML = name;
     label.setAttribute("for", "param_"+name);
-    trait.appendChild(label);
+    td.appendChild(label);
 
     return trait;
 }
@@ -59,13 +68,12 @@ Parameters.prototype.update = function(desc) {
 Parameters.prototype.add_tuple = function(name, info) {
     var len = info['default'].length;
     var trait = this._add(name, info['desc']);
-    var wrapper = document.createElement("div");
+    var wrapper = document.createElement("td");
     wrapper.style.webkitColumnCount = len < 4? len : 4;
-    wrapper.style.webkitColumnGap = "2px";
     wrapper.style.mozColumnCount = len < 4? len : 4;
-    wrapper.style.mozColumnGap = "2px";
     wrapper.style.columnCount = len < 4? len : 4;
-    wrapper.style.columnGap = "2px";
+    trait.appendChild(wrapper);
+    this.obj.appendChild(trait);
 
     this.traits[name] = {"obj":trait, "inputs":[]};
     for (var i=0; i < len; i++) {
@@ -75,7 +83,7 @@ Parameters.prototype.add_tuple = function(name, info) {
         input.pattern = "-?[0-9]*\.?[0-9]*";
         input.placeholder = JSON.stringify(info['default'][i]);
         input.title = "A floating point value";
-        input.style.width = "90%";
+        //input.style.width = "90%";
         if (typeof(info['value']) != "undefined")
             if (typeof(info['value'][i]) != "string")
                 input.value = JSON.stringify(info['value'][i]);
@@ -85,13 +93,16 @@ Parameters.prototype.add_tuple = function(name, info) {
         wrapper.appendChild(input);
         this.traits[name]['inputs'].push(input);
     }
-    trait.appendChild(wrapper);
     this.traits[name]['inputs'][0].id = "param_"+name;
-    this.obj.appendChild(trait);
 }
 Parameters.prototype.add_int = function (name, info) {
     var trait = this._add(name, info['desc']);
+    var div = document.createElement("td");
     var input = document.createElement("input");
+    trait.appendChild(div);
+    div.appendChild(input);
+    this.obj.appendChild(trait);
+
     input.type = "number";
     input.name = name;
     input.id = "param_"+name;
@@ -100,13 +111,16 @@ Parameters.prototype.add_int = function (name, info) {
         input.value = info['value'];
     else
         input.value = info['default'];
-    trait.appendChild(input);
     this.traits[name] = {"obj":trait, "inputs":[input]};
-    this.obj.appendChild(trait);
 }
 Parameters.prototype.add_float = function (name, info) {
     var trait = this._add(name, info['desc']);
+    var div = document.createElement("td");
     var input = document.createElement("input");
+    trait.appendChild(div);
+    div.appendChild(input);
+    this.obj.appendChild(trait);
+
     input.type = "text";
     input.name = name;
     input.id = "param_"+name;
@@ -117,18 +131,21 @@ Parameters.prototype.add_float = function (name, info) {
         input.value = info.value;
     else if (typeof(info['value']) != "undefined")
         input.value = JSON.stringify(info.value);
-    trait.appendChild(input);
     this.traits[name] = {"obj":trait, "inputs":[input]};
-    this.obj.appendChild(trait);
 }
 Parameters.prototype.add_array = function (name, info) {
     if (info['default'].length < 4) {
         this.add_tuple(name, info);
         for (var i=0; i < this.traits[name].inputs.length; i++)
-            this.traits[name].inputs[i].pattern = "[0-9\(\)\[\]\.\,\s\-]*";
+            this.traits[name].inputs[i].pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
     } else {
         var trait = this._add(name, info['desc']);
+        var div = document.createElement("td");
         var input = document.createElement("input");
+        trait.appendChild(div);
+        div.appendChild(input);
+        this.obj.appendChild(trait);
+
         input.type = "text";
         input.name = name;
         input.id = "param_"+name;
@@ -138,15 +155,18 @@ Parameters.prototype.add_array = function (name, info) {
             input.value = info['value'];
         else if (typeof(info['value']) != "undefined")
             input.value = JSON.stringify(info['value']);
-        input.pattern = "[0-9\(\)\[\]\.\,\s\-]*";
-        trait.appendChild(input);
+        input.pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
         this.traits[name] = {"obj":trait, "inputs":[input]};
-        this.obj.appendChild(trait);
     }
 }
 Parameters.prototype.add_string = function (name, info) {
     var trait = this._add(name, info['desc']);
+    var div = document.createElement("td");
     var input = document.createElement("input");
+    trait.appendChild(div);
+    div.appendChild(input);
+    this.obj.appendChild(trait);
+
     input.type = "text";
     input.name = name;
     input.id = "param_"+name;
@@ -154,14 +174,17 @@ Parameters.prototype.add_string = function (name, info) {
     if (typeof(info['value']) != "undefined") {
         input.setAttribute("value", info['value']);
     }
-    trait.appendChild(input);
     this.traits[name] = {"obj":trait, "inputs":[input]};
-    this.obj.appendChild(trait);
 }
 Parameters.prototype.add_instance = function(name, info) {
     var options = info['options'];
     var trait = this._add(name, info['desc']);
+    var div = document.createElement("td");
     var input = document.createElement("select");
+    trait.appendChild(div);
+    div.appendChild(input);
+    this.obj.appendChild(trait);
+
     input.name = name;
     input.id = "param_"+name;
     for (var i = 0; i < options.length; i++) {
@@ -173,21 +196,19 @@ Parameters.prototype.add_instance = function(name, info) {
             opt.setAttribute("selected", "selected");
         input.appendChild(opt);
     }
-    trait.appendChild(input);
     this.traits[name] = {"obj":trait, "inputs":[input]};
-    this.obj.appendChild(trait);
 }
 Parameters.prototype.to_json = function() {
     var jsdata = {};
     for (var name in this.traits) {
-        if (this.traits[name]['inputs'].length > 1) {
+        if (this.traits[name].inputs.length > 1) {
             var plist = [];
-            for (var i = 0; i < this.traits[name]['inputs'].length; i++) {
-                plist.push(this.traits[name]['inputs'][i].value);
+            for (var i = 0; i < this.traits[name].inputs.length; i++) {
+                plist.push(Parameters._parse(this.traits[name].inputs[i]))
             }
-            jsdata[name] = plist;
+            jsdata[name] = "["+plist.join(",")+"]";
         } else {
-            jsdata[name] = this.traits[name]['inputs'][0].value;
+            jsdata[name] = JSON.parse(Parameters._parse(this.traits[name].inputs[0]));
         }
     }
     return jsdata;

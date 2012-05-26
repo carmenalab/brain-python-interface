@@ -114,10 +114,9 @@ Sequence.prototype.get_data = function() {
         var data = {};
         data['name'] = $("#seqlist").attr("value");
         data['generator'] = $("#seqgen").attr("value");
-        data['params'] = {};
-        $("#seqparams input").each(function() { data['params'][this.name] = this.value; });
+        data['params'] = this.params.to_json();
         data['static'] = $("#seqstatic").attr("checked") == "checked";
         return data;
     }
-    return $("#sequence #seqlist").attr("value");
+    return parseInt($("#sequence #seqlist").attr("value"));
 }

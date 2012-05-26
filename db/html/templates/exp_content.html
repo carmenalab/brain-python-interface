@@ -1,25 +1,35 @@
-<form id="experiment">	
+<form id="experiment" method="post">
 	{% csrf_token %}
 	<div class="options">
 		<fieldset id="features">
 			<legend>Features</legend>
 			<ul>{% for f in features %}<li title="{{f.desc}}">
-				<input type="checkbox" name="{{f.name}}" id="{{f.name}}">
+				<input type="checkbox" name="{{f.name}}" id="{{f.name}}" value="{{f.id}}">
 				<label for="{{f.name}}">{{f.name}}</label>
 			</li>{% endfor %}
 			</ul>
 		</fieldset>
 		<fieldset id="sequence">
 			<legend>Sequence</legend>
-			<label class="traitname" for="seqlist">Name:</label>
-			<select id="seqlist" name="seq_name">
-				<option value="new">Create New...</option>
-			</select><div class="clear"></div>
-			<label class="traitname" for="seqgen">Generator:</label>
-			<select id="seqgen" name="seq_gen">
-				{% for g in generators %}<option value="{{g.id}}">{{g.name}}</option>
-				{% endfor %}
-			</select><div class="clear"></div>
+			<table>
+				<tr>
+					<td class="param_label"><label for="seqlist">Name:</label></td>
+					<td>
+						<select id="seqlist" name="seq_name">
+							<option value="new">Create New...</option>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<td class="param_label"><label class="traitname" for="seqgen">Generator:</label></td>
+					<td>
+						<select id="seqgen" name="seq_gen">
+							{% for g in generators %}<option value="{{g.id}}">{{g.name}}</option>
+							{% endfor %}
+						</select>
+					</td>
+				</tr>
+			</table>
 			<div id="seqparams">
 			</div>
 			<div id="seqstatic_div">

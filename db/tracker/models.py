@@ -6,7 +6,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 import numpy as np
 
-from riglib import calibrations
+from riglib import calibrations, experiment
 
 def _get_trait_default(trait):
     '''Function which tries to resolve traits' retarded default value system'''
@@ -24,9 +24,26 @@ class Task(models.Model):
     def __unicode__(self):
         return self.name
     
-    def get(self):
+    def get(self, feats=()):
         from namelist import tasks
-        return tasks[self.name]
+        from riglib import experiment
+
+        features = []
+        for feat in feats:
+            if isinstance(feat, (int, float, str)):
+                try:
+                    feat = Feature.objects.get(pk=int(feat)).get()
+                except ValueError:
+                    try:
+                        feat = Feature.objects.get(name=feat).get()
+                    except:
+                        continue
+            elif isinstance(feat, models.Model):
+                feat = feat.get()
+            
+            features.append(feat)
+
+        return experiment.make(tasks[self.name], features)
 
     @staticmethod
     def populate():
@@ -41,12 +58,9 @@ class Task(models.Model):
         from namelist import instance_to_model
         if values is None:
             values = dict()
-
-        if len(feats) > 0 and isinstance(feats[0], (int, float, str)):
-            feats = tuple(Feature.objects.get(pk=int(f)) for f in feats)
         
         params = dict()
-        Exp = experiment.make(self.get(), tuple(f.get() for f in feats))
+        Exp = self.get(feats=feats)
         ctraits = Exp.class_traits()
         for trait in Exp.class_editable_traits():
             varname = dict()
@@ -70,10 +84,6 @@ class Task(models.Model):
             seqs[s.id] = s.to_json()
         
         return seqs
-
-    @classmethod
-    def from_json(cls, js):
-        pass
 
 class Feature(models.Model):
     name = models.CharField(max_length=128)
@@ -165,14 +175,7 @@ class Generator(models.Model):
 
         params = dict()
         for name, default in arginfo:
-            if isinstance(default, (tuple, list)):
-                typename = "Tuple"
-            elif isinstance(default, np.ndarray):
-                typename = "Array"
-            elif isinstance(default, str):
-                typename = "String"
-            else:
-                typename = "Float"
+            typename = "String"
 
             params[name] = dict(type=typename, default=default, desc='')
             if name in values:
@@ -212,14 +215,20 @@ class Sequence(models.Model):
 
     @classmethod
     def from_json(cls, js):
+        from json_param import Parameters
         if not isinstance(js, dict):
             js = json.loads(js)
-        assert js['state'] == "new"
-        genid = js['gen']
+        try:
+            return Sequence.objects.get(pk=int(js))
+        except:
+            pass
+        
+        genid = js['generator']
         if isinstance(genid, (tuple, list)):
             genid = genid[0]
         
-        seq = cls(generator_id=genid, name=js['name'], params=json.dumps(js['params']))
+        seq = cls(generator_id=int(genid), name=js['name'])
+        seq.params = Parameters.from_html(js['params']).to_json()
         if js['static']:
             seq.sequence = cPickle.dumps(seq.generator.get()(**Parameters(self.params).params))
         return seq
@@ -254,12 +263,15 @@ class TaskEntry(models.Model):
     def to_json(self):
         from json_param import Parameters
         state = 'completed' if self.pk is not None else "new"
-        js = dict(task=self.task.name, state=state, params=dict())
+        js = dict(task=self.task.id, state=state, subject=self.subject.id, params=dict())
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=Parameters(self.params).params)
-        if self.sequence_id > 0:
-            js['seq'] = {self.sequence.id:self.sequence.to_json()}
-            
+        if issubclass(self.task.get(), experiment.Sequence):
+            js['sequence'] = {self.sequence.id:self.sequence.to_json()}
+        else:
+            print "Not a Sequence task", self.task.get().mro()
+        js['datafiles'] = [d.to_json() for d in DataFile.objects.filter(entry=self.id)]
+        
         return js
 
     @classmethod
@@ -289,3 +301,6 @@ class DataFile(models.Model):
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System)
     entry = models.ForeignKey(TaskEntry)
+
+    def to_json(self):
+        return dict(system=self.system.name, path=self.path)

@@ -31,9 +31,9 @@ table#main tr#newentry {
 	display:none;
 }
 th { text-align:left;}
-.colDate {	min-width:180px;}
-.colSubj {	min-width:70px;}
-.colTask {	min-width:70px;}
+.colDate {	min-width:160px; }
+.colSubj {	min-width:60px;}
+.colTask {	min-width:60px;}
 .rowactive td { 
 	position:relative; 
 	z-index:10;
@@ -41,7 +41,11 @@ th { text-align:left;}
 .active td, .active { background-color:#EEE; }
 .running td, .running { background-color:#DFD; }
 
-div#leftpane { float:left; width:30%; }
+div#leftpane { 
+	float:left; 
+	width:30%; 
+	overflow:auto;
+}
 div#rightpane { 
 	left:30%; 
 	width:70%; 
@@ -50,34 +54,54 @@ div#rightpane {
 	overflow:auto;
 	margin-left:-1px;
 }
-div#content { 
-	background-color:#EEE;
-	padding:0.5em;
-	border-left:1px solid #AAA;
-	display:none;
+div#border {
 	min-height:100%;
+	border-left:1px solid #AAA;
+	background-color:#EEE;
+	display:none;
 }
-fieldset { 
-	margin:0.5em;
-	border:1px solid; 
-	border-radius:3px;
+div#content { 
+	padding:0.5em;
 }
 ul {
 	margin:0px;
 	padding:0px;
 	list-style-type:none;
 }
-#parameters label,#sequence label { float:left; width:40%; min-width:80px; margin:5px 0px; }
-#parameters li { clear:both;}
+fieldset { 
+	margin:0.5em;
+	border:1px solid; 
+	border-radius:3px;
+}
+
 /*#features {
 	column-count:2;
 	-webkit-column-count:2;
 	-moz-column-count:2;
 }*/
+
+
 div.options { float:left; width:35%; }
-div.options select { width:57%;}
-div.options input[type=text] { width:57%; }
-div.options input[type=number] { width:57%; }
+#parameters table,#sequence table {
+	width:100%;
+	border-collapse:collapse;
+}
+td.param_label {
+	width:40%;
+}
+td.param_label+td {
+	width:60%;
+}
+td.param_label+td select { width:100%; }
+input[type=text], input[type=number] { 
+	border:1px solid;
+	border-color:#888;
+	padding:2px;
+	border-radius:2px;
+	transition:all 0.25s ease-in-out;
+	-webkit-transition:all 0.25s ease-in-out;
+	-moz-transition:all 0.25s ease-in-out;
+}
 
 div.rightside { float:left; width:65%; }
 div.rightside textarea {
@@ -90,15 +114,6 @@ div.rightside textarea {
 }
 div.rightside fieldset#notes {
 	height:25em;
-}
-input[type=text], input[type=number] { 
-	border:1px solid;
-	border-color:#888;
-	padding:2px;
-	border-radius:2px;
-	transition:all 0.25s ease-in-out;
-	-webkit-transition:all 0.25s ease-in-out;
-	-moz-transition:all 0.25s ease-in-out;
 }
 input:invalid {
 	box-shadow:0px 0px 10px red;

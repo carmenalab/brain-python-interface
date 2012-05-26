@@ -27,7 +27,12 @@ def _respond(data):
 def task_info(request, idx):
     task = Task.objects.get(pk=idx)
     feats = [Feature.objects.get(name=name) for name, isset in request.GET.items() if isset == "true"]
-    return _respond(dict(params=task.params(feats=feats), sequences=task.sequences()))
+    task_info = dict(params=task.params(feats=feats))
+
+    if issubclass(task.get(feats=feats), experiment.Sequence):
+        task_info['sequence'] = task.sequences()
+
+    return _respond(task_info)
 
 def exp_info(request, idx):
     entry = TaskEntry.objects.get(pk=idx)
@@ -37,39 +42,24 @@ def gen_info(request, idx):
     gen = Generator.objects.get(pk=idx)
     return _respond(gen.to_json())
 
-
-def _sequence(task, data, save=True):
-    if isinstance(data, dict):
-        seqparams = Parameters.from_html(data['params'])
-        seqdb = Sequence(generator_id=data['generator'], 
-            task=task, name=data['name'], 
-            params=seqparams.to_json())
-            
-        if data['static']:
-            seq = cPickle.dumps(seqdb.generator.get()(**seqparams.params))
-            seqdb.sequence = seq
-        
-        if save:
-            seqdb.save()
-    else:
-        seqdb = Sequence.objects.get(pk=data)
-    
-    return seqdb
-
 def start_experiment(request, save=True):
     #make sure we don't have an already-running experiment
     if display.state is not None:
         return _respond("fail")
     
     data = json.loads(request.POST['data'])
-    entry = TaskEntry(subject_id=data['subject_id'], task_id=data['task_id'])
-    seq = _sequence(entry.task, data['sequence'], save=save)
-    entry.sequence = seq
-    feats = [Feature.objects.get(name=n).get() for n in data['feats']]
-    Exp = experiment.make(entry.task.get(), feats)
+    task =  Task.objects.get(pk=data['task'])
+    Exp = task.get(feats=data['feats'].keys())
+    entry = TaskEntry(subject_id=data['subject'], task=task)
     params = Parameters.from_html(data['params'])
     params.trait_norm(Exp.class_traits())
     entry.params = params.to_json()
+
+    if issubclass(Exp, experiment.Sequence):
+        seq = Sequence.from_json(data['sequence'])
+        entry.sequence = seq
+        if save:
+            seq.save()
     
     saveid = None
     if save:
@@ -77,9 +67,8 @@ def start_experiment(request, save=True):
         for feat in data['feats']:
             f = Feature.objects.get(name=feat)
             entry.feats.add(f.pk)
-        saveid = entry.pk
-
-    display.start(entry.subject.name, entry.task, feats, seq, params.params, saveid)
+    
+    display.start(Exp, params, seq.get())
     return _respond(dict(id=entry.id, subj=entry.subject.name, 
         task=entry.task.name))
 
