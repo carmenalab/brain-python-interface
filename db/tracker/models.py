@@ -27,23 +27,7 @@ class Task(models.Model):
     def get(self, feats=()):
         from namelist import tasks
         from riglib import experiment
-
-        features = []
-        for feat in feats:
-            if isinstance(feat, (int, float, str)):
-                try:
-                    feat = Feature.objects.get(pk=int(feat)).get()
-                except ValueError:
-                    try:
-                        feat = Feature.objects.get(name=feat).get()
-                    except:
-                        continue
-            elif isinstance(feat, models.Model):
-                feat = feat.get()
-            
-            features.append(feat)
-
-        return experiment.make(tasks[self.name], features)
+        return experiment.make(tasks[self.name], Feature.getall(feats))
 
     @staticmethod
     def populate():
@@ -101,6 +85,25 @@ class Feature(models.Model):
         db = set(feat.name for feat in Feature.objects.all())
         for name in real - db:
             Feature(name=name).save()
+
+    @staticmethod
+    def getall(feats):
+        features = []
+        for feat in feats:
+            if isinstance(feat, (int, float, str, unicode)):
+                try:
+                    feat = Feature.objects.get(pk=int(feat)).get()
+                except ValueError:
+                    try:
+                        feat = Feature.objects.get(name=feat).get()
+                    except:
+                        print "Cannot find feature %s"%feat
+                        continue
+            elif isinstance(feat, models.Model):
+                feat = feat.get()
+            
+            features.append(feat)
+        return features
 
 class System(models.Model):
     name = models.CharField(max_length=128)
@@ -216,13 +219,13 @@ class Sequence(models.Model):
     @classmethod
     def from_json(cls, js):
         from json_param import Parameters
-        if not isinstance(js, dict):
-            js = json.loads(js)
         try:
             return Sequence.objects.get(pk=int(js))
         except:
             pass
         
+        if not isinstance(js, dict):
+            js = json.loads(js)
         genid = js['generator']
         if isinstance(genid, (tuple, list)):
             genid = genid[0]
@@ -268,8 +271,6 @@ class TaskEntry(models.Model):
         js['params'] = self.task.params(self.feats.all(), values=Parameters(self.params).params)
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
-        else:
-            print "Not a Sequence task", self.task.get().mro()
         js['datafiles'] = [d.to_json() for d in DataFile.objects.filter(entry=self.id)]
         
         return js

@@ -28,12 +28,12 @@ class Tracker(object):
         except:
             return self.task.__getattr__(attr)
 
-    def start(self, *args):
+    def start(self, **kwargs):
         self.status.value = 1
-        self.proc = mp.Process(target=runtask, args=(self.status,)+args)
+        self.proc = mp.Process(target=runtask, args=(self.status,), kwargs=kwargs)
         self.proc.start()
         self.task = xmlrpclib.ServerProxy("http://localhost:8001/", allow_none=True)
-        self.state = "testing" if args[-1] is None else "running"
+        self.state = "running" if 'saveid' in kwargs else "testing"
     
     def pause(self):
         self.state = self.task.pause()
@@ -49,9 +49,9 @@ class Tracker(object):
         self.task = None
         return state
 
-database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 class Task(object):
-    def __init__(self, subj, task, feats, seq, params, saveid=None):
+    def __init__(self, task, feats, params, seq=None, saveid=None):
+        database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
         if saveid is not None:
             class CommitFeat(object):
                 def _start_None(self):
@@ -87,13 +87,14 @@ class Task(object):
 
                 feats.insert(0, SaveHDFdata)
 
-        Exp = experiment.make(task.get(), feats=feats)
-        gen, gp = seq.get()
-        sequence = gen(Exp, **gp)
+        Exp = task.get(feats=feats)
         if issubclass(Exp, experiment.Sequence):
+            gen, gp = seq.get()
+            sequence = gen(Exp, **gp)
             exp = Exp(sequence, **params)
         else:
             exp = Exp(**params)
+
         exp.start()
         self.task = exp
 
@@ -113,7 +114,7 @@ class Task(object):
 class RequestHandler(SimpleXMLRPCRequestHandler):
     pass
 
-def runtask(status, *args):
+def runtask(status, **kwargs):
     os.nice(0)
     server = None
     while server is None:
@@ -123,16 +124,19 @@ def runtask(status, *args):
         except:
             print "Cannot open server..."
             time.sleep(2.)
+    try:
+        task = Task(**kwargs)
+        server.register_instance(task)
+        server.timeout = 0.5
     
-    task = Task(*args)
-    server.register_instance(task)
-    server.timeout = 0.5
-    
-    while status.value == 1 and task.task.state is not None:
-        try:
-            server.handle_request()
-        except KeyboardInterrupt:
-            status.value = 0
+        while status.value == 1 and task.task.state is not None:
+            try:
+                server.handle_request()
+            except KeyboardInterrupt:
+                status.value = 0
+    except:
+        import traceback
+        traceback.print_exc()
     
     server.server_close()
     print "exited"

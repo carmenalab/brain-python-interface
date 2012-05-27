@@ -54,13 +54,13 @@ div#rightpane {
 	overflow:auto;
 	margin-left:-1px;
 }
-div#border {
+div#content {
 	min-height:100%;
 	border-left:1px solid #AAA;
 	background-color:#EEE;
 	display:none;
 }
-div#content { 
+form#experiment { 
 	padding:0.5em;
 }
 ul {

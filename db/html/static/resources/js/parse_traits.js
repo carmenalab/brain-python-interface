@@ -1,6 +1,6 @@
-function Parameters(desc) {
+function Parameters() {
     this.obj = document.createElement("table");
-    this.init(desc);
+    this.traits = {};
 }
 Parameters._parse = function(input) {
     var val = input.value.length > 0? input.value : input.placeholder;
@@ -9,7 +9,29 @@ Parameters._parse = function(input) {
 
     return val;
 }
-Parameters.prototype.init = function(desc) {
+Parameters.prototype.update = function(desc) {
+    //Update the parameters descriptor to include the updated values
+    for (var name in desc) {
+        if (typeof(this.traits[name]) != "undefined" &&
+            typeof(desc[name].value) == "undefined") {
+            if (this.traits[name].inputs.length > 1) {
+                var any = false;
+                var tuple = [];
+                for (var i = 0; i < this.traits[name].inputs.length; i++) {
+                    tuple.push(this.traits[name].inputs[i].value);
+                    if (this.traits[name].inputs[i].value)
+                        any = true;
+                }
+                if (any)
+                    desc[name].value = tuple;
+            } else {
+                desc[name].value = this.traits[name].inputs[0].value;
+            }
+        }
+    }
+    //clear out the parameters box
+    this.obj.innerHTML = "";
+    //reinitialize with the updated values
     this.traits = {};
     var func;
     var funcs = {
@@ -39,31 +61,6 @@ Parameters.prototype._add = function(name, desc) {
     td.appendChild(label);
 
     return trait;
-}
-Parameters.prototype.update = function(desc) {
-    //Update the parameters descriptor to include the updated values
-    for (var name in desc) {
-        if (typeof(this.traits[name]) != "undefined" &&
-            typeof(desc[name].value) == "undefined") {
-            if (this.traits[name].inputs.length > 1) {
-                var any = false;
-                var tuple = [];
-                for (var i = 0; i < this.traits[name].inputs.length; i++) {
-                    tuple.push(this.traits[name].inputs[i].value);
-                    if (this.traits[name].inputs[i].value)
-                        any = true;
-                }
-                if (any)
-                    desc[name].value = tuple;
-            } else {
-                desc[name].value = this.traits[name].inputs[0].value;
-            }
-        }
-    }
-    //clear out the parameters box
-    this.obj.innerHTML = "";
-    //reinitialize with the updated values
-    this.init(desc);
 }
 Parameters.prototype.add_tuple = function(name, info) {
     var len = info['default'].length;

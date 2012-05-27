@@ -17,23 +17,27 @@ $(document).ready(function() {
 	btn = false;
 	$("#copybtn").click(TaskEntry.copy);
 	$("#experiment").submit(function() {
-		te.run(btn);
-		return false;
+		return te.run(btn);
 	})
 	$("#startbtn").click(function() { btn = true; })
 	$("#testbtn").click(function() { btn = false; })
 })
 
 function TaskEntry(idx, info){
+	this.sequence = new Sequence();
+	this.params = new Parameters();
+	this.report = new Report();
+	$("#parameters").append(this.params.obj);
+
 	if (idx) {
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
 		this.tr = $("#"+idx);
 		$("#copybtn").show();
 		$("#startbtn, #testbtn").hide();
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
-			this.set(expinfo);
+			this.update(expinfo);
 			this.disable();
-			$("#border").show("slide", "fast");
+			$("#content").show("slide", "fast");
 		}.bind(this));
 	} else {
 		this.idx = null;
@@ -43,32 +47,21 @@ function TaskEntry(idx, info){
 		$("#copybtn").hide();
 		$("#startbtn, #testbtn").show();
 		if (info) {
-			this.set(info);
+			this.update(info);
 			this.enable();
-			$("#border").show("slide", "fast");
+			$("#content").show("slide", "fast");
 		} else {
-			this._task_query(function(params, seqs) {
-				this.init(params, seqs);
+			this._task_query(function() {
 				this.enable();
-				$("#border").show("slide", "fast");
+				$("#content").show("slide", "fast");
 			}.bind(this));
 		}
 	}
+
 	this.tr.unbind("click");
 	this.tr.addClass("rowactive active");
 }
-TaskEntry.prototype.init = function(params, seqs) {
-	this.params = new Parameters(params);
-	$("#parameters").append(this.params.obj);
-	this.sequence = new Sequence(seqs?seqs:{});
-	
-	if (seqs) {
-		$("#sequence").show()
-	} else {
-		$("#sequence").hide()
-	}
-}
-TaskEntry.prototype.set = function(info) {
+TaskEntry.prototype.update = function(info) {
 	this.expinfo = info;
 	$("#tasks option").each(function() {
 		if (this.value == info.task)
@@ -85,21 +78,27 @@ TaskEntry.prototype.set = function(info) {
 				this.checked = true;
 		}
 	});
-	this.init(info.params, info.sequence);
+
+	this.sequence.update(info.sequence);
+	this.params.update(info.params);
+	if (info.sequence) {
+		$("#sequence").show()
+	} else {
+		$("#sequence").hide()
+	}
 }
 TaskEntry.copy = function() {
 	te.destroy();
 	te = new TaskEntry(null, te.expinfo);
 }
 TaskEntry.prototype.destroy = function() {
-	$("#border").hide();
-	this.tr.removeClass("rowactive");
-	try {
-		$(this.params.obj).remove()
-	} catch(e) {}
-	this.tr.removeClass("rowactive active");
+	$("#content").hide();
+	this.report.destroy();
 	this.sequence.destroy();
+	$(this.params.obj).remove()
 	delete this.params
+	this.tr.removeClass("rowactive active");
+
 	if (this.idx != null) {
 		var idx = "row"+this.idx;
 		this.tr.click(function() {
@@ -128,16 +127,14 @@ TaskEntry.prototype._task_query = function(callback) {
 	});
 
 	$.getJSON("ajax/task_info/"+taskid+"/", feats, function(taskinfo) {
-		if (typeof(callback) == "function") {
-			callback(taskinfo.params, taskinfo.sequence)
-		} else {
-			this.params.update(taskinfo.params);
+		this.params.update(taskinfo.params);
+		if (taskinfo.sequence) {
+			$("#sequence").show()
 			this.sequence.update(taskinfo.sequence);
-			if (taskinfo.sequence)
-				$("#sequence").show()
-			else
-				$("#sequence").hide()
-		}
+		} else
+			$("#sequence").hide()
+		if (typeof(callback) == "function")
+			callback();
 	}.bind(this));
 }
 
@@ -146,16 +143,22 @@ TaskEntry.prototype.run = function(save) {
 	var form = {};
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(this.get_data());
-	$.post(save?"start":"test", form, function() {
-		$("#testbtn").hide()
-		$("#startbtn").attr("value", "Stop");
-		$("#startbtn").unbind("click").click(this.stop.bind(this));
-		$("#border").addClass("running");
-		this.tr.addClass("running");
+	$.post(save?"start":"test", form, function(info) {
+		this.report.update(info);
+		if (info.state == "error") {
+			this.enable();
+		} else if (info.state == "running") {
+			$("#testbtn").hide();
+			$("#startbtn").attr("value", "Stop");
+			$("#startbtn").unbind("click").click(this.stop.bind(this));
+			$("#content").addClass("running");
+			this.tr.addClass("running");
+		}
 	}.bind(this));
+	return false;
 }
 TaskEntry.prototype.stop = function(data) {
-	$("#border").removeClass("running");
+	$("#content").removeClass("running");
 	this.tr.removeClass("running");
 	$("#content .startbtn").hide()
 	$("#addbtn").show()
@@ -180,13 +183,13 @@ TaskEntry.prototype.enable = function() {
 	$("#parameters input, #features input").removeAttr("disabled");
 	if (this.sequence)
 		this.sequence.enable();
-	if (this.idx)
-		$("#subjects input, #tasks input").removeAttr("disabled");
+	if (!this.idx)
+		$("#subjects, #tasks").removeAttr("disabled");
 }
 TaskEntry.prototype.disable = function() {
 	$("#parameters input, #features input").attr("disabled", "disabled");
 	if (this.sequence)
 		this.sequence.disable();
-	if (this.idx)
-		$("#subjects input, #tasks input").attr("disabled", "disabled");
+	if (!this.idx)
+		$("#subjects, #tasks").attr("disabled", "disabled");
 }

@@ -45,32 +45,46 @@ def gen_info(request, idx):
 def start_experiment(request, save=True):
     #make sure we don't have an already-running experiment
     if display.state is not None:
-        return _respond("fail")
-    
-    data = json.loads(request.POST['data'])
-    task =  Task.objects.get(pk=data['task'])
-    Exp = task.get(feats=data['feats'].keys())
-    entry = TaskEntry(subject_id=data['subject'], task=task)
-    params = Parameters.from_html(data['params'])
-    params.trait_norm(Exp.class_traits())
-    entry.params = params.to_json()
+        return _respond(dict(state="fail"))
+    try:
+        data = json.loads(request.POST['data'])
+        task =  Task.objects.get(pk=data['task'])
+        Exp = task.get(feats=data['feats'].keys())
+        entry = TaskEntry(subject_id=data['subject'], task=task)
+        params = Parameters.from_html(data['params'])
+        params.trait_norm(Exp.class_traits())
+        entry.params = params.to_json()
+        kwargs = dict(task=task, feats=Feature.getall(data['feats'].keys()), params=params.params)
 
-    if issubclass(Exp, experiment.Sequence):
-        seq = Sequence.from_json(data['sequence'])
-        entry.sequence = seq
+        if issubclass(Exp, experiment.Sequence):
+            seq = Sequence.from_json(data['sequence'])
+            entry.sequence = seq
+            if save:
+                seq.save()
+            kwargs['seq'] = seq
+        else:
+            entry.sequence_id = -1
+        
+        saveid = None
         if save:
-            seq.save()
-    
-    saveid = None
-    if save:
-        entry.save()
-        for feat in data['feats']:
-            f = Feature.objects.get(name=feat)
-            entry.feats.add(f.pk)
-    
-    display.start(Exp, params, seq.get())
-    return _respond(dict(id=entry.id, subj=entry.subject.name, 
-        task=entry.task.name))
+            kwargs['saveid'] = saveid
+            entry.save()
+            for feat in data['feats']:
+                f = Feature.objects.get(name=feat)
+                entry.feats.add(f.pk)
+        
+        display.start(**kwargs)
+        return _respond(dict(state="running", id=entry.id, subj=entry.subject.name, 
+            task=entry.task.name))
+
+    except Exception as e:
+        import cStringIO
+        import traceback
+        err = cStringIO.StringIO()
+        traceback.print_exc(None, err)
+        err.seek(0)
+        return _respond(dict(state="error", msg=err.read()))
+
 
 def stop_experiment(request):
     #make sure that there exists an experiment to stop

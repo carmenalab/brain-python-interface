@@ -1,19 +1,27 @@
-function Sequence(info) {
-    var _this = this;
-    this.params = new Parameters({});
+function Sequence() {
+    this.params = new Parameters();
     $("#seqparams").append(this.params.obj);
+
+    var _this = this;
     $("#seqgen").change(function() {
         $.getJSON("ajax/gen_info/"+this.value+"/", {}, function(info) {
             _this.params.update(info.params);
         });
     });
+
     $("#seqparams").click(function() {
         if ($("#seqlist").attr("disabled") != "disabled")
             this.edit();
     }.bind(this));
-    this.init(info);
+    this.options = {};
 }
-Sequence.prototype.init = function(info) {
+Sequence.prototype.update = function(info) {
+    $("#seqlist").unbind("change");
+    for (var id in this.options)
+        $(this.options[id]).remove()
+    if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
+        $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'><option value='new'>Create New...</option></select>");
+    
     this.options = {};
     var opt, id;
     for (id in info) {
@@ -23,47 +31,42 @@ Sequence.prototype.init = function(info) {
         this.options[id] = opt;
         $("#seqlist").append(opt);
     }
-    $("#seqgen option").filter(":selected").removeAttr("selected");
-    if (typeof(id) != "undefined") {
+    if (id) {
         $("#seqgen option").each(function() {
+            this.selected = false;
             if (this.value == info[id].generator[0])
-                this.selected = "selected";
+                this.selected = true;
         })
         $("#seqlist option").each(function() {
             if (this.value == id)
-                this.selected = "selected";
+                this.selected = true;
         })
         this.params.update(info[id].params);
         $("#seqstatic").attr("checked", info[id].static);
-    }
-    //Bind the sequence list updating function
-    var _this = this;
-    $("#seqlist").change(function () {
-        var id = this.value;
-        if (id == "new")
-            _this.edit()
-        else {
-            _this.params.update(info[id].params);
-            $("#seqparams input").attr("disabled", "disabled");
-            $("#seqgen option").each(function() {
-                if (this.value == info[id].generator[0])
-                    this.selected = "selected";
-            })
-            $("#seqstatic").attr("checked", info[id].static);
-        }
-    })
-    $("#seqstatic,#seqparams input, #seqgen").attr("disabled", "disabled");
-    if (typeof(id) == "undefined")
+
+        //Bind the sequence list updating function
+        var _this = this;
+        $("#seqlist").change(function () {
+            var id = this.value;
+            if (id == "new")
+                _this.edit()
+            else {
+                _this.params.update(info[id].params);
+                $("#seqparams input").attr("disabled", "disabled");
+                $("#seqgen option").each(function() {
+                    if (this.value == info[id].generator[0])
+                        this.selected = true;
+                })
+                $("#seqstatic").attr("checked", info[id].static);
+            }
+        })
+        $("#seqstatic,#seqparams input, #seqgen").attr("disabled", "disabled");
+    } else {
         this.edit();
+        $("#seqgen").change();
+    }
 }
-Sequence.prototype.update = function(info) {
-    $("#seqlist").unbind("change");
-    for (var id in this.options)
-        $(this.options[id]).remove()
-    if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
-        $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'></select>");
-    this.init(info);
-}
+
 Sequence.prototype.destroy = function() {
     for (var id in this.options)
         $(this.options[id]).remove()
@@ -72,7 +75,7 @@ Sequence.prototype.destroy = function() {
     $("#seqlist").unbind("change");
     $("#seqgen").unbind("change");
     if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
-        $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'></select>");
+        $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'><option value='new'>Create New...</option></select>");
 }
 
 Sequence.prototype._make_name = function() {
