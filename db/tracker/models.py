@@ -257,9 +257,14 @@ class TaskEntry(models.Model):
         from json_param import Parameters
         from riglib import experiment
         Exp = experiment.make(self.task.get(), tuple(f.get() for f in self.feats.all())+feats)
-        gen, gp = self.sequence.get()
-        seq = gen(Exp, **gp.params)
-        exp = Exp(seq, **Parameters(self.params).params)
+        params = Parameters(self.params)
+        params.trait_norm(Exp.class_traits())
+        if issubclass(Exp, experiment.Sequence):
+            gen, gp = self.sequence.get()
+            seq = gen(Exp, **gp)
+            exp = Exp(seq, **params.params)
+        else:
+            exp = Exp(**params.params)
         exp.event_log = json.loads(self.report)
         return exp
 
@@ -272,6 +277,13 @@ class TaskEntry(models.Model):
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         js['datafiles'] = [d.to_json() for d in DataFile.objects.filter(entry=self.id)]
+        try:
+            task = self.task.get(self.feats.all())
+            report = json.loads(self.report)
+            js['report'] = experiment.report.general(task, report)
+        except:
+            js['report'] = dict()
+        js['report']['state'] = "Completed"
         
         return js
 

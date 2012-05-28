@@ -2,52 +2,108 @@ import os
 import json
 import time
 import cPickle
+import threading
 import xmlrpclib
 import multiprocessing as mp
-from SimpleXMLRPCServer import SimpleXMLRPCServer
-from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
 import numpy as np
 
 from riglib import experiment
 from riglib.experiment import features
 from tracker import models
+import websocket
 
 from json_param import Parameters
 
-class Tracker(object):
+class Track(object):
     def __init__(self):
-        self.state = None
+        self.status = mp.Array('c', 256)
         self.task = None
         self.proc = None
-        self.status = mp.Value('b', 1)
+        self.websock = websocket.Server(self.notify)
+        self.cmds, self._cmds = mp.Pipe()
 
-    def __getattr__(self, attr):
-        try:
-            return super(Tracker, self).__getattr__(attr)
-        except:
-            return self.task.__getattr__(attr)
+    def notify(self, msg):
+        if msg['status'] == "error":
+            self.status.value = ""
 
-    def start(self, **kwargs):
-        self.status.value = 1
-        self.proc = mp.Process(target=runtask, args=(self.status,), kwargs=kwargs)
+    def runtask(self, **kwargs):
+        self.status.value = "testing" if 'saveid' in kwargs else "running"
+        self.task = ObjProxy(self.cmds)
+        args = (self.cmds, self._cmds, self.websock)
+        self.proc = mp.Process(target=runtask, args=args, kwargs=kwargs)
         self.proc.start()
-        self.task = xmlrpclib.ServerProxy("http://localhost:8001/", allow_none=True)
-        self.state = "running" if 'saveid' in kwargs else "testing"
-    
-    def pause(self):
-        self.state = self.task.pause()
 
-    def stop(self):
-        self.task.end_task()
-        state = self.state
-        self.state = None
+    def __del__(self):
+        self.websock.stop()
+
+    def pausetask(self):
+        self.status.vaue = self.task.pause()
+
+    def stoptask(self):
         try:
-            print self.task.get_state()
-        except:
-            print "couldn't close..."
+            self.task.end_task()
+            self.cmds.send(None)
+        except Exception as e:
+            import cStringIO
+            import traceback
+            err = cStringIO.StringIO()
+            traceback.print_exc(None, err)
+            err.seek(0)
+            return dict(status="error", msg=err.read())
+
+        status = self.status.value
+        self.status.value = ""
         self.task = None
-        return state
+        return status
+
+def runtask(cmds, _cmds, websock, **kwargs):
+    from riglib.experiment import report
+    os.nice(0)
+    status = "running" if 'saveid' in kwargs else "testing"
+    class NotifyFeat(object):
+        def set_state(self, state, *args, **kwargs):
+            super(NotifyFeat, self).set_state(state, *args, **kwargs)
+            rep = report.general(self.__class__, self.event_log)
+            rep.update(dict(status=status, state=state))
+            websock.send(rep)
+
+        def run(self):
+            try:
+                super(NotifyFeat, self).run()
+            except:
+                import cStringIO
+                import traceback
+                err = cStringIO.StringIO()
+                traceback.print_exc(None, err)
+                err.seek(0)
+                websock.send(dict(status="error", msg=err.read()))
+            finally:
+                cmds.send(None)
+
+    kwargs['feats'].insert(0, NotifyFeat)
+    try:
+        task = Task(**kwargs)
+        cmd = _cmds.recv()
+        while cmd is not None and task.task.state is not None:
+            try:
+                ret = getattr(task, cmd[0])(*cmd[1], **cmd[2])
+                _cmds.send(ret)
+                cmd = _cmds.recv()
+            except KeyboardInterrupt:
+                cmd = None
+            except Exception as e:
+                _cmds.send(e)
+                cmd = _cmds.recv()
+    except:
+        import cStringIO
+        import traceback
+        err = cStringIO.StringIO()
+        traceback.print_exc(None, err)
+        err.seek(0)
+        websock.send(dict(status="error", msg=err.read()))
+
+    print "exited"
 
 class Task(object):
     def __init__(self, task, feats, params, seq=None, saveid=None):
@@ -87,14 +143,13 @@ class Task(object):
 
                 feats.insert(0, SaveHDFdata)
 
-        Exp = task.get(feats=feats)
+        Exp = experiment.make(task.get(), feats=feats)
         if issubclass(Exp, experiment.Sequence):
             gen, gp = seq.get()
             sequence = gen(Exp, **gp)
             exp = Exp(sequence, **params)
         else:
             exp = Exp(**params)
-
         exp.start()
         self.task = exp
 
@@ -111,38 +166,26 @@ class Task(object):
     def get_state(self):
         return self.task.state
 
-class RequestHandler(SimpleXMLRPCRequestHandler):
-    pass
-
-def runtask(status, **kwargs):
-    os.nice(0)
-    server = None
-    while server is None:
-        try:
-            server = SimpleXMLRPCServer(("localhost", 8001), requestHandler=RequestHandler, allow_none=True)
-            server.register_introspection_functions()
-        except:
-            print "Cannot open server..."
-            time.sleep(2.)
-    try:
-        task = Task(**kwargs)
-        server.register_instance(task)
-        server.timeout = 0.5
-    
-        while status.value == 1 and task.task.state is not None:
-            try:
-                server.handle_request()
-            except KeyboardInterrupt:
-                status.value = 0
-    except:
-        import traceback
-        traceback.print_exc()
-    
-    server.server_close()
-    print "exited"
+    def __getattr__(self, attr):
+        return getattr(self, attr)
 
 
-try:
-    tracker
-except NameError:
-    tracker = Tracker()
+class ObjProxy(object):
+    def __init__(self, cmds):
+        self.cmds = cmds
+
+    def __getattr__(self, attr):
+        self.cmds.send(("__getattr__", [attr], {}))
+        ret = self.cmds.recv()
+        if isinstance(ret, Exception):
+            return FuncProxy(attr, self.cmds)
+
+        return ret
+
+class FuncProxy(object):
+    def __init__(self, func, pipe):
+        self.pipe = pipe
+        self.cmd = func
+    def __call__(self, *args, **kwargs):
+        self.pipe.send((self.cmd, args, kwargs))
+        return self.pipe.recv()

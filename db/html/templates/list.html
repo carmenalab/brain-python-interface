@@ -4,13 +4,40 @@
 <html>
 <head>
 <title>Task Entries</title>
-<link rel="stylesheet" type="text/css" href="{{STATIC_PREFIX}}/resources/css/list.css" />
+<link rel="stylesheet" type="text/css" href="{{STATIC_PREFIX}}resources/css/list.css" />
 <script src='{{ STATIC_PREFIX }}resources/js/jquery-1.7.2.min.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/jquery-ui-1.8.16.custom.min.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/parse_traits.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/list.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/sequence.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/report.js' type='text/javascript'></script>
+<script type='text/javascript'>
+	var hostname = "{{hostname}}";
+	var te = null;
+	$(document).ready(function() {
+		$("table#main tr").each(function() {
+			var idx = this.id;
+			if (this.id == "newentry") {
+				$(this).click(function() {
+					if (te) te.destroy();
+					te = new TaskEntry(null);
+				})
+			} else {
+				$(this).click(function() {
+					if (te) te.destroy();
+					te = new TaskEntry(idx);
+				})
+			}
+		})
+		btn = false;
+		$("#copybtn").click(TaskEntry.copy);
+		$("#experiment").submit(function() {
+			return te.run(btn);
+		})
+		$("#startbtn").click(function() { btn = true; })
+		$("#testbtn").click(function() { btn = false; })
+	})
+</script>
 </head>
 <body>
 	<div id='leftpane'>
@@ -44,7 +71,7 @@
 		</table>
 	</div>
 	<div id="rightpane">
-		<div id='content'>
+		<div id='content' class="active">
 			{% include "exp_content.html" %}
 		</div>
 	</div>

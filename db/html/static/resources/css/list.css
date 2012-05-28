@@ -38,8 +38,10 @@ th { text-align:left;}
 	position:relative; 
 	z-index:10;
 }
-.active td, .active { background-color:#EEE; }
-.running td, .running { background-color:#DFD; }
+.active td, div.active { background-color:#EEE; }
+.running td, div.running { background-color:#DFD; }
+.testing td, div.testing { background-color:#FFD; }
+.error td, div.error { background-color:#FDD; }
 
 div#leftpane { 
 	float:left; 
@@ -55,9 +57,9 @@ div#rightpane {
 	margin-left:-1px;
 }
 div#content {
+	transition:all 0.25s ease-in-out;
 	min-height:100%;
 	border-left:1px solid #AAA;
-	background-color:#EEE;
 	display:none;
 }
 form#experiment { 
@@ -81,7 +83,7 @@ fieldset {
 }*/
 
 
-div.options { float:left; width:35%; }
+.options { float:left; width:35%; }
 #parameters table,#sequence table {
 	width:100%;
 	border-collapse:collapse;
@@ -103,7 +105,7 @@ input[type=text], input[type=number] {
 	-moz-transition:all 0.25s ease-in-out;
 }
 
-div.rightside { float:left; width:65%; }
+div.rightside { float:left; width:65%; max-width:65%; }
 div.rightside textarea {
 	width:100%;
 	height:100%;
@@ -136,4 +138,8 @@ input.startbtn {
 
 input.startbtn:hover {
 	box-shadow: 0px 0px 15px green;
+}
+
+#report table.option {
+	font-size:80%;
 }

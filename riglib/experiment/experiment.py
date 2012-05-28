@@ -23,7 +23,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.set_state(self.status[self.state][event])
     
     def set_state(self, condition):
-        print condition
         self.state = condition
         self.start_time = time.time()
         if hasattr(self, "_start_%s"%condition):

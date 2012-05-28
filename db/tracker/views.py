@@ -15,5 +15,6 @@ def list(request):
 		subjects=Subject.objects.all().order_by("name"), 
 		tasks=Task.objects.all().order_by("name"), 
 		features=Feature.objects.order_by("name").all(), 
-		generators=Generator.objects.order_by("name").all()
+		generators=Generator.objects.order_by("name").all(),
+        hostname=request.get_host()
 	), RequestContext(request))

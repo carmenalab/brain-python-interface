@@ -13,7 +13,7 @@ except ImportError:
 import features
 import generate
 
-from report import report, print_report
+import report
 from experiment import Experiment, LogExperiment, Sequence, TrialTypes
 from Pygame import Pygame
 

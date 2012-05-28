@@ -12,10 +12,7 @@ urlpatterns = patterns('',
     (r'^start/?', 'tracker.ajax.start_experiment'),
     (r'^test/?', 'tracker.ajax.start_experiment', dict(save=False)),
     (r'^stop/?', 'tracker.ajax.stop_experiment'),
-
     (r'^RPC2/?', 'tracker.dbq.rpc_handler'),
-
-    (r'^report/?', 'tracker.ajax.report'),
     # Uncomment the admin/doc line below to enable admin documentation:
     (r'^admin/doc/', include('django.contrib.admindocs.urls')),
     # Uncomment the next line to enable the admin:

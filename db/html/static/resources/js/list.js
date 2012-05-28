@@ -1,32 +1,8 @@
-var te = null;
-$(document).ready(function() {
-	$("table#main tr").each(function() {
-		var idx = this.id;
-		if (this.id == "newentry") {
-			$(this).click(function() {
-				if (te) te.destroy();
-				te = new TaskEntry(null);
-			})
-		} else {
-			$(this).click(function() {
-				if (te) te.destroy();
-				te = new TaskEntry(idx);
-			})
-		}
-	})
-	btn = false;
-	$("#copybtn").click(TaskEntry.copy);
-	$("#experiment").submit(function() {
-		return te.run(btn);
-	})
-	$("#startbtn").click(function() { btn = true; })
-	$("#testbtn").click(function() { btn = false; })
-})
-
 function TaskEntry(idx, info){
 	this.sequence = new Sequence();
 	this.params = new Parameters();
-	this.report = new Report();
+	this.report = new Report(idx == null, this._update_status.bind(this));
+		
 	$("#parameters").append(this.params.obj);
 
 	if (idx) {
@@ -61,6 +37,32 @@ function TaskEntry(idx, info){
 	this.tr.unbind("click");
 	this.tr.addClass("rowactive active");
 }
+TaskEntry.prototype._update_status = function(info) {
+	console.log(info);
+	if (info.status == "running" || info.status == "testing") {
+		this.disable();
+		$("#testbtn").hide();
+		$("#startbtn").attr("value", "Stop");
+		$("#experiment").unbind("submit").submit(this.stop.bind(this));
+	}
+
+	if (info.status == "running") {
+		$(".active").addClass("running");
+	} else if (info.status == "testing" && info.state != null) {
+		$(".active").removeClass("running error").addClass("testing");
+	} else if (info.status == "error") {
+		$(".active").removeClass("running testing").addClass("error");
+	}
+
+	if (info.status == "testing" && info.state == null || info.status == "stopped") {
+		$(".active").removeClass("running error testing");
+		this.enable();
+		$("#testbtn").show();
+		$("#startbtn").attr("value", "Start Experiment");
+		$("#experiment").unbind("submit").submit(this.run.bind(this, btn));
+	}
+}
+
 TaskEntry.prototype.update = function(info) {
 	this.expinfo = info;
 	$("#tasks option").each(function() {
@@ -78,9 +80,10 @@ TaskEntry.prototype.update = function(info) {
 				this.checked = true;
 		}
 	});
-
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
+	this.report.update(info.report);
+
 	if (info.sequence) {
 		$("#sequence").show()
 	} else {
@@ -89,6 +92,7 @@ TaskEntry.prototype.update = function(info) {
 }
 TaskEntry.copy = function() {
 	te.destroy();
+	te.expinfo.report = {};
 	te = new TaskEntry(null, te.expinfo);
 }
 TaskEntry.prototype.destroy = function() {
@@ -145,24 +149,15 @@ TaskEntry.prototype.run = function(save) {
 	form['data'] = JSON.stringify(this.get_data());
 	$.post(save?"start":"test", form, function(info) {
 		this.report.update(info);
-		if (info.state == "error") {
-			this.enable();
-		} else if (info.state == "running") {
-			$("#testbtn").hide();
-			$("#startbtn").attr("value", "Stop");
-			$("#startbtn").unbind("click").click(this.stop.bind(this));
-			$("#content").addClass("running");
-			this.tr.addClass("running");
-		}
+		this._update_status(info);
 	}.bind(this));
 	return false;
 }
 TaskEntry.prototype.stop = function(data) {
-	$("#content").removeClass("running");
+	$(".active").removeClass("running");
 	this.tr.removeClass("running");
 	$("#content .startbtn").hide()
 	$("#addbtn").show()
-	$("#copybtn").show().attr("onclick", "startnew("+this.idx+")")
 }
 
 TaskEntry.prototype.get_data = function() {

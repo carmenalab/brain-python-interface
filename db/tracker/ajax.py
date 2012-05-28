@@ -9,8 +9,11 @@ from riglib import experiment
 
 import namelist
 from json_param import Parameters
-from tasktrack import tracker as display
+from tasktrack import Track
 from models import TaskEntry, Feature, Sequence, Task, Generator, Subject
+
+
+display = Track()
 
 class encoder(json.JSONEncoder):
     def default(self, o):
@@ -44,8 +47,9 @@ def gen_info(request, idx):
 
 def start_experiment(request, save=True):
     #make sure we don't have an already-running experiment
-    if display.state is not None:
-        return _respond(dict(state="fail"))
+    if display.status.value != '':
+        return _respond(dict(status="error", msg="Alreading running task!"))
+
     try:
         data = json.loads(request.POST['data'])
         task =  Task.objects.get(pk=data['task'])
@@ -66,15 +70,17 @@ def start_experiment(request, save=True):
             entry.sequence_id = -1
         
         saveid = None
+        status = "testing"
         if save:
+            status = "running"
             kwargs['saveid'] = saveid
             entry.save()
-            for feat in data['feats']:
-                f = Feature.objects.get(name=feat)
+            for feat in data['feats'].keys():
+                f = Feature.objects.get(pk=feat)
                 entry.feats.add(f.pk)
         
-        display.start(**kwargs)
-        return _respond(dict(state="running", id=entry.id, subj=entry.subject.name, 
+        display.runtask(**kwargs)
+        return _respond(dict(status=status, id=entry.id, subj=entry.subject.name, 
             task=entry.task.name))
 
     except Exception as e:
@@ -83,16 +89,20 @@ def start_experiment(request, save=True):
         err = cStringIO.StringIO()
         traceback.print_exc(None, err)
         err.seek(0)
-        return _respond(dict(state="error", msg=err.read()))
+        return _respond(dict(status="error", msg=err.read()))
 
 
 def stop_experiment(request):
     #make sure that there exists an experiment to stop
-    if display.state not in ["running", "testing"]:
-        return _respond("fail")
-    return _respond(display.stop())
-
-def report(request):
-    if display.state not in ["running", "testing"]:
-        return _respond("fail")
-    return _respond(display.report())
+    if display.status.value not in ["running", "testing"]:
+        return _respond(dict(status="error", msg="No task to end!"))
+    try:
+        display.stoptask()
+        return _respond(dict(status="stopped"))
+    except:
+        import cStringIO
+        import traceback
+        err = cStringIO.StringIO()
+        traceback.print_exc(None, err)
+        err.seek(0)
+        return _respond(dict(status="error", msg=err.read()))
