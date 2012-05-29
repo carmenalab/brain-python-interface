@@ -61,7 +61,7 @@ class Parameters(object):
                     try:
                         processed[name] = ast.literal_eval(value)
                     except:
-                        pass
+                        processed[name] = value;
             else:
                 processed[name] = value
 
