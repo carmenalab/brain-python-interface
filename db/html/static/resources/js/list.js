@@ -1,7 +1,8 @@
+
 function TaskEntry(idx, info){
 	this.sequence = new Sequence();
 	this.params = new Parameters();
-	this.report = new Report(idx == null, this._update_status.bind(this));
+	this.report = new Report(this._update_status.bind(this));
 		
 	$("#parameters").append(this.params.obj);
 
@@ -11,6 +12,7 @@ function TaskEntry(idx, info){
 		$("#copybtn").show();
 		$("#startbtn, #testbtn").hide();
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
+			this.notes = new Notes(this.idx);
 			this.update(expinfo);
 			this.disable();
 			$("#content").show("slide", "fast");
@@ -18,6 +20,7 @@ function TaskEntry(idx, info){
 	} else {
 		this.idx = null;
 		this.tr = $("#newentry").show();
+		this.report.activate();
 		$("#tasks").change(this._task_query.bind(this));
 		$("#features input").change(this._task_query.bind(this));
 		$("#copybtn").hide();
@@ -33,33 +36,42 @@ function TaskEntry(idx, info){
 			}.bind(this));
 		}
 	}
-
+		
 	this.tr.unbind("click");
 	this.tr.addClass("rowactive active");
 }
 TaskEntry.prototype._update_status = function(info) {
 	console.log(info);
-	if (info.status == "running" || info.status == "testing") {
-		this.disable();
-		$("#testbtn").hide();
-		$("#startbtn").attr("value", "Stop");
-		$("#experiment").unbind("submit").submit(this.stop.bind(this));
-	}
 
-	if (info.status == "running") {
-		$(".active").addClass("running");
-	} else if (info.status == "testing" && info.state != null) {
+	if (info.status == "running" && info.state != "stopped") {
+		$(".active").removeClass("testing error").addClass("running");
+		$("#testbtn").hide();
+		$("#startbtn").hide();
+		$("#stopbtn").show();
+	} else if (info.status == "testing" && info.state != "stopped") {
 		$(".active").removeClass("running error").addClass("testing");
+		$("#testbtn").hide();
+		$("#startbtn").hide();
+		$("#stopbtn").show();
 	} else if (info.status == "error") {
 		$(".active").removeClass("running testing").addClass("error");
 	}
 
-	if (info.status == "testing" && info.state == null || info.status == "stopped") {
+	if ((info.status == "testing" && info.state == "stopped") || 
+		(info.status == "stopped" && info.msg == "testing")) {
 		$(".active").removeClass("running error testing");
 		this.enable();
+		$("#stopbtn").hide();
+		$("#pausebtn").hide();
+		$("#startbtn").show();
 		$("#testbtn").show();
-		$("#startbtn").attr("value", "Start Experiment");
-		$("#experiment").unbind("submit").submit(this.run.bind(this, btn));
+		$("#copybtn").hide();
+	} else if (
+		(info.status == "stopped" && info.msg == "running") || 
+		(info.status == "running" && info.state == "stopped")) {
+		$("#pausebtn").hide();
+		$("#stopbtn").hide();
+		$("#copybtn").show();
 	}
 }
 
@@ -83,6 +95,8 @@ TaskEntry.prototype.update = function(info) {
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
 	this.report.update(info.report);
+	if (this.notes)
+		this.notes.update(info.notes);
 
 	if (info.sequence) {
 		$("#sequence").show()
@@ -101,7 +115,8 @@ TaskEntry.prototype.destroy = function() {
 	this.sequence.destroy();
 	$(this.params.obj).remove()
 	delete this.params
-	this.tr.removeClass("rowactive active");
+	this.tr.removeClass("rowactive active error");
+	$("#content").removeClass("error running testing")
 
 	if (this.idx != null) {
 		var idx = "row"+this.idx;
@@ -109,6 +124,7 @@ TaskEntry.prototype.destroy = function() {
 			if (te) te.destroy();
 			te = new TaskEntry(idx);
 		})
+		this.notes.destroy();
 	} else {
 		//Remove the newentry row
 		this.tr.hide()
@@ -141,23 +157,50 @@ TaskEntry.prototype._task_query = function(callback) {
 			callback();
 	}.bind(this));
 }
-
-TaskEntry.prototype.run = function(save) {
+TaskEntry.prototype.start = function() {
 	this.disable();
+	return this.run(true, function(info) {
+		this.idx = info.idx;
+		this.tr.removeClass("running active error testing")
+		this.tr.hide();
+		this.tr.click(function() {
+			if (te) te.destroy();
+			te = new TaskEntry(null);
+		})
+		//Clean up event bindings
+		$("#features input").unbind("change");
+		$("#tasks").unbind("change");
+
+		this.tr = $(document.createElement("tr"));
+		this.tr.attr("id", "row"+info.idx);
+		this.tr.html("<td class='colDate'>"+info.date+"</td>" + 
+			"<td class='colSubj'>"+info.subj+"</td>" + 
+			"<td class='colTask'>"+info.task+"</td>");
+		$("#newentry").after(this.tr);
+		this.tr.addClass("active rowactive running");
+		this.notes = new Notes(this.idx);
+		this.report.activate();
+	}.bind(this));
+}
+TaskEntry.prototype.test = function() {
+	this.disable();
+	return this.run(false); 
+}
+TaskEntry.prototype.stop = function() {
+	var csrf = {'csrfmiddlewaretoken':$("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")};
+	$.post("stop", csrf, this._update_status.bind(this));
+}
+TaskEntry.prototype.run = function(save, callback) {
 	var form = {};
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(this.get_data());
 	$.post(save?"start":"test", form, function(info) {
+		if (typeof(callback) == "function")
+			callback(info);
 		this.report.update(info);
 		this._update_status(info);
 	}.bind(this));
 	return false;
-}
-TaskEntry.prototype.stop = function(data) {
-	$(".active").removeClass("running");
-	this.tr.removeClass("running");
-	$("#content .startbtn").hide()
-	$("#addbtn").show()
 }
 
 TaskEntry.prototype.get_data = function() {
@@ -187,4 +230,33 @@ TaskEntry.prototype.disable = function() {
 		this.sequence.disable();
 	if (!this.idx)
 		$("#subjects, #tasks").attr("disabled", "disabled");
+}
+
+function Notes(idx) {
+	this.last_TO = null;
+	this.idx = idx;
+	this.activate();
+}
+Notes.prototype.update = function(notes) {
+	$("#notes textarea").attr("value", notes);
+}
+Notes.prototype.activate = function() {
+	$("#notes textarea").keydown(function() {
+		if (this.last_TO != null)
+			clearTimeout(this.last_TO);
+		this.last_TO = setTimeout(this.save.bind(this), 2000);
+	}.bind(this))
+}
+Notes.prototype.destroy = function() {
+	$("#notes textarea").unbind("keydown");
+	if (this.last_TO != null)
+		clearTimeout(this.last_TO);
+	this.save();
+}
+Notes.prototype.save = function() {
+	this.last_TO = null;
+	$.post("ajax/save_notes/"+this.idx+"/", {
+		"notes":$("#notes textarea").attr("value"), 
+		'csrfmiddlewaretoken':$("#experiment input[name=csrfmiddlewaretoken]").attr("value")
+	});
 }

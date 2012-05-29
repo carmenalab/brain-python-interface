@@ -21,21 +21,21 @@
 				$(this).click(function() {
 					if (te) te.destroy();
 					te = new TaskEntry(null);
-				})
+				});
 			} else {
 				$(this).click(function() {
 					if (te) te.destroy();
 					te = new TaskEntry(idx);
-				})
+				});
 			}
 		})
-		btn = false;
+		taskaction = "run";
 		$("#copybtn").click(TaskEntry.copy);
-		$("#experiment").submit(function() {
-			return te.run(btn);
-		})
-		$("#startbtn").click(function() { btn = true; })
-		$("#testbtn").click(function() { btn = false; })
+		$("#experiment").submit(function() { return te[taskaction](); })
+		$("#startbtn").click(function() { taskaction = "start"; })
+		$("#testbtn").click(function() { taskaction = "test"; })
+		$("#stopbtn").click(function() { taskaction = "stop"; })
+		$("#pausebtn").click(function() { taskaction = "pause"; })
 	})
 </script>
 </head>

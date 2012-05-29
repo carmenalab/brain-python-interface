@@ -24,7 +24,7 @@ class Track(object):
         self.cmds, self._cmds = mp.Pipe()
 
     def notify(self, msg):
-        if msg['status'] == "error":
+        if msg['status'] == "error" or msg['state'] is None:
             self.status.value = ""
 
     def runtask(self, **kwargs):
@@ -33,7 +33,7 @@ class Track(object):
         args = (self.cmds, self._cmds, self.websock)
         self.proc = mp.Process(target=runtask, args=args, kwargs=kwargs)
         self.proc.start()
-
+        
     def __del__(self):
         self.websock.stop()
 
@@ -41,9 +41,9 @@ class Track(object):
         self.status.vaue = self.task.pause()
 
     def stoptask(self):
+        assert self.status.value in "testing,running"
         try:
             self.task.end_task()
-            self.cmds.send(None)
         except Exception as e:
             import cStringIO
             import traceback
@@ -58,15 +58,18 @@ class Track(object):
         return status
 
 def runtask(cmds, _cmds, websock, **kwargs):
+    import time
     from riglib.experiment import report
     os.nice(0)
     status = "running" if 'saveid' in kwargs else "testing"
     class NotifyFeat(object):
         def set_state(self, state, *args, **kwargs):
-            super(NotifyFeat, self).set_state(state, *args, **kwargs)
-            rep = report.general(self.__class__, self.event_log)
-            rep.update(dict(status=status, state=state))
+            l = time.time() - self.event_log[0][2] if len(self.event_log) > 0 else 0
+            rep = dict(status=status, state=state or "stopped", length=l)
+            if state == "wait":
+                rep.update(report.general(self.__class__, self.event_log))
             websock.send(rep)
+            super(NotifyFeat, self).set_state(state, *args, **kwargs)
 
         def run(self):
             try:
@@ -103,7 +106,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
         err.seek(0)
         websock.send(dict(status="error", msg=err.read()))
 
-    print "exited"
+    print "****************Exit task proc"
 
 class Task(object):
     def __init__(self, task, feats, params, seq=None, saveid=None):

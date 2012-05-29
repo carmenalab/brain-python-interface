@@ -11,7 +11,7 @@ from ajax import display
 
 def list(request):
 	return render_to_response('list.html', dict(
-		entries=TaskEntry.objects.all().order_by("-date")[:100], 
+		entries=TaskEntry.objects.all().order_by("-date")[:50], 
 		subjects=Subject.objects.all().order_by("name"), 
 		tasks=Task.objects.all().order_by("name"), 
 		features=Feature.objects.order_by("name").all(), 

@@ -271,7 +271,7 @@ class TaskEntry(models.Model):
     def to_json(self):
         from json_param import Parameters
         state = 'completed' if self.pk is not None else "new"
-        js = dict(task=self.task.id, state=state, subject=self.subject.id, params=dict())
+        js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=Parameters(self.params).params)
         if issubclass(self.task.get(), experiment.Sequence):

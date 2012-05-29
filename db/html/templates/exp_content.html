@@ -1,4 +1,4 @@
-<form id="experiment" method="post">
+<form id="experiment" method="post" action="javascript:void();">
 	{% csrf_token %}
 	<div class="options">
 		<fieldset id="features">
@@ -54,5 +54,7 @@
 	<div class="clear"></div>
 	<input id="startbtn" class="startbtn" type="submit" value="Start Experiment">
 	<input id="testbtn" class="startbtn" type="submit" value="Test">
+	<input id="stopbtn" class="startbtn" type="submit" value="Stop Experiment">
+	<input id="pausebtn" class="startbtn" type="submit" value="Pause">
 	<div class="clear"></div>
 </form>

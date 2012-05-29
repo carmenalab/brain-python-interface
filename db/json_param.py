@@ -62,6 +62,8 @@ class Parameters(object):
                         processed[name] = ast.literal_eval(value)
                     except:
                         pass
+            else:
+                processed[name] = value
 
         return cls.from_dict(processed)
 

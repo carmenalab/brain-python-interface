@@ -46,11 +46,22 @@ def general(Exp, event_log):
                 trial = None
             elif "penalty" in next_state:
                 report['penalties'].append(t - trial)
-                trial = None            
+                trial = None
         elif last_reward is not None:
             report['reward_len'].append(t - last_reward)
             last_reward = None
 
+    if report['trials'] == 0:
+        report['rates'] = 0,0
+    else:
+        report['rates'] = (len(report['rewards']) / float(report['trials']), 
+                          len(report['penalties']) / float(report['trials']))
+
+    report['reward_len'] = sum(report['reward_len']), len(report['reward_len'])
+    c, e = np.histogram(report['rewards'])
+    report['reward_hist'] = zip(e, c.tolist())
+    c, e = np.histogram(report['penalties'])
+    report['penalty_hist'] = zip(e, c.tolist())
     return report
 
 

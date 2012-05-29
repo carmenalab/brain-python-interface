@@ -69,19 +69,19 @@ def start_experiment(request, save=True):
         else:
             entry.sequence_id = -1
         
-        saveid = None
-        status = "testing"
+        response = dict(status="testing", subj=entry.subject.name, task=entry.task.name)
         if save:
-            status = "running"
-            kwargs['saveid'] = saveid
             entry.save()
             for feat in data['feats'].keys():
                 f = Feature.objects.get(pk=feat)
                 entry.feats.add(f.pk)
+            response['date'] = entry.date.strftime("%h %d, %Y %I:%M %p")
+            response['status'] = "running"
+            response['idx'] = entry.id
+            kwargs['saveid'] = entry.id
         
         display.runtask(**kwargs)
-        return _respond(dict(status=status, id=entry.id, subj=entry.subject.name, 
-            task=entry.task.name))
+        return _respond(response)
 
     except Exception as e:
         import cStringIO
@@ -97,8 +97,9 @@ def stop_experiment(request):
     if display.status.value not in ["running", "testing"]:
         return _respond(dict(status="error", msg="No task to end!"))
     try:
+        status = display.status.value
         display.stoptask()
-        return _respond(dict(status="stopped"))
+        return _respond(dict(status="stopped", msg=status))
     except:
         import cStringIO
         import traceback
@@ -106,3 +107,9 @@ def stop_experiment(request):
         traceback.print_exc(None, err)
         err.seek(0)
         return _respond(dict(status="error", msg=err.read()))
+
+def save_notes(request, idx):
+    te = TaskEntry.objects.get(pk=idx)
+    te.notes = request.POST['notes']
+    te.save()
+    return _respond(dict(status="success"))
