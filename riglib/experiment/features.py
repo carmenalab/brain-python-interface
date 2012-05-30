@@ -208,6 +208,25 @@ class MotionSimulate(traits.HasTraits):
             self.motiondata.pause()
             self.motiondata.stop()
 
+class SpikeData(object):
+    '''Stream neural spike data from the Plexon system'''
+    marker_count = traits.Int(8, desc="Number of markers to return")
+    spikebin_interval = traits.Float(100, desc="Milliseconds to bin over to generate the PSTH")
+    plexon_channels = None
+
+    def __init__(self, *args, **kwargs):
+        from riglib import plexon, source
+        self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+        self.neurondata.filter = plexon.PSTHfilter(self.spikebin_interval)
+        super(SpikeData, self).__init__(*args, **kwargs)
+
+    def run(self):
+        self.neurondata.start()
+        try:
+            super(SpikeData, self).run()
+        finally:
+            self.neurondata.stop()
+
 
 class SinkRegister(object):
     '''Superclass for all features which contain data sinks -- registers the various sources'''
@@ -221,13 +240,16 @@ class SinkRegister(object):
             self.sinks.register(self.motiondata)
         if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
+        if isinstance(self, (SpikeData, SpikeSimulate)):
+            self.sinks.register(self.neurondata)
 
 class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
     def __init__(self, *args, **kwargs):
         import tempfile
+        from riglib import sink
         self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = self.sinks.start(self.hdf_class, filename=self.h5file.name)
+        self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
         super(SaveHDF, self).__init__(*args, **kwargs)
 
     @property
@@ -248,7 +270,8 @@ class SaveHDF(SinkRegister):
 class RelayPlexon(SinkRegister):
     '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
     def __init__(self, *args, **kwargs):
-        self.nidaq = self.sinks.start(self.ni_out)
+        from riglib import sink
+        self.nidaq = sink.sinks.start(self.ni_out)
         super(RelayPlexon, self).__init__(*args, **kwargs)
 
     @property
