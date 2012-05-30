@@ -28,3 +28,7 @@ class SendAll(object):
 class SendRow(SendAll):
     def send(self, system, data):
         pcidio.sendRowCount(self.systems[system])
+
+class SendRowByte(SendAll):
+    def send(self, system, data):
+        pcidio.sendRowByte(self.systems[system])

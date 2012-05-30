@@ -42,10 +42,10 @@ class HDFWriter(object):
         print "Closed hdf"
         self.h5.close()
 
-import nidaq
 class PlexRelayWriter(HDFWriter):
     def __init__(self, filename, device="/dev/comedi0"):
-        self.ni = nidaq.System(device)
+        import nidaq
+        self.ni = nidaq.SendRow(device)
         super(PlexRelayWriter, self).__init__(filename)
 
     def register(self, system, dtype):
@@ -54,7 +54,7 @@ class PlexRelayWriter(HDFWriter):
 
     def send(self, system, data):
         row = len(self.data[system])
-        self.ni.sendRow(system, row)
+        self.ni.send(system, row)
         super(PlexRelayWriter, self).send(system, data)
 
     def sendMsg(self, msg):
