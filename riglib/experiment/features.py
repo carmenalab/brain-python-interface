@@ -105,6 +105,7 @@ class AdaptiveGenerator(object):
 
 
 class EyeData(traits.HasTraits):
+    '''Pulls data from the eyetracking system and make it available on self.eyedata'''
     def __init__(self, *args, **kwargs):
         from riglib import motiontracker, source
         self.eyedata = source.DataSource(eyetracker.System)
@@ -132,6 +133,7 @@ class EyeData(traits.HasTraits):
         super(EyeData, self).set_state(state, **kwargs)
 
 class CalibratedEyeData(EyeData):
+    '''Filters eyetracking data with a calibration profile'''
     cal_profile = traits.Instance(calibrations.EyeProfile)
 
     def __init__(self, *args, **kwargs):
@@ -139,6 +141,7 @@ class CalibratedEyeData(EyeData):
         self.eyedata.set_filter(self.cal_profile)
 
 class FixationStart(CalibratedEyeData):
+    '''Triggers the start_trial event whenever fixation exceeds *fixation_length*'''
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
     fixation_dist = traits.Float(50., desc="Distance from center that is considered a broken fixation")
 
@@ -158,6 +161,7 @@ class FixationStart(CalibratedEyeData):
         return ts > self.fixation_length
 
 class SimulatedEyeData(EyeData):
+    '''Simulate an eyetracking system using a series of fixations, with saccades interpolated'''
     fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
     fixation_len = traits.Float(0.5, desc="Length of a fixation")
 
@@ -169,6 +173,7 @@ class SimulatedEyeData(EyeData):
 
 
 class MotionData(traits.HasTraits):
+    '''Enable reading of raw motiontracker data from Phasespace system'''
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def __init__(self, *args, **kwargs):
@@ -186,6 +191,7 @@ class MotionData(traits.HasTraits):
             self.motiondata.stop()
 
 class MotionSimulate(traits.HasTraits):
+    '''Simulate presence of raw motiontracking system using a randomized spatial function'''
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def __init__(self, *args, **kwargs):
@@ -202,49 +208,33 @@ class MotionSimulate(traits.HasTraits):
             self.motiondata.pause()
             self.motiondata.stop()
 
-class RelayHDF(object):
-    '''Sends only the ROW index to Plexon, while saving the file'''
-    def __init__(self, *args, **kwargs):
-        super(RelayHDF, self).__init__(*args, **kwargs)
 
-        import tempfile
-        from riglib import sink, hdfwriter
+class SinkRegister(object):
+    '''Superclass for all features which contain data sinks -- registers the various sources'''
+    def __init__(self, *args, **kwargs):
+        from riglib import sink
         self.sinks = sink.sinks
-        self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = self.sinks.start(hdfwriter.PlexRelayWriter, filename=self.h5file.name)
-        
+
+        super(SinkRegister, self).__init__(*args, **kwargs)
+
         if isinstance(self, (MotionData, MotionSimulate)):
             self.sinks.register(self.motiondata)
         if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
-    
-    def run(self):
-        try:
-            super(RelayHDF, self).run()
-        finally:
-            self.hdf.stop()
 
-    def set_state(self, condition, **kwargs):
-        self.hdf.sendMsg(condition)
-        super(RelayHDF, self).set_state(condition, **kwargs)
-
-
-class SaveHDF(object):
+class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
     def __init__(self, *args, **kwargs):
+        import tempfile
+        self.h5file = tempfile.NamedTemporaryFile()
+        self.hdf = self.sinks.start(self.hdf_class, filename=self.h5file.name)
         super(SaveHDF, self).__init__(*args, **kwargs)
 
-        import tempfile
-        from riglib import sink, hdfwriter
-        self.sinks = sink.sinks
-        self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = self.sinks.start(hdfwriter.HDFWriter, filename=self.h5file.name)
-        
-        if isinstance(self, (MotionData, MotionSimulate)):
-            self.sinks.register(self.motiondata)
-        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
-            self.sinks.register(self.eyedata)
-    
+    @property
+    def hdf_class(self):
+        from riglib import hdfwriter
+        return hdfwriter.HDFWriter
+
     def run(self):
         try:
             super(SaveHDF, self).run()
@@ -255,18 +245,23 @@ class SaveHDF(object):
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
-class RelayPlexon(object):
+class RelayHDF(SaveHDF):
+    '''Sends only the ROW index to Plexon, while saving the HDFfile'''
+    @property
+    def hdf_class(self):
+        from riglib import hdfwriter
+        return hdfwriter.PlexRelayWriter
+
+class RelayPlexon(SinkRegister):
+    '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
     def __init__(self, *args, **kwargs):
+        self.nidaq = self.sinks.start(self.ni_out)
         super(RelayPlexon, self).__init__(*args, **kwargs)
         
-        from riglib import sink, nidaq
-        self.sinks = sink.sinks
-        self.nidaq = self.sinks.start(nidaq.System)
-        
-        if isinstance(self, (MotionData, MotionSimulate)):
-            self.sinks.register(self.motiondata)
-        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
-            self.sinks.register(self.eyedata)
+    @property
+    def ni_out(self):
+        from riglib import nidaq
+        return nidaq.SendAll
     
     def run(self):
         try:
@@ -278,3 +273,14 @@ class RelayPlexon(object):
         self.nidaq.sendMsg(condition)
         super(RelayPlexon, self).set_state(condition, **kwargs)
         
+class RelayPlexByte(RelayPlexon):
+    '''Relays a single byte (0-255) as a row checksum for when a data packet arrives'''
+    def __init__(self, *args, **kwargs):
+        if not isinstance(self, SaveHDF):
+            raise ValueError("RelayPlexByte feature only available with SaveHDF")
+        super(RelayPlexByte, self).__init__(*args, **kwargs)
+
+    @property
+    def ni_out(self):
+        from riglib import nidaq
+        return nidaq.SendRowByte

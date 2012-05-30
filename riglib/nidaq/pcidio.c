@@ -8,6 +8,7 @@
 #define SEND_REGISTER 2
 #define SEND_SHAPE 3
 #define SEND_ROW 4
+#define SEND_ROWBYTE 5
 
 #define writemask (2 << 16 | 127<<8 | 255)
 
@@ -70,6 +71,12 @@ extern uchar sendRow(uchar idx, uint row) {
         comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
     }
     return 0;
+}
+extern uchar sendRowByte(uchar idx) {
+    uint flush = 2, msg = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
+    comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
+    comedi_dio_bitfield2(ni, 0, 2, &flush, 0);
+    rowcount[idx]++;
 }
 extern uchar sendRowCount(uchar idx) {
     return sendRow(idx, rowcount[idx]++);
