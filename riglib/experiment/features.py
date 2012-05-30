@@ -245,19 +245,12 @@ class SaveHDF(SinkRegister):
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
-class RelayHDF(SaveHDF):
-    '''Sends only the ROW index to Plexon, while saving the HDFfile'''
-    @property
-    def hdf_class(self):
-        from riglib import hdfwriter
-        return hdfwriter.PlexRelayWriter
-
 class RelayPlexon(SinkRegister):
     '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
     def __init__(self, *args, **kwargs):
         self.nidaq = self.sinks.start(self.ni_out)
         super(RelayPlexon, self).__init__(*args, **kwargs)
-        
+
     @property
     def ni_out(self):
         from riglib import nidaq
