@@ -58,10 +58,14 @@ def general(Exp, event_log):
                           len(report['penalties']) / float(report['trials']))
 
     report['reward_len'] = sum(report['reward_len']), len(report['reward_len'])
-    c, e = np.histogram(report['rewards'])
-    report['reward_hist'] = zip(e, c.tolist())
-    c, e = np.histogram(report['penalties'])
-    report['penalty_hist'] = zip(e, c.tolist())
+    try:
+        c, e = np.histogram(report['rewards'])
+        report['reward_hist'] = zip(e, c.tolist())
+        c, e = np.histogram(report['penalties'])
+        report['penalty_hist'] = zip(e, c.tolist())
+    except:
+        pass
+        
     return report
 
 

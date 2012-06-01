@@ -98,6 +98,8 @@ def runtask(cmds, _cmds, websock, **kwargs):
             except Exception as e:
                 _cmds.send(e)
                 cmd = _cmds.recv()
+        
+        task.cleanup()
     except:
         import cStringIO
         import traceback
@@ -105,47 +107,16 @@ def runtask(cmds, _cmds, websock, **kwargs):
         traceback.print_exc(None, err)
         err.seek(0)
         websock.send(dict(status="error", msg=err.read()))
-
+    
     print "****************Exit task proc"
 
 class Task(object):
-    def __init__(self, task, feats, params, seq=None, saveid=None):
-        database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
-        if saveid is not None:
-            class CommitFeat(object):
-                def _start_None(self):
-                    super(CommitFeat, self)._start_None()
-                    database.save_log(saveid, self.event_log)
-            feats.insert(0, CommitFeat)
-
-            if "calibration" in task.name:
-                class SaveCal(object):
-                    def _start_None(self):
-                        super(SaveCal, self)._start_None()
-                        caltype = self.calibration.__class__.__name__
-                        params = Parameters.from_dict(self.calibration.__dict__)
-                        if hasattr(self.calibration, '__getstate__'):
-                            params = Parameters.from_dict(self.calibration.__getstate__())
-                        database.save_cal(subj, self.calibration.system,
-                            caltype, params.to_json())
-                feats.insert(0, SaveCal)
-            
-            if features.EyeData in feats:
-                class SaveEyeData(object):
-                    def _start_None(self):
-                        super(SaveEyeData, self)._start_None()
-                        database.save_data(self.eyefile, "eyetracker", saveid)
-                feats.insert(0, SaveEyeData)
-
-            if features.SaveHDF in feats:
-                class SaveHDFdata(object):
-                    def _start_None(self):
-                        super(SaveHDFdata, self)._start_None()
-                        print "saving hdf to database..."
-                        database.save_data(self.h5file.name, "hdf", saveid)
-
-                feats.insert(0, SaveHDFdata)
-
+    def __init__(self, subj, task, feats, params, seq=None, saveid=None):
+        self.saveid = saveid
+        self.taskname = task.name
+        self.subj = subj
+        self.feats = feats
+        
         Exp = experiment.make(task.get(), feats=feats)
         if issubclass(Exp, experiment.Sequence):
             gen, gp = seq.get()
@@ -171,7 +142,26 @@ class Task(object):
 
     def __getattr__(self, attr):
         return getattr(self, attr)
-
+    
+    def cleanup(self):
+        print "Calling saveout/task cleanup code"
+        database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+        if self.saveid is not None:
+            database.save_log(self.saveid, self.task.event_log)
+            
+            if "calibration" in self.taskname:
+                caltype = self.task.calibration.__class__.__name__
+                params = Parameters.from_dict(self.task.calibration.__dict__)
+                if hasattr(self.task.calibration, '__getstate__'):
+                    params = Parameters.from_dict(self.task.calibration.__getstate__())
+                database.save_cal(self.subj, self.task.calibration.system,
+                    caltype, params.to_json())
+            
+            if features.EyeData in self.feats:
+                database.save_data(self.task.eyefile, "eyetracker", self.saveid)
+            
+            if features.SaveHDF in self.feats:
+                database.save_data(self.task.h5file.name, "hdf", self.saveid)
 
 class ObjProxy(object):
     def __init__(self, cmds):

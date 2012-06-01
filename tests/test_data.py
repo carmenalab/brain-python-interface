@@ -6,8 +6,8 @@ from riglib import motiontracker, hdfwriter, nidaq
 
 Motion = motiontracker.make_simulate(8)
 datasource = source.DataSource(Motion)
-sinks.start(nidaq.System)
-sinks.register(Motion)
+#sinks.start(nidaq.SendAll)
+#sinks.register(Motion)
 sinks.start(hdfwriter.HDFWriter, filename="/tmp/test.hdf")
 sinks.register(Motion)
 

@@ -58,7 +58,8 @@ def start_experiment(request, save=True):
         params = Parameters.from_html(data['params'])
         params.trait_norm(Exp.class_traits())
         entry.params = params.to_json()
-        kwargs = dict(task=task, feats=Feature.getall(data['feats'].keys()), params=params.params)
+        kwargs = dict(subj=entry.subject, task=task, feats=Feature.getall(data['feats'].keys()),
+                      params=params.params)
 
         if issubclass(Exp, experiment.Sequence):
             seq = Sequence.from_json(data['sequence'])
