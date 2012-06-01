@@ -86,7 +86,7 @@ class Connection(object):
         gotServerArea = False
         while not gotServerArea:
             resp = array.array('i', self._recv())
-            
+            print resp
             if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
                 self.n_spike = resp[15]
                 self.n_cont = resp[17]
