@@ -217,7 +217,7 @@ class SpikeData(object):
     def __init__(self, *args, **kwargs):
         from riglib import plexon, source
         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-        self.neurondata.filter = plexon.PSTHfilter(self.spikebin_interval)
+        #self.neurondata.filter = plexon.PSTHfilter(self.spikebin_interval)
         super(SpikeData, self).__init__(*args, **kwargs)
 
     def run(self):
@@ -226,6 +226,9 @@ class SpikeData(object):
             super(SpikeData, self).run()
         finally:
             self.neurondata.stop()
+
+class SpikeSimulate(object):
+    pass
 
 
 class SinkRegister(object):

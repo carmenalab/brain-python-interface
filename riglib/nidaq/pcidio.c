@@ -77,6 +77,7 @@ extern uchar sendRowByte(uchar idx) {
     comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
     comedi_dio_bitfield2(ni, 0, 2, &flush, 0);
     rowcount[idx]++;
+    return 0;
 }
 extern uchar sendRowCount(uchar idx) {
     return sendRow(idx, rowcount[idx]++);
