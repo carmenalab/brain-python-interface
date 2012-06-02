@@ -28,6 +28,7 @@ class DataSource(mp.Process):
         self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1)
         self.stream = mp.Event()
+        self.last_idx = 0
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
 
@@ -85,14 +86,23 @@ class DataSource(mp.Process):
         print "ending data collection"
         system.stop()
 
-    def get(self):
+    def get(self, all=False):
         self.lock.acquire()
         i = (self.idx.value % self.max_len) * self.slice_size
-        if self.idx.value > self.max_len:
-            data = self.data[i:]+self.data[:i]
+        if all:
+            if self.idx.value < self.max_len:
+                data = self.data[:i]
+            else:
+                data = self.data[i:]+self.data[:i]
         else:
-            data = self.data[:i]
-        self.idx.value = 0
+            mlen = min((self.idx.value - self.last_idx), self.max_len)
+            last = ((self.idx.value - mlen) % self.max_len) * self.slice_size
+            if last > i:
+                data = self.data[last:] + self.data[:i]
+            else:
+                data = self.data[last:i]
+            
+        self.last_idx = self.idx.value
         self.lock.release()
         try:
             data = np.fromstring(data, dtype=self.source.dtype)

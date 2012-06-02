@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import plexnet
+from collections import Counter
 
 class Spikes(object):
     update_freq = 65536
@@ -49,15 +50,32 @@ class SimSpikes(object):
         return np.array([(time.time()*1e6, am, 0)], dtype=self.dtype)
 
 class PSTHfilter(object):
-    def __init__(self, length, cells):
+    def __init__(self, length, cells=None):
         self.length = length
         self.cells = cells
 
     def __call__(self, raw):
+        if len(raw) < 1:
+            return None
+
         data = raw[ (raw['ts'][-1] - raw['ts']) < self.length ]
-        counts = []
-        for chan, unit in self.cells:
-            num = np.sum(np.logical_and(data['chan'] == chan, data['unit'] == unit))
-            counts.append(num)
-            
+        counts = Counter(data[['chan', 'unit']])
+        if self.cells is not None:
+            ret = np.array([counts[c] for c in self.cells])
+            0/0
+            return ret
         return counts
+
+def test_filter():
+    from riglib import source
+    ds = source.DataSource(SimSpikes, channels=100)
+    ds.start()
+    ds.filter = PSTHfilter(100000, cells=zip(range(100), [0]*100))
+    
+    times = np.zeros(10000)
+    for i in range(len(times)):
+        times[i] = time.time()
+        print ds.get(True)
+        times[i] = time.time() - times[i]
+        time.sleep(1/60.)
+    return times
