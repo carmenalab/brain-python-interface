@@ -104,7 +104,11 @@ class AdaptiveGenerator(object):
 
 
 
+<<<<<<< HEAD
 class EyeData(traits.HasTraits):
+=======
+class EyeData(object):
+>>>>>>> 300ded53e75e89168776b416f07d6bd51e539e67
     '''Pulls data from the eyetracking system and make it available on self.eyedata'''
     def __init__(self, *args, **kwargs):
         from riglib import motiontracker, source
@@ -231,6 +235,9 @@ class SpikeSimulate(object):
     pass
 
 
+
+
+
 class SinkRegister(object):
     '''Superclass for all features which contain data sinks -- registers the various sources'''
     def __init__(self, *args, **kwargs):
@@ -303,3 +310,4 @@ class RelayPlexByte(RelayPlexon):
     def ni_out(self):
         from riglib import nidaq
         return nidaq.SendRowByte
+

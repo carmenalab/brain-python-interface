@@ -6,7 +6,6 @@ from riglib import motiontracker, hdfwriter, nidaq
 
 Motion = motiontracker.make_simulate(8)
 datasource = source.DataSource(Motion)
-
 sinks.start(nidaq.SendRowByte)
 sinks.register(Motion)
 
