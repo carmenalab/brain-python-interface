@@ -1,0 +1,18 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>Test</title>
+<script type='text/javascript' src='resources/js/jquery-1.6.2.min.js'></script>
+<script type='text/javascript' src='resources/js/parse_traits.js'></script>
+<script type='text/javascript'>
+    desc = {"origin_size": {"default": 1, "type": "Float", "desc": "Radius of origin targets"}, "exit_radius": {"default": 1.5, "type": "Float", "desc": "Multiplier for the actual radius which is considered \'exiting\' the target"}, "angle": {"default": 90, "type": "Float", "desc": "Angular size of movement zone in degrees"}, "marker_count": {"default": 8, "type": "Int", "desc": "Number of markers to return"}, "reward_time": {"default": 0.5, "type": "Float", "desc": "Length of juice reward"}, "hold_penalty_time": {"default": 3, "type": "Float", "desc": "Length of penalty time for target hold error"}, "rand_start": {"default": [0.5, 2.0], "type": "Tuple", "desc": "Start interval"}, "direction_penalty_time": {"default": 1, "type": "Float", "desc": "Length of penalty time for moving cursor in wrong direction"}, "origin_hold_time": {"default": 2, "type": "Float", "desc": "Length of hold required at origin"}};
+
+    var params = new Parameters(desc);
+    $(document).ready(function() {
+        $("body").append(params.obj);
+    })
+</script>
+</head>
+<body>
+</body>
+</html>

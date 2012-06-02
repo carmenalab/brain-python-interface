@@ -1,38 +1,60 @@
-<form>
-	<div class='options'>
-		<fieldset>
-		<legend>Sequence</legend>
-
+<form id="experiment" method="post" action="javascript:void();">
+	{% csrf_token %}
+	<div class="options">
+		<fieldset id="features">
+			<legend>Features</legend>
+			<ul>{% for f in features %}<li title="{{f.desc}}">
+				<input type="checkbox" name="{{f.name}}" id="{{f.name}}" value="{{f.id}}">
+				<label for="{{f.name}}">{{f.name}}</label>
+			</li>{% endfor %}
+			</ul>
 		</fieldset>
-		<fieldset>
-		<legend>Features</legend>
-		<ul class='features'>
-			{% for name, value in selected.items %}
-			<li title='{{value.0}}'><input type="checkbox" name='{{name}}' id='{{name}}'
-				{% if value.1 %} checked='checked' {% endif %}
-				{% if done %} disabled='true' {% endif %} /><label for='{{name}}'>{{name}}</label></li>
-			{% endfor %}
-		</ul>
+		<fieldset id="sequence">
+			<legend>Sequence</legend>
+			<table>
+				<tr>
+					<td class="param_label"><label for="seqlist">Name:</label></td>
+					<td>
+						<select id="seqlist" name="seq_name">
+							<option value="new">Create New...</option>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<td class="param_label"><label class="traitname" for="seqgen">Generator:</label></td>
+					<td>
+						<select id="seqgen" name="seq_gen">
+							{% for g in generators %}<option value="{{g.id}}">{{g.name}}</option>
+							{% endfor %}
+						</select>
+					</td>
+				</tr>
+			</table>
+			<div id="seqparams">
+			</div>
+			<div id="seqstatic_div">
+				<input id="seqstatic" type="checkbox" name="seqstatic">
+				<label for="seqstatic">Static</label>
+			</div>
 		</fieldset>
-		<fieldset>
-		<legend>Parameters</legend>
-		<ul id="params">
-			{% for name, value in params.items %}
-			<li title='{{value.0}}'><div class='traitname'>{{name}}</div>
-			 	<input name="{{name}}" type="text" value='{{value.1}}' 
-			 	{% if done %} disabled='true' {% endif %} />
-			 	<div class='clear'></div>
-			</li>
-			{% endfor %}
-		</ul>
+		<fieldset id="parameters">
+			<legend>Parameters</legend>
+		</fieldset>
+	</div>	
+	<div class="rightside">
+		<fieldset id="report">
+			<legend>Report</legend>
+		</fieldset>
+		<fieldset id="notes">
+			<legend>Notes</legend>
+			<textarea name="notes"></textarea>
 		</fieldset>
 	</div>
-	<div class='notes'>
-		<fieldset id='notes'>
-		<legend> Notes </legend>
-		<textarea name="notes" id='notes'>{{ entry.notes }}</textarea>
-		</fieldset>
-	</div>
-	<div class='clear'></div>
-	<input class='submit' type="submit" value="Start task" />
+	<input id="copybtn" type="button" value="Copy parameters">
+	<div class="clear"></div>
+	<input id="startbtn" class="startbtn" type="submit" value="Start Experiment">
+	<input id="testbtn" class="startbtn" type="submit" value="Test">
+	<input id="stopbtn" class="startbtn" type="submit" value="Stop Experiment">
+	<input id="pausebtn" class="startbtn" type="submit" value="Pause">
+	<div class="clear"></div>
 </form>

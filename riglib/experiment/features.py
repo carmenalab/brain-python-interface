@@ -104,7 +104,7 @@ class AdaptiveGenerator(object):
 
 
 
-class EyeData(object):
+class EyeData(traits.HasTraits):
     def __init__(self, *args, **kwargs):
         from riglib import motiontracker, source
         self.eyedata = source.DataSource(eyetracker.System)

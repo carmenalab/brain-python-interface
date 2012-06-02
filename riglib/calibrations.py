@@ -11,7 +11,7 @@ class Profile(object):
         #Sanitize the data, clearing out entries which are invalid
         pass
 
-class EyeProfile(object):
+class EyeProfile(Profile):
     def __init__(self, data, actual, **kwargs):
         super(EyeProfile, self).__init__(data, actual, system="eyetracker", **kwargs)
     

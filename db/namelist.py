@@ -53,6 +53,17 @@ tasks = dict(
 
 from tracker import models
 from riglib import calibrations
-instance_to_model = {
+class SubclassDict(dict):
+    '''A special dict that returns the associated model if the queried item is a subclass of any of the keys'''
+    def __getitem__(self, name):
+        try:
+            return super(self.__class__, self).__getitem__(name)
+        except KeyError:
+            for inst, model in self.items():
+                if issubclass(name, inst):
+                    return model
+        raise KeyError
+
+instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
-}
+} )

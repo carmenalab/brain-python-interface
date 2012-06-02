@@ -1,399 +1,262 @@
-var entries = [];
-$(document).ready(function() {
-	$("table#main tbody>tr").each(function() {
-		entries.push(new TaskEntry(this.id));
-	})
-})
 
-function start_experiment() {
-	var form = new Object();
-	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
-	form['data'] = JSON.stringify(entries[entries.length-1].get_data());
-
-	$.post("start", form, function(data) { 
-		$("#newentry td.colDate").html(data['date']);
-		$("#newentry td.colSubj").html(data['subj']);
-		$("#newentry td.colTask").html(data['task']);
-		$("#newentry").attr("id", "row"+data['id']);
-		entries[entries.length-1].idx = data['id'];
-		entries[entries.length-1]._runstart(); 
-		entries[entries.length-1].newentry = false;
-	})
-}
-function test_experiment() {
-	var form = new Object();
-	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
-	form['data'] = JSON.stringify(entries[entries.length-1].get_data());
-	$(window).unload(function() {
-		$.getJSON("stop", {}, function() {})
-	});
-	$.post("test", form, function(data) {
-		entries[entries.length-1]._teststart();
-	})
-}
-function stop_experiment() {
-	$(window).unbind("unload");
-	$.getJSON("stop", {}, function(data) {
-		if (data == "running") {
-			for (var i in entries)
-				if (entries[i].running)
-					break;
-			entries[i]._runstop()
-		} else if (data == "testing") {
-			entries[entries.length-1]._teststop();
-		}
-	})
-}
-
-function TaskEntry(idx){
-	if (idx == -1) {
-		//This is a new row, need to set task name
-		this.newentry = true
-		this.tr = $("#newentry")
-		var _this = this;
-		$("#tasks").change(function() {
-			_this._query_params($("#tasks option").filter(":selected").text())
-		})
-	} else {
-		this.newentry = false
-		this.idx = parseInt(idx.match(/row(\d+)/)[1])
-		this.tr = $("#"+idx)
-	}
-	this.active = false;
-	this.running = this.tr.hasClass("running");
-	var _this = this;
-	this.tr.click(function() {
-		if (!_this.active) {
-			_this.activate();
-		}
-	})
-	if (this.running) {
-		this.activate();
-		$("#addbtn").hide()
-	}
-
-}
-TaskEntry.prototype._add_fieldset = function(name, where) {
-	$("#content div."+where).append(
-		"<fieldset id='"+name.toLowerCase()+"'>\n"+
-			"<legend>"+name+"</legend>\n"+
-		"</fieldset>");
-}
-TaskEntry.prototype._setup_params = function(current, params) {
-	var html = "";
-	for (var name in params) {
-		var desc = params[name][0];
-		var opts = params[name][1];
-		html += "<li title='"+desc+"'>\n"+
-			"	<label class='traitname' for='"+name+"'>"+name.replace("_", " ")+"</label>\n";
+function TaskEntry(idx, info){
+	this.sequence = new Sequence();
+	this.params = new Parameters();
+	this.report = new Report(this._update_status.bind(this));
 		
-		if (opts instanceof Object && !(opts instanceof Array)){
-			html += "	<select name='"+name+"'>\n";
-			for (var i in opts)
-				html += "		<option value='"+i+"'>"+opts[i]+"</option>\n";
-			html += "	</select>\n"
+	$("#parameters").append(this.params.obj);
+
+	if (idx) {
+		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
+		this.tr = $("#"+idx);
+		$("#copybtn").show();
+		$("#startbtn, #testbtn").hide();
+		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
+			this.notes = new Notes(this.idx);
+			this.update(expinfo);
+			this.disable();
+			$("#content").show("slide", "fast");
+		}.bind(this));
+	} else {
+		this.idx = null;
+		this.tr = $("#newentry").show();
+		this.report.activate();
+		$("#tasks").change(this._task_query.bind(this));
+		$("#features input").change(this._task_query.bind(this));
+		$("#copybtn").hide();
+		$("#startbtn, #testbtn").show();
+		if (info) {
+			this.update(info);
+			this.enable();
+			$("#content").show("slide", "fast");
 		} else {
-			var val = JSON.stringify(opts);
-			if (name in current)
-				val = current[name];
-			html += "	<input id='"+name+"' name='"+name+"' type='text' value='"+val+"' />"
+			this._task_query(function() {
+				this.enable();
+				$("#content").show("slide", "fast");
+			}.bind(this));
 		}
-		html += "<div class='clear'></div></li>";
 	}
-	$("#parameters ul").append(html);
+		
+	this.tr.unbind("click");
+	this.tr.addClass("rowactive active");
 }
-TaskEntry.prototype._query_params = function(task) {
-	var data = {}
-	$("#features input").filter(":checked").each(function(i) {
-		data[$(this).attr("name")] = true
-	})
+TaskEntry.prototype._update_status = function(info) {
+	console.log(info);
 
-	var current_params = new Object();
-	$("#experiment #parameters input").each(function() {
-		current_params[this.name] = this.value;
-	})
+	if (info.status == "running" && info.state != "stopped") {
+		$(".active").removeClass("testing error").addClass("running");
+		$("#testbtn").hide();
+		$("#startbtn").hide();
+		$("#stopbtn").show();
+	} else if (info.status == "testing" && info.state != "stopped") {
+		$(".active").removeClass("running error").addClass("testing");
+		$("#testbtn").hide();
+		$("#startbtn").hide();
+		$("#stopbtn").show();
+	} else if (info.status == "error") {
+		$(".active").removeClass("running testing").addClass("error");
+	}
 
-	var _this = this;
-	$.getJSON("ajax/task_params/"+task, data, function(data){
-		$("#parameters ul").html("");
-		_this._setup_params(current_params, data);
-		if (!_this.active) {
-			_this.active = true;
-			$("#content").show("drop");
+	if ((info.status == "testing" && info.state == "stopped") || 
+		(info.status == "stopped" && info.msg == "testing")) {
+		$(".active").removeClass("running error testing");
+		this.enable();
+		$("#stopbtn").hide();
+		$("#pausebtn").hide();
+		$("#startbtn").show();
+		$("#testbtn").show();
+		$("#copybtn").hide();
+	} else if (
+		(info.status == "stopped" && info.msg == "running") || 
+		(info.status == "running" && info.state == "stopped")) {
+		$("#pausebtn").hide();
+		$("#stopbtn").hide();
+		$("#copybtn").show();
+	}
+}
+
+TaskEntry.prototype.update = function(info) {
+	this.expinfo = info;
+	$("#tasks option").each(function() {
+		if (this.value == info.task)
+			this.selected = true;
+	})
+	$("#subjects option").each(function() {
+		if (this.value == info.subject)
+			this.selected = true;
+	});
+	$("#features input[type=checkbox]").each(function() {
+		this.checked = false;
+		for (var idx in info.feats) {
+			if (this.name == info.feats[idx])
+				this.checked = true;
 		}
-	})
-}
-TaskEntry.prototype._runstart = function(data) {
-	this.newentry = false;
-	this.running = true;
-	this.disable();
-	
-	$("#content #testbtn").hide()
-	$("#content #startbtn").attr("value", "Stop Experiment");
-	$("#content #startbtn").attr("onclick", "stop_experiment()");
-	$("#content").addClass("running");
-	this.tr.addClass("running");
-}
-TaskEntry.prototype._runstop = function(data) {
-	this.running = false;
-	$("#content").removeClass("running");
-	this.tr.removeClass("running");
-	$("#content .startbtn").hide()
-	$("#addbtn").show()
-	$("#copybtn").show().attr("onclick", "startnew("+this.idx+")")
-}
-TaskEntry.prototype._teststart = function(data) {
-	this.running = true;
-	this.disable();
-	
-	$("#content #testbtn").hide()
-	$("#content #startbtn").attr("value", "Stop test");
-	$("#content #startbtn").attr("onclick", "stop_experiment()");
-	$("#content").addClass("running");
-	this.tr.addClass("running");
-}
-TaskEntry.prototype._teststop = function(data) {
-	this.running = false;
-	this.enable(); 
+	});
+	this.sequence.update(info.sequence);
+	this.params.update(info.params);
+	this.report.update(info.report);
+	if (this.notes)
+		this.notes.update(info.notes);
 
-	$("#content").removeClass("running");
-	this.tr.removeClass("running");
-	$("#content .startbtn").show()
-	$("#content #startbtn").attr("value", "Start Experiment");
-	$("#content #startbtn").attr("onclick", "start_experiment()");
+	if (info.sequence) {
+		$("#sequence").show()
+	} else {
+		$("#sequence").hide()
+	}
+}
+TaskEntry.copy = function() {
+	te.destroy();
+	te.expinfo.report = {};
+	te = new TaskEntry(null, te.expinfo);
+}
+TaskEntry.prototype.destroy = function() {
+	$("#content").hide();
+	this.report.destroy();
+	this.sequence.destroy();
+	$(this.params.obj).remove()
+	delete this.params
+	this.tr.removeClass("rowactive active error");
+	$("#content").removeClass("error running testing")
+
+	if (this.idx != null) {
+		var idx = "row"+this.idx;
+		this.tr.click(function() {
+			if (te) te.destroy();
+			te = new TaskEntry(idx);
+		})
+		this.notes.destroy();
+	} else {
+		//Remove the newentry row
+		this.tr.hide()
+		//Rebind the click action
+		this.tr.click(function() {
+			if (te) te.destroy();
+			te = new TaskEntry(null);
+		})
+		//Clean up event bindings
+		$("#features input").unbind("change");
+		$("#tasks").unbind("change");
+	}
+}
+TaskEntry.prototype._task_query = function(callback) {
+	var taskid = $("#tasks").attr("value");
+	var feats = {};
+	$("#features input").each(function() { 
+		if (this.checked) 
+			feats[this.name] = this.checked;	
+	});
+
+	$.getJSON("ajax/task_info/"+taskid+"/", feats, function(taskinfo) {
+		this.params.update(taskinfo.params);
+		if (taskinfo.sequence) {
+			$("#sequence").show()
+			this.sequence.update(taskinfo.sequence);
+		} else
+			$("#sequence").hide()
+		if (typeof(callback) == "function")
+			callback();
+	}.bind(this));
+}
+TaskEntry.prototype.start = function() {
+	this.disable();
+	return this.run(true, function(info) {
+		this.idx = info.idx;
+		this.tr.removeClass("running active error testing")
+		this.tr.hide();
+		this.tr.click(function() {
+			if (te) te.destroy();
+			te = new TaskEntry(null);
+		})
+		//Clean up event bindings
+		$("#features input").unbind("change");
+		$("#tasks").unbind("change");
+
+		this.tr = $(document.createElement("tr"));
+		this.tr.attr("id", "row"+info.idx);
+		this.tr.html("<td class='colDate'>"+info.date+"</td>" + 
+			"<td class='colSubj'>"+info.subj+"</td>" + 
+			"<td class='colTask'>"+info.task+"</td>");
+		$("#newentry").after(this.tr);
+		this.tr.addClass("active rowactive running");
+		this.notes = new Notes(this.idx);
+		this.report.activate();
+	}.bind(this));
+}
+TaskEntry.prototype.test = function() {
+	this.disable();
+	return this.run(false); 
+}
+TaskEntry.prototype.stop = function() {
+	var csrf = {'csrfmiddlewaretoken':$("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")};
+	$.post("stop", csrf, this._update_status.bind(this));
+}
+TaskEntry.prototype.run = function(save, callback) {
+	var form = {};
+	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
+	form['data'] = JSON.stringify(this.get_data());
+	$.post(save?"start":"test", form, function(info) {
+		if (typeof(callback) == "function")
+			callback(info);
+		this.report.update(info);
+		this._update_status(info);
+	}.bind(this));
+	return false;
 }
 
 TaskEntry.prototype.get_data = function() {
-	var data = new Object();
-	data['subject_id'] = $("#subjects").attr("value");
-	data['task_id'] = $("#tasks").attr("value");
-	data['feats'] = new Array();
+	var data = {};
+	data['subject'] = parseInt($("#subjects").attr("value"));
+	data['task'] = parseInt($("#tasks").attr("value"));
+	data['feats'] = {};
 	$("#experiment #features input").each(function() {
-		if ($(this).attr("checked"))
-			data['feats'].push(this.name);
+		if (this.checked)
+			data.feats[this.value] = this.name;
 	})
-	data['params'] = new Object();
-	$("#experiment #parameters input").each(function() {
-		data['params'][this.name] = this.value;
-	})
-	data['sequence'] = entries[entries.length-1].sequence.get_data();
+	data['params'] = this.params.to_json();
+	data['sequence'] = this.sequence.get_data();
 
 	return data
 }
-TaskEntry.prototype.deactivate = function() {
-	this.tr.removeClass("active rowactive");
-	$("#content").removeClass("running");
-	this.active = false;
-	if (this.newentry) {
-		//Delete this row entirely
-		entries.pop();
-		this.tr.remove()
-		$("#addbtn").show()
-	}
-}
 TaskEntry.prototype.enable = function() {
 	$("#parameters input, #features input").removeAttr("disabled");
-	this.sequence.enable();
-	if (this.newentry)
-		$("#subjects input, #tasks input").removeAttr("disabled");
+	if (this.sequence)
+		this.sequence.enable();
+	if (!this.idx)
+		$("#subjects, #tasks").removeAttr("disabled");
 }
 TaskEntry.prototype.disable = function() {
 	$("#parameters input, #features input").attr("disabled", "disabled");
-	this.sequence.disable();
-	if (this.newentry)
-		$("#subjects input, #tasks input").attr("disabled", "disabled");
-}
-TaskEntry.prototype.populate = function(idx, disable) {
-	var _this = this;
-	$.getJSON("ajax/exp_info/"+idx, {}, function(data) {
-		var d = typeof(disable) == "undefined" ? true : disable;
-		console.log(d);
-		_this.sequence = new SequenceEditor(data['task'], data['seqid'], !d);
-		_this._setup_params({}, data['params']);
-		$("#notes textarea").html(data['notes']);
-		for (var name in data['features']) {
-			if (data['features'][name]) {
-				$("#features input#"+name).attr("checked", "checked");
-			}
-		}
-		if (typeof(disable) == "undefined" || disable) {
-			_this.disable();
-		}
-		if (!_this.active) {
-			$("#content").show("drop");
-			_this.active = true;
-		}
-	})
+	if (this.sequence)
+		this.sequence.disable();
+	if (!this.idx)
+		$("#subjects, #tasks").attr("disabled", "disabled");
 }
 
-
-
-
-function SequenceEditor(task, idx, editable) {
-	var html = "<legend>Sequence</legend>";
-	html += "<label class='traitname' for='seqlist'>Name:</label>";
-	html += "<select id='seqlist' name='seq_name'></select><div class='clear'></div>";
-	html += "<label class='traitname' for='seqgen'>Generator:</label>";
-	html += "<select id='seqgen' name='seq_gen'></select><div class='clear'></div>";
-	html += "<div id='seqparams'></div>";
-	html += "<div id='seqstatic_div'><input id='seqstatic' type='checkbox' name='static' />";
-	html += "<label for='seqstatic'>Static</label></div>"
-	$("#sequence").html(html);
-	for (var i in genparams)
-		$("#sequence #seqgen").append("<option value='"+i+"'>"+genparams[i][0]+"</option>");
-
-	this.editable = typeof(editable) == "undefined" ? typeof(idx) == "undefined" : editable;
-	
-	var _this = this;
-	$("#sequence #seqgen").change(function() { _this._update_params(); });
-
-	this.idx = idx
-	if (typeof(idx) == "undefined") {
-		$("#tasks").change(function() { _this._query_sequences($(this).attr("value")); });
-		this._query_sequences($("#tasks").attr("value"));
-	} else {
-		this._query_sequences(task)
-	}
+function Notes(idx) {
+	this.last_TO = null;
+	this.idx = idx;
+	this.activate();
 }
-SequenceEditor.prototype._update_params = function() {
-	var idx = $("#sequence #seqgen").attr("value");
-	var params = genparams[idx][1].split(",")
-
-	//If generator is not static, add a length parameter
-	if (genparams[idx][2]) {
-		params.unshift("length");
-		$("#seqstatic_div").show()
-	} else {
-		$("#seqstatic_div").hide()
-	}
-
-	var html = "";
-	for (var i in params) {
-		html += "<label class='traitname' for='seq_"+params[i]+"'>"+params[i]+"</label>";
-		html += "<input id='seq_"+params[i]+"' type='text' name='"+params[i]+"' />";
-		html += "<div class='clear'></div>";
-	}
-	$("#sequence #seqparams").html(html)
+Notes.prototype.update = function(notes) {
+	$("#notes textarea").attr("value", notes);
 }
-SequenceEditor.prototype._query_sequences = function(task) {
-	var _this = this;
-	$.getJSON("ajax/task_seq/"+task, {}, function(data) {
-		$("#sequence #seqlist").replaceWith("<select id='seqlist' name='seq_name'></select>");
-		var html = "";
-		for (var i in data) 
-			html += "<option value='"+i+"'>"+data[i]+"</option>";
-		$("#sequence #seqlist").append(html+"<option value='new'>Create New...</option>");
-		$("#sequence #seqlist").change(function() { _this._query_data(); });
-		
-		if (!_this.editable)
-			$("#sequence #seqlist").attr("disabled", "disabled");
-		console.log($("#seqlist").attr("disabled"))
-		
-		if (typeof(_this.idx) != "undefined") {
-			$("#sequence #seqlist option").each(function() {
-				if (this.value == _this.idx)
-					$(this).attr("selected", "selected");
-			})
-		}
-		_this._query_data();
-	})
+Notes.prototype.activate = function() {
+	$("#notes textarea").keydown(function() {
+		if (this.last_TO != null)
+			clearTimeout(this.last_TO);
+		this.last_TO = setTimeout(this.save.bind(this), 2000);
+	}.bind(this))
 }
-SequenceEditor.prototype._query_data = function() {
-	var data_id = $("#sequence #seqlist").attr("value");
-
-	var _this = this;
-	if (data_id == "new") {
-		this._update_params();
-		this.edit();
-	} else
-		$.getJSON("ajax/seq_data/"+data_id, {}, function(data) { _this.set_data(data); })
+Notes.prototype.destroy = function() {
+	$("#notes textarea").unbind("keydown");
+	if (this.last_TO != null)
+		clearTimeout(this.last_TO);
+	this.save();
 }
-SequenceEditor.prototype._make_name = function() {
-	var gen = $("#sequence #seqgen option").filter(":selected").text()
-	var txt = [];
-	var d = new Date();
-	var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
-
-	$("#sequence #seqparams input").each(function() { txt.push(this.name+"="+this.value); })
-
-	return gen+":["+txt.join(", ")+"]"
-}
-SequenceEditor.prototype.edit = function() {
-	var _this = this;
-	var curname = this._make_name();
-	$("#sequence #seqlist").replaceWith("<input id='seqlist' name='seq_name' type='text' value='"+curname+"' />");
-	$("#seqgen, #seqparams input, #seqstatic").removeAttr("disabled");
-	var setname = function() { $("#seqlist").attr("value", _this._make_name()); };
-	$("#sequence #seqgen").change(function() {
-		setname();
-		$("#sequence #seqparams input").bind("blur.setname", setname );
+Notes.prototype.save = function() {
+	this.last_TO = null;
+	$.post("ajax/save_notes/"+this.idx+"/", {
+		"notes":$("#notes textarea").attr("value"), 
+		'csrfmiddlewaretoken':$("#experiment input[name=csrfmiddlewaretoken]").attr("value")
 	});
-	$("#sequence #seqparams input").bind("blur.setname", setname );
-	$("#sequence #seqlist").blur(function() {
-		if (this.value != _this._make_name())
-			$("#sequence #seqparams input").unbind("blur.setname");
-	})
-}
-
-SequenceEditor.prototype.set_data = function(data) {
-	//Setup generator
-	$("#sequence #seqgen option").filter(function() {
-		return $(this).attr("value") == data['genid'];
-	}).attr("selected", "selected")
-	//Setup parameters
-	this._update_params()
-	for (var i in data['params']) {
-		$("#sequence #seq_"+i).attr("value", JSON.stringify(data['params'][i]))
-	}
-	//Setup static
-	if (data['static'])
-		$("#seqstatic").attr("checked", "checked")
-
-	//Disable all the inputs
-	$("#seqgen, #seqparams input, #seqstatic").attr("disabled", "disabled");
-	$("#seqparams input").attr("disabled", "disabled");
-	$("#seqstatic").attr("disabled", "disabled");
-	//Only allow editing on new entries
-	if (this.editable) {
-		var _this = this;
-		//Add a callback to enable editing
-		$("#sequence #seqparams").bind("click.edit", function() { 
-			$("#sequence #seqparams").unbind("click.edit");
-			_this.edit(); 
-		})
-	}
-}
-SequenceEditor.prototype.enable = function() {
-	$("#seqlist").removeAttr("disabled");
-}
-SequenceEditor.prototype.disable = function() {
-	$("#seqlist").attr("disabled", "disabled");
-	$("#seqgen").attr("disabled", "disabled");
-	$("#seqparams input").attr("disabled", "disabled");
-	$("#seqstatic").attr("disabled", "disabled");	
-}
-SequenceEditor.prototype.get_data = function() {
-	if ($("#sequence #seqlist").get(0).tagName == "INPUT") {
-		//This is a new sequence, create new!
-		var data = {};
-		data['name'] = $("#seqlist").attr("value");
-		data['generator'] = $("#seqgen").attr("value");
-		data['params'] = {};
-		$("#seqparams input").each(function() { data['params'][this.name] = this.value; });
-		data['static'] = $("#seqstatic").attr("checked") == "checked";
-		return data;
-	}
-	return $("#sequence #seqlist").attr("value");
-}
-
-
-function Report(update, data) {
-	this.obj = $("#content #report");
-
-	var html = "";
-	if (typeof(update) != "undefined" && update ) {
-		html += "<label for='id"
-	} else {
-		
-	}
 }

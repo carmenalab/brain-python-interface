@@ -54,10 +54,17 @@ class Parameters(object):
     def from_html(cls, params):
         processed = dict()
         for name, value in params.items():
-            try:
-                processed[name] = json.loads(value, object_hook=param_objhook)
-            except:
-                processed[name] = ast.literal_eval(value)
+            if isinstance(value, (str, unicode)):
+                try:
+                    processed[name] = json.loads(value, object_hook=param_objhook)
+                except:
+                    try:
+                        processed[name] = ast.literal_eval(value)
+                    except:
+                        processed[name] = value;
+            else:
+                processed[name] = value
+
         return cls.from_dict(processed)
 
     def to_json(self):
