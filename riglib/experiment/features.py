@@ -104,24 +104,29 @@ class AdaptiveGenerator(object):
 
 
 
-<<<<<<< HEAD
 class EyeData(traits.HasTraits):
-=======
-class EyeData(object):
->>>>>>> 300ded53e75e89168776b416f07d6bd51e539e67
     '''Pulls data from the eyetracking system and make it available on self.eyedata'''
     def __init__(self, *args, **kwargs):
-        from riglib import motiontracker, source
-        self.eyedata = source.DataSource(eyetracker.System)
+        from riglib import source
+        src, ekw = self.eye_source
+        self.eyedata = source.DataSource(src, **ekw)
         super(EyeData, self).__init__(*args, **kwargs)
+    
+    @property
+    def eye_source(self):
+        from riglib import eyetracker
+        return eyetracker.System, dict()
 
     def run(self):
         self.eyedata.start()
         try:
             super(EyeData, self).run()
         finally:
-            self.eyedata.pause()
-            del self.eyedata
+            self.eyedata.stop()
+    
+    def join(self):
+        self.eyedata.join()
+        super(EyeData, self).join()
     
     def _start_None(self):
         self.eyedata.pause()
@@ -135,6 +140,16 @@ class EyeData(object):
     def set_state(self, state, **kwargs):
         self.eyedata.sendMsg(state)
         super(EyeData, self).set_state(state, **kwargs)
+
+class SimulatedEyeData(EyeData):
+    '''Simulate an eyetracking system using a series of fixations, with saccades interpolated'''
+    fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
+    fixation_len = traits.Float(0.5, desc="Length of a fixation")
+
+    @property
+    def eye_source(self):
+        from riglib import eyetracker
+        return eyetracker.Simulate, dict(fixations=fixations, fixation_len=fixation_len)
 
 class CalibratedEyeData(EyeData):
     '''Filters eyetracking data with a calibration profile'''
@@ -164,15 +179,7 @@ class FixationStart(CalibratedEyeData):
     def _test_start_trial(self, ts):
         return ts > self.fixation_length
 
-class SimulatedEyeData(EyeData):
-    '''Simulate an eyetracking system using a series of fixations, with saccades interpolated'''
-    fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
-    fixation_len = traits.Float(0.5, desc="Length of a fixation")
 
-    def __init__(self, *args, **kwargs):
-        from riglib import eyetracker, source
-        self.eyedata = source.DataSource(eyetracker.Simulate)
-        super(SimulatedEyeData, self).__init__(*args, **kwargs)
 
 
 
@@ -181,36 +188,39 @@ class MotionData(traits.HasTraits):
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def __init__(self, *args, **kwargs):
-        from riglib import motiontracker, source
-        Motion = motiontracker.make_system(self.marker_count)
-        self.motiondata = source.DataSource(Motion)
+        from riglib import source
+        src, mkw = self.motion_source
+        self.motiondata = source.DataSource(src, **mkw)
         super(MotionData, self).__init__(*args, **kwargs)
+    
+    @property
+    def motion_source(self):
+        from riglib import motiontracker
+        return motiontracker.make_system(self.marker_count), dict()
 
     def run(self):
         self.motiondata.start()
         try:
             super(MotionData, self).run()
         finally:
-            self.motiondata.pause()
             self.motiondata.stop()
+    
+    def join(self):
+        self.motiondata.join()
+        super(MotionData, self).join()
+    
+    def _start_None(self):
+        self.motiondata.stop()
+        super(MotionData, self)._start_None()
 
-class MotionSimulate(traits.HasTraits):
+class MotionSimulate(MotionData):
     '''Simulate presence of raw motiontracking system using a randomized spatial function'''
-    marker_count = traits.Int(8, desc="Number of markers to return")
-
-    def __init__(self, *args, **kwargs):
-        from riglib import motiontracker, source
-        Motion = motiontracker.make_simulate(self.marker_count)
-        self.motiondata = source.DataSource(Motion, radius=(100,100,50), offset=(-150,0,0))
-        super(MotionSimulate, self).__init__(*args, **kwargs)
-
-    def run(self):
-        self.motiondata.start()
-        try:
-            super(MotionSimulate, self).run()
-        finally:
-            self.motiondata.pause()
-            self.motiondata.stop()
+   
+    @property
+    def motion_source(self):
+        from riglib import motiontracker
+        return motiontracker.make_simulate(self.marker_count), dict(radius=(100,100,50), offset=(-150,0,0))
+    
 
 class SpikeData(object):
     '''Stream neural spike data from the Plexon system'''
@@ -272,6 +282,10 @@ class SaveHDF(SinkRegister):
             super(SaveHDF, self).run()
         finally:
             self.hdf.stop()
+    
+    def join(self):
+        self.hdf.join()
+        super(SaveHDF, self).join()
 
     def set_state(self, condition, **kwargs):
         self.hdf.sendMsg(condition)

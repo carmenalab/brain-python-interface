@@ -75,7 +75,7 @@ extern uchar sendRow(uchar idx, uint row) {
 extern uchar sendRowByte(uchar idx) {
     uint flush = 2, msg = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
     comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
-    comedi_dio_bitfield2(ni, 0, 2, &flush, 0);
+    comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
     rowcount[idx]++;
     return 0;
 }

@@ -39,8 +39,8 @@ class HDFWriter(object):
             row.append()
     
     def close(self):
-        print "Closed hdf"
         self.h5.close()
+        print "Closed hdf"
 
 class PlexRelayWriter(HDFWriter):
     def __init__(self, filename, device="/dev/comedi0"):

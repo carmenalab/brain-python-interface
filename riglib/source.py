@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import inspect
 import traceback
@@ -37,6 +38,7 @@ class DataSource(mp.Process):
         super(DataSource, self).start(*args, **kwargs)
 
     def run(self):
+        print "Starting datasource %r"%self.source
         system = self.source(**self.source_kwargs)
         system.start()
         streaming = True
@@ -82,9 +84,9 @@ class DataSource(mp.Process):
                         print e
             else:
                 time.sleep(.001)
-
-        print "ending data collection"
+        
         system.stop()
+        print "ended datasource %r"%self.source
 
     def get(self, all=False):
         self.lock.acquire()

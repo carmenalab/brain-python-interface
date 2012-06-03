@@ -98,7 +98,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
             except Exception as e:
                 _cmds.send(e)
                 cmd = _cmds.recv()
-        
+                
         task.cleanup()
     except:
         import cStringIO
@@ -144,6 +144,7 @@ class Task(object):
         return getattr(self, attr)
     
     def cleanup(self):
+        self.task.join()
         print "Calling saveout/task cleanup code"
         database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
         if self.saveid is not None:
