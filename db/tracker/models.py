@@ -73,6 +73,10 @@ class Feature(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
         return self.name
+
+    @property
+    def desc(self):
+        return self.get().__doc__
     
     def get(self):
         from namelist import features
