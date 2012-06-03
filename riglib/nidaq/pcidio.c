@@ -83,9 +83,8 @@ extern uchar sendRowCount(uchar idx) {
     return sendRow(idx, rowcount[idx]++);
 }
 
-extern uchar rstart(uint start) {
-    comedi_dio_bitfield2(ni, 0, 16, &start, 16);
-    return 0;
+extern int rstart(uint start) {
+    return comedi_dio_bitfield2(ni, 0, 16, &start, 16);
 }
 
 extern uchar closeall(void) {
