@@ -317,3 +317,7 @@ class DataFile(models.Model):
 
     def to_json(self):
         return dict(system=self.system.name, path=self.path)
+
+    def remove(self, **kwargs):
+        os.unlink(self.path)
+        super(DataFile, self).remove(**kwargs)

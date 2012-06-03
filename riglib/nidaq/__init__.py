@@ -26,6 +26,9 @@ class SendAll(object):
         if system != "NeuronData":
             pcidio.sendRow(self.systems[system], idx)
 
+    def rstart(self, state):
+        pcidio.rstart(state)
+
 class SendRow(SendAll):
     def send(self, system, data):
         if system != "NeuronData":

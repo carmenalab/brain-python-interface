@@ -297,6 +297,7 @@ class RelayPlexon(SinkRegister):
         from riglib import sink
         self.nidaq = sink.sinks.start(self.ni_out)
         super(RelayPlexon, self).__init__(*args, **kwargs)
+        self.nidaq.rstart(True)
 
     @property
     def ni_out(self):
@@ -307,6 +308,7 @@ class RelayPlexon(SinkRegister):
         try:
             super(RelayPlexon, self).run()
         finally:
+            self.nidaq.rstart(False)
             self.nidaq.stop()
 
     def set_state(self, condition, **kwargs):
