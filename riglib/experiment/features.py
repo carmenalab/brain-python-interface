@@ -309,10 +309,10 @@ class RelayPlexon(SinkRegister):
         import os, glob, time
         if len(self.event_log) < 1:
             return None
-        start = self.event_log[0][2]
-        today = time.strftime("%d%m%Y", time.localtime(start))
-        files = "/storage/plexon/cart%s???.plx"%today
-        files = sorted(glob.glob(files), key=lambda f:os.stat(f).st_ctime - start)
+        start = self.event_log[-1][2]
+        files = "/storage/plexon/*.plx"
+        files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
+        
         return files[0] if len(files) > 0 else None
     
     def run(self):
