@@ -116,14 +116,11 @@ class System(models.Model):
     
     @staticmethod
     def populate():
-        try:
-            System.objects.get(name="eyetracker")
-        except:
-            System(name="eyetracker").save()
-        try:
-            System.objects.get(name="motiontracker")
-        except:
-            System(name="motiontracker").save()
+        for name in ["eyetracker", "hdf", "plexon"]:
+            try:
+                System.objects.get(name=name)
+            except:
+                System(name=name).save()
 
 class Subject(models.Model):
     name = models.CharField(max_length=128)

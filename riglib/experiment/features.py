@@ -302,6 +302,18 @@ class RelayPlexon(SinkRegister):
     def ni_out(self):
         from riglib import nidaq
         return nidaq.SendAll
+
+    @property
+    def plexfile(self):
+        '''Calculates the plexon file that's most likely associated with the current task'''
+        import os, glob, time
+        if len(self.event_log) < 1:
+            return None
+        start = self.event_log[0][2]
+        today = time.strftime("%d%m%Y", time.localtime(start))
+        files = "/storage/plexon/cart%s???.plx"%today
+        files = sorted(glob.glob(files), key=lambda f:os.stat(f).st_ctime - start)
+        return files[0] if len(files) > 0 else None
     
     def run(self):
         try:

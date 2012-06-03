@@ -116,7 +116,10 @@ class Task(object):
         self.saveid = saveid
         self.taskname = task.name
         self.subj = subj
-        self.feats = feats
+
+        if self.saveid is not None:
+            self.com = comedi.comedi_open("/dev/comedi0")
+            comedi.comedi_dio_bitfield2(self.com,0,16,0,16)
         
         Exp = experiment.make(task.get(), feats=feats)
         if issubclass(Exp, experiment.Sequence):
@@ -126,9 +129,6 @@ class Task(object):
         else:
             exp = Exp(**params)
         
-        if self.saveid is not None:
-            self.com = comedi.comedi_open("/dev/comedi0")
-            comedi.comedi_dio_bitfield2(self.com,0,16,0,16)
         exp.start()
         self.task = exp
 
@@ -150,11 +150,10 @@ class Task(object):
     
     def cleanup(self):
         self.task.join()
-        if self.saveid is not None:
-            comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
         print "Calling saveout/task cleanup code"
         database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
         if self.saveid is not None:
+            comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
             database.save_log(self.saveid, self.task.event_log)
             
             if "calibration" in self.taskname:
@@ -165,11 +164,14 @@ class Task(object):
                 database.save_cal(self.subj, self.task.calibration.system,
                     caltype, params.to_json())
             
-            if features.EyeData in self.feats:
+            if issubclass(self.task.__class__, features.EyeData):
                 database.save_data(self.task.eyefile, "eyetracker", self.saveid)
             
-            if features.SaveHDF in self.feats:
+            if issubclass(self.task.__class__, features.SaveHDF):
                 database.save_data(self.task.h5file.name, "hdf", self.saveid)
+
+            if issubclass(self.task.__class__, features.RelayPlexon):
+                database.save_data(self.task.plexfile, "plexon", self.saveid, move=False, local=False)
 
 class ObjProxy(object):
     def __init__(self, cmds):

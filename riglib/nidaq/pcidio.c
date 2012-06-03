@@ -62,12 +62,11 @@ extern uchar sendData(uchar idx, char* data) {
 
 extern uchar sendRow(uchar idx, uint row) {
     char* msg = (char*) &row;
-    uint i, m, flush;
+    uint i, m, flush = 2;
 
     for (i = 0; i < sizeof(uint); i++) {
         m = (idx << 3 | SEND_ROW) << 8 | msg[i];
         comedi_dio_bitfield2(ni, 0, writemask, &m, 0);
-        flush = 2;
         comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
     }
     return 0;
@@ -84,7 +83,8 @@ extern uchar sendRowCount(uchar idx) {
 }
 
 extern int rstart(uint start) {
-    return comedi_dio_bitfield2(ni, 0, 16, &start, 16);
+    uint val = start ? 0 : 16;
+    return comedi_dio_bitfield2(ni, 0, 16, &val, 16);
 }
 
 extern uchar closeall(void) {
