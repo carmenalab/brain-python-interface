@@ -63,9 +63,10 @@ def start_experiment(request, save=True):
 
         if issubclass(Exp, experiment.Sequence):
             seq = Sequence.from_json(data['sequence'])
-            entry.sequence = seq
+            seq.task = task
             if save:
                 seq.save()
+            entry.sequence = seq
             kwargs['seq'] = seq
         else:
             entry.sequence_id = -1

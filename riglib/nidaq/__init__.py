@@ -1,4 +1,8 @@
-import pcidio
+import parse
+try:
+    import pcidio
+except:
+    pass
 
 class SendAll(object):
     def __init__(self, device="/dev/comedi0"):
