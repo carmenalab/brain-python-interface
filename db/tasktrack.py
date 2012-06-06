@@ -108,6 +108,8 @@ def runtask(cmds, _cmds, websock, **kwargs):
         traceback.print_exc(None, err)
         err.seek(0)
         websock.send(dict(status="error", msg=err.read()))
+        err.seek(0)
+        print err.read()
     
     print "****************Exit task proc"
 
