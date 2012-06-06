@@ -171,7 +171,7 @@ class Task(object):
                 database.save_data(self.task.h5file.name, "hdf", self.saveid)
 
             if issubclass(self.task.__class__, features.RelayPlexon):
-                database.save_data(self.task.plexfile, "plexon", self.saveid, move=False, local=False)
+                database.save_data(self.task.plexfile, "plexon", self.saveid, False, False)
 
 class ObjProxy(object):
     def __init__(self, cmds):
