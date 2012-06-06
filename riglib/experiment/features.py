@@ -267,9 +267,8 @@ class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
     def __init__(self, *args, **kwargs):
         import tempfile
-        from riglib import sink
         self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
+        self.hdf = self.sinks.start(self.hdf_class, filename=self.h5file.name)
         super(SaveHDF, self).__init__(*args, **kwargs)
 
     @property

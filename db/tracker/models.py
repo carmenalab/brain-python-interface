@@ -234,7 +234,7 @@ class Sequence(models.Model):
         seq = cls(generator_id=int(genid), name=js['name'])
         seq.params = Parameters.from_html(js['params']).to_json()
         if js['static']:
-            seq.sequence = cPickle.dumps(seq.generator.get()(**Parameters(self.params).params))
+            seq.sequence = cPickle.dumps(seq.generator.get()(**Parameters(seq.params).params))
         return seq
 
 class TaskEntry(models.Model):
