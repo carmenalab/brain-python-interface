@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import comedi
 import cPickle
 import threading
 import xmlrpclib
@@ -120,6 +119,7 @@ class Task(object):
         self.subj = subj
 
         if self.saveid is not None:
+            import comedi
             self.com = comedi.comedi_open("/dev/comedi0")
             comedi.comedi_dio_bitfield2(self.com,0,16,0,16)
         
@@ -155,6 +155,7 @@ class Task(object):
         print "Calling saveout/task cleanup code"
         database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
         if self.saveid is not None:
+            import comedi
             comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
             database.save_log(self.saveid, self.task.event_log)
             
