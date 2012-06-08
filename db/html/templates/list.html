@@ -1,6 +1,4 @@
-{% load static %}
-{% get_static_prefix as STATIC_PREFIX %}
-<!DOCTYPE HTML>
+{% load static %}{% get_static_prefix as STATIC_PREFIX %}<!DOCTYPE HTML>
 <html>
 <head>
 <title>Task Entries</title>
@@ -16,18 +14,9 @@
 	var te = null;
 	$(document).ready(function() {
 		$("table#main tr").each(function() {
-			var idx = this.id;
-			if (this.id == "newentry") {
-				$(this).click(function() {
-					if (te) te.destroy();
-					te = new TaskEntry(null);
-				});
-			} else {
-				$(this).click(function() {
-					if (te) te.destroy();
-					te = new TaskEntry(idx);
-				});
-			}
+			$(this).click(function() {
+				te = new TaskEntry(this.id == "newentry" ? null : this.id);
+			});
 		})
 		taskaction = "run";
 		$("#copybtn").click(TaskEntry.copy);

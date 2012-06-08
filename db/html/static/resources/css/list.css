@@ -38,10 +38,7 @@ th { text-align:left;}
 	position:relative; 
 	z-index:10;
 }
-.active td, div.active { background-color:#EEE; }
-.running td, div.running { background-color:#DFD; }
-.testing td, div.testing { background-color:#FFD; }
-.error td, div.error { background-color:#FDD; }
+
 #report td:first-child {
 	font-weight:bold;
 }
@@ -142,4 +139,18 @@ input.startbtn:hover {
 
 #report table.option {
 	font-size:80%;
+}
+
+
+.active td, div.active { 
+    background-color:#EEE; 
+}
+.running td, div.running { 
+    background-color:#DFD; 
+}
+.testing td, div.testing { 
+    background-color:#FFD; 
+}
+.error td, div.error { 
+    background-color:#FDD; 
 }

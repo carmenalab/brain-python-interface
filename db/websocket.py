@@ -1,4 +1,6 @@
 import os
+import sys
+import cgi
 import json
 import struct
 import multiprocessing as mp
@@ -21,6 +23,8 @@ class Server(mp.Process):
     def __init__(self, notify=None):
         super(self.__class__, self).__init__()
         self._pipe, self.pipe = os.pipe()
+        self._outp, self.outp = os.pipe()
+        self.outqueue = ""
         self.notify = notify
         self.start()
 
@@ -33,7 +37,14 @@ class Server(mp.Process):
         application.listen(8001)
         self.ioloop = tornado.ioloop.IOLoop.instance()
         self.ioloop.add_handler(self._pipe, self._send, self.ioloop.READ)
+        self.ioloop.add_handler(self._outp, self._stdout, self.ioloop.READ)
         self.ioloop.start()
+
+    def _stdout(self, fd, event):
+        nbytes, = struct.unpack('I', os.read(fd, 4))
+        msg = os.read(fd, nbytes)
+        for sock in sockets:
+            sock.write_message(msg)
 
     def _send(self, fd, event):
         nbytes, = struct.unpack('I', os.read(fd, 4))
@@ -51,6 +62,15 @@ class Server(mp.Process):
             msg = json.dumps(msg)
 
         os.write(self.pipe, struct.pack('I', len(msg))+msg)
+
+    def write(self, data):
+        '''Used for stdout hooking'''
+        self.outqueue += data
+
+    def flush(self):
+        msg = json.dumps(dict(status="stdout", msg=cgi.escape(self.outqueue)))
+        os.write(self.outp, struct.pack('I', len(msg))+msg)
+        self.outqueue = ""
 
     def stop(self):
         print "Stopping websocket service"

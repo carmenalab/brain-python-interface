@@ -38,10 +38,15 @@ def save_data(curfile, system, entry, move=True, local=True):
     DataFile(local=local, path=permfile, system=sys, entry=entry).save()
     print "Saved datafile for file=%s, system=%s, id=%d (serverside)..."%(curfile, system, entry.id)
 
+def entry_error(entry):
+    TaskEntry.objects.get(pk=entry).remove()
+    print "Removed Bad Entry %d"%entry
+
 dispatcher = SimpleXMLRPCDispatcher(allow_none=True)
 dispatcher.register_function(save_log, 'save_log')
 dispatcher.register_function(save_calibration, 'save_cal')
 dispatcher.register_function(save_data, 'save_data')
+dispatcher.register_function(entry_error, 'entry_error')
 
 @csrf_exempt
 def rpc_handler(request):

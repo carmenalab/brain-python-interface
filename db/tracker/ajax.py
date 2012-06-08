@@ -101,7 +101,7 @@ def stop_experiment(request):
     try:
         status = display.status.value
         display.stoptask()
-        return _respond(dict(status="stopped", msg=status))
+        return _respond(dict(status="pending", msg=status))
     except:
         import cStringIO
         import traceback

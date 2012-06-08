@@ -15,8 +15,10 @@ function Report(callback) {
     this.obj = document.createElement("div");
     this.info = document.createElement("table");
     this.msgs = document.createElement("div");
+    this.stdout = document.createElement("pre");
     this.info.className = "options";
     this.msgs.className = "rightside";
+
     this.obj.appendChild(this.info);
     this.obj.appendChild(this.msgs);
     $("#report").append(this.obj);
@@ -33,14 +35,28 @@ function Report(callback) {
         this.boxes[i] = data;
     }
 }
+Report.prototype.pause = function() {
+    this.infos = [];
+}
+Report.prototype.unpause = function() {
+    if (this.infos.length > 0)
+        for (var i in this.infos)
+            this.update(this.infos[i]);
+    delete this.infos;
+}
 Report.prototype.activate = function() {
-    this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
-    this.ws.onmessage = function(evt) {
-        var report = JSON.parse(evt.data);
-        if (report.trials)
-            report.trials++;
-        this.update(report);
-    }.bind(this);
+    if (!this.ws) {
+        this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
+        this.ws.onmessage = function(evt) {
+            var report = JSON.parse(evt.data);
+            if (report.trials)
+                report.trials++;
+            if (this.infos)
+                this.infos.push(report)
+            else
+                this.update(report);
+        }.bind(this);
+    }
 }
 Report.prototype.deactivate = function() {
     if (this.ws)
@@ -52,6 +68,13 @@ Report.prototype.update = function(info) {
         this.notify(info);
     if (info.status && info.status == "error") {
         this.msgs.innerHTML = "<pre>"+info.msg+"</pre>";
+    } else if (info.status && info.status == "stdout") {
+        if (!this.stdout.parentNode)
+            this.msgs.appendChild(this.stdout)
+
+        this.stdout.innerHTML += info.msg;
+    } else if (info.state) {
+        console.log(info.state);
     } else {
         for (var i in this.boxes) {
             if (info[i])

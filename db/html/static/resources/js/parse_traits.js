@@ -2,13 +2,6 @@ function Parameters() {
     this.obj = document.createElement("table");
     this.traits = {};
 }
-Parameters._parse = function(input) {
-    var val = input.value.length > 0? input.value : input.placeholder;
-    if (isNaN(parseFloat(val)))
-        val = '"'+val+'"';
-
-    return val;
-}
 Parameters.prototype.update = function(desc) {
     //Update the parameters descriptor to include the updated values
     for (var name in desc) {
@@ -77,10 +70,7 @@ Parameters.prototype.add_tuple = function(name, info) {
         var input = document.createElement("input");
         input.type = "text";
         input.name = name;
-        input.pattern = "-?[0-9]*\.?[0-9]*";
         input.placeholder = JSON.stringify(info['default'][i]);
-        input.title = "A floating point value";
-        //input.style.width = "90%";
         if (typeof(info['value']) != "undefined")
             if (typeof(info['value'][i]) != "string")
                 input.value = JSON.stringify(info['value'][i]);
@@ -90,7 +80,19 @@ Parameters.prototype.add_tuple = function(name, info) {
         wrapper.appendChild(input);
         this.traits[name]['inputs'].push(input);
     }
-    this.traits[name]['inputs'][0].id = "param_"+name;
+    this.traits[name].inputs[0].id = "param_"+name;
+    for (var i in this.traits[name].inputs) {
+        var inputs = this.traits[name].inputs
+        this.traits[name].inputs[i].onchange = function() {
+            if (this.value.length > 0) {
+                for (var j in inputs)
+                    inputs[j].required = "required";
+            } else {
+                for (var j in inputs)
+                    inputs[j].removeAttribute("required");
+            }
+        }
+    }
 }
 Parameters.prototype.add_int = function (name, info) {
     var trait = this._add(name, info['desc']);
@@ -134,7 +136,7 @@ Parameters.prototype.add_array = function (name, info) {
     if (info['default'].length < 4) {
         this.add_tuple(name, info);
         for (var i=0; i < this.traits[name].inputs.length; i++)
-            this.traits[name].inputs[i].pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
+            this.traits[name].inputs[i].pattern = '[0-9\\(\\)\\[\\]\\.\\,\\s\\-]*';
     } else {
         var trait = this._add(name, info['desc']);
         var div = document.createElement("td");
@@ -201,11 +203,12 @@ Parameters.prototype.to_json = function() {
         if (this.traits[name].inputs.length > 1) {
             var plist = [];
             for (var i = 0; i < this.traits[name].inputs.length; i++) {
-                plist.push(Parameters._parse(this.traits[name].inputs[i]))
+                plist.push(this.traits[name].inputs[i].value)
             }
-            jsdata[name] = "["+plist.join(",")+"]";
-        } else {
-            jsdata[name] = JSON.parse(Parameters._parse(this.traits[name].inputs[0]));
+            if (plist[0].length > 0)
+                jsdata[name] = plist;
+        } else if (this.traits[name].inputs[0].value.length > 0) {
+            jsdata[name] = this.traits[name].inputs[0].value;
         }
     }
     return jsdata;

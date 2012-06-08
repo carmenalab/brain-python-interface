@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import time
 import cPickle
@@ -24,7 +25,7 @@ class Track(object):
         self.cmds, self._cmds = mp.Pipe()
 
     def notify(self, msg):
-        if msg['status'] == "error" or msg['state'] is None:
+        if msg['status'] == "error" or msg['state'] == "stopped":
             self.status.value = ""
 
     def runtask(self, **kwargs):
@@ -60,6 +61,7 @@ class Track(object):
 def runtask(cmds, _cmds, websock, **kwargs):
     import time
     from riglib.experiment import report
+    sys.stdout = websock
     os.nice(0)
     status = "running" if 'saveid' in kwargs else "testing"
     class NotifyFeat(object):
@@ -119,9 +121,12 @@ class Task(object):
         self.subj = subj
 
         if self.saveid is not None:
-            import comedi
-            self.com = comedi.comedi_open("/dev/comedi0")
-            comedi.comedi_dio_bitfield2(self.com,0,16,0,16)
+            try:
+                import comedi
+                self.com = comedi.comedi_open("/dev/comedi0")
+                comedi.comedi_dio_bitfield2(self.com,0,16,0,16)
+            except:
+                print "No comedi, cannot start"
         
         Exp = experiment.make(task.get(), feats=feats)
         if issubclass(Exp, experiment.Sequence):
@@ -155,8 +160,11 @@ class Task(object):
         print "Calling saveout/task cleanup code"
         database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
         if self.saveid is not None:
-            import comedi
-            comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
+            try:
+                import comedi
+                comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
+            except:
+                pass
             database.save_log(self.saveid, self.task.event_log)
             
             if "calibration" in self.taskname:
