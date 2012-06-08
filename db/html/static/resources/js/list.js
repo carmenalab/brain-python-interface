@@ -193,7 +193,8 @@ TaskEntry.prototype.update = function(info) {
 		file.appendChild(link);
 		this.filelist.appendChild(file);
 	}
-	$("#files").append(this.filelist);
+	if (info.datafiles.length > 0)
+		$("#files").append(this.filelist).show();
 
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
@@ -220,6 +221,7 @@ TaskEntry.prototype.destroy = function() {
 	delete this.params
 	this.tr.removeClass("rowactive active error");
 	$("#content").removeClass("error running testing")
+	$("#files").hide();
 	$(this.filelist).remove();
 
 	if (this.idx != null) {
