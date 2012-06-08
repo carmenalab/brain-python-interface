@@ -18,7 +18,7 @@
 				te = new TaskEntry(this.id == "newentry" ? null : this.id);
 			});
 		})
-		taskaction = "run";
+		var taskaction = "run";
 		$("#copybtn").click(TaskEntry.copy);
 		$("#experiment").submit(function() { return te[taskaction](); })
 		$("#startbtn").click(function() { taskaction = "start"; })

@@ -184,6 +184,17 @@ TaskEntry.prototype.update = function(info) {
 				this.checked = true;
 		}
 	});
+	this.filelist = document.createElement("ul");
+	for (var sys in info.datafiles) {
+		var file = document.createElement("li");
+		var link = document.createElement("a");
+		link.href = "/static/"+info.datafiles[sys];
+		link.innerHTML = sys;
+		file.appendChild(link);
+		filelist.appendChild(file);
+	}
+	$("#files").append(this.filelist);
+
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
 	this.report.update(info.report);
@@ -209,6 +220,7 @@ TaskEntry.prototype.destroy = function() {
 	delete this.params
 	this.tr.removeClass("rowactive active error");
 	$("#content").removeClass("error running testing")
+	$(this.filelist).remove();
 
 	if (this.idx != null) {
 		var idx = "row"+this.idx;
