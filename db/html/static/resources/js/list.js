@@ -173,7 +173,7 @@ TaskEntry.prototype.update = function(info) {
 	this.report.update(info.report);
 	if (this.notes)
 		this.notes.update(info.notes);
-	
+
 	this.expinfo = info;
 	$("#tasks option").each(function() {
 		if (this.value == info.task)
@@ -213,6 +213,8 @@ TaskEntry.prototype.update = function(info) {
 TaskEntry.copy = function() {
 	var info = te.expinfo;
 	info.report = {};
+	info.datafiles = {};
+	info.notes = "";
 	te = new TaskEntry(null, info);
 }
 TaskEntry.prototype.destroy = function() {
