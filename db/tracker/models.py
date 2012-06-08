@@ -277,7 +277,7 @@ class TaskEntry(models.Model):
         js['params'] = self.task.params(self.feats.all(), values=Parameters(self.params).params)
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
-        js['datafiles'] = dict([(d.system, d.path) for d in DataFile.objects.filter(entry=self.id)])
+        js['datafiles'] = dict([(d.system.name, d.path) for d in DataFile.objects.filter(entry=self.id)])
         try:
             task = self.task.get(self.feats.all())
             report = json.loads(self.report)

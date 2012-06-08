@@ -191,7 +191,7 @@ TaskEntry.prototype.update = function(info) {
 		link.href = "/static/"+info.datafiles[sys];
 		link.innerHTML = sys;
 		file.appendChild(link);
-		filelist.appendChild(file);
+		this.filelist.appendChild(file);
 	}
 	$("#files").append(this.filelist);
 
