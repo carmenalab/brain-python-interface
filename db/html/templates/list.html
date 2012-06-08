@@ -29,8 +29,8 @@
 </script>
 </head>
 <body>
-	<div id='leftpane'>
-		<table id='main'>
+	<div id='leftpane' style="direction:rtl;">
+		<table id='main' style="direction:ltr;">
 			<thead>
 			<tr><th class='colDate'>Date</th><th class='colSubj'>Who</th><th class='colTask'>Task</th></tr>
 			</thead>
@@ -59,7 +59,7 @@
 			</tbody>
 		</table>
 	</div>
-	<div id="rightpane">
+	<div id="rightpane" style="direction:ltr;">
 		<div id='content' class="active">
 			{% include "exp_content.html" %}
 		</div>

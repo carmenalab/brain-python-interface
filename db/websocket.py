@@ -66,6 +66,7 @@ class Server(mp.Process):
     def write(self, data):
         '''Used for stdout hooking'''
         self.outqueue += data
+        self.flush()
 
     def flush(self):
         msg = json.dumps(dict(status="stdout", msg=cgi.escape(self.outqueue)))
