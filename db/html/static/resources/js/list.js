@@ -184,16 +184,18 @@ TaskEntry.prototype.update = function(info) {
 				this.checked = true;
 		}
 	});
+	var numfiles = 0;
 	this.filelist = document.createElement("ul");
 	for (var sys in info.datafiles) {
 		var file = document.createElement("li");
 		var link = document.createElement("a");
-		link.href = "/static/"+info.datafiles[sys];
+		link.href = "/static"+info.datafiles[sys];
 		link.innerHTML = sys;
 		file.appendChild(link);
 		this.filelist.appendChild(file);
+		numfiles++;
 	}
-	if (info.datafiles.length > 0)
+	if (numfiles > 0)
 		$("#files").append(this.filelist).show();
 
 	this.sequence.update(info.sequence);
