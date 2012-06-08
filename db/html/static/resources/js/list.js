@@ -168,6 +168,12 @@ TaskEntry.prototype.new_row = function(info) {
 }
 
 TaskEntry.prototype.update = function(info) {
+	this.sequence.update(info.sequence);
+	this.params.update(info.params);
+	this.report.update(info.report);
+	if (this.notes)
+		this.notes.update(info.notes);
+	
 	this.expinfo = info;
 	$("#tasks option").each(function() {
 		if (this.value == info.task)
@@ -197,12 +203,6 @@ TaskEntry.prototype.update = function(info) {
 	}
 	if (numfiles > 0)
 		$("#files").append(this.filelist).show();
-
-	this.sequence.update(info.sequence);
-	this.params.update(info.params);
-	this.report.update(info.report);
-	if (this.notes)
-		this.notes.update(info.notes);
 
 	if (info.sequence) {
 		$("#sequence").show()
