@@ -73,9 +73,10 @@ Report.prototype.update = function(info) {
             this.msgs.appendChild(this.stdout)
 
         this.stdout.innerHTML += info.msg;
-    } else if (info.state) {
-        console.log(info.state);
     } else {
+        if (info.state)
+            console.log(info.state);
+
         for (var i in this.boxes) {
             if (info[i])
                 if (box_filters[i])
