@@ -136,7 +136,7 @@ function TaskEntry(idx, info){
 			this.enable();
 			$("#content").show("slide", "fast");
 		} else {
-			TaskInterface.trigger.bind(this)();
+			TaskInterface.trigger.bind(this)({state:''});
 			this._task_query(function() {
 				this.enable();
 				$("#content").show("slide", "fast");
