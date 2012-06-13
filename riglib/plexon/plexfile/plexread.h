@@ -4,22 +4,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define false 0
+#include <assert.h>
+#include <unistd.h>
 
-#include "Plexon.h"
+#include "plexfile.h"
+#include "dataframe.h"
+typedef unsigned long long TSTYPE;
 
-#define MAX_SPIKE_CHANNELS   (256)
-#define MAX_EVENT_CHANNELS   (512)
-#define MAX_SLOW_CHANNELS    (1024)
-#define MAX_SAMPLES_PER_WAVEFORM (256)
-#define STROBED_CHANNEL 257
-#define MAX_SPIKES_PER_ELECTRODE 5
+typedef struct {
+    unsigned long len;
+    unsigned long nchans;
+    int t_start;
+    int freq;
+    double* data;
+} ContData;
 
-typedef struct PL_FileHeader PL_FileHeader;
-typedef struct PL_ChanHeader PL_ChanHeader;
-typedef struct PL_EventHeader PL_EventHeader;
-typedef struct PL_SlowChannelHeader PL_SlowChannelHeader;
-typedef struct PL_DataBlockHeader PL_DataBlockHeader;
-typedef unsigned char uchar;
+
+void plx_read_continuous(FILE* fp, FrameSet* frameset, int tsfreq, int chanfreq, int gain,
+    TSTYPE start, TSTYPE stop, int* chans, int nchans, 
+    double* data);
+ContData* plx_readall_analog(PlexFile* plxfile);
+
 
 #endif

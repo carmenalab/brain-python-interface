@@ -33,6 +33,8 @@ class Experiment(traits.HasTraits, threading.Thread):
         while self.state is not None:
             if hasattr(self, "_while_%s"%self.state):
                 getattr(self, "_while_%s"%self.state)()
+            if hasattr(self, "_cycle"):
+                self._cycle()
             
             for event, state in self.status[self.state].items():
                 if hasattr(self, "_test_%s"%event):

@@ -1,94 +1,69 @@
 #include "plexread.h"
 
-long get_header(FILE* fp, PL_FileHeader* header, PL_ChanHeader* spikes,
-    PL_EventHeader* events, PL_SlowChannelHeader* slowchans) {
-    size_t readsize, data_start;
-
-    if (fseek(fp, 0, SEEK_SET) != 0)
-        return -1;
-
-    // Read the file header
-    if (fread(header, sizeof(PL_FileHeader), 1, fp) != 1)
-        return -1;
-
-    // Read the spike channel headers
-    if(header->NumDSPChannels > 0) {
-        readsize = fread(spikes, sizeof(PL_ChanHeader), header->NumDSPChannels, fp);
-        printf("Read %lu spike channels\n", readsize);
-    }
-
-    // Read the event channel headers
-    if(header->NumEventChannels > 0) {
-        readsize = fread(events, sizeof(PL_EventHeader), header->NumEventChannels, fp);
-        printf("Read %lu event channels\n", readsize);
-    }
-
-    // Read the slow A/D channel headers
-    if(header->NumSlowChannels) {
-        readsize = fread(slowchans, sizeof(PL_SlowChannelHeader), header->NumSlowChannels, fp);
-        printf("Read %lu slow channels\n", readsize);
-    }
-
-    // save the position in the PLX file where data block begin
-    data_start = sizeof(PL_FileHeader) + header->NumDSPChannels*sizeof(PL_ChanHeader)
-                        + header->NumEventChannels*sizeof(PL_EventHeader)
-                        + header->NumSlowChannels*sizeof(PL_SlowChannelHeader);
-
-    return data_start;
-}
-
-int get_fidx(FILE* fp, long long *times, int tslen, short *types, int tylen, size_t *filepos, int flen) {
-    int block = 0;
-    long int offset = 0;
-    long long ts;
-    PL_DataBlockHeader header;
-
-    while (fread(&header, sizeof(header), 1, fp) == 1) {
-        if (block > tslen || block > tylen || block > flen)
-            return -1;
-
-        ts = (((long long) header.UpperByteOf5ByteTimestamp) << 32) | ((long long) header.TimeStamp);
-        times[block] = ts;
-        types[block] = header.Type;
-        filepos[block] = ftell(fp);
-
-        offset = 0;
-        if (header.NumberOfWaveforms > 0 && header.NumberOfWordsInWaveform > 0) {
-            offset = header.NumberOfWaveforms * header.NumberOfWordsInWaveform * 2;
-            fseek(fp, offset, SEEK_CUR);
-        }
-        if (header.Type == 4)
-            printf("Block %d, Chan %d / %d, Type %d. Skipped %d\n", block, header.Channel, header.Unit, header.Type, offset);
-        block++;
-    }
+unsigned long int _binary_search(FrameSet* frameset, TSTYPE ts) {
     return 0;
 }
 
-int main(int argc, char** argv) {
-    if (argc <= 1) {
-        printf("Please supply a filename!\n");
-        exit(1);
-    }
-    FILE* fp = fopen(argv[1], "rb");
+void plx_read_continuous(FILE* fp, FrameSet* frameset, int tsfreq, int chanfreq, int gain,
+    TSTYPE start, TSTYPE stop, int* chans, int nchans, 
+    double* data) {
 
-    PL_FileHeader header;
-    PL_ChanHeader spikes[MAX_SPIKE_CHANNELS];
-    PL_EventHeader events[MAX_SPIKE_CHANNELS];
-    PL_SlowChannelHeader slowchans[MAX_SPIKE_CHANNELS];
+    int i, f, c, t, _lchan, _chan, stride;
+    DataFrame* frame = &(frameset->frames[0]);
+    double t_off = frame->ts / (double) tsfreq;
+    short buf[MAX_SAMPLES_PER_WAVEFORM];
+    long t_start;
 
-    long readsize;
+    start = start == 0 ? start : _binary_search(frameset, start);
+    stop = stop == 0 ? frameset->num : _binary_search(frameset, stop);
 
-    long long times[8192<<5];
-    short types[8192<<5];
-    size_t filepos[8192<<5];
-    readsize = get_header(fp, &header, spikes, events, slowchans);
-    readsize = get_fidx(fp, times, 8192<<5, types, 8192<<5, filepos, 8192<<5);
-    if (readsize > 0) {
-        printf("Successfully read file.\n");
-        return 0;
+    if (chans == NULL) {
+        chans = malloc(sizeof(int) * frame->nblocks);
+        for (i = 0; i < frame->nblocks; i++)
+            chans[i] = 1;
+        nchans = frame->nblocks;
     } else {
-        return (int) readsize;
+        //Compute the channel differential
+        _lchan = chans[0];
+        for (i = 1; i < nchans; i++) {
+            _chan = chans[i];
+            chans[i] = chans[i] - _lchan;
+            _lchan = _chan;
+        }
     }
-    return 0;
+
+    for (f = start; f < stop; f++) {
+        frame = &(frameset->frames[f]);
+        t_start = (frame->ts / (double) tsfreq - t_off) * chanfreq;
+        stride = frame->samples * sizeof(short) + sizeof(PL_DataBlockHeader);
+        fseek(fp, frame->fpos[0]+sizeof(PL_DataBlockHeader), SEEK_SET);
+        for (c = 0; c < frame->nblocks; c++) {
+            fread(buf, sizeof(short), frame->samples, fp);
+            fseek(fp, stride, SEEK_CUR);
+            for (t = 0; t < frame->samples; t++)
+                data[(t+t_start)*nchans + c] = buf[t] / (double) gain;
+        }
+    }
+
+    if (nchans == frame->nblocks)
+        free(chans);
 }
 
+ContData* plx_readall_analog(PlexFile* plxfile) {
+    PL_SlowChannelHeader chaninfo = plxfile->cont_info[plxfile->header.NumDSPChannels * 3];
+    ContData* data = malloc(sizeof(ContData));
+    int tsfreq = plxfile->header.ADFrequency;
+
+    data->freq = chaninfo.ADFreq;
+    data->t_start = plxfile->analog.frames[0].ts;
+    data->nchans = plxfile->analog.frames[0].nblocks;
+    data->len = (plxfile->analog.frames[plxfile->analog.num-1].ts - data->t_start) / (double) tsfreq * data->freq;
+    data->len += plxfile->analog.frames[plxfile->analog.num-1].samples;
+
+    data->data = malloc(sizeof(double) * data->len * data->nchans);
+
+    plx_read_continuous(plxfile->fp, &(plxfile->analog), tsfreq, chaninfo.ADFreq, chaninfo.Gain,
+        0, 0, NULL, 0, data->data);
+
+    return data;
+}

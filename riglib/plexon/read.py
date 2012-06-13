@@ -18,4 +18,4 @@ class Plexfile(object):
         ctypes.memmove(ctypes.addressof(self.channels), self.file.read(ch_size), ch_size)
         ctypes.memmove(ctypes.addressof(self.events), self.file.read(ev_size), ev_size)
         ctypes.memmove(ctypes.addressof(self.slowchans), self.file.read(sl_size), sl_size)
-        self._dstart = sum([hsize, ch_Size, ev_size, sl_size])
+        self._dstart = sum([hsize, ch_size, ev_size, sl_size])
