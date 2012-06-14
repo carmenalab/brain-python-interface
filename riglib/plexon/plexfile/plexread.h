@@ -19,6 +19,18 @@ typedef struct {
     double* data;
 } ContData;
 
+typedef struct {
+    double ts;
+    int chan;
+    int unit;
+} Spike;
+
+typedef struct {
+    int num;
+    short wflen;
+    Spike* spike;
+    double* waveforms;
+} SpikeData;
 
 void plx_read_continuous(FILE* fp, FrameSet* frameset, int tsfreq, int chanfreq, int gain,
     TSTYPE start, TSTYPE stop, int* chans, int nchans, 
