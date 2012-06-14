@@ -11,7 +11,7 @@ PlexFile* open_plex(char* filename) {
     assert(readsize > 0);
 
     char* cachename = _plx_cache_name(filename);
-    if ((fp = fopen(cachename, "rb")) > 0) {
+    if ((fp = fopen(cachename, "rb"))) {
         //Cache was found, let's read it
         fread(&(plxfile->spikes.num), sizeof(plxfile->spikes.num), 1, fp);
         plxfile->spikes.frames = malloc(sizeof(DataFrame)*plxfile->spikes.num);
@@ -60,23 +60,23 @@ void close_plex(PlexFile* plxfile) {
 
 char* _plx_cache_name(char* filename) {
     char* fullfile = realpath(filename, NULL);
-    char* cachename = malloc(strlen(fullfile)+3);
+    char* cachename = calloc(strlen(fullfile)+3, sizeof(char));
     char* filepart = strrchr(fullfile, '/');
     assert(filepart != NULL);
-    filepart++;
-    strncpy(cachename, fullfile, filepart-fullfile);
+    strncpy(cachename, fullfile, filepart-fullfile+1);
     filepart[strlen(filepart)-4] = '\0';
-
-    sprintf(cachename, "%s.%s.cache", cachename, filepart);
+    sprintf(cachename, "%s.%s.cache", cachename, filepart+1);
+    free(fullfile);
     return cachename;
 }
 
 void save_cache(PlexFile* plxfile) {
     char* filename = _plx_cache_name(plxfile->filename);
-    printf("Saving cache to %s\n", filename);
+    printf("Saving cache to %s, %s\n", filename, plxfile->filename);
     FILE* fp = fopen(filename, "wb");
-    fwrite(&(plxfile->spikes.num), sizeof(plxfile->spikes.num), 1, fp);
-    fwrite(plxfile->spikes.frames, sizeof(DataFrame), plxfile->spikes.num, fp);
+    if (fp) {
+        fwrite(&(plxfile->spikes.num), sizeof(plxfile->spikes.num), 1, fp);
+        fwrite(plxfile->spikes.frames, sizeof(DataFrame), plxfile->spikes.num, fp);
     fwrite(&(plxfile->wideband.num), sizeof(plxfile->wideband.num), 1, fp);
     fwrite(plxfile->wideband.frames, sizeof(DataFrame), plxfile->wideband.num, fp);
     fwrite(&(plxfile->spkc.num), sizeof(plxfile->spkc.num), 1, fp);
@@ -88,6 +88,10 @@ void save_cache(PlexFile* plxfile) {
     fwrite(&(plxfile->event.num), sizeof(plxfile->event.num), 1, fp);
     fwrite(plxfile->event.frames, sizeof(DataFrame), plxfile->event.num, fp);
     fclose(fp);
+    } else {
+         printf("Unable to save cache!\n");
+    }
+    free(filename);
 }
 
 long get_header(PlexFile* plxfile) {

@@ -27,7 +27,7 @@ void print_frameset(FrameSet* frameset, int num) {
     if (num < 0)
         num = frameset->num;
 
-    for (i = 0; i < num; i++) {
+    for (i = 0; i < min(num, frameset->num); i++) {
         frame = &(frameset->frames[i]);
         printf("%s at ts=%llu, fpos=[%lu, %lu], samples=%lu, len=%lu\n", 
             names[frame->type],
@@ -46,10 +46,12 @@ int main(int argc, char** argv) {
     PlexFile* plxfile = open_plex(argv[1]);
     print_plxfile(plxfile);
     print_frameset(&(plxfile->lfp), 100);
+    print_frameset(&(plxfile->wideband), 100);
     printf("Found %d invalid analog frames\n", check_frameset(&(plxfile->analog), 1000, plxfile->header.ADFrequency));
     printf("Found %d invalid spkc frames\n", check_frameset(&(plxfile->spkc), 40000, plxfile->header.ADFrequency));
     printf("Found %d invalid lfp frames\n", check_frameset(&(plxfile->lfp), 1000, plxfile->header.ADFrequency));
 
+/*
     FILE* fp = fopen(argv[2], "wb");
     //ContData* data = plx_readall_analog(plxfile);
     //printf("Writing all analog data, shape (%lu, %lu)\n", data->len, data->nchans);
@@ -59,8 +61,9 @@ int main(int argc, char** argv) {
 
     SpikeData* data = plx_readall_spikes(plxfile, false);
     fwrite(data->spike, sizeof(Spike), data->num, fp);
-    printf("Wrote out %d rows of spike data", data->num);
-
+    printf("Wrote out %d rows of spike data\n", data->num);
+*/
     close_plex(plxfile);
+
     return 0;
 }
