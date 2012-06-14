@@ -1,87 +1,65 @@
 #include "plexread.h"
 
-unsigned long int _binary_search(FrameSet* frameset, TSTYPE ts) {
-    unsigned long mid = frameset->num / 2, left = 0, right = frameset->num;
-    DataFrame* frame = &(frameset->frames[mid]);
-
-    while (right - left > 1) {
-        frame = &(frameset->frames[mid]);
-        if (ts < frame->ts) {
-            right = mid;
-        } else if (ts > frame->ts) {
-            left = mid;
-        } else if (ts == frame->ts)
-            return mid;
-        mid = (right - left) / 2 + left;
-    }
-    return mid;
-}
-
-void plx_read_continuous(FILE* fp, FrameSet* frameset, int tsfreq, int chanfreq, int gain,
-    TSTYPE start, TSTYPE stop, int* chans, int nchans, 
-    double* data) {
-
-    int i, f, c, t, _lchan, _chan, stride;
-    DataFrame* frame = &(frameset->frames[0]);
-    double t_off = frame->ts / (double) tsfreq;
+ContData* plx_read_continuous(PlexFile* plxfile, ChanType type,
+    double start, double stop, int* chans, int nchans) {
+    if (!(type == wideband || type == spkc || type == lfp || type == analog))
+        return NULL;
+    int i, f, c, t, stride;
     short buf[MAX_SAMPLES_PER_WAVEFORM];
-    long t_start;
+    double tsfreq = (double) plxfile->header.ADFrequency;
+    double chanfreq = (double) plxfile->cont_info[type-wideband][0].ADFreq;
+    double gain = (double) plxfile->cont_info[type-wideband][0].Gain;
+    unsigned long t_off, fedge[2], strunc[2] = {0,0};
 
-    start = start == 0 ? start : _binary_search(frameset, start);
-    stop = stop == 0 ? frameset->num : _binary_search(frameset, stop);
+    FrameSet* frameset = &(plxfile->data[type]);
+    DataFrame* frame = &(frameset->frames[0]);
+    ContData* data = malloc(sizeof(ContData));
 
-    if (chans == NULL) {
+    data->freq = chanfreq;
+    data->t_start = frame->ts / tsfreq;
+
+    fedge[0] = start < 0 ? start : _binary_search(frameset, (TSTYPE) start*chanfreq);
+    fedge[1] = stop < 0 ? frameset->num-1 : _binary_search(frameset, (TSTYPE) stop*chanfreq);
+    if (frameset->frames[fedge[0]].ts / tsfreq != start)
+        strunc[0] = 
+
+    if (chans == NULL || nchans < 1) {
         chans = malloc(sizeof(int) * frame->nblocks);
         for (i = 0; i < frame->nblocks; i++)
             chans[i] = 1;
-        nchans = frame->nblocks;
+        data->nchans = frame->nblocks;
     } else {
         //Compute the channel differential
-        _lchan = chans[0];
-        for (i = 1; i < nchans; i++) {
-            _chan = chans[i];
-            chans[i] = chans[i] - _lchan;
-            _lchan = _chan;
+        for (i = 0; i < nchans-1; i++) {
+            chans[i] = chans[i+1] - chans[i];
         }
+        data->nchans = nchans;
     }
 
-    for (f = start; f < stop; f++) {
-        frame = &(frameset->frames[f]);
-        t_start = (frame->ts / (double) tsfreq - t_off) * chanfreq;
-        stride = frame->samples * sizeof(short) + sizeof(PL_DataBlockHeader);
-        fseek(fp, frame->fpos[0]+sizeof(PL_DataBlockHeader), SEEK_SET);
+    data->len = (frameset->frames[fedge[-1]].ts - frameset->frames[fedge[0]].ts) / tsfreq * data->freq;
+    data->len += frameset->frames[fedge[-1]].samples - strunc[0] - strunc[1];
+    data->data = calloc(data->len * data->nchans, sizeof(double));
 
-        for (c = 0; c < nchans; c++) {
-            fread(buf, sizeof(short), frame->samples, fp);
-            fseek(fp, stride*chans[c], SEEK_CUR);
+    for (f = start; f < stop; f++) {
+        frame = &(plxfile->data[type].frames[f]);
+        t_off = (frame->ts / tsfreq - data->t_start) * chanfreq;
+        stride = frame->samples * sizeof(short) + sizeof(PL_DataBlockHeader);
+        fseek(plxfile->fp, frame->fpos[0]+sizeof(PL_DataBlockHeader), SEEK_SET);
+
+        for (c = 0; c < data->nchans; c++) {
+            fread(buf, sizeof(short), frame->samples, plxfile->fp);
+            fseek(plxfile->fp, stride*chans[c], SEEK_CUR);
             for (t = 0; t < frame->samples; t++)
-                data[(t+t_start)*nchans + c] = buf[t] / (double) gain;
+                data->data[(t+t_off)*nchans + c] = buf[t] / gain;
         }
     }
 
     if (nchans == frame->nblocks)
         free(chans);
-}
-
-ContData* plx_readall_analog(PlexFile* plxfile) {
-    PL_SlowChannelHeader chaninfo = plxfile->cont_info[plxfile->header.NumDSPChannels * 3];
-    ContData* data = malloc(sizeof(ContData));
-    int tsfreq = plxfile->header.ADFrequency;
-
-    data->freq = chaninfo.ADFreq;
-    data->t_start = plxfile->analog.frames[0].ts;
-    data->nchans = plxfile->analog.frames[0].nblocks;
-    data->len = (plxfile->analog.frames[plxfile->analog.num-1].ts - data->t_start) / (double) tsfreq * data->freq;
-    data->len += plxfile->analog.frames[plxfile->analog.num-1].samples;
-
-    data->data = calloc(data->len * data->nchans, sizeof(double));
-
-    plx_read_continuous(plxfile->fp, &(plxfile->analog), tsfreq, chaninfo.ADFreq, chaninfo.Gain,
-        0, 0, NULL, 0, data->data);
 
     return data;
 }
-
+/*
 SpikeData* plx_readall_spikes(PlexFile* plxfile, bool waveforms) {
     int i, j, k, n = 0;
     int tsfreq = plxfile->header.ADFrequency;
@@ -120,4 +98,22 @@ SpikeData* plx_readall_spikes(PlexFile* plxfile, bool waveforms) {
         }
     }
     return spikes;
+}
+*/
+
+unsigned long _binary_search(FrameSet* frameset, TSTYPE ts) {
+    unsigned long mid = frameset->num / 2, left = 0, right = frameset->num;
+    DataFrame* frame = &(frameset->frames[mid]);
+
+    while (right - left > 1) {
+        frame = &(frameset->frames[mid]);
+        if (ts < frame->ts) {
+            right = mid;
+        } else if (ts > frame->ts) {
+            left = mid;
+        } else if (ts == frame->ts)
+            return mid;
+        mid = (right - left) / 2 + left;
+    }
+    return mid;
 }

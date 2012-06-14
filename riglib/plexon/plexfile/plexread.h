@@ -8,34 +8,31 @@
 #include <unistd.h>
 
 #include "plexfile.h"
-#include "dataframe.h"
-typedef unsigned long long TSTYPE;
 
-typedef struct {
+typedef struct ContDataType {
     unsigned long len;
     unsigned long nchans;
-    int t_start;
+    double t_start;
     int freq;
     double* data;
 } ContData;
 
-typedef struct {
+typedef struct SpikeType {
     double ts;
     int chan;
     int unit;
 } Spike;
 
-typedef struct {
+typedef struct SpikeDataType {
     int num;
     short wflen;
     Spike* spike;
     double* waveforms;
 } SpikeData;
 
-void plx_read_continuous(FILE* fp, FrameSet* frameset, int tsfreq, int chanfreq, int gain,
-    TSTYPE start, TSTYPE stop, int* chans, int nchans, 
-    double* data);
-ContData* plx_readall_analog(PlexFile* plxfile);
+ContData* plx_read_continuous(PlexFile* plxfile, ChanType type,
+    double start, double stop, int* chans, int nchans);
 SpikeData* plx_readall_spikes(PlexFile* plxfile, bool waveforms);
+unsigned long int _binary_search(FrameSet* frameset, TSTYPE ts);
 
 #endif

@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g -Wall -c
 LDFLAGS=
-SOURCES=demo.c check.c plexfile.c dataframe.c plexread.c
+SOURCES=inspect.c check.c plexfile.c dataframe.c plexread.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=test
 
