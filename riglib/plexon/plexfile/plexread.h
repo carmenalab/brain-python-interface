@@ -36,6 +36,6 @@ void plx_read_continuous(FILE* fp, FrameSet* frameset, int tsfreq, int chanfreq,
     TSTYPE start, TSTYPE stop, int* chans, int nchans, 
     double* data);
 ContData* plx_readall_analog(PlexFile* plxfile);
-
+SpikeData* plx_readall_spikes(PlexFile* plxfile, bool waveforms);
 
 #endif

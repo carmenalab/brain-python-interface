@@ -103,9 +103,11 @@ SpikeData* plx_readall_spikes(PlexFile* plxfile, bool waveforms) {
         fseek(plxfile->fp, frame->fpos[0] + 8, SEEK_SET);
         for (j = 0; j < frame->nblocks; j++) {
             spikes->spike[n].ts = frame->ts / (double) tsfreq;
-            fread(&(spikes->spike[n].chan), 1, sizeof(short), plxfile->fp);
-            fread(&(spikes->spike[n].unit), 1, sizeof(short), plxfile->fp);
+            fread(buf, 2, sizeof(short), plxfile->fp);
+            spikes->spike[n].chan = (int) buf[0];
+            spikes->spike[n].unit = (int) buf[1];
             fseek(plxfile->fp, 4, SEEK_CUR);
+            
             changain = (double) plxfile->chan_info[spikes->spike[n].chan].Gain;
             if (waveforms) {
                 fread(buf, spikes->wflen, sizeof(short), plxfile->fp);

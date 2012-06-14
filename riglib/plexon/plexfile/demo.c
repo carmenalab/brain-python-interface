@@ -50,12 +50,16 @@ int main(int argc, char** argv) {
     printf("Found %d invalid spkc frames\n", check_frameset(&(plxfile->spkc), 40000, plxfile->header.ADFrequency));
     printf("Found %d invalid lfp frames\n", check_frameset(&(plxfile->lfp), 1000, plxfile->header.ADFrequency));
 
-    ContData* data = plx_readall_analog(plxfile);
     FILE* fp = fopen(argv[2], "wb");
-    printf("Writing all analog data, shape (%lu, %lu)\n", data->len, data->nchans);
-    fwrite(&(data->data[i*data->nchans]), sizeof(double), data->nchans*data->len, fp);
-    free(data->data);
-    free(data);
+    //ContData* data = plx_readall_analog(plxfile);
+    //printf("Writing all analog data, shape (%lu, %lu)\n", data->len, data->nchans);
+    //fwrite(&(data->data[i*data->nchans]), sizeof(double), data->nchans*data->len, fp);
+    //free(data->data);
+    //free(data);
+
+    SpikeData* data = plx_readall_spikes(plxfile, false);
+    fwrite(data->spike, sizeof(Spike), data->num, fp);
+    printf("Wrote out %d rows of spike data", data->num);
 
     close_plex(plxfile);
     return 0;
