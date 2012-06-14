@@ -86,6 +86,7 @@ void _new_frame(SimpleDatablock* header, int start, PlexFile* plxfile, DataFrame
     (*frame)->fpos[0] = start;
     (*frame)->nblocks = 0;
     lastchan = 0;
+    //printf("New frame: ts=%llu, type=%d, samples=%d\n", header->ts, header->type, header->samples);
 }
 
 void read_frames(PlexFile* plxfile) {
@@ -110,8 +111,10 @@ void read_frames(PlexFile* plxfile) {
             frame->fpos[1] = laststart;
             _new_frame(&header, laststart, plxfile, &frame);
             (plxfile->nframes)++;
-            if (((plxfile->nframes) % 100) == 0) 
-                printf("%0.1f%%...      \r", ftell(plxfile->fp) / end_pos * 100);
+            if ((plxfile->nframes % 100) == 0) {
+                printf("%0.3f%%...      \r", ftell(plxfile->fp) / end_pos * 100);
+                fflush(stdout);
+            }
         }
         (frame->nblocks)++;
         if (( 2<= frame->type && frame->type <= 5) && lastchan+1 != header.chan) {
