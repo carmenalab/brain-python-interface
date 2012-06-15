@@ -62,7 +62,7 @@ void plx_save_cache(PlexFile* plxfile) {
         }
         fclose(fp);
     } else {
-         printf("Unable to save cache!\n");
+        printf("Unable to save cache!\n");
     }
     free(filename);
 }

@@ -31,10 +31,9 @@ typedef struct SpikeDataType {
     double* waveforms;
 } SpikeData;
 
-ContData* plx_read_continuous(PlexFile* plxfile, ChanType type,
+extern ContData* plx_read_continuous(PlexFile* plxfile, ChanType type,
     double start, double stop, int* chans, int nchans);
-SpikeData* plx_readall_spikes(PlexFile* plxfile, bool waveforms);
-
+extern SpikeData* plx_read_events_spikes(PlexFile* plxfile, ChanType type, double start, double stop, bool waveforms);
 unsigned long _binary_search(FrameSet* frameset, TSTYPE ts);
 
 #endif

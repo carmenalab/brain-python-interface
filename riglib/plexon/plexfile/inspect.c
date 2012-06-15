@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
     int i, bad;
     PlexFile* plxfile = plx_open(argv[1]);
     plx_summary(plxfile);
-    plx_print_frameset(&(plxfile->data[lfp]), 100);
+    plx_print_frameset(&(plxfile->data[analog]), 100);
     plx_print_frameset(&(plxfile->data[wideband]), 10);
     for (i = 0; i < ChanType_MAX; i++) {
         printf("Checking %s...\n", names[i]);
@@ -81,22 +81,26 @@ int main(int argc, char** argv) {
         bad = plx_check_frames(plxfile, i);
         printf("Found %d bad frames!\n", bad);
     }
-    unsigned long idx = _binary_search(&(plxfile->data[wideband]), 123);
+    /*
+    unsigned long idx = _binary_search(&(plxfile->data[lfp]), 123);
     printf("Found at %lu, ", idx);
-    plx_print_frame(&(plxfile->data[wideband].frames[idx]));
-        
+    plx_print_frame(&(plxfile->data[lfp].frames[idx]));
+    */    
 
     FILE* fp = fopen(argv[2], "wb");
-    ContData* data = plx_read_continuous(plxfile, wideband, 20.00001, 22.49999, NULL, 0);
+    /*
+    int chans[5] = {0, 145, 146, 147, 161};
+    ContData* data = plx_read_continuous(plxfile, analog, atof(argv[3]), atof(argv[4]), chans, 1);
     printf("Writing all analog data, shape (%lu, %lu), t_start=%f\n", data->len, data->nchans, data->t_start);
     fwrite(&(data->data[i*data->nchans]), sizeof(double), data->nchans*data->len, fp);
     free(data->data);
     free(data);
-/*
-    SpikeData* data = plx_readall_spikes(plxfile, false);
+    plx_check_frames(plxfile, lfp);
+    */
+    SpikeData* data = plx_read_events_spikes(plxfile, spike, atof(argv[3]), atof(argv[4]), false);
     fwrite(data->spike, sizeof(Spike), data->num, fp);
     printf("Wrote out %d rows of spike data\n", data->num);
-*/
+
     plx_close(plxfile);
 
     return 0;
