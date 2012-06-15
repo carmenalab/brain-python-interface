@@ -6,6 +6,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <math.h>
 
 #include "plexfile.h"
 
@@ -33,6 +34,7 @@ typedef struct SpikeDataType {
 ContData* plx_read_continuous(PlexFile* plxfile, ChanType type,
     double start, double stop, int* chans, int nchans);
 SpikeData* plx_readall_spikes(PlexFile* plxfile, bool waveforms);
-unsigned long int _binary_search(FrameSet* frameset, TSTYPE ts);
+
+unsigned long _binary_search(FrameSet* frameset, TSTYPE ts);
 
 #endif

@@ -3,7 +3,7 @@
 
 int lastchan = 0;
 
-void plx_read_frames(PlexFile* plxfile) {
+void plx_get_frames(PlexFile* plxfile) {
     long int laststart;
     int nchans = plxfile->header.NumDSPChannels;
     unsigned long int start_pos = ftell(plxfile->fp);
@@ -21,7 +21,7 @@ void plx_read_frames(PlexFile* plxfile) {
     _plx_new_frame(&header, laststart, plxfile, &frame);
     while ((laststart = _plx_read_datablock(plxfile->fp, nchans, &header)) > 0) {
         if (header.ts != frame->ts || header.type != frame->type || 
-            header.samples != frame->samples) {
+            (unsigned long) header.samples != frame->samples) {
 
             frame->fpos[1] = laststart;
             _plx_new_frame(&header, laststart, plxfile, &frame);
@@ -44,7 +44,7 @@ void plx_read_frames(PlexFile* plxfile) {
     frame->fpos[1] = ftell(plxfile->fp);
 }
 
-void _plx_new_frame(SimpleDatablock* header, long int start, PlexFile* plxfile, DataFrame** frame) {
+void _plx_new_frame(SimpleDatablock* header, unsigned long start, PlexFile* plxfile, DataFrame** frame) {
     FrameSet* frameset = &(plxfile->data[header->type]);
     if (frameset->lim <= ((frameset->num)+1)) {
         frameset->lim *= 2;

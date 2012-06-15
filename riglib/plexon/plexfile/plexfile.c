@@ -23,7 +23,7 @@ extern PlexFile* plx_open(char* filename) {
     } else {
         for (i = 0; i < ChanType_MAX; i++) 
             plxfile->data[i].lim = 1;
-        plx_read_frames(plxfile);
+        plx_get_frames(plxfile);
         printf("Successfully read %lu frames\n", plxfile->nframes);
         plx_save_cache(plxfile);
     }

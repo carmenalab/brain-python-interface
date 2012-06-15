@@ -27,14 +27,43 @@ void plx_print_frame(DataFrame* frame) {
 
 void plx_print_frameset(FrameSet* frameset, int num) {
     int i;
-
-    if (num < 0)
-        num = frameset->num;
-
-    for (i = 0; i < min(num, frameset->num); i++) {
+    for (i = 0; i < max(0, min(num, frameset->num)); i++) {
         plx_print_frame(&(frameset->frames[i]));
     }
 }
+
+int plx_check_frames(PlexFile* plxfile, ChanType type) {
+    unsigned int i, invalid = 0;
+    double tsdiff = 0;
+    DataFrame* frame;
+    FrameSet* frameset = &(plxfile->data[type]);
+    double adfreq = (double) plxfile->header.ADFrequency;
+    double freq;
+
+    switch(type) {
+        case wideband: case spkc: case lfp: case analog:
+            freq = (double) plxfile->cont_info[type - wideband]->ADFreq;
+            break;
+        default:
+            return -1;
+    }
+
+    if (frameset->num > 0) {
+        for (i = 0; i < frameset->num-1; i++) {
+            frame = &(frameset->frames[i]);
+            tsdiff = (frameset->frames[i+1].ts - frame->ts) / adfreq;
+            assert(tsdiff > 0);
+            if ((frame->samples /(double) freq) != tsdiff) {
+                printf("Found invalid frame, ts=%f, next=%f, diff=%f, samples=%lu, expect=%f\n", 
+                    frame->ts / (double) adfreq, frameset->frames[i+1].ts / adfreq, tsdiff,
+                    frame->samples, frame->samples / freq);
+                invalid++;
+            }
+        }
+    }
+    return invalid;
+}
+
 
 int main(int argc, char** argv) {
     if (argc <= 1) {
@@ -52,18 +81,18 @@ int main(int argc, char** argv) {
         bad = plx_check_frames(plxfile, i);
         printf("Found %d bad frames!\n", bad);
     }
-    unsigned long idx = _binary_search(&(plxfile->data[lfp]), 0);
+    unsigned long idx = _binary_search(&(plxfile->data[wideband]), 123);
     printf("Found at %lu, ", idx);
-    plx_print_frame(&(plxfile->data[lfp].frames[idx]));
+    plx_print_frame(&(plxfile->data[wideband].frames[idx]));
         
-/*
-    FILE* fp = fopen(argv[2], "wb");
-    //ContData* data = plx_readall_analog(plxfile);
-    //printf("Writing all analog data, shape (%lu, %lu)\n", data->len, data->nchans);
-    //fwrite(&(data->data[i*data->nchans]), sizeof(double), data->nchans*data->len, fp);
-    //free(data->data);
-    //free(data);
 
+    FILE* fp = fopen(argv[2], "wb");
+    ContData* data = plx_read_continuous(plxfile, wideband, 20.00001, 22.49999, NULL, 0);
+    printf("Writing all analog data, shape (%lu, %lu), t_start=%f\n", data->len, data->nchans, data->t_start);
+    fwrite(&(data->data[i*data->nchans]), sizeof(double), data->nchans*data->len, fp);
+    free(data->data);
+    free(data);
+/*
     SpikeData* data = plx_readall_spikes(plxfile, false);
     fwrite(data->spike, sizeof(Spike), data->num, fp);
     printf("Wrote out %d rows of spike data\n", data->num);

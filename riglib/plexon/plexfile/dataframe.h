@@ -23,8 +23,8 @@ typedef struct {
 typedef struct DataFrameType {
     TSTYPE ts;
     ChanType type;
-    long int samples;
     size_t fpos[2];
+    unsigned long samples;
     unsigned long nblocks;
 } DataFrame;
 
@@ -34,8 +34,8 @@ typedef struct FrameSetType {
     unsigned long num;
 } FrameSet;
 
-void plx_read_frames(PlexFile* plxfile);
+void plx_get_frames(PlexFile* plxfile);
 long int _plx_read_datablock(FILE* fp, int nchannels, SimpleDatablock* block);
-void _plx_new_frame(SimpleDatablock* header, long int start, PlexFile* plxfile, DataFrame** frame);
+void _plx_new_frame(SimpleDatablock* header, unsigned long start, PlexFile* plxfile, DataFrame** frame);
 
 #endif

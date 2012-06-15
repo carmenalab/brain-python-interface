@@ -11,6 +11,7 @@
 #include "dataframe.h"
 
 #define min(a,b) (((a) < (b)) ? (a) : (b))
+#define max(a,b) (((a) > (b)) ? (a) : (b))
 
 #define MAX_SPIKE_CHANNELS   (256)
 #define MAX_EVENT_CHANNELS   (512)
