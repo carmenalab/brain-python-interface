@@ -3,11 +3,13 @@
 extern PlexFile* plx_open(char* filename) {
     int i;
     long readsize;
+    unsigned long maxts = 0;
     FILE* fp;
 
     PlexFile* plxfile = (PlexFile*) calloc(1, sizeof(PlexFile));
     plxfile->fp = fopen(filename, "rb");
-    plxfile->filename = filename;
+    plxfile->filename = calloc(strlen(filename), sizeof(char));
+    strcpy(plxfile->filename, filename);
     readsize = plx_get_header(plxfile);
     assert(readsize > 0);
 
@@ -15,9 +17,9 @@ extern PlexFile* plx_open(char* filename) {
     if ((fp = fopen(cachename, "rb"))) {
         printf("Found cache, opening...\n");
         for (i = 0; i < ChanType_MAX; i++) {
-            fread(&(plxfile->data[i].num), sizeof(plxfile->data[i].num), 1, fp);
+            readsize = fread(&(plxfile->data[i].num), sizeof(plxfile->data[i].num), 1, fp);
             plxfile->data[i].frames = malloc(sizeof(DataFrame)*plxfile->data[i].num);
-            fread(plxfile->data[i].frames, sizeof(DataFrame), plxfile->data[i].num, fp);
+            readsize = fread(plxfile->data[i].frames, sizeof(DataFrame), plxfile->data[i].num, fp);
         }
         fclose(fp);
     } else {
@@ -27,6 +29,16 @@ extern PlexFile* plx_open(char* filename) {
         printf("Successfully read %lu frames\n", plxfile->nframes);
         plx_save_cache(plxfile);
     }
+
+    for (i = 0; i < ChanType_MAX; i++) {
+        plxfile->nchans[i] = 0;
+        if (plxfile->data[i].num > 0) {
+            plxfile->nchans[i] =  plxfile->data[i].frames[0].nblocks;
+            maxts = max(maxts, plxfile->data[i].frames[plxfile->data[i].num-1].ts);
+        }
+    }
+    plxfile->length = maxts / (double) plxfile->header.ADFrequency;
+
     return plxfile;
 }
 
@@ -34,6 +46,8 @@ extern void plx_close(PlexFile* plxfile) {
     int i;
     for (i = 0; i < ChanType_MAX; i++)
         free(plxfile->data[i].frames);
+
+    free(plxfile->filename);
     fclose(plxfile->fp);
     free(plxfile);
 }

@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-O3 -march=native -Wall -Wextra -fPIC -c
+CFLAGS=-g -Wall -Wextra -fPIC -c
 LDFLAGS=-lm
 SOURCES=inspect.c plexfile.c dataframe.c plexread.c
 OBJECTS=$(SOURCES:.c=.o)

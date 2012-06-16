@@ -12,7 +12,7 @@ typedef enum {
     spike, event, wideband, spkc, lfp, analog
 } ChanType;
 
-typedef struct {
+typedef struct SimpleDatablock {
     ChanType type;
     TSTYPE ts;
     short chan;
@@ -20,7 +20,7 @@ typedef struct {
     short samples;
 } SimpleDatablock;
 
-typedef struct DataFrameType {
+typedef struct DataFrame {
     TSTYPE ts;
     ChanType type;
     size_t fpos[2];
@@ -28,7 +28,7 @@ typedef struct DataFrameType {
     unsigned long nblocks;
 } DataFrame;
 
-typedef struct FrameSetType {
+typedef struct FrameSet {
     DataFrame* frames;
     unsigned long lim;
     unsigned long num;

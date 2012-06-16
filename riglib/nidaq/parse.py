@@ -1,6 +1,8 @@
 import numpy as np
 
 def _split(data):
+    if len(data.shape) < 2:
+        data = np.array(data[data['chan'] == 257][['ts', 'unit']].tolist())
     msgs = ~data[:,1].astype(np.int16)
     msgtype = np.right_shift(np.bitwise_and(msgs, 0b0000111<<8), 8).astype(np.uint8)
     auxdata = np.right_shift(np.bitwise_and(msgs, 0b1111000<<8), 8).astype(np.uint8)

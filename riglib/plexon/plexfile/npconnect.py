@@ -1,79 +1,118 @@
+import os
 import numpy as np
 import ctypes as C
+from numpy.ctypeslib import ndpointer
 
-plexlib = C.cdll.LoadLibrary("./plexfile.so")
+plexlib = np.ctypeslib.load_library("plexfile.so", os.path.split(os.path.abspath(__file__))[0])
 
-class Spike(C.Structure):
-    _fields_ = [
-        ("ts", C.c_double),
-        ("chan", C.c_int),
-        ("unit", C.c_int),
-    ]
+SpikeType = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
 
-class SpikeData(C.Structure):
+class SpikeInfo(C.Structure):
     _fields_ = [
         ("num", C.c_int), 
         ("wflen", C.c_short), 
-        ("spikes", C.POINTER(Spike)),
-        ("waveforms", C.POINTER(C.c_double))
+        ("start", C.c_double),
+        ("stop", C.c_double),
     ]
 
-class ContData(C.Structure):
+class ContInfo(C.Structure):
     _fields_ = [
         ("len", C.c_ulong), 
         ("nchans", C.c_ulong), 
         ("t_start", C.c_double),
+        ("start", C.c_double),
+        ("stop", C.c_double),
         ("freq", C.c_int), 
-        ("data", C.POINTER(C.c_double)),
     ]
 
-plexlib.plx_open.restype = C.c_void_p
-plexlib.plx_read_events_spikes.restype = C.POINTER(SpikeData)
-plexlib.plx_read_events_spikes.argtypes = [C.c_void_p, C.c_int, C.c_double, C.c_double, C.c_bool]
-plexlib.plx_read_continuous.restype = C.POINTER(ContData)
-plexlib.plx_read_continuous.argtypes = [C.c_void_p, C.c_int, C.c_double, C.c_double, C.POINTER(C.c_int), C.c_int]
+class PlexFile(C.Structure):
+    _fields_ = [
+        ("length", C.c_double),
+        ("nchans", C.c_int*6)
+    ]
 
-class SpikeEventFrameset(object):
-    dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
+plexlib.plx_open.restype = C.POINTER(PlexFile)
+plexlib.plx_close.argtypes = [C.POINTER(PlexFile)]
+
+plexlib.plx_get_continuous.restype = C.POINTER(ContInfo)
+plexlib.plx_get_continuous.argtypes = [C.POINTER(PlexFile), C.c_int, C.c_double, C.c_double, C.POINTER(C.c_int), C.c_int]
+plexlib.plx_read_continuous.argtypes = [C.POINTER(ContInfo), ndpointer(dtype=float, ndim=2, flags='contiguous')]
+plexlib.free_continfo.argtypes = [C.POINTER(ContInfo)]
+
+plexlib.plx_get_discrete.restype = C.POINTER(SpikeInfo)
+plexlib.plx_get_discrete.argtypes = [C.POINTER(PlexFile), C.c_int, C.c_double, C.c_double]
+plexlib.plx_read_discrete.argtypes = [C.POINTER(SpikeInfo), ndpointer(dtype=SpikeType, flags='contiguous')]
+plexlib.plx_read_waveforms.argtypes = [C.POINTER(SpikeInfo), ndpointer(dtype=float, ndim=2, flags='contiguous')]
+plexlib.free_spikeinfo.argtypes = [C.POINTER(SpikeInfo)]
+
+class DiscreteFrameset(object):
     def __init__(self, plxfile, idx):
         self.plxfile = plxfile
         self.idx = idx
 
-    def __getitem__(self, item):
-        if not isinstance(item, slice):
-            raise TypeError("Can only slice in time for events and spikes")
-        spikes = plexlib.plx_read_events_spikes(self.plxfile, self.idx, item.start or -1, item.stop or -1, False)
-        data = np.ctypeslib.as_array(spikes.contents.spikes, shape=(spikes.contents.num,))
-        data.dtype = self.dtype
-        return data
-
-    @property
-    def waveforms(self):
-        _self = self
         class WFGet(object):
             def __getitem__(self, item):
                 if not isinstance(item, slice):
                     raise TypeError("Can only slice in time for events and spikes")
+        self.waveforms = WFGet()
 
+    def __getitem__(self, item):
+        if not isinstance(item, slice):
+            raise TypeError("Can only slice in time for events and spikes")
+        info = plexlib.plx_get_discrete(self.plxfile, self.idx, item.start or -1, item.stop or -1)
+        
+        data = np.empty(info.contents.num, dtype=SpikeType)
+        plexlib.plx_read_discrete(info, data)
+        plexlib.free_spikeinfo(info)
+        return data
 
 class ContinuousFrameset(object):
     def __init__(self, plxfile, idx):
         self.plxfile = plxfile
         self.idx = idx
+        self.nchans = 0
+        self.nchans = plxfile.contents.nchans[idx];
 
     def __getitem__(self, item):
+        chans = None
+        nchans = 0
         if isinstance(item, slice):
-            cont = plexlib.plx_read_continuous(self.plxfile, self.idx, item.start or -1, item.stop or -1, None, 0)
-            data = np.ctypeslib.as_array(cont.contents.data, shape=(cont.contents.len, cont.contents.nchans))
-            return data
+            start, stop = item.start or -1, item.stop or -1
+        elif isinstance(item, tuple):
+            start, stop = item[0].start or -1, item[0].stop or -1
+            if isinstance(item[1], slice):
+                chans = range(*item[1].indices(self.nchans))
+        else:
+            raise TypeError("Invalid slice")
+
+        if chans is not None:
+            nchans = len(chans)
+            chans = (C.c_int*len(chans))(*chans)
+
+        info = plexlib.plx_get_continuous(self.plxfile, self.idx, start, stop, chans, nchans)
+        if info.contents.t_start != 0:
+            print "Time offset: %f"%info.contents.t_start
+        data = np.empty((info.contents.len, info.contents.nchans))
+        plexlib.plx_read_continuous(info, data)
+        plexlib.free_continfo(info)
+        return data
 
 
-class PlexFile(object):
+class PlexData(object):
     def __init__(self, filename):
         self.plxfile = plexlib.plx_open(filename)
-        self.spikes = SpikeEventFrameset(self.plxfile, 0)
-        self.events = SpikeEventFrameset(self.plxfile, 1)
+        self.spikes = DiscreteFrameset(self.plxfile, 0)
+        self.events = DiscreteFrameset(self.plxfile, 1)
+        self.wideband = ContinuousFrameset(self.plxfile, 2)
+        self.spkc = ContinuousFrameset(self.plxfile, 3)
+        self.lfp = ContinuousFrameset(self.plxfile, 4)
         self.analog = ContinuousFrameset(self.plxfile, 5)
 
     def summary(self):
         plexlib.plx_summary(self.plxfile)
+
+    def __del__(self):
+        plexlib.plx_close(self.plxfile)
+
+    def __len__(self):
+        return self.plxfile.contents.length

@@ -10,30 +10,53 @@
 
 #include "plexfile.h"
 
-typedef struct ContDataType {
+typedef struct ContInfo {
     unsigned long len;
     unsigned long nchans;
     double t_start;
+    double start;
+    double stop;
     int freq;
-    double* data;
-} ContData;
 
-typedef struct SpikeType {
+    int* chans;
+    int* cskip;
+    
+    ChanType type;
+    PlexFile* plxfile;
+    unsigned long _fedge[2];
+    unsigned long _strunc[2];
+    unsigned long _start;
+} ContInfo;
+
+typedef struct Spike {
     double ts;
     int chan;
     int unit;
 } Spike;
 
-typedef struct SpikeDataType {
+typedef struct SpikeInfo {
     int num;
     short wflen;
-    Spike* spike;
-    double* waveforms;
-} SpikeData;
+    double start;
+    double stop;
 
-extern ContData* plx_read_continuous(PlexFile* plxfile, ChanType type,
+    ChanType type;
+    PlexFile* plxfile;
+    unsigned long _fedge[2];
+} SpikeInfo;
+
+extern ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
     double start, double stop, int* chans, int nchans);
-extern SpikeData* plx_read_events_spikes(PlexFile* plxfile, ChanType type, double start, double stop, bool waveforms);
+extern void plx_read_continuous(ContInfo* info, double* data);
+extern void free_continfo(ContInfo* info);
+
+extern SpikeInfo* plx_get_discrete(PlexFile* plxfile, ChanType type, 
+    double start, double stop);
+extern void plx_read_discrete(SpikeInfo* info, Spike* data);
+extern void plx_read_waveforms(SpikeInfo* info, double* data);
+extern void free_spikeinfo(SpikeInfo* info);
+
 unsigned long _binary_search(FrameSet* frameset, TSTYPE ts);
+
 
 #endif
