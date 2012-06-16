@@ -82,6 +82,10 @@ class ContinuousFrameset(object):
             start, stop = item[0].start or -1, item[0].stop or -1
             if isinstance(item[1], slice):
                 chans = range(*item[1].indices(self.nchans))
+            elif isinstance(item[1], (tuple, list, np.ndarray)):
+                chans = item[1]
+            elif isinstance(item, int):
+                chans = [item[1]]
         else:
             raise TypeError("Invalid slice")
 
@@ -89,6 +93,7 @@ class ContinuousFrameset(object):
             nchans = len(chans)
             chans = (C.c_int*len(chans))(*chans)
 
+        print chans, nchans
         info = plexlib.plx_get_continuous(self.plxfile, self.idx, start, stop, chans, nchans)
         if info.contents.t_start != 0:
             print "Time offset: %f"%info.contents.t_start
@@ -116,3 +121,8 @@ class PlexData(object):
 
     def __len__(self):
         return self.plxfile.contents.length
+
+if __name__ == "__main__":
+    plx = PlexData("/tmp/dat03062012003.plx")
+    data = plx.wideband[20:22.5, 161]
+    print data
