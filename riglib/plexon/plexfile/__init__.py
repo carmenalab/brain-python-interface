@@ -4,6 +4,7 @@ import ctypes as C
 from numpy.ctypeslib import ndpointer
 
 import finalizer
+import Plexon_h
 
 cwd = os.path.split(os.path.abspath(__file__))[0]
 if not os.path.isfile(os.path.join(cwd, "plexfile.so")):
@@ -33,7 +34,14 @@ class ContInfo(C.Structure):
 class PlexFile(C.Structure):
     _fields_ = [
         ("length", C.c_double),
-        ("nchans", C.c_int*6)
+        ("nchans", C.c_int*6),
+        ("filename", C.c_char_p),
+        ("fp", C.c_void_p),
+        ("header", Plexon_h.PL_FileHeader),
+        ("chan_info", Plexon_h.PL_ChanHeader*256),
+        ("event_info", Plexon_h.PL_EventHeader*256),
+        ("cont_head", Plexon_h.PL_SlowChannelHeader*1024),
+        ("cont_info", C.POINTER(Plexon_h.PL_SlowChannelHeader)*4)
     ]
 
 SpikeType = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
