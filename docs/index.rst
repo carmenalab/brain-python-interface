@@ -13,7 +13,7 @@ Contents:
 
 	about
 	tasks
-
+        tracker
 
 
 Indices and tables

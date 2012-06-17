@@ -81,17 +81,18 @@ class Connection(object):
         packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
         self.sock.sendall(packet.tostring())
-
+        self.params = []
         logger.debug("Request parameters...")
         gotServerArea = False
         while not gotServerArea:
             resp = array.array('i', self._recv())
+            self.params.append(resp)
             
             if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
                 self.n_spike = resp[15]
                 self.n_cont = resp[17]
                 gotServerArea = True
-
+        
         self._init = True
         logger.info("Connection established!")
         

@@ -8,6 +8,7 @@
 #define SEND_REGISTER 2
 #define SEND_SHAPE 3
 #define SEND_ROW 4
+#define SEND_ROWBYTE 5
 
 #define writemask (2 << 16 | 127<<8 | 255)
 
@@ -17,7 +18,7 @@ typedef unsigned char uchar;
 
 comedi_t* ni;
 uint nsys = 0;
-uint systems[32];
+uint rowcount[32];
 
 //Send a string
 uchar _send(char header, char* msg) {
@@ -48,28 +49,42 @@ extern uchar sendMsg(char* msg) {
 }
 
 extern uint register_sys(char* name, char* dtype) {
-    systems[nsys] = nsys;
     _send(nsys << 3 | SEND_REGISTER, name);
     _send(nsys << 3 | SEND_SHAPE, dtype);
-
+    rowcount[nsys] = 0;
+    
     return nsys++;
 }
 
 extern uchar sendData(uchar idx, char* data) {
-    uint sys = systems[idx];
-    return _send(sys << 3 | SEND_DATA, data);
+    return _send(idx << 3 | SEND_DATA, data);
 }
 
 extern uchar sendRow(uchar idx, uint row) {
     char* msg = (char*) &row;
-    uint i, m, flush, sys = systems[idx];
+    uint i, m, flush = 2;
 
     for (i = 0; i < sizeof(uint); i++) {
-        m = (sys << 3 | SEND_ROW) << 8 | msg[i];
+        m = (idx << 3 | SEND_ROW) << 8 | msg[i];
         comedi_dio_bitfield2(ni, 0, writemask, &m, 0);
-        flush = 2;
         comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
     }
+    return 0;
+}
+extern uchar sendRowByte(uchar idx) {
+    uint flush = 2, msg = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
+    comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
+    comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
+    rowcount[idx]++;
+    return 0;
+}
+extern uchar sendRowCount(uchar idx) {
+    return sendRow(idx, rowcount[idx]++);
+}
+
+extern int rstart(uint start) {
+    uint val = start ? 0 : 16;
+    return comedi_dio_bitfield2(ni, 0, 16, &val, 16);
 }
 
 extern uchar closeall(void) {

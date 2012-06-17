@@ -9,7 +9,7 @@ body {
 table#main { 
 	width:100%;
 	border-collapse:collapse;
-	border-color:#DDD;
+	border-color:#AAA;
 }
 table#main td{
 	padding:0.5em;
@@ -25,65 +25,133 @@ table#main tr {
 	cursor:pointer;
 }
 table#main tbody>tr:hover {
-	background:#EEE;
+	background:#DDD;
+}
+table#main tr#newentry {
+	display:none;
 }
 th { text-align:left;}
-.colDate {	min-width:180px;}
-.colSubj {	min-width:70px;}
-.colTask {	min-width:70px;}
+.colDate {	min-width:160px; }
+.colSubj {	min-width:60px;}
+.colTask {	min-width:60px;}
 .rowactive td { 
 	position:relative; 
 	z-index:10;
 }
-.active td, .active { background-color:#FAFAFA; }
-.running td, .running { background-color:#DFD; }
 
-div#leftpane { float:left; width:30%; }
-div#rightpane { float:left; width:70%; }
-div#content { 
-	padding:0.5em;
-	display:none;
-	border-left:1px solid #DDD;
+#report td:first-child {
+	font-weight:bold;
+}
+
+div#leftpane { 
+	float:left; 
+	width:30%; 
+	overflow:auto;
+}
+div#rightpane { 
+	left:30%; 
+	width:70%; 
+	height:100%;
+	position:fixed;
+	overflow:auto;
 	margin-left:-1px;
 }
-fieldset { 
-	margin:0.5em;
-	border:1px solid; 
-	border-radius:3px;
+div#content {
+	transition:all 0.25s ease-in-out;
+	min-height:100%;
+	border-left:1px solid #AAA;
+	display:none;
+}
+form#experiment { 
+	padding:0.5em;
 }
 ul {
 	margin:0px;
 	padding:0px;
 	list-style-type:none;
 }
-.traitname { float:left; width:35%; min-width:80px; margin:5px 0px; }
-#parameters input { float:left; }
-div.options { float:left; width:35%; }
-div.options select { max-width:62%;}
-div.options input[type=text] { width:62%; }
-div.rightside { float:left; width:65%; }
-div.rightside textarea {
+fieldset { 
+	margin:0.5em;
+	border:1px solid; 
+	border-radius:3px;
+}
+
+/*#features {
+	column-count:2;
+	-webkit-column-count:2;
+	-moz-column-count:2;
+}*/
+
+
+.options { float:left; width:35%; }
+#parameters table,#sequence table {
 	width:100%;
-	height:100%;
+	border-collapse:collapse;
+}
+td.param_label {
+	width:40%;
+}
+td.param_label+td {
+	width:60%;
+}
+td.param_label+td select { width:100%; }
+input[type=text], input[type=number] { 
+	border:1px solid;
+	border-color:#888;
+	padding:2px;
+	border-radius:2px;
+	transition:all 0.25s ease-in-out;
+	-webkit-transition:all 0.25s ease-in-out;
+	-moz-transition:all 0.25s ease-in-out;
+}
+
+div.rightside { float:left; width:65%; max-width:65%; }
+fieldset#notes textarea {
+	width:100%;
+	height:25em;
 	font-family:sans;
 	border:none;
 	background-color:inherit;
+	outline:none;
 }
-div.rightside fieldset#notes {
-	height:25em;
+fieldset#files { display:none; }
+input:invalid {
+	box-shadow:0px 0px 10px red;
 }
-input[type=text] { 
-	border:1px solid;
-	border-color:#CCC;
-	padding:2px;
-	border-radius:2px;
-}
-#experiment .startbtn {
+input.startbtn {
 	display:none;
 	float:right;
 	margin:8px;
 	padding:8px;
 	font-size:16pt;
-	box-shadow: 0 0 5px blue;
+	box-shadow: 0px 0px 5px green;
+	transition:all 0.25s ease-in-out;
+	-webkit-transition:all 0.25s ease-in-out;
+	-moz-transition:all 0.25s ease-in-out;
+	-webkit-appearance:none;
+	border-radius:5px;
+	border:1px solid #888;
+	background:-webkit-linear-gradient(top, #FFF, #DDD);
 }
-#copybtn { display:none; }
+
+input.startbtn:hover {
+	box-shadow: 0px 0px 15px green;
+}
+
+#report table.option {
+	font-size:80%;
+}
+
+
+.active td, div.active { 
+    background-color:#EEE; 
+}
+.running td, div.running { 
+    background-color:#DFD; 
+}
+.testing td, div.testing { 
+    background-color:#FFD; 
+}
+.error td, div.error { 
+    background-color:#FDD; 
+}

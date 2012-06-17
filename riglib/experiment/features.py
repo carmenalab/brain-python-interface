@@ -22,7 +22,7 @@ class RewardSystem(traits.HasTraits):
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
-    rand_start = traits.Array(value=(0.5, 2.), shape=(2,), desc="Start interval")
+    rand_start = traits.Tuple((0.5, 2.), desc="Start interval")
 
     def __init__(self, *args, **kwargs):
         self.pause = False
@@ -104,19 +104,29 @@ class AdaptiveGenerator(object):
 
 
 
-class EyeData(object):
+class EyeData(traits.HasTraits):
+    '''Pulls data from the eyetracking system and make it available on self.eyedata'''
     def __init__(self, *args, **kwargs):
-        from riglib import motiontracker, source
-        self.eyedata = source.DataSource(eyetracker.System)
+        from riglib import source
+        src, ekw = self.eye_source
+        self.eyedata = source.DataSource(src, **ekw)
         super(EyeData, self).__init__(*args, **kwargs)
+    
+    @property
+    def eye_source(self):
+        from riglib import eyetracker
+        return eyetracker.System, dict()
 
     def run(self):
         self.eyedata.start()
         try:
             super(EyeData, self).run()
         finally:
-            self.eyedata.pause()
-            del self.eyedata
+            self.eyedata.stop()
+    
+    def join(self):
+        self.eyedata.join()
+        super(EyeData, self).join()
     
     def _start_None(self):
         self.eyedata.pause()
@@ -131,7 +141,18 @@ class EyeData(object):
         self.eyedata.sendMsg(state)
         super(EyeData, self).set_state(state, **kwargs)
 
+class SimulatedEyeData(EyeData):
+    '''Simulate an eyetracking system using a series of fixations, with saccades interpolated'''
+    fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
+    fixation_len = traits.Float(0.5, desc="Length of a fixation")
+
+    @property
+    def eye_source(self):
+        from riglib import eyetracker
+        return eyetracker.Simulate, dict(fixations=fixations, fixation_len=fixation_len)
+
 class CalibratedEyeData(EyeData):
+    '''Filters eyetracking data with a calibration profile'''
     cal_profile = traits.Instance(calibrations.EyeProfile)
 
     def __init__(self, *args, **kwargs):
@@ -139,6 +160,7 @@ class CalibratedEyeData(EyeData):
         self.eyedata.set_filter(self.cal_profile)
 
 class FixationStart(CalibratedEyeData):
+    '''Triggers the start_trial event whenever fixation exceeds *fixation_length*'''
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
     fixation_dist = traits.Float(50., desc="Distance from center that is considered a broken fixation")
 
@@ -157,116 +179,141 @@ class FixationStart(CalibratedEyeData):
     def _test_start_trial(self, ts):
         return ts > self.fixation_length
 
-class SimulatedEyeData(EyeData):
-    fixations = traits.Array(value=[(0,0), (-0.6,0.3), (0.6,0.3)], desc="Location of fixation points")
-    fixation_len = traits.Float(0.5, desc="Length of a fixation")
 
-    def __init__(self, *args, **kwargs):
-        from riglib import eyetracker, source
-        self.eyedata = source.DataSource(eyetracker.Simulate)
-        super(SimulatedEyeData, self).__init__(*args, **kwargs)
 
 
 
 class MotionData(traits.HasTraits):
+    '''Enable reading of raw motiontracker data from Phasespace system'''
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def __init__(self, *args, **kwargs):
-        from riglib import motiontracker, source
-        Motion = motiontracker.make_system(self.marker_count)
-        self.motiondata = source.DataSource(Motion)
+        from riglib import source
+        src, mkw = self.motion_source
+        self.motiondata = source.DataSource(src, **mkw)
         super(MotionData, self).__init__(*args, **kwargs)
+    
+    @property
+    def motion_source(self):
+        from riglib import motiontracker
+        return motiontracker.make_system(self.marker_count), dict()
 
     def run(self):
         self.motiondata.start()
         try:
             super(MotionData, self).run()
         finally:
-            self.motiondata.pause()
             self.motiondata.stop()
+    
+    def join(self):
+        self.motiondata.join()
+        super(MotionData, self).join()
+    
+    def _start_None(self):
+        self.motiondata.stop()
+        super(MotionData, self)._start_None()
 
-class MotionSimulate(traits.HasTraits):
+class MotionSimulate(MotionData):
+    '''Simulate presence of raw motiontracking system using a randomized spatial function'''
+   
+    @property
+    def motion_source(self):
+        from riglib import motiontracker
+        return motiontracker.make_simulate(self.marker_count), dict(radius=(100,100,50), offset=(-150,0,0))
+    
+
+class SpikeData(object):
+    '''Stream neural spike data from the Plexon system'''
     marker_count = traits.Int(8, desc="Number of markers to return")
+    spikebin_interval = traits.Float(100, desc="Milliseconds to bin over to generate the PSTH")
+    plexon_channels = None
 
     def __init__(self, *args, **kwargs):
-        from riglib import motiontracker, source
-        Motion = motiontracker.make_simulate(self.marker_count)
-        self.motiondata = source.DataSource(Motion, radius=(100,100,50), offset=(-150,0,0))
-        super(MotionSimulate, self).__init__(*args, **kwargs)
+        from riglib import plexon, source
+        self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+        #self.neurondata.filter = plexon.PSTHfilter(self.spikebin_interval)
+        super(SpikeData, self).__init__(*args, **kwargs)
 
     def run(self):
-        self.motiondata.start()
+        self.neurondata.start()
         try:
-            super(MotionSimulate, self).run()
+            super(SpikeData, self).run()
         finally:
-            self.motiondata.pause()
-            self.motiondata.stop()
+            self.neurondata.stop()
 
-class RelayHDF(object):
-    '''Sends only the ROW index to Plexon, while saving the file'''
+class SpikeSimulate(object):
+    pass
+
+
+
+
+
+class SinkRegister(object):
+    '''Superclass for all features which contain data sinks -- registers the various sources'''
     def __init__(self, *args, **kwargs):
-        super(RelayHDF, self).__init__(*args, **kwargs)
-
-        import tempfile
-        from riglib import sink, hdfwriter
+        from riglib import sink
         self.sinks = sink.sinks
-        self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = self.sinks.start(hdfwriter.PlexRelayWriter, filename=self.h5file.name)
-        
+
+        super(SinkRegister, self).__init__(*args, **kwargs)
+
         if isinstance(self, (MotionData, MotionSimulate)):
             self.sinks.register(self.motiondata)
         if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
-    
-    def run(self):
-        try:
-            super(RelayHDF, self).run()
-        finally:
-            self.hdf.stop()
+        if isinstance(self, (SpikeData, SpikeSimulate)):
+            self.sinks.register(self.neurondata)
 
-    def set_state(self, condition, **kwargs):
-        self.hdf.sendMsg(condition)
-        super(RelayHDF, self).set_state(condition, **kwargs)
-
-
-class SaveHDF(object):
+class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
     def __init__(self, *args, **kwargs):
+        import tempfile
+        from riglib import sink
+        self.h5file = tempfile.NamedTemporaryFile()
+        self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
         super(SaveHDF, self).__init__(*args, **kwargs)
 
-        import tempfile
-        from riglib import sink, hdfwriter
-        self.sinks = sink.sinks
-        self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = self.sinks.start(hdfwriter.HDFWriter, filename=self.h5file.name)
-        
-        if isinstance(self, (MotionData, MotionSimulate)):
-            self.sinks.register(self.motiondata)
-        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
-            self.sinks.register(self.eyedata)
-    
+    @property
+    def hdf_class(self):
+        from riglib import hdfwriter
+        return hdfwriter.HDFWriter
+
     def run(self):
         try:
             super(SaveHDF, self).run()
         finally:
             self.hdf.stop()
+    
+    def join(self):
+        self.hdf.join()
+        super(SaveHDF, self).join()
 
     def set_state(self, condition, **kwargs):
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
-class RelayPlexon(object):
+class RelayPlexon(SinkRegister):
+    '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
     def __init__(self, *args, **kwargs):
+        from riglib import sink
+        self.nidaq = sink.sinks.start(self.ni_out)
         super(RelayPlexon, self).__init__(*args, **kwargs)
+
+    @property
+    def ni_out(self):
+        from riglib import nidaq
+        return nidaq.SendAll
+
+    @property
+    def plexfile(self):
+        '''Calculates the plexon file that's most likely associated with the current task'''
+        import os, glob, time
+        if len(self.event_log) < 1:
+            return None
+        start = self.event_log[-1][2]
+        files = "/storage/plexon/*.plx"
+        files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
         
-        from riglib import sink, nidaq
-        self.sinks = sink.sinks
-        self.nidaq = self.sinks.start(nidaq.System)
-        
-        if isinstance(self, (MotionData, MotionSimulate)):
-            self.sinks.register(self.motiondata)
-        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
-            self.sinks.register(self.eyedata)
+        return files[0] if len(files) > 0 else None
     
     def run(self):
         try:
@@ -278,3 +325,15 @@ class RelayPlexon(object):
         self.nidaq.sendMsg(condition)
         super(RelayPlexon, self).set_state(condition, **kwargs)
         
+class RelayPlexByte(RelayPlexon):
+    '''Relays a single byte (0-255) as a row checksum for when a data packet arrives'''
+    def __init__(self, *args, **kwargs):
+        if not isinstance(self, SaveHDF):
+            raise ValueError("RelayPlexByte feature only available with SaveHDF")
+        super(RelayPlexByte, self).__init__(*args, **kwargs)
+
+    @property
+    def ni_out(self):
+        from riglib import nidaq
+        return nidaq.SendRowByte
+

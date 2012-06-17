@@ -7,19 +7,18 @@ def test(filename, shape=(8,4), length=2**28):
     h5 = sink.sinks.start(hdfwriter.HDFWriter, filename=filename)
     h5.register("test", dtype)
 
-    data = np.random.randn(*shape)
-
     times = np.zeros(length)
     times[0] = time.time()
-    for i in xrange(1, int(1e7)):
+    data = np.random.randn(*shape)
+    for i in xrange(1, int(length)):
         h5.send("test", data)
         times[i] = time.time()
-        if i%(length/100) == 0:
-            print i
-
+    print "I'm done!"
+    h5.stop()
+    h5.join()
     np.save("/tmp/times.npy", times)
 
 if __name__ == "__main__":
-    import tempfile
-    tf = tempfile.NamedTemporaryFile()
-    test(tf.name)
+#    import tempfile
+#    tf = tempfile.NamedTemporaryFile()
+    test("/tmp/test.hdf", length=1e6)

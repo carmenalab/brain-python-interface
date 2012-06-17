@@ -13,7 +13,8 @@ features = dict(
     motion_data=experiment.features.MotionData,
     motion_simulate=experiment.features.MotionSimulate, 
     saveHDF=experiment.features.SaveHDF,
-    relay_plexon=experiment.features.RelayPlexon
+    relay_plexon=experiment.features.RelayPlexon,
+    relay_plexbyte=experiment.features.RelayPlexByte,
 )
 
 from tasks import redgreen
@@ -35,7 +36,7 @@ from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
-from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, TargetDirection
+from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, TargetDirection, TestBoundary
 
 tasks = dict(
     dots=Dots,
@@ -48,11 +49,23 @@ tasks = dict(
     fixation_training=FixationTraining,
     target_capture=TargetCapture,
     movement_training=MovementTraining,
-    direction_training=TargetDirection
+    direction_training=TargetDirection,
+    test_boundary=TestBoundary
 )
 
 from tracker import models
 from riglib import calibrations
-instance_to_model = {
+class SubclassDict(dict):
+    '''A special dict that returns the associated model if the queried item is a subclass of any of the keys'''
+    def __getitem__(self, name):
+        try:
+            return super(self.__class__, self).__getitem__(name)
+        except KeyError:
+            for inst, model in self.items():
+                if issubclass(name, inst):
+                    return model
+        raise KeyError
+
+instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
-}
+} )

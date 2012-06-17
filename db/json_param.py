@@ -40,6 +40,15 @@ def norm_trait(trait, value):
     #use Cast to validate the value
     return trait.cast(value)
 
+def _parse_str(value):
+    try:
+        return json.loads(value, object_hook=param_objhook)
+    except:
+        try:
+            return ast.literal_eval(value)
+        except:
+            return value;
+
 class Parameters(object):
     def __init__(self, rawtext):
         self.params = json.loads(rawtext, object_hook=param_objhook)
@@ -54,10 +63,13 @@ class Parameters(object):
     def from_html(cls, params):
         processed = dict()
         for name, value in params.items():
-            try:
-                processed[name] = json.loads(value, object_hook=param_objhook)
-            except:
-                processed[name] = ast.literal_eval(value)
+            if isinstance(value, (str, unicode)):
+                processed[name] = _parse_str(value)
+            elif isinstance(value, list):
+                processed[name] = map(_parse_str, value)
+            else:
+                processed[name] = value
+
         return cls.from_dict(processed)
 
     def to_json(self):
