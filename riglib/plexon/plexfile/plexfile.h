@@ -42,7 +42,7 @@ typedef struct PlexFileType {
     FrameSet data[ChanType_MAX];
 } PlexFile;
 
-extern PlexFile* plx_open(char* filename);
+extern PlexFile* plx_open(char* filename, bool recache);
 extern void plx_close(PlexFile* plxfile);
 
 void plx_save_cache(PlexFile* plxfile);

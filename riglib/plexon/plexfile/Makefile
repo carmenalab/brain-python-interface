@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -Wall -Wextra -fPIC -c
+CFLAGS=-g -Wall -Wextra -fPIC -DDEBUG -c
 LDFLAGS=-lm
 SOURCES=inspect.c plexfile.c dataframe.c plexread.c
 OBJECTS=$(SOURCES:.c=.o)
@@ -11,7 +11,7 @@ lib: $(OBJECTS)
 	$(CC) $(OBJECTS) -shared -o plexfile.so
 	
 $(EXECUTABLE): $(OBJECTS) 
-	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
+	$(CC) demo.c $(OBJECTS) -o $@ $(LDFLAGS)
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@

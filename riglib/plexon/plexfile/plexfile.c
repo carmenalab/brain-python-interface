@@ -1,6 +1,6 @@
 #include "plexfile.h"
 
-extern PlexFile* plx_open(char* filename) {
+extern PlexFile* plx_open(char* filename, bool recache) {
     int i;
     long readsize;
     unsigned long maxts = 0;
@@ -8,13 +8,16 @@ extern PlexFile* plx_open(char* filename) {
 
     PlexFile* plxfile = (PlexFile*) calloc(1, sizeof(PlexFile));
     plxfile->fp = fopen(filename, "rb");
+    if (!plxfile->fp)
+        return NULL;
+
     plxfile->filename = calloc(strlen(filename), sizeof(char));
     strcpy(plxfile->filename, filename);
     readsize = plx_get_header(plxfile);
     assert(readsize > 0);
 
     char* cachename = _plx_cache_name(filename);
-    if ((fp = fopen(cachename, "rb"))) {
+    if ((fp = fopen(cachename, "rb")) && !recache) {
         printf("Found cache, opening...\n");
         for (i = 0; i < ChanType_MAX; i++) {
             readsize = fread(&(plxfile->data[i].num), sizeof(plxfile->data[i].num), 1, fp);
