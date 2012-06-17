@@ -8,7 +8,7 @@ import finalizer
 cwd = os.path.split(os.path.abspath(__file__))[0]
 if not os.path.isfile(os.path.join(cwd, "plexfile.so")):
     import subprocess as sp
-    sp.call(["make", "lib"])
+    sp.Popen(["make", "lib"], cwd=cwd).wait()
 
 plexlib = np.ctypeslib.load_library("plexfile.so", cwd)
 
@@ -36,6 +36,8 @@ class PlexFile(C.Structure):
         ("nchans", C.c_int*6)
     ]
 
+SpikeType = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
+
 plexlib.plx_open.restype = C.POINTER(PlexFile)
 plexlib.plx_open.argtypes = [C.c_char_p, C.c_bool]
 plexlib.plx_close.argtypes = [C.POINTER(PlexFile)]
@@ -51,8 +53,6 @@ plexlib.plx_read_discrete.argtypes = [C.POINTER(SpikeInfo), ndpointer(dtype=Spik
 plexlib.plx_read_waveforms.argtypes = [C.POINTER(SpikeInfo), ndpointer(dtype=float, ndim=2, flags='contiguous')]
 plexlib.free_spikeinfo.argtypes = [C.POINTER(SpikeInfo)]
 
-SpikeType = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
-
 class DiscreteFrameset(object):
     def __init__(self, plxfile, idx):
         self.plxfile = plxfile
@@ -67,7 +67,6 @@ class DiscreteFrameset(object):
                 plexlib.plx_read_waveforms(info, data)
                 plexlib.free_spikeinfo(info)
                 return data
-
 
         self.waveforms = WFGet()
 
@@ -151,6 +150,10 @@ class DataFile(object):
 
     def summary(self):
         plexlib.plx_summary(self.plxfile)
+
+    def check(self):
+        for i in range(6):
+            plexlib.plx_check_frames(self.plxfile, i)
 
     def __len__(self):
         return self.plxfile.contents.length

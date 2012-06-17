@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -Wall -Wextra -fPIC -DDEBUG -c
+CFLAGS=-O3 -march=native -Wall -Wextra -fPIC -c
 LDFLAGS=-lm
 SOURCES=inspect.c plexfile.c dataframe.c plexread.c
 OBJECTS=$(SOURCES:.c=.o)
@@ -17,4 +17,4 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -rf *.o $(EXECUTABLE)
+	rm -rf *.o $(EXECUTABLE) plexfile.so
