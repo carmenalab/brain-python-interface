@@ -71,7 +71,7 @@ class DiscreteFrameset(object):
                 if not isinstance(item, slice):
                     raise TypeError("Can only slice in time for events and spikes")
                 info = plexlib.plx_get_discrete(plxfile, idx, item.start or -1, item.stop or -1)
-                data = np.empty((info.contents.num, info.contents.wflen))
+                data = np.zeros((info.contents.num, info.contents.wflen))
                 plexlib.plx_read_waveforms(info, data)
                 plexlib.free_spikeinfo(info)
                 return data
@@ -83,7 +83,7 @@ class DiscreteFrameset(object):
             raise TypeError("Can only slice in time for events and spikes")
         info = plexlib.plx_get_discrete(self.plxfile, self.idx, item.start or -1, item.stop or -1)
         
-        data = np.empty(info.contents.num, dtype=SpikeType)
+        data = np.zeros(info.contents.num, dtype=SpikeType)
         plexlib.plx_read_discrete(info, data)
         plexlib.free_spikeinfo(info)
         return data
@@ -95,7 +95,7 @@ class ContinuousSlice(object):
 
     @property
     def data(self):
-        data = np.empty((self.info.contents.len, self.info.contents.nchans))
+        data = np.zeros((self.info.contents.len, self.info.contents.nchans))
         plexlib.plx_read_continuous(self.info, data)
         return data
 
