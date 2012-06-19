@@ -113,6 +113,9 @@ SpikeInfo* plx_get_discrete(PlexFile* plxfile, ChanType type, double start, doub
     unsigned long i;
     double tsfreq = plxfile->header.ADFrequency;
     FrameSet* frameset = &(plxfile->data[type]);
+    if (frameset->num < 1)
+        return NULL;
+
     SpikeInfo* info = malloc(sizeof(SpikeInfo));
     DataFrame* frame = frameset->frames;
 
@@ -120,8 +123,8 @@ SpikeInfo* plx_get_discrete(PlexFile* plxfile, ChanType type, double start, doub
     info->start = start;
     info->stop = stop;
     info->type = type;
-    info->_fedge[0] = start < 0 ? 0 : _binary_search(frameset, (TSTYPE) start*tsfreq)+1;
-    info->_fedge[1] = stop < 0 ? frameset->num : _binary_search(frameset, (TSTYPE) stop*tsfreq);
+    info->_fedge[0] = start < 0 ? 0 : _binary_search(frameset, (TSTYPE) (start*tsfreq))+1;
+    info->_fedge[1] = stop < 0 ? frameset->num : _binary_search(frameset, (TSTYPE) (stop*tsfreq));
     info->wflen = frameset->num > 0 ? frame->samples : 0;
     info->num = 0;
 

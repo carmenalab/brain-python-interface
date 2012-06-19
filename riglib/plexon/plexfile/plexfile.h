@@ -14,7 +14,7 @@
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 
 #define MAX_SPIKE_CHANNELS   (256)
-#define MAX_EVENT_CHANNELS   (512)
+#define MAX_EVENT_CHANNELS   (256)
 #define MAX_SLOW_CHANNELS    (1024)
 #define MAX_SAMPLES_PER_WAVEFORM (256)
 #define STROBED_CHANNEL 257
@@ -31,13 +31,13 @@ typedef struct PlexFileType {
     int nchans[ChanType_MAX];
     
     char* filename;
-    FILE* fp;
     PL_FileHeader header;
     PL_ChanHeader chan_info[MAX_SPIKE_CHANNELS];
     PL_EventHeader event_info[MAX_EVENT_CHANNELS];
     PL_SlowChannelHeader cont_head[MAX_SLOW_CHANNELS];
     PL_SlowChannelHeader* cont_info[4];
 
+    FILE* fp;
     unsigned long nframes;
     FrameSet data[ChanType_MAX];
 } PlexFile;

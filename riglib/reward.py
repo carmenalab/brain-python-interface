@@ -37,7 +37,7 @@ class Basic(object):
 
     def _write(self, msg):
         fmsg = msg+_xsum(msg)
-        print "sending %r"%fmsg
+        #print "sending %r"%fmsg
         self.port.flushOutput()
         self.port.flushInput()
         self.port.write(fmsg)
@@ -45,11 +45,11 @@ class Basic(object):
     def reward(self, length):
         length /= .1
         self._write(struct.pack('<ccxHxx', '@', 'G', length))
-        print repr(self.port.read(self.port.inWaiting()))
+        self.port.read(self.port.inWaiting())
 
     def reset(self):
         self._write("@CPSNNN")
-        print repr(self.port.read(self.port.inWaiting()))
+        self.port.read(self.port.inWaiting())
         
 
 
