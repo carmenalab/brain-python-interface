@@ -1,11 +1,10 @@
 #ifndef _DATAFRAME_H
 #define _DATAFRAME_H
-
 #include "plexfile.h"
 
 #define ChanType_MAX (6)
 
-typedef struct PlexFileType PlexFile;
+typedef struct PlexFile PlexFile;
 typedef unsigned long long TSTYPE;
 
 typedef enum {
