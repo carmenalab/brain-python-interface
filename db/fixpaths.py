@@ -5,6 +5,7 @@ import datetime
 from tracker import models
 
 def run(simulate=True):
+    moved = set()
     for datafile in models.DataFile.objects.all():
         print datafile
         suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx")
@@ -18,11 +19,14 @@ def run(simulate=True):
             time="%04d%02d%02d"%(thatday.year, thatday.month, thatday.day),
             num=entrynums[datafile.entry]+1, suff=suffix[datafile.system.name],
             )
+        newpath = os.path.join(datafile.system.path, newname)
 
         if not os.path.exists(datafile.path):
             print "\tRemoving datafile: %s"%datafile.path
             if not simulate:
                 datafile.remove()
+        elif datafile.path in moved:
+            print "OH GOD moving already missing file!!!"
         elif datafile.system.name == "plexon":
             last = json.loads(datafile.entry.report)[-1][2]
             files = glob.glob("/storage/plexon/*.plx")
@@ -33,15 +37,17 @@ def run(simulate=True):
                 if abs(tdiff) < 60:
                     if datafile.path != files[0]:
                         print "\tFound plexon file %s, but recorded %s!"%(files[0], datafile.path)
-                        print "\tassociating %s to %s"%(files[0], os.path.join(datafile.system.path, newname))
+                        print "\tassociating %s to %s"%(files[0], newpath)
                         if not simulate:
+                            moved.add(files[0])
                             os.rename(files[0], os.path.join(datafile.system.path, newname))
                             datafile.path = newname
                             datafile.save()
                     else:
-                        print "\tPLX file is ok, just renaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
+                        print "\tPLX file is ok, just renaming %s to %s"%(datafile.path, newpath)
                         if not simulate:
-                            os.rename(datafile.path, os.path.join(datafile.systempath, newname))
+                            moved.add(datafile.path)
+                            os.rename(datafile.path, newpath)
                             datafile.path = newname
                             datafile.save()
                 else:
@@ -49,8 +55,9 @@ def run(simulate=True):
                     if not simulate:
                         datafile.remove()
         else:
-            print "\tRenaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
+            print "\tRenaming %s to %s"%(datafile.path, newpath)
             if not simulate:
-                os.rename(datafile.path, os.path.join(datafile.system.path, newname))
+                moved.add(datafile.path)
+                os.rename(datafile.path, newpath)
                 datafile.path = newname
                 datafile.save()
