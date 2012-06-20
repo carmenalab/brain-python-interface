@@ -40,8 +40,8 @@ def save_data(curfile, system, entry, move=True, local=True):
             time=time.strftime('%Y%m%d'), num=num+1,
             suff=suffix[system]
         )
-        permfile = os.path.join(sys.path, dataname)
-        shutil.move(curfile, permfile)
+        permfile = dataname
+        shutil.move(curfile, os.path.join(sys.path, dataname))
     else:
         permfile = curfile
 
