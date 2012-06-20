@@ -28,16 +28,21 @@ def run(simulate=True):
             files = sorted(files, key=lambda f: abs(os.stat(f).st_mtime - last))
             if len(files) > 0:
                 tdiff = os.stat(files[0]).st_mtime - last
-                print "Plexon file %d tdiff"
+                print "Plexon file %f tdiff"%tdiff
                 if tdiff < 60:
-                    print "Found plexon file, we're ok"
+                    print "Found plexon file, we're ok",
+                    print "Renaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
+                    if not simulate:
+                        os.rename(datafile.path, os.path.join(datafile.system.path, newname))
+                        datafile.path = newname
+                        datafile.save()
                 else:
                     print "Bad plexon file found..."
                     if not simulate:
                         datafile.remove()
-
-        print "Renaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
-        if not simulate:
-            os.rename(datafile.path, os.path.join(datafile.system.path, newname))
-            datafile.path = newname
-            datafile.save()
+        else:
+            print "Renaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
+            if not simulate:
+                os.rename(datafile.path, os.path.join(datafile.system.path, newname))
+                datafile.path = newname
+                datafile.save()
