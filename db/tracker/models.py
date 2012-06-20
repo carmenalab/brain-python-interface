@@ -273,13 +273,17 @@ class TaskEntry(models.Model):
 
     def to_json(self):
         from json_param import Parameters
+        Exp = self.task.get(self.feats.all())
+
         state = 'completed' if self.pk is not None else "new"
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=Parameters(self.params).params)
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
-        js['datafiles'] = dict([(d.system.name, d.path) for d in DataFile.objects.filter(entry=self.id)])
+        datafiles = DataFile.objects.filter(entry=self.id)
+        js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
+        js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         try:
             task = self.task.get(self.feats.all())
             report = json.loads(self.report)

@@ -314,7 +314,7 @@ class RelayPlexon(SinkRegister):
         files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
         if len(files) > 0:
             tdiff = os.stat(files[0]).st_mtime - start
-            if tdiff < 3600:
+            if abs(tdiff) < 60:
                  return files[0]
     
     def run(self):

@@ -13,6 +13,7 @@ urlpatterns = patterns('',
     (r'^start/?', 'tracker.ajax.start_experiment'),
     (r'^test/?', 'tracker.ajax.start_experiment', dict(save=False)),
     (r'^stop/?', 'tracker.ajax.stop_experiment'),
+    (r'^sequence_for/(?P<idx>\d+)/', 'tracker.views.get_sequence'),
     (r'^RPC2/?', 'tracker.dbq.rpc_handler'),
     # Uncomment the admin/doc line below to enable admin documentation:
     (r'^admin/doc/', include('django.contrib.admindocs.urls')),

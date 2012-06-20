@@ -21,3 +21,10 @@ def list(request):
     if display.task is not None:
         fields['running'] = display.task.saveid
     return render_to_response('list.html', fields, RequestContext(request))
+
+def get_sequence(request, idx):
+    entry = TaskEntry.objects.get(pk=idx)
+    response = HttpResponse(entry.sequence.sequence, content_type='application/x-pickle')
+    response['Content-Disposition'] = 'attachment; filename={subj}{time}.pkl'.format(
+        subj=entry.subject.name, time="%04d%02d%02d"%(entry.date.year, entry.date.month, entry.date.day))
+    return response

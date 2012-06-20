@@ -196,10 +196,20 @@ TaskEntry.prototype.update = function(info) {
 		var file = document.createElement("li");
 		var link = document.createElement("a");
 		link.href = "/static"+info.datafiles[sys];
-		link.innerHTML = sys;
+		link.innerHTML = info.datafiles[sys];
 		file.appendChild(link);
-		this.filelist.appendChild(file);
-		numfiles++;
+		file.appendChild()
+		if (sys == "sequence") {
+			if (info.datafiles[sys]) {
+				link.href = "sequence_for/"+this.id;
+				link.innerHTML = "Sequence";
+				this.filelist.appendChild(file);
+				numfiles++;
+			}
+		} else {
+			this.filelist.appendChild(file);
+			numfiles++;
+		}
 	}
 	if (numfiles > 0)
 		$("#files").append(this.filelist).show();
