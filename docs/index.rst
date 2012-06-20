@@ -11,11 +11,10 @@ Contents:
 ..	toctree::
 	:maxdepth: 2
 
-	about
-	tasks
-        tracker
-        plexon
-            Plexfile
+    about
+    experiments
+    tracker
+    plexon
 
 
 Indices and tables
