@@ -198,10 +198,9 @@ TaskEntry.prototype.update = function(info) {
 		link.href = "/static"+info.datafiles[sys];
 		link.innerHTML = info.datafiles[sys];
 		file.appendChild(link);
-		file.appendChild()
 		if (sys == "sequence") {
 			if (info.datafiles[sys]) {
-				link.href = "sequence_for/"+this.id;
+				link.href = "sequence_for/"+this.idx;
 				link.innerHTML = "Sequence";
 				this.filelist.appendChild(file);
 				numfiles++;
