@@ -6,6 +6,7 @@ from tracker import models
 
 def run(simulate=True):
     for datafile in models.DataFile.objects.all():
+        print datafile
         suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx")
         date = datafile.entry.date
         thatday = datetime.date(date.year, date.month, date.day)
@@ -15,11 +16,11 @@ def run(simulate=True):
         newname = "{subj}{time}_{num:02}.{suff}".format(
             subj=datafile.entry.subject.name[:4].lower(),
             time="%04d%02d%02d"%(thatday.year, thatday.month, thatday.day),
-            num=entrynums[datafile.entry], suff=suffix[datafile.system.name],
+            num=entrynums[datafile.entry]+1, suff=suffix[datafile.system.name],
             )
 
         if not os.path.exists(datafile.path):
-            print "Removing datafile: %s"%datafile.path
+            print "\tRemoving datafile: %s"%datafile.path
             if not simulate:
                 datafile.remove()
         elif datafile.system.name == "plexon":
@@ -28,27 +29,27 @@ def run(simulate=True):
             files = sorted(files, key=lambda f: abs(os.stat(f).st_mtime - last))
             if len(files) > 0:
                 tdiff = os.stat(files[0]).st_mtime - last
-                print "Plexon file %f tdiff"%tdiff
+                print "\tPlexon file %f tdiff"%tdiff
                 if abs(tdiff) < 60:
                     if datafile.path != files[0]:
-                        print "Found plexon file %s, but recorded %s!"%(files[0], datafile.path)
-                        print "associating %s to %s"%(files[0], os.path.join(datafile.system.path, newname))
+                        print "\tFound plexon file %s, but recorded %s!"%(files[0], datafile.path)
+                        print "\tassociating %s to %s"%(files[0], os.path.join(datafile.system.path, newname))
                         if not simulate:
                             os.rename(files[0], os.path.join(datafile.system.path, newname))
                             datafile.path = newname
                             datafile.save()
                     else:
-                        print "PLX file is ok, just renaming %s to %s"%(datafile.path, os.path.join(datafile.systempath, newname))
+                        print "\tPLX file is ok, just renaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
                         if not simulate:
                             os.rename(datafile.path, os.path.join(datafile.systempath, newname))
                             datafile.path = newname
                             datafile.save()
                 else:
-                    print "Bad plexon file found..."
+                    print "\tBad plexon file found..."
                     if not simulate:
                         datafile.remove()
         else:
-            print "Renaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
+            print "\tRenaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
             if not simulate:
                 os.rename(datafile.path, os.path.join(datafile.system.path, newname))
                 datafile.path = newname
