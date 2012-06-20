@@ -145,7 +145,7 @@ class Connection(object):
         else:
             packet = array.array('b', '\x00'*(PACKETSIZE - 20))
             for c in channels:
-                packet[c] = bitmask
+                packet[c] = 1
             raw += packet.tostring()
         
         self.sock.sendall(raw)

@@ -51,7 +51,7 @@ tasks = dict(
     target_capture=TargetCapture,
     movement_training=MovementTraining,
     direction_training=TargetDirection,
-    test_boundary=TestBoundary
+    test_boundary=TestBoundary,
     free_map=FreeMap
 )
 

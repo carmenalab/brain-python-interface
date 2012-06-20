@@ -320,6 +320,6 @@ class DataFile(models.Model):
         return dict(system=self.system.name, path=self.path)
 
     def remove(self, **kwargs):
-        if (system != System.objects.get(name="plexon"))
+        if (system != System.objects.get(name="plexon")):
             os.unlink(self.path)
         super(DataFile, self).remove(**kwargs)

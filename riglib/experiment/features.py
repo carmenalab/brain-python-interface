@@ -312,8 +312,10 @@ class RelayPlexon(SinkRegister):
         start = self.event_log[-1][2]
         files = "/storage/plexon/*.plx"
         files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
-        
-        return files[0] if len(files) > 0 else None
+        if len(files) > 0:
+            tdiff = os.stat(files[0]).st_mtime - start
+            if tdiff < 3600:
+                 return files[0]
     
     def run(self):
         try:
