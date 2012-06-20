@@ -1,7 +1,8 @@
 import os
 import time
-import shutil
 import json
+import shutil
+import datetime
 from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
 
 from django.http import HttpResponse
@@ -28,9 +29,18 @@ def save_data(curfile, system, entry, move=True, local=True):
     sys = System.objects.get(name=system)
     entry = TaskEntry.objects.get(pk=entry)
 
+    now = datetime.datetime.now()
+    today = datetime.date(now.year, now.month, now.day)
+    tomorrow = today + datetime.timedelta(days=1)
+    num = len(TaskEntry.objects.filter(date__gte=today, date__lte=tomorrow))
+
     if move:
-        dataname = "{time}.{suff}".format(time=time.strftime('%Y%m%d_%H:%M'), suff=suffix[system])
-        permfile = os.path.join(datapath, system, dataname)
+        dataname = "{subj}{time}_{num:02}.{suff}".format(
+            subj=entry.subject.name[:4].lower(),
+            time=time.strftime('%Y%m%d'), num=num+1,
+            suff=suffix[system]
+        )
+        permfile = os.path.join(sys.path, dataname)
         shutil.move(curfile, permfile)
     else:
         permfile = curfile

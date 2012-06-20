@@ -111,6 +111,8 @@ class Feature(models.Model):
 
 class System(models.Model):
     name = models.CharField(max_length=128)
+    path = models.TextField()
+
     def __unicode__(self):
         return self.name
     
@@ -120,7 +122,7 @@ class System(models.Model):
             try:
                 System.objects.get(name=name)
             except:
-                System(name=name).save()
+                System(name=name, path="/storage/rawdata/%s"%name).save()
 
 class Subject(models.Model):
     name = models.CharField(max_length=128)
@@ -315,6 +317,9 @@ class DataFile(models.Model):
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System)
     entry = models.ForeignKey(TaskEntry)
+
+    def __unicode__(self):
+        return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
 
     def to_json(self):
         return dict(system=self.system.name, path=self.path)

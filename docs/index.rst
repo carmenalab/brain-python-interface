@@ -14,6 +14,8 @@ Contents:
 	about
 	tasks
         tracker
+        plexon
+            Plexfile
 
 
 Indices and tables
