@@ -32,7 +32,10 @@ def save_data(curfile, system, entry, move=True, local=True):
     now = datetime.datetime.now()
     today = datetime.date(now.year, now.month, now.day)
     tomorrow = today + datetime.timedelta(days=1)
-    num = len(TaskEntry.objects.filter(date__gte=today, date__lte=tomorrow))
+
+    entries = TaskEntry.objects.filter(date__gte=today, date__lte=tomorrow)
+    enums = dict([(e, i) for i, e in enumerate(entries.order_by("date"))])
+    num = enums[entry]
 
     if move:
         dataname = "{subj}{time}_{num:02}.{suff}".format(
