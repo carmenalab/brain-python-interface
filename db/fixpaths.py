@@ -51,9 +51,12 @@ def run(simulate=True):
                             datafile.path = newname
                             datafile.save()
                 else:
-                    print "\tBad plexon file found..."
-                    if not simulate:
-                        datafile.remove()
+                    if datafile.path != files[0]:
+                        print "\tPlexfile doesn't match best %s vs. %s"%(files[0], datafile.path)
+                    else:
+                        print "\tBad plexon file found, removing %s..."%datafile.path
+                        if not simulate:
+                            datafile.remove()
         else:
             print "\tRenaming %s to %s"%(datafile.path, newpath)
             if not simulate:
