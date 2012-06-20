@@ -30,12 +30,15 @@ def run(simulate=True):
                 tdiff = os.stat(files[0]).st_mtime - last
                 print "Plexon file %f tdiff"%tdiff
                 if tdiff < 60:
-                    print "Found plexon file, we're ok",
-                    print "Renaming %s to %s"%(datafile.path, os.path.join(datafile.system.path, newname))
-                    if not simulate:
-                        os.rename(datafile.path, os.path.join(datafile.system.path, newname))
-                        datafile.path = newname
-                        datafile.save()
+                    if datafile.path != files[0]:
+                        print "OH GOD WHAT"
+                    else:
+                        print "Found plexon file, we're ok: ",
+                        print "associating %s to %s"%(files[0], os.path.join(datafile.system.path, newname))
+                        if not simulate:
+                            os.rename(files[0], os.path.join(datafile.system.path, newname))
+                            datafile.path = newname
+                            datafile.save()
                 else:
                     print "Bad plexon file found..."
                     if not simulate:
