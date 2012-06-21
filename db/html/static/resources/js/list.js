@@ -58,6 +58,7 @@ var TaskInterface =  new function() {
 			this.disable();
 			$(".startbtn").hide()
 			$("#copybtn").show();
+			this.report.deactivate();
 		},
 		stopped: function() {
 			$(window).unbind("unload");
@@ -94,6 +95,7 @@ var TaskInterface =  new function() {
 			this.disable();
 			$(".startbtn").hide();
 			$("#copybtn").show();
+			this.report.deactivate();
 		},
 		errtest: function(info) {
 			$(window).unbind("unload");
@@ -103,6 +105,7 @@ var TaskInterface =  new function() {
 			$("#startbtn").show();
 			$("#testbtn").show();
 			$("#copybtn").hide();
+			this.report.deactivate();
 		}
 	};
 }
@@ -173,6 +176,8 @@ TaskEntry.prototype.update = function(info) {
 	this.report.update(info.report);
 	if (this.notes)
 		this.notes.update(info.notes);
+	else
+		$("#notes").attr("value", info.notes);
 
 	this.expinfo = info;
 	$("#tasks option").each(function() {
@@ -337,6 +342,7 @@ function Notes(idx) {
 	this.activate();
 }
 Notes.prototype.update = function(notes) {
+	console.log("Updating notes to \""+notes+"\"");
 	$("#notes textarea").attr("value", notes);
 }
 Notes.prototype.activate = function() {
