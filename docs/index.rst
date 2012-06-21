@@ -8,13 +8,15 @@ Welcome to BMI3D's documentation!
 
 Contents:
 
-..	toctree::
-	:maxdepth: 2
+..  toctree::
+    :maxdepth: 2
 
     about
     experiments
     tracker
     plexon
+    hardware
+    interface
 
 
 Indices and tables
