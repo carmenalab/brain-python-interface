@@ -41,7 +41,10 @@ def save_data(curfile, system, entry, move=True, local=True):
             suff=suffix[system]
         )
         permfile = dataname
-        shutil.move(curfile, os.path.join(sys.path, dataname))
+        if sys.path == os.path.split(curfile)[0]:
+            os.rename(curfile, os.path.join(sys.path, dataname))
+        else:
+            shutil.move(curfile, os.path.join(sys.path, dataname))
     else:
         permfile = curfile
 
