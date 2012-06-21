@@ -11,8 +11,6 @@ from django.views.decorators.csrf import csrf_exempt
 from riglib import experiment
 from models import TaskEntry, Subject, Calibration, System, DataFile
 
-datapath = "/storage/rawdata/"
-
 def save_log(idx, log):
     entry = TaskEntry.objects.get(pk=idx)
     entry.report = json.dumps(log)
@@ -52,7 +50,7 @@ def save_data(curfile, system, entry, move=True, local=True):
         permfile = curfile
 
     DataFile(local=local, path=permfile, system=sys, entry=entry).save()
-    print "Saved datafile for file=%s, system=%s, id=%d (serverside)..."%(curfile, system, entry.id)
+    print "Saved datafile for file=%s -> %s, system=%s, id=%d)..."%(curfile, permfile, system, entry.id)
 
 def entry_error(entry):
     TaskEntry.objects.get(pk=entry).remove()

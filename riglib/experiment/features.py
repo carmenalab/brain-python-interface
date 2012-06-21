@@ -306,15 +306,17 @@ class RelayPlexon(SinkRegister):
     @property
     def plexfile(self):
         '''Calculates the plexon file that's most likely associated with the current task'''
-        import os, glob, time
+        import os, sys, glob, time
         if len(self.event_log) < 1:
             return None
+        
         start = self.event_log[-1][2]
         files = "/storage/plexon/*.plx"
         files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
+        
         if len(files) > 0:
             tdiff = os.stat(files[0]).st_mtime - start
-            if abs(tdiff) < 60:
+            if abs(tdiff) < 5:
                  return files[0]
     
     def run(self):

@@ -48,6 +48,7 @@ Report.prototype.activate = function() {
     if (!this.ws) {
         this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
         this.ws.onmessage = function(evt) {
+            console.log(evt.data);
             var report = JSON.parse(evt.data);
             if (report.trials)
                 report.trials++;

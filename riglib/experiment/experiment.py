@@ -57,10 +57,6 @@ class LogExperiment(Experiment):
         self.event_log = []
         super(LogExperiment, self).__init__(**kwargs)
     
-    def run(self):
-        super(LogExperiment, self).run()
-        self.event_log.append((self.state, None, time.time()))
-
     def trigger_event(self, event):
         log = (self.state, event) not in self.log_exclude
         if log:  
