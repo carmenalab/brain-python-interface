@@ -26,7 +26,7 @@ typedef struct PL_EventHeader PL_EventHeader;
 typedef struct PL_SlowChannelHeader PL_SlowChannelHeader;
 typedef struct PL_DataBlockHeader PL_DataBlockHeader;
 
-typedef struct PlexFileType {
+typedef struct PlexFile {
     double length;
     int nchans[ChanType_MAX];
     
