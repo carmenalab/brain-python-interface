@@ -101,7 +101,8 @@ class ContinuousSlice(object):
 
     @property
     def time(self):
-        return np.arange(self.info.contents.t_start, self.info.contents.stop, 1./self.info.contents.freq)
+        stop = self.info.contents.len / float(self.info.contents.freq)
+        return np.arange(self.info.contents.t_start, stop, 1./self.info.contents.freq)
 
     def __repr__(self):
         return "<Continuous slice t=[%f:%f], %d channels>"%(self.info.contents.start, self.info.contents.stop, self.info.contents.nchans)

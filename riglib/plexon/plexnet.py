@@ -1,3 +1,5 @@
+import re
+import math
 import array
 import struct
 import socket
@@ -9,6 +11,7 @@ PACKETSIZE = 512
 logger = logging.getLogger(__name__)
 
 WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit","waveform"])
+chan_names = re.compile(r'^(\w{2,4})(\d{2,3})(\w)?')
 
 class Connection(object):
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT = (10000)
@@ -46,7 +49,7 @@ class Connection(object):
             d += self.sock.recv(PACKETSIZE - len(d))
         return d
     
-    def connect(self, channels, waveforms=True, analog=False):
+    def connect(self, channels, waveforms=False, analog=True):
         '''Establish a connection with the plexnet remote server, then request and set parameters
 
         Parameters
@@ -96,7 +99,7 @@ class Connection(object):
         self._init = True
         logger.info("Connection established!")
         
-    def select_spikes(self, channels=None, waveforms=True):
+    def select_spikes(self, channels=None, waveforms=True, unsorted=False):
         '''Sets the channels from which to receive spikes. This function always requests sorted data
 
         Parameters
@@ -118,6 +121,9 @@ class Connection(object):
 
         #always send timestamps, waveforms are optional
         bitmask = 1 | waveforms << 1
+        if unsorted:
+            bitmask |= 1<<2 | waveforms << 3
+
         if channels is None:
             raw += array.array('b', [bitmask]*(PACKETSIZE - 20)).tostring()
         else:
@@ -134,21 +140,25 @@ class Connection(object):
             raise ValueError("Please initialize the connection first")
         if not self.supports_spikes:
             raise ValueError("Server does not support continuous data streaming!")
-        packet = array.array('i', '\x00'*20)
-        packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
-        packet[2] = 1
-        packet[3] = self.n_cont
-        raw = packet.tostring()
 
-        if channels is None:
-            raw += array.array('b', [1]*(PACKETSIZE - 20)).tostring()
-        else:
-            packet = array.array('b', '\x00'*(PACKETSIZE - 20))
-            for c in channels:
-                packet[c] = 1
-            raw += packet.tostring()
-        
-        self.sock.sendall(raw)
+        chans = range(0, self.n_cont, PACKETSIZE-20)+[self.n_cont]
+        for s, e in zip(chans[:-1], chans[1:]):
+            packet = array.array('i', '\x00'*20)
+            packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
+            packet[2] = s+1
+            packet[3] = e
+            raw = packet.tostring()
+
+            if channels is None:
+                raw += array.array('b', [1]*(PACKETSIZE - 20)).tostring()
+            else:
+                packet = array.array('b', '\x00'*(PACKETSIZE - 20))
+                for c in channels:
+                    if c - s > 0:
+                        packet[c - s] = 1
+                raw += packet.tostring()
+            
+            self.sock.sendall(raw)
 
     def start_data(self):
         '''Start the data pump from plexnet remote'''
@@ -187,32 +197,29 @@ class Connection(object):
         '''A generator which yields packets as they are received'''
         assert self._init, "Please initialize the connection first"
         hnames = 'type,Uts,ts,chan,unit,nwave,nword'.split(',')
+        invalid = set([0, -1])
         while self.streaming:
             packet = self._recv()
             ibuf = struct.unpack('4i', packet[:16])
-            if ibuf[0] != 1:
-                yield None
-            
-            self.num_server_dropped = ibuf[2]
-            self.num_mmf_dropped = ibuf[3]
-            packet = packet[16:]
-            
-            while len(packet) > 16:
-                header = dict(zip(hnames, struct.unpack('hHI4h', packet[:16])))
+            if ibuf[0] == 1:
+                self.num_server_dropped = ibuf[2]
+                self.num_mmf_dropped = ibuf[3]
                 packet = packet[16:]
                 
-                if header['type'] in [0, -1]:
-                    yield None
-                else:
-                    wavedat = None
-                    if header['nwave'] > 0:
-                        l = header['nwave'] * header['nword'] * 2
-                        wavedat = array.array('h', packet[:l])
-                        packet = packet[l:]
+                while len(packet) > 16:
+                    header = dict(zip(hnames, struct.unpack('hHI4h', packet[:16])))
+                    packet = packet[16:]
                     
-                    ts = long(header['Uts']) << 32 | header['ts']
-                    yield WaveData(type=header['type'], chan=header['chan'],
-                        unit=header['unit'], ts=ts, waveform = wavedat)
+                    if header['type'] not in invalid:
+                        wavedat = None
+                        if header['nwave'] > 0:
+                            l = header['nwave'] * header['nword'] * 2
+                            wavedat = array.array('h', packet[:l])
+                            packet = packet[l:]
+                        
+                        ts = long(header['Uts']) << 32 | header['ts']
+                        yield WaveData(type=header['type'], chan=header['chan'],
+                            unit=header['unit'], ts=ts, waveform = wavedat)
 
 if __name__ == "__main__":
     import csv
