@@ -12,6 +12,7 @@ features = dict(
     fixation_start=experiment.features.FixationStart,
     motion_data=experiment.features.MotionData,
     motion_simulate=experiment.features.MotionSimulate, 
+    motion_autoalign=experiment.features.MotionAutoAlign,
     saveHDF=experiment.features.SaveHDF,
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,

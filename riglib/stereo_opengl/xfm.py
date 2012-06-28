@@ -48,7 +48,7 @@ class Quaternion(object):
             w = -np.dot(other, conj.vec)
             vec = conj.w*np.array(other) + np.cross(other, conj.vec)
             #nw = self.w*w - np.dot(self.vec, vec)
-            pts = self.w*vec + w*self.vec + np.cross(self.vec, vec)
+            pts = self.w*vec + np.outer(w, self.vec).squeeze() + np.cross(self.vec, vec)
             return pts
         raise ValueError
 

@@ -56,9 +56,11 @@ class System(object):
         #create a point tracker
         self.tracker = 0
         owlTrackeri(self.tracker, OWL_CREATE, OWL_POINT_TRACKER)
-        
+        self._init_markers()
+
+    def _init_markers(self):
         # set markers
-        for i in range(marker_count):
+        for i in range(self.marker_count):
             owlMarkeri(MARKER(self.tracker, i), OWL_SET_LED, i)
         owlTracker(self.tracker, OWL_ENABLE)
     
@@ -72,7 +74,6 @@ class System(object):
 
     def stop(self):
         if self.filename is not None:
-
             #tell phasespace to stop recording
             pass
         owlSetInteger(OWL_STREAMING, OWL_DISABLE)
@@ -96,6 +97,16 @@ class System(object):
         owlTracker(self.tracker, OWL_DESTROY)
         owlDone()
 
+class AligningSystem(System):
+    def _init_markers(self):
+        MAX = 42
+        for i in range(self.marker_count):
+            owlMarkeri(MARKER(self.tracker, i), OWL_SET_LED, i)
+        for i in range(6):
+            owlMarkeri(MARKER(self.tracker, self.marker_count+i), OWL_SET_LED, MAX+i)
+        self.marker_count += 6
+        owlTracker(self.tracker, OWL_ENABLE)
+
 def owl_get_error(s, n):
     """Print OWL error."""
     if(n < 0): return "%s: %d" % (s, n)
@@ -106,17 +117,50 @@ def owl_get_error(s, n):
     else: return "%s: 0x%x" % (s, n)
 
 
-def make_system(marker_count, **kwargs):
+def make(marker_count, cls=System, **kwargs):
     """This ridiculous function dynamically creates a class with a new init function"""
     def init(self, **kwargs):
         super(self.__class__, self).__init__(marker_count=marker_count, **kwargs)
 
+    if cls == AligningSystem:
+        marker_count += 6
     dtype = np.dtype((np.float, (marker_count, 4)))
-    return type("System", (System,), dict(dtype=dtype, __init__=init))
+    return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))
+    
 
-def make_simulate(marker_count, **kwargs):
-    def init(self, **kwargs):
-        super(self.__class__, self).__init__(marker_count=marker_count, **kwargs)
+from riglib.stereo_opengl import xfm
+class AutoAlign(object):
+    '''Runs the autoalignment filter to center everything into the chair coordinates'''
+    def __init__(self, reference="alignment.npz"):
+        self.ref = np.load(reference)['reference']
+        self.xfm = xfm.Quaternion()
+        self.off = np.array([0,0,0])
+        self.abc_cross = np.cross(self.ref[2] - self.ref[0], self.ref[1] - self.ref[0])
+        self.def_cross = np.cross(self.ref[5] - self.ref[3], self.ref[4] - self.ref[3])
 
-    dtype = np.dtype((np.float, (marker_count, 4)))
-    return type("Simulate", (Simulate,), dict(dtype=dtype, __init__=init))    
+    def __call__(self, data):
+        mdata = data.mean(0)
+        avail = ~np.isnan(mdata[-6:]).any(1)
+        if avail[:3].all():
+            #ABC reference
+            cdata = mdata[-6:-3] - self.ref[0]
+            vec = np.cross(cdata[2] - cdata[0], cdata[1] - cdata[0])
+            self.off = self.ref[0]
+            self.xfm = xfm.Quaternion.rotate_vecs(vec, self.abc_cross)
+        elif avail[3:].all():
+            #DEF reference
+            cdata = mdata[-3:] - self.ref[3]
+            vec = np.cross(cdata[2] - cdata[0], cdata[1] - cdata[0])
+            self.off = self.ref[3]
+            self.xfm = xfm.Quaternion.rotate_vecs(vec, self.def_cross)
+
+        return self.xfm*(mdata[:-6] - self.off) + self.off
+
+
+def make_autoalign_reference(data, filename="alignment.npz"):
+    '''Creates an alignment that can be used with the autoaligner'''
+    assert data.shape[1:] == (6, 3)
+    mdata = data.mean(0)
+    cdata = mdata - mdata[0]
+    rot = xfm.Quaternion.rotate_vecs(np.cross(cdata[2], cdata[1]), [0,1,0])
+    np.savez_compressed(filename, data=data, reference=rot*cdata)

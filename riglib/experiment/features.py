@@ -103,7 +103,9 @@ class AdaptiveGenerator(object):
 
 
 
-
+########################################################################################################
+# Eyetracker datasources
+########################################################################################################
 class EyeData(traits.HasTraits):
     '''Pulls data from the eyetracking system and make it available on self.eyedata'''
     def __init__(self, *args, **kwargs):
@@ -181,8 +183,9 @@ class FixationStart(CalibratedEyeData):
 
 
 
-
-
+########################################################################################################
+# Phasespace datasources
+########################################################################################################
 class MotionData(traits.HasTraits):
     '''Enable reading of raw motiontracker data from Phasespace system'''
     marker_count = traits.Int(8, desc="Number of markers to return")
@@ -196,7 +199,7 @@ class MotionData(traits.HasTraits):
     @property
     def motion_source(self):
         from riglib import motiontracker
-        return motiontracker.make_system(self.marker_count), dict()
+        return motiontracker.make(self.marker_count), dict()
 
     def run(self):
         self.motiondata.start()
@@ -219,9 +222,26 @@ class MotionSimulate(MotionData):
     @property
     def motion_source(self):
         from riglib import motiontracker
-        return motiontracker.make_simulate(self.marker_count), dict(radius=(100,100,50), offset=(-150,0,0))
+        cls = motiontracker.make(self.marker_count, cls=motiontracker.Simulate)
+        return cls, dict(radius=(100,100,50), offset=(-150,0,0))
+
+class MotionAutoAlign(MotionData):
+    '''Creates an auto-aligning motion tracker, for use with the 6-point alignment system'''
+    def __init__(self, *args, **kwargs):
+        super(MotionAutoAlign, self).__init__(*args, **kwargs)
+        from riglib import motiontracker
+        self.motiondata.filter = motiontracker.AutoAlign()
+
+    @property
+    def motion_source(self):
+        from riglib import motiontracker
+        cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)
+        return cls, dict()
     
 
+########################################################################################################
+# Plexon datasources
+########################################################################################################
 class SpikeData(object):
     '''Stream neural spike data from the Plexon system'''
     marker_count = traits.Int(8, desc="Number of markers to return")
@@ -245,9 +265,9 @@ class SpikeSimulate(object):
     pass
 
 
-
-
-
+#*******************************************************************************************************
+# Data Sinks
+#*******************************************************************************************************
 class SinkRegister(object):
     '''Superclass for all features which contain data sinks -- registers the various sources'''
     def __init__(self, *args, **kwargs):
