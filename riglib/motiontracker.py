@@ -1,3 +1,4 @@
+import os
 import time
 import numpy as np
 try:
@@ -5,6 +6,8 @@ try:
 except:
     OWL_MODE2 = False
     print "Cannot find phasespace driver"
+
+cwd = os.path.split(os.path.abspath(__file__))[0]
 
 class Simulate(object):
     update_freq = 240
@@ -42,7 +45,6 @@ class System(object):
     update_freq = 240
     def __init__(self, marker_count=8, server_name='10.0.0.11', init_flags=OWL_MODE2):
         self.marker_count = marker_count
-        self.coords = np.zeros((self.marker_count, 4))
         if(owlInit(server_name, init_flags) < 0):
             raise Exception(owl_get_error("init error",owlGetError()))
                 
@@ -63,6 +65,7 @@ class System(object):
         for i in range(self.marker_count):
             owlMarkeri(MARKER(self.tracker, i), OWL_SET_LED, i)
         owlTracker(self.tracker, OWL_ENABLE)
+        self.coords = np.zeros((self.marker_count, 4))
     
     def start(self, filename=None):
         self.filename = filename
@@ -99,13 +102,14 @@ class System(object):
 
 class AligningSystem(System):
     def _init_markers(self):
-        MAX = 42
+        MAX = 32
         for i in range(self.marker_count):
             owlMarkeri(MARKER(self.tracker, i), OWL_SET_LED, i)
         for i in range(6):
             owlMarkeri(MARKER(self.tracker, self.marker_count+i), OWL_SET_LED, MAX+i)
         self.marker_count += 6
         owlTracker(self.tracker, OWL_ENABLE)
+        self.coords = np.zeros((self.marker_count, 4))
 
 def owl_get_error(s, n):
     """Print OWL error."""
@@ -121,46 +125,54 @@ def make(marker_count, cls=System, **kwargs):
     """This ridiculous function dynamically creates a class with a new init function"""
     def init(self, **kwargs):
         super(self.__class__, self).__init__(marker_count=marker_count, **kwargs)
-
-    if cls == AligningSystem:
-        marker_count += 6
+    
     dtype = np.dtype((np.float, (marker_count, 4)))
+    if cls == AligningSystem:
+        dtype = np.dtype((np.float, (marker_count+6, 4)))
     return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))
     
 
 from riglib.stereo_opengl import xfm
 class AutoAlign(object):
     '''Runs the autoalignment filter to center everything into the chair coordinates'''
-    def __init__(self, reference="alignment.npz"):
+    def __init__(self, reference=os.path.join(cwd, "alignment.npz")):
         self.ref = np.load(reference)['reference']
         self.xfm = xfm.Quaternion()
-        self.off = np.array([0,0,0])
-        self.abc_cross = np.cross(self.ref[2] - self.ref[0], self.ref[1] - self.ref[0])
-        self.def_cross = np.cross(self.ref[5] - self.ref[3], self.ref[4] - self.ref[3])
+        self.off1 = np.array([0,0,0])
+        self.off2 = np.array([0,0,0])
 
     def __call__(self, data):
-        mdata = data.mean(0)
-        avail = ~np.isnan(mdata[-6:]).any(1)
+        mdata = data.mean(0)[:, :3]
+        avail = (data[:,-6:, -1] > 0).all(0)
         if avail[:3].all():
             #ABC reference
-            cdata = mdata[-6:-3] - self.ref[0]
-            vec = np.cross(cdata[2] - cdata[0], cdata[1] - cdata[0])
-            self.off = self.ref[0]
-            self.xfm = xfm.Quaternion.rotate_vecs(vec, self.abc_cross)
+            cdata = mdata[-6:-3] - mdata[-6] - self.ref[0]
+            self.off1 = mdata[-6]
+            self.off2 = self.ref[0]
+            rot1 = xfm.Quaternion.rotate_vecs(cdata[1], self.ref[1] - self.ref[0])
+            rot2 = xfm.Quaternion.rotate_vecs((rot1*cdata)[2], self.ref[2] - self.ref[0])
+            self.xfm = rot2*rot1
         elif avail[3:].all():
             #DEF reference
-            cdata = mdata[-3:] - self.ref[3]
-            vec = np.cross(cdata[2] - cdata[0], cdata[1] - cdata[0])
-            self.off = self.ref[3]
-            self.xfm = xfm.Quaternion.rotate_vecs(vec, self.def_cross)
+            print "Def"
+            cdata = mdata[-3:] - mdata[-3]
+            self.off1 = mdata[-3]
+            self.off2 = self.ref[3]
+            rot1 = xfm.Quaternion.rotate_vecs(cdata[1], self.ref[4] - self.ref[3])
+            rot2 = xfm.Quaternion.rotate_vecs((rot1*cdata)[2], self.ref[5] - self.ref[3])
+            self.xfm = rot2*rot1
 
-        return self.xfm*(mdata[:-6] - self.off) + self.off
+        rdata = self.xfm*(mdata[:-6] - self.off1) + self.off2
+        rdata[(data[:,:-6,-1] < 0).any(0)] = np.nan
+        return np.hstack([rdata, np.ones((len(rdata),1))])[np.newaxis]
 
 
-def make_autoalign_reference(data, filename="alignment.npz"):
+def make_autoalign_reference(data, filename=os.path.join(cwd, "alignment.npz")):
     '''Creates an alignment that can be used with the autoaligner'''
     assert data.shape[1:] == (6, 3)
     mdata = data.mean(0)
     cdata = mdata - mdata[0]
-    rot = xfm.Quaternion.rotate_vecs(np.cross(cdata[2], cdata[1]), [0,1,0])
-    np.savez_compressed(filename, data=data, reference=rot*cdata)
+    rot1 = xfm.Quaternion.rotate_vecs(np.cross(cdata[2], cdata[1]), [0,1,0])
+    rdata = rot1*cdata
+    rot2 = xfm.Quaternion.rotate_vecs(rdata[1], [1, 0, 0])
+    np.savez(filename, data=data, reference=rot2*rot1*cdata)

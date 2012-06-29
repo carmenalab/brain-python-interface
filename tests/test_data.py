@@ -1,20 +1,29 @@
 import time
-
-from riglib.sink import sinks
+import numpy as np
+np.set_printoptions(suppress=True)
+from riglib.sink import sinks, PrintSink
 from riglib import source
 from riglib import motiontracker, hdfwriter, nidaq
 
-Motion = motiontracker.make_simulate(8)
-datasource = source.DataSource(Motion)
-sinks.start(nidaq.SendRowByte)
-sinks.register(Motion)
+Motion = motiontracker.make(8, motiontracker.AligningSystem)
 
-sinks.start(hdfwriter.HDFWriter, filename="/tmp/test.hdf")
-sinks.register(Motion)
+datasource = source.DataSource(Motion)
+datasource.filter = motiontracker.AutoAlign()
+#sinks.start(nidaq.SendRowByte)
+#sinks.register(Motion)
+
+#sinks.start(hdfwriter.HDFWriter, filename="/tmp/test.hdf")
+#sinks.start(PrintSink)
+#sinks.register(Motion)
 
 datasource.start()
 print "reading for 10 seconds..."
-time.sleep(10)
+try:
+    while True:
+        print datasource.get()
+        time.sleep(0.01)
+except KeyboardInterrupt:
+    pass
 datasource.stop()
 
 sinks.stop()

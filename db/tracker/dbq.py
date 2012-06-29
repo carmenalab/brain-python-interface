@@ -27,7 +27,7 @@ def save_data(curfile, system, entry, move=True, local=True):
     sys = System.objects.get(name=system)
     entry = TaskEntry.objects.get(pk=entry)
 
-    now = datetime.datetime.now()
+    now = entry.date
     today = datetime.date(now.year, now.month, now.day)
     tomorrow = today + datetime.timedelta(days=1)
 

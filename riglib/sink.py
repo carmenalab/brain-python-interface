@@ -103,3 +103,21 @@ class SinkManager(object):
 
 #Data Sink manager singleton to be used by features
 sinks = SinkManager()
+
+
+class PrintSink(object):
+    '''A null sink which directly prints the received data'''
+    def __init__(self):
+        print "Starting print sink"
+    
+    def register(self, name, dtype):
+        print "Registered name %s with dtype %r"%(name, dtype)
+    
+    def send(self, system, data):
+        print "Received %s data: \n%r"%(system, data)
+    
+    def sendMsg(self, msg):
+        print "### MESSAGE: %s"%msg
+    
+    def close(self):
+        print "Ended print sink"

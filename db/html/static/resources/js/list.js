@@ -83,11 +83,12 @@ var TaskInterface =  new function() {
 		testing: function(info) {
 			$(window).unload(this.stop.bind(this));
 			$(".active").removeClass("error running").addClass("testing");
+			this.disable();
 			$("#stopbtn").show()
 			$("#startbtn").hide()
 			$("#testbtn").hide()
-			$("#copybtn").hide();
-			this.disable();
+			$("#copybtn").hide()
+			this.report.activate();
 		},
 		error: function(info) {
 			$(window).unbind("unload");
