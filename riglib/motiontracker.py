@@ -154,7 +154,6 @@ class AutoAlign(object):
             self.xfm = rot2*rot1
         elif avail[3:].all():
             #DEF reference
-            print "Def"
             cdata = mdata[-3:] - mdata[-3]
             self.off1 = mdata[-3]
             self.off2 = self.ref[3]

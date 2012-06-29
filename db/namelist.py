@@ -38,7 +38,7 @@ from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
 from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, TargetDirection, TestBoundary
-from tasks.sensorymapping import FreeMap
+from tasks.sensorymapping import FreeMap, ArmPositionTraining
 
 tasks = dict(
     dots=Dots,
@@ -53,7 +53,8 @@ tasks = dict(
     movement_training=MovementTraining,
     direction_training=TargetDirection,
     test_boundary=TestBoundary,
-    free_map=FreeMap
+    free_map=FreeMap,
+    arm_position_training=ArmPositionTraining
 )
 
 from tracker import models
