@@ -3,13 +3,15 @@ import numpy as np
 
 class Quaternion(object):
     def __init__(self, w=1, x=0, y=0, z=0):
-        if isinstance(w, (list, tuple, np.ndarray)):
+        if isinstance(w, (list, tuple, np.ndarray)) and not isinstance(x, np.ndarray):
             #Allows the use of a quaternion as a vector
             self.quat = np.array([0, w[0], w[1], w[2]])
         else:
             self.quat = np.array([w, x, y, z])
     
     def __repr__(self):
+        if self.quat.ndim > 1:
+            return "<Quaternion set for %d rotations>"%self.quat.shape[1]
         return "%g+%gi+%gj+%gk"%tuple(self.quat)
     
     def norm(self):
@@ -39,17 +41,21 @@ class Quaternion(object):
     
     def __mul__(self, other):
         if isinstance(other, Quaternion):
-            w = self.w*other.w   - np.dot(self.vec, other.vec)
-            v = self.w*other.vec + other.w*self.vec + np.cross(self.vec, other.vec)
+            w = self.w*other.w   - (self.vec*other.vec).sum(0)
+            v = self.w*other.vec + other.w*self.vec + np.cross(self.vec.T, other.vec.T).T
             return Quaternion(w, *v).norm()
         elif isinstance(other, (np.ndarray, list, tuple)):
             #rotate a vector, will need to be implemented in GLSL eventually
+            cross = np.cross(self.vec.T, other) + np.outer(self.w, other)
+            return (other + np.cross(2*self.vec.T, cross)).squeeze()
+            '''
             conj = self.H
             w = -np.dot(other, conj.vec)
-            vec = conj.w*np.array(other) + np.cross(other, conj.vec)
-            #nw = self.w*w - np.dot(self.vec, vec)
-            pts = self.w*vec + np.outer(w, self.vec).squeeze() + np.cross(self.vec, vec)
-            return pts
+            vec = np.outer(conj.w, other) + np.cross(other, conj.vec.T)
+            if self.quat.ndim > 1:
+                return self.w*vec.T + np.
+            return self.w*vec + np.outer(w, self.vec).squeeze() + np.cross(self.vec, vec)
+            '''
         raise ValueError
 
     def to_mat(self):
@@ -73,7 +79,13 @@ class Quaternion(object):
         vec1, vec2 = np.array(vec1), np.array(vec2)
         svec = vec1 / np.sqrt((vec1**2).sum())
         nvec = vec2 / np.sqrt((vec2**2).sum())
-        rad = np.arccos(np.dot(svec, nvec))
+        if nvec.ndim > 1:
+            if svec.ndim > 1:
+                rad = (svec * nvec).sum(1)
+            else:
+                rad = np.arccos(np.dot(svec, nvec.T))
+        else:
+            rad = np.arccos(np.dot(svec, nvec))
         axis = np.cross(svec, nvec)
         return cls.from_axisangle(axis, rad)
     
@@ -81,9 +93,12 @@ class Quaternion(object):
     def from_axisangle(cls, axis, rad):
         #normalize the axis first
         axis = np.array(axis)
-        axis /= np.sqrt((axis**2).sum())
+        if axis.ndim > 1:
+            axis = axis.T / np.sqrt((axis**2).sum(1))
+        else:
+            axis /= np.sqrt((axis**2).sum())
         w = np.cos(rad*0.5)
-        v = axis / np.sqrt((axis**2).sum()) * np.sin(rad*0.5)
+        v = axis * np.sin(rad*0.5)
         return cls(w, *v)
 
 class Transform(object):
