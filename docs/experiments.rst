@@ -3,18 +3,20 @@
 Creating tasks
 ==============
 
+:class:`riglib.plexon.plexnet.Connection`
+
 The definition of a task class contains a set of states and the rules for moving between those states, a set of parameters (both hard-coded and user-defined), state methods (which specify what happens during each state), and transition methods (which specify the conditions for changing states). Every task is a subclass of the :class:`Experiment` class.
 
 The state transition diagram
 ----------------------------
 
-A state can be thought of as a discrete part of the task which is triggered by some condition being met and ends when some other condition is met (i.e. waiting for fixation, or a target hold). The state transition diagram defines the structure of the task. For each possible state it lists all the possible subsequent states and the events that trigger those transitions.
+A state can be thought of as a discrete part of the task which is triggered by some condition being met and ends when some other condition is met (i.e. waiting for fixation, or a target hold). The state transition definition describes the structure of the task. For each possible state it lists all the possible subsequent states and the events that trigger those transitions.
 
 For example, the parent class :class:`Experiment` has the following structure, where ovals represent states and arrows represent transitions:
 
 ..	image:: states.png
 
-A state transition diagram is written in the code as a nested dictionary with the name ``status`` that pairs each state with a dictionary containing all possible event-next state transitions that could occur from that state. For the task illustrated above, the state transition structure in the code looks like::
+A state transition definition is written in the code as a nested dictionary with the name ``status`` that delineates all possible event-next state transitions that could occur from within each state. It is usually the very first thing defined in a task class. For the task illustrated above, the state transition definition in the code looks like::
 
 	status = dict(
 	        wait = dict(start_trial="trial", premature="penalty", stop=None),
@@ -23,7 +25,11 @@ A state transition diagram is written in the code as a nested dictionary with th
 	        penalty = dict(post_penalty="wait"),
 	    )
 
-The state transition diagram is usually the very first thing defined in a task class.
+There are four states in this task (*wait*, *trial*, *reward*, and *penalty*). Each state name is entered in the ``status`` dictionary as a key with another dictionary for the value. That dictionary in turn contains keys which are the names of events that trigger state transitions (they can also be thought of as tests that must be passed in order to move to the next state), and values which are the names of the states that follow these events. So while this task is in the *wait* state, it can do one of four things at any moment: if the *start_trial* test is passed, it transitions to the *trial* state; if the *premature* test is passed, it transitions to the *penalty* state; if the experiment receives a stop signal from the server, the task ends; if none of these things occur, it remains in the *wait* state.
+
+..  note::
+
+    The key/value pair ``stop = None`` can be inserted into any state where you would like the server to be able to stop the task immediately. If a state's dictionary does not contain this entry and a stop command is received, the task will continue until it reaches a state that does contain it. Make sure at least one state has an exit transition, otherwise you will not be able to stop execution of your task!
 
 Parameters
 ----------
@@ -40,22 +46,22 @@ Methods
 
 A task class' methods determine the behavior within each state and the criteria for triggering state transitions. There are five types of special methods:
 
-__init__
+*__init__*
 >>>>>>>>
 
-Every task has an __init__ method that contains actions to be performed once when the task is first run::
+Every task has an *__init__* method that contains actions to be performed once when the task is first run::
 
     #initialize and create fixation point object
     def __init__(self, **kwargs):
         super(FixationTraining, self).__init__(**kwargs)
         self.fixation_point = Sphere(radius=.1, color=(1,0,0,1))
 
-If no initialization steps are necessary for the task, the __init__ method can be omitted (because it will automatically inherit the parent __init__ method). This is true of the other special methods as well; however, if an __init__ method is included, it MUST contain a call to the parent method, whereas the rest of the special methods may be written to replace the parent methods if desired.
+If no initialization steps are necessary for the task, the *__init__* method can be omitted (because it will automatically inherit the parent *__init__* method). This is true of the other special methods as well; however, if an *__init__* method is included, it MUST contain a call to the parent method, whereas the rest of the special methods may be written to replace the parent methods if desired.
 
-_start_
->>>>>>>
+*_start_*
+>>>>>>>>>
 
-_start_ methods specify actions to be performed at the onset of a new state::
+*_start_* methods specify actions to be performed once at the onset of a new state::
 
 def _start_wait(self):
         super(TargetCapture, self)._start_wait()
@@ -65,19 +71,34 @@ def _start_wait(self):
         self.origin_target.detach()
         self.requeue()
 
-In the above example, every time the task enters the *wait* state, the origin target's color changes and the target is hidden from the screen, in addition to whatever actions are already performed by the parent class' _start_wait method.
+In the above example, every time the task enters the *wait* state, the origin target's color changes and the target is hidden from the screen, in addition to whatever actions are already performed by the parent class' *_start_wait* method.
 
-The full name of the method should be the ``_start_`` prefix followed by a state name that appears in the state transition diagram. (This goes for _while_ and _end_ methods as well.)
+The full name of the method should always be the ``_start_`` prefix followed by a state name that appears in the state transition definition, and the method should take ``self`` as its sole argument. (These two rules apply to *_while_* and *_end_* methods as well.)
 
-_while_
->>>>>>>
+*_while_*
+>>>>>>>>>
 
-_while_ methods specify actions to be repeated (usually once per frame) while the task is in a state::
+*_while_* methods specify actions to be repeated (usually once per frame) while the task is in a state. Here, the cursor position is being constantly updated during the *wait* state::
 
     def _while_wait(self):
         self.update_cursor()
 
-Here, the cursor position is being constantly updated during the *wait* state.
+*_end_*
+>>>>>>>
+
+*_end_* methods specify actions to be performed once at the end of a state, just before the task transitions to the next state. In this example, the origin target changes color once a target hold is complete::
+
+    def _end_origin_hold(self):
+        #change target color
+        self.origin_target.color = (0,1,0,0.5)
+
+*_test_*
+>>>>>>>>
+
+*_test_* methods define the criteria for state transitions. They are called constantly in the background during corresponding states, and must always return a boolean value. When a *_test_* method returns ``True``, a transition to the state specified in the state transition definition is triggered. *_test_* methods must be named with the prefix ``_test_`` followed by one of the event names listed in the state transition definition, and they always have two arguments: ``self`` and ``ts``, which is a variable containing the elapsed time in seconds since the onset of the current state. The following *_test_* method returns ``True`` when the elapsed time in the current state (*origin_hold*) exceeds the constant value *origin_hold_time*::
+
+    def _test_hold(self, ts):
+        return ts>=self.origin_hold_time
 
 Experiment extensions
 ---------------------
@@ -93,6 +114,12 @@ Generators
 Special states
 <<<<<<<<<<<<<<
 
+*wait*
+>>>>>>
+
+*reward*
+>>>>>>>>
+
 TrialTypes
 >>>>>>>>>>
 
@@ -106,3 +133,6 @@ Pygame
 
 StereoOpenGL
 >>>>>>>>>>>>
+
+..  automodule:: riglib.plexon.plexnet
+    :members:

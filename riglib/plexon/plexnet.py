@@ -1,3 +1,5 @@
+''' Here's a docstring'''
+
 import re
 import math
 import array
@@ -14,6 +16,7 @@ WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit","waveform"])
 chan_names = re.compile(r'^(\w{2,4})(\d{2,3})(\w)?')
 
 class Connection(object):
+    '''Here's a docstring'''
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT = (10000)
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT = (10999)
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF = (10100)
