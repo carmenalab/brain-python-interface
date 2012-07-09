@@ -3,11 +3,9 @@
 Creating tasks
 ==============
 
-:class:`riglib.plexon.plexnet.Connection`
-
 The definition of a task class contains a set of states and the rules for moving between those states, a set of parameters (both hard-coded and user-defined), state methods (which specify what happens during each state), and transition methods (which specify the conditions for changing states). Every task is a subclass of the :class:`Experiment` class.
 
-The state transition diagram
+The state transition definition
 ----------------------------
 
 A state can be thought of as a discrete part of the task which is triggered by some condition being met and ends when some other condition is met (i.e. waiting for fixation, or a target hold). The state transition definition describes the structure of the task. For each possible state it lists all the possible subsequent states and the events that trigger those transitions.
@@ -100,39 +98,10 @@ The full name of the method should always be the ``_start_`` prefix followed by 
     def _test_hold(self, ts):
         return ts>=self.origin_hold_time
 
-Experiment extensions
----------------------
+Example cross reference:
+------------------------
 
-make new page
-
-Sequence
->>>>>>>>
-
-Generators
-<<<<<<<<<<
-
-Special states
-<<<<<<<<<<<<<<
-
-*wait*
->>>>>>
-
-*reward*
->>>>>>>>
-
-TrialTypes
->>>>>>>>>>
-
-Display technologies
---------------------
-
-make new page
-
-Pygame
->>>>>>
-
-StereoOpenGL
->>>>>>>>>>>>
+:class:`riglib.plexon.plexnet.Connection`
 
 ..  automodule:: riglib.plexon.plexnet
     :members:
