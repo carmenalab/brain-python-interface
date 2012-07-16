@@ -105,3 +105,5 @@ Example cross reference:
 
 ..  automodule:: riglib.plexon.plexnet
     :members:
+
+:ref:`tasks`

@@ -12,11 +12,13 @@ Contents:
     :maxdepth: 2
 
     about
-    experiments
-    tracker
-    plexon
-    hardware
+    tasks
+    extensions
+    features
+    display
     interface
+    tracker
+    data
 
 
 Indices and tables
