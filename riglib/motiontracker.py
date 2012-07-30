@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+
 try:
     from OWL import *
 except:
@@ -130,43 +131,9 @@ def make(marker_count, cls=System, **kwargs):
     if cls == AligningSystem:
         dtype = np.dtype((np.float, (marker_count+6, 4)))
     return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))
-    
-
-from riglib.stereo_opengl import xfm
-class AutoAlign(object):
-    '''Runs the autoalignment filter to center everything into the chair coordinates'''
-    def __init__(self, reference=os.path.join(cwd, "alignment.npz")):
-        self.ref = np.load(reference)['reference']
-        self.xfm = xfm.Quaternion()
-        self.off1 = np.array([0,0,0])
-        self.off2 = np.array([0,0,0])
-
-    def __call__(self, data):
-        mdata = data.mean(0)[:, :3]
-        avail = (data[:,-6:, -1] > 0).all(0)
-        if avail[:3].all():
-            #ABC reference
-            cdata = mdata[-6:-3] - mdata[-6] - self.ref[0]
-            self.off1 = mdata[-6]
-            self.off2 = self.ref[0]
-            rot1 = xfm.Quaternion.rotate_vecs(cdata[1], self.ref[1] - self.ref[0])
-            rot2 = xfm.Quaternion.rotate_vecs((rot1*cdata)[2], self.ref[2] - self.ref[0])
-            self.xfm = rot2*rot1
-        elif avail[3:].all():
-            #DEF reference
-            cdata = mdata[-3:] - mdata[-3]
-            self.off1 = mdata[-3]
-            self.off2 = self.ref[3]
-            rot1 = xfm.Quaternion.rotate_vecs(cdata[1], self.ref[4] - self.ref[3])
-            rot2 = xfm.Quaternion.rotate_vecs((rot1*cdata)[2], self.ref[5] - self.ref[3])
-            self.xfm = rot2*rot1
-
-        rdata = self.xfm*(mdata[:-6] - self.off1) + self.off2
-        rdata[(data[:,:-6,-1] < 0).any(0)] = np.nan
-        return np.hstack([rdata, np.ones((len(rdata),1))])[np.newaxis]
 
 
-def make_autoalign_reference(data, filename=os.path.join(cwd, "alignment.npz")):
+def make_autoalign_reference(data, filename=os.path.join(cwd, "alignment2.npz")):
     '''Creates an alignment that can be used with the autoaligner'''
     assert data.shape[1:] == (6, 3)
     mdata = data.mean(0)
