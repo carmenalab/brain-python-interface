@@ -227,17 +227,17 @@ class MotionSimulate(MotionData):
 
 class MotionAutoAlign(MotionData):
     '''Creates an auto-aligning motion tracker, for use with the 6-point alignment system'''
+    autoalign = traits.Instance(calibrations.AutoAlign)
+    
     def __init__(self, *args, **kwargs):
         super(MotionAutoAlign, self).__init__(*args, **kwargs)
-        from riglib import motiontracker
-        self.motiondata.filter = motiontracker.AutoAlign()
+        self.motiondata.filter = self.autoalign
 
     @property
     def motion_source(self):
         from riglib import motiontracker
         cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)
         return cls, dict()
-    
 
 ########################################################################################################
 # Plexon datasources
@@ -336,7 +336,7 @@ class RelayPlexon(SinkRegister):
         
         if len(files) > 0:
             tdiff = os.stat(files[0]).st_mtime - start
-            if abs(tdiff) < 30:
+            if abs(tdiff) < 60:
                  return files[0]
     
     def run(self):

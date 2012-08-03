@@ -20,12 +20,13 @@ def run(simulate=True):
             num=entrynums[datafile.entry]+1, suff=suffix[datafile.system.name],
             )
         newpath = os.path.join(datafile.system.path, newname)
-
-        if not os.path.exists(datafile.path):
-            print "\tRemoving datafile: %s"%datafile.path
+        oldpath = os.path.join(datafile.system.path, datafile.path)
+        
+        if not os.path.exists(oldpath):
+            print "\tRemoving datafile: %s"%oldpath
             if not simulate:
                 datafile.remove()
-        elif datafile.path in moved:
+        elif oldpath in moved:
             print "OH GOD moving already missing file!!!"
         elif datafile.system.name == "plexon":
             last = json.loads(datafile.entry.report)[-1][2]
@@ -35,8 +36,8 @@ def run(simulate=True):
                 tdiff = os.stat(files[0]).st_mtime - last
                 print "\tPlexon file %f tdiff"%tdiff
                 if abs(tdiff) < 60:
-                    if datafile.path != files[0]:
-                        print "\tFound plexon file %s, but recorded %s!"%(files[0], datafile.path)
+                    if oldpath != files[0]:
+                        print "\tFound plexon file %s, but recorded %s!"%(files[0], oldpath)
                         print "\tassociating %s to %s"%(files[0], newpath)
                         if not simulate:
                             moved.add(files[0])
@@ -44,23 +45,24 @@ def run(simulate=True):
                             datafile.path = newname
                             datafile.save()
                     else:
-                        print "\tPLX file is ok, just renaming %s to %s"%(datafile.path, newpath)
+                        print "\tPLX file is ok, just renaming %s to %s"%(oldpath, newpath)
                         if not simulate:
-                            moved.add(datafile.path)
-                            os.rename(datafile.path, newpath)
+                            moved.add(oldpath)
+                            os.rename(oldpath, newpath)
                             datafile.path = newname
                             datafile.save()
                 else:
-                    if datafile.path != files[0]:
-                        print "\tPlexfile doesn't match best %s vs. %s"%(files[0], datafile.path)
+                    if oldpath != files[0]:
+                        print "\tPlexfile doesn't match best %s vs. %s"%(files[0], oldpath)
                     else:
-                        print "\tBad plexon file found, removing %s..."%datafile.path
+                        print "\tBad plexon file found, removing %s..."%oldpath
                         if not simulate:
                             datafile.remove()
         else:
-            print "\tRenaming %s to %s"%(datafile.path, newpath)
-            if not simulate:
-                moved.add(datafile.path)
-                os.rename(datafile.path, newpath)
-                datafile.path = newname
-                datafile.save()
+            #print "\tRenaming %s to %s"%(datafile.path, newpath)
+            #if not simulate:
+            #    moved.add(datafile.path)
+            #    os.rename(datafile.path, newpath)
+            #    datafile.path = newname
+            #    datafile.save()
+            pass

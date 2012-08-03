@@ -315,6 +315,16 @@ class Calibration(models.Model):
         from json_param import Parameters
         return getattr(calibrations, self.name)(**Parameters(self.params).params)
 
+class AutoAlignment(models.Model):
+    date = models.DateTimeField(auto_now_add=True)
+    name = models.TextField()
+    
+    def __unicode(self):
+        return "{date}:{name}".format(date=self.date, name=self.name)
+       
+    def get(self):
+        return calibrations.AutoAlign(self.name)
+
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)

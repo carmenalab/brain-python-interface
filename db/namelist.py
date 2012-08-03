@@ -1,4 +1,5 @@
 from riglib import experiment
+from riglib import calibrations, motiontracker
 
 features = dict(
     autostart=experiment.features.Autostart, 
@@ -58,7 +59,7 @@ tasks = dict(
 )
 
 from tracker import models
-from riglib import calibrations
+
 class SubclassDict(dict):
     '''A special dict that returns the associated model if the queried item is a subclass of any of the keys'''
     def __getitem__(self, name):
@@ -69,7 +70,8 @@ class SubclassDict(dict):
                 if issubclass(name, inst):
                     return model
         raise KeyError
-
+        
 instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
+    calibrations.AutoAlign:models.AutoAlignment,
 } )

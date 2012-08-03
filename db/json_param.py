@@ -7,6 +7,7 @@ import numpy as np
 
 from tracker import models
 from riglib import calibrations
+import namelist
 
 def param_objhook(obj):
     if '__django_model__' in obj:
@@ -25,13 +26,9 @@ def norm_trait(trait, value):
     if ttype == 'Instance':
         if isinstance(value, int):
             #we got a primary key, lookup class name
-            cname = trait.trait_type.klass
-            if not issubclass(cname, models.models.Model):
-                for i, m in instance_to_model.items():
-                    if issubclass(cname, i):
-                        cname = m
+            cname = namelist.instance_to_model[trait.trait_type.klass]
             
-            value = cname.objects.get(pk=value)
+            value = cname.objects.get(pk=value).get()
         #Otherwise, let's hope it's already an instance
     elif ttype == 'Tuple':
         #Let's make sure this works, for older batches of data

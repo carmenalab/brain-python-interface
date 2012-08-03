@@ -119,7 +119,7 @@ class Task(object):
         self.saveid = saveid
         self.taskname = task.name
         self.subj = subj
-
+        self.params = Parameters(params)
         if self.saveid is not None:
             try:
                 import comedi
@@ -129,12 +129,13 @@ class Task(object):
                 print "No comedi, cannot start"
         
         Exp = experiment.make(task.get(), feats=feats)
+        self.params.trait_norm(Exp.class_traits())
         if issubclass(Exp, experiment.Sequence):
             gen, gp = seq.get()
             sequence = gen(Exp, **gp)
-            exp = Exp(sequence, **params)
+            exp = Exp(sequence, **self.params.params)
         else:
-            exp = Exp(**params)
+            exp = Exp(**self.params.params)
         
         exp.start()
         self.task = exp
