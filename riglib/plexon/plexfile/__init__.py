@@ -7,29 +7,6 @@ import finalizer
 import Plexon_h
 
 cwd = os.path.split(os.path.abspath(__file__))[0]
-try:
-    if not os.path.isfile(os.path.join(cwd, "plexfile.so")):
-        import subprocess as sp
-        sp.Popen(["make", "lib"], cwd=cwd).wait()
-
-    plexlib = np.ctypeslib.load_library("plexfile.so", cwd)
-    plexlib.plx_open.restype = C.POINTER(PlexFile)
-    plexlib.plx_open.argtypes = [C.c_char_p, C.c_bool]
-    plexlib.plx_close.argtypes = [C.POINTER(PlexFile)]
-
-    plexlib.plx_get_continuous.restype = C.POINTER(ContInfo)
-    plexlib.plx_get_continuous.argtypes = [C.POINTER(PlexFile), C.c_int, C.c_double, C.c_double, C.POINTER(C.c_int), C.c_int]
-    plexlib.plx_read_continuous.argtypes = [C.POINTER(ContInfo), ndpointer(dtype=float, ndim=2, flags='contiguous')]
-    plexlib.free_continfo.argtypes = [C.POINTER(ContInfo)]
-
-    plexlib.plx_get_discrete.restype = C.POINTER(SpikeInfo)
-    plexlib.plx_get_discrete.argtypes = [C.POINTER(PlexFile), C.c_int, C.c_double, C.c_double]
-    plexlib.plx_read_discrete.argtypes = [C.POINTER(SpikeInfo), ndpointer(dtype=SpikeType, flags='contiguous')]
-    plexlib.plx_read_waveforms.argtypes = [C.POINTER(SpikeInfo), ndpointer(dtype=float, ndim=2, flags='contiguous')]
-    plexlib.free_spikeinfo.argtypes = [C.POINTER(SpikeInfo)]
-
-except:
-    pass
 
 class SpikeInfo(C.Structure):
     _fields_ = [
@@ -63,6 +40,31 @@ class PlexFile(C.Structure):
     ]
 
 SpikeType = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
+
+try:
+    if not os.path.isfile(os.path.join(cwd, "plexfile.so")):
+        import subprocess as sp
+        sp.Popen(["make", "lib"], cwd=cwd).wait()
+
+    plexlib = np.ctypeslib.load_library("plexfile.so", cwd)
+    plexlib.plx_open.restype = C.POINTER(PlexFile)
+    plexlib.plx_open.argtypes = [C.c_char_p, C.c_bool]
+    plexlib.plx_close.argtypes = [C.POINTER(PlexFile)]
+
+    plexlib.plx_get_continuous.restype = C.POINTER(ContInfo)
+    plexlib.plx_get_continuous.argtypes = [C.POINTER(PlexFile), C.c_int, C.c_double, C.c_double, C.POINTER(C.c_int), C.c_int]
+    plexlib.plx_read_continuous.argtypes = [C.POINTER(ContInfo), ndpointer(dtype=float, ndim=2, flags='contiguous')]
+    plexlib.free_continfo.argtypes = [C.POINTER(ContInfo)]
+
+    plexlib.plx_get_discrete.restype = C.POINTER(SpikeInfo)
+    plexlib.plx_get_discrete.argtypes = [C.POINTER(PlexFile), C.c_int, C.c_double, C.c_double]
+    plexlib.plx_read_discrete.argtypes = [C.POINTER(SpikeInfo), ndpointer(dtype=SpikeType, flags='contiguous')]
+    plexlib.plx_read_waveforms.argtypes = [C.POINTER(SpikeInfo), ndpointer(dtype=float, ndim=2, flags='contiguous')]
+    plexlib.free_spikeinfo.argtypes = [C.POINTER(SpikeInfo)]
+
+except:
+    import traceback
+    traceback.print_exc()
 
 class DiscreteFrameset(object):
     def __init__(self, plxfile, idx):
