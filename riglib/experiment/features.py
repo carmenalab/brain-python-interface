@@ -41,8 +41,8 @@ class Autostart(traits.HasTraits):
 
 class Button(object):
     '''Adds the ability to respond to the button, as well as to keyboard responses'''
-    def screen_init(self):
-        super(Button, self).screen_init()
+    def init(self):
+        super(Button, self).init()
         pygame.event.set_grab(True)
         pygame.mouse.set_visible(False)
 
@@ -108,11 +108,12 @@ class AdaptiveGenerator(object):
 ########################################################################################################
 class EyeData(traits.HasTraits):
     '''Pulls data from the eyetracking system and make it available on self.eyedata'''
-    def __init__(self, *args, **kwargs):
+
+    def init(self):
         from riglib import source
         src, ekw = self.eye_source
         self.eyedata = source.DataSource(src, **ekw)
-        super(EyeData, self).__init__(*args, **kwargs)
+        super(EyeData, self).init()
     
     @property
     def eye_source(self):
@@ -190,11 +191,11 @@ class MotionData(traits.HasTraits):
     '''Enable reading of raw motiontracker data from Phasespace system'''
     marker_count = traits.Int(8, desc="Number of markers to return")
 
-    def __init__(self, *args, **kwargs):
+    def init(self):
         from riglib import source
         src, mkw = self.motion_source
         self.motiondata = source.DataSource(src, **mkw)
-        super(MotionData, self).__init__(*args, **kwargs)
+        super(MotionData, self).init()
     
     @property
     def motion_source(self):
@@ -248,11 +249,11 @@ class SpikeData(object):
     spikebin_interval = traits.Float(100, desc="Milliseconds to bin over to generate the PSTH")
     plexon_channels = None
 
-    def __init__(self, *args, **kwargs):
+    def init(self):
         from riglib import plexon, source
         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
         #self.neurondata.filter = plexon.PSTHfilter(self.spikebin_interval)
-        super(SpikeData, self).__init__(*args, **kwargs)
+        super(SpikeData, self).init()
 
     def run(self):
         self.neurondata.start()
@@ -270,11 +271,11 @@ class SpikeSimulate(object):
 #*******************************************************************************************************
 class SinkRegister(object):
     '''Superclass for all features which contain data sinks -- registers the various sources'''
-    def __init__(self, *args, **kwargs):
+    def init(self):
         from riglib import sink
         self.sinks = sink.sinks
 
-        super(SinkRegister, self).__init__(*args, **kwargs)
+        super(SinkRegister, self).init()
 
         if isinstance(self, (MotionData, MotionSimulate)):
             self.sinks.register(self.motiondata)
@@ -285,12 +286,12 @@ class SinkRegister(object):
 
 class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
-    def __init__(self, *args, **kwargs):
+    def init(self):
         import tempfile
         from riglib import sink
         self.h5file = tempfile.NamedTemporaryFile()
         self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
-        super(SaveHDF, self).__init__(*args, **kwargs)
+        super(SaveHDF, self).init()
 
     @property
     def hdf_class(self):
@@ -313,10 +314,10 @@ class SaveHDF(SinkRegister):
 
 class RelayPlexon(SinkRegister):
     '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
-    def __init__(self, *args, **kwargs):
+    def init(self):
         from riglib import sink
         self.nidaq = sink.sinks.start(self.ni_out)
-        super(RelayPlexon, self).__init__(*args, **kwargs)
+        super(RelayPlexon, self).init()
 
     @property
     def ni_out(self):
@@ -351,10 +352,10 @@ class RelayPlexon(SinkRegister):
         
 class RelayPlexByte(RelayPlexon):
     '''Relays a single byte (0-255) as a row checksum for when a data packet arrives'''
-    def __init__(self, *args, **kwargs):
+    def init(self):
         if not isinstance(self, SaveHDF):
             raise ValueError("RelayPlexByte feature only available with SaveHDF")
-        super(RelayPlexByte, self).__init__(*args, **kwargs)
+        super(RelayPlexByte, self).init()
 
     @property
     def ni_out(self):

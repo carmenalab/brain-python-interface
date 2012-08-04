@@ -130,6 +130,7 @@ class Task(object):
         
         Exp = experiment.make(task.get(), feats=feats)
         self.params.trait_norm(Exp.class_traits())
+        
         if issubclass(Exp, experiment.Sequence):
             gen, gp = seq.get()
             sequence = gen(Exp, **gp)

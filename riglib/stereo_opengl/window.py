@@ -82,10 +82,6 @@ class Window(LogExperiment):
             model.init()
             self.world.add(model)
     
-    def run(self):
-        self.init()
-        return super(Window, self).run()
-
     def draw_world(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self.renderer.draw(self.world)

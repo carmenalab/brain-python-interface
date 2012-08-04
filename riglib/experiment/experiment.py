@@ -19,6 +19,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         traits.HasTraits.__init__(self, **kwargs)
         threading.Thread.__init__(self)
 
+    def init(self):
+        pass
+
     def trigger_event(self, event):
         self.set_state(self.status[self.state][event])
     
@@ -27,6 +30,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.start_time = time.time()
         if hasattr(self, "_start_%s"%condition):
             getattr(self, "_start_%s"%condition)()
+
+    def start(self):
+        self.init()
+        super(Experiment, self).start()
 
     def run(self):
         self.set_state(self.state)
