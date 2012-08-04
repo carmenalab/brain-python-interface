@@ -12,7 +12,7 @@ class Pygame(LogExperiment):
     penalty_time = traits.Float(5., desc="Length of penalty (in seconds) for incorrect and premature responses")
     reward_time = traits.Float(5, desc='Time of reward in seconds')
 
-    def screen_init(self):
+    def init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "1680,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
@@ -23,10 +23,6 @@ class Pygame(LogExperiment):
         self.surf = pygame.display.get_surface()
         self.clock = pygame.time.Clock()
         self.event = None
-    
-    def run(self):
-        self.screen_init()
-        super(Pygame, self).run()
     
     def draw_frame(self):
         raise NotImplementedError
