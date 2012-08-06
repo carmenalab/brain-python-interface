@@ -27,7 +27,7 @@ def registrations(data):
     return systems
 
 def rowbyte(data):
-    if data.shape[1] != 4:
+    if data.ndim < 2 or data.shape[1] != 4:
         data = _split(data)
     #reg = registrations(data)
 
