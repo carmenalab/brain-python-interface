@@ -230,8 +230,8 @@ class MotionAutoAlign(MotionData):
     '''Creates an auto-aligning motion tracker, for use with the 6-point alignment system'''
     autoalign = traits.Instance(calibrations.AutoAlign)
     
-    def __init__(self, *args, **kwargs):
-        super(MotionAutoAlign, self).__init__(*args, **kwargs)
+    def init(self):
+        super(MotionAutoAlign, self).init()
         self.motiondata.filter = self.autoalign
 
     @property
