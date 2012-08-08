@@ -19,6 +19,7 @@ Contents:
     interface
     tracker
     data
+    comments
 
 
 Indices and tables

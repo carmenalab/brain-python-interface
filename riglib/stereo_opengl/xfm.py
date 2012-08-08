@@ -46,7 +46,7 @@ class Quaternion(object):
             return Quaternion(w, *v).norm()
         elif isinstance(other, (np.ndarray, list, tuple)):
             #rotate a vector, will need to be implemented in GLSL eventually
-            cross = np.cross(self.vec.T, other) + self.w*other
+            cross = np.cross(self.vec.T, other) + np.dot(self.w[:,np.newaxis], other[np.newaxis])
             return (other + np.cross(2*self.vec.T, cross)).squeeze()
             '''
             conj = self.H
