@@ -1,6 +1,7 @@
 .. _analysis:
 
-:module:`rfanalysis`
+Data analysis code
+------------------
 
 ..  automodule:: analysis.rfanalysis
     :members:
