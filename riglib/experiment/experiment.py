@@ -24,6 +24,9 @@ class Experiment(traits.HasTraits, threading.Thread):
     def init(self):
         pass
 
+    def screen_init(self):
+        pass
+
     def trigger_event(self, event):
         self.set_state(self.status[self.state][event])
     
@@ -35,6 +38,7 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def start(self):
         self.init()
+        self.screen_init()
         super(Experiment, self).start()
 
     def run(self):

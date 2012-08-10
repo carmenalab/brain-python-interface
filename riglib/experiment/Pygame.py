@@ -12,7 +12,7 @@ class Pygame(LogExperiment):
     penalty_time = traits.Float(5., desc="Length of penalty (in seconds) for incorrect and premature responses")
     reward_time = traits.Float(5, desc='Time of reward in seconds')
 
-    def init(self):
+    def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "1680,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
