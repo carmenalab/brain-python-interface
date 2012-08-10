@@ -12,7 +12,7 @@ from riglib.stereo_opengl.utils import cloudy_tex
 from riglib.stereo_opengl.ik import RobotArm
 
 from riglib import source, motiontracker
-Motion = motiontracker.make(8, motiontracker.Simulate)
+Motion = motiontracker.make(8, motiontracker.System)
 sys = source.DataSource(Motion)	
 sys.start()
 
@@ -26,8 +26,8 @@ ball = Sphere(radius=5, color=(0.5, 1, 0.5, 1), shininess=20)
 
 class Test(Window):
     def _get_renderer(self):
-        #mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
-        return stereo.Anaglyph(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
+        mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
+        return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _while_draw(self):
         pts = sys.get().mean(0)[...,:-1]+[-20,0,-5]
@@ -41,7 +41,7 @@ class Test(Window):
         #print self.clock.get_fps()
 
 if __name__ == "__main__":
-    win = Test(window_size=(800, 600))
+    win = Test(window_size=(1920*2, 1080))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).translate(-250, -250, -15))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_y(-90).translate(250,-250,-15))

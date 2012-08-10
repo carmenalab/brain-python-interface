@@ -38,10 +38,10 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def start(self):
         self.init()
-        self.screen_init()
         super(Experiment, self).start()
 
     def run(self):
+        self.screen_init()
         self.set_state(self.state)
         while self.state is not None:
             if hasattr(self, "_while_%s"%self.state):
