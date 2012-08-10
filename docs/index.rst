@@ -20,6 +20,7 @@ Contents:
     tracker
     data
     comments
+    analysis
 
 
 Indices and tables
