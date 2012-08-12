@@ -4,6 +4,7 @@
 
 #define ChanType_MAX (6)
 
+struct PlexFile;
 typedef struct PlexFile PlexFile;
 typedef unsigned long long TSTYPE;
 

@@ -26,7 +26,7 @@ typedef struct PL_EventHeader PL_EventHeader;
 typedef struct PL_SlowChannelHeader PL_SlowChannelHeader;
 typedef struct PL_DataBlockHeader PL_DataBlockHeader;
 
-typedef struct PlexFile {
+struct PlexFile {
     double length;
     int nchans[ChanType_MAX];
     
@@ -40,7 +40,7 @@ typedef struct PlexFile {
     FILE* fp;
     unsigned long nframes;
     FrameSet data[ChanType_MAX];
-} PlexFile;
+};
 
 extern PlexFile* plx_open(char* filename, bool recache);
 extern void plx_close(PlexFile* plxfile);
