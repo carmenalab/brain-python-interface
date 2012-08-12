@@ -12,7 +12,7 @@ void plx_get_frames(PlexFile* plxfile) {
     DataFrame* frame;
     plxfile->nframes = 0;
 
-    fseek(plxfile->fp, 0, SEEK_END);
+    fseek(plxfile->fp, 0L, SEEK_END);
     end_pos = (double) ftell(plxfile->fp);
     fseek(plxfile->fp, start_pos, SEEK_SET);
 
@@ -28,7 +28,7 @@ void plx_get_frames(PlexFile* plxfile) {
             (plxfile->nframes)++;
 
             if ((plxfile->nframes % 100) == 0) {
-                printf("%0.2f%%...      \r", ftell(plxfile->fp) / end_pos * 100);
+                printf("%0.2f%%...      \r", ((double)ftell(plxfile->fp) / end_pos) * 100);
                 fflush(stdout);
             }
         }

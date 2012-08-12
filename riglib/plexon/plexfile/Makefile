@@ -1,4 +1,4 @@
-CC=gcc -m32
+CC=gcc
 CFLAGS=-O3 -Wall -Wextra -fPIC -c
 LDFLAGS=-lm
 SOURCES=inspect.c plexfile.c dataframe.c plexread.c
