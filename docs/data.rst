@@ -58,4 +58,11 @@ will return the timestamps and data respectively from 0.5 to 2.5 s for all avail
 HDF5 files
 ----------
 
-Data from all attached systems except Plexon, as well as the state transition logs are stored in .hdf5 files.
+Data from all attached systems except Plexon, as well as the state transition logs are stored in *.hdf* files.
+
+First, load the file::
+
+    import tables
+    hdffile = tables.openFile(fname)
+
+The position data is a timesample x marker# x 4 array. The last dimension contains
