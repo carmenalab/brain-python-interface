@@ -50,4 +50,5 @@ def messages(data):
     msgs = []
     for s, e in np.vstack([tidx[:-1], tidx[1:]-1]).T:
         msgs.append((times[s], names[s:e].tostring()))
-    return msgs
+
+    return np.array(msgs, dtype=[('time', np.float), ('state', 'S256')])
