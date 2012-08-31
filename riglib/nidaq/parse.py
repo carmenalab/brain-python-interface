@@ -1,9 +1,11 @@
 import numpy as np
 
-def _split(data):
+def _split(data, flip=False):
     if len(data.shape) < 2:
         data = np.array(data[data['chan'] == 257][['ts', 'unit']].tolist())
-    msgs = ~data[:,1].astype(np.int16)
+    msgs = data[:,1].astype(np.int16)
+    if not flip:
+        msgs = ~msgs
     msgtype = np.right_shift(np.bitwise_and(msgs, 0b0000111<<8), 8).astype(np.uint8)
     auxdata = np.right_shift(np.bitwise_and(msgs, 0b1111000<<8), 8).astype(np.uint8)
     rawdata = np.bitwise_and(msgs, 255)
@@ -26,9 +28,9 @@ def registrations(data):
         
     return systems
 
-def rowbyte(data):
+def rowbyte(data, **kwargs):
     if data.ndim < 2 or data.shape[1] != 4:
-        data = _split(data)
+        data = _split(data, **kwargs)
     #reg = registrations(data)
 
     msgs = data[data[:,1] == 5]
@@ -37,9 +39,9 @@ def rowbyte(data):
         systems[i] = msgs[msgs[:,2] == i][:,[0,-1]]
     return systems
 
-def messages(data):
-    if data.shape[1] != 4:
-        data = _split(data)
+def messages(data, **kwargs):
+    if data.ndim < 2 or data.shape[1] != 4:
+        data = _split(data, **kwargs)
 
     times = data[data[:,1] == 1, 0]
     names = data[data[:,1] == 1,-1].astype(np.uint8)
