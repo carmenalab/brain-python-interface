@@ -3,7 +3,7 @@
 Data analysis code
 ------------------
 
-rfanalysis
-==========
-..  automodule:: analysis.rfanalysis
+basicanalysis
+=============
+..  automodule:: analysis.basicanalysis
     :members:
