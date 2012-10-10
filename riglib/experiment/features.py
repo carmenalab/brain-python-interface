@@ -41,8 +41,8 @@ class Autostart(traits.HasTraits):
 
 class Button(object):
     '''Adds the ability to respond to the button, as well as to keyboard responses'''
-    def init(self):
-        super(Button, self).init()
+    def screen_init(self):
+        super(Button, self).screen_init()
         pygame.event.set_grab(True)
         pygame.mouse.set_visible(False)
 

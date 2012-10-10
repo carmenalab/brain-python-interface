@@ -80,6 +80,7 @@ class Affine(Profile):
 class AutoAlign(object):
     '''Runs the autoalignment filter to center everything into the chair coordinates'''
     def __init__(self, reference):
+        print "Making autoaligner from reference %s"%reference
         from riglib.stereo_opengl import xfm
         self._quat = xfm.Quaternion
         self.ref = np.load(reference)['reference']
@@ -92,7 +93,7 @@ class AutoAlign(object):
         avail = (data[:,-6:, -1] > 0).all(0)
         if avail[:3].all():
             #ABC reference
-            cdata = mdata[-6:-3] - mdata[-6] - self.ref[0]
+            cdata = mdata[-6:-3] - mdata[-6]
             self.off1 = mdata[-6]
             self.off2 = self.ref[0]
             rot1 = self._quat.rotate_vecs(cdata[1], self.ref[1] - self.ref[0])
@@ -106,7 +107,6 @@ class AutoAlign(object):
             rot1 = self._quat.rotate_vecs(cdata[1], self.ref[4] - self.ref[3])
             rot2 = self._quat.rotate_vecs((rot1*cdata[2]), self.ref[5] - self.ref[3])
             self.xfm = rot2*rot1
-
         rdata = self.xfm*(mdata[:-6] - self.off1) + self.off2
         rdata[(data[:,:-6,-1] < 0).any(0)] = np.nan
         return np.hstack([rdata, np.ones((len(rdata),1))])[np.newaxis]

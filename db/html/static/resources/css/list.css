@@ -141,6 +141,10 @@ input.startbtn:hover {
 #report table.option {
 	font-size:80%;
 }
+#report {
+    max-height:500px;
+    overflow:auto;
+}
 
 
 .active td, div.active { 

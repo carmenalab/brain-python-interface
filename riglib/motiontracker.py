@@ -135,8 +135,9 @@ def make(marker_count, cls=System, **kwargs):
 
 def make_autoalign_reference(data, filename=os.path.join(cwd, "alignment2.npz")):
     '''Creates an alignment that can be used with the autoaligner'''
+    from stereo_opengl import xfm
     assert data.shape[1:] == (6, 3)
-    mdata = data.mean(0)
+    mdata = np.median(data,0)
     cdata = mdata - mdata[0]
     rot1 = xfm.Quaternion.rotate_vecs(np.cross(cdata[2], cdata[1]), [0,1,0])
     rdata = rot1*cdata
