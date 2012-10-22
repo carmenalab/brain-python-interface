@@ -21,6 +21,7 @@ features = dict(
 
 from tasks import redgreen
 from tasks import manualcontrol
+from tasks import sensorymapping
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
@@ -32,6 +33,7 @@ generators = dict(
     reach_target=manualcontrol.rand_target_sequence,
     reach_target_2d=manualcontrol.rand_target_sequence_2d,
     reach_target_3d=manualcontrol.rand_target_sequence_3d,
+    nummap=sensorymapping.gentaps,
 )
 
 from tasks.rds import RDS, RDS_half
@@ -55,7 +57,8 @@ tasks = dict(
     direction_training=TargetDirection,
     test_boundary=TestBoundary,
     free_map=FreeMap,
-    arm_position_training=ArmPositionTraining
+    arm_position_training=ArmPositionTraining,
+    number_map=NumberMap,
 )
 
 from tracker import models
