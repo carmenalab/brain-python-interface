@@ -33,7 +33,7 @@ generators = dict(
     reach_target=manualcontrol.rand_target_sequence,
     reach_target_2d=manualcontrol.rand_target_sequence_2d,
     reach_target_3d=manualcontrol.rand_target_sequence_3d,
-    nummap=sensorymapping.gentaps,
+    nummap=sensorymapping.gen_taps,
 )
 
 from tasks.rds import RDS, RDS_half
@@ -41,7 +41,7 @@ from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
 from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, TargetDirection, TestBoundary
-from tasks.sensorymapping import FreeMap, ArmPositionTraining
+from tasks.sensorymapping import FreeMap, ArmPositionTraining, NumberMap
 
 tasks = dict(
     dots=Dots,
