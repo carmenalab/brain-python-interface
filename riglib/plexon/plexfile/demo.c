@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     PlexFile* plxfile = plx_open(argv[1], false);
     plx_summary(plxfile);
     plx_print_frameset(&(plxfile->data[analog]), 100);
-    plx_print_frameset(&(plxfile->data[wideband]), 10);
+    plx_print_frameset(&(plxfile->data[lfp]), 10);
     for (i = 0; i < ChanType_MAX; i++) {
         printf("Checking %s...\n", names[i]);
         fflush(stdout);

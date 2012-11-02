@@ -109,7 +109,7 @@ long plx_get_header(PlexFile* plxfile) {
 
     // Read the slow A/D channel headers
     if(plxfile->header.NumSlowChannels) {
-        assert(plxfile->header.NumSlowChannels >= 3*plxfile->header.NumDSPChannels);
+        //assert(plxfile->header.NumSlowChannels >= 3*plxfile->header.NumDSPChannels);
         readsize = fread(&(plxfile->cont_head), sizeof(PL_SlowChannelHeader), plxfile->header.NumSlowChannels, plxfile->fp);
         printf("Read %lu slow channels\n", readsize);
         for (i = 0; i < 4; i++)
