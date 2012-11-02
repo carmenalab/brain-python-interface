@@ -36,8 +36,8 @@ void plx_get_frames(PlexFile* plxfile) {
         if (( frame->type == wideband || frame->type == spkc || 
               frame->type == lfp || frame->type == analog) && 
             lastchan+1 != header.chan) {
-            printf("Error, channels not in order: %d -- ts=%llu, type=%d, chan=%d\n", lastchan, header.ts, header.type, header.chan);
-            exit(1);
+            //printf("Error, channels not in order: %d -- ts=%llu, type=%d, chan=%d\n", lastchan, header.ts, header.type, header.chan);
+            //exit(1);
         }
         lastchan = header.chan;
     }
