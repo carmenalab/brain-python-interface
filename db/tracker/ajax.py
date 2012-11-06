@@ -114,3 +114,6 @@ def save_notes(request, idx):
     te.notes = request.POST['notes']
     te.save()
     return _respond(dict(status="success"))
+
+def make_bmi(request):
+    pass

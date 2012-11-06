@@ -52,12 +52,15 @@ def crossval(cls, data, actual, proportion=0.7, parameter="smooth",
     xval_range=np.linspace(0,5,20)**2):
     actual = np.array(actual)
     data = np.array(data)
+    valid = ~np.isnan(data[:,0])
+    data = data[valid]
+    actual = actual[valid]
 
     idx = np.random.permutation(len(actual))
     border = int(proportion*len(actual))
     trn, val = idx[:border], idx[border:]
 
-    dim = tuple(range(data.shape[1]/2)), tuple(range(data.shape[1]/2, data.shape[1]))
+    dim = tuple(range(data.shape[1])), tuple(range(data.shape[1], data.shape[1]*2))
     ccs = np.zeros(len(xval_range))
     for i, smooth in enumerate(xval_range):
         cal = cls(data[trn], actual[trn], **{parameter:smooth})
