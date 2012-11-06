@@ -64,8 +64,7 @@ def crossval(cls, data, actual, proportion=0.7, parameter="smooth",
     ccs = np.zeros(len(xval_range))
     for i, smooth in enumerate(xval_range):
         cal = cls(data[trn], actual[trn], **{parameter:smooth})
-        ccdata = np.hstack([cal(data[val]), actual[val]]).T
-        ccs[i] = np.corrcoef(ccdata)[dim].mean()
+        ccs[i] = np.corrcoef(cal(data[val]).T, actual[val].T)[dim].mean()
     
     best = xval_range[ccs.argmax()]
     return cls(data, actual, **{parameter:best}), best, ccs
