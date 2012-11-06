@@ -4,7 +4,7 @@ import traceback
 
 import pygame
 
-from riglib import calibrations
+from riglib import calibrations, bmi
 
 from . import traits
 
@@ -245,14 +245,10 @@ class MotionAutoAlign(MotionData):
 ########################################################################################################
 class SpikeData(object):
     '''Stream neural spike data from the Plexon system'''
-    marker_count = traits.Int(8, desc="Number of markers to return")
-    spikebin_interval = traits.Float(100, desc="Milliseconds to bin over to generate the PSTH")
-    plexon_channels = None
 
     def init(self):
         from riglib import plexon, source
-        self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-        #self.neurondata.filter = plexon.PSTHfilter(self.spikebin_interval)
+        self.neurondata = source.DataSource(plexon.Spikes)
         super(SpikeData, self).init()
 
     def run(self):
@@ -264,6 +260,14 @@ class SpikeData(object):
 
 class SpikeSimulate(object):
     pass
+
+class SpikeBMI(SpikeData):
+    '''Filters spike data through a BMI'''
+    bmi = traits.Instance(bmi.BMI)
+
+    def init(self):
+        super(SpikeBMI, self).init()
+        self.neurondata.filter = self.bmi
 
 
 #*******************************************************************************************************
