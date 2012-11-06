@@ -37,15 +37,13 @@ class MotionBMI(BMI):
         mask[midx[-(sum(mask)%4):]] = False
 
         #Grab masked data, filter out interpolated data
-        motion = tables.openFile(self.kinem).root.motiondata
+        motion = tables.openFile(self.kinem).root.motiontracker
         t, m, d = motion.shape
-        motion = motion[np.tile(mask, [d,m,1]).T].reshape(-1, m, d)
-        motion.shape = (-1, 4, m, d)
+        motion = motion[np.tile(mask, [d,m,1]).T].reshape(-1, 4, m, d)
         invalid = np.logical_and(motion[...,-1] == 4, motion[..., -1] < 0)
         motion[invalid] = 0
-
-        #Must resample the motion data such that the input from the system is the same
+        
         self.kinem = motion.sum(1)
-        self.neurons = np.array([self.psth(self.plx[r-self.binlen*2:r]) for r in rows[mask][3::4]])
+        self.neurons = np.array([self.psth(self.plx.spikes[r-self.binlen*2:r]) for r in rows[mask][3::4]])
 
         assert len(self.kinem) == len(self.neurons)
