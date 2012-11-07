@@ -1,3 +1,4 @@
+from __future__ import division
 import time
 import numpy as np
 import plexnet
@@ -5,9 +6,9 @@ import plexfile
 from collections import Counter
 
 class Spikes(object):
-    update_freq = 65536
-    dtype = np.dtype([("ts", np.uint64), ("chan", np.uint16), ("unit", np.uint16)])
-    
+    update_freq = 40000
+    dtype = np.dtype([("ts", np.float), ("chan", np.int), ("unit", np.int)])
+
     def __init__(self, addr=("10.0.0.13", 6000), channels=None):
         self.conn = plexnet.Connection(*addr)
         self.conn.connect(256, waveforms=False)
@@ -25,11 +26,11 @@ class Spikes(object):
         while d.type != 5:
             d = self.data.next()
 
-        return np.array([(d.ts, d.chan, d.unit)], dtype=self.dtype)
+        return np.array([(d.ts / self.update_freq, d.chan, d.unit)], dtype=self.dtype)
 
 class SimSpikes(object):
     update_freq = 65536
-    dtype = np.dtype([("ts", np.uint64), ("chan", np.uint16), ("unit", np.uint16)])
+    dtype = np.dtype([("ts", np.float), ("chan", np.int), ("unit", np.int)])
 
     def __init__(self, afr=10, channels=600):
         self.rates = np.random.gamma(afr, size=channels)

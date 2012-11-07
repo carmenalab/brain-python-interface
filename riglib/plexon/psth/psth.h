@@ -1,8 +1,8 @@
 typedef struct {
-    unsigned long long ts;
-    unsigned short chan;
-    unsigned short unit;
-} __attribute__((packed)) Spike;
+    double ts;
+    int chan;
+    int unit;
+} Spike;
 
 typedef struct {
     int chan;

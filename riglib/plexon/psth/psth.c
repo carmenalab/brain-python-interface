@@ -24,17 +24,18 @@ extern void set_channels(char* bufchan, size_t clen) {
 extern void binspikes(float length, char* bufspikes, size_t slen, unsigned int* counts, int countlen) {
     uint i, idx, num = slen / sizeof(Spike);
     Spike* spikes = (Spike*) bufspikes;
-    long long curtime = spikes[num-1].ts;
+    double curtime = spikes[num-1].ts;
 
     for (i = 0; i < countlen; i++) {
         counts[i] = 0;
     }
 
-    for (i = num-1; i >= 0; i--) {
+    for (i = num-1; i > 0; i--) {
         if (curtime - spikes[i].ts > length)
             break;
 
         idx = _hash_chan(spikes[i].chan, spikes[i].unit);
+        //printf("%d(%d, %d): %d \n", idx, spikes[i].chan, spikes[i].unit, chanmap[idx]);
         if (chanmap[idx] > 0 && chanmap[idx]-1 < countlen) {
             counts[chanmap[idx]-1]++;
             //printf("found (%d,%d), incrementing %d\n", spikes[i].chan, spikes[i].unit, chanmap[idx]-1);

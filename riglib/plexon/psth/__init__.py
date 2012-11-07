@@ -1,5 +1,5 @@
 import numpy as np
-import psth
+import _psth as psth
 
 class Filter(object):
     def __init__(self, cells, binlen=.1):

@@ -21,11 +21,11 @@ class BMI(object):
 class MotionBMI(BMI):
     '''BMI object which is trained from motion data'''
 
-    def __init__(self, tslice=(None, None), *args, **kwargs):
-        super(MotionBMI, self).__init__(*args, **kwargs)
+    def __init__(self, kinem, plxfile, cells, tslice=(None, None), **kwargs):
+        super(MotionBMI, self).__init__(kinem, plxfile, cells, **kwargs)
 
         rows = parse.rowbyte(self.plx.events[:])[0][:,0]
-        lower, upper = 0 < rows, rows < rows.max()
+        lower, upper = 0 < rows, rows < rows.max()+1
         if tslice[0] is not None:
             lower = tslice[0] < rows
         if tslice[1] is not None:
@@ -45,5 +45,4 @@ class MotionBMI(BMI):
         
         self.kinem = motion.sum(1)
         self.neurons = np.array([self.psth(self.plx.spikes[r-self.binlen*2:r]) for r in rows[mask][3::4]])
-
         assert len(self.kinem) == len(self.neurons)

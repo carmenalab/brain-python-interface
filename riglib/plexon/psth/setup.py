@@ -17,6 +17,7 @@ except AttributeError:
 _psth = Extension("_psth",
                    ["psth.i","psth.c"],
                    include_dirs = [numpy_include],
+                   define_macros = [('DEBUG', 1)],
                    )
 
 # ezrange setup
