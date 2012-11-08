@@ -319,11 +319,24 @@ class AutoAlignment(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     name = models.TextField()
     
-    def __unicode(self):
+    def __unicode__(self):
         return "{date}:{name}".format(date=self.date, name=self.name)
        
     def get(self):
         return calibrations.AutoAlign(self.name)
+
+class BMI(models.Model):
+    subject = models.ForeignKey(Subject)
+    date = models.DateTimeField(auto_now_add=True)
+    name = models.CharField(max_length=128)
+    entry = models.ForeignKey(TaskEntry)
+    pickle = models.TextField()
+    
+    def __unicode__(self):
+        return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
+    
+    def get(self):
+        return cPickle.load(open(self.pickle))
 
 
 class DataFile(models.Model):

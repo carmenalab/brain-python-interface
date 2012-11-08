@@ -13,4 +13,4 @@ typedef unsigned int uint;
 
 unsigned int _hash_chan(unsigned short chan, unsigned short unit);
 extern void set_channels(char* bufchan, size_t clen);
-extern void binspikes(float length, char* bufspikes, size_t slen, unsigned int* counts, int countlen);
+extern void binspikes(double length, char* bufspikes, size_t slen, unsigned int* counts, int countlen);

@@ -243,12 +243,13 @@ class MotionAutoAlign(MotionData):
 ########################################################################################################
 # Plexon datasources
 ########################################################################################################
-class SpikeData(object):
+class SpikeData(traits.HasTraits):
     '''Stream neural spike data from the Plexon system'''
-
+    plexon_channels = None
+    
     def init(self):
         from riglib import plexon, source
-        self.neurondata = source.DataSource(plexon.Spikes)
+        self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
         super(SpikeData, self).init()
 
     def run(self):
@@ -266,6 +267,7 @@ class SpikeBMI(SpikeData):
     bmi = traits.Instance(bmi.BMI)
 
     def init(self):
+        self.plexon_channels = self.bmi.psth.chans[:,0]
         super(SpikeBMI, self).init()
         self.neurondata.filter = self.bmi
 
@@ -285,8 +287,6 @@ class SinkRegister(object):
             self.sinks.register(self.motiondata)
         if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
-        if isinstance(self, (SpikeData, SpikeSimulate)):
-            self.sinks.register(self.neurondata)
 
 class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''

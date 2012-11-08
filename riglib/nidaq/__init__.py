@@ -15,7 +15,7 @@ class SendAll(object):
             raise ValueError("Unable to close comedi system")
 
     def register(self, system, dtype):
-        if system != "NeuronData":
+        if system in self.systems:
             print "nidaq register %s"%system
             self.systems[system] = pcidio.register_sys(system, str(dtype.descr))
 
@@ -23,11 +23,11 @@ class SendAll(object):
         pcidio.sendMsg(str(msg))
 
     def send(self, system, data):
-        if system != "NeuronData":
+        if system in self.systems:
             pcidio.sendData(self.systems[system], data.tostring())
 
     def sendRow(self, system, idx):
-        if system != "NeuronData":
+        if system in self.systems:
             pcidio.sendRow(self.systems[system], idx)
 
     def rstart(self, state):
@@ -35,10 +35,10 @@ class SendAll(object):
 
 class SendRow(SendAll):
     def send(self, system, data):
-        if system != "NeuronData":
+        if system in self.systems:
             pcidio.sendRowCount(self.systems[system])
 
 class SendRowByte(SendAll):
     def send(self, system, data):
-        if system != "NeuronData":
+        if system in self.systems:
             pcidio.sendRowByte(self.systems[system])
