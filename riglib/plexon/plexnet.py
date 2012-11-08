@@ -97,6 +97,7 @@ class Connection(object):
             if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
                 self.n_spike = resp[15]
                 self.n_cont = resp[17]
+                print self.n_spike, self.n_cont
                 gotServerArea = True
         
         self._init = True
@@ -243,6 +244,7 @@ if __name__ == "__main__":
         conn = Connection(args.address, args.port)
         conn.connect(256) #Request all 256 channels
         conn.select_spikes() #Select all spike channels, and get waveforms too
+        conn.select_continuous([])
         conn.start_data() #start the data pump
 
         waves = conn.get_data()

@@ -42,7 +42,6 @@ class DataSource(mp.Process):
         system = self.source(**self.source_kwargs)
         system.start()
         streaming = True
-        
         size = self.slice_size
         while self.status.value > 0:
             if self.cmd_event.is_set():

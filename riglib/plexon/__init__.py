@@ -7,12 +7,12 @@ from collections import Counter
 
 class Spikes(object):
     update_freq = 40000
-    dtype = np.dtype([("ts", np.float), ("chan", np.int), ("unit", np.int)])
+    dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
 
     def __init__(self, addr=("10.0.0.13", 6000), channels=None):
         self.conn = plexnet.Connection(*addr)
-        self.conn.connect(256, waveforms=False)
-        self.conn.select_spikes(channels, waveforms=False)
+        self.conn.connect(256, waveforms=False, analog=False)
+        self.conn.select_spikes(channels)
 
     def start(self):
         self.conn.start_data()
@@ -23,7 +23,7 @@ class Spikes(object):
 
     def get(self):
         d = self.data.next()
-        while d.type != 5:
+        while d.type != 1:
             d = self.data.next()
 
         return np.array([(d.ts / self.update_freq, d.chan, d.unit)], dtype=self.dtype)

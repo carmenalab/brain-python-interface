@@ -29,7 +29,8 @@ class HDFWriter(object):
         self.msgs[name] = msg
     
     def send(self, system, data):
-        self.data[system].append([data])
+        if system in self.data:
+            self.data[system].append([data])
 
     def sendMsg(self, msg):
         for system in self.msgs.keys():

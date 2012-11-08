@@ -55,8 +55,11 @@ class System(object):
         while samp != pylink.SAMPLE_TYPE:
             time.sleep(.001)
             samp = self.tracker.getNextData()
-        data = np.array(self.tracker.getFloatData().getLeftEye().getGaze())
-        if data.sum() < -1e4:
+        try:
+            data = np.array(self.tracker.getFloatData().getLeftEye().getGaze())
+            if data.sum() < -1e4:
+                return np.array([np.nan, np.nan])
+        except:
             return np.array([np.nan, np.nan])
             
         return data

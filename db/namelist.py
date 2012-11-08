@@ -1,5 +1,5 @@
 from riglib import experiment
-from riglib import calibrations, motiontracker
+from riglib import calibrations, bmi
 
 features = dict(
     autostart=experiment.features.Autostart, 
@@ -14,6 +14,7 @@ features = dict(
     motion_data=experiment.features.MotionData,
     motion_simulate=experiment.features.MotionSimulate, 
     motion_autoalign=experiment.features.MotionAutoAlign,
+    bmi=experiment.features.SpikeBMI,
     saveHDF=experiment.features.SaveHDF,
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
@@ -40,7 +41,7 @@ from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
-from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, TargetDirection, TestBoundary
+from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, TargetDirection, TestBoundary, BMIControl
 from tasks.sensorymapping import FreeMap, ArmPositionTraining, NumberMap
 
 tasks = dict(
@@ -51,6 +52,7 @@ tasks = dict(
     button=ButtonTask,
     eye_calibration=EyeCal,
     manual_control=ManualControl,
+    bmi_control=BMIControl,
     fixation_training=FixationTraining,
     target_capture=TargetCapture,
     movement_training=MovementTraining,
@@ -77,4 +79,5 @@ class SubclassDict(dict):
 instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
     calibrations.AutoAlign:models.AutoAlignment,
+    bmi.BMI: models.BMI,
 } )
