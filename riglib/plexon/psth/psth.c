@@ -40,7 +40,7 @@ extern void binspikes(double length, char* bufspikes, size_t slen, unsigned int*
     //Start at beginning, counting the spikes
     for (i = num-1; i > 0; i--) {
         tdiff = curtime - spikes[i].ts;
-        if (tdiff > 2*length) {
+        if (tdiff > 1.9*length) {
             //Only exit out when DOUBLE the length of time has been counted (to ensure catching everything)
             //printf("tdiff = %f, curtime=%f, time=%f\n", curtime-spikes[i].ts, curtime, spikes[i].ts);
             return;
@@ -53,5 +53,5 @@ extern void binspikes(double length, char* bufspikes, size_t slen, unsigned int*
             //printf("found (%d,%d), incrementing %d\n", spikes[i].chan, spikes[i].unit, chanmap[idx]-1);
         }
     }
-    printf("I shouldn't have gotten here.... %f vs %f\n", curtime - spikes[0].ts, length);
+    printf("Buffer underrun\n", curtime - spikes[0].ts, length);
 }
