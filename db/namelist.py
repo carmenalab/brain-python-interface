@@ -79,5 +79,10 @@ class SubclassDict(dict):
 instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
     calibrations.AutoAlign:models.AutoAlignment,
-    bmi.BMI: models.BMI,
+    bmi.BMI: models.Decoder,
 } )
+
+
+bmis = dict(
+    velocity_kalman= bmi.KalmanFilter,
+    )

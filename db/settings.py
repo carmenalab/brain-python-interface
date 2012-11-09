@@ -1,5 +1,8 @@
 import os
 cwd = os.path.split(os.path.abspath(__file__))[0]
+
+import djcelery
+djcelery.setup_loader()
 # Django settings for db project.
 
 DEBUG = True
@@ -101,5 +104,6 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     'django.contrib.admindocs',
+    'djcelery',
     'tracker'
 )

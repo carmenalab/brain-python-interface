@@ -15,9 +15,8 @@ class SendAll(object):
             raise ValueError("Unable to close comedi system")
 
     def register(self, system, dtype):
-        if system in self.systems:
-            print "nidaq register %s"%system
-            self.systems[system] = pcidio.register_sys(system, str(dtype.descr))
+        print "nidaq register %s"%system
+        self.systems[system] = pcidio.register_sys(system, str(dtype.descr))
 
     def sendMsg(self, msg):
         pcidio.sendMsg(str(msg))
