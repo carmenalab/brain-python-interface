@@ -7,11 +7,10 @@ from riglib.nidaq import parse
 class BMI(object):
     '''A BMI object, for filtering neural data into BMI output'''
 
-    def __init__(self, kinfile, plxfile, cells, binlen=.1):
+    def __init__(self, cells, binlen=.1, **kwargs):
         '''All BMI objects must be pickleable objects with two main methods -- the init method trains
         the decoder given the inputs, and the call method actually does real time filtering'''
-        self.kinfile = kinfile
-        self.plxfile = plxfile
+        self.files = kwargs
         self.binlen = binlen
 
         self.psth = psth.Filter(cells, binlen)
@@ -39,12 +38,13 @@ class BMI(object):
 class MotionBMI(BMI):
     '''BMI object which is trained from motion data'''
 
-    def __init__(self, kinfile, plxfile, cells, tslice=(None, None), **kwargs):
-        super(MotionBMI, self).__init__(kinfile, plxfile, cells, **kwargs)
+    def __init__(self, cells, tslice=(None, None), **kwargs):
+        super(MotionBMI, self).__init__(cells, **kwargs)
+        assert 'hdf' in self.files and 'plexon' in self.files
         self.tslice = tslice
 
     def get_data(self):
-        plx = plexfile.openFile(self.plxfile)
+        plx = plexfile.openFile(self.files['plexon'])
         rows = parse.rowbyte(plx.events[:])[0][:,0]
         lower, upper = 0 < rows, rows < rows.max()+1
         l, u = self.tslice
@@ -59,7 +59,7 @@ class MotionBMI(BMI):
             mask[-(len(mask) % 4):] = False
 
         #Grab masked data, filter out interpolated data
-        motion = tables.openFile(self.kinfile).root.motiontracker
+        motion = tables.openFile(self.files['hdf']).root.motiontracker
         t, m, d = motion.shape
         motion = motion[np.tile(mask, [d,m,1]).T].reshape(-1, 4, m, d)
         invalid = np.logical_and(motion[...,-1] == 4, motion[..., -1] < 0)
@@ -74,7 +74,7 @@ class VelocityBMI(MotionBMI):
     def get_data(self):
         kin, neurons = super(VelocityBMI, self).get_data()
         velocity = np.diff(kin[...,:3], axis=0)
-        kin = np.hstack([kin[1:,:,:3], velocity])
+        kin = np.hstack([kin[1:,:,:3], velocity*60])
         return kin, neurons[1:]
 
 from kalman import KalmanFilter

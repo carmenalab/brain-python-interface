@@ -1,5 +1,5 @@
 import os
-os.nice(4)
+#os.nice(4)
 
 try:
     import models

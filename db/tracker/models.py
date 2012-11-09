@@ -119,7 +119,7 @@ class System(models.Model):
     
     @staticmethod
     def populate():
-        for name in ["eyetracker", "hdf", "plexon"]:
+        for name in ["eyetracker", "hdf", "plexon", "bmi"]:
             try:
                 System.objects.get(name=name)
             except:
@@ -325,19 +325,17 @@ class AutoAlignment(models.Model):
     def get(self):
         return calibrations.AutoAlign(self.name)
 
-class BMI(models.Model):
-    subject = models.ForeignKey(Subject)
+class Decoder(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=128)
     entry = models.ForeignKey(TaskEntry)
-    pickle = models.TextField()
+    path = models.TextField()
     
     def __unicode__(self):
         return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
     def get(self):
         return cPickle.load(open(self.pickle))
-
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)
@@ -351,6 +349,9 @@ class DataFile(models.Model):
 
     def to_json(self):
         return dict(system=self.system.name, path=self.path)
+
+    def get_path(self):
+        return os.path.join(self.system.path, self.path)
 
     def remove(self, **kwargs):
         os.unlink(self.path)

@@ -52,6 +52,26 @@ def save_data(curfile, system, entry, move=True, local=True):
     DataFile(local=local, path=permfile, system=sys, entry=entry).save()
     print "Saved datafile for file=%s -> %s, system=%s, id=%d)..."%(curfile, permfile, system, entry.id)
 
+def save_bmi(name, entry, filename):
+    entry = TaskEntry.objects.get(pk=entry)
+    now = entry.date
+    today = datetime.date(now.year, now.month, now.day)
+    tomorrow = today + datetime.timedelta(days=1)
+
+    entries = TaskEntry.objects.filter(date__gte=today, date__lte=tomorrow)
+    enums = dict([(e, i) for i, e in enumerate(entries.order_by("date"))])
+    num = enums[entry]
+
+    pklname = "{subj}{time}_{num:02}_{name}.pkl".format(
+        subj=entry.subject.name[:4].lower(),
+        time=bmi.date.strftime('%Y%m%d'),
+        num=num, name=name)
+    base = System.objects.get(name='bmi').path
+    shutil.copy2(filename, os.path.join(base, pklname))
+
+    Decoder(name=name,entry=entry,path=pklname).save()
+    print "Saved decoder to %s"%os.path.join(base, pklname)
+
 def entry_error(entry):
     TaskEntry.objects.get(pk=entry).remove()
     print "Removed Bad Entry %d"%entry
@@ -60,6 +80,7 @@ dispatcher = SimpleXMLRPCDispatcher(allow_none=True)
 dispatcher.register_function(save_log, 'save_log')
 dispatcher.register_function(save_calibration, 'save_cal')
 dispatcher.register_function(save_data, 'save_data')
+dispatcher.register_function(save_bmi, 'save_bmi')
 dispatcher.register_function(entry_error, 'entry_error')
 
 @csrf_exempt
