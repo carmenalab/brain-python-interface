@@ -124,8 +124,10 @@ class KalmanFilter(VelocityBMI):
 	        Decoder output for each decoded parameter
 
         '''
-        obs_t = np.mat(super(KalmanFilter, self).__call__(obs_t)).T
-        
+        return self.predict(super(KalmanFilter, self).__call__(obs_t))
+
+    def predict(self, obs_t):
+        obs_t = np.mat(obs_t).T
         pred_state = self.A*self.state + self.state_noise
         pred_obs = self.C*pred_state + self.obs_noise 
 
