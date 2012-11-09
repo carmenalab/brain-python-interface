@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
         #Initialize the connection
         conn = Connection(args.address, args.port)
-        conn.connect(256) #Request all 256 channels
+        conn.connect(256, analog=False) #Request all 256 channels
         conn.select_spikes() #Select all spike channels, and get waveforms too
         conn.select_continuous([])
         conn.start_data() #start the data pump
