@@ -45,6 +45,8 @@ class Quaternion(object):
             v = self.w*other.vec + other.w*self.vec + np.cross(self.vec.T, other.vec.T).T
             return Quaternion(w, *v).norm()
         elif isinstance(other, (np.ndarray, list, tuple)):
+            if isinstance(other, (list, tuple)):
+                other = np.array(other)
             #rotate a vector, will need to be implemented in GLSL eventually
             cross = np.cross(self.vec.T, other) + self.w*other
             return (other + np.cross(2*self.vec.T, cross)).squeeze()
