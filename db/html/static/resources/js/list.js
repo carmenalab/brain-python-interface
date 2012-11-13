@@ -366,3 +366,10 @@ Notes.prototype.save = function() {
 		'csrfmiddlewaretoken':$("#experiment input[name=csrfmiddlewaretoken]").attr("value")
 	});
 }
+
+var goodparse = /^\s*(?:good|bmi)?\s?(?:unit|cell)s?\s?[:-]+\s*\n*(.*)$/gim;
+var cellnames = /(\d{1,3})\s?(\w{1})/gim;
+function BMITrainer(idx) {
+	var cells = goodparse.exec($('#notes textarea').text())[1];
+	var names = cells.match(cellnames);
+}

@@ -37,12 +37,14 @@ struct PlexFile {
     PL_SlowChannelHeader cont_head[MAX_SLOW_CHANNELS];
     PL_SlowChannelHeader* cont_info[4];
 
+    bool has_cache;
     FILE* fp;
     unsigned long nframes;
     FrameSet data[ChanType_MAX];
 };
 
-extern PlexFile* plx_open(char* filename, bool recache);
+extern PlexFile* plx_open(char* filename);
+extern void plx_load(PlexFile* plxfile, bool recache);
 extern void plx_close(PlexFile* plxfile);
 
 void plx_save_cache(PlexFile* plxfile);
