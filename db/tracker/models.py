@@ -292,6 +292,11 @@ class TaskEntry(models.Model):
         except:
             js['report'] = dict()
         js['report']['state'] = "Completed"
+
+        decoders = Decoder.objects.filter(entry=self.id)
+        js['bmi'] = list()
+        for dec in decoders:
+            js['bmi'].append(dec.to_json())
         
         return js
 
@@ -337,6 +342,10 @@ class Decoder(models.Model):
     def get(self):
         return cPickle.load(open(self.pickle))
 
+    def to_json(self):
+        cells = self.get().psth.cells
+        return dict(date=self.date, name=self.name, path=self.path, cells=cells)
+
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     local = models.BooleanField()
@@ -352,6 +361,15 @@ class DataFile(models.Model):
 
     def get_path(self):
         return os.path.join(self.system.path, self.path)
+
+    def has_cache(self):
+        if self.system.name != "plexon":
+            return False
+
+        path, fname = os.path.split(self.get_path())
+        fname, ext = os.path.splitext(fname)
+        cache = os.path.join(path, '.%s.cache'%fname)
+        return os.path.exists(cache)
 
     def remove(self, **kwargs):
         os.unlink(self.path)

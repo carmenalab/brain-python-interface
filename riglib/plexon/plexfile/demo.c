@@ -9,7 +9,8 @@ int main(int argc, char** argv) {
         exit(1);
     }
     int i, bad;
-    PlexFile* plxfile = plx_open(argv[1], false);
+    PlexFile* plxfile = plx_open(argv[1]);
+    plx_load(plxfile, false);
     plx_summary(plxfile);
     plx_print_frameset(&(plxfile->data[analog]), 100);
     plx_print_frameset(&(plxfile->data[lfp]), 10);

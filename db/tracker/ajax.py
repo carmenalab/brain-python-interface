@@ -6,12 +6,14 @@ import numpy as np
 from django.http import HttpResponse
 
 from riglib import experiment
+from riglib.plexon import plexfile
 
 import namelist
 from json_param import Parameters
 from tasktrack import Track
-from models import TaskEntry, Feature, Sequence, Task, Generator, Subject
+from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System
 
+import trainbmi
 
 display = Track()
 
@@ -116,4 +118,19 @@ def save_notes(request, idx):
     return _respond(dict(status="success"))
 
 def make_bmi(request):
-    pass
+    kwargs = dict(
+        name=request.POST['bminame'],
+        clsname=request.POST['bmiclass'],
+        entry=request.POST['idx'],
+        cells=request.POST['cells'],
+        binlen=request.POST['binlen']
+    )
+    trainbmi.cache_and_train(**kwargs)
+    return _respond(dict(status="success"))
+
+def plx_info(request, idx):
+    plexon = System.objects.get(name='plexon')
+    df = DataFile.objects.get(entry=idx, system=plexon)
+    plx = plexfile.openFile(df.get_path(), load=False)
+
+    return _respond(dict(length=plx.length, units=plx.get_units()))

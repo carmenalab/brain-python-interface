@@ -10,6 +10,10 @@
 
 #include "plexfile.h"
 
+//Spikes are not strictly in monotonic order, so a binary search may miss a few at the edges
+//This defines how far on each side to search for spikes within the range
+#define SPIKE_SEARCH 200
+
 typedef struct ContInfo {
     unsigned long len;
     unsigned long nchans;
@@ -23,7 +27,7 @@ typedef struct ContInfo {
     
     ChanType type;
     PlexFile* plxfile;
-    unsigned long _fedge[2];
+    long long _fedge[2];
     unsigned long _strunc[2];
     unsigned long _start;
 } ContInfo;
@@ -56,7 +60,7 @@ extern void plx_read_discrete(SpikeInfo* info, Spike* data);
 extern void plx_read_waveforms(SpikeInfo* info, double* data);
 extern void free_spikeinfo(SpikeInfo* info);
 
-unsigned long _binary_search(FrameSet* frameset, TSTYPE ts);
+long long _binary_search(FrameSet* frameset, TSTYPE ts);
 
 
 #endif

@@ -1,10 +1,7 @@
 #include "plexfile.h"
 
-extern PlexFile* plx_open(char* filename, bool recache) {
-    int i;
+extern PlexFile* plx_open(char* filename) {
     long readsize;
-    unsigned long maxts = 0;
-    FILE* fp;
 
     PlexFile* plxfile = (PlexFile*) calloc(1, sizeof(PlexFile));
     plxfile->fp = fopen(filename, "rb");
@@ -16,13 +13,23 @@ extern PlexFile* plx_open(char* filename, bool recache) {
     readsize = plx_get_header(plxfile);
     assert(readsize > 0);
 
-    char* cachename = _plx_cache_name(filename);
+    return plxfile;
+}
+
+extern void plx_load(PlexFile* plxfile, bool recache) {
+    int i;
+    FILE* fp;
+    size_t readsize;
+
+    char* cachename = _plx_cache_name(plxfile->filename);
     if ((fp = fopen(cachename, "rb")) && !recache) {
         printf("Found cache, opening...\n");
         for (i = 0; i < ChanType_MAX; i++) {
             readsize = fread(&(plxfile->data[i].num), sizeof(plxfile->data[i].num), 1, fp);
+            assert(readsize == 1);
             plxfile->data[i].frames = malloc(sizeof(DataFrame)*plxfile->data[i].num);
             readsize = fread(plxfile->data[i].frames, sizeof(DataFrame), plxfile->data[i].num, fp);
+            assert(readsize == plxfile->data[i].num);
         }
         fclose(fp);
     } else {
@@ -33,22 +40,15 @@ extern PlexFile* plx_open(char* filename, bool recache) {
         plx_save_cache(plxfile);
     }
 
-    for (i = 0; i < ChanType_MAX; i++) {
-        plxfile->nchans[i] = 0;
-        if (plxfile->data[i].num > 0) {
-            plxfile->nchans[i] =  plxfile->data[i].frames[0].nblocks;
-            maxts = max(maxts, plxfile->data[i].frames[plxfile->data[i].num-1].ts);
-        }
-    }
-    plxfile->length = maxts / (double) plxfile->header.ADFrequency;
-
-    return plxfile;
+    plxfile->has_cache = true;
 }
 
 extern void plx_close(PlexFile* plxfile) {
     int i;
-    for (i = 0; i < ChanType_MAX; i++)
-        free(plxfile->data[i].frames);
+    if (plxfile->has_cache) {
+        for (i = 0; i < ChanType_MAX; i++)
+            free(plxfile->data[i].frames);
+    }
 
     free(plxfile->filename);
     fclose(plxfile->fp);
@@ -98,23 +98,25 @@ long plx_get_header(PlexFile* plxfile) {
     // Read the spike channel headers
     if(plxfile->header.NumDSPChannels > 0) {
         readsize = fread(&(plxfile->chan_info), sizeof(PL_ChanHeader), plxfile->header.NumDSPChannels, plxfile->fp);
-        printf("Read %lu spike channels\n", readsize);
+        printf("Found %lu spike channels, ", readsize);
     }
 
     // Read the event channel headers
     if(plxfile->header.NumEventChannels > 0) {
         readsize = fread(&(plxfile->event_info), sizeof(PL_EventHeader), plxfile->header.NumEventChannels, plxfile->fp);
-        printf("Read %lu event channels\n", readsize);
+        printf("%lu event channels, ", readsize);
     }
 
     // Read the slow A/D channel headers
     if(plxfile->header.NumSlowChannels) {
         //assert(plxfile->header.NumSlowChannels >= 3*plxfile->header.NumDSPChannels);
         readsize = fread(&(plxfile->cont_head), sizeof(PL_SlowChannelHeader), plxfile->header.NumSlowChannels, plxfile->fp);
-        printf("Read %lu slow channels\n", readsize);
+        printf("and %lu slow channels\n", readsize);
         for (i = 0; i < 4; i++)
             plxfile->cont_info[i] = &(plxfile->cont_head[i*plxfile->header.NumDSPChannels]);
     }
+
+    plxfile->length = plxfile->header.LastTimestamp / plxfile->header.ADFrequency;
 
     // save the position in the PLX file where data block begin
     data_start = sizeof(PL_FileHeader) + plxfile->header.NumDSPChannels*sizeof(PL_ChanHeader)

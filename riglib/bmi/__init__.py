@@ -70,11 +70,34 @@ class MotionBMI(BMI):
         assert len(kin) == len(neurons)
         return kin, neurons
 
-class VelocityBMI(MotionBMI):
+class ManualBMI(MotionBMI):
+    def __init__(self, states=['origin_hold', 'terminus', 'terminus_hold', 'reward'], *args, **kwargs):
+        super(ManualBMI, self).__init__(*args, **kwargs)
+        self.states = states
+
+    def get_data(self):
+        h5 = tables.openFile(self.files['hdf'])
+        states = h5.root.motiontracker_msgs[:]
+        names = dict((n, i) for i, n in enumerate(np.unique(states['msg'])))
+        target = np.array([names[n] for n in self.states])
+        seq = np.array([(names[n], t) for n, t, in states])
+
+        idx = np.convolve(target, target, 'valid')
+        found = np.convolve(seq[:,0], target, 'valid') == idx
+
+        slices = states[found]['time'].reshape(-1, 2)
+        t, m, d = h5.root.motiontracker.shape
+        mask = np.ones((t/4, m, d), dtype=bool)
+        for s, e in slices:
+            mask[s/4:e/4] = False
+        kin, neurons = super(ManualBMI, self).get_data()
+        return np.ma.array(kin, mask=mask), neurons
+
+class VelocityBMI(ManualBMI):
     def get_data(self):
         kin, neurons = super(VelocityBMI, self).get_data()
         velocity = np.diff(kin[...,:3], axis=0)
-        kin = np.hstack([kin[1:,:,:3], velocity*60])
+        kin = np.hstack([kin[1:,:,:3], velocity])
         return kin, neurons[1:]
 
 from kalman import KalmanFilter
