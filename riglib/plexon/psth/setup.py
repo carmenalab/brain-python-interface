@@ -7,8 +7,10 @@ from Cython.Distutils import build_ext
 
 # ezrange extension module
 _psth = Extension("cpsth",
-                   ["cpsth.pyx"],
-                   define_macros = [('DEBUG', 1)],
+                   ["cpsth.pyx", 'psth.c'],
+                   define_macros = [('DEBUG', None)],
+                       extra_compile_args=["-g"],
+    extra_link_args=["-g"],
                    )
 
 # ezrange setup

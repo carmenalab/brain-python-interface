@@ -10,13 +10,18 @@ double boxcar(double start, double ts, double* params) {
     return (double) (start - ts < params[0]);
 }
 
-extern BinInfo* bin_init(char* bufchan, size_t clen, double binlen, char* funcname, double* params) {
+double gaussian(double start, double ts, double* params) {
+    //First parameter is for box width
+    return (double) (start - ts < params[0]);
+}
+
+extern BinInfo* bin_init(uint* chans, size_t clen, double binlen, char* funcname, double* params) {
     int i, idx;
     uint nparams = 0;
-    Channel* channels = (Channel*) bufchan;
+    Channel* channels = (Channel*) chans;
     BinInfo* info = (BinInfo*) calloc(1, sizeof(BinInfo));
-    info->nunits = clen / sizeof(Channel);
     info->binlen = binlen;
+    info->nunits = clen;
 
     for (i = 0; i < info->nunits; i++) {
         idx = _hash_chan((ushort) channels[i].chan, (ushort) channels[i].unit);
@@ -28,14 +33,14 @@ extern BinInfo* bin_init(char* bufchan, size_t clen, double binlen, char* funcna
 
     if (strcmp(funcname, "boxcar") == 0) {
         #ifdef DEBUG
-        printf("Using boxcar filter\n");
+        printf("Using boxcar filter, binlen=%f\n", binlen);
         #endif
         info->binfunc = &boxcar;
         nparams = 0;
         info->params[0] = binlen;
     } else if (strcmp(funcname, "gaussian") == 0) {
         #ifdef DEBUG
-        printf("Using gaussian filter\n");
+        printf("Using gaussian filter, mean=%f, std=%f\n", params[0], params[1]);
         #endif
         info->binfunc = &gaussian;
         nparams = 2;
@@ -54,28 +59,32 @@ extern void bin_spikes(BinInfo* info, Spike* spikes, uint nspikes, double* outpu
     double sdiff, val, curtime = spikes[nspikes-1].ts;
 
     //Since spike times are only vaguely ordered, find the largest timestamp
-    for (i = nspikes-1; i > nspikes-100 && i >= 0; i--) {
+    for (i = nspikes-1; i > nspikes-100 && i > 0; i--) {
         if (spikes[i].ts > curtime)
             curtime = spikes[i].ts;
     }
 
     //Search through spikes in reverse order
-    for (i = nspikes-1; i >= 0; i--) {
-        idx = _hash_chan((ushort) spikes[i].chan, (ushort) spikes[i].chan);
+    for (i = nspikes-1; i > 0; i--) {
+        idx = _hash_chan((ushort) spikes[i].chan, (ushort) spikes[i].unit);
         sdiff = curtime - spikes[i].ts;
         //Break when the time is greater than spike fuzz
-        if (sdiff >= info->binlen + SPIKE_FUZZ)
+        if (sdiff >= info->binlen + SPIKE_FUZZ) {
             return;
+        }
 
         //If the unit is in list and it's within binlen, count
         if (info->chanmap[idx] > 0 && 0 <= sdiff && sdiff < info->binlen) {
             val = (*(info->binfunc))(curtime, spikes[i].ts, info->params);
             output[info->chanmap[idx] - 1] += val;
+            #ifdef DEBUG
+            printf("Adding %f to (%d, %d)\n", val, spikes[i].chan, spikes[i].unit);
+            #endif
         }
     }
 
     #ifdef DEBUG
-    printf('End of spikes -- not enough for full counting\n');
+    printf("End of spikes -- not enough for full counting\n");
     #endif
 }
 
@@ -91,7 +100,7 @@ extern BinInc* bin_incremental(BinInfo* info, double* times, uint tlen) {
     return inc;
 }
 
-extern bool bin_inc_spike(BinInc* inc, Spike* spike) {
+extern bool bin_inc_spike(BinInc* inc, Spike* spike, double* output) {
     uint i, idx, chan;
     double binlen, sdiff, curtime, val;
     SpikeBuf* buf = &(inc->spikes);
@@ -103,7 +112,6 @@ extern bool bin_inc_spike(BinInc* inc, Spike* spike) {
 
     sdiff = buf->idx == 0 ? 0 : spike->ts - last->ts;
     binlen = inc->info->binlen + SPIKE_FUZZ;
-    curtime = inc->times[inc->_tidx];
 
     //If time range in buffer is smaller than the bin length
     if (sdiff < binlen && (buf->idx + 1) % buf->size == 0) {
@@ -111,14 +119,16 @@ extern bool bin_inc_spike(BinInc* inc, Spike* spike) {
         buf->data = realloc(buf->data, buf->size*buf->size*sizeof(Spike));
         buf->size = buf->size * buf->size;
         #ifdef DEBUG
-        printf("Expanding spike buffer to %d\n"%buf->size);
+        printf("Expanding spike buffer to %d\n", buf->size);
         #endif
     }
 
     idx = buf->idx++ % buf->size;
     memcpy(&(buf->data[idx]), (void*) spike, sizeof(Spike));
 
-    if (curtime - last->ts > binlen) {
+    //We've exceeded the current bin time, count up all the spikes
+    curtime = inc->times[inc->_tidx];
+    if (curtime - last->ts >= binlen) {
         for (i = 0; i < buf->size; i++) {
             idx = (buf->idx - i - 1) % buf->size;
             sptr = &(buf->data[idx]);
@@ -126,7 +136,7 @@ extern bool bin_inc_spike(BinInc* inc, Spike* spike) {
             chan = _hash_chan((ushort) sptr->chan, (ushort) sptr->unit);
             if (inc->info->chanmap[chan] > 0 && 0 <= sdiff && sdiff < inc->info->binlen) {
                 val = (*(inc->info->binfunc))(curtime, sptr->ts, inc->info->params);
-                inc->output[inc->info->chanmap[chan] - 1] += val;
+                output[inc->info->chanmap[chan] - 1] += val;
             }
         }
         inc->_tidx ++;
@@ -136,13 +146,11 @@ extern bool bin_inc_spike(BinInc* inc, Spike* spike) {
     return false;
 }
 
-extern void bin_inc_get(BinInc* inc, double* data, double* ts) {
-    uint i;
-    memcpy(data, inc->output, sizeof(double)*inc->info->nunits);
-    for (i = 0; i < inc->info->nunits; i++) {
-        inc->output[i] = 0;
-    }
-    if (ts != NULL) {
-        *ts = inc->times[inc->_tidx++];
-    }
+extern void free_bininfo(BinInfo* info) {
+    free(info);
+}
+
+extern void free_bininc(BinInc* inc) {
+    free(inc->times);
+    free(inc);
 }
