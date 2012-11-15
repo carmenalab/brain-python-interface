@@ -15,7 +15,7 @@ cdef extern from "psth.h":
     ctypedef struct Spike:
         pass
 
-    BinInfo* bin_init(uint* chans, size_t clen, double binlen, char* funcname, double* params)
+    BinInfo* bin_init(int* chans, size_t clen, double binlen, char* funcname, double* params)
     void bin_spikes(BinInfo* info, Spike* spikes, uint nspikes, double* output)
 
     BinInc* bin_incremental(BinInfo* info, double* times, uint tlen)

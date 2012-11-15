@@ -52,7 +52,7 @@ unsigned int _hash_chan(ushort chan, ushort unit);
 double boxcar(double start, double ts, double* params);
 double gaussian(double start, double ts, double* params);
 
-extern BinInfo* bin_init(uint* chans, size_t clen, double binlen, char* funcname, double* params);
+extern BinInfo* bin_init(int* chans, size_t clen, double binlen, char* funcname, double* params);
 extern void bin_spikes(BinInfo* info, Spike* spikes, uint nspikes, double* output);
 
 extern BinInc* bin_incremental(BinInfo* info, double* times, uint tlen);

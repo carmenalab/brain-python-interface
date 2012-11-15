@@ -15,7 +15,7 @@ double gaussian(double start, double ts, double* params) {
     return (double) (start - ts < params[0]);
 }
 
-extern BinInfo* bin_init(uint* chans, size_t clen, double binlen, char* funcname, double* params) {
+extern BinInfo* bin_init(int* chans, size_t clen, double binlen, char* funcname, double* params) {
     int i, idx;
     uint nparams = 0;
     Channel* channels = (Channel*) chans;

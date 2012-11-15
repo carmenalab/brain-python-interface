@@ -5,7 +5,7 @@ cimport cpsth
 cdef class SpikeBin:
     cdef cpsth.BinInfo* info
     
-    def __cinit__(self, np.ndarray[np.uint32_t, ndim=2] channels, double binlen, funcname='boxcar', params=None):
+    def __cinit__(self, np.ndarray[np.int32_t, ndim=2] channels, double binlen, funcname='boxcar', params=None):
 
         cdef double* _params
         cdef np.ndarray[np.double_t] np_param
@@ -16,7 +16,7 @@ cdef class SpikeBin:
             np_param[:] = params['mean'], params['std']
             _params = <double*> np_param.data
 
-        self.info = cpsth.bin_init(<uint*> channels.data, len(channels), binlen, funcname, _params)
+        self.info = cpsth.bin_init(<int*> channels.data, len(channels), binlen, funcname, _params)
         if self.info is NULL:
             raise MemoryError
 
