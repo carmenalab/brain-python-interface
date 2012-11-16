@@ -59,25 +59,38 @@ class KalmanFilter(VelocityBMI):
             If true, a state element that is always 1 for offset in ML fitting
         """
         self.include_offset = include_offset
+        assert kindata.shape[1] == neuraldata.shape[1]
 
-        num_kindata, T = kindata.shape
-        X = np.mat(kindata)
-        if include_offset: 
-            X = np.vstack([ X, np.ones([1,T]) ])
-        Y = np.mat(neuraldata)
+        if isinstance(kindata, np.ma.core.MaskedArray):
+            mask = ~kindata.mask[0,:] # NOTE THE INVERTER 
+            inds = np.nonzero([ mask[k]*mask[k+1] for k in range(len(mask)-1)])[0] 
+
+            X = np.mat(kindata[:,mask])
+            T = len(np.nonzero(mask)[0])
+            if include_offset: 
+                X = np.vstack([ X, np.ones([1,T]) ])
+            Y = np.mat(neuraldata[:,mask])
+            X_1 = np.mat(kindata[:, inds])
+            X_2 = np.mat(kindata[:, inds+1])
+        else:
+            num_kindata, T = kindata.shape
+            X = np.mat(kindata)
+            if include_offset: 
+                X = np.vstack([ X, np.ones([1,T]) ])
+            Y = np.mat(neuraldata)
+    
+            # ML estimate of A and W
+            X_1 = X[:,:-1]
+            X_2 = X[:,1:]
     
         # ML estimate of C and Q
         C = Y*np.linalg.pinv(X)
         Q = np.cov( Y-C*X, bias=1 )
         
-        # ML estimate of A and W
-        X_1 = X[:,:-1]
-        X_2 = X[:,1:]
-    
-        if include_offset:
-            A = np.mat(np.zeros([num_kindata+1, num_kindata+1]))
-        else:
-            A = np.mat(np.zeros([num_kindata, num_kindata]))
+        #if include_offset:
+        #    A = np.mat(np.zeros([num_kindata+1, num_kindata+1]))
+        #else:
+        #    A = np.mat(np.zeros([num_kindata, num_kindata]))
             
         A = X_2*np.linalg.pinv(X_1)
         W = np.cov(X_2 - A*X_1, bias=1)
