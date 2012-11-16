@@ -2,10 +2,12 @@ import numpy as np
 from scipy.interpolate import Rbf
 
 class Profile(object):
-    def __init__(self, data, actual, system=None):
+    def __init__(self, data, actual, system=None, **kwargs):
         self.data = np.array(data)
         self.actual = np.array(actual)
         self.system = system
+        self.kwargs = kwargs
+        self._init()
     
     def _init(self):
         #Sanitize the data, clearing out entries which are invalid
@@ -14,22 +16,30 @@ class Profile(object):
         self.actual = self.actual[valid,:]
 
     def performance(self, blocks=5):
+        '''Perform cross-validation to check the performance of this decoder.
+        
+        This function holds out data, trains new decoders using only the training data
+        to check the actual performance of the current decoder.'''
+        valid = ~np.isnan(self.data).any(1)
+        data = self.data[valid]
+        actual = self.actual[valid]
+
         nd = self.data.shape[1]
         dim = tuple(range(nd)), tuple(range(nd, 2*nd))
-        ccs = np.zeros((blocks,))
 
         order = np.random.permutation(len(self.data))
+        idx = set(order)
         bedge = len(order) / float(blocks)
+
+        ccs = np.zeros((blocks,))
         for b in xrange(blocks):
-            idx = order[int(b*bedge):int((b+1)*bedge)]
-            valid = ~np.isnan(self.data[idx]).any(1)
-            data = self.data[idx][valid]
-            actual = self.actual[idx][valid]
-            corr = np.corrcoef(self(data).T, actual.T)
-            print corr
+            val = order[int(b*bedge):int((b+1)*bedge)]
+            trn = np.array(list(idx - set(val)))
+
+            cal = self.__class__(data[trn], actual[trn], **self.kwargs)
+            corr = np.corrcoef(cal(data[val]).T, actual[val].T)
             ccs[b] = corr[dim].mean()
 
-        print ccs
         return ccs
 
     def __call__(self, data):
@@ -48,9 +58,8 @@ class EyeProfile(Profile):
 class ThinPlate(Profile):
     '''Interpolates arbitrary input dimensions into arbitrary output dimensions using thin plate splines'''
     def __init__(self, data, actual, smooth=0, **kwargs):
-        super(ThinPlate, self).__init__(data, actual, **kwargs)
         self.smooth = smooth
-        self._init()
+        super(ThinPlate, self).__init__(data, actual, **kwargs)
     
     def _init(self):
         super(ThinPlate, self)._init()
@@ -64,8 +73,10 @@ class ThinPlate(Profile):
         return np.array([func(*raw) for func in self.funcs]).T
     
     def __getstate__(self):
-        return dict(data=self.data, actual=self.actual, smooth=self.smooth)
-    
+        state = self.__dict__.copy()
+        del state['funcs']
+        return state
+
     def __setstate__(self, state):
         super(ThinPlate, self).__setstate__(state)
         self._init()
@@ -73,7 +84,7 @@ class ThinPlate(Profile):
 class ThinPlateEye(ThinPlate, EyeProfile):
     pass
 
-def crossval(cls, data, actual, proportion=0.7, parameter="smooth", xval_range=np.linspace(2,10,20)**2):
+def crossval(cls, data, actual, proportion=0.7, parameter="smooth", xval_range=np.linspace(0,10,20)**2):
     actual = np.array(actual)
     data = np.array(data)
 
