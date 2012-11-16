@@ -9,17 +9,41 @@ class Profile(object):
     
     def _init(self):
         #Sanitize the data, clearing out entries which are invalid
-        pass
+        valid = ~np.isnan(self.data).any(1)
+        self.data = self.data[valid,:]
+        self.actual = self.actual[valid,:]
+
+    def performance(self, blocks=5):
+        nd = self.data.shape[1]
+        dim = tuple(range(nd)), tuple(range(nd, 2*nd))
+        ccs = np.zeros((blocks,))
+
+        order = np.random.permutation(len(self.data))
+        bedge = len(order) / float(blocks)
+        for b in xrange(blocks):
+            idx = order[int(b*bedge):int((b+1)*bedge)]
+            valid = ~np.isnan(self.data[idx]).any(1)
+            data = self.data[idx][valid]
+            actual = self.actual[idx][valid]
+            corr = np.corrcoef(self(data).T, actual.T)
+            print corr
+            ccs[b] = corr[dim].mean()
+
+        print ccs
+        return ccs
+
+    def __call__(self, data):
+        raise NotImplementedError
 
 class EyeProfile(Profile):
     def __init__(self, data, actual, **kwargs):
         super(EyeProfile, self).__init__(data, actual, system="eyetracker", **kwargs)
     
     def _init(self):
+        super(EyeProfile, self)._init()
         valid = -(self.data == (-32768, -32768)).all(1)
         self.data = self.data[valid,:]
         self.actual = self.actual[valid,:]
-        super(EyeProfile, self)._init()
 
 class ThinPlate(Profile):
     '''Interpolates arbitrary input dimensions into arbitrary output dimensions using thin plate splines'''
@@ -36,7 +60,8 @@ class ThinPlate(Profile):
             self.funcs.append(f)
         
     def __call__(self, data):
-        return np.array([func(d) for func, d in zip(self.funcs, np.array(data).T)]).T
+        raw = np.atleast_2d(data).T
+        return np.array([func(*raw) for func in self.funcs]).T
     
     def __getstate__(self):
         return dict(data=self.data, actual=self.actual, smooth=self.smooth)
@@ -45,26 +70,17 @@ class ThinPlate(Profile):
         super(ThinPlate, self).__setstate__(state)
         self._init()
 
-class ThinPlateEye(EyeProfile, ThinPlate):
+class ThinPlateEye(ThinPlate, EyeProfile):
     pass
 
-def crossval(cls, data, actual, proportion=0.7, parameter="smooth", 
-    xval_range=np.linspace(0,5,20)**2):
+def crossval(cls, data, actual, proportion=0.7, parameter="smooth", xval_range=np.linspace(2,10,20)**2):
     actual = np.array(actual)
     data = np.array(data)
-    valid = ~np.isnan(data[:,0])
-    data = data[valid]
-    actual = actual[valid]
 
-    idx = np.random.permutation(len(actual))
-    border = int(proportion*len(actual))
-    trn, val = idx[:border], idx[border:]
-
-    dim = tuple(range(data.shape[1])), tuple(range(data.shape[1], data.shape[1]*2))
     ccs = np.zeros(len(xval_range))
     for i, smooth in enumerate(xval_range):
-        cal = cls(data[trn], actual[trn], **{parameter:smooth})
-        ccs[i] = np.corrcoef(cal(data[val]).T, actual[val].T)[dim].mean()
+        cal = cls(data, actual, **{parameter:smooth})
+        ccs[i] = cal.performance().mean()
     
     best = xval_range[ccs.argmax()]
     return cls(data, actual, **{parameter:best}), best, ccs
