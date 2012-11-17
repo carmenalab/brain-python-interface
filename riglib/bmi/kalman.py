@@ -1,5 +1,5 @@
 import numpy as np
-from . import VelocityBMI
+from . import ManualBMI
 
 class GaussianState(object):
     def __init__(self, mean, cov):
@@ -38,7 +38,7 @@ class GaussianState(object):
         if isinstance(other, GaussianState):
             return GaussianState( self.mean+other.mean, self.cov+other.cov )
 
-class KalmanFilter(VelocityBMI):
+class KalmanFilter(ManualBMI):
     def __init__(self, *args, **kwargs):
         super(KalmanFilter, self).__init__(*args, **kwargs)
         kindata, neurons = self.get_data()
@@ -67,11 +67,15 @@ class KalmanFilter(VelocityBMI):
 
             X = np.mat(kindata[:,mask])
             T = len(np.nonzero(mask)[0])
-            if include_offset: 
-                X = np.vstack([ X, np.ones([1,T]) ])
+
             Y = np.mat(neuraldata[:,mask])
             X_1 = np.mat(kindata[:, inds])
             X_2 = np.mat(kindata[:, inds+1])
+            if include_offset: 
+                X = np.vstack([ X, np.ones([1,T]) ])
+                X_1 = np.vstack([ X_1, np.ones([1, len(inds)])])
+                X_2 = np.vstack([ X_2, np.ones([1, len(inds)])])
+
         else:
             num_kindata, T = kindata.shape
             X = np.mat(kindata)

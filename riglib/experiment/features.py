@@ -269,6 +269,7 @@ class SpikeBMI(SpikeData):
     def init(self):
         self.plexon_channels = self.bmi.psth.chans[:,0]
         super(SpikeBMI, self).init()
+        print "init bmi"
         self.neurondata.filter = self.bmi
 
 
