@@ -4,7 +4,7 @@
 		<fieldset id="features">
 			<legend>Features</legend>
 			<ul>{% for f in features %}<li title="{{f.desc}}">
-				<input type="checkbox" name="{{f.name}}" id="{{f.name}}" value="{{f.id}}">
+				<input type="checkbox" name="{{f.name}}" id="feat_{{f.name}}" value="{{f.id}}">
 				<label for="{{f.name}}">{{f.name}}</label>
 			</li>{% endfor %}
 			</ul>
@@ -52,6 +52,7 @@
 		<fieldset id="files">
 			<legend>Download Files</legend>
 		</fieldset>
+		{% include "bmi.html" %}
 	</div>
 	<input id="copybtn" type="button" value="Copy parameters">
 	<div class="clear"></div>

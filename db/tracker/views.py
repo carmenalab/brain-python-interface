@@ -18,6 +18,7 @@ def list(request):
         features=Feature.objects.order_by("name").all(), 
         generators=Generator.objects.order_by("name").all(),
         hostname=request.get_host(),
+        bmis=[v.__name__ for v in namelist.bmis.values()],
     )
     if display.task is not None:
         fields['running'] = display.task.saveid

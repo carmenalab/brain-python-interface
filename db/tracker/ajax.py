@@ -1,3 +1,4 @@
+import os
 import json
 import cPickle
 import xmlrpclib
@@ -118,6 +119,10 @@ def save_notes(request, idx):
     return _respond(dict(status="success"))
 
 def make_bmi(request):
+    collide = Decoder.objects.filter(entry=request.POST['idx'], name=request.POST['bminame'])
+    if len(collide) > 0:
+        return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
+
     kwargs = dict(
         name=request.POST['bminame'],
         clsname=request.POST['bmiclass'],
@@ -127,10 +132,4 @@ def make_bmi(request):
     )
     trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))
-
-def plx_info(request, idx):
-    plexon = System.objects.get(name='plexon')
-    df = DataFile.objects.get(entry=idx, system=plexon)
-    plx = plexfile.openFile(df.get_path(), load=False)
-
-    return _respond(dict(length=plx.length, units=plx.get_units()))
+    

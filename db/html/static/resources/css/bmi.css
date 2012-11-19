@@ -1,0 +1,43 @@
+.bmibtn { float:left; }
+#bmiwrap {
+    float:left;
+}
+#cellselect {
+    float:left;
+}
+#cellselect select {
+    width:100px;
+    max-height:200px;
+    height:150px;
+    font-size:75%;
+}
+#cellnames {
+    width:100%;
+    height:8em;
+    font-size:80%;
+    -moz-box-sizing:border-box;
+    box-sizing:border-box;
+}
+
+fieldset#bmi {
+    border:1px solid;
+    border-radius:4px;
+    padding:0.5em;
+    margin:0.5em;
+}
+
+#tselect input,div {
+    float:left;
+}
+#tselect input {
+    border:none;
+    padding:none;
+    width:3em;
+}
+#tstart {
+    text-align:right;
+}
+#tslider { 
+    width:15em;
+    margin: .25em .75em;
+}

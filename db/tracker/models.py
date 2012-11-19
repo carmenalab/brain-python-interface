@@ -293,10 +293,24 @@ class TaskEntry(models.Model):
             js['report'] = dict()
         js['report']['state'] = "Completed"
 
-        decoders = Decoder.objects.filter(entry=self.id)
-        js['bmi'] = list()
-        for dec in decoders:
-            js['bmi'].append(dec.to_json())
+        try:
+            from riglib.plexon import plexfile
+            plexon = System.objects.get(name='plexon')
+            df = DataFile.objects.get(entry=self.id, system=plexon)
+
+            plx = plexfile.openFile(df.get_path(), load=False)
+            path, name = os.path.split(df.get_path())
+            name, ext = os.path.splitext(name)
+            js['bmi'] = dict(_plxinfo=dict(
+                length=plx.length, 
+                units=plx.get_units(), 
+                name=name))
+        except (ObjectDoesNotExist, AssertionError):
+            print "No plexon file found"
+            js['bmi'] = dict(_plxinfo=None)
+
+        for dec in Decoder.objects.filter(entry=self.id):
+            js['bmi'][dec.name] = dec.to_json()
         
         return js
 
@@ -343,8 +357,14 @@ class Decoder(models.Model):
         return cPickle.load(open(self.pickle))
 
     def to_json(self):
-        cells = self.get().psth.cells
-        return dict(date=self.date, name=self.name, path=self.path, cells=cells)
+        dec = self.get()
+        return dict(
+            date=self.date, 
+            name=self.name,
+            cls=dec.__class__.__name__,
+            path=self.path, 
+            cells=dec.psth.cells, 
+            tslice=dec.tslice)
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)

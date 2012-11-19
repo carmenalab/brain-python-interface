@@ -58,6 +58,7 @@ var TaskInterface =  new function() {
 			this.disable();
 			$(".startbtn").hide()
 			$("#copybtn").show();
+			$("#bmi").hide();
 			this.report.deactivate();
 		},
 		stopped: function() {
@@ -69,6 +70,7 @@ var TaskInterface =  new function() {
 			$("#startbtn").show()
 			$("#testbtn").show()
 			$("#copybtn").hide();
+			$("#bmi").hide();
 		},
 		running: function(info) {
 			$(window).unbind("unload");
@@ -78,6 +80,7 @@ var TaskInterface =  new function() {
 			$("#startbtn").hide()
 			$("#testbtn").hide()
 			$("#copybtn").hide();
+			$("#bmi").hide();
 			this.report.activate();
 		},
 		testing: function(info) {
@@ -88,6 +91,7 @@ var TaskInterface =  new function() {
 			$("#startbtn").hide()
 			$("#testbtn").hide()
 			$("#copybtn").hide()
+			$("#bmi").hide();
 			this.report.activate();
 		},
 		error: function(info) {
@@ -96,6 +100,7 @@ var TaskInterface =  new function() {
 			this.disable();
 			$(".startbtn").hide();
 			$("#copybtn").show();
+			$("#bmi").hide();
 			this.report.deactivate();
 		},
 		errtest: function(info) {
@@ -106,6 +111,7 @@ var TaskInterface =  new function() {
 			$("#startbtn").show();
 			$("#testbtn").show();
 			$("#copybtn").hide();
+			$("#bmi").hide();
 			this.report.deactivate();
 		}
 	};
@@ -216,8 +222,15 @@ TaskEntry.prototype.update = function(info) {
 			numfiles++;
 		}
 	}
-	if (numfiles > 0)
+
+	if (numfiles > 0) {
 		$("#files").append(this.filelist).show();
+		var found = false;
+		for (var sys in info.datafiles)
+			found = found || sys == "plexon"
+		if (found)
+			this.bmi = new BMI(info.bmi, info.notes);
+	}
 
 	if (info.sequence) {
 		$("#sequence").show()
@@ -230,6 +243,7 @@ TaskEntry.copy = function() {
 	info.report = {};
 	info.datafiles = {};
 	info.notes = "";
+	$("#notes textarea").val("");
 	te = new TaskEntry(null, info);
 }
 TaskEntry.prototype.destroy = function() {

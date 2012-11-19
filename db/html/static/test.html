@@ -1,18 +1,88 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
 <head>
-<title>Test</title>
-<script type='text/javascript' src='resources/js/jquery-1.6.2.min.js'></script>
-<script type='text/javascript' src='resources/js/parse_traits.js'></script>
+    <meta charset="utf-8" />
+<link rel='stylesheet' type='text/css' href='http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.0/themes/base/jquery-ui.css' />
+<link rel='stylesheet' type='text/css' href='resources/css/bmi.css' />
+<script type='text/javascript' src='http://code.jquery.com/jquery.min.js'></script>
+<script type='text/javascript' src='http://code.jquery.com/ui/1.9.1/jquery-ui.min.js'></script>
+<script type='text/javascript' src='resources/js/bmi.js'></script>
 <script type='text/javascript'>
-    desc = {"origin_size": {"default": 1, "type": "Float", "desc": "Radius of origin targets"}, "exit_radius": {"default": 1.5, "type": "Float", "desc": "Multiplier for the actual radius which is considered \'exiting\' the target"}, "angle": {"default": 90, "type": "Float", "desc": "Angular size of movement zone in degrees"}, "marker_count": {"default": 8, "type": "Int", "desc": "Number of markers to return"}, "reward_time": {"default": 0.5, "type": "Float", "desc": "Length of juice reward"}, "hold_penalty_time": {"default": 3, "type": "Float", "desc": "Length of penalty time for target hold error"}, "rand_start": {"default": [0.5, 2.0], "type": "Tuple", "desc": "Start interval"}, "direction_penalty_time": {"default": 1, "type": "Float", "desc": "Length of penalty time for moving cursor in wrong direction"}, "origin_hold_time": {"default": 2, "type": "Float", "desc": "Length of hold required at origin"}};
+var obj = {
+    "_plxinfo": {"units": [[101, 1], [102, 1]], "length": 218.241},
+    "cart20121106_04": {"units":[[101,1]], "tslice":[30,210], 'cls':'KalmanFilter'},
+    'cart20121106_04_test':{"units":[[101,1], [102,1]], "tslice":[10,150], 'cls':'KalmanFilter'},
+}
+var notes = 'This is testing the notes\n good cells: \n22b, 23a, 24a, 25a, 26a, 27a, 28a, 29a, 30b, 31a, 32b, 43b, 64a, 72a, 75a, 76a, 90b, 102a, 103a, 108a, 109a, 110b, 111a, 112a, 112b, 115a, 117a, 121b, 126a, 128a\nblah blah blah!';
 
-    var params = new Parameters(desc);
-    $(document).ready(function() {
-        $("body").append(params.obj);
-    })
+
+var cells;
+$(document).ready(function() {
+    cells = new BMI(obj, notes);
+});
 </script>
 </head>
-<body>
+<fieldset id='bmi'>
+<legend>Train a BMI</legend>
+    <div id='bmiwrap'>
+    <table id='bmiinfo'>
+        <tr>
+            <td>
+                <label for='bmiclass'>BMI Class:</label>
+            </td>
+            <td>
+                <select id='bmiclass'>
+                    <option>KalmanFilter</option>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td><label for='bminame'>Name</label>
+            </td>
+            <td><select id='bminame' />
+            </td>
+        </tr>
+        <tr>
+            <td id='tselect' colspan='2'>
+                <input id='tstart' />
+                <div id='tslider'></div>
+                <input id='tend' />
+            </td>
+        </tr>
+        <tr>
+            <td colspan='2'>
+                <input id='bmitrain' class='bmibtn' type='button' value='Train' />
+                <input id='bmicancel' class='bmibtn' type='button' value='Cancel' />
+            </td>
+        </tr>
+    </table>
+    </div>
+    <table id='cellselect'>
+        <tr>
+            <th>Available</th>
+            <th></th>
+            <th>Selected</th>
+        </tr>
+        <tr>
+            <td>
+                <select id='available' multiple='multiple'></select>
+            </td>
+            <td>
+                <input type='button' id='makecell' value='>>'/>
+                <br />
+                <br />
+                <input type='button' id='makeavail' value='<<'/>
+            </td>
+            <td>
+                <select id='cells' multiple='multiple'>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td colspan='3'><textarea id='cellnames'></textarea>
+            </td>
+        </tr>
+    </table>
+</fieldset>
 </body>
 </html>

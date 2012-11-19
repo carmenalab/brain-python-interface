@@ -1,0 +1,64 @@
+<fieldset id='bmi'>
+<legend>BMI</legend>
+    <div id='bmiwrap'>
+    <table id='bmiinfo'>
+        <tr>
+            <td><label for='bminame'>Name</label>
+            </td>
+            <td><select id='bminame' />
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <label for='bmiclass'>Class:</label>
+            </td>
+            <td>
+                <select id='bmiclass'>
+                    {% for name in bmis %}
+                    <option>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td id='tselect' colspan='2'>
+                <input id='tstart' />
+                <div id='tslider'></div>
+                <input id='tend' />
+            </td>
+        </tr>
+        <tr>
+            <td colspan='2'>
+                <input id='bmitrain' class='bmibtn' type='button' value='Train' />
+                <input id='bmicancel' class='bmibtn' type='button' value='Cancel' />
+            </td>
+        </tr>
+    </table>
+    </div>
+    <table id='cellselect'>
+        <tr>
+            <th>Available</th>
+            <th></th>
+            <th>Selected</th>
+        </tr>
+        <tr>
+            <td>
+                <select id='available' multiple='multiple'></select>
+            </td>
+            <td>
+                <input type='button' id='makecell' value='>>'/>
+                <br />
+                <br />
+                <input type='button' id='makeavail' value='<<'/>
+            </td>
+            <td>
+                <select id='cells' multiple='multiple'>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td colspan='3'><textarea id='cellnames'></textarea>
+            </td>
+        </tr>
+    </table>
+</fieldset>
