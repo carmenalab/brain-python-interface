@@ -64,21 +64,13 @@ class MotionBMI(BMI):
         #Grab masked data, filter out interpolated data
         motion = tables.openFile(self.files['hdf']).root.motiontracker
         t, m, d = motion.shape
-<<<<<<< HEAD
         motion = motion[np.tile(self.tmask, [d,m,1]).T].reshape(-1, 4, m, d)
-=======
-        motion = motion[:].reshape(-1, 4, m, d)
->>>>>>> master
         invalid = np.logical_and(motion[...,-1] == 4, motion[..., -1] < 0)
         motion[invalid] = 0
         kin = motion.sum(1)
-<<<<<<< HEAD
+        
         neurows = rows[self.tmask][3::4]
         neurons = np.array([self.psth(plx.spikes[r-self.binlen-0.1:r]) for r in neurows])
-=======
-
-        neurons = np.array([self.psth(plx.spikes[r-self.binlen*2:r]) for r in rows[mask][3::4]])
->>>>>>> master
         assert len(kin) == len(neurons)
         return kin, neurons
 
