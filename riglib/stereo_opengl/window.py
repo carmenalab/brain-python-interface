@@ -41,7 +41,6 @@ class Window(LogExperiment):
 
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.NOFRAME
-
         try:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,1)
             pygame.display.set_mode(self.window_size, flags)

@@ -39,8 +39,11 @@ class DataSource(mp.Process):
 
     def run(self):
         print "Starting datasource %r"%self.source
-        system = self.source(**self.source_kwargs)
-        system.start()
+        try:
+            system = self.source(**self.source_kwargs)
+            system.start()
+        except:
+            self.status.value = -1
         streaming = True
         size = self.slice_size
         while self.status.value > 0:
@@ -88,6 +91,9 @@ class DataSource(mp.Process):
         print "ended datasource %r"%self.source
 
     def get(self, all=False):
+        if self.status.value <= 0:
+            raise Exception('Error starting datasource')
+            
         self.lock.acquire()
         i = (self.idx.value % self.max_len) * self.slice_size
         if all:

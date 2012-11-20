@@ -64,13 +64,21 @@ class MotionBMI(BMI):
         #Grab masked data, filter out interpolated data
         motion = tables.openFile(self.files['hdf']).root.motiontracker
         t, m, d = motion.shape
+<<<<<<< HEAD
         motion = motion[np.tile(self.tmask, [d,m,1]).T].reshape(-1, 4, m, d)
+=======
+        motion = motion[:].reshape(-1, 4, m, d)
+>>>>>>> master
         invalid = np.logical_and(motion[...,-1] == 4, motion[..., -1] < 0)
         motion[invalid] = 0
-        
         kin = motion.sum(1)
+<<<<<<< HEAD
         neurows = rows[self.tmask][3::4]
         neurons = np.array([self.psth(plx.spikes[r-self.binlen-0.1:r]) for r in neurows])
+=======
+
+        neurons = np.array([self.psth(plx.spikes[r-self.binlen*2:r]) for r in rows[mask][3::4]])
+>>>>>>> master
         assert len(kin) == len(neurons)
         return kin, neurons
 
@@ -100,8 +108,36 @@ class ManualBMI(MotionBMI):
 class VelocityBMI(ManualBMI):
     def get_data(self):
         kin, neurons = super(VelocityBMI, self).get_data()
-        velocity = np.ma.diff(kin[...,:3], axis=0)
-        kin = np.ma.hstack([kin[1:,:,:3], velocity])
-        return kin, neurons[1:]
+        velocity = np.diff(kin[...,:3], axis=0)
+        kin = np.hstack([kin[:-1,:,:3], velocity*60])
+        return kin, neurons[:-1]
+
+class ManualBMI(VelocityBMI):
+    def __init__(self, states=['origin_hold', 'terminus', 'terminus_hold', 'reward'], *args, **kwargs):
+        super(ManualBMI, self).__init__(*args, **kwargs)
+        self.states = states
+
+    def get_data(self):
+        h5 = tables.openFile(self.kinfile)
+        states = h5.root.motiontracker_msgs[:]
+        names = dict((n, i) for i, n in enumerate(np.unique(states['msg'])))
+        target = np.array([names[n] for n in self.states])
+        seq = np.array([(names[n], t) for n, t, in states])
+
+        idx = np.convolve(target, target, 'valid')
+        found = np.convolve(seq[:,0], target, 'valid') == idx
+
+        slices = states[found]['time']
+        if len(slices)%2 != 0:
+            slices = slices[:-1]
+        slices = slices.reshape(-1, 2)
+
+        kin, neurons = super(ManualBMI, self).get_data()
+        kin = np.ma.array(kin)
+        for s, e in slices:
+            kin[s/4:e/4] = np.ma.masked
+        kin.mask = ~kin.mask
+        
+        return kin, neurons
 
 from kalman import KalmanFilter
