@@ -6,7 +6,6 @@ cdef class SpikeBin:
     cdef cpsth.BinInfo* info
     
     def __cinit__(self, np.ndarray[np.int32_t, ndim=2] channels, double binlen, funcname='boxcar', params=None):
-
         cdef double* _params
         cdef np.ndarray[np.double_t] np_param
 

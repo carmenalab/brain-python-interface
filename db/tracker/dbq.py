@@ -9,7 +9,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from riglib import experiment
-from models import TaskEntry, Subject, Calibration, System, DataFile
+from models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
 
 def save_log(idx, log):
     entry = TaskEntry.objects.get(pk=idx)
@@ -64,7 +64,7 @@ def save_bmi(name, entry, filename):
 
     pklname = "{subj}{time}_{num:02}_{name}.pkl".format(
         subj=entry.subject.name[:4].lower(),
-        time=bmi.date.strftime('%Y%m%d'),
+        time=entry.date.strftime('%Y%m%d'),
         num=num, name=name)
     base = System.objects.get(name='bmi').path
     shutil.copy2(filename, os.path.join(base, pklname))

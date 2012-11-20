@@ -3,7 +3,8 @@ var cellnames = /(\d{1,3})\s?(\w{1})/gim;
 var parsecell = /(\d{1,3})\s?(\w{1})/;
 var parsetime = /^(?:(\d{0,2}):)?(\d{1,2}):(\d{0,2}\.?\d*)$/;
 
-function BMI(info,  notes) {
+function BMI(idx, info, notes) {
+    this.idx = idx;
     try {
         this.cells = goodcells.exec(notes)[1].match(cellnames);
     } catch (e) {
@@ -133,6 +134,7 @@ BMI.prototype.set = function(name) {
     }
     this.update();
 
+    $("#bmibinlen").val(info.binlen);
     $("#tstart").val(BMI.hms(info.tslice[0]));
     $("#tend").val(BMI.hms(info.tslice[1]));
     $("#tslider").slider("values", info.tslice);
@@ -145,7 +147,7 @@ BMI.prototype.new = function() {
     $("#cells option").each(function(idx, obj) {
         this.remove($(obj).text());
     }.bind(this));
-
+    $("#bmibinlen").val("0.1");
     $("#bminame").replaceWith("<input id='bminame'>");
     $("#bminame").val(this.plxinfo.name);
     for (var i = 0; i < this.cells.length; i++) 
@@ -241,5 +243,21 @@ BMI.prototype._bindui = function() {
 }
 
 BMI.prototype.train =function() {
-    
+    this.update();
+    var csrf = $("#experiment input[name=csrfmiddlewaretoken]");
+    var data = {};
+    data.bminame = $("#bminame").val();
+    data.bmiclass = $("#bmiclass").val();
+    data.cells = $("#cellnames").val();
+    data.binlen = $("#bmibinlen").val();
+    data.tslice = $("#tslider").slider("values");
+    data.csrfmiddlewaretoken = csrf.val();
+
+    $.post("/make_bmi/"+this.idx, data, function(resp) {
+        if (resp.status == "success") {
+            alert("BMI Training queued");
+            this.cancel();
+        } else
+            alert(resp.msg);
+    }.bind(this), "json");
 }

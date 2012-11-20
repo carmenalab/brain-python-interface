@@ -229,7 +229,7 @@ TaskEntry.prototype.update = function(info) {
 		for (var sys in info.datafiles)
 			found = found || sys == "plexon"
 		if (found)
-			this.bmi = new BMI(info.bmi, info.notes);
+			this.bmi = new BMI(this.idx, info.bmi, info.notes);
 	}
 
 	if (info.sequence) {

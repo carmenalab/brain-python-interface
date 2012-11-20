@@ -354,16 +354,17 @@ class Decoder(models.Model):
         return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
     def get(self):
-        return cPickle.load(open(self.pickle))
+        sys = System.objects.get(name='bmi').path
+        return cPickle.load(open(os.path.join(sys, self.path)))
 
     def to_json(self):
         dec = self.get()
         return dict(
-            date=self.date, 
             name=self.name,
             cls=dec.__class__.__name__,
             path=self.path, 
-            cells=dec.psth.cells, 
+            units=dec.units,
+            binlen=dec.binlen,
             tslice=dec.tslice)
 
 class DataFile(models.Model):

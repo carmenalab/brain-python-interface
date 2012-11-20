@@ -12,7 +12,7 @@ from riglib.plexon import plexfile
 import namelist
 from json_param import Parameters
 from tasktrack import Track
-from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System
+from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
 import trainbmi
 
@@ -118,18 +118,18 @@ def save_notes(request, idx):
     te.save()
     return _respond(dict(status="success"))
 
-def make_bmi(request):
-    collide = Decoder.objects.filter(entry=request.POST['idx'], name=request.POST['bminame'])
+def make_bmi(request, idx):
+    collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
     if len(collide) > 0:
         return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
 
     kwargs = dict(
+        entry=idx,
         name=request.POST['bminame'],
         clsname=request.POST['bmiclass'],
-        entry=request.POST['idx'],
         cells=request.POST['cells'],
-        binlen=request.POST['binlen']
+        binlen=float(request.POST['binlen']),
+        tslice=map(float, request.POST.getlist('tslice[]')),
     )
     trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))
-    
