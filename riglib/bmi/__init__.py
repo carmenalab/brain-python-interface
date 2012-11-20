@@ -68,7 +68,7 @@ class MotionBMI(BMI):
         invalid = np.logical_and(motion[...,-1] == 4, motion[..., -1] < 0)
         motion[invalid] = 0
         kin = motion.sum(1)
-        
+
         neurows = rows[self.tmask][3::4]
         neurons = np.array([self.psth(plx.spikes[r-self.binlen-0.1:r]) for r in neurows])
         assert len(kin) == len(neurons)
@@ -97,39 +97,11 @@ class ManualBMI(MotionBMI):
         kin, neurons = super(ManualBMI, self).get_data()
         return np.ma.array(kin, mask=mask[self.tmask[3::4]]), neurons
 
-class VelocityBMI(ManualBMI):
+class VelocityBMI(MotionBMI):
     def get_data(self):
         kin, neurons = super(VelocityBMI, self).get_data()
-        velocity = np.diff(kin[...,:3], axis=0)
-        kin = np.hstack([kin[:-1,:,:3], velocity*60])
+        velocity = np.ma.diff(kin[...,:3], axis=0)
+        kin = np.ma.hstack([kin[:-1,:,:3], velocity*60])
         return kin, neurons[:-1]
-
-class ManualBMI(VelocityBMI):
-    def __init__(self, states=['origin_hold', 'terminus', 'terminus_hold', 'reward'], *args, **kwargs):
-        super(ManualBMI, self).__init__(*args, **kwargs)
-        self.states = states
-
-    def get_data(self):
-        h5 = tables.openFile(self.kinfile)
-        states = h5.root.motiontracker_msgs[:]
-        names = dict((n, i) for i, n in enumerate(np.unique(states['msg'])))
-        target = np.array([names[n] for n in self.states])
-        seq = np.array([(names[n], t) for n, t, in states])
-
-        idx = np.convolve(target, target, 'valid')
-        found = np.convolve(seq[:,0], target, 'valid') == idx
-
-        slices = states[found]['time']
-        if len(slices)%2 != 0:
-            slices = slices[:-1]
-        slices = slices.reshape(-1, 2)
-
-        kin, neurons = super(ManualBMI, self).get_data()
-        kin = np.ma.array(kin)
-        for s, e in slices:
-            kin[s/4:e/4] = np.ma.masked
-        kin.mask = ~kin.mask
-        
-        return kin, neurons
 
 from kalman import KalmanFilter

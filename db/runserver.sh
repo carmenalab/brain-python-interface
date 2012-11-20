@@ -13,7 +13,7 @@ function ctrl_c() {
 	kill -9 $DJANGO
 	kill $CELERY
 	kill $FLOWER
-	kill -9 `ps a | grep 'python manage.py' | cut -f 1 -d ' '`
+	kill -9 `ps -C 'python manage.py' -o pid --no-headers`
 }
 
 wait $DJANGO

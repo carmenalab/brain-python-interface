@@ -1,5 +1,5 @@
 import numpy as np
-from . import ManualBMI
+from . import VelocityBMI, ManualBMI
 
 class GaussianState(object):
     def __init__(self, mean, cov):
@@ -38,7 +38,7 @@ class GaussianState(object):
         if isinstance(other, GaussianState):
             return GaussianState( self.mean+other.mean, self.cov+other.cov )
 
-class KalmanFilter(ManualBMI):
+class KalmanFilter(VelocityBMI, ManualBMI):
     def __init__(self, *args, **kwargs):
         super(KalmanFilter, self).__init__(*args, **kwargs)
         kindata, neurons = self.get_data()
