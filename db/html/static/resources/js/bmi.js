@@ -10,6 +10,7 @@ function BMI(idx, info, notes) {
     } catch (e) {
         this.cells = [];
     }
+
     this.info = info;
     this.plxinfo = info['_plxinfo'];
     delete info['_plxinfo']
@@ -241,6 +242,22 @@ BMI.prototype._bindui = function() {
     $("#bmicancel").click(this.cancel.bind(this));
     $("#bmi").show();
 }
+BMI.prototype.destroy = function() {
+    if (this.plxinfo !== null) {
+        $("#tslider").slider("destroy");
+        $("#tstart").unbind("keyup");
+        $("#tstart").unbind("blur");
+        $("#tend").unbind("keyup");
+        $("#tend").unbind("blur");
+        $("#makecell").unbind("click");
+        $("#makeavail").unbind("click");
+        $("#cellnames").unbind("click");
+        $("#cellnames").unbind("blur");
+        $("#bmitrain").unbind("click");
+        $("#bmicancel").unbind("click");
+        $("#bmi").hide();
+    }
+}
 
 BMI.prototype.train = function() {
     this.update();
@@ -252,7 +269,6 @@ BMI.prototype.train = function() {
     data.binlen = $("#bmibinlen").val();
     data.tslice = $("#tslider").slider("values");
     data.csrfmiddlewaretoken = csrf.val();
-    $("#bmitrain").unbind("click");
 
     $.post("/make_bmi/"+this.idx, data, function(resp) {
         if (resp.status == "success") {
@@ -260,6 +276,5 @@ BMI.prototype.train = function() {
             this.cancel();
         } else
             alert(resp.msg);
-        $("#bmitrain").click(this.train.bind(this));
     }.bind(this), "json");
 }

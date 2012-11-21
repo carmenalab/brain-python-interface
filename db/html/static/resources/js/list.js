@@ -152,6 +152,7 @@ function TaskEntry(idx, info){
 				$("#content").show("slide", "fast");
 			}.bind(this));
 		}
+		$("#notes textarea").val("").removeAttr("disabled");
 	}
 	
 	this.tr.unbind("click");
@@ -243,7 +244,6 @@ TaskEntry.copy = function() {
 	info.report = {};
 	info.datafiles = {};
 	info.notes = "";
-	$("#notes textarea").val("");
 	te = new TaskEntry(null, info);
 }
 TaskEntry.prototype.destroy = function() {
@@ -263,6 +263,11 @@ TaskEntry.prototype.destroy = function() {
 			te = new TaskEntry(idx);
 		})
 		this.notes.destroy();
+		if (this.bmi !== undefined) {
+			this.bmi.destroy();
+			delete this.bmi;
+		}
+
 	} else {
 		//Remove the newentry row
 		this.tr.hide()
@@ -369,6 +374,7 @@ Notes.prototype.activate = function() {
 }
 Notes.prototype.destroy = function() {
 	$("#notes textarea").unbind("keydown");
+	$("#notes").val("");
 	if (this.last_TO != null)
 		clearTimeout(this.last_TO);
 	this.save();
@@ -379,11 +385,4 @@ Notes.prototype.save = function() {
 		"notes":$("#notes textarea").attr("value"), 
 		'csrfmiddlewaretoken':$("#experiment input[name=csrfmiddlewaretoken]").attr("value")
 	});
-}
-
-var goodparse = /^\s*(?:good|bmi)?\s?(?:unit|cell)s?\s?[:-]+\s*\n*(.*)$/gim;
-var cellnames = /(\d{1,3})\s?(\w{1})/gim;
-function BMITrainer(idx) {
-	var cells = goodparse.exec($('#notes textarea').text())[1];
-	var names = cells.match(cellnames);
 }
