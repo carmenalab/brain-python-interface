@@ -65,7 +65,7 @@ class MotionBMI(BMI):
         motion = tables.openFile(self.files['hdf']).root.motiontracker
         t, m, d = motion.shape
         motion = motion[np.tile(self.tmask, [d,m,1]).T].reshape(-1, 4, m, d)
-        invalid = np.logical_and(motion[...,-1] == 4, motion[..., -1] < 0)
+        invalid = np.logical_or(motion[...,-1] == 4, motion[...,-1] < 0)
         motion[invalid] = 0
         kin = motion.sum(1)
 

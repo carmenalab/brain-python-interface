@@ -8,7 +8,7 @@ python $MANAGER runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
 python $MANAGER celery worker &
 CELERY=$!
-python $MANAGER celery flower &
+python $MANAGER celery flower --address 0.0.0.0 &
 FLOWER=$!
 
 function ctrl_c() {
