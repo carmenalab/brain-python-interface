@@ -3,12 +3,13 @@
 trap ctrl_c INT
 
 MANAGER=/home/helene/code/bmi3d/db/manage.py
+#MANAGER=manage.py
 
 python $MANAGER runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
 python $MANAGER celery worker &
 CELERY=$!
-python $MANAGER celery flower --address 0.0.0.0 &
+python $MANAGER celery flower --address=0.0.0.0 &
 FLOWER=$!
 
 function ctrl_c() {

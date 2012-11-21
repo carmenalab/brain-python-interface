@@ -242,7 +242,7 @@ BMI.prototype._bindui = function() {
     $("#bmi").show();
 }
 
-BMI.prototype.train =function() {
+BMI.prototype.train = function() {
     this.update();
     var csrf = $("#experiment input[name=csrfmiddlewaretoken]");
     var data = {};
@@ -252,6 +252,7 @@ BMI.prototype.train =function() {
     data.binlen = $("#bmibinlen").val();
     data.tslice = $("#tslider").slider("values");
     data.csrfmiddlewaretoken = csrf.val();
+    $("#bmitrain").unbind("click");
 
     $.post("/make_bmi/"+this.idx, data, function(resp) {
         if (resp.status == "success") {
@@ -259,5 +260,6 @@ BMI.prototype.train =function() {
             this.cancel();
         } else
             alert(resp.msg);
+        $("#bmitrain").click(this.train.bind(this));
     }.bind(this), "json");
 }
