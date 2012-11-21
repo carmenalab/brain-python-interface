@@ -100,8 +100,10 @@ class ManualBMI(MotionBMI):
 class VelocityBMI(MotionBMI):
     def get_data(self):
         kin, neurons = super(VelocityBMI, self).get_data()
+	kin[(kin[...,:3] == 0).all(-1)] = np.ma.masked
+	kin[kin[...,-1] < 0] = np.ma.masked
         velocity = np.ma.diff(kin[...,:3], axis=0)
-        kin = np.ma.hstack([kin[:-1,:,:3], velocity*60])
+        kin = np.ma.hstack([kin[:-1,:,:3], velocity])
         return kin, neurons[:-1]
 
 from kalman import KalmanFilter
