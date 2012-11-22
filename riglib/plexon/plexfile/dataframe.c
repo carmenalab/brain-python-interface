@@ -36,8 +36,8 @@ void plx_get_frames(PlexFile* plxfile) {
         if (( frame->type == wideband || frame->type == spkc || 
               frame->type == lfp || frame->type == analog) && 
             lastchan+1 != header.chan) {
-            //printf("Error, channels not in order: %d -- ts=%llu, type=%d, chan=%d\n", lastchan, header.ts, header.type, header.chan);
-            //exit(1);
+            fprintf(stderr, "Error, channels not in order: %d -- ts=%llu, type=%d, chan=%d\n", lastchan, header.ts, header.type, header.chan);
+            exit(1);
         }
         lastchan = header.chan;
     }
@@ -53,7 +53,7 @@ void _plx_new_frame(SimpleDatablock* header, unsigned long start, PlexFile* plxf
 #endif
         frameset->frames = realloc(frameset->frames, sizeof(DataFrame)*frameset->lim);
         if (frameset->frames == NULL) {
-            printf("Unable to allocate memory...\n");
+            fprintf(stderr, "Unable to allocate memory...\n");
             exit(1);
         }
     }

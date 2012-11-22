@@ -46,7 +46,7 @@ ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
     info->t_start = (adj - floor(adj)) / info->freq;
     info->_start = start;
 
-    if (chans == NULL || nchans < 1) {
+    if (nchans < 1) {
         info->chans = malloc(sizeof(int) * frame->nblocks);
         for (i = 0; i < frame->nblocks; i++)
             info->chans[i] = i;
@@ -72,7 +72,7 @@ ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
     return info;
 }
 
-void plx_read_continuous(ContInfo* info, double* data) {
+int plx_read_continuous(ContInfo* info, double* data) {
     double gain;
     unsigned long t_off, adj[2];
     unsigned long c, t, stride;
@@ -103,26 +103,42 @@ void plx_read_continuous(ContInfo* info, double* data) {
         for (c = 0; c < info->nchans; c++) {
             gain = (double) chan_info[info->chans[c]].Gain;
             readsize = fread(buf, sizeof(short), frame->samples, info->plxfile->fp);
-            assert(readsize == frame->samples);
+            if (readsize != frame->samples)
+                return -1;
             fseek(info->plxfile->fp, headsize+stride*(info->cskip[c]-1), SEEK_CUR);
             for (t = 0; t < frame->samples - adj[1]; t++)
                 data[(t+t_off)*info->nchans + c] = buf[t+adj[0]] / gain;
         }
     }
+
+    return 0;
 }
+
+void free_continfo(ContInfo* info) {
+    free(info->cskip);
+    free(info->chans);
+    free(info);
+}
+
 
 SpikeInfo* plx_get_discrete(PlexFile* plxfile, ChanType type, double start, double stop) {
     unsigned long i;
 
-    if (!(type == spike || type == event))
+    if (!(type == spike || type == event)) {
+        fprintf(stderr, "Invalid channel type\n");
         return NULL;
+    }
 
-    if (!plxfile->has_cache)
+    if (!plxfile->has_cache) {
+        fprintf(stderr, "Plexfile has not been loaded\n");
         return NULL;
+    }
 
     FrameSet* frameset = &(plxfile->data[type]);
-    if (frameset->num < 1)
+    if (frameset->num < 1) {
+        fprintf(stderr, "Plexfile contains no frames of this channel type\n");
         return NULL;
+    }
 
     SpikeInfo* info = malloc(sizeof(SpikeInfo));
     DataFrame* frame = frameset->frames;
@@ -157,9 +173,8 @@ SpikeInfo* plx_get_discrete(PlexFile* plxfile, ChanType type, double start, doub
     return info;
 }
 
-void plx_read_discrete(SpikeInfo* info, Spike* data) {
+int plx_read_discrete(SpikeInfo* info, Spike* data) {
     short buf[2];
-    size_t readsize;
     unsigned long i, j, n = 0;
 
     FrameSet* frameset = &(info->plxfile->data[info->type]);
@@ -175,8 +190,8 @@ void plx_read_discrete(SpikeInfo* info, Spike* data) {
         fseek(info->plxfile->fp, frame->fpos[0] + 8, SEEK_SET);
         for (j = 0; j < frame->nblocks; j++) {
             if (fstart <= frame->ts && frame->ts < fstop) {
-                readsize = fread(buf, 2, sizeof(short), info->plxfile->fp);
-                assert(readsize == 2);
+                if (fread(buf, 2, sizeof(short), info->plxfile->fp) != 2)
+                    return -1;
                 data[n].ts = frame->ts / (double) tsfreq;
                 data[n].chan = (int) buf[0];
                 data[n].unit = (int) buf[1];
@@ -185,11 +200,11 @@ void plx_read_discrete(SpikeInfo* info, Spike* data) {
             }
         }
     }
+    return 0;
 }
 
-void plx_read_waveforms(SpikeInfo* info, double* data) {
+int plx_read_waveforms(SpikeInfo* info, double* data) {
     double gain;
-    size_t readsize;
     unsigned long i, j, k, n = 0;
     short buf[MAX_SAMPLES_PER_WAVEFORM];
 
@@ -200,18 +215,20 @@ void plx_read_waveforms(SpikeInfo* info, double* data) {
     double final = info->plxfile->header.LastTimestamp;
     TSTYPE fstart = (TSTYPE) (info->start < 0 ? 0 : info->start*tsfreq);
     TSTYPE fstop  = (TSTYPE) (info->stop < 0 ? final : info->stop*tsfreq);
+    size_t readsize;
 
     for (i = info->_fedge[0]; i < info->_fedge[1]; i++) {
         frame = &(frameset->frames[i]);
         fseek(info->plxfile->fp, frame->fpos[0] + 8, SEEK_SET);
         for (j = 0; j < frame->nblocks; j++) {
             if (fstart <= frame->ts && frame->ts < fstop) {
-                readsize = fread(buf, sizeof(short), 1, info->plxfile->fp);
-                assert(readsize == 1);
+                if (fread(buf, sizeof(short), 1, info->plxfile->fp) != 1)
+                    return -1;
                 gain = (double) info->plxfile->chan_info[buf[0]].Gain;
                 fseek(info->plxfile->fp, 6, SEEK_CUR);
                 readsize = fread(buf, sizeof(short), info->wflen, info->plxfile->fp);
-                assert(readsize == (unsigned long) info->wflen);
+                if (readsize != (unsigned long) info->wflen)
+                    return -1;
                 fseek(info->plxfile->fp, 8, SEEK_CUR);
                 for (k = 0; k < (unsigned long) info->wflen; k++) 
                     data[n*info->wflen + k] = buf[k] / gain;
@@ -219,7 +236,62 @@ void plx_read_waveforms(SpikeInfo* info, double* data) {
             }
         }
     }
+    return 0;
 }
+
+void free_spikeinfo(SpikeInfo* info) {
+    free(info);
+}
+
+
+IterSpike* plx_iterate_discrete(SpikeInfo* info) {
+    IterSpike* iter = calloc(1, sizeof(IterSpike));
+    iter->plxfile = info->plxfile;
+    iter->info = info;
+
+    double final = info->plxfile->header.LastTimestamp;
+    double tsfreq = info->plxfile->header.ADFrequency;
+
+    iter->fstart = (TSTYPE) (iter->info->start < 0 ? 0 : iter->info->start*tsfreq);
+    iter->fstop  = (TSTYPE) (iter->info->stop < 0 ? final : iter->info->stop*tsfreq);
+    iter->i = iter->info->_fedge[0];
+
+    return iter;
+}
+
+int plx_iterate(IterSpike* iter, Spike* data) {
+    if (iter->i >= iter->info->_fedge[1]) {
+        return 2;
+    }
+
+    FrameSet* frameset = &(iter->plxfile->data[iter->info->type]);
+    DataFrame* frame = frameset->frames + iter->i++;
+    double tsfreq = iter->info->plxfile->header.ADFrequency;
+    int status = 0;
+
+    fseek(iter->plxfile->fp, frame->fpos[0] + 8, SEEK_SET);
+
+    if (iter->j > frame->nblocks)
+        iter->j = 0;
+
+    if (iter->fstart <= frame->ts && frame->ts < iter->fstop) {
+        if (fread(iter->buf, 2, sizeof(short), iter->plxfile->fp) != 2) 
+            return -1;
+        data->ts = frame->ts / (double) tsfreq;
+        data->chan = (int) iter->buf[0];
+        data->unit = (int) iter->buf[1];
+        fseek(iter->plxfile->fp, 4 + iter->info->wflen*2 + 8, SEEK_CUR);
+        status = 1;
+    }
+    
+    iter->j++;
+    return status;
+}
+
+void free_iterspike(IterSpike* iter) {
+    free(iter);
+}
+
 
 long long _binary_search(FrameSet* frameset, TSTYPE ts) {
     long long mid = (long long) frameset->num / 2, 
@@ -243,11 +315,3 @@ long long _binary_search(FrameSet* frameset, TSTYPE ts) {
     return mid;
 }
 
-void free_continfo(ContInfo* info) {
-    free(info->cskip);
-    free(info->chans);
-    free(info);
-}
-void free_spikeinfo(SpikeInfo* info) {
-    free(info);
-}
