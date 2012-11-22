@@ -152,6 +152,8 @@ cdef class Discrete:
 
         return data
 
+    def __iter__(self):
+        return self
 
     property data:
         def __get__(self):

@@ -246,6 +246,9 @@ void free_spikeinfo(SpikeInfo* info) {
 
 IterSpike* plx_iterate_discrete(SpikeInfo* info) {
     IterSpike* iter = calloc(1, sizeof(IterSpike));
+    if (iter == NULL)
+        return NULL;
+
     iter->plxfile = info->plxfile;
     iter->info = info;
 
@@ -255,29 +258,33 @@ IterSpike* plx_iterate_discrete(SpikeInfo* info) {
     iter->fstart = (TSTYPE) (iter->info->start < 0 ? 0 : iter->info->start*tsfreq);
     iter->fstop  = (TSTYPE) (iter->info->stop < 0 ? final : iter->info->stop*tsfreq);
     iter->i = iter->info->_fedge[0];
-
+    
+    FrameSet* frameset = &(iter->plxfile->data[iter->info->type]);
+    DataFrame* frame = frameset->frames + iter->i;    
+    fseek(iter->plxfile->fp, frame->fpos[0] + 8, SEEK_SET);
     return iter;
 }
 
 int plx_iterate(IterSpike* iter, Spike* data) {
-    if (iter->i >= iter->info->_fedge[1]) {
+    if (iter->i > iter->info->_fedge[1]) {
         return 2;
     }
 
     FrameSet* frameset = &(iter->plxfile->data[iter->info->type]);
-    DataFrame* frame = frameset->frames + iter->i++;
-    double tsfreq = iter->info->plxfile->header.ADFrequency;
+    DataFrame* frame = frameset->frames + iter->i;
     int status = 0;
 
-    fseek(iter->plxfile->fp, frame->fpos[0] + 8, SEEK_SET);
-
-    if (iter->j > frame->nblocks)
+    if (iter->j > frame->nblocks) {
         iter->j = 0;
+        iter->i++;
+        frame = frameset->frames + iter->i;
+        fseek(iter->plxfile->fp, frame->fpos[0] + 8, SEEK_SET);
+    }
 
     if (iter->fstart <= frame->ts && frame->ts < iter->fstop) {
         if (fread(iter->buf, 2, sizeof(short), iter->plxfile->fp) != 2) 
             return -1;
-        data->ts = frame->ts / (double) tsfreq;
+        data->ts = frame->ts / (double) iter->info->plxfile->header.ADFrequency;
         data->chan = (int) iter->buf[0];
         data->unit = (int) iter->buf[1];
         fseek(iter->plxfile->fp, 4 + iter->info->wflen*2 + 8, SEEK_CUR);
