@@ -2,7 +2,6 @@ from __future__ import division
 import time
 import numpy as np
 import plexnet
-import plexfile
 from collections import Counter
 
 class Spikes(object):

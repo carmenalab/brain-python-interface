@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <math.h>
 
+#include "spike.h"
 #include "plexfile.h"
 
 //Spikes are not strictly in monotonic order, so a binary search may miss a few at the edges
@@ -32,12 +33,6 @@ typedef struct ContInfo {
     unsigned long _start;
 } ContInfo;
 
-typedef struct Spike {
-    double ts;
-    int chan;
-    int unit;
-} Spike;
-
 typedef struct SpikeInfo {
     int num;
     short wflen;
@@ -57,7 +52,6 @@ typedef struct IterSpike {
     TSTYPE fstop;
 
     unsigned long i, j;
-    short buf[2];
 } IterSpike;
 
 extern ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,

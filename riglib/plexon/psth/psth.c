@@ -100,8 +100,9 @@ extern BinInc* bin_incremental(BinInfo* info, double* times, uint tlen) {
     return inc;
 }
 
-extern bool bin_inc_spike(BinInc* inc, Spike* spike, double* output) {
-    uint i, idx, chan;
+extern int bin_inc_spike(BinInc* inc, Spike* spike, double* output) {
+    uint i, j, chan;
+    unsigned long idx, min;
     double binlen, sdiff, curtime, val;
     SpikeBuf* buf = &(inc->spikes);
     Spike* sptr, *last;
@@ -114,12 +115,12 @@ extern bool bin_inc_spike(BinInc* inc, Spike* spike, double* output) {
     binlen = inc->info->binlen + SPIKE_FUZZ;
 
     //If time range in buffer is smaller than the bin length
-    if (sdiff < binlen && (buf->idx + 1) % buf->size == 0) {
+    if (sdiff < binlen && (buf->idx + 1) > buf->size) {
         //Buffer size too small, double it
-        buf->data = realloc(buf->data, buf->size*buf->size*sizeof(Spike));
-        buf->size = buf->size * buf->size;
+        buf->data = realloc(buf->data, 2*buf->size*sizeof(Spike));
+        buf->size = 2*buf->size;
         #ifdef DEBUG
-        printf("Expanding spike buffer to %d\n", buf->size);
+        printf("Expanding spike buffer to %d, sdiff=%f < %f\n", buf->size, sdiff, binlen);
         #endif
     }
 
@@ -128,22 +129,30 @@ extern bool bin_inc_spike(BinInc* inc, Spike* spike, double* output) {
 
     //We've exceeded the current bin time, count up all the spikes
     curtime = inc->times[inc->_tidx];
-    if (curtime - last->ts >= binlen) {
-        for (i = 0; i < buf->size; i++) {
-            idx = (buf->idx - i - 1) % buf->size;
-            sptr = &(buf->data[idx]);
+    if ( spike->ts - SPIKE_FUZZ >= curtime) {
+        j = 0;
+        min = buf->idx < buf->size ? buf->idx : buf->size;
+        for (i = 0; i < min; i++) {
+            sptr = &(buf->data[i]);
             sdiff = curtime - sptr->ts;
             chan = _hash_chan((ushort) sptr->chan, (ushort) sptr->unit);
             if (inc->info->chanmap[chan] > 0 && 0 <= sdiff && sdiff < inc->info->binlen) {
                 val = (*(inc->info->binfunc))(curtime, sptr->ts, inc->info->params);
                 output[inc->info->chanmap[chan] - 1] += val;
+                j++;
             }
         }
+        #ifdef DEBUG
+        printf("filled bin %d with %d spikes\n", inc->_tidx, j);
+        #endif
         inc->_tidx ++;
-        return true;
+        if (inc->_tidx >= inc->tlen)
+            return 2;
+
+        return 1;
     }
 
-    return false;
+    return 0;
 }
 
 extern void free_bininfo(BinInfo* info) {

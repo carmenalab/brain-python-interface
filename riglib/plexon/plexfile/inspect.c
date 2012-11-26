@@ -19,10 +19,8 @@ void plx_summary(PlexFile* plxfile) {
 }
 
 void plx_print_frame(DataFrame* frame) {
-    printf("%s at ts=%llu, fpos=[%lu, %lu], samples=%lu, len=%lu\n", 
-            names[frame->type],
-            frame->ts, frame->fpos[0], frame->fpos[1],
-            frame->samples, frame->nblocks
+    printf("Frame at ts=%llu, fpos=%lu, samples=%u, len=%u\n", 
+            frame->ts, frame->fpos, frame->samples, frame->nblocks
             );
 }
 
@@ -55,8 +53,8 @@ int plx_check_frames(PlexFile* plxfile, ChanType type) {
             tsdiff = (frameset->frames[i+1].ts - frame->ts) / adfreq;
             assert(tsdiff > 0);
             if ((frame->samples /(double) freq) != tsdiff) {
-                printf("Found invalid frame, ts=%f, next=%f, diff=%f, samples=%lu, expect=%f\n", 
-                    frame->ts / (double) adfreq, frameset->frames[i+1].ts / adfreq, tsdiff,
+                printf("Found invalid frame, ts=%f, next=%f, diff=%f, samples=%u, expect=%f\n", 
+                    frame->ts / adfreq, frameset->frames[i+1].ts / adfreq, tsdiff,
                     frame->samples, frame->samples / freq);
                 invalid++;
             }

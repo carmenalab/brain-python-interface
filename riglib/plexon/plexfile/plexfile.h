@@ -29,14 +29,14 @@ typedef struct PL_DataBlockHeader PL_DataBlockHeader;
 struct PlexFile {
     double length;
     int nchans[ChanType_MAX];
-    
     char* filename;
+    
     PL_FileHeader header;
     PL_ChanHeader chan_info[MAX_SPIKE_CHANNELS];
     PL_EventHeader event_info[MAX_EVENT_CHANNELS];
     PL_SlowChannelHeader cont_head[MAX_SLOW_CHANNELS];
     PL_SlowChannelHeader* cont_info[4];
-
+    
     bool has_cache;
     FILE* fp;
     unsigned long nframes;

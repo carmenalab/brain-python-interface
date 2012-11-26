@@ -2,6 +2,7 @@
 #include "dataframe.h"
 
 int lastchan = 0;
+ChanType lasttype;
 
 void plx_get_frames(PlexFile* plxfile) {
     long int laststart;
@@ -18,53 +19,54 @@ void plx_get_frames(PlexFile* plxfile) {
 
     printf("Reading frames...\n");
     laststart = _plx_read_datablock(plxfile->fp, nchans, &header);
-    _plx_new_frame(&header, laststart, plxfile, &frame);
+    frame = _plx_new_frame(&header, laststart, plxfile);
     while ((laststart = _plx_read_datablock(plxfile->fp, nchans, &header)) > 0) {
-        if (header.ts != frame->ts || header.type != frame->type || 
-            (unsigned long) header.samples != frame->samples) {
+        if ( header.ts != frame->ts || 
+             header.type != lasttype || 
+             (unsigned short) header.samples != frame->samples) {
 
-            frame->fpos[1] = laststart;
-            _plx_new_frame(&header, laststart, plxfile, &frame);
-            (plxfile->nframes)++;
+            frame = _plx_new_frame(&header, laststart, plxfile);
+            plxfile->nframes++;
 
             if ((plxfile->nframes % 100) == 0) {
                 printf("%0.2f%%...      \r", ((double)ftell(plxfile->fp) / end_pos) * 100);
                 fflush(stdout);
             }
         }
-        (frame->nblocks)++;
-        if (( frame->type == wideband || frame->type == spkc || 
-              frame->type == lfp || frame->type == analog) && 
+        frame->nblocks++;
+
+        if (( lasttype == wideband || lasttype == spkc || 
+              lasttype == lfp || lasttype == analog) && 
             lastchan+1 != header.chan) {
             fprintf(stderr, "Error, channels not in order: %d -- ts=%llu, type=%d, chan=%d\n", lastchan, header.ts, header.type, header.chan);
             exit(1);
         }
+
         lastchan = header.chan;
     }
-    frame->fpos[1] = ftell(plxfile->fp);
 }
 
-void _plx_new_frame(SimpleDatablock* header, unsigned long start, PlexFile* plxfile, DataFrame** frame) {
+DataFrame* _plx_new_frame(SimpleDatablock* header, unsigned long start, PlexFile* plxfile) {
     FrameSet* frameset = &(plxfile->data[header->type]);
     if (frameset->lim <= ((frameset->num)+1)) {
         frameset->lim *= 2;
-#ifdef DEBUG
+        #ifdef DEBUG
         printf("Allocating %lu bytes for frameset...\n", sizeof(DataFrame)*frameset->lim);
-#endif
+        #endif
         frameset->frames = realloc(frameset->frames, sizeof(DataFrame)*frameset->lim);
         if (frameset->frames == NULL) {
             fprintf(stderr, "Unable to allocate memory...\n");
             exit(1);
         }
     }
-    *frame = &(frameset->frames[frameset->num++]);
-    (*frame)->ts = header->ts;
-    (*frame)->type = header->type;
-    (*frame)->samples = header->samples;
-    (*frame)->fpos[0] = start;
-    (*frame)->nblocks = 0;
+    DataFrame* frame = frameset->frames + frameset->num++;
+    frame->ts = header->ts;
+    frame->samples = header->samples;
+    frame->fpos = start;
+    frame->nblocks = 0;
     lastchan = 0;
-    //printf("New frame: ts=%llu, type=%d, samples=%d\n", header->ts, header->type, header->samples);
+    lasttype = header->type;
+    return frame;
 }
 
 long int _plx_read_datablock(FILE* fp, int nchannels, SimpleDatablock* block) {
@@ -103,8 +105,6 @@ long int _plx_read_datablock(FILE* fp, int nchannels, SimpleDatablock* block) {
     }
     if (block->samples > 0)
         fseek(fp, block->samples*sizeof(short), SEEK_CUR);
-
-    //printf("Block read: ts=%llu, chan=%d, hchan=%d, samples=%d, type=%d,%d\n", block->ts, block->chan, header.Channel, block->samples, header.Type, block->type);
 
     return start;
 }

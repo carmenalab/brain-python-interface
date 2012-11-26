@@ -19,7 +19,11 @@ cdef extern from "psth.h":
     void bin_spikes(BinInfo* info, Spike* spikes, uint nspikes, double* output)
 
     BinInc* bin_incremental(BinInfo* info, double* times, uint tlen)
-    bint bin_inc_spike(BinInc* inc, Spike* spike)
+    int bin_inc_spike(BinInc* inc, Spike* spike, double* output)
 
-    extern void free_bininfo(BinInfo* info)
-    extern void free_bininc(BinInc* inc)
+    void free_bininfo(BinInfo* info)
+    void free_bininc(BinInc* inc)
+
+cdef class SpikeBin:
+    cdef BinInfo* info
+    cdef public int nunits

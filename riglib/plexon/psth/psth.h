@@ -6,31 +6,26 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include "spike.h"
 
 #define SPIKE_FUZZ 0.05
-#define BUF_INIT_SIZE 1024
+#define BUF_INIT_SIZE 1
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
 
-typedef struct {
-    double ts;
-    int chan;
-    int unit;
-} Spike;
-
-typedef struct {
+typedef struct Channel {
     int chan;
     int unit;
 } Channel;
 
-typedef struct {
+typedef struct SpikeBuf {
 	Spike* data;
 	uint size;
-	uint idx;
+	unsigned long idx;
 } SpikeBuf;
 
-typedef struct {
+typedef struct BinInfo {
 	uint nunits;
 	double binlen;
 
@@ -39,7 +34,7 @@ typedef struct {
 	double params[32];
 } BinInfo;
 
-typedef struct {
+typedef struct BinInc {
 	double* times;
 	uint tlen;
 
@@ -56,7 +51,7 @@ extern BinInfo* bin_init(int* chans, size_t clen, double binlen, char* funcname,
 extern void bin_spikes(BinInfo* info, Spike* spikes, uint nspikes, double* output);
 
 extern BinInc* bin_incremental(BinInfo* info, double* times, uint tlen);
-extern bool bin_inc_spike(BinInc* inc, Spike* spike, double* output);
+extern int bin_inc_spike(BinInc* inc, Spike* spike, double* output);
 
 extern void free_bininfo(BinInfo* info);
 extern void free_bininc(BinInc* inc);
