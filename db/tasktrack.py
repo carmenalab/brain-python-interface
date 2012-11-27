@@ -168,7 +168,7 @@ class Task(object):
             except:
                 pass
             database.save_log(self.saveid, self.task.event_log)
-            time.sleep(1) #Give plexon a chance to catch up
+            time.sleep(2) #Give plexon a chance to catch up
             if "calibration" in self.taskname:
                 caltype = self.task.calibration.__class__.__name__
                 params = Parameters.from_dict(self.task.calibration.__dict__)
