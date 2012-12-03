@@ -5,8 +5,8 @@ np.import_array()
 
 from libcpp cimport bool
 
-from plexfile cimport *
 cimport psth
+from plexfile cimport *
 
 spiketype = [('ts', np.double), ('chan', np.int32), ('unit', np.int32)]
 
@@ -87,6 +87,7 @@ cdef class ContinuousFS:
 
 cdef class Continuous:
     cdef ContInfo* info
+    cdef object shape
 
     def __cinit__(self, ContinuousFS fs, double start, double stop, object chans):
         cdef int _chans[1024]
@@ -146,6 +147,15 @@ cdef class DiscreteFS:
         cdef double stop = -1 if idx.stop is None else idx.stop
         return Discrete(self, start, stop)
 
+    def bin(self, object[np.double_t, ndim=1] times, psth.SpikeBin sbin=None, double binlen=0.1):
+        cdef Discrete spikes
+
+        if sbin is not None:
+            binlen = sbin.info.binlen
+        
+        spikes = Discrete(self, times[0]-binlen-0.05, times[-1]+0.05)
+        return IterBin(spikes, sbin, times, binlen)
+
 cdef class Discrete:
     cdef SpikeInfo* info
     cdef Datafile data
@@ -165,9 +175,6 @@ cdef class Discrete:
 
     def __len__(self):
         return self.info.num
-
-    def bin(self, np.ndarray[np.double_t, ndim=1] times, psth.SpikeBin info=None):
-        return IterBin(self, info, times)
 
     property data:
         def __get__(self):
@@ -221,22 +228,22 @@ cdef class IterBin:
     cdef public object shape
     cdef int nunits
 
-    def __cinit__(self, Discrete parent, psth.SpikeBin spikebin, np.ndarray[np.double_t, ndim=1] times, binlen=0.1):
-        cdef np.ndarray units
+    def __cinit__(self, Discrete parent, psth.SpikeBin spikebin, object[np.double_t, ndim=1] times, double binlen=0.1):
+        cdef np.ndarray _times
         self.parent = parent
         self.it = plx_iterate_discrete(parent.info)
         if self.it is NULL:
             raise MemoryError
 
-        times = np.ascontiguousarray(times)
+        _times = np.ascontiguousarray(times)
         if spikebin is None:
-            spikebin = psth.SpikeBin(np.array(parent.data.units), binlen)
+            spikebin = psth.SpikeBin(parent.data.units, binlen)
 
         self.bin = spikebin
-        self.shape = len(times), spikebin.nunits
-        self.nunits = spikebin.nunits
+        self.shape = len(times), self.bin.nunits
+        self.nunits = self.bin.nunits
 
-        self.inc = psth.bin_incremental(spikebin.info, <double*> times.data, len(times))
+        self.inc = psth.bin_incremental(self.bin.info, <double*> _times.data, len(times))
         if self.inc is NULL:
             raise MemoryError
 
@@ -246,6 +253,9 @@ cdef class IterBin:
 
     def __iter__(self):
         return self
+
+    def __len__(self):
+        return self.shape[0]
 
     def __next__(self):
         cdef int status = 0

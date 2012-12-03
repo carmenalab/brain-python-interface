@@ -5,9 +5,10 @@ np.import_array()
 cimport psth
 
 cdef class SpikeBin:
-    def __cinit__(self, np.ndarray channels, double binlen=0.1, funcname='boxcar', params=None):
+    def __cinit__(self, object channels, double binlen=0.1, funcname='boxcar', params=None):
         cdef double* _params = NULL
         cdef np.ndarray[np.double_t] np_param
+        cdef np.ndarray _chan
 
         if funcname == 'gaussian':
             assert params is not None
@@ -15,10 +16,10 @@ cdef class SpikeBin:
             np_param[:] = params['mean'], params['std']
             _params = <double*> np_param.data
         
-        channels = np.ascontiguousarray(channels, dtype=np.int32)
+        _chan = np.ascontiguousarray(channels, dtype=np.int32)
         self.nunits = len(channels)
 
-        self.info = psth.bin_init(<int*> channels.data, self.nunits, binlen, funcname, _params)
+        self.info = psth.bin_init(<int*> _chan.data, self.nunits, binlen, funcname, _params)
         if self.info is NULL:
             raise MemoryError
 

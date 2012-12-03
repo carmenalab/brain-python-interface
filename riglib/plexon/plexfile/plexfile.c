@@ -28,23 +28,26 @@ extern void plx_load(PlexFile* plxfile, bool recache) {
     char* cachename = _plx_cache_name(plxfile->filename);
     if ((fp = fopen(cachename, "rb")) && !recache) {
         printf("Found cache, opening...\n");
-        for (i = 0; i < ChanType_MAX; i++) {
+        for (i = 0; i < ChanType_MAX && !recache; i++) {
             readsize = fread(&(plxfile->data[i].num), sizeof(plxfile->data[i].num), 1, fp);
             if (readsize != 1) {
                 fprintf(stderr, "Error reading cache file\n");
-                exit(1);
+                recache = true;
             }
             plxfile->data[i].frames = malloc(sizeof(DataFrame)*plxfile->data[i].num);
             readsize = fread(plxfile->data[i].frames, sizeof(DataFrame), plxfile->data[i].num, fp);
             if (readsize != plxfile->data[i].num) {
                 fprintf(stderr, "Error reading cache file\n");
-                exit(1);
+                recache = true;
             }
         }
         fclose(fp);
-    } else {
-        for (i = 0; i < ChanType_MAX; i++) 
+    } 
+    if (recache) {
+        for (i = 0; i < ChanType_MAX; i++) {
             plxfile->data[i].lim = 1;
+            plxfile->data[i].num = 0;
+        }
         plx_get_frames(plxfile);
         printf("Successfully read %lu frames\n", plxfile->nframes);
         plx_save_cache(plxfile);

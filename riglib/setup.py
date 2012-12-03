@@ -10,12 +10,12 @@ psth = Extension("plexon.psth",
     ['plexon/cython/psth.pyx', 'plexon/psth/psth.c'],
     include_dirs= ['.', np.get_include(), 'plexon/', 'plexon/cython/', 'plexon/psth/'],
     # define_macros = [('DEBUG', None)],
-    # extra_compile_args=["-g"],
-    # extra_link_args=["-g"],
+     extra_compile_args=["-g"],
+     extra_link_args=["-g"],
 )
 
 plexfile = Extension("plexon.plexfile",
-    ['plexon/cython/plexfile.pyx', 
+    ['plexon/cython/plexfile.c',
      'plexon/plexfile/plexfile.c', 
      'plexon/plexfile/plexread.c', 
      'plexon/plexfile/dataframe.c', 
@@ -29,8 +29,8 @@ plexfile = Extension("plexon.plexfile",
         'plexon/plexfile/'
     ],
     # define_macros = [('DEBUG', None)],
-    # extra_compile_args=["-g"],
-    # extra_link_args=["-g"],
+     extra_compile_args=["-g"],
+     extra_link_args=["-g"],
 )
 
 setup(  name        = "Plexfile utilities",
@@ -38,5 +38,5 @@ setup(  name        = "Plexfile utilities",
         author      = "James Gao",
         version     = "0.1.0",
         packages = ['plexon'],
-        ext_modules = cythonize([psth, plexfile], include_path=['plexon/cython/'])
+        ext_modules = cythonize([psth, plexfile], include_dirs=['.', 'plexon/cython/'])
         )
