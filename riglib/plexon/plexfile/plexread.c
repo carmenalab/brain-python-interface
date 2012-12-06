@@ -146,14 +146,14 @@ SpikeInfo* plx_get_discrete(PlexFile* plxfile, ChanType type, double start, doub
     double tsfreq = plxfile->header.ADFrequency;
     double final = plxfile->header.LastTimestamp;
     long long flen = (long long) frameset->num;
-    TSTYPE fstart = (TSTYPE) (start < 0 ? 0 : start*tsfreq);
-    TSTYPE fstop  = (TSTYPE) (stop < 0 ? final : stop*tsfreq);
+    TSTYPE fstart = (TSTYPE) (start < 0 ? 0 : floor(start*tsfreq + .5));
+    TSTYPE fstop  = (TSTYPE) (stop < 0 ? final : floor(stop*tsfreq + .5));
 
     long long lower = _binary_search(frameset, fstart)-SPIKE_SEARCH;
     long long upper = _binary_search(frameset, fstop )+SPIKE_SEARCH;
 
     #ifdef DEBUG
-    printf("Searching from frame %lld to %lld\n", lower, upper);
+    printf("Searching from frame %lld to %lld: timestamp %lu-%lu\n", lower, upper, fstart, fstop);
     #endif
 
     info->plxfile = plxfile;
@@ -182,8 +182,8 @@ int plx_read_discrete(SpikeInfo* info, Spike* data) {
 
     double tsfreq = info->plxfile->header.ADFrequency;
     double final = info->plxfile->header.LastTimestamp;
-    TSTYPE fstart = (TSTYPE) (info->start < 0 ? 0 : info->start*tsfreq);
-    TSTYPE fstop  = (TSTYPE) (info->stop < 0 ? final : info->stop*tsfreq);
+    TSTYPE fstart = (TSTYPE) (info->start < 0 ? 0 : floor(info->start*tsfreq + .5));
+    TSTYPE fstop  = (TSTYPE) (info->stop < 0 ? final : floor(info->stop*tsfreq + .5));
 
     for (i = info->_fedge[0]; i < info->_fedge[1]; i++) {
         frame = &(frameset->frames[i]);
@@ -213,8 +213,8 @@ int plx_read_waveforms(SpikeInfo* info, double* data) {
 
     double tsfreq = info->plxfile->header.ADFrequency;
     double final = info->plxfile->header.LastTimestamp;
-    TSTYPE fstart = (TSTYPE) (info->start < 0 ? 0 : info->start*tsfreq);
-    TSTYPE fstop  = (TSTYPE) (info->stop < 0 ? final : info->stop*tsfreq);
+    TSTYPE fstart = (TSTYPE) (info->start < 0 ? 0 : floor(info->start*tsfreq + .5));
+    TSTYPE fstop  = (TSTYPE) (info->stop < 0 ? final : floor(info->stop*tsfreq + .5));
     size_t readsize;
 
     for (i = info->_fedge[0]; i < info->_fedge[1]; i++) {
@@ -255,8 +255,8 @@ IterSpike* plx_iterate_discrete(SpikeInfo* info) {
     double final = info->plxfile->header.LastTimestamp;
     double tsfreq = info->plxfile->header.ADFrequency;
 
-    iter->fstart = (TSTYPE) (iter->info->start < 0 ? 0 : iter->info->start*tsfreq);
-    iter->fstop  = (TSTYPE) (iter->info->stop < 0 ? final : iter->info->stop*tsfreq);
+    iter->fstart = (TSTYPE) (iter->info->start < 0 ? 0 : floor(iter->info->start*tsfreq + .5));
+    iter->fstop  = (TSTYPE) (iter->info->stop < 0 ? final : floor(iter->info->stop*tsfreq + .5));
     iter->i = iter->info->_fedge[0];
 
     return iter;

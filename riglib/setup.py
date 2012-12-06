@@ -10,8 +10,8 @@ psth = Extension("plexon.psth",
     ['plexon/cython/psth.pyx', 'plexon/psth/psth.c'],
     include_dirs= ['.', np.get_include(), 'plexon/', 'plexon/cython/', 'plexon/psth/'],
     # define_macros = [('DEBUG', None)],
-     extra_compile_args=["-g"],
-     extra_link_args=["-g"],
+    # extra_compile_args=["-g"],
+    # extra_link_args=["-g"],
 )
 
 plexfile = Extension("plexon.plexfile",
@@ -29,8 +29,8 @@ plexfile = Extension("plexon.plexfile",
         'plexon/plexfile/'
     ],
     # define_macros = [('DEBUG', None)],
-     extra_compile_args=["-g"],
-     extra_link_args=["-g"],
+    # extra_compile_args=["-g"],
+    # extra_link_args=["-g"],
 )
 
 setup(  name        = "Plexfile utilities",

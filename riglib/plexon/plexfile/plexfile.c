@@ -42,7 +42,9 @@ extern void plx_load(PlexFile* plxfile, bool recache) {
             }
         }
         fclose(fp);
-    } 
+    } else {
+        recache = true;
+    }
     if (recache) {
         for (i = 0; i < ChanType_MAX; i++) {
             plxfile->data[i].lim = 1;

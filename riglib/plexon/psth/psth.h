@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <float.h>
+#include <math.h>
 #include "spike.h"
 
 #define SPIKE_FUZZ 0.05
@@ -23,6 +25,7 @@ typedef struct SpikeBuf {
 	Spike* data;
 	uint size;
 	unsigned long idx;
+	unsigned long last;
 } SpikeBuf;
 
 typedef struct BinInfo {

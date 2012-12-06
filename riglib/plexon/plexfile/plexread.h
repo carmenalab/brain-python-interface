@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <math.h>
+#include <float.h>
 
 #include "spike.h"
 #include "plexfile.h"

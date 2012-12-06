@@ -6,8 +6,7 @@ uint _hash_chan(ushort chan, ushort unit) {
 }
 
 double boxcar(double start, double ts, double* params) {
-    //First parameter is for box width
-    return (double) (start - ts < params[0]);
+    return 1;
 }
 
 double gaussian(double start, double ts, double* params) {
@@ -101,52 +100,76 @@ extern BinInc* bin_incremental(BinInfo* info, double* times, uint tlen) {
 }
 
 extern int bin_inc_spike(BinInc* inc, Spike* spike, double* output) {
-    uint i, j, chan;
+    uint i, j, chan, num;
     unsigned long idx, min;
     double binlen, sdiff, curtime, val;
     SpikeBuf* buf = &(inc->spikes);
-    Spike* sptr, *last;
+    Spike* sptr, *oldest;
 
-    last = &(buf->data[(buf->idx+1)%buf->size]);
-    if (buf->idx < buf->size)
-        last = &(buf->data[0]);
-
-    sdiff = buf->idx == 0 ? 0 : spike->ts - last->ts;
+    oldest = buf->data + (buf->last % buf->size);
+    sdiff = buf->idx == 0 ? 0 : spike->ts - oldest->ts;
     binlen = inc->info->binlen + SPIKE_FUZZ;
 
     //If time range in buffer is smaller than the bin length
-    if (sdiff < binlen && (buf->idx + 1) > buf->size) {
+    if (sdiff < binlen && buf->idx >= buf->size) {
         //Buffer size too small, double it
-        buf->data = realloc(buf->data, 2*buf->size*sizeof(Spike));
-        buf->size = 2*buf->size;
+        sptr = calloc(2*buf->size, sizeof(Spike));
+        i = buf->idx % buf->size;
+        num = buf->size - i;
+        memcpy(sptr, (void*) buf->data+i, sizeof(Spike)*num);
+        memcpy(sptr+num, (void*) buf->data, sizeof(Spike)*i);
+        free(buf->data);
+        buf->last = 0;
+        buf->idx = buf->size;
+        buf->size *= 2;
+        buf->data = sptr;
         #ifdef DEBUG
+        //printf("Copied %d spikes from %d, idx=%lu->%lu\n", num, i, idx, buf->idx);
         printf("Expanding spike buffer to %d, sdiff=%f < %f\n", buf->size, sdiff, binlen);
         #endif
     }
 
     idx = buf->idx++ % buf->size;
-    memcpy(&(buf->data[idx]), (void*) spike, sizeof(Spike));
+    memcpy(buf->data + idx, (void*) spike, sizeof(Spike));
+    if (buf->idx - buf->last > buf->size)
+        buf->last++;
 
-    //We've exceeded the current bin time, count up all the spikes
     curtime = inc->times[inc->_tidx];
-    if ( spike->ts - SPIKE_FUZZ >= curtime) {
+    //We've exceeded the current bin time, count up all the spikes
+    if ( spike->ts > curtime + SPIKE_FUZZ) {
         j = 0;
         min = buf->idx < buf->size ? buf->idx : buf->size;
         for (i = 0; i < min; i++) {
-            sptr = &(buf->data[i]);
+            idx = (buf->idx + buf->size - i - 1) % buf->size;
+            sptr = buf->data + idx;
             sdiff = curtime - sptr->ts;
-            chan = _hash_chan((ushort) sptr->chan, (ushort) sptr->unit);
-            if (inc->info->chanmap[chan] > 0 && 0 <= sdiff && sdiff < inc->info->binlen) {
-                val = (*(inc->info->binfunc))(curtime, sptr->ts, inc->info->params);
-                output[inc->info->chanmap[chan] - 1] += val;
-                j++;
+            if (sdiff > binlen) {
+                #ifdef DEBUG
+                printf("Stopping early at %d, %f > %f\n", (buf->idx - i - 1), sdiff, binlen);
+                #endif
+                break;
             }
+
+            if ( FLT_EPSILON < sdiff && (sdiff - inc->info->binlen < FLT_EPSILON || 
+                 fabs(sdiff - inc->info->binlen) < FLT_EPSILON) ) {
+                chan = _hash_chan((ushort) sptr->chan, (ushort) sptr->unit);
+                if (inc->info->chanmap[chan] > 0) {
+                    //printf("Add (%d, %d), sdiff=%f for %f into %d\n", sptr->chan, sptr->unit, sptr->ts, curtime, inc->info->chanmap[chan] - 1);
+                    val = (*(inc->info->binfunc))(curtime, sptr->ts, inc->info->params);
+                    output[inc->info->chanmap[chan] - 1] += val;
+                    j++;
+                }
+            } 
+            #ifdef DEBUG
+            else {
+                printf("Exclude (%d, %d), sdiff=%f for %f, diff=%f\n", sptr->chan, sptr->unit, sptr->ts, curtime, sdiff - inc->info->binlen);
+            }
+            #endif
         }
         #ifdef DEBUG
         printf("filled bin %d with %d spikes\n", inc->_tidx, j);
         #endif
-        inc->_tidx ++;
-        if (inc->_tidx >= inc->tlen)
+        if (++inc->_tidx > inc->tlen)
             return 2;
 
         return 1;
