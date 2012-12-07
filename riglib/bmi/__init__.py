@@ -1,8 +1,7 @@
 import numpy as np
 import tables
 
-import cpsth
-from riglib.plexon import plexfile
+from plexon import plexfile, psth
 from riglib.nidaq import parse
 
 class BMI(object):
@@ -15,14 +14,14 @@ class BMI(object):
         self.binlen = binlen
         self.units = np.array(cells).astype(np.int32)
 
-        self.psth = cpsth.SpikeBin(self.units, binlen)
+        self.psth = psth.SpikeBin(self.units, binlen)
 
     def __call__(self, data):
         psth = self.psth(data)
         return psth
 
     def __setstate__(self, state):
-        self.psth = cpsth.SpikeBin(state['cells'], state['binlen'])
+        self.psth = psth.SpikeBin(state['cells'], state['binlen'])
         del state['cells']
         self.__dict__.update(state)
 
@@ -47,7 +46,7 @@ class MotionBMI(BMI):
 
     def get_data(self):
         plx = plexfile.openFile(self.files['plexon'])
-        rows = parse.rowbyte(plx.events[:])[0][:,0]
+        rows = parse.rowbyte(plx.events[:].data)[0][:,0]
         lower, upper = 0 < rows, rows < rows.max()+1
         l, u = self.tslice
         if l is not None:
@@ -100,8 +99,8 @@ class ManualBMI(MotionBMI):
 class VelocityBMI(MotionBMI):
     def get_data(self):
         kin, neurons = super(VelocityBMI, self).get_data()
-	kin[(kin[...,:3] == 0).all(-1)] = np.ma.masked
-	kin[kin[...,-1] < 0] = np.ma.masked
+        kin[(kin[...,:3] == 0).all(-1)] = np.ma.masked
+        kin[kin[...,-1] < 0] = np.ma.masked
         velocity = np.ma.diff(kin[...,:3], axis=0)
         kin = np.ma.hstack([kin[:-1,:,:3], velocity])
         return kin, neurons[:-1]
