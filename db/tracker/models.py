@@ -113,6 +113,7 @@ class Feature(models.Model):
 class System(models.Model):
     name = models.CharField(max_length=128)
     path = models.TextField()
+    archive = models.TextField()
 
     def __unicode__(self):
         return self.name
@@ -271,6 +272,33 @@ class TaskEntry(models.Model):
             exp = Exp(**params.params)
         exp.event_log = json.loads(self.report)
         return exp
+    
+    def plexfile(self, path='/storage/plexon/', search=False):
+        rplex = Feature.objects.get(name='relay_plexon')
+        rplexb = Feature.objects.get(name='relay_plexbyte')
+        feats = self.feats.all()
+        if rplex not in feats and rplexb not in feats:
+            return None
+
+        if not search:
+            system = System.objects.get(name='plexon')
+            df = DataFile.objects.filter(entry=self.id, system=system)
+            if len(df) > 0:
+                return df[0].get_path()
+        
+        if len(self.report) > 0:
+            event_log = json.loads(self.report)
+            import os, sys, glob, time
+            if len(event_log) < 1:
+                return None
+
+            start = event_log[-1][2]
+            files = sorted(glob.glob(path+"/*.plx"), key=lambda f: abs(os.stat(f).st_mtime - start))
+
+            if len(files) > 0:
+                tdiff = os.stat(files[0]).st_mtime - start
+                if abs(tdiff) < 60:
+                     return files[0]
 
     def to_json(self):
         from json_param import Parameters
@@ -370,6 +398,7 @@ class Decoder(models.Model):
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     local = models.BooleanField()
+    archived = models.BooleanField()
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System)
     entry = models.ForeignKey(TaskEntry)
@@ -380,8 +409,17 @@ class DataFile(models.Model):
     def to_json(self):
         return dict(system=self.system.name, path=self.path)
 
-    def get_path(self):
-        return os.path.join(self.system.path, self.path)
+    def get_path(self, check_archive=False):
+        if not check_archive and not self.archived:
+            return os.path.join(self.system.path, self.path)
+
+        paths = self.system.archive.split()
+        for path in paths:
+            fname = os.path.join(path, self.path)
+            if os.path.isfile(fname):
+                return fname
+
+        raise IOError('File has been lost!')
 
     def has_cache(self):
         if self.system.name != "plexon":
@@ -393,5 +431,5 @@ class DataFile(models.Model):
         return os.path.exists(cache)
 
     def remove(self, **kwargs):
-        os.unlink(self.path)
+        os.unlink(self.get_path())
         super(DataFile, self).remove(**kwargs)

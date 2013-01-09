@@ -12,7 +12,7 @@ from ajax import display
 
 def list(request):
     fields = dict(
-        entries=TaskEntry.objects.all().order_by("-date")[:50], 
+        entries=TaskEntry.objects.all().order_by("-date"), 
         subjects=Subject.objects.all().order_by("name"), 
         tasks=Task.objects.all().order_by("name"), 
         features=Feature.objects.order_by("name").all(), 
