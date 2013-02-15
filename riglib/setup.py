@@ -7,28 +7,27 @@ from Cython.Build import cythonize
 import numpy as np
 
 psth = Extension("plexon.psth",
-    ['plexon/cython/psth.pyx', 'plexon/psth/psth.c'],
-    include_dirs= ['.', np.get_include(), 'plexon/', 'plexon/cython/', 'plexon/psth/'],
+    ['plexon/psth.pyx', 'plexon/cpsth/psth.c'],
+    include_dirs= ['.', np.get_include(), 'plexon/', 'plexon/cpsth/'],
     # define_macros = [('DEBUG', None)],
     # extra_compile_args=["-g"],
     # extra_link_args=["-g"],
 )
 
 plexfile = Extension("plexon.plexfile",
-    ['plexon/cython/plexfile.c',
-     'plexon/plexfile/plexfile.c', 
-     'plexon/plexfile/plexread.c', 
-     'plexon/plexfile/dataframe.c', 
-     'plexon/plexfile/inspect.c', 
-     'plexon/psth/psth.c'],
+    ['plexon/plexfile.pyx',
+     'plexon/cplexfile/plexfile.c', 
+     'plexon/cplexfile/plexread.c', 
+     'plexon/cplexfile/dataframe.c', 
+     'plexon/cplexfile/inspect.c', 
+     'plexon/cpsth/psth.c'],
     include_dirs= [ '.',
         np.get_include(), 
         'plexon/',
-        'plexon/cython/',
-        'plexon/psth/', 
-        'plexon/plexfile/'
+        'plexon/cpsth/', 
+        'plexon/cplexfile/'
     ],
-    # define_macros = [('DEBUG', None)],
+    define_macros = [('DEBUG', None)],
     # extra_compile_args=["-g"],
     # extra_link_args=["-g"],
 )
