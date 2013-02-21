@@ -6,3 +6,4 @@
 *.so
 _build
 riglib/nidaq/pcidio.py
+riglib/build
