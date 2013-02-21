@@ -18,9 +18,9 @@ typedef struct ContInfo {
     unsigned long len;
     unsigned long nchans;
     double t_start;
+    int freq;
     double start;
     double stop;
-    int freq;
 
     int* chans;
     int* cskip;
@@ -49,18 +49,32 @@ typedef struct SpikeInfo {
     unsigned long _fedge[2];
 } SpikeInfo;
 
+typedef struct IterSpike {
+    PlexFile* plxfile;
+    SpikeInfo* info;
+
+    TSTYPE fstart;
+    TSTYPE fstop;
+
+    unsigned long i, j;
+    short buf[2];
+} IterSpike;
+
 extern ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
     double start, double stop, int* chans, int nchans);
-extern void plx_read_continuous(ContInfo* info, double* data);
+extern int plx_read_continuous(ContInfo* info, double* data);
 extern void free_continfo(ContInfo* info);
 
 extern SpikeInfo* plx_get_discrete(PlexFile* plxfile, ChanType type, 
     double start, double stop);
-extern void plx_read_discrete(SpikeInfo* info, Spike* data);
-extern void plx_read_waveforms(SpikeInfo* info, double* data);
+extern int plx_read_discrete(SpikeInfo* info, Spike* data);
+extern int plx_read_waveforms(SpikeInfo* info, double* data);
 extern void free_spikeinfo(SpikeInfo* info);
 
 long long _binary_search(FrameSet* frameset, TSTYPE ts);
 
+extern IterSpike* plx_iterate_discrete(SpikeInfo* info);
+extern int plx_iterate(IterSpike* iter, Spike* data);
+extern void free_iterspike(IterSpike* iter);
 
 #endif

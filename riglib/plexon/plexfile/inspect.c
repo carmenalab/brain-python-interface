@@ -12,7 +12,7 @@ const char names[][128] = {
 
 void plx_summary(PlexFile* plxfile) {
     int i;
-    printf("Plexon file %s\n", plxfile->filename);
+    printf("Plexon file %s, %0.2f seconds\n", plxfile->filename, plxfile->length);
     for (i = 0; i < ChanType_MAX; i++) {
         printf("\t%8s: %lu / %lu\n", names[i], plxfile->data[i].num, plxfile->data[i].lim);
     }

@@ -1,8 +1,6 @@
 #include "plexfile.h"
 
 extern PlexFile* plx_open(char* filename) {
-    long readsize;
-
     PlexFile* plxfile = (PlexFile*) calloc(1, sizeof(PlexFile));
     plxfile->fp = fopen(filename, "rb");
     if (!plxfile->fp)
@@ -10,8 +8,14 @@ extern PlexFile* plx_open(char* filename) {
 
     plxfile->filename = calloc(strlen(filename), sizeof(char));
     strcpy(plxfile->filename, filename);
-    readsize = plx_get_header(plxfile);
-    assert(readsize > 0);
+    #ifdef DEBUG
+    printf("Opening header...");
+    #endif
+    if (plx_get_header(plxfile) < 0)
+        return NULL;
+    #ifdef DEBUG
+    printf("Done!\n");
+    #endif
 
     return plxfile;
 }
@@ -26,10 +30,16 @@ extern void plx_load(PlexFile* plxfile, bool recache) {
         printf("Found cache, opening...\n");
         for (i = 0; i < ChanType_MAX; i++) {
             readsize = fread(&(plxfile->data[i].num), sizeof(plxfile->data[i].num), 1, fp);
-            assert(readsize == 1);
+            if (readsize != 1) {
+                fprintf(stderr, "Error reading cache file\n");
+                exit(1);
+            }
             plxfile->data[i].frames = malloc(sizeof(DataFrame)*plxfile->data[i].num);
             readsize = fread(plxfile->data[i].frames, sizeof(DataFrame), plxfile->data[i].num, fp);
-            assert(readsize == plxfile->data[i].num);
+            if (readsize != plxfile->data[i].num) {
+                fprintf(stderr, "Error reading cache file\n");
+                exit(1);
+            }
         }
         fclose(fp);
     } else {
@@ -88,6 +98,10 @@ long plx_get_header(PlexFile* plxfile) {
     int i;
     size_t readsize, data_start;
 
+    #ifdef DEBUG
+    printf("Reading plexfile header...\n");
+    #endif
+
     if (fseek(plxfile->fp, 0, SEEK_SET) != 0)
         return -1;
 
@@ -109,7 +123,6 @@ long plx_get_header(PlexFile* plxfile) {
 
     // Read the slow A/D channel headers
     if(plxfile->header.NumSlowChannels) {
-        //assert(plxfile->header.NumSlowChannels >= 3*plxfile->header.NumDSPChannels);
         readsize = fread(&(plxfile->cont_head), sizeof(PL_SlowChannelHeader), plxfile->header.NumSlowChannels, plxfile->fp);
         printf("and %lu slow channels\n", readsize);
         for (i = 0; i < 4; i++)
