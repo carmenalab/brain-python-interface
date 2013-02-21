@@ -10,7 +10,7 @@ This is the communication protocol that will be used:
 |       aux         |
 
 data -> 8 bit data word
-msg_type -> { 0: data packet, 1: message, 2: register, 3: register shape }
+msg_type -> { 0: data packet, 1: message, 2: register, 3: register shape, 4: row, 5: rowbyte }
 aux -> depends on what the msg_type is:
     data packet: 4 bit indicator for data source
     message: nothing

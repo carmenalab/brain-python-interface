@@ -7,7 +7,7 @@ import xmlrpclib
 
 from namelist import bmis
 from tracker import models
-from riglib.plexon import plexfile
+from plexon import plexfile
 
 cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 

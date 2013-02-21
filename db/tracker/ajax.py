@@ -7,7 +7,6 @@ import numpy as np
 from django.http import HttpResponse
 
 from riglib import experiment
-from riglib.plexon import plexfile
 
 import namelist
 from json_param import Parameters

@@ -2,8 +2,8 @@
 
 trap ctrl_c INT
 
-MANAGER=/home/helene/code/bmi3d/db/manage.py
-#MANAGER=manage.py
+#MANAGER=/home/helene/code/bmi3d/db/manage.py
+MANAGER=manage.py
 
 python $MANAGER runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
