@@ -298,7 +298,7 @@ class TaskEntry(models.Model):
             plexon = System.objects.get(name='plexon')
             df = DataFile.objects.get(entry=self.id, system=plexon)
 
-            plx = plexfile.openFile(df.get_path(), load=False)
+            plx = plexfile.openFile(str(df.get_path()), load=False)
             path, name = os.path.split(df.get_path())
             name, ext = os.path.splitext(name)
             js['bmi'] = dict(_plxinfo=dict(

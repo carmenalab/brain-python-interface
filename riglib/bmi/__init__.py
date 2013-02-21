@@ -45,7 +45,7 @@ class MotionBMI(BMI):
         self.tslice = tslice
 
     def get_data(self):
-        plx = plexfile.openFile(self.files['plexon'])
+        plx = plexfile.openFile(str(self.files['plexon']))
         rows = parse.rowbyte(plx.events[:].data)[0][:,0]
         lower, upper = 0 < rows, rows < rows.max()+1
         l, u = self.tslice
