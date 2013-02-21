@@ -294,7 +294,7 @@ class TaskEntry(models.Model):
         js['report']['state'] = "Completed"
 
         try:
-            from riglib.plexon import plexfile
+            from plexon import plexfile
             plexon = System.objects.get(name='plexon')
             df = DataFile.objects.get(entry=self.id, system=plexon)
 
@@ -303,7 +303,7 @@ class TaskEntry(models.Model):
             name, ext = os.path.splitext(name)
             js['bmi'] = dict(_plxinfo=dict(
                 length=plx.length, 
-                units=plx.get_units(), 
+                units=plx.units, 
                 name=name))
         except (ObjectDoesNotExist, AssertionError):
             print "No plexon file found"

@@ -27,7 +27,7 @@ plexfile = Extension("plexon.plexfile",
         'plexon/cpsth/', 
         'plexon/cplexfile/'
     ],
-    define_macros = [('DEBUG', None)],
+    #define_macros = [('DEBUG', None)],
     # extra_compile_args=["-g"],
     # extra_link_args=["-g"],
 )

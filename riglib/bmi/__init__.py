@@ -69,7 +69,7 @@ class MotionBMI(BMI):
         kin = motion.sum(1)
 
         neurows = rows[self.tmask][3::4]
-        neurons = np.array([self.psth(plx.spikes[r-self.binlen-0.1:r]) for r in neurows])
+        neurons = np.array(list(plx.spikes.bin(neurows, self.psth)))
         assert len(kin) == len(neurons)
         return kin, neurons
 
