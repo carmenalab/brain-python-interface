@@ -1,5 +1,5 @@
 import numpy as np
-import cpsth
+from plexon import cpsth
 
 ts = np.cumsum((np.random.randn(100000)+1) / 1000)
 chan = np.random.randint(256, size=(100000)).astype(np.int32)
