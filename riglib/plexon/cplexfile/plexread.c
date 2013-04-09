@@ -211,7 +211,7 @@ int plx_read_discrete(SpikeInfo* info, Spike* data) {
 int plx_read_waveforms(SpikeInfo* info, double* data) {
     double gain;
     unsigned long i, j, k, n = 0;
-    short buf[MAX_SAMPLES_PER_WAVEFORM];
+    short buf[MAX_SAMPLES_PER_WAVEFORM], chan;
 
     FrameSet* frameset = &(info->plxfile->data[info->type]);
     DataFrame* frame = frameset->frames;
@@ -227,9 +227,9 @@ int plx_read_waveforms(SpikeInfo* info, double* data) {
         fseek(info->plxfile->fp, frame->fpos + 8, SEEK_SET);
         for (j = 0; j < frame->nblocks; j++) {
             if (fstart <= frame->ts && frame->ts < fstop) {
-                if (fread(buf, sizeof(short), 1, info->plxfile->fp) != 1)
+                if (fread(&chan, sizeof(short), 1, info->plxfile->fp) != 1)
                     return -1;
-                gain = (double) info->plxfile->chan_info[buf[0]].Gain;
+                gain = (double) info->plxfile->chan_info[chan-1].Gain;
                 fseek(info->plxfile->fp, 6, SEEK_CUR);
                 readsize = fread(buf, sizeof(short), info->wflen, info->plxfile->fp);
                 if (readsize != (unsigned long) info->wflen)
@@ -237,6 +237,8 @@ int plx_read_waveforms(SpikeInfo* info, double* data) {
                 fseek(info->plxfile->fp, 8, SEEK_CUR);
                 for (k = 0; k < (unsigned long) info->wflen; k++) 
                     data[n*info->wflen + k] = buf[k] / gain;
+                //if (chan == 256)
+                //    printf("buf=%d,%d,%d,...,%d / %f\n", buf[0], buf[1], buf[2], buf[info->wflen-1], gain);
                 n++;
             }
         }

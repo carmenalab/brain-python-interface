@@ -61,6 +61,14 @@ cdef class Datafile:
 
             return units
 
+    property gain:
+        def __get__(self):
+            cdef int i, j
+            cdef object gains = []
+            for i in range(self.plxfile.header.NumDSPChannels):
+                gains.append(self.plxfile.chan_info[i].Gain)
+            return gains
+
 cdef class ContinuousFS:
     cdef Datafile parent
     cdef ChanType type
