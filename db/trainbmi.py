@@ -15,11 +15,18 @@ from celery import task, chain
 
 @task()
 def cache_plx(plxfile):
-    plx = plexfile.openFile(plxfile) 
+    plx = plexfile.openFile(str(plxfile)) 
 
 @task()
 def make_bmi(name, clsname, entry, cells, binlen, tslice):
+    # "test" case to see if 'cells' are being passed properly
+    f = open('/home/helene/cells', 'w')
+    f.write(cells)
+    f.close()
+
     cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
+    print "trainbmi.make_bmi"
+    print cells
 
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 

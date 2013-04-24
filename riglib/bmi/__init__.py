@@ -13,6 +13,7 @@ class BMI(object):
         self.files = kwargs
         self.binlen = binlen
         self.units = np.array(cells).astype(np.int32)
+        #print self.units 
 
         self.psth = psth.SpikeBin(self.units, binlen)
 
@@ -70,7 +71,8 @@ class MotionBMI(BMI):
 
         neurows = rows[self.tmask][3::4]
         neurons = np.array(list(plx.spikes.bin(neurows, self.psth)))
-        assert len(kin) == len(neurons)
+        if len(kin) != len(neurons):
+            raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
         return kin, neurons
 
 class ManualBMI(MotionBMI):
@@ -87,8 +89,10 @@ class ManualBMI(MotionBMI):
 
         idx = np.convolve(target, target, 'valid')
         found = np.convolve(seq[:,0], target, 'valid') == idx
-
-        slices = states[found]['time'].reshape(-1, 2)
+        times = states[found]['time']
+        if len(times) % 2 == 1:
+            times = times[:-1]
+        slices = times.reshape(-1, 2)
         t, m, d = h5.root.motiontracker.shape
         mask = np.ones((t/4, m, d), dtype=bool)
         for s, e in slices:

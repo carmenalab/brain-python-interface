@@ -221,7 +221,7 @@ class Connection(object):
                             wavedat = array.array('h', packet[:l])
                             packet = packet[l:]
                         
-                        ts = long(header['Uts']) << 32 | header['ts']
+                        ts = long(header['Uts']) << 32 | long(header['ts']) # 04.06.13, SG explicitly promoted header['ts'] to long
                         yield WaveData(type=header['type'], chan=header['chan'],
                             unit=header['unit'], ts=ts, waveform = wavedat)
 
