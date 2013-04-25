@@ -171,8 +171,8 @@ class KalmanFilter(VelocityBMI, ManualBMI):
 
 class KalmanAssist(KalmanFilter):
     def predict(self, obs_t, target=None, assist_level=0.01):
-        cursorpos = super(KalmanAssist, self).predict(obs_t)[:3]
         if target == None: # make sure target is a 1D array
+            cursorpos = super(KalmanAssist, self).predict(obs_t)[:3]
             return cursorpos
         else:
             assert isinstance(target, np.ndarray)
@@ -184,14 +184,24 @@ class KalmanAssist(KalmanFilter):
             except:
                 assist_level = 0.01
 
-            oracle_vec_to_targ = target - np.array(self.state.mean[0:2,:]).ravel()
+            currentpos = np.array(self.state.mean[0:3,:]).ravel()
+            oracle_vec_to_targ = target - np.array(currentpos).ravel()
+            cursorpos = super(KalmanAssist, self).predict(obs_t)[:3]
+
             max_speed = 0.02 # cm/sec
-            time_to_targ = (0.1*oracle_vel_to_targ)/max_speed # time to target in sec, based on max speed 
+            time_to_targ = (0.1*oracle_vec_to_targ)/max_speed # time to target in sec, based on max speed 
             dt = 1./60
             num_iter_to_targ = time_to_targ / dt
-            oracle_vel = 1./num_iter_to_targ * oracle_vec_to_target
+            oracle_vel = 1./num_iter_to_targ * oracle_vec_to_targ
 
-            assisted_output = assist_level*oracle_vel + (1-assist_level)*cursorpos
+            assisted_output = assist_level*(oracle_vel + currentpos) + (1-assist_level)*cursorpos
 
             # modify state of the BMI 
-            self.state.mean[0:3] = assisted_output
+            self.state.mean[0:3, 0] = assisted_output.reshape(-1,1)
+            min_pos = np.array([-5., -5., -5.])
+            max_pos = np.array([5., 5., 5.])
+            for k in range(3):
+                self.state.mean[k,0] = min(max_pos[k], self.state.mean[k,0])
+                self.state.mean[k,0] = max(min_pos[k], self.state.mean[k,0])
+
+            return np.array(self.state.mean[:-1]).ravel() 

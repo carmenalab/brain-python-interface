@@ -108,4 +108,4 @@ class VelocityBMI(MotionBMI):
         kin = np.ma.hstack([kin[:-1,:,:3], velocity])
         return kin, neurons[:-1]
 
-from kalman import KalmanFilter
+from kalman import KalmanFilter, KalmanAssist

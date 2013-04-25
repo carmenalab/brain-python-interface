@@ -85,5 +85,6 @@ instance_to_model = SubclassDict( {
 
 
 bmis = dict(
-    velocity_kalman= bmi.KalmanFilter,
+    kalman= bmi.KalmanFilter,
+    kalman_assist = bmi.KalmanAssist,
     )
