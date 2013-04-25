@@ -133,7 +133,7 @@ class KalmanFilter(VelocityBMI, ManualBMI):
         init_cov = np.mat( np.zeros([nS, nS]) )
         self.state = GaussianState(init_state, init_cov) 
 
-    def __call__(self, obs_t):
+    def __call__(self, obs_t, **kwargs):
         '''
         Return the predicted arm position given the new data.
 
@@ -148,9 +148,9 @@ class KalmanFilter(VelocityBMI, ManualBMI):
 	        Decoder output for each decoded parameter
 
         '''
-        return self.predict(super(KalmanFilter, self).__call__(obs_t))
+        return self.predict(super(KalmanFilter, self).__call__(obs_t), **kwargs)
 
-    def predict(self, obs_t):
+    def predict(self, obs_t, **kwargs):
         obs_t = np.mat(obs_t).T
         pred_state = self.A*self.state + self.state_noise
         pred_obs = self.C*pred_state + self.obs_noise 
@@ -168,3 +168,9 @@ class KalmanFilter(VelocityBMI, ManualBMI):
     def __setstate__(self, state):
         super(KalmanFilter, self).__setstate__(state)
         self.init_state()
+
+class KalmanAssist(KalmanFilter):
+    def predict(self, obs_t, target=None):
+        cursorpos = super(KalmanAssist, self).predict(obs_t)
+        #Do some logic here to assist cursor position
+        return cursorpos

@@ -16,7 +16,7 @@ class BMI(object):
 
         self.psth = psth.SpikeBin(self.units, binlen)
 
-    def __call__(self, data):
+    def __call__(self, data, **kwargs):
         psth = self.psth(data)
         return psth
 
