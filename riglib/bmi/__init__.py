@@ -13,7 +13,6 @@ class BMI(object):
         self.files = kwargs
         self.binlen = binlen
         self.units = np.array(cells).astype(np.int32)
-        #print self.units 
 
         self.psth = psth.SpikeBin(self.units, binlen)
 

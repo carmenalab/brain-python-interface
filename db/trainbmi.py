@@ -25,8 +25,6 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     f.close()
 
     cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
-    print "trainbmi.make_bmi"
-    print cells
 
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
