@@ -90,7 +90,7 @@ class DataSource(mp.Process):
         system.stop()
         print "ended datasource %r"%self.source
 
-    def get(self, all=False):
+    def get(self, all=False, **kwargs):
         if self.status.value <= 0:
             raise Exception('Error starting datasource')
             
@@ -117,7 +117,7 @@ class DataSource(mp.Process):
             print "can't get fromstring..."
 
         if self.filter is not None:
-            return self.filter(data)
+            return self.filter(data, **kwargs)
         return data
 
     def pause(self):
