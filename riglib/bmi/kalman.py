@@ -104,8 +104,8 @@ class KalmanFilter(VelocityBMI, ManualBMI):
             return np.mat(A)
 
         T_per = 0.1 # TODO should this be 1./60?
-        m = -200
-        a = 0.9
+        m = 0 
+        a = 0.8
         w = 500
         A = _gen_A(1, T_per, m, a, 1)
         W = _gen_A(0, 0, 0, w, 0)
@@ -163,14 +163,35 @@ class KalmanFilter(VelocityBMI, ManualBMI):
         pred_state.cov = (self.I_N - K*C)*P_prior 
 
         self.state = pred_state
-        return np.array(self.state.mean[:-1]).ravel() + self.means
+        return np.array(self.state.mean[:-1]).ravel() 
 
     def __setstate__(self, state):
         super(KalmanFilter, self).__setstate__(state)
         self.init_state()
 
 class KalmanAssist(KalmanFilter):
-    def predict(self, obs_t, target=None):
-        cursorpos = super(KalmanAssist, self).predict(obs_t)
-        #Do some logic here to assist cursor position
-        return cursorpos
+    def predict(self, obs_t, target=None, assist_level=0.01):
+        cursorpos = super(KalmanAssist, self).predict(obs_t)[:3]
+        if target == None: # make sure target is a 1D array
+            return cursorpos
+        else:
+            assert isinstance(target, np.ndarray)
+            assert len(target.shape) == 1
+
+            # TODO remove!
+            try:
+                assist_level = float(open('/home/helene/constants/assist_level', 'r').readline().rstrip())
+            except:
+                assist_level = 0.01
+
+            oracle_vec_to_targ = target - np.array(self.state.mean[0:2,:]).ravel()
+            max_speed = 0.02 # cm/sec
+            time_to_targ = (0.1*oracle_vel_to_targ)/max_speed # time to target in sec, based on max speed 
+            dt = 1./60
+            num_iter_to_targ = time_to_targ / dt
+            oracle_vel = 1./num_iter_to_targ * oracle_vec_to_target
+
+            assisted_output = assist_level*oracle_vel + (1-assist_level)*cursorpos
+
+            # modify state of the BMI 
+            self.state.mean[0:3] = assisted_output
