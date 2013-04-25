@@ -40,6 +40,7 @@ def task_info(request, idx):
     return _respond(task_info)
 
 def exp_info(request, idx):
+    print idx
     entry = TaskEntry.objects.get(pk=idx)
     return _respond(entry.to_json())
 
