@@ -61,6 +61,9 @@ class KalmanFilter(VelocityBMI, ManualBMI):
         self.include_offset = include_offset
         assert kindata.shape[1] == neuraldata.shape[1]
 
+        self.neuraldata = neuraldata
+        self.kindata = kindata
+
         if isinstance(kindata, np.ma.core.MaskedArray):
             mask = ~kindata.mask[0,:] # NOTE THE INVERTER 
             inds = np.nonzero([ mask[k]*mask[k+1] for k in range(len(mask)-1)])[0] 
@@ -90,19 +93,23 @@ class KalmanFilter(VelocityBMI, ManualBMI):
         # ML estimate of C and Q
         C = Y*np.linalg.pinv(X)
         Q = np.cov( Y-C*X, bias=1 )
-        
-        #if include_offset:
-        #    A = np.mat(np.zeros([num_kindata+1, num_kindata+1]))
-        #else:
-        #    A = np.mat(np.zeros([num_kindata, num_kindata]))
             
         A = X_2*np.linalg.pinv(X_1)
         W = np.cov(X_2 - A*X_1, bias=1)
 
-        # TODO estimate ML diagonal A
-        # TODO estimate ML diagonal W
-        # TODO estimate Q with orth. constraints
-    
+        def _gen_A(t, s, m, n, off, ndim=3):
+            A = np.zeros([2*ndim+1, 2*ndim+1]) # TODO remove hardcoding
+            A_lower_dim = np.array([[t, s], [m, n]])
+            A[0:2*ndim, 0:2*ndim] = np.kron(A_lower_dim, np.eye(ndim))
+            return np.mat(A)
+
+        T_per = 0.1 # TODO should this be 1./60?
+        m = -200
+        a = 0.9
+        w = 500
+        A = _gen_A(1, T_per, m, a, 1)
+        W = _gen_A(0, 0, 0, w, 0)
+   
         # store KF matrix parameters 
         self.A = A
         self.W = W
