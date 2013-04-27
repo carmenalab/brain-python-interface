@@ -19,6 +19,7 @@ class Spikes(object):
 
     def stop(self):
         self.conn.stop_data()
+        self.conn.disconnect()
 
     def get(self):
         d = self.data.next()
