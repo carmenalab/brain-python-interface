@@ -54,7 +54,8 @@ extern BinInfo* bin_init(int* chans, size_t clen, double binlen, char* funcname,
 }
 
 extern void bin_spikes(BinInfo* info, Spike* spikes, uint nspikes, double* output) {
-    uint i, idx;
+    long i;
+    uint idx;
     double sdiff, val, curtime = spikes[nspikes-1].ts;
 
     //Since spike times are only vaguely ordered, find the largest timestamp
@@ -64,7 +65,7 @@ extern void bin_spikes(BinInfo* info, Spike* spikes, uint nspikes, double* outpu
     }
 
     //Search through spikes in reverse order
-    for (i = nspikes-1; i > 0; i--) {
+    for (i = nspikes-1; i >= 0; i--) {
         idx = _hash_chan((ushort) spikes[i].chan, (ushort) spikes[i].unit);
         sdiff = curtime - spikes[i].ts;
         //Break when the time is greater than spike fuzz
