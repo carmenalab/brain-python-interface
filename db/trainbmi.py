@@ -15,15 +15,15 @@ from celery import task, chain
 
 @task()
 def cache_plx(plxfile):
+    """Create cache for plexon file"""
     plx = plexfile.openFile(str(plxfile)) 
 
 @task()
 def make_bmi(name, clsname, entry, cells, binlen, tslice):
-    # "test" case to see if 'cells' are being passed properly
-    f = open('/home/helene/cells', 'w')
-    f.write(cells)
-    f.close()
+    """Train BMI
 
+    (see doc for cache_and_train for input argument info)
+    """
     cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
 
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
@@ -38,6 +38,22 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     database.save_bmi(name, int(entry), tf.name)
 
 def cache_and_train(name, clsname, entry, cells, binlen, tslice):
+    """Cache plexon file and train BMI
+
+    Parameters
+    ----------
+    clsname : string
+        BMI algorithm name (passed to namelist lookup table 'bmis')
+    entry : models.TaskEntry
+        Django record of training task
+    cells : string
+        Single string containing all the units to be in decoder, matching
+        format in global regex 'cellname'
+    binlen : float
+        Time of spike history to consider
+    tslice : slice
+        Task time to use when training the decoder
+    """
     plexon = models.System.objects.get(name='plexon')
     plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
 
