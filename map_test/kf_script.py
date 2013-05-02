@@ -8,9 +8,9 @@ from scipy.io import loadmat
 import kfdecoder
 import dsp
 
-sim = True
+sim = False
 T_loop = 0.1
-n_iter = 50
+n_iter = 1000
 run_clda = False
 
 
@@ -24,6 +24,7 @@ if sim: # Instantiate a simulation source
     plx_data = DataSourceSimSpikes()
     display_soc.sendto('reset', display_addr)
 else: # Instantiate a plexnet client object 
+    from riglib import source
     from riglib.plexon import Spikes
     plx_data = source.DataSource(Spikes, addr=('192.168.0.6', 6000))
     plx_data.start()
@@ -49,6 +50,7 @@ trial_end_codes = [4, 8, 12, 9]
 ENTERS_CENTER = 15
 ENTERS_TARGET = 7
 
+# Loat target locations
 target_locations = loadmat('jeev_center_out_bmi_targets_post012813.mat')
 center = target_locations['centerPos'].ravel()
 horiz_min, vert_min = center - np.array([0.09, 0.09])
@@ -56,10 +58,13 @@ horiz_max, vert_max = center + np.array([0.09, 0.09])
 bounding_box = (horiz_min, vert_min, horiz_max, vert_max)
 
 # Load the decoder
-decoder_fname = '/Users/sgowda/bmi/workspace/smoothbatch/jeev/test_decoder.mat'
+decoder_fname = 'jeev041513_VFB_Kawf_B100_NS5_NU14_Z1_smoothbatch_smoothbatch_smoothbatch_smoothbatch_smoothbatch_smoothbatch.mat'
 decoder = kfdecoder.load_from_mat_file(decoder_fname, bounding_box=bounding_box)
 
-# TODO load the zscoring decoder!
+# load the zscoring decoder
+norm_decoder_fname = 'jeev050113_VFB_Kawf_B100_NS5_NU14_Z1.mat'
+norm_decoder = kfdecoder.load_from_mat_file(norm_decoder_fname)
+decoder.init_zscore(norm_decoder.mFR, norm_decoder.sdFR)
 
 if run_clda:
     CLDA_batchsize = 100
@@ -142,3 +147,9 @@ for k in range(n_iter):
         time.sleep(T_loop - (time.time() - t_loop_start))
     except: # slack is negative
         print "not sleeping!"
+
+print "BMI ended (finished fixed # of iterations)"
+if sim: # Terminate simulation source
+    pass
+else: # Instantiate a plexnet client object 
+    plx_data.stop()

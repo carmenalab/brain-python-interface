@@ -88,7 +88,7 @@ class KalmanFilter():
 
     def get_mean(self):
         return np.array(self.state.mean).ravel()
-        `
+
     def _obs_prob(self, state):
         return self.C * state + self.obs_noise
 
@@ -244,7 +244,6 @@ class KFDecoder():
         # re-normalize the variance of the spike observations, if nec
         if self.zscore:
             spike_counts = (spike_counts - self.mFR) * self.sdFR_ratio
-            print spike_counts
 
         # re-format as a 1D col vec
         spike_counts = np.mat(spike_counts.reshape(-1,1))
