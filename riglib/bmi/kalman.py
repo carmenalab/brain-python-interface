@@ -42,7 +42,8 @@ class KalmanFilter(VelocityBMI, ManualBMI):
     def __init__(self, *args, **kwargs):
         super(KalmanFilter, self).__init__(*args, **kwargs)
         kindata, neurons = self.get_data()
-        kindata = kindata[:, [0, 8]].reshape(len(kindata), -1)
+        n_kin_vars = kindata.shape[1]
+        kindata = kindata[:, [0, n_kin_vars/2]].reshape(len(kindata), -1)
         self.train( kindata.T, neurons.T, include_offset=True)
         self.means = kindata.mean(0)
     

@@ -8,10 +8,14 @@ class Spikes(object):
     update_freq = 40000
     dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
 
+    #def __init__(self, addr=("192.168.0.6", 6000), channels=None):
     def __init__(self, addr=("10.0.0.13", 6000), channels=None):
         self.conn = plexnet.Connection(*addr)
         self.conn.connect(256, waveforms=False, analog=False)
-        self.conn.select_spikes(channels)
+        try:
+            self.conn.select_spikes(channels)
+        except:
+            print "Cannot run select_spikes method; old system?"
 
     def start(self):
         self.conn.start_data()
