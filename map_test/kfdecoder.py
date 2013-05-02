@@ -65,6 +65,8 @@ class KalmanFilter():
         offset_row[-1] = 1
         self.include_offset = np.array_equal(np.array(A)[-1, :], offset_row)
 
+        self.alt = False
+
     def _init_state(self, init_state=None, init_cov=None):
         """ Initialize the state of the KF prior to running in real-time
         """
@@ -130,7 +132,7 @@ class KalmanFilter():
         Experimentally, convergence requires ~300 predictions. 10000 "predictions" performed
         by default, controlled by the kwarg 'n_steps'
         """ 
-        A, W, H, Q = np.mat(self.A), np.mat(self.W), np.mat(self.H), np.mat(self.Q)
+        A, W, H, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
 
         if alt:
             H_xpose_Q_inv = H.T * Q.I
@@ -217,7 +219,10 @@ class KalmanFilter():
         return {'A':self.A, 'W':self.W, 'C':self.C, 'Q':self.Q}
 
 class KFDecoder():
-    def __init__(self, kf, mFR, sdFR, units, bounding_box):
+    def __init__(self, kf, mFR, sdFR, units, bounding_box, states):
+        """ Initializes the Kalman filter decoder.  Includes BMI specific
+        features used to run the Kalman filter in a BMI context.
+        """
         self.kf = kf
         self.kf._init_state()
         self.mFR = mFR
@@ -226,6 +231,7 @@ class KFDecoder():
         self.units = np.array(units, dtype=np.int32)
         self.bin_spikes = psth.SpikeBin(self.units, np.inf)
         self.bounding_box = bounding_box
+        self.states = states
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         self.sdFR_ratio = np.ravel(self.sdFR/sdFR_curr)
@@ -237,7 +243,24 @@ class KFDecoder():
         return kf
     load = classmethod(load)
 
-    def decode(self, ts_data_k, target=None, assist_level=0):
+    def decode(self, ts_data_k, target=None, speed=0.005, target_radius=0, assist_level=0, dt=0.1):
+        """Decode the spikes"""
+        # Save the previous cursor state if using assist
+        if assist_level > 0 and not target == None:
+            prev_kin = self.kf.get_mean()
+            cursor_pos = prev_kin[0:2] # TODO assumes a 2D position state
+            diff_vec = target - cursor_pos 
+            dist_to_target = np.linalg.norm(diff_vec)
+            dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+            
+            if dist_to_target > target_radius:
+                assist_cursor_pos = cursor_pos + speed*dir_to_target;
+            else:
+                assist_cursor_pos = cursor_pos + diff_vec/2;
+
+            assist_cursor_vel = (assist_cursor_pos-cursor_pos)/dt;
+            assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
+
         # "Bin" spike timestamps to generate spike counts
         spike_counts = self.bin_spikes(ts_data_k)
 
@@ -259,14 +282,40 @@ class KFDecoder():
             self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
             self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
 
+        if assist_level > 0 and not target == None:
+            cursor_kin = self.kf.get_mean()
+            kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
+            self.kf.state.mean[:,0] = kin.reshape(-1,1)
+
+            # Bound cursor, if applicable
+            if not self.bounding_box == None:
+                horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
+                self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
+                self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
+                self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
+                self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
+
         return self.kf.get_mean()
 
     def retrain(self, batch, halflife):
         raise NotImplementedError
 
+    def __getitem__(self, idx):
+        if isinstance(idx, int):
+            return self.kf.state.mean[idx, 0]
+        elif isinstance(idx, str) or isinstance(idx, unicode):
+            idx = self.states.index(idx)
+            return self.kf.state.mean[idx, 0]
+        elif np.iterable(idx):
+            return np.array([self.__getitem__(k) for k in idx])
+        else:
+            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
 
-def load_from_mat_file(decoder_fname, bounding_box=None):
-    # Create KF decoder from MATLAB stored file (KINARM bw compatibilty)
+
+def load_from_mat_file(decoder_fname, bounding_box=None, 
+        states=['p_x', 'p_y', 'v_x', 'v_y', 'off']):
+    """Create KFDecoder from MATLAB stored file (KINARM bw compatibilty)
+    """
     decoder_data = loadmat(decoder_fname)['decoder']
     A = decoder_data['A'][0,0]
     W = decoder_data['W'][0,0]
@@ -280,8 +329,8 @@ def load_from_mat_file(decoder_fname, bounding_box=None):
     units = [(int(sig[3:6]), unit_lut[sig[-1]]) for sig in pred_sigs]
 
     kf = KalmanFilter(A, W, H, Q)
-    kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box)
-    
+    kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box, states)
+
     return kfdecoder
 
 if __name__ == '__main__':
