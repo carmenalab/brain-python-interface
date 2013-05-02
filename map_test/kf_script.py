@@ -26,7 +26,8 @@ if sim: # Instantiate a simulation source
 else: # Instantiate a plexnet client object 
     from riglib import source
     from riglib.plexon import Spikes
-    plx_data = source.DataSource(Spikes, addr=('192.168.0.6', 6000))
+    plx_data = source.DataSource(Spikes, addr=('10.0.0.13', 6000))
+    #plx_data = source.DataSource(Spikes, addr=('192.168.0.6', 6000))
     plx_data.start()
     time.sleep(0.7) # Compensating for start-up delay?
 
@@ -142,7 +143,9 @@ for k in range(n_iter):
             kfdecoder.retrain(batch, halflife)
        
     # Sleep off the remaining time until the next decoder output
-    slack[k] = (time.time() - t_loop_start)
+    #slack[k] = (time.time() - t_loop_start)
+    slack[k] = T_loop - (time.time() - t_loop_start)
+    print slack[k]
     try:
         time.sleep(T_loop - (time.time() - t_loop_start))
     except: # slack is negative
