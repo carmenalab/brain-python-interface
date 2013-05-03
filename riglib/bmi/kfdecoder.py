@@ -3,7 +3,10 @@ import sys
 
 import numpy as np
 from scipy.io import loadmat
-from plexon import psth
+from plexon import plexfile, psth
+from riglib.nidaq import parse
+
+import tables
 
 class GaussianState(object):
     def __init__(self, mean, cov):
@@ -313,8 +316,9 @@ class KFDecoder():
 
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
-        states=['p_x', 'p_y', 'v_x', 'v_y', 'off']):
-    """Create KFDecoder from MATLAB stored file (KINARM bw compatibilty)
+    states=['p_x', 'p_y', 'v_x', 'v_y', 'off']):
+    """Create KFDecoder from MATLAB decoder file used in a Dexterit-based
+    BMI
     """
     decoder_data = loadmat(decoder_fname)['decoder']
     A = decoder_data['A'][0,0]
@@ -333,5 +337,66 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
 
     return kfdecoder
 
+def train_from_manual_control(cells, binlen=.1, tslice=[None, None], **kwargs):
+    files = kwargs
+
+    # Open plx file
+    plx = plexfile.openFile(str(files['plexon']))
+    rows = parse.rowbyte(plx.events[:].data)[0][:,0]
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
+
+    #Trim the mask to have exactly an even multiple of 4 worth of data
+    if sum(tmask) % 4 != 0:
+        midx, = np.nonzero(tmask)
+        tmask[midx[-(len(midx) % 4):]] = False
+
+    #Grab masked data, filter out interpolated data
+    h5 = tables.openFile(files['hdf'])
+    motion = h5.root.motiontracker
+    t, m, d = motion.shape
+    motion = motion[np.tile(tmask, [d,m,1]).T].reshape(-1, 4, m, d)
+    invalid = np.logical_or(motion[...,-1] == 4, motion[...,-1] < 0)
+    motion[invalid] = 0
+    kin = motion.sum(1)
+
+    # Create PSTH function
+    units = np.array(cells).astype(np.int32)
+    psth = psth.SpikeBin(units, binlen)
+
+    neurows = rows[tmask][3::4]
+    neurons = np.array(list(plx.spikes.bin(neurows, psth)))
+    if len(kin) != len(neurons):
+        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
+    return kin, neurons
+
+    # Match kinematics with the task state
+    task_states = ['origin_hold', 'terminus', 'terminus_hold', 'reward']
+    states = h5.root.motiontracker_msgs[:]
+    names = dict((n, i) for i, n in enumerate(np.unique(states['msg'])))
+    target = np.array([names[n] for n in task_states])
+    seq = np.array([(names[n], t) for n, t, in states])
+
+    idx = np.convolve(target, target, 'valid')
+    found = np.convolve(seq[:,0], target, 'valid') == idx
+    times = states[found]['time']
+    if len(times) % 2 == 1:
+        times = times[:-1]
+    slices = times.reshape(-1, 2)
+    t, m, d = h5.root.motiontracker.shape
+    mask = np.ones((t/4, m, d), dtype=bool)
+    for s, e in slices:
+        mask[s/4:e/4] = False
+    kin = np.ma.array(kin, mask=mask[self.tmask[3::4]])
+
+    # TODO calculate velocity
+
+    # TODO train KF model parameters
+  
 if __name__ == '__main__':
     pass
