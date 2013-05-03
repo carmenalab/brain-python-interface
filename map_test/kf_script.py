@@ -5,14 +5,13 @@ import struct
 import time
 from scipy.io import loadmat
 
-import kfdecoder
+from riglib.bmi import kfdecoder
 import dsp
 
-sim = False
+sim = True 
 T_loop = 0.1
-n_iter = 1000
+n_iter = 100
 run_clda = False
-
 
 # Link to task display
 display_ip_addr = '127.0.0.1' if sim else '192.168.0.2'
@@ -49,22 +48,28 @@ task_states = ['go_to_center', 'hold_at_center', 'go_to_target', 'hold_at_target
 trial_end_codes = [4, 8, 12, 9]
 ENTERS_CENTER = 15
 ENTERS_TARGET = 7
+GO_CUE = 5
 
 # Loat target locations
 target_locations = loadmat('jeev_center_out_bmi_targets_post012813.mat')
 center = target_locations['centerPos'].ravel()
+targets = target_locations['targetPos']
 horiz_min, vert_min = center - np.array([0.09, 0.09])
 horiz_max, vert_max = center + np.array([0.09, 0.09])
 bounding_box = (horiz_min, vert_min, horiz_max, vert_max)
 
 # Load the decoder
-decoder_fname = 'jeev041513_VFB_Kawf_B100_NS5_NU14_Z1_smoothbatch_smoothbatch_smoothbatch_smoothbatch_smoothbatch_smoothbatch.mat'
-decoder = kfdecoder.load_from_mat_file(decoder_fname, bounding_box=bounding_box)
-
-# load the zscoring decoder
-norm_decoder_fname = 'jeev050113_VFB_Kawf_B100_NS5_NU14_Z1.mat'
-norm_decoder = kfdecoder.load_from_mat_file(norm_decoder_fname)
-decoder.init_zscore(norm_decoder.mFR, norm_decoder.sdFR)
+if sim:
+    decoder_fname = '/Users/sgowda/bmi/workspace/smoothbatch/jeev/test_decoder.mat'
+    decoder = kfdecoder.load_from_mat_file(decoder_fname)
+else:
+    decoder_fname = 'jeev041513_VFB_Kawf_B100_NS5_NU14_Z1_smoothbatch_smoothbatch_smoothbatch_smoothbatch_smoothbatch_smoothbatch.mat'
+    decoder = kfdecoder.load_from_mat_file(decoder_fname, bounding_box=bounding_box)
+    
+    # load the zscoring decoder
+    norm_decoder_fname = 'jeev050113_VFB_Kawf_B100_NS5_NU14_Z1.mat'
+    norm_decoder = kfdecoder.load_from_mat_file(norm_decoder_fname)
+    decoder.init_zscore(norm_decoder.mFR, norm_decoder.sdFR)
 
 if run_clda:
     CLDA_batchsize = 100
@@ -88,7 +93,10 @@ if run_clda:
             self.neuraldata = []
             return kindata, self.neuraldata
         
+current_target = center
+last_target_code = 64
 
+assist_level = 0
 for k in range(n_iter):
     # Get the time at the start of the loop
     t_loop_start = time.time()
@@ -97,33 +105,36 @@ for k in range(n_iter):
     ts_data[k] = plx_data.get()
 
     # Decode binned spike counts using KF
-    bmi_state = decoder.decode(ts_data[k])
-    bmi_kin = np.array(bmi_state).ravel()
-    bmi_kin[-1] = 0
+    decoder.decode(ts_data[k], target=current_target, target_radius=0.012, 
+        assist_level=assist_level)
+    bmi_kin = decoder['p_x', 'p_y', 'v_x', 'v_y']
 
     # Low-pass filter the decoded cursor position
-    bmi_kin[0:2] = lpf(bmi_kin[0:2])
+    #bmi_kin[0:2] = lpf(bmi_kin[0:2])
 
     # Send decoded position to task display
-    display_soc.sendto(struct.pack('d'*5, *bmi_kin), display_addr)
+    bmi_output = struct.pack('d'*4, *bmi_kin)
+    bmi_output += struct.pack('d', 0) # fake value for update flag
+    display_soc.sendto(bmi_output, display_addr)
+
+    task_events = ts_data[k][ts_data[k]['chan'] == 257, :]
+    for event in task_events:
+        event_code = event['unit']
+        if event_code in target_codes: # assuming that 2 and target code appear simultaneously, i.e. normal center-out task
+            current_task_state = 'go_to_center'
+            current_target = center
+            last_target_code = event_code
+        elif event_code == ENTERS_CENTER:
+            current_task_state = 'hold_at_center'
+        elif event_code == ENTERS_TARGET:
+            current_task_state = 'hold_at_target'
+        elif event_code == GO_CUE:
+            current_task_state = 'go_to_target'
+            current_target = targets[last_target_code - target_code_offset, :]
 
     ##--- CLDA
     # Task events
     if run_clda:
-        task_events = ts_data[k][ts_data[k]['chan'] == 257, :]
-        for event in task_events:
-            event_code = event['unit']
-            if event_code in target_codes: # assuming that 2 and target code appear simultaneously, i.e. normal center-out task
-                current_task_state = 'go_to_center'
-                current_target = center
-            elif event_code == ENTERS_CENTER:
-                current_task_state = 'hold_at_center'
-            elif event_code == ENTERS_TARGET:
-                current_task_state = 'hold_at_target'
-            elif event_code == GO_CUE:
-                current_task_state = 'go_to_target'
-                current_target = targets[:,event_code - target_code_offset]
-            
         bmi_pos = bmi_kin[0:2]
         bmi_vel = bmi_kin[2:4]
         if not clda_batch.is_full():
