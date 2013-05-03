@@ -34,7 +34,7 @@ generators = dict(
     #reach_target=manualcontrol.rand_target_sequence,
     reach_target_2d=manualcontrol.rand_target_sequence_2d,
     reach_target_3d=manualcontrol.rand_target_sequence_3d,
-    centerout_2d_cont=rand_target_sequence_2d_centerout_continuous,
+    centerout_2d=manualcontrol.rand_target_sequence_2d_centerout,
     nummap=sensorymapping.gen_taps,
 )
 
