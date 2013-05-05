@@ -7,6 +7,7 @@ from plexon import plexfile, psth
 from riglib.nidaq import parse
 
 import tables
+from itertools import izip
 
 class GaussianState(object):
     def __init__(self, mean, cov):
@@ -62,13 +63,24 @@ class KalmanFilter():
         
         self.state_noise = GaussianState(0.0, W)
         self.obs_noise = GaussianState(0.0, Q)
+        self._pickle_init()
 
+    def _pickle_init(self):
+        """Code common to unpickling and initialization
+        """
         nS = self.A.shape[0]
         offset_row = np.zeros(nS)
         offset_row[-1] = 1
-        self.include_offset = np.array_equal(np.array(A)[-1, :], offset_row)
+        self.include_offset = np.array_equal(np.array(self.A)[-1, :], offset_row)
 
-        self.alt = False
+        self.alt = nS < self.C.shape[0] # No. of states less than no. of observations
+        if self.alt:
+            C, Q = self.C, self.Q 
+            self.C_xpose_Q_inv = C.T * Q.I
+            self.C_xpose_Q_inv_C = C.T * Q.I * C
+        else:
+            self.C_xpose_Q_inv = None
+            self.C_xpose_Q_inv_C = None
 
     def _init_state(self, init_state=None, init_cov=None):
         """ Initialize the state of the KF prior to running in real-time
@@ -100,16 +112,6 @@ class KalmanFilter():
     def _ssm_pred(self, state):
         return self.A*state + self.state_noise
 
-    def _set_alt(self):
-        # TODO alt method or not should be determiend automatically
-        raise NotImplementedError
-        try:
-            C = self.C
-            Q = self.Q 
-            self.C_xpose_Q_inv = C.T * Q.I
-            self.C_xpose_Q_inv_C = C.T * Q.I * C
-        except:
-            pass
         
     def _forward_infer(self, st, obs_t):
         pred_state = self._ssm_pred(st)
@@ -118,7 +120,7 @@ class KalmanFilter():
         C, Q = self.C, self.Q
         P_prior = pred_state.cov
 
-        if False: # TODO
+        if self.alt:
             K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
         else:
             K = P_prior*C.T*np.linalg.pinv( C*P_prior*C.T + Q )
@@ -129,22 +131,18 @@ class KalmanFilter():
         post_state.cov = (I - K*C) * P_prior 
         return post_state
 
-    def get_sskf(self, tol=1e-10, return_P=False, alt=False, dtype=np.array, 
-        verbose=False, return_Khist=False):
+    def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, 
+        verbose=False, return_Khist=False, alt=True):
         """ starting from the data in the decoder struct, compute the converged 
         Experimentally, convergence requires ~300 predictions. 10000 "predictions" performed
         by default, controlled by the kwarg 'n_steps'
         """ 
-        A, W, H, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
+        A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
 
-        if alt:
-            H_xpose_Q_inv = H.T * Q.I
-            H_xpose_Q_inv_H = H.T * Q.I * H
-        
         P = np.mat( np.zeros(A.shape) )
 
-        last_K = np.mat(np.ones(H.T.shape))*np.inf
-        K = np.mat(np.ones(H.T.shape))*0
+        last_K = np.mat(np.ones(C.T.shape))*np.inf
+        K = np.mat(np.ones(C.T.shape))*0
 
         K_hist = []
 
@@ -152,17 +150,27 @@ class KalmanFilter():
         while np.linalg.norm(K-last_K) > tol and iter_idx < 4000:
             P = A*P*A.T + W 
             last_K = K
-            if alt or self.alt:
-                K = P*( H_xpose_Q_inv - H_xpose_Q_inv_H*(P.I + H_xpose_Q_inv_H).I * H_xpose_Q_inv ) 
+            if self.alt and alt:
+                try:
+                    if self.include_offset:
+                        tmp = np.mat(np.zeros(self.A.shape))
+                        tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
+                    else:
+                        tmp = (P.I + self.C_xpose_Q_inv_C).I
+                    K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
+                    #K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
+                except:
+                    #print "reverting"
+                    K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
             else:
-                K = (P*H.T)*np.linalg.pinv(H*P*H.T + Q);
+                K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
             K_hist.append(K)
-            P -= K*H*P;
+            P -= K*C*P;
             iter_idx += 1
         if verbose: print "Converged in %d iterations--error: %g" % (iter_idx, np.linalg.norm(K-last_K)) 
     
         n_state_vars, n_state_vars = A.shape
-        A_bar = (np.mat(np.eye(n_state_vars, n_state_vars)) - K * H) * A
+        A_bar = (np.mat(np.eye(n_state_vars, n_state_vars)) - K * C) * A
         B_bar = K 
     
         if return_P and return_Khist:
@@ -173,8 +181,6 @@ class KalmanFilter():
             return dtype(A_bar), dtype(B_bar), K_hist
         else:
             return dtype(A_bar), dtype(B_bar)
-
-
 
     def get_kalman_gain_seq(self, N=1000, tol=1e-10, verbose=False):
         A, W, H, Q = np.mat(self.kf.A), np.mat(self.kf.W), np.mat(self.kf.H), np.mat(self.kf.Q)
@@ -216,10 +222,41 @@ class KalmanFilter():
         self.W = state['W']
         self.C = state['C']
         self.Q = state['Q']
+        self._pickle_init()
 
     def __getstate__(self):
         """Return the model parameters {A, W, C, Q} for pickling"""
         return {'A':self.A, 'W':self.W, 'C':self.C, 'Q':self.Q}
+            #'alt':self.alt, 'C_xpose_Q_inv':self.C_xpose_Q_inv, 'C_xpose_Q_inv_C':self.C_xpose_Q_inv_C}
+
+    def MLE_obs_model(self, hidden_state, obs, include_offset=True):
+        """Unconstrained ML estimator of {C, Q} given observations and
+        the corresponding hidden states
+        """
+        assert hidden_state.shape[1] == obs.shape[1]
+    
+        if isinstance(hidden_state, np.ma.core.MaskedArray):
+            mask = ~hidden_state.mask[0,:] # NOTE THE INVERTER 
+            inds = np.nonzero([ mask[k]*mask[k+1] for k in range(len(mask)-1)])[0]
+    
+            X = np.mat(hidden_state[:,mask])
+            T = len(np.nonzero(mask)[0])
+    
+            Y = np.mat(obs[:,mask])
+            if include_offset:
+                X = np.vstack([ X, np.ones([1,T]) ])
+        else:
+            num_hidden_state, T = hidden_state.shape
+            X = np.mat(hidden_state)
+            if include_offset:
+                X = np.vstack([ X, np.ones([1,T]) ])
+            Y = np.mat(obs)
+    
+        # ML estimate of C and Q
+        C = Y*np.linalg.pinv(X)
+        Q = np.cov( Y-C*X, bias=1 )
+        return (C, Q)
+    MLE_obs_model = classmethod(MLE_obs_model)
 
 class KFDecoder():
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states):
@@ -245,6 +282,25 @@ class KFDecoder():
         kf = pickle.load(open(decoder_fname, 'rb'))
         return kf
     load = classmethod(load)
+
+    def bound_state(self):
+        """Apply bounds on state vector, if bounding box is specified
+        """
+        if not self.bounding_box == None:
+            min_bounds, max_bounds = self.bounding_box
+            state = self[self.states_to_bound]
+            repl_with_min = state < min_bounds
+            state[repl_with_min] = min_bounds[repl_with_min]
+
+            repl_with_max = state > max_bounds
+            state[repl_with_max] = max_bounds[repl_with_max]
+            self[self.states_to_bound] = state
+            #self[self.states_] = 
+            #horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
+            #self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
+            #self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
+            #self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
+            #self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
 
     def decode(self, ts_data_k, target=None, speed=0.005, target_radius=0, assist_level=0, dt=0.1):
         """Decode the spikes"""
@@ -278,25 +334,27 @@ class KFDecoder():
         self.kf(spike_counts)
 
         # Bound cursor, if applicable
-        if not self.bounding_box == None:
-            horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
-            self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
-            self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
-            self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
-            self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
+        self.bound_state()
+        #if not self.bounding_box == None:
+        #    horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
+        #    self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
+        #    self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
+        #    self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
+        #    self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
 
         if assist_level > 0 and not target == None:
             cursor_kin = self.kf.get_mean()
             kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
             self.kf.state.mean[:,0] = kin.reshape(-1,1)
+            self.bound_state()
 
-            # Bound cursor, if applicable
-            if not self.bounding_box == None:
-                horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
-                self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
-                self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
-                self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
-                self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
+            ## Bound cursor, if applicable
+            #if not self.bounding_box == None:
+            #    horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
+            #    self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
+            #    self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
+            #    self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
+            #    self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
 
         return self.kf.get_mean()
 
@@ -311,6 +369,17 @@ class KFDecoder():
             return self.kf.state.mean[idx, 0]
         elif np.iterable(idx):
             return np.array([self.__getitem__(k) for k in idx])
+        else:
+            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
+
+    def __setitem__(self, idx, value):
+        if isinstance(idx, int):
+            self.kf.state.mean[idx, 0] = value
+        elif isinstance(idx, str) or isinstance(idx, unicode):
+            idx = self.states.index(idx)
+            self.kf.state.mean[idx, 0] = value
+        elif np.iterable(idx):
+            [self.__setitem__(k, val) for k, val in izip(idx, value)]
         else:
             raise ValueError("KFDecoder: Improper index type: %" % type(idx))
 
@@ -367,10 +436,10 @@ def train_from_manual_control(cells, binlen=.1, tslice=[None, None], **kwargs):
 
     # Create PSTH function
     units = np.array(cells).astype(np.int32)
-    psth = psth.SpikeBin(units, binlen)
+    spike_bin_fn = psth.SpikeBin(units, binlen)
 
     neurows = rows[tmask][3::4]
-    neurons = np.array(list(plx.spikes.bin(neurows, psth)))
+    neurons = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
     if len(kin) != len(neurons):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
     return kin, neurons
@@ -399,4 +468,8 @@ def train_from_manual_control(cells, binlen=.1, tslice=[None, None], **kwargs):
     # TODO train KF model parameters
   
 if __name__ == '__main__':
+    cells = [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3), (4, 1)]
+    block = 'cart20130428_01'
+    files = dict(plexon='/storage/plexon/%s.plx' % block, hdf='/storage/rawdata/hdf/%s.hdf' % block)
+    train_from_manual_control(cells, **files)
     pass
