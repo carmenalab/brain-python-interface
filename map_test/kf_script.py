@@ -55,17 +55,18 @@ GO_CUE = 5
 target_locations = loadmat('jeev_center_out_bmi_targets_post012813.mat')
 center = target_locations['centerPos'].ravel()
 targets = target_locations['targetPos']
-horiz_min, vert_min = center - np.array([0.09, 0.09])
-horiz_max, vert_max = center + np.array([0.09, 0.09])
-bounding_box = (horiz_min, vert_min, horiz_max, vert_max)
+bounding_box = center - np.array([0.09, 0.09]), center + np.array([0.09, 0.09])
+#horiz_min, vert_min = center - np.array([0.09, 0.09])
+#horiz_max, vert_max = center + np.array([0.09, 0.09])
+#bounding_box = (np.array([horiz_min, vert_min]), np.array([horiz_max, vert_max]))
 
 # Load the decoder
 if sim:
     decoder_fname = '/Users/sgowda/bmi/workspace/smoothbatch/jeev/test_decoder.mat'
-    decoder = kfdecoder.load_from_mat_file(decoder_fname)
+    decoder = kfdecoder.load_from_mat_file(decoder_fname, bounding_box=bounding_box, states_to_bound=['p_x', 'p_y'])
 else:
     decoder_fname = 'jeev041513_VFB_Kawf_B100_NS5_NU14_Z1_smoothbatch_smoothbatch_smoothbatch_smoothbatch_smoothbatch_smoothbatch.mat'
-    decoder = kfdecoder.load_from_mat_file(decoder_fname, bounding_box=bounding_box)
+    decoder = kfdecoder.load_from_mat_file(decoder_fname, bounding_box=bounding_box, states_to_bound=['p_x', 'p_y'])
     
     # load the zscoring decoder
     norm_decoder_fname = 'jeev050113_VFB_Kawf_B100_NS5_NU14_Z1.mat'
