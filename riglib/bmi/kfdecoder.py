@@ -118,18 +118,37 @@ class KalmanFilter():
         pred_obs = self._obs_prob(pred_state)
 
         C, Q = self.C, self.Q
-        P_prior = pred_state.cov
+        P = pred_state.cov
 
-        if self.alt:
-            K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
-        else:
-            K = P_prior*C.T*np.linalg.pinv( C*P_prior*C.T + Q )
+        K = self._calc_kalman_gain(P)
+        #if self.alt:
+        #    K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
+        #else:
+        #    K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
         I = np.mat(np.eye(self.C.shape[1]))
 
         post_state = pred_state
         post_state.mean += K*(obs_t - pred_obs.mean)
-        post_state.cov = (I - K*C) * P_prior 
+        post_state.cov = (I - K*C) * P 
         return post_state
+
+    def _calc_kalman_gain(self, P, alt=True, verbose=False):
+        A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
+        if self.alt and alt:
+            try:
+                if self.include_offset:
+                    tmp = np.mat(np.zeros(self.A.shape))
+                    tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
+                else:
+                    tmp = (P.I + self.C_xpose_Q_inv_C).I
+                K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
+            except:
+                if verbose: print "reverting"
+                K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
+        else:
+            K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
+        
+        return K
 
     def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, 
         verbose=False, return_Khist=False, alt=True):
@@ -150,20 +169,21 @@ class KalmanFilter():
         while np.linalg.norm(K-last_K) > tol and iter_idx < 4000:
             P = A*P*A.T + W 
             last_K = K
-            if self.alt and alt:
-                try:
-                    if self.include_offset:
-                        tmp = np.mat(np.zeros(self.A.shape))
-                        tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
-                    else:
-                        tmp = (P.I + self.C_xpose_Q_inv_C).I
-                    K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
-                    #K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
-                except:
-                    #print "reverting"
-                    K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-            else:
-                K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
+            K = self._calc_kalman_gain(P, alt=alt, verbose=verbose)
+            #if self.alt and alt:
+            #    try:
+            #        if self.include_offset:
+            #            tmp = np.mat(np.zeros(self.A.shape))
+            #            tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
+            #        else:
+            #            tmp = (P.I + self.C_xpose_Q_inv_C).I
+            #        K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
+            #        #K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
+            #    except:
+            #        #print "reverting"
+            #        K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
+            #else:
+            #    K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
             K_hist.append(K)
             P -= K*C*P;
             iter_idx += 1
@@ -259,7 +279,7 @@ class KalmanFilter():
     MLE_obs_model = classmethod(MLE_obs_model)
 
 class KFDecoder():
-    def __init__(self, kf, mFR, sdFR, units, bounding_box, states):
+    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, states_to_bound):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
         features used to run the Kalman filter in a BMI context.
         """
@@ -272,6 +292,7 @@ class KFDecoder():
         self.bin_spikes = psth.SpikeBin(self.units, np.inf)
         self.bounding_box = bounding_box
         self.states = states
+        self.states_to_bound = states_to_bound
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         self.sdFR_ratio = np.ravel(self.sdFR/sdFR_curr)
@@ -385,7 +406,7 @@ class KFDecoder():
 
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
-    states=['p_x', 'p_y', 'v_x', 'v_y', 'off']):
+    states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
     """Create KFDecoder from MATLAB decoder file used in a Dexterit-based
     BMI
     """
@@ -402,7 +423,7 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     units = [(int(sig[3:6]), unit_lut[sig[-1]]) for sig in pred_sigs]
 
     kf = KalmanFilter(A, W, H, Q)
-    kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box, states)
+    kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box, states, states_to_bound)
 
     return kfdecoder
 
