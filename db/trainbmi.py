@@ -24,6 +24,9 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
 
     (see doc for cache_and_train for input argument info)
     """
+    print "Beginning decoder training"
+    print entry
+    print type(entry)
     cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
 
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)

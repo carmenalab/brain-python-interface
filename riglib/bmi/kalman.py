@@ -102,6 +102,7 @@ class KalmanFilter(VelocityBMI, ManualBMI):
             A = np.zeros([2*ndim+1, 2*ndim+1]) # TODO remove hardcoding
             A_lower_dim = np.array([[t, s], [m, n]])
             A[0:2*ndim, 0:2*ndim] = np.kron(A_lower_dim, np.eye(ndim))
+            A[-1,-1] = off
             return np.mat(A)
 
         T_per = 0.1 # TODO should this be 1./60?

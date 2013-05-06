@@ -4,6 +4,7 @@ import tables
 from plexon import plexfile, psth
 from riglib.nidaq import parse
 
+
 class BMI(object):
     '''A BMI object, for filtering neural data into BMI output'''
 
@@ -35,6 +36,9 @@ class BMI(object):
 
     def get_data(self):
         raise NotImplementedError
+
+import kfdecoder
+import train
 
 class MotionBMI(BMI):
     '''BMI object which is trained from motion data'''
@@ -108,4 +112,4 @@ class VelocityBMI(MotionBMI):
         kin = np.ma.hstack([kin[:-1,:,:3], velocity])
         return kin, neurons[:-1]
 
-from kalman import KalmanFilter, KalmanAssist
+##from kalman import KalmanFilter, KalmanAssist

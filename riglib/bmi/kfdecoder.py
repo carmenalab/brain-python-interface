@@ -9,6 +9,8 @@ from riglib.nidaq import parse
 import tables
 from itertools import izip
 
+from . import BMI
+
 class GaussianState(object):
     def __init__(self, mean, cov):
         if isinstance(mean, float):
@@ -112,7 +114,6 @@ class KalmanFilter():
     def _ssm_pred(self, state):
         return self.A*state + self.state_noise
 
-        
     def _forward_infer(self, st, obs_t):
         pred_state = self._ssm_pred(st)
         pred_obs = self._obs_prob(pred_state)
@@ -128,6 +129,14 @@ class KalmanFilter():
         I = np.mat(np.eye(self.C.shape[1]))
 
         post_state = pred_state
+        # print post_state.mean.shape
+        # print "kalman gain shape"
+        # print K.shape
+        # print K
+        # print obs_t.shape     
+        # print "alt"
+        # print self.alt   
+        # print (K*(obs_t - pred_obs.mean)).shape
         post_state.mean += K*(obs_t - pred_obs.mean)
         post_state.cov = (I - K*C) * P 
         return post_state
@@ -136,18 +145,31 @@ class KalmanFilter():
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
         if self.alt and alt:
             try:
+                # print "trying alt method"
                 if self.include_offset:
                     tmp = np.mat(np.zeros(self.A.shape))
                     tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
                 else:
                     tmp = (P.I + self.C_xpose_Q_inv_C).I
+                # print type(P)
+                # print type(self.C_xpose_Q_inv)
+                # print type(tmp)
+                # print type( self.C_xpose_Q_inv_C)
                 K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
             except:
                 if verbose: print "reverting"
                 K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
+                # print "singularity error in alt condition"
+                # print type(K)
+                # print type(P)
+                # print type(C)
+                # print type(np.linalg.pinv( C*P*C.T + Q ))
         else:
             K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-        
+            # print type(K)
+            # print type(P)
+            # print type(C)
+            # print type(np.linalg.pinv( C*P*C.T + Q ))        
         return K
 
     def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, 
@@ -278,8 +300,8 @@ class KalmanFilter():
         return (C, Q)
     MLE_obs_model = classmethod(MLE_obs_model)
 
-class KFDecoder():
-    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, states_to_bound):
+class KFDecoder(BMI):
+    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, states_to_bound, binlen=0.1, tslice=[-1,-1]):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
         features used to run the Kalman filter in a BMI context.
         """
@@ -289,9 +311,11 @@ class KFDecoder():
         self.sdFR = sdFR
         self.zscore = False
         self.units = np.array(units, dtype=np.int32)
-        self.bin_spikes = psth.SpikeBin(self.units, np.inf)
+        self.binlen = binlen
+        self.bin_spikes = psth.SpikeBin(self.units, self.binlen)
         self.bounding_box = bounding_box
         self.states = states
+        self.tslice = tslice # replace with real tslice
         self.states_to_bound = states_to_bound
 
     def init_zscore(self, mFR_curr, sdFR_curr):
@@ -322,8 +346,25 @@ class KFDecoder():
             #self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
             #self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
             #self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
+    
+    def __call__(self, obs_t, **kwargs):
+        '''
+        Return the predicted arm position given the new data.
 
-    def decode(self, ts_data_k, target=None, speed=0.005, target_radius=0, assist_level=0, dt=0.1):
+        Parameters
+        -----------
+        newdata : array_like
+            Recent spike data for all units
+
+        Returns
+        -------
+        output : array_like
+            Decoder output for each decoded parameter
+
+        '''
+        return self.predict(obs_t, **kwargs)
+
+    def predict(self, ts_data_k, target=None, speed=0.05, target_radius=0.5, assist_level=0.9, dt=0.1):
         """Decode the spikes"""
         # Save the previous cursor state if using assist
         if assist_level > 0 and not target == None:
@@ -377,7 +418,8 @@ class KFDecoder():
             #    self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
             #    self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
 
-        return self.kf.get_mean()
+        state = self.kf.get_mean()
+        return np.array([state[0], 0, state[1], state[2], 0, state[3], 1])
 
     def retrain(self, batch, halflife):
         raise NotImplementedError
@@ -404,6 +446,21 @@ class KFDecoder():
         else:
             raise ValueError("KFDecoder: Improper index type: %" % type(idx))
 
+    def __setstate__(self, state):
+        self.bin_spikes = psth.SpikeBin(state['units'], state['binlen'])
+        del state['cells']
+        self.__dict__.update(state)
+        self.kf._pickle_init()
+        self.kf._init_state()
+
+    def __getstate__(self):
+        print self.binlen
+        state = dict(cells=self.units)
+        exclude = set(['bin_spikes'])
+        for k, v in self.__dict__.items():
+            if k not in exclude:
+                state[k] = v
+        return state
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
