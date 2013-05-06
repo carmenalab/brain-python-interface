@@ -4,6 +4,11 @@ import tables
 from plexon import plexfile, psth
 from riglib.nidaq import parse
 
+def load(decoder_fname):
+    """Re-load decoder from pickled object"""
+    decoder = pickle.load(open(decoder_fname, 'rb'))
+    return decoder
+
 
 class BMI(object):
     '''A BMI object, for filtering neural data into BMI output'''
@@ -36,6 +41,7 @@ class BMI(object):
 
     def get_data(self):
         raise NotImplementedError
+
 
 import kfdecoder
 import train

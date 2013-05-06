@@ -122,21 +122,9 @@ class KalmanFilter():
         P = pred_state.cov
 
         K = self._calc_kalman_gain(P)
-        #if self.alt:
-        #    K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
-        #else:
-        #    K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
         I = np.mat(np.eye(self.C.shape[1]))
 
         post_state = pred_state
-        # print post_state.mean.shape
-        # print "kalman gain shape"
-        # print K.shape
-        # print K
-        # print obs_t.shape     
-        # print "alt"
-        # print self.alt   
-        # print (K*(obs_t - pred_obs.mean)).shape
         post_state.mean += K*(obs_t - pred_obs.mean)
         post_state.cov = (I - K*C) * P 
         return post_state
@@ -151,25 +139,12 @@ class KalmanFilter():
                     tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
                 else:
                     tmp = (P.I + self.C_xpose_Q_inv_C).I
-                # print type(P)
-                # print type(self.C_xpose_Q_inv)
-                # print type(tmp)
-                # print type( self.C_xpose_Q_inv_C)
                 K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
             except:
                 if verbose: print "reverting"
                 K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-                # print "singularity error in alt condition"
-                # print type(K)
-                # print type(P)
-                # print type(C)
-                # print type(np.linalg.pinv( C*P*C.T + Q ))
         else:
             K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-            # print type(K)
-            # print type(P)
-            # print type(C)
-            # print type(np.linalg.pinv( C*P*C.T + Q ))        
         return K
 
     def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, 
@@ -192,20 +167,6 @@ class KalmanFilter():
             P = A*P*A.T + W 
             last_K = K
             K = self._calc_kalman_gain(P, alt=alt, verbose=verbose)
-            #if self.alt and alt:
-            #    try:
-            #        if self.include_offset:
-            #            tmp = np.mat(np.zeros(self.A.shape))
-            #            tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
-            #        else:
-            #            tmp = (P.I + self.C_xpose_Q_inv_C).I
-            #        K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
-            #        #K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
-            #    except:
-            #        #print "reverting"
-            #        K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-            #else:
-            #    K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
             K_hist.append(K)
             P -= K*C*P;
             iter_idx += 1
@@ -301,7 +262,8 @@ class KalmanFilter():
     MLE_obs_model = classmethod(MLE_obs_model)
 
 class KFDecoder(BMI):
-    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, states_to_bound, binlen=0.1, tslice=[-1,-1]):
+    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, 
+        states_to_bound, binlen=0.1, tslice=[-1,-1]):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
         features used to run the Kalman filter in a BMI context.
         """
@@ -315,19 +277,23 @@ class KFDecoder(BMI):
         self.bin_spikes = psth.SpikeBin(self.units, self.binlen)
         self.bounding_box = bounding_box
         self.states = states
-        self.tslice = tslice # replace with real tslice
+        self.tslice = tslice # TODO replace with real tslice
         self.states_to_bound = states_to_bound
+
+        # Gain terms for hack debugging
+        try:
+            f = open('/home/helene/bmi_gain', 'r')
+            self.gain = [float(x) for x in f.readline().rstrip().split(',')]
+            self.offset = [float(x) for x in f.readline().rstrip().split(',')]
+        except:
+            self.gain = 1
+            self.offset = 0
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         self.sdFR_ratio = np.ravel(self.sdFR/sdFR_curr)
         self.mFR = mFR_curr.ravel() # overwrite the original mean firing rate
         self.zscore = not np.all(self.sdFR_ratio == 1)
         
-    def load(self, decoder_fname):
-        kf = pickle.load(open(decoder_fname, 'rb'))
-        return kf
-    load = classmethod(load)
-
     def bound_state(self):
         """Apply bounds on state vector, if bounding box is specified
         """
@@ -397,12 +363,6 @@ class KFDecoder(BMI):
 
         # Bound cursor, if applicable
         self.bound_state()
-        #if not self.bounding_box == None:
-        #    horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
-        #    self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
-        #    self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
-        #    self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
-        #    self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
 
         if assist_level > 0 and not target == None:
             cursor_kin = self.kf.get_mean()
@@ -410,13 +370,13 @@ class KFDecoder(BMI):
             self.kf.state.mean[:,0] = kin.reshape(-1,1)
             self.bound_state()
 
-            ## Bound cursor, if applicable
-            #if not self.bounding_box == None:
-            #    horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
-            #    self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
-            #    self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
-            #    self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
-            #    self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
+        # TODO manual gain and offset terms
+        # f = open('/home/helene/bmi_gain', 'r')
+        # gain = [float(x) for x in f.readline().rstrip().split(',')]
+        # offset = [float(x) for x in f.readline().rstrip().split(',')]
+        # pt[1] = 0
+        # pt[0] = (pt[0] + offset[0])*gain[0]
+        # pt[2] = (pt[2] + offset[2])*gain[2]
 
         state = self.kf.get_mean()
         return np.array([state[0], 0, state[1], state[2], 0, state[3], 1])
@@ -425,6 +385,7 @@ class KFDecoder(BMI):
         raise NotImplementedError
 
     def __getitem__(self, idx):
+        """Get element(s) of the BMI state, indexed by name or number"""
         if isinstance(idx, int):
             return self.kf.state.mean[idx, 0]
         elif isinstance(idx, str) or isinstance(idx, unicode):
@@ -436,6 +397,7 @@ class KFDecoder(BMI):
             raise ValueError("KFDecoder: Improper index type: %" % type(idx))
 
     def __setitem__(self, idx, value):
+        """Set element(s) of the BMI state, indexed by name or number"""
         if isinstance(idx, int):
             self.kf.state.mean[idx, 0] = value
         elif isinstance(idx, str) or isinstance(idx, unicode):
@@ -447,6 +409,7 @@ class KFDecoder(BMI):
             raise ValueError("KFDecoder: Improper index type: %" % type(idx))
 
     def __setstate__(self, state):
+        """Set decoder state after un-pickling"""
         self.bin_spikes = psth.SpikeBin(state['units'], state['binlen'])
         del state['cells']
         self.__dict__.update(state)
@@ -454,7 +417,8 @@ class KFDecoder(BMI):
         self.kf._init_state()
 
     def __getstate__(self):
-        print self.binlen
+        """Create dictionary describing state of the decoder instance, 
+        for pickling"""
         state = dict(cells=self.units)
         exclude = set(['bin_spikes'])
         for k, v in self.__dict__.items():
@@ -484,67 +448,6 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
 
     return kfdecoder
 
-def train_from_manual_control(cells, binlen=.1, tslice=[None, None], **kwargs):
-    files = kwargs
-
-    # Open plx file
-    plx = plexfile.openFile(str(files['plexon']))
-    rows = parse.rowbyte(plx.events[:].data)[0][:,0]
-    lower, upper = 0 < rows, rows < rows.max() + 1
-    l, u = tslice
-    if l is not None:
-        lower = l < rows
-    if u is not None:
-        upper = rows < u
-    tmask = np.logical_and(lower, upper)
-
-    #Trim the mask to have exactly an even multiple of 4 worth of data
-    if sum(tmask) % 4 != 0:
-        midx, = np.nonzero(tmask)
-        tmask[midx[-(len(midx) % 4):]] = False
-
-    #Grab masked data, filter out interpolated data
-    h5 = tables.openFile(files['hdf'])
-    motion = h5.root.motiontracker
-    t, m, d = motion.shape
-    motion = motion[np.tile(tmask, [d,m,1]).T].reshape(-1, 4, m, d)
-    invalid = np.logical_or(motion[...,-1] == 4, motion[...,-1] < 0)
-    motion[invalid] = 0
-    kin = motion.sum(1)
-
-    # Create PSTH function
-    units = np.array(cells).astype(np.int32)
-    spike_bin_fn = psth.SpikeBin(units, binlen)
-
-    neurows = rows[tmask][3::4]
-    neurons = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
-    if len(kin) != len(neurons):
-        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
-    return kin, neurons
-
-    # Match kinematics with the task state
-    task_states = ['origin_hold', 'terminus', 'terminus_hold', 'reward']
-    states = h5.root.motiontracker_msgs[:]
-    names = dict((n, i) for i, n in enumerate(np.unique(states['msg'])))
-    target = np.array([names[n] for n in task_states])
-    seq = np.array([(names[n], t) for n, t, in states])
-
-    idx = np.convolve(target, target, 'valid')
-    found = np.convolve(seq[:,0], target, 'valid') == idx
-    times = states[found]['time']
-    if len(times) % 2 == 1:
-        times = times[:-1]
-    slices = times.reshape(-1, 2)
-    t, m, d = h5.root.motiontracker.shape
-    mask = np.ones((t/4, m, d), dtype=bool)
-    for s, e in slices:
-        mask[s/4:e/4] = False
-    kin = np.ma.array(kin, mask=mask[self.tmask[3::4]])
-
-    # TODO calculate velocity
-
-    # TODO train KF model parameters
-  
 if __name__ == '__main__':
     cells = [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3), (4, 1)]
     block = 'cart20130428_01'
