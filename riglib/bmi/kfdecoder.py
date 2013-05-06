@@ -277,8 +277,17 @@ class KFDecoder(BMI):
         self.bin_spikes = psth.SpikeBin(self.units, self.binlen)
         self.bounding_box = bounding_box
         self.states = states
-        self.tslice = tslice # replace with real tslice
+        self.tslice = tslice # TODO replace with real tslice
         self.states_to_bound = states_to_bound
+
+        # Gain terms for hack debugging
+        try:
+            f = open('/home/helene/bmi_gain', 'r')
+            self.gain = [float(x) for x in f.readline().rstrip().split(',')]
+            self.offset = [float(x) for x in f.readline().rstrip().split(',')]
+        except:
+            self.gain = 1
+            self.offset = 0
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         self.sdFR_ratio = np.ravel(self.sdFR/sdFR_curr)
@@ -354,12 +363,6 @@ class KFDecoder(BMI):
 
         # Bound cursor, if applicable
         self.bound_state()
-        #if not self.bounding_box == None:
-        #    horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
-        #    self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
-        #    self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
-        #    self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
-        #    self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
 
         if assist_level > 0 and not target == None:
             cursor_kin = self.kf.get_mean()
@@ -367,13 +370,13 @@ class KFDecoder(BMI):
             self.kf.state.mean[:,0] = kin.reshape(-1,1)
             self.bound_state()
 
-            ## Bound cursor, if applicable
-            #if not self.bounding_box == None:
-            #    horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
-            #    self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
-            #    self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
-            #    self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
-            #    self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
+        # TODO manual gain and offset terms
+        # f = open('/home/helene/bmi_gain', 'r')
+        # gain = [float(x) for x in f.readline().rstrip().split(',')]
+        # offset = [float(x) for x in f.readline().rstrip().split(',')]
+        # pt[1] = 0
+        # pt[0] = (pt[0] + offset[0])*gain[0]
+        # pt[2] = (pt[2] + offset[2])*gain[2]
 
         state = self.kf.get_mean()
         return np.array([state[0], 0, state[1], state[2], 0, state[3], 1])
