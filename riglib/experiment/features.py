@@ -1,6 +1,7 @@
 import tempfile
 import random
 import traceback
+import numpy as np
 
 import pygame
 
