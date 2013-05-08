@@ -330,7 +330,8 @@ class KFDecoder(BMI):
         '''
         return self.predict(obs_t, **kwargs)
 
-    def predict(self, ts_data_k, target=None, speed=0.05, target_radius=0.5, assist_level=0.9, dt=0.1):
+    def predict(self, ts_data_k, target=None, speed=0.05, target_radius=0.5,
+                assist_level=0.9, dt=0.1, task_data=None):
         """Decode the spikes"""
         # Save the previous cursor state if using assist
         if assist_level > 0 and not target == None:
@@ -354,6 +355,9 @@ class KFDecoder(BMI):
         # re-normalize the variance of the spike observations, if nec
         if self.zscore:
             spike_counts = (spike_counts - self.mFR) * self.sdFR_ratio
+
+        if task_data is not None:
+            task_data['bins'] = spike_counts
 
         # re-format as a 1D col vec
         spike_counts = np.mat(spike_counts.reshape(-1,1))
