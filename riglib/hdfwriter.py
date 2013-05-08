@@ -1,4 +1,5 @@
 import tables
+import numpy as np
 
 compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
 
@@ -30,7 +31,7 @@ class HDFWriter(object):
     
     def send(self, system, data):
         if system in self.data:
-            self.data[system].append([data])
+            self.data[system].append(np.array(data)[np.newaxis])
 
     def sendMsg(self, msg):
         for system in self.msgs.keys():

@@ -305,8 +305,9 @@ class SaveHDF(SinkRegister):
 
         try:
             self.dtype.append(('state', 'S256'))
+            self.dtype = np.dtype(self.dtype)
             self.hdf.register("task", self.dtype)
-            self.task_data = np.zeros((1,), dtype=self.dtype)
+            self.task_data = np.zeros((1,), dtype=self.dtype)[0]
         except:
             self.task_data = None
 
