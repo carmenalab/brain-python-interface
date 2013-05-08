@@ -268,6 +268,10 @@ class SpikeBMI(SpikeData):
 
     def init(self):
         self.plexon_channels = self.bmi.units[:,0]
+        try:
+            self.dtype.append(('bins','u4',(len(self.bmi.units,))))
+        except:
+            pass
         super(SpikeBMI, self).init()
         print "init bmi"
         self.neurondata.filter = self.bmi
@@ -298,6 +302,13 @@ class SaveHDF(SinkRegister):
         self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
         super(SaveHDF, self).init()
 
+        try:
+            self.dtype
+            self.hdf.register("task", self.dtype)
+            self.task_data = np.zeros((1,), dtype=self.dtype)
+        except AttributeError:
+            self.task_data = None
+
     @property
     def hdf_class(self):
         from riglib import hdfwriter
@@ -308,6 +319,10 @@ class SaveHDF(SinkRegister):
             super(SaveHDF, self).run()
         finally:
             self.hdf.stop()
+
+    def _cycle(self):
+        if self.task_data is not None:
+            self.hdf.send("task", self.task_data)
     
     def join(self):
         self.hdf.join()
@@ -315,6 +330,8 @@ class SaveHDF(SinkRegister):
 
     def set_state(self, condition, **kwargs):
         self.hdf.sendMsg(condition)
+        if self.task_data is not None:
+            self.task_data['state'] = condition
         super(SaveHDF, self).set_state(condition, **kwargs)
 
 class RelayPlexon(SinkRegister):

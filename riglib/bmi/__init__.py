@@ -22,8 +22,10 @@ class BMI(object):
 
         self.psth = psth.SpikeBin(self.units, binlen)
 
-    def __call__(self, data, **kwargs):
+    def __call__(self, data, task_data=None):
         psth = self.psth(data)
+        if task_data is not None:
+            task_data['bins'] = psth
         return psth
 
     def __setstate__(self, state):
