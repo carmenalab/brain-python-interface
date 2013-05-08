@@ -303,10 +303,10 @@ class SaveHDF(SinkRegister):
         super(SaveHDF, self).init()
 
         try:
-            self.dtype
+            self.dtype.append(('state', 'S256'))
             self.hdf.register("task", self.dtype)
             self.task_data = np.zeros((1,), dtype=self.dtype)
-        except AttributeError:
+        except:
             self.task_data = None
 
     @property
