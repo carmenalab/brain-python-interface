@@ -304,7 +304,6 @@ class SaveHDF(SinkRegister):
         super(SaveHDF, self).init()
 
         try:
-            self.dtype.append(('state', 'S256'))
             self.dtype = np.dtype(self.dtype)
             self.hdf.register("task", self.dtype)
             self.task_data = np.zeros((1,), dtype=self.dtype)
@@ -332,8 +331,6 @@ class SaveHDF(SinkRegister):
 
     def set_state(self, condition, **kwargs):
         self.hdf.sendMsg(condition)
-        if self.task_data is not None:
-            self.task_data['state'] = condition
         super(SaveHDF, self).set_state(condition, **kwargs)
 
 class RelayPlexon(SinkRegister):
