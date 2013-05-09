@@ -31,7 +31,9 @@ class HDFWriter(object):
     
     def send(self, system, data):
         if system in self.data:
-            self.data[system].append(np.array(data)[np.newaxis])
+            if len(data) != 1:
+                data = np.array(data)[np.newaxis]
+            self.data[system].append(data)
 
     def sendMsg(self, msg):
         for system in self.msgs.keys():
