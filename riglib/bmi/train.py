@@ -102,6 +102,8 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     except:
         raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")
     C, Q = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[inds,:], neurons[:,:-1])
+    C[:,0:2] = 0 # TODO this is only if state_vars is unchanged
+
     inds += [-1]
     A = _gen_A(1, 1./60, 0, 0.8, 1, ndim=3)[np.ix_(inds, inds)]
     W = _gen_A(0, 0, 0, 700, 0, ndim=3)[np.ix_(inds, inds)]
