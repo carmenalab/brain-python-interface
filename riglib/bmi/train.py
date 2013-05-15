@@ -21,7 +21,8 @@ def _gen_A(t, s, m, n, off, ndim=3):
     return np.mat(A)
 
 def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None], 
-    state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz'], **files):
+    state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
+    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
     """Train KFDecoder from manual control"""
     # Open plx file
     plx = plexfile.openFile(str(files['plexon']))
@@ -94,25 +95,34 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     
     # train KF model parameters
     neurons = neurons.T
+    n_neurons = neurons.shape[0]
     hand_kin = hand_kin.T
 
-    hand_kin_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz']
+    hand_kin_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+
+    train_vars = stochastic_vars[:]
+    try: train_vars.remove('offset')
+    except: pass 
+
     try:
-        inds = [hand_kin_vars.index(x) for x in state_vars]
+        state_inds = [hand_kin_vars.index(x) for x in state_vars]
+        stochastic_inds = [hand_kin_vars.index(x) for x in stochastic_vars]
+    	train_inds = [hand_kin_vars.index(x) for x in train_vars]
+        stochastic_state_inds = [state_vars.index(x) for x in stochastic_vars]
     except:
         raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")
-    C, Q = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[inds,:], neurons[:,:-1])
-    C[:,0:2] = 0 # TODO this is only if state_vars is unchanged
+    C = np.zeros([n_neurons, len(state_inds)])
+    C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[train_inds, :], neurons[:,:-1])
 
-    inds += [-1]
-    A = _gen_A(1, 1./60, 0, 0.8, 1, ndim=3)[np.ix_(inds, inds)]
-    W = _gen_A(0, 0, 0, 700, 0, ndim=3)[np.ix_(inds, inds)]
+    Delta_KINARM = 1./10
+    Delta_BMI3D = 1./60
+    loop_update_ratio = Delta_BMI3D/Delta_KINARM
+    A = _gen_A(1, 1./60, 0, 0.8**loop_update_ratio, 1, ndim=3)[np.ix_(state_inds, state_inds)]
+    W = _gen_A(0, 0, 0, 700*loop_update_ratio, 0, ndim=3)[np.ix_(state_inds, state_inds)]
     
     # instantiate low-level kf
     unit_inds, = np.nonzero(np.array(C)[:,-1])
     kf = kfdecoder.KalmanFilter(A, W, C[unit_inds,:], Q[np.ix_(unit_inds,unit_inds)])
-    print units
-    print unit_inds
     units = units[unit_inds,:]
 
     # instantiate KFdecoder
@@ -129,8 +139,7 @@ if __name__ == '__main__':
     tslice = [1., 300.]
     
     decoder = _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
-        state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz'], **files)
-
+        state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], **files) 
 ### Train various C, Q combinations (different state variables)
 ##C_xyz_pv, Q_xyz_pv = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin, neurons[:,:-1])
 ##C_xz_pv, Q_xz_pv = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[[0,2,3,5],:], neurons[:,:-1])
