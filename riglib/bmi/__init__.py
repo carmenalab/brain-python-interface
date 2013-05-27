@@ -120,4 +120,61 @@ class VelocityBMI(MotionBMI):
         kin = np.ma.hstack([kin[:-1,:,:3], velocity])
         return kin, neurons[:-1]
 
-##from kalman import KalmanFilter, KalmanAssist
+class AdaptiveBMI(object):
+    def __init__(self, decoder, learner):
+        self.decoder = decoder
+        self.learner = learner
+        self.reset()
+
+        self.clda_input_queue = mp.Queue()
+        self.clda_output_queue = mp.Queue()
+        self.updater = clda.KFSmoothbatch(self.clda_input_queue, self.clda_output_queue, 
+            batch_time, half_life)
+        self.updater.start()
+
+    def reset(self):
+        self.decoder.reset()
+        self.learner.reset()
+
+    def is_clda_enabled(self):
+        return self.learner.clda_enabled 
+
+    def disable_clda(self):
+        self.learner.disable()
+
+    def __call__(self, spike_obs, target_pos):
+        prev_state = decoder.get_state()
+
+        # run the decoder
+        decoder.predict(spike_obs, assist_level=0)
+        decoded_state = decoder.get_state()
+        
+        # send data to learner
+        if isinstance(spike_obs, np.ndarray):
+            spike_counts = spike_obs
+        else:
+            spike_counts = decoder.bin_spikes(spike_obs)
+        self.learner(spike_counts, prev_state, decoded_state, target_pos)
+
+        try:
+            new_params = self.clda_output_queue.get_nowait()
+            self.decoder.update_params(new_params)
+            self.learner.enable()
+            print "updated params"
+        except:
+            pass
+
+        if learner.is_full():
+            intended_kin, spike_counts = learner.get_batch()
+            rho = self.updater.rho
+            clda_data = (intended_kin, spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons)
+
+            if 0:
+                new_params = self.updater.calc(*clda_data)
+                self.decoder.update_params(new_params)
+            else:
+                self.clda_input_queue.put(clda_data)
+                self.learner.disable()
+
+    def __del__(self):
+        self.updater.stop()
