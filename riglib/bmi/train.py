@@ -7,8 +7,8 @@ from plexon import plexfile, psth
 from riglib.nidaq import parse
 
 import tables
-
 import kfdecoder
+import pdb
 
 def _gen_A(t, s, m, n, off, ndim=3):
     """utility function for generating block-diagonal matrices
@@ -135,85 +135,17 @@ def _train_KFDecoder_brain_control(cells=None, binlen=0.1, tslice=[None,None],
     state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
     """Train KFDecoder from brain control"""
-    # Open plx file
-    plx = plexfile.openFile(str(files['plexon']))
-    rows = parse.rowbyte(plx.events[:].data)[0][:,0]
-    
-    lower, upper = 0 < rows, rows < rows.max() + 1
-    l, u = tslice
-    if l is not None:
-        lower = l < rows
-    if u is not None:
-        upper = rows < u
-    tmask = np.logical_and(lower, upper)
-    
-    #Trim the mask to have exactly an even multiple of 4 worth of data
-    if sum(tmask) % 4 != 0:
-        midx, = np.nonzero(tmask)
-        tmask[midx[-(len(midx) % 4):]] = False
-    
+
     #Grab masked data, remove interpolated data
     h5 = tables.openFile(files['hdf'])
-    motion = h5.root.motiontracker
-    t, m, d = motion.shape
-    motion = motion[np.nonzero(tmask)[0],:,:].reshape(-1, 4, m, d)#motion = motion[np.tile(tmask, [d,m,1]).T].reshape(-1, 4, m, d)
-    invalid = np.logical_or(motion[...,-1] == 4, motion[...,-1] < 0)
-    motion[invalid] = 0
-    kin = motion.sum(axis=1)
-    
-    # Create PSTH function
-    if cells == None: cells = plx.units
-    units = np.array(cells).astype(np.int32)
-    spike_bin_fn = psth.SpikeBin(units, binlen)
-    
-    neurows = rows[tmask][3::4]
-    neurons = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
-    print neurons.shape
-    if len(kin) != len(neurons):
-        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
-    
-    # Match kinematics with the task state
-    task_states = ['origin_hold', 'terminus', 'terminus_hold', 'reward']
-    states = h5.root.motiontracker_msgs[:]
-    # assign names to each of the states
-    state_numbering = dict((n, i) for i, n in enumerate(np.unique(states['msg'])))
-    
-    # event sequence of interest
-    trial_seq = np.array([state_numbering[n] for n in task_states])
-    idx = np.convolve(trial_seq, trial_seq, 'valid')
-    
-    event_seq = np.array([state_numbering[n] for n in states['msg']])
-    found = np.convolve(event_seq, trial_seq, 'valid') == idx
-    
-    times = states[found]['time']
-    if len(times) % 2 == 1:
-        times = times[:-1]
-    slices = times.reshape(-1, 2)
-    t, m, d = h5.root.motiontracker.shape
-    mask = np.ones((t/4, m, d), dtype=bool)
-    for s, e in slices:
-        mask[s/4:e/4] = False
-    kin = np.ma.array(kin, mask=mask[tmask[3::4]])
-    
-    # calculate velocity
-    kin[(kin[...,:3] == 0).all(-1)] = np.ma.masked
-    kin[kin[...,-1] < 0] = np.ma.masked
-    velocity = np.ma.diff(kin[...,:3], axis=0)*60
-    kin = np.ma.hstack([kin[:-1,:,:3], velocity])
-    
-    hand_kin = kin[:, [0,kin.shape[1]/2], :]
-    hand_kin = hand_kin.reshape(len(hand_kin), -1)
-    
-    # train KF model parameters
-    neurons = neurons.T
-    n_neurons = neurons.shape[0]
-    hand_kin = hand_kin.T
+    spike_counts = h5.root.task[:]['bins']
+    kin = h5.root.task[:]['cursor']
 
     hand_kin_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    return h5
 
     train_vars = stochastic_vars[:]
-    try: train_vars.remove('offset')
-    except: pass 
+    if 'offset' in train_vars: train_vars.remove('offset')
 
     try:
         state_inds = [hand_kin_vars.index(x) for x in state_vars]
