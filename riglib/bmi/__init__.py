@@ -11,7 +11,7 @@ def load(decoder_fname):
 
 
 class BMI(object):
-    '''A BMI object, for filtering neural data into BMI output'''
+    '''A BMI object, for filtering neural data into BMI output. Should be called decoder, not BMI.'''
 
     def __init__(self, cells, binlen=.1, **kwargs):
         '''All BMI objects must be pickleable objects with two main methods -- the init method trains
@@ -49,7 +49,7 @@ import kfdecoder
 import train
 
 class MotionBMI(BMI):
-    '''BMI object which is trained from motion data'''
+    '''Decoder object which is trained from motion data'''
 
     def __init__(self, cells, tslice=(None, None), **kwargs):
         super(MotionBMI, self).__init__(cells, **kwargs)

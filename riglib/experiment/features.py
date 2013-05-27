@@ -275,7 +275,8 @@ class SpikeBMI(SpikeData):
             pass
         super(SpikeBMI, self).init()
         print "init bmi"
-        self.neurondata.filter = self.bmi
+        self.neurondata.decoder=self.bmi
+        #self.neurondata.filter = self.bmi
 
 
 #*******************************************************************************************************
