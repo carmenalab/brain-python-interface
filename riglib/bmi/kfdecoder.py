@@ -232,7 +232,8 @@ class KalmanFilter():
         return {'A':self.A, 'W':self.W, 'C':self.C, 'Q':self.Q}
             #'alt':self.alt, 'C_xpose_Q_inv':self.C_xpose_Q_inv, 'C_xpose_Q_inv_C':self.C_xpose_Q_inv_C}
 
-    def MLE_obs_model(self, hidden_state, obs, include_offset=True):
+    @classmethod
+    def MLE_obs_model(self, hidden_state, obs, include_offset=True, drives_obs=None):
         """Unconstrained ML estimator of {C, Q} given observations and
         the corresponding hidden states
         """
@@ -255,11 +256,21 @@ class KalmanFilter():
                 X = np.vstack([ X, np.ones([1,T]) ])
             Y = np.mat(obs)
     
+        n_states = X.shape[0]
+        if not drives_obs == None:
+            X = X[drives_obs, :]
+            
         # ML estimate of C and Q
-        C = Y*np.linalg.pinv(X)
+        C = np.linalg.lstsq(X.T, Y.T)[0].T
+        #C = Y*np.linalg.pinv(X)
         Q = np.cov( Y-C*X, bias=1 )
+        if not drives_obs == None:
+            n_obs = C.shape[0]
+            C_tmp = np.zeros([n_obs, n_states])
+            C_tmp[:,drives_obs] = C
+            C = C_tmp
         return (C, Q)
-    MLE_obs_model = classmethod(MLE_obs_model)
+
 
 class KFDecoder(BMI):
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, 
