@@ -175,5 +175,7 @@ class AdaptiveBMI(object):
                 self.clda_input_queue.put(clda_data)
                 self.learner.disable()
 
+        return decoded_state
+
     def __del__(self):
         self.updater.stop()
