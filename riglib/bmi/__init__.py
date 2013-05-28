@@ -125,15 +125,10 @@ class AdaptiveBMI(object):
         self.decoder = decoder
         self.learner = learner
         self.updater = updater
-        self.reset()
 
         self.clda_input_queue = self.updater.work_queue
         self.clda_output_queue = self.updater.result_queue
         self.updater.start()
-
-    def reset(self):
-        self.decoder.reset()
-        self.learner.reset()
 
     def is_clda_enabled(self):
         return self.learner.clda_enabled 
@@ -141,18 +136,18 @@ class AdaptiveBMI(object):
     def disable_clda(self):
         self.learner.disable()
 
-    def __call__(self, spike_obs, target_pos, **kwargs):
-        prev_state = decoder.get_state()
+    def __call__(self, spike_obs, target_pos, *args, **kwargs):
+        prev_state = self.decoder.get_state()
 
         # run the decoder
-        decoder.predict(spike_obs, target=target_pos, **kwargs)
-        decoded_state = decoder.get_state()
+        self.decoder.predict(spike_obs, target=target_pos, **kwargs)
+        decoded_state = self.decoder.get_state()
         
         # send data to learner
         if isinstance(spike_obs, np.ndarray):
             spike_counts = spike_obs
         else:
-            spike_counts = decoder.bin_spikes(spike_obs)
+            spike_counts = self.decoder.bin_spikes(spike_obs)
         self.learner(spike_counts, prev_state, decoded_state, target_pos)
 
         try:
@@ -164,7 +159,7 @@ class AdaptiveBMI(object):
             pass
 
         if learner.is_full():
-            intended_kin, spike_counts = learner.get_batch()
+            intended_kin, spike_counts = self.learner.get_batch()
             rho = self.updater.rho
             clda_data = (intended_kin, spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons)
 
