@@ -141,11 +141,11 @@ class AdaptiveBMI(object):
     def disable_clda(self):
         self.learner.disable()
 
-    def __call__(self, spike_obs, target_pos):
+    def __call__(self, spike_obs, target_pos, **kwargs):
         prev_state = decoder.get_state()
 
         # run the decoder
-        decoder.predict(spike_obs, assist_level=0)
+        decoder.predict(spike_obs, target=target_pos, **kwargs)
         decoded_state = decoder.get_state()
         
         # send data to learner
@@ -174,6 +174,8 @@ class AdaptiveBMI(object):
             else:
                 self.clda_input_queue.put(clda_data)
                 self.learner.disable()
+
+        return decoded_state
 
     def __del__(self):
         self.updater.stop()
