@@ -55,6 +55,7 @@ tasks = dict(
     eye_calibration=EyeCal,
     manual_control=ManualControl,
     bmi_control=BMIControl,
+    clda_control=CLDAControl,
     manual_predict=ManualWithPredictions,
     fixation_training=FixationTraining,
     target_capture=TargetCapture,
