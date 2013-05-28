@@ -44,7 +44,7 @@ from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
 from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, TargetDirection, TestBoundary
 from tasks.sensorymapping import FreeMap, ArmPositionTraining, NumberMap
-from tasks.bmitasks import BMIControl, ManualWithPredictions
+from tasks.bmitasks import BMIControl, ManualWithPredictions, CLDAControl
 
 tasks = dict(
     dots=Dots,
