@@ -121,15 +121,14 @@ class VelocityBMI(MotionBMI):
         return kin, neurons[:-1]
 
 class AdaptiveBMI(object):
-    def __init__(self, decoder, learner):
+    def __init__(self, decoder, learner, updater):
         self.decoder = decoder
         self.learner = learner
+        self.updater = updater
         self.reset()
 
-        self.clda_input_queue = mp.Queue()
-        self.clda_output_queue = mp.Queue()
-        self.updater = clda.KFSmoothbatch(self.clda_input_queue, self.clda_output_queue, 
-            batch_time, half_life)
+        self.clda_input_queue = self.updater.work_queue
+        self.clda_output_queue = self.updater.result_queue
         self.updater.start()
 
     def reset(self):
