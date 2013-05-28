@@ -430,6 +430,9 @@ class KFDecoder(BMI):
                 state[k] = v
         return state
 
+    def get_state(self):
+        return np.array(self.kf.state.mean).ravel()
+
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
     """Create KFDecoder from MATLAB decoder file used in a Dexterit-based
