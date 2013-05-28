@@ -122,7 +122,9 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     
     # instantiate low-level kf
     unit_inds, = np.nonzero(np.array(C)[:,-1])
-    kf = kfdecoder.KalmanFilter(A, W, C[unit_inds,:], Q[np.ix_(unit_inds,unit_inds)])
+    ## TODO remove next line and make user option
+    is_stochastic = np.array([False, False, True, True, False])
+    kf = kfdecoder.KalmanFilter(A, W, C[unit_inds,:], Q[np.ix_(unit_inds,unit_inds)], is_stochastic=is_stochastic)
     units = units[unit_inds,:]
 
     # instantiate KFdecoder

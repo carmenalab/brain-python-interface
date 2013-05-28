@@ -158,6 +158,8 @@ class AdaptiveBMI(object):
         if self.learner.is_full():
             intended_kin, spike_counts = self.learner.get_batch()
             rho = self.updater.rho
+            #### TODO remove next line and make a user option instead
+            drives_neurons = np.array([False, False, True, True, True])
             clda_data = (intended_kin, spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons)
 
             if 0:
