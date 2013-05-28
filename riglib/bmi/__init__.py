@@ -155,7 +155,7 @@ class AdaptiveBMI(object):
         except:
             pass
 
-        if learner.is_full():
+        if self.learner.is_full():
             intended_kin, spike_counts = self.learner.get_batch()
             rho = self.updater.rho
             clda_data = (intended_kin, spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons)
