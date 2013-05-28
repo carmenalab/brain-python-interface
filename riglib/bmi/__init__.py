@@ -144,10 +144,7 @@ class AdaptiveBMI(object):
         decoded_state = self.decoder.get_state()
         
         # send data to learner
-        if isinstance(spike_obs, np.ndarray):
-            spike_counts = spike_obs
-        else:
-            spike_counts = self.decoder.bin_spikes(spike_obs)
+        spike_counts = self.decoder.bin_spikes(spike_obs)
         self.learner(spike_counts, prev_state, decoded_state, target_pos)
 
         try:
