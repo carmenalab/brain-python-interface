@@ -93,7 +93,7 @@ class KalmanFilter():
         try:
             self.is_stochastic
         except:
-            n_states = A.shape[0]
+            n_states = self.A.shape[0]
             self.is_stochastic = np.ones(n_states, dtype=bool)
 
     def _init_state(self, init_state=None, init_cov=None):

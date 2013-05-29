@@ -148,9 +148,13 @@ class AdaptiveBMI(object):
         self.learner(spike_counts, prev_state, decoded_state, target_pos)
 
         try:
+            print '1'
             new_params = self.clda_output_queue.get_nowait()
+            print '2'
             self.decoder.update_params(new_params)
+            print '3'
             self.learner.enable()
+            print '4'
             print "updated params"
         except:
             pass

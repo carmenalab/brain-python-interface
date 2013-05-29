@@ -142,6 +142,7 @@ def _train_KFDecoder_brain_control(cells=None, binlen=0.1, tslice=[None,None],
     h5 = tables.openFile(files['hdf'])
     spike_counts = h5.root.task[:]['bins']
     kin = h5.root.task[:]['cursor']
+    print '!!!!!!!!!!!!!!'
 
     hand_kin_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
     return h5
