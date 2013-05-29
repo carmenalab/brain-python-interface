@@ -57,11 +57,17 @@ class KalmanFilter():
        y_t = Cx_t + q_t; q_t ~ N(0, Q)
     """
 
-    def __init__(self, A, W, C, Q):
+    def __init__(self, A, W, C, Q, is_stochastic=None):
         self.A = np.mat(A)
         self.W = np.mat(W)
         self.C = np.mat(C)
         self.Q = np.mat(Q)
+
+        if is_stochastic == None:
+            n_states = A.shape[0]
+            self.is_stochastic = np.ones(n_states, dtype=bool)
+        else:
+            self.is_stochastic = is_stochastic
         
         self.state_noise = GaussianState(0.0, W)
         self.obs_noise = GaussianState(0.0, Q)
@@ -129,7 +135,24 @@ class KalmanFilter():
         post_state.cov = (I - K*C) * P 
         return post_state
 
-    def _calc_kalman_gain(self, P, alt=True, verbose=False):
+    def forward_infer(self, st, obs_t):
+        pred_state = self._ssm_pred(st)
+        pred_obs = self._obs_prob(pred_state)
+
+        H, Q = self.C, self.Q
+        P_prior = pred_state.cov
+
+        #if self.alt:
+        #    K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
+        #else:
+        K = P_prior*H.T*np.linalg.pinv( H*P_prior*H.T + Q )
+        I = np.mat(np.eye(self.C.shape[1]))
+
+        pred_state.mean += K*(obs_t - pred_obs.mean)
+        pred_state.cov = (I-K*H)*P_prior 
+        return pred_state
+
+    def _calc_kalman_gain(self, P, alt=False, verbose=False):
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
         if self.alt and alt:
             try:
@@ -145,6 +168,7 @@ class KalmanFilter():
                 K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
         else:
             K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
+        K[~self.is_stochastic, :] = 0
         return K
 
     def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, 
@@ -270,6 +294,10 @@ class KalmanFilter():
             C_tmp[:,drives_obs] = C
             C = C_tmp
         return (C, Q)
+    
+    def get_params(self):
+        return self.A, self.W, self.C, self.Q
+
 
 
 class KFDecoder(BMI):
