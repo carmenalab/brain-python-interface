@@ -89,12 +89,16 @@ class CLDARecomputeParameters(mp.Process):
         while not self.done:
             job = self._check_for_job()
 
-            # Children should do something with the job. This lazy parent 
-            # will just return the same data to the result queue.
+            # unpack the data
             if not job == None:
-                time.sleep(2)
-                self.result_queue.put(job)
+                new_params = self.calc(*job)
+                self.result_queue.put(new_params)
 
+            # Pause to lower the process's effective priority
+            time.sleep(0.5)
+
+    def calc(self, *args, **kwargs):
+        return None
     def stop(self):
         self.done = True
 
@@ -112,24 +116,6 @@ class KFSmoothbatch(CLDARecomputeParameters):
         C = (1-rho)*C_hat + rho*C_old
         Q = (1-rho)*Q_hat + rho*Q_old
         return C, Q
-
-    def run(self):
-        while not self.done:
-            job = self._check_for_job()
-
-            # unpack the data
-            if not job == None:
-                new_params = self.calc(*job)
-                self.result_queue.put(new_params)
-                #intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons = job
-                #C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(intended_kin, spike_counts, 
-                #    include_offset=False, drives_obs=drives_neurons)
-                #C = (1-rho)*C_hat + rho*C_old
-                #Q = (1-rho)*Q_hat + rho*Q_old
-                #self.result_queue.put((C, Q))
-
-            # Pause to lower the process's effective priority
-            time.sleep(0.5)
 
 if __name__ == '__main__':
     work_queue = mp.Queue()
