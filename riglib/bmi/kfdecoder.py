@@ -90,6 +90,12 @@ class KalmanFilter():
             self.C_xpose_Q_inv = None
             self.C_xpose_Q_inv_C = None
 
+        try:
+            self.is_stochastic
+        except:
+            n_states = A.shape[0]
+            self.is_stochastic = np.ones(n_states, dtype=bool)
+
     def _init_state(self, init_state=None, init_cov=None):
         """ Initialize the state of the KF prior to running in real-time
         """
