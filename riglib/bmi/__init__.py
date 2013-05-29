@@ -148,16 +148,23 @@ class AdaptiveBMI(object):
         self.learner(spike_counts, prev_state, decoded_state, target_pos)
 
         try:
-            print '1'
+            new_params=None
             new_params = self.clda_output_queue.get_nowait()
-            print '2'
-            self.decoder.update_params(new_params)
-            print '3'
-            self.learner.enable()
-            print '4'
-            print "updated params"
         except:
             pass
+
+        if new_params is not None:
+            self.decoder.update_params(new_params)
+            self.learner.enable()
+            print "updated params"
+
+        # try:
+        #     new_params = self.clda_output_queue.get_nowait()
+        #     self.decoder.update_params(new_params)
+        #     self.learner.enable()
+        #     print "updated params"
+        #  except:
+        #     pass
 
         if self.learner.is_full():
             intended_kin, spike_counts = self.learner.get_batch()
