@@ -59,6 +59,9 @@ class Experiment(traits.HasTraits, threading.Thread):
     
     def _test_stop(self, ts):
         return self.stop
+
+    def cleanup(self, database, saveid, **kwargs):
+        pass
     
     def end_task(self):
         self.stop = True
@@ -80,6 +83,10 @@ class LogExperiment(Experiment):
         if log:
             self.state_log.append((condition, time.time()))
         super(LogExperiment, self).set_state(condition)
+
+    def cleanup(self, database, saveid, **kwargs):
+        super(LogExperiment, self).cleanup(database, saveid, **kwargs)
+        database.save_log(saveid, self.event_log)
 
 class Sequence(LogExperiment):
     def __init__(self, gen, **kwargs):

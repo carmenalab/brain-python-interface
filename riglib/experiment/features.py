@@ -1,3 +1,4 @@
+import time
 import tempfile
 import random
 import traceback
@@ -144,6 +145,10 @@ class EyeData(traits.HasTraits):
     def set_state(self, state, **kwargs):
         self.eyedata.sendMsg(state)
         super(EyeData, self).set_state(state, **kwargs)
+
+    def cleanup(self, database, saveid, **kwargs):
+        super(EyeData, self).cleanup(database, saveid, **kwargs)
+        database.save_data(self.eyefile, "eyetracker", saveid)
 
 class SimulatedEyeData(EyeData):
     '''Simulate an eyetracking system using a series of fixations, with saccades interpolated'''
@@ -334,6 +339,10 @@ class SaveHDF(SinkRegister):
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
+    def cleanup(self, database, saveid, **kwargs):
+        super(SaveHDF, self).cleanup(database, saveid, **kwargs)
+        database.save_data(self.h5file.name, "hdf", saveid)
+
 class RelayPlexon(SinkRegister):
     '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
     def init(self):
@@ -371,6 +380,12 @@ class RelayPlexon(SinkRegister):
     def set_state(self, condition, **kwargs):
         self.nidaq.sendMsg(condition)
         super(RelayPlexon, self).set_state(condition, **kwargs)
+
+    def cleanup(self, database, saveid, **kwargs):
+        super(RelayPlexon, self).cleanup(database, saveid, **kwargs)
+        time.sleep(2)
+        if self.plexfile is not None:
+            database.save_data(self.plexfile, "plexon", saveid, True, False)
         
 class RelayPlexByte(RelayPlexon):
     '''Relays a single byte (0-255) as a row checksum for when a data packet arrives'''

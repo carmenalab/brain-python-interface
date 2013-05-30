@@ -25,7 +25,7 @@ class Learner(object):
         pass
 
     def __call__(self, *args, **kwargs):
-        raise NotImlementedError
+        raise NotImplementedError
 
 
 class DumbLearner(Learner):
