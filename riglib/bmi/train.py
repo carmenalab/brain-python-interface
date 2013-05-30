@@ -177,6 +177,37 @@ def _train_KFDecoder_brain_control(cells=None, binlen=0.1, tslice=[None,None],
     decoder = kfdecoder.KFDecoder(kf, None, None, units, bounding_box, state_vars, states_to_bound)
     return decoder
 
+def _train_KFDecoder_2D_sim(is_stochastic, drives_neurons, units, 
+    bounding_box, states_to_bound):
+    # TODO options to resample the state-space model at different update rates
+    v = 0.8
+    dt = 0.1
+    A = np.array([[1, 0, 0, dt, 0, 0,  0],
+                  [0, 1, 0, 0,  0, 0,  0],
+                  [0, 0, 1, 0,  0, dt, 0],
+                  [0, 0, 0, v,  0, 0,  0],
+                  [0, 0, 0, 0,  0, 0,  0],
+                  [0, 0, 0, 0,  0, v,  0],
+                  [0, 0, 0, 0,  0, 0,  1]])
+    nX = A.shape[0]
+    n_neurons = units.shape[0]
+
+    state_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    w = 1e-3
+    W = np.diag(w * np.ones(nX))
+    print W.shape
+    W[np.ix_(~is_stochastic, ~is_stochastic)] = 0
+
+    C = np.random.standard_normal([n_neurons, nX])
+    C[:, ~drives_neurons] = 0
+
+    Q = 10 * np.identity(n_neurons) 
+
+    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
+
+    decoder = kfdecoder.KFDecoder(kf, None, None, units, bounding_box, state_vars, states_to_bound)
+    return decoder
+
 if __name__ == '__main__':
     test_mc = False
     test_bc = True 

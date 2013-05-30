@@ -140,12 +140,16 @@ class AdaptiveBMI(object):
         prev_state = self.decoder.get_state()
 
         # run the decoder
+        #print kwargs
         self.decoder.predict(spike_obs, target=target_pos, **kwargs)
         decoded_state = self.decoder.get_state()
         
         # send data to learner
-        spike_counts = self.decoder.bin_spikes(spike_obs)
-        self.learner(spike_counts, prev_state, decoded_state, target_pos)
+        if spike_obs.dtype == kfdecoder.python_plexnet_dtype:
+            spike_counts = self.decoder.bin_spikes(spike_obs)
+        else:
+            spike_counts = spike_obs
+        self.learner(spike_counts, prev_state, target_pos)
 
         try:
             new_params=None
