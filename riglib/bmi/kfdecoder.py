@@ -10,6 +10,7 @@ import tables
 from itertools import izip
 
 from . import BMI
+python_plexnet_dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
 
 class GaussianState(object):
     def __init__(self, mean, cov):
@@ -397,7 +398,10 @@ class KFDecoder(BMI):
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
 
         # "Bin" spike timestamps to generate spike counts
-        spike_counts = self.bin_spikes(ts_data_k)
+        if ts_data_k.dtype == python_plexnet_dtype:
+            spike_counts = self.bin_spikes(ts_data_k)
+        else:
+            spike_counts = ts_data_k
 
         # re-normalize the variance of the spike observations, if nec
         if self.zscore:
