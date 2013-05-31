@@ -7,7 +7,7 @@ def normalize(vec):
     norm_vec = vec / np.linalg.norm(vec)
     
     if np.any(np.isnan(norm_vec)):
-        norm_vec = np.array([0, 0])
+        norm_vec = np.zeros(len(vec))
     
     return norm_vec
 
@@ -41,7 +41,7 @@ class CursorGoalLearner(Learner):
         self.kindata = []
         self.neuraldata = []
     
-    def __call__(self, spike_counts, prev_state, target_state):
+    def __call__(self, spike_counts, cursor_pos, target_pos):
         """
         Rotation toward target state
         """
@@ -49,9 +49,9 @@ class CursorGoalLearner(Learner):
         # estimate intended velocity vector using cursorGoal
         # TODO this needs to be generalized so that the hold
         # the r regular cna be specified simultaneously 
-        cursor_pos = prev_state[0:2]
-        int_dir = target_state[0:2] - cursor_pos
-        int_vel = normalize(int_dir)*0.1
+        # cursor_pos = prev_state[0:2]
+        int_dir = target_pos - cursor_pos
+        int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
         int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
         
         if not self.is_full() and self.enabled:

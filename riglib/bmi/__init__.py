@@ -136,7 +136,7 @@ class AdaptiveBMI(object):
     def disable_clda(self):
         self.learner.disable()
 
-    def __call__(self, spike_obs, target_pos, *args, **kwargs):
+    def __call__(self, spike_obs, target_pos, pos_inds=[0,1], *args, **kwargs):
         prev_state = self.decoder.get_state()
         update_flag=False
         # run the decoder
@@ -151,7 +151,7 @@ class AdaptiveBMI(object):
             spike_counts = self.decoder.bin_spikes(spike_obs)
         else:
             spike_counts = spike_obs
-        self.learner(spike_counts, prev_state, target_pos)
+        self.learner(spike_counts, prev_state[pos_inds], target_pos)
 
         try:
             new_params=None
