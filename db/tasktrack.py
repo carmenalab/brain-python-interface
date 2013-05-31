@@ -98,7 +98,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
                 cmd = None
             except Exception as e:
                 _cmds.send(e)
-                cmd = _cmds.recv() 
+                cmd = _cmds.recv()
         task.cleanup()
     except:
         import cStringIO
