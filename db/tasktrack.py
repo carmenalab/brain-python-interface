@@ -85,7 +85,6 @@ def runtask(cmds, _cmds, websock, **kwargs):
                 websock.send(dict(status="error", msg=err.read()))
             finally:
                 cmds.send(None)
-
     kwargs['feats'].insert(0, NotifyFeat)
     try:
         task = Task(**kwargs)
@@ -99,8 +98,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
                 cmd = None
             except Exception as e:
                 _cmds.send(e)
-                cmd = _cmds.recv()
-                
+                cmd = _cmds.recv() 
         task.cleanup()
     except:
         import cStringIO
