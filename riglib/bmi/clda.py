@@ -51,7 +51,7 @@ class CursorGoalLearner(Learner):
         # the r regular cna be specified simultaneously 
         # cursor_pos = prev_state[0:2]
         int_dir = target_pos - cursor_pos
-        int_vel = normalize(int_dir)*0.1
+        int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
         int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
         
         if not self.is_full() and self.enabled:
