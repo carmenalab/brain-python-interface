@@ -85,7 +85,6 @@ def runtask(cmds, _cmds, websock, **kwargs):
                 websock.send(dict(status="error", msg=err.read()))
             finally:
                 cmds.send(None)
-
     kwargs['feats'].insert(0, NotifyFeat)
     try:
         task = Task(**kwargs)
@@ -99,8 +98,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
                 cmd = None
             except Exception as e:
                 _cmds.send(e)
-                cmd = _cmds.recv()
-                
+                cmd = _cmds.recv() 
         task.cleanup()
     except:
         import cStringIO
@@ -159,32 +157,15 @@ class Task(object):
     def cleanup(self):
         self.task.join()
         print "Calling saveout/task cleanup code"
-        database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
         if self.saveid is not None:
             try:
                 import comedi
                 comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
             except:
                 pass
-            database.save_log(self.saveid, self.task.event_log)
-            time.sleep(2) #Give plexon a chance to catch up
-            if "calibration" in self.taskname:
-                caltype = self.task.calibration.__class__.__name__
-                params = Parameters.from_dict(self.task.calibration.__dict__)
-                if hasattr(self.task.calibration, '__getstate__'):
-                    params = Parameters.from_dict(self.task.calibration.__getstate__())
-                database.save_cal(self.subj, self.task.calibration.system,
-                    caltype, params.to_json())
-            
-            if issubclass(self.task.__class__, features.EyeData):
-                database.save_data(self.task.eyefile, "eyetracker", self.saveid)
-            
-            if issubclass(self.task.__class__, features.SaveHDF):
-                database.save_data(self.task.h5file.name, "hdf", self.saveid)
 
-            if issubclass(self.task.__class__, features.RelayPlexon):
-                if self.task.plexfile is not None:
-                    database.save_data(self.task.plexfile, "plexon", self.saveid, True, False)
+            database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+            self.task.cleanup(database, self.saveid, subject=self.subj)
 
 class ObjProxy(object):
     def __init__(self, cmds):

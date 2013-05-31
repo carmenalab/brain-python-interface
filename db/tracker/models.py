@@ -123,7 +123,7 @@ class System(models.Model):
         for name in ["eyetracker", "hdf", "plexon", "bmi"]:
             try:
                 System.objects.get(name=name)
-            except:
+            except ObjectDoesNotExist:
                 System(name=name, path="/storage/rawdata/%s"%name).save()
 
 class Subject(models.Model):

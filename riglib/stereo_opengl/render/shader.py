@@ -10,6 +10,8 @@ _mattypes = {
     (3,4):"3x4",(4,3):"4x3"
 }
 _typename = { int:"i", float:"f" }
+_blanktex = Texture(None, size=(16, 16))
+_blanktex.init()
 class _getter(object):
     '''Wrapper object which allows direct getting and setting of shader values'''
     def __init__(self, type, prog):
@@ -106,7 +108,7 @@ class ShaderProgram(object):
         
         for tex, funcs in models.items():
             if tex is None:
-                self.uniforms.texture = ctx.get_texunit("None")
+                self.uniforms.texture = ctx.get_texunit(_blanktex)
             else:
                 self.uniforms.texture = ctx.get_texunit(tex)
 

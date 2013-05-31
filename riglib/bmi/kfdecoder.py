@@ -398,7 +398,9 @@ class KFDecoder(BMI):
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
 
         # "Bin" spike timestamps to generate spike counts
-        if ts_data_k.dtype == python_plexnet_dtype:
+        if len(ts_data_k) == 0:
+            spike_counts = np.zeros((self.bin_spikes.nunits,))
+        elif ts_data_k.dtype == python_plexnet_dtype:
             spike_counts = self.bin_spikes(ts_data_k)
         else:
             spike_counts = ts_data_k

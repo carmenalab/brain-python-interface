@@ -70,7 +70,7 @@ class DataSource(mp.Process):
                     system.start()
                 else:
                     system.stop()
-            
+
             if streaming:
                 data = system.get()
                 self.sinks.send(self.name, data)

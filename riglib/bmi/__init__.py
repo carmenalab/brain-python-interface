@@ -138,14 +138,16 @@ class AdaptiveBMI(object):
 
     def __call__(self, spike_obs, target_pos, pos_inds=[0,1], *args, **kwargs):
         prev_state = self.decoder.get_state()
-
+        update_flag=False
         # run the decoder
         #print kwargs
         self.decoder.predict(spike_obs, target=target_pos, **kwargs)
         decoded_state = self.decoder.get_state()
         
         # send data to learner
-        if spike_obs.dtype == kfdecoder.python_plexnet_dtype:
+        if len(spike_obs) < 1:
+            spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
+        elif spike_obs.dtype == kfdecoder.python_plexnet_dtype:
             spike_counts = self.decoder.bin_spikes(spike_obs)
         else:
             spike_counts = spike_obs
@@ -160,6 +162,7 @@ class AdaptiveBMI(object):
         if new_params is not None:
             self.decoder.update_params(new_params)
             self.learner.enable()
+            update_flag = True
             print "updated params"
 
         # try:
@@ -184,7 +187,7 @@ class AdaptiveBMI(object):
                 self.clda_input_queue.put(clda_data)
                 self.learner.disable()
 
-        return decoded_state
+        return decoded_state, update_flag
 
     def __del__(self):
         self.updater.stop()
