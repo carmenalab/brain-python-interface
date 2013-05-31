@@ -27,7 +27,9 @@ cdef class SpikeBin:
         if self.info is not NULL:
             psth.free_bininfo(self.info)
 
-    def __call__(self, np.ndarray spikes):
+    def __call__(self, object raw):
+        cdef np.ndarray spikes = np.asarray(raw)
         cdef np.ndarray[np.double_t, ndim=1] output = np.zeros((self.info.nunits,), dtype=np.double)
-        psth.bin_spikes(self.info, <psth.Spike*> spikes.data, len(spikes), <double*> output.data)
+        if len(spikes) > 0:
+            psth.bin_spikes(self.info, <psth.Spike*> spikes.data, len(spikes), <double*> output.data)
         return output

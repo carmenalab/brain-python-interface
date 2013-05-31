@@ -23,7 +23,7 @@ def save_calibration(subject, system, name, params):
     Calibration(subject=subj, system=sys, name=name, params=params).save()
 
 def save_data(curfile, system, entry, move=True, local=True):
-    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx")
+    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi_params="npz")
     sys = System.objects.get(name=system)
     entry = TaskEntry.objects.get(pk=entry)
 
@@ -41,11 +41,16 @@ def save_data(curfile, system, entry, move=True, local=True):
             time=time.strftime('%Y%m%d'), num=num+1,
             suff=suffix[system]
         )
+        fullname = os.path.join(sys.path, dataname)
         permfile = dataname
-        if sys.path == os.path.split(curfile)[0]:
-            os.rename(curfile, os.path.join(sys.path, dataname))
-        else:
+        if os.path.abspath(sys.path) == os.path.abspath(os.path.split(curfile)[0]):
+            print "moving file..."
+            os.rename(curfile, fullname)
+        elif not os.path.exists(fullname):
+            print "copying file..."
             shutil.copy2(curfile, os.path.join(sys.path, dataname))
+        else:
+            raise ValueError('Will not overwrite existing files')
     else:
         permfile = curfile
 

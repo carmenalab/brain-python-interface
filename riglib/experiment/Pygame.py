@@ -13,10 +13,10 @@ class Pygame(LogExperiment):
     reward_time = traits.Float(5, desc='Time of reward in seconds')
 
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "1680,0"
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
-        pygame.init()
 
+        pygame.init()
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.NOFRAME
         pygame.display.set_mode((3840,1080), flags)
 

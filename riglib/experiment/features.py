@@ -278,9 +278,10 @@ class SpikeBMI(SpikeData):
             self.dtype.append(('bins','u4',(len(self.bmi.units,))))
         except:
             pass
-        super(SpikeBMI, self).init()
+
         print "init bmi"
-        self.neurondata.decoder=self.bmi
+        self.decoder = self.bmi
+        super(SpikeBMI, self).init()
         #self.neurondata.filter = self.bmi
 
 

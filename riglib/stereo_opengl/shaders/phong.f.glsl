@@ -12,7 +12,7 @@ varying float vshininess;
 
 const vec4 light_direction = vec4(-1, 2, -2, 0.0);
 const vec4 light_diffuse = vec4(0.6, 0.6, 0.6, 0.0);
-const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
+const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.);
 const vec4 light_specular = vec4(1.0, 1.0, 1.0, 1.0);
 
 vec4 phong() {
@@ -21,7 +21,7 @@ vec4 phong() {
          eye = normalize(-vposition),
          reflection = normalize(-reflect(mv_light_direction, normal));
     
-    vec4 frag_diffuse = texture2D(texture, vtexcoord) + basecolor;
+    vec4 frag_diffuse = vec4(texture2D(texture, vtexcoord).rgb + basecolor.rgb, basecolor.a);
 
     vec4 diffuse_factor
         = max(-dot(normal, mv_light_direction), 0.0) * light_diffuse;
@@ -30,5 +30,5 @@ vec4 phong() {
     vec4 specular_factor
         = pow(max(dot(-reflection, eye), 0.0), vshininess) * light_specular;
     
-    return ambient_diffuse_factor * frag_diffuse + specular_factor*spec_color;
+    return ambient_diffuse_factor*frag_diffuse + specular_factor*spec_color;
 }

@@ -47,6 +47,7 @@ class Window(LogExperiment):
         except:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,0)
             pygame.display.set_mode(self.window_size, flags)
+        
         self.clock = pygame.time.Clock()
 
         glEnable(GL_BLEND)
