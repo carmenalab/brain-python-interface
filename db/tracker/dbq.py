@@ -23,7 +23,7 @@ def save_calibration(subject, system, name, params):
     Calibration(subject=subj, system=sys, name=name, params=params).save()
 
 def save_data(curfile, system, entry, move=True, local=True):
-    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi_params="npz")
+    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl" bmi_params="npz")
     sys = System.objects.get(name=system)
     entry = TaskEntry.objects.get(pk=entry)
 
@@ -43,6 +43,7 @@ def save_data(curfile, system, entry, move=True, local=True):
         )
         fullname = os.path.join(sys.path, dataname)
         permfile = dataname
+
         if os.path.abspath(sys.path) == os.path.abspath(os.path.split(curfile)[0]):
             print "moving file..."
             os.rename(curfile, fullname)

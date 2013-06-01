@@ -430,6 +430,6 @@ class DataFile(models.Model):
         cache = os.path.join(path, '.%s.cache'%fname)
         return os.path.exists(cache)
 
-    def remove(self, **kwargs):
+    def delete(self, **kwargs):
         os.unlink(self.get_path())
-        super(DataFile, self).remove(**kwargs)
+        super(DataFile, self).delete(**kwargs)
