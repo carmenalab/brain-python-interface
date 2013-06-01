@@ -342,6 +342,7 @@ class SaveHDF(SinkRegister):
 
     def cleanup(self, database, saveid, **kwargs):
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
+        print "#################%s"%self.h5file.name
         database.save_data(self.h5file.name, "hdf", saveid)
 
 class RelayPlexon(SinkRegister):
