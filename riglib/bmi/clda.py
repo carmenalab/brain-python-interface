@@ -76,7 +76,7 @@ class CLDARecomputeParameters(mp.Process):
 
         self.work_queue = work_queue
         self.result_queue = result_queue
-        self.done = False
+        self.done = mp.Event()
 
     def _check_for_job(self):
         try:
@@ -86,7 +86,7 @@ class CLDARecomputeParameters(mp.Process):
         return job
         
     def run(self):
-        while not self.done:
+        while not self.done.is_set():
             job = self._check_for_job()
 
             # unpack the data
@@ -99,10 +99,9 @@ class CLDARecomputeParameters(mp.Process):
 
     def calc(self, *args, **kwargs):
         return None
+
     def stop(self):
-        self.done = True
-
-
+        self.done.set()
 
 class KFSmoothbatch(CLDARecomputeParameters):
     def __init__(self, work_queue, result_queue, batch_time, half_life):
