@@ -383,7 +383,6 @@ class Decoder(models.Model):
     
     def get(self):
         sys = System.objects.get(name='bmi').path
-        print self.path
         return cPickle.load(open(os.path.join(sys, self.path)))
 
     def to_json(self):

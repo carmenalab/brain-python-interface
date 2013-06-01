@@ -125,6 +125,7 @@ class AdaptiveBMI(object):
         self.decoder = decoder
         self.learner = learner
         self.updater = updater
+        self.param_hist = []
 
         self.clda_input_queue = self.updater.work_queue
         self.clda_output_queue = self.updater.result_queue
@@ -160,6 +161,7 @@ class AdaptiveBMI(object):
             pass
 
         if new_params is not None:
+            self.param_hist.append(new_params)
             self.decoder.update_params(new_params)
             self.learner.enable()
             update_flag = True

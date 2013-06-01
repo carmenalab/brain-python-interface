@@ -335,8 +335,6 @@ class KFDecoder(BMI):
             self.gain = 1
             self.offset = 0
 
-        self.param_hist = []
-
     def init_zscore(self, mFR_curr, sdFR_curr):
         self.sdFR_ratio = np.ravel(self.sdFR/sdFR_curr)
         self.mFR = mFR_curr.ravel() # overwrite the original mean firing rate
@@ -487,7 +485,6 @@ class KFDecoder(BMI):
         return np.array(self.kf.state.mean).ravel()
 
     def update_params(self, new_params):
-        self.param_hist.append(self.kf.get_params())
         C, Q = new_params
         self.kf.C = C
         self.kf.Q = Q

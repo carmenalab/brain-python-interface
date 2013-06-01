@@ -99,17 +99,20 @@ def runtask(cmds, _cmds, websock, **kwargs):
             except Exception as e:
                 _cmds.send(e)
                 cmd = _cmds.recv()
-        task.cleanup()
     except:
         import cStringIO
         import traceback
         err = cStringIO.StringIO()
         traceback.print_exc(None, err)
+        with open('/tmp/exceptions', 'w') as fp:
+            err.seek(0)
+            fp.write(err.read())
         err.seek(0)
         websock.send(dict(status="error", msg=err.read()))
         err.seek(0)
         print err.read()
-    
+    sys.stdout = sys.__stdout__
+    task.cleanup()
     print "****************Exit task proc"
 
 class Task(object):
