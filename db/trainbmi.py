@@ -37,7 +37,6 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()
-
     database.save_bmi(name, int(entry), tf.name)
 
 def cache_and_train(name, clsname, entry, cells, binlen, tslice):

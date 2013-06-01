@@ -23,7 +23,7 @@ def save_calibration(subject, system, name, params):
     Calibration(subject=subj, system=sys, name=name, params=params).save()
 
 def save_data(curfile, system, entry, move=True, local=True):
-    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl" bmi_params="npz")
+    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz")
     sys = System.objects.get(name=system)
     entry = TaskEntry.objects.get(pk=entry)
 
