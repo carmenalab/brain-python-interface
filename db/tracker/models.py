@@ -120,7 +120,7 @@ class System(models.Model):
     
     @staticmethod
     def populate():
-        for name in ["eyetracker", "hdf", "plexon", "bmi"]:
+        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params"]:
             try:
                 System.objects.get(name=name)
             except ObjectDoesNotExist:
