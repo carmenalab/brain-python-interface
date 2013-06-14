@@ -103,9 +103,23 @@ class AdaptiveGenerator(object):
         self.gen.incorrect()
         super(AdaptiveGenerator, self)._start_incorrect()
 
+class Joystick(object):
+    def init(self):
+        from riglib import source, phidgets
+        System = phidgets.make(2, 1)
+        self.joystick = source.DataSource(System)
+        super(Joystick, self).init()
 
+    def run(self):
+        self.joystick.start()
+        try:
+            super(Joystick, self).run()
+        finally:
+            self.joystick.stop()
 
-
+    def join(self):
+        self.joystick.join()
+        super(Joystick, self).join()
 
 
 ########################################################################################################
@@ -303,6 +317,8 @@ class SinkRegister(object):
             self.sinks.register(self.motiondata)
         if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
+        if isinstance(self, Joystick):
+            self.sinks.register(self.joystick)
 
 class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''

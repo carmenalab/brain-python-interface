@@ -11,6 +11,7 @@ features = dict(
     ignore_correctness=experiment.features.IgnoreCorrectness,
     reward_system = experiment.features.RewardSystem,
     eye_data=experiment.features.EyeData,
+    joystick=experiment.features.Joystick,
     calibrated_eye=experiment.features.CalibratedEyeData,
     eye_simulate=experiment.features.SimulatedEyeData,
     fixation_start=experiment.features.FixationStart,
@@ -45,7 +46,7 @@ from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
-from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, TargetDirection, TestBoundary
+from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, JoystickControl, TargetDirection, TestBoundary
 from tasks.sensorymapping import FreeMap, ArmPositionTraining, NumberMap
 from tasks.bmitasks import BMIControl, ManualWithPredictions, CLDAControl
 
@@ -68,6 +69,7 @@ tasks = dict(
     free_map=FreeMap,
     arm_position_training=ArmPositionTraining,
     number_map=NumberMap,
+    joystick_control = JoystickControl,
 )
 
 from tracker import models

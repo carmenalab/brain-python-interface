@@ -44,7 +44,8 @@ class DataSource(mp.Process):
         try:
             system = self.source(**self.source_kwargs)
             system.start()
-        except:
+        except Exception as e:
+            print e
             self.status.value = -1
         streaming = True
         size = self.slice_size
