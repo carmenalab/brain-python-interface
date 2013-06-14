@@ -1,3 +1,6 @@
+'''Needs docs'''
+
+
 import numpy as np
 from experiment import LogExperiment, TrialTypes
 

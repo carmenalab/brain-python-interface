@@ -1,3 +1,5 @@
+'''Needs docs'''
+
 import json
 
 from django.template import RequestContext

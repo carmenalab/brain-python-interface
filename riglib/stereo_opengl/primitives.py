@@ -1,3 +1,5 @@
+'''Needs docs'''
+
 import numpy as np
 from numpy import pi
 

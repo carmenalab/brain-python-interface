@@ -1,3 +1,5 @@
+'''Needs docs'''
+
 import os
 import re
 import cPickle

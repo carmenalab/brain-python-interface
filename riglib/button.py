@@ -1,3 +1,5 @@
+''' Needs docs'''
+
 import threading
 import Queue
 import ftdi

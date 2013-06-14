@@ -1,3 +1,5 @@
+'''Needs docs'''
+
 import random
 import itertools
 

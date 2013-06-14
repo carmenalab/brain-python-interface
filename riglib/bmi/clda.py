@@ -1,3 +1,6 @@
+'''Needs docs'''
+
+
 import multiprocessing as mp
 import numpy as np
 from riglib.bmi import kfdecoder

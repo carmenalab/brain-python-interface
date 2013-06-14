@@ -1,3 +1,6 @@
+
+'''Needs docs'''
+
 import os
 cwd = os.path.split(os.path.abspath(__file__))[0]
 
