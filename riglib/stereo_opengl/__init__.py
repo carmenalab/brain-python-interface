@@ -1,3 +1,5 @@
+'''Needs docs'''
+
 try:
     from window import Window
     from render import stereo

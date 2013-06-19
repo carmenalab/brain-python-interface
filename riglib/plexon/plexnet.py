@@ -1,4 +1,4 @@
-''' Here's a docstring'''
+''' Needs docs'''
 
 import re
 import math

@@ -1,3 +1,6 @@
+''' Needs docs'''
+
+
 class FuncProxy(object):
     def __init__(self, name, pipe, event):
         self.pipe = pipe

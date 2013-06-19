@@ -1,3 +1,6 @@
+'''Needs docs'''
+
+
 import inspect
 import traceback
 import multiprocessing as mp

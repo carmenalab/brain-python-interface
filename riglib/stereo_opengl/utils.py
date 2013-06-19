@@ -1,3 +1,6 @@
+
+'''Needs docs'''
+
 from __future__ import division
 import numpy as np
 from textures import Texture

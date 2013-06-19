@@ -1,8 +1,12 @@
+'''Needs docs'''
+
+
 import multiprocessing as mp
 import numpy as np
 from riglib.bmi import kfdecoder
 import time
 
+## Learners
 def normalize(vec):
     norm_vec = vec / np.linalg.norm(vec)
     
@@ -69,8 +73,15 @@ class CursorGoalLearner(Learner):
         return kindata, neuraldata
 
 
+## Updaters
 class CLDARecomputeParameters(mp.Process):
+    """Generic class for CLDA parameter recomputation"""
     def __init__(self, work_queue, result_queue):
+        ''' __init__
+        work_queue, result_queue are mp.Queues
+        Jobs start when an entry is found in work_queue
+        Results of job are placed back onto result_queue
+        '''
         # run base constructor
         super(CLDARecomputeParameters, self).__init__()
 
@@ -86,6 +97,7 @@ class CLDARecomputeParameters(mp.Process):
         return job
         
     def run(self):
+        """ The main loop """
         while not self.done.is_set():
             job = self._check_for_job()
 
@@ -98,6 +110,8 @@ class CLDARecomputeParameters(mp.Process):
             time.sleep(0.5)
 
     def calc(self, *args, **kwargs):
+        """Re-calculate parameters based on input arguments.  This
+        method should be overwritten for any useful CLDA to occur!"""
         return None
 
     def stop(self):
@@ -110,6 +124,12 @@ class KFSmoothbatch(CLDARecomputeParameters):
         self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
         
     def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons):
+        """Smoothbatch calculations
+
+        Run least-squares on (intended_kinematics, spike_counts) to 
+        determine the C_hat and Q_hat of new batch. Then combine with 
+        old parameters using step-size rho
+        """
         C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(intended_kin, spike_counts, 
             include_offset=False, drives_obs=drives_neurons)
         C = (1-rho)*C_hat + rho*C_old
@@ -117,6 +137,8 @@ class KFSmoothbatch(CLDARecomputeParameters):
         return C, Q
 
 if __name__ == '__main__':
+    # Test case for CLDARecomputeParameters, to show non-blocking properties
+    # of the recomputation
     work_queue = mp.Queue()
     result_queue = mp.Queue()
 
