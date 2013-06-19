@@ -292,6 +292,7 @@ class KalmanFilter():
             X = X[drives_obs, :]
             
         # ML estimate of C and Q
+        
         C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
         #C = Y*np.linalg.pinv(X)
         Q = np.cov( Y-C*X, bias=1 )

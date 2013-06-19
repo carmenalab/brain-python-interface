@@ -90,7 +90,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     velocity = np.ma.diff(kin[...,:3], axis=0)*60
     kin = np.ma.hstack([kin[:-1,:,:3], velocity])
     
-    hand_kin = kin[:, [0,kin.shape[1]/2], :]
+    hand_kin = kin[:, [14,kin.shape[1]/2+14], :]
     hand_kin = hand_kin.reshape(len(hand_kin), -1)
     
     # train KF model parameters
@@ -113,7 +113,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
         raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")
     C = np.zeros([n_neurons, len(state_inds)])
     C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[train_inds, :], neurons[:,:-1])
-
+    
     Delta_KINARM = 1./10
     Delta_BMI3D = 1./60
     loop_update_ratio = Delta_BMI3D/Delta_KINARM
