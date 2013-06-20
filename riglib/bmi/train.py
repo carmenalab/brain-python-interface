@@ -130,7 +130,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     units = units[unit_inds,:]
 
     # instantiate KFdecoder
-    bounding_box = np.array([-100., -100.]), np.array([100., 100.])
+    bounding_box = np.array([-250., -140.]), np.array([250., 140.])
     states_to_bound = ['hand_px', 'hand_pz']
     decoder = kfdecoder.KFDecoder(kf, None, None, units, bounding_box, state_vars, states_to_bound)
     return decoder

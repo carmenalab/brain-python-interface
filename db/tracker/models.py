@@ -432,6 +432,12 @@ class DataFile(models.Model):
         cache = os.path.join(path, '.%s.cache'%fname)
         return os.path.exists(cache)
 
+    def remove(self, **kwargs):
+        try:
+            os.unlink(self.get_path())
+        except OSError:
+            print "already deleted..."
+
     def delete(self, **kwargs):
-        os.unlink(self.get_path())
+        self.remove()
         super(DataFile, self).delete(**kwargs)
