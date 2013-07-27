@@ -144,8 +144,9 @@ cdef class Continuous:
         
     property time:
         def __get__(self):
-            cdef double stop = self.info.len / float(self.info.freq)
-            return np.arange(self.info.t_start, stop+self.info.t_start, 1./self.info.freq)
+            cdef double start = self.info.start + self.info.t_start
+            cdef double stop = start + self.info.len / float(self.info.freq)
+            return np.arange(start, stop, 1./self.info.freq)
 
 cdef class DiscreteFS:
     cdef Datafile parent

@@ -38,12 +38,13 @@ ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
     last_samp = frameset->frames[info->_fedge[1]-1].ts / tsfreq * chanfreq;
     last_samp += frameset->frames[info->_fedge[1]-1].samples;
     start = max(0, start)*chanfreq;
-    stop = max(last_samp/chanfreq, stop)*chanfreq;
+    stop = min(last_samp/chanfreq, stop)*chanfreq;
 
     if (first_samp != start && first_samp < start)
         info->_strunc[0] = ceil(start - first_samp);
-    if (last_samp != stop && last_samp > stop)
-        info->_strunc[1] = floor(last_samp - (stop-start));
+    if (last_samp != stop && last_samp > stop) {
+        info->_strunc[1] = floor(last_samp - stop);
+    }
 
     info->freq = (double) chanfreq;
     adj = first_samp + info->_strunc[0] - start;
