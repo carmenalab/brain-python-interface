@@ -348,6 +348,14 @@ class TaskEntry(models.Model):
     def from_json(cls, js):
         pass
 
+    def get_decoder(self):
+        """
+        Get the Decoder instance associated with this task entry
+        """
+        params = eval(self.params)
+        decoder_id = params['bmi']
+        return Decoder.objects.get(id=decoder_id)
+
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject)
     date = models.DateTimeField(auto_now_add=True)
