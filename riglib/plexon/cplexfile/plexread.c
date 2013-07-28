@@ -80,7 +80,7 @@ ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
 
 int plx_read_continuous(ContInfo* info, double* data) {
     double gain;
-    unsigned long t_off, adj[2];
+    long t_off, adj[2];
     unsigned long c, t, stride;
     long long f;
     short buf[MAX_SAMPLES_PER_WAVEFORM];
@@ -102,7 +102,7 @@ int plx_read_continuous(ContInfo* info, double* data) {
         adj[1] = f+1 == info->_fedge[1] ? info->_strunc[1] : 0;
 
         frame = &(info->plxfile->data[info->type].frames[f]);
-        t_off = frame->ts * chanfreq / tsfreq - info->_start + adj[0];
+        t_off = floor(frame->ts * chanfreq / tsfreq) - info->_start;
         stride = headsize + frame->samples * sizeof(short);
         fseek(info->plxfile->fp, frame->fpos+info->chans[0]*stride+headsize, SEEK_SET);
 
@@ -112,8 +112,8 @@ int plx_read_continuous(ContInfo* info, double* data) {
             if (readsize != frame->samples)
                 return -1;
             fseek(info->plxfile->fp, headsize+stride*(info->cskip[c]-1), SEEK_CUR);
-            for (t = 0; t < frame->samples - adj[1]; t++)
-                data[(t+t_off)*info->nchans + c] = buf[t+adj[0]] / gain;
+            for (t = adj[0]; t < frame->samples - adj[1]; t++)
+                data[(t+t_off)*info->nchans + c] = buf[t] / gain;
         }
     }
 
