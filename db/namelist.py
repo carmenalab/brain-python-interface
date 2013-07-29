@@ -40,6 +40,7 @@ generators = dict(
     reach_target_3d=manualcontrol.rand_target_sequence_3d,
     centerout_2d=manualcontrol.rand_target_sequence_2d_centerout,
     nummap=sensorymapping.gen_taps,
+    centerout_partial=manualcontrol.rand_target_sequence_2d_partial_centerout,
 )
 
 from tasks.rds import RDS, RDS_half
