@@ -59,6 +59,8 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     
     neurows = rows[tmask][3::4]
     neurons = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
+    mFR = np.mean(neurons,axis=0)
+    sdFR = np.std(neurons,axis=0)
     print neurons.shape
     if len(kin) != len(neurons):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
@@ -128,11 +130,13 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     is_stochastic = np.array([False, False, True, True, False])
     kf = kfdecoder.KalmanFilter(A, W, C[unit_inds,:], Q[np.ix_(unit_inds,unit_inds)], is_stochastic=is_stochastic)
     units = units[unit_inds,:]
+    mFR = mFR[unit_inds]
+    sdFR = sdFR[unit_inds]
 
     # instantiate KFdecoder
     bounding_box = np.array([-250., -140.]), np.array([250., 140.])
     states_to_bound = ['hand_px', 'hand_pz']
-    decoder = kfdecoder.KFDecoder(kf, None, None, units, bounding_box, state_vars, states_to_bound)
+    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound)
     return decoder
 
 def _train_KFDecoder_brain_control(cells=None, binlen=0.1, tslice=[None,None], 

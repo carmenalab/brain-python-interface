@@ -420,3 +420,51 @@ class RelayPlexByte(RelayPlexon):
         from riglib import nidaq
         return nidaq.SendRowByte
 
+
+
+class NormFiringRates(traits.HasTraits):
+    
+    norm_time = traits.Float(120.,desc="Number of seconds to use for mean and SD estimate")
+
+    def __init__(self, *args, **kwargs):
+        super(NormFiringRates, self).__init__(*args, **kwargs)
+        import time
+        self.starttime = time.time()
+        self.elapsedtime=0
+        self.count=0
+        self.mFR = None
+        self.mFR2 = None
+        self.sdFR = None
+        self.updated=False
+
+    def update_fr_vals(self):
+        if self.elapsedtime>1.:
+            bin = self.decoder.bin_spikes(self.neurondata.get(all=True).copy())
+            self.count +=1
+            if self.count == 1:
+                sz = len(bin)
+                self.mFR=np.zeros([sz])
+                self.mFR2=np.zeros([sz])
+            delta = bin - self.mFR
+            self.mFR = self.mFR + delta/self.count
+            self.mFR2 = self.mFR2 + delta*(bin - self.mFR)
+
+    def update_cursor(self):
+        self.elapsedtime = time.time()-self.starttime
+        if self.elapsedtime<self.norm_time:
+            self.update_fr_vals()
+        elif not self.updated:
+            self.sdFR = np.sqrt(self.mFR2/(self.count-1))
+            self.decoder.init_zscore(self.mFR,self.sdFR)
+            self.hdf.sendMsg("baseline_norm")
+            self.updated=True
+            print "Updated session mean and SD."
+
+        super(NormFiringRates, self).update_cursor()
+
+    def cleanup(self, database, saveid, **kwargs):
+        if self.mFR is not None:
+            self.hdf.root.task.attrs['session_mFR']=self.mFR
+            self.hdf.root.task.attrs['session_sdFR']=self.sdFR
+
+        super(NormFiringRates, self).cleanup(database, saveid, **kwargs)

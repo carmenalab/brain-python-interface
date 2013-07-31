@@ -22,6 +22,7 @@ features = dict(
     saveHDF=experiment.features.SaveHDF,
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
+    norm_firingrates=experiment.features.NormFiringRates,
 )
 
 from tasks import redgreen

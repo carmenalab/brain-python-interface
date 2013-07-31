@@ -339,9 +339,11 @@ class KFDecoder(BMI):
             self.offset = 0
 
     def init_zscore(self, mFR_curr, sdFR_curr):
-        self.sdFR_ratio = np.ravel(self.sdFR/sdFR_curr)
-        self.mFR = mFR_curr.ravel() # overwrite the original mean firing rate
-        self.zscore = not np.all(self.sdFR_ratio == 1)
+        # if interfacing with Kinarm system, may mean and sd will be shape nx1
+        sdFR_curr[sdFR_curr==0]=.01 ## WHAT DO WE DO IF THE SD IS ZERO?
+        self.sdFR_ratio = self.sdFR/sdFR_curr
+        self.mFR_diff = mFR_curr-self.mFR
+        self.zscore = True
         
     def bound_state(self):
         """Apply bounds on state vector, if bounding box is specified
@@ -377,10 +379,12 @@ class KFDecoder(BMI):
             Decoder output for each decoded parameter
 
         '''
+
         return self.predict(obs_t, **kwargs)
 
+
     def predict(self, ts_data_k, target=None, speed=1.0, target_radius=0.5,
-                assist_level=0.9, dt=0.1, task_data=None, **kwargs):
+                assist_level=0.0, dt=0.1, task_data=None, **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state if using assist
         if assist_level > 0 and not target == None:
@@ -408,7 +412,7 @@ class KFDecoder(BMI):
 
         # re-normalize the variance of the spike observations, if nec
         if self.zscore:
-            spike_counts = (spike_counts - self.mFR) * self.sdFR_ratio
+            spike_counts = (spike_counts - self.mFR_diff) * self.sdFR_ratio
 
         if task_data is not None:
             task_data['bins'] = spike_counts
