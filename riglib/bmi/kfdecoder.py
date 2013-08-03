@@ -114,10 +114,10 @@ class KalmanFilter():
         self.obs_noise = GaussianState(0.0, self.Q)
 
 
-    def __call__(self, obs):
+    def __call__(self, obs, **kwargs):
         """ Call the 1-step forward inference function
         """
-        self.state = self._forward_infer(self.state, obs)
+        self.state = self._forward_infer(self.state, obs, **kwargs)
         return self.state.mean
 
     def get_mean(self):
@@ -129,14 +129,14 @@ class KalmanFilter():
     def _ssm_pred(self, state):
         return self.A*state + self.state_noise
 
-    def _forward_infer(self, st, obs_t):
+    def _forward_infer(self, st, obs_t, **kwargs):
         pred_state = self._ssm_pred(st)
         pred_obs = self._obs_prob(pred_state)
 
         C, Q = self.C, self.Q
         P = pred_state.cov
 
-        K = self._calc_kalman_gain(P)
+        K = self._calc_kalman_gain(P, **kwargs)
         I = np.mat(np.eye(self.C.shape[1]))
 
         post_state = pred_state
