@@ -38,8 +38,8 @@ ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
     last_samp = frameset->frames[info->_fedge[1]-1].ts / tsfreq * chanfreq;
     last_samp += frameset->frames[info->_fedge[1]-1].samples;
     start = max(0, start)*chanfreq;
-    stop = min(last_samp/chanfreq, stop)*chanfreq;
-
+    stop = stop < 0 ? last_samp : stop*chanfreq;
+    
     if (first_samp != start && first_samp < start)
         info->_strunc[0] = ceil(start - first_samp);
     if (last_samp != stop && last_samp > stop) {
@@ -49,7 +49,7 @@ ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
     info->freq = (double) chanfreq;
     adj = first_samp + info->_strunc[0] - start;
     info->t_start = (adj - floor(adj)) / info->freq;
-    info->_start = start;
+//    info->_start = start;
 
     if (nchans < 1) {
         info->chans = malloc(sizeof(int) * frame->nblocks);
@@ -74,7 +74,7 @@ ContInfo* plx_get_continuous(PlexFile* plxfile, ChanType type,
     printf("\tfedge=[%llu:%llu]\n", info->_fedge[0], info->_fedge[1]);
     #endif
 
-    info->len = ceil(stop - start - info->t_start*chanfreq);
+    info->len = max(0, ceil(stop - start - info->t_start*chanfreq));
     return info;
 }
 
@@ -90,7 +90,7 @@ int plx_read_continuous(ContInfo* info, double* data) {
     PL_SlowChannelHeader* chan_info = info->plxfile->cont_info[info->type - wideband];
     int chanfreq = chan_info[0].ADFreq;
 
-    #ifdef DEBUG
+    #ifdef DDEBUG
     printf("Channels:");
     unsigned long i;
     for (i = 0; i < info->nchans; i++)
@@ -102,7 +102,7 @@ int plx_read_continuous(ContInfo* info, double* data) {
         adj[1] = f+1 == info->_fedge[1] ? info->_strunc[1] : 0;
 
         frame = &(info->plxfile->data[info->type].frames[f]);
-        t_off = floor(frame->ts * chanfreq / tsfreq) - info->_start;
+        t_off = floor(chanfreq * (frame->ts / tsfreq - info->start));
         stride = headsize + frame->samples * sizeof(short);
         fseek(info->plxfile->fp, frame->fpos+info->chans[0]*stride+headsize, SEEK_SET);
 
