@@ -439,7 +439,7 @@ class NormFiringRates(traits.HasTraits):
 
     def update_fr_vals(self):
         if self.elapsedtime>1.:
-            bin = self.decoder.bin_spikes(self.neurondata.get(all=True))
+            bin = self.decoder.bin_spikes(self.neurondata.get(all=True).copy())
             self.count +=1
             if self.count == 1:
                 sz = len(bin)

@@ -410,18 +410,18 @@ class KFDecoder(BMI):
         else:
             spike_counts = ts_data_k
 
-        # re-normalize the variance of the spike observations, if nec
-        if self.zscore:
-            spike_counts_n = (spike_counts - self.mFR_diff) * self.sdFR_ratio
-
         if task_data is not None:
             task_data['bins'] = spike_counts
 
+        # re-normalize the variance of the spike observations, if nec
+        if self.zscore:
+            spike_counts = (spike_counts - self.mFR_diff) * self.sdFR_ratio
+
         # re-format as a 1D col vec
-        spike_counts_n = np.mat(spike_counts_n.reshape(-1,1))
+        spike_counts = np.mat(spike_counts.reshape(-1,1))
 
         # Run the KF
-        self.kf(spike_counts_n)
+        self.kf(spike_counts)
 
         # Bound cursor, if applicable
         self.bound_state()
