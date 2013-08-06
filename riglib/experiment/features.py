@@ -439,7 +439,7 @@ class NormFiringRates(traits.HasTraits):
 
     def update_fr_vals(self):
         if self.elapsedtime>1.:
-            bin = self.decoder.bin_spikes(self.neurondata.get(all=True).copy())
+            bin = self.decoder.bin_spikes(self.neurondata.get(all=True))
             self.count +=1
             if self.count == 1:
                 sz = len(bin)
@@ -459,12 +459,8 @@ class NormFiringRates(traits.HasTraits):
             self.hdf.sendMsg("baseline_norm")
             self.updated=True
             print "Updated session mean and SD."
+            self.hdf.sendAttr("task", "session_mFR", self.mFR)
+            self.hdf.sendAttr("task", "session_sdFR", self.sdFR)
 
         super(NormFiringRates, self).update_cursor()
 
-    def cleanup(self, database, saveid, **kwargs):
-        if self.mFR is not None:
-            self.hdf.root.task.attrs['session_mFR']=self.mFR
-            self.hdf.root.task.attrs['session_sdFR']=self.sdFR
-
-        super(NormFiringRates, self).cleanup(database, saveid, **kwargs)

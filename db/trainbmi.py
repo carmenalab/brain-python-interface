@@ -7,7 +7,8 @@ import tempfile
 import multiprocessing as mp
 import xmlrpclib
 
-from namelist import bmis
+import namelist
+#from namelist import bmis
 from tracker import models
 from plexon import plexfile
 
@@ -35,7 +36,7 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
 
     datafiles = models.DataFile.objects.filter(entry_id=entry)
     inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
-    decoder = bmis[clsname](cells=cells, binlen=binlen, tslice=tslice, **inputdata)
+    decoder = namelist.bmis[clsname](cells=cells, binlen=binlen, tslice=tslice, **inputdata)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()

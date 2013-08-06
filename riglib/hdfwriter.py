@@ -43,6 +43,10 @@ class HDFWriter(object):
             row['time'] = len(self.data[system])
             row['msg'] = msg
             row.append()
+
+    def sendAttr(self, system, attr, value):
+        if system in self.data:
+            self.data[system].attrs[attr] = value
     
     def close(self):
         self.h5.close()
