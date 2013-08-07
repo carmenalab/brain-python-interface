@@ -97,7 +97,7 @@ class Connection(object):
             if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
                 self.n_spike = resp[15]
                 self.n_cont = resp[17]
-                print self.n_spike, self.n_cont
+                print "Spike channels: %d, continuous channels: %d"%(self.n_spike, self.n_cont)
                 gotServerArea = True
         
         self._init = True
@@ -133,7 +133,7 @@ class Connection(object):
         else:
             packet = array.array('b', '\x00'*(PACKETSIZE - 20))
             for c in channels:
-                packet[c] = bitmask
+                packet[c-1] = bitmask
             raw += packet.tostring()
 
         self.sock.sendall(raw)

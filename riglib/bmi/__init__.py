@@ -134,6 +134,21 @@ class AdaptiveBMI(object):
         self.clda_output_queue = self.updater.result_queue
         self.updater.start()
 
+        self.count=0
+        self.mFR = None
+        self.mFR2 = None
+        self.sdFR = None
+
+    def update_fr_vals(self, spike_counts):
+        self.count +=1
+        if self.count == 1:
+            sz = len(spike_counts)
+            self.mFR=np.zeros([sz])
+            self.mFR2=np.zeros([sz])
+        delta = spike_counts - self.mFR
+        self.mFR = self.mFR + delta/self.count
+        self.mFR2 = self.mFR2 + delta*(spike_counts - self.mFR)
+
     def is_clda_enabled(self):
         return self.learner.clda_enabled 
 
@@ -156,6 +171,8 @@ class AdaptiveBMI(object):
         else:
             spike_counts = spike_obs
         self.learner(spike_counts, prev_state[pos_inds], target_pos)
+
+        self.update_fr_vals(spike_counts) #update online mean and SD estimates
 
         try:
             new_params=None

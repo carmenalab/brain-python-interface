@@ -4,7 +4,7 @@ from riglib.plexon import plexnet
 
 conn = plexnet.Connection("10.0.0.13", 6000)
 conn.connect(256, waveforms=False, analog=False)
-#conn.select_spikes()
+conn.select_spikes(waveforms=False, unsorted=True)
 
 data = []
 d = conn.get_data()
