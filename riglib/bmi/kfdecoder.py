@@ -328,6 +328,7 @@ class KFDecoder(BMI):
         self.states = states
         self.tslice = tslice # TODO replace with real tslice
         self.states_to_bound = states_to_bound
+        self.zeromeanunits = None
 
         # Gain terms for hack debugging
         try:
@@ -340,7 +341,9 @@ class KFDecoder(BMI):
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         # if interfacing with Kinarm system, may mean and sd will be shape nx1
-        sdFR_curr[sdFR_curr==0]=.01 ## WHAT DO WE DO IF THE SD IS ZERO?
+        self.zeromeanunits=np.nonzero(mFR_curr==0)[0] #find any units with a mean FR of zero for this session
+        sdFR_curr[self.zeromenaunits]=np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
+        mFR_curr[self.zeromeanunits]=np.nan
         self.sdFR_ratio = self.sdFR/sdFR_curr
         self.mFR_diff = mFR_curr-self.mFR
         self.zscore = True
@@ -416,6 +419,9 @@ class KFDecoder(BMI):
         # re-normalize the variance of the spike observations, if nec
         if self.zscore:
             spike_counts = (spike_counts - self.mFR_diff) * self.sdFR_ratio
+            # set the spike count of any unit with a 0 mean to it's original mean
+            # This is essentially removing it from the decoder.
+            spike_counts[self.zeromeanunits] = self.mFR[self.zeromeanunits] 
 
         # re-format as a 1D col vec
         spike_counts = np.mat(spike_counts.reshape(-1,1))
