@@ -44,6 +44,21 @@ class CursorGoalLearner(Learner):
         self.batch_size = batch_size
         self.kindata = []
         self.neuraldata = []
+
+        # self.count=0
+        # self.mFR = None
+        # self.mFR2 = None
+        # self.sdFR = None
+
+    # def update_fr_vals(self, spike_counts):
+    #     self.count +=1
+    #     if self.count == 1:
+    #         sz = len(spike_counts)
+    #         self.mFR=np.zeros([sz])
+    #         self.mFR2=np.zeros([sz])
+    #     delta = spike_counts - self.mFR
+    #     self.mFR = self.mFR + delta/self.count
+    #     self.mFR2 = self.mFR2 + delta*(spike_counts - self.mFR)
     
     def __call__(self, spike_counts, cursor_pos, target_pos):
         """
