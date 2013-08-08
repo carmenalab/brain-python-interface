@@ -498,9 +498,11 @@ class KFDecoder(BMI):
         return np.array(self.kf.state.mean).ravel()
 
     def update_params(self, new_params):
-        C, Q = new_params
+        C, Q, mFR, sdFR = new_params
         self.kf.C = C
         self.kf.Q = Q
+        self.mFR=mFR
+        self.sdFR=sdFR
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):

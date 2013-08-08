@@ -44,21 +44,6 @@ class CursorGoalLearner(Learner):
         self.batch_size = batch_size
         self.kindata = []
         self.neuraldata = []
-
-        # self.count=0
-        # self.mFR = None
-        # self.mFR2 = None
-        # self.sdFR = None
-
-    # def update_fr_vals(self, spike_counts):
-    #     self.count +=1
-    #     if self.count == 1:
-    #         sz = len(spike_counts)
-    #         self.mFR=np.zeros([sz])
-    #         self.mFR2=np.zeros([sz])
-    #     delta = spike_counts - self.mFR
-    #     self.mFR = self.mFR + delta/self.count
-    #     self.mFR2 = self.mFR2 + delta*(spike_counts - self.mFR)
     
     def __call__(self, spike_counts, cursor_pos, target_pos):
         """
@@ -138,7 +123,7 @@ class KFSmoothbatch(CLDARecomputeParameters):
         self.hlife = half_life
         self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
         
-    def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons):
+    def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old):
         """Smoothbatch calculations
 
         Run least-squares on (intended_kinematics, spike_counts) to 
@@ -149,7 +134,10 @@ class KFSmoothbatch(CLDARecomputeParameters):
             include_offset=False, drives_obs=drives_neurons)
         C = (1-rho)*C_hat + rho*C_old
         Q = (1-rho)*Q_hat + rho*Q_old
-        return C, Q
+
+        mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
+        sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
+        return C, Q, mFR, sdFR
 
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties

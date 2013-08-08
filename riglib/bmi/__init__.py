@@ -6,6 +6,7 @@ import tables
 
 from plexon import plexfile, psth
 from riglib.nidaq import parse
+import traceback
 
 def load(decoder_fname):
     """Re-load decoder from pickled object"""
@@ -157,13 +158,13 @@ class AdaptiveBMI(object):
             spike_counts = spike_obs
         self.learner(spike_counts, prev_state[pos_inds], target_pos)
 
-        #self.update_fr_vals(spike_counts) #update online mean and SD estimates
-
         try:
             new_params=None
             new_params = self.clda_output_queue.get_nowait()
         except:
-            pass
+            f = open('/home/helene/Desktop/log', 'w')
+            traceback.print_exc(file=f)
+            f.close()
 
         if new_params is not None:
             self.param_hist.append(new_params)
@@ -172,20 +173,12 @@ class AdaptiveBMI(object):
             update_flag = True
             print "updated params"
 
-        # try:
-        #     new_params = self.clda_output_queue.get_nowait()
-        #     self.decoder.update_params(new_params)
-        #     self.learner.enable()
-        #     print "updated params"
-        #  except:
-        #     pass
-
         if self.learner.is_full():
             intended_kin, spike_counts = self.learner.get_batch()
             rho = self.updater.rho
             #### TODO remove next line and make a user option instead
             drives_neurons = np.array([False, False, True, True, True])
-            clda_data = (intended_kin, spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons)
+            clda_data = (intended_kin, spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
 
             if 0:
                 new_params = self.updater.calc(*clda_data)
