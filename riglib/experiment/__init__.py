@@ -1,10 +1,16 @@
-'''Needs docs'''
+'''Needs docs
+Experiment constructors. 'experiment' instances are the combination of 
+a task and a list of features.  Rather than have a separate class for
+all the possible combinations of tasks and features, a custom class for
+the experiment is created programmatically using 'type'. The created class 
+has methods of the base task as well as all the selected features. 
+'''
 
 
-import os
-import time
-import random
-import threading
+import os # unused?
+import time # unused?
+import random # unused?
+import threading # unused?
 
 import numpy as np
 
@@ -13,27 +19,60 @@ try:
 except ImportError:
     import enthought.traits.api as traits
 
-import features
+import features # unused?
 import generate
 
 import report
 from experiment import Experiment, LogExperiment, Sequence, TrialTypes
-from Pygame import Pygame
+from Pygame import Pygame # unused?
 
 def make(exp_class, feats=()):
-    clslist = tuple(feats) + (exp_class,)
+    # construct the class list to define inheritance order for the custom task
+    clslist = tuple(feats) + (exp_class,) 
+
+    # return custom class
     return type(exp_class.__name__, clslist, dict())
 
-def consolerun(exp_class, features=(), probs=None, **kwargs):
+def make_and_inst(exp_class, features=(), probs=None, **kwargs):
+    """
+    Instantiate a task from the shell
+    """
+    # Construct the custom task instance as a 
+    # as a combination of the base task and the selected features
     Class = make(exp_class, features)
+
+    # instantiate generator for task trials
     if probs is None or isinstance(probs, (list, tuple, np.ndarray)):
         gen = generate.endless(Class, probs)
     else:
         gen = probs
+
+    # instantiate task
+    exp = Class(gen, **kwargs)
+    return exp
+
+def consolerun(exp_class, features=(), probs=None, **kwargs):
+    """
+    Instantiate a task from the shell
+    """
+    # Construct the custom task instance as a 
+    # as a combination of the base task and the selected features
+    Class = make(exp_class, features)
+
+    # instantiate generator for task trials
+    if probs is None or isinstance(probs, (list, tuple, np.ndarray)):
+        gen = generate.endless(Class, probs)
+    else:
+        gen = probs
+
+    # instantiate task
     exp = Class(gen, **kwargs)
     exp.start()
+
+    # run until 'q' is pressed on the keyboard
     while raw_input().strip() != "q":
         print_report(report(exp))
+
     exp.end_task()
     print "Waiting to end..."
     exp.join()
