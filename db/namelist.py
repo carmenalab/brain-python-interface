@@ -48,7 +48,7 @@ from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
-from tasks.manualcontrol import FixationTraining, ManualControl, TargetCapture, MovementTraining, JoystickControl, TargetDirection, TestBoundary
+from tasks.manualcontrol import FixationTraining, ManualControl, ManualControl2, TargetCapture, MovementTraining, JoystickControl, TargetDirection, TestBoundary
 from tasks.sensorymapping import FreeMap, ArmPositionTraining, NumberMap
 from tasks.bmitasks import BMIControl, ManualWithPredictions, CLDAControl
 
@@ -72,6 +72,7 @@ tasks = dict(
     arm_position_training=ArmPositionTraining,
     number_map=NumberMap,
     joystick_control = JoystickControl,
+    manual_control_2 = ManualControl2,
 )
 
 from tracker import models

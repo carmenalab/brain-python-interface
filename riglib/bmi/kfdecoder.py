@@ -389,9 +389,9 @@ class KFDecoder(BMI):
     def predict(self, ts_data_k, target=None, speed=1.0, target_radius=0.5,
                 assist_level=0.0, dt=0.1, task_data=None, **kwargs):
         """Decode the spikes"""
-        # Save the previous cursor state if using assist
+        # Save the previous cursor state for assist
+        prev_kin = self.kf.get_mean()
         if assist_level > 0 and not target == None:
-            prev_kin = self.kf.get_mean()
             cursor_pos = prev_kin[0:2] # TODO assumes a 2D position state
             diff_vec = target - cursor_pos 
             dist_to_target = np.linalg.norm(diff_vec)
@@ -429,6 +429,15 @@ class KFDecoder(BMI):
         # Run the KF
         self.kf(spike_counts)
 
+
+        #add a scaling factor on the velocity to slow down or speed up the cursor. comment out the following lines to undo!
+        vel_scale_factor=.8
+        cursor_kin=self.kf.get_mean()
+        scaled_vel=cursor_kin[2:4]*vel_scale_factor
+        scaled_pos=prev_kin[0:2]+scaled_vel*dt
+        self.kf.state.mean[:,0] = np.hstack([scaled_pos, scaled_vel, 1]).reshape(-1,1)
+
+
         # Bound cursor, if applicable
         self.bound_state()
 
@@ -437,14 +446,6 @@ class KFDecoder(BMI):
             kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
             self.kf.state.mean[:,0] = kin.reshape(-1,1)
             self.bound_state()
-
-        # TODO manual gain and offset terms
-        # f = open('/home/helene/bmi_gain', 'r')
-        # gain = [float(x) for x in f.readline().rstrip().split(',')]
-        # offset = [float(x) for x in f.readline().rstrip().split(',')]
-        # pt[1] = 0
-        # pt[0] = (pt[0] + offset[0])*gain[0]
-        # pt[2] = (pt[2] + offset[2])*gain[2]
 
         state = self.kf.get_mean()
         return np.array([state[0], 0, state[1], state[2], 0, state[3], 1])
