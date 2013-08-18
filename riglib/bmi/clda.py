@@ -45,17 +45,20 @@ class CursorGoalLearner(Learner):
         self.kindata = []
         self.neuraldata = []
     
-    def __call__(self, spike_counts, cursor_pos, target_pos):
+    def __call__(self, spike_counts, cursor_pos, target_pos, target_radius):
         """
         Rotation toward target state
         """
-
         # estimate intended velocity vector using cursorGoal
         # TODO this needs to be generalized so that the hold
         # the r regular cna be specified simultaneously 
         # cursor_pos = prev_state[0:2]
         int_dir = target_pos - cursor_pos
-        int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
+        dist_to_targ = np.linalg.norm(int_dir)
+        if dist_to_targ < target_radius:
+            int_vel = np.zeros(int_dir.shape)            
+        else:
+            int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
         int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
         
         if not self.is_full() and self.enabled:
@@ -138,6 +141,18 @@ class KFSmoothbatch(CLDARecomputeParameters):
         mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
         return C, Q, mFR, sdFR
+
+class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
+    def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons,
+             mFR_old, sdFR_old, is_stochastic):
+        
+        args = (intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old)
+        C, Q, mFR, sdFR = super(KFOrthogonalPlantSmoothbatch, self).__init__(*args)
+
+        # TODO each column of C belongs in one of 3 categories:
+        #   - Don't care; no optimization necessary
+        #   - Orthogonalize; 
+        # In addition, some specification of equality constraints is necessary
 
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties
