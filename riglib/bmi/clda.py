@@ -45,7 +45,7 @@ class CursorGoalLearner(Learner):
         self.kindata = []
         self.neuraldata = []
     
-    def __call__(self, spike_counts, cursor_pos, target_pos, target_radius):
+    def __call__(self, spike_counts, cursor_pos, target_pos, task_state):
         """
         Rotation toward target state
         """
@@ -55,7 +55,7 @@ class CursorGoalLearner(Learner):
         # cursor_pos = prev_state[0:2]
         int_dir = target_pos - cursor_pos
         dist_to_targ = np.linalg.norm(int_dir)
-        if dist_to_targ < target_radius:
+        if task_state in ['origin_hold', 'terminus_hold']:
             int_vel = np.zeros(int_dir.shape)            
         else:
             int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
