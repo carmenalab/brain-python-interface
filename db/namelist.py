@@ -48,9 +48,9 @@ from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
-from tasks.manualcontrol import FixationTraining, ManualControl, ManualControl2, TargetCapture, MovementTraining, JoystickControl, TargetDirection, TestBoundary
-from tasks.sensorymapping import FreeMap, ArmPositionTraining, NumberMap
-from tasks.bmitasks import BMIControl, ManualWithPredictions, CLDAControl
+import tasks.manualcontrol #import FixationTraining, ManualControl, ManualControl2, TargetCapture, MovementTraining, JoystickControl, TargetDirection, TestBoundary
+import tasks.sensorymapping #import FreeMap, ArmPositionTraining, NumberMap
+import tasks.bmitasks #import BMIControl, ManualWithPredictions, CLDAControl
 
 tasks = dict(
     dots=Dots,
@@ -59,20 +59,22 @@ tasks = dict(
     redgreen=RedGreen,
     button=ButtonTask,
     eye_calibration=EyeCal,
-    manual_control=ManualControl,
-    bmi_control=BMIControl,
-    clda_control=CLDAControl,
-    manual_predict=ManualWithPredictions,
-    fixation_training=FixationTraining,
-    target_capture=TargetCapture,
-    movement_training=MovementTraining,
-    direction_training=TargetDirection,
-    test_boundary=TestBoundary,
-    free_map=FreeMap,
-    arm_position_training=ArmPositionTraining,
-    number_map=NumberMap,
-    joystick_control = JoystickControl,
-    manual_control_2 = ManualControl2,
+    manual_control=tasks.manualcontrol.ManualControl,
+    bmi_control=tasks.bmitasks.BMIControl,
+    clda_control=tasks.bmitasks.CLDAControl,
+    manual_predict=tasks.bmitasks.ManualWithPredictions,
+    fixation_training=tasks.manualcontrol.FixationTraining,
+    target_capture=tasks.manualcontrol.TargetCapture,
+    movement_training=tasks.manualcontrol.MovementTraining,
+    direction_training=tasks.manualcontrol.TargetDirection,
+    test_boundary=tasks.manualcontrol.TestBoundary,
+    free_map=tasks.sensorymapping.FreeMap,
+    arm_position_training=tasks.sensorymapping.ArmPositionTraining,
+    number_map=tasks.sensorymapping.NumberMap,
+    joystick_control = tasks.manualcontrol.JoystickControl,
+    manual_control_2 = tasks.manualcontrol.ManualControl2,
+    visual_feedback = tasks.bmitasks.VisualFeedback,
+
 )
 
 from tracker import models
@@ -97,5 +99,5 @@ instance_to_model = SubclassDict( {
 
 bmis = dict(
     kalman=bmi.train._train_KFDecoder_manual_control,
-    kalmanVF=bmi._train_KFDecoder_visual_feedback,
+    kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
     )
