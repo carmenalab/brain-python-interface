@@ -1,0 +1,239 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Comment and doc string format guide &mdash; BMI3D 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="top" title="BMI3D 1.0 documentation" href="index.html" />
+    <link rel="next" title="Data analysis code" href="analysis.html" />
+    <link rel="prev" title="Reading saved data" href="data.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="analysis.html" title="Data analysis code"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="data.html" title="Reading saved data"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="comment-and-doc-string-format-guide">
+<span id="comments"></span><h1>Comment and doc string format guide<a class="headerlink" href="#comment-and-doc-string-format-guide" title="Permalink to this headline">¶</a></h1>
+<p>From <a class="reference external" href="http://google-styleguide.googlecode.com/svn/trunk/pyguide.html">Google&#8217;s python style guide</a>.</p>
+<div class="section" id="doc-strings">
+<h2>Doc Strings<a class="headerlink" href="#doc-strings" title="Permalink to this headline">¶</a></h2>
+<p>Python has a unique commenting style using doc strings. A doc string is a string that is the first statement in a package, module, class or function. These strings can be extracted automatically through the __doc__ member of the object and are used by pydoc. (Try running pydoc on your module to see how it looks.) Our convention for doc strings is to use the three double-quote format for strings. A doc string should be organized as a summary line (one physical line) terminated by a period, question mark, or exclamation point, followed by a blank line, followed by the rest of the doc string starting at the same cursor position as the first quote of the first line. There are more formatting guidelines for doc strings below.</p>
+</div>
+<div class="section" id="modules">
+<h2>Modules<a class="headerlink" href="#modules" title="Permalink to this headline">¶</a></h2>
+<p>Every file should contain the following items, in order:</p>
+<ul class="simple">
+<li>a copyright statement (for example, Copyright 2008 Google Inc.)</li>
+<li>a license boilerplate. Choose the appropriate boilerplate for the license used by the project (for example, Apache 2.0, BSD, LGPL, GPL)</li>
+<li>an author line to identify the original author of the file</li>
+</ul>
+</div>
+<div class="section" id="functions-and-methods">
+<h2>Functions and Methods<a class="headerlink" href="#functions-and-methods" title="Permalink to this headline">¶</a></h2>
+<p>As used in this section &#8220;function&#8221; applies to methods, function, and generators.</p>
+<p>A function must have a docstring, unless it meets all of the following criteria:</p>
+<ul class="simple">
+<li>not externally visible</li>
+<li>very short</li>
+<li>obvious</li>
+</ul>
+<p>A docstring should give enough information to write a call to the function without reading the function&#8217;s code. A docstring should describe the function&#8217;s calling syntax and its semantics, not its implementation. For tricky code, comments alongside the code are more appropriate than using docstrings.</p>
+<p>Certain aspects of a function should be documented in special sections, listed below. Each section begins with a heading line, which ends with a colon. Sections should be indented two spaces, except for the heading.</p>
+<p><strong>Args:</strong></p>
+<p>List each parameter by name. A description should follow the name, and be separated by a colon and a space. If the description is too long to fit on a single 80-character line, use a hanging indent of 2 or 4 spaces (be consistent with the rest of the file).
+The description should mention required type(s) and the meaning of the argument.</p>
+<p>If a function accepts <a href="#id1"><span class="problematic" id="id2">*</span></a>foo (variable length argument lists) and/or <a href="#id3"><span class="problematic" id="id4">**</span></a>bar (arbitrary keyword arguments), they should be listed as <a href="#id5"><span class="problematic" id="id6">*</span></a>foo and <a href="#id7"><span class="problematic" id="id8">**</span></a>bar.</p>
+<p><strong>Returns: (or Yields: for generators)</strong></p>
+<p>Describe the type and semantics of the return value. If the function only returns None, this section is not required.</p>
+<p><strong>Raises:</strong></p>
+<p>List all exceptions that are relevant to the interface.</p>
+<p><strong>Example docstring:</strong></p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">fetch_bigtable_rows</span><span class="p">(</span><span class="n">big_table</span><span class="p">,</span> <span class="n">keys</span><span class="p">,</span> <span class="n">other_silly_variable</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Fetches rows from a Bigtable.</span>
+
+<span class="sd">    Retrieves rows pertaining to the given keys from the Table instance</span>
+<span class="sd">    represented by big_table.  Silly things may happen if</span>
+<span class="sd">    other_silly_variable is not None.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        big_table: An open Bigtable Table instance.</span>
+<span class="sd">        keys: A sequence of strings representing the key of each table row</span>
+<span class="sd">            to fetch.</span>
+<span class="sd">        other_silly_variable: Another optional variable, that has a much</span>
+<span class="sd">            longer name than the other args, and which does nothing.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A dict mapping keys to the corresponding table row data</span>
+<span class="sd">        fetched. Each row is represented as a tuple of strings. For</span>
+<span class="sd">        example:</span>
+
+<span class="sd">        {&#39;Serak&#39;: (&#39;Rigel VII&#39;, &#39;Preparer&#39;),</span>
+<span class="sd">         &#39;Zim&#39;: (&#39;Irk&#39;, &#39;Invader&#39;),</span>
+<span class="sd">         &#39;Lrrr&#39;: (&#39;Omicron Persei 8&#39;, &#39;Emperor&#39;)}</span>
+
+<span class="sd">        If a key from the keys argument is missing from the dictionary,</span>
+<span class="sd">        then that row was not found in the table.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        IOError: An error occurred accessing the bigtable.Table object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h2>
+<p>Classes should have a doc string below the class definition describing the class. If your class has public attributes, they should be documented here in an Attributes section and follow the same formatting as a function&#8217;s Args section.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">SampleClass</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Summary of class here.</span>
+
+<span class="sd">    Longer class information....</span>
+<span class="sd">    Longer class information....</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        likes_spam: A boolean indicating if we like SPAM or not.</span>
+<span class="sd">        eggs: An integer count of the eggs we have laid.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">likes_spam</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Inits SampleClass with blah.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">likes_spam</span> <span class="o">=</span> <span class="n">likes_spam</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eggs</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">public_method</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs operation blah.&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="block-and-inline-comments">
+<h2>Block and Inline Comments<a class="headerlink" href="#block-and-inline-comments" title="Permalink to this headline">¶</a></h2>
+<p>The final place to have comments is in tricky parts of the code. If you&#8217;re going to have to explain it at the next code review, you should comment it now. Complicated operations get a few lines of comments before the operations commence. Non-obvious ones get comments at the end of the line.</p>
+<div class="highlight-python"><pre># We use a weighted dictionary search to find out where i is in
+# the array.  We extrapolate position based on the largest num
+# in the array and the array size and then do binary search to
+# get the exact number.
+
+if i &amp; (i-1) == 0:        # true iff i is a power of 2</pre>
+</div>
+<p>To improve legibility, these comments should be at least 2 spaces away from the code.</p>
+<p>On the other hand, never describe the code. Assume the person reading the code knows Python (though not what you&#8217;re trying to do) better than you do.</p>
+<p>;;</p>
+<blockquote>
+<div># BAD COMMENT: Now go through the b array and make sure whenever i occurs
+# the next element is i+1</div></blockquote>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Comment and doc string format guide</a><ul>
+<li><a class="reference internal" href="#doc-strings">Doc Strings</a></li>
+<li><a class="reference internal" href="#modules">Modules</a></li>
+<li><a class="reference internal" href="#functions-and-methods">Functions and Methods</a></li>
+<li><a class="reference internal" href="#classes">Classes</a></li>
+<li><a class="reference internal" href="#block-and-inline-comments">Block and Inline Comments</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="data.html"
+                        title="previous chapter">Reading saved data</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="analysis.html"
+                        title="next chapter">Data analysis code</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/comments.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="analysis.html" title="Data analysis code"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="data.html" title="Reading saved data"
+             >previous</a> |</li>
+        <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, James Gao.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

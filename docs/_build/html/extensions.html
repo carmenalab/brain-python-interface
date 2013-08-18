@@ -1,0 +1,151 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Experiment extensions &mdash; BMI3D 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="top" title="BMI3D 1.0 documentation" href="index.html" />
+    <link rel="next" title="Experiment features" href="features.html" />
+    <link rel="prev" title="Creating tasks" href="tasks.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="features.html" title="Experiment features"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tasks.html" title="Creating tasks"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="experiment-extensions">
+<span id="extensions"></span><h1>Experiment extensions<a class="headerlink" href="#experiment-extensions" title="Permalink to this headline">¶</a></h1>
+<p>These are built in classes with added special structure or functionality on top of the basic <tt class="xref py py-class docutils literal"><span class="pre">Experiment</span></tt> class. They can be used as the basis for specific tasks that require this functionality. Task classes can inherit from more than one of these (e.g. a task can be both a sequence and logged).</p>
+<div class="section" id="logged-experiment-logexperiment">
+<h2>Logged experiment (<tt class="xref py py-class docutils literal"><span class="pre">logexperiment</span></tt>)<a class="headerlink" href="#logged-experiment-logexperiment" title="Permalink to this headline">¶</a></h2>
+<p>Any experiment that requires a log of state transitions to be saved. Most experiments fall into this category.</p>
+</div>
+<div class="section" id="sequence-experiment-sequence">
+<h2>Sequence experiment (<tt class="xref py py-class docutils literal"><span class="pre">sequence</span></tt>)<a class="headerlink" href="#sequence-experiment-sequence" title="Permalink to this headline">¶</a></h2>
+<p>An experiment that has a trial state that is dependent on a parameter that changes for each new trial. Requires a generator.</p>
+<div class="section" id="generators">
+<h3>Generators<a class="headerlink" href="#generators" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="the-wait-state">
+<h3>The <em>wait</em> state<a class="headerlink" href="#the-wait-state" title="Permalink to this headline">¶</a></h3>
+</div>
+</div>
+<div class="section" id="trial-types-experiment-trialtypes">
+<h2>Trial types experiment (<tt class="xref py py-class docutils literal"><span class="pre">trialtypes</span></tt>)<a class="headerlink" href="#trial-types-experiment-trialtypes" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Experiment extensions</a><ul>
+<li><a class="reference internal" href="#logged-experiment-logexperiment">Logged experiment (<tt class="docutils literal"><span class="pre">logexperiment</span></tt>)</a></li>
+<li><a class="reference internal" href="#sequence-experiment-sequence">Sequence experiment (<tt class="docutils literal"><span class="pre">sequence</span></tt>)</a><ul>
+<li><a class="reference internal" href="#generators">Generators</a></li>
+<li><a class="reference internal" href="#the-wait-state">The <em>wait</em> state</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trial-types-experiment-trialtypes">Trial types experiment (<tt class="docutils literal"><span class="pre">trialtypes</span></tt>)</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tasks.html"
+                        title="previous chapter">Creating tasks</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="features.html"
+                        title="next chapter">Experiment features</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/extensions.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="features.html" title="Experiment features"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tasks.html" title="Creating tasks"
+             >previous</a> |</li>
+        <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, James Gao.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

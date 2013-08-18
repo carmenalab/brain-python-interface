@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Reading saved data &mdash; BMI3D 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="top" title="BMI3D 1.0 documentation" href="index.html" />
+    <link rel="next" title="Comment and doc string format guide" href="comments.html" />
+    <link rel="prev" title="Task tracker" href="tracker.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="comments.html" title="Comment and doc string format guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tracker.html" title="Task tracker"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="reading-saved-data">
+<span id="data"></span><h1>Reading saved data<a class="headerlink" href="#reading-saved-data" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="plexon-files">
+<h2>Plexon files<a class="headerlink" href="#plexon-files" title="Permalink to this headline">¶</a></h2>
+<p>Neural data, any attached analog input data, and synchronization markers for accompanying HDF5 files are stored in Plexon&#8217;s .plx file format.</p>
+<p>Plexon has graciously provided some C headers for their stuff. Unfortunately, most of it is poorly organized, and ripped verbatim from incomplete code, so much of it had to be reverse engineered.</p>
+<div class="section" id="using-plexfile">
+<h3>Using Plexfile<a class="headerlink" href="#using-plexfile" title="Permalink to this headline">¶</a></h3>
+<p>Included with the plexon library is a Plexfile module, which allows the quick reslicing of *.plx files.</p>
+<p>To open a plexon file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">plexon</span> <span class="kn">import</span> <span class="n">plexfile</span>
+<span class="n">plx</span> <span class="o">=</span> <span class="n">plexfile</span><span class="o">.</span><span class="n">openFile</span><span class="p">(</span><span class="s">&quot;demo.plx&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The first time you attempt to open a large file, it will take a while because it has to be indexed. It should save a cache file and in the future it will be faster if it finds the cache.</p>
+<p>To read all the spikes from time 0:10 seconds,</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>
+</pre></div>
+</div>
+<p>Unlike normal python slicing, decimal slices are ok:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>
+</pre></div>
+</div>
+<p><strong>Be aware of how much time you slice, as you will QUICKLY run out of memory!</strong></p>
+<p>A slice like the above will return a record array with three data types: <em>ts</em>, <em>chan</em>, and <em>unit</em>.</p>
+<p>To retrieve the timestamps where spikes occurred within a time slice, along with the corresponding channel and unit numbers:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">spike_times</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;ts&#39;</span><span class="p">]</span>
+<span class="n">spike_chans</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;chan&#39;</span><span class="p">]</span>
+<span class="n">spike_units</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;unit&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>You can filter out data for a particular unit using logical combinations of the unit and channel labels. Channels here are labeled 1-256 to match the Plexon convention, but unit labels have been changed from letters to numbers (0 = unsorted, 1 = a, 2 = b, etc.). For example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">spikes</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>
+<span class="n">unit161a</span> <span class="o">=</span> <span class="n">spikes</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">spikes</span><span class="p">[</span><span class="s">&#39;chan&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">161</span><span class="p">,</span> <span class="n">spikes</span><span class="p">[</span><span class="s">&#39;unit&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)][</span><span class="s">&#39;ts&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>will return the timestamps of all of unit 161a&#8217;s spikes between .5 and 2.5s.</p>
+<p>To retrieve spike waveforms instead of timestamps:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">waveforms</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">waveforms</span>
+<span class="n">unit161a</span> <span class="o">=</span> <span class="n">waveforms</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">waveforms</span><span class="p">[</span><span class="s">&#39;chan&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">161</span><span class="p">,</span> <span class="n">waveforms</span><span class="p">[</span><span class="s">&#39;unit&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)]</span>
+</pre></div>
+</div>
+<p>For continuous data, use the corresponding names <em>wideband</em>, <em>spkc</em>, <em>lfp</em>, <em>analog</em>. Timestamps and data values can be extracted independently from a slice, and both are returned as a <em>time</em> x <em>channel</em> array. For example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">plx</span><span class="o">.</span><span class="n">lfp</span><span class="p">[</span><span class="o">.</span><span class="mi">5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+<span class="n">plx</span><span class="o">.</span><span class="n">lfp</span><span class="p">[</span><span class="o">.</span><span class="mi">5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>
+</pre></div>
+</div>
+<p>will return the timestamps and data respectively from 0.5 to 2.5 s for all available LFP channels in the file. If you&#8217;d like to slice from individual channels, use typical python slice semantics:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">touch</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">analog</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>          <span class="c"># retrieve channel AN01 data</span>
+<span class="n">data1</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">wideband</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">,</span> <span class="mi">140</span><span class="p">:</span><span class="mi">160</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>  <span class="c"># retrieve channels WB141 - WB160 data</span>
+<span class="n">data2</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spkc</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">,</span> <span class="p">[</span><span class="mi">145</span><span class="p">,</span> <span class="mi">161</span><span class="p">]]</span><span class="o">.</span><span class="n">time</span>   <span class="c"># retrieve channels SPKC146 and SPKC162 timestamps</span>
+</pre></div>
+</div>
+<p>The plexfile module has a built in binning function. It&#8217;s written in C and therefore runs fast enough to be used in real
+time. It must be called from from a plx file object (as opposed to a slice of data). It takes two inputs&#8211; bintimes (an
+array of floats representing the end time of each desired bin), and optional input binlen (a float representing the desired
+bin length in seconds, default value = .1). The function returns an iterable containing spike counts for all units and all bins:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>
+<span class="n">iterspike</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="o">.</span><span class="n">bin</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">binlen</span><span class="o">=</span><span class="mf">1.</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">bin</span> <span class="k">for</span> <span class="nb">bin</span> <span class="ow">in</span> <span class="n">iterspike</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Visualize the output:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">imshow</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="n">xlabel</span><span class="p">(</span><span class="s">&#39;Unit&#39;</span><span class="p">)</span>
+<span class="n">ylabel</span><span class="p">(</span><span class="s">&#39;Time (bin)&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Make sure the values in the bintimes input are floats and not integers, otherwise you&#8217;ll get a type error!</strong></p>
+</div>
+</div>
+<div class="section" id="hdf5-files">
+<h2>HDF5 files<a class="headerlink" href="#hdf5-files" title="Permalink to this headline">¶</a></h2>
+<p>Data from all attached systems except Plexon, as well as the state transition logs are stored in <em>.hdf</em> files.</p>
+<p>First, load the file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">tables</span>
+<span class="n">hdffile</span> <span class="o">=</span> <span class="n">tables</span><span class="o">.</span><span class="n">openFile</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The position data is a timesample x marker# x 4 record array. The last dimension contains x,y, and z positions followed by a condition value.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Reading saved data</a><ul>
+<li><a class="reference internal" href="#plexon-files">Plexon files</a><ul>
+<li><a class="reference internal" href="#using-plexfile">Using Plexfile</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#hdf5-files">HDF5 files</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tracker.html"
+                        title="previous chapter">Task tracker</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="comments.html"
+                        title="next chapter">Comment and doc string format guide</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/data.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="comments.html" title="Comment and doc string format guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tracker.html" title="Task tracker"
+             >previous</a> |</li>
+        <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, James Gao.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

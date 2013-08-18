@@ -1,0 +1,409 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Data analysis code &mdash; BMI3D 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="top" title="BMI3D 1.0 documentation" href="index.html" />
+    <link rel="prev" title="Comment and doc string format guide" href="comments.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="comments.html" title="Comment and doc string format guide"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="data-analysis-code">
+<span id="analysis"></span><h1>Data analysis code<a class="headerlink" href="#data-analysis-code" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-analysis.basicanalysis">
+<span id="basicanalysis"></span><h2>basicanalysis<a class="headerlink" href="#module-analysis.basicanalysis" title="Permalink to this headline">¶</a></h2>
+<p>Basic functions for analyzing BMI3D data.</p>
+<dl class="function">
+<dt id="analysis.basicanalysis.baseline_fr">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">baseline_fr</tt><big>(</big><em>plxfile</em>, <em>units</em>, <em>epoch</em>, <em>binsize=1.0</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.baseline_fr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the mean firing rate and standard deviation for specified units
+across a long epoch.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<blockquote>
+<div><p>The plexon file containing the data.</p>
+</div></blockquote>
+<p><strong>units</strong> : list of tuples of ints</p>
+<blockquote>
+<div><p>Each tuple of the list is one channel-unit label (chans go from 1-256).</p>
+</div></blockquote>
+<p><strong>epoch</strong> : tuple</p>
+<blockquote>
+<div><p>Contains a start and end time for epoch of interest. Must be longer
+than bin size (and should be much longer).</p>
+</div></blockquote>
+<p><strong>binsize</strong> : float (optional)</p>
+<blockquote>
+<div><p>The length of each bin used in the standard deviation calculation.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>mean_firing_rates</strong> : np array</p>
+<blockquote>
+<div><p>A 1D array containing the mean firing rate in hz for each unit across
+all epochs.</p>
+</div></blockquote>
+<p><strong>sd</strong> : array</p>
+<blockquote>
+<div><p>A 1D array containing the standard deviation in hz of each unit&#8217;s
+firing rate across all epochs</p>
+</div></blockquote>
+<p><strong>firing_rates</strong> : array</p>
+<blockquote class="last">
+<div><p>1 2D array containing all FR measurements for each bin (rows) by unit (cols)</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.create_dict">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">create_dict</tt><big>(</big><em>plxfile</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.create_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns dictionary for looking up the index of a particular unit by name.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<blockquote>
+<div><p>The file containing the data.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>udict</strong> : dictionary</p>
+<blockquote class="last">
+<div><p>The keys are the channel-unit tuples in plxfile.units, and the values
+are the indices of those units in the list. This is to create an easy
+way of locating the index of a specific unit.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.find_nan_rows">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">find_nan_rows</tt><big>(</big><em>data</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.find_nan_rows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns indices of rows not containing nans.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.generate_epochs">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">generate_epochs</tt><big>(</big><em>times</em>, <em>timebefore</em>, <em>timeafter</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.generate_epochs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of time windows around the specified timestamps.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.get_jointpos">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">get_jointpos</tt><big>(</big><em>arm_data</em>, <em>ref='elbow_wrist.npz'</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.get_jointpos" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the approximate pivot centers of the wrist and elbow joints. Based
+on the reference positions given by ref. There should not be any nans in
+arm markers 1-7 (0 is ok because it&#8217;s not used here).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>arm_data</strong> : array</p>
+<blockquote>
+<div><p>An n by 8 x 3 (timepoints x arm marker x coord) array of arm position
+data.</p>
+</div></blockquote>
+<p><strong>ref</strong> : (optional)</p>
+<blockquote>
+<div><p>Arm reference file.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>joints</strong> : array</p>
+<blockquote class="last">
+<div><p>An n x 3 x 3 (timepoints x joint x coord) array of joint positions.
+Joint order is wrist, elbow, shoulder.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.interp_missing">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">interp_missing</tt><big>(</big><em>raw_data</em>, <em>threshold=0.5</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.interp_missing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interpolates missing motiontracker data and discards bad values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>raw_data</strong> : array</p>
+<blockquote>
+<div><p>An n x m x 4 (timepoint x marker x coord/condition val) array of raw
+motiontracker data.</p>
+</div></blockquote>
+<p><strong>threshold</strong> : float (optional)</p>
+<blockquote>
+<div><p>The maximum window in sec of missing data to interpolate over. For gaps
+greater than the threshold, nans are inserted.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>processed_data</strong> : array</p>
+<blockquote class="last">
+<div><p>An n x m x 3 (timepoint x marker x coord) array of interpolated data.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.load_session">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">load_session</tt><big>(</big><em>session_name</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.load_session" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load all files associated with a recording session and extract timestamps.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>session_name</strong> : string</p>
+<blockquote>
+<div><p>The name of the session of interest without file extension.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>plx</strong> : plexon file</p>
+<blockquote>
+<div><p>The loaded plexon file.</p>
+</div></blockquote>
+<p><strong>hdf</strong> : hdf file</p>
+<blockquote>
+<div><p>The loaded hdf5 file.</p>
+</div></blockquote>
+<p><strong>ts_func</strong> : function</p>
+<blockquote class="last">
+<div><p>A function that translates plexon timestamps to hdf row indices or vice
+versa for this session.</p>
+<p>Parameters:
+input_times : list of either plx timestamps (floats) or hdf timestamps
+(ints) to translate
+output_type : string [&#8216;hdf&#8217;, &#8216;plx&#8217;] specifying which type the output
+should be (should NOT be the same as the input type)</p>
+<p>Returns:
+output : list of either plx or hdf timestamps corresponding to input</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.mean_fr">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">mean_fr</tt><big>(</big><em>plxfile</em>, <em>units</em>, <em>epochs</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.mean_fr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the mean firing rate for specified units across during specified
+epochs.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<blockquote>
+<div><p>The plexon file containing the data.</p>
+</div></blockquote>
+<p><strong>units</strong> : list of tuples of ints</p>
+<blockquote>
+<div><p>Each tuple of the list is one channel-unit label (chans go from 1-256).</p>
+</div></blockquote>
+<p><strong>epochs</strong> : list of tuples of floats</p>
+<blockquote>
+<div><p>Each tuple in the list contains a start and end time for an epoch of
+interest (plx timestamps).</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>firing_rates</strong> : np array</p>
+<blockquote class="last">
+<div><p>A 2D array (unit x epoch) containing the mean firing rate in hz for
+each unit in each epoch.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.psth_analysis">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">psth_analysis</tt><big>(</big><em>plxfile</em>, <em>units</em>, <em>epochs</em>, <em>nbins</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.psth_analysis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates PSTHs for units within specified epochs of interest.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<blockquote>
+<div><p>The plexon file containing the data.</p>
+</div></blockquote>
+<p><strong>units</strong> : list of tuples of ints</p>
+<blockquote>
+<div><p>Each tuple of the list is one channel-unit label (chans go from 1-256).</p>
+</div></blockquote>
+<p><strong>epochs</strong> : array like</p>
+<blockquote>
+<div><p>n x 2 array of start and end times for epochs of interest</p>
+</div></blockquote>
+<p><strong>nbins</strong> : int</p>
+<blockquote>
+<div><p>The number of bins for the final PSTH.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>firing_rates</strong> : np array</p>
+<blockquote class="last">
+<div><p>A nbins x nunits x nepochs array containing the mean spike counts for
+each bin.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.unit_filter">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">unit_filter</tt><big>(</big><em>units</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.unit_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a function that filters spike data for specific unit labels.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>units</strong> : list of tuples of ints</p>
+<blockquote>
+<div><p>List of tuples designating channel-unit combinations. Channels must be
+1-256.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>filt</strong> : function</p>
+<blockquote class="last">
+<div><p>Filtering function that takes a record array of spike data
+(plx.spikes[timeslice]) and output type as input and returns a list of
+arrays of spike times or waveforms. Each array in the list corresponds
+to a unit in the units parameter.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Data analysis code</a><ul>
+<li><a class="reference internal" href="#module-analysis.basicanalysis">basicanalysis</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="comments.html"
+                        title="previous chapter">Comment and doc string format guide</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/analysis.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="comments.html" title="Comment and doc string format guide"
+             >previous</a> |</li>
+        <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, James Gao.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
