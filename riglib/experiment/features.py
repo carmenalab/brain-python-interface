@@ -320,6 +320,17 @@ class SinkRegister(object):
         if isinstance(self, Joystick):
             self.sinks.register(self.joystick)
 
+        try:
+            self.dtype = np.dtype(self.dtype)
+            self.sinks.register("task", self.dtype)
+            self.task_data = np.zeros((1,), dtype=self.dtype)
+        except:
+            self.task_data = None
+
+    def _cycle(self):
+        if self.task_data is not None:
+            self.sinks.send("task", self.task_data)
+
 class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
     def init(self):
@@ -328,13 +339,6 @@ class SaveHDF(SinkRegister):
         self.h5file = tempfile.NamedTemporaryFile()
         self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
         super(SaveHDF, self).init()
-
-        try:
-            self.dtype = np.dtype(self.dtype)
-            self.hdf.register("task", self.dtype)
-            self.task_data = np.zeros((1,), dtype=self.dtype)
-        except:
-            self.task_data = None
 
     @property
     def hdf_class(self):
@@ -346,10 +350,6 @@ class SaveHDF(SinkRegister):
             super(SaveHDF, self).run()
         finally:
             self.hdf.stop()
-
-    def _cycle(self):
-        if self.task_data is not None:
-            self.hdf.send("task", self.task_data)
     
     def join(self):
         self.hdf.join()

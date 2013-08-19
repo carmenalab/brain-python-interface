@@ -77,10 +77,12 @@ class SinkManager(object):
         self.sinks.append(sink)
         return sink
 
-    def register(self, system):  
+    def register(self, system, dtype=None):
         if isinstance(system, source.DataSource):
             name = system.name
             dtype = system.source.dtype
+        elif isinstance(system, str):
+            name = system
         else:
             name = system.__module__.split(".")[1]
             dtype = system.dtype
