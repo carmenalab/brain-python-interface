@@ -431,11 +431,11 @@ class KFDecoder(BMI):
 
 
         #add a scaling factor on the velocity to slow down or speed up the cursor. comment out the following lines to undo!
-        vel_scale_factor=.8
-        cursor_kin=self.kf.get_mean()
-        scaled_vel=cursor_kin[2:4]*vel_scale_factor
-        scaled_pos=prev_kin[0:2]+scaled_vel*dt
-        self.kf.state.mean[:,0] = np.hstack([scaled_pos, scaled_vel, 1]).reshape(-1,1)
+        # vel_scale_factor=.8
+        # cursor_kin=self.kf.get_mean()
+        # scaled_vel=cursor_kin[2:4]*vel_scale_factor
+        # scaled_pos=prev_kin[0:2]+scaled_vel*dt
+        # self.kf.state.mean[:,0] = np.hstack([scaled_pos, scaled_vel, 1]).reshape(-1,1)
 
 
         # Bound cursor, if applicable

@@ -129,6 +129,7 @@ class Task(object):
                 import comedi
                 self.com = comedi.comedi_open("/dev/comedi0")
                 comedi.comedi_dio_bitfield2(self.com,0,16,0,16)
+                time.sleep(2)
             except:
                 print "No comedi, cannot start"
         

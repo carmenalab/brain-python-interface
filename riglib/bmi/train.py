@@ -145,7 +145,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     """Train KFDecoder from visual feedback of cursor movement"""
     # Open plx file
     plx = plexfile.openFile(str(files['plexon']))
-    rows = parse.rowbyte(plx.events[:].data)[1][:,0]
+    rows = parse.rowbyte(plx.events[:].data)[0][:,0]
     
     lower, upper = 0 < rows, rows < rows.max() + 1
     l, u = tslice
@@ -174,7 +174,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     
     # calculate cursor velocity
     velocity = np.diff(kin, axis=0)*60
-    kin = np.hstack([kin, velocity])
+    kin = np.hstack([kin[1:], velocity])
     
     # train KF model parameters
     neurons = neurons.T
