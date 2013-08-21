@@ -15,7 +15,7 @@ def _split(data, flip=False):
     return np.vstack([data[:,0], msgtype, auxdata, rawdata]).T
 
 def registrations(data):
-    if data.shape[1] != 4:
+    if data.ndim < 2 or data.shape[1] != 4:
         data = _split(data)
 
     idx = data[:,1] == 2
@@ -27,7 +27,7 @@ def registrations(data):
     for sys in np.unique(sysid):
         name = names[sysid == sys].tostring()
         dtype = data[sidx][shapeid == sys][:,3].astype(np.uint8).tostring()
-        systems[sys] = name, np.dtype(dtype)
+        systems[sys] = name[:-1], dtype[:-1]
         
     return systems
 
