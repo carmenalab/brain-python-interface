@@ -28,7 +28,15 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     """Train KFDecoder from manual control"""
     # Open plx file
     plx = plexfile.openFile(str(files['plexon']))
-    rows = parse.rowbyte(plx.events[:].data)[0][:,0]
+    events = plx.events[:].data
+    # get system registrations
+    reg = parse.registrations(events)
+    # find the key for the motiontracker system data
+    for key, system in reg.items():
+        if system == 'otiontracker': #yes this typo is intentional! we could never figure out why the first character doesn't get recorded in the registration
+        syskey = key
+    # get the corresponding hdf rows
+    rows = parse.rowbyte(events)[syskey][:,0]
     
     lower, upper = 0 < rows, rows < rows.max() + 1
     l, u = tslice
@@ -145,7 +153,16 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     """Train KFDecoder from visual feedback of cursor movement"""
     # Open plx file
     plx = plexfile.openFile(str(files['plexon']))
-    rows = parse.rowbyte(plx.events[:].data)[0][:,0]
+    # pull out event data
+    events = plx.events[:].data
+    # get system registrations
+    reg = parse.registrations(events)
+    # find the key for the task system data
+    for key, system in reg.items():
+        if system == 'task':
+        syskey = key
+    # get the corresponding hdf rows
+    rows = parse.rowbyte(events)[syskey][:,0]
     
     lower, upper = 0 < rows, rows < rows.max() + 1
     l, u = tslice
