@@ -34,7 +34,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     reg = parse.registrations(events)
     # find the key for the motiontracker system data
     for key, system in reg.items():
-        if system == 'otiontracker': #yes this typo is intentional! we could never figure out why the first character doesn't get recorded in the registration
+        if (system == 'otiontracker') or (system == 'motiontracker'): #yes this typo is intentional! we could never figure out why the first character doesn't get recorded in the registration
             syskey = key
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
@@ -160,7 +160,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     reg = parse.registrations(events)
     # find the key for the task system data
     for key, system in reg.items():
-        if system == 'task':
+        if (system[0] == 'ask') or (system[0] == 'task'):
             syskey = key
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
