@@ -11,16 +11,7 @@ from riglib.nidaq import parse
 import tables
 import kfdecoder
 import pdb
-
-def _gen_A(t, s, m, n, off, ndim=3):
-    """utility function for generating block-diagonal matrices
-    used by the KF
-    """
-    A = np.zeros([2*ndim+1, 2*ndim+1])
-    A_lower_dim = np.array([[t, s], [m, n]])
-    A[0:2*ndim, 0:2*ndim] = np.kron(A_lower_dim, np.eye(ndim))
-    A[-1,-1] = off
-    return np.mat(A)
+from . import state_space_models
 
 def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
@@ -126,11 +117,10 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     C = np.zeros([n_neurons, len(state_inds)])
     C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[train_inds, :], neurons[:,:-1])
     
-    Delta_KINARM = 1./10
-    Delta_BMI3D = 1./60
-    loop_update_ratio = Delta_BMI3D/Delta_KINARM
-    A = _gen_A(1, 1./60, 0, 0.8**loop_update_ratio, 1, ndim=3)[np.ix_(state_inds, state_inds)]
-    W = _gen_A(0, 0, 0, 700*loop_update_ratio, 0, ndim=3)[np.ix_(state_inds, state_inds)]
+    # State-space model set from expert data
+    A, W = state_space_models.linear_kinarm_kf(update_rate=1./60)
+    A = A[np.ix_(state_inds, state_inds)]
+    W = W[np.ix_(state_inds, state_inds)]
     
     # instantiate low-level kf
     unit_inds, = np.nonzero(np.array(C)[:,-1])
@@ -215,11 +205,10 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     C = np.zeros([n_neurons, len(state_inds)])
     C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[train_inds, :], neurons[:,:-1])
     
-    Delta_KINARM = 1./10
-    Delta_BMI3D = 1./60
-    loop_update_ratio = Delta_BMI3D/Delta_KINARM
-    A = _gen_A(1, 1./60, 0, 0.8**loop_update_ratio, 1, ndim=3)[np.ix_(state_inds, state_inds)]
-    W = _gen_A(0, 0, 0, 700*loop_update_ratio, 0, ndim=3)[np.ix_(state_inds, state_inds)]
+    # State-space model set from expert data
+    A, W = state_space_models.linear_kinarm_kf(update_rate=1./60)
+    A = A[np.ix_(state_inds, state_inds)]
+    W = W[np.ix_(state_inds, state_inds)]
     
     # instantiate low-level kf
     unit_inds, = np.nonzero(np.array(C)[:,-1])
@@ -235,50 +224,6 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     states_to_bound = ['hand_px', 'hand_pz']
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound)
     return decoder
-
-# def _train_KFDecoder_brain_control(cells=None, binlen=0.1, tslice=[None,None], 
-#     state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
-#     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
-#     """Train KFDecoder from brain control"""
-
-#     #Grab masked data, remove interpolated data
-#     h5 = tables.openFile(files['hdf'])
-#     spike_counts = h5.root.task[:]['bins']
-#     kin = h5.root.task[:]['cursor']
-#     print '!!!!!!!!!!!!!!'
-
-#     hand_kin_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-#     return h5
-
-#     train_vars = stochastic_vars[:]
-#     if 'offset' in train_vars: train_vars.remove('offset')
-
-#     try:
-#         state_inds = [hand_kin_vars.index(x) for x in state_vars]
-#         stochastic_inds = [hand_kin_vars.index(x) for x in stochastic_vars]
-#     	train_inds = [hand_kin_vars.index(x) for x in train_vars]
-#         stochastic_state_inds = [state_vars.index(x) for x in stochastic_vars]
-#     except:
-#         raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")
-#     C = np.zeros([n_neurons, len(state_inds)])
-#     C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[train_inds, :], neurons[:,:-1])
-
-#     Delta_KINARM = 1./10
-#     Delta_BMI3D = 1./60
-#     loop_update_ratio = Delta_BMI3D/Delta_KINARM
-#     A = _gen_A(1, 1./60, 0, 0.8**loop_update_ratio, 1, ndim=3)[np.ix_(state_inds, state_inds)]
-#     W = _gen_A(0, 0, 0, 700*loop_update_ratio, 0, ndim=3)[np.ix_(state_inds, state_inds)]
-    
-#     # instantiate low-level kf
-#     unit_inds, = np.nonzero(np.array(C)[:,-1])
-#     kf = kfdecoder.KalmanFilter(A, W, C[unit_inds,:], Q[np.ix_(unit_inds,unit_inds)])
-#     units = units[unit_inds,:]
-
-#     # instantiate KFdecoder
-#     bounding_box = np.array([-100., -100.]), np.array([100., 100.])
-#     states_to_bound = ['hand_px', 'hand_pz']
-#     decoder = kfdecoder.KFDecoder(kf, None, None, units, bounding_box, state_vars, states_to_bound)
-#     return decoder
 
 def _train_KFDecoder_2D_sim(is_stochastic, drives_neurons, units, 
     bounding_box, states_to_bound, include_y=True, dt=0.1):
@@ -319,8 +264,8 @@ def _train_KFDecoder_2D_sim(is_stochastic, drives_neurons, units,
     return decoder
 
 if __name__ == '__main__':
-    test_mc = False
-    test_bc = True 
+    test_mc = True
+    test_bc = False
     if test_mc:
         block = 'cart20130428_01'
         #block = 'cart20130425_05'
