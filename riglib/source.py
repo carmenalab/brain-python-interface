@@ -44,6 +44,7 @@ class DataSource(mp.Process):
         try:
             system = self.source(**self.source_kwargs)
             system.start()
+            print "System Started"
         except Exception as e:
             print e
             self.status.value = -1
@@ -64,7 +65,6 @@ class DataSource(mp.Process):
                 self.lock.release()
                 self._pipe.send(ret)
                 self.cmd_event.clear()
-
             if self.stream.is_set():
                 self.stream.clear()
                 streaming = not streaming
@@ -73,11 +73,9 @@ class DataSource(mp.Process):
                     system.start()
                 else:
                     system.stop()
-
             if streaming:
                 data = system.get()
                 self.sinks.send(self.name, data)
-
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -89,7 +87,6 @@ class DataSource(mp.Process):
                         print e
             else:
                 time.sleep(.001)
-        
         system.stop()
         print "ended datasource %r"%self.source
 
