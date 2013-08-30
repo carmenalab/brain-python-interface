@@ -76,6 +76,7 @@ tasks = dict(
     joystick_control = tasks.manualcontrol.JoystickControl,
     manual_control_2 = tasks.manualcontrol.ManualControl2,
     visual_feedback = tasks.bmitasks.VisualFeedback,
+    clda_auto_assist = tasks.bmitasks.CLDAAutoAssist,
 
 )
 
