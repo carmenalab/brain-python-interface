@@ -10,6 +10,7 @@ from riglib.nidaq import parse
 
 import tables
 from itertools import izip
+import logging
 
 from . import BMI
 python_plexnet_dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
@@ -526,6 +527,86 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box, states, states_to_bound)
 
     return kfdecoder
+
+def project_Q(C_v, Q_hat):
+    """ Constrain Q such that the first two columns of the H matrix
+    are independent and have identical gain in the steady-state KF
+    """
+    from scipy.optimize import fmin_bfgs
+
+    C_v = np.mat(C_v)
+    Q_hat = np.mat(Q_hat)
+    Q_hat_inv = Q_hat.I
+
+    c_1 = C_v[:,0]
+    c_2 = C_v[:,1]
+    A_1 = c_1*c_1.T - c_2*c_2.T
+    A_2 = c_2*c_1.T
+    A_3 = c_1*c_2.T
+    A = [A_1, A_2, A_3]
+    if 1:
+        U = np.hstack([c_1 - c_2, c_2, c_1])
+        V = np.vstack([(c_1 + c_2).T, c_1.T, c_2.T])
+        C_inv_fn = lambda nu: np.mat(np.diag([1./nu[0], 1./(nu[0] + nu[1]), 1./(nu[2] - nu[0]) ]))
+        C_fn = lambda nu: np.mat(np.diag([nu[0], (nu[0] + nu[1]), (nu[2] - nu[0]) ]))
+        nu_0 = np.zeros(3)
+        c_scalars = np.ones(3)
+    else:
+        u_1, s_1, v_1 = np.linalg.svd(A_1)
+        c_scalars = np.hstack([s_1[0:2], 1, 1])
+        U = np.hstack([u_1[:,0:2], c_2, c_1])
+        V = np.vstack([v_1[0:2, :], c_1.T, c_2.T])
+        C_fn = lambda nu: np.mat(np.diag(nu * c_scalars))
+        nu_0 = np.zeros(4)
+
+    def cost_fn_gen(nu, return_type='cost'):
+        C = C_fn(nu)
+        S_star_inv = Q_hat + U*C_fn(nu)*V
+    
+        if np.any(np.diag(C) == 0):
+            S_star = S_star_inv.I
+        else:
+            #C_inv = C_inv_fn(nu)
+            C_inv = C.I
+            S_star = Q_hat_inv - Q_hat_inv * U * (C_inv + V*Q_hat_inv*U).I*V * Q_hat_inv;
+        
+        # TODO logdet using Cholesky factors
+        cost = -np.log(np.linalg.det(S_star_inv));
+        
+        # TODO gradient dimension needs to be the same as nu
+        #grad = -1e-8*np.array([np.trace(S_star*U[:,0] * c_scalars[0] * V[0,:]) for k in range(len(nu))])
+        grad = -1e-8*np.array([np.trace(S_star*A[0]), np.trace(S_star*A[1]), np.trace(S_star*A[2])])
+    
+        log = logging.getLogger()
+        log.warning("nu = %s, cost = %g, grad=%s" % (nu, cost, grad))
+    
+        if return_type == 'cost':
+            return cost
+        elif return_type == 'grad':
+            return grad
+        elif return_type == 'opt_val':
+            return S_star
+        else:
+            raise ValueError("Cost function doesn't know how to return this: %s" % return_type)
+
+
+    args = (Q_hat, Q_hat_inv, U, V, A, C_fn, c_scalars)
+    cost_fn      = lambda nu: cost_fn_gen(nu, return_type='cost')
+    cost_fn_grad = lambda nu: cost_fn_gen(nu, return_type='grad')
+    opt_arg      = lambda nu: cost_fn_gen(nu, return_type='opt_val')
+
+    # Call optimization routine
+    v_star = fmin_bfgs(cost_fn, nu_0, fprime=cost_fn_grad, maxiter=10000, gtol=1e-12)
+
+    Q_inv = opt_arg(v_star)
+    Q = Q_inv.I
+    Q = Q_hat + U * C_fn(v_star) * V
+
+    # TODO print out (log) a more useful measure of success
+    print C_v.T * Q_inv * C_v
+    print C_v.T * Q.I * C_v
+    print v_star
+    return Q
 
 if __name__ == '__main__':
     cells = [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3), (4, 1)]
