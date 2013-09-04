@@ -53,6 +53,8 @@ class CursorGoalLearner(Learner):
         # TODO this needs to be generalized so that the hold
         # the r regular cna be specified simultaneously 
         # cursor_pos = prev_state[0:2]
+        #print target_pos
+        #print cursor_pos
         int_dir = target_pos - cursor_pos
         dist_to_targ = np.linalg.norm(int_dir)
         if task_state in ['origin_hold', 'terminus_hold']:
@@ -60,6 +62,8 @@ class CursorGoalLearner(Learner):
         else:
             int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
         int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
+        #print int_vel
+        #print 
         
         if not self.is_full() and self.enabled:
             self.kindata.append(int_kin)
@@ -133,6 +137,8 @@ class KFSmoothbatch(CLDARecomputeParameters):
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
+        print mFR_old
+        print sdFR_old
         C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(intended_kin, spike_counts, 
             include_offset=False, drives_obs=drives_neurons)
         C = (1-rho)*C_hat + rho*C_old
@@ -143,16 +149,35 @@ class KFSmoothbatch(CLDARecomputeParameters):
         return C, Q, mFR, sdFR
 
 class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
+    def __init__(self, *args, **kwargs):
+        super(KFOrthogonalPlantSmoothbatch, self).__init__(*args, **kwargs)
+        self.iter_counter = 0
+
     def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons,
-             mFR_old, sdFR_old, is_stochastic):
+             mFR_old, sdFR_old):
         
         args = (intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old)
-        C, Q, mFR, sdFR = super(KFOrthogonalPlantSmoothbatch, self).__init__(*args)
+        C, Q, mFR, sdFR = super(KFOrthogonalPlantSmoothbatch, self).calc(*args)
+        D = (C.T * Q.I * C)[2:4, 2:4]
+        print D
+        gain = np.mean(np.diag(D))
+        # TODO calculate the gain from the riccati equation solution (requires A and W)
+        #gain = max(gain, 100)
+        #gain = min(gain, 2000)
+        C[:,2] *= np.sqrt(gain/D[0,0])
+        C[:,3] *= np.sqrt(gain/D[1,1])
+        D_sym = C[:,2:4].T * Q.I * C[:,2:4]
+        print D_sym
+        print np.linalg.cond(D_sym)
 
-        # TODO each column of C belongs in one of 3 categories:
-        #   - Don't care; no optimization necessary
-        #   - Orthogonalize; 
-        # In addition, some specification of equality constraints is necessary
+        # TODO generalize the below function (and call)!
+        self.iter_counter += 1
+        if np.linalg.cond(D_sym) < 2:
+        #if self.iter_counter > 5:
+            Q = kfdecoder.project_Q(C[:,2:], Q)
+            print C[:,2:4].T * Q.I * C[:,2:4]
+
+        return C, Q, mFR, sdFR
 
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties

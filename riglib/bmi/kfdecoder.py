@@ -531,7 +531,10 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
 def project_Q(C_v, Q_hat):
     """ Constrain Q such that the first two columns of the H matrix
     are independent and have identical gain in the steady-state KF
+
+    TODO next: implement without using the math trick
     """
+    print "projecting!"
     from scipy.optimize import fmin_bfgs
 
     C_v = np.mat(C_v)
@@ -566,19 +569,20 @@ def project_Q(C_v, Q_hat):
         if np.any(np.diag(C) == 0):
             S_star = S_star_inv.I
         else:
-            #C_inv = C_inv_fn(nu)
             C_inv = C.I
             S_star = Q_hat_inv - Q_hat_inv * U * (C_inv + V*Q_hat_inv*U).I*V * Q_hat_inv;
         
-        # TODO logdet using Cholesky factors
-        cost = -np.log(np.linalg.det(S_star_inv));
+        # log-determinant using LU decomposition, required if Q is large, i.e. lots of simultaneous observations
+        cost = -np.log(np.linalg.det(S_star_inv))
+        #cost = -np.prod(np.linalg.slogdet(S_star_inv))
         
         # TODO gradient dimension needs to be the same as nu
-        #grad = -1e-8*np.array([np.trace(S_star*U[:,0] * c_scalars[0] * V[0,:]) for k in range(len(nu))])
+        grad = -np.array([np.trace(S_star*U[:,0] * c_scalars[0] * V[0,:]) for k in range(len(nu))])
         grad = -1e-8*np.array([np.trace(S_star*A[0]), np.trace(S_star*A[1]), np.trace(S_star*A[2])])
     
-        log = logging.getLogger()
-        log.warning("nu = %s, cost = %g, grad=%s" % (nu, cost, grad))
+        #log = logging.getLogger()
+        #print "nu = %s, cost = %g, grad=%s" % (nu, cost, grad)
+        #log.warning("nu = %s, cost = %g, grad=%s" % (nu, cost, grad))
     
         if return_type == 'cost':
             return cost
@@ -589,16 +593,14 @@ def project_Q(C_v, Q_hat):
         else:
             raise ValueError("Cost function doesn't know how to return this: %s" % return_type)
 
-
-    args = (Q_hat, Q_hat_inv, U, V, A, C_fn, c_scalars)
-    cost_fn      = lambda nu: cost_fn_gen(nu, return_type='cost')
-    cost_fn_grad = lambda nu: cost_fn_gen(nu, return_type='grad')
-    opt_arg      = lambda nu: cost_fn_gen(nu, return_type='opt_val')
+    cost_fn = lambda nu: cost_fn_gen(nu, return_type = 'cost')
+    grad    = lambda nu: cost_fn_gen(nu, return_type = 'grad')
+    arg_opt = lambda nu: cost_fn_gen(nu, return_type = 'opt_val')
 
     # Call optimization routine
-    v_star = fmin_bfgs(cost_fn, nu_0, fprime=cost_fn_grad, maxiter=10000, gtol=1e-12)
+    v_star = fmin_bfgs(cost_fn, nu_0, fprime=grad, maxiter=10000, gtol=1e-15)
 
-    Q_inv = opt_arg(v_star)
+    Q_inv = arg_opt(v_star)
     Q = Q_inv.I
     Q = Q_hat + U * C_fn(v_star) * V
 
