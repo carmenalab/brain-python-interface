@@ -260,7 +260,11 @@ def _train_KFDecoder_2D_sim(is_stochastic, drives_neurons, units,
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
     kf.alt = False
 
-    decoder = kfdecoder.KFDecoder(kf, None, None, units, bounding_box, state_vars, states_to_bound)
+    mFR = 0
+    sdFR = 1
+
+    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
+        state_vars, states_to_bound)
     return decoder
 
 if __name__ == '__main__':
