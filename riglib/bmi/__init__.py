@@ -162,7 +162,10 @@ class AdaptiveBMI(object):
             new_params=None
             new_params = self.clda_output_queue.get_nowait()
         except:
-            f = open('/home/helene/Desktop/log', 'w')
+            import os
+            homedir = os.getenv('HOME')
+            logfile = os.path.join(homedir, 'Desktop/log')
+            f = open(logfile, 'w')
             traceback.print_exc(file=f)
             f.close()
 
