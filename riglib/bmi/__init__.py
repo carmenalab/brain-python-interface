@@ -170,14 +170,15 @@ class AdaptiveBMI(object):
             f.close()
 
         if new_params is not None:
-            self.param_hist.append(new_params)
+            param_hist_data = list(new_params) + [self.intended_kin, self.spike_counts]
+            self.param_hist.append(param_hist_data)
             self.decoder.update_params(new_params)
             self.learner.enable()
             update_flag = True
             print "updated params"
 
         if self.learner.is_full():
-            intended_kin, spike_counts = self.learner.get_batch()
+            self.intended_kin, self.spike_counts = self.learner.get_batch()
             rho = self.updater.rho
             #### TODO remove next line and make a user option instead
             drives_neurons = np.array([False, False, True, True, True])
