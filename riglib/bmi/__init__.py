@@ -182,7 +182,7 @@ class AdaptiveBMI(object):
             rho = self.updater.rho
             #### TODO remove next line and make a user option instead
             drives_neurons = np.array([False, False, True, True, True])
-            clda_data = (intended_kin, spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
+            clda_data = (self.intended_kin, self.spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
 
             if 0:
                 new_params = self.updater.calc(*clda_data)
