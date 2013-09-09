@@ -78,6 +78,7 @@ tasks = dict(
     visual_feedback = tasks.bmitasks.VisualFeedback,
     clda_auto_assist = tasks.bmitasks.CLDAAutoAssist,
     clda_constrained_sskf = tasks.bmitasks.CLDAConstrainedSSKF,
+    manual_control_multi =tasks.manualcontrol.ManualControlMulti,
 
 )
 
