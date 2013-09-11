@@ -535,7 +535,7 @@ def project_Q(C_v, Q_hat):
     TODO next: implement without using the math trick
     """
     print "projecting!"
-    from scipy.optimize import fmin_bfgs
+    from scipy.optimize import fmin_bfgs, fmin_ncg
 
     C_v = np.mat(C_v)
     Q_hat = np.mat(Q_hat)
@@ -565,6 +565,8 @@ def project_Q(C_v, Q_hat):
     def cost_fn_gen(nu, return_type='cost'):
         C = C_fn(nu)
         S_star_inv = Q_hat + U*C_fn(nu)*V
+        #if return_type == 'cost':
+        #    print C_v.T * S_star_inv * C_v
     
         if np.any(np.diag(C) == 0):
             S_star = S_star_inv.I
@@ -577,9 +579,16 @@ def project_Q(C_v, Q_hat):
         #cost = -np.prod(np.linalg.slogdet(S_star_inv))
         
         # TODO gradient dimension needs to be the same as nu
-        grad = -np.array([np.trace(S_star*U[:,0] * c_scalars[0] * V[0,:]) for k in range(len(nu))])
-        grad = -1e-8*np.array([np.trace(S_star*A[0]), np.trace(S_star*A[1]), np.trace(S_star*A[2])])
+        #grad = -np.array([np.trace(S_star*U[:,0] * c_scalars[0] * V[0,:]) for k in range(len(nu))])
+        #grad = -1e-4*np.array([np.trace(S_star*A[0]), np.trace(S_star*A[1]), np.trace(S_star*A[2])])
+        #print c_2.T*S_star*c_2
+        grad = -1e-4*np.array(np.hstack([c_1.T*S_star*c_1 - c_2.T*S_star*c_2, c_1.T*S_star*c_2, c_2.T*S_star*c_1])).ravel()
+        S = S_star
+        hess = np.mat([[np.trace(S*A_1*S*A_1), np.trace(S*A_2*S*A_1), np.trace(S*A_3*S*A_1)],
+                       [np.trace(S*A_1*S*A_2), np.trace(S*A_2*S*A_2), np.trace(S*A_3*S*A_2)],
+                       [np.trace(S*A_1*S*A_3), np.trace(S*A_2*S*A_3), np.trace(S*A_3*S*A_3)]])
     
+        #grad = hess*np.mat(grad.reshape(-1,1))
         #log = logging.getLogger()
         #print "nu = %s, cost = %g, grad=%s" % (nu, cost, grad)
         #log.warning("nu = %s, cost = %g, grad=%s" % (nu, cost, grad))
@@ -588,6 +597,8 @@ def project_Q(C_v, Q_hat):
             return cost
         elif return_type == 'grad':
             return grad
+        elif return_type == 'hess':
+            return hess
         elif return_type == 'opt_val':
             return S_star
         else:
@@ -595,19 +606,24 @@ def project_Q(C_v, Q_hat):
 
     cost_fn = lambda nu: cost_fn_gen(nu, return_type = 'cost')
     grad    = lambda nu: cost_fn_gen(nu, return_type = 'grad')
+    hess    = lambda nu: cost_fn_gen(nu, return_type = 'hess')
     arg_opt = lambda nu: cost_fn_gen(nu, return_type = 'opt_val')
 
     # Call optimization routine
+    #v_star = fmin_ncg(cost_fn, nu_0, fprime=grad, fhess=hess, maxiter=10000)
+    #print v_star
+    #v_star = fmin_bfgs(cost_fn, nu_0, maxiter=10000, gtol=1e-15)
     v_star = fmin_bfgs(cost_fn, nu_0, fprime=grad, maxiter=10000, gtol=1e-15)
+    print v_star
 
     Q_inv = arg_opt(v_star)
     Q = Q_inv.I
     Q = Q_hat + U * C_fn(v_star) * V
 
     # TODO print out (log) a more useful measure of success
-    print C_v.T * Q_inv * C_v
-    print C_v.T * Q.I * C_v
-    print v_star
+    #print C_v.T * Q_inv * C_v
+    #print C_v.T * Q.I * C_v
+    #print v_star
     return Q
 
 if __name__ == '__main__':
