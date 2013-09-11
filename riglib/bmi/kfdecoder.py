@@ -449,6 +449,7 @@ class KFDecoder(BMI):
             self.bound_state()
 
         state = self.kf.get_mean()
+        # TODO remove this hardcoding!
         return np.array([state[0], 0, state[1], state[2], 0, state[3], 1])
 
     def retrain(self, batch, halflife):
