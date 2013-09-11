@@ -412,8 +412,8 @@ class KFDecoder(BMI):
             task_data['bin_edges'] = np.array([np.nan, np.nan])
         elif ts_data_k.dtype == python_plexnet_dtype:
             spike_counts = self.bin_spikes(ts_data_k)
-            temp = np.array([e[0] for e in ts_data_k])
-            task_data['bin_edges'] = np.array([np.min(temp), np.max(temp)])
+        #    temp = np.array([e[0] for e in ts_data_k])
+        #    task_data['bin_edges'] = np.array([np.min(temp), np.max(temp)])
         else:
             spike_counts = ts_data_k
 
