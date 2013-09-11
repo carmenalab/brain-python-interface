@@ -409,8 +409,10 @@ class KFDecoder(BMI):
         # "Bin" spike timestamps to generate spike counts
         if len(ts_data_k) == 0:
             spike_counts = np.zeros((self.bin_spikes.nunits,))
+            task_data['bin_edges'] = np.array([nan, nan])
         elif ts_data_k.dtype == python_plexnet_dtype:
             spike_counts = self.bin_spikes(ts_data_k)
+            task_data['bin_edges'] = np.array([np.min(ts_data_k), np.max(ts_data_k)])
         else:
             spike_counts = ts_data_k
 
