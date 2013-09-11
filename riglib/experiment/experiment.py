@@ -22,12 +22,21 @@ class Experiment(traits.HasTraits, threading.Thread):
         threading.Thread.__init__(self)
 
     def init(self):
+        '''
+        Initialization method to run *after* object construction (see self.start)
+        Over-ride in base class if there's anything to do just before the
+        experiment starts running
+        '''
         pass
 
     def screen_init(self):
         pass
 
     def trigger_event(self, event):
+        '''
+        Transition the task state, where the next state depends on the 
+        trigger event
+        '''
         self.set_state(self.status[self.state][event])
     
     def set_state(self, condition):
@@ -41,6 +50,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         super(Experiment, self).start()
 
     def run(self):
+        '''
+        Generic method to run the finite state machine of the task
+        '''
         self.screen_init()
         self.set_state(self.state)
         while self.state is not None:
