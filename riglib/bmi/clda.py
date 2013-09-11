@@ -137,8 +137,6 @@ class KFSmoothbatch(CLDARecomputeParameters):
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
-        print mFR_old
-        print sdFR_old
         C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(intended_kin, spike_counts, 
             include_offset=False, drives_obs=drives_neurons)
         C = (1-rho)*C_hat + rho*C_old
@@ -159,23 +157,23 @@ class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
         args = (intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old)
         C, Q, mFR, sdFR = super(KFOrthogonalPlantSmoothbatch, self).calc(*args)
         D = (C.T * Q.I * C)[2:4, 2:4]
-        print D
+        #print D
         gain = np.mean(np.diag(D))
         # TODO calculate the gain from the riccati equation solution (requires A and W)
         #gain = max(gain, 100)
         #gain = min(gain, 2000)
-        C[:,2] *= np.sqrt(gain/D[0,0])
-        C[:,3] *= np.sqrt(gain/D[1,1])
+        #C[:,2] *= np.sqrt(gain/D[0,0])
+        #C[:,3] *= np.sqrt(gain/D[1,1])
         D_sym = C[:,2:4].T * Q.I * C[:,2:4]
-        print D_sym
-        print np.linalg.cond(D_sym)
+        #print D_sym
+        #print np.linalg.cond(D_sym)
 
         # TODO generalize the below function (and call)!
         self.iter_counter += 1
-        if np.linalg.cond(D_sym) < 2:
+        if np.linalg.cond(D_sym) < 20:
         #if self.iter_counter > 5:
             Q = kfdecoder.project_Q(C[:,2:], Q)
-            print C[:,2:4].T * Q.I * C[:,2:4]
+            #print C[:,2:4].T * Q.I * C[:,2:4]
 
         return C, Q, mFR, sdFR
 
