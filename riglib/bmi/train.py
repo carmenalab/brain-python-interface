@@ -140,7 +140,8 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
 
 def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
-    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
+    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], 
+    update_rate=0.1, **files):
     """Train KFDecoder from visual feedback of cursor movement"""
     # Open plx file
     plx = plexfile.openFile(str(files['plexon']))
@@ -206,7 +207,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[train_inds, :], neurons[:,:-1])
     
     # State-space model set from expert data
-    A, W = state_space_models.linear_kinarm_kf(update_rate=1./60)
+    A, W = state_space_models.linear_kinarm_kf(update_rate=update_rate)
     A = A[np.ix_(state_inds, state_inds)]
     W = W[np.ix_(state_inds, state_inds)]
     
