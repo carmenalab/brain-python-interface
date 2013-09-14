@@ -1,8 +1,7 @@
 '''Needs docs'''
 
 
-from riglib import experiment
-from riglib import calibrations, bmi
+from riglib import experiment, calibrations, bmi
 
 features = dict(
     autostart=experiment.features.Autostart, 
@@ -25,9 +24,7 @@ features = dict(
     norm_firingrates=experiment.features.NormFiringRates,
 )
 
-from tasks import redgreen
-from tasks import manualcontrol
-from tasks import sensorymapping
+from tasks import generators, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
@@ -37,22 +34,19 @@ generators = dict(
     trialtypes=experiment.generate.sequence,
     redgreen=redgreen.gencoords,
     #reach_target=manualcontrol.rand_target_sequence,
-    reach_target_2d=manualcontrol.rand_target_sequence_2d,
-    reach_target_3d=manualcontrol.rand_target_sequence_3d,
-    centerout_2d=manualcontrol.rand_target_sequence_2d_centerout,
+    reach_target_2d=generators.rand_target_sequence_2d,
+    reach_target_3d=generators.rand_target_sequence_3d,
+    centerout_2d=generators.rand_target_sequence_2d_centerout,
     nummap=sensorymapping.gen_taps,
-    centerout_partial=manualcontrol.rand_target_sequence_2d_partial_centerout,
-    centerout_back=manualcontrol.rand_multi_sequence_2d_centeroutback,
-    centerout_2step=manualcontrol.rand_multi_sequence_2d_centerout2step,
+    centerout_partial=generators.rand_target_sequence_2d_partial_centerout,
+    centerout_back=generators.rand_multi_sequence_2d_centeroutback,
+    centerout_2step=generators.rand_multi_sequence_2d_centerout2step,
 )
 
 from tasks.rds import RDS, RDS_half
 from tasks.dots import Dots
 from tasks.redgreen import RedGreen, EyeCal
 from tasks.button import ButtonTask
-import tasks.manualcontrol #import FixationTraining, ManualControl, ManualControl2, TargetCapture, MovementTraining, JoystickControl, TargetDirection, TestBoundary
-import tasks.sensorymapping #import FreeMap, ArmPositionTraining, NumberMap
-import tasks.bmitasks #import BMIControl, ManualWithPredictions, CLDAControl
 
 tasks = dict(
     dots=Dots,
