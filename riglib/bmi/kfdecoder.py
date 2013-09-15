@@ -387,7 +387,7 @@ class KFDecoder(BMI):
         return self.predict(obs_t, **kwargs)
 
 
-    def predict(self, ts_data_k, target=None, speed=1.0, target_radius=0.5,
+    def predict(self, spike_counts, target=None, speed=1.0, target_radius=0.5,
                 assist_level=0.0, dt=0.1, task_data=None, **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
@@ -406,13 +406,6 @@ class KFDecoder(BMI):
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/dt;
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
 
-        # "Bin" spike timestamps to generate spike counts
-        if len(ts_data_k) == 0:
-            spike_counts = np.zeros((self.bin_spikes.nunits,))
-        elif ts_data_k.dtype == python_plexnet_dtype:
-            spike_counts = self.bin_spikes(ts_data_k)
-        else:
-            spike_counts = ts_data_k
 
         if task_data is not None:
             task_data['bins'] = spike_counts

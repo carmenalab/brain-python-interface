@@ -68,6 +68,7 @@ tasks = dict(
     arm_position_training=tasks.sensorymapping.ArmPositionTraining,
     number_map=tasks.sensorymapping.NumberMap,
     joystick_control = tasks.manualcontrol.JoystickControl,
+    joystick_targ_direc = tasks.manualcontrol.CorrectTargetDir,
     manual_control_2 = tasks.manualcontrol.ManualControl2,
     visual_feedback = tasks.bmitasks.VisualFeedback,
     clda_auto_assist = tasks.bmitasks.CLDAAutoAssist,
