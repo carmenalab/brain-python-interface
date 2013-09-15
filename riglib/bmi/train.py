@@ -141,7 +141,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
 def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], 
-    update_rate=0.1, **files):
+    update_rate=1.0/60, **files):
     """Train KFDecoder from visual feedback of cursor movement"""
     # Open plx file
     plx = plexfile.openFile(str(files['plexon']))
