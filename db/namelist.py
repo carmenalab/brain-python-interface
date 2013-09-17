@@ -24,7 +24,7 @@ features = dict(
     norm_firingrates=experiment.features.NormFiringRates,
 )
 
-from tasks import generators, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks
+from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
@@ -34,13 +34,13 @@ generators = dict(
     trialtypes=experiment.generate.sequence,
     redgreen=redgreen.gencoords,
     #reach_target=manualcontrol.rand_target_sequence,
-    reach_target_2d=generators.rand_target_sequence_2d,
-    reach_target_3d=generators.rand_target_sequence_3d,
-    centerout_2d=generators.rand_target_sequence_2d_centerout,
+    reach_target_2d=generatorfunctions.rand_target_sequence_2d,
+    reach_target_3d=generatorfunctions.rand_target_sequence_3d,
+    centerout_2d=generatorfunctions.rand_target_sequence_2d_centerout,
     nummap=sensorymapping.gen_taps,
-    centerout_partial=generators.rand_target_sequence_2d_partial_centerout,
-    centerout_back=generators.rand_multi_sequence_2d_centeroutback,
-    centerout_2step=generators.rand_multi_sequence_2d_centerout2step,
+    centerout_partial=generatorfunctions.rand_target_sequence_2d_partial_centerout,
+    centerout_back=generatorfunctions.rand_multi_sequence_2d_centeroutback,
+    centerout_2step=generatorfunctions.rand_multi_sequence_2d_centerout2step,
 )
 
 from tasks.rds import RDS, RDS_half
@@ -55,25 +55,25 @@ tasks = dict(
     redgreen=RedGreen,
     button=ButtonTask,
     eye_calibration=EyeCal,
-    manual_control=tasks.manualcontrol.ManualControl,
-    bmi_control=tasks.bmitasks.BMIControl,
-    clda_control=tasks.bmitasks.CLDAControl,
-    manual_predict=tasks.bmitasks.ManualWithPredictions,
-    fixation_training=tasks.manualcontrol.FixationTraining,
-    target_capture=tasks.manualcontrol.TargetCapture,
-    movement_training=tasks.manualcontrol.MovementTraining,
-    direction_training=tasks.manualcontrol.TargetDirection,
-    test_boundary=tasks.manualcontrol.TestBoundary,
-    free_map=tasks.sensorymapping.FreeMap,
-    arm_position_training=tasks.sensorymapping.ArmPositionTraining,
-    number_map=tasks.sensorymapping.NumberMap,
-    joystick_control = tasks.manualcontrol.JoystickControl,
-    joystick_targ_direc = tasks.manualcontrol.CorrectTargetDir,
-    manual_control_2 = tasks.manualcontrol.ManualControl2,
-    visual_feedback = tasks.bmitasks.VisualFeedback,
-    clda_auto_assist = tasks.bmitasks.CLDAAutoAssist,
-    clda_constrained_sskf = tasks.bmitasks.CLDAConstrainedSSKF,
-    manual_control_multi =tasks.manualcontrol.ManualControlMulti,
+    manual_control=manualcontrol.ManualControl,
+    bmi_control=bmitasks.BMIControl,
+    clda_control=bmitasks.CLDAControl,
+    manual_predict=bmitasks.ManualWithPredictions,
+    fixation_training=manualcontrol.FixationTraining,
+    target_capture=manualcontrol.TargetCapture,
+    movement_training=manualcontrol.MovementTraining,
+    direction_training=manualcontrol.TargetDirection,
+    test_boundary=manualcontrol.TestBoundary,
+    free_map=sensorymapping.FreeMap,
+    arm_position_training=sensorymapping.ArmPositionTraining,
+    number_map=sensorymapping.NumberMap,
+    joystick_control = manualcontrol.JoystickControl,
+    joystick_targ_direc = manualcontrol.CorrectTargetDir,
+    manual_control_2 = manualcontrol.ManualControl2,
+    visual_feedback = bmitasks.VisualFeedback,
+    clda_auto_assist = bmitasks.CLDAAutoAssist,
+    clda_constrained_sskf = bmitasks.CLDAConstrainedSSKF,
+    manual_control_multi =manualcontrolmultitasks.ManualControlMulti,
 
 )
 
