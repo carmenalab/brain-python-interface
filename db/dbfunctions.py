@@ -245,3 +245,16 @@ def get_decoder_sequence(decoder):
 		return [None]
 	else:
 		return [parent] + get_decoder_sequence(parent)
+
+def get_task_entries_by_date(date, subj=None):
+    '''
+    Get all the task entries for a particular date
+    '''
+    kwargs = dict(date__year=date.year, date__month=date.month, 
+                  date__day=date.day)
+    if isinstance(subj, str) or isinstance(subj, unicode):
+        kwargs['subject__name__startswith'] = str(subj)
+    elif subj is not None:
+        kwargs['subject__name'] = subj.name
+    return models.TaskEntry.objects.filter(**kwargs)
+
