@@ -387,7 +387,7 @@ class KFDecoder(BMI):
         return self.predict(obs_t, **kwargs)
 
 
-    def predict(self, ts_data_k, target=None, speed=1.0, target_radius=0.5,
+    def predict(self, spike_counts, target=None, speed=1.0, target_radius=0.5,
                 assist_level=0.0, dt=0.1, task_data=None, **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
@@ -406,17 +406,6 @@ class KFDecoder(BMI):
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/dt;
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
 
-        # "Bin" spike timestamps to generate spike counts
-        if len(ts_data_k) == 0:
-            spike_counts = np.zeros((self.bin_spikes.nunits,))
-            task_data['bin_edges'] = np.array([np.nan, np.nan])
-        elif ts_data_k.dtype == python_plexnet_dtype:
-            spike_counts = self.bin_spikes(ts_data_k)
-            min_ind = np.argmin(ts_data_k['ts'])
-            max_ind = np.argmax(ts_data_k['ts'])
-            task_data['bin_edges'] = np.array([ts_data_k[min_ind][0], ts_data_k[max_ind][0]])
-        else:
-            spike_counts = ts_data_k
 
         if task_data is not None:
             task_data['bins'] = spike_counts
@@ -582,7 +571,11 @@ def project_Q(C_v, Q_hat):
         
         # TODO gradient dimension needs to be the same as nu
         grad = -np.array([np.trace(S_star*U[:,0] * c_scalars[0] * V[0,:]) for k in range(len(nu))])
+<<<<<<< HEAD
         grad = -1e-4*np.array([np.trace(S_star*A[0]), np.trace(S_star*A[1]), np.trace(S_star*A[2])])
+=======
+        #grad = -1e-4*np.array([np.trace(S_star*A[0]), np.trace(S_star*A[1]), np.trace(S_star*A[2])])
+>>>>>>> bmichanges
     
         #log = logging.getLogger()
         #print "nu = %s, cost = %g, grad=%s" % (nu, cost, grad)

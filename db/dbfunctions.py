@@ -178,7 +178,7 @@ def get_hdf_file(entry):
     else:
         try:
             import db.paths
-            return os.path.join(db.paths.data_path, hdf.name, q[0].path)
+            return os.path.join(db.paths.rawdata_path, hdf.name, q[0].path)
         except:
             return q[0].path
 
@@ -257,4 +257,3 @@ def get_task_entries_by_date(date, subj=None):
     elif subj is not None:
         kwargs['subject__name'] = subj.name
     return models.TaskEntry.objects.filter(**kwargs)
-
