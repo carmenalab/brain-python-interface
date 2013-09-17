@@ -172,7 +172,8 @@ class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
 
         # TODO generalize the below function (and call)!
         self.iter_counter += 1
-        if np.linalg.cond(D_sym) < 2:
+        if 1:
+        #if np.linalg.cond(D_sym) < 4:
         #if self.iter_counter > 5:
             Q = kfdecoder.project_Q(C[:,2:], Q)
             print C[:,2:4].T * Q.I * C[:,2:4]
