@@ -137,8 +137,6 @@ class KFSmoothbatch(CLDARecomputeParameters):
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
-        print mFR_old
-        print sdFR_old
         C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(intended_kin, spike_counts, 
             include_offset=False, drives_obs=drives_neurons)
         C = (1-rho)*C_hat + rho*C_old
