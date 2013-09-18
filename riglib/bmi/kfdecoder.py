@@ -137,30 +137,13 @@ class KalmanFilter():
         C, Q = self.C, self.Q
         P = pred_state.cov
 
-        K = self._calc_kalman_gain(P, **kwargs)
+        K = self._calc_kalman_gain2(P, **kwargs)
         I = np.mat(np.eye(self.C.shape[1]))
 
         post_state = pred_state
         post_state.mean += K*(obs_t - pred_obs.mean)
         post_state.cov = (I - K*C) * P 
         return post_state
-
-    def forward_infer(self, st, obs_t):
-        pred_state = self._ssm_pred(st)
-        pred_obs = self._obs_prob(pred_state)
-
-        H, Q = self.C, self.Q
-        P_prior = pred_state.cov
-
-        #if self.alt:
-        #    K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*(P.I + self.C_xpose_Q_inv_C).I * self.C_xpose_Q_inv ) 
-        #else:
-        K = P_prior*H.T*np.linalg.pinv( H*P_prior*H.T + Q )
-        I = np.mat(np.eye(self.C.shape[1]))
-
-        pred_state.mean += K*(obs_t - pred_obs.mean)
-        pred_state.cov = (I-K*H)*P_prior 
-        return pred_state
 
     def _calc_kalman_gain(self, P, alt=False, verbose=False):
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
@@ -180,6 +163,16 @@ class KalmanFilter():
             K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
         K[~self.is_stochastic, :] = 0
         return K
+
+    def _calc_kalman_gain2(self, P, verbose=False):
+        '''
+        Calculate Kalman gain using the alternate definition
+        '''
+        nX = P.shape[0]
+        I = np.mat(np.eye(nX))
+        D = self.C_xpose_Q_inv_C
+        L = self.C_xpose_Q_inv
+        return P * (I - D*P*(I + D*P).I) * L
 
     def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, 
         verbose=False, return_Khist=False, alt=True):
@@ -387,7 +380,7 @@ class KFDecoder(BMI):
         return self.predict(obs_t, **kwargs)
 
 
-    def predict(self, ts_data_k, target=None, speed=1.0, target_radius=0.5,
+    def predict(self, spike_counts, target=None, speed=1.0, target_radius=0.5,
                 assist_level=0.0, dt=0.1, task_data=None, **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
@@ -406,13 +399,6 @@ class KFDecoder(BMI):
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/dt;
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
 
-        # "Bin" spike timestamps to generate spike counts
-        if len(ts_data_k) == 0:
-            spike_counts = np.zeros((self.bin_spikes.nunits,))
-        elif ts_data_k.dtype == python_plexnet_dtype:
-            spike_counts = self.bin_spikes(ts_data_k)
-        else:
-            spike_counts = ts_data_k
 
         if task_data is not None:
             task_data['bins'] = spike_counts
