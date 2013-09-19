@@ -137,7 +137,8 @@ class KalmanFilter():
         C, Q = self.C, self.Q
         P = pred_state.cov
 
-        K = self._calc_kalman_gain2(P, **kwargs)
+        K = self._calc_kalman_gain(P, **kwargs)
+        #K = self._calc_kalman_gain2(P, **kwargs)
         I = np.mat(np.eye(self.C.shape[1]))
 
         post_state = pred_state
