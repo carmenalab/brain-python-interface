@@ -134,7 +134,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     # instantiate KFdecoder
     bounding_box = np.array([-250., -140.]), np.array([250., 140.])
     states_to_bound = ['hand_px', 'hand_pz']
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound)
+    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound, binlen=binlen)
     return decoder
 
 
@@ -223,7 +223,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     # instantiate KFdecoder
     bounding_box = np.array([-250., -140.]), np.array([250., 140.])
     states_to_bound = ['hand_px', 'hand_pz']
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound)
+    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound, binlen=binlen)
     return decoder
 
 def _train_KFDecoder_2D_sim(is_stochastic, drives_neurons, units, 
