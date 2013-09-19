@@ -24,7 +24,7 @@ features = dict(
     norm_firingrates=experiment.features.NormFiringRates,
 )
 
-from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks
+from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
@@ -71,6 +71,7 @@ tasks = dict(
     joystick_targ_direc = manualcontrol.CorrectTargetDir,
     manual_control_2 = manualcontrol.ManualControl2,
     visual_feedback = bmitasks.VisualFeedback,
+    visual_feedback_multi = bmimultitasks.VisualFeedbackMulti,
     clda_auto_assist = bmitasks.CLDAAutoAssist,
     clda_constrained_sskf = bmitasks.CLDAConstrainedSSKF,
     manual_control_multi =manualcontrolmultitasks.ManualControlMulti,
