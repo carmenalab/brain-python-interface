@@ -490,8 +490,10 @@ class KFDecoder(BMI):
         C, Q, mFR, sdFR = new_params
         self.kf.C = C
         self.kf.Q = Q
-        self.mFR=mFR
-        self.sdFR=sdFR
+        self.mFR = mFR
+        self.sdFR = sdFR
+        self.kf.C_xpose_Q_inv_C = C.T * Q.I * C
+        self.kf.C_xpose_Q_inv = C.T * Q.I
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
