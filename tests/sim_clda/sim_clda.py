@@ -29,6 +29,7 @@ import utils
 import statsmodels.api as sm
 from riglib.experiment.features import Autostart
 from riglib.bmi.sim_neurons import CosEnc
+import time
 
 reload(kfdecoder)
 reload(clda)
@@ -37,16 +38,7 @@ reload(riglib.bmi.train)
 
 
 ### Constants
-# params
-DT = .1
-
 # game status
-GAME_STATUS = {}
-GAME_STATUS['GAMEOVER'] = 0
-GAME_STATUS['ABORT']    = 1
-GAME_STATUS['CONTINUE'] = 2
-GAME_STATUS['PAUSE']    = 3
-
 # colors
 COLORS = {}
 COLORS['black']     = (0,   0,   0)
@@ -63,11 +55,6 @@ GAME_COLORS['target']       = COLORS['cyan']
 GAME_COLORS['cursor']       = COLORS['yellow']
 GAME_COLORS['sector']       = COLORS['red']
 GAME_COLORS['text']         = COLORS['white']
-
-# Dexterit task constants
-TARGET_CODE_OFFSET = 64
-
-
 
 parser = optparse.OptionParser()
 parser.add_option("--show", action="store_true", dest="show", default=False)
@@ -98,7 +85,6 @@ class PyGame():
         self.size = win_res
         self.scale = win_res/2
         self.input_device = input_device
-        self.status = GAME_STATUS['CONTINUE']
 
         if input_device == 'joystick':
             # initialize main joystick device system
@@ -108,49 +94,6 @@ class PyGame():
             self.joystick = pygame.joystick.Joystick(0)
             self.joystick.init()
 
-    def update_status(self, keys_pressed):
-        """Update status based on keyboard button events in pygame queue.
-        """
-        for evt in keys_pressed:
-            if evt.key == pl.K_p:           # 'P' key
-                if self.status == GAME_STATUS['PAUSE']:
-                    self.status = GAME_STATUS['CONTINUE']
-                else:
-                    self.status = GAME_STATUS['PAUSE']
-            elif evt.key == pl.K_ESCAPE:    # 'Esc' key
-                self.status = GAME_STATUS['ABORT']
-        return self.status
-
-    def norm2pix(self, xy):
-        """Convert normalized window coordinates to pixel coordinates.
-        """
-        return np.int32(self.scale*(xy+1))
-
-    def pix2norm(self, xy):
-        """Convert window coordinates in pixels to normalized coordinates."""
-        
-        return xy/self.scale-1
-
-    def game_print(self, text, pos):
-        """Print text to pygame screen at specified position."""
-        import pygame
-        font = pygame.font.SysFont('georgia', 24)
-        ren = font.render(text, 1, GAME_COLORS['text'])
-        self.screen.blit(ren, self.norm2pix(pos))
-
-    def abort(self):
-        """
-        Abort game
-        """
-        pygame.quit()
-
-    def reset_cursor(self):
-        # reset mouse position on screen to center
-        screen_ctr = self.norm2pix(np.array([0, 0]))
-        if self.show and self.interactive: 
-            import pygame
-            pygame.mouse.set_pos(screen_ctr)
-    
 class CenterOut(PyGame):
     def __init__(self, n_trials=50, r_ctr=0.017, 
         r_targ=0.017, t_ctrhold=0.5, t_reachtarg=10,
@@ -222,7 +165,6 @@ class CenterOut(PyGame):
         self.cursor_vel = np.array([0, 0])
 
         self.state = self.GOTOCTR
-        self.status = GAME_STATUS['CONTINUE']
 
         self.time_elapsed = 0
         self.message = None
@@ -240,7 +182,7 @@ class CenterOut(PyGame):
         self.show_center = True
         self.show_target = False
 
-    def kfpos2pix(self, kfpos):
+    def pos2pix(self, kfpos):
         # rescale the cursor position to (0,1)
         norm_workspace_pos = (kfpos - self.workspace_ll)/self.workspace_size
 
@@ -254,21 +196,12 @@ class CenterOut(PyGame):
         pix_pos = np.array(pix_pos, dtype=int) 
         return pix_pos
 
-    def get_target(self):
-        """Return position of current target position (could be center)."""
-        
-        if self.state in (self.GOTOCTR, self.HOLDCTR):
-            return self.center
-        if self.state in (self.GOTOTARG, self.HOLDTARG):
-            return self.target
-
     def move_cursor(self, new_pos, run_fsm=True):
         """Move cursor position, and update game state and pygame screen.
         """
         
         self.cursor = new_pos #np.clip(self.cursor + diff, -1, 1)
         self.threshold_output()
-        if run_fsm: self.update_state()
         if self.show:
             self.draw()
 
@@ -278,80 +211,6 @@ class CenterOut(PyGame):
         self.cursor[1] = max( self.cursor[1], self.vert_min )
         self.cursor[1] = min( self.cursor[1], self.vert_max )
         
-    def restart_trial(self, codes=[]):
-        """Restart trial."""
-        self.change_state(self.GOTOCTR)
-        self.event_codes.append(codes)
-
-    def change_state(self, new_state, codes=[]):
-        """Change state."""
-        
-        self.state = new_state
-        self.time_elapsed = 0
-        self.event_codes.append(codes)
-
-    def update_state(self):
-        """Update state."""
-        
-        self.time_elapsed += DT
-
-        if self.state == self.GOTOCTR:
-            self.show_center = True
-            self.show_target = False
-            if utils.in_circle(self.cursor, self.center, self.r_ctr):
-                self.message = Message("entered center", 1)
-                self.change_state(self.HOLDCTR, [15])
-            elif len(self.event_codes) == 0:
-                self.event_codes.append( [2, self.target_stack[0]+TARGET_CODE_OFFSET ] )
-            else:
-                self.event_codes.append([])
-
-        elif self.state == self.HOLDCTR:
-            self.show_center = True
-            self.show_target = True
-            if not utils.in_circle(self.cursor, self.center, self.r_ctr):
-                self.message = Message("center hold error", 1)
-                self.change_state(self.GOTOCTR, [4, 2, self.target_stack[0]+TARGET_CODE_OFFSET])
-            elif self.time_elapsed >= self.t_ctrhold:
-                self.message = Message("trial initiated", 1)
-                self.targ_ind = self.target_stack[0]
-                self.target = self.target_positions[self.targ_ind]
-                self.change_state(self.GOTOTARG, [5])
-            else:
-                self.event_codes.append([])
-
-        elif self.state == self.GOTOTARG:
-            self.show_center = False
-            self.show_target = True
-            # TODO code for exiting center! needs additional state info
-            if utils.in_circle(self.cursor, self.target, self.r_targ):
-                self.message = Message("entered target", 1)
-                self.change_state(self.HOLDTARG, [7])
-            elif self.time_elapsed >= self.t_reachtarg:
-                self.message = Message("reach time-out", 1)
-                self.restart_trial([12, 2, self.target_stack[0]+TARGET_CODE_OFFSET])
-            else:
-                self.event_codes.append([])
-
-        elif self.state == self.HOLDTARG:
-            self.show_center = False
-            self.show_target = True
-            if not utils.in_circle(self.cursor, self.target, self.r_targ):
-                self.message = Message("target hold error", 1)
-                self.restart_trial([8, 2, self.target_stack[0]+TARGET_CODE_OFFSET])
-            elif self.time_elapsed >= self.t_targhold:                
-                self.message = Message("target acquired", 1)
-                self.target_stack = self.target_stack[1:]
-                if len(self.target_stack) == 0:
-                    self.status = GAME_STATUS['GAMEOVER']
-                    codes = [9, 11]
-                else:
-                    codes = [9, 11, 2, self.target_stack[0]+TARGET_CODE_OFFSET]
-                self.change_state(self.GOTOCTR, codes)
-            else:
-                self.event_codes.append([])
-
-
     def draw(self):
         """Update pygame screen.
         """
@@ -361,42 +220,20 @@ class CenterOut(PyGame):
         #if self.state in (self.GOTOCTR, self.HOLDCTR):
         if self.show_center:
             pygame.draw.circle(self.screen, GAME_COLORS['center'], 
-                self.kfpos2pix(self.center), self.r_ctr_pix)
+                self.pos2pix(self.center), self.r_ctr_pix)
 
         #if self.state in (self.GOTOTARG, self.HOLDTARG):
         if self.show_target:
             pygame.draw.circle(self.screen, GAME_COLORS['target'], 
-                self.kfpos2pix(self.target), self.r_targ_pix)
+                self.pos2pix(self.target), self.r_targ_pix)
 
         pygame.draw.circle(self.screen, GAME_COLORS['cursor'], 
-            self.kfpos2pix(self.cursor), 6)
+            self.pos2pix(self.cursor), 6)
         if self.verbose:
             print "cursor position in pixels:"
-            print self.kfpos2pix(self.cursor)
-
-        if self.message is not None:
-            if self.message.is_on():
-                self.game_print(self.message.text, np.array([0, -.5]))
-            else:
-                self.message = None
-
-        cursor_next_pos = self.cursor + DT*self.cursor_vel
-        pygame.draw.line(self.screen, (255,0,0), self.kfpos2pix(self.cursor), self.kfpos2pix(cursor_next_pos))
+            print self.pos2pix(self.cursor)
 
         pygame.display.update()
-
-class Message(object):
-    """Message to be displayed in pygame window."""
-    
-    def __init__(self, text, duration=1):
-        self.text = text
-        self.time_left = duration
-
-    def is_on(self):
-        """Check if message is still on."""
-        
-        self.time_left -= DT
-        return self.time_left >= 0
 
 ### Feedback controller
 class CenterOutCursorGoal():
@@ -469,10 +306,10 @@ class FakeHDF():
 #trial_types = [np.array([[center[0], 0, center[1]], [targets[k,0], 0, targets[k,1]]]).T for k in range(8)]
 class SimCLDAControl(bmitasks.CLDAControl, Autostart):
     #trial_types = trial_types
+    update_rate = 0.1
     def __init__(self, *args, **kwargs):
-        self.update_rate = 1./10
-        self.batch_time = 10
-        self.half_life  = 5.0
+        self.batch_time = 10.0
+        self.half_life  = 20.0
         super(SimCLDAControl, self).__init__(*args, **kwargs)
 
         self.origin_hold_time = 0.250
@@ -535,7 +372,6 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
 
     def show_origin(self, show=False):
         self.game.show_center = show
-        print 'showing origin'
 
     def show_terminus(self, show=False):
         self.game.show_target = show
@@ -546,8 +382,7 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
     def redraw(self):
         pass
 
-    def get_neural_data(self):
-        # Get the binned neural data
+    def get_spike_ts(self):
         cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
         target_pos = self.target_xz
         ctrl    = input_device.get(cursor_pos, target_pos)
@@ -556,11 +391,13 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
 
     def _update(self, pt):
         super(SimCLDAControl, self)._update(pt)
-        
 
     def draw_world(self):
         cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
         self.game.move_cursor(cursor_pos, run_fsm=False)
+        time.sleep(1./10)
+        #time.sleep(1./60)
+        #time.sleep(self.update_rate)
 
     #def update_target_location(self):
     #    self.target_xz = self.game.get_target()
@@ -626,7 +463,7 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
     ##     #self.game.move_cursor([decoded_state[0], decoded_state[1]])
 
 
-gen = target_seq_generator(8, 10)
+gen = target_seq_generator(8, 1000)
 task = SimCLDAControl(gen)
 task.init()
 task.run()
