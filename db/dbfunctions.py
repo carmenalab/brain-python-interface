@@ -257,3 +257,9 @@ def get_task_entries_by_date(date, subj=None):
     elif subj is not None:
         kwargs['subject__name'] = subj.name
     return models.TaskEntry.objects.filter(**kwargs)
+
+def get_code_version():
+    import os
+    git_version_hash = os.popen('bmi3d_git_hash').readlines()
+    git_version_hash = git_version_hash[0].rstrip('\n')
+    return git_version_hash
