@@ -38,10 +38,13 @@ class Experiment(traits.HasTraits, threading.Thread):
         trigger event
         '''
         self.set_state(self.status[self.state][event])
-    
+
+    def get_time(self):
+        return time.time()
+
     def set_state(self, condition):
         self.state = condition
-        self.start_time = time.time()
+        self.start_time = self.get_time()
         if hasattr(self, "_start_%s"%condition):
             getattr(self, "_start_%s"%condition)()
 
@@ -63,7 +66,7 @@ class Experiment(traits.HasTraits, threading.Thread):
             
             for event, state in self.status[self.state].items():
                 if hasattr(self, "_test_%s"%event):
-                    if getattr(self, "_test_%s"%event)(time.time() - self.start_time):
+                    if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
                         if hasattr(self, "_end_%s"%self.state):
                             getattr(self, "_end_%s"%self.state)()
                         self.trigger_event(event)
