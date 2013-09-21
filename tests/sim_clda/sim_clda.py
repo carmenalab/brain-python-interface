@@ -402,27 +402,8 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
     def get_time(self):
         return self.loop_counter * DT
 
-    def run(self):
-        '''
-        Generic method to run the finite state machine of the task
-        '''
-        self.screen_init()
-        self.set_state(self.state)
-        while self.state is not None:
-            if hasattr(self, "_while_%s"%self.state):
-                getattr(self, "_while_%s"%self.state)()
-            if hasattr(self, "_cycle"):
-                self._cycle()
-            
-            for event, state in self.status[self.state].items():
-                if hasattr(self, "_test_%s"%event):
-                    if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
-                    #if getattr(self, "_test_%s"%event)(time.time() - self.start_time):
-                        if hasattr(self, "_end_%s"%self.state):
-                            getattr(self, "_end_%s"%self.state)()
-                        self.trigger_event(event)
-                        break;
-            self.loop_counter += 1.
+    def loop_step(self):
+        self.loop_counter += 1
 
     def draw_world(self):
         print self.state
@@ -440,100 +421,8 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
             self.game.show_target = False
         cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
         self.game.move_cursor(cursor_pos, run_fsm=False)
-        #time.sleep(1./10)
-        #time.sleep(1./60)
-        #time.sleep(self.update_rate)
-
-    #def update_target_location(self):
-    #    self.target_xz = self.game.get_target()
-
-    #def _rescale_bmi_state(self, decoded_state):
-    #    return decoded_state
-
-    ## def update_cursor(self):
-    ##     # Runs every loop
-    ##     self.update_target_location()
-    ##     self.update_learn_flag()
-    ##     
-    ##     ts_data = self.get_neural_data()
-
-    ##     # Get the decoder output
-    ##     decoded_state, update_flag = self.bmi_system(ts_data, self.target_xz,
-    ##         self.state, task_data=self.task_data, assist_level=self.assist_level,
-    ##         learn_flag=self.learn_flag)
-    ##     # The update flag is true if the decoder parameters were updated on this
-    ##     # iteration. If so, save an update message to the file.
-    ##     if update_flag:
-    ##         #send msg to hdf file
-    ##         self.hdf.sendMsg("update_bmi")
-
-    ##     # Remember that decoder is only decoding in 2D, y value is set to 0
-    ##     pt = np.array([decoded_state[0], 0, decoded_state[1]])
-    ##     #pt = np.array([0.1*decoded_state[0], 0, 0.1*decoded_state[1]])
-    ##     # Save cursor location to file
-    ##     self.task_data['cursor'] = pt[:3]
-    ##     # Update cursor location
-    ##     self._update(pt[:3])   
-    ##     # Write to screen
-    ##     self.draw_world()
-
-
-    ## def update_cursor(self):
-    ##     # Runs every loop
-    ##     self.update_target_location()
-
-    ##     ts_data = self.get_neural_data()
-
-    ##     # Get the decoder output
-    ##     decoded_state, update_flag = self.bmi_system(ts_data, self.target_xz, '',
-    ##         task_data=None, assist_level=self.assist_level,
-    ##         learn_flag=self.learn_flag)
-
-    ##     # The update flag is true if the decoder parameters were updated on this
-    ##     # iteration. If so, save an update message to the file.
-    ##     if update_flag:
-    ##         #send msg to hdf file
-    ##         self.hdf.sendMsg("update_bmi")
-
-    ##     # Remember that decoder is only decoding in 2D, y value is set to 0
-    ##     pt = np.array([decoded_state[0], 0, decoded_state[1]])
-    ##     #pt = np.array([0.1*decoded_state[0], 0, 0.1*decoded_state[1]])
-    ##     # Save cursor location to file
-    ##     self.task_data['cursor'] = pt[:3]
-    ##     # Update cursor location
-    ##     self._update(pt[:3])   
-    ##     # Write to screen
-    ##     self.draw_world()
-
-    ##     #self.game.move_cursor([decoded_state[0], decoded_state[1]])
-
 
 gen = target_seq_generator(8, 1000)
 task = SimCLDAControl(gen)
 task.init()
 task.run()
-
-# for k in range(10000):
-#     cursor     = game.cursor
-#     ctrl       = input_device.get(game, None, gain=m_to_mm*0.15)
-#     target_pos = game.get_target()
-# 
-#     # generate synthetic neural activity from 'ctrl'
-#     spike_obs = encoder(ctrl/m_to_mm)
-# 
-#     if spike_obs.dtype == kfdecoder.python_plexnet_dtype:
-#         spike_counts = bmi.decoder.bin_spikes(spike_obs)
-#         assert sum(spike_counts) == len(spike_obs)
-#     # decode neural observation
-#     #target_pos = np.hstack([target_pos[0], 0, target_pos[1]])
-#     bmi(spike_obs, target_pos, '', assist_level=0)
-# 
-#     # move cursor
-#     try:
-#         #game.move_cursor(decoder['px', 'py'])
-#         game.move_cursor(decoder['hand_px', 'hand_pz'])
-#     except:
-#         break
-#     game.rotate_vel(decoder['hand_vx', 'hand_vz'])
-# 
-# bmi.__del__()
