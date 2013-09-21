@@ -226,13 +226,12 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound, binlen=binlen)
     return decoder
 
-def _train_KFDecoder_2D_sim(is_stochastic, drives_neurons, units, 
-    bounding_box, states_to_bound, include_y=True, dt=0.1):
+def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
+    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.8):
     # TODO options to resample the state-space model at different update rates
-    v = 0.8
     n_neurons = units.shape[0]
     if include_y:
-        state_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+        states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
         A = np.array([[1, 0, 0, dt, 0, 0,  0],
                       [0, 1, 0, 0,  0, 0,  0],
                       [0, 0, 1, 0,  0, dt, 0],
@@ -241,12 +240,16 @@ def _train_KFDecoder_2D_sim(is_stochastic, drives_neurons, units,
                       [0, 0, 0, 0,  0, v,  0],
                       [0, 0, 0, 0,  0, 0,  1]])
     else:
-        state_vars = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
+        states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
         A = np.array([[1, 0, dt, 0, 0],
                       [0, 1, 0, dt, 0],
                       [0, 0, v,  0, 0],
                       [0, 0, 0,  v, 0],
                       [0, 0, 0,  0, 1]])
+
+    drives_neurons = np.array([x in neuron_driving_states for x in states])
+    print drives_neurons
+    is_stochastic = np.array([x in stochastic_states for x in states])
 
     nX = A.shape[0]
     w = 1e-3
@@ -265,7 +268,7 @@ def _train_KFDecoder_2D_sim(is_stochastic, drives_neurons, units,
     sdFR = 1
 
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
-        state_vars, states_to_bound)
+        states, states_to_bound)
     return decoder
 
 if __name__ == '__main__':
