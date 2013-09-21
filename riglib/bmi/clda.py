@@ -1,6 +1,6 @@
-'''Needs docs'''
-
-
+'''
+CLDA classes
+'''
 import multiprocessing as mp
 import numpy as np
 from riglib.bmi import kfdecoder
@@ -137,14 +137,19 @@ class KFSmoothbatch(CLDARecomputeParameters):
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
-        C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(intended_kin, spike_counts, 
-            include_offset=False, drives_obs=drives_neurons)
+        C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(
+            intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
         C = (1-rho)*C_hat + rho*C_old
         Q = (1-rho)*Q_hat + rho*Q_old
 
         mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
-        return C, Q, mFR, sdFR
+        #return C, Q, mFR, sdFR
+        D = C.T * Q.I * C
+        new_params = {'kf.C':C, 'kf.Q':Q, 
+            'kf.C_xpose_Q_inv_C':D, 'kf.C_xpose_Q_inv':C.T * Q.I,
+            'mFR':mFR, 'sdFR':sdFR}
+        return new_params
 
 class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
     def __init__(self, *args, **kwargs):
@@ -156,26 +161,14 @@ class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
         
         args = (intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old)
         C, Q, mFR, sdFR = super(KFOrthogonalPlantSmoothbatch, self).calc(*args)
-        D = (C.T * Q.I * C)[2:4, 2:4]
-        #print D
-        gain = np.mean(np.diag(D))
+        D = (C.T * Q.I * C)
+        D[2:4, 2:4] = np.mean(np.diag(D)) * np.eye(2) # TODO generalize!
         # TODO calculate the gain from the riccati equation solution (requires A and W)
-        #gain = max(gain, 100)
-        #gain = min(gain, 2000)
-        #C[:,2] *= np.sqrt(gain/D[0,0])
-        #C[:,3] *= np.sqrt(gain/D[1,1])
-        D_sym = C[:,2:4].T * Q.I * C[:,2:4]
-        #print D_sym
-        #print np.linalg.cond(D_sym)
 
-        # TODO generalize the below function (and call)!
-        self.iter_counter += 1
-        if np.linalg.cond(D_sym) < 20:
-        #if self.iter_counter > 5:
-            Q = kfdecoder.project_Q(C[:,2:], Q)
-            #print C[:,2:4].T * Q.I * C[:,2:4]
-
-        return C, Q, mFR, sdFR
+        new_params = {'kf.C_xpose_Q_inv_C':D, 
+            'kf.C_xpose_Q_inv':C.T * Q.I, 'mFR':mFR, 'sdFR':sdFR}
+        return new_params
+        #return dict(C_xpose_Q_inv_C=D, C_xpose_Q_inv=L, mFR=mFR, sdFR=sdFR)
 
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties
