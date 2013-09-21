@@ -38,23 +38,23 @@ reload(riglib.bmi.train)
 
 
 ### Constants
-# game status
-# colors
+DT = 0.1
 COLORS = {}
-COLORS['black']     = (0,   0,   0)
-COLORS['white']     = (255, 255, 255)
-COLORS['red']       = (255, 0,   0)
-COLORS['green']     = (0,   255, 0)
-COLORS['blue']      = (0,   0,   255)
-COLORS['yellow']    = (255, 255, 0)
-COLORS['cyan']      = (0,   255, 255)
-GAME_COLORS = {}
-GAME_COLORS['background']   = COLORS['black']
-GAME_COLORS['center']       = COLORS['cyan']
-GAME_COLORS['target']       = COLORS['cyan']
-GAME_COLORS['cursor']       = COLORS['yellow']
-GAME_COLORS['sector']       = COLORS['red']
-GAME_COLORS['text']         = COLORS['white']
+
+COLORS['black']           = (0,   0,   0)
+COLORS['white']           = (255, 255, 255)
+COLORS['red']             = (255, 0,   0)
+COLORS['green']           = (0,   255, 0)
+COLORS['blue']            = (0,   0,   255)
+COLORS['yellow']          = (255, 255, 0)
+COLORS['cyan']            = (0,   255, 255)
+GAME_COLORS               = {}
+GAME_COLORS['background'] = COLORS['black']
+GAME_COLORS['center']     = COLORS['cyan']
+GAME_COLORS['target']     = COLORS['cyan']
+GAME_COLORS['cursor']     = COLORS['yellow']
+GAME_COLORS['sector']     = COLORS['red']
+GAME_COLORS['text']       = COLORS['white']
 
 parser = optparse.OptionParser()
 parser.add_option("--show", action="store_true", dest="show", default=False)
@@ -63,6 +63,7 @@ parser.add_option("--show", action="store_true", dest="show", default=False)
 # Task parameters
 m_to_mm = 1000
 m_to_cm = 100
+cm_to_m = 0.01
 
 class PyGame():
     def __init__(self, input_device='mouse', win_res=300, show=False, 
@@ -96,7 +97,7 @@ class PyGame():
 
 class CenterOut(PyGame):
     def __init__(self, n_trials=50, r_ctr=0.017, 
-        r_targ=0.017, t_ctrhold=0.5, t_reachtarg=10,
+        r_targ=0.017, r_cursor=0.005, t_ctrhold=0.5, t_reachtarg=10,
         t_targhold=0.5, interactive=True, 
         workspace_ll= np.array([-0.07,0.06]), workspace_size=0.20, 
         workspace_targets = np.array([[ 0.1029723 ,  0.16483756],
@@ -138,6 +139,7 @@ class CenterOut(PyGame):
         self.pix_per_m = self.size/workspace_size
         self.r_ctr_pix = int(r_ctr*self.pix_per_m)
         self.r_targ_pix = int(r_targ*self.pix_per_m)
+        self.r_cursor_pix = int(r_cursor*self.pix_per_m)
         self.target_list_fname = target_list_fname
         
         self.horiz_min = self.workspace_ll[0]
@@ -228,7 +230,7 @@ class CenterOut(PyGame):
                 self.pos2pix(self.target), self.r_targ_pix)
 
         pygame.draw.circle(self.screen, GAME_COLORS['cursor'], 
-            self.pos2pix(self.cursor), 6)
+            self.pos2pix(self.cursor), self.r_cursor_pix)
         if self.verbose:
             print "cursor position in pixels:"
             print self.pos2pix(self.cursor)
@@ -318,6 +320,8 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         self.terminus_size = 1.7
         self.hdf = FakeHDF()
         self.task_data = FakeHDF()
+        self.start_time = 0.
+        self.loop_counter = 0
 
     def init(self):
         # BMI bounding box
@@ -351,7 +355,9 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         return True
         
     def screen_init(self):
-        center_radius = target_radius = 0.017
+        target_radius = self.terminus_size * cm_to_m
+        center_radius = self.origin_size * cm_to_m
+        cursor_radius = self.cursor.radius * cm_to_m
         t_ctrhold = 0.250
         t_reachtarg = 10
         t_targhold = 0.250
@@ -364,6 +370,7 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         print "instantiating game..."
         self.game = CenterOut(
             show=options.show, r_ctr=m_to_mm*center_radius, r_targ=m_to_mm*target_radius,
+            r_cursor=m_to_mm*cursor_radius, 
             t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
             workspace_size=m_to_mm*0.20, workspace_ll=m_to_mm*workspace_ll,
             workspace_targets=m_to_mm*targets, workspace_ctr=m_to_mm*center, 
@@ -392,10 +399,48 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
     def _update(self, pt):
         super(SimCLDAControl, self)._update(pt)
 
+    def get_time(self):
+        return self.loop_counter * DT
+
+    def run(self):
+        '''
+        Generic method to run the finite state machine of the task
+        '''
+        self.screen_init()
+        self.set_state(self.state)
+        while self.state is not None:
+            if hasattr(self, "_while_%s"%self.state):
+                getattr(self, "_while_%s"%self.state)()
+            if hasattr(self, "_cycle"):
+                self._cycle()
+            
+            for event, state in self.status[self.state].items():
+                if hasattr(self, "_test_%s"%event):
+                    if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
+                    #if getattr(self, "_test_%s"%event)(time.time() - self.start_time):
+                        if hasattr(self, "_end_%s"%self.state):
+                            getattr(self, "_end_%s"%self.state)()
+                        self.trigger_event(event)
+                        break;
+            self.loop_counter += 1.
+
     def draw_world(self):
+        print self.state
+        if self.state == 'origin':
+            self.game.show_origin = True
+            self.game.show_target = False
+        elif self.state == 'origin_hold':
+            self.game.show_origin = True
+            self.game.show_target = True
+        elif self.state in ['terminus', 'terminus_hold']:
+            self.game.show_origin = False
+            self.game.show_target = True
+        else:
+            self.game.show_origin = False
+            self.game.show_target = False
         cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
         self.game.move_cursor(cursor_pos, run_fsm=False)
-        time.sleep(1./10)
+        #time.sleep(1./10)
         #time.sleep(1./60)
         #time.sleep(self.update_rate)
 
