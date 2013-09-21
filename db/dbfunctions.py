@@ -3,6 +3,7 @@ import sys
 import json
 import numpy as np
 import datetime
+import tables
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
@@ -181,6 +182,14 @@ def get_hdf_file(entry):
             return os.path.join(db.paths.rawdata_path, hdf.name, q[0].path)
         except:
             return q[0].path
+
+def get_hdf(entry):
+    '''
+    Return hdf opened file
+    '''
+    hdf_filename = get_hdf_file(entry)
+    hdf = tables.openFile(hdf_filename)
+    return hdf
 
 def get_plx_file(entry):
     '''
