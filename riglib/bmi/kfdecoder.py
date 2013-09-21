@@ -1,5 +1,7 @@
-'''Needs docs'''
-
+'''
+Implementation of a Kalman filter and associated code to use it as a BMI
+decoder
+'''
 import pickle
 import sys
 
@@ -261,7 +263,8 @@ class KalmanFilter():
             #'alt':self.alt, 'C_xpose_Q_inv':self.C_xpose_Q_inv, 'C_xpose_Q_inv_C':self.C_xpose_Q_inv_C}
 
     @classmethod
-    def MLE_obs_model(self, hidden_state, obs, include_offset=True, drives_obs=None):
+    def MLE_obs_model(self, hidden_state, obs, include_offset=True, 
+                      drives_obs=None):
         """Unconstrained ML estimator of {C, Q} given observations and
         the corresponding hidden states
         """
@@ -292,7 +295,7 @@ class KalmanFilter():
         
         C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
         #C = Y*np.linalg.pinv(X)
-        Q = np.cov( Y-C*X, bias=1 )
+        Q = np.cov(Y - C*X, bias=1)
         if not drives_obs == None:
             n_obs = C.shape[0]
             C_tmp = np.zeros([n_obs, n_states])
@@ -302,8 +305,6 @@ class KalmanFilter():
     
     def get_params(self):
         return self.A, self.W, self.C, self.Q
-
-
 
 class KFDecoder(BMI):
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, 
@@ -400,7 +401,6 @@ class KFDecoder(BMI):
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/dt;
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
 
-
         if task_data is not None:
             task_data['bins'] = spike_counts
 
@@ -417,16 +417,7 @@ class KFDecoder(BMI):
         # Run the KF
         self.kf(spike_counts)
 
-
-        #add a scaling factor on the velocity to slow down or speed up the cursor. comment out the following lines to undo!
-        # vel_scale_factor=.8
-        # cursor_kin=self.kf.get_mean()
-        # scaled_vel=cursor_kin[2:4]*vel_scale_factor
-        # scaled_pos=prev_kin[0:2]+scaled_vel*dt
-        # self.kf.state.mean[:,0] = np.hstack([scaled_pos, scaled_vel, 1]).reshape(-1,1)
-
-
-        # Bound cursor, if applicable
+        # Bound cursor, if any hard bounds for states are applied
         self.bound_state()
 
         if assist_level > 0 and not target == None:
@@ -438,9 +429,6 @@ class KFDecoder(BMI):
         state = self.kf.get_mean()
         # TODO remove this hardcoding!
         return np.array([state[0], 0, state[1], state[2], 0, state[3], 1])
-
-    def retrain(self, batch, halflife):
-        raise NotImplementedError
 
     def __getitem__(self, idx):
         """Get element(s) of the BMI state, indexed by name or number"""
@@ -488,13 +476,24 @@ class KFDecoder(BMI):
         return np.array(self.kf.state.mean).ravel()
 
     def update_params(self, new_params):
-        C, Q, mFR, sdFR = new_params
-        self.kf.C = C
-        self.kf.Q = Q
-        self.mFR = mFR
-        self.sdFR = sdFR
-        self.kf.C_xpose_Q_inv_C = C.T * Q.I * C
-        self.kf.C_xpose_Q_inv = C.T * Q.I
+        for key, val in new_params.items():
+            attr_list = key.split('.')
+            final_attr = attr_list[-1]
+            attr_list = attr_list[:-1]
+            attr = self
+            while len(attr_list) > 0:
+                attr = getattr(self, attr_list[0])
+                attr_list = attr_list[1:]
+             
+            setattr(attr, final_attr, val)
+        #assert isinstance(new_params, dict)
+        #C, Q, mFR, sdFR = new_params
+        #self.kf.C = C
+        #self.kf.Q = Q
+        #self.mFR = mFR
+        #self.sdFR = sdFR
+        #self.kf.C_xpose_Q_inv_C = C.T * Q.I * C
+        #self.kf.C_xpose_Q_inv = C.T * Q.I
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
