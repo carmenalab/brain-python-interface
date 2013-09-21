@@ -52,6 +52,13 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.init()
         super(Experiment, self).start()
 
+    def loop_step(self):
+        '''
+        Override this function to run some code every loop iteration of 
+        the FSM
+        '''
+        pass
+
     def run(self):
         '''
         Generic method to run the finite state machine of the task
@@ -71,6 +78,7 @@ class Experiment(traits.HasTraits, threading.Thread):
                             getattr(self, "_end_%s"%self.state)()
                         self.trigger_event(event)
                         break;
+            self.loop_step()
     
     def _test_stop(self, ts):
         return self.stop
