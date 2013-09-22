@@ -4,6 +4,7 @@ import json
 import numpy as np
 import datetime
 import tables
+import matplotlib.pyplot as plt
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
@@ -35,6 +36,10 @@ def get_decoder_name(entry):
 	'''
 	decid = json.loads(entry.params)['bmi']
 	return models.Decoder.objects.get(pk=decid).path
+
+def get_decoder_name_full(entry):
+    decoder_basename = get_decoder_name(entry)
+    return os.path.join(paths.data_path, 'decoders', decoder_basename)
 
 def get_params(entry):
 	'''
@@ -272,3 +277,52 @@ def get_code_version():
     git_version_hash = os.popen('bmi3d_git_hash').readlines()
     git_version_hash = git_version_hash[0].rstrip('\n')
     return git_version_hash
+
+def get_rewards_per_min(task_entry, window_size_mins=1.):
+    '''
+    Estimates rewards per minute. New estimates are made every 1./60 seconds
+    using the # of rewards observed in the previous 'window_size_mins' minutes 
+    '''
+    hdf_filename = get_hdf_file(task_entry)
+    hdf = tables.openFile(hdf_filename)
+    task_msgs = hdf.root.task_msgs[:]
+    reward_msgs = filter(lambda m: m[0] == 'reward', task_msgs)
+    reward_on = np.zeros(hdf.root.task.shape)
+    for reward_msg in reward_msgs:
+        reward_on[reward_msg[1]] = 1
+    conv = np.ones(window_size_mins * 3600) * 1./window_size_mins
+    rewards_per_min = np.convolve(reward_on, conv, 'valid')
+    return rewards_per_min
+
+def plot_rewards_per_min(task_entry, show=False, **kwargs):
+    '''
+    Make a plot of the rewards per minute
+    '''
+    rewards_per_min = get_rewards_per_min(task_entry, **kwargs)
+    plt.figure()
+    plt.plot(rewards_per_min)
+    if show:
+        plt.show()
+
+def get_trial_end_types(task_entry):
+    hdf_filename = get_hdf_file(task_entry)
+    hdf = tables.openFile(hdf_filename)
+    task_msgs = hdf.root.task_msgs[:]
+
+    # number of successful trials
+    reward_msgs = filter(lambda m: m[0] == 'reward', task_msgs)
+    n_success_trials = len(reward_msgs)
+    
+    # number of hold errors
+    hold_penalty_inds = np.array(filter(lambda k: task_msgs[k][0] == 'hold_penalty', range(len(task_msgs))))
+    msg_before_hold_penalty = task_msgs[(hold_penalty_inds - 1).tolist()]
+    n_terminus_hold_errors = len(filter(lambda m: m['msg'] == 'terminus_hold', msg_before_hold_penalty))
+    n_origin_hold_errors = len(filter(lambda m: m['msg'] == 'origin_hold', msg_before_hold_penalty))
+
+    # number of timeout trials
+    timeout_msgs = filter(lambda m: m[0] == 'timeout_penalty', task_msgs)
+    n_timeout_trials = len(timeout_msgs)
+
+def get_hold_error_rate(task_entry):
+    hold_error_rate = float(n_terminus_hold_errors) / n_success_trials
+    return hold_error_rate
