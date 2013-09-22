@@ -45,7 +45,8 @@ class CursorGoalLearner(Learner):
         self.kindata = []
         self.neuraldata = []
     
-    def __call__(self, spike_counts, cursor_pos, target_pos, task_state):
+    def __call__(self, spike_counts, cursor_pos, target_pos, decoded_vel, 
+                 task_state):
         """
         Rotation toward target state
         """
@@ -59,13 +60,15 @@ class CursorGoalLearner(Learner):
         dist_to_targ = np.linalg.norm(int_dir)
         if task_state in ['origin_hold', 'terminus_hold']:
             int_vel = np.zeros(int_dir.shape)            
-        else:
+        elif task_state in ['origin', 'terminus']:
             int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
-        int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
+        else:
+            int_vel = None
         #print int_vel
         #print 
         
-        if not self.is_full() and self.enabled:
+        if not self.is_full() and self.enabled and int_vel is not None:
+            int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
             self.kindata.append(int_kin)
             self.neuraldata.append(spike_counts)
     
