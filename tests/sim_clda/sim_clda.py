@@ -330,17 +330,13 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         vert_max  = m_to_mm * workspace_ur[1]
         
         bounding_box = np.array([horiz_min, vert_min]), np.array([horiz_max, vert_max])
-        states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
-        #states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
         states_to_bound = ['hand_px', 'hand_pz']
+
         neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
-        drives_neurons = np.array([x in neuron_driving_states for x in states])
-        
         stochastic_states = ['hand_vx', 'hand_vz']
-        is_stochastic = np.array([x in stochastic_states for x in states])
 
         self.decoder = riglib.bmi.train._train_KFDecoder_2D_sim(stochastic_states, 
-            neuron_driving_states, units, bounding_box, states_to_bound, include_y=False)
+            neuron_driving_states, units, bounding_box, states_to_bound, include_y=True)
         self.decoder.kf.C /= m_to_mm
         self.decoder.kf.W *= m_to_mm**2
 
