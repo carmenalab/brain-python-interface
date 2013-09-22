@@ -307,7 +307,7 @@ class KalmanFilter():
         return self.A, self.W, self.C, self.Q
 
 class KFDecoder(BMI):
-    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, 
+    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, tslice=[-1,-1]):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
         features used to run the Kalman filter in a BMI context.
@@ -325,6 +325,7 @@ class KFDecoder(BMI):
         self.tslice = tslice # TODO replace with real tslice
         self.states_to_bound = states_to_bound
         self.zeromeanunits = None
+        self.drives_neurons = drives_neurons
 
         # Gain terms for hack debugging
         try:
