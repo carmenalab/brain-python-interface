@@ -247,9 +247,7 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
                       [0, 0, 0,  v, 0],
                       [0, 0, 0,  0, 1]])
 
-    print neuron_driving_states
     drives_neurons = np.array([x in neuron_driving_states for x in states])
-    print drives_neurons
     is_stochastic = np.array([x in stochastic_states for x in states])
 
     nX = A.shape[0]
