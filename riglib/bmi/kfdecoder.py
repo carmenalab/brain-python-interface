@@ -571,7 +571,6 @@ def project_Q(C_v, Q_hat):
         
         # TODO gradient dimension needs to be the same as nu
         grad = -np.array([np.trace(S_star*U[:,0] * c_scalars[0] * V[0,:]) for k in range(len(nu))])
-        grad = -1e-8*np.array([np.trace(S_star*A[0]), np.trace(S_star*A[1]), np.trace(S_star*A[2])])
     
         #log = logging.getLogger()
         #print "nu = %s, cost = %g, grad=%s" % (nu, cost, grad)
