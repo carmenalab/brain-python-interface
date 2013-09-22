@@ -98,8 +98,10 @@ class AdaptiveBMI(object):
             f.close()
 
         if new_params is not None:
-            param_hist_data = list(new_params) + [self.intended_kin, self.spike_counts]
-            self.param_hist.append(param_hist_data)
+            new_params['intended_kin'] = self.intended_kin
+            new_params['spike_counts'] = self.spike_counts
+            #param_hist_data = list(new_params) + [self.intended_kin, self.spike_counts]
+            self.param_hist.append(new_params)
             self.decoder.update_params(new_params)
             self.learner.enable()
             update_flag = True
