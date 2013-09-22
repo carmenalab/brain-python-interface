@@ -69,7 +69,8 @@ class AdaptiveBMI(object):
 
         dec_state_dim = len(self.decoder.states)
         pos_inds = filter(lambda k: re.match('hand_p', self.decoder.states[k]), range(dec_state_dim))
-        update_flag=False
+        vel_inds = filter(lambda k: re.match('hand_v', self.decoder.states[k]), range(dec_state_dim))
+        update_flag = False
         # run the decoder
         #print kwargs
         self.decoder.predict(spike_obs, target=target_pos, **kwargs)
@@ -82,7 +83,8 @@ class AdaptiveBMI(object):
             spike_counts = self.decoder.bin_spikes(spike_obs)
         else:
             spike_counts = spike_obs
-        self.learner(spike_counts, prev_state[pos_inds], target_pos, task_state)
+        self.learner(spike_counts, prev_state[pos_inds], target_pos, 
+                     decoded_state[vel_inds], task_state)
 
         try:
             new_params=None
