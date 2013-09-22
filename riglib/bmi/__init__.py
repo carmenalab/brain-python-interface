@@ -175,7 +175,6 @@ class AdaptiveBMI(object):
             self.decoder.update_params(new_params)
             self.learner.enable()
             update_flag = True
-            print "updated params"
 
         if self.learner.is_full():
             self.intended_kin, self.spike_counts = self.learner.get_batch()
