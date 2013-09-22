@@ -384,12 +384,13 @@ class KFDecoder(BMI):
 
 
     def predict(self, spike_counts, target=None, speed=1.0, target_radius=0.5,
-                assist_level=0.0, dt=0.1, task_data=None, **kwargs):
+                assist_level=0.0, dt=0.1, task_data=None, assist_inds=[1,2],
+                **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
         prev_kin = self.kf.get_mean()
         if assist_level > 0 and not target == None:
-            cursor_pos = prev_kin[0:2] # TODO assumes a 2D position state
+            cursor_pos = prev_kin[assist_inds]
             diff_vec = target - cursor_pos 
             dist_to_target = np.linalg.norm(diff_vec)
             dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
@@ -428,8 +429,7 @@ class KFDecoder(BMI):
             self.bound_state()
 
         state = self.kf.get_mean()
-        # TODO remove this hardcoding!
-        return np.array([state[0], 0, state[1], state[2], 0, state[3], 1])
+        return state
 
     def __getitem__(self, idx):
         """Get element(s) of the BMI state, indexed by name or number"""
