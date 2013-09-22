@@ -340,8 +340,8 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         stochastic_states = ['hand_vx', 'hand_vz']
         is_stochastic = np.array([x in stochastic_states for x in states])
 
-        self.decoder = riglib.bmi.train._train_KFDecoder_2D_sim(is_stochastic, 
-            drives_neurons, units, bounding_box, states_to_bound, include_y=False)
+        self.decoder = riglib.bmi.train._train_KFDecoder_2D_sim(stochastic_states, 
+            neuron_driving_states, units, bounding_box, states_to_bound, include_y=False)
         self.decoder.kf.C /= m_to_mm
         self.decoder.kf.W *= m_to_mm**2
 
