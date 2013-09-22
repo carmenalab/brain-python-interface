@@ -59,8 +59,8 @@ class KalmanFilter():
     """Low-level KF, agnostic to application
 
     Model: 
-       x_{t+1} = Ax_t + w_t; w_t ~ N(0, W)
-       y_t = Cx_t + q_t; q_t ~ N(0, Q)
+       x_{t+1} = Ax_t + w_t;   w_t ~ N(0, W)
+           y_t = Cx_t + q_t;   q_t ~ N(0, Q)
     """
 
     def __init__(self, A, W, C, Q, is_stochastic=None):
@@ -112,6 +112,7 @@ class KalmanFilter():
             if self.include_offset: init_state[-1,0] = 1
         if init_cov == None:
             init_cov = np.mat( np.zeros([nS, nS]) )
+        self.init_cov = init_cov
         self.state = GaussianState(init_state, init_cov) 
         self.state_noise = GaussianState(0.0, self.W)
         self.obs_noise = GaussianState(0.0, self.Q)
@@ -142,10 +143,12 @@ class KalmanFilter():
         K = self._calc_kalman_gain(P, **kwargs)
         #K = self._calc_kalman_gain2(P, **kwargs)
         I = np.mat(np.eye(self.C.shape[1]))
+        D = self.C_xpose_Q_inv_C
+        KC = P*(I - D*P*(I + D*P).I)*D
 
         post_state = pred_state
         post_state.mean += K*(obs_t - pred_obs.mean)
-        post_state.cov = (I - K*C) * P 
+        post_state.cov = (I - KC) * P 
         return post_state
 
     def _calc_kalman_gain(self, P, alt=False, verbose=False):
@@ -167,7 +170,7 @@ class KalmanFilter():
         K[~self.is_stochastic, :] = 0
         return K
 
-    def _calc_kalman_gain2(self, P, verbose=False):
+    def _calc_kalman_gain(self, P, verbose=False):
         '''
         Calculate Kalman gain using the alternate definition
         '''
@@ -175,7 +178,8 @@ class KalmanFilter():
         I = np.mat(np.eye(nX))
         D = self.C_xpose_Q_inv_C
         L = self.C_xpose_Q_inv
-        return P * (I - D*P*(I + D*P).I) * L
+        K = P * (I - D*P*(I + D*P).I) * L
+        return K
 
     def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, 
         verbose=False, return_Khist=False, alt=True):
@@ -185,7 +189,11 @@ class KalmanFilter():
         """ 
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
 
-        P = np.mat( np.zeros(A.shape) )
+        nS = A.shape[0]
+        P = np.mat(np.zeros([nS, nS]))
+        I = np.mat(np.eye(nS))
+
+        D = self.C_xpose_Q_inv_C 
 
         last_K = np.mat(np.ones(C.T.shape))*np.inf
         K = np.mat(np.ones(C.T.shape))*0
@@ -196,24 +204,24 @@ class KalmanFilter():
         while np.linalg.norm(K-last_K) > tol and iter_idx < 4000:
             P = A*P*A.T + W 
             last_K = K
-            K = self._calc_kalman_gain(P, alt=alt, verbose=verbose)
+            K = self._calc_kalman_gain(P) #, alt=alt, verbose=verbose)
             K_hist.append(K)
-            P -= K*C*P;
+            KC = P*(I - D*P*(I + D*P).I)*D
+            P -= KC*P;
             iter_idx += 1
         if verbose: print "Converged in %d iterations--error: %g" % (iter_idx, np.linalg.norm(K-last_K)) 
     
         n_state_vars, n_state_vars = A.shape
-        A_bar = (np.mat(np.eye(n_state_vars, n_state_vars)) - K * C) * A
-        B_bar = K 
+        F = (np.mat(np.eye(n_state_vars, n_state_vars)) - KC) * A
     
         if return_P and return_Khist:
-            return dtype(A_bar), dtype(B_bar), dtype(P), K_hist
+            return dtype(F), dtype(K), dtype(P), K_hist
         elif return_P:
-            return dtype(A_bar), dtype(B_bar), dtype(P)
+            return dtype(F), dtype(K), dtype(P)
         elif return_Khist:
-            return dtype(A_bar), dtype(B_bar), K_hist
+            return dtype(F), dtype(K), K_hist
         else:
-            return dtype(A_bar), dtype(B_bar)
+            return dtype(F), dtype(K)
 
     def get_kalman_gain_seq(self, N=1000, tol=1e-10, verbose=False):
         A, W, H, Q = np.mat(self.kf.A), np.mat(self.kf.W), np.mat(self.kf.H), np.mat(self.kf.Q)
@@ -306,6 +314,46 @@ class KalmanFilter():
     def get_params(self):
         return self.A, self.W, self.C, self.Q
 
+    def set_steady_state_pred_cov(self):
+        A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
+        D = self.C_xpose_Q_inv_C 
+
+        nS = A.shape[0]
+        P = np.mat(np.zeros([nS, nS]))
+        I = np.mat(np.eye(nS))
+
+        last_K = np.mat(np.ones(C.T.shape))*np.inf
+        K = np.mat(np.ones(C.T.shape))*0
+
+        iter_idx = 0
+        for iter_idx in range(40):
+        #while iter_idx < 400:
+        #while np.linalg.norm(K-last_K) > tol and iter_idx < 4000:
+            P = A*P*A.T + W
+            last_K = K
+            KC = P*(I - D*P*(I + D*P).I)*D
+            P -= KC*P;
+
+        # TODO fix
+        P[0:3, 0:3] = 0
+        print P[0:3, 0:3]
+        print P[0:3, 3:6]
+        print P[3:6, 3:6]
+        F, K = self.get_sskf()
+        print "F="
+        print F[0:3, 0:3]
+        print F[0:3, 3:6]
+        print F[3:6, 3:6]
+        print F[3:6, 0:3]
+        print "second F"
+        F = (I - KC)*A
+        print F[0:3, 0:3]
+        print F[0:3, 3:6]
+        print F[3:6, 3:6]
+        print F[3:6, 0:3]
+        self._init_state(init_state=self.state.mean, init_cov=P)
+
+
 class KFDecoder(BMI):
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, tslice=[-1,-1]):
@@ -322,7 +370,7 @@ class KFDecoder(BMI):
         self.bin_spikes = psth.SpikeBin(self.units, self.binlen)
         self.bounding_box = bounding_box
         self.states = states
-        self.tslice = tslice # TODO replace with real tslice
+        self.tslice = tslice # Legacy from when it was assumed that all decoders would be trained from manual control
         self.states_to_bound = states_to_bound
         self.zeromeanunits = None
         self.drives_neurons = drives_neurons
@@ -357,12 +405,6 @@ class KFDecoder(BMI):
             repl_with_max = state > max_bounds
             state[repl_with_max] = max_bounds[repl_with_max]
             self[self.states_to_bound] = state
-            #self[self.states_] = 
-            #horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
-            #self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
-            #self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
-            #self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
-            #self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
     
     def __call__(self, obs_t, **kwargs):
         '''
@@ -381,7 +423,6 @@ class KFDecoder(BMI):
         '''
 
         return self.predict(obs_t, **kwargs)
-
 
     def predict(self, spike_counts, target=None, speed=1.0, target_radius=0.5,
                 assist_level=0.0, dt=0.1, task_data=None, assist_inds=[1,2],
@@ -487,14 +528,9 @@ class KFDecoder(BMI):
                 attr_list = attr_list[1:]
              
             setattr(attr, final_attr, val)
-        #assert isinstance(new_params, dict)
-        #C, Q, mFR, sdFR = new_params
-        #self.kf.C = C
-        #self.kf.Q = Q
-        #self.mFR = mFR
-        #self.sdFR = sdFR
-        #self.kf.C_xpose_Q_inv_C = C.T * Q.I * C
-        #self.kf.C_xpose_Q_inv = C.T * Q.I
+        
+        # set the KF to the new steady state
+        self.kf.set_steady_state_pred_cov()
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
@@ -615,10 +651,3 @@ def project_Q(C_v, Q_hat):
     #print C_v.T * Q.I * C_v
     #print v_star
     return Q
-
-if __name__ == '__main__':
-    cells = [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3), (4, 1)]
-    block = 'cart20130428_01'
-    files = dict(plexon='/storage/plexon/%s.plx' % block, hdf='/storage/rawdata/hdf/%s.hdf' % block)
-    train_from_manual_control(cells, **files)
-    pass
