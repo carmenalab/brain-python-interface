@@ -36,7 +36,6 @@ reload(clda)
 reload(riglib.bmi)
 reload(riglib.bmi.train)
 
-
 ### Constants
 DT = 0.1
 COLORS = {}
@@ -390,9 +389,9 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         pass
 
     def get_spike_ts(self):
-        cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
-        target_pos = self.target_xz
-        ctrl    = input_device.get(cursor_pos, target_pos)
+        cursor_pos = 10*self.cursor.xfm.move
+        target_pos = self.location
+        ctrl    = input_device.get(cursor_pos[[0,2]], target_pos[[0,2]])
         ts_data = encoder(ctrl)
         return ts_data
 
