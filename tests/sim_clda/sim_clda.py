@@ -31,6 +31,7 @@ from riglib.experiment.features import Autostart
 from riglib.bmi.sim_neurons import CosEnc
 import time
 
+reload(bmitasks)
 reload(kfdecoder)
 reload(clda)
 reload(riglib.bmi)
@@ -63,38 +64,9 @@ parser.add_option("--show", action="store_true", dest="show", default=False)
 m_to_mm = 1000
 m_to_cm = 100
 cm_to_m = 0.01
+mm_to_m = 0.001
 
-class PyGame():
-    def __init__(self, input_device='mouse', win_res=300, show=False, 
-        interactive=False):
-        """
-        """
-        self.show = show
-        self.interactive = interactive
-        if self.show: 
-            import pygame
-            import pygame.locals as pl
-            pygame.init()
-            #pygame.mouse.set_visible(False)
-            self.screen = pygame.display.set_mode((win_res, win_res))
-            self.background = pygame.Surface(self.screen.get_size()).convert()
-            self.background.fill(GAME_COLORS['background'])
-        else:
-            win_res = 1
-
-        self.size = win_res
-        self.scale = win_res/2
-        self.input_device = input_device
-
-        if input_device == 'joystick':
-            # initialize main joystick device system
-            pygame.joystick.init()
-
-            # create and initialize a joystick instance
-            self.joystick = pygame.joystick.Joystick(0)
-            self.joystick.init()
-
-class CenterOut(PyGame):
+class CenterOut():
     def __init__(self, n_trials=50, r_ctr=0.017, 
         r_targ=0.017, r_cursor=0.005, t_ctrhold=0.5, t_reachtarg=10,
         t_targhold=0.5, interactive=True, 
@@ -109,7 +81,7 @@ class CenterOut(PyGame):
                [ 0.08246977,  0.11534008]]), 
         workspace_ctr=np.array([0.03297305, 0.16475039]),     
         target_list_fname='targ_list_50_trials.mat', 
-        input_device='mouse', show=True):
+        input_device='mouse', win_res=300, show=True):
         """ 
         Initialize center-out game
         """
@@ -121,7 +93,21 @@ class CenterOut(PyGame):
 
         ## Initialize parent Pygame
         self.show = show
-        PyGame.__init__(self, input_device=input_device, show=self.show)
+        self.show = show
+        self.interactive = interactive
+        if self.show: 
+            import pygame
+            pygame.init()
+            #pygame.mouse.set_visible(False)
+            self.screen = pygame.display.set_mode((win_res, win_res))
+            self.background = pygame.Surface(self.screen.get_size()).convert()
+            self.background.fill(GAME_COLORS['background'])
+        else:
+            win_res = 1
+
+        self.size = win_res
+        self.scale = win_res/2
+        self.input_device = input_device
 
         ## store parameters
         self.n_trials       = n_trials 
@@ -309,8 +295,8 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
     #trial_types = trial_types
     update_rate = 0.1
     def __init__(self, *args, **kwargs):
-        self.batch_time = 10.0
-        self.half_life  = 20.0
+        self.batch_time = 20.0
+        self.half_life  = 40.0
         super(SimCLDAControl, self).__init__(*args, **kwargs)
 
         self.origin_hold_time = 0.250
@@ -321,6 +307,13 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         self.task_data = FakeHDF()
         self.start_time = 0.
         self.loop_counter = 0
+        self.assist_level = 0
+
+    def create_updater(self):
+        clda_input_queue = mp.Queue()
+        clda_output_queue = mp.Queue()
+        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
+            self.batch_time, self.half_life)
 
     def init(self):
         # BMI bounding box
@@ -335,9 +328,11 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
         stochastic_states = ['hand_vx', 'hand_vz']
 
-        self.decoder = riglib.bmi.train._train_KFDecoder_2D_sim(stochastic_states, 
-            neuron_driving_states, units, bounding_box, states_to_bound, include_y=True)
-        self.decoder.kf.C /= m_to_mm
+        self.decoder = riglib.bmi.train._train_KFDecoder_2D_sim(
+            stochastic_states, neuron_driving_states, units, bounding_box, 
+            states_to_bound, include_y=True)
+        #self.decoder.kf.Q *= 1./m_to_mm**2
+        self.decoder.kf.C *= mm_to_m
         self.decoder.kf.W *= m_to_mm**2
 
         ## Instantiate AdaptiveBMI
@@ -401,7 +396,6 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         self.loop_counter += 1
 
     def draw_world(self):
-        print self.state
         if self.state == 'origin':
             self.game.show_origin = True
             self.game.show_target = False
@@ -416,6 +410,7 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
             self.game.show_target = False
         cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
         self.game.move_cursor(cursor_pos, run_fsm=False)
+        time.sleep(self.update_rate/10)
 
 gen = target_seq_generator(8, 1000)
 task = SimCLDAControl(gen)
