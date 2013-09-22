@@ -7,6 +7,7 @@ import tables
 from plexon import plexfile, psth
 from riglib.nidaq import parse
 import traceback
+import re
 
 def load(decoder_fname):
     """Re-load decoder from pickled object"""
@@ -63,8 +64,11 @@ class AdaptiveBMI(object):
         self.clda_output_queue = self.updater.result_queue
         self.updater.start()
 
-    def __call__(self, spike_obs, target_pos, task_state, pos_inds=[0,1,2], *args, **kwargs):
+    def __call__(self, spike_obs, target_pos, task_state, *args, **kwargs):
         prev_state = self.decoder.get_state()
+
+        dec_state_dim = len(self.decoder.states)
+        pos_inds = filter(lambda k: re.match('hand_p', self.decoder.states[k]), range(dec_state_dim))
         update_flag=False
         # run the decoder
         #print kwargs
@@ -103,7 +107,7 @@ class AdaptiveBMI(object):
             self.intended_kin, self.spike_counts = self.learner.get_batch()
             rho = self.updater.rho
             #### TODO remove next line and make a user option instead
-            drives_neurons = np.array([False, False, False, True, False, True, True])
+            drives_neurons = self.decoder.drives_neurons
             #drives_neurons = np.array([False, False, True, True, True])
             clda_data = (self.intended_kin, self.spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
             print self.intended_kin.shape
