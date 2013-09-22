@@ -31,12 +31,10 @@ class Learner(object):
     def __call__(self, *args, **kwargs):
         raise NotImplementedError
 
-
 class DumbLearner(Learner):
     def __call__(self, *args, **kwargs):
         """ Do nothing; hence the name of the class"""
         pass
-
 
 class CursorGoalLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):
@@ -81,7 +79,6 @@ class CursorGoalLearner(Learner):
         self.kindata = []
         self.neuraldata = []
         return kindata, neuraldata
-
 
 ## Updaters
 class CLDARecomputeParameters(mp.Process):
@@ -163,13 +160,20 @@ class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
              mFR_old, sdFR_old):
         
         args = (intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old)
-        C, Q, mFR, sdFR = super(KFOrthogonalPlantSmoothbatch, self).calc(*args)
+        new_params = super(KFOrthogonalPlantSmoothbatch, self).calc(*args)
+        C, Q, = new_params['kf.C'], new_params['kf.Q']
         D = (C.T * Q.I * C)
-        D[2:4, 2:4] = np.mean(np.diag(D)) * np.eye(2) # TODO generalize!
+        d = np.mean([D[3,3], D[5,5]])
+        #d = 0.005
+        #d = np.mean([D[3,3], D[5,5]])
+        D[3:6, 3:6] = np.diag([d, d, d])
+        #D[2:4, 2:4] = np.mean(np.diag(D)) * np.eye(2) # TODO generalize!
         # TODO calculate the gain from the riccati equation solution (requires A and W)
 
-        new_params = {'kf.C_xpose_Q_inv_C':D, 
-            'kf.C_xpose_Q_inv':C.T * Q.I, 'mFR':mFR, 'sdFR':sdFR}
+        new_params['kf.C_xpose_Q_inv_C'] = D
+        new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
+        #new_params = {'kf.C_xpose_Q_inv_C':D, 
+        #    'kf.C_xpose_Q_inv':C.T * Q.I, 'mFR':mFR, 'sdFR':sdFR}
         return new_params
         #return dict(C_xpose_Q_inv_C=D, C_xpose_Q_inv=L, mFR=mFR, sdFR=sdFR)
 
