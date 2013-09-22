@@ -227,18 +227,18 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     return decoder
 
 def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
-    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.8):
+    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.4):
     # TODO options to resample the state-space model at different update rates
     n_neurons = units.shape[0]
     if include_y:
         states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-        A = np.array([[1, 0, 0, dt, 0, 0,  0],
-                      [0, 1, 0, 0,  0, 0,  0],
-                      [0, 0, 1, 0,  0, dt, 0],
-                      [0, 0, 0, v,  0, 0,  0],
-                      [0, 0, 0, 0,  0, 0,  0],
-                      [0, 0, 0, 0,  0, v,  0],
-                      [0, 0, 0, 0,  0, 0,  1]])
+        A = np.array([[1, 0, 0, dt, 0,  0,  0],
+                      [0, 1, 0, 0,  dt, 0,  0],
+                      [0, 0, 1, 0,  0,  dt, 0],
+                      [0, 0, 0, v,  0,  0,  0],
+                      [0, 0, 0, 0,  v,  0,  0],
+                      [0, 0, 0, 0,  0,  v,  0],
+                      [0, 0, 0, 0,  0,  0,  1]])
     else:
         states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
         A = np.array([[1, 0, dt, 0, 0],
@@ -251,7 +251,7 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     is_stochastic = np.array([x in stochastic_states for x in states])
 
     nX = A.shape[0]
-    w = 1e-3
+    w = 0.0007
     W = np.diag(w * np.ones(nX))
     W[np.ix_(~is_stochastic, ~is_stochastic)] = 0
 
@@ -259,6 +259,8 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     C[:, ~drives_neurons] = 0
 
     Q = 10 * np.identity(n_neurons) 
+    # set det(Q) to be ~10^10
+    #Q = 100 * np.identity(n_neurons) 
 
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
     kf.alt = False
