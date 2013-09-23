@@ -2,17 +2,10 @@
 Implementation of a Kalman filter and associated code to use it as a BMI
 decoder
 '''
-import pickle
-import sys
 
 import numpy as np
 from scipy.io import loadmat
-from plexon import plexfile, psth
-from riglib.nidaq import parse
-
-import tables
 from itertools import izip
-import logging
 
 from . import BMI
 python_plexnet_dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
@@ -88,13 +81,11 @@ class KalmanFilter():
         self.include_offset = np.array_equal(np.array(self.A)[-1, :], offset_row)
 
         self.alt = nS < self.C.shape[0] # No. of states less than no. of observations
-        if self.alt:
+        attrs = self.__dict__.keys()
+        if not 'C_xpose_Q_inv_C' in attrs:
             C, Q = self.C, self.Q 
             self.C_xpose_Q_inv = C.T * Q.I
             self.C_xpose_Q_inv_C = C.T * Q.I * C
-        else:
-            self.C_xpose_Q_inv = None
-            self.C_xpose_Q_inv_C = None
 
         try:
             self.is_stochastic
@@ -116,7 +107,6 @@ class KalmanFilter():
         self.state = GaussianState(init_state, init_cov) 
         self.state_noise = GaussianState(0.0, self.W)
         self.obs_noise = GaussianState(0.0, self.Q)
-
 
     def __call__(self, obs, **kwargs):
         """ Call the 1-step forward inference function
@@ -152,6 +142,10 @@ class KalmanFilter():
         return post_state
 
     def _calc_kalman_gain(self, P, alt=False, verbose=False):
+        '''
+        Deprecated version of Kalman gain computation
+        Function below is always feasible and almost always faster
+        '''
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
         if self.alt and alt:
             try:
@@ -263,12 +257,16 @@ class KalmanFilter():
         self.W = state['W']
         self.C = state['C']
         self.Q = state['Q']
+        self.C_xpose_Q_inv_C = state['C_xpose_Q_inv_C']
+        self.C_xpose_Q_inv = state['C_xpose_Q_inv']
+
         self._pickle_init()
 
     def __getstate__(self):
         """Return the model parameters {A, W, C, Q} for pickling"""
-        return {'A':self.A, 'W':self.W, 'C':self.C, 'Q':self.Q}
-            #'alt':self.alt, 'C_xpose_Q_inv':self.C_xpose_Q_inv, 'C_xpose_Q_inv_C':self.C_xpose_Q_inv_C}
+        return dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
+                    C_xpose_Q_inv=self.C_xpose_Q_inv, 
+                    C_xpose_Q_inv_C=self.C_xpose_Q_inv_C)
 
     @classmethod
     def MLE_obs_model(self, hidden_state, obs, include_offset=True, 
@@ -531,6 +529,7 @@ class KFDecoder(BMI):
         
         # set the KF to the new steady state
         self.kf.set_steady_state_pred_cov()
+
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
