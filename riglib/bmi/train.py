@@ -139,7 +139,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
 
 
 def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
-    state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
+    state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
     update_rate=binlen
     # Open plx file
@@ -212,8 +212,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     
     # instantiate low-level kf
     unit_inds, = np.nonzero(np.array(C)[:,-1])
-    ## TODO remove next line and make user option
-    is_stochastic = np.array([False, False, True, True, False])
+    is_stochastic = np.array([x in stochastic_vars for x in state_vars])
     kf = kfdecoder.KalmanFilter(A, W, C[unit_inds,:], Q[np.ix_(unit_inds,unit_inds)], is_stochastic=is_stochastic)
     units = units[unit_inds,:]
     mFR = mFR[unit_inds]
@@ -222,7 +221,9 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     # instantiate KFdecoder
     bounding_box = np.array([-250., -140.]), np.array([250., 140.])
     states_to_bound = ['hand_px', 'hand_pz']
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound, binlen=binlen)
+    neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
+    drives_neurons = np.array([x in neuron_driving_states for x in state_vars])
+    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, drives_neurons, states_to_bound, binlen=binlen)
     return decoder
 
 def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,

@@ -424,24 +424,24 @@ class KFDecoder(BMI):
 
         return self.predict(obs_t, **kwargs)
 
-    def predict(self, spike_counts, target=None, speed=1.0, target_radius=0.5,
-                assist_level=0.0, dt=0.1, task_data=None, assist_inds=[1,2],
+    def predict(self, spike_counts, target=None, speed=6.0, target_radius=0.5,
+                assist_level=0.0, task_data=None, assist_inds=[0,2],
                 **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
         prev_kin = self.kf.get_mean()
-        if assist_level > 0 and not target == None:
+        if assist_level > 0:
             cursor_pos = prev_kin[assist_inds]
             diff_vec = target - cursor_pos 
             dist_to_target = np.linalg.norm(diff_vec)
             dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
             
             if dist_to_target > target_radius:
-                assist_cursor_pos = cursor_pos + speed*dir_to_target;
+                assist_cursor_pos = cursor_pos + speed*dir_to_target
             else:
-                assist_cursor_pos = cursor_pos + diff_vec/2;
+                assist_cursor_pos = cursor_pos + diff_vec/2
 
-            assist_cursor_vel = (assist_cursor_pos-cursor_pos)/dt;
+            assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
 
         if task_data is not None:
@@ -463,7 +463,7 @@ class KFDecoder(BMI):
         # Bound cursor, if any hard bounds for states are applied
         self.bound_state()
 
-        if assist_level > 0 and not target == None:
+        if assist_level > 0:
             cursor_kin = self.kf.get_mean()
             kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
             self.kf.state.mean[:,0] = kin.reshape(-1,1)

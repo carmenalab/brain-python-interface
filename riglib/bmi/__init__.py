@@ -73,7 +73,7 @@ class AdaptiveBMI(object):
         update_flag = False
         # run the decoder
         #print kwargs
-        self.decoder.predict(spike_obs, target=target_pos, **kwargs)
+        self.decoder.predict(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
         decoded_state = self.decoder.get_state()
         
         # send data to learner
