@@ -6,6 +6,7 @@ decoder
 import numpy as np
 from scipy.io import loadmat
 from itertools import izip
+from plexon import psth
 
 from . import BMI
 python_plexnet_dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
