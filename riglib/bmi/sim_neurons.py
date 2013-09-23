@@ -13,7 +13,7 @@ from numpy.random import poisson, rand
 from scipy.io import loadmat, savemat
 
 from scipy.integrate import trapz, simps
-import statsmodels.api as sm
+#import statsmodels.api as sm # TODO add back in for point process ensemble
 
 
 ts_dtype = [('ts', float), ('chan', np.int32), ('unit', np.int32)]
