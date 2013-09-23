@@ -54,7 +54,7 @@ import kfdecoder
 import train
 
 class AdaptiveBMI(object):
-    def __init__(self, decoder, learner, updater):
+    def __init__(self, decoder, learner, updater, mp_updater=True):
         self.decoder = decoder
         self.learner = learner
         self.updater = updater
@@ -63,6 +63,7 @@ class AdaptiveBMI(object):
         self.clda_input_queue = self.updater.work_queue
         self.clda_output_queue = self.updater.result_queue
         self.updater.start()
+        self.mp_updater = True
 
     def __call__(self, spike_obs, target_pos, task_state, *args, **kwargs):
         prev_state = self.decoder.get_state()
@@ -92,7 +93,7 @@ class AdaptiveBMI(object):
         except:
             import os
             homedir = os.getenv('HOME')
-            logfile = os.path.join(homedir, 'Desktop/log')
+            logfile = os.path.join(homedir, 'Desktop/clda_log')
             f = open(logfile, 'w')
             traceback.print_exc(file=f)
             f.close()
@@ -117,12 +118,19 @@ class AdaptiveBMI(object):
             print self.intended_kin.shape
             print self.intended_kin[:,0]
 
-            if 1:
-                new_params = self.updater.calc(*clda_data)
-                self.decoder.update_params(new_params)
-            else:
+            if self.mp_updater:
                 self.clda_input_queue.put(clda_data)
                 self.learner.disable()
+            else:
+                new_params = self.updater.calc(*clda_data)
+                self.decoder.update_params(new_params)
+                
+            #if not self.mp_updater:
+            #    new_params = self.updater.calc(*clda_data)
+            #    self.decoder.update_params(new_params)
+            #else:
+            #    self.clda_input_queue.put(clda_data)
+            #    self.learner.disable()
 
         return decoded_state, update_flag
 
