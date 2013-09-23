@@ -28,7 +28,6 @@ from scipy.integrate import trapz, simps
 import utils
 import statsmodels.api as sm
 from riglib.experiment.features import Autostart
-from riglib.bmi.sim_neurons import CosEnc
 import time
 
 reload(bmitasks)
@@ -222,39 +221,6 @@ class CenterOut():
 
         pygame.display.update()
 
-### Feedback controller
-class CenterOutCursorGoal():
-    def __init__(self, angular_noise_var=0):
-        self.interactive = False
-        self.angular_noise_var = angular_noise_var
-
-        #noise_mdl_fh = open('/Users/surajgowda/bmi/lib/ops_cursor/seba_int_vel_noise_model.dat', 'rb')
-        #self.noise_model = pickle.load(noise_mdl_fh)
-
-    def get(self, cur_target, cur_pos, keys_pressed=None, gain=0.15):
-        dir_to_targ = cur_target - cur_pos
-
-        if self.angular_noise_var > 0:
-            #angular_noise_rad = self.noise_model.sample()[0,0]
-            angular_noise_rad = np.random.normal(0, self.angular_noise_var)
-            while abs(angular_noise_rad) > np.pi:
-                #angular_noise_rad = self.noise_model.sample()[0,0]
-                anglular_noise_rad = np.random.normal(0, self.angular_noise_var)
-        else:
-            angular_noise_rad = 0
-        angular_noise = np.array([np.cos(angular_noise_rad), np.sin(angular_noise_rad)])     
-        return gain*( dir_to_targ/np.linalg.norm(dir_to_targ) + angular_noise )
-
-### Neural encoder
-## Initialze encoder (reload from file)
-print "creating ensemble ...."
-ensemble_fname = 'test_ensemble.mat'
-encoder = CosEnc(fname=ensemble_fname, return_ts=True)
-n_neurons = encoder.n_neurons
-units = encoder.get_units()
-
-# Initialize input device
-input_device = CenterOutCursorGoal(angular_noise_var=0.13)
 
 if 0:
     center = np.array([0.0042056, 0.15983523])
@@ -262,13 +228,16 @@ if 0:
         [ 0.0692056 ,  0.0502056 ,  0.0042056 , -0.0417944 , -0.0607944 , -0.0417944,  0.0042056 ,  0.0502056 ],
         [ 0.15983523,  0.20573523,  0.22483523,  0.20573523,  0.15983523, 0.11393523,  0.09483523,  0.11393523]]).T
 else:
-    center = np.zeros(2)
-    pi = np.pi
-    targets = 0.065*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
+    pass
+
 workspace_ll = center + np.array([-0.1, -0.1])
 workspace_ur = center + np.array([0.1, 0.1])
 
 def target_seq_generator(n_targs, n_trials):
+    center = np.zeros(2)
+    pi = np.pi
+    targets = 0.065*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
+
     target_inds = np.random.randint(0, n_targs, n_trials)
     target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
     target_stack = list(targets)
@@ -290,37 +259,21 @@ class FakeHDF():
     def __setitem__(self, key, value):
         pass
 
-#trial_types = [np.array([[center[0], 0, center[1]], [targets[k,0], 0, targets[k,1]]]).T for k in range(8)]
-class SimCLDAControl(bmitasks.CLDAControl, Autostart):
-    #trial_types = trial_types
-    update_rate = 0.1
-    def __init__(self, *args, **kwargs):
-        self.batch_time = 20.0
-        self.half_life  = 40.0
-        super(SimCLDAControl, self).__init__(*args, **kwargs)
-
-        self.origin_hold_time = 0.250
-        self.terminus_hold_time = 0.250
-        self.origin_size = 1.7
-        self.terminus_size = 1.7
-        self.hdf = FakeHDF()
-        self.task_data = FakeHDF()
-        self.start_time = 0.
-        self.loop_counter = 0
-        self.assist_level = 0
-
-    def create_updater(self):
-        clda_input_queue = mp.Queue()
-        clda_output_queue = mp.Queue()
-        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
-            self.batch_time, self.half_life)
-
+class SimCLDAControl(bmitasks.CLDAControl):
     def init(self):
+        '''
+        Instantiate simulation decoder
+        '''
+        ## Simulation neural encoder
+        from riglib.bmi.sim_neurons import CosEnc
+        sim_encoder_fname = os.path.join(os.getenv('HOME'), 'code/bmi3d/tests/sim_clda', 'test_ensemble.mat')
+        self.encoder = CosEnc(fname=sim_encoder_fname, return_ts=True)
+        n_neurons = self.encoder.n_neurons
+        units = self.encoder.get_units()
+        
         # BMI bounding box
-        horiz_min = m_to_mm * workspace_ll[0]
-        horiz_max = m_to_mm * workspace_ur[0]
-        vert_min  = m_to_mm * workspace_ll[1]
-        vert_max  = m_to_mm * workspace_ur[1]
+        horiz_min, horiz_max = -140., 140.
+        vert_min, vert_max = -140., 140.
         
         bounding_box = np.array([horiz_min, vert_min]), np.array([horiz_max, vert_max])
         states_to_bound = ['hand_px', 'hand_pz']
@@ -338,12 +291,47 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         ## Instantiate AdaptiveBMI
         super(SimCLDAControl, self).init()
 
+        # Initialize simulation controller
+        from riglib.bmi.feedback_controllers import CenterOutCursorGoal
+        self.input_device = CenterOutCursorGoal(angular_noise_var=0.13)
+
         self.wait_time = 0
         self.pause = False
 
+    def get_spike_ts(self):
+        cursor_pos = 10*self.cursor.xfm.move
+        target_pos = self.location
+        ctrl    = self.input_device.get(cursor_pos[[0,2]], target_pos[[0,2]])
+        ts_data = self.encoder(ctrl)
+        return ts_data
+
     def _test_penalty_end(self, ts):
+        # No penalty for simulated neurons
         return True
-        
+
+class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
+    update_rate = 0.1
+    def __init__(self, *args, **kwargs):
+        self.batch_time = 20.0
+        self.half_life  = 40.0
+        super(SimCLDAControlDispl2D, self).__init__(*args, **kwargs)
+
+        self.origin_hold_time = 0.250
+        self.terminus_hold_time = 0.250
+        self.origin_size = 1.7
+        self.terminus_size = 1.7
+        self.hdf = FakeHDF()
+        self.task_data = FakeHDF()
+        self.start_time = 0.
+        self.loop_counter = 0
+        self.assist_level = 0
+
+    def create_updater(self):
+        clda_input_queue = mp.Queue()
+        clda_output_queue = mp.Queue()
+        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
+            self.batch_time, self.half_life)
+
     def screen_init(self):
         target_radius = self.terminus_size * cm_to_m
         center_radius = self.origin_size * cm_to_m
@@ -351,13 +339,7 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         t_ctrhold = 0.250
         t_reachtarg = 10
         t_targhold = 0.250
-        ##center = np.array([0.0042056, 0.15983523])
-        ##targets = np.array([
-        ##    [ 0.0692056 ,  0.0502056 ,  0.0042056 , -0.0417944 , -0.0607944 , -0.0417944,  0.0042056 ,  0.0502056 ],
-        ##    [ 0.15983523,  0.20573523,  0.22483523,  0.20573523,  0.15983523, 0.11393523,  0.09483523,  0.11393523]]).T
-        ##workspace_ll = center+np.array([-0.1, -0.1])
         
-        print "instantiating game..."
         self.game = CenterOut(
             show=options.show, r_ctr=m_to_mm*center_radius, r_targ=m_to_mm*target_radius,
             r_cursor=m_to_mm*cursor_radius, 
@@ -375,19 +357,6 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         if show:
             self.game.target = 10*np.array([self.terminus_target.xfm.move[0], self.terminus_target.xfm.move[2]])
             print self.game.target
-
-    def redraw(self):
-        pass
-
-    def get_spike_ts(self):
-        cursor_pos = 10*self.cursor.xfm.move
-        target_pos = self.location
-        ctrl    = input_device.get(cursor_pos[[0,2]], target_pos[[0,2]])
-        ts_data = encoder(ctrl)
-        return ts_data
-
-    def _update(self, pt):
-        super(SimCLDAControl, self)._update(pt)
 
     def get_time(self):
         return self.loop_counter * DT
@@ -413,6 +382,6 @@ class SimCLDAControl(bmitasks.CLDAControl, Autostart):
         time.sleep(self.update_rate/10)
 
 gen = target_seq_generator(8, 1000)
-task = SimCLDAControl(gen)
+task = SimCLDAControlDispl2D(gen)
 task.init()
 task.run()
