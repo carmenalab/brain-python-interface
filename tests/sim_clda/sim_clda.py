@@ -12,7 +12,6 @@ from riglib.bmi import kfdecoder, clda
 import riglib.bmi
 
 import multiprocessing as mp
-from tasks import bmitasks, manualcontrol
 import utils
 from scipy.io import loadmat
 
@@ -30,6 +29,7 @@ import statsmodels.api as sm
 from riglib.experiment.features import Autostart
 import time
 
+from tasks import bmitasks
 reload(bmitasks)
 reload(kfdecoder)
 reload(clda)
@@ -230,13 +230,10 @@ if 0:
 else:
     pass
 
-workspace_ll = center + np.array([-0.1, -0.1])
-workspace_ur = center + np.array([0.1, 0.1])
-
+center = np.zeros(2)
+pi = np.pi
+targets = 0.065*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
 def target_seq_generator(n_targs, n_trials):
-    center = np.zeros(2)
-    pi = np.pi
-    targets = 0.065*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
 
     target_inds = np.random.randint(0, n_targs, n_trials)
     target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
@@ -258,56 +255,6 @@ class FakeHDF():
 
     def __setitem__(self, key, value):
         pass
-
-class SimCLDAControl(bmitasks.CLDAControl):
-    def init(self):
-        '''
-        Instantiate simulation decoder
-        '''
-        ## Simulation neural encoder
-        from riglib.bmi.sim_neurons import CosEnc
-        sim_encoder_fname = os.path.join(os.getenv('HOME'), 'code/bmi3d/tests/sim_clda', 'test_ensemble.mat')
-        self.encoder = CosEnc(fname=sim_encoder_fname, return_ts=True)
-        n_neurons = self.encoder.n_neurons
-        units = self.encoder.get_units()
-        
-        # BMI bounding box
-        horiz_min, horiz_max = -140., 140.
-        vert_min, vert_max = -140., 140.
-        
-        bounding_box = np.array([horiz_min, vert_min]), np.array([horiz_max, vert_max])
-        states_to_bound = ['hand_px', 'hand_pz']
-
-        neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
-        stochastic_states = ['hand_vx', 'hand_vz']
-
-        self.decoder = riglib.bmi.train._train_KFDecoder_2D_sim(
-            stochastic_states, neuron_driving_states, units, bounding_box, 
-            states_to_bound, include_y=True)
-        #self.decoder.kf.Q *= 1./m_to_mm**2
-        self.decoder.kf.C *= mm_to_m
-        self.decoder.kf.W *= m_to_mm**2
-
-        ## Instantiate AdaptiveBMI
-        super(SimCLDAControl, self).init()
-
-        # Initialize simulation controller
-        from riglib.bmi.feedback_controllers import CenterOutCursorGoal
-        self.input_device = CenterOutCursorGoal(angular_noise_var=0.13)
-
-        self.wait_time = 0
-        self.pause = False
-
-    def get_spike_ts(self):
-        cursor_pos = 10*self.cursor.xfm.move
-        target_pos = self.location
-        ctrl    = self.input_device.get(cursor_pos[[0,2]], target_pos[[0,2]])
-        ts_data = self.encoder(ctrl)
-        return ts_data
-
-    def _test_penalty_end(self, ts):
-        # No penalty for simulated neurons
-        return True
 
 class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
     update_rate = 0.1
@@ -339,6 +286,9 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
         t_ctrhold = 0.250
         t_reachtarg = 10
         t_targhold = 0.250
+
+        workspace_ll = np.array([-0.1, -0.1])
+        workspace_ur = np.array([0.1, 0.1])
         
         self.game = CenterOut(
             show=options.show, r_ctr=m_to_mm*center_radius, r_targ=m_to_mm*target_radius,
