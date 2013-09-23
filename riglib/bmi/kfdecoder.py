@@ -126,7 +126,7 @@ class KalmanFilter():
 
     def _forward_infer(self, st, obs_t, **kwargs):
         pred_state = self._ssm_pred(st)
-        pred_obs = self._obs_prob(pred_state)
+        #pred_obs = self._obs_prob(pred_state)
 
         C, Q = self.C, self.Q
         P = pred_state.cov
@@ -138,7 +138,8 @@ class KalmanFilter():
         KC = P*(I - D*P*(I + D*P).I)*D
 
         post_state = pred_state
-        post_state.mean += K*(obs_t - pred_obs.mean)
+        #post_state.mean += K*(obs_t - pred_obs.mean)
+        post_state.mean += -KC*pred_state.mean + K*obs_t #K*(obs_t - pred_obs.mean)
         post_state.cov = (I - KC) * P 
         return post_state
 
@@ -258,8 +259,12 @@ class KalmanFilter():
         self.W = state['W']
         self.C = state['C']
         self.Q = state['Q']
-        self.C_xpose_Q_inv_C = state['C_xpose_Q_inv_C']
-        self.C_xpose_Q_inv = state['C_xpose_Q_inv']
+        try:
+            self.C_xpose_Q_inv_C = state['C_xpose_Q_inv_C']
+            self.C_xpose_Q_inv = state['C_xpose_Q_inv']
+        except:
+            # handled by _pickle_init
+            pass
 
         self._pickle_init()
 
