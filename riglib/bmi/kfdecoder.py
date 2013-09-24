@@ -6,10 +6,23 @@ decoder
 import numpy as np
 from scipy.io import loadmat
 from itertools import izip
-from plexon import psth
+try:
+    from plexon import psth
+except:
+    import warnings
+    warnings.warn('psth module not found, using python spike binning function')
 
 from . import BMI
 python_plexnet_dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
+
+def bin_spikes(spikes, units):
+    '''
+    Python implementation of the 
+    '''
+    binned_spikes = defaultdict(int)
+    for spike in spikes:
+        binned_spikes[(spike['chan'], spike['unit'])] += 1
+    return np.array([binned_spikes[unit] for unit in units])
 
 class GaussianState(object):
     def __init__(self, mean, cov):
