@@ -177,6 +177,46 @@ class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
         return new_params
         #return dict(C_xpose_Q_inv_C=D, C_xpose_Q_inv=L, mFR=mFR, sdFR=sdFR)
 
+
+class KFRML(CLDARecomputeParameters):
+    def __init__(self, work_queue, result_queue, batch_time, half_life):
+        super(KFRML, self).__init__(work_queue, result_queue)
+        self.hlife = half_life
+        self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
+        self.iter_counter = 0
+    
+    def init_suff_stats(self, C_0, Q_0):
+        self.R = np.identity(C_0.shape[1])
+        self.S = C_0
+        self.T = Q_0 + self.S*self.R.I*self.S.T
+
+    def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons,
+             mFR_old, sdFR_old):
+        
+        x = intended_kin
+        y = spike_counts
+        
+        self.R = rho*self.R + (1-rho)*(x*x.T)
+        self.S = rho*self.S + (1-rho)*(y*x.T)
+        self.T = rho*self.T + (1-rho)*(y*y.T)
+        self.iter_counter += 1
+
+        C = self.S * self.R.I
+        Q = 1/(1-(rho)**self.iter_counter) * (self.T - self.S*C.T - C*self.S.T + C*self.R*C.T)
+
+        mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
+        sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
+
+        C_xpose_Q_inv   = C.T * Q.I
+        C_xpose_Q_inv_C = C_xpose_Q_inv * C
+        
+        new_params = {'kf.C':C, 'kf.Q':Q, 
+            'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
+            'mFR':mFR, 'sdFR':sdFR}
+
+        return new_params
+
+
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties
     # of the recomputation

@@ -17,7 +17,7 @@ from scipy.io import loadmat
 
 import numpy as np
 from numpy.random import poisson, rand
-from utils import normalize
+# from utils import normalize
 import matplotlib.pyplot as plt
 from scipy.io import loadmat, savemat
 import os
@@ -25,7 +25,7 @@ from numpy import *
 
 from scipy.integrate import trapz, simps
 import utils
-import statsmodels.api as sm
+# import statsmodels.api as sm
 from riglib.experiment.features import Autostart
 import time
 
@@ -276,8 +276,10 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
     def create_updater(self):
         clda_input_queue = mp.Queue()
         clda_output_queue = mp.Queue()
-        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
-            self.batch_time, self.half_life)
+        # self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
+        #     self.batch_time, self.half_life)
+        self.updater = clda.KFRML(clda_input_queue, clda_output_queue,
+            self.update_rate, self.half_life)
 
     def screen_init(self):
         target_radius = self.terminus_size * cm_to_m
