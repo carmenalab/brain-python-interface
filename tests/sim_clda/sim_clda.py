@@ -12,20 +12,16 @@ from riglib.bmi import kfdecoder, clda
 import riglib.bmi
 
 import multiprocessing as mp
-import utils
 from scipy.io import loadmat
 
 import numpy as np
 from numpy.random import poisson, rand
-from utils import normalize
 import matplotlib.pyplot as plt
 from scipy.io import loadmat, savemat
 import os
 from numpy import *
 
 from scipy.integrate import trapz, simps
-import utils
-import statsmodels.api as sm
 from riglib.experiment.features import Autostart
 import time
 
