@@ -12,7 +12,7 @@ from riglib.bmi import kfdecoder, clda
 import riglib.bmi
 
 import multiprocessing as mp
-import utils
+# import utils
 from scipy.io import loadmat
 
 import numpy as np
@@ -24,7 +24,7 @@ import os
 from numpy import *
 
 from scipy.integrate import trapz, simps
-import utils
+# import utils
 # import statsmodels.api as sm
 from riglib.experiment.features import Autostart
 import time
@@ -259,8 +259,8 @@ class FakeHDF():
 class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
     update_rate = 0.1
     def __init__(self, *args, **kwargs):
-        self.batch_time = 20.0
-        self.half_life  = 40.0
+        self.batch_time = self.update_rate
+        self.half_life  = 5.0
         super(SimCLDAControlDispl2D, self).__init__(*args, **kwargs)
 
         self.origin_hold_time = 0.250
@@ -279,7 +279,7 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
         # self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
         #     self.batch_time, self.half_life)
         self.updater = clda.KFRML(clda_input_queue, clda_output_queue,
-            self.update_rate, self.half_life)
+            self.batch_time, self.half_life)
 
     def screen_init(self):
         target_radius = self.terminus_size * cm_to_m

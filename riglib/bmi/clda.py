@@ -178,17 +178,20 @@ class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
         #return dict(C_xpose_Q_inv_C=D, C_xpose_Q_inv=L, mFR=mFR, sdFR=sdFR)
 
 
-class KFRML(CLDARecomputeParameters):
+class KFRML(object):
     def __init__(self, work_queue, result_queue, batch_time, half_life):
-        super(KFRML, self).__init__(work_queue, result_queue)
+        # super(KFRML, self).__init__(work_queue, result_queue)
+        self.work_queue = None
+        self.result_queue = None        
         self.hlife = half_life
         self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
         self.iter_counter = 0
     
     def init_suff_stats(self, C_0, Q_0):
-        self.R = np.identity(C_0.shape[1])
+        self.R = np.mat(np.identity(C_0.shape[1]))
         self.S = C_0
         self.T = Q_0 + self.S*self.R.I*self.S.T
+        print "attributes for suff stats created"
 
     def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons,
              mFR_old, sdFR_old):

@@ -62,8 +62,8 @@ class AdaptiveBMI(object):
 
         self.clda_input_queue = self.updater.work_queue
         self.clda_output_queue = self.updater.result_queue
-        self.updater.start()
-        self.mp_updater = True
+        # self.updater.start()
+        self.mp_updater = False
 
     def __call__(self, spike_obs, target_pos, task_state, *args, **kwargs):
         prev_state = self.decoder.get_state()
