@@ -22,17 +22,29 @@ class Experiment(traits.HasTraits, threading.Thread):
         threading.Thread.__init__(self)
 
     def init(self):
+        '''
+        Initialization method to run *after* object construction (see self.start)
+        Over-ride in base class if there's anything to do just before the
+        experiment starts running
+        '''
         pass
 
     def screen_init(self):
         pass
 
     def trigger_event(self, event):
+        '''
+        Transition the task state, where the next state depends on the 
+        trigger event
+        '''
         self.set_state(self.status[self.state][event])
-    
+
+    def get_time(self):
+        return time.time()
+
     def set_state(self, condition):
         self.state = condition
-        self.start_time = time.time()
+        self.start_time = self.get_time()
         if hasattr(self, "_start_%s"%condition):
             getattr(self, "_start_%s"%condition)()
 
@@ -40,7 +52,17 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.init()
         super(Experiment, self).start()
 
+    def loop_step(self):
+        '''
+        Override this function to run some code every loop iteration of 
+        the FSM
+        '''
+        pass
+
     def run(self):
+        '''
+        Generic method to run the finite state machine of the task
+        '''
         self.screen_init()
         self.set_state(self.state)
         while self.state is not None:
@@ -51,11 +73,12 @@ class Experiment(traits.HasTraits, threading.Thread):
             
             for event, state in self.status[self.state].items():
                 if hasattr(self, "_test_%s"%event):
-                    if getattr(self, "_test_%s"%event)(time.time() - self.start_time):
+                    if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
                         if hasattr(self, "_end_%s"%self.state):
                             getattr(self, "_end_%s"%self.state)()
                         self.trigger_event(event)
                         break;
+            self.loop_step()
     
     def _test_stop(self, ts):
         return self.stop
