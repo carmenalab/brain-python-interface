@@ -3,6 +3,8 @@ import sys
 import json
 import numpy as np
 import datetime
+import cPickle
+import db.paths
 import tables
 import matplotlib.pyplot as plt
 
@@ -17,44 +19,52 @@ def get_task_entry(entry_id):
     '''
     return models.TaskEntry.objects.get(pk=entry_id)
 
-def get_decoder_entry(entry):
-	''' 
-	Returns the filename of the decoder used in the session.
-    Takes TaskEntry object.
-	'''
+def get_task_id(name):
+    '''
+    Returns the task ID for the specified task name.
+    '''
+    return models.Task.objects.get(name=name).pk
 
-	params = json.loads(entry.params)
-	if 'bmi' in params:
-		return models.Decoder.objects.get(pk=params['bmi'])
-	else:
-		return None
+
+def get_decoder_entry(entry):
+    '''Returns the database entry for the decoder used in the session. Argument can be a task entry
+    or the ID number of the decoder entry itself.
+    '''
+    if isinstance(entry, int):
+        return models.Decoder.objects.get(pk=entry)
+    else:
+        params = json.loads(entry.params)
+        if 'bmi' in params:
+            return models.Decoder.objects.get(pk=params['bmi'])
+        else:
+            return None
 
 def get_decoder_name(entry):
-	''' 
-	Returns the filename of the decoder used in the session.
+    ''' 
+    Returns the filename of the decoder used in the session.
     Takes TaskEntry object.
-	'''
-	decid = json.loads(entry.params)['bmi']
-	return models.Decoder.objects.get(pk=decid).path
+    '''
+    decid = json.loads(entry.params)['bmi']
+    return models.Decoder.objects.get(pk=decid).path
 
 def get_decoder_name_full(entry):
     decoder_basename = get_decoder_name(entry)
     return os.path.join(paths.data_path, 'decoders', decoder_basename)
 
 def get_params(entry):
-	'''
-	Returns a dict of all task params for session.
+    '''
+    Returns a dict of all task params for session.
     Takes TaskEntry object.
-	'''
-	return json.loads(entry.params)
+    '''
+    return json.loads(entry.params)
 
 def get_task_name(entry):
-	'''
-	Returns name of task used for session.
+    '''
+    Returns name of task used for session.
     Takes TaskEntry object.
-	'''
-	return models.Task.objects.get(pk=entry.task_id).name
-	
+    '''
+    return models.Task.objects.get(pk=entry.task_id).name
+    
 def get_date(entry):
     '''
     Returns date and time of session (as a datetime object).
@@ -70,12 +80,12 @@ def get_notes(entry):
     return entry.notes
     
 def get_subject(entry):
-	'''
-	Returns name of subject for session.
+    '''
+    Returns name of subject for session.
     Takes TaskEntry object.
-	'''
-	return models.Subject.objects.get(pk=entry.subject_id).name
-	
+    '''
+    return models.Subject.objects.get(pk=entry.subject_id).name
+    
 def get_length(entry):
     '''
     Returns length of session in seconds.
@@ -183,7 +193,6 @@ def get_hdf_file(entry):
         return None
     else:
         try:
-            import db.paths
             return os.path.join(db.paths.rawdata_path, hdf.name, q[0].path)
         except:
             return q[0].path
@@ -235,32 +244,32 @@ def get_bmiparams_file(entry):
     if len(q)==0:
         return None
     else:
-    	try:
-    		import db.paths
-    		return os.path.join(db.paths.data_path, bmi_params.name, q[0].path)
-    	except:
-        	return q[0].path
+        try:
+            import db.paths
+            return os.path.join(db.paths.data_path, bmi_params.name, q[0].path)
+        except:
+            return q[0].path
 
 
 def get_decoder_parent(decoder):
-	'''
-	decoder = database record of decoder object
-	'''
-	entryid = decoder.entry_id
-	te = get_task_entry(entryid)
-	return get_decoder_entry(te)
+    '''
+    decoder = database record of decoder object
+    '''
+    entryid = decoder.entry_id
+    te = get_task_entry(entryid)
+    return get_decoder_entry(te)
 
 def get_decoder_sequence(decoder):
-	'''
-	decoder = database record of decoder object
-	'''	
-	parent = get_decoder_parent(decoder)
-	if parent is None:
-		return [None]
-	else:
-		return [parent] + get_decoder_sequence(parent)
+    '''
+    decoder = database record of decoder object
+    ''' 
+    parent = get_decoder_parent(decoder)
+    if parent is None:
+        return [decoder]
+    else:
+        return [decoder] + get_decoder_sequence(parent)
 
-def get_task_entries_by_date(date, subj=None):
+def search_by_date(date, subj=None):
     '''
     Get all the task entries for a particular date
     '''
@@ -271,6 +280,42 @@ def get_task_entries_by_date(date, subj=None):
     elif subj is not None:
         kwargs['subject__name'] = subj.name
     return models.TaskEntry.objects.filter(**kwargs)
+
+def search_by_decoder(decoder):
+    '''
+    Returns task entries that used specified decoder. Decoder argument can be
+    decoder entry or entry ID.
+    '''
+    if isinstance(decoder, int):
+        decid = decoder
+    else:
+        decid = decoder.id
+    return models.TaskEntry.objects.filter(params__contains='"bmi": '+str(decid))
+
+def search_by_units(unitlist, decoderlist = None, exact=False):
+    '''
+    Returns decoder entries that contain the specified units. If exact is True,
+    returns only decoders whose unit lists match unitlist exactly, otherwise
+    returns decoders that contain units in unitlist in addition to others. If
+    given a list of decoder entries, only searches within those, otherwise searches
+    all decoders in database.
+    '''
+    if decoderlist is not None:
+        all_decoders = decoderlist
+    else:
+        all_decoders = models.Decoder.objects.all()
+    subset = set(tuple(unit) for unit in unitlist)
+    dec_list = []
+    for dec in all_decoders:
+        decobj = cPickle.load(open(db.paths.data_path+'/decoders/'+dec.path))
+        decset = set(tuple(unit) for unit in decobj.units)
+        if subset==decset:
+            dec_list = dec_list + [dec]
+        elif not exact and subset.issubset(decset):
+            dec_list = dec_list + [dec]
+    return dec_list
+
+
 
 def get_code_version():
     import os
