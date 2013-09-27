@@ -335,7 +335,7 @@ class TaskEntry(models.Model):
                 length=plx.length, 
                 units=plx.units, 
                 name=name))
-        except (ObjectDoesNotExist, AssertionError):
+        except (ObjectDoesNotExist, AssertionError, IOError):
             print "No plexon file found"
             js['bmi'] = dict(_plxinfo=None)
 
