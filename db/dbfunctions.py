@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
 from tracker import models
+from db import paths
 
 def get_task_entry(entry_id):
     '''
@@ -326,3 +327,80 @@ def get_trial_end_types(task_entry):
 def get_hold_error_rate(task_entry):
     hold_error_rate = float(n_terminus_hold_errors) / n_success_trials
     return hold_error_rate
+
+def get_center_out_reach_inds(hdf):
+    task_msgs = hdf.root.task_msgs[:]
+    n_msgs = len(task_msgs)
+    terminus_hold_msg_inds = np.array(filter(lambda k: task_msgs[k]['msg'] == 'terminus_hold', range(n_msgs)))
+    terminus_msg_inds = terminus_hold_msg_inds - 1
+
+    boundaries = np.vstack([task_msgs[terminus_msg_inds]['time'], 
+                            task_msgs[terminus_hold_msg_inds]['time']]).T
+    return boundaries
+
+def get_movement_durations(task_entry):
+    '''
+    Get the movement durations of each trial which enters the 'terminus_hold'
+    state
+    '''
+    hdf = get_hdf(task_entry)
+    boundaries = get_center_out_reach_inds(hdf)
+
+    return np.diff(boundaries, axis=1) * 1./60
+    
+def get_movement_error(task_entry):
+    '''
+    Get movement error
+    '''
+    hdf = get_hdf(task_entry)
+    boundaries = get_center_out_reach_inds(hdf)
+
+    targets = hdf.root.task[:]['target']
+    cursor = hdf.root.task[:]['cursor']
+
+    from analysis import bmi_performance_metrics
+    reload(bmi_performance_metrics)
+
+    n_trials = boundaries.shape[0]
+    ME = np.zeros(n_trials)
+    MV = np.zeros(n_trials)
+    for k, (st, end) in enumerate(boundaries):
+        cursor_pos_tr = cursor[st:end, [0,2]]
+        task_axis = [np.array([0,0]), targets[st][[0,2]]]
+        ME[k], MV[k], _, _, _ = bmi_performance_metrics.reach_accuracy_stats(cursor_pos_tr, task_axis)
+
+    return ME, MV
+
+def plot_trajectories(task_entry, ax=None, show=False, **kwargs):
+    hdf = get_hdf(task_entry)
+    boundaries = get_center_out_reach_inds(hdf)
+    targets = hdf.root.task[:]['target']
+    cursor = hdf.root.task[:]['cursor']
+
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(111)
+    n_trials = boundaries.shape[0]
+    for k, (st, end) in enumerate(boundaries):
+        trial_target = targets[st][[0,2]]
+        angle = -np.arctan2(trial_target[1], trial_target[0])
+
+        # counter-rotate trajectory
+        cursor_pos_tr = cursor[st:end, [0,2]]
+        trial_len = cursor_pos_tr.shape[0]
+        R = np.array([[np.cos(angle), -np.sin(angle)],
+                      [np.sin(angle), np.cos(angle)]])
+        cursor_pos_tr_rot = np.vstack([np.dot(R, cursor_pos_tr[k,:]) for k in range(trial_len)])
+        ax.plot(cursor_pos_tr_rot[:,0], cursor_pos_tr_rot[:,1], **kwargs)
+
+    if show:
+        plt.show()
+
+def get_workspace_size(task_entry):
+    '''
+    Get movement error
+    '''
+    hdf = get_hdf(task_entry)
+    targets = hdf.root.task[:]['target']
+    print targets.min(axis=0)
+    print targets.max(axis=0)
