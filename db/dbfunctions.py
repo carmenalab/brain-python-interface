@@ -307,12 +307,15 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
     subset = set(tuple(unit) for unit in unitlist)
     dec_list = []
     for dec in all_decoders:
-        decobj = cPickle.load(open(db.paths.data_path+'/decoders/'+dec.path))
-        decset = set(tuple(unit) for unit in decobj.units)
-        if subset==decset:
-            dec_list = dec_list + [dec]
-        elif not exact and subset.issubset(decset):
-            dec_list = dec_list + [dec]
+        try:
+            decobj = cPickle.load(open(db.paths.data_path+'/decoders/'+dec.path))
+            decset = set(tuple(unit) for unit in decobj.units)
+            if subset==decset:
+                dec_list = dec_list + [dec]
+            elif not exact and subset.issubset(decset):
+                dec_list = dec_list + [dec]
+        except:
+            pass
     return dec_list
 
 
