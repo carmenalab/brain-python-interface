@@ -7,6 +7,8 @@ import cPickle
 import db.paths
 import tables
 import matplotlib.pyplot as plt
+from scipy.stats import nanmean
+import plot
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
@@ -396,26 +398,54 @@ def get_movement_durations(task_entry):
 
     return np.diff(boundaries, axis=1) * 1./60
     
+
+def lookup_task_entry(task_entry):
+    '''
+    Enable multiple ways to specify a task entry, e.g. by primary key or by
+    object
+    '''
+    if isinstance(task_entry, models.TaskEntry):
+        pass
+    elif isinstance(task_entry, int):
+        task_entry = get_task_entry(task_entry)
+    return task_entry
+
+def get_reach_trajectories(task_entry, rotate=True):
+    task_entry = lookup_task_entry(task_entry)
+    hdf = get_hdf(task_entry)
+    boundaries = get_center_out_reach_inds(hdf)
+    targets = hdf.root.task[:]['target']
+    cursor = hdf.root.task[:]['cursor']
+
+    n_trials = boundaries.shape[0]
+    trajectories = [None] * n_trials
+    for k, (st, end) in enumerate(boundaries):
+        trial_target = targets[st][[0,2]]
+        angle = -np.arctan2(trial_target[1], trial_target[0])
+
+        # counter-rotate trajectory
+        cursor_pos_tr = cursor[st:end, [0,2]]
+        trial_len = cursor_pos_tr.shape[0]
+        if rotate:
+            R = np.array([[np.cos(angle), -np.sin(angle)],
+                          [np.sin(angle), np.cos(angle)]])
+        else:
+            R = np.eye(2)
+        trajectories[k] = np.dot(R, cursor_pos_tr.T)
+    return trajectories
+
 def get_movement_error(task_entry):
     '''
     Get movement error
     '''
-    hdf = get_hdf(task_entry)
-    boundaries = get_center_out_reach_inds(hdf)
+    task_entry = lookup_task_entry(task_entry)
+    reach_trajectories = get_reach_trajectories(task_entry)
 
-    targets = hdf.root.task[:]['target']
-    cursor = hdf.root.task[:]['cursor']
+    n_trials = len(reach_trajectories)
 
-    from analysis import bmi_performance_metrics
-    reload(bmi_performance_metrics)
-
-    n_trials = boundaries.shape[0]
-    ME = np.zeros(n_trials)
-    MV = np.zeros(n_trials)
-    for k, (st, end) in enumerate(boundaries):
-        cursor_pos_tr = cursor[st:end, [0,2]]
-        task_axis = [np.array([0,0]), targets[st][[0,2]]]
-        ME[k], MV[k], _, _, _ = bmi_performance_metrics.reach_accuracy_stats(cursor_pos_tr, task_axis)
+    print reach_trajectories[0].shape
+    ME = np.array([np.mean(np.abs(x[1, ::6])) for x in reach_trajectories])
+    MV = np.array([np.std(np.abs(x[1, ::6])) for x in reach_trajectories])
 
     return ME, MV
 
@@ -452,3 +482,37 @@ def get_workspace_size(task_entry):
     targets = hdf.root.task[:]['target']
     print targets.min(axis=0)
     print targets.max(axis=0)
+
+def plot_dist_to_targ(task_entry, targ_dist=10., plot_all=False, ax=None):
+    task_entry = lookup_task_entry(task_entry)
+    reach_trajectories = get_reach_trajectories(task_entry)
+    target = np.array([targ_dist, 0])
+    from utils.geometry import l2norm
+    trajectories_dist_to_targ = [l2norm(traj.T - target, axis=0) for traj in reach_trajectories]
+
+    trajectories_dist_to_targ = map(lambda x: x[::6], trajectories_dist_to_targ)
+    max_len = np.max([len(traj) for traj in trajectories_dist_to_targ])
+    n_trials = len(trajectories_dist_to_targ)
+
+    # TODO use masked arrays
+    data = np.ones([n_trials, max_len]) * np.nan
+    for k, traj in enumerate(trajectories_dist_to_targ):
+        data[k, :len(traj)] = traj
+
+    mean_dist_to_targ = np.array([nanmean(data[:,k]) for k in range(max_len)])
+
+    if ax == None:
+        plt.figure()
+        ax = plt.subplot(111)
+
+    # time vector, assuming original screen update rate of 60 Hz
+    time = np.arange(max_len)*0.1
+    if plot_all:
+        for dist_to_targ in trajectories_dist_to_targ: 
+            ax.plot(dist_to_targ)
+    else:
+        ax.plot(time, mean_dist_to_targ)
+
+    plot.set_ylim(ax, [0, targ_dist])
+    plot.ylabel(ax, 'Distance to target')
+    plt.draw()
