@@ -452,3 +452,15 @@ def get_workspace_size(task_entry):
     targets = hdf.root.task[:]['target']
     print targets.min(axis=0)
     print targets.max(axis=0)
+
+def get_task_entries_by_date(date, subj=None):
+    '''
+    Get all the task entries for a particular date
+    '''
+    kwargs = dict(date__year=date.year, date__month=date.month,
+                  date__day=date.day)
+    if isinstance(subj, str) or isinstance(subj, unicode):
+        kwargs['subject__name__startswith'] = str(subj)
+    elif subj is not None:
+        kwargs['subject__name'] = subj.name
+    return models.TaskEntry.objects.filter(**kwargs)
