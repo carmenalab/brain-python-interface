@@ -205,7 +205,7 @@ class KFRML(object):
         self.iter_counter += 1
 
         C = self.S * self.R.I
-        Q = 1/(1-(rho)**self.iter_counter) * (self.T - self.S*C.T - C*self.S.T + C*self.R*C.T)
+        Q = 1/(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
 
         mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
