@@ -483,7 +483,7 @@ def get_workspace_size(task_entry):
     print targets.min(axis=0)
     print targets.max(axis=0)
 
-def plot_dist_to_targ(task_entry, targ_dist=10., plot_all=False, ax=None):
+def plot_dist_to_targ(task_entry, targ_dist=10., plot_all=False, ax=None, **kwargs):
     task_entry = lookup_task_entry(task_entry)
     reach_trajectories = get_reach_trajectories(task_entry)
     target = np.array([targ_dist, 0])
@@ -509,9 +509,9 @@ def plot_dist_to_targ(task_entry, targ_dist=10., plot_all=False, ax=None):
     time = np.arange(max_len)*0.1
     if plot_all:
         for dist_to_targ in trajectories_dist_to_targ: 
-            ax.plot(dist_to_targ)
+            ax.plot(dist_to_targ, **kwargs)
     else:
-        ax.plot(time, mean_dist_to_targ)
+        ax.plot(time, mean_dist_to_targ, **kwargs)
 
     plot.set_ylim(ax, [0, targ_dist])
     plot.ylabel(ax, 'Distance to target')
