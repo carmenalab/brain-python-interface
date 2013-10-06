@@ -123,8 +123,6 @@ class AdaptiveBMI(object):
             drives_neurons = self.decoder.drives_neurons
             #drives_neurons = np.array([False, False, True, True, True])
             clda_data = (self.intended_kin, self.spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
-            print self.intended_kin.shape
-            print self.intended_kin[:,0]
 
             if self.mp_updater:
                 self.clda_input_queue.put(clda_data)

@@ -8,7 +8,6 @@ import db.paths
 import tables
 import matplotlib.pyplot as plt
 from scipy.stats import nanmean
-import plot
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
@@ -378,8 +377,17 @@ def get_hold_error_rate(task_entry):
     hold_error_rate = float(n_terminus_hold_errors) / n_success_trials
     return hold_error_rate
 
-def get_center_out_reach_inds(hdf):
+def get_center_out_reach_inds(hdf, fixed=True):
     task_msgs = hdf.root.task_msgs[:]
+
+    if fixed:
+        update_bmi_msgs = np.nonzero(task_msgs['msg'] == 'update_bmi')[0]
+        if len(update_bmi_msgs) > 0:
+            fixed_start = update_bmi_msgs[-1] + 1
+        else:
+            fixed_start = 0
+        task_msgs = task_msgs[fixed_start:]
+
     n_msgs = len(task_msgs)
     terminus_hold_msg_inds = np.array(filter(lambda k: task_msgs[k]['msg'] == 'terminus_hold', range(n_msgs)))
     terminus_msg_inds = terminus_hold_msg_inds - 1
@@ -513,6 +521,7 @@ def plot_dist_to_targ(task_entry, targ_dist=10., plot_all=False, ax=None, **kwar
     else:
         ax.plot(time, mean_dist_to_targ, **kwargs)
 
+    import plot
     plot.set_ylim(ax, [0, targ_dist])
     plot.ylabel(ax, 'Distance to target')
     plt.draw()
@@ -527,4 +536,4 @@ def get_task_entries_by_date(date, subj=None):
         kwargs['subject__name__startswith'] = str(subj)
     elif subj is not None:
         kwargs['subject__name'] = subj.name
-    return models.TaskEntry.objects.filter(**kwargs)
+    return list(models.TaskEntry.objects.filter(**kwargs))
