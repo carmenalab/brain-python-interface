@@ -17,7 +17,7 @@ python_plexnet_dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", 
 
 def bin_spikes(spikes, units):
     '''
-    Python implementation of the 
+    Python implementation of the psth spike binning function
     '''
     binned_spikes = defaultdict(int)
     for spike in spikes:
