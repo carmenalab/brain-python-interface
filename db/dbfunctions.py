@@ -3,6 +3,7 @@ import sys
 import json
 import numpy as np
 import datetime
+import pickle
 import cPickle
 import db.paths
 import tables
@@ -20,6 +21,17 @@ def get_task_entry(entry_id):
     entry_id = int
     '''
     return models.TaskEntry.objects.get(pk=entry_id)
+
+def lookup_task_entry(task_entry):
+    '''
+    Enable multiple ways to specify a task entry, e.g. by primary key or by
+    object
+    '''
+    if isinstance(task_entry, models.TaskEntry):
+        pass
+    elif isinstance(task_entry, int):
+        task_entry = get_task_entry(task_entry)
+    return task_entry
 
 def get_task_id(name):
     '''
@@ -52,6 +64,11 @@ def get_decoder_name(entry):
 def get_decoder_name_full(entry):
     decoder_basename = get_decoder_name(entry)
     return os.path.join(paths.data_path, 'decoders', decoder_basename)
+
+def get_decoder(entry):
+    entry = lookup_task_entry(entry)
+    filename = get_decoder_name_full(entry)
+    return pickle.load(open(filename, 'r'))
 
 def get_params(entry):
     '''
@@ -203,6 +220,7 @@ def get_hdf(entry):
     '''
     Return hdf opened file
     '''
+    entry = lookup_task_entry(entry)
     hdf_filename = get_hdf_file(entry)
     hdf = tables.openFile(hdf_filename)
     return hdf
@@ -377,19 +395,34 @@ def get_hold_error_rate(task_entry):
     hold_error_rate = float(n_terminus_hold_errors) / n_success_trials
     return hold_error_rate
 
-def get_center_out_reach_inds(hdf, fixed=True):
+def get_fixed_decoder_task_msgs(hdf):
     task_msgs = hdf.root.task_msgs[:]
+    update_bmi_msgs = np.nonzero(task_msgs['msg'] == 'update_bmi')[0]
+    if len(update_bmi_msgs) > 0:
+        fixed_start = update_bmi_msgs[-1] + 1
+    else:
+        fixed_start = 0
+    task_msgs = task_msgs[fixed_start:]
+    return task_msgs
 
+def get_center_out_reach_inds(hdf, fixed=True):
     if fixed:
-        update_bmi_msgs = np.nonzero(task_msgs['msg'] == 'update_bmi')[0]
-        if len(update_bmi_msgs) > 0:
-            fixed_start = update_bmi_msgs[-1] + 1
-        else:
-            fixed_start = 0
-        task_msgs = task_msgs[fixed_start:]
+        task_msgs = get_fixed_decoder_task_msgs(hdf)
+    else:
+        task_msgs = hdf.root.task_msgs[:]
+
+    ##if fixed:
+    ##    update_bmi_msgs = np.nonzero(task_msgs['msg'] == 'update_bmi')[0]
+    ##    if len(update_bmi_msgs) > 0:
+    ##        fixed_start = update_bmi_msgs[-1] + 1
+    ##    else:
+    ##        fixed_start = 0
+    ##    task_msgs = task_msgs[fixed_start:]
 
     n_msgs = len(task_msgs)
     terminus_hold_msg_inds = np.array(filter(lambda k: task_msgs[k]['msg'] == 'terminus_hold', range(n_msgs)))
+    if terminus_hold_msg_inds[0] == 0: # HACK mid-trial start due to CLDA
+        terminus_hold_msg_inds = terminus_hold_msg_inds[1:]
     terminus_msg_inds = terminus_hold_msg_inds - 1
 
     boundaries = np.vstack([task_msgs[terminus_msg_inds]['time'], 
@@ -405,18 +438,9 @@ def get_movement_durations(task_entry):
     boundaries = get_center_out_reach_inds(hdf)
 
     return np.diff(boundaries, axis=1) * 1./60
-    
 
-def lookup_task_entry(task_entry):
-    '''
-    Enable multiple ways to specify a task entry, e.g. by primary key or by
-    object
-    '''
-    if isinstance(task_entry, models.TaskEntry):
-        pass
-    elif isinstance(task_entry, int):
-        task_entry = get_task_entry(task_entry)
-    return task_entry
+def get_trajectory_movement_error(traj, origin, terminus):
+    pass
 
 def get_reach_trajectories(task_entry, rotate=True):
     task_entry = lookup_task_entry(task_entry)
@@ -437,9 +461,9 @@ def get_reach_trajectories(task_entry, rotate=True):
         if rotate:
             R = np.array([[np.cos(angle), -np.sin(angle)],
                           [np.sin(angle), np.cos(angle)]])
+            trajectories[k] = np.dot(R, cursor_pos_tr.T)
         else:
-            R = np.eye(2)
-        trajectories[k] = np.dot(R, cursor_pos_tr.T)
+            trajectories[k] = cursor_pos_tr.T
     return trajectories
 
 def get_movement_error(task_entry):
@@ -451,7 +475,6 @@ def get_movement_error(task_entry):
 
     n_trials = len(reach_trajectories)
 
-    print reach_trajectories[0].shape
     ME = np.array([np.mean(np.abs(x[1, ::6])) for x in reach_trajectories])
     MV = np.array([np.std(np.abs(x[1, ::6])) for x in reach_trajectories])
 
