@@ -36,7 +36,7 @@ class TwoJoint(object):
             b = (m**2*y+np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*y+x**2*y+y**3)/(2*(x**2+y**2))
         return a, b, z/2
 
-    def set(self, target):
+    def set_endpoint_3D(self, target):
         '''Sets the endpoint coordinate for the two-joint system'''
         #Make sure the target is actually achievable
         if np.linalg.norm(target) > self.tlen:
@@ -55,6 +55,30 @@ class TwoJoint(object):
         
         self.upperarm._recache_xfm()
 
+    def set_endpoint_2D(self, target):
+        ''' Given an endpoint coordinate in the x-z plane, solves for joint positions in that plane via inverse kinematics'''
+        pass
+
+    def set_joints_2D(self, shoulder_angle, elbow_angle):
+        ''' Given angles for shoulder and elbow in a plane, set joint positions'''
+
+        if shoulder_angle>np.pi: shoulder_angle = np.pi
+        if should_angle<0.0: shoulder_angle = 0.0
+        if elbow_angle>np.pi: elbow_angle = np.pi
+        if elbow_angle<0: elbow_angle = 0
+
+        # Find upper arm vector
+        xs = self.lengths[0]*np.cos(shoulder_angle)
+        zs = self.lengths[0]*np.sin(shoulder_angle)
+        self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xs,0,zs)).norm()
+
+        # Find forearm vector
+        xe = self.lengths[1]*np.cos(elbow_angle)
+        ze = self.lengths[1]*np.sin(elbow_angle)
+        self.forearm.xfm.rotate = Quaternion.rotate_vecs((xs,0,zs), (xe,0,ze)).norm()
+
+        self.upperarm._recache_xfm()
+
 TexCylinder = type("TexCylinder", (Cylinder, TexModel), dict())
 class RobotArm(Group):
     def __init__(self, radii=(2, 1.5), lengths=(15, 20), **kwargs):
@@ -70,5 +94,10 @@ class RobotArm(Group):
         self.system = TwoJoint(self.upperarm, self.forearm)
         super(RobotArm, self).__init__([self.upperarm], **kwargs)
 
-    def set(self, target):
-        self.system.set(target)
+    def set_endpoint_2D(self, target):
+        self.system.set_endpoint_2D(target)
+
+    def set_joints_2D(self, shoulder_angle, elbow_angle):
+        ''' returns position of ball at end of forearm (hand)'''
+        self.system.set_joints_2D(shoulder_angle, elbow_angle)
+        return self.forearm.models[1].xfm.move

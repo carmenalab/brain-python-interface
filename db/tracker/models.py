@@ -255,10 +255,11 @@ class TaskEntry(models.Model):
     notes = models.TextField()
 
     def __unicode__(self):
-        return "{date}: {subj} on {task} task".format(
+        return "{date}: {subj} on {task} task, id={id}".format(
             date=self.date.strftime("%h. %e, %Y, %l:%M %p"),
             subj=self.subject.name,
-            task=self.task.name)
+            task=self.task.name,
+            id=self.id)
     
     def get(self, feats=()):
         from json_param import Parameters
@@ -335,7 +336,7 @@ class TaskEntry(models.Model):
                 length=plx.length, 
                 units=plx.units, 
                 name=name))
-        except (ObjectDoesNotExist, AssertionError):
+        except (ObjectDoesNotExist, AssertionError, IOError):
             print "No plexon file found"
             js['bmi'] = dict(_plxinfo=None)
 

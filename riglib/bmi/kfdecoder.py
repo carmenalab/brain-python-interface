@@ -17,7 +17,7 @@ python_plexnet_dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", 
 
 def bin_spikes(spikes, units):
     '''
-    Python implementation of the 
+    Python implementation of the psth spike binning function
     '''
     binned_spikes = defaultdict(int)
     for spike in spikes:
@@ -353,21 +353,8 @@ class KalmanFilter():
 
         # TODO fix
         P[0:3, 0:3] = 0
-        print P[0:3, 0:3]
-        print P[0:3, 3:6]
-        print P[3:6, 3:6]
         F, K = self.get_sskf()
-        print "F="
-        print F[0:3, 0:3]
-        print F[0:3, 3:6]
-        print F[3:6, 3:6]
-        print F[3:6, 0:3]
-        print "second F"
         F = (I - KC)*A
-        print F[0:3, 0:3]
-        print F[0:3, 3:6]
-        print F[3:6, 3:6]
-        print F[3:6, 0:3]
         self._init_state(init_state=self.state.mean, init_cov=P)
 
 

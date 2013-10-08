@@ -78,14 +78,22 @@ class AdaptiveBMI(object):
         decoded_state = self.decoder.get_state()
         
         # send data to learner
-        if len(spike_obs) < 1:
+        if len(spike_obs) < 1: # no timestamps observed
+            # TODO spike binning function needs to properly handle not having any timestamps!
             spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
         elif spike_obs.dtype == kfdecoder.python_plexnet_dtype:
             spike_counts = self.decoder.bin_spikes(spike_obs)
         else:
             spike_counts = spike_obs
-        self.learner(spike_counts, prev_state[pos_inds], target_pos, 
-                     decoded_state[vel_inds], task_state)
+
+        try:
+            learn_flag = kwargs['learn_flag']
+        except:
+            learn_flag = False
+
+        if learn_flag:
+            self.learner(spike_counts, prev_state[pos_inds], target_pos, 
+                         decoded_state[vel_inds], task_state)
 
         try:
             new_params=None
@@ -115,8 +123,6 @@ class AdaptiveBMI(object):
             drives_neurons = self.decoder.drives_neurons
             #drives_neurons = np.array([False, False, True, True, True])
             clda_data = (self.intended_kin, self.spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
-            print self.intended_kin.shape
-            print self.intended_kin[:,0]
 
             if self.mp_updater:
                 self.clda_input_queue.put(clda_data)
