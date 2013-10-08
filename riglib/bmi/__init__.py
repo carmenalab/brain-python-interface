@@ -96,7 +96,7 @@ class AdaptiveBMI(object):
                          decoded_state[vel_inds], task_state)
 
         try:
-            new_params=None
+            new_params = None
             new_params = self.clda_output_queue.get_nowait()
         except:
             import os
@@ -130,6 +130,7 @@ class AdaptiveBMI(object):
             else:
                 new_params = self.updater.calc(*clda_data)
                 self.decoder.update_params(new_params)
+                print "updated params"
                 
             #if not self.mp_updater:
             #    new_params = self.updater.calc(*clda_data)
