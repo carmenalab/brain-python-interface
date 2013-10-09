@@ -255,8 +255,8 @@ class FakeHDF():
 class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
     update_rate = 0.1
     def __init__(self, *args, **kwargs):
-        self.batch_time = 20.0
-        self.half_life  = 40.0
+        self.batch_time = self.update_rate
+        self.half_life  = 5.0
         super(SimCLDAControlDispl2D, self).__init__(*args, **kwargs)
 
         self.origin_hold_time = 0.250
@@ -272,7 +272,9 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
     def create_updater(self):
         clda_input_queue = mp.Queue()
         clda_output_queue = mp.Queue()
-        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
+        # self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
+        #     self.batch_time, self.half_life)
+        self.updater = clda.KFRML(clda_input_queue, clda_output_queue,
             self.batch_time, self.half_life)
 
     def screen_init(self):

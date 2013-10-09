@@ -81,6 +81,7 @@ tasks = dict(
     clda_constrained_sskf = tasks.bmitasks.CLDAConstrainedSSKF,
     sim_clda_control = tasks.bmitasks.SimCLDAControl,
     sim_bmi_control = tasks.bmitasks.SimBMIControl,
+    clda_rml_kf = tasks.bmitasks.CLDARMLKF,
 
 )
 
