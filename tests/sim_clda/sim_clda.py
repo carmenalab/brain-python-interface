@@ -24,12 +24,14 @@ from numpy import *
 from scipy.integrate import trapz, simps
 from riglib.experiment.features import Autostart
 import time
+import riglib.bmi.bmi
 
 from tasks import bmitasks
 reload(bmitasks)
 reload(kfdecoder)
 reload(clda)
 reload(riglib.bmi)
+reload(riglib.bmi.bmi)
 reload(riglib.bmi.train)
 
 ### Constants
