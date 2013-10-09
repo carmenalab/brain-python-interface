@@ -65,8 +65,9 @@ class AdaptiveBMI(object):
 
         self.clda_input_queue = self.updater.work_queue
         self.clda_output_queue = self.updater.result_queue
-        self.updater.start()
         self.mp_updater = isinstance(updater, mp.Process)
+        if self.mp_updater:
+            self.updater.start()
 
     def __call__(self, spike_obs, target_pos, task_state, *args, **kwargs):
         prev_state = self.decoder.get_state()
@@ -79,7 +80,6 @@ class AdaptiveBMI(object):
         self.decoder.predict(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
         decoded_state = self.decoder.get_state()
         
-        # send data to learner
         if len(spike_obs) < 1: # no timestamps observed
             # TODO spike binning function needs to properly handle not having any timestamps!
             spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
@@ -93,16 +93,35 @@ class AdaptiveBMI(object):
             self.learner(spike_counts, prev_state[pos_inds], target_pos, 
                          decoded_state[vel_inds], task_state)
 
-        try:
-            new_params = None
-            new_params = self.clda_output_queue.get_nowait()
-        except:
-            import os
-            homedir = os.getenv('HOME')
-            logfile = os.path.join(homedir, 'Desktop/clda_log')
-            f = open(logfile, 'w')
-            traceback.print_exc(file=f)
-            f.close()
+        # send data to learner
+        new_params = None # Default is that now new parameters are available
+        update_flag = False
+
+        if self.learner.is_full():
+            self.intended_kin, self.spike_counts = self.learner.get_batch()
+            rho = self.updater.rho
+            drives_neurons = self.decoder.drives_neurons
+            clda_data = (self.intended_kin, self.spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
+
+            if self.mp_updater:
+                self.clda_input_queue.put(clda_data)
+                # Deactivate learner until parameter update is received
+                self.learner.disable() 
+            else:
+                new_params = self.updater.calc(*clda_data)
+                #self.decoder.update_params(new_params)
+
+        if self.mp_updater:
+            # Check for a parameter update
+            try:
+                new_params = self.clda_output_queue.get_nowait()
+            except:
+                import os
+                homedir = os.getenv('HOME')
+                logfile = os.path.join(homedir, 'Desktop/clda_log')
+                f = open(logfile, 'w')
+                traceback.print_exc(file=f)
+                f.close()
 
         if new_params is not None:
             new_params['intended_kin'] = self.intended_kin
@@ -112,25 +131,10 @@ class AdaptiveBMI(object):
             self.learner.enable()
             update_flag = True
             print "updated params"
-        else:
-            update_flag = False
-
-        if self.learner.is_full():
-            self.intended_kin, self.spike_counts = self.learner.get_batch()
-            rho = self.updater.rho
-            #### TODO remove next line and make a user option instead
-            drives_neurons = self.decoder.drives_neurons
-            #drives_neurons = np.array([False, False, True, True, True])
-            clda_data = (self.intended_kin, self.spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
-
-            if self.mp_updater:
-                self.clda_input_queue.put(clda_data)
-                self.learner.disable()
-            else:
-                new_params = self.updater.calc(*clda_data)
-                self.decoder.update_params(new_params)
 
         return decoded_state, update_flag
 
     def __del__(self):
-        self.updater.stop()
+        # Stop updater process if it's running in a separate process
+        if self.mp_updater: 
+            self.updater.stop()
