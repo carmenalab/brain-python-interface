@@ -373,21 +373,6 @@ class KFDecoder(bmi.BMI):
             self[self.states_to_bound] = state
     
     def __call__(self, obs_t, **kwargs):
-        '''
-        Return the predicted arm position given the new data.
-
-        Parameters
-        -----------
-        newdata : array_like
-            Recent spike data for all units
-
-        Returns
-        -------
-        output : array_like
-            Decoder output for each decoded parameter
-
-        '''
-
         return self.predict(obs_t, **kwargs)
 
     def predict(self, spike_counts, target=None, speed=6.0, target_radius=0.5,
@@ -409,9 +394,6 @@ class KFDecoder(bmi.BMI):
 
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
-
-        if task_data is not None:
-            task_data['bins'] = spike_counts
 
         # re-normalize the variance of the spike observations, if nec
         if self.zscore:
