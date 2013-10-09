@@ -38,8 +38,6 @@ def resample_scalar_ssm(a, w, Delta_old=0.1, Delta_new=0.005):
     for k in range(int(1./loop_ratio)):
         mu = a_delta_new*mu
         sigma = a_delta_new * sigma * a_delta_new + w_delta_new
-    print mu
-    print sigma
     return a_delta_new, w_delta_new
 
 def _gen_A(t, s, m, n, off, ndim=3):
