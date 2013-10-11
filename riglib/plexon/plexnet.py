@@ -6,13 +6,14 @@ import array
 import struct
 import socket
 import logging
+import time
 from collections import namedtuple
 
 PACKETSIZE = 512
 
 logger = logging.getLogger(__name__)
 
-WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit","waveform"])
+WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit", "waveform", "arrival_ts"])
 chan_names = re.compile(r'^(\w{2,4})(\d{2,3})(\w)?')
 
 class Connection(object):
@@ -204,6 +205,7 @@ class Connection(object):
         invalid = set([0, -1])
         while self.streaming:
             packet = self._recv()
+            arrival_ts = time.time()
             ibuf = struct.unpack('4i', packet[:16])
             if ibuf[0] == 1:
                 self.num_server_dropped = ibuf[2]
@@ -221,9 +223,10 @@ class Connection(object):
                             wavedat = array.array('h', packet[:l])
                             packet = packet[l:]
                         
-                        ts = long(header['Uts']) << 32 | long(header['ts']) # 04.06.13, SG explicitly promoted header['ts'] to long
+                        ts = long(header['Uts']) << 32 | long(header['ts'])
                         yield WaveData(type=header['type'], chan=header['chan'],
-                            unit=header['unit'], ts=ts, waveform = wavedat)
+                            unit=header['unit'], ts=ts, waveform = wavedat, 
+                            arrival_ts=arrival_ts)
 
 if __name__ == "__main__":
     import csv

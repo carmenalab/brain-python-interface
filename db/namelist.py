@@ -77,7 +77,9 @@ tasks = dict(
     manual_control_multi =manualcontrolmultitasks.ManualControlMulti,
     bmi_control_multi = bmimultitasks.BMIControlMulti,
     clda_control_multi = bmimultitasks.CLDAControlMulti,
-
+    sim_clda_control = bmitasks.SimCLDAControl,
+    sim_bmi_control = bmitasks.SimBMIControl,
+    clda_rml_kf = bmitasks.CLDARMLKF,
 )
 
 from tracker import models
