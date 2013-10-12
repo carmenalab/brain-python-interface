@@ -428,8 +428,8 @@ class KFDecoder(BMI):
 
         return self.predict(obs_t, **kwargs)
 
-    def predict(self, spike_counts, target=None, speed=6.0, target_radius=0.5,
-                assist_level=0.0, task_data=None, assist_inds=[0,2],
+    def predict(self, spike_counts, target=None, speed=6.0, target_radius=20,
+                assist_level=0.0, task_data=None, assist_inds=[0,1,2],
                 **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
