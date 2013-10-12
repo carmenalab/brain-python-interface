@@ -97,7 +97,7 @@ Sequence.prototype.edit = function() {
     
     this._handle_setname = function() { $("#seqlist").attr("value", _this._make_name()); };
     this._handle_chgen = function() {
-        _this._handle_setname()();
+        _this._handle_setname();
         $("#seqparams input").bind("blur.setname", _this._handle_setname );
     };
     $("#seqgen").change(this._handle_chgen);
