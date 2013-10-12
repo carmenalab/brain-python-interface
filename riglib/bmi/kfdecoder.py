@@ -359,6 +359,7 @@ class KalmanFilter():
 
 
 class KFDecoder(BMI):
+    dist_units = 'cm'
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, tslice=[-1,-1]):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
@@ -428,7 +429,7 @@ class KFDecoder(BMI):
 
         return self.predict(obs_t, **kwargs)
 
-    def predict(self, spike_counts, target=None, speed=6.0, target_radius=20,
+    def predict(self, spike_counts, target=None, speed=0.6, target_radius=2,
                 assist_level=0.0, task_data=None, assist_inds=[0,1,2],
                 **kwargs):
         """Decode the spikes"""
@@ -447,9 +448,6 @@ class KFDecoder(BMI):
 
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
-
-        if task_data is not None:
-            task_data['bins'] = spike_counts
 
         # re-normalize the variance of the spike observations, if nec
         if self.zscore:

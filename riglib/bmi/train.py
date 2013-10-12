@@ -65,7 +65,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
     
     # Match kinematics with the task state
-    task_states = ['origin_hold', 'terminus', 'terminus_hold', 'reward']
+    task_states = ['target', 'hold']
     states = h5.root.motiontracker_msgs[:]
     # assign names to each of the states
     state_numbering = dict((n, i) for i, n in enumerate(np.unique(states['msg'])))
@@ -94,7 +94,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     kin = np.ma.hstack([kin[:-1,:,:3], velocity])
     
     hand_kin = kin[:, [14,kin.shape[1]/2+14], :]
-    hand_kin = hand_kin.reshape(len(hand_kin), -1)
+    hand_kin = hand_kin.reshape(len(hand_kin), -1)/10.0 #convert motiontracker kinematic data to cm
     
     # train KF model parameters
     neurons = neurons.T
@@ -219,7 +219,8 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     sdFR = sdFR[unit_inds]
 
     # instantiate KFdecoder
-    bounding_box = np.array([-250., -140.]), np.array([250., 140.])
+    #bounding_box = np.array([-250., -140.]), np.array([250., 140.])
+    bounding_box = np.array([-25., -14.]), np.array([25., 14.]) # bounding box in cm
     states_to_bound = ['hand_px', 'hand_pz']
     neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
     drives_neurons = np.array([x in neuron_driving_states for x in state_vars])

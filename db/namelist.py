@@ -33,14 +33,14 @@ generators = dict(
     #These are static generators
     trialtypes=experiment.generate.sequence,
     redgreen=redgreen.gencoords,
-    #reach_target=manualcontrol.rand_target_sequence,
-    reach_target_2d=generatorfunctions.rand_target_sequence_2d,
-    reach_target_3d=generatorfunctions.rand_target_sequence_3d,
-    centerout_2d=generatorfunctions.rand_target_sequence_2d_centerout,
+    reach_target_2d=manualcontrol.rand_target_sequence_2d,
+    reach_target_3d=manualcontrol.rand_target_sequence_3d,
+    centerout_2d=manualcontrol.rand_target_sequence_2d_centerout,
     nummap=sensorymapping.gen_taps,
-    centerout_partial=generatorfunctions.rand_target_sequence_2d_partial_centerout,
-    centerout_back=generatorfunctions.rand_multi_sequence_2d_centeroutback,
-    centerout_2step=generatorfunctions.rand_multi_sequence_2d_centerout2step,
+    centerout_partial=manualcontrol.rand_target_sequence_2d_partial_centerout,
+    centerout_back=manualcontrol.rand_multi_sequence_2d_centeroutback,
+    centerout_2step=manualcontrol.rand_multi_sequence_2d_centerout2step,
+    centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
 )
 
 from tasks.rds import RDS, RDS_half
