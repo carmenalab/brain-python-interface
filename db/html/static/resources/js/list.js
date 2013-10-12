@@ -366,14 +366,15 @@ Notes.prototype.update = function(notes) {
 	$("#notes textarea").attr("value", notes);
 }
 Notes.prototype.activate = function() {
-	$("#notes textarea").keydown(function() {
+	this._handle_keydown = function() {
 		if (this.last_TO != null)
 			clearTimeout(this.last_TO);
 		this.last_TO = setTimeout(this.save.bind(this), 2000);
-	}.bind(this))
+	}.bind(this);
+	$("#notes textarea").keydown(this._handle_keydown);
 }
 Notes.prototype.destroy = function() {
-	$("#notes textarea").unbind("keydown");
+	$("#notes textarea").unbind("keydown", this._handle_keydown);
 	$("#notes").val("");
 	if (this.last_TO != null)
 		clearTimeout(this.last_TO);

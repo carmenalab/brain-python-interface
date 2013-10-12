@@ -17,7 +17,7 @@ function Sequence() {
     this.options = {};
 }
 Sequence.prototype.update = function(info) {
-    $("#seqlist").unbind("change");
+    $("#seqlist").unbind("change", this._handle_chlist);
     for (var id in this.options)
         $(this.options[id]).remove()
     if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
@@ -104,7 +104,7 @@ Sequence.prototype.edit = function() {
     $("#seqparams input").bind("blur.setname", _this._handle_setname );
     this._handle_blurlist = function() {
         if (this.value != _this._make_name())
-            $("#seqparams input").unbind("blur.setname");
+            $("#seqparams input").unbind("blur.setname", _this._handle_setname);
     };
     $("#seqlist").blur(this._handle_blurlist);
 }
