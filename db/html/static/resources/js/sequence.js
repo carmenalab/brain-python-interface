@@ -3,11 +3,12 @@ function Sequence() {
     $("#seqparams").append(this.params.obj);
 
     var _this = this;
-    $("#seqgen").change(function() {
+    this._handle_chgen = function() {
         $.getJSON("ajax/gen_info/"+this.value+"/", {}, function(info) {
             _this.params.update(info.params);
         });
-    });
+    }
+    $("#seqgen").change(this._handle_chgen);
 
     $("#seqparams").click(function() {
         if ($("#seqlist").attr("disabled") != "disabled")
@@ -46,7 +47,7 @@ Sequence.prototype.update = function(info) {
 
         //Bind the sequence list updating function
         var _this = this;
-        $("#seqlist").change(function () {
+        this._handle_chlist = function () {
             var id = this.value;
             if (id == "new")
                 _this.edit()
@@ -59,7 +60,8 @@ Sequence.prototype.update = function(info) {
                 })
                 $("#seqstatic").attr("checked", info[id].static);
             }
-        })
+        };
+        $("#seqlist").change(this._handle_chlist);
         $("#seqstatic,#seqparams input, #seqgen").attr("disabled", "disabled");
     } else {
         this.edit();
@@ -72,8 +74,8 @@ Sequence.prototype.destroy = function() {
         $(this.options[id]).remove()
     $(this.params.obj).remove()
     delete this.params
-    $("#seqlist").unbind("change");
-    $("#seqgen").unbind("change");
+    $("#seqlist").unbind("change", this._handle_chlist);
+    $("#seqgen").unbind("change", this._handle_chgen);
     if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
         $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'><option value='new'>Create New...</option></select>");
 }
@@ -92,16 +94,19 @@ Sequence.prototype.edit = function() {
     var curname = this._make_name();
     $("#seqlist").replaceWith("<input id='seqlist' name='seq_name' type='text' value='"+curname+"' />");
     $("#seqgen, #seqparams input, #seqstatic").removeAttr("disabled");
-    var setname = function() { $("#seqlist").attr("value", _this._make_name()); };
-    $("#seqgen").change(function() {
-        setname();
-        $("#seqparams input").bind("blur.setname", setname );
-    });
-    $("#seqparams input").bind("blur.setname", setname );
-    $("#seqlist").blur(function() {
+    
+    this._handle_setname = function() { $("#seqlist").attr("value", _this._make_name()); };
+    this._handle_chgen = function() {
+        _this._handle_setname()();
+        $("#seqparams input").bind("blur.setname", _this._handle_setname );
+    };
+    $("#seqgen").change(this._handle_chgen);
+    $("#seqparams input").bind("blur.setname", _this._handle_setname );
+    this._handle_blurlist = function() {
         if (this.value != _this._make_name())
             $("#seqparams input").unbind("blur.setname");
-    })
+    };
+    $("#seqlist").blur(this._handle_blurlist);
 }
 
 
