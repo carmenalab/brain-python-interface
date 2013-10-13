@@ -6,25 +6,14 @@ Simulation of CLDA control task!
 from __future__ import division
 import os
 import optparse
+import time
 import numpy as np
+import multiprocessing as mp
+from scipy.io import loadmat, savemat
 
 from riglib.bmi import kfdecoder, clda
 import riglib.bmi
-
-import multiprocessing as mp
-from scipy.io import loadmat
-
-import numpy as np
-from numpy.random import poisson, rand
-import matplotlib.pyplot as plt
-from scipy.io import loadmat, savemat
-import os
-from numpy import *
-
-from scipy.integrate import trapz, simps
 from riglib.experiment.features import Autostart
-import time
-
 from tasks import bmitasks
 reload(bmitasks)
 reload(kfdecoder)
@@ -130,19 +119,6 @@ class CenterOut():
         self.target_positions = workspace_targets
         self.center = workspace_ctr 
 
-        # Initialize Center-out game using parameters
-        if os.path.exists(self.target_list_fname):
-            self.target_stack = list(loadmat(self.target_list_fname)['target_stack'].reshape(-1))
-        else:
-            print "regenerating target list!"
-            targets = np.random.randint(0, self.n_targs, self.n_trials)
-            targets[0:self.n_targs] = np.arange(min(self.n_targs, self.n_trials))
-            self.target_stack = list(targets)
-            try:
-                savemat(self.target_list_fname, {'target_stack':self.target_stack})
-            except:
-                pass
-
         self.cursor = np.array([0, 0])
         self.cursor_vel = np.array([0, 0])
 
@@ -217,29 +193,17 @@ class CenterOut():
 
         pygame.display.update()
 
-
-if 0:
-    center = np.array([0.0042056, 0.15983523])
-    targets = np.array([
-        [ 0.0692056 ,  0.0502056 ,  0.0042056 , -0.0417944 , -0.0607944 , -0.0417944,  0.0042056 ,  0.0502056 ],
-        [ 0.15983523,  0.20573523,  0.22483523,  0.20573523,  0.15983523, 0.11393523,  0.09483523,  0.11393523]]).T
-else:
-    pass
-
 center = np.zeros(2)
 pi = np.pi
 targets = 0.065*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
 def target_seq_generator(n_targs, n_trials):
-
     target_inds = np.random.randint(0, n_targs, n_trials)
     target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
-    target_stack = list(targets)
     k = 0
     while k < n_trials:
         targ = m_to_cm*targets[target_inds[k], :]
         yield np.array([[center[0], 0, center[1]],
                         [targ[0], 0, targ[1]]]).T
-        #yield np.array([m_to_mm*targets[target_inds[k], 0], 0, m_to_mm*targets[target_inds[k], 1]])
         k += 1
 
 class FakeHDF():
