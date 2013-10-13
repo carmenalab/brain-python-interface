@@ -12,8 +12,8 @@ from riglib.nidaq import parse
 import tables
 from itertools import izip
 
-from . import BMI
-from kalman import GaussianState
+from bmi import BMI
+from bmi import GaussianState
 import statsmodels.api as sm # GLM fitting module
 
 class PointProcessFilter():
