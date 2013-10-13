@@ -291,11 +291,6 @@ class SpikeBMI(SpikeData):
 
     def init(self):
         self.plexon_channels = self.bmi.units[:,0]
-        try:
-            self.dtype.append(('bins','u4',(len(self.bmi.units,))))
-            self.dtype.append(('bin_edges','f8',2))
-        except:
-            pass
 
         print "init bmi"
         self.decoder = self.bmi

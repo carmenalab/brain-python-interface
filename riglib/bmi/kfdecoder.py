@@ -361,7 +361,7 @@ class KalmanFilter():
 class KFDecoder(BMI):
     dist_units = 'cm'
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
-        states_to_bound, binlen=0.1, tslice=[-1,-1]):
+        states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1]):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
         features used to run the Kalman filter in a BMI context.
         """
@@ -379,6 +379,12 @@ class KFDecoder(BMI):
         self.states_to_bound = states_to_bound
         self.zeromeanunits = None
         self.drives_neurons = drives_neurons
+        self.n_subbins = n_subbins
+
+
+        self.bmicount = 0
+        self.bminum = int(self.binlen/(1/60.0))
+
 
         # Gain terms for hack debugging
         try:
@@ -426,14 +432,19 @@ class KFDecoder(BMI):
             Decoder output for each decoded parameter
 
         '''
-
-        return self.predict(obs_t, **kwargs)
+        if self.bmicount == self.bminum-1:  
+            self.bmicount = 0
+            return self.predict(obs_t, **kwargs)
+        else:
+            self.bmicount += 1
+            return self.kf.get_mean()
 
     def predict(self, spike_counts, target=None, speed=0.6, target_radius=2,
                 assist_level=0.0, task_data=None, assist_inds=[0,1,2],
                 **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
+        print speed, target_radius, assist_level
         prev_kin = self.kf.get_mean()
         if assist_level > 0:
             cursor_pos = prev_kin[assist_inds]
@@ -444,7 +455,7 @@ class KFDecoder(BMI):
             if dist_to_target > target_radius:
                 assist_cursor_pos = cursor_pos + speed*dir_to_target
             else:
-                assist_cursor_pos = cursor_pos + diff_vec/2
+                assist_cursor_pos = cursor_pos + speed*diff_vec/2
 
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
             assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
