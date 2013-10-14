@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Methods to create and train Decoder objects
+'''
 
 import pickle
 import sys
