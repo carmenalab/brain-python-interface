@@ -9,7 +9,7 @@ target_radius = 2.
 target = Sphere(radius=target_radius, color=(1,0,0,.5))
 target.xfm.translate(0, 0, 0, reset=True)
 
-class SimWindow(window.Window2D):
+class SimWindow(window.Window):
     def _while_draw(self):
         print "while draw"
         target.attach()
@@ -17,6 +17,6 @@ class SimWindow(window.Window2D):
         self.requeue()
         self.draw_world()
 
-w = SimWindow()
+w = window.Window()
 w.add_model(target)
 w.run()

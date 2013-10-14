@@ -81,6 +81,7 @@ tasks = dict(
     sim_clda_control = bmitasks.SimCLDAControl,
     sim_bmi_control = bmitasks.SimBMIControl,
     clda_rml_kf = bmitasks.CLDARMLKF,
+    test_graphics = manualcontrolmultitasks.TestGraphics, 
 )
 
 from tracker import models
