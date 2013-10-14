@@ -3,18 +3,12 @@
 
 import os
 import sys
-import json
 import time
-import cPickle
-import threading
 import xmlrpclib
 import multiprocessing as mp
 
-import numpy as np
 
 from riglib import experiment
-from riglib.experiment import features
-from tracker import models
 import websocket
 
 from json_param import Parameters
