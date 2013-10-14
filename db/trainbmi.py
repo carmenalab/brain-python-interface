@@ -1,14 +1,13 @@
-'''Needs docs'''
+'''
+Functions to train decoders and store into the database
+'''
 
-import os
 import re
 import cPickle
 import tempfile
-import multiprocessing as mp
 import xmlrpclib
 
 import namelist
-#from namelist import bmis
 from tracker import models
 from plexon import plexfile
 

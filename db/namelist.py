@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Lookup table for features, generators and tasks for experiments
+'''
 
 
 from riglib import experiment, calibrations, bmi

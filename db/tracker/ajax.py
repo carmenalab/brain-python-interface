@@ -1,5 +1,7 @@
-'''Needs docs'''
-
+'''
+Handlers for AJAX (Javascript) functions used in the web interface to start 
+experiments and train BMI decoders
+'''
 import os
 import json
 import cPickle
@@ -51,6 +53,10 @@ def gen_info(request, idx):
     return _respond(gen.to_json())
 
 def start_experiment(request, save=True):
+    '''
+    Handles presses of the 'Start Experiment' and 'Test' buttons in the web 
+    interface
+    '''
     #make sure we don't have an already-running experiment
     if display.status.value != '':
         return _respond(dict(status="error", msg="Alreading running task!"))

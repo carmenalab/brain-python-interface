@@ -1,4 +1,7 @@
-'''Needs docs'''
+'''
+Django database modules. See https://docs.djangoproject.com/en/dev/intro/tutorial01/
+for a basic introduction
+'''
 
 import os
 import json

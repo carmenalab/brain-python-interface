@@ -1,5 +1,9 @@
 
-'''Needs docs'''
+'''
+Django config file mostly auto-generated when a django project is created.
+See https://docs.djangoproject.com/en/dev/intro/tutorial01/ for an introduction
+on how to customize this file
+'''
 
 import os
 cwd = os.path.split(os.path.abspath(__file__))[0]
