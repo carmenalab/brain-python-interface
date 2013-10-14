@@ -68,6 +68,10 @@ class AdaptiveBMI(object):
         self.mp_updater = isinstance(updater, mp.Process)
         if self.mp_updater:
             self.updater.start()
+        self.reset_spike_counts()
+
+    def reset_spike_counts(self):
+        self.spike_counts = np.zeros([len(self.decoder.units), self.decoder.n_subbins])
 
     def __call__(self, spike_obs, target_pos, task_state, *args, **kwargs):
         prev_state = self.decoder.get_state()
@@ -77,10 +81,15 @@ class AdaptiveBMI(object):
         vel_inds = filter(lambda k: re.match('hand_v', self.decoder.states[k]), range(dec_state_dim))
 
         # run the decoder
-        self.decoder.predict(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
+        self.decoder(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
         decoded_state = self.decoder.get_state()
+
+        if (self.decoder.bmicount == self.decoder.bminum - 1):
+            self.reset_spike_counts()
+        else:
+            self.spike_counts += spike_obs
         
-        if len(spike_obs) < 1: # no timestamps observed
+        if len(spike_obs) == 0: # no timestamps observed
             # TODO spike binning function needs to properly handle not having any timestamps!
             spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
         elif spike_obs.dtype == Spikes.dtype: # Plexnet dtype
@@ -89,7 +98,8 @@ class AdaptiveBMI(object):
             spike_counts = spike_obs
 
         learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
-        if learn_flag:
+        #print self.decoder.bmicount, self.decoder.bminum-1
+        if learn_flag and (self.decoder.bmicount == self.decoder.bminum - 1):
             self.learner(spike_counts, prev_state[pos_inds], target_pos, 
                          decoded_state[vel_inds], task_state)
 
@@ -130,7 +140,6 @@ class AdaptiveBMI(object):
             self.decoder.update_params(new_params)
             self.learner.enable()
             update_flag = True
-            print "updated params"
 
         return decoded_state, update_flag
 

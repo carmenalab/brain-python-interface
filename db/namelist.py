@@ -76,13 +76,16 @@ tasks = dict(
     visual_feedback = bmitasks.VisualFeedback,
     visual_feedback_multi = bmimultitasks.VisualFeedbackMulti,
     clda_auto_assist = bmitasks.CLDAAutoAssist,
-    clda_constrained_sskf = bmimultitasks.CLDAConstrainedSSKF,
+    clda_constrained_sskf = bmitasks.CLDAConstrainedSSKF,
+    sim_clda_control = bmitasks.SimCLDAControl,
+    sim_bmi_control = bmitasks.SimBMIControl,
+
+    ######### V2 tasks
+    clda_constrained_sskf_multi = bmimultitasks.CLDAConstrainedSSKFMulti,
     manual_control_multi =manualcontrolmultitasks.ManualControlMulti,
     bmi_control_multi = bmimultitasks.BMIControlMulti,
     clda_control_multi = bmimultitasks.CLDAControlMulti,
-    sim_clda_control = bmitasks.SimCLDAControl,
-    sim_bmi_control = bmitasks.SimBMIControl,
-    clda_rml_kf = bmitasks.CLDARMLKF,
+    clda_rml_kf = bmimultitasks.CLDARMLKF,
     test_graphics = manualcontrolmultitasks.TestGraphics, 
 )
 
