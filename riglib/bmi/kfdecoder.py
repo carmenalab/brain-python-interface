@@ -12,8 +12,7 @@ except:
     import warnings
     warnings.warn('psth module not found, using python spike binning function')
 
-from . import BMI
-python_plexnet_dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
+import bmi
 
 def bin_spikes(spikes, units):
     '''
@@ -23,43 +22,6 @@ def bin_spikes(spikes, units):
     for spike in spikes:
         binned_spikes[(spike['chan'], spike['unit'])] += 1
     return np.array([binned_spikes[unit] for unit in units])
-
-class GaussianState(object):
-    def __init__(self, mean, cov):
-        if isinstance(mean, float):
-            self.mean = mean
-        else:
-            self.mean = np.mat(mean.reshape(-1,1))
-        self.cov = np.mat(cov)
-    
-    def __rmul__(self, other):
-        if isinstance(other, int) or isinstance(other, np.float64) or isinstance(other, float):
-            mu = other*self.mean
-            cov = other**2 * self.cov
-        elif isinstance(other, np.matrix):
-            mu = other*self.mean
-            cov = other*self.cov*other.T
-        elif isinstance(other, np.ndarray):
-            other = mat(array)
-            mu = other*self.mean
-            cov = other*self.cov*other.T
-        else:
-            print type(other)
-            raise
-        return GaussianState(mu, cov)
-
-    def __mul__(self, other):
-        mean = other*self.mean
-        if isinstance(other, int) or isinstance(other, np.float64) or isinstance(other, float):
-            cov = other**2 * self.cov
-        else:
-            print type(other)
-            raise
-        return GaussianState(mean, cov)
-
-    def __add__(self, other):
-        if isinstance(other, GaussianState):
-            return GaussianState( self.mean+other.mean, self.cov+other.cov )
 
 
 class KalmanFilter():
@@ -82,8 +44,8 @@ class KalmanFilter():
         else:
             self.is_stochastic = is_stochastic
         
-        self.state_noise = GaussianState(0.0, W)
-        self.obs_noise = GaussianState(0.0, Q)
+        self.state_noise = bmi.GaussianState(0.0, W)
+        self.obs_noise = bmi.GaussianState(0.0, Q)
         self._pickle_init()
 
     def _pickle_init(self):
@@ -118,9 +80,9 @@ class KalmanFilter():
         if init_cov == None:
             init_cov = np.mat( np.zeros([nS, nS]) )
         self.init_cov = init_cov
-        self.state = GaussianState(init_state, init_cov) 
-        self.state_noise = GaussianState(0.0, self.W)
-        self.obs_noise = GaussianState(0.0, self.Q)
+        self.state = bmi.GaussianState(init_state, init_cov) 
+        self.state_noise = bmi.GaussianState(0.0, self.W)
+        self.obs_noise = bmi.GaussianState(0.0, self.Q)
 
     def __call__(self, obs, **kwargs):
         """ Call the 1-step forward inference function
@@ -358,8 +320,7 @@ class KalmanFilter():
         self._init_state(init_state=self.state.mean, init_cov=P)
 
 
-class KFDecoder(BMI):
-    dist_units = 'cm'
+class KFDecoder(bmi.BMI):
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1]):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
@@ -420,17 +381,6 @@ class KFDecoder(BMI):
     def __call__(self, obs_t, **kwargs):
         '''
         Return the predicted arm position given the new data.
-
-        Parameters
-        -----------
-        newdata : array_like
-            Recent spike data for all units
-
-        Returns
-        -------
-        output : array_like
-            Decoder output for each decoded parameter
-
         '''
         if self.bmicount == self.bminum-1:  
             self.bmicount = 0
@@ -439,8 +389,8 @@ class KFDecoder(BMI):
             self.bmicount += 1
             return self.kf.get_mean()
 
-    def predict(self, spike_counts, target=None, speed=0.6, target_radius=2,
-                assist_level=0.0, task_data=None, assist_inds=[0,1,2],
+    def predict(self, spike_counts, target=None, speed=6.0, target_radius=0.5,
+                assist_level=0.0, assist_inds=[0,2],
                 **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist

@@ -14,11 +14,15 @@ from scipy.io import loadmat, savemat
 from riglib.bmi import kfdecoder, clda
 import riglib.bmi
 from riglib.experiment.features import Autostart
+import time
+import riglib.bmi.bmi
+
 from tasks import bmitasks
 reload(bmitasks)
 reload(kfdecoder)
 reload(clda)
 reload(riglib.bmi)
+reload(riglib.bmi.bmi)
 reload(riglib.bmi.train)
 
 ### Constants

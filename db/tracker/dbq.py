@@ -61,6 +61,9 @@ def save_data(curfile, system, entry, move=True, local=True):
     print "Saved datafile for file=%s -> %s, system=%s, id=%d)..."%(curfile, permfile, system, entry.id)
 
 def save_bmi(name, entry, filename):
+    '''
+    Save BMI objects to database
+    '''
     entry = TaskEntry.objects.get(pk=entry)
     now = entry.date
     today = datetime.date(now.year, now.month, now.day)

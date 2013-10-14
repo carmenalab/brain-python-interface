@@ -22,16 +22,21 @@ def get_task_entry(entry_id):
     '''
     return models.TaskEntry.objects.get(pk=entry_id)
 
-def lookup_task_entry(task_entry):
+def lookup_task_entries(*task_entry):
     '''
     Enable multiple ways to specify a task entry, e.g. by primary key or by
     object
     '''
-    if isinstance(task_entry, models.TaskEntry):
-        pass
-    elif isinstance(task_entry, int):
-        task_entry = get_task_entry(task_entry)
-    return task_entry
+    if len(task_entry) == 1:
+        task_entry = task_entry[0]
+        if isinstance(task_entry, models.TaskEntry):
+            pass
+        elif isinstance(task_entry, int):
+            task_entry = get_task_entry(task_entry)
+        return task_entry
+    else:
+        return [lookup_task_entries(x) for x in task_entry]
+
 
 def get_task_id(name):
     '''
@@ -66,7 +71,7 @@ def get_decoder_name_full(entry):
     return os.path.join(paths.data_path, 'decoders', decoder_basename)
 
 def get_decoder(entry):
-    entry = lookup_task_entry(entry)
+    entry = lookup_task_entries(entry)
     filename = get_decoder_name_full(entry)
     return pickle.load(open(filename, 'r'))
 
@@ -220,7 +225,7 @@ def get_hdf(entry):
     '''
     Return hdf opened file
     '''
-    entry = lookup_task_entry(entry)
+    entry = lookup_task_entries(entry)
     hdf_filename = get_hdf_file(entry)
     hdf = tables.openFile(hdf_filename)
     return hdf
@@ -372,10 +377,10 @@ def plot_rewards_per_min(task_entry, show=False, **kwargs):
     if show:
         plt.show()
 
-def get_trial_end_types(task_entry):
-    hdf_filename = get_hdf_file(task_entry)
-    hdf = tables.openFile(hdf_filename)
-    task_msgs = hdf.root.task_msgs[:]
+def get_trial_end_types(entry):
+    entry = lookup_task_entries(entry)
+    hdf = get_hdf(entry)
+    task_msgs = get_fixed_decoder_task_msgs(hdf)
 
     # number of successful trials
     reward_msgs = filter(lambda m: m[0] == 'reward', task_msgs)
@@ -390,6 +395,8 @@ def get_trial_end_types(task_entry):
     # number of timeout trials
     timeout_msgs = filter(lambda m: m[0] == 'timeout_penalty', task_msgs)
     n_timeout_trials = len(timeout_msgs)
+
+    return n_success_trials, n_terminus_hold_errors, n_timeout_trials, n_origin_hold_errors
 
 def get_hold_error_rate(task_entry):
     hold_error_rate = float(n_terminus_hold_errors) / n_success_trials
@@ -410,14 +417,6 @@ def get_center_out_reach_inds(hdf, fixed=True):
         task_msgs = get_fixed_decoder_task_msgs(hdf)
     else:
         task_msgs = hdf.root.task_msgs[:]
-
-    ##if fixed:
-    ##    update_bmi_msgs = np.nonzero(task_msgs['msg'] == 'update_bmi')[0]
-    ##    if len(update_bmi_msgs) > 0:
-    ##        fixed_start = update_bmi_msgs[-1] + 1
-    ##    else:
-    ##        fixed_start = 0
-    ##    task_msgs = task_msgs[fixed_start:]
 
     n_msgs = len(task_msgs)
     terminus_hold_msg_inds = np.array(filter(lambda k: task_msgs[k]['msg'] == 'terminus_hold', range(n_msgs)))
@@ -443,7 +442,7 @@ def get_trajectory_movement_error(traj, origin, terminus):
     pass
 
 def get_reach_trajectories(task_entry, rotate=True):
-    task_entry = lookup_task_entry(task_entry)
+    task_entry = lookup_task_entries(task_entry)
     hdf = get_hdf(task_entry)
     boundaries = get_center_out_reach_inds(hdf)
     targets = hdf.root.task[:]['target']
@@ -470,7 +469,7 @@ def get_movement_error(task_entry):
     '''
     Get movement error
     '''
-    task_entry = lookup_task_entry(task_entry)
+    task_entry = lookup_task_entries(task_entry)
     reach_trajectories = get_reach_trajectories(task_entry)
 
     n_trials = len(reach_trajectories)
@@ -479,6 +478,57 @@ def get_movement_error(task_entry):
     MV = np.array([np.std(np.abs(x[1, ::6])) for x in reach_trajectories])
 
     return ME, MV
+
+def get_total_movement_error(task_entry):
+    task_entry = lookup_task_entries(task_entry)
+    reach_trajectories = get_reach_trajectories(task_entry)
+    total_ME = np.array([np.sum(np.abs(x[1, ::6])) for x in reach_trajectories])
+    return total_ME
+
+
+def edge_detect(vec, edge_type='pos'):
+    """ Edge detector for a 1D array
+
+    Example:
+
+    vec = [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, ...]
+                       ^           ^
+                       ^           ^
+                      pos         neg
+                      edge        edge                            
+    
+    vec         : 1D array
+    edge_type   : {'pos', 'neg'}
+    """
+    if np.ndim(vec) > 1:
+        vec = vec.reshape(-1)
+    T = len(vec)
+    edges = np.zeros(T)
+    for t in range(1,T):
+        if edge_type == 'pos':
+            if vec[t] and not vec[t-1]:
+                edges[t] = 1
+        elif edge_type == 'neg':
+            if vec[t-1] and not vec[t]: 
+                edges[t] = 1
+    return edges
+   
+def _count_switches(vec):
+    """ vec is an array of binary variables (0,1). The number of switches
+    between 1's and 0's is counted
+    """
+    return len(np.nonzero(edge_detect(vec, 'pos'))[0]) + len(np.nonzero(edge_detect(vec, 'neg'))[0])
+
+def get_direction_change_counts(entry):
+    entry = lookup_task_entries(entry)
+    reach_trajectories = get_reach_trajectories(entry)
+
+    n_trials = len(reach_trajectories)
+
+    ODCs = np.array([_count_switches( 0.5*(np.sign(np.diff(x[0,::6])) + 1) ) for x in reach_trajectories])
+    MDCs = np.array([_count_switches( 0.5*(np.sign(np.diff(x[1,::6])) + 1) ) for x in reach_trajectories])
+
+    return MDCs, ODCs
 
 def plot_trajectories(task_entry, ax=None, show=False, **kwargs):
     hdf = get_hdf(task_entry)
@@ -515,7 +565,7 @@ def get_workspace_size(task_entry):
     print targets.max(axis=0)
 
 def plot_dist_to_targ(task_entry, targ_dist=10., plot_all=False, ax=None, **kwargs):
-    task_entry = lookup_task_entry(task_entry)
+    task_entry = lookup_task_entries(task_entry)
     reach_trajectories = get_reach_trajectories(task_entry)
     target = np.array([targ_dist, 0])
     from utils.geometry import l2norm
@@ -560,3 +610,4 @@ def get_task_entries_by_date(date, subj=None):
     elif subj is not None:
         kwargs['subject__name'] = subj.name
     return list(models.TaskEntry.objects.filter(**kwargs))
+

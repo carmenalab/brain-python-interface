@@ -62,8 +62,6 @@ class CursorGoalLearner(Learner):
             int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
         else:
             int_vel = None
-        #print int_vel
-        #print 
         
         if not self.is_full() and self.enabled and int_vel is not None:
             int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
@@ -124,12 +122,7 @@ class CLDARecomputeParameters(mp.Process):
     def stop(self):
         self.done.set()
 
-class KFSmoothbatch(CLDARecomputeParameters):
-    def __init__(self, work_queue, result_queue, batch_time, half_life):
-        super(KFSmoothbatch, self).__init__(work_queue, result_queue)
-        self.hlife = half_life
-        self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
-        
+class KFSmoothbatchSingleThread(object):
     def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old):
         """Smoothbatch calculations
 
@@ -151,31 +144,33 @@ class KFSmoothbatch(CLDARecomputeParameters):
             'mFR':mFR, 'sdFR':sdFR}
         return new_params
 
-class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
-    def __init__(self, *args, **kwargs):
-        super(KFOrthogonalPlantSmoothbatch, self).__init__(*args, **kwargs)
-        self.iter_counter = 0
 
+class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
+    def __init__(self, work_queue, result_queue, batch_time, half_life):
+        super(KFSmoothbatch, self).__init__(work_queue, result_queue)
+        self.hlife = half_life
+        self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
+        
+class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
     def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons,
              mFR_old, sdFR_old):
         
         args = (intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old)
-        new_params = super(KFOrthogonalPlantSmoothbatch, self).calc(*args)
+        new_params = super(KFOrthogonalPlantSmoothbatchSingleThread, self).calc(*args)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
         D = (C.T * Q.I * C)
         d = np.mean([D[3,3], D[5,5]])
-        #d = 0.005
-        #d = np.mean([D[3,3], D[5,5]])
         D[3:6, 3:6] = np.diag([d, d, d])
         #D[2:4, 2:4] = np.mean(np.diag(D)) * np.eye(2) # TODO generalize!
         # TODO calculate the gain from the riccati equation solution (requires A and W)
 
         new_params['kf.C_xpose_Q_inv_C'] = D
         new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
-        #new_params = {'kf.C_xpose_Q_inv_C':D, 
-        #    'kf.C_xpose_Q_inv':C.T * Q.I, 'mFR':mFR, 'sdFR':sdFR}
         return new_params
-        #return dict(C_xpose_Q_inv_C=D, C_xpose_Q_inv=L, mFR=mFR, sdFR=sdFR)
+
+class KFOrthogonalPlantSmoothbatch(KFOrthogonalPlantSmoothbatchSingleThread, KFSmoothbatch):
+    pass
+
 
 
 class KFRML(object):
