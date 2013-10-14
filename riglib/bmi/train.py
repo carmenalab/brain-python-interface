@@ -174,6 +174,13 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     spike_bin_fn = psth.SpikeBin(units, binlen)
     
     neurows = rows[tmask]
+
+    #Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+    # and select correct bins for neural data
+    step = int(binlen/(1./60))
+    kin = kin[::step, :]
+    neurows = neurows[::step]
+
     neurons = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
     mFR = np.mean(neurons,axis=0)
     sdFR = np.std(neurons,axis=0)
@@ -181,7 +188,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
     
     # calculate cursor velocity
-    velocity = np.diff(kin, axis=0)*60
+    velocity = np.diff(kin, axis=0)*(1/binlen)
     kin = np.hstack([kin[1:], velocity])
     
     # train KF model parameters

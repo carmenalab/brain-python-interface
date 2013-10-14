@@ -444,7 +444,6 @@ class KFDecoder(BMI):
                 **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
-        print speed, target_radius, assist_level
         prev_kin = self.kf.get_mean()
         if assist_level > 0:
             cursor_pos = prev_kin[assist_inds]
