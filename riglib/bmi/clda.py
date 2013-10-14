@@ -58,7 +58,7 @@ class CursorGoalLearner(Learner):
         dist_to_targ = np.linalg.norm(int_dir)
         if task_state in ['hold']:
             int_vel = np.zeros(int_dir.shape)            
-        elif task_state in ['origin', 'terminus']:
+        elif task_state in ['target']:
             int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
         else:
             int_vel = None
@@ -73,7 +73,7 @@ class CursorGoalLearner(Learner):
 
     def get_batch(self):
         kindata = np.vstack(self.kindata).T
-        neuraldata = np.vstack(self.neuraldata).T
+        neuraldata = np.hstack(self.neuraldata)
         self.kindata = []
         self.neuraldata = []
         return kindata, neuraldata
