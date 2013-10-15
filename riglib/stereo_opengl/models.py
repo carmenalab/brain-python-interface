@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Collections of shapes to render on screen
+'''
 
 import pygame
 import numpy as np
@@ -12,6 +14,8 @@ class Model(object):
         shininess=10, specular_color=(1.,1.,1.,1.)):
         self.shader = shader
         self.parent = None
+
+        # TODO why isn't this self.xfm = Transform()?
         super(Model, self).__setattr__("xfm", Transform())
         self.color = color
         self.shininess = shininess
