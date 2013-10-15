@@ -194,6 +194,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     kin = np.hstack([kin[1:], velocity])
     
     # train KF model parameters
+    neurons = neurons - mFR
     neurons = neurons.T
     n_neurons = neurons.shape[0]
     kin = kin.T
