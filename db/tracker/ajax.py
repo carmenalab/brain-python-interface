@@ -2,17 +2,13 @@
 Handlers for AJAX (Javascript) functions used in the web interface to start 
 experiments and train BMI decoders
 '''
-import os
 import json
-import cPickle
-import xmlrpclib
 
 import numpy as np
 from django.http import HttpResponse
 
 from riglib import experiment
 
-import namelist
 from json_param import Parameters
 from tasktrack import Track
 from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
