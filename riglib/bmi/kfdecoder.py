@@ -383,12 +383,13 @@ class KFDecoder(bmi.BMI):
         Return the predicted arm position given the new data.
         '''
         #print self.bmicount
+        self.spike_counts += obs_t
         if self.bmicount == self.bminum-1:  
             self.bmicount = 0
-            return self.predict(obs_t, **kwargs)
+            self.predict(self.spike_counts, **kwargs)
         else:
             self.bmicount += 1
-            return self.kf.get_mean()
+        return self.kf.get_mean()
 
     def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,
                 assist_level=0.0, assist_inds=[0,1,2],
@@ -466,6 +467,7 @@ class KFDecoder(bmi.BMI):
         self.__dict__.update(state)
         self.kf._pickle_init()
         self.kf._init_state()
+        self.spike_counts = np.zeros([len(state['units']), 1])
 
     def __getstate__(self):
         """Create dictionary describing state of the decoder instance, 
