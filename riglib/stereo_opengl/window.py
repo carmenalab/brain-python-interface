@@ -1,16 +1,17 @@
-'''Needs docs'''
+'''
+Graphical display classes. Experimental tasks involving graphical displays 
+inherit from these classes.
+'''
 
 
 from __future__ import division
 import os
-import threading
-import operator
 
 import pygame
 import numpy as np
 from OpenGL.GL import *
 
-from riglib.experiment import LogExperiment, traits
+from riglib.experiment import LogExperiment
 
 from render import stereo
 from models import Group
@@ -71,6 +72,9 @@ class Window(LogExperiment):
         #up vector is always (0,0,1), why would I ever need to roll the camera?!
         self.set_eye((0,-self.screen_dist,0), (0,0))
     
+    def _get_renderer(self):
+        return stereo.MirrorDisplay(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
+    
     def set_eye(self, pos, vec, reset=True):
         '''Set the eye's position and direction. Camera starts at (0,0,0), pointing towards positive y'''
         self.world.translate(pos[0], pos[2], pos[1], reset=True).rotate_x(-90)
@@ -93,9 +97,6 @@ class Window(LogExperiment):
         self.clock.tick(self.fps)
         self.event = self._get_event()
     
-    def _get_renderer(self):
-        return stereo.MirrorDisplay(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
-    
     def _get_event(self):
         for e in pygame.event.get(pygame.KEYDOWN):
             return (e.key, e.type)
@@ -114,7 +115,7 @@ class Window(LogExperiment):
     
     def requeue(self):
         self.renderer._queue_render(self.world)
-    
+
 class FPScontrol(Window):
     '''A mixin that adds a WASD + Mouse controller to the window. 
     Use WASD to move in XY plane, q to go down, e to go up'''

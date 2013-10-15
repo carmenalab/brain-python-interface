@@ -36,6 +36,7 @@ class TestGraphics(Sequence, Window):
 
     ##### HELPER AND UPDATE FUNCTIONS ####
 
+<<<<<<< HEAD
     def _get_renderer(self):
         return stereo.MirrorDisplay(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
 

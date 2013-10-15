@@ -1,4 +1,7 @@
-''' Needs docs'''
+'''
+Experimental task base classes, contains mostly code to run the generic 
+finite state machine representing different phases of the task
+'''
 
 import time
 import random

@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+BMI module of the riglib package
+'''
 
 import numpy as np
 import traceback

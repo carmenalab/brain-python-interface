@@ -382,6 +382,7 @@ class KFDecoder(bmi.BMI):
         '''
         Return the predicted arm position given the new data.
         '''
+        #print self.bmicount
         if self.bmicount == self.bminum-1:  
             self.bmicount = 0
             return self.predict(obs_t, **kwargs)
@@ -389,8 +390,9 @@ class KFDecoder(bmi.BMI):
             self.bmicount += 1
             return self.kf.get_mean()
 
-    def predict(self, spike_counts, target=None, speed=0.6, target_radius=2,
-                assist_level=0.0, assist_inds=[0,1,2], **kwargs):
+    def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,
+                assist_level=0.0, assist_inds=[0,1,2],
+                **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
         prev_kin = self.kf.get_mean()
