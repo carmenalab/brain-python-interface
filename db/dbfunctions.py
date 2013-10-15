@@ -184,6 +184,7 @@ def session_summary(entry):
     Prints a summary of info about session.
     Takes TaskEntry object.
     '''
+    entry = lookup_task_entries(entry)
     print "Subject: ", get_subject(entry)
     print "Task: ", get_task_name(entry)
     print "Date: ", str(get_date(entry))
