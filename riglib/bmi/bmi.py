@@ -164,7 +164,7 @@ class Decoder(object):
         alg._pickle_init()
         alg._init_state()
 
-        if not self.hasattr('n_subbins'):
+        if not hasattr(self, 'n_subbins'):
             self.n_subbbins = 1
 
         self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
