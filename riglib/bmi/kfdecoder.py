@@ -3,6 +3,12 @@ Implementation of a Kalman filter and associated code to use it as a BMI
 decoder
 '''
 
+try:
+    from plexon import psth
+except:
+    import warnings
+    warnings.warn('psth module not found, using python spike binning function')
+
 import numpy as np
 from scipy.io import loadmat
 
