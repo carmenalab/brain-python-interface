@@ -1,19 +1,14 @@
 '''Needs docs'''
 
-
-import pickle
-import sys
-
 import numpy as np
 from scipy.io import loadmat
-from plexon import plexfile, psth
-from riglib.nidaq import parse
+from plexon import  psth
 
 import tables
 from itertools import izip
 
-from bmi import BMI
-from bmi import GaussianState
+from riglib.bmi import bmi
+from bmi import BMI, GaussianState
 import statsmodels.api as sm # GLM fitting module
 
 class PointProcessFilter():
@@ -162,17 +157,14 @@ class PointProcessFilter():
 
         return C,
 
-class KFDecoder(BMI):
-    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, 
+class PPFDecoder(bmi.BMI, bmi.Decoder):
+    def __init__(self, ppf, units, bounding_box, states, 
         states_to_bound, binlen=0.1, tslice=[-1,-1]):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
         features used to run the Kalman filter in a BMI context.
         """
-        self.kf = kf
-        self.kf._init_state()
-        self.mFR = mFR
-        self.sdFR = sdFR
-        self.zscore = False
+        self.ppf = ppf
+        self.ppf._init_state()
         self.units = np.array(units, dtype=np.int32)
         self.binlen = binlen
         self.bin_spikes = psth.SpikeBin(self.units, self.binlen)
@@ -181,39 +173,6 @@ class KFDecoder(BMI):
         self.tslice = tslice # TODO replace with real tslice
         self.states_to_bound = states_to_bound
 
-        # Gain terms for hack debugging
-        try:
-            f = open('/home/helene/bmi_gain', 'r')
-            self.gain = [float(x) for x in f.readline().rstrip().split(',')]
-            self.offset = [float(x) for x in f.readline().rstrip().split(',')]
-        except:
-            self.gain = 1
-            self.offset = 0
-
-    def init_zscore(self, mFR_curr, sdFR_curr):
-        self.sdFR_ratio = np.ravel(self.sdFR/sdFR_curr)
-        self.mFR = mFR_curr.ravel() # overwrite the original mean firing rate
-        self.zscore = not np.all(self.sdFR_ratio == 1)
-        
-    def bound_state(self):
-        """Apply bounds on state vector, if bounding box is specified
-        """
-        if not self.bounding_box == None:
-            min_bounds, max_bounds = self.bounding_box
-            state = self[self.states_to_bound]
-            repl_with_min = state < min_bounds
-            state[repl_with_min] = min_bounds[repl_with_min]
-
-            repl_with_max = state > max_bounds
-            state[repl_with_max] = max_bounds[repl_with_max]
-            self[self.states_to_bound] = state
-            #self[self.states_] = 
-            #horiz_min, vert_min, horiz_max, vert_max = self.bounding_box
-            #self.kf.state.mean[0,0] = min(self.kf.state.mean[0,0], horiz_max)
-            #self.kf.state.mean[0,0] = max(self.kf.state.mean[0,0], horiz_min)
-            #self.kf.state.mean[1,0] = min(self.kf.state.mean[1,0], vert_max)
-            #self.kf.state.mean[1,0] = max(self.kf.state.mean[1,0], vert_min)
-    
     def __call__(self, obs_t, **kwargs):
         '''
         Return the predicted arm position given the new data.
@@ -229,107 +188,12 @@ class KFDecoder(BMI):
             Decoder output for each decoded parameter
 
         '''
-        return self.predict(obs_t, **kwargs)
+        raise NotImplementedError
 
     def predict(self, ts_data_k, target=None, speed=0.05, target_radius=0.5,
                 assist_level=0.9, dt=0.1, task_data=None):
         """Decode the spikes"""
-        # Save the previous cursor state if using assist
-        if assist_level > 0 and not target == None:
-            prev_kin = self.kf.get_mean()
-            cursor_pos = prev_kin[0:2] # TODO assumes a 2D position state
-            diff_vec = target - cursor_pos 
-            dist_to_target = np.linalg.norm(diff_vec)
-            dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
-            
-            if dist_to_target > target_radius:
-                assist_cursor_pos = cursor_pos + speed*dir_to_target;
-            else:
-                assist_cursor_pos = cursor_pos + diff_vec/2;
-
-            assist_cursor_vel = (assist_cursor_pos-cursor_pos)/dt;
-            assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
-
-        # "Bin" spike timestamps to generate spike counts
-        spike_counts = self.bin_spikes(ts_data_k)
-
-        # re-normalize the variance of the spike observations, if nec
-        if self.zscore:
-            spike_counts = (spike_counts - self.mFR) * self.sdFR_ratio
-
-        if task_data is not None:
-            task_data['bins'] = spike_counts
-
-        # re-format as a 1D col vec
-        spike_counts = np.mat(spike_counts.reshape(-1,1))
-
-        # Run the KF
-        self.kf(spike_counts)
-
-        # Bound cursor, if applicable
-        self.bound_state()
-
-        if assist_level > 0 and not target == None:
-            cursor_kin = self.kf.get_mean()
-            kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
-            self.kf.state.mean[:,0] = kin.reshape(-1,1)
-            self.bound_state()
-
-        # TODO manual gain and offset terms
-        # f = open('/home/helene/bmi_gain', 'r')
-        # gain = [float(x) for x in f.readline().rstrip().split(',')]
-        # offset = [float(x) for x in f.readline().rstrip().split(',')]
-        # pt[1] = 0
-        # pt[0] = (pt[0] + offset[0])*gain[0]
-        # pt[2] = (pt[2] + offset[2])*gain[2]
-
-        state = self.kf.get_mean()
-        return np.array([state[0], 0, state[1], state[2], 0, state[3], 1])
-
-    def retrain(self, batch, halflife):
         raise NotImplementedError
-
-    def __getitem__(self, idx):
-        """Get element(s) of the BMI state, indexed by name or number"""
-        if isinstance(idx, int):
-            return self.kf.state.mean[idx, 0]
-        elif isinstance(idx, str) or isinstance(idx, unicode):
-            idx = self.states.index(idx)
-            return self.kf.state.mean[idx, 0]
-        elif np.iterable(idx):
-            return np.array([self.__getitem__(k) for k in idx])
-        else:
-            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
-
-    def __setitem__(self, idx, value):
-        """Set element(s) of the BMI state, indexed by name or number"""
-        if isinstance(idx, int):
-            self.kf.state.mean[idx, 0] = value
-        elif isinstance(idx, str) or isinstance(idx, unicode):
-            idx = self.states.index(idx)
-            self.kf.state.mean[idx, 0] = value
-        elif np.iterable(idx):
-            [self.__setitem__(k, val) for k, val in izip(idx, value)]
-        else:
-            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
-
-    def __setstate__(self, state):
-        """Set decoder state after un-pickling"""
-        self.bin_spikes = psth.SpikeBin(state['units'], state['binlen'])
-        del state['cells']
-        self.__dict__.update(state)
-        self.kf._pickle_init()
-        self.kf._init_state()
-
-    def __getstate__(self):
-        """Create dictionary describing state of the decoder instance, 
-        for pickling"""
-        state = dict(cells=self.units)
-        exclude = set(['bin_spikes'])
-        for k, v in self.__dict__.items():
-            if k not in exclude:
-                state[k] = v
-        return state
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):

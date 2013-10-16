@@ -5,7 +5,6 @@ decoder
 
 import numpy as np
 from scipy.io import loadmat
-from itertools import izip
 try:
     from plexon import psth
 except:
@@ -24,7 +23,7 @@ def bin_spikes(spikes, units):
     return np.array([binned_spikes[unit] for unit in units])
 
 
-class KalmanFilter():
+class KalmanFilter(bmi.GaussianStateHMM):
     """Low-level KF, agnostic to application
 
     Model: 
@@ -68,21 +67,6 @@ class KalmanFilter():
         except:
             n_states = self.A.shape[0]
             self.is_stochastic = np.ones(n_states, dtype=bool)
-
-    def _init_state(self, init_state=None, init_cov=None):
-        """ Initialize the state of the KF prior to running in real-time
-        """
-        ## Initialize the BMI state, assuming 
-        nS = self.A.shape[0] # number of state variables
-        if init_state == None:
-            init_state = np.mat( np.zeros([nS, 1]) )
-            if self.include_offset: init_state[-1,0] = 1
-        if init_cov == None:
-            init_cov = np.mat( np.zeros([nS, nS]) )
-        self.init_cov = init_cov
-        self.state = bmi.GaussianState(init_state, init_cov) 
-        self.state_noise = bmi.GaussianState(0.0, self.W)
-        self.obs_noise = bmi.GaussianState(0.0, self.Q)
 
     def __call__(self, obs, **kwargs):
         """ Call the 1-step forward inference function
@@ -324,7 +308,7 @@ class KalmanFilter():
         self._init_state(init_state=self.state.mean, init_cov=P)
 
 
-class KFDecoder(bmi.BMI):
+class KFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1]):
         """ Initializes the Kalman filter decoder.  Includes BMI specific
@@ -351,16 +335,6 @@ class KFDecoder(bmi.BMI):
         self.bminum = int(self.binlen/(1/60.0))
         self.spike_counts = np.zeros([len(units), 1])
 
-
-        # Gain terms for hack debugging
-        try:
-            f = open('/home/helene/bmi_gain', 'r')
-            self.gain = [float(x) for x in f.readline().rstrip().split(',')]
-            self.offset = [float(x) for x in f.readline().rstrip().split(',')]
-        except:
-            self.gain = 1
-            self.offset = 0
-
     def init_zscore(self, mFR_curr, sdFR_curr):
         # if interfacing with Kinarm system, may mean and sd will be shape nx1
         self.zeromeanunits=np.nonzero(mFR_curr==0)[0] #find any units with a mean FR of zero for this session
@@ -370,19 +344,6 @@ class KFDecoder(bmi.BMI):
         self.mFR_diff = mFR_curr-self.mFR
         self.zscore = True
         
-    def bound_state(self):
-        """Apply bounds on state vector, if bounding box is specified
-        """
-        if not self.bounding_box == None:
-            min_bounds, max_bounds = self.bounding_box
-            state = self[self.states_to_bound]
-            repl_with_min = state < min_bounds
-            state[repl_with_min] = min_bounds[repl_with_min]
-
-            repl_with_max = state > max_bounds
-            state[repl_with_max] = max_bounds[repl_with_max]
-            self[self.states_to_bound] = state
-    
     def __call__(self, obs_t, **kwargs):
         '''
         Return the predicted arm position given the new data.
@@ -445,64 +406,16 @@ class KFDecoder(bmi.BMI):
         state = self.kf.get_mean()
         return state
 
-    def __getitem__(self, idx):
-        """Get element(s) of the BMI state, indexed by name or number"""
-        if isinstance(idx, int):
-            return self.kf.state.mean[idx, 0]
-        elif isinstance(idx, str) or isinstance(idx, unicode):
-            idx = self.states.index(idx)
-            return self.kf.state.mean[idx, 0]
-        elif np.iterable(idx):
-            return np.array([self.__getitem__(k) for k in idx])
-        else:
-            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
-
-    def __setitem__(self, idx, value):
-        """Set element(s) of the BMI state, indexed by name or number"""
-        if isinstance(idx, int):
-            self.kf.state.mean[idx, 0] = value
-        elif isinstance(idx, str) or isinstance(idx, unicode):
-            idx = self.states.index(idx)
-            self.kf.state.mean[idx, 0] = value
-        elif np.iterable(idx):
-            [self.__setitem__(k, val) for k, val in izip(idx, value)]
-        else:
-            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
-
-    def __setstate__(self, state):
-        """Set decoder state after un-pickling"""
-        self.bin_spikes = psth.SpikeBin(state['units'], state['binlen'])
-        del state['cells']
-        self.__dict__.update(state)
-        self.kf._pickle_init()
-        self.kf._init_state()
-        self.spike_counts = np.zeros([len(state['units']), 1])
-
-    def __getstate__(self):
-        """Create dictionary describing state of the decoder instance, 
-        for pickling"""
-        state = dict(cells=self.units)
-        exclude = set(['bin_spikes'])
-        for k, v in self.__dict__.items():
-            if k not in exclude:
-                state[k] = v
-        return state
-
+    def get_filter(self):
+        return self.kf
+        
     def get_state(self):
-        return np.array(self.kf.state.mean).ravel()
+        alg = self.get_filter()
+        return np.array(alg.state.mean).ravel()
 
     def update_params(self, new_params):
-        for key, val in new_params.items():
-            attr_list = key.split('.')
-            final_attr = attr_list[-1]
-            attr_list = attr_list[:-1]
-            attr = self
-            while len(attr_list) > 0:
-                attr = getattr(self, attr_list[0])
-                attr_list = attr_list[1:]
-             
-            setattr(attr, final_attr, val)
-        
+        super(KFDecoder, self).update_params(new_params)
+
         # set the KF to the new steady state
         self.kf.set_steady_state_pred_cov()
 

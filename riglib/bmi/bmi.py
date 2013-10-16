@@ -6,13 +6,13 @@ import traceback
 import re
 from riglib.plexon import Spikes
 import multiprocessing as mp
+from itertools import izip
 
 class BMI(object):
     '''
     Legacy class that decoders must inherit from for database reasons
     '''
     pass
-
 
 class GaussianState(object):
     '''
@@ -54,6 +54,113 @@ class GaussianState(object):
     def __add__(self, other):
         if isinstance(other, GaussianState):
             return GaussianState( self.mean+other.mean, self.cov+other.cov )
+
+class GaussianStateHMM():
+    def __init__(self, A, W):
+        self.A = A
+        self.W = W
+
+    def _init_state(self, init_state=None, init_cov=None):
+        """
+        Initialize the state of the filter with a mean and covariance (uncertainty)
+        """
+        ## Initialize the BMI state, assuming 
+        nS = self.A.shape[0] # number of state variables
+        if init_state == None:
+            init_state = np.mat( np.zeros([nS, 1]) )
+            if self.include_offset: init_state[-1,0] = 1
+        if init_cov == None:
+            init_cov = np.mat( np.zeros([nS, nS]) )
+        self.init_cov = init_cov
+        self.state = GaussianState(init_state, init_cov) 
+        self.state_noise = GaussianState(0.0, self.W)
+        self.obs_noise = GaussianState(0.0, self.Q)
+
+
+class Decoder(object):
+    def get_filter(self):
+        raise NotImplementedError
+
+    def update_params(self, new_params):
+        for key, val in new_params.items():
+            attr_list = key.split('.')
+            final_attr = attr_list[-1]
+            attr_list = attr_list[:-1]
+            attr = self
+            while len(attr_list) > 0:
+                attr = getattr(self, attr_list[0])
+                attr_list = attr_list[1:]
+             
+            setattr(attr, final_attr, val)
+        
+    def bound_state(self):
+        """Apply bounds on state vector, if bounding box is specified
+        """
+        if not self.bounding_box == None:
+            min_bounds, max_bounds = self.bounding_box
+            state = self[self.states_to_bound]
+            repl_with_min = state < min_bounds
+            state[repl_with_min] = min_bounds[repl_with_min]
+
+            repl_with_max = state > max_bounds
+            state[repl_with_max] = max_bounds[repl_with_max]
+            self[self.states_to_bound] = state
+
+    def __getitem__(self, idx):
+        """
+        Get element(s) of the BMI state, indexed by name or number
+        """
+        alg = self.get_filter()
+        if isinstance(idx, int):
+            return alg.state.mean[idx, 0]
+        elif isinstance(idx, str) or isinstance(idx, unicode):
+            idx = self.states.index(idx)
+            return alg.state.mean[idx, 0]
+        elif np.iterable(idx):
+            return np.array([self.__getitem__(k) for k in idx])
+        else:
+            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
+
+    def __setitem__(self, idx, value):
+        """
+        Set element(s) of the BMI state, indexed by name or number
+        """
+        alg = self.get_filter()
+        if isinstance(idx, int):
+            alg.state.mean[idx, 0] = value
+        elif isinstance(idx, str) or isinstance(idx, unicode):
+            idx = self.states.index(idx)
+            alg.state.mean[idx, 0] = value
+        elif np.iterable(idx):
+            [self.__setitem__(k, val) for k, val in izip(idx, value)]
+        else:
+            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
+
+    def __setstate__(self, state):
+        """
+        Set decoder state after un-pickling
+        """
+        self.bin_spikes = psth.SpikeBin(state['units'], state['binlen'])
+        del state['cells']
+        self.__dict__.update(state)
+        alg = self.get_filter()
+        alg._pickle_init()
+        alg._init_state()
+
+        if not self.hasattr('n_subbins'):
+            self.n_subbbins = 1
+
+        self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
+
+    def __getstate__(self):
+        """Create dictionary describing state of the decoder instance, 
+        for pickling"""
+        state = dict(cells=self.units)
+        exclude = set(['bin_spikes'])
+        for k, v in self.__dict__.items():
+            if k not in exclude:
+                state[k] = v
+        return state
 
 
 class AdaptiveBMI(object):
