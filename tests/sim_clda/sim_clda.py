@@ -6,30 +6,50 @@ Simulation of CLDA control task!
 from __future__ import division
 import os
 import optparse
-import time
 import numpy as np
-import multiprocessing as mp
-from scipy.io import loadmat, savemat
 
 from riglib.bmi import kfdecoder, clda
 import riglib.bmi
-from riglib.experiment.features import Autostart
-import riglib.bmi.bmi
 
-from tasks import bmitasks, bmimultitasks, manualcontrolmultitasks
-reload(manualcontrolmultitasks)
-reload(bmimultitasks)
+import multiprocessing as mp
+from scipy.io import loadmat
+
+import numpy as np
+from numpy.random import poisson, rand
+import matplotlib.pyplot as plt
+from scipy.io import loadmat, savemat
+import os
+from numpy import *
+
+from scipy.integrate import trapz, simps
+from riglib.experiment.features import Autostart
+import time
+
+from tasks import bmitasks
 reload(bmitasks)
 reload(kfdecoder)
 reload(clda)
 reload(riglib.bmi)
-reload(riglib.bmi.bmi)
 reload(riglib.bmi.train)
 
 ### Constants
 DT = 0.1
-GAME_COLORS = dict(background=(0,0,0), center=(0,255,255), target=(0,255,255),
-                   cursor=(255,255,0))
+COLORS = {}
+
+COLORS['black']           = (0,   0,   0)
+COLORS['white']           = (255, 255, 255)
+COLORS['red']             = (255, 0,   0)
+COLORS['green']           = (0,   255, 0)
+COLORS['blue']            = (0,   0,   255)
+COLORS['yellow']          = (255, 255, 0)
+COLORS['cyan']            = (0,   255, 255)
+GAME_COLORS               = {}
+GAME_COLORS['background'] = COLORS['black']
+GAME_COLORS['center']     = COLORS['cyan']
+GAME_COLORS['target']     = COLORS['cyan']
+GAME_COLORS['cursor']     = COLORS['yellow']
+GAME_COLORS['sector']     = COLORS['red']
+GAME_COLORS['text']       = COLORS['white']
 
 parser = optparse.OptionParser()
 parser.add_option("--show", action="store_true", dest="show", default=False)
@@ -110,6 +130,19 @@ class CenterOut():
         self.target_positions = workspace_targets
         self.center = workspace_ctr 
 
+        # Initialize Center-out game using parameters
+        if os.path.exists(self.target_list_fname):
+            self.target_stack = list(loadmat(self.target_list_fname)['target_stack'].reshape(-1))
+        else:
+            print "regenerating target list!"
+            targets = np.random.randint(0, self.n_targs, self.n_trials)
+            targets[0:self.n_targs] = np.arange(min(self.n_targs, self.n_trials))
+            self.target_stack = list(targets)
+            try:
+                savemat(self.target_list_fname, {'target_stack':self.target_stack})
+            except:
+                pass
+
         self.cursor = np.array([0, 0])
         self.cursor_vel = np.array([0, 0])
 
@@ -184,17 +217,29 @@ class CenterOut():
 
         pygame.display.update()
 
+
+if 0:
+    center = np.array([0.0042056, 0.15983523])
+    targets = np.array([
+        [ 0.0692056 ,  0.0502056 ,  0.0042056 , -0.0417944 , -0.0607944 , -0.0417944,  0.0042056 ,  0.0502056 ],
+        [ 0.15983523,  0.20573523,  0.22483523,  0.20573523,  0.15983523, 0.11393523,  0.09483523,  0.11393523]]).T
+else:
+    pass
+
 center = np.zeros(2)
 pi = np.pi
 targets = 0.065*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
 def target_seq_generator(n_targs, n_trials):
+
     target_inds = np.random.randint(0, n_targs, n_trials)
     target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
+    target_stack = list(targets)
     k = 0
     while k < n_trials:
         targ = m_to_cm*targets[target_inds[k], :]
         yield np.array([[center[0], 0, center[1]],
-                        [targ[0], 0, targ[1]]])
+                        [targ[0], 0, targ[1]]]).T
+        #yield np.array([m_to_mm*targets[target_inds[k], 0], 0, m_to_mm*targets[target_inds[k], 1]])
         k += 1
 
 class FakeHDF():
@@ -207,12 +252,14 @@ class FakeHDF():
     def __setitem__(self, key, value):
         pass
 
-#class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
-class SimCLDAControlDispl2D(bmimultitasks.SimCLDAControlMulti, Autostart):
+class CLDAControlPPF(bmitasks.CLDAControl):
+    pass
+
+class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
     update_rate = 0.1
     def __init__(self, *args, **kwargs):
-        self.batch_time = self.update_rate
-        self.half_life  = 5.0
+        self.batch_time = 5
+        self.half_life  = 20.0
         super(SimCLDAControlDispl2D, self).__init__(*args, **kwargs)
 
         self.origin_hold_time = 0.250
@@ -224,76 +271,40 @@ class SimCLDAControlDispl2D(bmimultitasks.SimCLDAControlMulti, Autostart):
         self.start_time = 0.
         self.loop_counter = 0
         self.assist_level = 0
-        #self.window_size = (960, 270)
 
     def create_updater(self):
         clda_input_queue = mp.Queue()
         clda_output_queue = mp.Queue()
-        self.updater = clda.KFOrthogonalPlantSmoothbatch(
-            clda_input_queue, clda_output_queue, self.batch_time, self.half_life)
-        #self.updater = clda.KFRML(clda_input_queue, clda_output_queue,
-        #    self.batch_time, self.half_life)
+        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
+            self.batch_time, self.half_life)
 
-    ## def screen_init(self):
-    ##     target_radius = self.terminus_size * cm_to_m
-    ##     center_radius = self.origin_size * cm_to_m
-    ##     cursor_radius = self.cursor.radius * cm_to_m
-    ##     t_ctrhold = 0.250
-    ##     t_reachtarg = 10
-    ##     t_targhold = 0.250
+    def screen_init(self):
+        target_radius = self.terminus_size
+        center_radius = self.origin_size
+        cursor_radius = self.cursor.radius
+        t_ctrhold = 0.250
+        t_reachtarg = 10
+        t_targhold = 0.250
 
-    ##     workspace_ll = np.array([-0.1, -0.1])
-    ##     workspace_ur = np.array([0.1, 0.1])
-    ##     
-    ##     self.game = CenterOut(
-    ##         show=options.show, 
-    ##         r_ctr=m_to_cm*center_radius, 
-    ##         r_targ=m_to_cm*target_radius,
-    ##         r_cursor=m_to_cm*cursor_radius, 
-    ##         t_ctrhold=t_ctrhold, 
-    ##         t_reachtarg=t_reachtarg, 
-    ##         t_targhold=t_targhold, 
-    ##         workspace_size=m_to_cm*0.20, 
-    ##         workspace_ll=m_to_cm*workspace_ll,
-    ##         workspace_targets=m_to_cm*targets, 
-    ##         workspace_ctr=m_to_cm*center, 
-    ##     )
+#        workspace_ll = np.array([-0.1, -0.1])
+        workspace_ll = np.array([-10., -10.])
+        
+        self.game = CenterOut(
+            show=options.show, r_ctr=center_radius, r_targ=target_radius,
+            r_cursor=cursor_radius, 
+            t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
+            workspace_size=20, workspace_ll=workspace_ll,
+            workspace_targets=targets, workspace_ctr=center, 
+        )
 
-    ## def show_target1(self, show=False):
-    ##     self.game.show_center = show
+    def show_origin(self, show=False):
+        self.game.show_center = show
 
-    ## def update_cursor_visibility(self):
-    ##     pass
-
-    ## def show_origin(self, show=False):
-    ##     self.game.show_center = show
-
-    ## def move_target1(self, pos):
-    ##     print "moving center in state: %s" % self.state
-    ##     self.game.center = pos[[0,2]]
-    ##     print self.game.center
-    ##     pass
-
-    ## def move_target2(self, pos):
-    ##     print "moving target in state: %s" % self.state
-    ##     self.game.target = pos[[0,2]]
-    ##     print self.game.target
-
-    ## def requeue(self):
-    ##     pass
-
-    ## def show_terminus(self, show=False):
-    ##     self.game.show_target = show
-    ##     if show:
-    ##         self.game.target = 10*np.array([self.terminus_target.xfm.move[0], self.terminus_target.xfm.move[2]])
-    ##         print self.game.target
-
-    ## def show_target2(self, show=False):
-    ##     self.game.show_target = show
-    ##     #if show:
-    ##     #    self.game.target = self.target_location[[0,2]] 
-    ##         #10*np.array([self.terminus_target.xfm.move[0], self.terminus_target.xfm.move[2]])
-    ##         #self.game.target = 10*np.array([self.terminus_target.xfm.move[0], self.terminus_target.xfm.move[2]])
+    def show_terminus(self, show=False):
+        self.game.show_target = show
+        if show:
+            self.game.target = self.terminus_target.xfm.move[[0,2]] #10*np.array([self.terminus_target.xfm.move[0], self.terminus_target.xfm.move[2]])
+            print self.game.target
 
     def get_time(self):
         return self.loop_counter * DT
@@ -301,34 +312,36 @@ class SimCLDAControlDispl2D(bmimultitasks.SimCLDAControlMulti, Autostart):
     def loop_step(self):
         self.loop_counter += 1
 
-    ## def draw_world(self):
-    ##     #if self.state == 'origin':
-    ##     if self.state == 'target' and self.target_index == 0:
-    ##         self.game.show_origin = True
-    ##         self.game.show_target = False
-    ##     if self.state == 'hold' and self.target_index == 0:
-    ##     #elif self.state == 'origin_hold':
-    ##         self.game.show_origin = True
-    ##         self.game.show_target = True
-    ##     elif self.target_index == 1:
-    ##     #elif self.state in ['terminus', 'terminus_hold']:
-    ##         self.game.show_origin = False
-    ##         self.game.show_target = True
-    ##     else:
-    ##         self.game.show_origin = False
-    ##         self.game.show_target = False
+    def draw_world(self):
+        if self.state == 'origin':
+            self.game.show_origin = True
+            self.game.show_target = False
+        elif self.state == 'origin_hold':
+            self.game.show_origin = True
+            self.game.show_target = True
+        elif self.state in ['terminus', 'terminus_hold']:
+            self.game.show_origin = False
+            self.game.show_target = True
+        else:
+            self.game.show_origin = False
+            self.game.show_target = False
+        cursor_pos = self.cursor.xfm.move[[0,2]] # [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
+        #cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
+        self.game.move_cursor(cursor_pos, run_fsm=False)
+        time.sleep(1./60 * 1./10)
+        #time.sleep(self.update_rate/10)
 
-    ##     self.game.show_origin = True
-    ##     self.game.show_target = True
-    ##     #self.game.show_origin = True
-    ##     #self.game.show_target = True
-    ##     #cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
+class SimRML(SimCLDAControlDispl2D):
+    def __init__(self, *args, **kwargs):
+        super(SimRML, self).__init__(*args, **kwargs)
+        self.batch_time = 0.1
+        self.half_life  = 20.0
 
-    ##     cursor_pos = self.cursor.xfm.move[[0,2]]
-    ##     self.game.move_cursor(cursor_pos, run_fsm=False)
-    ##     time.sleep(self.update_rate/10)
+    def create_updater(self):
+        self.updater = clda.KFRML(None, None, self.batch_time, self.half_life)
+
 
 gen = target_seq_generator(8, 1000)
-task = SimCLDAControlDispl2D(gen)
+task = SimRML(gen)
 task.init()
 task.run()
