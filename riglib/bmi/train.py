@@ -269,6 +269,8 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     C = np.random.standard_normal([n_neurons, nX])
     C[:, ~drives_neurons] = 0
 
+    C *= 6
+
     Q = 10 * np.identity(n_neurons) 
     # set det(Q) to be ~10^10
     #Q = 100 * np.identity(n_neurons) 
