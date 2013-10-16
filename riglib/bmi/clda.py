@@ -56,9 +56,9 @@ class CursorGoalLearner(Learner):
         #print cursor_pos
         int_dir = target_pos - cursor_pos
         dist_to_targ = np.linalg.norm(int_dir)
-        if task_state in ['hold']:
+        if task_state in ['hold', 'origin_hold', 'target_hold']:
             int_vel = np.zeros(int_dir.shape)            
-        elif task_state in ['target']:
+        elif task_state in ['target', 'origin', 'terminus']:
             int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
         else:
             int_vel = None

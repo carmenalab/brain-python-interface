@@ -113,8 +113,12 @@ class KalmanFilter():
         KC = P*(I - D*P*(I + D*P).I)*D
 
         post_state = pred_state
-        #post_state.mean += K*(obs_t - pred_obs.mean)
-        post_state.mean += -KC*pred_state.mean + K*obs_t #K*(obs_t - pred_obs.mean)
+        ##print KC.shape
+        ##print pred_state.mean.shape
+        ##print K.shape
+        ##print obs_t.shape
+        ##print -KC*pred_state.mean + K*obs_t
+        post_state.mean += -KC*pred_state.mean + K*obs_t
         post_state.cov = (I - KC) * P 
         return post_state
 
@@ -345,6 +349,7 @@ class KFDecoder(bmi.BMI):
 
         self.bmicount = 0
         self.bminum = int(self.binlen/(1/60.0))
+        self.spike_counts = np.zeros([len(units), 1])
 
 
         # Gain terms for hack debugging
@@ -384,9 +389,13 @@ class KFDecoder(bmi.BMI):
         '''
         #print self.bmicount
         self.spike_counts += obs_t
+        #print "kfdecoder.__call__, obs_t.shape", obs_t.shape
+        #print "kfdecoder.__call__, spike_counts.shape", self.spike_counts.shape
+        #print [len(self.units), 1]
         if self.bmicount == self.bminum-1:  
             self.bmicount = 0
             self.predict(self.spike_counts, **kwargs)
+            self.spike_counts = np.zeros([len(self.units), 1])
         else:
             self.bmicount += 1
         return self.kf.get_mean()

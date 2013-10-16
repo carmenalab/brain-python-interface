@@ -81,6 +81,7 @@ class AdaptiveBMI(object):
         vel_inds = filter(lambda k: re.match('hand_v', self.decoder.states[k]), range(dec_state_dim))
 
         # run the decoder
+        ## print 'spike_obs shape', spike_obs.shape
         self.decoder(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
         decoded_state = self.decoder.get_state()
 
@@ -89,29 +90,29 @@ class AdaptiveBMI(object):
         else:
             self.spike_counts += spike_obs
         
-        if len(spike_obs) == 0: # no timestamps observed
-            # TODO spike binning function needs to properly handle not having any timestamps!
-            spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
-        elif spike_obs.dtype == Spikes.dtype: # Plexnet dtype
-            spike_counts = self.decoder.bin_spikes(spike_obs)
-        else:
-            spike_counts = spike_obs
-
-        learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
-        #print self.decoder.bmicount, self.decoder.bminum-1
-        if learn_flag and (self.decoder.bmicount == self.decoder.bminum - 1):
-            self.learner(spike_counts, prev_state[pos_inds], target_pos, 
-                         decoded_state[vel_inds], task_state)
+        ## if len(spike_obs) == 0: # no timestamps observed
+        ##     # TODO spike binning function needs to properly handle not having any timestamps!
+        ##     spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
+        ## elif spike_obs.dtype == Spikes.dtype: # Plexnet dtype
+        ##     spike_counts = self.decoder.bin_spikes(spike_obs)
+        ## else:
+        ##     spike_counts = spike_obs
 
         # send data to learner
-        new_params = None # Default is that now new parameters are available
+        learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
+        if learn_flag and (self.decoder.bmicount == self.decoder.bminum - 1):
+            #print "sending data to learner", self.learner.batch_size, len(self.learner.kindata)
+            self.learner(self.spike_counts, prev_state[pos_inds], target_pos, 
+                         decoded_state[vel_inds], task_state)
+
+        new_params = None # Default is that no new parameters are available
         update_flag = False
 
         if self.learner.is_full():
-            self.intended_kin, self.spike_counts = self.learner.get_batch()
+            self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
             rho = self.updater.rho
             drives_neurons = self.decoder.drives_neurons
-            clda_data = (self.intended_kin, self.spike_counts, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
+            clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
 
             if self.mp_updater:
                 self.clda_input_queue.put(clda_data)
@@ -135,11 +136,14 @@ class AdaptiveBMI(object):
 
         if new_params is not None:
             new_params['intended_kin'] = self.intended_kin
-            new_params['spike_counts'] = self.spike_counts
+            new_params['spike_counts_batch'] = self.spike_counts_batch
             self.param_hist.append(new_params)
             self.decoder.update_params(new_params)
             self.learner.enable()
             update_flag = True
+            ## print "updating params"
+            ## print self.decoder.kf.C.shape
+            ## print self.decoder.kf.Q.shape
 
         return decoded_state, update_flag
 
