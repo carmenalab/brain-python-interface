@@ -20,9 +20,9 @@ def list(request):
     fields = dict(
         entries=TaskEntry.objects.all().order_by("-date"), 
         subjects=Subject.objects.all().order_by("name"), 
-        tasks=Task.objects.all().order_by("name"), 
-        features=Feature.objects.order_by("name").all(), 
-        generators=Generator.objects.order_by("name").all(),
+        tasks=Task.objects.filter(visible=True).order_by("name"), 
+        features=Feature.objects.filter(visible=True).order_by("name"), 
+        generators=Generator.objects.filter(visible=True).order_by("name"),
         hostname=request.get_host(),
         bmis=namelist.bmis,
     )

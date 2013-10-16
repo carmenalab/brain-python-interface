@@ -27,6 +27,7 @@ def _get_trait_default(trait):
 
 class Task(models.Model):
     name = models.CharField(max_length=128)
+    visible = models.BooleanField()
     def __unicode__(self):
         return self.name
     
@@ -77,6 +78,7 @@ class Task(models.Model):
 
 class Feature(models.Model):
     name = models.CharField(max_length=128)
+    visible = models.BooleanField()
     def __unicode__(self):
         return self.name
 
@@ -133,6 +135,7 @@ class System(models.Model):
 
 class Subject(models.Model):
     name = models.CharField(max_length=128)
+    visible = models.BooleanField()
     def __unicode__(self):
         return self.name
 
@@ -140,6 +143,7 @@ class Generator(models.Model):
     name = models.CharField(max_length=128)
     params = models.TextField()
     static = models.BooleanField()
+    visible = models.BooleanField()
 
     def __unicode__(self):
         return self.name
