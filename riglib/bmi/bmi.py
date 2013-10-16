@@ -8,6 +8,23 @@ from riglib.plexon import Spikes
 import multiprocessing as mp
 from itertools import izip
 
+try:
+    from plexon import psth
+except:
+    import warnings
+    warnings.warn('psth module not found, using python spike binning function')
+
+
+def bin_spikes(spikes, units):
+    '''
+    Python implementation of the psth spike binning function
+    '''
+    binned_spikes = defaultdict(int)
+    for spike in spikes:
+        binned_spikes[(spike['chan'], spike['unit'])] += 1
+    return np.array([binned_spikes[unit] for unit in units])
+
+
 class BMI(object):
     '''
     Legacy class that decoders must inherit from for database reasons
