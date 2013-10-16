@@ -181,12 +181,38 @@ class KFRML(object):
         self.hlife = half_life
         self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
         self.iter_counter = 0
+
+    @staticmethod
+    def compute_suff_stats(hidden_state, obs, include_offset=True):
+        assert hidden_state.shape[1] == obs.shape[1]
     
-    def init_suff_stats(self, C_0, Q_0):
-        self.R = np.mat(np.identity(C_0.shape[1]))
-        self.S = C_0
-        self.T = Q_0 + self.S*self.R.I*self.S.T
-        print "attributes for suff stats created"
+        if isinstance(hidden_state, np.ma.core.MaskedArray):
+            mask = ~hidden_state.mask[0,:] # NOTE THE INVERTER 
+            inds = np.nonzero([ mask[k]*mask[k+1] for k in range(len(mask)-1)])[0]
+    
+            X = np.mat(hidden_state[:,mask])
+            T = len(np.nonzero(mask)[0])
+    
+            Y = np.mat(obs[:,mask])
+            if include_offset:
+                X = np.vstack([ X, np.ones([1,T]) ])
+        else:
+            num_hidden_state, T = hidden_state.shape
+            X = np.mat(hidden_state)
+            if include_offset:
+                X = np.vstack([ X, np.ones([1,T]) ])
+            Y = np.mat(obs)
+
+        R = (1/T) * (X * X.T)
+        S = (1/T) * (Y * X.T)
+        T = (1/T) * (Y * Y.T)
+
+        return (R, S, T)
+
+    def init_suff_stats(self, decoder):
+        self.R = decoder.kf.R
+        self.S = decoder.kf.S
+        self.T = decoder.kf.T
 
     def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons,
              mFR_old, sdFR_old):
