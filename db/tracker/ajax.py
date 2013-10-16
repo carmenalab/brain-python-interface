@@ -22,15 +22,21 @@ import trainbmi
 display = Track()
 
 class encoder(json.JSONEncoder):
+    '''
+    Encoder for JSON data that defines how the data should be returned. 
+    '''
     def default(self, o):
         if isinstance(o, np.ndarray):
             return o.tolist()
         elif isinstance(o, Parameters):
             return o.params
-
-        return super(encoder, self).default(o)
+        else:
+            return super(encoder, self).default(o)
 
 def _respond(data):
+    '''
+    Generic HTTPResponse to wrap JSON data
+    '''
     return HttpResponse(json.dumps(data, cls=encoder), mimetype="application/json")
 
 def task_info(request, idx):
@@ -81,7 +87,10 @@ def start_experiment(request, save=True):
         else:
             entry.sequence_id = -1
         
-        response = dict(status="testing", subj=entry.subject.name, task=entry.task.name)
+        response = dict(status="testing", subj=entry.subject.name, 
+                        task=entry.task.name)
+
+        # Save the task entry to database
         if save:
             entry.save()
             for feat in data['feats'].keys():
@@ -92,7 +101,13 @@ def start_experiment(request, save=True):
             response['idx'] = entry.id
             kwargs['saveid'] = entry.id
         
+        # Start the task FSM and display
         display.runtask(**kwargs)
+        f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'w')
+        f.write('ajax.start_experiment: Started task with kwargs: %s\n' % str(kwargs))
+        f.close()
+
+        # Return the JSON response
         return _respond(response)
 
     except Exception as e:

@@ -14,7 +14,11 @@ import websocket
 from json_param import Parameters
 
 class Track(object):
+    '''
+    Tracker for task instantiation running in a separate process
+    '''
     def __init__(self):
+        # shared memory to store the status of the task in a char array
         self.status = mp.Array('c', 256)
         self.task = None
         self.proc = None
@@ -26,8 +30,18 @@ class Track(object):
             self.status.value = ""
 
     def runtask(self, **kwargs):
+        '''
+        Begin running of task
+        '''
+        # initialize task status
         self.status.value = "testing" if 'saveid' in kwargs else "running"
+
+        # create a proxy for interacting with attributes/functions of the task.
+        # The task runs in a separate process and we cannot directly access python 
+        # attributes of objects in other processes
         self.task = ObjProxy(self.cmds)
+
+        # Spawn the process
         args = (self.cmds, self._cmds, self.websock)
         self.proc = mp.Process(target=runtask, args=args, kwargs=kwargs)
         self.proc.start()
@@ -58,8 +72,14 @@ class Track(object):
 def runtask(cmds, _cmds, websock, **kwargs):
     import time
     from riglib.experiment import report
+
+    # Rerout prints to stdout to the websocket
     sys.stdout = websock
+
+    # os.nice sets the 'niceness' of the task, i.e. how willing the process is
+    # to share resources with other OS processes. Zero is neutral
     os.nice(0)
+
     status = "running" if 'saveid' in kwargs else "testing"
     class NotifyFeat(object):
         def set_state(self, state, *args, **kwargs):
@@ -71,6 +91,8 @@ def runtask(cmds, _cmds, websock, **kwargs):
             super(NotifyFeat, self).set_state(state, *args, **kwargs)
 
         def run(self):
+            f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'a')
+            f.write('trying to execute NotifyFeat.run()\n')
             try:
                 super(NotifyFeat, self).run()
             except:
@@ -82,7 +104,11 @@ def runtask(cmds, _cmds, websock, **kwargs):
                 websock.send(dict(status="error", msg=err.read()))
             finally:
                 cmds.send(None)
+            f.close()
+
+    # Force all tasks to use the Notify feature defined above
     kwargs['feats'].insert(0, NotifyFeat)
+
     try:
         task = Task(**kwargs)
         cmd = _cmds.recv()
@@ -114,10 +140,22 @@ def runtask(cmds, _cmds, websock, **kwargs):
 
 class Task(object):
     def __init__(self, subj, task, feats, params, seq=None, saveid=None):
+        '''
+        Parameters
+        ----------
+        subj : database record for subject
+        task : database record for task
+        feats : list of features to enable for the task
+        params : user input on configurable task parameters
+        '''
+        f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'a')
+        f.write('tasktrack.Task.__init__\n')
         self.saveid = saveid
         self.taskname = task.name
         self.subj = subj
         self.params = Parameters(params)
+
+        # Send pulse to plexon box to start saving to file?
         if self.saveid is not None:
             try:
                 import comedi
@@ -127,7 +165,9 @@ class Task(object):
             except:
                 print "No comedi, cannot start"
         
-        Exp = experiment.make(task.get(), feats=feats)
+        base_class = task.get()
+        f.write('Created base class: %s\n' % base_class)
+        Exp = experiment.make(base_class, feats=feats)
         self.params.trait_norm(Exp.class_traits())
         if issubclass(Exp, experiment.Sequence):
             gen, gp = seq.get()
@@ -138,6 +178,7 @@ class Task(object):
         
         exp.start()
         self.task = exp
+        f.close()
 
     def report(self):
         return experiment.report(self.task)
