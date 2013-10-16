@@ -5,13 +5,6 @@ all the possible combinations of tasks and features, a custom class for
 the experiment is created programmatically using 'type'. The created class 
 has methods of the base task as well as all the selected features. 
 '''
-
-
-import os # unused?
-import time # unused?
-import random # unused?
-import threading # unused?
-
 import numpy as np
 
 try:
@@ -19,12 +12,10 @@ try:
 except ImportError:
     import enthought.traits.api as traits
 
-import features # unused?
 import generate
 
 import report
-from experiment import Experiment, LogExperiment, Sequence, TrialTypes
-from Pygame import Pygame # unused?
+#from experiment import Experiment, LogExperiment, Sequence, TrialTypes
 
 def make(exp_class, feats=()):
     # construct the class list to define inheritance order for the custom task
