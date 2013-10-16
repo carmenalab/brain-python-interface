@@ -15,10 +15,16 @@ except ImportError:
 import generate
 
 import report
-#from experiment import Experiment, LogExperiment, Sequence, TrialTypes
+import features
+from experiment import Experiment, LogExperiment, Sequence, TrialTypes
+from Pygame import Pygame
 
 def make(exp_class, feats=()):
+    f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'a')
+    f.write('experiment.make: %s, %s\n' % (exp_class, feats))
+    f.close()
     # construct the class list to define inheritance order for the custom task
+    # inherit from the features first, then the base class
     clslist = tuple(feats) + (exp_class,) 
 
     # return custom class
