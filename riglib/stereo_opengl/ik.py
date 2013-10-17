@@ -63,7 +63,7 @@ class TwoJoint(object):
         ''' Given angles for shoulder and elbow in a plane, set joint positions'''
 
         if shoulder_angle>np.pi: shoulder_angle = np.pi
-        if should_angle<0.0: shoulder_angle = 0.0
+        if shoulder_angle<0.0: shoulder_angle = 0.0
         if elbow_angle>np.pi: elbow_angle = np.pi
         if elbow_angle<0: elbow_angle = 0
 
@@ -79,17 +79,43 @@ class TwoJoint(object):
 
         self.upperarm._recache_xfm()
 
-TexCylinder = type("TexCylinder", (Cylinder, TexModel), dict())
+## Original, written by james
+
+# TexCylinder = type("TexCylinder", (Cylinder, TexModel), dict())
+# class RobotArm(Group):
+#     def __init__(self, radii=(2, 1.5), lengths=(15, 20), **kwargs):
+#         tex = cloudy_tex()
+#         self.forearm = Group([
+#             TexCylinder(radius=radii[1], height=lengths[1], tex=tex, shininess=50), 
+#             Sphere(radii[1]+0.5).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
+#         self.upperarm = Group([
+#             Sphere(radii[0]+0.5),
+#             TexCylinder(radius=radii[0], height=lengths[0], tex=tex, shininess=50), 
+#             Sphere(radii[0]+0.5).translate(0, 0, lengths[0]),
+#             self.forearm])
+#         self.system = TwoJoint(self.upperarm, self.forearm)
+#         super(RobotArm, self).__init__([self.upperarm], **kwargs)
+
+#     def set_endpoint_2D(self, target):
+#         self.system.set_endpoint_2D(target)
+
+#     def set_joints_2D(self, shoulder_angle, elbow_angle):
+#         ''' returns position of ball at end of forearm (hand)'''
+#         self.system.set_joints_2D(shoulder_angle, elbow_angle)
+#         return self.forearm.models[1].xfm.move
+
+
+## added by helene to prep for arm task
+
 class RobotArm(Group):
     def __init__(self, radii=(2, 1.5), lengths=(15, 20), **kwargs):
-        tex = cloudy_tex()
         self.forearm = Group([
-            TexCylinder(radius=radii[1], height=lengths[1], tex=tex, shininess=50), 
-            Sphere(radii[1]+0.5).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
+            Cylinder(radius=radii[1], height=lengths[1], color=(0,0,1,1)), 
+            Sphere(radius=radii[1]+0.5,color=(1,1,1,1)).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
         self.upperarm = Group([
             Sphere(radii[0]+0.5),
-            TexCylinder(radius=radii[0], height=lengths[0], tex=tex, shininess=50), 
-            Sphere(radii[0]+0.5).translate(0, 0, lengths[0]),
+            Cylinder(radius=radii[0], height=lengths[0],color=(0,0,1,1)), 
+            Sphere(radius=radii[0]+0.5,color=(1,1,1,1)).translate(0, 0, lengths[0]),
             self.forearm])
         self.system = TwoJoint(self.upperarm, self.forearm)
         super(RobotArm, self).__init__([self.upperarm], **kwargs)

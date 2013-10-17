@@ -234,7 +234,9 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     states_to_bound = ['hand_px', 'hand_pz']
     neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
     drives_neurons = np.array([x in neuron_driving_states for x in state_vars])
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, drives_neurons, states_to_bound, binlen=binlen)
+    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
+        state_vars, drives_neurons, states_to_bound, binlen=binlen, 
+        tslice=tslice)
     return decoder
 
 def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
@@ -284,24 +286,3 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
         states, drives_neurons, states_to_bound)
     return decoder
-
-if __name__ == '__main__':
-    test_mc = True
-    test_bc = False
-    if test_mc:
-        block = 'cart20130428_01'
-        #block = 'cart20130425_05'
-        files = dict(plexon='/storage/plexon/%s.plx' % block, hdf='/storage/rawdata/hdf/%s.hdf' % block)
-        binlen = 0.1
-        tslice = [1., 300.]
-        
-        decoder = _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
-            state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], **files) 
-    if test_bc:
-        block = 'cart20130521_04'
-        files = dict(hdf='/storage/rawdata/hdf/%s.hdf' % block)
-        binlen = 0.1
-        tslice = [1., 300.]
-        
-        decoder = _train_KFDecoder_brain_control(cells=None, binlen=0.1, tslice=[None,None],
-            state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], **files) 

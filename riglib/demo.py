@@ -11,10 +11,10 @@ from riglib.stereo_opengl.render import ssao, stereo, Renderer
 from riglib.stereo_opengl.utils import cloudy_tex
 from riglib.stereo_opengl.ik import RobotArm
 
-from riglib import source, motiontracker
-Motion = motiontracker.make(8, motiontracker.System)
-sys = source.DataSource(Motion)	
-sys.start()
+#from riglib import source, motiontracker
+#Motion = motiontracker.make(8, motiontracker.System)
+#sys = source.DataSource(Motion)	
+#sys.start()
 
 FlatSphere = type("FlatSphere", (Sphere, FlatMesh), {})
 TexPlane = type("TexPlane", (Plane, TexModel), {})
@@ -24,31 +24,49 @@ tex = cloudy_tex((1024, 1024))
 arm = RobotArm()
 ball = Sphere(radius=5, color=(0.5, 1, 0.5, 1), shininess=20)
 
-class Test(Window):
+# class Test(Window):
+#     def _get_renderer(self):
+#         mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
+#         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
+
+#     def _while_draw(self):
+#         pts = sys.get().mean(0)[...,:-1]+[-20,0,-5]
+#         arm.set(pts[4])
+#         ts = time.time() - self.start_time
+#         t = (ts / 2.) * 2*np.pi
+#         ball.translate(0,100,20*np.abs(np.sin(t))-10, reset=True)
+#         #t2 = (ts / 2.) * 2*np.pi
+#         #arm.set((np.cos(t)*10-10, np.sin(t2)*10+20, np.sin(t)*15))        
+#         self.draw_world()
+#         #print self.clock.get_fps()
+
+class Test2(Window):
     def _get_renderer(self):
         mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _while_draw(self):
-        pts = sys.get().mean(0)[...,:-1]+[-20,0,-5]
-        arm.set(pts[4])
         ts = time.time() - self.start_time
-        t = (ts / 2.) * 2*np.pi
-        ball.translate(0,100,20*np.abs(np.sin(t))-10, reset=True)
-        #t2 = (ts / 2.) * 2*np.pi
-        #arm.set((np.cos(t)*10-10, np.sin(t2)*10+20, np.sin(t)*15))        
+        t = (ts / 2.) * np.pi
+        arm.set_joints_2D(0.0, t)
+        #ball.translate(0,100,20*np.abs(np.sin(t))-10, reset=True)       
         self.draw_world()
-        #print self.clock.get_fps()
+
+# if __name__ == "__main__":
+#     win = Test(window_size=(1920*2, 1080))
+#     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).translate(-250, -250, -15))
+#     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
+#     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_y(-90).translate(250,-250,-15))
+#     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_y(90).translate(-250,-250,-15))
+#     win.add_model(TexSphere(radius=4, shininess=30, tex=tex).translate(-20, 10, -11))
+#     win.add_model(FlatSphere(radius=8, color=(0.6,0.2,0.2,1), shininess=50).translate(10,20,-15))
+#     win.add_model(arm)
+#     win.add_model(ball.translate(0, 100, -10))
+#     win.run()
+#     sys.stop()
 
 if __name__ == "__main__":
-    win = Test(window_size=(1920*2, 1080))
-    win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).translate(-250, -250, -15))
+    win = Test2(window_size=(1920*2, 1080))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
-    win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_y(-90).translate(250,-250,-15))
-    win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_y(90).translate(-250,-250,-15))
-    win.add_model(TexSphere(radius=4, shininess=30, tex=tex).translate(-20, 10, -11))
-    win.add_model(FlatSphere(radius=8, color=(0.6,0.2,0.2,1), shininess=50).translate(10,20,-15))
-    win.add_model(arm.translate(12,-20,0))
-    win.add_model(ball.translate(0, 100, -10))
+    win.add_model(arm)
     win.run()
-    sys.stop()
