@@ -237,6 +237,13 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, drives_neurons, states_to_bound, binlen=binlen)
     return decoder
 
+def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
+    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.4):
+    '''
+    Train a simulation PPFDecoder
+    '''
+    raise NotImplementedError
+
 def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.4):
     # TODO options to resample the state-space model at different update rates
@@ -269,7 +276,7 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     C = np.random.standard_normal([n_neurons, nX])
     C[:, ~drives_neurons] = 0
 
-    C *= 6
+    #C *= 6
 
     Q = 10 * np.identity(n_neurons) 
     # set det(Q) to be ~10^10
@@ -283,6 +290,13 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
 
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
         states, drives_neurons, states_to_bound)
+
+    cm_to_m = 0.01
+    decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
+    decoder.kf.S = decoder.kf.C * cm_to_m
+    decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
+
+
     return decoder
 
 if __name__ == '__main__':
