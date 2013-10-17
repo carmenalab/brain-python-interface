@@ -111,10 +111,10 @@ class RobotArm(Group):
     def __init__(self, radii=(.2, .2), lengths=(5, 4), **kwargs):
         self.forearm = Group([
             Cylinder(radius=radii[1], height=lengths[1], color=(0,0,.5,1)), 
-            Sphere(radius=.4,color=(1,1,1,1)).translate(0, 0, lengths[1])]))
+            Sphere(radius=.4,color=(1,1,1,1)).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
         self.upperarm = Group([
             Cylinder(radius=radii[0], height=lengths[0],color=(0,0,1,1)), 
-            Sphere(radius=.4,color=(1,1,1,1))),
+            Sphere(radius=.4,color=(1,1,1,1)).translate(0, 0, lengths[0]),
             self.forearm])
         self.system = TwoJoint(self.upperarm, self.forearm)
         super(RobotArm, self).__init__([self.upperarm], **kwargs)
