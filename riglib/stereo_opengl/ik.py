@@ -108,14 +108,13 @@ class TwoJoint(object):
 ## added by helene to prep for arm task
 
 class RobotArm(Group):
-    def __init__(self, radii=(2, 1.5), lengths=(15, 20), **kwargs):
+    def __init__(self, radii=(.2, .2), lengths=(5, 4), **kwargs):
         self.forearm = Group([
-            Cylinder(radius=radii[1], height=lengths[1], color=(0,0,1,1)), 
-            Sphere(radius=radii[1]+0.5,color=(1,1,1,1)).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
+            Cylinder(radius=radii[1], height=lengths[1], color=(0,0,.5,1)), 
+            Sphere(radius=.4,color=(1,1,1,1)).translate(0, 0, lengths[1])]))
         self.upperarm = Group([
-            Sphere(radii[0]+0.5),
             Cylinder(radius=radii[0], height=lengths[0],color=(0,0,1,1)), 
-            Sphere(radius=radii[0]+0.5,color=(1,1,1,1)).translate(0, 0, lengths[0]),
+            Sphere(radius=.4,color=(1,1,1,1))),
             self.forearm])
         self.system = TwoJoint(self.upperarm, self.forearm)
         super(RobotArm, self).__init__([self.upperarm], **kwargs)
