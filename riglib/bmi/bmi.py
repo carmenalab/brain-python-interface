@@ -165,9 +165,13 @@ class Decoder(object):
         alg._init_state()
 
         if not hasattr(self, 'n_subbins'):
-            self.n_subbbins = 1
+            self.n_subbins = 1
 
         self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
+
+        # TODO move lines to KFDecoder
+        self.bmicount = 0
+        self.bminum = int(self.binlen/(1/60.0))
 
     def __getstate__(self):
         """Create dictionary describing state of the decoder instance, 

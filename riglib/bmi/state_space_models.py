@@ -53,7 +53,7 @@ def _gen_A(t, s, m, n, off, ndim=3):
 def linear_kinarm_kf(update_rate=1./10):
     Delta_KINARM = 1./10
     loop_update_ratio = update_rate/Delta_KINARM
-    a_resampled, w_resampled = resample_scalar_ssm(0.8, 700, Delta_old=Delta_KINARM, Delta_new=update_rate)
+    a_resampled, w_resampled = resample_scalar_ssm(0.8, 7, Delta_old=Delta_KINARM, Delta_new=update_rate)
     A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=3)
     W = _gen_A(0, 0, 0, w_resampled, 0, ndim=3)
     return A, W

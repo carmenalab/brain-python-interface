@@ -339,7 +339,9 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         Return the predicted arm position given the new data.
         '''
         #print self.bmicount
-        self.spike_counts += obs_t
+        #print obs_t.shape
+        #print self.spike_counts.shape
+        self.spike_counts += obs_t.reshape(-1, 1)
         #print "kfdecoder.__call__, obs_t.shape", obs_t.shape
         #print "kfdecoder.__call__, spike_counts.shape", self.spike_counts.shape
         #print [len(self.units), 1]
