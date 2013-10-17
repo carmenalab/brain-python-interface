@@ -296,8 +296,38 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     decoder.kf.S = decoder.kf.C * cm_to_m
     decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
 
-
     return decoder
+
+def rescale_KFDecoder_units(dec, scale_factor=10):
+    '''
+    Convert the units of a KFDecoder, e.g. from mm to cm
+
+    C and W matrices of KalmanFilter must be updated for the new units. 
+    A and Q are unitless and thus remain the same
+
+    Parameters
+    ----------
+    dec : KFDecoder instance
+        KFDecoder object
+    scale_factor : numerical
+        defines how much bigger the new unit is than the old one
+    '''
+    inds = np.nonzero((np.diag(dec.kf.W) > 0) * dec.drives_neurons)[0]
+    nS = dec.kf.W.shape[0]
+    S_diag = np.ones(nS)
+    S_diag[inds] = scale_factor
+    S = np.mat(np.diag(S_diag))
+    #S = np.mat(np.diag([1., 1, 1, 10, 10, 10, 1]))
+    dec.kf.C *= S
+    dec.kf.W *= S.I * S.I
+    try:
+        dec.kf.C_xpose_Q_inv_C = S.T * dec.kf.C_xpose_Q_inv_C * S
+        dec.kf.C_xpose_Q_inv = S.T * dec.kf.C_xpose_Q_inv
+    except:
+        pass
+    dec.bounding_box = tuple([x / scale_factor for x in dec.bounding_box])
+    return dec
+
 
 if __name__ == '__main__':
     test_mc = True
