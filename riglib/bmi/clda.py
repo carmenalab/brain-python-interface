@@ -202,10 +202,12 @@ class KFRML(object):
             if include_offset:
                 X = np.vstack([ X, np.ones([1,T]) ])
             Y = np.mat(obs)
+        X = np.mat(X, dtype=np.float64)
 
-        R = (1/T) * (X * X.T)
-        S = (1/T) * (Y * X.T)
-        T = (1/T) * (Y * Y.T)
+        R = (1./T) * (X * X.T)
+        S = (1./T) * (Y * X.T)
+        T = (1./T) * (Y * Y.T)
+        print T
 
         return (R, S, T)
 
@@ -226,7 +228,7 @@ class KFRML(object):
         self.iter_counter += 1
 
         C = self.S * self.R.I
-        Q = 1/(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
+        Q = 1./(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
 
         mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old

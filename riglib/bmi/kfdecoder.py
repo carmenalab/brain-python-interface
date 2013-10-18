@@ -212,9 +212,14 @@ class KalmanFilter(bmi.GaussianStateHMM):
         self.W = state['W']
         self.C = state['C']
         self.Q = state['Q']
+
         try:
             self.C_xpose_Q_inv_C = state['C_xpose_Q_inv_C']
             self.C_xpose_Q_inv = state['C_xpose_Q_inv']
+
+            self.R = state['R']
+            self.S = state['S']
+            self.T = state['T']            
         except:
             # handled by _pickle_init
             pass
@@ -223,9 +228,13 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
     def __getstate__(self):
         """Return the model parameters {A, W, C, Q} for pickling"""
-        return dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
+        data = dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
                     C_xpose_Q_inv=self.C_xpose_Q_inv, 
                     C_xpose_Q_inv_C=self.C_xpose_Q_inv_C)
+        data['R'] = self.R
+        data['S'] = self.S
+        data['T'] = self.T
+        return data
 
     @classmethod
     def MLE_obs_model(self, hidden_state, obs, include_offset=True, 

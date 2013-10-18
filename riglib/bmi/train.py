@@ -237,6 +237,14 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
         state_vars, drives_neurons, states_to_bound, binlen=binlen, 
         tslice=tslice)
+
+    from clda import KFRML
+    R, S, T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[:,:-1])
+    decoder.kf.R = R
+    decoder.kf.S = S
+    decoder.kf.T = T 
+
+    
     return decoder
 
 def _train_KFDecoder_visual_feedback_old(cells=None, binlen=0.1, tslice=[None,None], 
@@ -325,6 +333,13 @@ def _train_KFDecoder_visual_feedback_old(cells=None, binlen=0.1, tslice=[None,No
     neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
     drives_neurons = np.array([x in neuron_driving_states for x in state_vars])
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, drives_neurons, states_to_bound, binlen=binlen)
+
+    from clda import KFRML
+    R, S, T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[:,:-1])
+    decoder.kf.R = R
+    decoder.kf.S = S
+    decoder.kf.T = T 
+
     return decoder
 
 def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
