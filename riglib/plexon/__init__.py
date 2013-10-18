@@ -9,7 +9,8 @@ from collections import Counter
 
 class Spikes(object):
     update_freq = 40000
-    dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32), ("arrival_ts", np.float64)])
+    dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32)])
+    #("arrival_ts", np.float64)
 
     def __init__(self, addr=("10.0.0.13", 6000), channels=None):
         self.conn = plexnet.Connection(*addr)
@@ -32,7 +33,8 @@ class Spikes(object):
         while d.type != 1:
             d = self.data.next()
 
-        return np.array([(d.ts / self.update_freq, d.chan, d.unit, d.arrival_ts)], dtype=self.dtype)
+        return np.array([(d.ts / self.update_freq, d.chan, d.unit)], dtype=self.dtype)
+        #d.arrival_ts
 
 class SimSpikes(object):
     update_freq = 65536
