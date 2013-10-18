@@ -218,25 +218,34 @@ class AdaptiveBMI(object):
         self.decoder(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
         decoded_state = self.decoder.get_state()
 
-        if self.decoder.bmicount == 0: #self.decoder.bminum - 1):
+
+        learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
+        if learn_flag and self.decoder.bmicount == 0: #self.decoder.bminum - 1):
+            self.learner(self.spike_counts.copy(), prev_state[pos_inds], target_pos, 
+                         decoded_state[vel_inds], task_state)
             self.reset_spike_counts()
         else:
             self.spike_counts += spike_obs
-        
-        ## if len(spike_obs) == 0: # no timestamps observed
-        ##     # TODO spike binning function needs to properly handle not having any timestamps!
-        ##     spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
-        ## elif spike_obs.dtype == Spikes.dtype: # Plexnet dtype
-        ##     spike_counts = self.decoder.bin_spikes(spike_obs)
-        ## else:
-        ##     spike_counts = spike_obs
 
-        # send data to learner
-        learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
-        if learn_flag and (self.decoder.bmicount == self.decoder.bminum - 1):
-            #print "sending data to learner", self.learner.batch_size, len(self.learner.kindata)
-            self.learner(self.spike_counts, prev_state[pos_inds], target_pos, 
-                         decoded_state[vel_inds], task_state)
+        #### if self.decoder.bmicount == 0: #self.decoder.bminum - 1):
+        ####     self.reset_spike_counts()
+        #### else:
+        ####     self.spike_counts += spike_obs
+        #### 
+        #### ## if len(spike_obs) == 0: # no timestamps observed
+        #### ##     # TODO spike binning function needs to properly handle not having any timestamps!
+        #### ##     spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
+        #### ## elif spike_obs.dtype == Spikes.dtype: # Plexnet dtype
+        #### ##     spike_counts = self.decoder.bin_spikes(spike_obs)
+        #### ## else:
+        #### ##     spike_counts = spike_obs
+
+        #### # send data to learner
+        #### learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
+        #### if learn_flag and (self.decoder.bmicount == self.decoder.bminum - 1):
+        ####     #print "sending data to learner", self.learner.batch_size, len(self.learner.kindata)
+        ####     self.learner(self.spike_counts, prev_state[pos_inds], target_pos, 
+        ####                  decoded_state[vel_inds], task_state)
 
         new_params = None # Default is that no new parameters are available
         update_flag = False
