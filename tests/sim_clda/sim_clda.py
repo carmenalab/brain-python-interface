@@ -27,8 +27,10 @@ import time
 
 import riglib.bmi.bmi
 
-from tasks import bmitasks
-reload(bmitasks)
+from tasks import bmitasks, bmimultitasks, manualcontrolmultitasks
+#reload(bmitasks)
+#reload(bmimultitasks)
+#reload(manualcontrolmultitasks)
 reload(kfdecoder)
 reload(clda)
 reload(riglib.bmi)
@@ -245,6 +247,18 @@ def target_seq_generator(n_targs, n_trials):
         #yield np.array([m_to_mm*targets[target_inds[k], 0], 0, m_to_mm*targets[target_inds[k], 1]])
         k += 1
 
+def target_seq_generator_multi(n_targs, n_trials):
+    target_inds = np.random.randint(0, n_targs, n_trials)
+    target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
+    target_stack = list(targets)
+    k = 0
+    while k < n_trials:
+        targ = m_to_cm*targets[target_inds[k], :]
+        yield np.array([[center[0], 0, center[1]],
+                        [targ[0], 0, targ[1]]])
+        #yield np.array([m_to_mm*targets[target_inds[k], 0], 0, m_to_mm*targets[target_inds[k], 1]])
+        k += 1
+
 class FakeHDF():
     def __init__(self, *args, **kwargs):
         pass
@@ -334,6 +348,198 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
         time.sleep(1./60 * 1./10)
         #time.sleep(self.update_rate/10)
 
+
+
+
+class SimCLDAControlDispl2DMulti(bmimultitasks.SimCLDAControlMulti, Autostart):
+    update_rate = 0.1
+    def __init__(self, *args, **kwargs):
+        super(SimCLDAControlDispl2DMulti, self).__init__(*args, **kwargs)
+        self.batch_time = 5
+        self.half_life  = 20.0
+
+        self.origin_hold_time = 0.250
+        self.terminus_hold_time = 0.250
+        self.origin_size = 1.7
+        self.terminus_size = 1.7
+        self.hdf = FakeHDF()
+        self.task_data = FakeHDF()
+        self.start_time = 0.
+        self.loop_counter = 0
+        self.assist_level = 0
+
+    def create_updater(self):
+        clda_input_queue = mp.Queue()
+        clda_output_queue = mp.Queue()
+        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
+            self.batch_time, self.half_life)
+
+    def screen_init(self):
+        target_radius = self.terminus_size
+        center_radius = self.origin_size
+        cursor_radius = self.cursor.radius
+        t_ctrhold = 0.250
+        t_reachtarg = 10
+        t_targhold = 0.250
+
+#        workspace_ll = np.array([-0.1, -0.1])
+        workspace_ll = np.array([-10., -10.])
+        
+        self.game = CenterOut(
+            show=options.show, r_ctr=center_radius, r_targ=target_radius,
+            r_cursor=cursor_radius, 
+            t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
+            workspace_size=20, workspace_ll=workspace_ll,
+            workspace_targets=targets, workspace_ctr=center, 
+        )
+
+    def get_time(self):
+        return self.loop_counter * DT
+
+    def loop_step(self):
+        self.loop_counter += 1
+
+    def draw_world(self):
+        if self.state == 'origin':
+            self.game.show_origin = True
+            self.game.show_target = False
+        elif self.state == 'origin_hold':
+            self.game.show_origin = True
+            self.game.show_target = True
+        elif self.state in ['terminus', 'terminus_hold']:
+            self.game.show_origin = False
+            self.game.show_target = True
+        else:
+            self.game.show_origin = False
+            self.game.show_target = False
+        cursor_pos = self.cursor.xfm.move[[0,2]] # [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
+        self.game.center = self.target1.xfm.move[[0,2]]
+        self.game.target = self.target2.xfm.move[[0,2]]
+        self.show_origin = True
+        self.show_target = True
+        #cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
+        self.game.move_cursor(cursor_pos, run_fsm=False)
+        time.sleep(1./60 * 1./10)
+        #time.sleep(self.update_rate/10)
+
+
+    def show_object(self, target, show=False):
+        pass
+
+    def move_object(self, obj, pos):
+        pass
+
+    def requeue(self):
+        pass
+    
+    def _start_wait(self):
+        super(manualcontrolmultitasks.ManualControlMulti, self)._start_wait()
+        self.tries = 0
+        self.target_index = -1
+        #hide targets
+        self.show_object(self.target1, False)
+        self.show_object(self.target2, False)
+        #self.target1.detach()
+        #self.target2.detach()
+        self.requeue()
+        #get target locations for this trial
+        self.targs = self.next_trial
+        self.chain_length = self.targs.shape[0] #Number of sequential targets in a single trial
+        #f.write("ManualControlMultTask: in wait state\n")
+
+    def update_cursor_visibility(self):
+        ''' Update cursor visible flag to hide cursor if there has been no good data for more than 3 frames in a row'''
+        prev = self.cursor_visible
+        if self.no_data_count < 3:
+            self.cursor_visible = True
+            if prev != self.cursor_visible:
+                self.show_object(self.cursor, show=True)
+            	#self.cursor.attach()
+            	self.requeue()
+        else:
+            self.cursor_visible = False
+            if prev != self.cursor_visible:
+                self.show_object(self.cursor, show=False)
+            	#self.cursor.detach()
+            	self.requeue()
+
+        
+    def _start_target(self):
+    	self.target_index += 1
+
+        #set target colors to red
+        self.target1.color = (1,0,0,.5)
+        self.target2.color = (1,0,0,.5)
+
+        #move a target to current location (target1 and target2 alternate moving) and set location attribute
+        if self.target_index%2 == 0:            
+            self.target1.translate(*self.targs[self.target_index], reset=True)
+            self.show_object(self.target1, True)
+            #self.target1.attach()
+            self.target_location = self.target1.xfm.move
+        else:            
+            self.target2.translate(*self.targs[self.target_index], reset=True)
+            #self.target2.attach()
+            self.show_object(self.target2, True)
+            self.target_location = self.target2.xfm.move
+        self.requeue()
+
+    def _start_hold(self):
+        #make next target visible unless this is the final target in the trial
+        if (self.target_index+1) < self.chain_length:
+            if self.target_index%2 == 0:
+                self.target2.translate(*self.targs[self.target_index+1], reset=True)
+                #self.target2.attach()
+                self.show_object(self.target2, True)
+            else:         
+                self.target1.translate(*self.targs[self.target_index+1], reset=True)
+                #self.target1.attach()
+                self.show_object(self.target1, True)
+            self.requeue()
+    
+    def _start_hold_penalty(self):
+    	#hide targets
+        #self.target1.detach()
+        #self.target2.detach()
+        self.show_object(self.target1, False)
+        self.show_object(self.target2, False)
+        self.requeue()
+        self.tries += 1
+        self.target_index = -1
+    
+    def _start_timeout_penalty(self):
+    	#hide targets
+        self.show_object(self.target1, False)
+        self.show_object(self.target2, False)
+        #self.target1.detach()
+        #self.target2.detach()
+        self.requeue()
+        self.tries += 1
+        self.target_index = -1
+
+    def _start_targ_transition(self):
+        #hide targets
+        self.show_object(self.target1, False)
+        self.show_object(self.target2, False)
+        #self.target1.detach()
+        #self.target2.detach()
+        self.requeue()
+    
+    def _start_reward(self):
+    	super(ManualControlMulti, self)._start_reward()
+    	if self.target_index%2 == 0:            
+            #self.target1.attach()
+            self.show_object(self.target1, True)
+        else:            
+            #self.target2.attach()
+            self.show_object(self.target2, True)
+        self.requeue()
+        
+
+
+
+
+
 class SimRML(SimCLDAControlDispl2D):
     def __init__(self, *args, **kwargs):
         super(SimRML, self).__init__(*args, **kwargs)
@@ -344,7 +550,14 @@ class SimRML(SimCLDAControlDispl2D):
         self.updater = clda.KFRML(None, None, self.batch_time, self.half_life)
 
 
-gen = target_seq_generator(8, 1000)
-task = SimRML(gen)
-task.init()
-task.run()
+if 0:
+    gen = target_seq_generator_multi(8, 1000)
+    task = SimCLDAControlDispl2DMulti(gen)
+    task.init()
+    task.run()
+else:
+    print "old"
+    gen = target_seq_generator(8, 1000)
+    task = SimCLDAControlDispl2D(gen)
+    task.init()
+    task.run()
