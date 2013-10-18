@@ -301,7 +301,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
 class KFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1]):
-        """ Initializes the Kalman filter decoder.  Includes BMI specific
+        """ 
+        Initializes the Kalman filter decoder.  Includes BMI specific
         features used to run the Kalman filter in a BMI context.
         """
         self.kf = kf

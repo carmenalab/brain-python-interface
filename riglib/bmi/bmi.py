@@ -158,7 +158,7 @@ class Decoder(object):
         '''
         unit_inds = self.units[:,0]*max_units_per_channel + self.units[:,1]
         edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
-        spiking_unit_inds = spikes['chan']*5+spikes['unit']
+        spiking_unit_inds = spikes['chan']*max_units_per_channel + spikes['unit']
         counts, _ = np.histogram(spiking_unit_inds, edges)
         return counts[::2]
 
@@ -218,7 +218,7 @@ class AdaptiveBMI(object):
         self.decoder(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
         decoded_state = self.decoder.get_state()
 
-        if (self.decoder.bmicount == self.decoder.bminum - 1):
+        if self.decoder.bmicount == 0: #self.decoder.bminum - 1):
             self.reset_spike_counts()
         else:
             self.spike_counts += spike_obs

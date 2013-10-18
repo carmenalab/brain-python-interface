@@ -345,6 +345,6 @@ class SimRML(SimCLDAControlDispl2D):
 
 
 gen = target_seq_generator(8, 1000)
-task = SimCLDAControlDispl2D(gen)
+task = SimRML(gen)
 task.init()
 task.run()
