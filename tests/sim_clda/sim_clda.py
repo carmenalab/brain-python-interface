@@ -25,11 +25,14 @@ from scipy.integrate import trapz, simps
 from riglib.experiment.features import Autostart
 import time
 
+import riglib.bmi.bmi
+
 from tasks import bmitasks
 reload(bmitasks)
 reload(kfdecoder)
 reload(clda)
 reload(riglib.bmi)
+reload(riglib.bmi.bmi)
 reload(riglib.bmi.train)
 
 ### Constants
@@ -342,6 +345,6 @@ class SimRML(SimCLDAControlDispl2D):
 
 
 gen = target_seq_generator(8, 1000)
-task = SimRML(gen)
+task = SimCLDAControlDispl2D(gen)
 task.init()
 task.run()
