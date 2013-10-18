@@ -338,13 +338,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         '''
         Return the predicted arm position given the new data.
         '''
-        #print self.bmicount
-        #print obs_t.shape
-        #print self.spike_counts.shape
         self.spike_counts += obs_t.reshape(-1, 1)
-        #print "kfdecoder.__call__, obs_t.shape", obs_t.shape
-        #print "kfdecoder.__call__, spike_counts.shape", self.spike_counts.shape
-        #print [len(self.units), 1]
         if self.bmicount == self.bminum-1:  
             self.bmicount = 0
             self.predict(self.spike_counts, **kwargs)
@@ -402,6 +396,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         return self.kf
         
     def get_state(self):
+        '''
+        Get the state of the decoder (mean of the Gaussian RV representing the
+        state of the BMI)
+        '''
         alg = self.get_filter()
         return np.array(alg.state.mean).ravel()
 
@@ -412,27 +410,14 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.kf.set_steady_state_pred_cov()
 
 
-def load_from_mat_file(decoder_fname, bounding_box=None, 
-    states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
-    """Create KFDecoder from MATLAB decoder file used in a Dexterit-based
-    BMI
-    """
-    decoder_data = loadmat(decoder_fname)['decoder']
-    A = decoder_data['A'][0,0]
-    W = decoder_data['W'][0,0]
-    H = decoder_data['H'][0,0]
-    Q = decoder_data['Q'][0,0]
-    mFR = decoder_data['mFR'][0,0]
-    sdFR = decoder_data['sdFR'][0,0]
+    def __setstate__(self, state):
+        """
+        Set decoder state after un-pickling
+        """
+        super(KFDecoder, self).__setstate__(state)
+        self.bmicount = 0
+        self.bminum = int(self.binlen/(1/60.0))
 
-    pred_sigs = [str(x[0]) for x in decoder_data['predSig'][0,0].ravel()]
-    unit_lut = {'a':1, 'b':2, 'c':3, 'd':4}
-    units = [(int(sig[3:6]), unit_lut[sig[-1]]) for sig in pred_sigs]
-
-    kf = KalmanFilter(A, W, H, Q)
-    kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box, states, states_to_bound)
-
-    return kfdecoder
 
 def project_Q(C_v, Q_hat):
     """ Constrain Q such that the first two columns of the H matrix
