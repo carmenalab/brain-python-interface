@@ -25,11 +25,14 @@ from scipy.integrate import trapz, simps
 from riglib.experiment.features import Autostart
 import time
 
+import riglib.bmi.bmi
+
 from tasks import bmitasks
 reload(bmitasks)
 reload(kfdecoder)
 reload(clda)
 reload(riglib.bmi)
+reload(riglib.bmi.bmi)
 reload(riglib.bmi.train)
 
 ### Constants
@@ -258,9 +261,9 @@ class CLDAControlPPF(bmitasks.CLDAControl):
 class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
     update_rate = 0.1
     def __init__(self, *args, **kwargs):
+        super(SimCLDAControlDispl2D, self).__init__(*args, **kwargs)
         self.batch_time = 5
         self.half_life  = 20.0
-        super(SimCLDAControlDispl2D, self).__init__(*args, **kwargs)
 
         self.origin_hold_time = 0.250
         self.terminus_hold_time = 0.250
@@ -342,6 +345,6 @@ class SimRML(SimCLDAControlDispl2D):
 
 
 gen = target_seq_generator(8, 1000)
-task = SimRML(gen)
+task = SimCLDAControlDispl2D(gen)
 task.init()
 task.run()

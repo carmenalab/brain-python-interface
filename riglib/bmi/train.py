@@ -335,7 +335,7 @@ def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     raise NotImplementedError
 
 def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
-    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.4):
+    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.8):
     # TODO options to resample the state-space model at different update rates
     n_neurons = units.shape[0]
     if include_y:
@@ -387,6 +387,28 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
 
     return decoder
+
+def load_from_mat_file(decoder_fname, bounding_box=None, 
+    states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
+    """Create KFDecoder from MATLAB decoder file used in a Dexterit-based
+    BMI
+    """
+    decoder_data = loadmat(decoder_fname)['decoder']
+    A = decoder_data['A'][0,0]
+    W = decoder_data['W'][0,0]
+    H = decoder_data['H'][0,0]
+    Q = decoder_data['Q'][0,0]
+    mFR = decoder_data['mFR'][0,0]
+    sdFR = decoder_data['sdFR'][0,0]
+
+    pred_sigs = [str(x[0]) for x in decoder_data['predSig'][0,0].ravel()]
+    unit_lut = {'a':1, 'b':2, 'c':3, 'd':4}
+    units = [(int(sig[3:6]), unit_lut[sig[-1]]) for sig in pred_sigs]
+
+    kf = KalmanFilter(A, W, H, Q)
+    kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box, states, states_to_bound)
+
+    return kfdecoder
 
 def rescale_KFDecoder_units(dec, scale_factor=10):
     '''

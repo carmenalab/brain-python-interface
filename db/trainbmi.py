@@ -6,6 +6,8 @@ import re
 import cPickle
 import tempfile
 import xmlrpclib
+import pickle
+import os
 
 import namelist
 from tracker import models
@@ -35,7 +37,8 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
 
     datafiles = models.DataFile.objects.filter(entry_id=entry)
     inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
-    decoder = namelist.bmis[clsname](cells=cells, binlen=binlen, tslice=tslice, **inputdata)
+    training_method = namelist.bmis[clsname]
+    decoder = training_method(cells=cells, binlen=binlen, tslice=tslice, **inputdata)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()
@@ -67,3 +70,22 @@ def cache_and_train(name, clsname, entry, cells, binlen, tslice):
         chain(cache, train)()
     else:
         make_bmi.delay(name, clsname, entry, cells, binlen, tslice)
+
+def conv_mm_dec_to_cm(decoder_record):
+    '''
+    Convert a mm unit decoder to cm
+    '''
+    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
+    decoder_name = decoder_record.name
+    dec = pickle.load(open(decoder_fname))
+    from riglib.bmi import train
+    from tracker import dbq
+    dec_cm = train.rescale_KFDecoder_units(dec, 10)
+
+    new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_cm.pkl'
+    new_decoder_fname = '/tmp/%s' % new_decoder_basename
+    pickle.dump(dec_cm, new_decoder_fname)
+
+    new_decoder_name = decoder_name + '_cm'
+    training_block_id = decoder_record.entry_id
+    dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
