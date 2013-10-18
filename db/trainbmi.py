@@ -35,7 +35,8 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
 
     datafiles = models.DataFile.objects.filter(entry_id=entry)
     inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
-    decoder = namelist.bmis[clsname](cells=cells, binlen=binlen, tslice=tslice, **inputdata)
+    training_method = namelist.bmis[clsname]
+    decoder = training_method(cells=cells, binlen=binlen, tslice=tslice, **inputdata)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()
