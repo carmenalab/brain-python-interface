@@ -311,7 +311,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.zscore = False
         self.units = np.array(units, dtype=np.int32)
         self.binlen = binlen
-        self.bin_spikes = psth.SpikeBin(self.units, self.binlen)
+        #self.bin_spikes = psth.SpikeBin(self.units, self.binlen)
         self.bounding_box = bounding_box
         self.states = states
         self.tslice = tslice # Legacy from when it was assumed that all decoders would be trained from manual control
@@ -408,7 +408,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
         # set the KF to the new steady state
         self.kf.set_steady_state_pred_cov()
-
 
     def __setstate__(self, state):
         """

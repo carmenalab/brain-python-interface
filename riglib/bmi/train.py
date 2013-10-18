@@ -335,7 +335,7 @@ def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     raise NotImplementedError
 
 def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
-    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.4):
+    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.8):
     # TODO options to resample the state-space model at different update rates
     n_neurons = units.shape[0]
     if include_y:
