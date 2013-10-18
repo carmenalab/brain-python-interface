@@ -220,12 +220,12 @@ class AdaptiveBMI(object):
 
 
         learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
+        self.spike_counts += spike_obs
         if learn_flag and self.decoder.bmicount == 0: #self.decoder.bminum - 1):
             self.learner(self.spike_counts.copy(), prev_state[pos_inds], target_pos, 
                          decoded_state[vel_inds], task_state)
             self.reset_spike_counts()
-        else:
-            self.spike_counts += spike_obs
+        
 
         #### if self.decoder.bmicount == 0: #self.decoder.bminum - 1):
         ####     self.reset_spike_counts()

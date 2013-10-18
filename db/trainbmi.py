@@ -76,6 +76,7 @@ def conv_mm_dec_to_cm(decoder_record):
     Convert a mm unit decoder to cm
     '''
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
+    print decoder_fname
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
     from riglib.bmi import train
@@ -84,8 +85,9 @@ def conv_mm_dec_to_cm(decoder_record):
 
     new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_cm.pkl'
     new_decoder_fname = '/tmp/%s' % new_decoder_basename
-    pickle.dump(dec_cm, new_decoder_fname)
+    pickle.dump(dec_cm, open(new_decoder_fname, 'w'))
 
     new_decoder_name = decoder_name + '_cm'
     training_block_id = decoder_record.entry_id
+    print new_decoder_name
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
