@@ -19,7 +19,7 @@ class TwoJoint(object):
         self.forearm = target_bone
         self.lengths = lengths
         self.tlen = lengths[0] + lengths[1]
-        self.curr_angles = (0.0,0.0)
+        self.curr_vecs = np.zeros([2,3])
 
     def _midpos(self, target):
         m, n = self.lengths
@@ -76,16 +76,17 @@ class TwoJoint(object):
 
         # Find upper arm vector
         xs = self.lengths[0]*np.cos(shoulder_angle)
+        ys = 0.0
         zs = self.lengths[0]*np.sin(shoulder_angle)
+        self.curr_vecs[0,:] = np.array([xs, ys, zs])
         self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xs,0,zs)).norm()
 
         # Find forearm vector
         xe = self.lengths[1]*np.cos(elbow_angle)
+        ye = 0.0
         ze = self.lengths[1]*np.sin(elbow_angle)
+        self.curr_vecs[1,:] = np.array([xe, ye, ze])
         self.forearm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xe,0,ze)).norm()
-
-        #set current angles
-        self.curr_angles = (shoulder_angle, elbow_angle)
 
         self.upperarm._recache_xfm()
 
@@ -138,4 +139,7 @@ class RobotArm(Group):
 
     def get_hand_location(self, shoulder_anchor):
         ''' returns position of ball at end of forearm (hand)'''
-        return self.upperarm.models[1].xfm.move + self.forearm.models[1].xfm.move
+        upper_vec = self.system.curr_vecs[0]
+        # adjust lower arm vector to include radius of ball at the end
+        lower_vec = (self.system.curr_vecs[1]/lengths[1])*(lengths[1]+ball_radii[1])
+        return shoulder_anchor + upper_vec + lower_vec

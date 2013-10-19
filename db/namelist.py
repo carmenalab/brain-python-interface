@@ -71,7 +71,6 @@ tasks = dict(
     arm_position_training=sensorymapping.ArmPositionTraining,
     number_map=sensorymapping.NumberMap,
     joystick_control = manualcontrol.JoystickControl,
-    joystick_targ_direc = manualcontrol.CorrectTargetDir,
     manual_control_2 = manualcontrol.ManualControl2,
     visual_feedback = bmitasks.VisualFeedback,
     visual_feedback_multi = bmimultitasks.VisualFeedbackMulti,
