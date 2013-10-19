@@ -67,7 +67,7 @@ class TwoJoint(object):
         0 is fully extended, pi/2 is a right angle to upper arm pointing left, and pi is fully overlapping with upper
         arm.'''
 
-        elbow_angle = elbow_angle + np.pi/2
+        elbow_angle_mod = elbow_angle + np.pi/2
 
         #if shoulder_angle>np.pi: shoulder_angle = np.pi
         #if shoulder_angle<0.0: shoulder_angle = 0.0
@@ -82,14 +82,14 @@ class TwoJoint(object):
         self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xs,0,zs)).norm()
 
         # Find forearm vector (relative to upper arm)
-        xe = self.lengths[1]*np.cos(elbow_angle)
+        xe = self.lengths[1]*np.cos(elbow_angle_mod)
         ye = 0.0
-        ze = self.lengths[1]*np.sin(elbow_angle)
+        ze = self.lengths[1]*np.sin(elbow_angle_mod)
         # Find absolute vector
         xe2 = self.lengths[1]*np.cos(shoulder_angle+elbow_angle)
         ye2 = 0.0
         ze2 = self.lengths[1]*np.sin(shoulder_angle+elbow_angle)
-        self.curr_vecs[1,:] = np.array([xe, ye, ze])
+        self.curr_vecs[1,:] = np.array([xe2, ye2, ze2])
         self.forearm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xe,0,ze)).norm()
 
         self.upperarm._recache_xfm()
@@ -133,7 +133,7 @@ class RobotArm(Group):
             Sphere(radius=ball_radii[1],color=(1,1,1,.2)).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
         self.upperarm = Group([
             Cylinder(radius=link_radii[0], height=lengths[0],color=(0,0,1,1)), 
-            Sphere(radius=ball_radii[0],color=(1,1,1,1)).translate(0, 0, lengths[0]),
+            Sphere(radius=ball_radii[0],color=(1,1,1,.2)).translate(0, 0, lengths[0]),
             self.forearm])
         self.system = TwoJoint(self.upperarm, self.forearm, lengths = (self.lengths))
         super(RobotArm, self).__init__([self.upperarm], **kwargs)
@@ -146,7 +146,4 @@ class RobotArm(Group):
 
     def get_hand_location(self, shoulder_anchor):
         ''' returns position of ball at end of forearm (hand)'''
-        upper_vec = self.system.curr_vecs[0]
-        # adjust lower arm vector to include radius of ball at the end
-        lower_vec = (self.system.curr_vecs[1]/self.lengths[1])*(self.lengths[1]+self.ball_radii[1])
-        return shoulder_anchor + upper_vec + lower_vec
+        return shoulder_anchor + self.system.curr_vecs[0] +self.system.curr_vecs[1]
