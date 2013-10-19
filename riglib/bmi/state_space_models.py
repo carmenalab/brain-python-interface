@@ -50,10 +50,12 @@ def _gen_A(t, s, m, n, off, ndim=3):
     A[-1,-1] = off
     return np.mat(A)
 
-def linear_kinarm_kf(update_rate=1./10):
+def linear_kinarm_kf(update_rate=1./10, units_mult=0.01):
     Delta_KINARM = 1./10
     loop_update_ratio = update_rate/Delta_KINARM
-    a_resampled, w_resampled = resample_scalar_ssm(0.8, 7, Delta_old=Delta_KINARM, Delta_new=update_rate)
+    w_in_meters = 0.0007
+    w_units_resc = w_in_meters / (units_mult ** 2)
+    a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
     A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=3)
     W = _gen_A(0, 0, 0, w_resampled, 0, ndim=3)
     return A, W

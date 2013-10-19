@@ -12,7 +12,8 @@ from bmi import BMI, GaussianState
 import statsmodels.api as sm # GLM fitting module
 
 class PointProcessFilter():
-    """Low-level KF, agnostic to application
+    """
+    Low-level Point-process filter, agnostic to application
 
     Model: 
        x_{t+1} = Ax_t + w_t; w_t ~ N(0, W)
@@ -66,6 +67,7 @@ class PointProcessFilter():
     def _obs_prob(self, state):
         Loglambda_predict = self.C.T * state.mean
         lambda_predict = np.exp(Loglambda_predict)/self.dt
+        assert np.all(lambda_predict > 0)
 
         #self._check_valid(self, lambda_predict, id)
         return lambda_predict
@@ -75,34 +77,52 @@ class PointProcessFilter():
 
     def _forward_infer(self, st, obs_t): #stimulant_index, stoch_stim_index, stoch_index, det_index)
         obs_t = np.mat(obs_t.reshape(-1,1))
-        C = self.C
-        n_obs = C.shape[1]
+        C = self.C.T
+        n_obs = C.shape[0]
         
         # TODO incorporate feedback control state space model
         pred_state = self._ssm_pred(st)
-        assert pred_state.mean.shape == (3,1)
+        #assert pred_state.mean.shape == (3,1)
         pred_obs = self._obs_prob(pred_state)
         #print pred_obs
 
-        D = np.mat(np.diag(np.array(pred_obs).ravel() * self.dt))
+        Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.dt))
     
         P_pred = pred_state.cov
         nS = self.A.shape[0]
-        if self.include_offset:
-            P_pred_inv = np.mat(np.zeros([nS, nS]))
-            P_pred_inv[:-1, :-1] = P_pred[:-1,:-1].I
-            P_est = np.mat(np.zeros([nS, nS]))
-            P_est[:-1, :-1] = (P_pred_inv[:-1, :-1] + C[:-1,:]*D*C[:-1,:].T).I
-        else:
-            P_est = (P_pred.I + C*D*C.T).I
+        ### if self.include_offset:
+        ###     P_pred_inv = np.mat(np.zeros([nS, nS]))
+        ###     inds, = np.nonzero(np.diag(P_pred))
+        ###     P_pred_inv[np.ix_(inds, inds)] = P_pred[np.ix_(inds, inds)].I
+        ###     #P_pred_inv[:-1, :-1] = P_pred[:-1,:-1].I
+        ###     P_est = np.mat(np.zeros([nS, nS]))
+        ###     P_est[:-1, :-1] = (P_pred_inv[:-1, :-1] + C[:-1,:]*Q_inv*C[:-1,:].T).I
+        ### else:
+        ###     P_est = (P_pred.I + C*Q_inv*C.T).I
+
+
+        I = np.mat(np.eye(nS))
+        D = C.T * Q_inv * C
+        ### P_est = P_pred - P_pred*((I - D*P_pred*(I + D*P_pred).I)*D)*P_pred
+        ### I = np.mat(np.eye(n_obs))
+        ### P_est = P_pred - P_pred*C.T*Q_inv * (I + C * P_pred * C.T*Q_inv).I * C * P_pred
+        
+        #F = C.T * (Q_inv.I + C*P_pred*C.T).I * C
+        # ... after mat inv lemma:
+        #F = C.T * (Q_inv - Q_inv*C*P_pred*(I + D).I * C.T*Q_inv) * C
+        # distr
+        #F = (C.T *Q_inv * C - C.T *Q_inv*C*P_pred*(I + D).I * C.T*Q_inv * C)
+        # sub
+        F = (D - D*P_pred*(I + D).I * D)
+        P_est = P_pred - P_pred * F * P_pred
 
         #import pdb
         #pdb.set_trace()
 
         unpred_spikes = obs_t - pred_obs*self.dt
-        x_est = pred_state.mean + P_est*C*unpred_spikes
+        x_est = pred_state.mean + P_est*C.T*unpred_spikes
         post_state = GaussianState(x_est, P_est)
-        assert post_state.mean.shape == (3,1)
+        #assert post_state.mean.shape == (3,1)
         
         return post_state
 
@@ -194,32 +214,3 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
                 assist_level=0.9, dt=0.1, task_data=None):
         """Decode the spikes"""
         raise NotImplementedError
-
-def load_from_mat_file(decoder_fname, bounding_box=None, 
-    states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
-    """Create KFDecoder from MATLAB decoder file used in a Dexterit-based
-    BMI
-    """
-    decoder_data = loadmat(decoder_fname)['decoder']
-    A = decoder_data['A'][0,0]
-    W = decoder_data['W'][0,0]
-    H = decoder_data['H'][0,0]
-    Q = decoder_data['Q'][0,0]
-    mFR = decoder_data['mFR'][0,0]
-    sdFR = decoder_data['sdFR'][0,0]
-
-    pred_sigs = [str(x[0]) for x in decoder_data['predSig'][0,0].ravel()]
-    unit_lut = {'a':1, 'b':2, 'c':3, 'd':4}
-    units = [(int(sig[3:6]), unit_lut[sig[-1]]) for sig in pred_sigs]
-
-    kf = KalmanFilter(A, W, H, Q)
-    kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box, states, states_to_bound)
-
-    return kfdecoder
-
-if __name__ == '__main__':
-    cells = [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3), (4, 1)]
-    block = 'cart20130428_01'
-    files = dict(plexon='/storage/plexon/%s.plx' % block, hdf='/storage/rawdata/hdf/%s.hdf' % block)
-    train_from_manual_control(cells, **files)
-    pass

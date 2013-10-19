@@ -8,6 +8,7 @@ from riglib.bmi import ppfdecoder, state_space_models as ssm
 from scipy.io import loadmat, savemat
 from riglib.bmi.sim_neurons import PointProcessEnsemble
 import matplotlib.pyplot as plt
+from riglib.bmi import state_space_models
 
 reload(ppfdecoder)
 
@@ -51,11 +52,18 @@ w_ppf = 4.290850 * 1e-05;
 ##plt.show()
 
 # Compare against MATLAB data
+states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+decoding_states = ['hand_vx', 'hand_vz', 'offset'] 
+
+# TODO transpose beta matrix
+
 truedata = loadmat('/Users/sgowda/bmi/workspace/adaptive_ppf/ppf_test_case_matlab_output.mat')
 a_ppf = truedata['A'][0,0]
 w_ppf = truedata['W'][0,0]
 A = np.mat(np.diag([a_ppf, a_ppf, 1]))
 W = np.mat(np.diag([w_ppf, w_ppf, 0]))
+
+# Instantiate PPF
 ppf = ppfdecoder.PointProcessFilter(A, W, beta, T_loop)
 ppf._init_state()
 
@@ -72,35 +80,42 @@ plt.plot(hand_vel[0,:n_iter], label='handvel')
 plt.plot(decoded_output[0,:], label='pyth')
 plt.legend()
 plt.show()
-
 
 print np.max(np.abs(x_est[0,:n_iter] - decoded_output[0,:]))
 
 
 # TODO expand A, W, C to same dimensions as for KF
-truedata = loadmat('/Users/sgowda/bmi/workspace/adaptive_ppf/ppf_test_case_matlab_output.mat')
-a_ppf = truedata['A'][0,0]
-w_ppf = truedata['W'][0,0]
-A = np.mat(np.diag([a_ppf, a_ppf, 1]))
-W = np.mat(np.diag([w_ppf, w_ppf, 0]))
+def inflate(A, current_states, full_state_ls):
+    nS = len(full_state_ls)#A.shape[0]
+    A_new = np.zeros([nS, A.shape[1]])
+    new_inds = [full_state_ls.index(x) for x in current_states]
+    A_new[new_inds, :] = A
+    return A_new
+
+dt = 0.005
+A, W = state_space_models.linear_kinarm_kf(update_rate=dt, units_mult=1)
+n_neurons = beta.shape[1]
+beta = inflate(beta, decoding_states, states)
+
+#W = inflate(W, decoding_states, states)
 ppf = ppfdecoder.PointProcessFilter(A, W, beta, T_loop)
 ppf._init_state()
 
-decoded_output = np.zeros([3, n_iter])
+decoded_output_new = np.zeros([7, n_iter])
 for idx in range(1, n_iter):
     ppf(spike_counts[idx, :])
-    decoded_output[:,idx] = ppf.get_mean()
+    decoded_output_new[:,idx] = ppf.get_mean()
     
 x_est = truedata['x_est']
 plt.figure()
 plt.hold(True)
+plt.plot(decoded_output_new[3,:n_iter], label='pyth')
 plt.plot(x_est[0,:n_iter], label='matlab')
 plt.plot(hand_vel[0,:n_iter], label='handvel')
-plt.plot(decoded_output[0,:], label='pyth')
 plt.legend()
 plt.show()
 
 
-print np.max(np.abs(x_est[0,:n_iter] - decoded_output[0,:]))
+print np.max(np.abs(x_est[0,:n_iter] - decoded_output_new[3,:]))
 
 
