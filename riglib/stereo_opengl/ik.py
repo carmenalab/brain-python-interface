@@ -81,10 +81,14 @@ class TwoJoint(object):
         self.curr_vecs[0,:] = np.array([xs, ys, zs])
         self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xs,0,zs)).norm()
 
-        # Find forearm vector
+        # Find forearm vector (relative to upper arm)
         xe = self.lengths[1]*np.cos(elbow_angle)
         ye = 0.0
         ze = self.lengths[1]*np.sin(elbow_angle)
+        # Find absolute vector
+        xe2 = self.lengths[1]*np.cos(shoulder_angle+elbow_angle)
+        ye2 = 0.0
+        ze2 = self.lengths[1]*np.sin(shoulder_angle+elbow_angle)
         self.curr_vecs[1,:] = np.array([xe, ye, ze])
         self.forearm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xe,0,ze)).norm()
 
@@ -121,14 +125,17 @@ class TwoJoint(object):
 
 class RobotArm(Group):
     def __init__(self, link_radii=(.2, .2), ball_radii=(.5,.5),lengths=(5, 4), **kwargs):
+        self.link_radii = link_radii
+        self.ball_radii = ball_radii
+        self.lengths = lengths
         self.forearm = Group([
             Cylinder(radius=link_radii[1], height=lengths[1], color=(0,0,.5,1)), 
-            Sphere(radius=ball_radii[1],color=(1,1,1,1)).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
+            Sphere(radius=ball_radii[1],color=(1,1,1,.2)).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
         self.upperarm = Group([
             Cylinder(radius=link_radii[0], height=lengths[0],color=(0,0,1,1)), 
             Sphere(radius=ball_radii[0],color=(1,1,1,1)).translate(0, 0, lengths[0]),
             self.forearm])
-        self.system = TwoJoint(self.upperarm, self.forearm)
+        self.system = TwoJoint(self.upperarm, self.forearm, lengths = (self.lengths))
         super(RobotArm, self).__init__([self.upperarm], **kwargs)
 
     def set_endpoint_2D(self, target):
@@ -141,5 +148,5 @@ class RobotArm(Group):
         ''' returns position of ball at end of forearm (hand)'''
         upper_vec = self.system.curr_vecs[0]
         # adjust lower arm vector to include radius of ball at the end
-        lower_vec = (self.system.curr_vecs[1]/lengths[1])*(lengths[1]+ball_radii[1])
+        lower_vec = (self.system.curr_vecs[1]/self.lengths[1])*(self.lengths[1]+self.ball_radii[1])
         return shoulder_anchor + upper_vec + lower_vec
