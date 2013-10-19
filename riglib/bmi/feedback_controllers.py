@@ -17,8 +17,11 @@ class CenterOutCursorGoal():
                 anglular_noise_rad = np.random.normal(0, self.angular_noise_var)
         else:
             angular_noise_rad = 0
-        angular_noise = np.array([np.cos(angular_noise_rad), np.sin(angular_noise_rad)])     
-        return gain*( dir_to_targ/np.linalg.norm(dir_to_targ) + angular_noise )
+        #angular_noise = np.array([np.cos(angular_noise_rad), np.sin(angular_noise_rad)])     
+        angle = np.arctan2(dir_to_targ[1], dir_to_targ[0])
+        sum_angle = angle + angular_noise_rad
+        return gain*np.array([np.cos(sum_angle), np.sin(sum_angle)])
+        #return gain*( dir_to_targ/np.linalg.norm(dir_to_targ) + angular_noise )
 
 def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-5, dtype=np.mat):
     if Q_f == None: 
