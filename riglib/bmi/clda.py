@@ -227,7 +227,9 @@ class KFRML(object):
         self.T = rho*self.T + (1-rho)*(y*y.T)
         self.iter_counter += 1
 
-        C = self.S * self.R.I
+        R_inv = np.mat(np.zeros(self.R.shape))
+	R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
+        C = self.S * R_inv
         Q = 1./(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
 
         mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
