@@ -56,6 +56,7 @@ GAME_COLORS['text']       = COLORS['white']
 
 parser = optparse.OptionParser()
 parser.add_option("--show", action="store_true", dest="show", default=False)
+parser.add_option("--alg", action="store", dest="alg", default='SB')
 (options, args) = parser.parse_args()
 
 # Task parameters
@@ -331,7 +332,7 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
         cursor_pos = self.cursor.xfm.move[[0,2]] # [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
         #cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
         self.game.move_cursor(cursor_pos, run_fsm=False)
-        time.sleep(1./60 * 1./10)
+        #time.sleep(1./60 * 1./100)
         #time.sleep(self.update_rate/10)
 
 class SimRML(SimCLDAControlDispl2D):
@@ -343,8 +344,12 @@ class SimRML(SimCLDAControlDispl2D):
     def create_updater(self):
         self.updater = clda.KFRML(None, None, self.batch_time, self.half_life)
 
+if options.alg == 'RML':
+    gen = target_seq_generator(8, 1000)
+    task = SimRML(gen)
+elif options.alg == 'SB':
+    gen = target_seq_generator(8, 1000)
+    task = SimCLDAControlDispl2D(gen)
 
-gen = target_seq_generator(8, 1000)
-task = SimCLDAControlDispl2D(gen)
 task.init()
 task.run()
