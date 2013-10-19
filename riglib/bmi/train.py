@@ -239,7 +239,11 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
         tslice=tslice)
 
     from clda import KFRML
-    R, S, T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[:,:-1])
+    n_states = C.shape[1]
+    R = np.mat(np.zeros([n_states, n_states]))
+    S = np.mat(np.zeros([n_neurons, n_states]))
+    R[stochastic_state_inds, stochastic_state_inds], S[:,stochastic_state_inds], T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[:,:-1])
+    
     decoder.kf.R = R
     decoder.kf.S = S
     decoder.kf.T = T 
