@@ -184,6 +184,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     neurows = neurows[::step]
 
     neurons = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
+    print len(neurons)
     mFR = np.mean(neurons,axis=0)
     sdFR = np.std(neurons,axis=0)
     if len(kin) != len(neurons):
@@ -239,10 +240,19 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
         tslice=tslice)
 
     from clda import KFRML
-    n_states = C.shape[1]
+    n_neurons, n_states = C.shape
     R = np.mat(np.zeros([n_states, n_states]))
     S = np.mat(np.zeros([n_neurons, n_states]))
-    R[stochastic_state_inds, stochastic_state_inds], S[:,stochastic_state_inds], T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[:,:-1])
+    R_small, S_small, T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[:,:-1])
+    ## print R.shape
+    ## print stochastic_state_inds
+    ## print R_small.shape
+    ## print S.shape
+    ## print stochastic_state_inds
+    ## print S_small.shape
+
+    R[np.ix_(stochastic_state_inds, stochastic_state_inds)] = R_small
+    S[:,stochastic_state_inds] = S_small
     
     decoder.kf.R = R
     decoder.kf.S = S
