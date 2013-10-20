@@ -413,11 +413,12 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         alg = self.get_filter()
         return np.array(alg.state.mean).ravel()
 
-    def update_params(self, new_params):
+    def update_params(self, new_params, steady_state=True):
         super(KFDecoder, self).update_params(new_params)
 
         # set the KF to the new steady state
-        self.kf.set_steady_state_pred_cov()
+        if steady_state:
+            self.kf.set_steady_state_pred_cov()
 
     def __setstate__(self, state):
         """
