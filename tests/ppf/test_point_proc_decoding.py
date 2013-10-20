@@ -64,7 +64,7 @@ A = np.mat(np.diag([a_ppf, a_ppf, 1]))
 W = np.mat(np.diag([w_ppf, w_ppf, 0]))
 
 # Instantiate PPF
-ppf = ppfdecoder.PointProcessFilter(A, W, beta, T_loop)
+ppf = ppfdecoder.PointProcessFilter(A, W, beta.T, T_loop)
 ppf._init_state()
 
 decoded_output = np.zeros([3, n_iter])
@@ -98,7 +98,7 @@ n_neurons = beta.shape[1]
 beta = inflate(beta, decoding_states, states)
 
 #W = inflate(W, decoding_states, states)
-ppf = ppfdecoder.PointProcessFilter(A, W, beta, T_loop)
+ppf = ppfdecoder.PointProcessFilter(A, W, beta.T, T_loop)
 ppf._init_state()
 
 decoded_output_new = np.zeros([7, n_iter])

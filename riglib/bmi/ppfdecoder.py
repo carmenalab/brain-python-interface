@@ -49,7 +49,7 @@ class PointProcessFilter():
             init_cov = np.mat( np.zeros([nS, nS]) )
         self.state = GaussianState(init_state, init_cov) 
         self.state_noise = GaussianState(0.0, self.W)
-        self.id = np.zeros([1, self.C.shape[1]])
+        self.id = np.zeros([1, self.C.shape[0]])
 
     def __call__(self, obs):
         """ Call the 1-step forward inference function
@@ -65,7 +65,7 @@ class PointProcessFilter():
             raise ValueError("Cell exploded!")
 
     def _obs_prob(self, state):
-        Loglambda_predict = self.C.T * state.mean
+        Loglambda_predict = self.C * state.mean
         lambda_predict = np.exp(Loglambda_predict)/self.dt
         assert np.all(lambda_predict > 0)
 
@@ -77,7 +77,7 @@ class PointProcessFilter():
 
     def _forward_infer(self, st, obs_t): #stimulant_index, stoch_stim_index, stoch_index, det_index)
         obs_t = np.mat(obs_t.reshape(-1,1))
-        C = self.C.T
+        C = self.C
         n_obs = C.shape[0]
         
         # TODO incorporate feedback control state space model
@@ -141,7 +141,8 @@ class PointProcessFilter():
 
     @classmethod
     def MLE_obs_model(cls, hidden_state, obs, include_offset=True):
-        """Unconstrained ML estimator of {C, Q} given observations and
+        """
+        Unconstrained ML estimator of {C, } given observations and
         the corresponding hidden states
         """
         assert hidden_state.shape[1] == obs.shape[1]
@@ -168,12 +169,13 @@ class PointProcessFilter():
 
         # ML estimate of C and Q
         n_units = Y.shape[0]
-        C = np.zeros([3, n_units])
+        n_states = X.shape[0]
+        C = np.zeros([n_states, n_units])
         glm_family = sm.families.Poisson()
         for k in range(n_units):
             model = sm.GLM(Y[k,:], X.T, family=glm_family)
             model_fit = model.fit()
-            C[:,k] = model_fit.params
+            C[k,:] = model_fit.params
 
         return C,
 
