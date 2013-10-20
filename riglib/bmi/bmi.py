@@ -280,7 +280,12 @@ class AdaptiveBMI(object):
             new_params['intended_kin'] = self.intended_kin
             new_params['spike_counts_batch'] = self.spike_counts_batch
             self.param_hist.append(new_params)
-            self.decoder.update_params(new_params)
+            import clda
+            if isinstance(self.updater, clda.KFRML):
+                steady_state = False
+            else:
+                steady_state = True
+            self.decoder.update_params(new_params, steady_state=steady_state)
             self.learner.enable()
             update_flag = True
             ## print "updating params"
