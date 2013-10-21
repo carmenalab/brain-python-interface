@@ -188,6 +188,14 @@ class Decoder(object):
                 state[k] = v
         return state
 
+    def get_state(self):
+        '''
+        Get the state of the decoder (mean of the Gaussian RV representing the
+        state of the BMI)
+        '''
+        alg = self.get_filter()
+        return np.array(alg.state.mean).ravel()
+
 
 class AdaptiveBMI(object):
     def __init__(self, decoder, learner, updater):
