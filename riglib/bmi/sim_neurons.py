@@ -174,33 +174,35 @@ class PointProcess():
         return spikes
 
 
-class PointProcessEnsemble():
-    def __init__(self, beta, init_state, dt, tau_samples=None, eps=1e-3, 
-                 hist_len=0, unit_inds=None):
-        '''
-        Initialize an ensemble of point-process neurons
-        '''
-        self.n_neurons = beta.shape[1]
-        if unit_inds == None:
-            unit_inds = np.arange(1, self.n_neurons+1)
-        self.unit_inds = unit_inds
-
-        if tau_samples == None:
-            tau_samples = [[]] * self.n_neurons
-
-        # TODO the individual point-processes need to be initialized with some 
-        # starting kinematic state (_init_sampling method)
-        self.units = []
-        for k in range(self.n_neurons):
-            point_proc = PointProcess(beta[:,k], dt, tau_samples[k])
-            point_proc._init_sampling(init_state)
-            self.units.append(point_proc)
-        #self.units = [ for k in range(self.n_neurons)]
-        self.include_offset = np.all(beta[0,:] == 1) # TODO Convention
-
-    def __call__(self, user_input):
-        user_input = np.hstack([1, user_input]) # TODO convention needs to go back to offset state last ...
-        return np.array([unit(user_input) for unit in self.units]).astype(np.float64).reshape(-1,1)
+## class PointProcessEnsemble():
+##     def __init__(self, beta, init_state, dt, tau_samples=None, eps=1e-3,
+##                  hist_len=0, unit_inds=None):
+##         '''
+##         Initialize an ensemble of point-process neurons
+##         '''
+##         beta = np.vstack([beta[1:, :], beta[0,:]])
+##         self.n_neurons = beta.shape[1]
+##         if unit_inds == None:
+##             unit_inds = np.arange(1, self.n_neurons+1)
+##         self.unit_inds = unit_inds
+## 
+##         if tau_samples == None:
+##             tau_samples = [[]] * self.n_neurons
+## 
+##         # TODO the individual point-processes need to be initialized with some 
+##         # starting kinematic state (_init_sampling method)
+##         self.units = []
+##         for k in range(self.n_neurons):
+##             point_proc = PointProcess(beta[:,k], dt, tau_samples[k])
+##             point_proc._init_sampling(init_state)
+##             self.units.append(point_proc)
+##         #self.units = [ for k in range(self.n_neurons)]
+##         self.include_offset = np.all(beta[0,:] == 1) # TODO baselines are logarithmed
+##         self.beta = beta
+## 
+##     def __call__(self, user_input):
+##         user_input = np.hstack([user_input, 1]) # TODO convention needs to go back to offset state last ...
+##         return np.array([unit(user_input) for unit in self.units]).astype(np.float64).reshape(-1,1)
 
 
 class PointProcessEnsemble():
@@ -218,4 +220,5 @@ class PointProcessEnsemble():
         self.units = units
 
     def __call__(self, x_t):
+        x_t = np.hstack([x_t, 1])
         return np.array(map(lambda unit: unit(x_t), self.units)).astype(int)
