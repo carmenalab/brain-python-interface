@@ -58,10 +58,10 @@ def general(Exp, event_log, ntrials, nrewards, reward_len):
     #         report['reward_len'].append(t - last_reward)
     #         last_reward = None
 
-     if report['trials'] == 0:
-         report['rates'] = 0,0
-     else:
-        report['rates'] = (nrewards/ntrials, 1-(nrewards/ntrials))
+    if report['trials'] == 0:
+        report['rates'] = (0,0)
+    else:
+       report['rates'] = (nrewards/ntrials, 1-(nrewards/ntrials))
     #     report['rates'] = (len(report['rewards']) / float(report['trials']), 
     #                       len(report['penalties']) / float(report['trials']))
 

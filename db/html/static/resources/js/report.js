@@ -50,8 +50,8 @@ Report.prototype.activate = function() {
         this.ws.onmessage = function(evt) {
             console.log(evt.data);
             var report = JSON.parse(evt.data);
-            if (report.trials)
-                report.trials++;
+//            if (report.trials)
+//                report.trials++;
             if (this.infos)
                 this.infos.push(report)
             else

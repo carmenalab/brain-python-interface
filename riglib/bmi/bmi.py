@@ -253,6 +253,7 @@ class AdaptiveBMI(object):
         if self.learner.is_full():
             self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
             rho = self.updater.rho
+            print rho
             drives_neurons = self.decoder.drives_neurons
             clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
 
