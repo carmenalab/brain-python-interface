@@ -85,8 +85,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
         def set_state(self, state, *args, **kwargs):
             l = time.time() - self.event_log[0][2] if len(self.event_log) > 0 else 0
             rep = dict(status=status, state=state or "stopped", length=l)
-            if state == "wait":
-                rep.update(report.general(self.__class__, self.event_log))
+            rep.update(report.general(self.__class__, self.event_log, self.ntrials, self.nrewards, self.reward_len))
             websock.send(rep)
             super(NotifyFeat, self).set_state(state, *args, **kwargs)
 

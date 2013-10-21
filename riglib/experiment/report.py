@@ -28,46 +28,51 @@ def trialtype(exp):
     
     return report
 
-def general(Exp, event_log):
-    report = dict(trials = 0, reward_len=[], rewards=[], penalties=[])
-    if len(event_log) > 0:
-        report['length'] = event_log[-1][2] - event_log[0][2]
+def general(Exp, event_log, ntrials, nrewards, reward_len):
+    report = dict(trials = 0, reward_len=[]) #, rewards=[], penalties=[])
 
-    trial = None
-    last_reward = None
-    for state, event, t in event_log:
-        next_state = Exp.status[state][event]
-        if state == "wait":
-            report['trials'] += 1
-        if "start_trial" in event:
-            trial = t
+    report['trials'] = ntrials
+    report['reward_len'] = reward_len, nrewards
 
-        if trial is not None and next_state is not None:
-            if "reward" in next_state:
-                report['rewards'].append(t - trial)
-                last_reward = t
-                trial = None
-            elif "penalty" in next_state:
-                report['penalties'].append(t - trial)
-                trial = None
-        elif last_reward is not None:
-            report['reward_len'].append(t - last_reward)
-            last_reward = None
+    #if len(event_log) > 0:
+    #    report['length'] = event_log[-1][2] - event_log[0][2]
 
-    if report['trials'] == 0:
-        report['rates'] = 0,0
-    else:
-        report['rates'] = (len(report['rewards']) / float(report['trials']), 
-                          len(report['penalties']) / float(report['trials']))
+    # trial = None
+    # last_reward = None
+    # for state, event, t in event_log:
+    #     next_state = Exp.status[state][event]
+    #     if state == "wait":
+    #         report['trials'] += 1
+    #     if "start_trial" in event:
+    #         trial = t
 
-    report['reward_len'] = sum(report['reward_len']), len(report['reward_len'])
-    try:
-        c, e = np.histogram(report['rewards'])
-        report['reward_hist'] = zip(e, c.tolist())
-        c, e = np.histogram(report['penalties'])
-        report['penalty_hist'] = zip(e, c.tolist())
-    except:
-        pass
+    #     if trial is not None and next_state is not None:
+    #         if "reward" in next_state:
+    #             report['rewards'].append(t - trial)
+    #             last_reward = t
+    #             trial = None
+    #         elif "penalty" in next_state:
+    #             report['penalties'].append(t - trial)
+    #             trial = None
+    #     elif last_reward is not None:
+    #         report['reward_len'].append(t - last_reward)
+    #         last_reward = None
+
+     if report['trials'] == 0:
+         report['rates'] = 0,0
+     else:
+        report['rates'] = (nrewards/ntrials, 1-(nrewards/ntrials))
+    #     report['rates'] = (len(report['rewards']) / float(report['trials']), 
+    #                       len(report['penalties']) / float(report['trials']))
+
+    # report['reward_len'] = sum(report['reward_len']), len(report['reward_len'])
+    # try:
+    #     c, e = np.histogram(report['rewards'])
+    #     report['reward_hist'] = zip(e, c.tolist())
+    #     c, e = np.histogram(report['penalties'])
+    #     report['penalty_hist'] = zip(e, c.tolist())
+    # except:
+    #     pass
         
     return report
 
