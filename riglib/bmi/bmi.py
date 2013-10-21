@@ -71,6 +71,8 @@ class GaussianState(object):
     def __add__(self, other):
         if isinstance(other, GaussianState):
             return GaussianState( self.mean+other.mean, self.cov+other.cov )
+        else:
+            raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
 class GaussianStateHMM():
     def __init__(self, A, W):
@@ -260,8 +262,11 @@ class AdaptiveBMI(object):
 
         if self.learner.is_full():
             self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-            rho = self.updater.rho
-            print rho
+            if 'half_life' in kwargs:
+                half_life = kwargs['half_life']
+                rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
+            else:
+                rho = self.updater.rho
             drives_neurons = self.decoder.drives_neurons
             clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
 
