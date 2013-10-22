@@ -11,7 +11,7 @@ from plexon import plexfile, psth
 from riglib.nidaq import parse
 
 import tables
-import kfdecoder
+import kfdecoder, ppfdecoder
 import pdb
 from . import state_space_models
 
@@ -475,3 +475,15 @@ def rescale_KFDecoder_units(dec, scale_factor=10):
         pass
     dec.bounding_box = tuple([x / scale_factor for x in dec.bounding_box])
     return dec
+
+def convert_KFDecoder_to_PPFDecoder(dec):
+    binlen = dec.binlen
+    beta = dec.kf.C / binlen
+
+    dt = 1./180
+    A, W = state_space_models.linear_kinarm_kf(update_rate=dt, units_mult=0.01)
+    args = (dec.bounding_box, dec.states, dec.drives_neurons, dec.states_to_bound)
+    ppf = ppfdecoder.PointProcessFilter(A, W, beta, dt)
+    dec_ppf = ppfdecoder.PPFDecoder(ppf, dec.units, *args)
+    dec_ppf.n_subbins = 3
+    return dec_ppf
