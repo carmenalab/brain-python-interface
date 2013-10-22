@@ -3,7 +3,7 @@ CLDA classes
 '''
 import multiprocessing as mp
 import numpy as np
-from riglib.bmi import kfdecoder
+from riglib.bmi import kfdecoder, ppfdecoder
 import time
 
 ## Learners
@@ -144,7 +144,6 @@ class KFSmoothbatchSingleThread(object):
             'mFR':mFR, 'sdFR':sdFR}
         return new_params
 
-
 class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
     def __init__(self, work_queue, result_queue, batch_time, half_life):
         super(KFSmoothbatch, self).__init__(work_queue, result_queue)
@@ -168,8 +167,33 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
         new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
         return new_params
 
+
 class KFOrthogonalPlantSmoothbatch(KFOrthogonalPlantSmoothbatchSingleThread, KFSmoothbatch):
     pass
+
+
+class PPFSmoothbatchSingleThread(object):
+    def calc(self, intended_kin, spike_counts, rho, C_old, drives_neurons):
+        """
+        Smoothbatch calculations
+
+        Run least-squares on (intended_kinematics, spike_counts) to 
+        determine the C_hat and Q_hat of new batch. Then combine with 
+        old parameters using step-size rho
+        """
+        C_hat, = ppfdecoder.PointProcessFilter.MLE_obs_model(
+            intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
+        C = (1-rho)*C_hat + rho*C_old
+
+        new_params = {'filt.C':C}
+        return new_params
+
+
+class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
+    def __init__(self, work_queue, result_queue, batch_time, half_life):
+        super(PPFSmoothbatch, self).__init__(work_queue, result_queue)
+        self.hlife = half_life
+        self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
 
 
 
