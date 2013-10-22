@@ -124,14 +124,15 @@ def get_success_rate(entry):
     Takes TaskEntry object.
     '''
     report = json.loads(entry.report)
-    count1=0.0
-    count2=0.0
+    total=0.0
+    rew=0.0
     for s in report:
         if s[0]=='reward':
-            count1+=1
-        if s[0]=='wait':
-            count2+=1
-    return count1/count2
+            rew+=1
+            total+=1
+        if s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            total+=1
+    return rew/total
 
 def get_initiate_rate(entry):
     '''
@@ -142,7 +143,7 @@ def get_initiate_rate(entry):
     report = json.loads(entry.report)
     count=0.0
     for s in report:
-        if s[0]=='wait':
+        if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
             count+=1
     return count/(length/60.0)
 

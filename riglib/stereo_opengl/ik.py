@@ -148,3 +148,8 @@ class RobotArm(Group):
     def get_hand_location(self, shoulder_anchor):
         ''' returns position of ball at end of forearm (hand)'''
         return shoulder_anchor + self.system.curr_vecs[0] +self.system.curr_vecs[1]
+
+    def get_joint_angles_2D(self):
+        shoulder = np.arctan2(self.system.curr_vecs[0,2], self.system.curr_vecs[0,0])
+        elbow = np.arctan2(self.system.curr_vecs[1,2], self.system.curr_vecs[1,0]) - (np.pi/2)
+        return shoulder, elbow
