@@ -165,7 +165,8 @@ class PointProcessFilter():
         # ML estimate of C and Q
         n_units = Y.shape[0]
         n_states = X.shape[0]
-        C = np.zeros([n_states, n_units])
+        C = np.zeros([n_units, n_states])
+        #C = np.zeros([n_states, n_units])
         glm_family = sm.families.Poisson()
         for k in range(n_units):
             model = sm.GLM(Y[k,:], X.T, family=glm_family)
