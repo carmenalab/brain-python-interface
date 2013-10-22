@@ -233,7 +233,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def get_filter(self):
         return self.filt 
 
-    def predict(self, spike_counts, target=None, speed=0.05, assist_level=0.9):
+    def predict(self, spike_counts, target=None, speed=0.05, assist_level=0.9, **kwargs):
         """
         Run decoder, assist, and bound any states
         """

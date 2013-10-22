@@ -91,3 +91,23 @@ def conv_mm_dec_to_cm(decoder_record):
     training_block_id = decoder_record.entry_id
     print new_decoder_name
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
+
+def conv_kfdecoder_to_ppfdecoder(decoder_record):
+    # Load the decoder
+    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
+    print decoder_fname
+    decoder_name = decoder_record.name
+    dec = pickle.load(open(decoder_fname))
+
+    from riglib.bmi import train
+    dec_ppf = train.convert_KFDecoder_to_PPFDecoder(dec)
+
+    new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_ppf.pkl'
+    new_decoder_fname = '/tmp/%s' % new_decoder_basename
+    pickle.dump(dec_ppf, open(new_decoder_fname, 'w'))
+
+    new_decoder_name = decoder_name + '_ppf'
+    training_block_id = decoder_record.entry_id
+    print new_decoder_name
+    from tracker import dbq
+    dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)

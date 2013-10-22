@@ -148,6 +148,7 @@ class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
     def __init__(self, work_queue, result_queue, batch_time, half_life):
         super(KFSmoothbatch, self).__init__(work_queue, result_queue)
         self.hlife = half_life
+        self.batch_time = batch_time
         self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
         
 class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
@@ -201,6 +202,7 @@ class KFRML(object):
     def __init__(self, work_queue, result_queue, batch_time, half_life):
         # super(KFRML, self).__init__(work_queue, result_queue)
         self.work_queue = None
+        self.batch_time = batch_time
         self.result_queue = None        
         self.hlife = half_life
         self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))

@@ -20,6 +20,7 @@ class TwoJoint(object):
         self.lengths = lengths
         self.tlen = lengths[0] + lengths[1]
         self.curr_vecs = np.zeros([2,3])
+        self.curr_angles = np.zeros(2)
 
     def _midpos(self, target):
         m, n = self.lengths
@@ -92,6 +93,9 @@ class TwoJoint(object):
         self.curr_vecs[1,:] = np.array([xe2, ye2, ze2])
         self.forearm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xe,0,ze)).norm()
 
+        self.curr_angles[0] = shoulder_angle
+        self.curr_angles[1] = elbow_angle_mod
+
         self.upperarm._recache_xfm()
 
 
@@ -124,16 +128,17 @@ class TwoJoint(object):
 ## added by helene to prep for arm task
 
 class RobotArm(Group):
-    def __init__(self, link_radii=(.2, .2), ball_radii=(.5,.5),lengths=(5, 4), **kwargs):
+    def __init__(self, link_radii=(.2, .2), ball_radii=(.5,.5),lengths=(5, 4), ball_colors = ((1,1,1,1),(1,1,1,1)),\
+        link_colors = ((1,1,1,1), (1,1,1,1)), **kwargs):
         self.link_radii = link_radii
         self.ball_radii = ball_radii
         self.lengths = lengths
         self.forearm = Group([
-            Cylinder(radius=link_radii[1], height=lengths[1], color=(0,0,.5,1)), 
-            Sphere(radius=ball_radii[1],color=(1,1,1,.2)).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
+            Cylinder(radius=link_radii[1], height=lengths[1], color=link_colors[1]), 
+            Sphere(radius=ball_radii[1],color=ball_colors[1]).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
         self.upperarm = Group([
-            Cylinder(radius=link_radii[0], height=lengths[0],color=(0,0,1,1)), 
-            Sphere(radius=ball_radii[0],color=(1,1,1,.2)).translate(0, 0, lengths[0]),
+            Cylinder(radius=link_radii[0], height=lengths[0],color=link_colors[0]), 
+            Sphere(radius=ball_radii[0],color=ball_colors[0]).translate(0, 0, lengths[0]),
             self.forearm])
         self.system = TwoJoint(self.upperarm, self.forearm, lengths = (self.lengths))
         super(RobotArm, self).__init__([self.upperarm], **kwargs)
@@ -147,3 +152,6 @@ class RobotArm(Group):
     def get_hand_location(self, shoulder_anchor):
         ''' returns position of ball at end of forearm (hand)'''
         return shoulder_anchor + self.system.curr_vecs[0] +self.system.curr_vecs[1]
+
+    def get_joint_angles_2D(self):
+        return self.system.curr_angles[0], self.system.curr_angles[1] - np.pi/2

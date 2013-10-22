@@ -97,6 +97,9 @@ class LogExperiment(Experiment):
     def __init__(self, **kwargs):
         self.state_log = []
         self.event_log = []
+        self.ntrials = 0
+        self.nrewards = 0
+        self.reward_len = 0
         super(LogExperiment, self).__init__(**kwargs)
     
     def trigger_event(self, event):

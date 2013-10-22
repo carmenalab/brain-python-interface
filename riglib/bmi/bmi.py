@@ -201,7 +201,7 @@ class Decoder(object):
 
 class AdaptiveBMI(object):
     def __init__(self, decoder, learner, updater):
-        self.decoder = decoder
+        self.decoder = decoder 
         self.learner = learner
         self.updater = updater
         self.param_hist = []
