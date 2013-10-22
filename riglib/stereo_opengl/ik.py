@@ -20,6 +20,7 @@ class TwoJoint(object):
         self.lengths = lengths
         self.tlen = lengths[0] + lengths[1]
         self.curr_vecs = np.zeros([2,3])
+        self.curr_angles = np.zeros(2)
 
     def _midpos(self, target):
         m, n = self.lengths
@@ -92,6 +93,9 @@ class TwoJoint(object):
         self.curr_vecs[1,:] = np.array([xe2, ye2, ze2])
         self.forearm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (xe,0,ze)).norm()
 
+        self.curr_angles[0] = shoulder_angle
+        self.curr_angles[1] = elbow_angle_mod
+
         self.upperarm._recache_xfm()
 
 
@@ -150,6 +154,4 @@ class RobotArm(Group):
         return shoulder_anchor + self.system.curr_vecs[0] +self.system.curr_vecs[1]
 
     def get_joint_angles_2D(self):
-        shoulder = np.arctan2(self.system.curr_vecs[0,2], self.system.curr_vecs[0,0])
-        elbow = np.arctan2(self.system.curr_vecs[1,2], self.system.curr_vecs[1,0]) - (np.pi/2)
-        return shoulder, elbow
+        return self.system.curr_angles[0], self.system.curr_angles[1] - np.pi/2
