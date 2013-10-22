@@ -223,8 +223,11 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     
     # instantiate low-level kf
     unit_inds, = np.nonzero(np.array(C)[:,-1])
+    C = C[unit_inds,:]
+    Q = Q[np.ix_(unit_inds,unit_inds)]
+    print len(unit_inds)
     is_stochastic = np.array([x in stochastic_vars for x in state_vars])
-    kf = kfdecoder.KalmanFilter(A, W, C[unit_inds,:], Q[np.ix_(unit_inds,unit_inds)], is_stochastic=is_stochastic)
+    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
     units = units[unit_inds,:]
     mFR = mFR[unit_inds]
     sdFR = sdFR[unit_inds]
@@ -241,9 +244,11 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
 
     from clda import KFRML
     n_neurons, n_states = C.shape
+    print n_neurons
+    print neurons.shape
     R = np.mat(np.zeros([n_states, n_states]))
     S = np.mat(np.zeros([n_neurons, n_states]))
-    R_small, S_small, T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[:,:-1])
+    R_small, S_small, T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[unit_inds,:-1])
     ## print R.shape
     ## print stochastic_state_inds
     ## print R_small.shape
@@ -252,6 +257,8 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     ## print S_small.shape
 
     R[np.ix_(stochastic_state_inds, stochastic_state_inds)] = R_small
+    print S.shape
+    print S_small.shape
     S[:,stochastic_state_inds] = S_small
     
     decoder.kf.R = R
