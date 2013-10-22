@@ -487,3 +487,45 @@ def convert_KFDecoder_to_PPFDecoder(dec):
     dec_ppf = ppfdecoder.PPFDecoder(ppf, dec.units, *args)
     dec_ppf.n_subbins = 3
     return dec_ppf
+
+def inflate(A, current_states, full_state_ls, axis=0):
+    '''
+    'Inflate' a matrix by filling in rows/columns with zeros
+    '''
+    nS = len(full_state_ls)#A.shape[0]
+    if axis == 0:
+        A_new = np.zeros([nS, A.shape[1]])
+    elif axis == 1:
+        A_new = np.zeros([A.shape[0], nS])
+
+    new_inds = [full_state_ls.index(x) for x in current_states]
+    if axis == 0:
+        A_new[new_inds, :] = A
+    elif axis == 1:
+        A_new[:, new_inds] = A
+
+    return A_new
+
+def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
+    '''
+    Create a PPFDecoder object to decode 2D velocity from a known 'beta' matrix
+    '''
+    units_mult_lut = dict(m=1., cm=0.01)
+    units_mult = units_mult_lut[dist_units]
+
+    A, W = state_space_models.linear_kinarm_kf(update_rate=dt, units_mult=units_mult)
+
+    bounding_box = (np.array([-0.25, -0.14])/units_mult, np.array([0.25, 0.14])/units_mult)
+    drives_neurons = ['hand_vx', 'hand_vz', 'offset']
+    states_to_bound = ['hand_px', 'hand_pz']
+    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    args = (bounding_box, states, drives_neurons, states_to_bound)
+    
+    ppf = ppfdecoder.PointProcessFilter(A, W, beta, dt)
+    dec = ppfdecoder.PPFDecoder(ppf, units, *args)
+
+    # Force decoder to run at max 60 Hz
+    dec.bmicount = 0
+    dec.bminum = 0
+    return dec
+
