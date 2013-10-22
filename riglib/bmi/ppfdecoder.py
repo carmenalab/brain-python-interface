@@ -242,7 +242,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         # re-format as a 1D col vec
         spike_counts = np.mat(spike_counts.reshape(-1,1))
 
-        # Run the KF
+        # Run the filter
         self.filt(spike_counts)
 
         # Bound cursor, if any hard bounds for states are applied
