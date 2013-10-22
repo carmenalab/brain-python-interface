@@ -15,6 +15,32 @@ import kfdecoder, ppfdecoder
 import pdb
 from . import state_space_models
 
+def _get_tmask(plx_fname):
+    # Open plx file
+    plx = plexfile.openFile(plx_fname)
+    events = plx.events[:].data
+    syskey=0
+    # get system registrations
+    reg = parse.registrations(events)
+    # find the key for the motiontracker system data
+    for key, system in reg.items():
+        if (system == 'otiontracker') or (system == 'motiontracker'): #yes this typo is intentional! we could never figure out why the first character doesn't get recorded in the registration
+            syskey = key
+    # get the corresponding hdf rows
+    rows = parse.rowbyte(events)[syskey][:,0]
+    
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
+    
+    
+    pass
+
+
 def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
