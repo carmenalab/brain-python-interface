@@ -63,10 +63,12 @@ def get_decoder_name(entry):
     Returns the filename of the decoder used in the session.
     Takes TaskEntry object.
     '''
+    entry = lookup_task_entries(entry)
     decid = json.loads(entry.params)['bmi']
     return models.Decoder.objects.get(pk=decid).path
 
 def get_decoder_name_full(entry):
+    entry = lookup_task_entries(entry)
     decoder_basename = get_decoder_name(entry)
     return os.path.join(paths.data_path, 'decoders', decoder_basename)
 
@@ -605,11 +607,24 @@ def get_task_entries_by_date(date, subj=None):
     '''
     Get all the task entries for a particular date
     '''
-    kwargs = dict(date__year=date.year, date__month=date.month,
-                  date__day=date.day)
+    if isinstance(date, datetime.date):
+        kwargs = dict(date__year=date.year, date__month=date.month,
+                      date__day=date.day)
+    elif isinstance(date, tuple) and len(date) == 3:
+        kwargs = dict(date__year=date[0], date__month=date[1],
+                      date__day=date[2])
+    elif isinstance(date, tuple) and len(date) == 2:
+        kwargs = dict(date__year=2013, date__month=date[0],
+                      date__day=date[1])
     if isinstance(subj, str) or isinstance(subj, unicode):
         kwargs['subject__name__startswith'] = str(subj)
     elif subj is not None:
         kwargs['subject__name'] = subj.name
     return list(models.TaskEntry.objects.filter(**kwargs))
 
+def load_last_decoder():
+    all_decoder_records = models.Decoder.objects.all()
+    record = all_decoder_records[len(all_decoder_records)-1]
+    path = os.path.join(paths.data_path, 'decoders', record.path)
+    dec = pickle.load(open(path))
+    return dec
