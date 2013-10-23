@@ -377,74 +377,23 @@ class Window2DSim(object):
         self.models = []
 
     def screen_init(self):
-        target_radius = self.terminus_size
-        center_radius = self.origin_size
-        cursor_radius = self.cursor.radius
-        t_ctrhold = 0.250
-        t_reachtarg = 10
-        t_targhold = 0.250
-
-#        workspace_ll = np.array([-0.1, -0.1])
-        workspace_ll = np.array([-10., -10.])
-        
-        self.game = CenterOut(
-            show=options.show, r_ctr=center_radius, r_targ=target_radius,
-            r_cursor=cursor_radius, 
-            t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
-            workspace_size=20, workspace_ll=workspace_ll,
-            workspace_targets=targets, workspace_ctr=center, 
-        )
-
-        self.screen = self.game.screen
-        self.background = self.game.background
-        self.pos2pix = self.game.pos2pix
-        self.pix_per_m = self.game.pix_per_m
-
-        self.world = Group(self.models)
-        self.world.init()
-
-
-class SimCLDAControlDispl2DMulti(bmimultitasks.SimCLDAControlMulti, Autostart):
-    update_rate = 0.1
-    def __init__(self, *args, **kwargs):
-        super(SimCLDAControlDispl2DMulti, self).__init__(*args, **kwargs)
-        self.batch_time = 5
-        self.half_life  = 20.0
-
-        self.origin_hold_time = 0.250
-        self.terminus_hold_time = 0.250
-        self.origin_size = 1.7
-        self.terminus_size = 1.7
-        self.hdf = FakeHDF()
-        self.task_data = FakeHDF()
-        self.start_time = 0.
-        self.loop_counter = 0
-        self.assist_level = 0
-
-    def create_updater(self):
-        clda_input_queue = mp.Queue()
-        clda_output_queue = mp.Queue()
-        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
-            self.batch_time, self.half_life)
-
-    def screen_init(self):
-        target_radius = self.terminus_size
-        center_radius = self.origin_size
-        cursor_radius = self.cursor.radius
-        t_ctrhold = 0.250
-        t_reachtarg = 10
-        t_targhold = 0.250
+        ## target_radius = self.terminus_size
+        ## center_radius = self.origin_size
+        ## cursor_radius = self.cursor.radius
+        ## t_ctrhold = 0.250
+        ## t_reachtarg = 10
+        ## t_targhold = 0.250
 
 #        workspace_ll = np.array([-0.1, -0.1])
         self.workspace_ll = np.array([-10., -10.])
         
-        self.game = CenterOut(
-            show=options.show, r_ctr=center_radius, r_targ=target_radius,
-            r_cursor=cursor_radius, 
-            t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
-            workspace_size=20, workspace_ll=self.workspace_ll,
-            workspace_targets=targets, workspace_ctr=center, 
-        )
+        ### self.game = CenterOut(
+        ###     show=options.show, r_ctr=center_radius, r_targ=target_radius,
+        ###     r_cursor=cursor_radius, 
+        ###     t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
+        ###     workspace_size=20, workspace_ll=self.workspace_ll,
+        ###     workspace_targets=targets, workspace_ctr=center, 
+        ### )
 
         ##self.screen = self.game.screen
         ##self.background = self.game.background
@@ -477,13 +426,6 @@ class SimCLDAControlDispl2DMulti(bmimultitasks.SimCLDAControlMulti, Autostart):
         # cast to integer
         pix_pos = np.array(pix_pos, dtype=int) 
         return pix_pos
-
-
-    def get_time(self):
-        return self.loop_counter * DT
-
-    def loop_step(self):
-        self.loop_counter += 1
 
     def draw_world(self):
         ## if self.state == 'origin':
@@ -559,6 +501,37 @@ class SimCLDAControlDispl2DMulti(bmimultitasks.SimCLDAControlMulti, Autostart):
 
         time.sleep(1./60 * 1./10)
         #time.sleep(self.update_rate/10)
+
+
+class SimCLDAControlDispl2DMulti(Window2DSim, bmimultitasks.SimCLDAControlMulti, Autostart):
+    update_rate = 0.1
+    def __init__(self, *args, **kwargs):
+        bmimultitasks.SimCLDAControlMulti.__init__(self, *args, **kwargs)
+        self.batch_time = 5
+        self.half_life  = 20.0
+
+        self.origin_hold_time = 0.250
+        self.terminus_hold_time = 0.250
+        self.origin_size = 1.7
+        self.terminus_size = 1.7
+        self.hdf = FakeHDF()
+        self.task_data = FakeHDF()
+        self.start_time = 0.
+        self.loop_counter = 0
+        self.assist_level = 0
+
+    def create_updater(self):
+        clda_input_queue = mp.Queue()
+        clda_output_queue = mp.Queue()
+        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue,
+            self.batch_time, self.half_life)
+
+    def get_time(self):
+        return self.loop_counter * DT
+
+    def loop_step(self):
+        self.loop_counter += 1
+
 
 
     def show_object(self, target, show=False):
