@@ -26,6 +26,8 @@ from riglib.experiment.features import Autostart
 import time
 
 import riglib.bmi.bmi
+from riglib.stereo_opengl.primitives import Cylinder, Plane, Sphere
+
 
 from tasks import bmitasks, bmimultitasks, manualcontrolmultitasks
 #reload(bmitasks)
@@ -38,6 +40,7 @@ reload(riglib.bmi.bmi)
 reload(riglib.bmi.train)
 
 from riglib.stereo_opengl.xfm import Transform
+import pygame
 
 ### Constants
 DT = 0.1
@@ -369,7 +372,36 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
         time.sleep(1./60 * 1./10)
         #time.sleep(self.update_rate/10)
 
+class Window2DSim(object):
+    def __init__(self):
+        self.models = []
 
+    def screen_init(self):
+        target_radius = self.terminus_size
+        center_radius = self.origin_size
+        cursor_radius = self.cursor.radius
+        t_ctrhold = 0.250
+        t_reachtarg = 10
+        t_targhold = 0.250
+
+#        workspace_ll = np.array([-0.1, -0.1])
+        workspace_ll = np.array([-10., -10.])
+        
+        self.game = CenterOut(
+            show=options.show, r_ctr=center_radius, r_targ=target_radius,
+            r_cursor=cursor_radius, 
+            t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
+            workspace_size=20, workspace_ll=workspace_ll,
+            workspace_targets=targets, workspace_ctr=center, 
+        )
+
+        self.screen = self.game.screen
+        self.background = self.game.background
+        self.pos2pix = self.game.pos2pix
+        self.pix_per_m = self.game.pix_per_m
+
+        self.world = Group(self.models)
+        self.world.init()
 
 
 class SimCLDAControlDispl2DMulti(bmimultitasks.SimCLDAControlMulti, Autostart):
@@ -404,18 +436,48 @@ class SimCLDAControlDispl2DMulti(bmimultitasks.SimCLDAControlMulti, Autostart):
         t_targhold = 0.250
 
 #        workspace_ll = np.array([-0.1, -0.1])
-        workspace_ll = np.array([-10., -10.])
+        self.workspace_ll = np.array([-10., -10.])
         
         self.game = CenterOut(
             show=options.show, r_ctr=center_radius, r_targ=target_radius,
             r_cursor=cursor_radius, 
             t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
-            workspace_size=20, workspace_ll=workspace_ll,
+            workspace_size=20, workspace_ll=self.workspace_ll,
             workspace_targets=targets, workspace_ctr=center, 
         )
 
+        ##self.screen = self.game.screen
+        ##self.background = self.game.background
+
+        #pygame.mouse.set_visible(False)
+        win_res = 300
+        self.workspace_size = 20. #win_res
+        self.size = win_res
+        self.screen = pygame.display.set_mode((win_res, win_res))
+        self.background = pygame.Surface(self.screen.get_size()).convert()
+        self.background.fill(GAME_COLORS['background'])
+
+        #self.pos2pix = self.game.pos2pix
+        self.pix_per_m = self.size/self.workspace_size
+
+
         self.world = Group(self.models)
         self.world.init()
+
+    def pos2pix(self, kfpos):
+        # rescale the cursor position to (0,1)
+        norm_workspace_pos = (kfpos - self.workspace_ll)/self.workspace_size
+
+        # multiply by the workspace size in pixels 
+        pix_pos = self.size*norm_workspace_pos
+
+        # flip y-coordinate
+        pix_pos[1] = self.size - pix_pos[1]
+
+        # cast to integer
+        pix_pos = np.array(pix_pos, dtype=int) 
+        return pix_pos
+
 
     def get_time(self):
         return self.loop_counter * DT
@@ -437,23 +499,23 @@ class SimCLDAControlDispl2DMulti(bmimultitasks.SimCLDAControlMulti, Autostart):
         ##     self.game.show_origin = False
         ##     self.game.show_target = False
 
-        if self.target_index == 0:
-            # Show center but not targert
-            self.game.show_center = True
-            self.game.show_target = False
-        elif self.state == 'hold' and self.target_index == 0:
-            self.game.show_center = True
-            self.game.show_target = True
-        elif self.target_index == 1:
-            self.game.show_center = False
-            self.game.show_target = True
-        else:
-            self.game.show_center = False
-            self.game.show_target = False
+        ## if self.target_index == 0:
+        ##     # Show center but not targert
+        ##     self.game.show_center = True
+        ##     self.game.show_target = False
+        ## elif self.state == 'hold' and self.target_index == 0:
+        ##     self.game.show_center = True
+        ##     self.game.show_target = True
+        ## elif self.target_index == 1:
+        ##     self.game.show_center = False
+        ##     self.game.show_target = True
+        ## else:
+        ##     self.game.show_center = False
+        ##     self.game.show_target = False
 
-        cursor_pos = self.cursor.xfm.move[[0,2]] # [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
-        self.game.center = self.target1.xfm.move[[0,2]]
-        self.game.target = self.target2.xfm.move[[0,2]]
+        ## cursor_pos = self.cursor.xfm.move[[0,2]] # [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
+        ## self.game.center = self.target1.xfm.move[[0,2]]
+        ## self.game.target = self.target2.xfm.move[[0,2]]
 
         ## print self.game.center 
         ## print self.game.target
@@ -461,16 +523,53 @@ class SimCLDAControlDispl2DMulti(bmimultitasks.SimCLDAControlMulti, Autostart):
         #self.game.show_origin = True
         #self.game.show_target = True
         #cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
-        self.game.move_cursor(cursor_pos, run_fsm=False)
+        #self.game.move_cursor(cursor_pos, run_fsm=False)
+
+
+        #### #if self.state in (self.GOTOCTR, self.HOLDCTR):
+        #### if self.show_center:
+        ####     pygame.draw.circle(self.screen, GAME_COLORS['center'], 
+        ####         self.pos2pix(self.center), self.r_ctr_pix)
+
+        #### #if self.state in (self.GOTOTARG, self.HOLDTARG):
+        #### if self.show_target:
+        ####     pygame.draw.circle(self.screen, GAME_COLORS['target'], 
+        ####         self.pos2pix(self.target), self.r_targ_pix)
+
+        #### pygame.draw.circle(self.screen, GAME_COLORS['cursor'], 
+        ####     self.pos2pix(self.cursor), self.r_cursor_pix)
+        #### if self.verbose:
+        ####     print "cursor position in pixels:"
+        ####     print self.pos2pix(self.cursor)
+
+        #### pygame.display.update()
+
+
+        self.screen.blit(self.background, (0, 0))
+        for model in self.world.models:
+            if isinstance(model, Sphere):
+                pos = model.xfm.move[[0,2]]
+                pix_pos = self.pos2pix(pos)
+                color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+                rad = model.radius
+                pix_radius = int(rad * self.pix_per_m)
+                pygame.draw.circle(self.screen, color, pix_pos, pix_radius)
+
+        pygame.display.update()
+
         time.sleep(1./60 * 1./10)
         #time.sleep(self.update_rate/10)
 
 
     def show_object(self, target, show=False):
-        pass
-
-    def move_object(self, obj, pos):
-        pass
+        if show:
+            target.attach()
+            print "attaching target"
+        else:
+            target.detach()
+            print "detaching target"
+        print self.world.models
+        print 
 
     def requeue(self):
         pass
