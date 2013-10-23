@@ -377,28 +377,8 @@ class Window2DSim(object):
         self.models = []
 
     def screen_init(self):
-        ## target_radius = self.terminus_size
-        ## center_radius = self.origin_size
-        ## cursor_radius = self.cursor.radius
-        ## t_ctrhold = 0.250
-        ## t_reachtarg = 10
-        ## t_targhold = 0.250
-
-#        workspace_ll = np.array([-0.1, -0.1])
         self.workspace_ll = np.array([-10., -10.])
-        
-        ### self.game = CenterOut(
-        ###     show=options.show, r_ctr=center_radius, r_targ=target_radius,
-        ###     r_cursor=cursor_radius, 
-        ###     t_ctrhold=t_ctrhold, t_reachtarg=t_reachtarg, t_targhold=t_targhold, 
-        ###     workspace_size=20, workspace_ll=self.workspace_ll,
-        ###     workspace_targets=targets, workspace_ctr=center, 
-        ### )
 
-        ##self.screen = self.game.screen
-        ##self.background = self.game.background
-
-        #pygame.mouse.set_visible(False)
         win_res = 300
         self.workspace_size = 20. #win_res
         self.size = win_res
@@ -406,9 +386,7 @@ class Window2DSim(object):
         self.background = pygame.Surface(self.screen.get_size()).convert()
         self.background.fill(GAME_COLORS['background'])
 
-        #self.pos2pix = self.game.pos2pix
         self.pix_per_m = self.size/self.workspace_size
-
 
         self.world = Group(self.models)
         self.world.init()
@@ -428,65 +406,6 @@ class Window2DSim(object):
         return pix_pos
 
     def draw_world(self):
-        ## if self.state == 'origin':
-        ##     self.game.show_origin = True
-        ##     self.game.show_target = False
-        ## elif self.state == 'origin_hold':
-        ##     self.game.show_origin = True
-        ##     self.game.show_target = True
-        ## elif self.state in ['terminus', 'terminus_hold']:
-        ##     self.game.show_origin = False
-        ##     self.game.show_target = True
-        ## else:
-        ##     self.game.show_origin = False
-        ##     self.game.show_target = False
-
-        ## if self.target_index == 0:
-        ##     # Show center but not targert
-        ##     self.game.show_center = True
-        ##     self.game.show_target = False
-        ## elif self.state == 'hold' and self.target_index == 0:
-        ##     self.game.show_center = True
-        ##     self.game.show_target = True
-        ## elif self.target_index == 1:
-        ##     self.game.show_center = False
-        ##     self.game.show_target = True
-        ## else:
-        ##     self.game.show_center = False
-        ##     self.game.show_target = False
-
-        ## cursor_pos = self.cursor.xfm.move[[0,2]] # [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
-        ## self.game.center = self.target1.xfm.move[[0,2]]
-        ## self.game.target = self.target2.xfm.move[[0,2]]
-
-        ## print self.game.center 
-        ## print self.game.target
-        ## print 
-        #self.game.show_origin = True
-        #self.game.show_target = True
-        #cursor_pos = [10*self.cursor.xfm.move[0], 10*self.cursor.xfm.move[2]]
-        #self.game.move_cursor(cursor_pos, run_fsm=False)
-
-
-        #### #if self.state in (self.GOTOCTR, self.HOLDCTR):
-        #### if self.show_center:
-        ####     pygame.draw.circle(self.screen, GAME_COLORS['center'], 
-        ####         self.pos2pix(self.center), self.r_ctr_pix)
-
-        #### #if self.state in (self.GOTOTARG, self.HOLDTARG):
-        #### if self.show_target:
-        ####     pygame.draw.circle(self.screen, GAME_COLORS['target'], 
-        ####         self.pos2pix(self.target), self.r_targ_pix)
-
-        #### pygame.draw.circle(self.screen, GAME_COLORS['cursor'], 
-        ####     self.pos2pix(self.cursor), self.r_cursor_pix)
-        #### if self.verbose:
-        ####     print "cursor position in pixels:"
-        ####     print self.pos2pix(self.cursor)
-
-        #### pygame.display.update()
-
-
         self.screen.blit(self.background, (0, 0))
         for model in self.world.models:
             if isinstance(model, Sphere):
@@ -532,129 +451,111 @@ class SimCLDAControlDispl2DMulti(Window2DSim, bmimultitasks.SimCLDAControlMulti,
     def loop_step(self):
         self.loop_counter += 1
 
-
-
-    def show_object(self, target, show=False):
-        if show:
-            target.attach()
-            print "attaching target"
-        else:
-            target.detach()
-            print "detaching target"
-        print self.world.models
-        print 
-
     def requeue(self):
         pass
     
-    def _start_wait(self):
-        super(manualcontrolmultitasks.ManualControlMulti, self)._start_wait()
-        self.tries = 0
-        self.target_index = -1
-        #hide targets
-        self.show_object(self.target1, False)
-        self.show_object(self.target2, False)
-        #self.target1.detach()
-        #self.target2.detach()
-        self.requeue()
-        #get target locations for this trial
-        self.targs = self.next_trial
-        self.chain_length = self.targs.shape[0] #Number of sequential targets in a single trial
-        #f.write("ManualControlMultTask: in wait state\n")
+    ## def _start_wait(self):
+    ##     super(manualcontrolmultitasks.ManualControlMulti, self)._start_wait()
+    ##     self.tries = 0
+    ##     self.target_index = -1
+    ##     #hide targets
+    ##     self.show_object(self.target1, False)
+    ##     self.show_object(self.target2, False)
+    ##     #self.target1.detach()
+    ##     #self.target2.detach()
+    ##     self.requeue()
+    ##     #get target locations for this trial
+    ##     self.targs = self.next_trial
+    ##     self.chain_length = self.targs.shape[0] #Number of sequential targets in a single trial
+    ##     #f.write("ManualControlMultTask: in wait state\n")
 
-    def update_cursor_visibility(self):
-        ''' Update cursor visible flag to hide cursor if there has been no good data for more than 3 frames in a row'''
-        prev = self.cursor_visible
-        if self.no_data_count < 3:
-            self.cursor_visible = True
-            if prev != self.cursor_visible:
-                self.show_object(self.cursor, show=True)
-            	#self.cursor.attach()
-            	self.requeue()
-        else:
-            self.cursor_visible = False
-            if prev != self.cursor_visible:
-                self.show_object(self.cursor, show=False)
-            	#self.cursor.detach()
-            	self.requeue()
-
+    ## def update_cursor_visibility(self):
+    ##     ''' Update cursor visible flag to hide cursor if there has been no good data for more than 3 frames in a row'''
+    ##     prev = self.cursor_visible
+    ##     if self.no_data_count < 3:
+    ##         self.cursor_visible = True
+    ##         if prev != self.cursor_visible:
+    ##             self.show_object(self.cursor, show=True)
+    ##         	#self.cursor.attach()
+    ##         	self.requeue()
+    ##     else:
+    ##         self.cursor_visible = False
+    ##         if prev != self.cursor_visible:
+    ##             self.show_object(self.cursor, show=False)
+    ##         	#self.cursor.detach()
+    ##         	self.requeue()
         
-    def _start_target(self):
-    	self.target_index += 1
+    ## def _start_target(self):
+    ## 	self.target_index += 1
 
-        #set target colors to red
-        self.target1.color = (1,0,0,.5)
-        self.target2.color = (1,0,0,.5)
+    ##     #set target colors to red
+    ##     self.target1.color = (1,0,0,.5)
+    ##     self.target2.color = (1,0,0,.5)
 
-        #move a target to current location (target1 and target2 alternate moving) and set location attribute
-        if self.target_index%2 == 0:            
-            self.target1.translate(*self.targs[self.target_index], reset=True)
-            self.show_object(self.target1, True)
-            #self.target1.attach()
-            self.target_location = self.target1.xfm.move
-        else:            
-            self.target2.translate(*self.targs[self.target_index], reset=True)
-            #self.target2.attach()
-            self.show_object(self.target2, True)
-            self.target_location = self.target2.xfm.move
-        self.requeue()
+    ##     #move a target to current location (target1 and target2 alternate moving) and set location attribute
+    ##     if self.target_index%2 == 0:            
+    ##         self.target1.translate(*self.targs[self.target_index], reset=True)
+    ##         self.show_object(self.target1, True)
+    ##         #self.target1.attach()
+    ##         self.target_location = self.target1.xfm.move
+    ##     else:            
+    ##         self.target2.translate(*self.targs[self.target_index], reset=True)
+    ##         #self.target2.attach()
+    ##         self.show_object(self.target2, True)
+    ##         self.target_location = self.target2.xfm.move
+    ##     self.requeue()
 
-    def _start_hold(self):
-        #make next target visible unless this is the final target in the trial
-        if (self.target_index+1) < self.chain_length:
-            if self.target_index%2 == 0:
-                self.target2.translate(*self.targs[self.target_index+1], reset=True)
-                #self.target2.attach()
-                self.show_object(self.target2, True)
-            else:         
-                self.target1.translate(*self.targs[self.target_index+1], reset=True)
-                #self.target1.attach()
-                self.show_object(self.target1, True)
-            self.requeue()
+    ## def _start_hold(self):
+    ##     #make next target visible unless this is the final target in the trial
+    ##     if (self.target_index+1) < self.chain_length:
+    ##         if self.target_index%2 == 0:
+    ##             self.target2.translate(*self.targs[self.target_index+1], reset=True)
+    ##             #self.target2.attach()
+    ##             self.show_object(self.target2, True)
+    ##         else:         
+    ##             self.target1.translate(*self.targs[self.target_index+1], reset=True)
+    ##             #self.target1.attach()
+    ##             self.show_object(self.target1, True)
+    ##         self.requeue()
     
-    def _start_hold_penalty(self):
-    	#hide targets
-        #self.target1.detach()
-        #self.target2.detach()
-        self.show_object(self.target1, False)
-        self.show_object(self.target2, False)
-        self.requeue()
-        self.tries += 1
-        self.target_index = -1
+    ## def _start_hold_penalty(self):
+    ## 	#hide targets
+    ##     #self.target1.detach()
+    ##     #self.target2.detach()
+    ##     self.show_object(self.target1, False)
+    ##     self.show_object(self.target2, False)
+    ##     self.requeue()
+    ##     self.tries += 1
+    ##     self.target_index = -1
     
-    def _start_timeout_penalty(self):
-    	#hide targets
-        self.show_object(self.target1, False)
-        self.show_object(self.target2, False)
-        #self.target1.detach()
-        #self.target2.detach()
-        self.requeue()
-        self.tries += 1
-        self.target_index = -1
+    ## def _start_timeout_penalty(self):
+    ## 	#hide targets
+    ##     self.show_object(self.target1, False)
+    ##     self.show_object(self.target2, False)
+    ##     #self.target1.detach()
+    ##     #self.target2.detach()
+    ##     self.requeue()
+    ##     self.tries += 1
+    ##     self.target_index = -1
 
-    def _start_targ_transition(self):
-        #hide targets
-        self.show_object(self.target1, False)
-        self.show_object(self.target2, False)
-        #self.target1.detach()
-        #self.target2.detach()
-        self.requeue()
+    ##def _start_targ_transition(self):
+    ##    #hide targets
+    ##    self.show_object(self.target1, False)
+    ##    self.show_object(self.target2, False)
+    ##    #self.target1.detach()
+    ##    #self.target2.detach()
+    ##    self.requeue()
     
-    def _start_reward(self):
-    	#super(ManualControlMulti, self)._start_reward()
-    	if self.target_index%2 == 0:            
-            #self.target1.attach()
-            self.show_object(self.target1, True)
-        else:            
-            #self.target2.attach()
-            self.show_object(self.target2, True)
-        self.requeue()
+    ## def _start_reward(self):
+    ## 	#super(ManualControlMulti, self)._start_reward()
+    ## 	if self.target_index%2 == 0:            
+    ##         #self.target1.attach()
+    ##         self.show_object(self.target1, True)
+    ##     else:            
+    ##         #self.target2.attach()
+    ##         self.show_object(self.target2, True)
+    ##     self.requeue()
         
-
-
-
-
-
 class SimRML(SimCLDAControlDispl2D):
     def __init__(self, *args, **kwargs):
         super(SimRML, self).__init__(*args, **kwargs)
