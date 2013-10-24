@@ -174,6 +174,7 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     '''
     Train a PPFDecoder from visual feedback
     '''
+    binlen = 1./180 # TODO remove hardcoding!
     update_rate=binlen
     # Open plx file
     plx_fname = str(files['plexon'])
