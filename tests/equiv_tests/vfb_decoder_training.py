@@ -6,6 +6,7 @@ import numpy as np
 from db import dbfunctions as dbfn
 from db.tracker import models
 from riglib.bmi import train
+reload(train)
 
 te = dbfn.get_task_entry(1844)
 dec_record = dbfn.get_decoder_entry(te)
@@ -22,3 +23,6 @@ print "Q error: %g" % np.max(np.abs(dec_new.kf.Q - dec_new.kf.Q))
 print "R error: %g" % np.max(np.abs(dec_new.kf.R - dec_new.kf.R))
 print "S error: %g" % np.max(np.abs(dec_new.kf.S - dec_new.kf.S))
 print "T error: %g" % np.max(np.abs(dec_new.kf.T - dec_new.kf.T))
+print "mFR error: %g" % np.max(np.abs(dec_new.mFR - dec.mFR))
+
+dec_new = train._train_PPFDecoder_visual_feedback(cells=dec.units, tslice=dec.tslice, **files)

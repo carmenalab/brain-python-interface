@@ -150,7 +150,13 @@ BMI.prototype.new = function() {
     }.bind(this));
     $("#bmibinlen").val("0.1");
     $("#bminame").replaceWith("<input id='bminame'>");
-    $("#bminame").val(this.plxinfo.name);
+    //var selected_bmi_class = $("#bmiclass");    
+    
+    var selected_bmi_class = document.getElementById("bmiclass");
+    var strSel = '_'.concat(selected_bmi_class.options[selected_bmi_class.selectedIndex].text);
+    
+    var new_bmi_name = this.plxinfo.name.concat(strSel);
+    $("#bminame").val(new_bmi_name);
     for (var i = 0; i < this.cells.length; i++) 
         this.add(this.cells[i]);
     $(".bmibtn").show();

@@ -14,32 +14,7 @@ import tables
 import kfdecoder, ppfdecoder
 import pdb
 from . import state_space_models
-
-def _get_tmask(plx_fname):
-    # Open plx file
-    plx = plexfile.openFile(plx_fname)
-    events = plx.events[:].data
-    syskey=0
-    # get system registrations
-    reg = parse.registrations(events)
-    # find the key for the motiontracker system data
-    for key, system in reg.items():
-        if (system == 'otiontracker') or (system == 'motiontracker'): #yes this typo is intentional! we could never figure out why the first character doesn't get recorded in the registration
-            syskey = key
-    # get the corresponding hdf rows
-    rows = parse.rowbyte(events)[syskey][:,0]
-    
-    lower, upper = 0 < rows, rows < rows.max() + 1
-    l, u = tslice
-    if l is not None:
-        lower = l < rows
-    if u is not None:
-        upper = rows < u
-    tmask = np.logical_and(lower, upper)
-    
-    
-    pass
-
+from itertools import izip
 
 def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
@@ -169,24 +144,18 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound, binlen=binlen)
     return decoder
 
-
-def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
-    state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
-    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
-    '''
-    Train a KFDecoder from visual feedback
-    '''
-    update_rate=binlen
+def _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask']):
     # Open plx file
-    plx = plexfile.openFile(str(files['plexon']))
-    # pull out event data
+    plx = plexfile.openFile(plx_fname)
     events = plx.events[:].data
+    syskey=0
     # get system registrations
     reg = parse.registrations(events)
-    # find the key for the task system data
+    # find the key for the motiontracker system data
     for key, system in reg.items():
-        if (system[0] == 'ask') or (system[0] == 'task'):
+        if syskey_fn(system):
             syskey = key
+            break
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
     
@@ -197,47 +166,72 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     if u is not None:
         upper = rows < u
     tmask = np.logical_and(lower, upper)
+    return tmask, rows
+
+def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,None], 
+    state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
+    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
+    '''
+    Train a PPFDecoder from visual feedback
+    '''
+    binlen = 1./180 # TODO remove hardcoding!
+    update_rate=binlen
+    # Open plx file
+    plx_fname = str(files['plexon'])
+    plx = plexfile.openFile(plx_fname)
+    tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
     
     #Grab masked kinematic data
     h5 = tables.openFile(files['hdf'])
-    cursor = h5.root.task[:]['cursor']
-    kin = cursor[tmask,:]
-    
-    # Create PSTH function
-    if cells == None: cells = plx.units
+    kin = h5.root.task[:]['cursor']
+    inds, = np.nonzero(tmask)
+    step_fl = binlen/(1./60) 
+    if step_fl < 1: # more than one spike bin per kinematic obs
+        n_repeats = int((1./60)/binlen)
+        inds = np.sort(np.hstack([inds]*n_repeats))
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        inds = inds[::step] #slice(None, None, step)
+    kin = kin[inds]
+
+    ## Bin the neural data
+    if cells == None: cells = plx.units # Use all of the units if none are specified
     units = np.array(cells).astype(np.int32)
     spike_bin_fn = psth.SpikeBin(units, binlen)
-    
     neurows = rows[tmask]
+    
+    # interpolate between the rows to 180 Hz
+    interp_rows = []
+    neurows = np.hstack([neurows[0] - 1./60, neurows])
+    for r1, r2 in izip(neurows[:-1], neurows[1:]):
+        interp_rows += list(np.linspace(r1, r2, 4)[1:])
+    interp_rows = np.array(interp_rows)
 
-    #Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-    # and select correct bins for neural data
-    step = int(binlen/(1./60))
-    kin = kin[::step, :]
-    neurows = neurows[::step]
+    spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
 
-    neurons = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
-    print len(neurons)
-    mFR = np.mean(neurons,axis=0)
-    sdFR = np.std(neurons,axis=0)
-    if len(kin) != len(neurons):
-        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neurons)))
+    if len(kin) != len(spike_counts):
+        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
     
     # calculate cursor velocity
-    velocity = np.diff(kin, axis=0)*(1/binlen)
+    velocity = np.diff(kin, axis=0) * 1./binlen
     kin = np.hstack([kin[1:], velocity])
-    
-    # train KF model parameters
-    neurons = neurons
-    neurons = neurons.T
-    n_neurons = neurons.shape[0]
+    spike_counts = spike_counts.T
+    spike_counts = spike_counts[:,:-1]
+    return train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
+
+def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=0.1, tslice=None):
+    '''
+    Train a Point-process filter decoder which predicts the endpoint velocity
+    '''
+    binlen = update_rate
+    n_neurons = spike_counts.shape[0]
     kin = kin.T
 
     kin_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
 
+    # C and Q should be trained on all of the stochastic state variables, excluding the offset terms
     train_vars = stochastic_vars[:]
-    try: train_vars.remove('offset')
-    except: pass 
+    if 'offset' in train_vars: train_vars.remove('offset')
 
     try:
         state_inds = [kin_vars.index(x) for x in state_vars]
@@ -246,27 +240,110 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
         stochastic_state_inds = [state_vars.index(x) for x in stochastic_vars]
     except:
         raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")
+
     C = np.zeros([n_neurons, len(state_inds)])
-    C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[train_inds, :], neurons[:,:-1])
+    C[:, stochastic_state_inds], = ppfdecoder.PointProcessFilter.MLE_obs_model(kin[train_inds, :], spike_counts)
     
+    # TODO Eliminate units which have baseline rates of 0 (w.p. 1, no spikes are observed for these units)
+
     # State-space model set from expert data
     A, W = state_space_models.linear_kinarm_kf(update_rate=update_rate)
-    A = A[np.ix_(state_inds, state_inds)]
-    W = W[np.ix_(state_inds, state_inds)]
+    if len(state_inds) < len(kin_vars): # Only a subset of states are represented in the decoder
+        A = A[np.ix_(state_inds, state_inds)]
+        W = W[np.ix_(state_inds, state_inds)]
     
-    # instantiate low-level kf
+    # instantiate Decoder
+    is_stochastic = np.array([x in stochastic_vars for x in state_vars])
+    ppf = ppfdecoder.PointProcessFilter(A, W, C, dt=update_rate)
+    bounding_box = np.array([-25., -14.]), np.array([25., 14.]) # bounding box in cm
+    states_to_bound = ['hand_px', 'hand_pz']
+    neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
+    drives_neurons = np.array([x in neuron_driving_states for x in state_vars])
+    decoder = ppfdecoder.PPFDecoder(ppf, units, bounding_box, 
+        state_vars, drives_neurons, states_to_bound, binlen=binlen, 
+        tslice=tslice)
+
+    return decoder
+
+def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
+    state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
+    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
+    '''
+    Train a KFDecoder from visual feedback
+    '''
+    update_rate=binlen
+    # Open plx file
+    plx_fname = str(files['plexon'])
+    plx = plexfile.openFile(plx_fname)
+    tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
+    tmask_continuous = np.array_equal(np.unique(np.diff(np.nonzero(tmask)[0])), np.array([1]))
+    
+    #Grab masked kinematic data
+    h5 = tables.openFile(files['hdf'])
+    kin = h5.root.task[tmask]['cursor']
+    step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+    kin = kin[::step, :]
+
+    ## Bin the neural data
+    if cells == None: cells = plx.units # Use all of the units if none are specified
+    units = np.array(cells).astype(np.int32)
+    spike_bin_fn = psth.SpikeBin(units, binlen)
+    neurows = rows[tmask]
+    neurows = neurows[::step]
+    spike_counts = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
+
+    if len(kin) != len(spike_counts):
+        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
+    
+    # calculate cursor velocity
+    velocity = np.diff(kin, axis=0) * 1./binlen
+    kin = np.hstack([kin[1:], velocity])
+    spike_counts = spike_counts.T
+    spike_counts = spike_counts[:,:-1]
+    return train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
+
+def train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=0.1, tslice=None):
+    binlen = update_rate
+    n_neurons = spike_counts.shape[0]
+    kin = kin.T
+
+    kin_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+
+    # C and Q should be trained on all of the stochastic state variables, excluding the offset terms
+    train_vars = stochastic_vars[:]
+    if 'offset' in train_vars: train_vars.remove('offset')
+
+    try:
+        state_inds = [kin_vars.index(x) for x in state_vars]
+        stochastic_inds = [kin_vars.index(x) for x in stochastic_vars]
+        train_inds = [kin_vars.index(x) for x in train_vars]
+        stochastic_state_inds = [state_vars.index(x) for x in stochastic_vars]
+    except:
+        raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")
+
+    C = np.zeros([n_neurons, len(state_inds)])
+    C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[train_inds, :], spike_counts)
+    
+    # Eliminate units which have baseline rates of 0 (w.p. 1, no spikes are observed for these units)
     unit_inds, = np.nonzero(np.array(C)[:,-1])
     C = C[unit_inds,:]
-    Q = Q[np.ix_(unit_inds,unit_inds)]
-    print len(unit_inds)
+    Q = Q[np.ix_(unit_inds, unit_inds)]
+    units = units[unit_inds,:]
+
+    mFR = np.mean(spike_counts[unit_inds, :], axis=1)
+    sdFR = np.std(spike_counts[unit_inds, :], axis=1)
+    #mFR = mFR[unit_inds]
+    #sdFR = sdFR[unit_inds]
+
+    # State-space model set from expert data
+    A, W = state_space_models.linear_kinarm_kf(update_rate=update_rate)
+    if len(state_inds) < len(kin_vars): # Only a subset of states are represented in the decoder
+        A = A[np.ix_(state_inds, state_inds)]
+        W = W[np.ix_(state_inds, state_inds)]
+    
+    # instantiate KFdecoder
     is_stochastic = np.array([x in stochastic_vars for x in state_vars])
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
-    units = units[unit_inds,:]
-    mFR = mFR[unit_inds]
-    sdFR = sdFR[unit_inds]
-
-    # instantiate KFdecoder
-    #bounding_box = np.array([-250., -140.]), np.array([250., 140.])
     bounding_box = np.array([-25., -14.]), np.array([25., 14.]) # bounding box in cm
     states_to_bound = ['hand_px', 'hand_pz']
     neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
@@ -275,29 +352,19 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
         state_vars, drives_neurons, states_to_bound, binlen=binlen, 
         tslice=tslice)
 
+    # Compute sufficient stats for C and Q matrices (used to initialze CLDA)
     from clda import KFRML
     n_neurons, n_states = C.shape
-    print n_neurons
-    print neurons.shape
     R = np.mat(np.zeros([n_states, n_states]))
     S = np.mat(np.zeros([n_neurons, n_states]))
-    R_small, S_small, T = KFRML.compute_suff_stats(kin[train_inds, :], neurons[unit_inds,:-1])
-    ## print R.shape
-    ## print stochastic_state_inds
-    ## print R_small.shape
-    ## print S.shape
-    ## print stochastic_state_inds
-    ## print S_small.shape
+    R_small, S_small, T = KFRML.compute_suff_stats(kin[train_inds, :], spike_counts[unit_inds,:])
 
     R[np.ix_(stochastic_state_inds, stochastic_state_inds)] = R_small
-    print S.shape
-    print S_small.shape
     S[:,stochastic_state_inds] = S_small
     
     decoder.kf.R = R
     decoder.kf.S = S
     decoder.kf.T = T 
-
     
     return decoder
 

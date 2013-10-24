@@ -112,4 +112,5 @@ instance_to_model = SubclassDict( {
 bmis = dict(
     kalman=bmi.train._train_KFDecoder_manual_control,
     kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
+    ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
     )

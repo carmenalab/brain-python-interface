@@ -233,7 +233,6 @@ class KFRML(object):
         R = (1./T) * (X * X.T)
         S = (1./T) * (Y * X.T)
         T = (1./T) * (Y * Y.T)
-        print T
 
         return (R, S, T)
 
