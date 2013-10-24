@@ -224,6 +224,10 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def __call__(self, obs_t, **kwargs):
         '''
         '''
+        # The PPF model predicts that at most one spike can be observed in 
+        # each bin; if more are observed, squash the counts
+        obs_t[obs_t > 1] = 1
+
         outputs = []
         for k in range(self.n_subbins):
             outputs.append(self.predict(obs_t[:,k], **kwargs))
