@@ -99,7 +99,7 @@ class Decoder(object):
     def get_filter(self):
         raise NotImplementedError
 
-    def update_params(self, new_params):
+    def update_params(self, new_params, **kwargs):
         for key, val in new_params.items():
             attr_list = key.split('.')
             final_attr = attr_list[-1]
@@ -206,10 +206,10 @@ class AdaptiveBMI(object):
         self.updater = updater
         self.param_hist = []
 
-        self.clda_input_queue = self.updater.work_queue
-        self.clda_output_queue = self.updater.result_queue
         self.mp_updater = isinstance(updater, mp.Process)
         if self.mp_updater:
+            self.clda_input_queue = self.updater.work_queue
+            self.clda_output_queue = self.updater.result_queue
             self.updater.start()
         self.reset_spike_counts()
 
@@ -260,6 +260,7 @@ class AdaptiveBMI(object):
         update_flag = False
 
         if self.learner.is_full():
+            print "running update"
             self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
             if 'half_life' in kwargs:
                 half_life = kwargs['half_life']

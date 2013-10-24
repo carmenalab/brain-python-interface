@@ -85,13 +85,17 @@ class CursorGoalLearner(Learner):
         if task_state in ['hold', 'origin_hold', 'target_hold']:
             int_vel = np.zeros(int_dir.shape)            
         elif task_state in ['target', 'origin', 'terminus']:
-            int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
+            int_vel = 0.60*normalize(int_dir)*np.linalg.norm(decoded_vel)
+            #int_vel = 4*normalize(int_dir)*np.linalg.norm(decoded_vel)
+            #int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
         else:
             int_vel = None
         
         if not self.is_full() and self.enabled and int_vel is not None:
+            n_subbins = spike_counts.shape[1]
             int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
-            self.kindata.append(int_kin)
+            for k in range(n_subbins):
+                self.kindata.append(int_kin)
             self.neuraldata.append(spike_counts)
     
     def is_full(self):
@@ -163,7 +167,6 @@ class KFSmoothbatchSingleThread(object):
         mFR_old        = decoder.mFR
         sdFR_old       = decoder.sdFR
 
-
         C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(
             intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
         C = (1-rho)*C_hat + rho*C_old
@@ -222,11 +225,16 @@ class PPFSmoothbatchSingleThread(object):
         states = decoder.states
         decoding_states = np.take(states, np.nonzero(drives_neurons)).ravel().tolist() #['hand_vx', 'hand_vz', 'offset'] 
 
-        C_hat, = ppfdecoder.PointProcessFilter.MLE_obs_model(
+        C_hat, pvalues = ppfdecoder.PointProcessFilter.MLE_obs_model(
             intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
         C_hat = train.inflate(C_hat, decoding_states, states, axis=1)
-        
-        C = (1-rho)*C_hat + rho*C_old
+        pvalues = train.inflate(pvalues, decoding_states, states, axis=1)
+        pvalues[pvalues[:,:-1] == 0] = np.inf
+
+        mesh = np.nonzero(pvalues < 0.1)
+        C = np.array(C_old.copy())
+        C[mesh] = (1-rho)*C_hat[mesh] + rho*np.array(C_old)[mesh]
+        C = np.mat(C)
 
         new_params = {'filt.C':C}
         return new_params

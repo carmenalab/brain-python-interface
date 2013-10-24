@@ -171,14 +171,16 @@ class PointProcessFilter():
         n_units = Y.shape[0]
         n_states = X.shape[0]
         C = np.zeros([n_units, n_states])
+        pvalues = np.zeros([n_units, n_states])
         #C = np.zeros([n_states, n_units])
         glm_family = sm.families.Poisson()
         for k in range(n_units):
             model = sm.GLM(Y[k,:], X.T, family=glm_family)
             model_fit = model.fit()
             C[k,:] = model_fit.params
+            pvalues[k,:] = model_fit.pvalues
 
-        return C,
+        return C, pvalues
 
 class PPFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, filt, units, bounding_box, states, drives_neurons,
