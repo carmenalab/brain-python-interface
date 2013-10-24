@@ -316,6 +316,7 @@ class SinkRegister(object):
         if isinstance(self, Joystick):
             self.sinks.register(self.joystick)
 
+        # Register sink for task data
         try:
             self.dtype = np.dtype(self.dtype)
             self.sinks.register("task", self.dtype)
@@ -359,6 +360,20 @@ class SaveHDF(SinkRegister):
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
         print "#################%s"%self.h5file.name
         database.save_data(self.h5file.name, "hdf", saveid)
+
+class SimHDF():
+    '''
+    An interface-compatbile HDF for simulations which do not require saving an
+    HDF file
+    '''
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def sendMsg(self, msg):
+        pass
+
+    def __setitem__(self, key, value):
+        pass
 
 class RelayPlexon(SinkRegister):
     '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''

@@ -14,8 +14,11 @@ from OpenGL.GL import *
 from riglib.experiment import LogExperiment
 
 from render import stereo
-from models import Group
+from models import Group, GroupDispl2D
 from xfm import Quaternion
+from riglib.stereo_opengl.primitives import Sphere
+import time
+
 
 class Window(LogExperiment):
     status = dict(draw=dict(stop=None))
@@ -115,6 +118,63 @@ class Window(LogExperiment):
     
     def requeue(self):
         self.renderer._queue_render(self.world)
+
+
+class WindowDispl2D(object):
+    def __init__(self):
+        self.models = []
+
+    def screen_init(self):
+        self.workspace_ll = np.array([-10., -10.])
+
+        win_res = 300
+        self.workspace_size = 20. #win_res
+        self.size = win_res
+        self.screen = pygame.display.set_mode((win_res, win_res))
+        self.screen_background = pygame.Surface(self.screen.get_size()).convert()
+        self.screen_background.fill(self.background)
+
+        self.pix_per_m = self.size/self.workspace_size
+
+        self.world = GroupDispl2D(self.models)
+        self.world.init()
+
+    def pos2pix(self, kfpos):
+        # rescale the cursor position to (0,1)
+        norm_workspace_pos = (kfpos - self.workspace_ll)/self.workspace_size
+
+        # multiply by the workspace size in pixels 
+        pix_pos = self.size*norm_workspace_pos
+
+        # flip y-coordinate
+        pix_pos[1] = self.size - pix_pos[1]
+
+        # cast to integer
+        pix_pos = np.array(pix_pos, dtype=int) 
+        return pix_pos
+
+    def draw_world(self):
+        self.screen.blit(self.screen_background, (0, 0))
+        for model in self.world.models:
+            if isinstance(model, Sphere):
+                pos = model.xfm.move[[0,2]]
+                pix_pos = self.pos2pix(pos)
+                color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+                rad = model.radius
+                pix_radius = int(rad * self.pix_per_m)
+                pygame.draw.circle(self.screen, color, pix_pos, pix_radius)
+
+        pygame.display.update()
+
+        time.sleep(1./60 * 1./10)
+
+    def requeue(self):
+        '''
+        Simulation 'requeue' does nothing because the simulation is lazy and
+        inefficient and chooses to redraw the entire screen every loop
+        '''
+        pass
+
 
 class FPScontrol(Window):
     '''A mixin that adds a WASD + Mouse controller to the window. 

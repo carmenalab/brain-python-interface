@@ -78,7 +78,8 @@ class Model(object):
 
     def attach(self):
         assert self.parent is not None
-        self.parent.models.append(self)
+        while self not in self.parent.models:
+            self.parent.models.append(self)
 
     def detach(self):
         assert self.parent is not None
@@ -119,6 +120,22 @@ class Group(Model):
         for model in self.models:
             model._recache_xfm()
     
+
+class GroupDispl2D(Group):
+    '''
+    A 'reimplementaiton' of the Group class to maintain the same graphics interface
+    during BMI simulations
+    ''' 
+    def add(self, model):
+        self.models.append(model)
+        model.parent = self
+
+    def init(self):
+        pass
+
+    def _recache_xfm(self):
+        pass
+
 
 builtins = dict([ (n[9:].lower(), getattr(glut, n)) 
                     for n in dir(glut) 
