@@ -33,10 +33,10 @@ decoding_states = ['hand_vx', 'hand_vz', 'offset']
 beta_dec = train.inflate(beta, decoding_states, states, axis=1)
 decoder = train._train_PPFDecoder_sim_known_beta(beta_dec, encoder.units, dt=dt, dist_units='m')
 
-
 # initialze estimate of beta
 beta_est = beta.copy()
 beta_est[:,0:2] = 0
+beta_est = train.inflate(beta_est, decoding_states, states, axis=1)
 
 # Initialize learner and updater
 n_iter = 30000.
@@ -60,13 +60,16 @@ spike_counts = data['spike_counts']
 for n in range(1, n_iter):
     if n % 1000 == 0: print n
     #spike_counts[n-1, :] = encoder(X[n,:])
-    learner(spike_counts[n-1, :].reshape(-1,1), X[n,:])
+    int_kin = np.hstack([np.zeros(3), X[n,0], 0, X[n,1], 1])
+    learner(spike_counts[n-1, :].reshape(-1,1), int_kin)
     if learner.is_full():
         # calc beta est from batch
         intended_kinematics, spike_counts_batch = learner.get_batch()
         #intended_kinematics = np.vstack([intended_kinematics, np.ones(intended_kinematics.shape[1])])
         beta_hist.append(beta_est)
-        new_params = updater.calc(intended_kinematics, spike_counts_batch, rho, beta_est, drives_neurons=np.array([True, True]))
+        new_params = updater.calc(
+            intended_kinematics, spike_counts_batch, rho, beta_est, 
+            drives_neurons=np.array([False, False, False, True, False, True, True]))
         beta_est = new_params['filt.C']
         #beta_hat, = ppfdecoder.PointProcessFilter.MLE_obs_model(intended_kinematics, neuraldata, include_offset=True)
         #beta_est = (1-rho)*beta_hat + rho*beta_est
@@ -77,17 +80,17 @@ beta_hist = np.dstack(beta_hist).transpose([2,0,1])
 plt.figure()
 axes = plot.subplots(5, 4, return_flat=True, hold=True)
 for k in range(n_neurons):
-    axes[k].plot(beta_hist[:,k,0])
+    axes[k].plot(beta_hist[:,k,3])
 
 plt.figure()
 axes = plot.subplots(5, 4, return_flat=True, hold=True)
 for k in range(n_neurons):
-    axes[k].plot(beta_hist[:,k,1])
+    axes[k].plot(beta_hist[:,k,5])
 
 plt.figure()
 axes = plot.subplots(2, 1, return_flat=True, hold=True)
 axes[0].plot(beta[:,0])
-axes[0].plot(beta_est[:,0])
+axes[0].plot(beta_est[:,3])
 axes[1].plot(beta[:,1])
-axes[1].plot(beta_est[:,1])
+axes[1].plot(beta_est[:,5])
 plt.show()

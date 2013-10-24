@@ -3,7 +3,7 @@ CLDA classes
 '''
 import multiprocessing as mp
 import numpy as np
-from riglib.bmi import kfdecoder, ppfdecoder
+from riglib.bmi import kfdecoder, ppfdecoder, train
 import time
 
 ## Learners
@@ -35,6 +35,32 @@ class DumbLearner(Learner):
     def __call__(self, *args, **kwargs):
         """ Do nothing; hence the name of the class"""
         pass
+
+class BatchLearner(Learner):
+    def __init__(self, batch_size, *args, **kwargs):
+        super(BatchLearner, self).__init__(*args, **kwargs)
+        self.batch_size = batch_size
+        self.kindata = []
+        self.neuraldata = []
+    
+    def __call__(self, spike_counts, int_kin):
+        """
+        Rotation toward target state
+        """
+        if not self.is_full() and self.enabled:
+            self.kindata.append(int_kin)
+            self.neuraldata.append(spike_counts)
+    
+    def is_full(self):
+        return len(self.kindata) >= self.batch_size
+
+    def get_batch(self):
+        kindata = np.vstack(self.kindata).T
+        neuraldata = np.hstack(self.neuraldata)
+        self.kindata = []
+        self.neuraldata = []
+        return kindata, neuraldata
+
 
 class CursorGoalLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):
@@ -182,8 +208,15 @@ class PPFSmoothbatchSingleThread(object):
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
+        # TODO get these from decoder object!
+        states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+        decoding_states = ['hand_vx', 'hand_vz', 'offset'] 
+
+
         C_hat, = ppfdecoder.PointProcessFilter.MLE_obs_model(
             intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
+        C_hat = train.inflate(C_hat, decoding_states, states, axis=1)
+        
         C = (1-rho)*C_hat + rho*C_old
 
         new_params = {'filt.C':C}
