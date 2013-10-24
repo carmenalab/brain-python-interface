@@ -16,7 +16,8 @@ from scipy.integrate import trapz, simps
 import statsmodels.api as sm # TODO add back in for point process ensemble
 
 ts_dtype = [('ts', float), ('chan', np.int32), ('unit', np.int32)]
-class CosEnc():
+ts_dtype_new = [('ts', float), ('chan', np.int32), ('unit', np.int32), ('arrival_ts', np.float64)]
+class CosEnc(object):
     def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, 
         unit_inds=None, fname='', return_ts=False, DT=0.1):
         """Create neurons cosine-tuned to random directions."""
@@ -85,6 +86,20 @@ class CosEnc():
             'angles':self.angles, 'pds':self.pds, 'mod_depth':self.mod_depth,
             'unit_inds':self.unit_inds})
 
+class CLDASimCosEnc(CosEnc):
+    def __init__(self, *args, **kwargs):
+        super(CLDASimCosEnc, self).__init__(*args, **kwargs)
+        self.call_count = 0
+
+    def __call__(self, user_input):
+        if self.call_count % 6 == 0:
+            ts_data = super(CLDASimCosEnc, self).__call__(user_input)
+        elif self.return_ts:
+            ts_data = np.array([])
+        else:
+            ts_data = np.zeros(self.n_neurons)
+        self.call_count += 1
+        return ts_data
 
 class PointProcess():
     def __init__(self, beta, dt, tau_samples=[], K=0, eps=1e-3):
@@ -104,7 +119,6 @@ class PointProcess():
         if len(self.tau_samples) > 0:
             self.tau = self.tau_samples.pop(0)
         else:
-            print "drawing new samples"
             u = np.random.rand()
             self.tau = np.log(1 - u);
 
@@ -173,7 +187,6 @@ class PointProcess():
 
         return spikes
 
-
 ## class PointProcessEnsemble():
 ##     def __init__(self, beta, init_state, dt, tau_samples=None, eps=1e-3,
 ##                  hist_len=0, unit_inds=None):
@@ -205,20 +218,79 @@ class PointProcess():
 ##         return np.array([unit(user_input) for unit in self.units]).astype(np.float64).reshape(-1,1)
 
 
-class PointProcessEnsemble():
-    def __init__(self, beta, init_state, dt, tau_samples=None, eps=1e-3, 
-                 hist_len=0, unit_inds=None):
+class PointProcessEnsemble(object):
+    def __init__(self, beta, dt, init_state=None, tau_samples=None, eps=1e-3, 
+                 hist_len=0, units=None):
         '''
         Initialize a point process ensemble
         '''
-        self.n_neurons = beta.shape[1]
-        units = []
+        self.n_neurons, n_covariates = beta.shape
+        if init_state == None:
+            init_state = np.hstack([np.zeros(n_covariates - 1), 1])
+        if tau_samples == None:
+            tau_samples = [[]]*self.n_neurons
+        point_process_units = []
         for k in range(self.n_neurons):
-            point_proc = PointProcess(beta[:,k], dt, tau_samples=tau_samples[k])
+            point_proc = PointProcess(beta[k,:], dt, tau_samples=tau_samples[k])
+            #point_proc = PointProcess(beta[:,k], dt, tau_samples=tau_samples[k])
             point_proc._init_sampling(init_state)
-            units.append(point_proc)
-        self.units = units
+            point_process_units.append(point_proc)
+        self.point_process_units = point_process_units
+        if units == None:
+            self.units = np.vstack([(x, 1) for x in range(self.n_neurons)])
+        else:
+            self.units = units
 
     def __call__(self, x_t):
         x_t = np.hstack([x_t, 1])
-        return np.array(map(lambda unit: unit(x_t), self.units)).astype(int)
+        counts = np.array(map(lambda unit: unit(x_t), self.point_process_units)).astype(int)
+        return counts
+
+class CLDASimPointProcessEnsemble(PointProcessEnsemble):
+    '''
+    PointProcessEnsemble intended to be called at 60 Hz and return simulated
+    spike timestamps at 180 Hz
+    '''
+    def __init__(self, *args, **kwargs):
+        super(CLDASimPointProcessEnsemble, self).__init__(*args, **kwargs)
+        self.call_count = -1
+
+    def __call__(self, x_t):
+        '''
+        Ensemble is called at 60 Hz but expects the timestamps to reflect spike
+        bins determined at 180 Hz
+        '''
+        ts_data = []
+        for k in range(3):
+            counts = super(CLDASimPointProcessEnsemble, self).__call__(x_t)
+            nonzero_units, = np.nonzero(counts)
+            fake_time = self.call_count * 1./60 + (k + 0.5)*1./180
+            for unit_ind in nonzero_units:
+                ts = (fake_time, self.units[unit_ind, 0], self.units[unit_ind, 1], fake_time)
+                ts_data.append(ts)
+
+        self.call_count += 1
+        return np.array(ts_data, dtype=ts_dtype_new)
+        
+
+def load_ppf_encoder_2D_vel_tuning(fname, dt=0.005):
+    data = loadmat(fname)
+    beta = data['beta']
+    beta = np.vstack([beta[1:, :], beta[0,:]]).T
+    n_neurons = beta.shape[0]
+
+    init_state = np.array([0., 0, 1])
+
+    try:
+        tau_samples = [data['tau_samples'][0][k].ravel().tolist() for k in range(n_neurons)]
+    except:
+        tau_samples = []
+    encoder = PointProcessEnsemble(beta, dt, init_state=init_state, tau_samples=tau_samples)
+    return encoder
+
+def load_ppf_encoder_2D_vel_tuning_clda_sim(fname, dt=0.005):
+    data = loadmat(fname)
+    beta = data['beta']
+    beta = np.vstack([beta[1:, :], beta[0,:]]).T
+    encoder = CLDASimPointProcessEnsemble(beta, dt)
+    return encoder
