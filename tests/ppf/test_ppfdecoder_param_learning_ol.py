@@ -17,21 +17,19 @@ reload(clda)
 plt.close('all')
 
 N = 168510.
-fname ='sample_spikes_and_kinematics_%d.mat' % N 
+fname = 'sample_spikes_and_kinematics_%d.mat' % N 
 data = loadmat(fname)
 truedata = loadmat('/Users/sgowda/bmi/workspace/adaptive_ppf/ppf_test_case_matlab_output.mat')
-x_est = truedata['x_est']
 X = data['hand_vel'].T
 
 beta = data['beta']
 beta = np.vstack([beta[1:, :], beta[0,:]]).T
 n_neurons = beta.shape[0]
-dt = 0.005
+dt = truedata['T_loop'][0,0]
 
 encoder = sim_neurons.load_ppf_encoder_2D_vel_tuning(fname, dt=dt)
 states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
 decoding_states = ['hand_vx', 'hand_vz', 'offset'] 
-#beta_dec = train.inflate(beta, decoding_states, states, axis=1)
 
 # initialze estimate of beta
 beta_est = beta.copy()
@@ -40,43 +38,33 @@ beta_est = train.inflate(beta_est, decoding_states, states, axis=1)
 decoder = train._train_PPFDecoder_sim_known_beta(beta_est, encoder.units, dt=dt, dist_units='m')
 
 # Initialize learner and updater
-n_iter = 30000.
 batch_time = 60.
 batch_size = batch_time/dt
 half_life = 120.
 rho = np.exp(np.log(0.5) / (half_life/batch_time))
 
 learner = clda.BatchLearner(batch_size)
-
-beta_hist = []
-
-n_iter = X.shape[0]
-spike_counts = np.zeros([n_iter, n_neurons])
-decoded_output_new = np.zeros([7, n_iter])
-
 updater = clda.PPFSmoothbatchSingleThread()
-# intended_kin, spike_counts, rho, C_old, drives_neurons
+updater.rho = rho
 
+## RUN 
+n_iter = X.shape[0]
 spike_counts = data['spike_counts']
+beta_hist = []
 for n in range(1, n_iter):
-    if n % 1000 == 0: print n
-    #spike_counts[n-1, :] = encoder(X[n,:])
+    if n % batch_size == 0: print n
     int_kin = np.hstack([np.zeros(3), X[n,0], 0, X[n,1], 1])
+
     learner(spike_counts[n-1, :].reshape(-1,1), int_kin)
+
     if learner.is_full():
         # calc beta est from batch
-        intended_kinematics, spike_counts_batch = learner.get_batch()
-        #intended_kinematics = np.vstack([intended_kinematics, np.ones(intended_kinematics.shape[1])])
+        int_kin_batch, spike_counts_batch = learner.get_batch()
         beta_hist.append(decoder.filt.C)
-        new_params = updater.calc(
-            intended_kinematics, spike_counts_batch, rho, decoder)#.filt.C, #beta_est, 
-            #drives_neurons=decoder.drives_neurons)
-            #drives_neurons=np.array([False, False, False, True, False, True, True]))
-        #beta_est = new_params['filt.C']
+        new_params = updater.calc(int_kin_batch, spike_counts_batch, rho, decoder)
         decoder.update_params(new_params)
-        #beta_hat, = ppfdecoder.PointProcessFilter.MLE_obs_model(intended_kinematics, neuraldata, include_offset=True)
-        #beta_est = (1-rho)*beta_hat + rho*beta_est
         
+# Plot results
 beta_hist = map(lambda x: np.array(x), beta_hist)
 beta_hist = np.dstack(beta_hist).transpose([2,0,1])
 
