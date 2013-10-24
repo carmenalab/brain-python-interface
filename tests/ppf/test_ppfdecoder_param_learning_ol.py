@@ -13,6 +13,7 @@ import plot
 reload(ppfdecoder)
 reload(sim_neurons)
 reload(train)
+reload(clda)
 plt.close('all')
 
 N = 168510.
@@ -30,13 +31,13 @@ dt = 0.005
 encoder = sim_neurons.load_ppf_encoder_2D_vel_tuning(fname, dt=dt)
 states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
 decoding_states = ['hand_vx', 'hand_vz', 'offset'] 
-beta_dec = train.inflate(beta, decoding_states, states, axis=1)
-decoder = train._train_PPFDecoder_sim_known_beta(beta_dec, encoder.units, dt=dt, dist_units='m')
+#beta_dec = train.inflate(beta, decoding_states, states, axis=1)
 
 # initialze estimate of beta
 beta_est = beta.copy()
 beta_est[:,0:2] = 0
 beta_est = train.inflate(beta_est, decoding_states, states, axis=1)
+decoder = train._train_PPFDecoder_sim_known_beta(beta_est, encoder.units, dt=dt, dist_units='m')
 
 # Initialize learner and updater
 n_iter = 30000.
@@ -66,16 +67,18 @@ for n in range(1, n_iter):
         # calc beta est from batch
         intended_kinematics, spike_counts_batch = learner.get_batch()
         #intended_kinematics = np.vstack([intended_kinematics, np.ones(intended_kinematics.shape[1])])
-        beta_hist.append(beta_est)
+        beta_hist.append(decoder.filt.C)
         new_params = updater.calc(
-            intended_kinematics, spike_counts_batch, rho, beta_est, 
-            drives_neurons=np.array([False, False, False, True, False, True, True]))
-        beta_est = new_params['filt.C']
+            intended_kinematics, spike_counts_batch, rho, decoder)#.filt.C, #beta_est, 
+            #drives_neurons=decoder.drives_neurons)
+            #drives_neurons=np.array([False, False, False, True, False, True, True]))
+        #beta_est = new_params['filt.C']
+        decoder.update_params(new_params)
         #beta_hat, = ppfdecoder.PointProcessFilter.MLE_obs_model(intended_kinematics, neuraldata, include_offset=True)
         #beta_est = (1-rho)*beta_hat + rho*beta_est
         
+beta_hist = map(lambda x: np.array(x), beta_hist)
 beta_hist = np.dstack(beta_hist).transpose([2,0,1])
-
 
 plt.figure()
 axes = plot.subplots(5, 4, return_flat=True, hold=True)
@@ -90,7 +93,7 @@ for k in range(n_neurons):
 plt.figure()
 axes = plot.subplots(2, 1, return_flat=True, hold=True)
 axes[0].plot(beta[:,0])
-axes[0].plot(beta_est[:,3])
+axes[0].plot(decoder.filt.C[:,3])
 axes[1].plot(beta[:,1])
-axes[1].plot(beta_est[:,5])
+axes[1].plot(decoder.filt.C[:,5])
 plt.show()

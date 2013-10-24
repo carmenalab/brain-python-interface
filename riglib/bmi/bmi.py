@@ -8,11 +8,11 @@ from riglib.plexon import Spikes
 import multiprocessing as mp
 from itertools import izip
 
-try:
-    from plexon import psth
-except:
-    import warnings
-    warnings.warn('psth module not found, using python spike binning function')
+##try:
+##    from plexon import psth
+##except:
+##    import warnings
+##    warnings.warn('psth module not found, using python spike binning function')
 
 
 def bin_spikes(spikes, units):
@@ -228,7 +228,6 @@ class AdaptiveBMI(object):
         self.decoder(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
         decoded_state = self.decoder.get_state()
 
-
         learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
         self.spike_counts += spike_obs
         if learn_flag and self.decoder.bmicount == 0: #self.decoder.bminum - 1):
@@ -267,19 +266,20 @@ class AdaptiveBMI(object):
                 rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
             else:
                 rho = self.updater.rho
-            drives_neurons = self.decoder.drives_neurons
-            clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
+            #drives_neurons = self.decoder.drives_neurons
+            clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder) #self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
 
             if self.mp_updater:
                 self.clda_input_queue.put(clda_data)
-                # Deactivate learner until parameter update is received
+                # Disable learner until parameter update is received
                 self.learner.disable() 
             else:
                 new_params = self.updater.calc(*clda_data)
                 #self.decoder.update_params(new_params)
 
+        # If the updater is running in a separate process, check if a new 
+        # parameter update is available
         if self.mp_updater:
-            # Check for a parameter update
             try:
                 new_params = self.clda_output_queue.get_nowait()
             except:

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from riglib.bmi import bmi
+import bmi
 from bmi import GaussianState
 import statsmodels.api as sm # GLM fitting module
 
@@ -135,7 +135,7 @@ class PointProcessFilter():
         return {'A':self.A, 'W':self.W, 'C':self.C, 'dt':self.dt}
 
     @classmethod
-    def MLE_obs_model(cls, hidden_state, obs, include_offset=True):
+    def MLE_obs_model(cls, hidden_state, obs, include_offset=True, drives_obs=None):
         """
         Unconstrained ML estimator of {C, } given observations and
         the corresponding hidden states
@@ -157,9 +157,14 @@ class PointProcessFilter():
             X = np.mat(hidden_state)
             if include_offset:
                 X = np.vstack([ X, np.ones([1,T]) ])
+                if not drives_obs == None:
+                    drives_obs = np.hstack([drives_obs, True])
+                
             Y = np.mat(obs)
         
         X = np.array(X)
+        if not drives_obs == None:
+            X = X[drives_obs, :]
         Y = np.array(Y)
 
         # ML estimate of C and Q

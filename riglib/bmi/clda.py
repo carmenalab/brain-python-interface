@@ -149,13 +149,21 @@ class CLDARecomputeParameters(mp.Process):
         self.done.set()
 
 class KFSmoothbatchSingleThread(object):
-    def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old):
+    def calc(self, intended_kin, spike_counts, rho, decoder):
+    #def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old):
         """Smoothbatch calculations
 
         Run least-squares on (intended_kinematics, spike_counts) to 
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
+        C_old          = decoder.kf.C
+        Q_old          = decoder.kf.Q
+        drives_neurons = decoder.drives_neurons
+        mFR_old        = decoder.mFR
+        sdFR_old       = decoder.sdFR
+
+
         C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(
             intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
         C = (1-rho)*C_hat + rho*C_old
@@ -178,10 +186,10 @@ class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
         self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
         
 class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
-    def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons,
-             mFR_old, sdFR_old):
+    def calc(self, intended_kin, spike_counts, rho, decoder): #C_old, Q_old, drives_neurons,
+#             mFR_old, sdFR_old):
         
-        args = (intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons, mFR_old, sdFR_old)
+        args = (intended_kin, spike_counts, rho, decoder)
         new_params = super(KFOrthogonalPlantSmoothbatchSingleThread, self).calc(*args)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
         D = (C.T * Q.I * C)
@@ -200,7 +208,8 @@ class KFOrthogonalPlantSmoothbatch(KFOrthogonalPlantSmoothbatchSingleThread, KFS
 
 
 class PPFSmoothbatchSingleThread(object):
-    def calc(self, intended_kin, spike_counts, rho, C_old, drives_neurons):
+    def calc(self, intended_kin, spike_counts, rho, decoder):
+    #def calc(self, intended_kin, spike_counts, rho, C_old, drives_neurons):
         """
         Smoothbatch calculations
 
@@ -208,10 +217,10 @@ class PPFSmoothbatchSingleThread(object):
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
-        # TODO get these from decoder object!
-        states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-        decoding_states = ['hand_vx', 'hand_vz', 'offset'] 
-
+        C_old = decoder.filt.C
+        drives_neurons = decoder.drives_neurons
+        states = decoder.states
+        decoding_states = np.take(states, np.nonzero(drives_neurons)).ravel().tolist() #['hand_vx', 'hand_vz', 'offset'] 
 
         C_hat, = ppfdecoder.PointProcessFilter.MLE_obs_model(
             intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
@@ -274,9 +283,11 @@ class KFRML(object):
         self.S = decoder.kf.S
         self.T = decoder.kf.T
 
-    def calc(self, intended_kin, spike_counts, rho, C_old, Q_old, drives_neurons,
-             mFR_old, sdFR_old):
-        
+    def calc(self, intended_kin, spike_counts, rho, decoder):
+        drives_neurons = decoder.drives_neurons
+        mFR_old        = decoder.mFR
+        sdFR_old       = decoder.sdFR
+
         x = intended_kin
         y = spike_counts
         
