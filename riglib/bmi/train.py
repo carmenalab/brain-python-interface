@@ -368,8 +368,17 @@ def train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochas
     
     return decoder
 
+def _train_KFDecoder_visual_feedback_shuffled(*args, **kwargs):
+    '''
+    Train a KFDecoder from visual feedback and shuffle it
+    '''
+    dec = _train_KFDecoder_visual_feedback(*args, **kwargs)
+    return shuffle_kf_decoder(dec)
 
 def shuffle_kf_decoder(decoder):
+    '''
+    Shuffle a KFDecoder
+    '''
     # generate random permutation
     import random
     inds = range(decoder.C.shape[0])
