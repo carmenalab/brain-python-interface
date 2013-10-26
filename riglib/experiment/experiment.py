@@ -23,6 +23,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     def __init__(self, **kwargs):
         traits.HasTraits.__init__(self, **kwargs)
         threading.Thread.__init__(self)
+        self.task_start_time=time.time()
         self.ntrials = 0
         self.nrewards = 0
         self.reward_len = 0
