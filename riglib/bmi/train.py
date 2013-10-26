@@ -381,7 +381,7 @@ def shuffle_kf_decoder(decoder):
     '''
     # generate random permutation
     import random
-    inds = range(decoder.C.shape[0])
+    inds = range(decoder.kf.C.shape[0])
     random.shuffle(inds)
 
     # shuffle rows of C, and rows+cols of Q
@@ -399,8 +399,7 @@ def shuffle_kf_decoder(decoder):
         # if this decoder never had the RML sufficient statistics
         #   (R, S, and T) as attributes of decoder.kf
         pass
-
-
+    return decoder
 
 def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.4):
