@@ -368,6 +368,31 @@ def train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochas
     
     return decoder
 
+
+def shuffle_kf_decoder(decoder):
+    # generate random permutation
+    import random
+    inds = range(decoder.C.shape[0])
+    random.shuffle(inds)
+
+    # shuffle rows of C, and rows+cols of Q
+    decoder.kf.C = decoder.kf.C[inds, :]
+    decoder.kf.Q = decoder.kf.Q[inds, :]
+    decoder.kf.Q = decoder.kf.Q[:, inds]
+
+    # RML sufficient statistics (S and T, but not R)
+    # shuffle rows of S, and rows+cols of T
+    try:
+        decoder.kf.S = decoder.kf.S[inds, :]
+        decoder.kf.T = decoder.kf.T[inds, :]
+        decoder.kf.T = decoder.kf.T[:, inds]
+    except AttributeError:
+        # if this decoder never had the RML sufficient statistics
+        #   (R, S, and T) as attributes of decoder.kf
+        pass
+
+
+
 def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.4):
     '''
