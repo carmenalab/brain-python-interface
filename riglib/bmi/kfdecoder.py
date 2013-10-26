@@ -73,9 +73,21 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def _ssm_pred(self, state):
         return self.A*state + self.state_noise
 
+    def propagate_ssm(self):
+        '''
+        Run only SSM (no 'update' step)
+        '''
+        old_cov = self.state.cov.copy()
+        self.state = self._ssm_pred(self.state)
+        ##states_to_increase_uncertainty, = np.nonzero(np.diag(self.W))
+        ##mesh = np.ix_(states_to_increase_uncertainty, states_to_increase_uncertainty)
+        ##self.state.mean = pred_state.mean
+        ##self.state.cov[mesh] = pred_state.cov[mesh]
+
     def _forward_infer(self, st, obs_t, **kwargs):
         pred_state = self._ssm_pred(st)
         #pred_obs = self._obs_prob(pred_state)
+        #print pred_state.cov
 
         C, Q = self.C, self.Q
         P = pred_state.cov
@@ -306,6 +318,40 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F = (I - KC)*A
         self._init_state(init_state=self.state.mean, init_cov=P)
 
+class PseudoPPF(KalmanFilter):
+    def _forward_infer(self, st, obs_t, **kwargs):
+        pred_state = self._ssm_pred(st)
+
+        C, Q = self.C, self.Q
+        pred_obs = C * pred_state.mean
+
+        P = pred_state.cov
+
+        K = self._calc_kalman_gain(P, **kwargs)
+        I = np.mat(np.eye(self.C.shape[1]))
+        D = C.T * Q_inv * C
+        KC = P*(I - D*P*(I + D*P).I)*D
+
+        post_state = pred_state
+        post_state.mean += -KC*pred_state.mean + K*obs_t
+        post_state.cov = (I - KC) * P 
+        return post_state
+
+    def _calc_kalman_gain(self, P, Q_inv):
+        '''
+        Calculate Kalman gain using the alternate definition
+        '''
+        C = self.C
+        nX = P.shape[0]
+        I = np.mat(np.eye(nX))
+        
+        D = C.T * Q_inv * C
+        L = C.T * Q_inv
+        K = P * (I - D*P*(I + D*P).I) * L
+        return K
+        
+    def set_steady_state_pred_cov(self):
+        pass
 
 class KFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
@@ -321,7 +367,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.zscore = False
         self.units = np.array(units, dtype=np.int32)
         self.binlen = binlen
-        #self.bin_spikes = psth.SpikeBin(self.units, self.binlen)
         self.bounding_box = bounding_box
         self.states = states
         self.tslice = tslice # Legacy from when it was assumed that all decoders would be trained from manual control
@@ -329,7 +374,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.zeromeanunits = None
         self.drives_neurons = drives_neurons
         self.n_subbins = n_subbins
-
 
         self.bmicount = 0
         self.bminum = int(self.binlen/(1/60.0))
@@ -350,12 +394,21 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         '''
         self.spike_counts += obs_t.reshape(-1, 1)
         if self.bmicount == self.bminum-1:  
+            # Update using spike counts
             self.bmicount = 0
             self.predict(self.spike_counts, **kwargs)
             self.spike_counts = np.zeros([len(self.units), 1])
+        elif self.interpolate_using_ssm:
+            # Interpolate using the state-space model
+            # Requires A and W to be tuned for 60 Hz operation
+            self.predict_ssm() # Assist does not run during interpolation step
+            self.bmicount += 1
         else:
             self.bmicount += 1
         return self.kf.get_mean()
+
+    def predict_ssm(self):
+        self.kf.propagate_ssm()
 
     def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,
                 assist_level=0.0, assist_inds=[0,1,2],

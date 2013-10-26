@@ -168,8 +168,6 @@ class Decoder(object):
         """
         Set decoder state after un-pickling
         """
-        #self.bin_spikes = psth.SpikeBin(state['units'], state['binlen'])
-        del state['cells']
         self.__dict__.update(state)
         alg = self.get_filter()
         alg._pickle_init()
@@ -177,6 +175,9 @@ class Decoder(object):
 
         if not hasattr(self, 'n_subbins'):
             self.n_subbins = 1
+
+        if not hasattr(self, 'interpolate_using_ssm'):
+            self.interpolate_using_ssm = False
 
         self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
 
