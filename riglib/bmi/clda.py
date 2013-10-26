@@ -244,7 +244,41 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
         self.hlife = half_life
         self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
 
+class PPFContinuousBayesianUpdater(object):
+    def __init__(self, decoder):
+        n_neurons = decoder.filt.C.shape[0]
+        self.n_neurons = n_neurons
+        self.rho = -1
 
+        neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
+        n_states = len(neuron_driving_state_inds)
+
+        I = np.mat(np.eye(n_states * n_neurons))
+        R_diag_neuron = 1e-8 * np.array([0.13, 0.13, 0.06/50])
+        R = np.diag(np.tile(R_diag_neuron, (n_neurons,)))
+        self.meta_ppf = ppfdecoder.PointProcessFilter(I, R, np.zeros(n_states * n_neurons), dt=decoder.filt.dt)
+
+        # Initialize meta-PPF
+        init_beta_est = decoder.filt.C[:,neuron_driving_state_inds].ravel()
+        self.meta_ppf._init_state(init_state=init_beta_est, init_cov=R)
+        
+    def calc(self, intended_kin, spike_counts, rho, decoder):
+        if np.ndim(intended_kin) == 1:
+            intended_kin = intended_kin.reshape(-1,1)
+            spike_counts = spike_counts.reshape(-1,1)
+
+        n_obs = spike_counts.shape[1]
+        neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
+        for k in range(n_obs):
+            beta_C = intended_kin[decoder.drives_neurons, k]
+
+            self.meta_ppf.C = np.mat(np.kron(np.eye(self.n_neurons), beta_C))
+            obs = np.mat(spike_counts[:,k].reshape(-1,1))
+            beta_new = np.array(self.meta_ppf(obs)).ravel().reshape(self.n_neurons, -1)
+            beta_new = train.inflate(beta_new, neuron_driving_states, decoder.states, axis=1)
+
+        return {'filt.C':beta_new}
+            
 
 class KFRML(object):
     def __init__(self, work_queue, result_queue, batch_time, half_life):

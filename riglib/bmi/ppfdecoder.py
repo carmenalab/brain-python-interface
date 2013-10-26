@@ -73,7 +73,7 @@ class PointProcessFilter():
     def _forward_infer(self, st, obs_t): #stimulant_index, stoch_stim_index, stoch_index, det_index)
         obs_t = np.mat(obs_t.reshape(-1,1))
         C = self.C
-        n_obs = C.shape[0]
+        n_obs, n_states = C.shape
         
         # TODO incorporate feedback control state space model
         pred_state = self._ssm_pred(st)
@@ -96,20 +96,24 @@ class PointProcessFilter():
         ###     P_est = (P_pred.I + C*Q_inv*C.T).I
 
 
-        I = np.mat(np.eye(nS))
-        D = C.T * Q_inv * C
-        ### P_est = P_pred - P_pred*((I - D*P_pred*(I + D*P_pred).I)*D)*P_pred
-        ### I = np.mat(np.eye(n_obs))
-        ### P_est = P_pred - P_pred*C.T*Q_inv * (I + C * P_pred * C.T*Q_inv).I * C * P_pred
-        
-        #F = C.T * (Q_inv.I + C*P_pred*C.T).I * C
-        # ... after mat inv lemma:
-        #F = C.T * (Q_inv - Q_inv*C*P_pred*(I + D).I * C.T*Q_inv) * C
-        # distr
-        #F = (C.T *Q_inv * C - C.T *Q_inv*C*P_pred*(I + D).I * C.T*Q_inv * C)
-        # sub
-        F = (D - D*P_pred*(I + D).I * D)
-        P_est = P_pred - P_pred * F * P_pred
+        if n_obs > n_states:
+            I = np.mat(np.eye(nS))
+            D = C.T * Q_inv * C
+            ### P_est = P_pred - P_pred*((I - D*P_pred*(I + D*P_pred).I)*D)*P_pred
+            ### I = np.mat(np.eye(n_obs))
+            ### P_est = P_pred - P_pred*C.T*Q_inv * (I + C * P_pred * C.T*Q_inv).I * C * P_pred
+            
+            #F = C.T * (Q_inv.I + C*P_pred*C.T).I * C
+            # ... after mat inv lemma:
+            #F = C.T * (Q_inv - Q_inv*C*P_pred*(I + D).I * C.T*Q_inv) * C
+            # distr
+            #F = (C.T *Q_inv * C - C.T *Q_inv*C*P_pred*(I + D).I * C.T*Q_inv * C)
+            # sub
+            F = (D - D*P_pred*(I + D).I * D)
+            P_est = P_pred - P_pred * F * P_pred
+        else:
+            Q = Q_inv.I # TODO zero out diagonal if any pred are 0 (occurs w.p. 0...)
+            P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
 
         #import pdb
         #pdb.set_trace()

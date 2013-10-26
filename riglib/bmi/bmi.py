@@ -261,7 +261,6 @@ class AdaptiveBMI(object):
         update_flag = False
 
         if self.learner.is_full():
-            print "running update"
             self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
             if 'half_life' in kwargs:
                 half_life = kwargs['half_life']

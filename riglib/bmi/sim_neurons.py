@@ -241,6 +241,9 @@ class PointProcessEnsemble(object):
         else:
             self.units = units
 
+    def get_units(self):
+        return self.units
+
     def __call__(self, x_t):
         x_t = np.hstack([x_t, 1])
         counts = np.array(map(lambda unit: unit(x_t), self.point_process_units)).astype(int)
