@@ -429,6 +429,31 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
 
     return decoder
 
+
+def rand_KFDecoder(sim_units, state_units='cm'):
+    if not state_units == 'cm': 
+        raise ValueError("only works for cm right now")
+    # Instantiate random seed decoder
+    horiz_min, horiz_max = -14., 14.
+    vert_min, vert_max = -14., 14.
+    
+    bounding_box = np.array([horiz_min, vert_min]), np.array([horiz_max, vert_max])
+    states_to_bound = ['hand_px', 'hand_pz']
+
+    neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
+    stochastic_states = ['hand_vx', 'hand_vz']
+
+    decoder = _train_KFDecoder_2D_sim(
+        stochastic_states, neuron_driving_states, sim_units,
+        bounding_box, states_to_bound, include_y=True)
+    cm_to_m = 0.01
+    m_to_cm = 100.
+    mm_to_m = 0.001
+    m_to_mm = 1000.
+    decoder.kf.C *= cm_to_m
+    decoder.kf.W *= m_to_cm**2
+    return decoder
+
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
     """Create KFDecoder from MATLAB decoder file used in a Dexterit-based
@@ -524,7 +549,11 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     drives_neurons = ['hand_vx', 'hand_vz', 'offset']
     states_to_bound = ['hand_px', 'hand_pz']
     states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    drives_neurons = np.array([x in drives_neurons for x in states])
     args = (bounding_box, states, drives_neurons, states_to_bound)
+
+    # rescale beta for units
+    beta[:,3:6] *= units_mult
     
     ppf = ppfdecoder.PointProcessFilter(A, W, beta, dt)
     dec = ppfdecoder.PPFDecoder(ppf, units, *args)
