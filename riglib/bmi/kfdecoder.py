@@ -481,6 +481,23 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.bmicount = 0
         self.bminum = int(self.binlen/(1/60.0))
 
+    def plot_C(self, ax=None, plot_states=['hand_vx', 'hand_vz']):
+        import matplotlib.pyplot as plt
+        if ax == None:
+            plt.figure()
+            ax = plt.subplot(111)
+            ax.hold(True)
+
+        state_inds = [self.states.index(x) for x in plot_states]
+        x, z = state_inds
+        C = self.kf.C
+        n_neurons = C.shape[0]
+        for k in range(n_neurons):
+            ax.plot([0, C[k, x]], [0, C[k, z]])
+
+
+
+
 
 def project_Q(C_v, Q_hat):
     """ Constrain Q such that the first two columns of the H matrix
