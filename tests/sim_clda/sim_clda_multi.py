@@ -76,10 +76,6 @@ class SimCLDAControlMultiDispl2D(SimTime, WindowDispl2D, bmimultitasks.SimCLDACo
         self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue, self.batch_time, self.half_life)
 
     def create_learner(self):
-        #B = np.mat(np.vstack([0, 0, 0, 1., 1, 1, 0]))
-        #F_target = np.mat(np.hstack([1., 1, 1, 0, 0, 0, 0]))
-        #F_hold = np.mat(np.hstack([0., 0., 0, 0, 0, 0, 0]))
-        #F_dict = dict(hold=F_hold, target=F_target)
         dt = 0.1
         A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
                     [0., 0, 0, 0,  0, 0, 0],
@@ -88,7 +84,6 @@ class SimCLDAControlMultiDispl2D(SimTime, WindowDispl2D, bmimultitasks.SimCLDACo
                     [0., 0, 0, 0, 0,  0, 0],
                     [0., 0, 0, 0, 0,  0, 0],
                     [0., 0, 0, 0, 0,  0, 1]])
-
 
         I = np.mat(np.eye(3))
         B = np.vstack([0*I, I, np.zeros([1,3])])
@@ -120,27 +115,11 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
         beta = data['beta']
         beta = np.vstack([beta[1:, :], beta[0,:]]).T
         beta_dec = riglib.bmi.train.inflate(beta, decoding_states, states, axis=1)
-        beta_dec[:,[3,5]] *= 1
+        beta_dec[:,[3,5]] *= 0
 
         self.decoder = riglib.bmi.train._train_PPFDecoder_sim_known_beta(beta_dec, 
                 self.encoder.units, dt=dt, dist_units='cm')
         self.decoder.filt.W[3:6, 3:6] = np.eye(3) * 0.4110
-        
-    def create_updater(self):
-        #dt = 1./180
-        #batch_time = 1./60
-        #batch_size = batch_time/dt
-        #print batch_size
-        #half_life = 120.
-        #rho = np.exp(np.log(0.5) / (half_life/batch_time))
-        #print rho
-        
-        self.batch_size = 1
-        self.create_learner() # Recreate learner
-        self.updater = clda.PPFContinuousBayesianUpdater(self.decoder)
-        #self.updater = clda.PPFSmoothbatchSingleThread()
-        #self.updater.rho = rho
-        #self.updater.batch_time = batch_time
 
     def _init_neural_encoder(self):
         from riglib.bmi import sim_neurons
