@@ -8,6 +8,7 @@ import cPickle
 import db.paths
 import tables
 import matplotlib.pyplot as plt
+import datetime
 from scipy.stats import nanmean
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
@@ -603,7 +604,7 @@ def plot_dist_to_targ(task_entry, targ_dist=10., plot_all=False, ax=None, **kwar
     plot.ylabel(ax, 'Distance to target')
     plt.draw()
 
-def get_task_entries_by_date(date, subj=None):
+def get_task_entries_by_date(subj=None, date=datetime.date.today()):
     '''
     Get all the task entries for a particular date
     '''

@@ -396,6 +396,8 @@ def shuffle_kf_decoder(decoder):
     decoder.kf.Q = decoder.kf.Q[inds, :]
     decoder.kf.Q = decoder.kf.Q[:, inds]
 
+    decoder.kf.C_xpose_Q_inv = decoder.kf.C.T * decoder.kf.Q.I
+
     # RML sufficient statistics (S and T, but not R)
     # shuffle rows of S, and rows+cols of T
     try:
@@ -613,3 +615,14 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     dec.bminum = 0
     return dec
 
+def _interpolate_KFDecoder_state_between_updates(decoder):
+    import mpmath
+    A = decoder.kf.A
+    # check that dt is a multiple of 60 Hz
+    power = 1./(decoder.binlen * 60)
+    assert (int(power) - power) < 1e-5
+    A_60hz = mpmath.powm(A, 1./(decoder.binlen * 60))
+    A_60hz = np.mat(np.array(A_60hz.tolist(), dtype=np.float64))
+    decoder.kf.A = A_60hz
+    decoder.interpolate_using_ssm = True
+    return decoder
