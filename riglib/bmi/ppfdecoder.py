@@ -15,11 +15,20 @@ class PointProcessFilter():
        log(y_t) = Cx_t
     """
 
-    def __init__(self, A, W, C, dt):
+    def __init__(self, A, W, C, dt, is_stochastic=None, B=0, F=0):
         self.A = np.mat(A)
         self.W = np.mat(W)
         self.C = np.mat(C)
         self.dt = dt
+        
+        self.B = B
+        self.F = F
+
+        if is_stochastic == None:
+            n_states = A.shape[0]
+            self.is_stochastic = np.ones(n_states, dtype=bool)
+        else:
+            self.is_stochastic = is_stochastic
         
         self.state_noise = GaussianState(0.0, W)
         self._pickle_init()
@@ -46,10 +55,10 @@ class PointProcessFilter():
         self.state_noise = GaussianState(0.0, self.W)
         self.id = np.zeros([1, self.C.shape[0]])
 
-    def __call__(self, obs):
+    def __call__(self, obs, target_state=None):
         """ Call the 1-step forward inference function
         """
-        self.state = self._forward_infer(self.state, obs)
+        self.state = self._forward_infer(self.state, obs, target_state=target_state)
         return self.state.mean
 
     def get_mean(self):
@@ -67,17 +76,21 @@ class PointProcessFilter():
         #self._check_valid(self, lambda_predict, id)
         return lambda_predict
     
-    def _ssm_pred(self, state):
-        return self.A*state + self.state_noise
+    def _ssm_pred(self, state, target_state=None):
+        A = self.A
+        B = self.B
+        F = self.F
+        if target_state == None:
+            return A*state + self.state_noise
+        else:
+            return (A - B*F)*state + B*F*target_state + self.state_noise
 
-    def _forward_infer(self, st, obs_t): #stimulant_index, stoch_stim_index, stoch_index, det_index)
+    def _forward_infer(self, st, obs_t, target_state=None): #stimulant_index, stoch_stim_index, stoch_index, det_index)
         obs_t = np.mat(obs_t.reshape(-1,1))
         C = self.C
         n_obs, n_states = C.shape
         
-        # TODO incorporate feedback control state space model
-        pred_state = self._ssm_pred(st)
-        #assert pred_state.mean.shape == (3,1)
+        pred_state = self._ssm_pred(st, target_state=target_state)
         pred_obs = self._obs_prob(pred_state)
         #print pred_obs
 
@@ -117,6 +130,10 @@ class PointProcessFilter():
 
         #import pdb
         #pdb.set_trace()
+
+        inds, = np.nonzero(~self.is_stochastic)
+        mesh = np.ix_(inds, inds)
+        #P_est[mesh] = 0
 
         unpred_spikes = obs_t - pred_obs*self.dt
         x_est = pred_state.mean + P_est*C.T*unpred_spikes
@@ -232,7 +249,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.states = states
         self.drives_neurons = drives_neurons
         self.n_subbins = n_subbins
-        
+
     def __call__(self, obs_t, **kwargs):
         '''
         '''
@@ -249,17 +266,27 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def get_filter(self):
         return self.filt 
 
-    def predict(self, spike_counts, target=None, speed=0.05, assist_level=0.9, **kwargs):
+    def predict(self, spike_counts, target=None, speed=0.05, assist_level=0., **kwargs):
         """
         Run decoder, assist, and bound any states
         """
         # TODO optimal feedback control assist
+        if assist_level > 0 and target is not None:
+            target_state = np.hstack([target, np.zeros(3), 1])
+            target_state = np.mat(target_state).reshape(-1,1)
+        else:
+            target_state = None
+
+        I = np.mat(np.eye(3))
+        alpha = 1.622691378496069e-03 #6.458204410254785e-03
+        gamma = 1.036424261334212e-03 #3.029680657880600e-03
+        self.filt.F = assist_level*np.hstack([alpha*I, gamma*I, np.zeros([3,1])])
 
         # re-format as a 1D col vec
         spike_counts = np.mat(spike_counts.reshape(-1,1))
 
         # Run the filter
-        self.filt(spike_counts)
+        self.filt(spike_counts, target_state=target_state)
 
         # Bound cursor, if any hard bounds for states are applied
         self.bound_state()
