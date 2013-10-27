@@ -77,12 +77,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         Run only SSM (no 'update' step)
         '''
-        old_cov = self.state.cov.copy()
-        self.state = self._ssm_pred(self.state)
-        ##states_to_increase_uncertainty, = np.nonzero(np.diag(self.W))
-        ##mesh = np.ix_(states_to_increase_uncertainty, states_to_increase_uncertainty)
-        ##self.state.mean = pred_state.mean
-        ##self.state.cov[mesh] = pred_state.cov[mesh]
+        self.state = self.A*self.state
 
     def _forward_infer(self, st, obs_t, **kwargs):
         pred_state = self._ssm_pred(st)
