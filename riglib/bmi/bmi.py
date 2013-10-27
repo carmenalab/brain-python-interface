@@ -51,7 +51,7 @@ class GaussianState(object):
             mu = other*self.mean
             cov = other*self.cov*other.T
         elif isinstance(other, np.ndarray):
-            other = mat(array)
+            other = np.mat(other)
             mu = other*self.mean
             cov = other*self.cov*other.T
         else:
@@ -71,6 +71,8 @@ class GaussianState(object):
     def __add__(self, other):
         if isinstance(other, GaussianState):
             return GaussianState( self.mean+other.mean, self.cov+other.cov )
+        elif isinstance(other, np.matrix) and other.shape == self.mean.shape:
+            return GaussianState(self.mean + other, self.cov)
         else:
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
@@ -232,7 +234,7 @@ class AdaptiveBMI(object):
         learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
         self.spike_counts += spike_obs
         if learn_flag and self.decoder.bmicount == 0: #self.decoder.bminum - 1):
-            self.learner(self.spike_counts.copy(), prev_state[pos_inds], target_pos, 
+            self.learner(self.spike_counts.copy(), prev_state, target_pos, 
                          decoded_state[vel_inds], task_state)
             self.reset_spike_counts()
         
@@ -262,11 +264,13 @@ class AdaptiveBMI(object):
 
         if self.learner.is_full():
             self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-            if 'half_life' in kwargs:
+            if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
                 half_life = kwargs['half_life']
                 rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
-            else:
+            elif hasattr(self.updater, 'half_life'):
                 rho = self.updater.rho
+            else:
+                rho = -1
             #drives_neurons = self.decoder.drives_neurons
             clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder) #self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
 
