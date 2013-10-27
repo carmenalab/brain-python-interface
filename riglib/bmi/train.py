@@ -389,6 +389,8 @@ def shuffle_kf_decoder(decoder):
     decoder.kf.Q = decoder.kf.Q[inds, :]
     decoder.kf.Q = decoder.kf.Q[:, inds]
 
+    decoder.kf.C_xpose_Q_inv = decoder.kf.C.T * decoder.kf.Q.I
+
     # RML sufficient statistics (S and T, but not R)
     # shuffle rows of S, and rows+cols of T
     try:
