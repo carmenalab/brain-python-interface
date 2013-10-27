@@ -61,6 +61,36 @@ class BatchLearner(Learner):
         self.neuraldata = []
         return kindata, neuraldata
 
+class OFCLearner(BatchLearner):
+    def __init__(self, batch_size, A, B, F_dict, *args, **kwargs):
+        super(OFCLearner, self).__init__(batch_size, *args, **kwargs)
+        self.B = B
+        self.F_dict = F_dict
+        self.A = A
+
+    def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel, task_state):
+        if task_state in self.F_dict:
+            n_subbins = spike_counts.shape[1]
+            F = self.F_dict[task_state]
+            A = self.A
+            B = self.B
+            target_state = np.hstack([target_pos, np.zeros(len(target_pos)), 1])
+            target_state = np.mat(target_state.reshape(-1,1))
+            x_t = np.mat(cursor_state).reshape(-1,1)
+            int_kin = A*x_t + B*F*(target_state - x_t)
+            #import pdb; pdb.set_trace()
+
+            if not self.is_full() and self.enabled:
+                for k in range(n_subbins):
+                    self.kindata.append(int_kin)
+                self.neuraldata.append(spike_counts)
+
+    def get_batch(self):
+        kindata = np.hstack(self.kindata)
+        neuraldata = np.hstack(self.neuraldata)
+        self.kindata = []
+        self.neuraldata = []
+        return kindata, neuraldata
 
 class CursorGoalLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):
@@ -69,7 +99,7 @@ class CursorGoalLearner(Learner):
         self.kindata = []
         self.neuraldata = []
     
-    def __call__(self, spike_counts, cursor_pos, target_pos, decoded_vel, 
+    def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel, 
                  task_state):
         """
         Rotation toward target state
@@ -78,8 +108,8 @@ class CursorGoalLearner(Learner):
         # TODO this needs to be generalized so that the hold
         # the r regular cna be specified simultaneously 
         # cursor_pos = prev_state[0:2]
-        #print target_pos
-        #print cursor_pos
+
+        cursor_pos = cursor_state[0:len(target_pos)]
         int_dir = target_pos - cursor_pos
         dist_to_targ = np.linalg.norm(int_dir)
         if task_state in ['hold', 'origin_hold', 'target_hold']:
@@ -182,9 +212,9 @@ class KFSmoothbatchSingleThread(object):
 class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
     def __init__(self, work_queue, result_queue, batch_time, half_life):
         super(KFSmoothbatch, self).__init__(work_queue, result_queue)
-        self.hlife = half_life
+        self.half_life = half_life
         self.batch_time = batch_time
-        self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         
 class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
     def calc(self, intended_kin, spike_counts, rho, decoder): #C_old, Q_old, drives_neurons,
@@ -241,8 +271,8 @@ class PPFSmoothbatchSingleThread(object):
 class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
     def __init__(self, work_queue, result_queue, batch_time, half_life):
         super(PPFSmoothbatch, self).__init__(work_queue, result_queue)
-        self.hlife = half_life
-        self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
+        self.half_life = half_life
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
 
 class PPFContinuousBayesianUpdater(object):
     def __init__(self, decoder):
@@ -269,6 +299,7 @@ class PPFContinuousBayesianUpdater(object):
 
         n_obs = spike_counts.shape[1]
         neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
+        intended_kin = np.array(intended_kin)
         for k in range(n_obs):
             beta_C = intended_kin[decoder.drives_neurons, k]
 
@@ -286,8 +317,8 @@ class KFRML(object):
         self.work_queue = None
         self.batch_time = batch_time
         self.result_queue = None        
-        self.hlife = half_life
-        self.rho = np.exp(np.log(0.5) / (self.hlife/batch_time))
+        self.half_life = half_life
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         self.iter_counter = 0
 
     @staticmethod
