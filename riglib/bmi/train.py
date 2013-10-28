@@ -364,14 +364,15 @@ def train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochas
     n_neurons, n_states = C.shape
     R = np.mat(np.zeros([n_states, n_states]))
     S = np.mat(np.zeros([n_neurons, n_states]))
-    R_small, S_small, T = KFRML.compute_suff_stats(kin[train_inds, :], spike_counts[unit_inds,:])
+    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[train_inds, :], spike_counts[unit_inds,:])
 
     R[np.ix_(stochastic_state_inds, stochastic_state_inds)] = R_small
     S[:,stochastic_state_inds] = S_small
     
     decoder.kf.R = R
     decoder.kf.S = S
-    decoder.kf.T = T 
+    decoder.kf.T = T
+    decoder.kf.ESS = ESS
     
     return decoder
 
@@ -398,7 +399,7 @@ def shuffle_kf_decoder(decoder):
 
     decoder.kf.C_xpose_Q_inv = decoder.kf.C.T * decoder.kf.Q.I
 
-    # RML sufficient statistics (S and T, but not R)
+    # RML sufficient statistics (S and T, but not R and ESS)
     # shuffle rows of S, and rows+cols of T
     try:
         decoder.kf.S = decoder.kf.S[inds, :]
@@ -406,7 +407,7 @@ def shuffle_kf_decoder(decoder):
         decoder.kf.T = decoder.kf.T[:, inds]
     except AttributeError:
         # if this decoder never had the RML sufficient statistics
-        #   (R, S, and T) as attributes of decoder.kf
+        #   (R, S, T, and ESS) as attributes of decoder.kf
         pass
     return decoder
 
