@@ -85,6 +85,7 @@ tasks = dict(
     bmi_control_multi = bmimultitasks.BMIControlMulti,
     clda_control_multi = bmimultitasks.CLDAControlMulti,
     clda_rml_kf = bmimultitasks.CLDARMLKF,
+    clda_cont_ppf= bmimultitasks.CLDAControlPPFContAdapt,
     test_graphics = manualcontrolmultitasks.TestGraphics,
     two_link_arm = manualcontrolmultitasks.TwoLinkArm,
 )

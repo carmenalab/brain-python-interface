@@ -629,3 +629,12 @@ def load_last_decoder():
     path = os.path.join(paths.data_path, 'decoders', record.path)
     dec = pickle.load(open(path))
     return dec
+
+def get_decoders_trained_in_block(task_entry):
+    task_entry = lookup_task_entries(task_entry)
+    records = models.Decoder.objects.filter(entry_id=task_entry.id)
+    full_paths = [os.path.join(paths.data_path, 'decoders', x.path) for x in records]
+    decoder_objects = map(lambda x: pickle.load(open(x)), full_paths)
+    if len(decoder_objects) == 1:
+        decoder_objects = decoder_objects[0]
+    return decoder_objects
