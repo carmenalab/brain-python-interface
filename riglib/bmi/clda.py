@@ -319,7 +319,7 @@ class KFRML(object):
         self.result_queue = None        
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-        self.iter_counter = 0
+        # self.iter_counter = 0
 
     @staticmethod
     def compute_suff_stats(hidden_state, obs, include_offset=True):
@@ -330,29 +330,34 @@ class KFRML(object):
             inds = np.nonzero([ mask[k]*mask[k+1] for k in range(len(mask)-1)])[0]
     
             X = np.mat(hidden_state[:,mask])
-            T = len(np.nonzero(mask)[0])
+            n_pts = len(np.nonzero(mask)[0])
     
             Y = np.mat(obs[:,mask])
             if include_offset:
-                X = np.vstack([ X, np.ones([1,T]) ])
+                X = np.vstack([ X, np.ones([1,n_pts]) ])
         else:
-            num_hidden_state, T = hidden_state.shape
+            num_hidden_state, n_pts = hidden_state.shape
             X = np.mat(hidden_state)
             if include_offset:
-                X = np.vstack([ X, np.ones([1,T]) ])
+                X = np.vstack([ X, np.ones([1,n_pts]) ])
             Y = np.mat(obs)
         X = np.mat(X, dtype=np.float64)
 
-        R = (1./T) * (X * X.T)
-        S = (1./T) * (Y * X.T)
-        T = (1./T) * (Y * Y.T)
+        # R = (1./n_pts) * (X * X.T)
+        # S = (1./n_pts) * (Y * X.T)
+        # T = (1./n_pts) * (Y * Y.T)
+        R = (X * X.T)
+        S = (Y * X.T)
+        T = (Y * Y.T)
+        ESS = n_pts  # "effective sample size" (number of points in batch)
 
-        return (R, S, T)
+        return (R, S, T, ESS)
 
     def init_suff_stats(self, decoder):
         self.R = decoder.kf.R
         self.S = decoder.kf.S
         self.T = decoder.kf.T
+        self.ESS = decoder.kf.ESS
 
     def calc(self, intended_kin, spike_counts, rho, decoder):
         drives_neurons = decoder.drives_neurons
@@ -362,15 +367,22 @@ class KFRML(object):
         x = intended_kin
         y = spike_counts
         
-        self.R = rho*self.R + (1-rho)*(x*x.T)
-        self.S = rho*self.S + (1-rho)*(y*x.T)
-        self.T = rho*self.T + (1-rho)*(y*y.T)
-        self.iter_counter += 1
+        # self.R = rho*self.R + (1-rho)*(x*x.T)
+        # self.S = rho*self.S + (1-rho)*(y*x.T)
+        # self.T = rho*self.T + (1-rho)*(y*y.T)
+        # self.iter_counter += 1
+
+        self.R = rho*self.R + (x*x.T)
+        self.S = rho*self.S + (y*x.T)
+        self.T = rho*self.T + (y*y.T)
+        self.ESS = rho*self.ESS + 1
 
         R_inv = np.mat(np.zeros(self.R.shape))
-	R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
+        R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
         C = self.S * R_inv
-        Q = 1./(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
+
+        # Q = 1./(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
+        Q = (1./self.ESS) * (self.T - self.S*C.T) 
 
         mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old

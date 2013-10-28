@@ -127,8 +127,18 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
         self.encoder = sim_neurons.load_ppf_encoder_2D_vel_tuning_clda_sim(sim_encoder_fname, dt=1./60) #CosEnc(fname=sim_encoder_fname, return_ts=True)
     
 
+class SimRML(SimCLDAControlMultiDispl2D):
+    def __init__(self, *args, **kwargs):
+        super(SimRML, self).__init__(*args, **kwargs)
+        self.batch_time = 0.1
+        self.half_life  = 20.0
+
+    def create_updater(self):
+        self.updater = clda.KFRML(None, None, self.batch_time, self.half_life)
+
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
-task = SimCLDAControlMultiDispl2D_PPF(gen)
+task = SimRML(gen)
+#task = SimCLDAControlMultiDispl2D_PPF(gen)
 #task = SimCLDAControlMultiDispl2D(gen)
 task.init()
 task.run()
