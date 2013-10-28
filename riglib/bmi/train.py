@@ -469,6 +469,7 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
     decoder.kf.S = decoder.kf.C * cm_to_m
     decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
+    decoder.kf.ESS = 3000.
 
     return decoder
 
