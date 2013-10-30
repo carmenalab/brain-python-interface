@@ -5,6 +5,7 @@ import numpy as np
 import bmi
 from bmi import GaussianState
 import statsmodels.api as sm # GLM fitting module
+import time
 
 class PointProcessFilter():
     """
@@ -94,42 +95,47 @@ class PointProcessFilter():
         pred_obs = self._obs_prob(pred_state)
         #print pred_obs
 
-        Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.dt))
-    
         P_pred = pred_state.cov
+        inds, = np.nonzero(self.is_stochastic)
         nS = self.A.shape[0]
-        ### if self.include_offset:
-        ###     P_pred_inv = np.mat(np.zeros([nS, nS]))
-        ###     inds, = np.nonzero(np.diag(P_pred))
-        ###     P_pred_inv[np.ix_(inds, inds)] = P_pred[np.ix_(inds, inds)].I
-        ###     #P_pred_inv[:-1, :-1] = P_pred[:-1,:-1].I
-        ###     P_est = np.mat(np.zeros([nS, nS]))
-        ###     P_est[:-1, :-1] = (P_pred_inv[:-1, :-1] + C[:-1,:]*Q_inv*C[:-1,:].T).I
-        ### else:
-        ###     P_est = (P_pred.I + C*Q_inv*C.T).I
+        Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.dt)) 
+
+        P_pred_inv = np.mat(np.zeros([nS, nS]))
+        mesh = np.ix_(inds, inds)
+        P_pred_inv[mesh] = P_pred[mesh].I
+        #P_pred_inv[:-1, :-1] = P_pred[:-1,:-1].I
+        P_est = np.mat(np.zeros([nS, nS]))
+        P_est[mesh] = (P_pred_inv[mesh] + C[:,inds].T*Q_inv*C[:,inds]).I
 
 
-        if n_obs > n_states:
-            I = np.mat(np.eye(nS))
-            D = C.T * Q_inv * C
-            ### P_est = P_pred - P_pred*((I - D*P_pred*(I + D*P_pred).I)*D)*P_pred
-            ### I = np.mat(np.eye(n_obs))
-            ### P_est = P_pred - P_pred*C.T*Q_inv * (I + C * P_pred * C.T*Q_inv).I * C * P_pred
-            
-            #F = C.T * (Q_inv.I + C*P_pred*C.T).I * C
-            # ... after mat inv lemma:
-            #F = C.T * (Q_inv - Q_inv*C*P_pred*(I + D).I * C.T*Q_inv) * C
-            # distr
-            #F = (C.T *Q_inv * C - C.T *Q_inv*C*P_pred*(I + D).I * C.T*Q_inv * C)
-            # sub
-            F = (D - D*P_pred*(I + D).I * D)
-            P_est = P_pred - P_pred * F * P_pred
-        else:
-            Q = Q_inv.I # TODO zero out diagonal if any pred are 0 (occurs w.p. 0...)
-            P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
+        #### if n_obs > n_states:
+        ####     Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.dt))
+        ####     I = np.mat(np.eye(nS))
+        ####     D = C.T * Q_inv * C
+        ####     ### P_est = P_pred - P_pred*((I - D*P_pred*(I + D*P_pred).I)*D)*P_pred
+        ####     ### I = np.mat(np.eye(n_obs))
+        ####     ### P_est = P_pred - P_pred*C.T*Q_inv * (I + C * P_pred * C.T*Q_inv).I * C * P_pred
+        ####     
+        ####     #F = C.T * (Q_inv.I + C*P_pred*C.T).I * C
+        ####     # ... after mat inv lemma:
+        ####     #F = C.T * (Q_inv - Q_inv*C*P_pred*(I + D).I * C.T*Q_inv) * C
+        ####     # distr
+        ####     #F = (C.T *Q_inv * C - C.T *Q_inv*C*P_pred*(I + D).I * C.T*Q_inv * C)
+        ####     # sub
+        ####     F = (D - D*P_pred*(I + D).I * D)
+        ####     P_est = P_pred - P_pred * F * P_pred
+        #### elif n_obs == 1:
+        ####     if isinstance(pred_obs, np.ndarray) or isinstance(pred_obs, np.matrix):
+        ####         pred_obs = pred_obs[0,0]
+        ####     q = 1./(pred_obs*self.dt)
+        ####     P_est = P_pred - 1./q * (P_pred*C.T)*(C*P_pred)
+        #### else:
+        ####     #Q = Q_inv.I # TODO zero out diagonal if any pred are 0 (occurs w.p. 0...)
+        ####     Q_diag = (np.array(pred_obs).ravel() * self.dt)**-1
+        ####     Q = np.mat(np.diag(Q_diag))
 
-        #import pdb
-        #pdb.set_trace()
+        ####     P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
+
 
         inds, = np.nonzero(~self.is_stochastic)
         mesh = np.ix_(inds, inds)
@@ -139,7 +145,7 @@ class PointProcessFilter():
         x_est = pred_state.mean + P_est*C.T*unpred_spikes
         post_state = GaussianState(x_est, P_est)
         #assert post_state.mean.shape == (3,1)
-        
+
         return post_state
 
     def __setstate__(self, state):
