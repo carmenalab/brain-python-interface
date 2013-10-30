@@ -3,8 +3,9 @@ CLDA classes
 '''
 import multiprocessing as mp
 import numpy as np
-from riglib.bmi import kfdecoder, ppfdecoder, train
+from riglib.bmi import kfdecoder, ppfdecoder, train, bmi
 import time
+import cmath
 
 ## Learners
 def normalize(vec):
@@ -274,42 +275,148 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
 
+## class PPFContinuousBayesianUpdater(object):
+##     def __init__(self, decoder):
+##         n_neurons = decoder.filt.C.shape[0]
+##         self.n_neurons = n_neurons
+##         self.rho = -1
+## 
+##         neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
+##         self.neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
+##         n_states = len(neuron_driving_state_inds)
+## 
+##         self.meta_ppf = [None]*self.n_neurons
+##         C_init = np.array(decoder.filt.C.copy())
+##         for k in range(self.n_neurons):
+##             I = np.mat(np.eye(n_states))
+##             R_diag_neuron = 1e-8 * np.array([0.13, 0.13, 0.06/50])
+##             R = np.diag(R_diag_neuron)
+##             #R = np.diag(np.tile(R_diag_neuron, (n_neurons,)))
+##             self.meta_ppf[k] = ppfdecoder.PointProcessFilter(I, R, np.zeros(n_states), dt=decoder.filt.dt)
+## 
+##             # Initialize meta-PPF
+##             init_beta_est = C_init[k,neuron_driving_state_inds]
+##             self.meta_ppf[k]._init_state(init_state=init_beta_est, init_cov=R)
+##         
+##     def calc(self, intended_kin, spike_counts, rho, decoder):
+##         start_time = time.time()
+##         if np.ndim(intended_kin) == 1:
+##             intended_kin = intended_kin.reshape(-1,1)
+##             spike_counts = spike_counts.reshape(-1,1)
+## 
+##         n_neurons, n_obs = spike_counts.shape
+##         intended_kin = np.array(intended_kin)
+##         C = np.mat(intended_kin[decoder.drives_neurons]).reshape(1,-1)
+##         
+##         #st = time.time()
+##         for n in range(n_neurons):
+##             self.meta_ppf[n].C = C
+##             for k in range(n_obs):
+##                 #obs = np.mat([[spike_counts[n,k]]])
+##                 self.meta_ppf[n](spike_counts[n,k])
+## 
+##             #self.meta_ppf.C = np.mat(np.kron(np.eye(self.n_neurons), beta_C))
+##             #obs = np.mat(spike_counts[:,k].reshape(-1,1))
+##         beta_new = np.hstack([x.state.mean for x in self.meta_ppf]).T
+##         #beta_new = np.array(self.meta_ppf(obs)).ravel().reshape(self.n_neurons, -1)
+##         beta_new = train.inflate(beta_new, self.neuron_driving_states, decoder.states, axis=1)
+##         #print "Time to update: %g" % (time.time() - st)
+##         print "calc time", time.time() - start_time
+## 
+##         return {'filt.C':beta_new}
+            
+
+
 class PPFContinuousBayesianUpdater(object):
-    def __init__(self, decoder):
+    def __init__(self, decoder, units='cm'):
         n_neurons = decoder.filt.C.shape[0]
         self.n_neurons = n_neurons
         self.rho = -1
 
         neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
+        self.neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
         n_states = len(neuron_driving_state_inds)
 
-        I = np.mat(np.eye(n_states * n_neurons))
-        R_diag_neuron = 1e-8 * np.array([0.13, 0.13, 0.06/50])
-        R = np.diag(np.tile(R_diag_neuron, (n_neurons,)))
-        self.meta_ppf = ppfdecoder.PointProcessFilter(I, R, np.zeros(n_states * n_neurons), dt=decoder.filt.dt)
+        self.meta_ppf = [None]*self.n_neurons
+        C_init = np.array(decoder.filt.C.copy())
+        for k in range(self.n_neurons):
+            I = np.mat(np.eye(n_states))
+            R_diag_neuron = 1e-8 * np.array([0.13, 0.13, 0.06/50])
+            R = np.diag(R_diag_neuron)
+            self.meta_ppf[k] = ppfdecoder.PointProcessFilter(I, R, np.zeros(n_states), dt=decoder.filt.dt)
 
-        # Initialize meta-PPF
-        init_beta_est = decoder.filt.C[:,neuron_driving_state_inds].ravel()
-        self.meta_ppf._init_state(init_state=init_beta_est, init_cov=R)
+            # Initialize meta-PPF
+            init_beta_est = C_init[k, neuron_driving_state_inds]
+            self.meta_ppf[k]._init_state(init_state=init_beta_est, init_cov=R)
         
     def calc(self, intended_kin, spike_counts, rho, decoder):
         if np.ndim(intended_kin) == 1:
             intended_kin = intended_kin.reshape(-1,1)
             spike_counts = spike_counts.reshape(-1,1)
 
-        n_obs = spike_counts.shape[1]
-        neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
+        n_neurons, n_obs = spike_counts.shape
         intended_kin = np.array(intended_kin)
-        for k in range(n_obs):
-            beta_C = intended_kin[decoder.drives_neurons, k]
+        C = np.mat(intended_kin[decoder.drives_neurons, 0]).reshape(1,-1) # TODO is this correct ?!
+        #C = np.mat(intended_kin[decoder.drives_neurons]).reshape(1,-1)
+        #C = np.mat(intended_kin[decoder.drives_neurons]).reshape(1,-1)
+        #C_xpose_C = np.outer(C, C)
+        C_xpose_C = C.T * C
+        
+        A = self.meta_ppf[0].A
+        A_xpose = A.T
+        W = self.meta_ppf[0].W
+        dt = self.meta_ppf[0].dt
+        for n in range(n_neurons):
+            for k in range(n_obs):
+                #self.meta_ppf[n](spike_counts[n,k])
+                #self = self.meta_ppf[n]
+                obs_t = spike_counts[n,k]
+                #target_state = None
+                st = self.meta_ppf[n].state
 
-            self.meta_ppf.C = np.mat(np.kron(np.eye(self.n_neurons), beta_C))
-            obs = np.mat(spike_counts[:,k].reshape(-1,1))
-            beta_new = np.array(self.meta_ppf(obs)).ravel().reshape(self.n_neurons, -1)
-            beta_new = train.inflate(beta_new, neuron_driving_states, decoder.states, axis=1)
+                #obs_t = np.mat(obs_t.reshape(-1,1))
+                n_obs, n_states = C.shape
+                
+                pred_state_mean = A*st.mean
+                #pred_obs = self.meta_ppf[n]._obs_prob(pred_state)
+
+                Loglambda_predict = C * pred_state_mean
+                pred_obs = cmath.exp(Loglambda_predict[0,0])/dt
+                #pred_obs = np.exp(Loglambda_predict[0,0])/dt
+        
+                #P_pred = pred_state.cov
+                P_pred = A*st.cov*A_xpose + W
+                #nS = self.meta_ppf[n].A.shape[0]
+        
+                #q = 1./
+                P_est = P_pred - (pred_obs*dt) * P_pred* C_xpose_C *P_pred
+                ##if n_obs > n_states:
+                ##    Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.meta_ppf[n].dt))
+                ##    I = np.mat(np.eye(nS))
+                ##    D = C.T * Q_inv * C
+                ##    F = (D - D*P_pred*(I + D).I * D)
+                ##    P_est = P_pred - P_pred * F * P_pred
+                ##elif n_obs == 1:
+                ##else:
+                ##    Q_diag = (np.array(pred_obs).ravel() * self.meta_ppf[n].dt)**-1
+                ##    Q = np.mat(np.diag(Q_diag))
+        
+                ##    P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
+        
+                unpred_spikes = obs_t - pred_obs*self.meta_ppf[n].dt
+                x_est = pred_state_mean + P_est*C.T*unpred_spikes
+                post_state = bmi.GaussianState(x_est, P_est)
+                self.meta_ppf[n].state = post_state
+
+
+        beta_new = np.hstack([x.state.mean for x in self.meta_ppf]).T
+        beta_new = train.inflate(beta_new, self.neuron_driving_states, decoder.states, axis=1)
 
         return {'filt.C':beta_new}
-            
+
+
+
+
 
 class KFRML(object):
     def __init__(self, work_queue, result_queue, batch_time, half_life):
