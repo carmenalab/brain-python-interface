@@ -367,13 +367,14 @@ class SimHDF():
     HDF file
     '''
     def __init__(self, *args, **kwargs):
-        pass
+        from collections import defaultdict
+        self.data = defaultdict(list)
 
     def sendMsg(self, msg):
         pass
 
     def __setitem__(self, key, value):
-        pass
+        self.data[key].append(value)
 
 class RelayPlexon(SinkRegister):
     '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
