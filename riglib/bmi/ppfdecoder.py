@@ -5,6 +5,8 @@ import numpy as np
 import bmi
 from bmi import GaussianState
 import statsmodels.api as sm # GLM fitting module
+import time
+import cmath
 
 class PointProcessFilter():
     """
@@ -40,6 +42,9 @@ class PointProcessFilter():
         offset_row = np.zeros(nS)
         offset_row[-1] = 1
         self.include_offset = np.array_equal(np.array(self.A)[-1, :], offset_row)
+
+        if not hasattr(self, 'B'): self.B = 0
+        if not hasattr(self, 'F'): self.F = 0
 
     def _init_state(self, init_state=None, init_cov=None):
         """ Initialize the state of the KF prior to running in real-time
@@ -126,6 +131,7 @@ class PointProcessFilter():
             P_est = P_pred - P_pred * F * P_pred
         else:
             Q = Q_inv.I # TODO zero out diagonal if any pred are 0 (occurs w.p. 0...)
+
             P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
 
         #import pdb
@@ -145,15 +151,20 @@ class PointProcessFilter():
     def __setstate__(self, state):
         """Set the model parameters {A, W, C, Q} stored in the pickled
         object"""
+        # TODO clean this up!
         self.A = state['A']
         self.W = state['W']
         self.C = state['C']
+        self.B = state['B']
+        self.is_stochastic = state['is_stochastic']
         self.dt = state['dt']
         self._pickle_init()
 
     def __getstate__(self):
         """Return the model parameters {A, W, C} for pickling"""
-        return {'A':self.A, 'W':self.W, 'C':self.C, 'dt':self.dt}
+        return dict(A=self.A, W=self.W, C=self.C, dt=self.dt, B=self.B, 
+                    is_stochastic=self.is_stochastic)
+        #return {'A':self.A, 'W':self.W, 'C':self.C, 'dt':self.dt, }
 
     @classmethod
     def MLE_obs_model(cls, hidden_state, obs, include_offset=True, drives_obs=None):
