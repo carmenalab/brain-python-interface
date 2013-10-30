@@ -8,7 +8,7 @@ from scipy.io import loadmat, savemat
 from riglib.bmi import sim_neurons
 import matplotlib.pyplot as plt
 from riglib.bmi import ppfdecoder, train, clda, bmi
-import plot
+#import plot
 import time
 import cProfile
 import cmath
@@ -22,13 +22,13 @@ plt.close('all')
 N = 168510.
 fname = 'sample_spikes_and_kinematics_%d.mat' % N 
 data = loadmat(fname)
-truedata = loadmat('/Users/sgowda/bmi/workspace/adaptive_ppf/ppf_test_case_matlab_output.mat')
+# truedata = loadmat('/Users/sgowda/bmi/workspace/adaptive_ppf/ppf_test_case_matlab_output.mat')
 X = data['hand_vel'].T
 
 beta = data['beta']
 beta = np.vstack([beta[1:, :], beta[0,:]]).T
 n_neurons = beta.shape[0]
-dt = truedata['T_loop'][0,0]
+dt = 0.005 #truedata['T_loop'][0,0]
 
 encoder = sim_neurons.load_ppf_encoder_2D_vel_tuning(fname, dt=dt)
 states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
