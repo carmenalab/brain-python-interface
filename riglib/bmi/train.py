@@ -195,6 +195,7 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     kin = kin[inds]
 
     ## Bin the neural data
+    cells = np.unique(cells)
     if cells == None: cells = plx.units # Use all of the units if none are specified
     units = np.array(cells).astype(np.int32)
     spike_bin_fn = psth.SpikeBin(units, binlen)
@@ -217,6 +218,7 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     kin = np.hstack([kin[1:], velocity])
     spike_counts = spike_counts.T
     spike_counts = spike_counts[:,:-1]
+
     return train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
 
 def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=0.1, tslice=None):
@@ -242,7 +244,7 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stocha
         raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")
 
     C = np.zeros([n_neurons, len(state_inds)])
-    C[:, stochastic_state_inds], = ppfdecoder.PointProcessFilter.MLE_obs_model(kin[train_inds, :], spike_counts)
+    C[:, stochastic_state_inds], pvals = ppfdecoder.PointProcessFilter.MLE_obs_model(kin[train_inds, :], spike_counts)
     
     # TODO Eliminate units which have baseline rates of 0 (w.p. 1, no spikes are observed for these units)
 

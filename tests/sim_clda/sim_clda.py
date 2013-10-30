@@ -32,7 +32,7 @@ reload(bmitasks)
 reload(kfdecoder)
 reload(clda)
 reload(riglib.bmi)
-reload(riglib.bmi.bmi)
+#reload(riglib.bmi.bmi)
 reload(riglib.bmi.train)
 
 ### Constants
@@ -256,14 +256,12 @@ class FakeHDF():
     def __setitem__(self, key, value):
         pass
 
-class CLDAControlPPF(bmitasks.CLDAControl):
-    pass
 
 class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
     update_rate = 0.1
     def __init__(self, *args, **kwargs):
         super(SimCLDAControlDispl2D, self).__init__(*args, **kwargs)
-        self.batch_time = 5
+        self.batch_time = 10
         self.half_life  = 20.0
 
         self.origin_hold_time = 0.250
@@ -275,6 +273,7 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
         self.start_time = 0.
         self.loop_counter = 0
         self.assist_level = 0
+        self.timeout_time = 60
 
     def create_updater(self):
         clda_input_queue = mp.Queue()
@@ -287,7 +286,7 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
         center_radius = self.origin_size
         cursor_radius = self.cursor.radius
         t_ctrhold = 0.250
-        t_reachtarg = 10
+        t_reachtarg = 60
         t_targhold = 0.250
 
 #        workspace_ll = np.array([-0.1, -0.1])
@@ -335,6 +334,65 @@ class SimCLDAControlDispl2D(bmitasks.SimCLDAControl, Autostart):
         #time.sleep(1./60 * 1./100)
         #time.sleep(self.update_rate/10)
 
+class SimBMIControlPPFDispl2D(SimCLDAControlDispl2D, bmitasks.SimBMIControlPPF):
+    def init(self):
+        '''
+        Instantiate simulation decoder
+        '''
+        bmitasks.SimBMIControl.init(self)
+
+        N = 10000
+        fname = '/Users/sgowda/code/bmi3d/tests/ppf/sample_spikes_and_kinematics_%d.mat' % N 
+        data = loadmat(fname)
+
+        cm_to_m = 0.01
+        beta = data['beta']
+        beta = np.vstack([beta[1:, :], beta[0,:]]).T
+        n_neurons = beta.shape[0]
+        dt = 0.005
+        
+        states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+        decoding_states = ['hand_vx', 'hand_vz', 'offset'] 
+        beta_dec = riglib.bmi.train.inflate(beta, decoding_states, states, axis=1)
+
+        self.decoder = riglib.bmi.train._train_PPFDecoder_sim_known_beta(beta_dec, 
+                self.encoder.units, dt=dt, dist_units='m')
+        
+        self.n_subbins = 3
+        self.last_get_spike_counts_time = -1./60
+
+    def update_cursor(self):
+        # Decode the position of the cursor and update display. Function
+        # is called every loop iteration
+        self.update_target_location()
+        spike_counts = self.get_spike_counts()
+        self.decoder(spike_counts)
+        self._update(self.decoder['hand_px', 'hand_py', 'hand_pz']*100)
+        ## if self.bmicount==self.bminum-1:
+        ##     self._update(self.call_decoder(self.get_spike_counts())[:3])
+        ##     self.bmicount=0
+        ## else:
+        ##     self.bmicount+=1
+        # Save the cursor location to the file
+        self.task_data['cursor'] = self.cursor.xfm.move.copy()
+        # Write to screen
+        self.draw_world()
+
+    def get_time(self):
+        return self.loop_counter * 1./60
+
+
+class CLDAControlPPF(SimCLDAControlDispl2D):
+    def __init__(self, *args, **kwargs):
+        super(CLDAControlPPF, self).__init__(*args, **kwargs)
+        self.batch_time = 0.1
+        self.half_life  = 20.0
+
+    def create_updater(self):
+        args = (None, None, self.batch_time, self.half_life)
+        self.updater = clda.PPFSmoothbatchSingleThread(*args)
+
+
 class SimRML(SimCLDAControlDispl2D):
     def __init__(self, *args, **kwargs):
         super(SimRML, self).__init__(*args, **kwargs)
@@ -344,12 +402,20 @@ class SimRML(SimCLDAControlDispl2D):
     def create_updater(self):
         self.updater = clda.KFRML(None, None, self.batch_time, self.half_life)
 
+    def get_time(self):
+        return self.loop_counter * 1./60
+
+
 if options.alg == 'RML':
     gen = target_seq_generator(8, 1000)
     task = SimRML(gen)
 elif options.alg == 'SB':
     gen = target_seq_generator(8, 1000)
     task = SimCLDAControlDispl2D(gen)
+elif options.alg == 'PPF':
+    gen = target_seq_generator(8, 1000)
+    task = SimBMIControlPPFDispl2D(gen)
+
 
 task.init()
 task.run()

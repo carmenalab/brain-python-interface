@@ -102,6 +102,7 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
         self.batch_time = 1./10 #60.  # TODO 10 Hz running seems to be hardcoded somewhere
         self.half_life = 360.
         self.assist_level = 0
+        self.last_get_spike_counts_time = -1./60
 
     def load_decoder(self):
         N = 10000
@@ -115,17 +116,20 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
         beta = data['beta']
         beta = np.vstack([beta[1:, :], beta[0,:]]).T
         beta_dec = riglib.bmi.train.inflate(beta, decoding_states, states, axis=1)
-        beta_dec[:,[3,5]] *= 0
+        beta_dec[:,[3,5]] *= 1
 
         self.decoder = riglib.bmi.train._train_PPFDecoder_sim_known_beta(beta_dec, 
                 self.encoder.units, dt=dt, dist_units='cm')
-        self.decoder.filt.W[3:6, 3:6] = np.eye(3) * 0.4110
+        #self.decoder.filt.W[3:6, 3:6] = np.eye(3) * 0.37182884 #0.4110
 
     def _init_neural_encoder(self):
         from riglib.bmi import sim_neurons
         sim_encoder_fname = os.path.join(os.getenv('HOME'), 'code/bmi3d/tests/ppf', 'sample_spikes_and_kinematics_10000.mat')
         self.encoder = sim_neurons.load_ppf_encoder_2D_vel_tuning_clda_sim(sim_encoder_fname, dt=1./60) #CosEnc(fname=sim_encoder_fname, return_ts=True)
     
+    def get_time(self):
+        return SimCLDAControlMultiDispl2D.get_time(self)
+
 
 class SimRML(SimCLDAControlMultiDispl2D):
     def __init__(self, *args, **kwargs):
@@ -137,8 +141,8 @@ class SimRML(SimCLDAControlMultiDispl2D):
         self.updater = clda.KFRML(None, None, self.batch_time, self.half_life)
 
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
-task = SimRML(gen)
-#task = SimCLDAControlMultiDispl2D_PPF(gen)
+#task = SimRML(gen)
+task = SimCLDAControlMultiDispl2D_PPF(gen)
 #task = SimCLDAControlMultiDispl2D(gen)
 task.init()
 task.run()

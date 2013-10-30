@@ -227,6 +227,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
             self.R = state['R']
             self.S = state['S']
             self.T = state['T']            
+            self.ESS = state['ESS']
         except:
             # handled by _pickle_init
             pass
@@ -241,6 +242,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         data['R'] = self.R
         data['S'] = self.S
         data['T'] = self.T
+        data['ESS'] = self.ESS
         return data
 
     @classmethod
@@ -490,8 +492,21 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         for k in range(n_neurons):
             ax.plot([0, C[k, x]], [0, C[k, z]])
 
+    def plot_K(self, ax=None, plot_states=['hand_vx', 'hand_vz']):
+        import matplotlib.pyplot as plt
+        if ax == None:
+            plt.figure()
+            ax = plt.subplot(111)
+            ax.hold(True)
 
-
+        state_inds = [self.states.index(x) for x in plot_states]
+        x, z = state_inds
+        F, K = self.kf.get_sskf()
+        K = np.array(K)
+        n_neurons = K.shape[1]
+        for k in range(n_neurons):
+            ax.plot([0, K[x, k]], [0, K[z, k]], label=str(self.units[k]))
+        ax.legend()
 
 
 def project_Q(C_v, Q_hat):
