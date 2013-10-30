@@ -7,6 +7,7 @@ import re
 from riglib.plexon import Spikes
 import multiprocessing as mp
 from itertools import izip
+import time
 
 ##try:
 ##    from plexon import psth
@@ -181,6 +182,9 @@ class Decoder(object):
         if not hasattr(self, 'interpolate_using_ssm'):
             self.interpolate_using_ssm = False
 
+        if not hasattr(self, 'bmicount'):
+            self.bmicount = 0
+
         self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
 
     def __getstate__(self):
@@ -236,6 +240,8 @@ class AdaptiveBMI(object):
         if learn_flag and self.decoder.bmicount == 0: #self.decoder.bminum - 1):
             self.learner(self.spike_counts.copy(), prev_state, target_pos, 
                          decoded_state[vel_inds], task_state)
+            self.reset_spike_counts()
+        elif self.decoder.bmicount == 0:
             self.reset_spike_counts()
         
 
