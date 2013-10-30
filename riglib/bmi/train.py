@@ -608,7 +608,8 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     B = np.vstack([I, dt*1000 * I, np.zeros([1,3])])
 
     # instantiate Decoder
-    is_stochastic = np.array([x in neuron_driving_states for x in states])
+    stochastic_states = ['hand_vx', 'hand_vz']
+    is_stochastic = np.array([x in stochastic_states for x in states])
     ppf = ppfdecoder.PointProcessFilter(
             A, W, beta, dt=dt, is_stochastic=is_stochastic, B=B)
 

@@ -38,19 +38,29 @@ class GaussianState(object):
     of the BMI in decoders, including the KF and PPF decoders
     '''
     def __init__(self, mean, cov):
-        if isinstance(mean, float):
+        if isinstance(mean, np.matrix):
+            assert mean.shape[1] == 1 # column vector
             self.mean = mean
-        else:
-            self.mean = np.mat(mean.reshape(-1,1))
-        self.cov = np.mat(cov)
+        elif isinstance(mean, float):
+            self.mean = mean
+        elif isinstance(mean, np.ndarray):
+            if np.ndim(mean) == 1:
+                mean = mean.reshape(-1,1)
+            self.mean = np.mat(mean)
+
+        # Covariance
+        assert cov.shape[0] == cov.shape[1] # Square matrix
+        if isinstance(cov, np.ndarray):
+            cov = np.mat(cov)
+        self.cov = cov
     
     def __rmul__(self, other):
-        if isinstance(other, int) or isinstance(other, np.float64) or isinstance(other, float):
-            mu = other*self.mean
-            cov = other**2 * self.cov
-        elif isinstance(other, np.matrix):
+        if isinstance(other, np.matrix):
             mu = other*self.mean
             cov = other*self.cov*other.T
+        elif isinstance(other, int) or isinstance(other, np.float64) or isinstance(other, float):
+            mu = other*self.mean
+            cov = other**2 * self.cov
         elif isinstance(other, np.ndarray):
             other = np.mat(other)
             mu = other*self.mean
@@ -71,7 +81,7 @@ class GaussianState(object):
 
     def __add__(self, other):
         if isinstance(other, GaussianState):
-            return GaussianState( self.mean+other.mean, self.cov+other.cov )
+            return GaussianState(self.mean+other.mean, self.cov+other.cov)
         elif isinstance(other, np.matrix) and other.shape == self.mean.shape:
             return GaussianState(self.mean + other, self.cov)
         else:
