@@ -51,6 +51,7 @@ class Button(object):
         pygame.mouse.set_visible(False)
 
     def _get_event(self):
+        import pygame
         btnmap = {1:1, 3:4}
         for btn in pygame.event.get(pygame.MOUSEBUTTONDOWN):
             if btn.button in btnmap:
