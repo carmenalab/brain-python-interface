@@ -3,6 +3,7 @@
 
 import numpy as np
 from experiment import LogExperiment, TrialTypes
+import re
 
 def trialtype(exp):
     assert isinstance(exp, LogExperiment), "Cannot report on non-logged experiments"
@@ -74,6 +75,31 @@ def general(Exp, event_log, ntrials, nrewards, reward_len):
     # except:
     #     pass
         
+    return report
+
+def general_offline(Exp, event_log):
+    '''
+    Generate report for an experiment after it has finished running
+    TODO this seems like it should be an attribute of the task
+    '''
+    report = dict(trials=0, reward_len=[])
+    n_trials = 0
+    n_success_trials = 0
+    n_error_trials = 0
+    reward_time = 0
+    for k, (state, event, t) in enumerate(event_log):
+        next_state = Exp.status[state][event]
+        if state == "reward":
+             n_trials += 1
+             n_success_trials += 1
+             reward_time += (t - event_log[k-1][2])
+        elif re.match('.*?_penalty', state):
+             n_trials += 1
+             n_error_trials += 1
+    report['trials'] = n_trials
+    report['rates'] = (float(n_success_trials)/n_trials, float(n_error_trials)/n_trials)
+    report['reward_len'] = (reward_time, n_success_trials)
+    report['time'] = t
     return report
 
 
