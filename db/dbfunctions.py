@@ -269,6 +269,7 @@ def get_bmiparams_file(entry):
     '''
     Returns the name of the bmi parameter update history file associated with the session.
     '''
+    entry = lookup_task_entries(entry)
     bmi_params = models.System.objects.get(name='bmi_params')
     q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=bmi_params.id)
     if len(q)==0:
