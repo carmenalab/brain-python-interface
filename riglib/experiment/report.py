@@ -87,6 +87,8 @@ def general_offline(Exp, event_log):
     n_success_trials = 0
     n_error_trials = 0
     reward_time = 0
+
+    start_time = event_log[0][-1]
     for k, (state, event, t) in enumerate(event_log):
         next_state = Exp.status[state][event]
         if state == "reward":
@@ -99,7 +101,7 @@ def general_offline(Exp, event_log):
     report['trials'] = n_trials
     report['rates'] = (float(n_success_trials)/n_trials, float(n_error_trials)/n_trials)
     report['reward_len'] = (reward_time, n_success_trials)
-    report['time'] = t
+    report['length'] = t - start_time
     return report
 
 
