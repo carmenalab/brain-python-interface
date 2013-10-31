@@ -259,6 +259,8 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stocha
     B = np.vstack([I, update_rate*1000 * I, np.zeros([1,3])])
 
     # instantiate Decoder
+    if 'offset' in stochastic_vars:
+        stochastic_vars.remove('offset')
     is_stochastic = np.array([x in stochastic_vars for x in state_vars])
     ppf = ppfdecoder.PointProcessFilter(
             A, W, C, dt=update_rate, is_stochastic=is_stochastic, B=B)
