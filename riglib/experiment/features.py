@@ -7,8 +7,6 @@ import random
 import traceback
 import numpy as np
 
-import pygame
-
 from riglib import calibrations, bmi
 
 from . import traits
@@ -48,6 +46,7 @@ class Button(object):
     '''Adds the ability to respond to the button, as well as to keyboard responses'''
     def screen_init(self):
         super(Button, self).screen_init()
+        import pygame
         pygame.event.set_grab(True)
         pygame.mouse.set_visible(False)
 
@@ -61,15 +60,18 @@ class Button(object):
     
     def _while_reward(self):
         super(Button, self)._while_reward()
+        import pygame
         pygame.event.clear()
     
     def _while_penalty(self):
         #Clear out the button buffers
         super(Button, self)._while_penalty()
+        import pygame
         pygame.event.clear()
     
     def _while_wait(self):
         super(Button, self)._while_wait()
+        import pygame
         pygame.event.clear()
 
 class IgnoreCorrectness(object):
