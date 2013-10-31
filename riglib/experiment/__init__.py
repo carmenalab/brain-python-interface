@@ -17,7 +17,12 @@ import generate
 import report
 import features
 from experiment import Experiment, LogExperiment, Sequence, TrialTypes
-from Pygame import Pygame
+
+try:
+    from Pygame import Pygame
+except:
+    import warnings
+    warnings.warn('riglib/experiment/__init__.py: could not import Pygame (note capital P)')
 
 def make(exp_class, feats=()):
     f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'a')
