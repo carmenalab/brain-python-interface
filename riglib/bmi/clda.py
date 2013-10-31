@@ -190,6 +190,7 @@ class KFSmoothbatchSingleThread(object):
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
+        print "calculating new SB parameters"
         C_old          = decoder.kf.C
         Q_old          = decoder.kf.Q
         drives_neurons = decoder.drives_neurons
@@ -341,7 +342,7 @@ class PPFContinuousBayesianUpdater(object):
         C_init = np.array(decoder.filt.C.copy())
         for k in range(self.n_neurons):
             I = np.mat(np.eye(n_states))
-            R_diag_neuron = 1e-8 * np.array([0.13, 0.13, 0.06/50])
+            R_diag_neuron = 1e-4 * np.array([0.13, 0.13, 0.06/50])
             R = np.diag(R_diag_neuron)
             self.meta_ppf[k] = ppfdecoder.PointProcessFilter(I, R, np.zeros(n_states), dt=decoder.filt.dt)
 
