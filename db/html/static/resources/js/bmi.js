@@ -12,6 +12,7 @@ function BMI(idx, info, notes) {
     }
 
     this.info = info;
+    //this.bmi_seed = info['is_seed'];
     this.plxinfo = info['_plxinfo'];
     delete info['_plxinfo']
 
@@ -19,14 +20,16 @@ function BMI(idx, info, notes) {
     this.selected = {};
 
     if (this.plxinfo !== null) {
-        for (var i = 0; i < this.plxinfo.units.length; i++) {
-            var name = this.plxinfo.units[i][0];
-            name += String.fromCharCode(this.plxinfo.units[i][1]+96);
-            this.remove(name);
-        }
+        if (this.plxinfo.is_seed) {
+            for (var i = 0; i < this.plxinfo.units.length; i++) {
+                var name = this.plxinfo.units[i][0];
+                name += String.fromCharCode(this.plxinfo.units[i][1]+96);
+                this.remove(name);
+            }
 
-        this._bindui();
-        this.cancel();
+            this._bindui();
+            this.cancel();
+        }
     }
 }
 BMI.zeroPad = function(number, width) {
@@ -250,18 +253,20 @@ BMI.prototype._bindui = function() {
 }
 BMI.prototype.destroy = function() {
     if (this.plxinfo !== null) {
-        $("#tslider").slider("destroy");
-        $("#tstart").unbind("keyup");
-        $("#tstart").unbind("blur");
-        $("#tend").unbind("keyup");
-        $("#tend").unbind("blur");
-        $("#makecell").unbind("click");
-        $("#makeavail").unbind("click");
-        $("#cellnames").unbind("click");
-        $("#cellnames").unbind("blur");
-        $("#bmitrain").unbind("click");
-        $("#bmicancel").unbind("click");
-        $("#bmi").hide();
+        if (this.plxinfo.is_seed) {
+            $("#tslider").slider("destroy");
+            $("#tstart").unbind("keyup");
+            $("#tstart").unbind("blur");
+            $("#tend").unbind("keyup");
+            $("#tend").unbind("blur");
+            $("#makecell").unbind("click");
+            $("#makeavail").unbind("click");
+            $("#cellnames").unbind("click");
+            $("#cellnames").unbind("blur");
+            $("#bmitrain").unbind("click");
+            $("#bmicancel").unbind("click");
+            $("#bmi").hide();
+        }
     }
 }
 
