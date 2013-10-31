@@ -181,9 +181,15 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     plx = plexfile.openFile(plx_fname)
     tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
     
-    #Grab masked kinematic data
     h5 = tables.openFile(files['hdf'])
+
+    # Get positions and calculate velocity
     kin = h5.root.task[:]['cursor']
+    velocity = np.diff(kin, axis=0) * 60.
+    velocity = np.vstack([np.zeros(3), velocity])
+    print velocity
+    kin = np.hstack([kin, velocity])
+
     inds, = np.nonzero(tmask)
     step_fl = binlen/(1./60) 
     if step_fl < 1: # more than one spike bin per kinematic obs
@@ -195,9 +201,14 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     kin = kin[inds]
 
     ## Bin the neural data
-    cells = np.unique(cells)
-    if cells == None: cells = plx.units # Use all of the units if none are specified
-    units = np.array(cells).astype(np.int32)
+    if isinstance(cells, np.ndarray):
+        units = cells
+    else:
+        cells = np.unique(cells)
+        print cells.shape
+        if cells == None: cells = plx.units # Use all of the units if none are specified
+        units = np.array(cells).astype(np.int32)
+
     spike_bin_fn = psth.SpikeBin(units, binlen)
     neurows = rows[tmask]
     
@@ -214,10 +225,9 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
     
     # calculate cursor velocity
-    velocity = np.diff(kin, axis=0) * 1./binlen
-    kin = np.hstack([kin[1:], velocity])
     spike_counts = spike_counts.T
     spike_counts = spike_counts[:,:-1]
+    kin = kin[1:]
 
     return train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
 
@@ -227,7 +237,7 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stocha
     '''
     binlen = update_rate
     n_neurons = spike_counts.shape[0]
-    kin = kin.T
+    kin = kin.T # TODO really?
 
     kin_vars = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
 
