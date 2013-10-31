@@ -7,6 +7,7 @@ import os
 import json
 import cPickle
 import inspect
+from collections import OrderedDict
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -50,10 +51,11 @@ class Task(models.Model):
         if values is None:
             values = dict()
         
-        params = dict()
+        params = OrderedDict()
         Exp = self.get(feats=feats)
         ctraits = Exp.class_traits()
-        for trait in Exp.class_editable_traits():
+
+        def add_trait(trait):
             varname = dict()
             varname['type'] = ctraits[trait].trait_type.__class__.__name__
             varname['default'] = _get_trait_default(ctraits[trait])
@@ -65,6 +67,21 @@ class Task(models.Model):
                 insts = Model.objects.order_by("-date")[:50]
                 varname['options'] = [(i.pk, i.name) for i in insts]
             params[trait] = varname
+
+        ordered_traits = ['session_length', 'assist_level', 'assist_time', 'batch_time', 'half_life', 'half_life_decay_time']
+        print Exp.class_editable_traits()
+        for trait in ordered_traits:
+            if trait in Exp.class_editable_traits():
+
+        #for trait in Exp.class_editable_traits():
+        #    if trait in ordered_traits:
+        #        print trait
+        #        print type(trait)
+                add_trait(trait)
+
+        for trait in Exp.class_editable_traits():
+            if trait not in params:
+                add_trait(trait)
 
         return params
 
@@ -325,7 +342,7 @@ class TaskEntry(models.Model):
         try:
             task = self.task.get(self.feats.all())
             report = json.loads(self.report)
-            js['report'] = experiment.report.general(task, report)
+            js['report'] = experiment.report.general_offline(task, report)
         except:
             js['report'] = dict()
         js['report']['state'] = "Completed"
@@ -341,7 +358,9 @@ class TaskEntry(models.Model):
             js['bmi'] = dict(_plxinfo=dict(
                 length=plx.length, 
                 units=plx.units, 
-                name=name))
+                name=name,
+                is_seed=int(self.task.name in ['visual_feedback_multi', 'manual_control_multi']),
+                ))
         except (ObjectDoesNotExist, AssertionError, IOError):
             print "No plexon file found"
             js['bmi'] = dict(_plxinfo=None)
@@ -349,6 +368,9 @@ class TaskEntry(models.Model):
         for dec in Decoder.objects.filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
         
+        #is_bmi_seed_task = 
+        #js['bmi']['_plxinfo'] = is_bmi_seed_task
+
         return js
 
     @classmethod
