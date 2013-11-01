@@ -7,7 +7,6 @@ inherit from these classes.
 from __future__ import division
 import os
 
-import pygame
 import numpy as np
 from OpenGL.GL import *
 
@@ -18,6 +17,12 @@ from models import Group, GroupDispl2D
 from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere
 import time
+
+try:
+    import pygame
+except:
+    import warnings
+    warnings.warn('riglib/stereo_opengl/window.py: not importing name pygame')
 
 
 class Window(LogExperiment):

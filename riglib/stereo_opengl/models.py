@@ -2,7 +2,6 @@
 Collections of shapes to render on screen
 '''
 
-import pygame
 import numpy as np
 from OpenGL.GL import *
 from OpenGL import GLUT as glut
