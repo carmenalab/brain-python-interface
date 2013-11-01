@@ -6,6 +6,7 @@ finite state machine representing different phases of the task
 import time
 import random
 import threading
+import traceback
 
 import numpy as np
 from . import traits
@@ -73,19 +74,24 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.screen_init()
         self.set_state(self.state)
         while self.state is not None:
-            if hasattr(self, "_while_%s"%self.state):
-                getattr(self, "_while_%s"%self.state)()
-            if hasattr(self, "_cycle"):
-                self._cycle()
-            
-            for event, state in self.status[self.state].items():
-                if hasattr(self, "_test_%s"%event):
-                    if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
-                        if hasattr(self, "_end_%s"%self.state):
-                            getattr(self, "_end_%s"%self.state)()
-                        self.trigger_event(event)
-                        break;
-            self.loop_step()
+            try:
+                if hasattr(self, "_while_%s"%self.state):
+                    getattr(self, "_while_%s"%self.state)()
+                if hasattr(self, "_cycle"):
+                    self._cycle()
+                
+                for event, state in self.status[self.state].items():
+                    if hasattr(self, "_test_%s"%event):
+                        if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
+                            if hasattr(self, "_end_%s"%self.state):
+                                getattr(self, "_end_%s"%self.state)()
+                            self.trigger_event(event)
+                            break;
+                self.loop_step()
+            except:
+                traceback.print_exc()
+                self.state = None
+
     
     def _test_stop(self, ts):
         return self.stop

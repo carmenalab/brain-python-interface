@@ -342,7 +342,9 @@ class PPFContinuousBayesianUpdater(object):
         C_init = np.array(decoder.filt.C.copy())
         for k in range(self.n_neurons):
             I = np.mat(np.eye(n_states))
-            R_diag_neuron = 1e-4 * np.array([0.13, 0.13, 0.06/50])
+            R_diag_neuron = np.array([1e-6*0.13, 1e-6*0.13, 1e-4*0.06/50])
+            #R_diag_neuron = np.array([1e-4*0.13, 1e-4*0.13, 1e-4*0.06/50])
+            #R_diag_neuron = 1e-4 * np.array([0.13, 0.13, 0.06/50])
             R = np.diag(R_diag_neuron)
             self.meta_ppf[k] = ppfdecoder.PointProcessFilter(I, R, np.zeros(n_states), dt=decoder.filt.dt)
 
@@ -371,7 +373,7 @@ class PPFContinuousBayesianUpdater(object):
             for k in range(n_obs):
                 #self.meta_ppf[n](spike_counts[n,k])
                 #self = self.meta_ppf[n]
-                obs_t = spike_counts[n,k]
+                obs_t = max(spike_counts[n,k], 1)
                 #target_state = None
                 st = self.meta_ppf[n].state
 
@@ -382,7 +384,12 @@ class PPFContinuousBayesianUpdater(object):
                 #pred_obs = self.meta_ppf[n]._obs_prob(pred_state)
 
                 Loglambda_predict = C * pred_state_mean
-                pred_obs = cmath.exp(Loglambda_predict[0,0])/dt
+                try:
+                    pred_obs = cmath.exp(Loglambda_predict[0,0])/dt
+                except:
+                    # A try-except block is required for this because sometimes the Lambda value has been observed to get too big..
+                    pred_obs = 0
+
                 #pred_obs = np.exp(Loglambda_predict[0,0])/dt
         
                 #P_pred = pred_state.cov
