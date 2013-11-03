@@ -86,6 +86,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
             l = time.time() - self.event_log[0][2] if len(self.event_log) > 0 else 0
             rep = dict(status=status, state=state or "stopped", length=l)
             rep.update(report.general(self.__class__, self.event_log, self.ntrials, self.nrewards, self.reward_len))
+            rep['length'] = time.time() - self.task_start_time
             websock.send(rep)
             super(NotifyFeat, self).set_state(state, *args, **kwargs)
 

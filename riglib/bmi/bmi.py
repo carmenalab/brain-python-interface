@@ -215,6 +215,51 @@ class Decoder(object):
         alg = self.get_filter()
         return np.array(alg.state.mean).ravel()
 
+    def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,
+                assist_level=0.0, assist_inds=[0,1,2],
+                **kwargs):
+        """Decode the spikes"""
+        # Save the previous cursor state for assist
+        prev_kin = self.filt.get_mean()
+        if assist_level > 0:
+            cursor_pos = prev_kin[assist_inds]
+            diff_vec = target - cursor_pos 
+            dist_to_target = np.linalg.norm(diff_vec)
+            dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+            
+            if dist_to_target > target_radius:
+                assist_cursor_pos = cursor_pos + speed*dir_to_target
+            else:
+                assist_cursor_pos = cursor_pos + speed*diff_vec/2
+
+            assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
+            assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
+
+        # TODO put this back in for the KF
+        ### # re-normalize the variance of the spike observations, if nec
+        ### if self.zscore:
+        ###     spike_counts = (spike_counts - self.mFR_diff) * self.sdFR_ratio
+        ###     # set the spike count of any unit with a 0 mean to it's original mean
+        ###     # This is essentially removing it from the decoder.
+        ###     spike_counts[self.zeromeanunits] = self.mFR[self.zeromeanunits] 
+
+        # re-format as a 1D col vec
+        spike_counts = np.mat(spike_counts.reshape(-1,1))
+
+        # Run the filter
+        self.filt(spike_counts)
+
+        # Bound cursor, if any hard bounds for states are applied
+        self.bound_state()
+
+        if assist_level > 0:
+            cursor_kin = self.filt.get_mean()
+            kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
+            self.filt.state.mean[:,0] = kin.reshape(-1,1)
+            self.bound_state()
+
+        state = self.filt.get_mean()
+        return state
 
 class AdaptiveBMI(object):
     def __init__(self, decoder, learner, updater):

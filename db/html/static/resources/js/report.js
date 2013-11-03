@@ -23,6 +23,7 @@ function Report(callback) {
     this.obj.appendChild(this.msgs);
     $("#report").append(this.obj);
 
+    // TODO this occasionally creates new document elements when they already exist 
     this.boxes = {"state":"Current State", "trials":"Trial #", "length":"Time", "reward_len":"Reward Time", "rates":"Rates"};
     for (var i in this.boxes) {
         var row = document.createElement("tr");

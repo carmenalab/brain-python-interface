@@ -76,9 +76,24 @@ class PointProcessFilter():
     def _obs_prob(self, state):
         Loglambda_predict = self.C * state.mean
         lambda_predict = np.exp(Loglambda_predict)/self.dt
-        assert np.all(lambda_predict > 0)
+
+        nan_inds = np.isnan(lambda_predict)
+        lambda_predict[nan_inds] = 0
+
+        # check max rate is less than 1 b/c it's a probability
+        rate_too_high_inds = ((lambda_predict * self.dt) > 1)
+        lambda_predict[rate_too_high_inds] = 1./self.dt
+
+        # check min rate is > 0
+        rate_too_low_inds = (lambda_predict < 0)
+        lambda_predict[rate_too_low_inds] = 0
+        #assert np.all(lambda_predict > 0)
 
         #self._check_valid(self, lambda_predict, id)
+        invalid_inds = nan_inds | rate_too_high_inds | rate_too_low_inds
+        if np.any(invalid_inds):
+            pass
+            #print np.nonzero(invalid_inds.ravel()[0])
         return lambda_predict
     
     def _ssm_pred(self, state, target_state=None):
@@ -300,6 +315,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         '''
         # The PPF model predicts that at most one spike can be observed in 
         # each bin; if more are observed, squash the counts
+        obs_t = obs_t.copy()
         obs_t[obs_t > 1] = 1
 
         outputs = []
@@ -311,30 +327,30 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def get_filter(self):
         return self.filt 
 
-    def predict(self, spike_counts, target=None, speed=0.05, assist_level=0., **kwargs):
-        """
-        Run decoder, assist, and bound any states
-        """
-        # TODO optimal feedback control assist
-        if assist_level > 0 and target is not None:
-            target_state = np.hstack([target, np.zeros(3), 1])
-            target_state = np.mat(target_state).reshape(-1,1)
-        else:
-            target_state = None
+    ##def predict(self, spike_counts, target=None, speed=0.05, assist_level=0., **kwargs):
+    ##    """
+    ##    Run decoder, assist, and bound any states
+    ##    """
+    ##    # TODO optimal feedback control assist
+    ##    if assist_level > 0 and target is not None:
+    ##        target_state = np.hstack([target, np.zeros(3), 1])
+    ##        target_state = np.mat(target_state).reshape(-1,1)
+    ##    else:
+    ##        target_state = None
 
-        I = np.mat(np.eye(3))
-        alpha = 1.622691378496069e-03 #6.458204410254785e-03
-        gamma = 1.036424261334212e-03 #3.029680657880600e-03
-        self.filt.F = assist_level*np.hstack([alpha*I, gamma*I, np.zeros([3,1])])
+    ##    I = np.mat(np.eye(3))
+    ##    alpha = 6.458204410254785e-03
+    ##    gamma = 3.029680657880600e-03
+    ##    self.filt.F = assist_level*np.hstack([alpha*I, gamma*I, np.zeros([3,1])])
 
-        # re-format as a 1D col vec
-        spike_counts = np.mat(spike_counts.reshape(-1,1))
+    ##    # re-format as a 1D col vec
+    ##    spike_counts = np.mat(spike_counts.reshape(-1,1))
 
-        # Run the filter
-        self.filt(spike_counts, target_state=target_state)
+    ##    # Run the filter
+    ##    self.filt(spike_counts, target_state=target_state)
 
-        # Bound cursor, if any hard bounds for states are applied
-        self.bound_state()
+    ##    # Bound cursor, if any hard bounds for states are applied
+    ##    self.bound_state()
 
-        state = self.filt.get_mean()
-        return state
+    ##    state = self.filt.get_mean()
+    ##    return state

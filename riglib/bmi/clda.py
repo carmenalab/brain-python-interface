@@ -373,7 +373,7 @@ class PPFContinuousBayesianUpdater(object):
             for k in range(n_obs):
                 #self.meta_ppf[n](spike_counts[n,k])
                 #self = self.meta_ppf[n]
-                obs_t = spike_counts[n,k]
+                obs_t = max(spike_counts[n,k], 1)
                 #target_state = None
                 st = self.meta_ppf[n].state
 
@@ -384,7 +384,12 @@ class PPFContinuousBayesianUpdater(object):
                 #pred_obs = self.meta_ppf[n]._obs_prob(pred_state)
 
                 Loglambda_predict = C * pred_state_mean
-                pred_obs = cmath.exp(Loglambda_predict[0,0])/dt
+                try:
+                    pred_obs = cmath.exp(Loglambda_predict[0,0])/dt
+                except:
+                    # A try-except block is required for this because sometimes the Lambda value has been observed to get too big..
+                    pred_obs = 0
+
                 #pred_obs = np.exp(Loglambda_predict[0,0])/dt
         
                 #P_pred = pred_state.cov
