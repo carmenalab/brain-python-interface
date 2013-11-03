@@ -95,22 +95,64 @@ class PointProcessFilter():
         C = self.C
         n_obs, n_states = C.shape
         
-        pred_state = self._ssm_pred(st, target_state=target_state)
-        pred_obs = self._obs_prob(pred_state)
-        #print pred_obs
-
-        P_pred = pred_state.cov
+        dt = self.dt
         inds, = np.nonzero(self.is_stochastic)
-        nS = self.A.shape[0]
-        Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.dt)) 
-
-        P_pred_inv = np.mat(np.zeros([nS, nS]))
         mesh = np.ix_(inds, inds)
-        P_pred_inv[mesh] = P_pred[mesh].I
-        #P_pred_inv[:-1, :-1] = P_pred[:-1,:-1].I
-        P_est = np.mat(np.zeros([nS, nS]))
-        P_est[mesh] = (P_pred_inv[mesh] + C[:,inds].T*Q_inv*C[:,inds]).I
+        A = self.A#[mesh]
+        W = self.W#[mesh]
+        C = C[:,inds]
 
+        x_prev, P_prev = st.mean, st.cov
+        #x_prev = x_prev[inds,:]
+        #P_prev = P_prev[mesh]
+        x_pred = A*x_prev
+        P_pred = A*P_prev*A.T + W
+        P_pred = P_pred[mesh]
+
+        Loglambda_predict = self.C * x_pred #self.C[:,-1] + C * x_pred #self.C * 
+        exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
+        lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
+
+        Q_inv = np.mat(np.diag(lambda_predict*self.dt))
+
+        if np.linalg.cond(P_pred) > 1e5:
+            P_est = P_pred;
+        else:
+            P_est = (P_pred.I + C.T*np.mat(np.diag(lambda_predict*dt))*C).I
+
+        # inflate P_est
+        P_est_full = np.mat(np.zeros([n_states, n_states]))
+        P_est_full[mesh] = P_est
+        P_est = P_est_full 
+
+        unpred_spikes = obs_t - np.mat(lambda_predict*dt).reshape(-1,1)
+
+        # TODO fix indexing
+        x_est = np.mat(np.zeros([n_states,1]))
+        x_est = x_pred + P_est*self.C.T*unpred_spikes
+        #x_est[-1,0] = 1 # offset state
+        post_state = GaussianState(x_est, P_est)
+        #assert post_state.mean.shape == (3,1)
+        #import pdb; pdb.set_trace()
+
+        return post_state
+
+        #### pred_state = self._ssm_pred(st, target_state=target_state)
+        #### pred_obs = self._obs_prob(pred_state)
+        #### #print pred_obs
+
+        #### P_pred = pred_state.cov
+        #### inds, = np.nonzero(self.is_stochastic)
+        #### nS = self.A.shape[0]
+
+        #### P_pred_inv = np.mat(np.zeros([nS, nS]))
+        #### mesh = np.ix_(inds, inds)
+        #### P_pred_inv[mesh] = P_pred[mesh].I
+        #### #P_pred_inv[:-1, :-1] = P_pred[:-1,:-1].I
+        #### P_est = np.mat(np.zeros([nS, nS]))
+        #### P_est[mesh] = (P_pred_inv[mesh] + C[:,inds].T*Q_inv*C[:,inds]).I
+
+        ## New version, deprecated
 
         #### if n_obs > n_states:
         ####     Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.dt))
@@ -137,19 +179,8 @@ class PointProcessFilter():
         ####     #Q = Q_inv.I # TODO zero out diagonal if any pred are 0 (occurs w.p. 0...)
         ####     Q_diag = (np.array(pred_obs).ravel() * self.dt)**-1
         ####     Q = np.mat(np.diag(Q_diag))
-
         ####     P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
 
-        inds, = np.nonzero(~self.is_stochastic)
-        mesh = np.ix_(inds, inds)
-        #P_est[mesh] = 0
-
-        unpred_spikes = obs_t - pred_obs*self.dt
-        x_est = pred_state.mean + P_est*C.T*unpred_spikes
-        post_state = GaussianState(x_est, P_est)
-        #assert post_state.mean.shape == (3,1)
-
-        return post_state
 
     def __setstate__(self, state):
         """Set the model parameters {A, W, C, Q} stored in the pickled
