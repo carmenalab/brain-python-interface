@@ -23,7 +23,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     def __init__(self, **kwargs):
         traits.HasTraits.__init__(self, **kwargs)
         threading.Thread.__init__(self)
-        self.task_start_time=time.time()
+        self.task_start_time = self.get_time() #time.time()
         self.ntrials = 0
         self.nrewards = 0
         self.reward_len = 0
@@ -106,12 +106,12 @@ class LogExperiment(Experiment):
     def trigger_event(self, event):
         log = (self.state, event) not in self.log_exclude
         if log:  
-            self.event_log.append((self.state, event, time.time()))
+            self.event_log.append((self.state, event, self.get_time()))
         self.set_state(self.status[self.state][event], log=log)
 
     def set_state(self, condition, log=True):
         if log:
-            self.state_log.append((condition, time.time()))
+            self.state_log.append((condition, self.get_time()))
         super(LogExperiment, self).set_state(condition)
 
     def cleanup(self, database, saveid, **kwargs):
