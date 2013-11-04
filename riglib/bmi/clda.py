@@ -3,7 +3,7 @@ CLDA classes
 '''
 import multiprocessing as mp
 import numpy as np
-from riglib.bmi import kfdecoder, ppfdecoder, train, bmi
+from riglib.bmi import kfdecoder, ppfdecoder, train, bmi, feedback_controllers
 import time
 import cmath
 
@@ -19,6 +19,7 @@ def normalize(vec):
 class Learner(object):
     def __init__(self, *args, **kwargs):
         self.enabled = True
+        self.input_state_index = -1
 
     def disable(self):
         self.enabled = False
@@ -48,7 +49,7 @@ class BatchLearner(Learner):
         """
         Rotation toward target state
         """
-        if not self.is_full() and self.enabled:
+        if self.enabled:
             self.kindata.append(int_kin)
             self.neuraldata.append(spike_counts)
     
@@ -69,21 +70,39 @@ class OFCLearner(BatchLearner):
         self.F_dict = F_dict
         self.A = A
 
+    def _target_BMI_state(self, target_pos):
+        '''
+        Determine the target state of the BMI. Changes depending on the coordinate
+        space of the decoder. For now, assume 3D endpoint pos/vel state and
+        override in child classes
+        '''
+        target_state = np.hstack([target_pos.ravel(), np.zeros(len(target_pos)), 1])
+        target_state = np.mat(target_state.reshape(-1,1))
+        return target_state
+
+    def _run_fbcontroller(self, F, current_state, target_state):
+        #u = -F * (current_state - target_state)
+        #x_int = A*current_state + B*u
+        A = self.A
+        B = self.B
+        ##import pdb; pdb.set_trace()
+        return A*current_state + B*F*(target_state - current_state)
+
     def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel, task_state):
         if task_state in self.F_dict:
-            n_subbins = spike_counts.shape[1]
-            F = self.F_dict[task_state]
-            A = self.A
-            B = self.B
-            target_state = np.hstack([target_pos, np.zeros(len(target_pos)), 1])
-            target_state = np.mat(target_state.reshape(-1,1))
-            x_t = np.mat(cursor_state).reshape(-1,1)
-            int_kin = A*x_t + B*F*(target_state - x_t)
+            #n_subbins = spike_counts.shape[1]
+            #F = self.F_dict[task_state]
+
+            target_state = self._target_BMI_state(target_pos)
+            #target_state = np.hstack([target_pos, np.zeros(len(target_pos)), 1])
+            #target_state = np.mat(target_state.reshape(-1,1))
+            current_state = np.mat(cursor_state).reshape(-1,1)
+            int_state = self._run_fbcontroller(self.F_dict[task_state], current_state, target_state)
             #import pdb; pdb.set_trace()
 
-            if not self.is_full() and self.enabled:
-                for k in range(n_subbins):
-                    self.kindata.append(int_kin)
+            if self.enabled:
+                #for k in range(n_subbins):
+                self.kindata.append(int_state)
                 self.neuraldata.append(spike_counts)
 
     def get_batch(self):
@@ -93,6 +112,42 @@ class OFCLearner(BatchLearner):
         self.neuraldata = []
         return kindata, neuraldata
 
+class OFCLearner3DEndptPPF(OFCLearner):
+    def __init__(self, batch_size, *args, **kwargs):
+        '''
+        Specific instance of the OFCLearner for the 3D endpoint PPF
+        TODO to generalize this better, should be able to store these objects
+        to file, just like a decoder, since the feedback matrices may change 
+        on different days...
+        '''
+        dt = kwargs['dt'] if 'dt' in kwargs else 1./180
+        use_tau_unNat = 2.7
+        tau_scale = 28*use_tau_unNat/1000
+        bin_num_ms = (dt/0.001)
+        w_r = 3*tau_scale**2/2*(bin_num_ms)**2*26.61
+        
+        I = np.eye(3)
+        zero_col = np.zeros([3, 1])
+        zero_row = np.zeros([1, 3])
+        zero = np.zeros([1,1])
+        one = np.ones([1,1])
+        A = np.bmat([[I, dt*I, zero_col], 
+                     [0*I, 0*I, zero_col], 
+                     [zero_row, zero_row, one]])
+        B = np.bmat([[0*I], 
+                     [dt/1e-3 * I],
+                     [zero_row]])
+        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
+        R = np.mat(np.diag([w_r, w_r, w_r]))
+        
+        F = feedback_controllers.dlqr(A, B, Q, R)
+        F_dict = dict(target=F, hold=F)
+        super(OFCLearner3DEndptPPF, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+        # Tell AdaptiveBMI that this learner wants the most recent output
+        # of the decoder rather than the second most recent, to matcn MATLAB
+        self.input_state_index = 0
+        
 class CursorGoalLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):
         super(CursorGoalLearner, self).__init__(*args, **kwargs)
@@ -120,7 +175,7 @@ class CursorGoalLearner(Learner):
         else:
             int_vel = None
         
-        if not self.is_full() and self.enabled and int_vel is not None:
+        if self.enabled and int_vel is not None:
             n_subbins = spike_counts.shape[1]
             int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
             for k in range(n_subbins):
@@ -276,153 +331,6 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
 
-## class PPFContinuousBayesianUpdater(object):
-##     def __init__(self, decoder):
-##         n_neurons = decoder.filt.C.shape[0]
-##         self.n_neurons = n_neurons
-##         self.rho = -1
-## 
-##         neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
-##         self.neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
-##         n_states = len(neuron_driving_state_inds)
-## 
-##         self.meta_ppf = [None]*self.n_neurons
-##         C_init = np.array(decoder.filt.C.copy())
-##         for k in range(self.n_neurons):
-##             I = np.mat(np.eye(n_states))
-##             R_diag_neuron = 1e-8 * np.array([0.13, 0.13, 0.06/50])
-##             R = np.diag(R_diag_neuron)
-##             #R = np.diag(np.tile(R_diag_neuron, (n_neurons,)))
-##             self.meta_ppf[k] = ppfdecoder.PointProcessFilter(I, R, np.zeros(n_states), dt=decoder.filt.dt)
-## 
-##             # Initialize meta-PPF
-##             init_beta_est = C_init[k,neuron_driving_state_inds]
-##             self.meta_ppf[k]._init_state(init_state=init_beta_est, init_cov=R)
-##         
-##     def calc(self, intended_kin, spike_counts, rho, decoder):
-##         start_time = time.time()
-##         if np.ndim(intended_kin) == 1:
-##             intended_kin = intended_kin.reshape(-1,1)
-##             spike_counts = spike_counts.reshape(-1,1)
-## 
-##         n_neurons, n_obs = spike_counts.shape
-##         intended_kin = np.array(intended_kin)
-##         C = np.mat(intended_kin[decoder.drives_neurons]).reshape(1,-1)
-##         
-##         #st = time.time()
-##         for n in range(n_neurons):
-##             self.meta_ppf[n].C = C
-##             for k in range(n_obs):
-##                 #obs = np.mat([[spike_counts[n,k]]])
-##                 self.meta_ppf[n](spike_counts[n,k])
-## 
-##             #self.meta_ppf.C = np.mat(np.kron(np.eye(self.n_neurons), beta_C))
-##             #obs = np.mat(spike_counts[:,k].reshape(-1,1))
-##         beta_new = np.hstack([x.state.mean for x in self.meta_ppf]).T
-##         #beta_new = np.array(self.meta_ppf(obs)).ravel().reshape(self.n_neurons, -1)
-##         beta_new = train.inflate(beta_new, self.neuron_driving_states, decoder.states, axis=1)
-##         #print "Time to update: %g" % (time.time() - st)
-##         print "calc time", time.time() - start_time
-## 
-##         return {'filt.C':beta_new}
-##            
-##
-##
-##class PPFContinuousBayesianUpdater(object):
-##    def __init__(self, decoder, units='cm'):
-##        n_neurons = decoder.filt.C.shape[0]
-##        self.n_neurons = n_neurons
-##        self.rho = -1
-##
-##        neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
-##        self.neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
-##        n_states = len(neuron_driving_state_inds)
-##
-##        self.meta_ppf = [None]*self.n_neurons
-##        C_init = np.array(decoder.filt.C.copy())
-##        for k in range(self.n_neurons):
-##            I = np.mat(np.eye(n_states))
-##            vel_gain = 1e-4
-##            R_diag_neuron = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
-##            if k == 1: print R_diag_neuron
-##            R = np.diag(R_diag_neuron)
-##            self.meta_ppf[k] = ppfdecoder.PointProcessFilter(I, R, np.zeros(n_states), dt=decoder.filt.dt)
-##
-##            # Initialize meta-PPF
-##            init_beta_est = C_init[k, neuron_driving_state_inds]
-##            self.meta_ppf[k]._init_state(init_state=init_beta_est, init_cov=R)
-##        
-##    def calc(self, intended_kin, spike_counts, rho, decoder):
-##        if np.ndim(intended_kin) == 1:
-##            intended_kin = intended_kin.reshape(-1,1)
-##            spike_counts = spike_counts.reshape(-1,1)
-##
-##        n_neurons, n_obs = spike_counts.shape
-##        intended_kin = np.array(intended_kin)
-##        C = np.mat(intended_kin[decoder.drives_neurons, 0]).reshape(1,-1) # TODO is this correct ?!
-##        #C = np.mat(intended_kin[decoder.drives_neurons]).reshape(1,-1)
-##        #C = np.mat(intended_kin[decoder.drives_neurons]).reshape(1,-1)
-##        #C_xpose_C = np.outer(C, C)
-##        C_xpose_C = C.T * C
-##        
-##        A = self.meta_ppf[0].A
-##        A_xpose = A.T
-##        W = self.meta_ppf[0].W
-##        dt = self.meta_ppf[0].dt
-##        for n in range(n_neurons):
-##            for k in range(n_obs):
-##                #self.meta_ppf[n](spike_counts[n,k])
-##                #self = self.meta_ppf[n]
-##                obs_t = max(spike_counts[n,k], 1)
-##                #target_state = None
-##                st = self.meta_ppf[n].state
-##
-##                #obs_t = np.mat(obs_t.reshape(-1,1))
-##                n_obs, n_states = C.shape
-##                
-##                pred_state_mean = A*st.mean
-##                #pred_obs = self.meta_ppf[n]._obs_prob(pred_state)
-##
-##                Loglambda_predict = C * pred_state_mean
-##                try:
-##                    pred_obs = cmath.exp(Loglambda_predict[0,0])/dt
-##                except:
-##                    # A try-except block is required for this because sometimes the Lambda value has been observed to get too big..
-##                    pred_obs = 0
-##
-##                #pred_obs = np.exp(Loglambda_predict[0,0])/dt
-##        
-##                #P_pred = pred_state.cov
-##                P_pred = A*st.cov*A_xpose + W
-##                #nS = self.meta_ppf[n].A.shape[0]
-##        
-##                #q = 1./
-##                P_est = P_pred - (pred_obs*dt) * P_pred* C_xpose_C *P_pred
-##                ##if n_obs > n_states:
-##                ##    Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.meta_ppf[n].dt))
-##                ##    I = np.mat(np.eye(nS))
-##                ##    D = C.T * Q_inv * C
-##                ##    F = (D - D*P_pred*(I + D).I * D)
-##                ##    P_est = P_pred - P_pred * F * P_pred
-##                ##elif n_obs == 1:
-##                ##else:
-##                ##    Q_diag = (np.array(pred_obs).ravel() * self.meta_ppf[n].dt)**-1
-##                ##    Q = np.mat(np.diag(Q_diag))
-##        
-##                ##    P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
-##        
-##                unpred_spikes = obs_t - pred_obs*self.meta_ppf[n].dt
-##                x_est = pred_state_mean + P_est*C.T*unpred_spikes
-##                post_state = bmi.GaussianState(x_est, P_est)
-##                self.meta_ppf[n].state = post_state
-##
-##
-##        beta_new = np.hstack([x.state.mean for x in self.meta_ppf]).T
-##        beta_new = train.inflate(beta_new, self.neuron_driving_states, decoder.states, axis=1)
-##
-##        return {'filt.C':beta_new}
-
-
 
 class PPFContinuousBayesianUpdater(object):
     def __init__(self, decoder, units='cm'):
@@ -456,46 +364,52 @@ class PPFContinuousBayesianUpdater(object):
         else:
             self.beta_est = beta_hat[:,:,0].T
 
-    def __call__(self, spike_obs, int_kin, rho, decoder):
-        beta_est = self.beta_est[:,self.neuron_driving_state_inds]
-        P_params_est_old = self.P_params_est_old
-        #dt = self.dt
-        #self.beta_est, self.P_params_est_old = PPF_adaptive_beta(
-        #    spike_obs, int_kin, self.beta_est, self.P_params_est_old, self.dt)
+    def calc(self, int_kin_full, spike_obs_full, rho, decoder):
+        n_samples = int_kin_full.shape[1]
+        for k in range(n_samples):
+            spike_obs = spike_obs_full[:,k]
+            int_kin = int_kin_full[:,k]
 
-        if 1:
-            int_kin = np.hstack([int_kin, 1])
-        else:
-            int_kin = np.hstack([1, int_kin])
-        Loglambda_predict = np.dot(int_kin, beta_est.T)#beta_hat[:,:,idx])
-        rates = np.exp(Loglambda_predict)
-        if np.any(rates > 1):
-            print 'stuff'
-            rates[rates > 1] = 1
-        #lambda_predict = np.exp(Loglambda_predict)/dt
-        #rates = lambda_predict*dt
-        unpred_spikes = spike_obs - rates
+            beta_est = self.beta_est[:,self.neuron_driving_state_inds]
+            P_params_est_old = self.P_params_est_old
+            #dt = self.dt
+            #self.beta_est, self.P_params_est_old = PPF_adaptive_beta(
+            #    spike_obs, int_kin, self.beta_est, self.P_params_est_old, self.dt)
 
-        C_xpose_C = np.mat(np.outer(int_kin, int_kin))
+            #if 1:
+            #    int_kin = np.hstack([int_kin, 1])
+            #else:
+            #    int_kin = np.hstack([1, int_kin])
+            int_kin = np.asarray(int_kin).ravel()[self.neuron_driving_state_inds]
+            Loglambda_predict = np.dot(int_kin, beta_est.T)#beta_hat[:,:,idx])
+            rates = np.exp(Loglambda_predict)
+            if np.any(rates > 1):
+                print 'rates > 1!'
+                rates[rates > 1] = 1
+            #lambda_predict = np.exp(Loglambda_predict)/dt
+            #rates = lambda_predict*dt
+            unpred_spikes = np.asarray(spike_obs).ravel() - rates
 
-        P_params_est = np.zeros([self.n_units, 3, 3])
-        #beta_est_new = np.zeros([n_units, 3])
-        for c in range(self.n_units):
-            P_pred = P_params_est_old[c] + self.W
-            P_params_est[c] = (P_pred.I + rates[c]*C_xpose_C).I
-            #beta_est_new[c] = beta_est[:,c] + np.dot(int_kin, np.asarray(P_params_est[c]))*unpred_spikes[c]#
+            C_xpose_C = np.mat(np.outer(int_kin, int_kin))
 
-        beta_est += (unpred_spikes * np.dot(int_kin, P_params_est).T).T
+            P_params_est = np.zeros([self.n_units, 3, 3]) # TODO remove hardcoding of # of states
+            #beta_est_new = np.zeros([n_units, 3])
+            for c in range(self.n_units):
+                P_pred = P_params_est_old[c] + self.W
+                P_params_est[c] = (P_pred.I + rates[c]*C_xpose_C).I
+                #beta_est_new[c] = beta_est[:,c] + np.dot(int_kin, np.asarray(P_params_est[c]))*unpred_spikes[c]#
 
-        # inflate beta_est and store
-        self.beta_est = np.zeros([self.n_units, self.n_states])
-        self.beta_est[:,self.neuron_driving_state_inds] = beta_est
+            beta_est += (unpred_spikes * np.dot(int_kin, P_params_est).T).T
 
-        #self.beta_est = beta_est_new
-        self.P_params_est_old = P_params_est
-        #return , P_params_est 
+            # inflate beta_est and store
+            self.beta_est = np.zeros([self.n_units, self.n_states])
+            self.beta_est[:,self.neuron_driving_state_inds] = beta_est
 
-        return {'filt.C':self.beta_est}
+            #self.beta_est = beta_est_new
+            self.P_params_est_old = P_params_est
+            #return , P_params_est 
+
+        return {'filt.C': np.mat(self.beta_est)}
         #return self.beta_est, self.P_params_est_old
 
 
