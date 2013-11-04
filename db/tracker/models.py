@@ -69,7 +69,6 @@ class Task(models.Model):
             params[trait] = varname
 
         ordered_traits = ['session_length', 'assist_level', 'assist_time', 'batch_time', 'half_life', 'half_life_decay_time']
-        print Exp.class_editable_traits()
         for trait in ordered_traits:
             if trait in Exp.class_editable_traits():
 
