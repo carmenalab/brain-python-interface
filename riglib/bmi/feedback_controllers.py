@@ -23,7 +23,7 @@ class CenterOutCursorGoal():
         return gain*np.array([np.cos(sum_angle), np.sin(sum_angle)])
         #return gain*( dir_to_targ/np.linalg.norm(dir_to_targ) + angular_noise )
 
-def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-5, dtype=np.mat):
+def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-10, dtype=np.mat):
     if Q_f == None: 
         Q_f = Q
 
