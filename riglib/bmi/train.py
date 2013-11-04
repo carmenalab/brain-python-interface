@@ -16,6 +16,25 @@ import pdb
 from . import state_space_models
 from itertools import izip
 
+empty_bounding_box = [np.array([]), np.array([])]
+stoch_states_to_decode_2D_vel = ['hand_vx', 'hand_vz'] 
+states_3D_endpt = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offset']
+
+def unit_conv(starting_unit, ending_unit):
+    '''
+    Lookup table for conversion factors between units; this function exists
+    only to avoid hard-coded constants in most of the code
+    '''
+
+    if starting_unit == ending_unit:
+        return 1
+    elif (starting_unit, ending_unit) == ('cm', 'm'):
+        return 0.01
+    elif (starting_unit, ending_unit) == ('m', 'cm'):
+        return 100
+
+
 def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
@@ -594,6 +613,18 @@ def inflate(A, current_states, full_state_ls, axis=0):
 
     return A_new
 
+def _interpolate_KFDecoder_state_between_updates(decoder):
+    import mpmath
+    A = decoder.kf.A
+    # check that dt is a multiple of 60 Hz
+    power = 1./(decoder.binlen * 60)
+    assert (int(power) - power) < 1e-5
+    A_60hz = mpmath.powm(A, 1./(decoder.binlen * 60))
+    A_60hz = np.mat(np.array(A_60hz.tolist(), dtype=np.float64))
+    decoder.kf.A = A_60hz
+    decoder.interpolate_using_ssm = True
+    return decoder
+
 def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     '''
     Create a PPFDecoder object to decode 2D velocity from a known 'beta' matrix
@@ -608,6 +639,7 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     states_to_bound = ['hand_px', 'hand_pz']
     states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
     drives_neurons = np.array([x in neuron_driving_states for x in states])
+    beta = inflate(beta, neuron_driving_states, states, axis=1)
 
     args = (bounding_box, states, drives_neurons, states_to_bound)
     kwargs = dict(binlen=dt)
@@ -628,18 +660,51 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     dec = ppfdecoder.PPFDecoder(ppf, units, *args, **kwargs)
 
     # Force decoder to run at max 60 Hz
-    dec.bmicount = 0
     dec.bminum = 0
     return dec
 
-def _interpolate_KFDecoder_state_between_updates(decoder):
-    import mpmath
-    A = decoder.kf.A
-    # check that dt is a multiple of 60 Hz
-    power = 1./(decoder.binlen * 60)
-    assert (int(power) - power) < 1e-5
-    A_60hz = mpmath.powm(A, 1./(decoder.binlen * 60))
-    A_60hz = np.mat(np.array(A_60hz.tolist(), dtype=np.float64))
-    decoder.kf.A = A_60hz
-    decoder.interpolate_using_ssm = True
-    return decoder
+def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
+    #data = loadmat(fname, variable_names=['beta', 'A', 'W', 'decoder'])
+    data = loadmat(fname)
+    a = data['A'][2,2]
+    w = data['W'][0,0]
+
+    if 'T_loop' in data:
+        dt = data['T_loop'][0,0]
+    else:
+        dt = 0.005
+
+    spike_rate_dt = 0.001 # This is hardcoded b/c the value in the MATLAB file is probably wrong.
+    A = state_space_models._gen_A(1, dt, 0, a, 1, ndim=3)
+    W = state_space_models._gen_A(0, 0, 0, w, 0, ndim=3)
+
+    if 'beta_hat' in data:
+        beta = data['beta_hat'][:,:,0]
+    else:
+        beta = data['beta']
+
+    beta = ppfdecoder.PointProcessFilter.frommlab(beta)
+    beta[:,:-1] /= unit_conv('m', state_units)
+    beta_full = inflate(beta, states_explaining_neural_activity_2D_vel_decoding, states_3D_endpt, axis=1)
+    
+    states = states_3D_endpt#['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    neuron_driving_states = states_explaining_neural_activity_2D_vel_decoding#['hand_vx', 'hand_vz', 'offset'] 
+    ## beta_full = inflate(beta, neuron_driving_states, states, axis=1)
+
+    stochastic_states = ['hand_vx', 'hand_vz']  
+    is_stochastic = map(lambda x: x in stochastic_states, states)
+
+    unit_names = [str(x[0]) for x in data['decoder']['predSig'][0,0][0]]
+    units = [(int(x[3:6]), ord(x[-1]) - (ord('a') - 1)) for x in unit_names]
+    units = np.vstack(units)
+
+    ppf = ppfdecoder.PointProcessFilter(A, W, beta_full, dt, is_stochastic=is_stochastic)
+    ppf.spike_rate_dt = spike_rate_dt
+
+    drives_neurons = np.array([x in neuron_driving_states for x in states])
+    dec = ppfdecoder.PPFDecoder(ppf, units, empty_bounding_box, states, drives_neurons, [], binlen=dt)
+
+    if state_units == 'cm':
+        dec.filt.W[3:6, 3:6] *= unit_conv('m', state_units)**2
+    return dec 
+
