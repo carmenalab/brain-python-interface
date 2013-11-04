@@ -48,8 +48,8 @@ will return the timestamps of all of unit 161a's spikes between .5 and 2.5s.
 
 To retrieve spike waveforms instead of timestamps::
 
-    waveforms = plx.spikes[0,0:2.5].waveforms
-    unit161a = waveforms[np.logical_and(waveforms['chan'] == 161, waveforms['unit'] == 1)]
+    waveforms = plx.spikes[0.5:2.5].waveforms
+    unit161a = waveforms[np.logical_and(spikes.data['chan'] == 161, spikes.data['unit'] == 1)]
 
 For continuous data, use the corresponding names *wideband*, *spkc*, *lfp*, *analog*. Timestamps and data values can be extracted independently from a slice, and both are returned as a *time* x *channel* array. For example::
 

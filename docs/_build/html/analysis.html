@@ -73,7 +73,7 @@ across a long epoch.</p>
 <blockquote>
 <div><p>Each tuple of the list is one channel-unit label (chans go from 1-256).</p>
 </div></blockquote>
-<p><strong>epoch</strong> : tuple</p>
+<p><strong>epoch</strong> : array</p>
 <blockquote>
 <div><p>Contains a start and end time for epoch of interest. Must be longer
 than bin size (and should be much longer).</p>
@@ -87,7 +87,7 @@ than bin size (and should be much longer).</p>
 <tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>mean_firing_rates</strong> : np array</p>
 <blockquote>
 <div><p>A 1D array containing the mean firing rate in hz for each unit across
-all epochs.</p>
+all bins.</p>
 </div></blockquote>
 <p><strong>sd</strong> : array</p>
 <blockquote>
@@ -96,7 +96,7 @@ firing rate across all epochs</p>
 </div></blockquote>
 <p><strong>firing_rates</strong> : array</p>
 <blockquote class="last">
-<div><p>1 2D array containing all FR measurements for each bin (rows) by unit (cols)</p>
+<div><p>A 2D array containing all FR measurements for each bin (rows) by unit (cols)</p>
 </div></blockquote>
 </td>
 </tr>
@@ -197,6 +197,38 @@ greater than the threshold, nans are inserted.</p>
 <tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>processed_data</strong> : array</p>
 <blockquote class="last">
 <div><p>An n x m x 3 (timepoint x marker x coord) array of interpolated data.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="analysis.basicanalysis.lfp_epochs">
+<tt class="descclassname">analysis.basicanalysis.</tt><tt class="descname">lfp_epochs</tt><big>(</big><em>plxfile</em>, <em>channel</em>, <em>epochs</em><big>)</big><a class="headerlink" href="#analysis.basicanalysis.lfp_epochs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pulls out LFP data for specified channel within specified epochs of interest.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<blockquote>
+<div><p>The plexon file containing the data.</p>
+</div></blockquote>
+<p><strong>channel</strong> : list or array</p>
+<blockquote>
+<div><p>Channel number (0-255).</p>
+</div></blockquote>
+<p><strong>epochs</strong> : array like</p>
+<blockquote>
+<div><p>n x 2 array of start and end times for epochs of interest</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>lfp</strong> : np array</p>
+<blockquote class="last">
+<div><p>A time x nunits x nepochs array containing the LFP signal for each channel</p>
 </div></blockquote>
 </td>
 </tr>
@@ -403,7 +435,7 @@ to a unit in the units parameter.</p>
     </div>
     <div class="footer">
         &copy; Copyright 2012, James Gao.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
     </div>
   </body>
 </html>

@@ -93,8 +93,8 @@
 </div>
 <p>will return the timestamps of all of unit 161a&#8217;s spikes between .5 and 2.5s.</p>
 <p>To retrieve spike waveforms instead of timestamps:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">waveforms</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">waveforms</span>
-<span class="n">unit161a</span> <span class="o">=</span> <span class="n">waveforms</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">waveforms</span><span class="p">[</span><span class="s">&#39;chan&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">161</span><span class="p">,</span> <span class="n">waveforms</span><span class="p">[</span><span class="s">&#39;unit&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">waveforms</span> <span class="o">=</span> <span class="n">plx</span><span class="o">.</span><span class="n">spikes</span><span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">2.5</span><span class="p">]</span><span class="o">.</span><span class="n">waveforms</span>
+<span class="n">unit161a</span> <span class="o">=</span> <span class="n">waveforms</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">spikes</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;chan&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">161</span><span class="p">,</span> <span class="n">spikes</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;unit&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)]</span>
 </pre></div>
 </div>
 <p>For continuous data, use the corresponding names <em>wideband</em>, <em>spkc</em>, <em>lfp</em>, <em>analog</em>. Timestamps and data values can be extracted independently from a slice, and both are returned as a <em>time</em> x <em>channel</em> array. For example:</p>
@@ -204,7 +204,7 @@ bin length in seconds, default value = .1). The function returns an iterable con
     </div>
     <div class="footer">
         &copy; Copyright 2012, James Gao.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
     </div>
   </body>
 </html>
