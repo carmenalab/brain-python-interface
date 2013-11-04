@@ -22,6 +22,7 @@ class PointProcessFilter():
         self.W = np.mat(W)
         self.C = np.mat(C)
         self.dt = dt
+        self.spike_rate_dt = dt
         
         self.B = B
         self.F = F
@@ -30,7 +31,7 @@ class PointProcessFilter():
             n_states = A.shape[0]
             self.is_stochastic = np.ones(n_states, dtype=bool)
         else:
-            self.is_stochastic = is_stochastic
+            self.is_stochastic = np.array(is_stochastic)
         
         self.state_noise = GaussianState(0.0, W)
         self._pickle_init()
@@ -42,6 +43,8 @@ class PointProcessFilter():
         offset_row = np.zeros(nS)
         offset_row[-1] = 1
         self.include_offset = np.array_equal(np.array(self.A)[-1, :], offset_row)
+
+        self.spike_rate_dt = self.dt
 
         if not hasattr(self, 'B'): self.B = 0
         if not hasattr(self, 'F'): self.F = 0
@@ -70,19 +73,19 @@ class PointProcessFilter():
         return np.array(self.state.mean).ravel()
 
     def _check_valid(self, lambda_predict):
-        if np.any((lambda_predict * self.dt) > 1): 
+        if np.any((lambda_predict * self.spike_rate_dt) > 1): 
             raise ValueError("Cell exploded!")
 
     def _obs_prob(self, state):
         Loglambda_predict = self.C * state.mean
-        lambda_predict = np.exp(Loglambda_predict)/self.dt
+        lambda_predict = np.exp(Loglambda_predict)/self.spike_rate_dt
 
         nan_inds = np.isnan(lambda_predict)
         lambda_predict[nan_inds] = 0
 
         # check max rate is less than 1 b/c it's a probability
-        rate_too_high_inds = ((lambda_predict * self.dt) > 1)
-        lambda_predict[rate_too_high_inds] = 1./self.dt
+        rate_too_high_inds = ((lambda_predict * self.spike_rate_dt) > 1)
+        lambda_predict[rate_too_high_inds] = 1./self.spike_rate_dt
 
         # check min rate is > 0
         rate_too_low_inds = (lambda_predict < 0)
@@ -110,7 +113,7 @@ class PointProcessFilter():
         C = self.C
         n_obs, n_states = C.shape
         
-        dt = self.dt
+        dt = self.spike_rate_dt
         inds, = np.nonzero(self.is_stochastic)
         mesh = np.ix_(inds, inds)
         A = self.A#[mesh]
@@ -128,7 +131,7 @@ class PointProcessFilter():
         exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
         lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
 
-        Q_inv = np.mat(np.diag(lambda_predict*self.dt))
+        Q_inv = np.mat(np.diag(lambda_predict*dt))
 
         if np.linalg.cond(P_pred) > 1e5:
             P_est = P_pred;
@@ -196,7 +199,6 @@ class PointProcessFilter():
         ####     Q = np.mat(np.diag(Q_diag))
         ####     P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
 
-
     def __setstate__(self, state):
         """Set the model parameters {A, W, C, Q} stored in the pickled
         object"""
@@ -214,6 +216,17 @@ class PointProcessFilter():
         return dict(A=self.A, W=self.W, C=self.C, dt=self.dt, B=self.B, 
                     is_stochastic=self.is_stochastic)
         #return {'A':self.A, 'W':self.W, 'C':self.C, 'dt':self.dt, }
+
+    def tomlab(self, unit_scale=1.):
+        '''
+        convert the beta to the same format as MATLAB PPF decoders
+        '''
+        return np.array(np.hstack([self.C[:,-1], unit_scale*self.C[:,self.is_stochastic]])).T
+
+    @classmethod
+    def frommlab(self, beta_mat):
+        return np.vstack([beta_mat[1:,:], beta_mat[0,:]]).T
+        
 
     @classmethod
     def MLE_obs_model(cls, hidden_state, obs, include_offset=True, drives_obs=None):
@@ -309,6 +322,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.states = states
         self.drives_neurons = drives_neurons
         self.n_subbins = n_subbins
+        self.bmicount = 0
 
     def __call__(self, obs_t, **kwargs):
         '''
@@ -318,8 +332,11 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         obs_t = obs_t.copy()
         obs_t[obs_t > 1] = 1
 
+        # Infer the number of sub-bins from the size of the spike counts mat to decode
+        n_subbins = obs_t.shape[1]
+
         outputs = []
-        for k in range(self.n_subbins):
+        for k in range(n_subbins):
             outputs.append(self.predict(obs_t[:,k], **kwargs))
 
         return np.vstack(outputs).T
