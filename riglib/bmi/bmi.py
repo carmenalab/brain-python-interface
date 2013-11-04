@@ -268,6 +268,8 @@ class AdaptiveBMI(object):
         self.updater = updater
         self.param_hist = []
 
+        # Establish inter-process communication mechanisms if the updater runs
+        # in a separate process
         self.mp_updater = isinstance(updater, mp.Process)
         if self.mp_updater:
             self.clda_input_queue = self.updater.work_queue
@@ -276,105 +278,112 @@ class AdaptiveBMI(object):
         self.reset_spike_counts()
 
     def reset_spike_counts(self):
-        self.spike_counts = np.zeros([len(self.decoder.units), self.decoder.n_subbins])
+        self.spike_counts = np.zeros([len(self.decoder.units), 1])
+        #self.spike_counts = np.zeros([len(self.decoder.units), self.decoder.n_subbins])
 
     def __call__(self, spike_obs, target_pos, task_state, *args, **kwargs):
-        prev_state = self.decoder.get_state()
+        n_units, n_obs = spike_obs.shape
 
+        # If the target is specified as a 1D position (default behavior for 
+        # Python BMI tasks), tile to match the number of dimensions as the 
+        # spike counts
+        if np.ndim(target_pos) == 1:
+            target_pos = np.tile(target_pos, [n_obs, 1])
+            
         dec_state_dim = len(self.decoder.states)
         pos_inds = filter(lambda k: re.match('hand_p', self.decoder.states[k]), range(dec_state_dim))
         vel_inds = filter(lambda k: re.match('hand_v', self.decoder.states[k]), range(dec_state_dim))
 
-        # run the decoder
-        ## print 'spike_obs shape', spike_obs.shape
-        self.decoder(spike_obs, target=target_pos, assist_inds=pos_inds, **kwargs)
-        decoded_state = self.decoder.get_state()
-
-        learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
-        self.spike_counts += spike_obs
-        if learn_flag and self.decoder.bmicount == 0: #self.decoder.bminum - 1):
-            self.learner(self.spike_counts.copy(), prev_state, target_pos, 
-                         decoded_state[vel_inds], task_state)
-            self.reset_spike_counts()
-        elif self.decoder.bmicount == 0:
-            self.reset_spike_counts()
-        
-
-        #### if self.decoder.bmicount == 0: #self.decoder.bminum - 1):
-        ####     self.reset_spike_counts()
-        #### else:
-        ####     self.spike_counts += spike_obs
-        #### 
-        #### ## if len(spike_obs) == 0: # no timestamps observed
-        #### ##     # TODO spike binning function needs to properly handle not having any timestamps!
-        #### ##     spike_counts = np.zeros((self.decoder.bin_spikes.nunits,))
-        #### ## elif spike_obs.dtype == Spikes.dtype: # Plexnet dtype
-        #### ##     spike_counts = self.decoder.bin_spikes(spike_obs)
-        #### ## else:
-        #### ##     spike_counts = spike_obs
-
-        #### # send data to learner
-        #### learn_flag = kwargs['learn_flag'] if 'learn_flag' in kwargs else False
-        #### if learn_flag and (self.decoder.bmicount == self.decoder.bminum - 1):
-        ####     #print "sending data to learner", self.learner.batch_size, len(self.learner.kindata)
-        ####     self.learner(self.spike_counts, prev_state[pos_inds], target_pos, 
-        ####                  decoded_state[vel_inds], task_state)
-
-        new_params = None # Default is that no new parameters are available
+        decoded_states = []
         update_flag = False
+        learn_flag = kwargs.pop('learn_flag', False)
 
-        if self.learner.is_full():
-            self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-            if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
-                half_life = kwargs['half_life']
-                rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
-            elif hasattr(self.updater, 'half_life'):
-                rho = self.updater.rho
+        for k in range(n_obs):
+            spike_obs_k = spike_obs[:,k].reshape(-1,1)
+            target_pos_k = target_pos[:,k]
+
+            # NOTE: the conditional below should only ever be active when trying
+            # to run this code on MATLAB data! In all python cases, the task_state
+            # should accurately reflect the validity of the presented target position
+            if np.any(np.isnan(target_pos_k)):
+                task_state = 'no_target' 
             else:
-                rho = -1
-            #drives_neurons = self.decoder.drives_neurons
-            clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder) #self.decoder.kf.C, self.decoder.kf.Q, drives_neurons, self.decoder.mFR, self.decoder.sdFR)
+                task_state = 'target'
 
+            # run the decoder
+            prev_state = self.decoder.get_state()
+            self.decoder(spike_obs_k, target=target_pos_k, assist_inds=pos_inds, **kwargs)
+            decoded_state = self.decoder.get_state()
+            decoded_states.append(decoded_state)
+
+            # Determine whether the current state or previous state should be given to the learner
+            if self.learner.input_state_index == 0:
+                learner_state = decoded_state
+            elif self.learner.input_state_index == -1:
+                learner_state = prev_state
+            else:
+                print "Not implemented yet: %d" % self.learner.input_state_index
+                learner_state = prev_state
+
+            self.spike_counts += spike_obs_k
+            if learn_flag and self.decoder.bmicount == 0:
+                self.learner(self.spike_counts.copy(), learner_state, target_pos_k, 
+                             decoded_state[vel_inds], task_state)
+                self.reset_spike_counts()
+            elif self.decoder.bmicount == 0:
+                self.reset_spike_counts()
+        
+            new_params = None # by default, no new parameters are available
+
+            if self.learner.is_full():
+                self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
+                if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
+                    half_life = kwargs['half_life']
+                    rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
+                elif hasattr(self.updater, 'half_life'):
+                    rho = self.updater.rho
+                else:
+                    rho = -1
+                clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder)
+
+                if self.mp_updater:
+                    self.clda_input_queue.put(clda_data)
+                    # Disable learner until parameter update is received
+                    self.learner.disable() 
+                else:
+                    new_params = self.updater.calc(*clda_data)
+
+            # If the updater is running in a separate process, check if a new 
+            # parameter update is available
             if self.mp_updater:
-                self.clda_input_queue.put(clda_data)
-                # Disable learner until parameter update is received
-                self.learner.disable() 
-            else:
-                new_params = self.updater.calc(*clda_data)
-                #self.decoder.update_params(new_params)
+                try:
+                    new_params = self.clda_output_queue.get_nowait()
+                except:
+                    import os
+                    homedir = os.getenv('HOME')
+                    logfile = os.path.join(homedir, 'Desktop/clda_log')
+                    f = open(logfile, 'w')
+                    traceback.print_exc(file=f)
+                    f.close()
 
-        # If the updater is running in a separate process, check if a new 
-        # parameter update is available
-        if self.mp_updater:
-            try:
-                new_params = self.clda_output_queue.get_nowait()
-            except:
-                import os
-                homedir = os.getenv('HOME')
-                logfile = os.path.join(homedir, 'Desktop/clda_log')
-                f = open(logfile, 'w')
-                traceback.print_exc(file=f)
-                f.close()
+            # Update the decoder if new parameters are available
+            if new_params is not None:
+                new_params['intended_kin'] = self.intended_kin
+                new_params['spike_counts_batch'] = self.spike_counts_batch
+                self.param_hist.append(new_params)
+                import clda
+                if isinstance(self.updater, clda.KFRML):
+                    steady_state = False
+                else:
+                    steady_state = True
+                self.decoder.update_params(new_params, steady_state=steady_state)
+                self.learner.enable()
+                update_flag = True
 
-        if new_params is not None:
-            new_params['intended_kin'] = self.intended_kin
-            new_params['spike_counts_batch'] = self.spike_counts_batch
-            self.param_hist.append(new_params)
-            import clda
-            if isinstance(self.updater, clda.KFRML):
-                steady_state = False
-            else:
-                steady_state = True
-            self.decoder.update_params(new_params, steady_state=steady_state)
-            self.learner.enable()
-            update_flag = True
-            ## print "updating params"
-            ## print self.decoder.kf.C.shape
-            ## print self.decoder.kf.Q.shape
-
-        return decoded_state, update_flag
+        decoded_states = np.vstack(decoded_states).T
+        return decoded_states, update_flag
 
     def __del__(self):
-        # Stop updater process if it's running in a separate process
+        # Stop updater if it's running in a separate process
         if self.mp_updater: 
             self.updater.stop()
