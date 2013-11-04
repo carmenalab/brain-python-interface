@@ -63,15 +63,15 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
         decoder.filt.C = fake_decoder.filt.C
         if state_units == 'cm':
             decoder.filt.W[3:6, 3:6] *= conv('m', state_units)**2
-        decoder.n_subbins = 1
+        decoder.n_subbins = 3
         decoder.bmicount = 0
 
         self.decoder = decoder
         self.decoder.filt._init_state()
 
     def create_learner(self):
-        self.learner = clda.OFCLearner3DEndptPPF(
-                            self.decoder.n_subbins, dt=0.005)
+        self.batch_size = 1
+        self.learner = clda.OFCLearner3DEndptPPF(self.batch_size, dt=0.005)
         F_int_data = loadmat('/Users/sgowda/Desktop/ppf_code_1023/F_int.mat')
         F_int = F_int_data['F']
         alpha = F_int[0,0]
@@ -82,8 +82,6 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
         self.learner.F_dict['hold'] = F
 
     def create_updater(self):
-        self.batch_size = self.decoder.n_subbins
-        self.create_learner() # Recreate learner
         self.updater = clda.PPFContinuousBayesianUpdater(self.decoder, units=state_units)
         self.updater.dt = 0.005
 
@@ -93,11 +91,12 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
     def _update_target_loc(self):
         # Set the target location based on what was recorded in the .mat file
         self.target_location = aimPos3D[:,self.sl] * conv('m', state_units)
-        #self.target_location.reshape(-1,1)
-        if np.any(np.isnan(self.target_location)):
-            self.state = 'wait'
-        else:
-            self.state = 'target'
+        self.state = 'target'
+        ## #self.target_location.reshape(-1,1)
+        ## if np.any(np.isnan(self.target_location)):
+        ##     self.state = 'no_target'
+        ## else:
+        ##     self.state = 'target'
 
     def _update_sl(self):
         # Determine which time data to slice
@@ -107,29 +106,26 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
         if self.idx % 1000 == 0: 
             print self.idx, np.max(np.abs(self.decoder_error[3:6,:]))
 
-        ## # Set the target location based on what was recorded in the .mat file
-        ## self.target_location = aimPos3D[:,self.idx] * conv('m', state_units)
-        ## if np.any(np.isnan(self.target_location)):
-        ##     self.state = 'wait'
-        ## else:
-        ##     self.state = 'target'
-        ##     batch_idx += 1
-
         self._update_sl()
         self._update_target_loc()
         spike_obs = self.get_spike_counts()
+        
+        if 0:
+            for st in range(self.sl.start, self.sl.stop):
+                self.subsl = slice(st, st+1)
+                self.target_location = aimPos3D[:,self.subsl] * conv('m', state_units)
+                self.call_decoder_output = self.call_decoder(spike_counts[:,self.subsl])#self.call_decoder(spike_obs)
+                self.decoder_state[:,self.subsl] = self.call_decoder_output*conv(state_units, 'm') 
 
-        #spike_obs = spike_counts[:,self.idx].reshape(-1,1)
-
-        # AdaptiveBMI call
-        ## _, uf =  self.bmi_system(spike_obs, self.target_location,
-        ##     self.state, task_data=None, assist_level=self.current_assist_level,
-        ##     target_radius=self.target_radius, speed=-1,
-        ##     learn_flag=True, half_life=-1)
-        self.call_decoder(spike_obs)
-
-        self.decoder_state[:,self.idx] = self.decoder.get_state()*conv(state_units, 'm')
-        self.decoder_error[:,self.idx] = cursor_kin_3d[:,self.idx] - self.decoder_state[:,self.idx]
+        else:
+            #print self.sl
+            #print self.target_location
+            #if self.idx == 2580: import pdb; pdb.set_trace()
+            self.call_decoder_output = self.call_decoder(spike_obs)
+            self.decoder_state[:,self.sl] = self.call_decoder_output*conv(state_units, 'm') 
+        
+        #self.decoder_state[:,self.idx] = self.decoder.get_state()*conv(state_units, 'm')
+        self.decoder_error[:,self.sl] = cursor_kin_3d[:,self.sl] - self.decoder_state[:,self.sl]
         self.beta_error[self.idx] = np.max(np.abs(self.decoder.filt.tomlab(unit_scale=100) - beta_hat[:,:,self.idx+self.n_subbins]))
         self.idx += self.n_subbins
 
@@ -145,36 +141,8 @@ self = task
 self.decoder['hand_px', 'hand_pz'] = cursor_kin[0:2,0]*conv('m', state_units)
 
 batch_idx = 0
+#n_iter = 2583
 while self.idx < n_iter:
-#for idx in range(1, n_iter):
-    #if self.idx % 1000 == 0: 
-    #    print self.idx, np.max(np.abs(self.decoder_error[3:6,:]))
-
     self.get_cursor_location()
-    #### ## # Set the target location based on what was recorded in the .mat file
-    #### ## self.target_location = aimPos3D[:,self.idx] * conv('m', state_units)
-    #### ## if np.any(np.isnan(self.target_location)):
-    #### ##     self.state = 'wait'
-    #### ## else:
-    #### ##     self.state = 'target'
-    #### ##     batch_idx += 1
-
-    #### self._update_target_loc()
-    #### self._update_sl()
-    #### spike_obs = self.get_spike_counts()
-
-    #### #spike_obs = spike_counts[:,self.idx].reshape(-1,1)
-
-    #### # AdaptiveBMI call
-    #### ## _, uf =  self.bmi_system(spike_obs, self.target_location,
-    #### ##     self.state, task_data=None, assist_level=self.current_assist_level,
-    #### ##     target_radius=self.target_radius, speed=-1,
-    #### ##     learn_flag=True, half_life=-1)
-    #### self.call_decoder(spike_obs)
-
-    #### self.decoder_state[:,self.idx] = self.decoder.get_state()*conv(state_units, 'm')
-    #### self.decoder_error[:,self.idx] = cursor_kin_3d[:,self.idx] - self.decoder_state[:,self.idx]
-    #### self.beta_error[self.idx] = np.max(np.abs(self.decoder.filt.tomlab(unit_scale=100) - beta_hat[:,:,self.idx]))
-    #### self.idx += 1
 
 print np.max(np.abs(self.decoder_error[3:6,:]))
