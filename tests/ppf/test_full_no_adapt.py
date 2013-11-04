@@ -40,22 +40,6 @@ aimPos3D = np.vstack([aimPos[0,:], np.zeros(n_iter), aimPos[1,:]])
 cursor_kin_3d = np.zeros([7, n_iter])
 cursor_kin_3d[[0,2,3,5], :] = cursor_kin
 
-## Create the object representing the initial decoder
-m_to_cm = 100.
-cm_to_m = 0.01
-
-init_beta = beta_hat[:,:,0]
-init_beta = np.vstack([init_beta[1:,:], init_beta[0,:]]).T
-units = np.vstack([(x,1) for x in range(init_beta.shape[0])])
-fake_decoder = train._train_PPFDecoder_sim_known_beta(
-        init_beta, units=units, dist_units=state_units)
-decoder = train.load_PPFDecoder_from_mat_file(data_fname)
-decoder.filt.C = fake_decoder.filt.C
-if state_units == 'cm':
-    decoder.filt.W[3:6, 3:6] *= conv('m', state_units)**2
-decoder.n_subbins = 1
-decoder.bmicount = 0
-
 class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
     def __init__(self, *args, **kwargs):
         super(TestPPFReconstruction, self).__init__(*args, **kwargs)
@@ -69,6 +53,19 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
         self.decoder_error = np.zeros([7, n_iter])
 
     def load_decoder(self):
+        ## Create the object representing the initial decoder
+        init_beta = beta_hat[:,:,0]
+        init_beta = np.vstack([init_beta[1:,:], init_beta[0,:]]).T
+        units = np.vstack([(x,1) for x in range(init_beta.shape[0])])
+        fake_decoder = train._train_PPFDecoder_sim_known_beta(
+                init_beta, units=units, dist_units=state_units)
+        decoder = train.load_PPFDecoder_from_mat_file(data_fname)
+        decoder.filt.C = fake_decoder.filt.C
+        if state_units == 'cm':
+            decoder.filt.W[3:6, 3:6] *= conv('m', state_units)**2
+        decoder.n_subbins = 1
+        decoder.bmicount = 0
+
         self.decoder = decoder
         self.decoder.filt._init_state()
 
@@ -95,7 +92,8 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
 
     def _update_target_loc(self):
         # Set the target location based on what was recorded in the .mat file
-        self.target_location = aimPos3D[:,self.idx] * conv('m', state_units)
+        self.target_location = aimPos3D[:,self.sl] * conv('m', state_units)
+        #self.target_location.reshape(-1,1)
         if np.any(np.isnan(self.target_location)):
             self.state = 'wait'
         else:
@@ -103,7 +101,7 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
 
     def _update_sl(self):
         # Determine which time data to slice
-        self.sl = slice(self.idx, self.idx+1)
+        self.sl = slice(self.idx, self.idx+self.n_subbins)
 
     def get_cursor_location(self):
         if self.idx % 1000 == 0: 
@@ -117,8 +115,8 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
         ##     self.state = 'target'
         ##     batch_idx += 1
 
-        self._update_target_loc()
         self._update_sl()
+        self._update_target_loc()
         spike_obs = self.get_spike_counts()
 
         #spike_obs = spike_counts[:,self.idx].reshape(-1,1)
@@ -132,8 +130,8 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
 
         self.decoder_state[:,self.idx] = self.decoder.get_state()*conv(state_units, 'm')
         self.decoder_error[:,self.idx] = cursor_kin_3d[:,self.idx] - self.decoder_state[:,self.idx]
-        self.beta_error[self.idx] = np.max(np.abs(self.decoder.filt.tomlab(unit_scale=100) - beta_hat[:,:,self.idx]))
-        self.idx += 1
+        self.beta_error[self.idx] = np.max(np.abs(self.decoder.filt.tomlab(unit_scale=100) - beta_hat[:,:,self.idx+self.n_subbins]))
+        self.idx += self.n_subbins
 
 
 
