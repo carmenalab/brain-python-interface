@@ -8,6 +8,7 @@ import statsmodels.api as sm # GLM fitting module
 from scipy.io import loadmat
 import time
 import cmath
+import feedback_controllers
 
 class PointProcessFilter():
     """
@@ -283,6 +284,31 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.n_subbins = n_subbins
         self.bmicount = 0
 
+        # initialize the F_assist matrices
+        # TODO this needs to be its own function...
+        num_assist_levels = 3
+        tau_scale = (28.*28)/1000/num_assist_levels * np.array([1.5, 2.5, num_assist_levels])
+        
+        w_x = 1;
+        w_v = 3*tau_scale**2/2;
+        w_r = 1e6*tau_scale**4;
+        
+        I = np.eye(3)
+        self.filt.B = np.bmat([[0*I], 
+                      [self.filt.dt/1e-3 * I],
+                      [np.zeros([1, 3])]])
+
+        F = [None] * num_assist_levels
+        for k in range(num_assist_levels):
+            Q = np.mat(np.diag([w_x, w_x, w_x, w_v[k], w_v[k], w_v[k], 0]))
+            R = np.mat(np.diag([w_r[k], w_r[k], w_r[k]]))
+
+            F[k] = np.array(feedback_controllers.dlqr(self.filt.A, self.filt.B, Q, R, eps=1e-15))
+        
+        F.append(np.zeros([3, 7]))
+        
+        self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
+
     def __call__(self, obs_t, **kwargs):
         '''
         '''
@@ -307,7 +333,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         """
         Run decoder, assist, and bound any states
         """
-        F_assist = loadmat('/Users/sgowda/Desktop/ppf_code_1023/F_assist.mat')['F']
+        #F_assist = self.F_assist #loadmat('/Users/sgowda/Desktop/ppf_code_1023/F_assist.mat')['F']
 
         # TODO optimal feedback control assist
         if target is not None:
@@ -316,12 +342,13 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         else:
             target_state = None
 
-        I = np.mat(np.eye(3))
-        F = F_assist[:,:,int(assist_level)]
-        alpha = F[0,0]
-        gamma = F[0,2]
-        self.filt.F = np.mat( np.hstack([alpha*I, gamma*I, np.zeros([3,1])]) )
-        self.filt.B = np.mat( np.vstack([0*I, self.filt.dt*I*1000., np.zeros([1,3]) ]) )
+        #I = np.mat(np.eye(3))
+        #F = F_assist[:,:,int(assist_level)]
+        #alpha = F[0,0]
+        #gamma = F[0,2]
+        #self.filt.F = np.mat( np.hstack([alpha*I, gamma*I, np.zeros([3,1])]) )
+        self.filt.F = self.F_assist[int(assist_level)]
+        #self.filt.B = np.mat( np.vstack([0*I, self.filt.dt*I*1000., np.zeros([1,3]) ]) )
 
         # re-format as a 1D col vec
         spike_counts = np.mat(spike_counts.reshape(-1,1))
