@@ -150,7 +150,7 @@ class Decoder(object):
         elif np.iterable(idx):
             return np.array([self.__getitem__(k) for k in idx])
         else:
-            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
+            raise ValueError("Decoder: Improper index type: %s" % type(idx))
 
     def __setitem__(self, idx, value):
         """
@@ -288,7 +288,7 @@ class AdaptiveBMI(object):
         # Python BMI tasks), tile to match the number of dimensions as the 
         # spike counts
         if np.ndim(target_pos) == 1:
-            target_pos = np.tile(target_pos, [n_obs, 1])
+            target_pos = np.tile(target_pos, [n_obs, 1]).T
             
         dec_state_dim = len(self.decoder.states)
         pos_inds = filter(lambda k: re.match('hand_p', self.decoder.states[k]), range(dec_state_dim))
