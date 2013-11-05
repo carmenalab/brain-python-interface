@@ -302,12 +302,12 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
 
         F = []
         F.append(np.zeros([3, 7]))
-        F += [None] * num_assist_levels
         for k in range(num_assist_levels):
             Q = np.mat(np.diag([w_x, w_x, w_x, w_v[k], w_v[k], w_v[k], 0]))
             R = np.mat(np.diag([w_r[k], w_r[k], w_r[k]]))
 
-            F[k] = np.array(feedback_controllers.dlqr(self.filt.A, self.filt.B, Q, R, eps=1e-15))
+            F_k = np.array(feedback_controllers.dlqr(self.filt.A, self.filt.B, Q, R, eps=1e-15))
+            F.append(F_k)
         
         self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
 
