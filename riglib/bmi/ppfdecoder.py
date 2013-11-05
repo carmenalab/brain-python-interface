@@ -289,7 +289,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         # initialize the F_assist matrices
         # TODO this needs to be its own function...
         num_assist_levels = 3
-        tau_scale = (28.*28)/1000/num_assist_levels * np.array([1.5, 2.5, num_assist_levels])
+        tau_scale = (28.*28)/1000/num_assist_levels * np.array([num_assist_levels, 2.5, 1.5])
         
         w_x = 1;
         w_v = 3*tau_scale**2/2;
@@ -300,14 +300,14 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
                       [self.filt.dt/1e-3 * I],
                       [np.zeros([1, 3])]])
 
-        F = [None] * num_assist_levels
+        F = []
+        F.append(np.zeros([3, 7]))
+        F += [None] * num_assist_levels
         for k in range(num_assist_levels):
             Q = np.mat(np.diag([w_x, w_x, w_x, w_v[k], w_v[k], w_v[k], 0]))
             R = np.mat(np.diag([w_r[k], w_r[k], w_r[k]]))
 
             F[k] = np.array(feedback_controllers.dlqr(self.filt.A, self.filt.B, Q, R, eps=1e-15))
-        
-        F.append(np.zeros([3, 7]))
         
         self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
 
