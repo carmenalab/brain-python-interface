@@ -7,6 +7,29 @@ from riglib.bmi import kfdecoder, ppfdecoder, train, bmi, feedback_controllers
 import time
 import cmath
 
+
+inv = np.linalg.inv
+
+from numpy.linalg import lapack_lite
+lapack_routine = lapack_lite.dgesv
+# http://stackoverflow.com/questions/11972102/is-there-a-way-to-efficiently-invert-an-array-of-matrices-with-numpy 
+def fast_inv(A):
+    b = np.identity(A.shape[2], dtype=A.dtype)
+
+    n_eq = A.shape[1]
+    n_rhs = A.shape[2]
+    pivots = np.zeros(n_eq, np.intc)
+    identity  = np.eye(n_eq)
+    def lapack_inverse(a):
+        b = np.copy(identity)
+        pivots = np.zeros(n_eq, np.intc)
+        results = lapack_lite.dgesv(n_eq, n_rhs, a, n_eq, pivots, b, n_eq, 0)
+        if results['info'] > 0:
+            raise np.LinAlgError('Singular matrix')
+        return b
+
+    return np.array([lapack_inverse(a) for a in A])
+
 ## Learners
 def normalize(vec):
     norm_vec = vec / np.linalg.norm(vec)
@@ -341,17 +364,14 @@ class PPFContinuousBayesianUpdater(object):
         elif units == 'cm':
             vel_gain = 1e-8
 
-        if 1:
-            param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13,1e-4*0.06/50, ])
-        else:
-            param_noise_variances = np.array([1e-4*0.06/50, vel_gain*0.13, vel_gain*0.13,])
-        
-        self.W = np.mat(np.diag(param_noise_variances))
+        param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
+        self.W = np.tile(np.diag(param_noise_variances), [self.n_units, 1, 1])
 
-        self.P_params_est_old = np.zeros([self.n_units, 3, 3])
-        for j in range(self.n_units):
-            self.P_params_est_old[j,:,:] = self.W #Cov_params_init
+        #self.P_params_est_old = np.zeros([self.n_units, 3, 3])
+        #for j in range(self.n_units):
+        #    self.P_params_est_old[j,:,:] = self.W #Cov_params_init
         #self.P_params_est_old = P_params_est_old
+        self.P_params_est = self.W.copy()
 
         self.neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
         self.neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
@@ -359,10 +379,7 @@ class PPFContinuousBayesianUpdater(object):
         self.full_size = len(decoder.states)
 
         self.dt = decoder.filt.dt
-        if 1:
-            self.beta_est = np.array(decoder.filt.C) #[:,self.neuron_driving_state_inds])
-        else:
-            self.beta_est = beta_hat[:,:,0].T
+        self.beta_est = np.array(decoder.filt.C) #[:,self.neuron_driving_state_inds])
 
     def calc(self, int_kin_full, spike_obs_full, rho, decoder):
         n_samples = int_kin_full.shape[1]
@@ -371,47 +388,35 @@ class PPFContinuousBayesianUpdater(object):
             int_kin = int_kin_full[:,k]
 
             beta_est = self.beta_est[:,self.neuron_driving_state_inds]
-            P_params_est_old = self.P_params_est_old
-            #dt = self.dt
-            #self.beta_est, self.P_params_est_old = PPF_adaptive_beta(
-            #    spike_obs, int_kin, self.beta_est, self.P_params_est_old, self.dt)
-
-            #if 1:
-            #    int_kin = np.hstack([int_kin, 1])
-            #else:
-            #    int_kin = np.hstack([1, int_kin])
+            #P_params_est_old = self.P_params_est_old
             int_kin = np.asarray(int_kin).ravel()[self.neuron_driving_state_inds]
-            Loglambda_predict = np.dot(int_kin, beta_est.T)#beta_hat[:,:,idx])
+            Loglambda_predict = np.dot(int_kin, beta_est.T)
             rates = np.exp(Loglambda_predict)
             if np.any(rates > 1):
                 print 'rates > 1!'
                 rates[rates > 1] = 1
-            #lambda_predict = np.exp(Loglambda_predict)/dt
-            #rates = lambda_predict*dt
             unpred_spikes = np.asarray(spike_obs).ravel() - rates
 
-            C_xpose_C = np.mat(np.outer(int_kin, int_kin))
+            C_xpose_C = np.outer(int_kin, int_kin)
 
-            P_params_est = np.zeros([self.n_units, 3, 3]) # TODO remove hardcoding of # of states
-            #beta_est_new = np.zeros([n_units, 3])
-            for c in range(self.n_units):
-                P_pred = P_params_est_old[c] + self.W
-                P_params_est[c] = (P_pred.I + rates[c]*C_xpose_C).I
-                #beta_est_new[c] = beta_est[:,c] + np.dot(int_kin, np.asarray(P_params_est[c]))*unpred_spikes[c]#
+            #P_params_est = np.zeros([self.n_units, 3, 3]) # TODO remove hardcoding of # of states
+            self.P_params_est += self.W
+            P_params_est_inv = fast_inv(self.P_params_est)
+            L = np.dstack([rates[c] * C_xpose_C for c in range(self.n_units)]).transpose([2,0,1])
+            self.P_params_est = fast_inv(P_params_est_inv + L)
 
-            beta_est += (unpred_spikes * np.dot(int_kin, P_params_est).T).T
+            ## for c in range(self.n_units):
+            ##     #P_pred = self.P_params_est[c] + self.W[c]
+            ##     self.P_params_est[c] = inv(inv(self.P_params_est[c]) + rates[c]*C_xpose_C)
 
-            # inflate beta_est and store
-            self.beta_est = np.zeros([self.n_units, self.n_states])
+            beta_est += (unpred_spikes * np.dot(int_kin, self.P_params_est).T).T
+
+            # store beta_est
             self.beta_est[:,self.neuron_driving_state_inds] = beta_est
 
-            #self.beta_est = beta_est_new
-            self.P_params_est_old = P_params_est
-            #return , P_params_est 
+            #self.P_params_est_old = P_params_est
 
         return {'filt.C': np.mat(self.beta_est)}
-        #return self.beta_est, self.P_params_est_old
-
 
 
 class KFRML(object):
