@@ -283,7 +283,9 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.drives_neurons = drives_neurons
         self.n_subbins = n_subbins
         self.bmicount = 0
+        self._pickle_init()
 
+    def _pickle_init(self):
         # initialize the F_assist matrices
         # TODO this needs to be its own function...
         num_assist_levels = 3
