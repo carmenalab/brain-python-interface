@@ -5,6 +5,7 @@ import numpy as np
 import bmi
 from bmi import GaussianState
 import statsmodels.api as sm # GLM fitting module
+from scipy.io import loadmat
 import time
 import cmath
 
@@ -108,7 +109,7 @@ class PointProcessFilter():
         else:
             return (A - B*F)*state + B*F*target_state + self.state_noise
 
-    def _forward_infer(self, st, obs_t, target_state=None): #stimulant_index, stoch_stim_index, stoch_index, det_index)
+    def _forward_infer(self, st, obs_t, target_state=None):
         obs_t = np.mat(obs_t.reshape(-1,1))
         C = self.C
         n_obs, n_states = C.shape
@@ -116,18 +117,24 @@ class PointProcessFilter():
         dt = self.spike_rate_dt
         inds, = np.nonzero(self.is_stochastic)
         mesh = np.ix_(inds, inds)
-        A = self.A#[mesh]
-        W = self.W#[mesh]
+        A = self.A
+        W = self.W
         C = C[:,inds]
 
         x_prev, P_prev = st.mean, st.cov
-        #x_prev = x_prev[inds,:]
-        #P_prev = P_prev[mesh]
-        x_pred = A*x_prev
-        P_pred = A*P_prev*A.T + W
+        B = self.B
+        F = self.F
+        if target_state == None or np.any(np.isnan(target_state)):
+            x_pred = A*x_prev
+            P_pred = A*P_prev*A.T + W
+        else:
+            x_pred = A*x_prev + B*F*(target_state - x_prev)
+            #import pdb; pdb.set_trace()
+            #x_pred = A*x_prev - B*F*(x_prev - target_state)
+            P_pred = (A-B*F) * P_prev * (A-B*F).T + W
         P_pred = P_pred[mesh]
 
-        Loglambda_predict = self.C * x_pred #self.C[:,-1] + C * x_pred #self.C * 
+        Loglambda_predict = self.C * x_pred 
         exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
         lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
 
@@ -145,59 +152,11 @@ class PointProcessFilter():
 
         unpred_spikes = obs_t - np.mat(lambda_predict*dt).reshape(-1,1)
 
-        # TODO fix indexing
-        x_est = np.mat(np.zeros([n_states,1]))
+        x_est = np.mat(np.zeros([n_states, 1]))
         x_est = x_pred + P_est*self.C.T*unpred_spikes
-        #x_est[-1,0] = 1 # offset state
         post_state = GaussianState(x_est, P_est)
-        #assert post_state.mean.shape == (3,1)
-        #import pdb; pdb.set_trace()
 
         return post_state
-
-        #### pred_state = self._ssm_pred(st, target_state=target_state)
-        #### pred_obs = self._obs_prob(pred_state)
-        #### #print pred_obs
-
-        #### P_pred = pred_state.cov
-        #### inds, = np.nonzero(self.is_stochastic)
-        #### nS = self.A.shape[0]
-
-        #### P_pred_inv = np.mat(np.zeros([nS, nS]))
-        #### mesh = np.ix_(inds, inds)
-        #### P_pred_inv[mesh] = P_pred[mesh].I
-        #### #P_pred_inv[:-1, :-1] = P_pred[:-1,:-1].I
-        #### P_est = np.mat(np.zeros([nS, nS]))
-        #### P_est[mesh] = (P_pred_inv[mesh] + C[:,inds].T*Q_inv*C[:,inds]).I
-
-        ## New version, deprecated
-
-        #### if n_obs > n_states:
-        ####     Q_inv = np.mat(np.diag(np.array(pred_obs).ravel() * self.dt))
-        ####     I = np.mat(np.eye(nS))
-        ####     D = C.T * Q_inv * C
-        ####     ### P_est = P_pred - P_pred*((I - D*P_pred*(I + D*P_pred).I)*D)*P_pred
-        ####     ### I = np.mat(np.eye(n_obs))
-        ####     ### P_est = P_pred - P_pred*C.T*Q_inv * (I + C * P_pred * C.T*Q_inv).I * C * P_pred
-        ####     
-        ####     #F = C.T * (Q_inv.I + C*P_pred*C.T).I * C
-        ####     # ... after mat inv lemma:
-        ####     #F = C.T * (Q_inv - Q_inv*C*P_pred*(I + D).I * C.T*Q_inv) * C
-        ####     # distr
-        ####     #F = (C.T *Q_inv * C - C.T *Q_inv*C*P_pred*(I + D).I * C.T*Q_inv * C)
-        ####     # sub
-        ####     F = (D - D*P_pred*(I + D).I * D)
-        ####     P_est = P_pred - P_pred * F * P_pred
-        #### elif n_obs == 1:
-        ####     if isinstance(pred_obs, np.ndarray) or isinstance(pred_obs, np.matrix):
-        ####         pred_obs = pred_obs[0,0]
-        ####     q = 1./(pred_obs*self.dt)
-        ####     P_est = P_pred - 1./q * (P_pred*C.T)*(C*P_pred)
-        #### else:
-        ####     #Q = Q_inv.I # TODO zero out diagonal if any pred are 0 (occurs w.p. 0...)
-        ####     Q_diag = (np.array(pred_obs).ravel() * self.dt)**-1
-        ####     Q = np.mat(np.diag(Q_diag))
-        ####     P_est = P_pred - P_pred*C.T * (Q + C*P_pred*C.T).I * C*P_pred
 
     def __setstate__(self, state):
         """Set the model parameters {A, W, C, Q} stored in the pickled
@@ -344,30 +303,34 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def get_filter(self):
         return self.filt 
 
-    ##def predict(self, spike_counts, target=None, speed=0.05, assist_level=0., **kwargs):
-    ##    """
-    ##    Run decoder, assist, and bound any states
-    ##    """
-    ##    # TODO optimal feedback control assist
-    ##    if assist_level > 0 and target is not None:
-    ##        target_state = np.hstack([target, np.zeros(3), 1])
-    ##        target_state = np.mat(target_state).reshape(-1,1)
-    ##    else:
-    ##        target_state = None
+    def predict(self, spike_counts, target=None, speed=0.05, assist_level=0, **kwargs):
+        """
+        Run decoder, assist, and bound any states
+        """
+        F_assist = loadmat('/Users/sgowda/Desktop/ppf_code_1023/F_assist.mat')['F']
 
-    ##    I = np.mat(np.eye(3))
-    ##    alpha = 6.458204410254785e-03
-    ##    gamma = 3.029680657880600e-03
-    ##    self.filt.F = assist_level*np.hstack([alpha*I, gamma*I, np.zeros([3,1])])
+        # TODO optimal feedback control assist
+        if target is not None:
+            target_state = np.hstack([target, np.zeros(3), 1])
+            target_state = np.mat(target_state).reshape(-1,1)
+        else:
+            target_state = None
 
-    ##    # re-format as a 1D col vec
-    ##    spike_counts = np.mat(spike_counts.reshape(-1,1))
+        I = np.mat(np.eye(3))
+        F = F_assist[:,:,int(assist_level)]
+        alpha = F[0,0]
+        gamma = F[0,2]
+        self.filt.F = np.mat( np.hstack([alpha*I, gamma*I, np.zeros([3,1])]) )
+        self.filt.B = np.mat( np.vstack([0*I, self.filt.dt*I*1000., np.zeros([1,3]) ]) )
 
-    ##    # Run the filter
-    ##    self.filt(spike_counts, target_state=target_state)
+        # re-format as a 1D col vec
+        spike_counts = np.mat(spike_counts.reshape(-1,1))
 
-    ##    # Bound cursor, if any hard bounds for states are applied
-    ##    self.bound_state()
+        # Run the filter
+        self.filt(spike_counts, target_state=target_state)
 
-    ##    state = self.filt.get_mean()
-    ##    return state
+        # Bound cursor, if any hard bounds for states are applied
+        self.bound_state()
+
+        state = self.filt.get_mean()
+        return state
