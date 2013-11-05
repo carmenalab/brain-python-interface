@@ -196,6 +196,10 @@ class Decoder(object):
             self.bmicount = 0
 
         self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
+        self._pickle_init()
+
+    def _pickle_init(self):
+        pass
 
     def __getstate__(self):
         """Create dictionary describing state of the decoder instance, 
