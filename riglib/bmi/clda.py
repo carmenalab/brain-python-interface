@@ -104,27 +104,17 @@ class OFCLearner(BatchLearner):
         return target_state
 
     def _run_fbcontroller(self, F, current_state, target_state):
-        #u = -F * (current_state - target_state)
-        #x_int = A*current_state + B*u
         A = self.A
         B = self.B
-        ##import pdb; pdb.set_trace()
         return A*current_state + B*F*(target_state - current_state)
 
     def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel, task_state):
         if task_state in self.F_dict:
-            #n_subbins = spike_counts.shape[1]
-            #F = self.F_dict[task_state]
-
             target_state = self._target_BMI_state(target_pos)
-            #target_state = np.hstack([target_pos, np.zeros(len(target_pos)), 1])
-            #target_state = np.mat(target_state.reshape(-1,1))
             current_state = np.mat(cursor_state).reshape(-1,1)
             int_state = self._run_fbcontroller(self.F_dict[task_state], current_state, target_state)
-            #import pdb; pdb.set_trace()
 
             if self.enabled:
-                #for k in range(n_subbins):
                 self.kindata.append(int_state)
                 self.neuraldata.append(spike_counts)
 
@@ -143,10 +133,14 @@ class OFCLearner3DEndptPPF(OFCLearner):
         to file, just like a decoder, since the feedback matrices may change 
         on different days...
         '''
-        dt = kwargs['dt'] if 'dt' in kwargs else 1./180
-        use_tau_unNat = 2.7
+        dt = kwargs.pop('dt', 1./180)
+        use_tau_unNat = kwargs.pop('use_tau_unNat', 2.7)
+        #dt = kwargs['dt'] if 'dt' in kwargs else 1./180
+        #use_tau_unNat = 1.
         tau_scale = 28*use_tau_unNat/1000
         bin_num_ms = (dt/0.001)
+        # 11/6 changed w_r below to 0.3 * ... from 3 * ...
+        # 11/6, changed back
         w_r = 3*tau_scale**2/2*(bin_num_ms)**2*26.61
         
         I = np.eye(3)
