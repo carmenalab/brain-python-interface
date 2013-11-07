@@ -76,7 +76,10 @@ def get_decoder_name_full(entry):
 def get_decoder(entry):
     entry = lookup_task_entries(entry)
     filename = get_decoder_name_full(entry)
-    return pickle.load(open(filename, 'r'))
+    dec = pickle.load(open(filename, 'r'))
+    dec.db_entry = get_decoder_entry(entry)
+    dec.name = dec.db_entry.name
+    return dec
 
 def get_params(entry):
     '''
@@ -239,6 +242,7 @@ def get_plx_file(entry):
     '''
     Returns the name of the plx file associated with the session.
     '''
+    entry = lookup_task_entries(entry)
     plexon = models.System.objects.get(name='plexon')
     q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
     if len(q)==0:
@@ -631,11 +635,22 @@ def load_last_decoder():
     dec = pickle.load(open(path))
     return dec
 
+def load_decoder_from_record(rec):
+    full_path = os.path.join(paths.data_path, 'decoders', rec.path)
+    dec = pickle.load(open(full_path))
+    dec.db_entry = rec
+    dec.name = rec.name
+    return dec
+
 def get_decoders_trained_in_block(task_entry):
     task_entry = lookup_task_entries(task_entry)
     records = models.Decoder.objects.filter(entry_id=task_entry.id)
-    full_paths = [os.path.join(paths.data_path, 'decoders', x.path) for x in records]
-    decoder_objects = map(lambda x: pickle.load(open(x)), full_paths)
+    #full_paths = [ for x in records]
+    decoder_objects = map(load_decoder_from_record, records)
+    #for record, path in izip(records, full_paths):
+    #    decoder_objects.append(pickle.load(open(
+    #    
+    #decoder_objects = map(lambda x: pickle.load(open(x)), full_paths)
     if len(decoder_objects) == 1:
         decoder_objects = decoder_objects[0]
     return decoder_objects
