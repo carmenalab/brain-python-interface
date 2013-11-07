@@ -2,6 +2,7 @@
 Methods to create and train Decoder objects
 '''
 
+import re
 import pickle
 import sys
 
@@ -34,6 +35,14 @@ def unit_conv(starting_unit, ending_unit):
     elif (starting_unit, ending_unit) == ('m', 'cm'):
         return 100
 
+def lookup_cells(cells):
+    '''
+    Take a list of neural units specified as a list of strings and convert 
+    to the 2D array format used to specify neural units to train decoders
+    '''
+    cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
+    cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
+    return cells
 
 def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
@@ -187,6 +196,41 @@ def _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask']):
     tmask = np.logical_and(lower, upper)
     return tmask, rows
 
+def get_spike_counts_from_plx_file(plx_fname, cells=None, binlen=1./180, tslice=[None,None]):
+    '''
+    Get the spike counts matrix from a .plx file
+    '''
+    # Open plx file
+    plx = plexfile.openFile(plx_fname)
+    tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
+
+    ## Bin the neural data
+    if isinstance(cells, np.ndarray):
+        units = cells
+    else:
+        if cells == None: 
+            cells = plx.units # Use all of the units if none are specified
+        elif isinstance(cells[0], str) or isinstance(cells[0], unicode):
+            # list of strings passed in to specify the cells
+            cells = lookup_cells(cells)
+        else:
+            cells = np.unique(cells)
+        units = np.array(cells).astype(np.int32)
+
+    spike_bin_fn = psth.SpikeBin(units, binlen)
+    neurows = rows[tmask]
+    
+    # interpolate between the rows to 180 Hz
+    interp_rows = []
+    neurows = np.hstack([neurows[0] - 1./60, neurows])
+    for r1, r2 in izip(neurows[:-1], neurows[1:]):
+        interp_rows += list(np.linspace(r1, r2, 4)[1:])
+    interp_rows = np.array(interp_rows)
+    print np.diff(interp_rows)[0:20]
+
+    spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
+    return spike_counts
+
 def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
@@ -239,6 +283,7 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     interp_rows = np.array(interp_rows)
 
     spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
+    spike_counts[spike_counts > 1] = 1
 
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
@@ -303,6 +348,8 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stocha
         state_vars, drives_neurons, states_to_bound, binlen=binlen, 
         tslice=tslice)
 
+    # Load assist parameters
+    decoder.F_assist = pickle.load(open('/storage/assist_params/assist_20levels.pkl'))
     return decoder
 
 def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
