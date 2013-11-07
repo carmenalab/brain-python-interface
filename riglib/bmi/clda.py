@@ -410,7 +410,7 @@ class PPFContinuousBayesianUpdater(object):
 
             #self.P_params_est_old = P_params_est
 
-        return {'filt.C': np.mat(self.beta_est)}
+        return {'filt.C': np.mat(self.beta_est.copy())}
 
 
 class KFRML(object):
