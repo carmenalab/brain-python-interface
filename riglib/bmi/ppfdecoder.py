@@ -9,6 +9,7 @@ from scipy.io import loadmat
 import time
 import cmath
 import feedback_controllers
+import pickle
 
 class PointProcessFilter():
     """
@@ -286,30 +287,34 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self._pickle_init()
 
     def _pickle_init(self):
-        # initialize the F_assist matrices
-        # TODO this needs to be its own function...
-        num_assist_levels = 3
-        tau_scale = (28.*28)/1000/num_assist_levels * np.array([num_assist_levels, 2.5, 1.5])
-        
-        w_x = 1;
-        w_v = 3*tau_scale**2/2;
-        w_r = 1e6*tau_scale**4;
-        
-        I = np.eye(3)
-        self.filt.B = np.bmat([[0*I], 
-                      [self.filt.dt/1e-3 * I],
-                      [np.zeros([1, 3])]])
+        ### # initialize the F_assist matrices
+        ### # TODO this needs to be its own function...
+        ### tau_scale = (28.*28)/1000/3. * np.array([18., 12., 6, 3., 2.5, 1.5])
+        ### num_assist_levels = len(tau_scale)
+        ### 
+        ### w_x = 1;
+        ### w_v = 3*tau_scale**2/2;
+        ### w_r = 1e6*tau_scale**4;
+        ### 
+        ### I = np.eye(3)
+        ### self.filt.B = np.bmat([[0*I], 
+        ###               [self.filt.dt/1e-3 * I],
+        ###               [np.zeros([1, 3])]])
 
-        F = []
-        F.append(np.zeros([3, 7]))
-        for k in range(num_assist_levels):
-            Q = np.mat(np.diag([w_x, w_x, w_x, w_v[k], w_v[k], w_v[k], 0]))
-            R = np.mat(np.diag([w_r[k], w_r[k], w_r[k]]))
+        ### F = []
+        ### F.append(np.zeros([3, 7]))
+        ### for k in range(num_assist_levels):
+        ###     Q = np.mat(np.diag([w_x, w_x, w_x, w_v[k], w_v[k], w_v[k], 0]))
+        ###     R = np.mat(np.diag([w_r[k], w_r[k], w_r[k]]))
 
-            F_k = np.array(feedback_controllers.dlqr(self.filt.A, self.filt.B, Q, R, eps=1e-15))
-            F.append(F_k)
-        
-        self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
+        ###     F_k = np.array(feedback_controllers.dlqr(self.filt.A, self.filt.B, Q, R, eps=1e-15))
+        ###     F.append(F_k)
+        ### 
+        ### self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
+        #if not hasattr(self, 'F_assist'):
+        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels.pkl'))
+        self.n_assist_levels = len(self.F_assist)
+        self.prev_assist_level = self.n_assist_levels
 
     def __call__(self, obs_t, **kwargs):
         '''
@@ -349,7 +354,11 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         #alpha = F[0,0]
         #gamma = F[0,2]
         #self.filt.F = np.mat( np.hstack([alpha*I, gamma*I, np.zeros([3,1])]) )
-        self.filt.F = self.F_assist[int(assist_level)]
+        assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
+        if assist_level_idx < self.prev_assist_level:
+            print "assist_level_idx decreasing to", assist_level_idx
+            self.prev_assist_level = assist_level_idx
+        self.filt.F = np.mat(self.F_assist[assist_level_idx])
         #self.filt.B = np.mat( np.vstack([0*I, self.filt.dt*I*1000., np.zeros([1,3]) ]) )
 
         # re-format as a 1D col vec
