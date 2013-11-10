@@ -377,6 +377,10 @@ class PPFContinuousBayesianUpdater(object):
 
     def calc(self, int_kin_full, spike_obs_full, rho, decoder):
         n_samples = int_kin_full.shape[1]
+
+        # Squash any observed spike counts which are greater than 1
+        spike_obs_full[spike_obs_full > 1] = 1
+
         for k in range(n_samples):
             spike_obs = spike_obs_full[:,k]
             int_kin = int_kin_full[:,k]
