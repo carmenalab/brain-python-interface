@@ -108,9 +108,22 @@ class GaussianStateHMM():
         self.state_noise = GaussianState(0.0, self.W)
         self.obs_noise = GaussianState(0.0, self.Q)
 
+    def _ssm_pred(self, state, target_state=None):
+        A = self.A
+        B = self.B
+        F = self.F
+        if target_state == None:
+            return A*state + self.state_noise
+        else:
+            return (A - B*F)*state + B*F*target_state + self.state_noise
+
 class Decoder(object):
+    clda_dtype = [] # define parameters to store in HDF file during CLDA
     def get_filter(self):
         raise NotImplementedError
+
+    def save_params_to_hdf(self, task_data):
+        pass
 
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz']):
         import matplotlib.pyplot as plt
@@ -290,6 +303,14 @@ class Decoder(object):
             return self.db_entry.name
         else:
             return super(Decoder, self).__str__()
+
+    @property
+    def n_states(self):
+        return len(self.states)
+
+    @property
+    def n_units(self):
+        return self.filt.C.shape[0]
 
 class AdaptiveBMI(object):
     def __init__(self, decoder, learner, updater):
