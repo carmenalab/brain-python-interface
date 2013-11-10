@@ -295,6 +295,16 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
 
     return train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
 
+def _train_PPFDecoder_visual_feedback_shuffled(*args, **kwargs):
+    decoder = _train_PPFDecoder_visual_feedback(*args, **kwargs)
+    import random
+    inds = range(decoder.filt.C.shape[0])
+    random.shuffle(inds)
+
+    # shuffle rows of C, and rows+cols of Q
+    decoder.filt.C = decoder.filt.C[inds, :]
+    return decoder
+
 def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=0.1, tslice=None):
     '''
     Train a Point-process filter decoder which predicts the endpoint velocity
@@ -330,7 +340,7 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stocha
     
     # Control input matrix for SSM for control inputs
     I = np.mat(np.eye(3))
-    B = np.vstack([I, update_rate*1000 * I, np.zeros([1,3])])
+    B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
 
     # instantiate Decoder
     if 'offset' in stochastic_vars:
