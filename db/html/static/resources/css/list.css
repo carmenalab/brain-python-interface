@@ -44,11 +44,11 @@ th { text-align:left;}
 }
 
 div#leftpane { 
-	width:400px; 
+	width:500px; 
 	overflow:auto;
 }
 div#rightpane { 
-	left:400px; 
+	left:500px; 
 	width:1000px; 
 	height:100%;
 	position:fixed;
