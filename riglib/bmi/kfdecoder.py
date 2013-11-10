@@ -13,6 +13,8 @@ import numpy as np
 from scipy.io import loadmat
 
 import bmi
+import pickle
+
 class KalmanFilter(bmi.GaussianStateHMM):
     """Low-level KF, agnostic to application
 
@@ -70,8 +72,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def _obs_prob(self, state):
         return self.C * state + self.obs_noise
 
-    def _ssm_pred(self, state):
-        return self.A*state + self.state_noise
+    #def _ssm_pred(self, state):
+    #    return self.A*state + self.state_noise
 
     def propagate_ssm(self):
         '''
@@ -80,7 +82,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         self.state = self.A*self.state
 
     def _forward_infer(self, st, obs_t, **kwargs):
-        pred_state = self._ssm_pred(st)
+        target_state = kwargs.pop('target_state', None)
+        pred_state = self._ssm_pred(st, target_state=target_state)
         #pred_obs = self._obs_prob(pred_state)
         #print pred_state.cov
 
@@ -407,6 +410,37 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     def predict_ssm(self):
         self.kf.propagate_ssm()
 
+    ## def predict(self, spike_counts, target=None, speed=0.05, assist_level=0, **kwargs):
+    ##     """
+    ##     Run decoder, assist, and bound any states
+    ##     """
+    ##     # Define target state, if specified
+    ##     if target is not None:
+    ##         target_state = np.hstack([target, np.zeros(3), 1])
+    ##         target_state = np.mat(target_state).reshape(-1,1)
+    ##     else:
+    ##         target_state = None
+
+    ##     #self.filt.F = np.mat( np.hstack([alpha*I, gamma*I, np.zeros([3,1])]) )
+    ##     assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
+    ##     if assist_level_idx < self.prev_assist_level:
+    ##         print "assist_level_idx decreasing to", assist_level_idx
+    ##         self.prev_assist_level = assist_level_idx
+    ##     self.filt.F = np.mat(self.F_assist[assist_level_idx])
+    ##     #self.filt.B = np.mat( np.vstack([0*I, self.filt.dt*I*1000., np.zeros([1,3]) ]) )
+
+    ##     # re-format as a 1D col vec
+    ##     spike_counts = np.mat(spike_counts.reshape(-1,1))
+
+    ##     # Run the filter
+    ##     self.filt(spike_counts, target_state=target_state)
+
+    ##     # Bound cursor, if any hard bounds for states are applied
+    ##     self.bound_state()
+
+    ##     state = self.filt.get_mean()
+    ##     return state
+
     @property
     def filt(self):
         return self.kf
@@ -440,6 +474,21 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     def plot_K(self, **kwargs):
         F, K = self.kf.get_sskf()
         self.plot_pds(K.T, **kwargs)
+
+    def _pickle_init(self):
+        # Define 'dt' for the KF object
+        self.filt.dt = self.binlen
+        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_kf.pkl'))
+        self.n_assist_levels = len(self.F_assist)
+        self.prev_assist_level = self.n_assist_levels
+
+        # Define 'B' matrix for KF object if it does not exist
+        if not hasattr(self.filt, 'B'):
+            I = np.mat(np.eye(3))
+            self.filt.B = np.mat(np.vstack([0*I, 1000*self.filt.dt*I, np.zeros([1,3])]))
+
+        if not hasattr(self.filt, 'F'):
+            self.filt.F = np.mat(np.zeros([self.filt.B.shape[0], len(self.states)]))
         
 
 def project_Q(C_v, Q_hat):
