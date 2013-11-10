@@ -8,7 +8,7 @@ import cPickle
 import db.paths
 import tables
 import matplotlib.pyplot as plt
-import datetime
+import time, datetime
 from scipy.stats import nanmean
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
@@ -445,9 +445,26 @@ class TaskEntry():
         return get_length(self.record)
     
     @property
-    def plx_file(entry):
+    def plx_file(self):
         return get_plx_file(self.record)
 
     @property
-    def plx2_file(entry):
+    def plx2_file(self):
         return get_plx2_file(self.record)
+
+    @property
+    def name(self):
+        now = self.record.date
+        today = datetime.date(now.year, now.month, now.day)
+        tomorrow = today + datetime.timedelta(days=1)
+
+        entries = models.TaskEntry.objects.filter(date=self.record.date)
+        enums = dict([(e, i) for i, e in enumerate(entries.order_by("date"))])
+        num = enums[self.record]
+
+        name = "{subj}{time}_{num:02}".format(
+            subj=self.record.subject.name[:4].lower(),
+            time=time.strftime('%Y%m%d'), num=num+1,
+        )
+        return name
+
