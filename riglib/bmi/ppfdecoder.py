@@ -285,6 +285,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.n_subbins = n_subbins
         self.bmicount = 0
         self._pickle_init()
+        self.clda_dtype = [('filt_C', 'f8', (self.n_units, self.n_states))]
 
     def _pickle_init(self):
         ### # initialize the F_assist matrices
@@ -315,6 +316,8 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels.pkl'))
         self.n_assist_levels = len(self.F_assist)
         self.prev_assist_level = self.n_assist_levels
+        if not hasattr(self, 'clda_dtype'):
+            self.clda_dtype = [('filt_C', 'f8', (self.n_units, self.n_states))]
 
     def __call__(self, obs_t, **kwargs):
         '''
@@ -340,19 +343,13 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         """
         Run decoder, assist, and bound any states
         """
-        #F_assist = self.F_assist #loadmat('/Users/sgowda/Desktop/ppf_code_1023/F_assist.mat')['F']
-
-        # TODO optimal feedback control assist
+        # Define target state, if specified
         if target is not None:
             target_state = np.hstack([target, np.zeros(3), 1])
             target_state = np.mat(target_state).reshape(-1,1)
         else:
             target_state = None
 
-        #I = np.mat(np.eye(3))
-        #F = F_assist[:,:,int(assist_level)]
-        #alpha = F[0,0]
-        #gamma = F[0,2]
         #self.filt.F = np.mat( np.hstack([alpha*I, gamma*I, np.zeros([3,1])]) )
         assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
         if assist_level_idx < self.prev_assist_level:
@@ -372,3 +369,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
 
         state = self.filt.get_mean()
         return state
+
+    def save_params_to_hdf(self, task_data):
+        task_data['filt_C'] = np.asarray(self.filt.C)
+
