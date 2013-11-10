@@ -76,7 +76,10 @@ def get_decoder_name_full(entry):
 def get_decoder(entry):
     entry = lookup_task_entries(entry)
     filename = get_decoder_name_full(entry)
-    return pickle.load(open(filename, 'r'))
+    dec = pickle.load(open(filename, 'r'))
+    dec.db_entry = get_decoder_entry(entry)
+    dec.name = dec.db_entry.name
+    return dec
 
 def get_params(entry):
     '''
@@ -239,6 +242,7 @@ def get_plx_file(entry):
     '''
     Returns the name of the plx file associated with the session.
     '''
+    entry = lookup_task_entries(entry)
     plexon = models.System.objects.get(name='plexon')
     q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
     if len(q)==0:
@@ -357,254 +361,6 @@ def get_code_version():
     git_version_hash = git_version_hash[0].rstrip('\n')
     return git_version_hash
 
-def get_rewards_per_min(task_entry, window_size_mins=1.):
-    '''
-    Estimates rewards per minute. New estimates are made every 1./60 seconds
-    using the # of rewards observed in the previous 'window_size_mins' minutes 
-    '''
-    hdf_filename = get_hdf_file(task_entry)
-    hdf = tables.openFile(hdf_filename)
-    task_msgs = hdf.root.task_msgs[:]
-    reward_msgs = filter(lambda m: m[0] == 'reward', task_msgs)
-    reward_on = np.zeros(hdf.root.task.shape)
-    for reward_msg in reward_msgs:
-        reward_on[reward_msg[1]] = 1
-    conv = np.ones(window_size_mins * 3600) * 1./window_size_mins
-    rewards_per_min = np.convolve(reward_on, conv, 'valid')
-    return rewards_per_min
-
-def plot_rewards_per_min(task_entry, show=False, **kwargs):
-    '''
-    Make a plot of the rewards per minute
-    '''
-    rewards_per_min = get_rewards_per_min(task_entry, **kwargs)
-    plt.figure()
-    plt.plot(rewards_per_min)
-    if show:
-        plt.show()
-
-def get_trial_end_types(entry):
-    entry = lookup_task_entries(entry)
-    hdf = get_hdf(entry)
-    task_msgs = get_fixed_decoder_task_msgs(hdf)
-
-    # number of successful trials
-    reward_msgs = filter(lambda m: m[0] == 'reward', task_msgs)
-    n_success_trials = len(reward_msgs)
-    
-    # number of hold errors
-    hold_penalty_inds = np.array(filter(lambda k: task_msgs[k][0] == 'hold_penalty', range(len(task_msgs))))
-    msg_before_hold_penalty = task_msgs[(hold_penalty_inds - 1).tolist()]
-    n_terminus_hold_errors = len(filter(lambda m: m['msg'] == 'terminus_hold', msg_before_hold_penalty))
-    n_origin_hold_errors = len(filter(lambda m: m['msg'] == 'origin_hold', msg_before_hold_penalty))
-
-    # number of timeout trials
-    timeout_msgs = filter(lambda m: m[0] == 'timeout_penalty', task_msgs)
-    n_timeout_trials = len(timeout_msgs)
-
-    return n_success_trials, n_terminus_hold_errors, n_timeout_trials, n_origin_hold_errors
-
-def get_hold_error_rate(task_entry):
-    hold_error_rate = float(n_terminus_hold_errors) / n_success_trials
-    return hold_error_rate
-
-def get_fixed_decoder_task_msgs(hdf):
-    task_msgs = hdf.root.task_msgs[:]
-    update_bmi_msgs = np.nonzero(task_msgs['msg'] == 'update_bmi')[0]
-    if len(update_bmi_msgs) > 0:
-        fixed_start = update_bmi_msgs[-1] + 1
-    else:
-        fixed_start = 0
-    task_msgs = task_msgs[fixed_start:]
-    return task_msgs
-
-def get_center_out_reach_inds(hdf, fixed=True):
-    if fixed:
-        task_msgs = get_fixed_decoder_task_msgs(hdf)
-    else:
-        task_msgs = hdf.root.task_msgs[:]
-
-    n_msgs = len(task_msgs)
-    terminus_hold_msg_inds = np.array(filter(lambda k: task_msgs[k]['msg'] == 'terminus_hold', range(n_msgs)))
-    if terminus_hold_msg_inds[0] == 0: # HACK mid-trial start due to CLDA
-        terminus_hold_msg_inds = terminus_hold_msg_inds[1:]
-    terminus_msg_inds = terminus_hold_msg_inds - 1
-
-    boundaries = np.vstack([task_msgs[terminus_msg_inds]['time'], 
-                            task_msgs[terminus_hold_msg_inds]['time']]).T
-    return boundaries
-
-def get_movement_durations(task_entry):
-    '''
-    Get the movement durations of each trial which enters the 'terminus_hold'
-    state
-    '''
-    hdf = get_hdf(task_entry)
-    boundaries = get_center_out_reach_inds(hdf)
-
-    return np.diff(boundaries, axis=1) * 1./60
-
-def get_trajectory_movement_error(traj, origin, terminus):
-    pass
-
-def get_reach_trajectories(task_entry, rotate=True):
-    task_entry = lookup_task_entries(task_entry)
-    hdf = get_hdf(task_entry)
-    boundaries = get_center_out_reach_inds(hdf)
-    targets = hdf.root.task[:]['target']
-    cursor = hdf.root.task[:]['cursor']
-
-    n_trials = boundaries.shape[0]
-    trajectories = [None] * n_trials
-    for k, (st, end) in enumerate(boundaries):
-        trial_target = targets[st][[0,2]]
-        angle = -np.arctan2(trial_target[1], trial_target[0])
-
-        # counter-rotate trajectory
-        cursor_pos_tr = cursor[st:end, [0,2]]
-        trial_len = cursor_pos_tr.shape[0]
-        if rotate:
-            R = np.array([[np.cos(angle), -np.sin(angle)],
-                          [np.sin(angle), np.cos(angle)]])
-            trajectories[k] = np.dot(R, cursor_pos_tr.T)
-        else:
-            trajectories[k] = cursor_pos_tr.T
-    return trajectories
-
-def get_movement_error(task_entry):
-    '''
-    Get movement error
-    '''
-    task_entry = lookup_task_entries(task_entry)
-    reach_trajectories = get_reach_trajectories(task_entry)
-
-    n_trials = len(reach_trajectories)
-
-    ME = np.array([np.mean(np.abs(x[1, ::6])) for x in reach_trajectories])
-    MV = np.array([np.std(np.abs(x[1, ::6])) for x in reach_trajectories])
-
-    return ME, MV
-
-def get_total_movement_error(task_entry):
-    task_entry = lookup_task_entries(task_entry)
-    reach_trajectories = get_reach_trajectories(task_entry)
-    total_ME = np.array([np.sum(np.abs(x[1, ::6])) for x in reach_trajectories])
-    return total_ME
-
-
-def edge_detect(vec, edge_type='pos'):
-    """ Edge detector for a 1D array
-
-    Example:
-
-    vec = [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, ...]
-                       ^           ^
-                       ^           ^
-                      pos         neg
-                      edge        edge                            
-    
-    vec         : 1D array
-    edge_type   : {'pos', 'neg'}
-    """
-    if np.ndim(vec) > 1:
-        vec = vec.reshape(-1)
-    T = len(vec)
-    edges = np.zeros(T)
-    for t in range(1,T):
-        if edge_type == 'pos':
-            if vec[t] and not vec[t-1]:
-                edges[t] = 1
-        elif edge_type == 'neg':
-            if vec[t-1] and not vec[t]: 
-                edges[t] = 1
-    return edges
-   
-def _count_switches(vec):
-    """ vec is an array of binary variables (0,1). The number of switches
-    between 1's and 0's is counted
-    """
-    return len(np.nonzero(edge_detect(vec, 'pos'))[0]) + len(np.nonzero(edge_detect(vec, 'neg'))[0])
-
-def get_direction_change_counts(entry):
-    entry = lookup_task_entries(entry)
-    reach_trajectories = get_reach_trajectories(entry)
-
-    n_trials = len(reach_trajectories)
-
-    ODCs = np.array([_count_switches( 0.5*(np.sign(np.diff(x[0,::6])) + 1) ) for x in reach_trajectories])
-    MDCs = np.array([_count_switches( 0.5*(np.sign(np.diff(x[1,::6])) + 1) ) for x in reach_trajectories])
-
-    return MDCs, ODCs
-
-def plot_trajectories(task_entry, ax=None, show=False, **kwargs):
-    hdf = get_hdf(task_entry)
-    boundaries = get_center_out_reach_inds(hdf)
-    targets = hdf.root.task[:]['target']
-    cursor = hdf.root.task[:]['cursor']
-
-    if ax is None:
-        plt.figure()
-        ax = plt.subplot(111)
-    n_trials = boundaries.shape[0]
-    for k, (st, end) in enumerate(boundaries):
-        trial_target = targets[st][[0,2]]
-        angle = -np.arctan2(trial_target[1], trial_target[0])
-
-        # counter-rotate trajectory
-        cursor_pos_tr = cursor[st:end, [0,2]]
-        trial_len = cursor_pos_tr.shape[0]
-        R = np.array([[np.cos(angle), -np.sin(angle)],
-                      [np.sin(angle), np.cos(angle)]])
-        cursor_pos_tr_rot = np.vstack([np.dot(R, cursor_pos_tr[k,:]) for k in range(trial_len)])
-        ax.plot(cursor_pos_tr_rot[:,0], cursor_pos_tr_rot[:,1], **kwargs)
-
-    if show:
-        plt.show()
-
-def get_workspace_size(task_entry):
-    '''
-    Get movement error
-    '''
-    hdf = get_hdf(task_entry)
-    targets = hdf.root.task[:]['target']
-    print targets.min(axis=0)
-    print targets.max(axis=0)
-
-def plot_dist_to_targ(task_entry, targ_dist=10., plot_all=False, ax=None, **kwargs):
-    task_entry = lookup_task_entries(task_entry)
-    reach_trajectories = get_reach_trajectories(task_entry)
-    target = np.array([targ_dist, 0])
-    from utils.geometry import l2norm
-    trajectories_dist_to_targ = [l2norm(traj.T - target, axis=0) for traj in reach_trajectories]
-
-    trajectories_dist_to_targ = map(lambda x: x[::6], trajectories_dist_to_targ)
-    max_len = np.max([len(traj) for traj in trajectories_dist_to_targ])
-    n_trials = len(trajectories_dist_to_targ)
-
-    # TODO use masked arrays
-    data = np.ones([n_trials, max_len]) * np.nan
-    for k, traj in enumerate(trajectories_dist_to_targ):
-        data[k, :len(traj)] = traj
-
-    mean_dist_to_targ = np.array([nanmean(data[:,k]) for k in range(max_len)])
-
-    if ax == None:
-        plt.figure()
-        ax = plt.subplot(111)
-
-    # time vector, assuming original screen update rate of 60 Hz
-    time = np.arange(max_len)*0.1
-    if plot_all:
-        for dist_to_targ in trajectories_dist_to_targ: 
-            ax.plot(dist_to_targ, **kwargs)
-    else:
-        ax.plot(time, mean_dist_to_targ, **kwargs)
-
-    import plot
-    plot.set_ylim(ax, [0, targ_dist])
-    plot.ylabel(ax, 'Distance to target')
-    plt.draw()
-
 def get_task_entries_by_date(subj=None, date=datetime.date.today()):
     '''
     Get all the task entries for a particular date
@@ -624,18 +380,74 @@ def get_task_entries_by_date(subj=None, date=datetime.date.today()):
         kwargs['subject__name'] = subj.name
     return list(models.TaskEntry.objects.filter(**kwargs))
 
+def load_decoder_from_record(rec):
+    full_path = os.path.join(paths.data_path, 'decoders', rec.path)
+    dec = pickle.load(open(full_path))
+    dec.db_entry = rec
+    dec.name = rec.name
+    return dec
+
 def load_last_decoder():
+    '''
+    Returns the decoder object corresponding to the last decoder trained and
+    added to the database
+    '''
     all_decoder_records = models.Decoder.objects.all()
     record = all_decoder_records[len(all_decoder_records)-1]
-    path = os.path.join(paths.data_path, 'decoders', record.path)
-    dec = pickle.load(open(path))
-    return dec
+    return load_decoder_from_record(record)
 
 def get_decoders_trained_in_block(task_entry):
     task_entry = lookup_task_entries(task_entry)
     records = models.Decoder.objects.filter(entry_id=task_entry.id)
-    full_paths = [os.path.join(paths.data_path, 'decoders', x.path) for x in records]
-    decoder_objects = map(lambda x: pickle.load(open(x)), full_paths)
-    if len(decoder_objects) == 1:
-        decoder_objects = decoder_objects[0]
+    decoder_objects = map(load_decoder_from_record, records)
+    if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
     return decoder_objects
+
+class TaskEntry():
+    '''
+    Wrapper class for the TaskEntry django class
+    '''
+    def __init__(self, task_entry_id):
+        self.id = task_entry_id
+        self.record = lookup_task_entries(task_entry_id)
+        self.params = self.record.params
+        self.date = self.record.date
+        self.notes = self.record.notes
+        self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
+
+    @property
+    def hdf(self):
+        try:
+            return self.hdf_file
+        except:
+            hdf_filename = get_hdf_file(self.record)
+            self.hdf_file = tables.openFile(hdf_filename)
+            return self.hdf_file
+
+    @property
+    def task(self):
+        return self.record.task
+
+    @property
+    def decoder(self):
+        if not hasattr(self, '_decoder_obj'):
+            self._decoder_obj = get_decoder(self.record)
+        return self._decoder_obj
+
+    @property
+    def clda_param_hist(self):
+        if not hasattr(self, '_clda_param_hist'):
+            self._clda_param_hist = np.load(get_bmiparams_file(self.record))
+        return self._clda_param_hist
+
+    @property
+    def length(self):
+        return get_length(self.record)
+    
+    @property
+    def plx_file(entry):
+        return get_plx_file(self.record)
+
+    @property
+    def plx2_file(entry):
+        return get_plx2_file(self.record)

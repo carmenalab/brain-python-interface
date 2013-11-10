@@ -108,9 +108,42 @@ class GaussianStateHMM():
         self.state_noise = GaussianState(0.0, self.W)
         self.obs_noise = GaussianState(0.0, self.Q)
 
+    def _ssm_pred(self, state, target_state=None):
+        A = self.A
+        B = self.B
+        F = self.F
+        if target_state == None:
+            return A*state + self.state_noise
+        else:
+            return (A - B*F)*state + B*F*target_state + self.state_noise
+
 class Decoder(object):
+    clda_dtype = [] # define parameters to store in HDF file during CLDA
     def get_filter(self):
         raise NotImplementedError
+
+    def save_params_to_hdf(self, task_data):
+        pass
+
+    def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz']):
+        import matplotlib.pyplot as plt
+        if ax == None:
+            plt.figure()
+            ax = plt.subplot(111)
+            ax.hold(True)
+
+        state_inds = [self.states.index(x) for x in plot_states]
+        x, z = state_inds
+        n_neurons = C.shape[0]
+        linestyles = ['-.', '-', '--', ':']
+        for k in range(n_neurons):
+            unit_str = '%d%s' % (self.units[k,0], chr(96 + self.units[k,1]))
+            ax.plot([0, C[k, x]], [0, C[k, z]], label=unit_str, linestyle=linestyles[k/7 % len(linestyles)])
+        ax.legend(bbox_to_anchor=(1.1, 1.05), prop=dict(size=8))
+        ax.set_title(self)
+
+    def plot_C(self, **kwargs):
+        self.plot_pds(self.filt.C, **kwargs)
 
     def update_params(self, new_params, **kwargs):
         for key, val in new_params.items():
@@ -265,6 +298,20 @@ class Decoder(object):
         state = self.filt.get_mean()
         return state
 
+    def __str__(self):
+        if hasattr(self, 'db_entry'):
+            return self.db_entry.name
+        else:
+            return super(Decoder, self).__str__()
+
+    @property
+    def n_states(self):
+        return len(self.states)
+
+    @property
+    def n_units(self):
+        return self.filt.C.shape[0]
+
 class AdaptiveBMI(object):
     def __init__(self, decoder, learner, updater):
         self.decoder = decoder 
@@ -311,8 +358,6 @@ class AdaptiveBMI(object):
             # should accurately reflect the validity of the presented target position
             if np.any(np.isnan(target_pos_k)):
                 task_state = 'no_target' 
-            else:
-                task_state = 'target'
 
             # run the decoder
             prev_state = self.decoder.get_state()

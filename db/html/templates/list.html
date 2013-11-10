@@ -56,7 +56,7 @@
 				</tr>
 			{% for e in entries %}
 				<tr id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
-				<td class='colDate'>{{e.date}}</td>
+				<td class='colDate'>{{e.date}} ({{e.id}})</td>
 				<td class='colSubj'>{{e.subject.name}}</td>
 				<td class='colTask'>{{e.task.name}}</td></tr>
 			{% endfor %}

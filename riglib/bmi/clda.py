@@ -380,7 +380,6 @@ class PPFContinuousBayesianUpdater(object):
 
         # Squash any observed spike counts which are greater than 1
         spike_obs_full[spike_obs_full > 1] = 1
-
         for k in range(n_samples):
             spike_obs = spike_obs_full[:,k]
             int_kin = int_kin_full[:,k]
@@ -414,7 +413,54 @@ class PPFContinuousBayesianUpdater(object):
 
             #self.P_params_est_old = P_params_est
 
-        return {'filt.C': np.mat(self.beta_est)}
+        return {'filt.C': np.mat(self.beta_est.copy())}
+
+class KFContinuousBayesianUpdater(object):
+    def __init__(self, decoder, units='cm'):
+        self.n_units = decoder.filt.C.shape[0]
+        #self.param_noise_variances = param_noise_variances
+        if units == 'm':
+            vel_gain = 1e-4
+        elif units == 'cm':
+            vel_gain = 1e-8
+
+        param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
+        self.W = np.tile(np.diag(param_noise_variances), [self.n_units, 1, 1])
+
+        self.P_params_est = self.W.copy()
+
+        self.neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
+        self.neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
+        self.n_states = len(decoder.states)
+        self.full_size = len(decoder.states)
+
+        self.dt = decoder.filt.dt
+        self.beta_est = np.array(decoder.filt.C) #[:,self.neuron_driving_state_inds])
+
+
+    def calc(self, int_kin_full, spike_obs_full, rho, decoder):
+        n_samples = int_kin_full.shape[1]
+        for k in range(n_samples):
+            spike_obs = spike_obs_full[:,k]
+            int_kin = int_kin_full[:,k]
+
+            beta_est = self.beta_est[:,self.neuron_driving_state_inds]
+            int_kin = np.asarray(int_kin).ravel()[self.neuron_driving_state_inds]
+            rates = np.dot(int_kin, beta_est.T)
+            unpred_spikes = np.asarray(spike_obs).ravel() - rates
+
+            C_xpose_C = np.outer(int_kin, int_kin)
+
+            self.P_params_est += self.W
+            P_params_est_inv = fast_inv(self.P_params_est)
+            L = np.dstack([rates[c] * C_xpose_C for c in range(self.n_units)]).transpose([2,0,1])
+            self.P_params_est = fast_inv(P_params_est_inv + L)
+
+            # Update estimate of beta
+            beta_est += (unpred_spikes * np.dot(int_kin, self.P_params_est).T).T
+            self.beta_est[:,self.neuron_driving_state_inds] = beta_est
+
+        return {'filt.C': np.mat(self.beta_est.copy())}
 
 
 class KFRML(object):

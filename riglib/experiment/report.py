@@ -99,7 +99,10 @@ def general_offline(Exp, event_log):
              n_trials += 1
              n_error_trials += 1
     report['trials'] = n_trials
-    report['rates'] = (float(n_success_trials)/n_trials, float(n_error_trials)/n_trials)
+    if n_trials > 0:
+        report['rates'] = (float(n_success_trials)/n_trials, float(n_error_trials)/n_trials)
+    else:
+        report['rates'] = (0., 0.)
     report['reward_len'] = (reward_time, n_success_trials)
     report['length'] = t - start_time
     return report
