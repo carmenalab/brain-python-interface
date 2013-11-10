@@ -378,7 +378,7 @@ def get_task_entries_by_date(subj=None, date=datetime.date.today()):
         kwargs['subject__name__startswith'] = str(subj)
     elif subj is not None:
         kwargs['subject__name'] = subj.name
-    return list(models.TaskEntry.objects.filter(**kwargs))
+    return map(TaskEntry, models.TaskEntry.objects.filter(**kwargs))
 
 def load_decoder_from_record(rec):
     full_path = os.path.join(paths.data_path, 'decoders', rec.path)
@@ -468,3 +468,8 @@ class TaskEntry():
         )
         return name
 
+    def __str__(self):
+        return self.record.__str__()
+
+    def __repr__(self):
+        return self.record.__repr__()
