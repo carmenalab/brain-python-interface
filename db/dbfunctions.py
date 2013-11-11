@@ -403,14 +403,14 @@ def get_decoders_trained_in_block(task_entry):
     if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
     return decoder_objects
 
-class TaskEntry():
+class TaskEntry(object):
     '''
     Wrapper class for the TaskEntry django class
     '''
     def __init__(self, task_entry_id):
         self.id = task_entry_id
         self.record = lookup_task_entries(task_entry_id)
-        self.params = self.record.params
+        self.params = json.loads(self.record.params)
         self.date = self.record.date
         self.notes = self.record.notes
         self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
@@ -454,19 +454,11 @@ class TaskEntry():
 
     @property
     def name(self):
-        now = self.record.date
-        today = datetime.date(now.year, now.month, now.day)
-        tomorrow = today + datetime.timedelta(days=1)
-
-        entries = models.TaskEntry.objects.filter(date=self.record.date)
-        enums = dict([(e, i) for i, e in enumerate(entries.order_by("date"))])
-        num = enums[self.record]
-
-        name = "{subj}{time}_{num:02}".format(
-            subj=self.record.subject.name[:4].lower(),
-            time=time.strftime('%Y%m%d'), num=num+1,
-        )
-        return name
+        # TODO this needs to be hacked because the current way of determining a 
+        # a filename depends on the number of things in the database, i.e. if 
+        # after the fact a record is removed, the number might change. read from
+        # the file instead
+        return str(os.path.basename(self.plx_file).rstrip('.plx'))
 
     def __str__(self):
         return self.record.__str__()
