@@ -134,7 +134,9 @@ class OFCLearner3DEndptPPF(OFCLearner):
         on different days...
         '''
         dt = kwargs.pop('dt', 1./180)
-        use_tau_unNat = kwargs.pop('use_tau_unNat', 2.7)
+        use_tau_unNat = kwargs.pop('tau', 2.7)
+        self.tau = use_tau_unNat
+        print "learner cost fn param: %g" % use_tau_unNat
         #dt = kwargs['dt'] if 'dt' in kwargs else 1./180
         #use_tau_unNat = 1.
         tau_scale = 28*use_tau_unNat/1000
