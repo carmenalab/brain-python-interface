@@ -29,7 +29,7 @@ def trialtype(exp):
     
     return report
 
-def general(Exp, event_log, ntrials, nrewards, reward_len):
+def general(Exp, event_log, repdict, ntrials, nrewards, reward_len):
     report = dict(trials = 0, reward_len=[]) #, rewards=[], penalties=[])
 
     report['trials'] = ntrials

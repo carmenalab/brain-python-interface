@@ -10,7 +10,7 @@ var box_filters = {
         return (rates[0]*100).toPrecision(3) + "% / "+ (rates[1]*100).toPrecision(3) + "%";
     }
 }
-function Report(callback) {
+function Report(callback, boxes) {
     this.notify = callback;
     this.obj = document.createElement("div");
     this.info = document.createElement("table");
@@ -24,16 +24,17 @@ function Report(callback) {
     $("#report").append(this.obj);
 
     // TODO this occasionally creates new document elements when they already exist 
-    this.boxes = {"state":"Current State", "trials":"Trial #", "length":"Time", "reward_len":"Reward Time", "rates":"Rates"};
+    this.boxes = {}; //boxes;
+    // this.boxes = {"state":"Current State", "trials":"Trial #", "length":"Time", "reward_len":"Reward Time", "rates":"Rates"};
     for (var i in this.boxes) {
-        var row = document.createElement("tr");
-        var label = document.createElement("td");
-        label.innerHTML = this.boxes[i];
-        row.appendChild(label);
-        var data = document.createElement("td");
-        row.appendChild(data);
-        this.info.appendChild(row);
-        this.boxes[i] = data;
+        // var row = document.createElement("tr");
+        // var label = document.createElement("td");
+        // label.innerHTML = this.boxes[i];
+        // row.appendChild(label);
+        // var data = document.createElement("td");
+        // row.appendChild(data);
+        // this.info.appendChild(row);
+        // this.boxes[i] = data;
     }
 }
 Report.prototype.pause = function() {
@@ -78,6 +79,20 @@ Report.prototype.update = function(info) {
     } else {
         if (info.state)
             console.log(info.state);
+        for (var i in info) {
+            console.log(i)
+            if (!this.boxes[i] && (i!="status") && (i!="task") && (i!="subj") && (i!="date") && (i!="idx")) {
+                var row = document.createElement("tr");
+                var label = document.createElement("td");
+                label.innerHTML = i; //this.boxes[i];
+                row.appendChild(label);
+                var data = document.createElement("td");
+                row.appendChild(data);
+                this.info.appendChild(row);
+                this.boxes[i] = data;
+            }
+
+        }
 
         for (var i in this.boxes) {
             if (info[i])

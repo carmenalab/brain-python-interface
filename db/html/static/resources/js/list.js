@@ -120,7 +120,10 @@ function TaskEntry(idx, info){
 	$("#content").hide();
 	this.sequence = new Sequence();
 	this.params = new Parameters();
-	this.report = new Report(TaskInterface.trigger.bind(this));
+	boxes = {"state":"Current State", "trials":"Trial #", "length":"Time", "reward_len":"Reward Time", "rates":"Rates"};
+	console.log(info)
+
+	this.report = new Report(TaskInterface.trigger.bind(this), boxes);
 	
 	$("#parameters").append(this.params.obj);
 

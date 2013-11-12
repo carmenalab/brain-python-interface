@@ -6,6 +6,7 @@ import sys
 import time
 import xmlrpclib
 import multiprocessing as mp
+import collections
 
 
 from riglib import experiment
@@ -84,10 +85,16 @@ def runtask(cmds, _cmds, websock, **kwargs):
     class NotifyFeat(object):
         def set_state(self, state, *args, **kwargs):
             l = time.time() - self.event_log[0][2] if len(self.event_log) > 0 else 0
+
             rep = dict(status=status, state=state or "stopped", length=l)
-            rep.update(report.general(self.__class__, self.event_log, self.ntrials, self.nrewards, self.reward_len))
+            rep.update(report.general(self.__class__, self.event_log, self.reportstats, self.ntrials, self.nrewards, self.reward_len))
             rep['length'] = time.time() - self.task_start_time
+
+            self.reportstats['status'] = status
+            self.reportstats['State'] = state or 'stopped'
+            
             websock.send(rep)
+            #websock.send(self.reportstats)
             super(NotifyFeat, self).set_state(state, *args, **kwargs)
 
         def run(self):

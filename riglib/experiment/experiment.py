@@ -7,6 +7,7 @@ import time
 import random
 import threading
 import traceback
+import collections
 
 import numpy as np
 from . import traits
@@ -24,10 +25,14 @@ class Experiment(traits.HasTraits, threading.Thread):
     def __init__(self, **kwargs):
         traits.HasTraits.__init__(self, **kwargs)
         threading.Thread.__init__(self)
-        self.task_start_time = self.get_time() #time.time()
+        self.task_start_time = self.get_time()
         self.ntrials = 0
         self.nrewards = 0
         self.reward_len = 0
+        self.reportstats = collections.OrderedDict()
+        self.reportstats['State'] = None
+        self.reportstats['Runtime'] = ''
+        self.reportstats['Trial #'] = 0
 
     def init(self):
         '''
@@ -53,6 +58,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     def set_state(self, condition):
         self.state = condition
         self.start_time = self.get_time()
+        self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
         if hasattr(self, "_start_%s"%condition):
             getattr(self, "_start_%s"%condition)()
 
@@ -73,6 +79,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         self.screen_init()
         self.set_state(self.state)
+        self.reportstats['State'] = self.state
         while self.state is not None:
             try:
                 if hasattr(self, "_while_%s"%self.state):
@@ -95,6 +102,15 @@ class Experiment(traits.HasTraits, threading.Thread):
     
     def _test_stop(self, ts):
         return self.stop
+
+    def _time_to_string(self, sec):
+        '''
+        Convert a time in seconds to a string of format hh:mm:ss.
+        '''
+        nhours = int(sec/3600)
+        nmins = int((sec-nhours*3600)/60)
+        nsecs = int(sec - nhours*3600 - nmins*60)
+        return str(nhours).zfill(2) + ':' + str(nmins).zfill(2) + ':' + str(nsecs).zfill(2)
 
     def cleanup(self, database, saveid, **kwargs):
         pass
