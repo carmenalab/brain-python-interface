@@ -30,9 +30,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.nrewards = 0
         self.reward_len = 0
         self.reportstats = collections.OrderedDict()
-        self.reportstats['State'] = None
-        self.reportstats['Runtime'] = ''
-        self.reportstats['Trial #'] = 0
+        self.reportstats['State'] = None #State stat is automatically updated for all experiment classes
+        self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
+        self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
+        self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
 
     def init(self):
         '''
@@ -58,7 +59,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     def set_state(self, condition):
         self.state = condition
         self.start_time = self.get_time()
-        self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
+        self.update_report_stats()
         if hasattr(self, "_start_%s"%condition):
             getattr(self, "_start_%s"%condition)()
 
@@ -111,6 +112,12 @@ class Experiment(traits.HasTraits, threading.Thread):
         nmins = int((sec-nhours*3600)/60)
         nsecs = int(sec - nhours*3600 - nmins*60)
         return str(nhours).zfill(2) + ':' + str(nmins).zfill(2) + ':' + str(nsecs).zfill(2)
+
+    def update_report_stats(self):
+        '''Function to update any relevant report stats for the task. Values are saved in self.reportstats,
+        an ordered dictionary. Keys are strings that will be displayed as the label for the stat in the web interface,
+        values can be numbers or strings. Called every time task state changes.'''
+        self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
 
     def cleanup(self, database, saveid, **kwargs):
         pass

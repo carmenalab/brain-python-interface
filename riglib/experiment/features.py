@@ -21,6 +21,7 @@ class RewardSystem(traits.HasTraits):
     def _start_reward(self):
         if self.reward is not None:
             self.reward.reward(self.reward_time*1000.)
+            self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
         super(RewardSystem, self)._start_reward()
 
 class Autostart(traits.HasTraits):
