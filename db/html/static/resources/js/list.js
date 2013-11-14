@@ -35,11 +35,11 @@ var TaskInterface =  new function() {
 		},
 		"running": {
 			error: function(info) { return info.status == "error"; },
-			completed: function(info) { return info.state == "stopped" || info.status == "stopped"; },
+			completed: function(info) { return info.State == "stopped" || info.status == "stopped"; },
 		},
 		"testing": {
 			errtest: function(info) { return info.status == "error"; },
-			stopped: function(info) { return info.state == "stopped" || info.status == "stopped"; },
+			stopped: function(info) { return info.State == "stopped" || info.status == "stopped"; },
 		},
 		"error": {
 			running: function(info) { return info.status == "running"; },
