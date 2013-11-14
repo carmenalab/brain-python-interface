@@ -84,11 +84,13 @@ tasks = dict(
     manual_control_multi =manualcontrolmultitasks.ManualControlMulti,
     bmi_control_multi = bmimultitasks.BMIControlMulti,
     bmi_manipulated_feedback = bmilowfeedback.BMIControlManipulatedFB,
+    clda_ppf_manipulated_feedback = bmilowfeedback.CLDAControlPPFContAdaptMFB,
     clda_control_multi = bmimultitasks.CLDAControlMulti,
     clda_rml_kf = bmimultitasks.CLDARMLKF,
     clda_cont_ppf= bmimultitasks.CLDAControlPPFContAdapt,
     test_graphics = manualcontrolmultitasks.TestGraphics,
     two_link_arm = manualcontrolmultitasks.TwoLinkArm,
+    clda_rml_kf_ofc = bmimultitasks.CLDARMLKFOFC,
 )
 
 from tracker import models
@@ -116,4 +118,5 @@ bmis = dict(
     kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
     kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
     ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
+    ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
     )
