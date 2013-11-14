@@ -14,7 +14,8 @@ urlpatterns = patterns('',
     (r'^ajax/gen_info/(?P<idx>\d+)/', 'tracker.ajax.gen_info'),
     (r'^ajax/save_notes/(?P<idx>\d+)/', 'tracker.ajax.save_notes'),
     (r'^make_bmi/(?P<idx>\d+)/?', 'tracker.ajax.make_bmi'),
-    (r'^perf/(?P<idx>\d+)/?', 'tracker.perf.summary'),
+    (r'^perf/block/(?P<idx>.*)/?', 'tracker.perf.block_summary'),
+    (r'^perf/bmi_session/(?P<idx>.*)/?', 'tracker.perf.bmi_perf_summary'),
     (r'^start/?', 'tracker.ajax.start_experiment'),
     (r'^test/?', 'tracker.ajax.start_experiment', dict(save=False)),
     (r'^stop/?', 'tracker.ajax.stop_experiment'),
@@ -25,3 +26,4 @@ urlpatterns = patterns('',
     # Uncomment the next line to enable the admin:
     (r'^admin/', include(admin.site.urls)),
 )
+
