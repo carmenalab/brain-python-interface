@@ -4,31 +4,26 @@ Script to map between new and old assists
 infinite horizon LQR feedback controllers are hackishly fit based on arrival times
 '''
 import numpy as np
-from riglib.bmi import feedback_controllers
+from riglib.bmi import feedback_controllers, kfdecoder, ppfdecoder
 import matplotlib.pyplot as plt
+from db import dbfunctions as dbfn
+
+dec = dbfn.get_decoder(2123)
+
+if isinstance(dec, kfdecoder.KFDecoder):
+    dt = 1./10
+    dec_type = 'kf'
+elif isinstance(dec, ppfdecoder.PPFDecoder):
+    dt = 1./180
+    dec_type = 'ppf'
 
 eff_targ_radius = 1.2
-dt = 1./180
 
 I = np.eye(3)
 B = np.bmat([[0*I], 
               [dt/1e-3 * I],
               [np.zeros([1, 3])]])
-
-A = np.matrix([[ 1.        ,  0.        ,  0.        ,  0.00555556,  0.        ,
-          0.        ,  0.        ],
-        [ 0.        ,  1.        ,  0.        ,  0.        ,  0.00555556,
-          0.        ,  0.        ],
-        [ 0.        ,  0.        ,  1.        ,  0.        ,  0.        ,
-          0.00555556,  0.        ],
-        [ 0.        ,  0.        ,  0.        ,  0.98767966,  0.        ,
-          0.        ,  0.        ],
-        [ 0.        ,  0.        ,  0.        ,  0.        ,  0.98767966,
-          0.        ,  0.        ],
-        [ 0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-          0.98767966,  0.        ],
-        [ 0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
-          0.        ,  1.        ]])
+A = dec.filt.A
 
 ## F = []
 ## F.append(np.zeros([3, 7]))
@@ -77,7 +72,7 @@ def calc_arrival_time(scale_factor):
     arrival_idx = np.array(_calc(A, B, F))
     return arrival_idx
 
-scale_factors = np.linspace(1., 9, 500)
+scale_factors = np.linspace(1., 15, 500)
 arrival_time = np.zeros(len(scale_factors))
 for k, scale in enumerate(scale_factors):
     print k
@@ -109,7 +104,7 @@ F += map(calc_F, scale_factors_assist)
 F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
 
 import pickle
-pickle.dump(F_assist, open('/storage/assist_params/assist_%dlevels.pkl' % F_assist.shape[0], 'w'))
+pickle.dump(F_assist, open('/storage/assist_params/assist_%dlevels_%s.pkl' % (F_assist.shape[0], dec_type), 'w'))
 
 ## n_steps = 2000
 ## traj = np.array(calc_traj(A, B, F, n_steps=n_steps))
