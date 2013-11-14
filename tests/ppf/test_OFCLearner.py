@@ -18,6 +18,7 @@ aimPos = np.vstack([aimPos[0,:], np.zeros(n_iter), aimPos[1,:]])
 learner = clda.OFCLearner3DEndptPPF(n_iter, dt=T_loop)
 
 kin_state = np.zeros([7, cursor_kin.shape[1]])
+kin_state[-1,:] = 1
 state_inds_2d = [0,2,3,5]
 kin_state[state_inds_2d, :] = cursor_kin
 
