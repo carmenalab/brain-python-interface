@@ -27,11 +27,9 @@ error = np.zeros(T)
 for k in range(T):
     if k - 1 in inds:
         dec.update_params(bmi_params[inds.index(k-1)], steady_state=True)
-    st = dec(spike_counts[k], target=target[k], target_radius=te.target_radius, assist_level=assist_level[k], speed=0.5)
+    st = dec(spike_counts[k], target=target[k], target_radius=te.target_radius, 
+             assist_level=assist_level[k], speed=5*dec.binlen)
 
     error[k] = np.linalg.norm(cursor[k] - np.float32(st[0:3, -1]))
-    if error[k] > 0:
-        pass
-        #import pdb; pdb.set_trace()
 
 print np.max(np.abs(error))
