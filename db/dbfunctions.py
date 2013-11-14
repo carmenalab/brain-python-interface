@@ -10,6 +10,7 @@ import tables
 import matplotlib.pyplot as plt
 import time, datetime
 from scipy.stats import nanmean
+import plotutil
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
@@ -353,32 +354,32 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
             pass
     return dec_list
 
-
-
 def get_code_version():
     import os
     git_version_hash = os.popen('bmi3d_git_hash').readlines()
     git_version_hash = git_version_hash[0].rstrip('\n')
     return git_version_hash
 
-def get_task_entries_by_date(subj=None, date=datetime.date.today()):
+def get_task_entries_by_date(subj=None, **kwargs):
     '''
     Get all the task entries for a particular date
     '''
+    date = kwargs.pop('date', datetime.date.today())
     if isinstance(date, datetime.date):
-        kwargs = dict(date__year=date.year, date__month=date.month,
-                      date__day=date.day)
+        kwargs.update(dict(date__year=date.year, date__month=date.month,
+                      date__day=date.day))
     elif isinstance(date, tuple) and len(date) == 3:
-        kwargs = dict(date__year=date[0], date__month=date[1],
-                      date__day=date[2])
+        kwargs.update(dict(date__year=date[0], date__month=date[1],
+                      date__day=date[2]))
     elif isinstance(date, tuple) and len(date) == 2:
-        kwargs = dict(date__year=2013, date__month=date[0],
-                      date__day=date[1])
+        kwargs.update(dict(date__year=2013, date__month=date[0],
+                      date__day=date[1]))
     if isinstance(subj, str) or isinstance(subj, unicode):
         kwargs['subject__name__startswith'] = str(subj)
     elif subj is not None:
         kwargs['subject__name'] = subj.name
-    return map(TaskEntry, models.TaskEntry.objects.filter(**kwargs))
+    return models.TaskEntry.objects.filter(**kwargs)
+    #return map(TaskEntry, models.TaskEntry.objects.filter(**kwargs))
 
 def load_decoder_from_record(rec):
     full_path = os.path.join(paths.data_path, 'decoders', rec.path)
@@ -408,12 +409,24 @@ class TaskEntry(object):
     Wrapper class for the TaskEntry django class
     '''
     def __init__(self, task_entry_id):
-        self.id = task_entry_id
-        self.record = lookup_task_entries(task_entry_id)
-        self.params = json.loads(self.record.params)
+        if isinstance(task_entry_id, models.TaskEntry):
+            self.record = task_entry_id
+        else:
+            self.record = lookup_task_entries(task_entry_id)
+        self.id = self.record.id
+        self.params = self.record.params
+        if isinstance(self.params, str) or isinstance(self.params, unicode):
+            self.params = json.loads(self.record.params)
         self.date = self.record.date
         self.notes = self.record.notes
         self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
+
+    def __getattr__(self, attr):
+        if not hasattr(self, attr):
+            try:
+                return getattr(self.record, attr)
+            except AttributeError:
+                raise AttributeError("%s" % attr)
 
     @property
     def hdf(self):
@@ -465,3 +478,128 @@ class TaskEntry(object):
 
     def __repr__(self):
         return self.record.__repr__()
+
+    @property
+    def task_type(self):
+        if 'bmi' in self.task.name: 
+            return 'BMI'
+        elif 'clda' in self.task.name:
+            return 'CLDA'
+
+class TaskEntrySet(object):
+    def __init__(self, blocks, name=''):
+        from tasks import performance
+        self.task_entries = map(performance._get_te, blocks)
+        self.name = name
+
+    def map(self, fn):
+        return np.array(map(fn, self.task_entries))
+
+    def __getattr__(self, attr):
+        return self.map(lambda te: getattr(te, attr))
+
+    def boxplot(self, attr, ax, plotattr=lambda x: '', xlabel=True):
+        ax.boxplot(getattr(self, attr))
+        if xlabel:
+            ticklabels = [te.plot_ticklabel + plotattr(te) for te in self.task_entries]
+            ax.set_xticklabels(ticklabels)
+
+    def scatterplot(self, attr, ax, plotattr=lambda x: '', xlabel=True):
+        data = getattr(self, attr)
+        plotutil.set_axlim(ax, [0, len(data)])
+        plot_pts = np.arange(0., len(data)) + 0.5
+        ax.scatter(plot_pts, data)
+        ax.set_xticklabels(plot_pts)
+        ax.set_xticks(plot_pts)
+
+        if xlabel:
+            ticklabels = [te.plot_ticklabel + plotattr(te) for te in self.task_entries]
+            ax.set_xticklabels(ticklabels)
+        ax.set_xlim([0, len(data)])
+
+    def histogram(self, fn, ax, bins, labels=None):
+        if labels == None:
+            labels = ['']*len(self.task_entries)
+        colors = plotutil.colors.values()
+        for k, te in enumerate(self.task_entries):
+            data = fn(te)
+            plotutil.histogram_line(ax, data, bins, color=colors[k], linewidth=2, label=labels[k])
+            
+    def init_plot(self, ax):
+        if ax == None:
+            plt.figure()
+            ax = plt.subplot(111)
+        return ax
+        
+    def plot_reach_time(self, ax=None, **kwargs):
+        ax = self.init_plot(ax)
+        self.boxplot('reach_time', ax, **kwargs)
+        plotutil.set_axlim(ax, [0, 4], [0, 1, 2, 3, 4], axis='y')
+        plotutil.ylabel(ax, 'Reach time (s)')
+
+    def plot_ME(self, ax=None, **kwargs):
+        ax = self.init_plot(ax)
+        self.boxplot('ME', ax, **kwargs)
+        plotutil.set_axlim(ax, [0, 2.], axis='y')
+        plotutil.ylabel(ax, 'Movement\nerror (cm)')
+        
+    def plot_MV(self, ax=None, **kwargs):
+        ax = self.init_plot(ax)
+        self.boxplot('MV', ax, **kwargs)
+        plotutil.set_axlim(ax, [0, 1.], axis='y')
+        plotutil.ylabel(ax, 'Movement\nvariability (cm)')
+        
+    def plot_perc_correct(self, ax=None, **kwargs):
+        ax = self.init_plot(ax)
+        self.scatterplot('perc_correct', ax, **kwargs)
+        plotutil.set_axlim(ax, [0.6, 1.], labels=[0.6, 0.7, 0.8, 0.9, 1.0], axis='y')
+        plotutil.ylabel(ax, '% correct', offset=-0.06)
+
+    def plot_perf_summary(self, **kwargs):
+        plt.figure(figsize=(8,8), facecolor='w')
+        axes = plotutil.subplots(4, 1, return_flat=True, y=0.05)
+        self.plot_reach_time(axes[0], xlabel=False, **kwargs)
+        self.plot_ME(axes[1], xlabel=False, **kwargs)
+        self.plot_MV(axes[2], xlabel=False, **kwargs)
+        self.plot_perc_correct(axes[3], xlabel=True, **kwargs)
+        plt.suptitle(self.name)
+
+    @classmethod
+    def construct_from_queryset(cls, name='', filter_fns=[], **kwargs):
+        blocks = get_task_entries_by_date(**kwargs)
+        if name == '': name = str(kwargs)
+
+        # iteratively apply the filter functions
+        for fn in filter_fns:
+            blocks = filter(fn, blocks)
+
+        task_entry_set = TaskEntrySet(blocks, name=name)
+        return task_entry_set
+        
+######################
+## Filter functions
+######################
+def _assist_level_0(task_entry_model):
+    te = TaskEntry(task_entry_model)
+    if 'assist_level' in te.params:
+        assist_level = te.params['assist_level']
+        return np.all(np.array(assist_level) == 0)
+    else:
+        return True
+
+def using_decoder(decoder_type):
+    from tasks import performance
+    def _check_decoder(task_entry_model):
+        te = performance._get_te(task_entry_model)
+        try:
+            return (decoder_type in str(te.decoder_type))
+        except:
+            return False
+    return _check_decoder
+
+def min_trials(min_trial_count):
+    from tasks import performance
+    def fn(task_entry_model):
+        te = performance._get_te(task_entry_model)
+        return te.n_trials >= min_trial_count
+    return fn
