@@ -405,7 +405,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             self.bmicount += 1
         else:
             self.bmicount += 1
-        return self.kf.get_mean()
+        return self.kf.get_mean().reshape(-1,1)
 
     def predict_ssm(self):
         self.kf.propagate_ssm()
