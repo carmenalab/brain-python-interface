@@ -93,8 +93,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
             self.reportstats['status'] = status
             self.reportstats['State'] = state or 'stopped'
             
-            websock.send(rep)
-            #websock.send(self.reportstats)
+            websock.send(self.reportstats)
             super(NotifyFeat, self).set_state(state, *args, **kwargs)
 
         def run(self):
