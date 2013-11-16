@@ -68,14 +68,9 @@ class Task(models.Model):
                 varname['options'] = [(i.pk, i.name) for i in insts]
             params[trait] = varname
 
-        ordered_traits = ['session_length', 'assist_level', 'assist_time', 'batch_time', 'half_life', 'half_life_decay_time']
+        ordered_traits = Exp.ordered_traits
         for trait in ordered_traits:
             if trait in Exp.class_editable_traits():
-
-        #for trait in Exp.class_editable_traits():
-        #    if trait in ordered_traits:
-        #        print trait
-        #        print type(trait)
                 add_trait(trait)
 
         for trait in Exp.class_editable_traits():
@@ -341,10 +336,11 @@ class TaskEntry(models.Model):
         try:
             task = self.task.get(self.feats.all())
             report = json.loads(self.report)
-            js['report'] = experiment.report.general_offline(task, report)
+            js['report'] = Exp.offline_report(report)
         except:
+            import traceback
+            traceback.print_exc()
             js['report'] = dict()
-        js['report']['state'] = "Completed"
 
         try:
             from plexon import plexfile
@@ -367,9 +363,6 @@ class TaskEntry(models.Model):
         for dec in Decoder.objects.filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
         
-        #is_bmi_seed_task = 
-        #js['bmi']['_plxinfo'] = is_bmi_seed_task
-
         return js
 
     @classmethod
