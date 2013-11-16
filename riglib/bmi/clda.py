@@ -352,7 +352,7 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
 
 
 class PPFContinuousBayesianUpdater(object):
-    def __init__(self, decoder, units='cm'):
+    def __init__(self, decoder, units='cm', param_noise_scale=1.):
         self.n_units = decoder.filt.C.shape[0]
         #self.param_noise_variances = param_noise_variances
         if units == 'm':
@@ -360,6 +360,8 @@ class PPFContinuousBayesianUpdater(object):
         elif units == 'cm':
             vel_gain = 1e-8
 
+        print "Updater param noise scale %g" % param_noise_scale
+        vel_gain *= param_noise_scale
         param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
         self.W = np.tile(np.diag(param_noise_variances), [self.n_units, 1, 1])
 
