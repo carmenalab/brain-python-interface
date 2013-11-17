@@ -92,3 +92,4 @@ Report.prototype.update = function(info) {
 Report.prototype.destroy = function () {
     this.deactivate();
     this.obj.parentNode.removeChild(this.obj);
+}
