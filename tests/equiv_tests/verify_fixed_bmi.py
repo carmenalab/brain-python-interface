@@ -1,7 +1,6 @@
 #!/usr/bin/python
 '''
-Test case to check that the current state of the code is able to reconstruct a TaskEntry using the BMIControlMulti task
-'''
+Test case to check that the current state of the code is able to reconstruct a TaskEntry using the BMIControlMulti task '''
 from db import dbfunctions as dbfn
 from tasks import performance
 from scipy.io import loadmat
@@ -20,7 +19,8 @@ reload(train)
 reload(bmi)
 reload(ppfdecoder)
 
-te = performance._get_te(1989)
+idx = 2295
+te = performance._get_te(idx)
 n_iter = len(te.hdf.root.task)
 
 class BMIReconstruction(bmimultitasks.BMIControlMulti):
@@ -49,7 +49,8 @@ class BMIReconstruction(bmimultitasks.BMIControlMulti):
         return te.hdf.root.task[self.idx]['spike_counts']
 
     def _update_target_loc(self):
-        self.target_location = te.hdf.root.task[self.idx]['target']
+        #self.target_location = te.hdf.root.task[self.idx]['target']
+        self.target_location = None
         self.state = self.task_state[self.idx] #te.hdf.root.task_msgs[:]
 
     def get_cursor_location(self):
@@ -79,4 +80,8 @@ while self.idx < n_iter:
     #print time.time() - st
 
 cursor = te.hdf.root.task[:]['cursor']
-print "Recon error", np.max(np.abs(cursor[:n_iter] - np.float32(self.decoder_state[:n_iter,0:3,-1])))
+if cursor.dtype == np.float32:
+    error = cursor[:n_iter] - np.float32(self.decoder_state[:n_iter,0:3,-1])
+else:
+    error = cursor[:n_iter] - self.decoder_state[:n_iter,0:3,-1]
+print "Recon error", np.max(np.abs(error))
