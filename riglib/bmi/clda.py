@@ -169,11 +169,18 @@ class OFCLearner3DEndptPPF(OFCLearner):
         
 class CursorGoalLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):
+        self.int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
+        if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
+            raise ValueError("Unknown type of speed for cursor goal: %s" % self.int_speed_type)
+
         super(CursorGoalLearner, self).__init__(*args, **kwargs)
         self.batch_size = batch_size
         self.kindata = []
         self.neuraldata = []
-    
+
+        if self.int_speed_type == 'dist_to_target':
+            self.input_state_index = 0
+   
     def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel, 
                  task_state):
         """
@@ -187,10 +194,17 @@ class CursorGoalLearner(Learner):
         cursor_pos = cursor_state[0:len(target_pos)]
         int_dir = target_pos - cursor_pos
         dist_to_targ = np.linalg.norm(int_dir)
+        
+        # Calculate intended speed
+        if self.int_speed_type == 'dist_to_target':
+            speed = np.linalg.norm(int_dir)
+        elif self.int_speed_type == 'decoded_speed':
+            speed = np.linalg.norm(decoded_vel)
+
         if task_state in ['hold', 'origin_hold', 'target_hold']:
             int_vel = np.zeros(int_dir.shape)            
         elif task_state in ['target', 'origin', 'terminus']:
-            int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
+            int_vel = normalize(int_dir)*speed
         else:
             int_vel = None
         
