@@ -3,7 +3,12 @@ from db import dbfunctions as dbfn
 from tasks import bmimultitasks, performance
 import numpy as np
 
-idx = 2298
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-i", "--idx", dest="idx", type="int", help="block index to run verification", default=2298)
+(options, args) = parser.parse_args()
+idx = options.idx
+
 te = performance._get_te(idx)
 print te
 hdf = te.hdf
