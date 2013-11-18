@@ -220,6 +220,7 @@ def get_hdf_file(entry):
     '''
     Returns the name of the hdf file associated with the session.
     '''
+    entry = lookup_task_entries(entry)
     hdf = models.System.objects.get(name='hdf')
     q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=hdf.id)
     if len(q)==0:
