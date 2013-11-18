@@ -3,14 +3,17 @@ from db import dbfunctions as dbfn
 from tasks import bmimultitasks, performance
 import numpy as np
 
-idx = 2216
-#idx = 1807
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-i", "--idx", dest="idx", type="int", help="block index to run verification", default=2298)
+(options, args) = parser.parse_args()
+idx = options.idx
+
 te = performance._get_te(idx)
 print te
-#te = dbfunctions.get_task_entry(idx)
-hdf = te.hdf #dbfunctions.get_hdf(te)
-dec = te.decoder #dbfunctions.get_decoder(te)
-bmi_params = te.clda_param_hist #np.load(dbfunctions.get_bmiparams_file(te))
+hdf = te.hdf
+dec = te.decoder
+bmi_params = te.clda_param_hist
 
 assist_level = hdf.root.task[:]['assist_level'].ravel()
 spike_counts = hdf.root.task[:]['spike_counts']
@@ -30,6 +33,15 @@ for k in range(T):
     st = dec(spike_counts[k], target=target[k], target_radius=te.target_radius, 
              assist_level=assist_level[k], speed=5*dec.binlen)
 
-    error[k] = np.linalg.norm(cursor[k] - np.float32(st[0:3, -1]))
+    if cursor.dtype == np.float32:
+        error[k] = np.linalg.norm(cursor[k] - np.float32(st[0:3, -1]))
+    elif cursor.dtype == np.float64:
+        error[k] = np.linalg.norm(cursor[k] - st[0:3, -1])
+    else:
+        raise TypeError("Cursor dtype unrecongized: %s" % cursor.dtype)
 
-print np.max(np.abs(error))
+    if error[k] > 0:
+        pass
+        #import pdb; pdb.set_trace()
+
+print 'Max error', np.max(np.abs(error))

@@ -28,7 +28,7 @@ def _get_trait_default(trait):
 
 class Task(models.Model):
     name = models.CharField(max_length=128)
-    visible = models.BooleanField()
+    visible = models.BooleanField(default=True)
     def __unicode__(self):
         return self.name
     
@@ -68,14 +68,9 @@ class Task(models.Model):
                 varname['options'] = [(i.pk, i.name) for i in insts]
             params[trait] = varname
 
-        ordered_traits = ['session_length', 'assist_level', 'assist_time', 'batch_time', 'half_life', 'half_life_decay_time']
+        ordered_traits = Exp.ordered_traits
         for trait in ordered_traits:
             if trait in Exp.class_editable_traits():
-
-        #for trait in Exp.class_editable_traits():
-        #    if trait in ordered_traits:
-        #        print trait
-        #        print type(trait)
                 add_trait(trait)
 
         for trait in Exp.class_editable_traits():
@@ -341,10 +336,11 @@ class TaskEntry(models.Model):
         try:
             task = self.task.get(self.feats.all())
             report = json.loads(self.report)
-            js['report'] = experiment.report.general_offline(task, report)
+            js['report'] = Exp.offline_report(report)
         except:
+            import traceback
+            traceback.print_exc()
             js['report'] = dict()
-        js['report']['state'] = "Completed"
 
         try:
             from plexon import plexfile
@@ -367,10 +363,50 @@ class TaskEntry(models.Model):
         for dec in Decoder.objects.filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
         
-        #is_bmi_seed_task = 
-        #js['bmi']['_plxinfo'] = is_bmi_seed_task
+        # TODO include paths to any plots associated with this task entry, if offline
+        files = os.popen('find /storage/plots/ -name %s*.png' % self.name)
+        plot_files = dict()
+        for f in files:
+            fname = f.rstrip()
+            keyname = os.path.basename(fname).rstrip('.png')[len(self.name):]
+            plot_files[keyname] = os.path.join('/static', fname)
+        js['plot_files'] = plot_files
 
+        print js['report'].keys()
         return js
+
+    @property
+    def plx_file(self):
+        '''
+        Returns the name of the plx file associated with the session.
+        '''
+        plexon = System.objects.get(name='plexon')
+        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=plexon.id)
+        if len(q)==0:
+            return 'noplxfile'
+        else:
+            try:
+                import db.paths
+                return os.path.join(db.paths.data_path, plexon.name, q[0].path)
+            except:
+                return q[0].path
+
+    @property
+    def name(self):
+        '''
+        Return a string representing the 'name' of the block. Note that the block
+        does not really have a unique name in the current implementation.
+        Thus, the 'name' is a hack this needs to be hacked because the current way of determining a 
+        a filename depends on the number of things in the database, i.e. if 
+        after the fact a record is removed, the number might change. read from
+        the file instead
+        '''
+        try:
+            return str(os.path.basename(self.plx_file).rstrip('.plx'))
+        except:
+            return 'noname'
+
+
 
     @classmethod
     def from_json(cls, js):

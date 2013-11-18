@@ -12,6 +12,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 from riglib import experiment
 from models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
+import cPickle
+import tempfile
 
 def save_log(idx, log):
     entry = TaskEntry.objects.get(pk=idx)
@@ -59,6 +61,15 @@ def save_data(curfile, system, entry, move=True, local=True):
 
     DataFile(local=local, path=permfile, system=sys, entry=entry).save()
     print "Saved datafile for file=%s -> %s, system=%s, id=%d)..."%(curfile, permfile, system, entry.id)
+
+def save_decoder_object(name, entry, decoder):
+    '''
+    Save a Decoder object to the database
+    '''
+    tf2 = tempfile.NamedTemporaryFile(delete=False)
+    cPickle.dump(decoder, tf2)
+    tf2.flush()
+    save_bmi(name, entry, tf2.name)
 
 def save_bmi(name, entry, filename):
     '''

@@ -8,6 +8,7 @@ import random
 import threading
 import traceback
 import collections
+import re
 
 import numpy as np
 from . import traits
@@ -21,6 +22,8 @@ class Experiment(traits.HasTraits, threading.Thread):
     )
     state = "wait"
     stop = False
+    exclude_parent_traits = []
+    ordered_traits = []
 
     def __init__(self, **kwargs):
         traits.HasTraits.__init__(self, **kwargs)
@@ -34,6 +37,12 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
         self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
         self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
+
+    @classmethod
+    def class_editable_traits(cls):
+        traits = super(Experiment, cls).class_editable_traits()
+        editable_traits = filter(lambda x: x not in cls.exclude_parent_traits, traits)
+        return editable_traits
 
     def init(self):
         '''
@@ -104,6 +113,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     def _test_stop(self, ts):
         return self.stop
 
+    @classmethod
     def _time_to_string(self, sec):
         '''
         Convert a time in seconds to a string of format hh:mm:ss.
@@ -118,6 +128,29 @@ class Experiment(traits.HasTraits, threading.Thread):
         an ordered dictionary. Keys are strings that will be displayed as the label for the stat in the web interface,
         values can be numbers or strings. Called every time task state changes.'''
         self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
+
+    @classmethod
+    def offline_report(self, event_log):
+        '''Returns an ordered dict with report stats to be displayed when past session of this task is selected
+        in the web interface. Not called while task is running, only offline, so stats must come from information
+        available in a sessions event log. Inputs are task object and event_log.'''
+        offline_report = collections.OrderedDict()  
+        explength = event_log[-1][-1] - event_log[0][-1]
+        offline_report['Runtime'] = self._time_to_string(explength)
+        n_trials = 0
+        n_success_trials = 0
+        n_error_trials = 0
+        for k, (state, event, t) in enumerate(event_log):
+            if state == "reward":
+                n_trials += 1
+                n_success_trials += 1
+            elif re.match('.*?_penalty', state):
+                n_trials += 1
+                n_error_trials += 1
+        offline_report['Total trials'] = n_trials
+        offline_report['Total rewards'] = n_success_trials
+        offline_report['Success rate'] = str(np.round(float(n_success_trials)/n_trials*100,decimals=2)) + '%'
+        return offline_report
 
     def cleanup(self, database, saveid, **kwargs):
         pass

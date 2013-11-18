@@ -120,12 +120,11 @@ function TaskEntry(idx, info){
 	$("#content").hide();
 	this.sequence = new Sequence();
 	this.params = new Parameters();
-	boxes = {"state":"Current State", "trials":"Trial #", "length":"Time", "reward_len":"Reward Time", "rates":"Rates"};
-	console.log(info)
 
-	this.report = new Report(TaskInterface.trigger.bind(this), boxes);
+	this.report = new Report(TaskInterface.trigger.bind(this));
 	
 	$("#parameters").append(this.params.obj);
+    $("#plots").empty()
 
 	if (idx) {
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
@@ -134,6 +133,7 @@ function TaskEntry(idx, info){
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			this.notes = new Notes(this.idx);
 			this.update(expinfo);
+            console.log(expinfo)
 			this.disable();
 			$("#content").show("slide", "fast");
 		}.bind(this));
@@ -241,6 +241,20 @@ TaskEntry.prototype.update = function(info) {
 	} else {
 		$("#sequence").hide()
 	}
+
+    // render plots
+	this.plot_filelist = document.createElement("ul");
+    if (info.plot_files) {
+        $("#plots").empty()
+        for (var plot_type in info.plot_files) {
+            var img = document.createElement("img");
+            img.setAttribute('src', '/static'+info.plot_files[plot_type])
+            //$("#plots").append("<img src='/static/storage/plots/cart20131112_19_clda_param_hist.png' alt='Img not found'>")
+            $("#plots").append(img)
+        }
+    } else {
+        $("#plots").empty()
+    }
 }
 TaskEntry.copy = function() {
 	var info = te.expinfo;

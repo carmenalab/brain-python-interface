@@ -19,13 +19,19 @@ reload(train)
 reload(bmi)
 reload(ppfdecoder)
 
-idx = 2295
+idx = 2306
 te = performance._get_te(idx)
-n_iter = len(te.hdf.root.task)
+T = len(te.hdf.root.task)
+n_iter = T
+#n_iter = 15782
 
-class BMIReconstruction(bmimultitasks.BMIControlMulti):
+task_msgs = te.hdf.root.task_msgs[:]
+update_bmi_msgs = task_msgs[task_msgs['msg'] == 'update_bmi']
+state_transitions = task_msgs[~(task_msgs['msg'] == 'update_bmi')]
+
+class CLDAPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
     def __init__(self, *args, **kwargs):
-        super(BMIReconstruction, self).__init__(*args, **kwargs)
+        super(CLDAPPFReconstruction, self).__init__(*args, **kwargs)
         self.idx = 0
         self.task_data = SimHDF()
         self.hdf = SimHDF()
@@ -33,9 +39,20 @@ class BMIReconstruction(bmimultitasks.BMIControlMulti):
 
         task_msgs = te.hdf.root.task_msgs[:]
         # TODO filter out 'update_bmi' msgs
-        self.task_state = np.array([None]*n_iter)
+        task_msgs = state_transitions #task_msgs[~(task_msgs['msg'] == 'update_bmi')]
+        self.task_state = np.array([None]*T)
         for msg, next_msg in izip(task_msgs[:-1], task_msgs[1:]):
+            if msg['time'] == next_msg['time']:
+                print msg, next_msg
+                next_msg['time'] += 1
+                print msg, next_msg
+            if msg['msg'] == 'targ_transition' and next_msg['time'] - msg['time'] > 1:
+                print msg, next_msg
+                next_msg['time'] = msg['time'] + 1
+                print msg, next_msg
             self.task_state[msg['time']:next_msg['time']] = msg['msg']
+
+        self.tau = te.params['tau']
 
     def load_decoder(self):
         '''
@@ -43,21 +60,25 @@ class BMIReconstruction(bmimultitasks.BMIControlMulti):
         '''
         self.decoder = te.decoder
         self.n_subbins = self.decoder.n_subbins
-        self.decoder_state = np.zeros([n_iter, 7, self.n_subbins])
+        self.decoder_state = np.zeros([T, 7, self.n_subbins])
 
     def get_spike_counts(self):
         return te.hdf.root.task[self.idx]['spike_counts']
 
     def _update_target_loc(self):
-        #self.target_location = te.hdf.root.task[self.idx]['target']
-        self.target_location = None
-        self.state = self.task_state[self.idx] #te.hdf.root.task_msgs[:]
+        self.target_location = te.hdf.root.task[self.idx]['target']
+        #self.target_location = None
+        if self.idx in update_bmi_msgs['time']:
+            self.state = 'target'
+        else:
+            self.state = 'no_target'
+        #self.state = self.task_state[self.idx] #te.hdf.root.task_msgs[:]
 
     def get_cursor_location(self):
         if self.idx % 1000 == 0: 
             print self.idx
 
-        self.current_assist_level = 0 # same indexing as MATLAB
+        self.current_assist_level = te.hdf.root.task[self.idx]['assist_level'][0]
         self._update_target_loc()
         spike_obs = self.get_spike_counts()
         
@@ -68,7 +89,7 @@ class BMIReconstruction(bmimultitasks.BMIControlMulti):
 
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
 
-task = BMIReconstruction(gen)
+task = CLDAPPFReconstruction(gen)
 task.init()
 
 self = task
