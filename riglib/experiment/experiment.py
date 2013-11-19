@@ -113,6 +113,11 @@ class Experiment(traits.HasTraits, threading.Thread):
     def _test_stop(self, ts):
         return self.stop
 
+    def save_attrs(self):
+        traits = self.class_editable_traits()
+        for trait in traits:
+            self.hdf.sendAttr("task", trait, getattr(self, trait))
+
     @classmethod
     def _time_to_string(self, sec):
         '''
