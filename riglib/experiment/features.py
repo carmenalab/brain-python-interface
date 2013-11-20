@@ -350,6 +350,7 @@ class SaveHDF(SinkRegister):
         try:
             super(SaveHDF, self).run()
         finally:
+            self.save_attrs()
             self.hdf.stop()
     
     def join(self):

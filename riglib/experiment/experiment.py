@@ -110,7 +110,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     def _test_stop(self, ts):
         return self.stop
 
-    def cleanup_hdf(self):
+    def save_attrs(self):
         ''' Method for adding data to hdf file before hdf sink is closed by system at end of task.'''
         traits = self.class_editable_traits()
         for trait in traits:
@@ -160,6 +160,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         return offline_report
 
     def cleanup(self, database, saveid, **kwargs):
+        pass
+
+    def cleanup_hdf(self):
         pass
     
     def end_task(self):
