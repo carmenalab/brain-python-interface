@@ -82,7 +82,7 @@ tasks = dict(
     ######### V2 tasks
     clda_constrained_sskf_multi = bmimultitasks.CLDAConstrainedSSKFMulti,
     manual_control_multi =manualcontrolmultitasks.ManualControlMulti,
-    joystick_multi = manualcontrolmultitasks.JoystickMulti,
+    #joystick_multi = manualcontrolmultitasks.JoystickMulti,
     bmi_control_multi = bmimultitasks.BMIControlMulti,
     bmi_manipulated_feedback = bmilowfeedback.BMIControlManipulatedFB,
     clda_ppf_manipulated_feedback = bmilowfeedback.CLDAControlPPFContAdaptMFB,
