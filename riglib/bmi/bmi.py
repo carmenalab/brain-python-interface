@@ -428,6 +428,9 @@ class AdaptiveBMI(object):
                 self.decoder.update_params(new_params, steady_state=steady_state)
                 self.learner.enable()
                 update_flag = True
+            else:
+                self.param_hist.append(None)
+
 
         decoded_states = np.vstack(decoded_states).T
         return decoded_states, update_flag
