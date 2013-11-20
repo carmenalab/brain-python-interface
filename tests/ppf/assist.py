@@ -8,7 +8,7 @@ from riglib.bmi import feedback_controllers, kfdecoder, ppfdecoder
 import matplotlib.pyplot as plt
 from db import dbfunctions as dbfn
 
-dec = dbfn.get_decoder(2123)
+dec = dbfn.get_decoder(2326)
 
 if isinstance(dec, kfdecoder.KFDecoder):
     dt = 1./10
@@ -79,7 +79,8 @@ for k, scale in enumerate(scale_factors):
     arrival_time[k] = calc_arrival_time(scale) * dt
 
 
-mean_speeds = 5 * np.linspace(0, 1, 20)
+scale_factor = 2
+mean_speeds = scale_factor * 5 * np.linspace(0, 1, 20)
 old_arrival_times = 8.8 / mean_speeds
 
 plt.close('all')

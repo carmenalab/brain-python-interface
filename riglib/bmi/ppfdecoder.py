@@ -313,7 +313,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         ### 
         ### self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
         #if not hasattr(self, 'F_assist'):
-        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels.pkl'))
+        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_ppf.pkl'))
         self.n_assist_levels = len(self.F_assist)
         self.prev_assist_level = self.n_assist_levels
         if not hasattr(self, 'clda_dtype'):
