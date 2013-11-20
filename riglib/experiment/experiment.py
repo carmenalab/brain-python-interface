@@ -29,9 +29,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         traits.HasTraits.__init__(self, **kwargs)
         threading.Thread.__init__(self)
         self.task_start_time = self.get_time()
-        self.ntrials = 0
-        self.nrewards = 0
-        self.reward_len = 0
         self.reportstats = collections.OrderedDict()
         self.reportstats['State'] = None #State stat is automatically updated for all experiment classes
         self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
@@ -113,10 +110,12 @@ class Experiment(traits.HasTraits, threading.Thread):
     def _test_stop(self, ts):
         return self.stop
 
-    def save_attrs(self):
+    def cleanup_hdf(self):
+        ''' Method for adding data to hdf file before hdf sink is closed by system at end of task.'''
         traits = self.class_editable_traits()
         for trait in traits:
-            self.hdf.sendAttr("task", trait, getattr(self, trait))
+            if trait is not 'bmi':
+                self.hdf.sendAttr("task", trait, getattr(self, trait))
 
     @classmethod
     def _time_to_string(self, sec):
@@ -154,7 +153,10 @@ class Experiment(traits.HasTraits, threading.Thread):
                 n_error_trials += 1
         offline_report['Total trials'] = n_trials
         offline_report['Total rewards'] = n_success_trials
-        offline_report['Success rate'] = str(np.round(float(n_success_trials)/n_trials*100,decimals=2)) + '%'
+        if n_trials == 0:
+            offline_report['Success rate'] = None
+        else:
+            offline_report['Success rate'] = str(np.round(float(n_success_trials)/n_trials*100,decimals=2)) + '%'
         return offline_report
 
     def cleanup(self, database, saveid, **kwargs):
