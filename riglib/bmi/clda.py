@@ -308,55 +308,11 @@ class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         
 class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
-    def __init__(self):
-        self.default_gain = None
+    def __init__(self, default_gain=None):
+        self.default_gain = default_gain
 
     @classmethod
     def scalar_riccati_eq_soln(cls, a, w, n):
-        #### #q = 600
-        #### #a = 0.8
-        #### #w = 0.0007
-        #### dt = 0.1
-        #### A = np.mat([[1, 0, dt, 0], [0, 1, 0, dt], [0, 0, a, 0], [0, 0, 0, a]])
-        #### W = np.mat([[0, 0,  0, 0], [0, 0, 0,  0], [0, 0, w, 0], [0, 0, 0, w]])
-        #### C_xpose_Q_inv_C = np.mat( np.diag([0, 0, q, q]) )
-        #### #m = 1-w/(1+q*w)
-        #### 
-        #### def quad_form(a, b, c):
-        ####     a = float(a)
-        ####     b = float(b)
-        ####     c = float(c)
-        ####     return (-b + np.sqrt(b**2 - 4*a*c))/(2*a), (-b - np.sqrt(b**2 - 4*a*c))/(2*a)
-        #### 
-        #### def discriminant(a, b, c):
-        ####     return b**2 - 4*a*c
-        #### 
-        #### def calc_n(a, w, qs):
-        ####     n = np.zeros(100)
-        ####     dt = 0.1
-        ####     for k, q in enumerate(qs):
-        ####         p = max(np.roots([q, 1-a**2-w*q, -w]) )
-        #### 
-        ####         beta0, beta1  = quad_form( -q, 2*dt, dt**2*p) 
-        ####         delta = p
-        ####         d = q
-        ####         eval_alpha_diff = lambda beta: 2*dt*beta + dt**2*delta - (beta + dt*delta)*d/(delta*d+1)*beta - dt*(beta + dt*delta)*d/(delta*d+1)*delta 
-        ####         n[k] = (1 - p*(q - q**2*(p**-1 + q)**-1))*a
-        ####     return n
-        ####     
-        #### def calc_n(a, w, d, dt=0.1):
-        ####     delta = calc_delta(a, w, d)
-        ####     return a/(1+d*delta) 
-        #### 
-        #### def calc_delta(a, w, d, dt=0.1):
-        ####     return max(np.roots([d, 1-a**2-w*d, -w]) )
-        #### 
-        #### def solve_for_d(a, w, n, dt=0.1):
-        ####     d = (1-a*n)/w * (a-n)/n
-        ####     print calc_n(a, w, d)
-        ####     return d
-
-        #### return solve_for_d(a, w, n)
         return (1-a*n)/w * (a-n)/n 
 
     def calc(self, intended_kin, spike_counts, rho, decoder):
@@ -389,8 +345,6 @@ class KFOrthogonalPlantSmoothbatch(KFOrthogonalPlantSmoothbatchSingleThread, KFS
         self.default_gain = kwargs.pop('default_gain', None)
         KFSmoothbatch.__init__(self, *args, **kwargs)
         
-
-
 class PPFSmoothbatchSingleThread(object):
     def calc(self, intended_kin, spike_counts, rho, decoder):
     #def calc(self, intended_kin, spike_counts, rho, C_old, drives_neurons):
