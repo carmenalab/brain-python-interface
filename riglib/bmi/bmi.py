@@ -143,7 +143,7 @@ class Decoder(object):
         ax.set_title(self)
 
     def plot_C(self, **kwargs):
-        self.plot_pds(self.filt.C, **kwargs)
+        self.plot_pds(self.filt.C, linewidth=2, **kwargs)
 
     def update_params(self, new_params, **kwargs):
         for key, val in new_params.items():
