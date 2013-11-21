@@ -412,9 +412,18 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
     # Open plx file
     plx_fname = str(files['plexon'])
     plx = plexfile.openFile(plx_fname)
+
+    # Compute last spike and set it to tslice[1]: 
+    last_spk = plx.spikes[:].data[-1][0]
+
+    if tslice[1]==None:
+        tslice=[0,int(last_spk)]
+    else:
+        tslice=[tslice[0], np.min(tslice[1],int(last_spk))]
+
     tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
     tmask_continuous = np.array_equal(np.unique(np.diff(np.nonzero(tmask)[0])), np.array([1]))
-    
+
     #Grab masked kinematic data
     h5 = tables.openFile(files['hdf'])
     kin = h5.root.task[tmask]['cursor']
