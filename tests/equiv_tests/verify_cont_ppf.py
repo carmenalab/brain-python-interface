@@ -20,7 +20,14 @@ reload(bmi)
 reload(ppfdecoder)
 
 idx = 2306
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-b", "--block", dest="block", help="Database ID number of block to run on", type=int, metavar="FILE")
+
+(options, args) = parser.parse_args()
+idx = options.block
 te = performance._get_te(idx)
+print te
 T = len(te.hdf.root.task)
 n_iter = T
 #n_iter = 15782
