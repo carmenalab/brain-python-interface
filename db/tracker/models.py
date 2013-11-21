@@ -350,11 +350,13 @@ class TaskEntry(models.Model):
             plx = plexfile.openFile(str(df.get_path()), load=False)
             path, name = os.path.split(df.get_path())
             name, ext = os.path.splitext(name)
+
+            from namelist import bmi_seed_tasks
             js['bmi'] = dict(_plxinfo=dict(
                 length=plx.length, 
                 units=plx.units, 
                 name=name,
-                is_seed=int(self.task.name in ['visual_feedback_multi', 'manual_control_multi']),
+                is_seed=int(self.task.name in bmi_seed_tasks),
                 ))
         except (ObjectDoesNotExist, AssertionError, IOError):
             print "No plexon file found"

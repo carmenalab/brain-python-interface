@@ -95,6 +95,10 @@ tasks = dict(
     clda_kf_cg_sb = bmimultitasks.CLDAControlKFCG,
 )
 
+## BMI seed tasks
+# The below list shows which tasks can be used to train new Decoders
+bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi']
+
 from tracker import models
 
 class SubclassDict(dict):
@@ -122,3 +126,4 @@ bmis = dict(
     ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
     ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
     )
+
