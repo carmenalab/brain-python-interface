@@ -7,6 +7,7 @@ from riglib.bmi import kfdecoder, ppfdecoder, train, bmi, feedback_controllers
 import time
 import cmath
 from itertools import izip
+import tables
 
 
 inv = np.linalg.inv
@@ -583,6 +584,56 @@ class KFRML(object):
 
         return new_params
 
+def write_clda_data_to_hdf_table(hdf_fname, data):
+    '''
+    Parameters
+    ==========
+    hdf_fname : filename of HDF file
+    data : list of dictionaries with the same keys and same dtypes for values
+    '''
+    
+    log_file = open('/home/helene/code/bmi3d/log/clda_log', 'w')
+    compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
+    if len(data) > 0:
+        # Find the first parameter update dictionary
+        k = 0
+        first_update = data[k]
+        while first_update is None:
+            k += 1
+            first_update = data[k]
+    
+        table_col_names = first_update.keys()
+        dtype = []
+        shapes = []
+        for col_name in table_col_names:
+            shape = first_update[col_name].shape
+            dtype.append((col_name, 'f8', shape))
+            shapes.append(shape)
+    
+        log_file.write(str(dtype))
+        # Create the HDF table with the datatype above
+        dtype = np.dtype(dtype) 
+    
+        h5file = tables.openFile(hdf_fname, mode='a')
+        arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
+    
+        null_update = np.zeros((1,), dtype=dtype)
+        for col_name in table_col_names:
+            null_update[col_name] *= np.nan
+    
+        for k, param_update in enumerate(data):
+            log_file.write('%d\n' % k)
+            if param_update == None:
+                pass
+                data_row = null_update
+            else:
+                data_row = np.zeros((1,), dtype=dtype)
+                for col_name in table_col_names:
+                    data_row[col_name] = np.asarray(param_update[col_name])
+    
+                arr.append(data_row)
+        h5file.close()
+    
 
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties
