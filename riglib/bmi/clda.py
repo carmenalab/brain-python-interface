@@ -584,7 +584,7 @@ class KFRML(object):
 
         return new_params
 
-def write_clda_data_to_hdf_table(hdf_fname, data):
+def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     '''
     Parameters
     ==========
@@ -603,11 +603,12 @@ def write_clda_data_to_hdf_table(hdf_fname, data):
             first_update = data[k]
     
         table_col_names = first_update.keys()
+        print table_col_names
         dtype = []
         shapes = []
         for col_name in table_col_names:
             shape = first_update[col_name].shape
-            dtype.append((col_name, 'f8', shape))
+            dtype.append((col_name.replace('.', '_'), 'f8', shape))
             shapes.append(shape)
     
         log_file.write(str(dtype))
@@ -619,19 +620,21 @@ def write_clda_data_to_hdf_table(hdf_fname, data):
     
         null_update = np.zeros((1,), dtype=dtype)
         for col_name in table_col_names:
-            null_update[col_name] *= np.nan
+            null_update[col_name.replace('.', '_')] *= np.nan
     
         for k, param_update in enumerate(data):
-            log_file.write('%d\n' % k)
+            log_file.write('%d, %s\n' % (k, str(ignore_none)))
             if param_update == None:
-                pass
-                data_row = null_update
+                if ignore_none:
+                    continue
+                else:
+                    data_row = null_update
             else:
                 data_row = np.zeros((1,), dtype=dtype)
                 for col_name in table_col_names:
-                    data_row[col_name] = np.asarray(param_update[col_name])
+                    data_row[col_name.replace('.', '_')] = np.asarray(param_update[col_name])
     
-                arr.append(data_row)
+            arr.append(data_row)
         h5file.close()
     
 
