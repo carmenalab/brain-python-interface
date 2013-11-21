@@ -10,6 +10,7 @@ import time
 import cmath
 import feedback_controllers
 import pickle
+import train
 
 class PointProcessFilter():
     """
@@ -236,6 +237,9 @@ class PointProcessFilter():
             pvalues[k,:] = model_fit.pvalues
 
         return C, pvalues
+
+    def __eq__(self, other):
+        return train.obj_eq(self, other, ['A', 'W', 'C'])
 
 class PPFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, filt, units, bounding_box, states, drives_neurons,

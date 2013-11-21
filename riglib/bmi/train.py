@@ -35,6 +35,17 @@ def unit_conv(starting_unit, ending_unit):
     elif (starting_unit, ending_unit) == ('m', 'cm'):
         return 100
 
+def obj_eq(self, other, attrs=[]):
+    '''
+    Determine if two objects have matching attributes
+    '''
+    if isinstance(other, type(self)):
+        attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
+        equal = map(lambda attr: np.array_equal(getattr(self, attr), getattr(other, attr)), attrs_eq)
+        return np.all(equal)
+    else:
+        return False
+    
 def lookup_cells(cells):
     '''
     Take a list of neural units specified as a list of strings and convert 
@@ -172,9 +183,10 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound, binlen=binlen)
     return decoder
 
-def _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask']):
+def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask']):
     # Open plx file
-    plx = plexfile.openFile(plx_fname)
+    if isinstance(plx, str) or isinstance(plx, unicode):
+        plx = plexfile.openFile(plx)
     events = plx.events[:].data
     syskey=0
     # get system registrations
@@ -242,7 +254,7 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     # Open plx file
     plx_fname = str(files['plexon'])
     plx = plexfile.openFile(plx_fname)
-    tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
+    tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
     
     h5 = tables.openFile(files['hdf'])
 
@@ -250,7 +262,6 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     kin = h5.root.task[:]['cursor']
     velocity = np.diff(kin, axis=0) * 60.
     velocity = np.vstack([np.zeros(3), velocity])
-    print velocity
     kin = np.hstack([kin, velocity])
 
     inds, = np.nonzero(tmask)
@@ -372,7 +383,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     # Open plx file
     plx_fname = str(files['plexon'])
     plx = plexfile.openFile(plx_fname)
-    tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
+    tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
     tmask_continuous = np.array_equal(np.unique(np.diff(np.nonzero(tmask)[0])), np.array([1]))
     
     #Grab masked kinematic data

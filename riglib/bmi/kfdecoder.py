@@ -13,6 +13,7 @@ import numpy as np
 from scipy.io import loadmat
 
 import bmi
+import train
 import pickle
 
 class KalmanFilter(bmi.GaussianStateHMM):
@@ -317,6 +318,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F, K = self.get_sskf()
         F = (I - KC)*A
         self._init_state(init_state=self.state.mean, init_cov=P)
+
+    def __eq__(self, other):
+        return train.obj_eq(self, other, ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C'])
 
 class PseudoPPF(KalmanFilter):
     def _forward_infer(self, st, obs_t, **kwargs):
