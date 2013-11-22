@@ -142,6 +142,18 @@ def runtask(cmds, _cmds, websock, **kwargs):
         print err.read()
     sys.stdout = sys.__stdout__
     task.cleanup()
+
+    # Summarize performance during task
+    try:
+        from tasks import performance
+        te = performance._get_te(task.saveid)
+        #te.plot_rewards_per_min()
+        te.summary()
+    except:
+        print "=====traceback during performance calculations at end of block"
+        import traceback
+        traceback.print_exc(open('/home/helene/code/bmi3d/log/tasktrack_log', 'w'))
+        print "====="
     print "****************Exit task proc"
 
 class Task(object):
