@@ -576,6 +576,17 @@ class TaskEntrySet(object):
         task_entry_set = TaskEntrySet(blocks, name=name)
         return task_entry_set
         
+    @classmethod
+    def get_blocks(cls, name='', filter_fns=[], **kwargs):
+        blocks = get_task_entries_by_date(**kwargs)
+        if name == '': name = str(kwargs)
+
+        # iteratively apply the filter functions
+        for fn in filter_fns:
+            blocks = filter(fn, blocks)
+
+        return blocks
+        
 ######################
 ## Filter functions
 ######################
@@ -603,3 +614,8 @@ def min_trials(min_trial_count):
         te = performance._get_te(task_entry_model)
         return te.n_trials >= min_trial_count
     return fn
+
+def get_bmi_blocks(date, subj='C'):
+    blocks = TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='bmi') + TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='clda')
+    blocks.sort(key=lambda x: x.date)
+    return blocks
