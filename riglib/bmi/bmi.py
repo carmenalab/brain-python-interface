@@ -9,23 +9,6 @@ import multiprocessing as mp
 from itertools import izip
 import time
 
-##try:
-##    from plexon import psth
-##except:
-##    import warnings
-##    warnings.warn('psth module not found, using python spike binning function')
-
-
-def bin_spikes(spikes, units):
-    '''
-    Python implementation of the psth spike binning function
-    '''
-    binned_spikes = defaultdict(int)
-    for spike in spikes:
-        binned_spikes[(spike['chan'], spike['unit'])] += 1
-    return np.array([binned_spikes[unit] for unit in units])
-
-
 class BMI(object):
     '''
     Legacy class that decoders must inherit from for database reasons
@@ -174,12 +157,12 @@ class Decoder(object):
         """
         Get element(s) of the BMI state, indexed by name or number
         """
-        alg = self.get_filter()
+        #alg = self.get_filter()
         if isinstance(idx, int):
-            return alg.state.mean[idx, 0]
+            return self.filt.state.mean[idx, 0]
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
-            return alg.state.mean[idx, 0]
+            return self.filt.state.mean[idx, 0]
         elif np.iterable(idx):
             return np.array([self.__getitem__(k) for k in idx])
         else:
@@ -249,8 +232,8 @@ class Decoder(object):
         Get the state of the decoder (mean of the Gaussian RV representing the
         state of the BMI)
         '''
-        alg = self.get_filter()
-        return np.array(alg.state.mean).ravel()
+        #alg = self.get_filter()
+        return np.array(self.filt.state.mean).ravel()
 
     def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,
                 assist_level=0.0, assist_inds=[0,1,2],
@@ -310,6 +293,11 @@ class Decoder(object):
 
     @property
     def n_units(self):
+        '''
+        Return the number of units used in the decoder; For both the PPF and
+        the KF, this corresponds to the first dimension of the C matrix, 
+        but future decoders may need to return a different quantity
+        '''
         return self.filt.C.shape[0]
 
 class AdaptiveBMI(object):
