@@ -124,6 +124,10 @@ class Window(LogExperiment):
     def requeue(self):
         self.renderer._queue_render(self.world)
 
+    def _cycle(self):
+        super(Window, self)._cycle()
+        self.draw_world()
+
 
 class WindowDispl2D(object):
     def __init__(self):

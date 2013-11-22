@@ -10,6 +10,7 @@ import time
 import cmath
 import feedback_controllers
 import pickle
+import train
 
 class PointProcessFilter():
     """
@@ -237,6 +238,9 @@ class PointProcessFilter():
 
         return C, pvalues
 
+    def __eq__(self, other):
+        return train.obj_eq(self, other, ['A', 'W', 'C'])
+
 class PPFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, filt, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, n_subbins=3, tslice=[-1,-1]):
@@ -313,7 +317,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         ### 
         ### self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
         #if not hasattr(self, 'F_assist'):
-        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels.pkl'))
+        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_ppf.pkl'))
         self.n_assist_levels = len(self.F_assist)
         self.prev_assist_level = self.n_assist_levels
         if not hasattr(self, 'clda_dtype'):

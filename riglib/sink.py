@@ -21,6 +21,7 @@ class DataSink(mp.Process):
     
     def run(self):
         output = self.output(**self.kwargs)
+
         while self.status.value > 0:
             if self._pipe.poll(.001):
                 system, data = self._pipe.recv()
@@ -35,7 +36,7 @@ class DataSink(mp.Process):
                         ret = getattr(output, cmd)(*args, **kwargs)
                         
                 except Exception as e:
-                    traceback.print_exc()
+                    traceback.print_exc(file=open('/home/helene/code/bmi3d/log/data_sink_log', 'a'))
                     ret = e
                 self._cmd_pipe.send(ret)
                 self.cmd_event.clear()

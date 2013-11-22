@@ -6,6 +6,8 @@ import numpy as np
 from riglib.bmi import kfdecoder, ppfdecoder, train, bmi, feedback_controllers
 import time
 import cmath
+from itertools import izip
+import tables
 
 
 inv = np.linalg.inv
@@ -169,11 +171,18 @@ class OFCLearner3DEndptPPF(OFCLearner):
         
 class CursorGoalLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):
+        self.int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
+        if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
+            raise ValueError("Unknown type of speed for cursor goal: %s" % self.int_speed_type)
+
         super(CursorGoalLearner, self).__init__(*args, **kwargs)
         self.batch_size = batch_size
         self.kindata = []
         self.neuraldata = []
-    
+
+        if self.int_speed_type == 'dist_to_target':
+            self.input_state_index = 0
+   
     def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel, 
                  task_state):
         """
@@ -187,10 +196,17 @@ class CursorGoalLearner(Learner):
         cursor_pos = cursor_state[0:len(target_pos)]
         int_dir = target_pos - cursor_pos
         dist_to_targ = np.linalg.norm(int_dir)
+        
+        # Calculate intended speed
+        if self.int_speed_type == 'dist_to_target':
+            speed = np.linalg.norm(int_dir)
+        elif self.int_speed_type == 'decoded_speed':
+            speed = np.linalg.norm(decoded_vel)
+
         if task_state in ['hold', 'origin_hold', 'target_hold']:
             int_vel = np.zeros(int_dir.shape)            
         elif task_state in ['target', 'origin', 'terminus']:
-            int_vel = normalize(int_dir)*np.linalg.norm(int_dir)
+            int_vel = normalize(int_dir)*speed
         else:
             int_vel = None
         
@@ -293,17 +309,32 @@ class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         
 class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
-    def calc(self, intended_kin, spike_counts, rho, decoder): #C_old, Q_old, drives_neurons,
-#             mFR_old, sdFR_old):
-        
+    def __init__(self, default_gain=None):
+        self.default_gain = default_gain
+
+    @classmethod
+    def scalar_riccati_eq_soln(cls, a, w, n):
+        return (1-a*n)/w * (a-n)/n 
+
+    def calc(self, intended_kin, spike_counts, rho, decoder):
         args = (intended_kin, spike_counts, rho, decoder)
         new_params = super(KFOrthogonalPlantSmoothbatchSingleThread, self).calc(*args)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
+
         D = (C.T * Q.I * C)
-        d = np.mean([D[3,3], D[5,5]])
-        D[3:6, 3:6] = np.diag([d, d, d])
-        #D[2:4, 2:4] = np.mean(np.diag(D)) * np.eye(2) # TODO generalize!
-        # TODO calculate the gain from the riccati equation solution (requires A and W)
+        if self.default_gain == None:
+            d = np.mean([D[3,3], D[5,5]])
+            D[3:6, 3:6] = np.diag([d, d, d])
+        else:
+            # calculate the gain from the riccati equation solution
+            A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
+            W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
+            D_diag = []
+            for a, w, n in izip(A_diag, W_diag, self.default_gain):
+                d = KFOrthogonalPlantSmoothbatchSingleThread.scalar_riccati_eq_soln(a, w, n)
+                D_diag.append(d)
+
+            D[3:6, 3:6] = np.mat(np.diag(D_diag))
 
         new_params['kf.C_xpose_Q_inv_C'] = D
         new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
@@ -311,9 +342,10 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
 
 
 class KFOrthogonalPlantSmoothbatch(KFOrthogonalPlantSmoothbatchSingleThread, KFSmoothbatch):
-    pass
-
-
+    def __init__(self, *args, **kwargs):
+        self.default_gain = kwargs.pop('default_gain', None)
+        KFSmoothbatch.__init__(self, *args, **kwargs)
+        
 class PPFSmoothbatchSingleThread(object):
     def calc(self, intended_kin, spike_counts, rho, decoder):
     #def calc(self, intended_kin, spike_counts, rho, C_old, drives_neurons):
@@ -352,7 +384,7 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
 
 
 class PPFContinuousBayesianUpdater(object):
-    def __init__(self, decoder, units='cm'):
+    def __init__(self, decoder, units='cm', param_noise_scale=1.):
         self.n_units = decoder.filt.C.shape[0]
         #self.param_noise_variances = param_noise_variances
         if units == 'm':
@@ -360,6 +392,8 @@ class PPFContinuousBayesianUpdater(object):
         elif units == 'cm':
             vel_gain = 1e-8
 
+        print "Updater param noise scale %g" % param_noise_scale
+        vel_gain *= param_noise_scale
         param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
         self.W = np.tile(np.diag(param_noise_variances), [self.n_units, 1, 1])
 
@@ -550,6 +584,59 @@ class KFRML(object):
 
         return new_params
 
+def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
+    '''
+    Parameters
+    ==========
+    hdf_fname : filename of HDF file
+    data : list of dictionaries with the same keys and same dtypes for values
+    '''
+    
+    log_file = open('/home/helene/code/bmi3d/log/clda_log', 'w')
+    compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
+    if len(data) > 0:
+        # Find the first parameter update dictionary
+        k = 0
+        first_update = data[k]
+        while first_update is None:
+            k += 1
+            first_update = data[k]
+    
+        table_col_names = first_update.keys()
+        print table_col_names
+        dtype = []
+        shapes = []
+        for col_name in table_col_names:
+            shape = first_update[col_name].shape
+            dtype.append((col_name.replace('.', '_'), 'f8', shape))
+            shapes.append(shape)
+    
+        log_file.write(str(dtype))
+        # Create the HDF table with the datatype above
+        dtype = np.dtype(dtype) 
+    
+        h5file = tables.openFile(hdf_fname, mode='a')
+        arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
+    
+        null_update = np.zeros((1,), dtype=dtype)
+        for col_name in table_col_names:
+            null_update[col_name.replace('.', '_')] *= np.nan
+    
+        for k, param_update in enumerate(data):
+            log_file.write('%d, %s\n' % (k, str(ignore_none)))
+            if param_update == None:
+                if ignore_none:
+                    continue
+                else:
+                    data_row = null_update
+            else:
+                data_row = np.zeros((1,), dtype=dtype)
+                for col_name in table_col_names:
+                    data_row[col_name.replace('.', '_')] = np.asarray(param_update[col_name])
+    
+            arr.append(data_row)
+        h5file.close()
+    
 
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties

@@ -16,7 +16,7 @@ class HDFWriter(object):
         self.data = {}
         self.msgs = {}
     
-    def register(self, name, dtype):
+    def register(self, name, dtype, include_msgs=True):
         print "HDFWriter registered %r"%name
         if dtype.subdtype is not None:
             #just a simple dtype with a shape
@@ -26,10 +26,10 @@ class HDFWriter(object):
         else:
             arr = self.h5.createTable("/", name, dtype, filters=compfilt)
 
-        msg = self.h5.createTable("/", name+"_msgs", MsgTable, filters=compfilt)
-
         self.data[name] = arr
-        self.msgs[name] = msg
+        if include_msgs:
+            msg = self.h5.createTable("/", name+"_msgs", MsgTable, filters=compfilt)
+            self.msgs[name] = msg
     
     def send(self, system, data):
         if system in self.data:

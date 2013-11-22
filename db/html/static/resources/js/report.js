@@ -10,7 +10,7 @@ var box_filters = {
         return (rates[0]*100).toPrecision(3) + "% / "+ (rates[1]*100).toPrecision(3) + "%";
     }
 }
-function Report(callback, boxes) {
+function Report(callback) {
     this.notify = callback;
     this.obj = document.createElement("div");
     this.info = document.createElement("table");
@@ -23,19 +23,7 @@ function Report(callback, boxes) {
     this.obj.appendChild(this.msgs);
     $("#report").append(this.obj);
 
-    // TODO this occasionally creates new document elements when they already exist 
-    this.boxes = {}; //boxes;
-    // this.boxes = {"state":"Current State", "trials":"Trial #", "length":"Time", "reward_len":"Reward Time", "rates":"Rates"};
-    for (var i in this.boxes) {
-        // var row = document.createElement("tr");
-        // var label = document.createElement("td");
-        // label.innerHTML = this.boxes[i];
-        // row.appendChild(label);
-        // var data = document.createElement("td");
-        // row.appendChild(data);
-        // this.info.appendChild(row);
-        // this.boxes[i] = data;
-    }
+    this.boxes = {};
 }
 Report.prototype.pause = function() {
     this.infos = [];
@@ -52,8 +40,6 @@ Report.prototype.activate = function() {
         this.ws.onmessage = function(evt) {
             console.log(evt.data);
             var report = JSON.parse(evt.data);
-//            if (report.trials)
-//                report.trials++;
             if (this.infos)
                 this.infos.push(report)
             else
@@ -84,7 +70,7 @@ Report.prototype.update = function(info) {
             if (!this.boxes[i] && (i!="status") && (i!="task") && (i!="subj") && (i!="date") && (i!="idx")) {
                 var row = document.createElement("tr");
                 var label = document.createElement("td");
-                label.innerHTML = i; //this.boxes[i];
+                label.innerHTML = i;
                 row.appendChild(label);
                 var data = document.createElement("td");
                 row.appendChild(data);

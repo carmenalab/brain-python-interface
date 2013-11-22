@@ -21,6 +21,7 @@ class RewardSystem(traits.HasTraits):
     def _start_reward(self):
         if self.reward is not None:
             self.reward.reward(self.reward_time*1000.)
+            self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
         super(RewardSystem, self)._start_reward()
 
 class Autostart(traits.HasTraits):
@@ -330,6 +331,7 @@ class SinkRegister(object):
     def _cycle(self):
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)
+        super(SinkRegister, self)._cycle()
 
 class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
@@ -349,6 +351,7 @@ class SaveHDF(SinkRegister):
         try:
             super(SaveHDF, self).run()
         finally:
+            self.save_attrs()
             self.hdf.stop()
     
     def join(self):
@@ -362,6 +365,7 @@ class SaveHDF(SinkRegister):
     def cleanup(self, database, saveid, **kwargs):
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
         print "#################%s"%self.h5file.name
+        self.cleanup_hdf()
         database.save_data(self.h5file.name, "hdf", saveid)
 
 class SimHDF():

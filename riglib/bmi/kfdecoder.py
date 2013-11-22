@@ -13,6 +13,7 @@ import numpy as np
 from scipy.io import loadmat
 
 import bmi
+import train
 import pickle
 
 class KalmanFilter(bmi.GaussianStateHMM):
@@ -318,6 +319,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F = (I - KC)*A
         self._init_state(init_state=self.state.mean, init_cov=P)
 
+    def __eq__(self, other):
+        return train.obj_eq(self, other, ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C'])
+
 class PseudoPPF(KalmanFilter):
     def _forward_infer(self, st, obs_t, **kwargs):
         pred_state = self._ssm_pred(st)
@@ -369,7 +373,14 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.binlen = binlen
         self.bounding_box = bounding_box
         self.states = states
-        self.tslice = tslice # Legacy from when it was assumed that all decoders would be trained from manual control
+
+        
+        # The tslice parameter below properly belongs in the database and
+        # not in the decoder object because the Decoder object has no record of 
+        # which plx file it was trained from. This is a leftover from when itw
+        # was assumed that every decoder would be trained entirely from a plx
+        # file (i.e. and not CLDA)
+        self.tslice = tslice
         self.states_to_bound = states_to_bound
         self.zeromeanunits = None
         self.drives_neurons = drives_neurons
@@ -405,41 +416,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             self.bmicount += 1
         else:
             self.bmicount += 1
-        return self.kf.get_mean()
+        return self.kf.get_mean().reshape(-1,1)
 
     def predict_ssm(self):
         self.kf.propagate_ssm()
-
-    ## def predict(self, spike_counts, target=None, speed=0.05, assist_level=0, **kwargs):
-    ##     """
-    ##     Run decoder, assist, and bound any states
-    ##     """
-    ##     # Define target state, if specified
-    ##     if target is not None:
-    ##         target_state = np.hstack([target, np.zeros(3), 1])
-    ##         target_state = np.mat(target_state).reshape(-1,1)
-    ##     else:
-    ##         target_state = None
-
-    ##     #self.filt.F = np.mat( np.hstack([alpha*I, gamma*I, np.zeros([3,1])]) )
-    ##     assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
-    ##     if assist_level_idx < self.prev_assist_level:
-    ##         print "assist_level_idx decreasing to", assist_level_idx
-    ##         self.prev_assist_level = assist_level_idx
-    ##     self.filt.F = np.mat(self.F_assist[assist_level_idx])
-    ##     #self.filt.B = np.mat( np.vstack([0*I, self.filt.dt*I*1000., np.zeros([1,3]) ]) )
-
-    ##     # re-format as a 1D col vec
-    ##     spike_counts = np.mat(spike_counts.reshape(-1,1))
-
-    ##     # Run the filter
-    ##     self.filt(spike_counts, target_state=target_state)
-
-    ##     # Bound cursor, if any hard bounds for states are applied
-    ##     self.bound_state()
-
-    ##     state = self.filt.get_mean()
-    ##     return state
 
     @property
     def filt(self):
@@ -453,8 +433,8 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         Get the state of the decoder (mean of the Gaussian RV representing the
         state of the BMI)
         '''
-        alg = self.get_filter()
-        return np.array(alg.state.mean).ravel()
+        #alg = self.get_filter()
+        return np.array(self.filt.state.mean).ravel()
 
     def update_params(self, new_params, steady_state=True):
         super(KFDecoder, self).update_params(new_params)
