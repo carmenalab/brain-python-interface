@@ -668,18 +668,6 @@ def inflate(A, current_states, full_state_ls, axis=0):
 
     return A_new
 
-def _interpolate_KFDecoder_state_between_updates(decoder):
-    import mpmath
-    A = decoder.kf.A
-    # check that dt is a multiple of 60 Hz
-    power = 1./(decoder.binlen * 60)
-    assert (int(power) - power) < 1e-5
-    A_60hz = mpmath.powm(A, 1./(decoder.binlen * 60))
-    A_60hz = np.mat(np.array(A_60hz.tolist(), dtype=np.float64))
-    decoder.kf.A = A_60hz
-    decoder.interpolate_using_ssm = True
-    return decoder
-
 def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     '''
     Create a PPFDecoder object to decode 2D velocity from a known 'beta' matrix
