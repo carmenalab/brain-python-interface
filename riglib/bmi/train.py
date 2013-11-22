@@ -574,7 +574,6 @@ def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
 
     return decoder
 
-
 def rand_KFDecoder(sim_units, state_units='cm'):
     if not state_units == 'cm': 
         raise ValueError("only works for cm right now")
@@ -650,18 +649,6 @@ def rescale_KFDecoder_units(dec, scale_factor=10):
         pass
     dec.bounding_box = tuple([x / scale_factor for x in dec.bounding_box])
     return dec
-
-def convert_KFDecoder_to_PPFDecoder(dec):
-    binlen = dec.binlen
-    beta = dec.kf.C / binlen
-
-    dt = 1./180
-    A, W = state_space_models.linear_kinarm_kf(update_rate=dt, units_mult=0.01)
-    args = (dec.bounding_box, dec.states, dec.drives_neurons, dec.states_to_bound)
-    ppf = ppfdecoder.PointProcessFilter(A, W, beta, dt)
-    dec_ppf = ppfdecoder.PPFDecoder(ppf, dec.units, *args)
-    dec_ppf.n_subbins = 3
-    return dec_ppf
 
 def inflate(A, current_states, full_state_ls, axis=0):
     '''
