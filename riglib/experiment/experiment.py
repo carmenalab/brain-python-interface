@@ -91,8 +91,7 @@ class Experiment(traits.HasTraits, threading.Thread):
             try:
                 if hasattr(self, "_while_%s"%self.state):
                     getattr(self, "_while_%s"%self.state)()
-                if hasattr(self, "_cycle"):
-                    self._cycle()
+                self._cycle()
                 
                 for event, state in self.status[self.state].items():
                     if hasattr(self, "_test_%s"%event):
@@ -106,7 +105,9 @@ class Experiment(traits.HasTraits, threading.Thread):
                 traceback.print_exc()
                 self.state = None
 
-    
+    def _cycle(self):
+        pass
+
     def _test_stop(self, ts):
         return self.stop
 

@@ -331,6 +331,7 @@ class SinkRegister(object):
     def _cycle(self):
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)
+        super(SinkRegister, self)._cycle()
 
 class SaveHDF(SinkRegister):
     '''Saves any associated MotionData and EyeData into an HDF5 file.'''
