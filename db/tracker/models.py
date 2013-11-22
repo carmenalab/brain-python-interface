@@ -366,11 +366,11 @@ class TaskEntry(models.Model):
             js['bmi'][dec.name] = dec.to_json()
         
         # TODO include paths to any plots associated with this task entry, if offline
-        files = os.popen('find /storage/plots/ -name %s*.png' % self.name)
+        files = os.popen('find /storage/plots/ -name %s*.png' % self.id)
         plot_files = dict()
         for f in files:
             fname = f.rstrip()
-            keyname = os.path.basename(fname).rstrip('.png')[len(self.name):]
+            keyname = os.path.basename(fname).rstrip('.png')[len(str(self.id)):]
             plot_files[keyname] = os.path.join('/static', fname)
         js['plot_files'] = plot_files
 
