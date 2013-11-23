@@ -612,10 +612,13 @@ def min_trials(min_trial_count):
     from tasks import performance
     def fn(task_entry_model):
         te = performance._get_te(task_entry_model)
-        return te.n_trials >= min_trial_count
+        try:
+            return te.n_trials >= min_trial_count
+        except:
+            return False
     return fn
 
 def get_bmi_blocks(date, subj='C'):
-    blocks = TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='bmi') + TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='clda')
+    blocks = TaskEntrySet.get_blocks(filter_fns=[min_trials(50)], subj=subj, date=date, task__name__startswith='bmi') + TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='clda')
     blocks.sort(key=lambda x: x.date)
     return blocks
