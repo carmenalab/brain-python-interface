@@ -85,54 +85,45 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def _forward_infer(self, st, obs_t, **kwargs):
         target_state = kwargs.pop('target_state', None)
         pred_state = self._ssm_pred(st, target_state=target_state)
-        #pred_obs = self._obs_prob(pred_state)
-        #print pred_state.cov
 
         C, Q = self.C, self.Q
         P = pred_state.cov
 
         K = self._calc_kalman_gain(P, **kwargs)
-        #K = self._calc_kalman_gain2(P, **kwargs)
         I = np.mat(np.eye(self.C.shape[1]))
         D = self.C_xpose_Q_inv_C
         KC = P*(I - D*P*(I + D*P).I)*D
 
         post_state = pred_state
-        ##print KC.shape
-        ##print pred_state.mean.shape
-        ##print K.shape
-        ##print obs_t.shape
-        ##print -KC*pred_state.mean + K*obs_t
         post_state.mean += -KC*pred_state.mean + K*obs_t
         post_state.cov = (I - KC) * P 
         return post_state
 
-    def _calc_kalman_gain(self, P, alt=False, verbose=False):
-        '''
-        Deprecated version of Kalman gain computation
-        Function below is always feasible and almost always faster
-        '''
-        A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
-        if self.alt and alt:
-            try:
-                # print "trying alt method"
-                if self.include_offset:
-                    tmp = np.mat(np.zeros(self.A.shape))
-                    tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
-                else:
-                    tmp = (P.I + self.C_xpose_Q_inv_C).I
-                K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
-            except:
-                if verbose: print "reverting"
-                K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-        else:
-            K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-        K[~self.is_stochastic, :] = 0
-        return K
+    ##def _calc_kalman_gain(self, P, alt=False, verbose=False):
+    ##    '''
+    ##    Deprecated version of Kalman gain computation
+    ##    Function below is always feasible and almost always faster
+    ##    '''
+    ##    A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
+    ##    if self.alt and alt:
+    ##        try:
+    ##            # print "trying alt method"
+    ##            if self.include_offset:
+    ##                tmp = np.mat(np.zeros(self.A.shape))
+    ##                tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
+    ##            else:
+    ##                tmp = (P.I + self.C_xpose_Q_inv_C).I
+    ##            K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
+    ##        except:
+    ##            if verbose: print "reverting"
+    ##            K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
+    ##    else:
+    ##        K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
+    ##    K[~self.is_stochastic, :] = 0
+    ##    return K
 
     def _calc_kalman_gain(self, P, verbose=False):
-        '''
-        Calculate Kalman gain using the alternate definition
+        ''' Calculate Kalman gain using the 'alternate' definition
         '''
         nX = P.shape[0]
         I = np.mat(np.eye(nX))
@@ -141,11 +132,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
         K = P * (I - D*P*(I + D*P).I) * L
         return K
 
-    def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, 
+    def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, max_iter=4000,
         verbose=False, return_Khist=False, alt=True):
-        """ starting from the data in the decoder struct, compute the converged 
-        Experimentally, convergence requires ~300 predictions. 10000 "predictions" performed
-        by default, controlled by the kwarg 'n_steps'
+        """Calculate the steady-state KF matrices
         """ 
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
 
@@ -161,10 +150,10 @@ class KalmanFilter(bmi.GaussianStateHMM):
         K_hist = []
 
         iter_idx = 0
-        while np.linalg.norm(K-last_K) > tol and iter_idx < 4000:
+        while np.linalg.norm(K-last_K) > tol and iter_idx < max_iter:
             P = A*P*A.T + W 
             last_K = K
-            K = self._calc_kalman_gain(P) #, alt=alt, verbose=verbose)
+            K = self._calc_kalman_gain(P)
             K_hist.append(K)
             KC = P*(I - D*P*(I + D*P).I)*D
             P -= KC*P;
