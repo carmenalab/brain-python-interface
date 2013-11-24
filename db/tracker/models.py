@@ -374,7 +374,7 @@ class TaskEntry(models.Model):
             plot_files[keyname] = os.path.join('/static', fname)
         js['plot_files'] = plot_files
 
-        print js['report'].keys()
+        #print js['report'].keys()
         return js
 
     @property
