@@ -154,7 +154,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
         import traceback
         traceback.print_exc(open('/home/helene/code/bmi3d/log/tasktrack_log', 'w'))
         print "====="
-    print "****************Exit task proc"
+    print "*************************** EXITING TASK *****************************"
 
 class Task(object):
     def __init__(self, subj, task, feats, params, seq=None, saveid=None):
