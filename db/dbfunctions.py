@@ -417,6 +417,11 @@ class TaskEntry(object):
         self.params = self.record.params
         if isinstance(self.params, str) or isinstance(self.params, unicode):
             self.params = json.loads(self.record.params)
+
+        # Add the params dict to the object's dict
+        for key, value in self.params.items():
+            setattr(self, key, value)
+
         self.date = self.record.date
         self.notes = self.record.notes
         self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
