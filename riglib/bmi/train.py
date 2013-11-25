@@ -377,6 +377,77 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     spike_counts = spike_counts[:,:-1]
     return train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
 
+def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None], 
+    state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
+    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], 
+    exclude_targ_ind=[-1, 0], **files):
+    '''
+    Train a KFDecoder from cursor movement on screen, but only for selected epochs
+    Define which epochs you want to remove from training: 
+        exclude_targ_ind=[-1, 0] removes original state and when origin is displayed
+    '''
+    update_rate=binlen
+    # Open plx file
+    plx_fname = str(files['plexon'])
+    plx = plexfile.openFile(plx_fname)
+
+    # Compute last spike and set it to tslice[1]: 
+    last_spk = plx.spikes[:].data[-1][0]
+
+    if tslice[1]==None:
+        tslice=[0,int(last_spk)]
+    else:
+        tslice=[tslice[0], np.min(tslice[1],int(last_spk))]
+
+    tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
+    tmask_continuous = np.array_equal(np.unique(np.diff(np.nonzero(tmask)[0])), np.array([1]))
+
+    #Grab masked kinematic data
+    h5 = tables.openFile(files['hdf'])
+    kin = h5.root.task[tmask]['cursor']
+    targ_ind = h5.root.task[tmask]['target_index']
+    step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+    kin = kin[::step, :]
+    velocity = np.diff(kin, axis=0) * 1./binlen
+    kin = kin[1:] #Remove 1st element to match size of velocity
+
+    ##Select the epochs to use. sub_targ_ind returns indices of kin, spike_counts where targ_ind is desired value 
+    tmp = targ_ind != exclude_targ_ind
+    targ_ind = np.sum(tmp,axis=1) == len(exclude_targ_ind)
+    sub_targ_ind = np.zeros([len(kin)])
+    for i in xrange(len(sub_targ_ind)):
+        sub_targ_ind[i] = sum(targ_ind[i*step:((i+1)*step)])==step
+    sub_targ_ind = np.where(sub_targ_ind>0)
+
+    ## Bin the neural data
+    if cells == None: cells = plx.units # Use all of the units if none are specified
+    units = np.array(cells).astype(np.int32)
+    spike_bin_fn = psth.SpikeBin(units, binlen)
+    neurows = rows[tmask]
+    neurows = neurows[::step]
+    spike_counts = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
+
+    ##Index spike_counts, kin, velocity with selected epochs 
+    spike_counts = spike_counts[:-1,:] #Remove last count to match size of velocity
+    
+    spike_counts = spike_counts[sub_targ_ind,:][0]
+    kin = kin[sub_targ_ind, :][0]
+    velocity = velocity[sub_targ_ind,:][0]
+
+    ##Only use some of spike counts
+    if len(kin) != len(spike_counts):
+        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
+    
+    kin = np.hstack([kin, velocity])
+    spike_counts = spike_counts.T
+    return train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
+
+
+def train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=0.1, tslice=None):
+    binlen = update_rate
+    n_neurons = spike_counts.shape[0]
+    kin = kin.T
+
 def _train_KFDecoder_visual_feedback_shuffled(*args, **kwargs):
     '''
     Train a KFDecoder from visual feedback and shuffle it

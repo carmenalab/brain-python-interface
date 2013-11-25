@@ -82,7 +82,7 @@ tasks = dict(
     ######### V2 tasks
     clda_constrained_sskf_multi = bmimultitasks.CLDAConstrainedSSKFMulti,
     manual_control_multi =manualcontrolmultitasks.ManualControlMulti,
-    #joystick_multi = manualcontrolmultitasks.JoystickMulti,
+    joystick_multi=manualcontrolmultitasks.JoystickMulti,
     bmi_control_multi = bmimultitasks.BMIControlMulti,
     bmi_manipulated_feedback = bmilowfeedback.BMIControlManipulatedFB,
     clda_ppf_manipulated_feedback = bmilowfeedback.CLDAControlPPFContAdaptMFB,
@@ -121,6 +121,7 @@ instance_to_model = SubclassDict( {
 
 bmis = dict(
     kalman=bmi.train._train_KFDecoder_manual_control,
+    kalmanCursorEpochs = bmi.train._train_KFDecoder_cursor_epochs,
     kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
     kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
     ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
