@@ -147,8 +147,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
     try:
         from tasks import performance
         te = performance._get_te(task.saveid)
-        #te.plot_rewards_per_min()
-        te.summary()
+        print te.summary()
     except:
         print "=====traceback during performance calculations at end of block"
         import traceback
