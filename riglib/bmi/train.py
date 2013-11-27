@@ -375,6 +375,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     kin = np.hstack([kin[1:], velocity])
     spike_counts = spike_counts.T
     spike_counts = spike_counts[:,:-1]
+
     return train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
 
 def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None], 
@@ -441,12 +442,6 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
     kin = np.hstack([kin, velocity])
     spike_counts = spike_counts.T
     return train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
-
-
-def train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=0.1, tslice=None):
-    binlen = update_rate
-    n_neurons = spike_counts.shape[0]
-    kin = kin.T
 
 def _train_KFDecoder_visual_feedback_shuffled(*args, **kwargs):
     '''
