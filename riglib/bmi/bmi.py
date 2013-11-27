@@ -71,6 +71,7 @@ class GaussianState(object):
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
 class GaussianStateHMM():
+    model_attrs = []
     def __init__(self, A, W):
         self.A = A
         self.W = W
@@ -99,6 +100,15 @@ class GaussianStateHMM():
             return A*state + self.state_noise
         else:
             return (A - B*F)*state + B*F*target_state + self.state_noise
+
+    def __eq__(self, other):
+        import train
+        return train.obj_eq(self, other, self.model_attrs)
+
+    def __sub__(self, other):
+        import train
+        return train.obj_diff(self, other, self.model_attrs)
+
 
 class Decoder(object):
     clda_dtype = [] # define parameters to store in HDF file during CLDA

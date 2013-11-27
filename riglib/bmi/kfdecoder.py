@@ -23,6 +23,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
        x_{t+1} = Ax_t + w_t;   w_t ~ N(0, W)
            y_t = Cx_t + q_t;   q_t ~ N(0, Q)
     """
+    model_attrs = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C']
 
     def __init__(self, A, W, C, Q, is_stochastic=None):
         self.A = np.mat(A)
@@ -307,9 +308,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F, K = self.get_sskf()
         F = (I - KC)*A
         self._init_state(init_state=self.state.mean, init_cov=P)
-
-    def __eq__(self, other):
-        return train.obj_eq(self, other, ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C'])
 
 class PseudoPPF(KalmanFilter):
     def _forward_infer(self, st, obs_t, **kwargs):

@@ -17,6 +17,9 @@ import pdb
 from . import state_space_models
 from itertools import izip
 
+############
+## Constants
+############
 empty_bounding_box = [np.array([]), np.array([])]
 stoch_states_to_decode_2D_vel = ['hand_vx', 'hand_vz'] 
 states_3D_endpt = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
@@ -174,6 +177,16 @@ def obj_eq(self, other, attrs=[]):
     else:
         return False
     
+def obj_diff(self, other, attrs=[]):
+    ''' Calculate the difference of the two objects w.r.t the specified attributes
+    '''
+    if isinstance(other, type(self)):
+        attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
+        diff = map(lambda attr: getattr(self, attr) - getattr(other, attr), attrs_eq)
+        return np.array(diff)
+    else:
+        return False
+    
 def lookup_cells(cells):
     ''' Convert string names of units to 'machine' format.
     Take a list of neural units specified as a list of strings and convert 
@@ -232,40 +245,32 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask']):
     tmask = np.logical_and(lower, upper)
     return tmask, rows
 
-def get_spike_counts_from_plx_file(plx_fname, cells=None, binlen=1./180, tslice=[None,None]):
+def get_spike_counts(plx, neurows, binlen, cells=None):
+    '''Bin the neural data
     '''
-    Get the spike counts matrix from a .plx file
-    '''
-    # Open plx file
-    plx = plexfile.openFile(plx_fname)
-    tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
-
-    ## Bin the neural data
     if isinstance(cells, np.ndarray):
         units = cells
     else:
-        if cells == None: 
-            cells = plx.units # Use all of the units if none are specified
-        elif isinstance(cells[0], str) or isinstance(cells[0], unicode):
-            # list of strings passed in to specify the cells
-            cells = lookup_cells(cells)
-        else:
-            cells = np.unique(cells)
+        cells = np.unique(cells)
+        print cells.shape
+        if cells == None: cells = plx.units # Use all of the units if none are specified
         units = np.array(cells).astype(np.int32)
 
     spike_bin_fn = psth.SpikeBin(units, binlen)
-    neurows = rows[tmask]
     
     # interpolate between the rows to 180 Hz
-    interp_rows = []
-    neurows = np.hstack([neurows[0] - 1./60, neurows])
-    for r1, r2 in izip(neurows[:-1], neurows[1:]):
-        interp_rows += list(np.linspace(r1, r2, 4)[1:])
-    interp_rows = np.array(interp_rows)
-    print np.diff(interp_rows)[0:20]
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
 
     spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
-    return spike_counts
+    return spike_counts, units
 
 def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
@@ -277,7 +282,12 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     update_rate=binlen
     # Open plx file
     plx_fname = str(files['plexon'])
-    plx = plexfile.openFile(plx_fname)
+    try:
+        plx = plexfile.openFile(plx_fname)
+    except IOError:
+        print "Could not open .plx file: %s" % plx_fname
+        raise Exception
+            
     tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
     
     h5 = tables.openFile(files['hdf'])
@@ -298,26 +308,27 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
         inds = inds[::step] #slice(None, None, step)
     kin = kin[inds]
 
-    ## Bin the neural data
-    if isinstance(cells, np.ndarray):
-        units = cells
-    else:
-        cells = np.unique(cells)
-        print cells.shape
-        if cells == None: cells = plx.units # Use all of the units if none are specified
-        units = np.array(cells).astype(np.int32)
+    ##### ## Bin the neural data
+    ##### if isinstance(cells, np.ndarray):
+    #####     units = cells
+    ##### else:
+    #####     cells = np.unique(cells)
+    #####     if cells == None: cells = plx.units # Use all of the units if none are specified
+    #####     units = np.array(cells).astype(np.int32)
 
-    spike_bin_fn = psth.SpikeBin(units, binlen)
+    ##### spike_bin_fn = psth.SpikeBin(units, binlen)
+    ##### neurows = rows[tmask]
+    ##### 
+    ##### # interpolate between the rows to 180 Hz
+    ##### interp_rows = []
+    ##### neurows = np.hstack([neurows[0] - 1./60, neurows])
+    ##### for r1, r2 in izip(neurows[:-1], neurows[1:]):
+    #####     interp_rows += list(np.linspace(r1, r2, 4)[1:])
+    ##### interp_rows = np.array(interp_rows)
+
+    ##### spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
     neurows = rows[tmask]
-    
-    # interpolate between the rows to 180 Hz
-    interp_rows = []
-    neurows = np.hstack([neurows[0] - 1./60, neurows])
-    for r1, r2 in izip(neurows[:-1], neurows[1:]):
-        interp_rows += list(np.linspace(r1, r2, 4)[1:])
-    interp_rows = np.array(interp_rows)
-
-    spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
+    spike_counts, units = get_spike_counts(plx, neurows, binlen, cells=cells)
     spike_counts[spike_counts > 1] = 1
 
     if len(kin) != len(spike_counts):
@@ -330,28 +341,16 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
 
     return train_endpt_velocity_PPFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
 
-def _train_PPFDecoder_visual_feedback_shuffled(*args, **kwargs):
-    decoder = _train_PPFDecoder_visual_feedback(*args, **kwargs)
-    import random
-    inds = range(decoder.filt.C.shape[0])
-    random.shuffle(inds)
-
-    # shuffle rows of C, and rows+cols of Q
-    decoder.filt.C = decoder.filt.C[inds, :]
-    return decoder
-
 def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
     '''
     Train a KFDecoder from visual feedback
     '''
-    update_rate=binlen
     # Open plx file
     plx_fname = str(files['plexon'])
     plx = plexfile.openFile(plx_fname)
     tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
-    tmask_continuous = np.array_equal(np.unique(np.diff(np.nonzero(tmask)[0])), np.array([1]))
     
     #Grab masked kinematic data
     h5 = tables.openFile(files['hdf'])
@@ -359,13 +358,16 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
     kin = kin[::step, :]
 
-    ## Bin the neural data
-    if cells == None: cells = plx.units # Use all of the units if none are specified
-    units = np.array(cells).astype(np.int32)
-    spike_bin_fn = psth.SpikeBin(units, binlen)
+    ##### ## Bin the neural data
+    ##### if cells == None: cells = plx.units # Use all of the units if none are specified
+    ##### units = np.array(cells).astype(np.int32)
+    ##### spike_bin_fn = psth.SpikeBin(units, binlen)
+    ##### neurows = rows[tmask]
+    ##### neurows = neurows[::step]
+    ##### spike_counts = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
+
     neurows = rows[tmask]
-    neurows = neurows[::step]
-    spike_counts = np.array(list(plx.spikes.bin(neurows, spike_bin_fn)))
+    spike_counts, units = get_spike_counts(plx, neurows, binlen, cells=cells)
 
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
@@ -442,6 +444,16 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
     kin = np.hstack([kin, velocity])
     spike_counts = spike_counts.T
     return train_endpt_velocity_KFDecoder(kin, spike_counts, units, state_vars, stochastic_vars, update_rate=binlen, tslice=tslice)
+
+def _train_PPFDecoder_visual_feedback_shuffled(*args, **kwargs):
+    decoder = _train_PPFDecoder_visual_feedback(*args, **kwargs)
+    import random
+    inds = range(decoder.filt.C.shape[0])
+    random.shuffle(inds)
+
+    # shuffle rows of C, and rows+cols of Q
+    decoder.filt.C = decoder.filt.C[inds, :]
+    return decoder
 
 def _train_KFDecoder_visual_feedback_shuffled(*args, **kwargs):
     '''

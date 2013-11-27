@@ -20,6 +20,7 @@ class PointProcessFilter():
        x_{t+1} = Ax_t + w_t; w_t ~ N(0, W)
        log(y_t) = Cx_t
     """
+    model_attrs = ['A', 'W', 'C']
 
     def __init__(self, A, W, C, dt, is_stochastic=None, B=0, F=0):
         self.A = np.mat(A)
@@ -237,9 +238,6 @@ class PointProcessFilter():
             pvalues[k,:] = model_fit.pvalues
 
         return C, pvalues
-
-    def __eq__(self, other):
-        return train.obj_eq(self, other, ['A', 'W', 'C'])
 
 class PPFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, filt, units, bounding_box, states, drives_neurons,
