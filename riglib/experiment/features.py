@@ -10,6 +10,7 @@ import numpy as np
 from riglib import calibrations, bmi
 
 from . import traits
+import logging
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''

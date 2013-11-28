@@ -7,7 +7,7 @@ import time
 import xmlrpclib
 import multiprocessing as mp
 import collections
-
+import logging
 
 from riglib import experiment
 import websocket
@@ -114,7 +114,8 @@ def runtask(cmds, _cmds, websock, **kwargs):
 
     # Force all tasks to use the Notify feature defined above
     kwargs['feats'].insert(0, NotifyFeat)
-
+    logging.basicConfig(filename='/home/helene/code/bmi3d/log/example.log', format='%(asctime)s %(message)s', level=logging.DEBUG)
+    logging.debug('Starting task')
     try:
         task = Task(**kwargs)
         cmd = _cmds.recv()
@@ -141,6 +142,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
         err.seek(0)
         print err.read()
     sys.stdout = sys.__stdout__
+    logging.debug('Starting cleanup')
     task.cleanup()
 
     # Summarize performance during task
@@ -216,6 +218,8 @@ class Task(object):
     def cleanup(self):
         self.task.join()
         print "Calling saveout/task cleanup code"
+        
+        logging.debug('Calling saveout/task cleanup code')
         if self.saveid is not None:
             try:
                 import comedi
@@ -223,7 +227,9 @@ class Task(object):
             except:
                 pass
 
+            logging.debug('getting database object')
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+            logging.debug('got database object, %s' % str(database))
             self.task.cleanup(database, self.saveid, subject=self.subj)
 
 class ObjProxy(object):
