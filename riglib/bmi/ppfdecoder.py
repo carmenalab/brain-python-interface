@@ -375,3 +375,12 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def save_params_to_hdf(self, task_data):
         task_data['filt_C'] = np.asarray(self.filt.C)
 
+    def shuffle(self):
+        ''' Shuffle the neural model
+        '''
+        import random
+        inds = range(self.filt.C.shape[0])
+        random.shuffle(inds)
+
+        # shuffle rows of C
+        self.filt.C = self.filt.C[inds, :]
