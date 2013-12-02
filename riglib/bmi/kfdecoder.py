@@ -136,6 +136,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, max_iter=4000,
         verbose=False, return_Khist=False, alt=True):
         """Calculate the steady-state KF matrices
+
+        value of P returned is the posterior error cov, i.e. P_{t|t}
         """ 
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
 
@@ -456,6 +458,33 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
         if not hasattr(self.filt, 'F'):
             self.filt.F = np.mat(np.zeros([self.filt.B.shape[0], len(self.states)]))
+
+    def shuffle(self):
+        ''' Shuffle the neural model
+        '''
+        # generate random permutation
+        import random
+        inds = range(self.filt.C.shape[0])
+        random.shuffle(inds)
+
+        # shuffle rows of C, and rows+cols of Q
+        self.filt.C = self.filt.C[inds, :]
+        self.filt.Q = self.filt.Q[inds, :]
+        self.filt.Q = self.filt.Q[:, inds]
+
+        self.filt.C_xpose_Q_inv = self.filt.C.T * self.filt.Q.I
+
+        # RML sufficient statistics (S and T, but not R and ESS)
+        # shuffle rows of S, and rows+cols of T
+        try:
+            self.filt.S = self.filt.S[inds, :]
+            self.filt.T = self.filt.T[inds, :]
+            self.filt.T = self.filt.T[:, inds]
+        except AttributeError:
+            # if this decoder never had the RML sufficient statistics
+            #   (R, S, T, and ESS) as attributes of self.filt
+            pass
+
         
 
 def project_Q(C_v, Q_hat):
