@@ -71,6 +71,10 @@ class Track(object):
         return status
 
 def runtask(cmds, _cmds, websock, **kwargs):
+    # Set up logging
+    logging.basicConfig(filename='/home/helene/code/bmi3d/log/example.log', format='%(asctime)s %(message)s', level=logging.DEBUG)
+    logging.debug('\n\n\n\n\n\n\n\n\nStarting task')
+
     import time
     from riglib.experiment import report
 
@@ -82,14 +86,11 @@ def runtask(cmds, _cmds, websock, **kwargs):
     os.nice(0)
 
     status = "running" if 'saveid' in kwargs else "testing"
+
+    # Instantiate feature to transmit task transition updates to the web interface
+    # The class needs to be declared here rather than 
     class NotifyFeat(object):
         def set_state(self, state, *args, **kwargs):
-        
-            #l = time.time() - self.event_log[0][2] if len(self.event_log) > 0 else 0
-            #rep = dict(status=status, State=state or "stopped", length=l)
-            #rep.update(report.general(self.__class__, self.event_log, self.reportstats, self.ntrials, self.nrewards, self.reward_len))
-            #rep['length'] = time.time() - self.task_start_time
-
             self.reportstats['status'] = status
             self.reportstats['State'] = state or 'stopped'
             
@@ -97,8 +98,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
             super(NotifyFeat, self).set_state(state, *args, **kwargs)
 
         def run(self):
-            f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'a')
-            f.write('trying to execute NotifyFeat.run()\n')
+            logging.debug('trying to execute NotifyFeat.run()')
             try:
                 super(NotifyFeat, self).run()
             except:
@@ -110,25 +110,46 @@ def runtask(cmds, _cmds, websock, **kwargs):
                 websock.send(dict(status="error", msg=err.read()))
             finally:
                 cmds.send(None)
-            f.close()
 
-    # Force all tasks to use the Notify feature defined above
+    # Force all tasks to use the Notify feature defined above. Putting
+    # NotifyFeat at the beginning puts it always at the beginning of the start 
+    # of the method resolution order, i.e. its methods get called first
     kwargs['feats'].insert(0, NotifyFeat)
-    logging.basicConfig(filename='/home/helene/code/bmi3d/log/example.log', format='%(asctime)s %(message)s', level=logging.DEBUG)
-    logging.debug('Starting task')
+
     try:
+        logging.debug('Instantiating tasktrack.Task')
         task = Task(**kwargs)
+        logging.debug('Waiting for first command')
         cmd = _cmds.recv()
+        logging.debug('First command received')
         while cmd is not None and task.task.state is not None:
+            logging.debug('inside while loop')
+            #logging.debug(str(cmd[0]), str(cmd[1]), str(cmd[2]))
             try:
-                ret = getattr(task, cmd[0])(*cmd[1], **cmd[2])
+                fn_name = cmd[0]
+                cmd_args = cmd[1]
+                cmd_kwargs = cmd[2]
+                logging.debug('calling function %s' % fn_name)
+                ret = getattr(task, fn_name)(*cmd_args, **cmd_kwargs)
+                logging.debug('Sending response to ...something')
                 _cmds.send(ret)
+                logging.debug('starting _cmds.recv')
                 cmd = _cmds.recv()
+                logging.debug('received new command')
             except KeyboardInterrupt:
+                # Handle the KeyboardInterrupt separately. How the hell would
+                # a keyboard interrupt even get here?
                 cmd = None
             except Exception as e:
+                logging.debug('Exception caught in runtask while loop: %s' % str(e))
                 _cmds.send(e)
-                cmd = _cmds.recv()
+                logging.debug('Sent exception through _cmds')
+                if _cmds.poll(60.):
+                    cmd = _cmds.recv()
+                    logging.debug('Received response to exception')
+                else:
+                    cmd = None
+                    logging.debug("Setting cmd=None to break out of tasktrack while loop")
     except:
         import cStringIO
         import traceback
@@ -239,7 +260,9 @@ class ObjProxy(object):
     def __getattr__(self, attr):
         self.cmds.send(("__getattr__", [attr], {}))
         ret = self.cmds.recv()
-        if isinstance(ret, Exception):
+        if isinstance(ret, Exception): 
+            # Assume that the attribute can't be retreived b/c the name refers 
+            # to a function
             return FuncProxy(attr, self.cmds)
 
         return ret
@@ -248,6 +271,7 @@ class FuncProxy(object):
     def __init__(self, func, pipe):
         self.pipe = pipe
         self.cmd = func
+
     def __call__(self, *args, **kwargs):
         self.pipe.send((self.cmd, args, kwargs))
         return self.pipe.recv()
