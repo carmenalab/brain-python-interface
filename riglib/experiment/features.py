@@ -357,7 +357,7 @@ class SaveHDF(SinkRegister):
             import logging
             try:
                 logging.debug('Saving attributes to HDF file')
-                self.save_attrs()
+                #self.save_attrs()
                 logging.debug('Finished saving attributes to HDF file')
             except:
                 print 'Error saving attriubtes to HDF file!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
