@@ -320,6 +320,12 @@ class TaskEntry(models.Model):
                 if abs(tdiff) < 60:
                      return files[0]
 
+    def offline_report(self):
+        Exp = self.task.get(self.feats.all())
+        task = self.task.get(self.feats.all())
+        report = json.loads(self.report)
+        return Exp.offline_report(report)
+
     def to_json(self):
         from json_param import Parameters
         Exp = self.task.get(self.feats.all())
