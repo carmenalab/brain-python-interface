@@ -426,13 +426,6 @@ class TaskEntry(object):
         self.notes = self.record.notes
         self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
 
-    def __getattr__(self, attr):
-        if not hasattr(self, attr):
-            try:
-                return getattr(self.record, attr)
-            except AttributeError:
-                raise AttributeError("%s" % attr)
-
     @property
     def hdf(self):
         try:
@@ -622,6 +615,12 @@ def min_trials(min_trial_count):
         except:
             return False
     return fn
+
+##########
+## Filters
+##########
+def get_blocks_after(id, **kwargs):
+    return filter(lambda x: x.id > id, models.TaskEntry.objects.filter(**kwargs))
 
 def get_bmi_blocks(date, subj='C'):
     blocks = TaskEntrySet.get_blocks(filter_fns=[min_trials(50)], subj=subj, date=date, task__name__startswith='bmi') + TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='clda')
