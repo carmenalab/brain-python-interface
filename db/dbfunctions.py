@@ -484,6 +484,11 @@ class TaskEntry(object):
         elif 'clda' in self.task.name:
             return 'CLDA'
 
+    @property
+    def total_reward_time(self):
+        return self.record.offline_report()['Total rewards'] * self.reward_time
+
+
 class TaskEntrySet(object):
     def __init__(self, blocks, name=''):
         from tasks import performance
