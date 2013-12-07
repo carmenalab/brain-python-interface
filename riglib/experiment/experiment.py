@@ -9,6 +9,7 @@ import threading
 import traceback
 import collections
 import re
+import tables
 
 import numpy as np
 from . import traits
@@ -111,12 +112,15 @@ class Experiment(traits.HasTraits, threading.Thread):
     def _test_stop(self, ts):
         return self.stop
 
-    def save_attrs(self):
+    def cleanup_hdf(self):
         ''' Method for adding data to hdf file before hdf sink is closed by system at end of task.'''
         traits = self.class_editable_traits()
+        h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
             if trait is not 'bmi':
-                self.hdf.sendAttr("task", trait, getattr(self, trait))
+                #self.hdf.sendAttr("task", trait, )
+                h5file.root.task.attrs[trait] = getattr(self, trait)
+        h5file.close()
 
     @classmethod
     def _time_to_string(self, sec):
@@ -161,9 +165,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         return offline_report
 
     def cleanup(self, database, saveid, **kwargs):
-        pass
-
-    def cleanup_hdf(self):
         pass
     
     def end_task(self):
