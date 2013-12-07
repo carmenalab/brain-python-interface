@@ -375,7 +375,10 @@ class SaveHDF(SinkRegister):
     def cleanup(self, database, saveid, **kwargs):
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
         print "#################%s"%self.h5file.name
-        self.cleanup_hdf()
+        try:
+            self.cleanup_hdf()
+        except:
+            logging.exception('Error saving attriubtes to HDF file!')
         database.save_data(self.h5file.name, "hdf", saveid)
 
 class SimHDF():
