@@ -388,24 +388,24 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.mFR_diff = mFR_curr-self.mFR
         self.zscore = True
         
-    def __call__(self, obs_t, **kwargs):
-        '''
-        Return the predicted arm position given the new data.
-        '''
-        self.spike_counts += obs_t.reshape(-1, 1)
-        if self.bmicount == self.bminum-1:  
-            # Update using spike counts
-            self.bmicount = 0
-            self.predict(self.spike_counts, **kwargs)
-            self.spike_counts = np.zeros([len(self.units), 1])
-        elif self.interpolate_using_ssm:
-            # Interpolate using the state-space model
-            # Requires A and W to be tuned for 60 Hz operation
-            self.predict_ssm() # Assist does not run during interpolation step
-            self.bmicount += 1
-        else:
-            self.bmicount += 1
-        return self.kf.get_mean().reshape(-1,1)
+    ###def __call__(self, obs_t, **kwargs):
+    ###    '''
+    ###    Return the predicted arm position given the new data.
+    ###    '''
+    ###    self.spike_counts += obs_t.reshape(-1, 1)
+    ###    if self.bmicount == self.bminum-1:  
+    ###        # Update using spike counts
+    ###        self.bmicount = 0
+    ###        self.predict(self.spike_counts, **kwargs)
+    ###        self.spike_counts = np.zeros([len(self.units), 1])
+    ###    elif self.interpolate_using_ssm:
+    ###        # Interpolate using the state-space model
+    ###        # Requires A and W to be tuned for 60 Hz operation
+    ###        self.predict_ssm() # Assist does not run during interpolation step
+    ###        self.bmicount += 1
+    ###    else:
+    ###        self.bmicount += 1
+    ###    return self.kf.get_mean().reshape(-1,1)
 
     def predict_ssm(self):
         self.kf.propagate_ssm()

@@ -310,6 +310,29 @@ class Decoder(object):
         '''
         return self.filt.C.shape[0]
 
+    def __call__(self, obs_t, **kwargs):
+        decoding_rate = 1./self.binlen
+        if decoding_rate >= 60:
+            # Infer the number of sub-bins from the size of the spike counts mat to decode
+            n_subbins = obs_t.shape[1]
+
+            outputs = []
+            for k in range(n_subbins):
+                outputs.append(self.predict(obs_t[:,k], **kwargs))
+
+            return np.vstack(outputs).T
+        elif decoding_rate < 60:
+            self.spike_counts += obs_t.reshape(-1, 1)
+            if self.bmicount == self.bminum-1:  
+                # Update using spike counts
+                self.bmicount = 0
+                self.predict(self.spike_counts, **kwargs)
+                self.spike_counts = np.zeros([len(self.units), 1])
+            else:
+                self.bmicount += 1
+            return self.filt.get_mean().reshape(-1,1)
+
+
 class AdaptiveBMI(object):
     def __init__(self, decoder, learner, updater):
         self.decoder = decoder 
