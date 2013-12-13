@@ -485,8 +485,17 @@ class TaskEntry(object):
             return 'CLDA'
 
     @property
+    def n_rewards(self):
+        ''' # of rewards given during a block. This number could be different
+        from the total number of trials if children of this class over-ride
+        the n_trials calculator to exclude trials of a certain type, e.g. BMI
+        trials in which the subject was assiste
+        '''
+        return self.record.offline_report()['Total rewards']
+
+    @property
     def total_reward_time(self):
-        return self.record.offline_report()['Total rewards'] * self.reward_time
+        return self.n_rewards * self.reward_time
 
 
 class TaskEntrySet(object):
