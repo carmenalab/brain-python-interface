@@ -92,7 +92,7 @@ class DataSource(mp.Process):
 
     def get(self, all=False, **kwargs):
         if self.status.value <= 0:
-            raise Exception('Error starting datasource')
+            raise Exception('Error starting datasource '+self.name)
             
         self.lock.acquire()
         i = (self.idx.value % self.max_len) * self.slice_size

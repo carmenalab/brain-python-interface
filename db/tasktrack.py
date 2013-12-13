@@ -72,7 +72,7 @@ class Track(object):
 
 def runtask(cmds, _cmds, websock, **kwargs):
     # Set up logging
-    logging.basicConfig(filename='/home/helene/code/bmi3d/log/example.log', format='%(asctime)s %(message)s', level=logging.DEBUG)
+    logging.basicConfig(filename='/home/helene/code/bmi3d/log/tasktrack.log', format='%(asctime)s %(message)s', level=logging.DEBUG)
     logging.debug('\n\n\n\n\n\n\n\n\nStarting task')
 
     import time
@@ -207,6 +207,8 @@ class Task(object):
         
         base_class = task.get()
         f.write('Created base class: %s\n' % base_class)
+        logging.debug('Creating experiment class with features ')
+        for ft in feats: logging.debug(str(ft))
         Exp = experiment.make(base_class, feats=feats)
         self.params.trait_norm(Exp.class_traits())
         if issubclass(Exp, experiment.Sequence):
