@@ -9,7 +9,7 @@ from riglib.stereo_opengl.models import FlatMesh, Group
 from riglib.stereo_opengl.textures import Texture, TexModel
 from riglib.stereo_opengl.render import ssao, stereo, Renderer
 from riglib.stereo_opengl.utils import cloudy_tex
-from riglib.stereo_opengl.ik import RobotArm
+from riglib.stereo_opengl.ik import RobotArm, RobotArm2D
 
 #from riglib import source, motiontracker
 #Motion = motiontracker.make(8, motiontracker.System)
@@ -22,6 +22,7 @@ TexSphere = type("TexSphere", (Sphere, TexModel), {})
 tex = cloudy_tex((1024, 1024))
 
 arm = RobotArm()
+arm2 = RobotArm2D()
 ball = Sphere(radius=5, color=(0.5, 1, 0.5, 1), shininess=20)
 
 # class Test(Window):
@@ -48,8 +49,9 @@ class Test2(Window):
     def _while_draw(self):
         ts = time.time() - self.start_time
         t = (ts / 2.) * np.pi
-        arm.set_joints_2D(0.0, t)
-        #ball.translate(0,100,20*np.abs(np.sin(t))-10, reset=True)       
+        #arm.set_joints_2D(0.0, t)
+        #ball.translate(0,100,20*np.abs(np.sin(t))-10, reset=True)
+        arm2.set_joint_pos(np.pi/2)     
         self.draw_world()
 
 # if __name__ == "__main__":
@@ -68,5 +70,5 @@ class Test2(Window):
 if __name__ == "__main__":
     win = Test2(window_size=(1920*2, 1080))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
-    win.add_model(arm)
+    win.add_model(arm2)
     win.run()

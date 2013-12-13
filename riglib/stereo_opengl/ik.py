@@ -9,6 +9,59 @@ from primitives import Cylinder, Sphere
 from textures import TexModel
 from utils import cloudy_tex
 
+class RobotArm2D(Group):
+    '''
+    A basic robot arm plant. One link with one rotating joint. Joints have one degree of freedom.
+    Initialized with anchor point at origin and joint moving in x-z plane. Takes coordinates in 3D
+    for future compatibility with tasks but all movements restricted to x-z plane and y coordinates ignored.
+    '''
+    def __init__(self, link_radii=[.2], joint_radii=[.5],link_lengths=[5], joint_colors = [(1,1,1,1)],
+        link_colors = [(1,1,1,1)], **kwargs):
+        self.link_radii = link_radii
+        self.joint_radii = joint_radii
+        self.link_lengths = link_lengths
+        self.joint_colors = joint_colors
+        self.link_colors = link_colors
+        self.link1 = Group((Cylinder(radius=link_radii[0], height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0])))
+        self.link1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (1,0,0)).norm() #start position horizontal
+        self.curr_vecs = np.array([self.link_lengths[0],0,0])
+        super(RobotArm2D, self).__init__([self.link1], **kwargs)
+
+    def get_endpoint_pos(self):
+        '''
+        Returns the current position of the non-anchored end of the arm.
+        '''
+        return self.curr_vecs
+
+    def set_endpoint_pos(self,x,y,z):
+        '''
+        Positions the arm according to specified endpoint position.
+        '''
+        
+        #normalize vector from origin to endpoint
+        mag = np.linalg.norm([x,0,z]) #project onto xz plane
+        normed = np.array([x,0,z])/mag
+
+        #set link vector to aligned with endpoint. if endpoint is not on circle, endpoint will
+        #end up at closest possible point on circle
+        self.curr_vecs = normed*self.link_lengths[0]
+
+    def get_joint_pos(self):
+        '''
+        Returns'''
+        
+
+    def set_joint_pos(self,theta):
+        '''
+        Set the joint by specifying the angle in radians.
+        '''
+
+        self.curr_vecs[0] = self.link_lengths[0]*np.cos(theta)
+        self.curr_vecs[2] = self.link_lengths[0]*np.sin(theta)
+        self.link1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), self.curr_vecs).norm()
+        self.link1._recache_xfm()
+
+
 class TwoJoint(object):
     '''Models a two-joint IK system (arm, leg, etc). Constrains the system by 
     always having middle joint halfway between the origin and target'''
