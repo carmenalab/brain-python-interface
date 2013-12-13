@@ -485,6 +485,35 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             #   (R, S, T, and ESS) as attributes of self.filt
             pass
 
+    def change_binlen(self, new_binlen):
+        '''
+        Function to change the binlen of the KFDecoder analytically. 
+        '''
+        bin_gain = new_binlen / self.binlen
+        self.binlen = new_binlen
+
+        # Alter bminum, bmicount, # of subbins
+        screen_update_rate = 1./60
+        if self.binlen < screen_update_rate:
+            self.n_subbins = int(screen_update_rate / self.binlen)
+            self.bmicount = 0
+            if hasattr(self, 'bminum'):
+                del self.bminum
+        else:
+            self.n_subbins = 1
+            self.bminum = int(self.binlen / screen_update_rate)
+            self.bmicount = 0
+
+        # change C matrix
+        self.filt.C *= bin_gain
+        self.filt.Q *= bin_gain**2
+
+        # change state space Model
+        # TODO generalize this beyond endpoint
+        import state_space_models
+        A, W = state_space_models.linear_kinarm_kf(update_rate=new_binlen)
+        self.filt.A = A
+        self.filt.W = W
         
 
 def project_Q(C_v, Q_hat):
