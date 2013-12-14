@@ -8,6 +8,9 @@ from riglib.plexon import Spikes
 import multiprocessing as mp
 from itertools import izip
 import time
+import re
+
+gen_joint_coord_regex = re.compile('.*?_p.*')
 
 class BMI(object):
     '''
@@ -94,11 +97,11 @@ class GaussianStateHMM():
 
     def _ssm_pred(self, state, target_state=None):
         A = self.A
-        B = self.B
-        F = self.F
         if target_state == None:
             return A*state + self.state_noise
         else:
+            B = self.B
+            F = self.F
             return (A - B*F)*state + B*F*target_state + self.state_noise
 
     def __eq__(self, other):
@@ -166,10 +169,17 @@ class Decoder(object):
     def __getitem__(self, idx):
         """
         Get element(s) of the BMI state, indexed by name or number
+
+        Warning: The variable 'q' is a reserved keyword, referring to all of
+        the position states. This strange letter choice was made to be consistent
+        with the robotics literature, where 'q' refers to the vector of 
+        generalized joint coordinates.
         """
-        #alg = self.get_filter()
         if isinstance(idx, int):
             return self.filt.state.mean[idx, 0]
+        elif idx == 'q':
+            pos_states = filter(gen_joint_coord_regex.match, self.states)
+            return np.array([self.__getitem__(k) for k in pos_states])
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
             return self.filt.state.mean[idx, 0]
