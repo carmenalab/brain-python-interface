@@ -49,9 +49,14 @@ class Test2(Window):
     def _while_draw(self):
         ts = time.time() - self.start_time
         t = (ts / 2.) * np.pi
-        #arm.set_joints_2D(0.0, t)
+        #arm.set_joints_2D(t, 0.0)
+        #arm2.set_joint_pos([t])
+        arm2.set_endpoint_pos(5*np.cos(t),0,5*np.sin(t))
+        print t, arm2.get_joint_pos()
         #ball.translate(0,100,20*np.abs(np.sin(t))-10, reset=True)
-        arm2.set_joint_pos(np.pi/2)     
+        #arm2.set_joint_pos([0.0])
+        #arm2.set_joint_pos([np.pi/2])
+        #arm2.set_joint_pos([np.pi]) 
         self.draw_world()
 
 # if __name__ == "__main__":
@@ -71,4 +76,5 @@ if __name__ == "__main__":
     win = Test2(window_size=(1920*2, 1080))
     win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
     win.add_model(arm2)
+    #win.add_model(arm)
     win.run()

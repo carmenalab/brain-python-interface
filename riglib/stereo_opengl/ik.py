@@ -22,16 +22,18 @@ class RobotArm2D(Group):
         self.link_lengths = link_lengths
         self.joint_colors = joint_colors
         self.link_colors = link_colors
+        self.curr_vecs = np.zeros([1,3])
+        self.curr_vecs[0,:] = np.array([self.link_lengths[0],0,0])
         self.link1 = Group((Cylinder(radius=link_radii[0], height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0])))
-        self.link1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (1,0,0)).norm() #start position horizontal
-        self.curr_vecs = np.array([self.link_lengths[0],0,0])
+        self.link1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (-1,0,0)).norm()
+        self.link1.xfm.rotate = Quaternion.rotate_vecs((-1,0,0), (1,0,1)).norm()
         super(RobotArm2D, self).__init__([self.link1], **kwargs)
 
     def get_endpoint_pos(self):
         '''
         Returns the current position of the non-anchored end of the arm.
         '''
-        return self.curr_vecs
+        return self.curr_vecs[0,:]
 
     def set_endpoint_pos(self,x,y,z):
         '''
@@ -44,22 +46,36 @@ class RobotArm2D(Group):
 
         #set link vector to aligned with endpoint. if endpoint is not on circle, endpoint will
         #end up at closest possible point on circle
-        self.curr_vecs = normed*self.link_lengths[0]
+        self.curr_vecs[0,:] = normed*self.link_lengths[0]
+        self._update_links()
 
     def get_joint_pos(self):
         '''
-        Returns'''
+        Returns the joint angles of the arm in radians
+        '''
+        return np.arctan2(self.curr_vecs[0,2],self.curr_vecs[0,0])
+        # if self.curr_vecs[0,2]>=0:
+        #     return np.arcsin(self.curr_vecs[0,2]/self.link_lengths[0])
+        # else:
+        #     print "here"
+        #     return -1*np.arcsin(self.curr_vecs[0,2]/self.link_lengths[0])
         
 
     def set_joint_pos(self,theta):
         '''
-        Set the joint by specifying the angle in radians.
+        Set the joint by specifying the angle in radians. Theta is a list of angles.
         '''
 
-        self.curr_vecs[0] = self.link_lengths[0]*np.cos(theta)
-        self.curr_vecs[2] = self.link_lengths[0]*np.sin(theta)
-        self.link1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), self.curr_vecs).norm()
+        xs = self.link_lengths[0]*np.cos(theta[0])
+        ys = 0.0
+        zs = self.link_lengths[0]*np.sin(theta[0])
+        self.curr_vecs[0,:] = np.array([xs, ys, zs])
+        self._update_links()   
+
+    def _update_links(self):
+        self.link1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), self.curr_vecs[0,:]).norm()
         self.link1._recache_xfm()
+
 
 
 class TwoJoint(object):
