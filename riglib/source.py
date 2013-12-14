@@ -12,6 +12,7 @@ import numpy as np
 
 import sink
 from . import FuncProxy
+import logging
 
 class DataSource(mp.Process):
     def __init__(self, source, bufferlen=10, **kwargs):
@@ -34,6 +35,7 @@ class DataSource(mp.Process):
         self.last_idx = 0
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+        logging.debug("Source initialized: "+str(source))
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
@@ -46,8 +48,10 @@ class DataSource(mp.Process):
             system.start()
             print "System Started"
         except Exception as e:
+            logging.exception("exception when creating system")
             print e
             self.status.value = -1
+
         streaming = True
         size = self.slice_size
         while self.status.value > 0:
@@ -92,7 +96,7 @@ class DataSource(mp.Process):
 
     def get(self, all=False, **kwargs):
         if self.status.value <= 0:
-            raise Exception('Error starting datasource')
+            raise Exception('Error starting datasource '+self.name)
             
         self.lock.acquire()
         i = (self.idx.value % self.max_len) * self.slice_size
