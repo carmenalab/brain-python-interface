@@ -24,6 +24,16 @@ class TestDecoderTrain(unittest.TestCase):
         
         dec_new = train._train_KFDecoder_visual_feedback(cells=dec.units, binlen=dec.binlen, tslice=dec.tslice, **files)
         self.assertTrue(np.all((dec.filt.C - dec_new.filt.C) < 1e-10))
+
+        self.assertTrue(np.array_equal(dec_new.units, dec.units))
+        self.assertTrue(np.array_equal(dec_new.bounding_box[0], dec.bounding_box[0]))
+        self.assertTrue(np.array_equal(dec_new.bounding_box[1], dec.bounding_box[1]))
+        self.assertTrue(dec_new.states == dec.states)
+        self.assertTrue(dec_new.states_to_bound == dec.states_to_bound)
+        self.assertTrue(np.array_equal(dec_new.mFR, dec.mFR))
+        self.assertTrue(np.array_equal(dec_new.sdFR, dec.sdFR))
+        self.assertTrue(np.array_equal(dec_new.drives_neurons, dec.drives_neurons))
+
         #self.assertTrue(dec.filt == dec_new.filt)
 
     def test_ppf_vf(self):
@@ -37,6 +47,14 @@ class TestDecoderTrain(unittest.TestCase):
         
         dec_new = train._train_PPFDecoder_visual_feedback(cells=dec.units, binlen=dec.binlen, tslice=dec.tslice, **files)
         self.assertTrue(np.all((dec.filt.C - dec_new.filt.C) < 1e-10))
+
+        self.assertTrue(np.array_equal(dec_new.units, dec.units))
+        self.assertTrue(np.array_equal(dec_new.bounding_box[0], dec.bounding_box[0]))
+        self.assertTrue(np.array_equal(dec_new.bounding_box[1], dec.bounding_box[1]))
+        self.assertTrue(dec_new.states == dec.states)
+        self.assertTrue(dec_new.states_to_bound == dec.states_to_bound)
+        self.assertTrue(np.array_equal(dec_new.drives_neurons, dec.drives_neurons))
+
         #self.assertTrue(dec.filt == dec_new.filt)
 
 if __name__ == '__main__':
