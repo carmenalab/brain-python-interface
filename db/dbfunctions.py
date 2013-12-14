@@ -426,6 +426,12 @@ class TaskEntry(object):
         self.notes = self.record.notes
         self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
 
+        # Load decoder record
+        if 'bmi' in self.params:
+            self.decoder_record = models.Decoder.objects.get(pk=self.params['bmi'])
+        else:
+            self.decoder_record = None
+
     @property
     def hdf(self):
         try:
@@ -485,8 +491,17 @@ class TaskEntry(object):
             return 'CLDA'
 
     @property
+    def n_rewards(self):
+        ''' # of rewards given during a block. This number could be different
+        from the total number of trials if children of this class over-ride
+        the n_trials calculator to exclude trials of a certain type, e.g. BMI
+        trials in which the subject was assiste
+        '''
+        return self.record.offline_report()['Total rewards']
+
+    @property
     def total_reward_time(self):
-        return self.record.offline_report()['Total rewards'] * self.reward_time
+        return self.n_rewards * self.reward_time
 
 
 class TaskEntrySet(object):

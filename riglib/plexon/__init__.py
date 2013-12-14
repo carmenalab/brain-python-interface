@@ -13,9 +13,9 @@ class Spikes(object):
     dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32), ("arrival_ts", np.float64)])
 
     def __init__(self, addr=("10.0.0.13", 6000), channels=None):
-        logging.debug("Spikes feature creating plexnet connection")
+        logging.debug("Spikes source creating plexnet connection")
         self.conn = plexnet.Connection(*addr)
-        logging.debug("Spikes feature calling plexnet connect method")
+        logging.debug("Spikes source calling plexnet connect method")
         self.conn.connect(256, waveforms=False, analog=False)
         try:
             self.conn.select_spikes(channels)

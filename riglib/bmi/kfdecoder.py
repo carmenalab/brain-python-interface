@@ -507,6 +507,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         # change C matrix
         self.filt.C *= bin_gain
         self.filt.Q *= bin_gain**2
+        self.filt.C_xpose_Q_inv *= 1./bin_gain
 
         # change state space Model
         # TODO generalize this beyond endpoint

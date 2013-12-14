@@ -328,7 +328,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         # each bin; if more are observed, squash the counts
         obs_t = obs_t.copy()
         obs_t[obs_t > 1] = 1
-        #return super(PPFDecoder, self).__call__(obs_t, **kwargs)
+        return super(PPFDecoder, self).__call__(obs_t, **kwargs)
 
         ##### Infer the number of sub-bins from the size of the spike counts mat to decode
         ####n_subbins = obs_t.shape[1]
