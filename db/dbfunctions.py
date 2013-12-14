@@ -426,6 +426,12 @@ class TaskEntry(object):
         self.notes = self.record.notes
         self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
 
+        # Load decoder record
+        if 'bmi' in self.params:
+            self.decoder_record = models.Decoder.objects.get(pk=self.params['bmi'])
+        else:
+            self.decoder_record = None
+
     @property
     def hdf(self):
         try:
