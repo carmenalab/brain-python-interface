@@ -16,6 +16,7 @@ from plexon import plexfile
 cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
 from celery import task, chain
+from tracker import dbq
 
 @task()
 def cache_plx(plxfile):
@@ -77,7 +78,6 @@ def conv_mm_dec_to_cm(decoder_record):
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
     from riglib.bmi import train
-    from tracker import dbq
     dec_cm = train.rescale_KFDecoder_units(dec, 10)
 
     new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_cm.pkl'
@@ -88,6 +88,31 @@ def conv_mm_dec_to_cm(decoder_record):
     training_block_id = decoder_record.entry_id
     print new_decoder_name
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
+
+def open_decoder_from_record(decoder_record):
+    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
+    print decoder_fname
+    decoder_name = decoder_record.name
+    dec = pickle.load(open(decoder_fname))
+    return dec
+
+def save_new_decoder(obj, orig_decoder_record, suffix='_'):
+    decoder_fname = os.path.join('/storage/decoders/', orig_decoder_record.path)
+    new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '%s.pkl' % suffix
+    new_decoder_fname = '/tmp/%s' % new_decoder_basename
+    pickle.dump(obj, open(new_decoder_fname, 'w'))
+
+    decoder_name = orig_decoder_record.name
+    new_decoder_name = decoder_name + suffix
+    training_block_id = orig_decoder_record.entry_id
+    print new_decoder_name
+    dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
+
+def conv_kfdecoder_binlen(decoder_record, new_binlen):
+    dec = open_decoder_from_record(decoder_record)
+    dec.change_binlen(new_binlen)
+    save_new_decoder(dec, decoder_record, suffix='_%dHz' % int(1./new_binlen))
+
 
 def conv_kfdecoder_to_ppfdecoder(decoder_record):
     # Load the decoder
