@@ -41,6 +41,7 @@ ball = Sphere(radius=5, color=(0.5, 1, 0.5, 1), shininess=20)
 #         #print self.clock.get_fps()
 
 class Test2(Window):
+    background = (1,1,1,0)
     def _get_renderer(self):
         mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
