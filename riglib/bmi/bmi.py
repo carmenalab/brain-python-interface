@@ -93,11 +93,11 @@ class GaussianStateHMM():
 
     def _ssm_pred(self, state, target_state=None):
         A = self.A
-        B = self.B
-        F = self.F
-        if target_state == None:
+        if target_state is None or not hasattr(self, 'B') or not hasattr(self, 'F'):
             return A*state + self.state_noise
         else:
+            B = self.B
+            F = self.F
             return (A - B*F)*state + B*F*target_state + self.state_noise
 
 class Decoder(object):
