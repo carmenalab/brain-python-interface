@@ -17,6 +17,7 @@ import generate
 import report
 import features
 from experiment import Experiment, LogExperiment, Sequence, TrialTypes
+import logging
 
 try:
     from Pygame import Pygame
@@ -26,9 +27,7 @@ except:
     Pygame = object
 
 def make(exp_class, feats=()):
-    f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'a')
-    f.write('experiment.make: %s, %s\n' % (exp_class, feats))
-    f.close()
+    logging.info('experiment.make: %s, %s\n' % (exp_class, feats))
     # construct the class list to define inheritance order for the custom task
     # inherit from the features first, then the base class
     clslist = tuple(feats) + (exp_class,) 

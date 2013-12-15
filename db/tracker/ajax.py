@@ -14,6 +14,7 @@ from tasktrack import Track
 from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
 import trainbmi
+import logging
 
 display = Track()
 
@@ -99,9 +100,7 @@ def start_experiment(request, save=True):
         
         # Start the task FSM and display
         display.runtask(**kwargs)
-        f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'w')
-        f.write('ajax.start_experiment: Started task with kwargs: %s\n' % str(kwargs))
-        f.close()
+        logging.info('ajax.start_experiment: Started task with kwargs: %s\n' % str(kwargs))
 
         # Return the JSON response
         return _respond(response)

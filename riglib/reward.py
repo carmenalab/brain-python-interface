@@ -201,3 +201,7 @@ def open():
         return reward
     except:
         print "Reward system not found"
+        import traceback
+        import os
+        import __builtin__
+        traceback.print_exc(file=__builtin__.open(os.path.expanduser('~/code/bmi3d/log/reward.log'), 'w'))
