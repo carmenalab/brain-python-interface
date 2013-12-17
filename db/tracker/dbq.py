@@ -107,6 +107,7 @@ dispatcher.register_function(entry_error, 'entry_error')
 
 @csrf_exempt
 def rpc_handler(request):
-    response = HttpResponse(mimetype="application/xml")
-    response.write(dispatcher._marshaled_dispatch(request.raw_post_data))
+
+    response = HttpResponse(mimetype="application/xml") 
+    response.write(dispatcher._marshaled_dispatch(request.body))
     return response

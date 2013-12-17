@@ -36,7 +36,12 @@ uchar _send(char header, char* msg) {
 extern uchar init(char* dev) {
     uint i, nchan;
     ni = comedi_open(dev);
+    if (ni == NULL) {
+        printf("Error opening device\n");
+        return -1;
+    }
     nchan = comedi_get_n_channels(ni, 0);
+    printf("found comedi system with %d channels\n", nchan);
     for (i=0; i < nchan; i++) {
         if (comedi_dio_config(ni, 0, i, COMEDI_OUTPUT) < 0)
             return -1;

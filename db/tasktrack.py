@@ -72,7 +72,7 @@ class Track(object):
 
 def runtask(cmds, _cmds, websock, **kwargs):
     # Set up logging
-    logging.basicConfig(filename='/home/helene/code/bmi3d/log/example.log', format='%(asctime)s %(message)s', level=logging.DEBUG)
+    logging.basicConfig(filename=os.path.expanduser('~/code/bmi3d/log/example.log'), format='%(asctime)s %(message)s', level=logging.DEBUG)
     logging.debug('\n\n\n\n\n\n\n\n\nStarting task')
 
     import time
@@ -174,7 +174,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
     except:
         print "=====traceback during performance calculations at end of block"
         import traceback
-        traceback.print_exc(open('/home/helene/code/bmi3d/log/tasktrack_log', 'w'))
+        traceback.print_exc()
         print "====="
     print "*************************** EXITING TASK *****************************"
 
@@ -188,8 +188,7 @@ class Task(object):
         feats : list of features to enable for the task
         params : user input on configurable task parameters
         '''
-        f = open('/home/helene/code/bmi3d/log/ajax_task_startup', 'a')
-        f.write('tasktrack.Task.__init__\n')
+        logging.info('tasktrack.Task.__init__\n')
         self.saveid = saveid
         self.taskname = task.name
         self.subj = subj
@@ -206,7 +205,7 @@ class Task(object):
                 print "No comedi, cannot start"
         
         base_class = task.get()
-        f.write('Created base class: %s\n' % base_class)
+        logging.info('Created base class: %s\n' % base_class)
         Exp = experiment.make(base_class, feats=feats)
         self.params.trait_norm(Exp.class_traits())
         if issubclass(Exp, experiment.Sequence):
@@ -218,7 +217,6 @@ class Task(object):
         
         exp.start()
         self.task = exp
-        f.close()
 
     def report(self):
         return experiment.report(self.task)

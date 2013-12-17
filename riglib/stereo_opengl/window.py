@@ -129,21 +129,25 @@ class Window(LogExperiment):
         self.draw_world()
 
 
-class WindowDispl2D(object):
-    def __init__(self):
-        self.models = []
-
+class WindowDispl2D(Window):
     def screen_init(self):
-        self.workspace_ll = np.array([-10., -10.])
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "1920,0"
+        os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
+        pygame.init()
+        self.clock = pygame.time.Clock()
 
-        win_res = 300
-        self.workspace_size = 20. #win_res
-        self.size = win_res
-        self.screen = pygame.display.set_mode((win_res, win_res))
+        flags = pygame.NOFRAME
+
+        self.workspace_ll = np.array([-25., -14.])
+
+        win_res = (1920, 1080)
+        self.workspace_size = 50, 28. #win_res
+        self.size = np.array(win_res)
+        self.screen = pygame.display.set_mode(win_res, flags)
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
         self.screen_background.fill(self.background)
 
-        self.pix_per_m = self.size/self.workspace_size
+        self.pix_per_m = 38.4 #self.size/self.workspace_size
 
         self.world = GroupDispl2D(self.models)
         self.world.init()
@@ -156,7 +160,7 @@ class WindowDispl2D(object):
         pix_pos = self.size*norm_workspace_pos
 
         # flip y-coordinate
-        pix_pos[1] = self.size - pix_pos[1]
+        pix_pos[1] = self.size[1] - pix_pos[1]
 
         # cast to integer
         pix_pos = np.array(pix_pos, dtype=int) 
@@ -174,8 +178,7 @@ class WindowDispl2D(object):
                 pygame.draw.circle(self.screen, color, pix_pos, pix_radius)
 
         pygame.display.update()
-
-        time.sleep(1./60 * 1./10)
+        self.clock.tick(self.fps)
 
     def requeue(self):
         '''
