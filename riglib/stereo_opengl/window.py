@@ -168,7 +168,7 @@ class WindowDispl2D(Window):
 
     def draw_world(self):
         self.screen.blit(self.screen_background, (0, 0))
-        for model in self.world.models:
+        for model in reversed(self.world.models): #added 12-17-13 to make cursor appear on top of target
             if isinstance(model, Sphere):
                 pos = model.xfm.move[[0,2]]
                 pix_pos = self.pos2pix(pos)
@@ -185,6 +185,7 @@ class WindowDispl2D(Window):
         Simulation 'requeue' does nothing because the simulation is lazy and
         inefficient and chooses to redraw the entire screen every loop
         '''
+        
         pass
 
 
