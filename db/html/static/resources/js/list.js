@@ -1,3 +1,6 @@
+//
+// TaskInterface class
+//
 var TaskInterface =  new function() {
 	var state = "";
 	var lastentry = null;
@@ -116,7 +119,13 @@ var TaskInterface =  new function() {
 		}
 	};
 }
+
+//
+// TaskEntry class
+//
 function TaskEntry(idx, info){
+    /* Constructor for TaskEntry class
+     */
 	$("#content").hide();
 	this.sequence = new Sequence();
 	this.params = new Parameters();
@@ -160,7 +169,10 @@ function TaskEntry(idx, info){
 	
 	this.tr.unbind("click");
 }
+
 TaskEntry.prototype.new_row = function(info) {
+    /* Add a row to ..something
+     */
 	this.idx = info.idx;
 	this.tr.removeClass("running active error testing")
 	this.tr.hide();
@@ -257,6 +269,8 @@ TaskEntry.prototype.update = function(info) {
     }
 }
 TaskEntry.copy = function() {
+    /* Called when the 'Copy Parameters' button is pressed?
+     */
 	var info = te.expinfo;
 	info.report = {};
 	info.datafiles = {};
@@ -264,13 +278,26 @@ TaskEntry.copy = function() {
 	te = new TaskEntry(null, info);
 }
 TaskEntry.prototype.destroy = function() {
+    /*
+     * Destructor for TaskEntry class
+     */
 	$("#content").hide();
+
+    // Destruct the Report object for this TaskEntry
 	this.report.destroy();
+    
+    // Destruct the Sequence object for this TaskEntry 
 	this.sequence.destroy();
+
+    // Free the parameters
 	$(this.params.obj).remove()
 	delete this.params
+
+    // Remove any designations that this TaskEntry is active/running/errored/etc.
 	this.tr.removeClass("rowactive active error");
 	$("#content").removeClass("error running testing")
+
+    // Hide the 'files' field
 	$("#files").hide();
 	$(this.filelist).remove();
 
@@ -279,7 +306,11 @@ TaskEntry.prototype.destroy = function() {
 		this.tr.click(function() {
 			te = new TaskEntry(idx);
 		})
+
+        // clear the notes field
 		this.notes.destroy();
+
+        // clear the BMI
 		if (this.bmi !== undefined) {
 			this.bmi.destroy();
 			delete this.bmi;
@@ -373,6 +404,9 @@ TaskEntry.prototype.disable = function() {
 		$("#subjects, #tasks").attr("disabled", "disabled");
 }
 
+//
+// Notes class
+//
 function Notes(idx) {
 	this.last_TO = null;
 	this.idx = idx;
