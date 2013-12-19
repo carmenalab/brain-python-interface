@@ -130,6 +130,8 @@ class Window(LogExperiment):
 
 
 class WindowDispl2D(Window):
+    background = (0,0,0,1)
+
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "1920,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
@@ -152,6 +154,24 @@ class WindowDispl2D(Window):
         self.world = GroupDispl2D(self.models)
         self.world.init()
 
+        #initialize surfaces for translucent markers
+        TRANSPARENT = (255,0,255)
+        self.surf={}
+        self.surf['0'] = pygame.Surface(self.screen.get_size())
+        self.surf['0'].fill(TRANSPARENT)
+        self.surf['0'].set_colorkey(TRANSPARENT)
+
+        self.surf['1'] = pygame.Surface(self.screen.get_size())
+        self.surf['1'].fill(TRANSPARENT)
+        self.surf['1'].set_colorkey(TRANSPARENT)        
+
+         #values of alpha: higher = less translucent
+        self.surf['0'].set_alpha(170) #Cursor
+        self.surf['1'].set_alpha(130) #Targets
+
+        self.surf_background = pygame.Surface(self.surf['0'].get_size()).convert()
+        self.surf_background.fill(TRANSPARENT)
+
     def pos2pix(self, kfpos):
         # rescale the cursor position to (0,1)
         norm_workspace_pos = (kfpos - self.workspace_ll)/self.workspace_size
@@ -167,16 +187,27 @@ class WindowDispl2D(Window):
         return pix_pos
 
     def draw_world(self):
+        #Refreshes the screen with original background
         self.screen.blit(self.screen_background, (0, 0))
-        for model in reversed(self.world.models): #added 12-17-13 to make cursor appear on top of target
+        self.surf['0'].blit(self.surf_background,(0,0))
+        self.surf['1'].blit(self.surf_background,(0,0))
+        
+        i = 0
+        for model in self.world.models: #added 12-17-13 to make cursor appear on top of target
             if isinstance(model, Sphere):
                 pos = model.xfm.move[[0,2]]
                 pix_pos = self.pos2pix(pos)
                 color = tuple(map(lambda x: int(255*x), model.color[0:3]))
                 rad = model.radius
                 pix_radius = int(rad * self.pix_per_m)
-                pygame.draw.circle(self.screen, color, pix_pos, pix_radius)
 
+                #Draws cursor and targets on transparent surfaces
+                pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
+                i += 1
+
+        #Renders the new surfaces
+        self.screen.blit(self.surf['0'], (0,0))
+        self.screen.blit(self.surf['1'], (0,0))
         pygame.display.update()
         self.clock.tick(self.fps)
 
