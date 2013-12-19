@@ -25,8 +25,6 @@ class RobotArm2D(Group):
         self.curr_vecs = np.zeros([1,3])
         self.curr_vecs[0,:] = np.array([self.link_lengths[0],0,0])
         self.link1 = Group((Cylinder(radius=link_radii[0], height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0])))
-        self.link1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), (-1,0,0)).norm()
-        self.link1.xfm.rotate = Quaternion.rotate_vecs((-1,0,0), (1,0,1)).norm()
         super(RobotArm2D, self).__init__([self.link1], **kwargs)
 
     def get_endpoint_pos(self):
@@ -63,19 +61,69 @@ class RobotArm2D(Group):
 
     def set_joint_pos(self,theta):
         '''
-        Set the joint by specifying the angle in radians. Theta is a list of angles.
+        Set the joint by specifying the angle in radians.
         '''
-
-        xs = self.link_lengths[0]*np.cos(theta[0])
-        ys = 0.0
-        zs = self.link_lengths[0]*np.sin(theta[0])
-        self.curr_vecs[0,:] = np.array([xs, ys, zs])
+        if theta is not None:
+            xs = self.link_lengths[0]*np.cos(theta)
+            ys = 0.0
+            zs = self.link_lengths[0]*np.sin(theta)
+            self.curr_vecs[0,:] = np.array([xs, ys, zs])
         self._update_links()   
 
     def _update_links(self):
         self.link1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), self.curr_vecs[0,:]).norm()
         self.link1._recache_xfm()
 
+
+class RobotArm2J2D(RobotArm2D):
+    '''
+    A 2 joint version of the 2D robot arm plant.
+    '''
+
+    def __init__(self, link_radii=[.2, .2], joint_radii=[.5, .5],link_lengths=[5, 5], joint_colors = [(1,1,1,1), (1,1,1,1)],
+        link_colors = [(1,1,1,1), (1,1,1,1)], **kwargs):
+        self.link_radii = link_radii
+        self.joint_radii = joint_radii
+        self.link_lengths = link_lengths
+        self.joint_colors = joint_colors
+        self.link_colors = link_colors
+        self.curr_vecs = np.zeros([2,3])
+        self.curr_vecs[0,:] = np.array([self.link_lengths[0],0,0])
+        self.curr_vecs[1,:] = np.array([self.link_lengths[1],0,0]) #curr_vecs stores the current relative vectors of the arm links
+        
+        self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
+        self.link1 = Group((Cylinder(radius=link_radii[0], height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
+        self.link_group_1 = Group([self.link2, self.link1])
+        super(RobotArm2D, self).__init__([self.link_group_1], **kwargs)
+
+    def _update_links(self):
+        self.link_group_1.xfm.rotate = Quaternion.rotate_vecs((0,0,1), self.curr_vecs[1,:]).norm()
+        self.link_group_1._recache_xfm()
+        super(RobotArm2J2D, self)._update_links()
+
+    def set_endpoint_pos(self,x,y,z):
+        '''
+        Positions the arm according to specified endpoint position. Uses 2D inverse kinematic equations to calculate joint angles.
+        '''
+        pass
+
+    def get_joint_pos(self):
+        '''
+        Returns the joint angles of the arm in radians
+        '''
+        link2ang = np.arctan2(self.curr_vecs[1,2], self.curr_vecs[1,0])
+        link1ang = super(RobotArm2J2D, self).get_joint_pos()
+        return np.array([link1ang, link2ang])
+        
+
+    def set_joint_pos(self,theta):
+        '''
+        Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = None, angle should remain the same.
+        '''
+        if theta[1] is not None:
+            self.curr_vecs[1,:] = np.array([self.link_lengths[1]*np.cos(theta[1]), 0.0, self.link_lengths[1]*np.sin(theta[1])])
+        if theta[0] is not None: theta[0] = theta[0] + np.pi/2 # add pi/2 to lower link angle b/c absolute 0 is horizontal but we want 0 to be aligned with upper link which rotates from 0,0,1 vector
+        super(RobotArm2J2D, self).set_joint_pos(theta[0])  
 
 
 class TwoJoint(object):
