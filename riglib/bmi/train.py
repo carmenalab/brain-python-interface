@@ -315,10 +315,13 @@ def inflate(A, current_states, full_state_ls, axis=0):
 
     return A_new
 
+def sys_eq(sys1, sys2):
+    return sys1 in [sys2, sys2[1:]]
+
 #####################
 ## Data Preprocessing
 #####################
-def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask']):
+def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_name='task'):
     ''' Find the rows of the plx file to use for training the decoder
     '''
     # Open plx file
@@ -332,7 +335,8 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask']):
 
     # find the key for the motiontracker system data
     for key, system in reg.items():
-        if syskey_fn(system):
+        if sys_eq(system[0], sys_name):
+        #if syskey_fn(system):
             syskey = key
             break
 
