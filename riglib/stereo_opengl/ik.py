@@ -85,7 +85,7 @@ class RobotArm2D(Group):
         '''
         Set the joint by specifying the angle in radians.
         '''
-        if theta is not None:
+        if theta is not None and ~np.isnan(theta):
             xs = self.link_lengths[0]*np.cos(theta)
             ys = 0.0
             zs = self.link_lengths[0]*np.sin(theta)
@@ -163,9 +163,10 @@ class RobotArm2J2D(RobotArm2D):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = None, angle should remain the same.
         '''
-        if theta[1] is not None:
+        if theta[1] is not None and ~np.isnan(theta[1]):
             self.curr_vecs[1,:] = np.array([self.link_lengths[1]*np.cos(theta[1]), 0.0, self.link_lengths[1]*np.sin(theta[1])])
-        if theta[0] is not None: theta[0] = theta[0] + np.pi/2 # add pi/2 to lower link angle b/c absolute 0 is horizontal but we want 0 to be aligned with upper link which rotates from 0,0,1 vector
+        if theta[0] is not None: 
+            theta[0] = theta[0] + np.pi/2 # add pi/2 to lower link angle b/c absolute 0 is horizontal but we want 0 to be aligned with upper link which rotates from 0,0,1 vector
         super(RobotArm2J2D, self).set_joint_pos(theta[0])  
 
 

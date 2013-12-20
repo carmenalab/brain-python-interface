@@ -90,7 +90,6 @@ tasks = dict(
     clda_rml_kf = bmimultitasks.CLDARMLKF,
     clda_cont_ppf= bmimultitasks.CLDAControlPPFContAdapt,
     test_graphics = manualcontrolmultitasks.TestGraphics,
-    two_link_arm = manualcontrolmultitasks.TwoLinkArm,
     clda_rml_kf_ofc = bmimultitasks.CLDARMLKFOFC,
     clda_kf_cg_sb = bmimultitasks.CLDAControlKFCG,
     arm_plant = manualcontrolmultitasks.ArmPlant,

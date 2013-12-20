@@ -23,21 +23,25 @@ tex = cloudy_tex((1024, 1024))
 
 arm = RobotArm()
 arm2 = RobotArm2D()
-arm3 = RobotArm2J2D()
+arm_color = (1,1,1,1) # Color and transparency of arm
+arm_radius = .3 # Radius of arm links
+arm_link_lengths = [15.,20.] # Length of lower, upper arm
+arm3 = RobotArm2J2D(link_radii = [arm_radius, arm_radius], joint_radii = [arm_radius, arm_radius],
+        link_lengths=arm_link_lengths, joint_colors = [arm_color, arm_color], link_colors = [arm_color, arm_color])
 ball = Sphere(radius=5, color=(0.5, 1, 0.5, 1), shininess=20)
 
 class Test2(Window):
-    background = (.1,.1,.1,0)
+    background = (0,0,0,1)
     def _get_renderer(self):
         mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _start_draw(self):
         #arm3.set_joint_pos([0.0, 0.0])
-        #arm3.set_endpoint_pos(6.,0.,6.)
+        arm3.set_endpoint_pos((0,0.,5.))
         #print arm3.curr_vecs
-        p = arm3.get_joint_pos()
-        print np.round(p[0],decimals=2), np.round(p[1],decimals=2)#, np.round(p[2],decimals=2)
+        #p = arm3.get_joint_pos()
+        #print np.round(p[0],decimals=2), np.round(p[1],decimals=2)#, np.round(p[2],decimals=2)
         #pass
 
     def _while_draw(self):
