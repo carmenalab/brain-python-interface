@@ -8,6 +8,33 @@ from models import Group
 from primitives import Cylinder, Sphere
 from textures import TexModel
 from utils import cloudy_tex
+from collections import OrderedDict
+
+def inv_kin_2D(pos, l_upperarm, l_forearm):
+    '''
+    Inverse kinematics for a 2D arm. This function returns all 5 angles required
+    to specify the pose of the exoskeleton (see riglib.bmi.train for the 
+    definitions of these angles). This pose is constrained to the x-z plane
+    by forcing shoulder flexion/extension, elbow rotation and supination/pronation
+    to always be 0. 
+    '''
+    # require the y-coordinate to be 0, i.e. flat on the screen
+    x, y, z = pos
+    assert y == 0
+    L = np.sqrt(x**2 + z**2)
+    cos_el_pflex = (L**2 - l_forearm**2 - l_upperarm**2) / (2*l_forearm*l_upperarm)
+    if cos_el_pflex > 1 and cos_el_pflex < 1 + 1e-9:
+        cos_el_pflex = 1.
+    el_pflex = np.arccos(cos_el_pflex)
+
+    angles = OrderedDict()
+    angles['sh_pflex'] = 0
+    angles['sh_pabd'] = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
+ #   import pdb; pdb.set_trace()
+    angles['el_prot'] = 0
+    angles['el_pflex'] = el_pflex
+    angles['el_psup'] = 0
+    return angles
 
 class RobotArm2D(Group):
     '''
@@ -42,7 +69,7 @@ class RobotArm2D(Group):
         mag = np.linalg.norm([x,0,z]) #project onto xz plane
         normed = np.array([x,0,z])/mag
 
-        #set link vector to aligned with endpoint. if endpoint is not on circle, endpoint will
+        #set link vector to be aligned with endpoint. if endpoint is not on circle, endpoint will
         #end up at closest possible point on circle
         self.curr_vecs[0,:] = normed*self.link_lengths[0]
         self._update_links()
@@ -52,11 +79,6 @@ class RobotArm2D(Group):
         Returns the joint angles of the arm in radians
         '''
         return np.arctan2(self.curr_vecs[0,2],self.curr_vecs[0,0])
-        # if self.curr_vecs[0,2]>=0:
-        #     return np.arcsin(self.curr_vecs[0,2]/self.link_lengths[0])
-        # else:
-        #     print "here"
-        #     return -1*np.arcsin(self.curr_vecs[0,2]/self.link_lengths[0])
         
 
     def set_joint_pos(self,theta):
@@ -88,8 +110,8 @@ class RobotArm2J2D(RobotArm2D):
         self.joint_colors = joint_colors
         self.link_colors = link_colors
         self.curr_vecs = np.zeros([2,3])
-        self.curr_vecs[0,:] = np.array([self.link_lengths[0],0,0])
-        self.curr_vecs[1,:] = np.array([self.link_lengths[1],0,0]) #curr_vecs stores the current relative vectors of the arm links
+        self.curr_vecs[0,:] = np.array([0,0,self.link_lengths[0]])
+        self.curr_vecs[1,:] = np.array([0,0,self.link_lengths[1]]) #curr_vecs stores the current relative vectors of the arm links
         
         self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
         self.link1 = Group((Cylinder(radius=link_radii[0], height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
@@ -101,19 +123,40 @@ class RobotArm2J2D(RobotArm2D):
         self.link_group_1._recache_xfm()
         super(RobotArm2J2D, self)._update_links()
 
-    def set_endpoint_pos(self,x,y,z):
+    def get_endpoint_pos(self):
+        '''
+        Returns the current position of the non-anchored end of the arm.
+        '''
+        relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
+        relangs[0] = relangs[0]-np.pi/2 #subtract back the pi/2 to go back to opengl frame of reference
+        totang = np.sum(relangs,axis=0)
+        absvec = self.link_lengths[0]*np.array([np.cos(totang), 0, np.sin(totang)])
+        return absvec + self.curr_vecs[1,:]
+
+    def set_endpoint_pos(self,pos):
         '''
         Positions the arm according to specified endpoint position. Uses 2D inverse kinematic equations to calculate joint angles.
         '''
-        pass
+        if pos is not None:
+            x,y,z = pos
+            # set y to 0 for 2D
+            y=0
+            # if position is out of reach, set it to nearest point that can be reached
+            mag = np.linalg.norm([x,y,z])
+            if mag>sum(self.link_lengths):
+                normed = np.array([x,y,z])/mag
+                x,y,z = normed*sum(self.link_lengths)
+
+            angles = inv_kin_2D((x,y,z), self.link_lengths[1], self.link_lengths[0])
+            self.set_joint_pos([angles['el_pflex'], angles['sh_pabd']])
 
     def get_joint_pos(self):
         '''
         Returns the joint angles of the arm in radians
         '''
-        link2ang = np.arctan2(self.curr_vecs[1,2], self.curr_vecs[1,0])
-        link1ang = super(RobotArm2J2D, self).get_joint_pos()
-        return np.array([link1ang, link2ang])
+        angs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
+        angs[0] = angs[0] - np.pi/2 #subtract back the pi/2 to go back to opengl frame of reference
+        return angs
         
 
     def set_joint_pos(self,theta):

@@ -96,6 +96,15 @@ class Window(LogExperiment):
             #We're already running, initialize the model and add it to the world
             model.init()
             self.world.add(model)
+
+    def show_object(self, obj, show=False):
+        '''
+        Show or hide an object
+        '''
+        if show:
+            obj.attach()
+        else:
+            obj.detach()
     
     def draw_world(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
