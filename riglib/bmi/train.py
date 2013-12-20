@@ -19,6 +19,8 @@ from itertools import izip
 ############
 ## Constants
 ############
+pi = np.pi 
+
 empty_bounding_box = [np.array([]), np.array([])]
 stoch_states_to_decode_2D_vel = ['hand_vx', 'hand_vz'] 
 states_3D_endpt = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
@@ -81,15 +83,6 @@ class StateSpace(object):
         raise NotImplementedError
 
 offset_state = State('offset',  stochastic=False, drives_obs=True)
-### endpt_2D_state_space = StateSpace(
-###     State('hand_px', stochastic=False, drives_obs=False, min_val=-24., max_val=24.),
-###     State('hand_py', stochastic=False, drives_obs=False),
-###     State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14.),
-###     State('hand_vx', stochastic=True,  drives_obs=True),
-###     State('hand_vy', stochastic=False, drives_obs=False),
-###     State('hand_vz', stochastic=True,  drives_obs=True),
-###     offset_state
-### )
 
 # TODO have some method of associating the A and W matrices with the State space model class
 class StateSpaceEndptVel(StateSpace):
@@ -113,30 +106,81 @@ class StateSpaceEndptVel(StateSpace):
         B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
         return A, B, W
 
-class StateSpaceTwoLinkArm(StateSpace):
+class StateSpaceExoArm(StateSpace):
+    '''
+    State space representing the kinematics of the exoskeleton
+        1) shoulder flexion extension
+        2) shoulder abduction/adduction
+        3) elbow rotation
+        4) elbow flexion/extension
+        5) pronation/supination
+    '''
     def __init__(self):
-        super(StateSpaceTwoLinkArm, self).__init__(
-            State('hand_px', stochastic=False, drives_obs=False, min_val=-24., max_val=24.),
-            State('hand_py', stochastic=False, drives_obs=False),
-            State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14.),
-            State('hand_vx', stochastic=True,  drives_obs=True),
-            State('hand_vy', stochastic=False, drives_obs=False),
-            State('hand_vz', stochastic=True,  drives_obs=True),
-            offset_state,
+        super(StateSpaceExoArm, self).__init__(
+                # position states
+                State('sh_pflex', stochastic=False, drives_obs=False), 
+                State('sh_pabd', stochastic=False, drives_obs=False), 
+                State('el_prot', stochastic=False, drives_obs=False), 
+                State('el_pflex', stochastic=False, drives_obs=False), 
+                State('el_psup', stochastic=False, drives_obs=False), 
+                # velocity states
+                State('sh_vflex', stochastic=True, drives_obs=True), 
+                State('sh_vabd', stochastic=True, drives_obs=True), 
+                State('el_vrot', stochastic=True, drives_obs=True), 
+                State('el_vflex', stochastic=True, drives_obs=True), 
+                State('el_vsup', stochastic=True, drives_obs=True), 
+                # offset
+                offset_state,
         )
 
     def get_ssm_matrices(self, update_rate=0.1):
-        # State-space model set from expert data
-        A, W = state_space_models.linear_kinarm_kf(update_rate=update_rate)
+        raise NotImplementedError("Still need to determine A for the full joint space. Need 3D reaching data from real primate")
 
+class StateSpaceExoArm2D(StateSpaceExoArm):
+    '''
+    Exo arm, but limited to the 2D x-z plane by allowing only 
+    should abduction/adduction and elbow flexion/extension
+    '''
+    def __init__(self):
+        super(StateSpaceExoArm, self).__init__(
+                # position states
+                State('sh_pflex', stochastic=False, drives_obs=False, min_val=0, max_val=0), 
+                State('sh_pabd', stochastic=False, drives_obs=False, min_val=-pi, max_val=0), 
+                State('el_prot', stochastic=False, drives_obs=False, min_val=0, max_val=0), 
+                State('el_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0), 
+                State('el_psup', stochastic=False, drives_obs=False, min_val=0, max_val=0), 
+                # velocity states
+                State('sh_vflex', stochastic=False, drives_obs=True), 
+                State('sh_vabd', stochastic=True, drives_obs=True), 
+                State('el_vrot', stochastic=True, drives_obs=True), 
+                State('el_vflex', stochastic=True, drives_obs=True), 
+                State('el_vsup', stochastic=True, drives_obs=True), 
+                # offset
+                offset_state,
+        )
+
+    def get_ssm_matrices(self, update_rate=0.1):
+        '''
+        State space model from expert data
+        '''
+        Delta_KINARM = 1./10
+        w = 0.0007
+        w_units_resc = w / 1 # velocity will always be in radians/sec
+        a_resampled, w_resampled = state_space_models.resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
+
+        # TODO get the number of dimensions from the arm configuration (i.e. a method to return the order of each state
+        ndim = 5 # NOTE: This is the number of 1st order states, not the dimension of the state vector
+        A = state_space_models._gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
+        W = state_space_models._gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
+        
         # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(3))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
+        I = np.mat(np.eye(ndim))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, ndim])])
         return A, B, W
 
 
 endpt_2D_state_space = StateSpaceEndptVel()
-
+joint_2D_state_space = StateSpaceExoArm2D()
 
 
 ################################################
@@ -361,7 +405,7 @@ def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
 
     return kin
 
-def preprocess_files(files, binlen, cells, tslice, source='task'):
+def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='cursor'):
     plx_fname = str(files['plexon']) 
     try:
         plx = plexfile.openFile(plx_fname)
@@ -384,7 +428,7 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     '''
     binlen = 1./180 # TODO remove hardcoding!
 
-    kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source)
+    kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
     
@@ -405,7 +449,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     '''
     Train a KFDecoder from visual feedback
     '''
-    kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice)
+    kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
     
