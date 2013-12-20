@@ -277,7 +277,7 @@ class SpikeData(traits.HasTraits):
     
     def init(self):
         from riglib import plexon, source
-        logging.debug("SpikeData feature creating Spikes source")
+        logging.debug("SpikeData feature creating Spikes source (SpikeData.init, features.py)")
         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
         super(SpikeData, self).init()
 

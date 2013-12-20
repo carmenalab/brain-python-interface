@@ -35,7 +35,7 @@ class DataSource(mp.Process):
         self.last_idx = 0
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
-        logging.debug("Source initialized: "+str(source))
+        logging.debug("Source initialized: "+str(source) + " (DataSource.init, source.py)")
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
@@ -44,11 +44,13 @@ class DataSource(mp.Process):
     def run(self):
         print "Starting datasource %r"%self.source
         try:
+            logging.debug("DataSource process creating " + str(self.source) + " object (DataSource.run, source.py)")
             system = self.source(**self.source_kwargs)
+            logging.debug("Sending command to start source " + str(self.source) + " object (DataSource.run, source.py)")
             system.start()
             print "System Started"
         except Exception as e:
-            logging.exception("exception when creating system")
+            logging.exception("exception when creating system object (DataSource.run, source.py)")
             print e
             self.status.value = -1
 
