@@ -34,6 +34,8 @@ Parameters.prototype.update = function(desc) {
         "Array": this.add_array,
         "Instance": this.add_instance,
         "String":this.add_string,
+        "Enum":this.add_enum,
+        "Bool":this.add_bool,
     }
     for (var name in desc) {
         if (funcs[desc[name]['type']])
@@ -113,6 +115,7 @@ Parameters.prototype.add_int = function (name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_float = function (name, info) {
+    //console.log(info)
     var trait = this._add(name, info['desc']);
     var div = document.createElement("td");
     var input = document.createElement("input");
@@ -130,6 +133,25 @@ Parameters.prototype.add_float = function (name, info) {
         input.value = info.value;
     else if (typeof(info['value']) != "undefined")
         input.value = JSON.stringify(info.value);
+    this.traits[name] = {"obj":trait, "inputs":[input]};
+}
+Parameters.prototype.add_bool = function (name, info) {
+    //console.log(info)
+    var trait = this._add(name, info['desc']);
+    var div = document.createElement("td");
+    var input = document.createElement("input");
+    trait.appendChild(div);
+    div.appendChild(input);
+    this.obj.appendChild(trait);
+
+    input.type = "checkbox";
+    input.name = name;
+    input.id = "param_"+name;
+    input.title = "A boolean value"
+    if (typeof(info['value']) != "undefined")
+        input.checked=info['value'];
+    else
+        input.checked = info['default'];
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_array = function (name, info) {
@@ -176,6 +198,7 @@ Parameters.prototype.add_string = function (name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_instance = function(name, info) {
+    //console.log(info)
     var options = info['options'];
     var trait = this._add(name, info['desc']);
     var div = document.createElement("td");
@@ -197,8 +220,33 @@ Parameters.prototype.add_instance = function(name, info) {
     }
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
+Parameters.prototype.add_enum = function(name, info) {
+    //console.log(info)
+    var options = info['options'];
+    var trait = this._add(name, info['desc']);
+    var div = document.createElement("td");
+    var input = document.createElement("select");
+    trait.appendChild(div);
+    div.appendChild(input);
+    this.obj.appendChild(trait);
+
+    input.name = name;
+    input.id = "param_"+name;
+    for (var i = 0; i < options.length; i++) {
+        var opt = document.createElement("option");
+        opt.value = options[i];
+        opt.innerHTML = options[i];
+        if ((typeof(info['value']) != "undefined" && info['value'] == opt.value) ||
+            (info['default'] == opt.value))
+            opt.setAttribute("selected", "selected");
+        input.appendChild(opt);
+    }
+    this.traits[name] = {"obj":trait, "inputs":[input]};
+}
 Parameters.prototype.to_json = function() {
     var jsdata = {};
+    if ((this.traits["arm_visible"]) != "undefined")
+        this.traits["arm_visible"].inputs[0].value = this.traits["arm_visible"].inputs[0].checked;
     for (var name in this.traits) {
         if (this.traits[name].inputs.length > 1) {
             var plist = [];

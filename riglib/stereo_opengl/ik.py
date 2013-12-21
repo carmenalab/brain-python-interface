@@ -5,10 +5,13 @@ import numpy as np
 
 from xfm import Quaternion
 from models import Group
-from primitives import Cylinder, Sphere
+from primitives import Cylinder, Sphere, Cone
 from textures import TexModel
 from utils import cloudy_tex
 from collections import OrderedDict
+
+def get_arm_class_list():
+    return [RobotArm2D, RobotArm2J2D]
 
 def inv_kin_2D(pos, l_upperarm, l_forearm):
     '''
@@ -44,6 +47,7 @@ class RobotArm2D(Group):
     '''
     def __init__(self, link_radii=[.2], joint_radii=[.5],link_lengths=[5], joint_colors = [(1,1,1,1)],
         link_colors = [(1,1,1,1)], **kwargs):
+        self.num_joints = 1
         self.link_radii = link_radii
         self.joint_radii = joint_radii
         self.link_lengths = link_lengths
@@ -104,6 +108,7 @@ class RobotArm2J2D(RobotArm2D):
 
     def __init__(self, link_radii=[.2, .2], joint_radii=[.5, .5],link_lengths=[5, 5], joint_colors = [(1,1,1,1), (1,1,1,1)],
         link_colors = [(1,1,1,1), (1,1,1,1)], **kwargs):
+        self.num_joints = 2
         self.link_radii = link_radii
         self.joint_radii = joint_radii
         self.link_lengths = link_lengths
@@ -114,7 +119,7 @@ class RobotArm2J2D(RobotArm2D):
         self.curr_vecs[1,:] = np.array([0,0,self.link_lengths[1]]) #curr_vecs stores the current relative vectors of the arm links
         
         self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
-        self.link1 = Group((Cylinder(radius=link_radii[0], height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
+        self.link1 = Group((Cone(radius1=link_radii[0], radius2 = link_radii[1]/2, height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
         self.link_group_1 = Group([self.link2, self.link1])
         super(RobotArm2D, self).__init__([self.link_group_1], **kwargs)
 

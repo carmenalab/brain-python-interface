@@ -38,7 +38,7 @@ Report.prototype.activate = function() {
     if (!this.ws) {
         this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
         this.ws.onmessage = function(evt) {
-            console.log(evt.data);
+            //console.log(evt.data);
             var report = JSON.parse(evt.data);
             if (this.infos)
                 this.infos.push(report)
@@ -64,9 +64,9 @@ Report.prototype.update = function(info) {
         this.stdout.innerHTML += info.msg;
     } else {
         if (info.state)
-            console.log(info.state);
+            //console.log(info.state);
         for (var i in info) {
-            console.log(i)
+            //console.log(i)
             if (!this.boxes[i] && (i!="status") && (i!="task") && (i!="subj") && (i!="date") && (i!="idx")) {
                 var row = document.createElement("tr");
                 var label = document.createElement("td");

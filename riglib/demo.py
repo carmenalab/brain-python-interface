@@ -31,7 +31,7 @@ arm3 = RobotArm2J2D(link_radii = [arm_radius, arm_radius], joint_radii = [arm_ra
 ball = Sphere(radius=5, color=(0.5, 1, 0.5, 1), shininess=20)
 
 class Test2(Window):
-    background = (0,0,0,1)
+    background = (.5,.5,.5,1)
     def _get_renderer(self):
         mirrorSSAO = type("mirrorSSAO", (stereo.MirrorDisplay, ssao.SSAO), globals())
         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
@@ -60,5 +60,7 @@ if __name__ == "__main__":
     #win.add_model(TexPlane(500,500, tex=tex, specular_color=(0.,0,0,0)).rotate_x(90).translate(-250, 250,-15))
     #win.add_model(arm2)
     #win.add_model(arm)
-    win.add_model(arm3)
+    #win.add_model(arm3)
+    win.add_model(Sphere(radius=5, color=(0,0,0,1)).translate(10,0,0))
+    win.add_model(Sphere(radius=5, color=(0,0,0,1), shininess=50))
     win.run()
