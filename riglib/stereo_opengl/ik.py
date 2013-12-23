@@ -1,5 +1,7 @@
-'''This module implements IK functions for running inverse kinematics.
-Current, only a two-joint system can be modelled. I am not skilled in the ways of robotics...'''
+'''
+This module implements IK functions for running inverse kinematics.
+Current, only a two-joint system can be modelled.
+'''
 from __future__ import division
 import numpy as np
 
@@ -10,6 +12,7 @@ from textures import TexModel
 from utils import cloudy_tex
 from collections import OrderedDict
 
+joint_angles_dtype = [('sh_pflex', np.float64), ('sh_pabd', np.float64), ('sh_prot', np.float64), ('el_pflex', np.float64), ('el_psup', np.float64)]
 def inv_kin_2D(pos, l_upperarm, l_forearm):
     '''
     Inverse kinematics for a 2D arm. This function returns all 5 angles required
@@ -18,22 +21,23 @@ def inv_kin_2D(pos, l_upperarm, l_forearm):
     by forcing shoulder flexion/extension, elbow rotation and supination/pronation
     to always be 0. 
     '''
+    if np.ndim(pos) == 1:
+        pos = pos.reshape(1,-1)
+
     # require the y-coordinate to be 0, i.e. flat on the screen
-    x, y, z = pos
-    assert y == 0
+    x, y, z = pos[:,0], pos[:,1], pos[:,2]
+    assert np.all(y == 0)
+
     L = np.sqrt(x**2 + z**2)
     cos_el_pflex = (L**2 - l_forearm**2 - l_upperarm**2) / (2*l_forearm*l_upperarm)
-    if cos_el_pflex > 1 and cos_el_pflex < 1 + 1e-9:
-        cos_el_pflex = 1.
+
+    cos_el_pflex[ (cos_el_pflex > 1) & (cos_el_pflex < 1 + 1e-9)] = 1
     el_pflex = np.arccos(cos_el_pflex)
 
-    angles = OrderedDict()
-    angles['sh_pflex'] = 0
-    angles['sh_pabd'] = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
- #   import pdb; pdb.set_trace()
-    angles['el_prot'] = 0
+    sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L) 
+    angles = np.zeros(len(pos), dtype=joint_angles_dtype)
+    angles['sh_pabd'] = sh_pabd
     angles['el_pflex'] = el_pflex
-    angles['el_psup'] = 0
     return angles
 
 class RobotArm2D(Group):
