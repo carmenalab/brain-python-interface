@@ -433,6 +433,10 @@ class TaskEntry(object):
             self.decoder_record = None
 
     @property
+    def hdf_filename(self):
+        return get_hdf_file(self.record)
+
+    @property
     def hdf(self):
         try:
             return self.hdf_file
@@ -440,6 +444,15 @@ class TaskEntry(object):
             hdf_filename = get_hdf_file(self.record)
             self.hdf_file = tables.openFile(hdf_filename)
             return self.hdf_file
+
+    @property
+    def plx(self):
+        try:
+            self._plx
+        except:
+            from plexon import plexfile
+            self._plx = plexfile.openFile(str(self.plx_file))
+        return self._plx
 
     @property
     def task(self):
