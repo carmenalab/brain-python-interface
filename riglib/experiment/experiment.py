@@ -113,7 +113,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         return self.stop
 
     def cleanup_hdf(self):
-        ''' Method for adding data to hdf file before hdf sink is closed by system at end of task.'''
+        ''' 
+        Method for adding data to hdf file after hdf sink is closed by 
+        system at end of task. The HDF file is re-opened and any extra task 
+        data kept in RAM is written
+        '''
         traits = self.class_editable_traits()
         h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
