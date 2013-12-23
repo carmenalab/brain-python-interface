@@ -81,16 +81,6 @@ class StateSpace(object):
         raise NotImplementedError
 
 offset_state = State('offset',  stochastic=False, drives_obs=True)
-### endpt_2D_state_space = StateSpace(
-###     State('hand_px', stochastic=False, drives_obs=False, min_val=-24., max_val=24.),
-###     State('hand_py', stochastic=False, drives_obs=False),
-###     State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14.),
-###     State('hand_vx', stochastic=True,  drives_obs=True),
-###     State('hand_vy', stochastic=False, drives_obs=False),
-###     State('hand_vz', stochastic=True,  drives_obs=True),
-###     offset_state
-### )
-
 # TODO have some method of associating the A and W matrices with the State space model class
 class StateSpaceEndptVel(StateSpace):
     def __init__(self):
@@ -170,6 +160,47 @@ def train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=0.1, ts
     '''
     Train a KFDecoder which predicts the endpoint velocity
     '''
+    binlen = update_rate
+    n_neurons = spike_counts.shape[0]
+
+    # C should be trained on all of the stochastic state variables, excluding the offset terms
+    C = np.zeros([n_neurons, _ssm.n_states])
+    C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], spike_counts)
+    unit_inds, = np.nonzero(np.array(C)[:,-1])
+    C = C[unit_inds,:]
+    Q = Q[np.ix_(unit_inds, unit_inds)]
+    units = units[unit_inds,:]
+
+    mFR = np.mean(spike_counts[unit_inds, :], axis=1)
+    sdFR = np.std(spike_counts[unit_inds, :], axis=1)
+
+    # Set state space model
+    A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
+
+    # instantiate KFdecoder
+    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=_ssm.is_stochastic)
+    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, _ssm.bounding_box, 
+        _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
+        tslice=tslice)
+
+    # Compute sufficient stats for C and Q matrices (used to initialze CLDA)
+    from clda import KFRML
+    n_neurons, n_states = C.shape
+    R = np.mat(np.zeros([n_states, n_states]))
+    S = np.mat(np.zeros([n_neurons, n_states]))
+    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], spike_counts[unit_inds,:])
+
+    R[np.ix_(_ssm.drives_obs_inds, _ssm.drives_obs_inds)] = R_small
+    S[:,_ssm.drives_obs_inds] = S_small
+    
+    decoder.kf.R = R
+    decoder.kf.S = S
+    decoder.kf.T = T
+    decoder.kf.ESS = ESS
+    
+    return decoder
+
+def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
     binlen = update_rate
     n_neurons = spike_counts.shape[0]
 
@@ -310,9 +341,9 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
     if isinstance(cells, np.ndarray):
         units = cells
     else:
+        if cells == None: cells = plx.units # Use all of the units if none are specified
         cells = np.unique(cells)
         print cells.shape
-        if cells == None: cells = plx.units # Use all of the units if none are specified
         units = np.array(cells).astype(np.int32)
 
     spike_bin_fn = psth.SpikeBin(units, binlen)
