@@ -43,7 +43,7 @@ class StateSpace(object):
         self.states = list(states)
 
     def __repr__(self):
-        return str(self.state_names)
+        return 'State space: ' + str(self.state_names)
 
     @property
     def is_stochastic(self):
@@ -150,11 +150,11 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
                 State('el_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0), 
                 State('el_psup', stochastic=False, drives_obs=False, min_val=0, max_val=0), 
                 # velocity states
-                State('sh_vflex', stochastic=False, drives_obs=True), 
+                State('sh_vflex', stochastic=False, drives_obs=False), 
                 State('sh_vabd', stochastic=True, drives_obs=True), 
-                State('el_vrot', stochastic=True, drives_obs=True), 
+                State('el_vrot', stochastic=False, drives_obs=False), 
                 State('el_vflex', stochastic=True, drives_obs=True), 
-                State('el_vsup', stochastic=True, drives_obs=True), 
+                State('el_vsup', stochastic=False, drives_obs=False), 
                 # offset
                 offset_state,
         )
@@ -450,6 +450,31 @@ def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
 
     return kin
 
+def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
+    '''
+    Use inverse kinematics to calculate the joint angles corresponding to 
+    a particular endpoint trajectory. Note that this is only unique for 2D 
+    planar movements; General 3D movements will require a different method, 
+    still to be implemented
+
+    NOTE: the binlength would not be required if the joint velocities were
+    calculated from the endpoint velocities using the Jacobian transformation!
+    (see note below
+    '''
+    from riglib.stereo_opengl import ik
+    endpoint_pos = cursor_kin[:,0:3] + shoulder_center
+    
+    # Calculate joint angles using the IK methods
+    joint_angles = ik.inv_kin_2D(endpoint_pos, 20., 15.)
+    joint_angles = np.vstack(joint_angles[x] for x in joint_angles.dtype.names).T
+    #joint_angles_2D = np.vstack([joint_angles['sh_pabd'], joint_angles['el_pflex']]).T
+    
+    # get joint velocities; TODO: use pointwise diff or jacobian?
+    joint_vel_2D = np.diff(joint_angles, axis=0) * 1./binlen
+    joint_vel_2D = np.vstack([np.zeros(5), joint_vel_2D])
+    joint_kin = np.hstack([joint_angles, joint_vel_2D])
+    return joint_kin
+
 def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='cursor'):
     plx_fname = str(files['plexon']) 
     try:
@@ -495,12 +520,42 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     Train a KFDecoder from visual feedback
     '''
     kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
+    if kin_var == 'cursor':
+        # TODO should not have to specify both the kin_var and the state space model
+        _ssm=endpt_2D_state_space
+    elif kin_var == 'joint_angles':
+        cursor_kin = kin
+        _ssm=joint_2D_state_space
+        from tasks import manualcontrolmultitasks
+        shoulder_center = manualcontrolmultitasks.ArmPlant.shoulder_anchor
+        kin = get_joint_kinematics(cursor_kin, shoulder_center)
+        
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
     
     # Remove 1st kinematic sample and last spike counts sample to align the 
     # velocity with the spike counts
     kin = kin[1:].T
+    spike_counts = spike_counts[:-1].T
+
+    decoder = train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
+
+    if shuffle: decoder.shuffle()
+
+    return decoder
+
+def _train_KFDecoder_visual_feedback_arm(cells=None, binlen=0.1, tslice=[None,None], 
+    _ssm=joint_2D_state_space, source='task', kin_var='cursor', shuffle=False, **files):
+    '''
+    Function for training a joint-space decoder for 2D ArmPlant; Eventually
+    to be rolled in to the other functions when time/test cases permit(s)
+    '''
+    cursor_kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source='task')
+    from tasks import manualcontrolmultitasks
+    shoulder_center = manualcontrolmultitasks.ArmPlant.shoulder_anchor
+    joint_kin = get_joint_kinematics(cursor_kin, shoulder_center)
+
+    joint_kin = joint_kin[1:].T
     spike_counts = spike_counts[:-1].T
 
     decoder = train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=binlen, tslice=tslice, _ssm=_ssm)
