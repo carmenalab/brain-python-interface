@@ -143,25 +143,31 @@ class RobotArm2J2D(RobotArm2D):
         Positions the arm according to specified endpoint position. Uses 2D inverse kinematic equations to calculate joint angles.
         '''
         if pos is not None:
-            x,y,z = pos
-            # set y to 0 for 2D
-            y=0
-            # if position is out of reach, set it to nearest point that can be reached
-            mag = np.linalg.norm([x,y,z])
-            if mag>sum(self.link_lengths):
-                normed = np.array([x,y,z])/mag
-                x,y,z = normed*sum(self.link_lengths)
-
-            angles = inv_kin_2D((x,y,z), self.link_lengths[1], self.link_lengths[0])
+            angles = self.perform_ik(pos)
             self.set_joint_pos([angles['el_pflex'], angles['sh_pabd']])
+
+    def perform_ik(self,pos):
+        x,y,z = pos
+        # set y to 0 for 2D
+        y=0
+        # if position is out of reach, set it to nearest point that can be reached
+        mag = np.linalg.norm([x,y,z])
+        if mag>sum(self.link_lengths):
+            normed = np.array([x,y,z])/mag
+            x,y,z = normed*sum(self.link_lengths)
+
+        return inv_kin_2D((x,y,z), self.link_lengths[1], self.link_lengths[0])
+
+    def calc_joint_angles(self, vecs):
+        angs = np.arctan2(vecs[:,2], vecs[:,0])
+        angs[0] = angs[0] - np.pi/2 #subtract back the pi/2 to go back to opengl frame of reference
+        return angs
 
     def get_joint_pos(self):
         '''
         Returns the joint angles of the arm in radians
         '''
-        angs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
-        angs[0] = angs[0] - np.pi/2 #subtract back the pi/2 to go back to opengl frame of reference
-        return angs
+        return self.calc_joint_angles(self.curr_vecs)
         
 
     def set_joint_pos(self,theta):
