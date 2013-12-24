@@ -142,7 +142,7 @@ function TaskEntry(idx, info){
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			this.notes = new Notes(this.idx);
 			this.update(expinfo);
-            console.log(expinfo)
+            //console.log(expinfo)
 			this.disable();
 			$("#content").show("slide", "fast");
 		}.bind(this));
@@ -413,7 +413,7 @@ function Notes(idx) {
 	this.activate();
 }
 Notes.prototype.update = function(notes) {
-	console.log("Updating notes to \""+notes+"\"");
+	//console.log("Updating notes to \""+notes+"\"");
 	$("#notes textarea").attr("value", notes);
 }
 Notes.prototype.activate = function() {

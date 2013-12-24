@@ -88,3 +88,26 @@ class Sphere(TriMesh):
 
         super(Sphere, self).__init__(vertices, np.array(triangles), 
             tcoords=tcoord, normals=normals, **kwargs)
+
+
+class Cone(TriMesh):
+    def __init__(self, height=1, radius1=1, radius2=1, segments=36, **kwargs):
+        theta = np.linspace(0, 2*np.pi, segments, endpoint=False)
+        unit = np.array([np.cos(theta), np.sin(theta), np.ones(segments)]).T
+
+        pts = np.vstack([unit*[radius1, radius1, 0], unit*[radius2,radius2,height]])
+        normals = np.vstack([unit*[1,1,0], unit*[1,1,0]])
+
+        polys = []
+        for i in range(segments-1):
+            polys.append((i, i+1, i+segments))
+            polys.append((i+segments, i+1, i+1+segments))
+        polys.append((segments-1, 0, segments*2-1))
+        polys.append((segments*2-1, 0, segments))
+        
+        tcoord = np.array([np.arange(segments), np.ones(segments)]).T
+        n = 1./segments
+        tcoord = np.vstack([tcoord*[n,1], tcoord*[n,0]])
+
+        super(Cone, self).__init__(pts, np.array(polys), 
+            tcoords=tcoord, normals=normals, **kwargs)
