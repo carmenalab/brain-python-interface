@@ -465,6 +465,7 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
     endpoint_pos = cursor_kin[:,0:3] + shoulder_center
     
     # Calculate joint angles using the IK methods
+    # TODO arm link lengths are hard coded right now!
     joint_angles = ik.inv_kin_2D(endpoint_pos, 20., 15.)
     joint_angles = np.vstack(joint_angles[x] for x in joint_angles.dtype.names).T
     #joint_angles_2D = np.vstack([joint_angles['sh_pabd'], joint_angles['el_pflex']]).T
