@@ -137,8 +137,11 @@ class RobotArm2J2D(RobotArm2D):
         Returns the current position of the non-anchored end of the arm.
         '''
         relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
-        relangs[0] = relangs[0]-np.pi/2 #subtract back the pi/2 to go back to opengl frame of reference
-        totang = np.sum(relangs,axis=0)
+        return self.perform_fk(relangs)      
+
+    def perform_fk(self, angs):
+        angs[0] = angs[0]-np.pi/2 #subtract back the pi/2 to go back to opengl frame of reference
+        totang = np.sum(angs,axis=0)
         absvec = self.link_lengths[0]*np.array([np.cos(totang), 0, np.sin(totang)])
         return absvec + self.curr_vecs[1,:]
 
