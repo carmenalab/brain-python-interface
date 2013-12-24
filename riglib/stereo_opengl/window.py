@@ -50,7 +50,7 @@ class Window(LogExperiment):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
-
+        
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.NOFRAME
         try:

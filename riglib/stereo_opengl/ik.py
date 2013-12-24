@@ -160,7 +160,7 @@ class RobotArm2J2D(RobotArm2D):
             normed = np.array([x,y,z])/mag
             x,y,z = normed*sum(self.link_lengths)
 
-        return inv_kin_2D((x,y,z), self.link_lengths[1], self.link_lengths[0])
+        return inv_kin_2D(np.array([x,y,z]), self.link_lengths[1], self.link_lengths[0])
 
     def calc_joint_angles(self, vecs):
         angs = np.arctan2(vecs[:,2], vecs[:,0])

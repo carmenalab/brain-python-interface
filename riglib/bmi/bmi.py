@@ -290,13 +290,13 @@ class Decoder(object):
         self.filt(spike_counts)
 
         # Bound cursor, if any hard bounds for states are applied
-        self.bound_state()
+        # self.bound_state()
 
-        if assist_level > 0:
-            cursor_kin = self.filt.get_mean()
-            kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
-            self.filt.state.mean[:,0] = kin.reshape(-1,1)
-            self.bound_state()
+        # if assist_level > 0:
+        #     cursor_kin = self.filt.get_mean()
+        #     kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
+        #     self.filt.state.mean[:,0] = kin.reshape(-1,1)
+        #     self.bound_state()
 
         state = self.filt.get_mean()
         return state
