@@ -333,10 +333,12 @@ class Decoder(object):
             return np.vstack(outputs).T
         elif decoding_rate < 60:
             self.spike_counts += obs_t.reshape(-1, 1)
-            if self.bmicount == self.bminum-1:  
+            if self.bmicount == self.bminum-1:
                 # Update using spike counts
                 self.bmicount = 0
+                #print "old = ", np.around(self.filt.get_mean(), decimals=2)
                 self.predict(self.spike_counts, **kwargs)
+                #print "new = ", np.around(self.filt.get_mean(), decimals=2)
                 self.spike_counts = np.zeros([len(self.units), 1])
             else:
                 self.bmicount += 1
