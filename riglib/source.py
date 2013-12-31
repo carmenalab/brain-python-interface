@@ -12,7 +12,7 @@ import numpy as np
 
 import sink
 from . import FuncProxy
-import logging
+#import logging
 
 class DataSource(mp.Process):
     def __init__(self, source, bufferlen=10, **kwargs):
@@ -35,22 +35,36 @@ class DataSource(mp.Process):
         self.last_idx = 0
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
-        logging.debug("Source initialized: "+str(source) + " (DataSource.init, source.py)")
+        #logging.debug("Source initialized: "+str(source) + " (DataSource.init, source.py)")
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
         super(DataSource, self).start(*args, **kwargs)
 
     def run(self):
+        filename = os.path.expandvars('$HOME/code/bmi3d/log/source.log')
         print "Starting datasource %r"%self.source
+        #logging.debug("Starting datasource %r" % self.source)
         try:
-            logging.debug("DataSource process creating " + str(self.source) + " object (DataSource.run, source.py)")
+            f = open(filename, 'a')
+            f.write("DataSource process creating " + str(self.source) + " object (DataSource.run, source.py)\n")
+            f.close()
+            #logging.debug("DataSource process creating " + str(self.source) + " object (DataSource.run, source.py)")
+
             system = self.source(**self.source_kwargs)
-            logging.debug("Sending command to start source " + str(self.source) + " object (DataSource.run, source.py)")
+
+            #logging.debug("Sending command to start source " + str(self.source) + " object (DataSource.run, source.py)")
+            f = open(filename, 'a')
+            f.write("Sending command to start source " + str(self.source) + " object (DataSource.run, source.py)\n")
+            f.close()
+
             system.start()
-            print "System Started"
+
+            f = open(filename, 'a')
+            f.write("System Started: %s\n" % str(self.source))
+            f.close()
         except Exception as e:
-            logging.exception("exception when creating system object (DataSource.run, source.py)")
+            #logging.exception("exception when creating system object (DataSource.run, source.py)")
             print e
             self.status.value = -1
 
