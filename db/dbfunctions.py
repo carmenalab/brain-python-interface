@@ -467,7 +467,12 @@ class TaskEntry(object):
     @property
     def clda_param_hist(self):
         if not hasattr(self, '_clda_param_hist'):
-            self._clda_param_hist = np.load(get_bmiparams_file(self.record))
+            if hasattr(self.hdf.root, 'clda'):
+                self._clda_param_hist = self.hdf.root.clda[:]
+            elif get_bmiparams_file(self.record) is not None:
+                self._clda_param_hist = np.load(get_bmiparams_file(self.record))
+            else:
+                self._clda_param_hist = None
         return self._clda_param_hist
 
     @property
