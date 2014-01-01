@@ -34,13 +34,20 @@ def inv_kin_2D(pos, l_upperarm, l_forearm):
     L = np.sqrt(x**2 + z**2)
     cos_el_pflex = (L**2 - l_forearm**2 - l_upperarm**2) / (2*l_forearm*l_upperarm)
 
-    cos_el_pflex[ (cos_el_pflex > 1) & (cos_el_pflex < 1 + 1e-9)] = 1
+    cos_el_pflex[ (cos_el_pflex > 1) & (cos_el_pflex < 1 + 1e-9)] = 1 # THis isn't working, still getting values < -1
     el_pflex = np.arccos(cos_el_pflex)
 
-    sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L) 
+    sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
     angles = np.zeros(len(pos), dtype=joint_angles_dtype)
     angles['sh_pabd'] = sh_pabd
     angles['el_pflex'] = el_pflex
+    if np.isnan(angles['el_pflex']) or np.isnan(angles['sh_pabd']):
+        print "position = ", pos
+        print "angles = ", angles['el_pflex'], angles['sh_pabd']
+        print "L = ", L
+        print "cos_el_pflex = ", cos_el_pflex
+        print "np.arctan2(z, x = ", (np.arctan2(z, x))
+        print "np.arcsin(l_forearm * np.sin(np.pi - el_pflex) = ", (np.arcsin(l_forearm * np.sin(np.pi - el_pflex)))
     return angles
 
 class RobotArm2D(Group):
