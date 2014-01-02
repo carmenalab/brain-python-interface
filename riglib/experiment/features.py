@@ -10,7 +10,7 @@ import numpy as np
 from riglib import calibrations, bmi
 
 from . import traits
-import logging
+# import logging
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
@@ -277,7 +277,7 @@ class SpikeData(traits.HasTraits):
     
     def init(self):
         from riglib import plexon, source
-        logging.debug("SpikeData feature creating Spikes source (SpikeData.init, features.py)")
+        #logging.debug("SpikeData feature creating Spikes source (SpikeData.init, features.py)")
         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
         super(SpikeData, self).init()
 
@@ -355,14 +355,13 @@ class SaveHDF(SinkRegister):
         try:
             super(SaveHDF, self).run()
         finally:
-            import logging
-            try:
-                logging.debug('Saving attributes to HDF file')
-                #self.save_attrs()
-                logging.debug('Finished saving attributes to HDF file')
-            except:
-                print 'Error saving attriubtes to HDF file!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-                logging.exception('Error saving attriubtes to HDF file!')
+            # try:
+            #     # logging.debug('Saving attributes to HDF file')
+            #     #self.save_attrs()
+            #     # logging.debug('Finished saving attributes to HDF file')
+            # except:
+            #     print 'Error saving attriubtes to HDF file!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            #     # logging.exception('Error saving attriubtes to HDF file!')
             self.hdf.stop()
     
     def join(self):
@@ -376,13 +375,16 @@ class SaveHDF(SinkRegister):
     def cleanup(self, database, saveid, **kwargs):
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
         print "#################%s"%self.h5file.name
-        try:
-            #self.cleanup_hdf()
-            pass
-        except:
-            logging.exception('Error saving attriubtes to HDF file!')
+        # try:
+        #     #self.cleanup_hdf()
+        #     pass
+        # except:
+        #     # logging.exception('Error saving attriubtes to HDF file!')
         database.save_data(self.h5file.name, "hdf", saveid)
 
+######################
+## Simulation Features
+######################
 class SimHDF():
     '''
     An interface-compatbile HDF for simulations which do not require saving an
@@ -397,6 +399,22 @@ class SimHDF():
 
     def __setitem__(self, key, value):
         self.data[key].append(value)
+
+class SimTime(object):
+    def __init__(self):
+        self.start_time = 0.
+        self.loop_counter = 0
+
+    def get_time(self):
+        try:
+            return self.loop_counter * 1./60
+        except:
+            # loop_counter has not been initialized yet, return 0
+            return 0
+
+    def loop_step(self):
+        self.loop_counter += 1
+
 
 class RelayPlexon(SinkRegister):
     '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''

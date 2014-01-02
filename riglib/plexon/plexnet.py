@@ -5,13 +5,13 @@ import math
 import array
 import struct
 import socket
-import logging
+# import logging
 import time
 from collections import namedtuple
 
 PACKETSIZE = 512
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit", "waveform", "arrival_ts"])
 chan_names = re.compile(r'^(\w{2,4})(\d{2,3})(\w)?')
@@ -36,7 +36,7 @@ class Connection(object):
     SPIKE_CHAN_UNSORTED_WAVEFORMS = (0x08)
 
     def __init__(self, addr, port):
-        logger.debug("plexnet Connection object instantiated (Connection.init, plexnet.py)")
+        # logger.debug("plexnet Connection object instantiated (Connection.init, plexnet.py)")
         self.addr = (addr, port)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect(self.addr)
@@ -73,11 +73,11 @@ class Connection(object):
         packet[3] = analog
         packet[4] = 1 #channels start
         packet[5] = channels+1
-        logger.debug("Send transfer mode command (Connection.connect, plexnet.py)")
+        # logger.debug("Send transfer mode command (Connection.connect, plexnet.py)")
         self.sock.sendall(packet.tostring())
         
         resp = array.array('i', self._recv())
-        logger.debug("Got response from server (Connection.connect, plexnet.py)")
+        # logger.debug("Got response from server (Connection.connect, plexnet.py)")
         if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_MMF_SIZES:
             self.n_cmd = resp[3]
             if 0 < self.n_cmd < 32:
@@ -90,7 +90,7 @@ class Connection(object):
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
         self.sock.sendall(packet.tostring())
         self.params = []
-        logger.debug("Request parameters... (Connection.connect, plexnet.py)")
+        # logger.debug("Request parameters... (Connection.connect, plexnet.py)")
         gotServerArea = False
         while not gotServerArea:
             resp = array.array('i', self._recv())
@@ -103,7 +103,7 @@ class Connection(object):
                 gotServerArea = True
         
         self._init = True
-        logger.info("Connection established! (Connection.connect, plexnet.py)")
+        # logger.info("Connection established! (Connection.connect, plexnet.py)")
         
     def select_spikes(self, channels=None, waveforms=True, unsorted=False):
         '''Sets the channels from which to receive spikes. This function always requests sorted data
@@ -174,7 +174,7 @@ class Connection(object):
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_START_DATA_PUMP
         self.sock.sendall(packet.tostring())
         self.streaming = True
-        logger.info("Started data pump")
+        # logger.info("Started data pump")
 
     def stop_data(self):
         '''Stop the data pump from plexnet remote'''
@@ -184,7 +184,7 @@ class Connection(object):
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_STOP_DATA_PUMP
         self.sock.sendall(packet.tostring())
         self.streaming = False
-        logger.info("Stopped data pump")
+        # logger.info("Stopped data pump")
 
     def disconnect(self):
         '''Disconnect from the plexnet remote server and close all network sockets'''
@@ -194,7 +194,7 @@ class Connection(object):
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT
         self.sock.sendall(packet.tostring())
         self.sock.close()
-        logger.info("Disconnected from plexon")
+        # logger.info("Disconnected from plexon")
     
     def __del__(self):
         self.disconnect()

@@ -87,6 +87,7 @@ tasks = dict(
     bmi_manipulated_feedback = bmilowfeedback.BMIControlManipulatedFB,
     clda_ppf_manipulated_feedback = bmilowfeedback.CLDAControlPPFContAdaptMFB,
     clda_control_multi = bmimultitasks.CLDAControlMulti,
+    sim_clda_control_multi = bmimultitasks.SimCLDAControlMulti,
     clda_rml_kf = bmimultitasks.CLDARMLKF,
     clda_cont_ppf= bmimultitasks.CLDAControlPPFContAdapt,
     test_graphics = manualcontrolmultitasks.TestGraphics,

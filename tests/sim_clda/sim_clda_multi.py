@@ -8,7 +8,7 @@ import os
 import numpy as np
 import multiprocessing as mp
 from scipy.io import loadmat, savemat
-from riglib.experiment.features import Autostart, SimHDF
+from riglib.experiment.features import Autostart, SimHDF, SimTime
 import riglib.bmi
 from riglib.bmi import kfdecoder, clda, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
@@ -20,21 +20,6 @@ reload(riglib.bmi)
 reload(riglib.bmi.train)
 
 from riglib.stereo_opengl.window import WindowDispl2D
-
-class SimTime(object):
-    def __init__(self):
-        self.start_time = 0.
-        self.loop_counter = 0
-
-    def get_time(self):
-        try:
-            return self.loop_counter * 1./60
-        except:
-            # loop_counter has not been initialized yet, return 0
-            return 0
-
-    def loop_step(self):
-        self.loop_counter += 1
 
 class PointProcNeuralSim(object):
     def _init_neural_encoder(self):

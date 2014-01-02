@@ -163,9 +163,10 @@ class RobotArm2J2D(RobotArm2D):
 
     def perform_fk(self, angs):
         #angs[0] = angs[0]-np.pi/2 #subtract back the pi/2 to go back to opengl frame of reference
-        totang = np.sum(angs,axis=0)
-        absvec = self.link_lengths[0]*np.array([np.cos(totang), 0, np.sin(totang)])
-        return absvec + self.curr_vecs[1,:]
+        abselang = np.sum(angs)
+        abselvec = self.link_lengths[0]*np.array([np.cos(abselang), 0, np.sin(abselang)])
+        shvec = self.link_lengths[1]*np.array([np.cos(angs[1]), 0, np.sin(angs[1])])
+        return abselvec + shvec
 
     def set_endpoint_pos(self,pos):
         '''

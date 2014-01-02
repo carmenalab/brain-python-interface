@@ -173,8 +173,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         pass
     
     def end_task(self):
-        import logging
-        logging.debug("Calling Experiment.end_task")
         self.stop = True
 
 class LogExperiment(Experiment):

@@ -17,6 +17,9 @@ import time
 #sys = source.DataSource(Motion)	
 #sys.start()
 
+import os
+os.environ['DISPLAY'] = ':0'
+
 FlatSphere = type("FlatSphere", (Sphere, FlatMesh), {})
 TexPlane = type("TexPlane", (Plane, TexModel), {})
 TexSphere = type("TexSphere", (Sphere, TexModel), {})
@@ -41,9 +44,18 @@ class Test2(Window):
         return mirrorSSAO(self.window_size, self.fov, 1., 1024., self.screen_dist, self.iod)
 
     def _start_draw(self):
-        arm3.set_joint_pos([pi/2, pi/2])
-        print "endpoint = ", arm3.get_endpoint_pos()
-        
+        #arm3.set_joint_pos([pi/2, pi/2])
+        #arm3.set_endpoint_pos([3, 0, 6])
+        #print "endpoint = ", arm3.get_endpoint_pos()
+        #print 'joint pos (deg)', arm3.get_joint_pos() * 180/np.pi
+        pos = np.array([5,0,5])
+        print "starting position = ",pos 
+        angs = arm3.perform_ik(pos)
+        angs2 = np.array([angs['el_pflex'][0], angs['sh_pabd'][0]])
+        print "angles = ", angs2
+        pos2 = arm3.perform_fk(angs2)
+        print "final position =", pos2
+        arm3.set_endpoint_pos(pos2)
 
     def _while_draw(self):
         ts = (time.time() - self.start_time)/10.
