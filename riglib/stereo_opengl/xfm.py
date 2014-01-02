@@ -103,7 +103,8 @@ class Quaternion(object):
         if axis.ndim > 1:
             axis = axis.T / np.sqrt((axis**2).sum(1))
         else:
-            axis /= np.sqrt((axis**2).sum())
+            if not np.all(axis == 0):
+                axis /= np.sqrt((axis**2).sum())
         w = np.cos(rad*0.5)
         v = axis * np.sin(rad*0.5)
         return cls(w, *v)
