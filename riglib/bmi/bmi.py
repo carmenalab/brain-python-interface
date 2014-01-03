@@ -297,7 +297,7 @@ class Decoder(object):
         self.filt(spike_counts, Bu=Bu)
 
         # Bound cursor, if any hard bounds for states are applied
-        self.bound_state()
+        #self.bound_state()
 
         if assist_level > 0:
             cursor_kin = self.filt.state.mean #get_mean()

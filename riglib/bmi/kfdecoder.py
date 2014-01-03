@@ -74,56 +74,35 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def _obs_prob(self, state):
         return self.C * state + self.obs_noise
 
-    #def _ssm_pred(self, state):
-    #    return self.A*state + self.state_noise
-
     def propagate_ssm(self):
         '''
         Run only SSM (no 'update' step)
         '''
         self.state = self.A*self.state
 
-    def _forward_infer(self, st, obs_t, **kwargs):
-        target_state = kwargs.pop('target_state', None)
-        pred_state = self._ssm_pred(st, target_state=target_state)
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, 
+                       obs_is_control_independent=True):
+        using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
+        pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
 
         C, Q = self.C, self.Q
         P = pred_state.cov
 
-        K = self._calc_kalman_gain(P, **kwargs)
+        K = self._calc_kalman_gain(P)
         I = np.mat(np.eye(self.C.shape[1]))
         D = self.C_xpose_Q_inv_C
         KC = P*(I - D*P*(I + D*P).I)*D
 
         post_state = pred_state
-        post_state.mean += -KC*pred_state.mean + K*obs_t
+        if obs_is_control_independent and using_control_input:
+            post_state.mean += -KC*self.A*st.mean + K*obs_t
+        else:
+            post_state.mean += -KC*pred_state.mean + K*obs_t
         post_state.cov = (I - KC) * P 
+
         return post_state
 
-    ##def _calc_kalman_gain(self, P, alt=False, verbose=False):
-    ##    '''
-    ##    Deprecated version of Kalman gain computation
-    ##    Function below is always feasible and almost always faster
-    ##    '''
-    ##    A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
-    ##    if self.alt and alt:
-    ##        try:
-    ##            # print "trying alt method"
-    ##            if self.include_offset:
-    ##                tmp = np.mat(np.zeros(self.A.shape))
-    ##                tmp[:-1,:-1] = (P[:-1,:-1].I + self.C_xpose_Q_inv_C[:-1,:-1]).I
-    ##            else:
-    ##                tmp = (P.I + self.C_xpose_Q_inv_C).I
-    ##            K = P*( self.C_xpose_Q_inv - self.C_xpose_Q_inv_C*tmp* self.C_xpose_Q_inv ) 
-    ##        except:
-    ##            if verbose: print "reverting"
-    ##            K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-    ##    else:
-    ##        K = P*C.T*np.linalg.pinv( C*P*C.T + Q )
-    ##    K[~self.is_stochastic, :] = 0
-    ##    return K
-
-    def _calc_kalman_gain(self, P, verbose=False):
+    def _calc_kalman_gain(self, P):
         ''' Calculate Kalman gain using the 'alternate' definition
         '''
         nX = P.shape[0]
@@ -282,6 +261,18 @@ class KalmanFilter(bmi.GaussianStateHMM):
             C = C_tmp
         return (C, Q)
     
+    @classmethod 
+    def MLE_state_space_model(self, hidden_state, include_offset=True):
+        '''
+        Train state space model for KF from fully observed hidden state
+        '''
+        X = hidden_state
+        X1 = X[:,:-1]
+        X2 = X[:,1:]
+        A = np.linalg.lstsq(X1.T, X2.T)[0].T
+        W = np.cov(X2 - np.dot(A, X1), bias=1)
+        return A, W
+
     def get_params(self):
         return self.A, self.W, self.C, self.Q
 
