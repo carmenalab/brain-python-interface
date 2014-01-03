@@ -95,14 +95,19 @@ class GaussianStateHMM():
         self.state_noise = GaussianState(0.0, self.W)
         self.obs_noise = GaussianState(0.0, self.Q)
 
-    def _ssm_pred(self, state, target_state=None):
+    def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         A = self.A
-        if target_state == None:
+        if Bu is not None:
+            return A*state + Bu + self.state_noise
+        elif u is not None:
+            Bu = self.B * u
             return A*state + self.state_noise
-        else:
+        elif target_state is not None:
             B = self.B
             F = self.F
             return (A - B*F)*state + B*F*target_state + self.state_noise
+        else:
+            return A*state + self.state_noise
 
     def __eq__(self, other):
         import train
@@ -273,7 +278,8 @@ class Decoder(object):
                 assist_cursor_pos = cursor_pos + speed*diff_vec/2
 
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
-            assist_cursor_kin = np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
+            Bu = assist_level/(1-assist_level) * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
+            Bu = np.mat(Bu.reshape(-1,1))
 
         # TODO put this back in for the KF
         ### # re-normalize the variance of the spike observations, if nec
@@ -287,16 +293,20 @@ class Decoder(object):
         spike_counts = np.mat(spike_counts.reshape(-1,1))
 
         # Run the filter
-        self.filt(spike_counts)
+        #self.filt(spike_counts)
+        self.filt(spike_counts, Bu=Bu)
 
         # Bound cursor, if any hard bounds for states are applied
-        # self.bound_state()
+        self.bound_state()
 
-        # if assist_level > 0:
-        #     cursor_kin = self.filt.get_mean()
-        #     kin = assist_level*assist_cursor_kin + (1-assist_level)*cursor_kin
-        #     self.filt.state.mean[:,0] = kin.reshape(-1,1)
-        #     self.bound_state()
+        if assist_level > 0:
+            cursor_kin = self.filt.state.mean #get_mean()
+            #kin = assist_level*Bu + (1-assist_level)*cursor_kin
+            #kin = (1-assist_level) * (Bu + cursor_kin)
+            #cursor_kin += Bu
+            kin = (1-assist_level) * (cursor_kin)
+            self.filt.state.mean[:,0] = kin.reshape(-1,1)
+            self.bound_state()
 
         state = self.filt.get_mean()
         return state
