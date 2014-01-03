@@ -261,8 +261,7 @@ class Decoder(object):
         return np.array(self.filt.state.mean).ravel()
 
     def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,
-                assist_level=0.0, assist_inds=[0,1,2],
-                **kwargs):
+                assist_level=0.0, assist_inds=[0,1,2], **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
         prev_kin = self.filt.get_mean()
@@ -278,7 +277,7 @@ class Decoder(object):
                 assist_cursor_pos = cursor_pos + speed*diff_vec/2
 
             assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
-            Bu = assist_level/(1-assist_level) * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
+            Bu = assist_level * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
             Bu = np.mat(Bu.reshape(-1,1))
 
         # TODO put this back in for the KF
@@ -304,9 +303,10 @@ class Decoder(object):
             #kin = assist_level*Bu + (1-assist_level)*cursor_kin
             #kin = (1-assist_level) * (Bu + cursor_kin)
             #cursor_kin += Bu
-            kin = (1-assist_level) * (cursor_kin)
+            kin = (1-assist_level) * (cursor_kin) + assist_level * Bu
             self.filt.state.mean[:,0] = kin.reshape(-1,1)
-            self.bound_state()
+        
+        self.bound_state()
 
         state = self.filt.get_mean()
         return state
