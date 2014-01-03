@@ -63,8 +63,9 @@ Report.prototype.update = function(info) {
 
         this.stdout.innerHTML += info.msg;
     } else {
-        if (info.state)
-            //console.log(info.state);
+        if (info.state) {
+            // console.log(info.state);
+        }
         for (var i in info) {
             //console.log(i)
             if (!this.boxes[i] && (i!="status") && (i!="task") && (i!="subj") && (i!="date") && (i!="idx")) {
