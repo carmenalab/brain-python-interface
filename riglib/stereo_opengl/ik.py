@@ -13,10 +13,11 @@ from utils import cloudy_tex
 from collections import OrderedDict
 
 joint_angles_dtype = [('sh_pflex', np.float64), ('sh_pabd', np.float64), ('sh_prot', np.float64), ('el_pflex', np.float64), ('el_psup', np.float64)]
+joint_vel_dtype = [('sh_vflex', np.float64), ('sh_vabd', np.float64), ('sh_vrot', np.float64), ('el_vflex', np.float64), ('el_vsup', np.float64)]
 def get_arm_class_list():
     return [RobotArm2D, RobotArm2J2D]
 
-def inv_kin_2D(pos, l_upperarm, l_forearm):
+def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
     '''
     Inverse kinematics for a 2D arm. This function returns all 5 angles required
     to specify the pose of the exoskeleton (see riglib.bmi.train for the 
@@ -30,6 +31,13 @@ def inv_kin_2D(pos, l_upperarm, l_forearm):
     # require the y-coordinate to be 0, i.e. flat on the screen
     x, y, z = pos[:,0], pos[:,1], pos[:,2]
     assert np.all(y == 0)
+
+    if vel is not None:
+        if np.ndim(vel) == 1:
+            vel = vel.reshape(1,-1)
+        assert pos.shape == vel.shape
+        vx, vy, vz = vel[:,0], vel[:,1], vel[:,2]
+        assert np.all(vy == 0)
 
     L = np.sqrt(x**2 + z**2)
     cos_el_pflex = (L**2 - l_forearm**2 - l_upperarm**2) / (2*l_forearm*l_upperarm)
@@ -48,7 +56,28 @@ def inv_kin_2D(pos, l_upperarm, l_forearm):
         print "cos_el_pflex = ", cos_el_pflex
         print "np.arctan2(z, x = ", (np.arctan2(z, x))
         print "np.arcsin(l_forearm * np.sin(np.pi - el_pflex) = ", (np.arcsin(l_forearm * np.sin(np.pi - el_pflex)))
-    return angles
+
+    if vel is not None:
+        joint_vel = np.zeros(len(pos), dtype=joint_vel_dtype)
+        # if len(vel) > 0:
+        #     raise NotImplementedError
+        
+        # Calculate the jacobian
+        s1 = np.sin(angles[0]['sh_pabd'])
+        s2 = np.sin(angles[0]['sh_pabd'] + angles[0]['el_pflex'])
+        c1 = np.cos(angles[0]['sh_pabd'])
+        c2 = np.cos(angles[0]['sh_pabd'] + angles[0]['el_pflex'])           
+        J = np.array([[-l_upperarm*s1-l_forearm*s2, -l_forearm*s2 ],
+                      [ l_upperarm*c1+l_forearm*c2,  l_forearm*c2 ]])
+
+        J_inv = np.linalg.inv(J)
+
+        joint_vel_mat = np.dot(J_inv, vel[0, [0,2]])
+        joint_vel['sh_vabd'], joint_vel['el_vflex'] = joint_vel_mat.ravel()
+
+        return angles, joint_vel
+    else:
+        return angles    
 
 class RobotArm2D(Group):
     '''

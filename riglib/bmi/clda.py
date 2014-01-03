@@ -59,9 +59,19 @@ class Learner(object):
         raise NotImplementedError
 
 class DumbLearner(Learner):
+    def __init__(self, *args, **kwargs):
+        self.enabled = False
+        self.input_state_index = 0
+
     def __call__(self, *args, **kwargs):
         """ Do nothing; hence the name of the class"""
         pass
+
+    def is_full(self):
+        return False
+
+    def get_batch(self):
+        raise NotImplementedError
 
 class BatchLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):

@@ -261,24 +261,26 @@ class Decoder(object):
         return np.array(self.filt.state.mean).ravel()
 
     def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,
-                assist_level=0.0, assist_inds=[0,1,2], **kwargs):
+                assist_level=0.0, assist_inds=[0,1,2], Bu=None, **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
         prev_kin = self.filt.get_mean()
-        if assist_level > 0:
-            cursor_pos = prev_kin[assist_inds]
-            diff_vec = target - cursor_pos 
-            dist_to_target = np.linalg.norm(diff_vec)
-            dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+        if assist_level > 0 and Bu == None:
+            raise ValueError("Assist cannot be used if the forcing term is not specified!")
+        # if assist_level > 0 and Bu == None:
+        #     cursor_pos = prev_kin[assist_inds]
+        #     diff_vec = target - cursor_pos 
+        #     dist_to_target = np.linalg.norm(diff_vec)
+        #     dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
             
-            if dist_to_target > target_radius:
-                assist_cursor_pos = cursor_pos + speed*dir_to_target
-            else:
-                assist_cursor_pos = cursor_pos + speed*diff_vec/2
+        #     if dist_to_target > target_radius:
+        #         assist_cursor_pos = cursor_pos + speed*dir_to_target
+        #     else:
+        #         assist_cursor_pos = cursor_pos + speed*diff_vec/2
 
-            assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
-            Bu = assist_level * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
-            Bu = np.mat(Bu.reshape(-1,1))
+        #     assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
+        #     Bu = assist_level * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
+        #     Bu = np.mat(Bu.reshape(-1,1))
 
         # TODO put this back in for the KF
         ### # re-normalize the variance of the spike observations, if nec
@@ -299,14 +301,12 @@ class Decoder(object):
         #self.bound_state()
 
         if assist_level > 0:
-            cursor_kin = self.filt.state.mean #get_mean()
-            #kin = assist_level*Bu + (1-assist_level)*cursor_kin
-            #kin = (1-assist_level) * (Bu + cursor_kin)
-            #cursor_kin += Bu
-            kin = (1-assist_level) * (cursor_kin) + assist_level * Bu
-            self.filt.state.mean[:,0] = kin.reshape(-1,1)
+            # cursor_kin = self.filt.state.mean
+            # kin = (1-assist_level) * (cursor_kin) + assist_level * Bu
+            # self.filt.state.mean[:,0] = kin.reshape(-1,1)
+
+            self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
         
-        self.bound_state()
 
         state = self.filt.get_mean()
         return state
