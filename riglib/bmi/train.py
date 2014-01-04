@@ -768,34 +768,37 @@ def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     '''
     raise NotImplementedError
 
-def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
-    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.8):
-    # TODO options to resample the state-space model at different update rates
+def _train_KFDecoder_2D_sim(_ssm, n_units=15, dt=0.1):
+    units = np.vstack([np.arange(1, n_units+1), np.ones(n_units)]).T
     n_neurons = units.shape[0]
-    if include_y:
-        states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-        A = np.array([[1, 0, 0, dt, 0,  0,  0],
-                      [0, 1, 0, 0,  dt, 0,  0],
-                      [0, 0, 1, 0,  0,  dt, 0],
-                      [0, 0, 0, v,  0,  0,  0],
-                      [0, 0, 0, 0,  v,  0,  0],
-                      [0, 0, 0, 0,  0,  v,  0],
-                      [0, 0, 0, 0,  0,  0,  1]])
-    else:
-        states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
-        A = np.array([[1, 0, dt, 0, 0],
-                      [0, 1, 0, dt, 0],
-                      [0, 0, v,  0, 0],
-                      [0, 0, 0,  v, 0],
-                      [0, 0, 0,  0, 1]])
+    ###if include_y:
+    ###    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    ###    A = np.array([[1, 0, 0, dt, 0,  0,  0],
+    ###                  [0, 1, 0, 0,  dt, 0,  0],
+    ###                  [0, 0, 1, 0,  0,  dt, 0],
+    ###                  [0, 0, 0, v,  0,  0,  0],
+    ###                  [0, 0, 0, 0,  v,  0,  0],
+    ###                  [0, 0, 0, 0,  0,  v,  0],
+    ###                  [0, 0, 0, 0,  0,  0,  1]])
+    ###else:
+    ###    states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
+    ###    A = np.array([[1, 0, dt, 0, 0],
+    ###                  [0, 1, 0, dt, 0],
+    ###                  [0, 0, v,  0, 0],
+    ###                  [0, 0, 0,  v, 0],
+    ###                  [0, 0, 0,  0, 1]])
 
-    drives_neurons = np.array([x in neuron_driving_states for x in states])
-    is_stochastic = np.array([x in stochastic_states for x in states])
+    states = _ssm.state_names
+    A, B, W = _ssm.get_ssm_matrices(update_rate=dt)
+    drives_neurons = _ssm.drives_obs
+    is_stochastic = _ssm.is_stochastic
+    bounding_box = _ssm.bounding_box
+    states_to_bound = _ssm.states_to_bound
 
-    nX = A.shape[0]
-    w = 0.0007
-    W = np.diag(w * np.ones(nX))
-    W[np.ix_(~is_stochastic, ~is_stochastic)] = 0
+    nX = _ssm.n_states
+    ##w = 0.0007
+    ##W = np.diag(w * np.ones(nX))
+    ##W[np.ix_(~is_stochastic, ~is_stochastic)] = 0
 
     C = np.random.standard_normal([n_neurons, nX])
     C[:, ~drives_neurons] = 0
