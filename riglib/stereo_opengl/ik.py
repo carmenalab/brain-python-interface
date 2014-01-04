@@ -162,6 +162,22 @@ class Cursor(Group):
     def _update_links(self):
         pass
 
+class CursorPlant(object):
+    def __init__(self, **kwargs):
+        self.position = np.zeros(3)
+
+    def get_endpoint_pos(self):
+        return self.position
+
+    def set_endpoint_pos(self,pt):
+        self.position = pt
+
+    def get_joint_pos(self):
+        raise ValueError("cursor has no joints!")
+
+    def set_joint_pos(self,theta):
+        raise ValueError("Cursor has no joints!")
+
 class RobotArm2J2D(RobotArm2D):
     '''
     A 2 joint version of the 2D robot arm plant.

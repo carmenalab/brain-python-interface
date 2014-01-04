@@ -96,7 +96,7 @@ tasks = dict(
     arm_plant = manualcontrolmultitasks.ArmPlant,
 )
 
-arms = ['RobotArm2J2D', 'RobotArm2D']
+arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant']
 
 ## BMI seed tasks
 # The below list shows which tasks can be used to train new Decoders
