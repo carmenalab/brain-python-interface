@@ -768,8 +768,7 @@ def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     '''
     raise NotImplementedError
 
-def _train_KFDecoder_2D_sim(_ssm, n_units=15, dt=0.1):
-    units = np.vstack([np.arange(1, n_units+1), np.ones(n_units)]).T
+def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
     n_neurons = units.shape[0]
     ###if include_y:
     ###    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
