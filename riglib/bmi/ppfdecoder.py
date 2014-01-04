@@ -20,6 +20,7 @@ class PointProcessFilter():
        x_{t+1} = Ax_t + w_t; w_t ~ N(0, W)
        log(y_t) = Cx_t
     """
+    model_attrs = ['A', 'W', 'C']
 
     def __init__(self, A, W, C, dt, is_stochastic=None, B=0, F=0):
         self.A = np.mat(A)
@@ -238,9 +239,6 @@ class PointProcessFilter():
 
         return C, pvalues
 
-    def __eq__(self, other):
-        return train.obj_eq(self, other, ['A', 'W', 'C'])
-
 class PPFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, filt, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, n_subbins=3, tslice=[-1,-1]):
@@ -330,15 +328,16 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         # each bin; if more are observed, squash the counts
         obs_t = obs_t.copy()
         obs_t[obs_t > 1] = 1
+        return super(PPFDecoder, self).__call__(obs_t, **kwargs)
 
-        # Infer the number of sub-bins from the size of the spike counts mat to decode
-        n_subbins = obs_t.shape[1]
+        ##### Infer the number of sub-bins from the size of the spike counts mat to decode
+        ####n_subbins = obs_t.shape[1]
 
-        outputs = []
-        for k in range(n_subbins):
-            outputs.append(self.predict(obs_t[:,k], **kwargs))
+        ####outputs = []
+        ####for k in range(n_subbins):
+        ####    outputs.append(self.predict(obs_t[:,k], **kwargs))
 
-        return np.vstack(outputs).T
+        ####return np.vstack(outputs).T
 
     def get_filter(self):
         return self.filt 
@@ -377,3 +376,12 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def save_params_to_hdf(self, task_data):
         task_data['filt_C'] = np.asarray(self.filt.C)
 
+    def shuffle(self):
+        ''' Shuffle the neural model
+        '''
+        import random
+        inds = range(self.filt.C.shape[0])
+        random.shuffle(inds)
+
+        # shuffle rows of C
+        self.filt.C = self.filt.C[inds, :]

@@ -10,7 +10,7 @@ import numpy as np
 from riglib import calibrations, bmi
 
 from . import traits
-import logging
+#import logging
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
@@ -277,13 +277,17 @@ class SpikeData(traits.HasTraits):
     
     def init(self):
         from riglib import plexon, source
+        #logging.debug("SpikeData feature creating Spikes source (SpikeData.init, features.py)")
         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
         super(SpikeData, self).init()
 
     def run(self):
+        #logging.debug("calling self.neurondata.start (SpikeData.run, features.py)")
         self.neurondata.start()
+        #logging.debug("finished starting neurondata source (SpikeData.run, features.py)")
         try:
             super(SpikeData, self).run()
+            #logging.debug("finished running neurondata source (SpikeData.run, features.py)")
         finally:
             self.neurondata.stop()
 
@@ -354,14 +358,14 @@ class SaveHDF(SinkRegister):
         try:
             super(SaveHDF, self).run()
         finally:
-            import logging
-            try:
-                logging.debug('Saving attributes to HDF file')
-                #self.save_attrs()
-                logging.debug('Finished saving attributes to HDF file')
-            except:
-                print 'Error saving attriubtes to HDF file!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-                logging.exception('Error saving attriubtes to HDF file!')
+            # #import logging
+            # try:
+            #     #logging.debug('Saving attributes to HDF file')
+            #     #self.save_attrs()
+            #     #logging.debug('Finished saving attributes to HDF file')
+            # except:
+            #     print 'Error saving attriubtes to HDF file!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            #     #logging.exception('Error saving attriubtes to HDF file!')
             self.hdf.stop()
     
     def join(self):
@@ -378,7 +382,7 @@ class SaveHDF(SinkRegister):
         try:
             self.cleanup_hdf()
         except:
-            logging.exception('Error saving attriubtes to HDF file!')
+            print "cleanup error"
         database.save_data(self.h5file.name, "hdf", saveid)
 
 class SimHDF():

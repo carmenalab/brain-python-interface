@@ -23,6 +23,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
        x_{t+1} = Ax_t + w_t;   w_t ~ N(0, W)
            y_t = Cx_t + q_t;   q_t ~ N(0, Q)
     """
+    model_attrs = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C']
 
     def __init__(self, A, W, C, Q, is_stochastic=None):
         self.A = np.mat(A)
@@ -135,6 +136,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, max_iter=4000,
         verbose=False, return_Khist=False, alt=True):
         """Calculate the steady-state KF matrices
+
+        value of P returned is the posterior error cov, i.e. P_{t|t}
         """ 
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
 
@@ -308,9 +311,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F = (I - KC)*A
         self._init_state(init_state=self.state.mean, init_cov=P)
 
-    def __eq__(self, other):
-        return train.obj_eq(self, other, ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C'])
-
 class PseudoPPF(KalmanFilter):
     def _forward_infer(self, st, obs_t, **kwargs):
         pred_state = self._ssm_pred(st)
@@ -388,24 +388,24 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.mFR_diff = mFR_curr-self.mFR
         self.zscore = True
         
-    def __call__(self, obs_t, **kwargs):
-        '''
-        Return the predicted arm position given the new data.
-        '''
-        self.spike_counts += obs_t.reshape(-1, 1)
-        if self.bmicount == self.bminum-1:  
-            # Update using spike counts
-            self.bmicount = 0
-            self.predict(self.spike_counts, **kwargs)
-            self.spike_counts = np.zeros([len(self.units), 1])
-        elif self.interpolate_using_ssm:
-            # Interpolate using the state-space model
-            # Requires A and W to be tuned for 60 Hz operation
-            self.predict_ssm() # Assist does not run during interpolation step
-            self.bmicount += 1
-        else:
-            self.bmicount += 1
-        return self.kf.get_mean().reshape(-1,1)
+    ###def __call__(self, obs_t, **kwargs):
+    ###    '''
+    ###    Return the predicted arm position given the new data.
+    ###    '''
+    ###    self.spike_counts += obs_t.reshape(-1, 1)
+    ###    if self.bmicount == self.bminum-1:  
+    ###        # Update using spike counts
+    ###        self.bmicount = 0
+    ###        self.predict(self.spike_counts, **kwargs)
+    ###        self.spike_counts = np.zeros([len(self.units), 1])
+    ###    elif self.interpolate_using_ssm:
+    ###        # Interpolate using the state-space model
+    ###        # Requires A and W to be tuned for 60 Hz operation
+    ###        self.predict_ssm() # Assist does not run during interpolation step
+    ###        self.bmicount += 1
+    ###    else:
+    ###        self.bmicount += 1
+    ###    return self.kf.get_mean().reshape(-1,1)
 
     def predict_ssm(self):
         self.kf.propagate_ssm()
@@ -458,6 +458,63 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
         if not hasattr(self.filt, 'F'):
             self.filt.F = np.mat(np.zeros([self.filt.B.shape[0], len(self.states)]))
+
+    def shuffle(self):
+        ''' Shuffle the neural model
+        '''
+        # generate random permutation
+        import random
+        inds = range(self.filt.C.shape[0])
+        random.shuffle(inds)
+
+        # shuffle rows of C, and rows+cols of Q
+        self.filt.C = self.filt.C[inds, :]
+        self.filt.Q = self.filt.Q[inds, :]
+        self.filt.Q = self.filt.Q[:, inds]
+
+        self.filt.C_xpose_Q_inv = self.filt.C.T * self.filt.Q.I
+
+        # RML sufficient statistics (S and T, but not R and ESS)
+        # shuffle rows of S, and rows+cols of T
+        try:
+            self.filt.S = self.filt.S[inds, :]
+            self.filt.T = self.filt.T[inds, :]
+            self.filt.T = self.filt.T[:, inds]
+        except AttributeError:
+            # if this decoder never had the RML sufficient statistics
+            #   (R, S, T, and ESS) as attributes of self.filt
+            pass
+
+    def change_binlen(self, new_binlen):
+        '''
+        Function to change the binlen of the KFDecoder analytically. 
+        '''
+        bin_gain = new_binlen / self.binlen
+        self.binlen = new_binlen
+
+        # Alter bminum, bmicount, # of subbins
+        screen_update_rate = 1./60
+        if self.binlen < screen_update_rate:
+            self.n_subbins = int(screen_update_rate / self.binlen)
+            self.bmicount = 0
+            if hasattr(self, 'bminum'):
+                del self.bminum
+        else:
+            self.n_subbins = 1
+            self.bminum = int(self.binlen / screen_update_rate)
+            self.bmicount = 0
+
+        # change C matrix
+        self.filt.C *= bin_gain
+        self.filt.Q *= bin_gain**2
+        self.filt.C_xpose_Q_inv *= 1./bin_gain
+
+        # change state space Model
+        # TODO generalize this beyond endpoint
+        import state_space_models
+        A, W = state_space_models.linear_kinarm_kf(update_rate=new_binlen)
+        self.filt.A = A
+        self.filt.W = W
         
 
 def project_Q(C_v, Q_hat):

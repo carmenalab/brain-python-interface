@@ -8,6 +8,9 @@ from riglib.plexon import Spikes
 import multiprocessing as mp
 from itertools import izip
 import time
+import re
+
+gen_joint_coord_regex = re.compile('.*?_p.*')
 
 class BMI(object):
     '''
@@ -71,6 +74,7 @@ class GaussianState(object):
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
 class GaussianStateHMM():
+    model_attrs = []
     def __init__(self, A, W):
         self.A = A
         self.W = W
@@ -99,6 +103,15 @@ class GaussianStateHMM():
             B = self.B
             F = self.F
             return (A - B*F)*state + B*F*target_state + self.state_noise
+
+    def __eq__(self, other):
+        import train
+        return train.obj_eq(self, other, self.model_attrs)
+
+    def __sub__(self, other):
+        import train
+        return train.obj_diff(self, other, self.model_attrs)
+
 
 class Decoder(object):
     clda_dtype = [] # define parameters to store in HDF file during CLDA
@@ -156,10 +169,17 @@ class Decoder(object):
     def __getitem__(self, idx):
         """
         Get element(s) of the BMI state, indexed by name or number
+
+        Warning: The variable 'q' is a reserved keyword, referring to all of
+        the position states. This strange letter choice was made to be consistent
+        with the robotics literature, where 'q' refers to the vector of 
+        generalized joint coordinates.
         """
-        #alg = self.get_filter()
         if isinstance(idx, int):
             return self.filt.state.mean[idx, 0]
+        elif idx == 'q':
+            pos_states = filter(gen_joint_coord_regex.match, self.states)
+            return np.array([self.__getitem__(k) for k in pos_states])
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
             return self.filt.state.mean[idx, 0]
@@ -299,6 +319,29 @@ class Decoder(object):
         but future decoders may need to return a different quantity
         '''
         return self.filt.C.shape[0]
+
+    def __call__(self, obs_t, **kwargs):
+        decoding_rate = 1./self.binlen
+        if decoding_rate >= 60:
+            # Infer the number of sub-bins from the size of the spike counts mat to decode
+            n_subbins = obs_t.shape[1]
+
+            outputs = []
+            for k in range(n_subbins):
+                outputs.append(self.predict(obs_t[:,k], **kwargs))
+
+            return np.vstack(outputs).T
+        elif decoding_rate < 60:
+            self.spike_counts += obs_t.reshape(-1, 1)
+            if self.bmicount == self.bminum-1:  
+                # Update using spike counts
+                self.bmicount = 0
+                self.predict(self.spike_counts, **kwargs)
+                self.spike_counts = np.zeros([len(self.units), 1])
+            else:
+                self.bmicount += 1
+            return self.filt.get_mean().reshape(-1,1)
+
 
 class AdaptiveBMI(object):
     def __init__(self, decoder, learner, updater):

@@ -7,7 +7,7 @@ import time
 import xmlrpclib
 import multiprocessing as mp
 import collections
-import logging
+#import logging
 
 from riglib import experiment
 import websocket
@@ -98,7 +98,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
             super(NotifyFeat, self).set_state(state, *args, **kwargs)
 
         def run(self):
-            logging.debug('trying to execute NotifyFeat.run()')
+            #logging.debug('trying to execute NotifyFeat.run()')
             try:
                 super(NotifyFeat, self).run()
             except:
@@ -117,39 +117,39 @@ def runtask(cmds, _cmds, websock, **kwargs):
     kwargs['feats'].insert(0, NotifyFeat)
 
     try:
-        logging.debug('Instantiating tasktrack.Task')
+        #logging.debug('Instantiating tasktrack.Task')
         task = Task(**kwargs)
-        logging.debug('Waiting for first command')
+        #logging.debug('Waiting for first command')
         cmd = _cmds.recv()
-        logging.debug('First command received')
+        #logging.debug('First command received')
         while cmd is not None and task.task.state is not None:
-            logging.debug('inside while loop')
+            #logging.debug('inside while loop')
             #logging.debug(str(cmd[0]), str(cmd[1]), str(cmd[2]))
             try:
                 fn_name = cmd[0]
                 cmd_args = cmd[1]
                 cmd_kwargs = cmd[2]
-                logging.debug('calling function %s' % fn_name)
+                #logging.debug('calling function %s' % fn_name)
                 ret = getattr(task, fn_name)(*cmd_args, **cmd_kwargs)
-                logging.debug('Sending response to ...something')
+                #logging.debug('Sending response to ...something')
                 _cmds.send(ret)
-                logging.debug('starting _cmds.recv')
+                #logging.debug('starting _cmds.recv')
                 cmd = _cmds.recv()
-                logging.debug('received new command')
+                #logging.debug('received new command')
             except KeyboardInterrupt:
                 # Handle the KeyboardInterrupt separately. How the hell would
                 # a keyboard interrupt even get here?
                 cmd = None
             except Exception as e:
-                logging.debug('Exception caught in runtask while loop: %s' % str(e))
+                #logging.debug('Exception caught in runtask while loop: %s' % str(e))
                 _cmds.send(e)
-                logging.debug('Sent exception through _cmds')
+                #logging.debug('Sent exception through _cmds')
                 if _cmds.poll(60.):
                     cmd = _cmds.recv()
-                    logging.debug('Received response to exception')
+                    #logging.debug('Received response to exception')
                 else:
                     cmd = None
-                    logging.debug("Setting cmd=None to break out of tasktrack while loop")
+                    #logging.debug("Setting cmd=None to break out of tasktrack while loop")
     except:
         import cStringIO
         import traceback
@@ -163,7 +163,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
         err.seek(0)
         print err.read()
     sys.stdout = sys.__stdout__
-    logging.debug('Starting cleanup')
+    #logging.debug('Starting cleanup')
     task.cleanup()
 
     # Summarize performance during task
@@ -238,7 +238,7 @@ class Task(object):
         self.task.join()
         print "Calling saveout/task cleanup code"
         
-        logging.debug('Calling saveout/task cleanup code')
+        #logging.debug('Calling saveout/task cleanup code')
         if self.saveid is not None:
             try:
                 import comedi
@@ -246,9 +246,9 @@ class Task(object):
             except:
                 pass
 
-            logging.debug('getting database object')
+            #logging.debug('getting database object')
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
-            logging.debug('got database object, %s' % str(database))
+            #logging.debug('got database object, %s' % str(database))
             self.task.cleanup(database, self.saveid, subject=self.subj)
 
 class ObjProxy(object):
