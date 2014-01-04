@@ -74,11 +74,28 @@ class SimRML(SimCLDAControlMultiDispl2D):
 
     def load_decoder(self):
         ssm = train.endpt_2D_state_space
-        self.decoder = train._train_KFDecoder_2D_sim(ssm)
+        self.decoder = train._train_KFDecoder_2D_sim(ssm, self.encoder.get_units())
 
     def _cycle(self):
         super(SimRML, self)._cycle()
  
+class SimKFCGJoint(SimCLDAControlMultiDispl2D):
+    assist_level = (0.2, 0.)
+    starting_pos = (0., 0., 0.)
+
+    def __init__(self, *args, **kwargs):
+        super(SimKFCGJoint, self).__init__(*args, **kwargs)
+        self.batch_time = 0.1
+        self.half_life  = (20.0, 20.0)
+
+    def load_decoder(self):
+        #ssm = train.endpt_2D_state_space
+        ssm = train.joint_2D_state_space
+        self.decoder = train._train_KFDecoder_2D_sim(ssm, self.encoder.get_units())
+
+    def create_updater(self):
+        self.updater = clda.KFRML(None, None, self.batch_time, self.half_life[0])
+
 
 class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimCLDAControlMultiDispl2D):
     def __init__(self, *args, **kwargs):
@@ -123,9 +140,10 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
 
 
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
-task = SimRML(gen)
+#task = SimRML(gen)
 #task = SimCLDAControlMultiDispl2D_PPF(gen)
 #task = SimCLDAControlMultiDispl2D(gen)
+task = SimKFCGJoint(gen)
 
 self = task
 task.init()

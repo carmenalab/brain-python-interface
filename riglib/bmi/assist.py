@@ -20,7 +20,7 @@ def joint_5DOF_assist_endpoint_target(cursor_pos, target_pos, arm, **kwargs):
     assist_level = kwargs.pop('assist_level', 0.)
 
     # Get the endpoint control under full assist
-    Bu_endpoint = endpoint_assist_simple(cursor_pos, target_pos, assist_level=1, **kwargs)
+    Bu_endpoint = endpoint_assist_simple(cursor_pos, target_pos, assist_level=1., **kwargs)
 
     # Convert the endpoint assist to joint space using IK/Jacobian
     Bu_endpoint = np.array(Bu_endpoint).ravel()
