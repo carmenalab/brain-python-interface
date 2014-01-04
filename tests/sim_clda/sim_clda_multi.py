@@ -10,7 +10,7 @@ import multiprocessing as mp
 from scipy.io import loadmat, savemat
 from riglib.experiment.features import Autostart, SimHDF, SimTime
 import riglib.bmi
-from riglib.bmi import kfdecoder, clda, ppfdecoder
+from riglib.bmi import train, kfdecoder, clda, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
 
 reload(kfdecoder)
@@ -136,9 +136,13 @@ class SimRML(SimCLDAControlMultiDispl2D):
     def create_updater(self):
         self.updater = clda.KFRML(None, None, self.batch_time, self.half_life[0])
 
+    def load_decoder(self):
+        ssm = train.endpt_2D_state_space
+        self.decoder = train._train_KFDecoder_2D_sim(ssm)
+
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
-task = SimRML(gen)
+#task = SimRML(gen)
 #task = SimCLDAControlMultiDispl2D_PPF(gen)
-#task = SimCLDAControlMultiDispl2D(gen)
+task = SimCLDAControlMultiDispl2D(gen)
 task.init()
 task.run()
