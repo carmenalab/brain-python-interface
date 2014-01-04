@@ -17,10 +17,6 @@ class Spikes(object):
         self.conn = plexnet.Connection(*addr)
         self.conn.connect(256, waveforms=False, analog=False)
 
-        f = open(log_filename, 'a')
-        f.write("self.conn.connect finished\n")
-        f.close()
-
         try:
             self.conn.select_spikes(channels)
         except:

@@ -69,10 +69,6 @@ class Connection(object):
         analog : bool, optional
             Request analog data?
         '''
-        log_filename = os.path.expandvars('$HOME/code/bmi3d/log/plexnet_conn.log')
-        f = open(log_filename, 'a')
-        f.write("Starting connect method (Connection.connect, plexnet.py)\n")
-        f.close()
 
         packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT
@@ -83,10 +79,6 @@ class Connection(object):
         packet[5] = channels+1
 
         self.sock.sendall(packet.tostring())
-
-        f = open(log_filename, 'a')
-        f.write("finished sock sendall (Connection.connect, plexnet.py)\n")
-        f.close()
         
         resp = array.array('i', self._recv())
 
@@ -102,10 +94,6 @@ class Connection(object):
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
         self.sock.sendall(packet.tostring())
 
-        f = open(log_filename, 'a')
-        f.write("finished line 111 (Connection.connect, plexnet.py)\n")
-        f.close()
-
         self.params = []
 
         gotServerArea = False
@@ -118,10 +106,6 @@ class Connection(object):
                 self.n_cont = resp[17]
                 print "Spike channels: %d, continuous channels: %d"%(self.n_spike, self.n_cont)
                 gotServerArea = True
-
-        f = open(log_filename, 'a')
-        f.write("finished while loop (Connection.connect, plexnet.py)\n\n")
-        f.close()
         
         self._init = True
 
