@@ -72,8 +72,6 @@ class Track(object):
 
 def runtask(cmds, _cmds, websock, **kwargs):
     # Set up logging
-    logging.basicConfig(filename=os.path.expanduser('~/code/bmi3d/log/example.log'), format='%(asctime)s %(message)s', level=logging.DEBUG)
-    logging.debug('\n\n\n\n\n\n\n\n\nStarting task')
 
     import time
     from riglib.experiment import report
@@ -188,7 +186,6 @@ class Task(object):
         feats : list of features to enable for the task
         params : user input on configurable task parameters
         '''
-        logging.info('tasktrack.Task.__init__\n')
         self.saveid = saveid
         self.taskname = task.name
         self.subj = subj
@@ -205,7 +202,6 @@ class Task(object):
                 print "No comedi, cannot start"
         
         base_class = task.get()
-        logging.info('Created base class: %s\n' % base_class)
         Exp = experiment.make(base_class, feats=feats)
         self.params.trait_norm(Exp.class_traits())
         if issubclass(Exp, experiment.Sequence):
