@@ -1,12 +1,9 @@
 #!/bin/bash
-DISPLAY=:0
-#DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
-echo "running on display $DISPLAY"
-echo "TODO mount the plexon box!"
-###### if [[ -z `mount | grep /storage/plexon` ]]
-######     then
-######     sudo mount /storage/plexon
-###### fi
+DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
+if [[ -z `mount | grep /storage/plexon` ]]
+    then
+    sudo mount /storage/plexon
+fi
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
 MANAGER=$HOME/code/bmi3d/db/manage.py
