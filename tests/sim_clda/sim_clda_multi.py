@@ -32,10 +32,8 @@ class PointProcSmoothbatch(object):
         dt = 1./180
         batch_time = 1./60
         batch_size = batch_time/dt
-        print batch_size
         half_life = 120.
         rho = np.exp(np.log(0.5) / (half_life/batch_time))
-        print rho
         
         #self.updater = clda.PPFContinuousBayesianUpdater(self.decoder)
         self.updater = clda.PPFSmoothbatchSingleThread()
@@ -46,8 +44,9 @@ class PointProcContinuous(object):
     def create_updater(self):
         self.updater = clda.PPFContinuousBayesianUpdater(self.decoder)
 
-class SimCLDAControlMultiDispl2D(SimTime, WindowDispl2D, bmimultitasks.SimCLDAControlMulti, PointProcNeuralSim, Autostart):
+class SimCLDAControlMultiDispl2D(SimTime, WindowDispl2D, bmimultitasks.SimCLDAControlMulti, Autostart):
     update_rate = 0.1
+    starting_pos = (0., 0., 0.)
     def __init__(self, *args, **kwargs):
         self.target_radius = 1.8
         bmimultitasks.SimCLDAControlMulti.__init__(self, *args, **kwargs)
@@ -61,29 +60,25 @@ class SimCLDAControlMultiDispl2D(SimTime, WindowDispl2D, bmimultitasks.SimCLDACo
     def create_updater(self):
         clda_input_queue = mp.Queue()
         clda_output_queue = mp.Queue()
-        #self.updater = clda.KFRML(clda_input_queue, clda_output_queue, self.batch_time, self.half_life)
-        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue, self.batch_time, self.half_life)
-
-    ## def create_learner(self):
-    ##     dt = 0.1
-    ##     A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
-    ##                 [0., 0, 0, 0,  0, 0, 0],
-    ##                 [0., 0, 1, 0, 0, dt, 0],
-    ##                 [0., 0, 0, 0, 0,  0, 0],
-    ##                 [0., 0, 0, 0, 0,  0, 0],
-    ##                 [0., 0, 0, 0, 0,  0, 0],
-    ##                 [0., 0, 0, 0, 0,  0, 1]])
-
-    ##     I = np.mat(np.eye(3))
-    ##     B = np.vstack([0*I, I, np.zeros([1,3])])
-    ##     F_target = np.hstack([I, 0*I, np.zeros([3,1])])
-    ##     F_hold = np.hstack([0*I, 0*I, np.zeros([3,1])])
-    ##     F_dict = dict(hold=F_hold, target=F_target)
-    ##     self.learner = clda.OFCLearner(self.batch_size, A, B, F_dict)
-    ##     self.learn_flag = True
+        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue, self.batch_time, self.half_life[0])
         
+class SimRML(SimCLDAControlMultiDispl2D):
+    def __init__(self, *args, **kwargs):
+        super(SimRML, self).__init__(*args, **kwargs)
+        self.batch_time = 0.1
+        self.half_life  = (20.0, 20.0)
+        self.starting_pos = (0., 0., 0.)
 
-#SimTime, WindowDispl2D, bmimultitasks.SimCLDAControlMulti, PointProcNeuralSim, Autostart
+    def create_updater(self):
+        self.updater = clda.KFRML(None, None, self.batch_time, self.half_life[0])
+
+    def load_decoder(self):
+        ssm = train.endpt_2D_state_space
+        self.decoder = train._train_KFDecoder_2D_sim(ssm)
+
+    def _cycle(self):
+        super(SimRML, self)._cycle()
+ 
 
 class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimCLDAControlMultiDispl2D):
     def __init__(self, *args, **kwargs):
@@ -127,22 +122,11 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
         return SimCLDAControlMultiDispl2D.get_time(self)
 
 
-class SimRML(SimCLDAControlMultiDispl2D):
-    def __init__(self, *args, **kwargs):
-        super(SimRML, self).__init__(*args, **kwargs)
-        self.batch_time = 0.1
-        self.half_life  = (20.0, 20.0)
-
-    def create_updater(self):
-        self.updater = clda.KFRML(None, None, self.batch_time, self.half_life[0])
-
-    def load_decoder(self):
-        ssm = train.endpt_2D_state_space
-        self.decoder = train._train_KFDecoder_2D_sim(ssm)
-
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
-#task = SimRML(gen)
+task = SimRML(gen)
 #task = SimCLDAControlMultiDispl2D_PPF(gen)
-task = SimCLDAControlMultiDispl2D(gen)
+#task = SimCLDAControlMultiDispl2D(gen)
+
+self = task
 task.init()
 task.run()

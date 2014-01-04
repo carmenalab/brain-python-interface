@@ -794,27 +794,16 @@ def _train_KFDecoder_2D_sim(_ssm, n_units=15, dt=0.1):
     is_stochastic = _ssm.is_stochastic
     bounding_box = _ssm.bounding_box
     states_to_bound = _ssm.states_to_bound
-
     nX = _ssm.n_states
-    ##w = 0.0007
-    ##W = np.diag(w * np.ones(nX))
-    ##W[np.ix_(~is_stochastic, ~is_stochastic)] = 0
 
     C = np.random.standard_normal([n_neurons, nX])
     C[:, ~drives_neurons] = 0
-
-    #C *= 6
-
     Q = 10 * np.identity(n_neurons) 
-    # set det(Q) to be ~10^10
-    #Q = 100 * np.identity(n_neurons) 
 
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
-    kf.alt = False
 
     mFR = 0
     sdFR = 1
-
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
         states, drives_neurons, states_to_bound)
 
@@ -824,6 +813,11 @@ def _train_KFDecoder_2D_sim(_ssm, n_units=15, dt=0.1):
     decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
     decoder.kf.ESS = 3000.
 
+    cm_to_m = 0.01
+    m_to_cm = 100.
+    mm_to_m = 0.001
+    m_to_mm = 1000.
+    decoder.kf.C *= cm_to_m
     return decoder
 
 def rand_KFDecoder(sim_units, state_units='cm'):

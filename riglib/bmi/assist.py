@@ -37,3 +37,24 @@ def joint_5DOF_assist_endpoint_target(cursor_pos, target_pos, arm, **kwargs):
     # Downweight the joint assist
     Bu = assist_level * np.mat(Bu_joint).reshape(-1,1)
     return Bu
+
+
+## TODO the code below should be a feedback controller equivalent to the "simple" method above
+    ## def create_learner(self):
+    ##     dt = 0.1
+    ##     A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
+    ##                 [0., 0, 0, 0,  0, 0, 0],
+    ##                 [0., 0, 1, 0, 0, dt, 0],
+    ##                 [0., 0, 0, 0, 0,  0, 0],
+    ##                 [0., 0, 0, 0, 0,  0, 0],
+    ##                 [0., 0, 0, 0, 0,  0, 0],
+    ##                 [0., 0, 0, 0, 0,  0, 1]])
+
+    ##     I = np.mat(np.eye(3))
+    ##     B = np.vstack([0*I, I, np.zeros([1,3])])
+    ##     F_target = np.hstack([I, 0*I, np.zeros([3,1])])
+    ##     F_hold = np.hstack([0*I, 0*I, np.zeros([3,1])])
+    ##     F_dict = dict(hold=F_hold, target=F_target)
+    ##     self.learner = clda.OFCLearner(self.batch_size, A, B, F_dict)
+    ##     self.learn_flag = True
+

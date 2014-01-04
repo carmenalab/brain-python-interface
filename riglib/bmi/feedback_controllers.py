@@ -4,11 +4,12 @@ Feedback controllers for assist/simulation purposes
 import numpy as np
 
 class CenterOutCursorGoal():
-    def __init__(self, angular_noise_var=0):
+    def __init__(self, angular_noise_var=0, gain=0.15):
         self.interactive = False
         self.angular_noise_var = angular_noise_var
+        self.gain = gain
 
-    def get(self, cur_target, cur_pos, keys_pressed=None, gain=0.15):
+    def get(self, cur_target, cur_pos, keys_pressed=None):
         dir_to_targ = cur_target - cur_pos
 
         if self.angular_noise_var > 0:
@@ -20,7 +21,7 @@ class CenterOutCursorGoal():
         #angular_noise = np.array([np.cos(angular_noise_rad), np.sin(angular_noise_rad)])     
         angle = np.arctan2(dir_to_targ[1], dir_to_targ[0])
         sum_angle = angle + angular_noise_rad
-        return gain*np.array([np.cos(sum_angle), np.sin(sum_angle)])
+        return self.gain*np.array([np.cos(sum_angle), np.sin(sum_angle)])
         #return gain*( dir_to_targ/np.linalg.norm(dir_to_targ) + angular_noise )
 
 def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-10, dtype=np.mat):
