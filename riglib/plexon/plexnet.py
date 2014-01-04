@@ -5,13 +5,13 @@ import math
 import array
 import struct
 import socket
-# import logging
 import time
 from collections import namedtuple
+import os
 
 PACKETSIZE = 512
 
-# logger = logging.getLogger(__name__)
+
 
 WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit", "waveform", "arrival_ts"])
 chan_names = re.compile(r'^(\w{2,4})(\d{2,3})(\w)?')
@@ -36,11 +36,14 @@ class Connection(object):
     SPIKE_CHAN_UNSORTED_WAVEFORMS = (0x08)
 
     def __init__(self, addr, port):
-        # logger.debug("plexnet Connection object instantiated (Connection.init, plexnet.py)")
         self.addr = (addr, port)
+
+
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+
         self.sock.connect(self.addr)
-        self.streaming = False
+
 
         self.num_server_dropped = 0
         self.num_mmf_dropped = 0
@@ -66,6 +69,11 @@ class Connection(object):
         analog : bool, optional
             Request analog data?
         '''
+        log_filename = os.path.expandvars('$HOME/code/bmi3d/log/plexnet_conn.log')
+        f = open(log_filename, 'a')
+        f.write("Starting connect method (Connection.connect, plexnet.py)\n")
+        f.close()
+
         packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT
         packet[1] = True #timestamp
@@ -73,11 +81,15 @@ class Connection(object):
         packet[3] = analog
         packet[4] = 1 #channels start
         packet[5] = channels+1
-        # logger.debug("Send transfer mode command (Connection.connect, plexnet.py)")
+
         self.sock.sendall(packet.tostring())
+
+        f = open(log_filename, 'a')
+        f.write("finished sock sendall (Connection.connect, plexnet.py)\n")
+        f.close()
         
         resp = array.array('i', self._recv())
-        # logger.debug("Got response from server (Connection.connect, plexnet.py)")
+
         if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_MMF_SIZES:
             self.n_cmd = resp[3]
             if 0 < self.n_cmd < 32:
@@ -89,8 +101,13 @@ class Connection(object):
         packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
         self.sock.sendall(packet.tostring())
+
+        f = open(log_filename, 'a')
+        f.write("finished line 111 (Connection.connect, plexnet.py)\n")
+        f.close()
+
         self.params = []
-        # logger.debug("Request parameters... (Connection.connect, plexnet.py)")
+
         gotServerArea = False
         while not gotServerArea:
             resp = array.array('i', self._recv())
@@ -101,9 +118,13 @@ class Connection(object):
                 self.n_cont = resp[17]
                 print "Spike channels: %d, continuous channels: %d"%(self.n_spike, self.n_cont)
                 gotServerArea = True
+
+        f = open(log_filename, 'a')
+        f.write("finished while loop (Connection.connect, plexnet.py)\n\n")
+        f.close()
         
         self._init = True
-        # logger.info("Connection established! (Connection.connect, plexnet.py)")
+
         
     def select_spikes(self, channels=None, waveforms=True, unsorted=False):
         '''Sets the channels from which to receive spikes. This function always requests sorted data
@@ -174,7 +195,6 @@ class Connection(object):
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_START_DATA_PUMP
         self.sock.sendall(packet.tostring())
         self.streaming = True
-        # logger.info("Started data pump")
 
     def stop_data(self):
         '''Stop the data pump from plexnet remote'''
@@ -184,7 +204,6 @@ class Connection(object):
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_STOP_DATA_PUMP
         self.sock.sendall(packet.tostring())
         self.streaming = False
-        # logger.info("Stopped data pump")
 
     def disconnect(self):
         '''Disconnect from the plexnet remote server and close all network sockets'''
@@ -194,7 +213,6 @@ class Connection(object):
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT
         self.sock.sendall(packet.tostring())
         self.sock.close()
-        # logger.info("Disconnected from plexon")
     
     def __del__(self):
         self.disconnect()

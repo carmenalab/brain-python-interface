@@ -18,7 +18,7 @@ class System(object):
 
         self.kit = InterfaceKit()
         self.kit.openPhidget()
-        self.kit.waitForAttach(10)
+        self.kit.waitForAttach(1000)
     
     def start(self):
         self.tic = time.time()

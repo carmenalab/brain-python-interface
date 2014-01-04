@@ -97,11 +97,12 @@ class GaussianStateHMM():
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         A = self.A
+
         if Bu is not None:
             return A*state + Bu + self.state_noise
         elif u is not None:
             Bu = self.B * u
-            return A*state + self.state_noise
+            return A*state + Bu + self.state_noise
         elif target_state is not None:
             B = self.B
             F = self.F

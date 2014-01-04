@@ -7,8 +7,11 @@ import shutil
 import datetime
 from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
 
+import django
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+
+from distutils.version import StrictVersion
 
 from riglib import experiment
 from models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
@@ -107,6 +110,10 @@ dispatcher.register_function(entry_error, 'entry_error')
 
 @csrf_exempt
 def rpc_handler(request):
-    response = HttpResponse(mimetype="application/xml")
-    response.write(dispatcher._marshaled_dispatch(request.raw_post_data))
+    if StrictVersion('%d.%d.%d' % django.VERSION[0:3]) < StrictVersion('1.6.0'):
+        response = HttpResponse(mimetype="application/xml") 
+        response.write(dispatcher._marshaled_dispatch(request.raw_post_data))
+    else:
+        response = HttpResponse(mimetype="application/xml") 
+        response.write(dispatcher._marshaled_dispatch(request.body))
     return response
