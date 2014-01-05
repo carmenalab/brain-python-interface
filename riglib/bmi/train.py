@@ -429,6 +429,14 @@ def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     '''
     kin = hdf.root.task[:][key]
 
+    ##### this is to test on files that didn't save the full 5-joint kinematics, remove soon!
+    if key=='joint_angles' and kin.shape[1]==2:
+        newja = np.zeros([len(kin), 5])
+        newja[:,1] = kin[:,1]
+        newja[:,3] = kin[:,0]
+        kin = newja
+    ##########################
+
     inds, = np.nonzero(tmask)
     step_fl = binlen/(1./update_rate_hz)
     if step_fl < 1: # more than one spike bin per kinematic obs
@@ -487,7 +495,7 @@ def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='curso
     tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
     
     hdf = tables.openFile(files['hdf'])
-    kin = get_cursor_kinematics(hdf, binlen, tmask)
+    kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
     neurows = rows[tmask]
     spike_counts, units = get_spike_counts(plx, neurows, binlen, cells=cells)
     return kin, spike_counts, units
@@ -525,11 +533,11 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
         # TODO should not have to specify both the kin_var and the state space model
         _ssm=endpt_2D_state_space
     elif kin_var == 'joint_angles':
-        cursor_kin = kin
         _ssm=joint_2D_state_space
-        from tasks import manualcontrolmultitasks
-        shoulder_center = manualcontrolmultitasks.ArmPlant.shoulder_anchor
-        kin = get_joint_kinematics(cursor_kin, shoulder_center)
+        # cursor_kin = kin
+        # from tasks import manualcontrolmultitasks
+        # shoulder_center = manualcontrolmultitasks.ArmPlant.shoulder_anchor
+        # kin = get_joint_kinematics(cursor_kin, shoulder_center)
         
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
@@ -544,6 +552,12 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     if shuffle: decoder.shuffle()
 
     return decoder
+
+# Wrapper function for training joint decoder bc I don't know how to call above function with different arguments from trainbmi.py
+def _train_joint_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
+    _ssm=joint_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
+        _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice,_ssm=_ssm,source=source,kin_var=kin_var,shuffle=shuffle,**files)
+
 
 def _train_KFDecoder_visual_feedback_arm(cells=None, binlen=0.1, tslice=[None,None], 
     _ssm=joint_2D_state_space, source='task', kin_var='cursor', shuffle=False, **files):
@@ -768,37 +782,34 @@ def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     '''
     raise NotImplementedError
 
-def _train_KFDecoder_2D_sim(_ssm, n_units=15, dt=0.1):
-    units = np.vstack([np.arange(1, n_units+1), np.ones(n_units)]).T
+def _train_KFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
+    bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.8):
+    # TODO options to resample the state-space model at different update rates
     n_neurons = units.shape[0]
-    ###if include_y:
-    ###    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-    ###    A = np.array([[1, 0, 0, dt, 0,  0,  0],
-    ###                  [0, 1, 0, 0,  dt, 0,  0],
-    ###                  [0, 0, 1, 0,  0,  dt, 0],
-    ###                  [0, 0, 0, v,  0,  0,  0],
-    ###                  [0, 0, 0, 0,  v,  0,  0],
-    ###                  [0, 0, 0, 0,  0,  v,  0],
-    ###                  [0, 0, 0, 0,  0,  0,  1]])
-    ###else:
-    ###    states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
-    ###    A = np.array([[1, 0, dt, 0, 0],
-    ###                  [0, 1, 0, dt, 0],
-    ###                  [0, 0, v,  0, 0],
-    ###                  [0, 0, 0,  v, 0],
-    ###                  [0, 0, 0,  0, 1]])
+    if include_y:
+        states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+        A = np.array([[1, 0, 0, dt, 0,  0,  0],
+                      [0, 1, 0, 0,  dt, 0,  0],
+                      [0, 0, 1, 0,  0,  dt, 0],
+                      [0, 0, 0, v,  0,  0,  0],
+                      [0, 0, 0, 0,  v,  0,  0],
+                      [0, 0, 0, 0,  0,  v,  0],
+                      [0, 0, 0, 0,  0,  0,  1]])
+    else:
+        states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
+        A = np.array([[1, 0, dt, 0, 0],
+                      [0, 1, 0, dt, 0],
+                      [0, 0, v,  0, 0],
+                      [0, 0, 0,  v, 0],
+                      [0, 0, 0,  0, 1]])
 
-    states = _ssm.state_names
-    A, B, W = _ssm.get_ssm_matrices(update_rate=dt)
-    drives_neurons = _ssm.drives_obs
-    is_stochastic = _ssm.is_stochastic
-    bounding_box = _ssm.bounding_box
-    states_to_bound = _ssm.states_to_bound
+    drives_neurons = np.array([x in neuron_driving_states for x in states])
+    is_stochastic = np.array([x in stochastic_states for x in states])
 
-    nX = _ssm.n_states
-    ##w = 0.0007
-    ##W = np.diag(w * np.ones(nX))
-    ##W[np.ix_(~is_stochastic, ~is_stochastic)] = 0
+    nX = A.shape[0]
+    w = 0.0007
+    W = np.diag(w * np.ones(nX))
+    W[np.ix_(~is_stochastic, ~is_stochastic)] = 0
 
     C = np.random.standard_normal([n_neurons, nX])
     C[:, ~drives_neurons] = 0

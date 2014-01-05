@@ -121,9 +121,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         traits = self.class_editable_traits()
         h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
-            if trait not in ['bmi', 'arm_class', 'arm_visible']:
-                #self.hdf.sendAttr("task", trait, )
-                print trait
+            if trait not in ['bmi']:#, 'arm_class', 'arm_visible']:
                 h5file.root.task.attrs[trait] = getattr(self, trait)
         h5file.close()
 

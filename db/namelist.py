@@ -129,5 +129,6 @@ bmis = dict(
     kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
     ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
     ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
+    kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
     )
 
