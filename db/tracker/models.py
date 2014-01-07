@@ -91,7 +91,7 @@ class Task(models.Model):
 
 class Feature(models.Model):
     name = models.CharField(max_length=128)
-    visible = models.BooleanField()
+    visible = models.BooleanField(blank=True, default=True)
     def __unicode__(self):
         return self.name
 
@@ -155,7 +155,7 @@ class Generator(models.Model):
     name = models.CharField(max_length=128)
     params = models.TextField()
     static = models.BooleanField()
-    visible = models.BooleanField()
+    visible = models.BooleanField(blank=True, default=True)
 
     def __unicode__(self):
         return self.name
@@ -176,7 +176,7 @@ class Generator(models.Model):
                 args = inspect.getargspec(generators[name].__init__).args
                 args.remove("self")
             
-            static = "length" in args
+            static = ~("exp" in args)
             if "exp" in args:
                 args.remove("exp")
             if "length" in args:
@@ -481,8 +481,8 @@ class Decoder(models.Model):
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)
-    local = models.BooleanField()
-    archived = models.BooleanField()
+    local = models.BooleanField(default=True)
+    archived = models.BooleanField(default=False)
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System)
     entry = models.ForeignKey(TaskEntry)
@@ -503,7 +503,7 @@ class DataFile(models.Model):
             if os.path.isfile(fname):
                 return fname
 
-        raise IOError('File has been lost!')
+        raise IOError('File has been lost! '+fname)
 
     def has_cache(self):
         if self.system.name != "plexon":

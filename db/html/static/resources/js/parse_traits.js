@@ -245,7 +245,7 @@ Parameters.prototype.add_enum = function(name, info) {
 }
 Parameters.prototype.to_json = function() {
     var jsdata = {};
-    if ((this.traits["arm_visible"]) != "undefined")
+    if (typeof(this.traits["arm_visible"]) != "undefined")
         this.traits["arm_visible"].inputs[0].value = this.traits["arm_visible"].inputs[0].checked;
     for (var name in this.traits) {
         if (this.traits[name].inputs.length > 1) {

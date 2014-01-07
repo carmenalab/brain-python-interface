@@ -9,6 +9,7 @@ import binascii
 import threading
 import cStringIO
 import traceback
+import loc_config
 
 import serial
 
@@ -47,11 +48,23 @@ class Basic(object):
 
     def reward(self, length):
         length /= .1
-        self._write(struct.pack('<ccxHxx', '@', 'G', length))
+        if loc_config.reward_system_version==0:
+            self._write(struct.pack('<ccxHxx', '@', 'G', length))
+        elif loc_config.reward_system_version==1:
+            self._write(struct.pack('<cccHxxx', '@', 'G', '1', length))
+        else:
+            raise Exception("Unrecognized reward system version!")
         self.port.read(self.port.inWaiting())
 
     def reset(self):
-        self._write("@CPSNNN")
+        if loc_config.reward_system_version==0:
+            self._write("@CPSNNN")
+        elif loc_config.reward_system_version==1:
+            cmd = ['@', 'C', '1', 'O', '%c' % 0b10000000, '%c' % 0, '%c' % 0, 'E']
+            stuff = ''.join(cmd)
+            self._write(stuff)
+        else:
+            raise Exception("Unrecognized reward system version!")
         self.port.read(self.port.inWaiting())
         
 
