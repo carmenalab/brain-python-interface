@@ -164,7 +164,8 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
         State space model from expert data
         '''
         Delta_KINARM = 1./10
-        w = 0.0007
+        #w = 0.0007
+        w = 0.3 # TODO come up with this value more systematically!
         w_units_resc = w / 1 # velocity will always be in radians/sec
         a_resampled, w_resampled = state_space_models.resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
 
