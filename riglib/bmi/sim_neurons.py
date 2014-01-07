@@ -11,6 +11,8 @@ from scipy.io import loadmat
 import numpy as np
 from numpy.random import poisson, rand
 from scipy.io import loadmat, savemat
+from itertools import izip
+
 
 from scipy.integrate import trapz, simps
 
@@ -94,6 +96,29 @@ class CLDASimCosEnc(CosEnc):
     def __call__(self, user_input):
         if self.call_count % 6 == 0: # TODO this assumes the neurons cannot change faster than 10 Hz
             ts_data = super(CLDASimCosEnc, self).__call__(user_input)
+        elif self.return_ts:
+            ts_data = np.array([])
+        else:
+            ts_data = np.zeros(self.n_neurons)
+        self.call_count += 1
+        return ts_data
+
+
+class CosEncJoints(CosEnc):
+    def __init__(self, link_lengths, *args, **kwargs):
+        mod_depth = kwargs.pop('mod_depth', 14/0.2)
+        kwargs['mod_depth'] = mod_depth/max(link_lengths)
+        super(CosEncJoints, self).__init__(*args, **kwargs)
+
+# TODO the class below is completely redundant!
+class CLDASimCosEncJoints(CosEncJoints):
+    def __init__(self, *args, **kwargs):
+        super(CLDASimCosEncJoints, self).__init__(*args, **kwargs)
+        self.call_count = 0
+
+    def __call__(self, user_input):
+        if self.call_count % 6 == 0: # TODO this assumes the neurons cannot change faster than 10 Hz
+            ts_data = super(CLDASimCosEncJoints, self).__call__(user_input)
         elif self.return_ts:
             ts_data = np.array([])
         else:
@@ -267,3 +292,44 @@ def load_ppf_encoder_2D_vel_tuning_clda_sim(fname, dt=0.005):
     beta = np.vstack([beta[1:, :], beta[0,:]]).T
     encoder = CLDASimPointProcessEnsemble(beta, dt)
     return encoder
+
+def min_jerk_movement(vel, time, starting_pos, ending_pos, t0, D):
+    A = ending_pos - starting_pos
+    thisrng, = np.nonzero(np.logical_and(time > t0, time < t0+D))
+    t = time[thisrng]
+    nt = (t-t0)/D
+    vel[thisrng, 0:3] = starting_pos + np.outer(A, 6*nt**5 - 15*nt**4 + 10*nt**3).T
+    vel[thisrng, 3:6] = np.outer(A, 1./D * (30 * nt**4 -60 * nt**3 + 30 * nt**2)).T
+    return vel
+
+def sim_endpt_traj(targets, durations, DT=0.1, inter_target_delay=0.3):
+    n_targets = len(targets - 1)
+    total_time = n_targets*inter_target_delay + sum(durations[:n_targets])
+    T = total_time / DT
+    time = np.arange(T) * DT
+    vel = np.zeros([T, 6])
+    t0 = 0
+    for starting_pos, ending_pos, D in izip(targets[:-1], targets[1:], durations):
+        vel = min_jerk_movement(vel, time, starting_pos, ending_pos, t0, D)
+        t0 += D + inter_target_delay
+    
+    return vel
+
+def rec_to_normal(arr):
+    '''
+    Helper function to convert a numpy record array to a normal array
+    '''
+    new_dtype = (np.float64, len(arr.dtype))
+    return arr.view(new_dtype).reshape(-1, len(arr.dtype))
+
+def sim_joint_traj(targets, durations, link_lengths, shoulder_anchor, DT=0.1, inter_target_delay=0.3):
+    kin = sim_endpt_traj(targets, durations)
+    
+    # calculate joint velocities
+    from riglib.stereo_opengl import ik
+    joint_angles, joint_vel = ik.inv_kin_2D(kin[:,0:3] - shoulder_anchor, 
+        link_lengths[1], link_lengths[0], kin[:,3:6])
+    
+    joint_kin = np.hstack([rec_to_normal(joint_angles), rec_to_normal(joint_vel)])
+    return joint_kin
+    

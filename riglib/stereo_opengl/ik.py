@@ -42,14 +42,14 @@ def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
     L = np.sqrt(x**2 + z**2)
     cos_el_pflex = (L**2 - l_forearm**2 - l_upperarm**2) / (2*l_forearm*l_upperarm)
 
-    cos_el_pflex[ (cos_el_pflex > 1) & (cos_el_pflex < 1 + 1e-9)] = 1 # THis isn't working, still getting values < -1
+    cos_el_pflex[ (cos_el_pflex > 1) & (cos_el_pflex < 1 + 1e-9)] = 1
     el_pflex = np.arccos(cos_el_pflex)
 
     sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
     angles = np.zeros(len(pos), dtype=joint_angles_dtype)
     angles['sh_pabd'] = sh_pabd
     angles['el_pflex'] = el_pflex
-    if np.isnan(angles['el_pflex']) or np.isnan(angles['sh_pabd']):
+    if np.any(np.isnan(angles['el_pflex'])) or np.any(np.isnan(angles['sh_pabd'])):
         print "position = ", pos
         print "angles = ", angles['el_pflex'], angles['sh_pabd']
         print "L = ", L
@@ -63,17 +63,17 @@ def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
         #     raise NotImplementedError
         
         # Calculate the jacobian
-        s1 = np.sin(angles[0]['sh_pabd'])
-        s2 = np.sin(angles[0]['sh_pabd'] + angles[0]['el_pflex'])
-        c1 = np.cos(angles[0]['sh_pabd'])
-        c2 = np.cos(angles[0]['sh_pabd'] + angles[0]['el_pflex'])           
-        J = np.array([[-l_upperarm*s1-l_forearm*s2, -l_forearm*s2 ],
-                      [ l_upperarm*c1+l_forearm*c2,  l_forearm*c2 ]])
+        for k, angle in enumerate(angles):
+            s1 = np.sin(angle['sh_pabd'])
+            s2 = np.sin(angle['sh_pabd'] + angle['el_pflex'])
+            c1 = np.cos(angle['sh_pabd'])
+            c2 = np.cos(angle['sh_pabd'] + angle['el_pflex'])           
+            J = np.array([[-l_upperarm*s1-l_forearm*s2, -l_forearm*s2 ],
+                          [ l_upperarm*c1+l_forearm*c2,  l_forearm*c2 ]])
+            J_inv = np.linalg.inv(J)
 
-        J_inv = np.linalg.inv(J)
-
-        joint_vel_mat = np.dot(J_inv, vel[0, [0,2]])
-        joint_vel['sh_vabd'], joint_vel['el_vflex'] = joint_vel_mat.ravel()
+            joint_vel_mat = np.dot(J_inv, vel[k, [0,2]])
+            joint_vel[k]['sh_vabd'], joint_vel[k]['el_vflex'] = joint_vel_mat.ravel()
 
         return angles, joint_vel
     else:

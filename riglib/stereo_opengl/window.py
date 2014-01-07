@@ -141,8 +141,11 @@ class Window(LogExperiment):
 class WindowDispl2D(Window):
     background = (0,0,0,1)
 
+    def __init__(self, *args, **kwargs):
+        super(WindowDispl2D, self).__init__(*args, **kwargs)
+
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "1920,0"
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         self.clock = pygame.time.Clock()
@@ -151,14 +154,14 @@ class WindowDispl2D(Window):
 
         self.workspace_ll = np.array([-25., -14.])
 
-        win_res = (1920, 1080)
+        win_res = (480, 270)
         self.workspace_size = 50, 28. #win_res
         self.size = np.array(win_res)
         self.screen = pygame.display.set_mode(win_res, flags)
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
         self.screen_background.fill(self.background)
 
-        self.pix_per_m = 38.4 #self.size/self.workspace_size
+        self.pix_per_m = 10.4 #38.4 #self.size/self.workspace_size
 
         self.world = GroupDispl2D(self.models)
         self.world.init()
@@ -213,6 +216,8 @@ class WindowDispl2D(Window):
                 #Draws cursor and targets on transparent surfaces
                 pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
                 i += 1
+            else:
+                pass
 
         #Renders the new surfaces
         self.screen.blit(self.surf['0'], (0,0))

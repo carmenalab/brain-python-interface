@@ -450,6 +450,9 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         if not hasattr(self.filt, 'F'):
             self.filt.F = np.mat(np.zeros([self.filt.B.shape[0], len(self.states)]))
 
+        if not hasattr(self, 'ssm'):
+            self.ssm = train.endpt_2D_state_space
+
     def shuffle(self):
         ''' Shuffle the neural model
         '''

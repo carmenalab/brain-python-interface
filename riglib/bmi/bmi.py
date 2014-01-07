@@ -9,6 +9,7 @@ import multiprocessing as mp
 from itertools import izip
 import time
 import re
+import os
 
 gen_joint_coord_regex = re.compile('.*?_p.*')
 
@@ -347,9 +348,7 @@ class Decoder(object):
             if self.bmicount == self.bminum-1:
                 # Update using spike counts
                 self.bmicount = 0
-                #print "old = ", np.around(self.filt.get_mean(), decimals=2)
                 self.predict(self.spike_counts, **kwargs)
-                #print "new = ", np.around(self.filt.get_mean(), decimals=2)
                 self.spike_counts = np.zeros([len(self.units), 1])
             else:
                 self.bmicount += 1
@@ -385,9 +384,8 @@ class AdaptiveBMI(object):
         if np.ndim(target_pos) == 1:
             target_pos = np.tile(target_pos, [n_obs, 1]).T
             
-        dec_state_dim = len(self.decoder.states)
-        pos_inds = filter(lambda k: re.match('hand_p', self.decoder.states[k]), range(dec_state_dim))
-        vel_inds = filter(lambda k: re.match('hand_v', self.decoder.states[k]), range(dec_state_dim))
+        pos_inds, = np.nonzero(self.decoder.ssm.state_order == 0)
+        vel_inds, = np.nonzero(self.decoder.ssm.state_order == 1)
 
         decoded_states = []
         update_flag = False
@@ -405,7 +403,7 @@ class AdaptiveBMI(object):
 
             # run the decoder
             prev_state = self.decoder.get_state()
-            self.decoder(spike_obs_k, target=target_pos_k, assist_inds=pos_inds, **kwargs)
+            self.decoder(spike_obs_k, **kwargs)
             decoded_state = self.decoder.get_state()
             decoded_states.append(decoded_state)
 
@@ -421,7 +419,7 @@ class AdaptiveBMI(object):
             self.spike_counts += spike_obs_k
             if learn_flag and self.decoder.bmicount == 0:
                 self.learner(self.spike_counts.copy(), learner_state, target_pos_k, 
-                             decoded_state[vel_inds], task_state)
+                             decoded_state, task_state, state_order=self.decoder.ssm.state_order)
                 self.reset_spike_counts()
             elif self.decoder.bmicount == 0:
                 self.reset_spike_counts()
@@ -451,11 +449,10 @@ class AdaptiveBMI(object):
             if self.mp_updater:
                 try:
                     new_params = self.clda_output_queue.get_nowait()
+                except Empty:
+                    pass
                 except:
-                    import os
-                    homedir = os.getenv('HOME')
-                    logfile = os.path.join(homedir, 'Desktop/clda_log')
-                    f = open(logfile, 'w')
+                    f = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
                     traceback.print_exc(file=f)
                     f.close()
 
@@ -474,7 +471,6 @@ class AdaptiveBMI(object):
                 update_flag = True
             else:
                 self.param_hist.append(None)
-
 
         decoded_states = np.vstack(decoded_states).T
         return decoded_states, update_flag

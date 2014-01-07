@@ -333,7 +333,6 @@ class SinkRegister(object):
             self.task_data = None
 
     def _cycle(self):
-
         super(SinkRegister, self)._cycle()
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)
@@ -380,14 +379,17 @@ class SaveHDF(SinkRegister):
 ######################
 ## Simulation Features
 ######################
-class SimHDF():
+class SimHDF(object):
     '''
     An interface-compatbile HDF for simulations which do not require saving an
     HDF file
     '''
     def __init__(self, *args, **kwargs):
+        super(SimHDF, self).__init__(*args, **kwargs)
         from collections import defaultdict
         self.data = defaultdict(list)
+        self.task_data = dict()
+        print "self.task_data", self.task_data
 
     def sendMsg(self, msg):
         pass

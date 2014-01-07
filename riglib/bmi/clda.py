@@ -32,7 +32,9 @@ def fast_inv(A):
 
     return np.array([lapack_inverse(a) for a in A])
 
+##############################################################################
 ## Learners
+##############################################################################
 def normalize(vec):
     norm_vec = vec / np.linalg.norm(vec)
     
@@ -149,12 +151,8 @@ class OFCLearner3DEndptPPF(OFCLearner):
         use_tau_unNat = kwargs.pop('tau', 2.7)
         self.tau = use_tau_unNat
         print "learner cost fn param: %g" % use_tau_unNat
-        #dt = kwargs['dt'] if 'dt' in kwargs else 1./180
-        #use_tau_unNat = 1.
         tau_scale = 28*use_tau_unNat/1000
         bin_num_ms = (dt/0.001)
-        # 11/6 changed w_r below to 0.3 * ... from 3 * ...
-        # 11/6, changed back
         w_r = 3*tau_scale**2/2*(bin_num_ms)**2*26.61
         
         I = np.eye(3)
@@ -192,17 +190,37 @@ class CursorGoalLearner(Learner):
 
         if self.int_speed_type == 'dist_to_target':
             self.input_state_index = 0
+
+    def calc_int_kin(self, cursor_state, target_pos, decoded_vel, task_state):
+        cursor_pos = cursor_state[0:len(target_pos)]
+        int_dir = target_pos - cursor_pos
+        dist_to_targ = np.linalg.norm(int_dir)
+        
+        # Calculate intended speed
+        if self.int_speed_type == 'dist_to_target':
+            speed = np.linalg.norm(int_dir)
+        elif self.int_speed_type == 'decoded_speed':
+            speed = np.linalg.norm(decoded_vel)
+
+        if task_state in ['hold', 'origin_hold', 'target_hold']:
+            int_vel = np.zeros(int_dir.shape)            
+        elif task_state in ['target', 'origin', 'terminus']:
+            int_vel = normalize(int_dir)*speed
+        else:
+            int_vel = None
+
+        if int_vel is not None:
+            int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
+        else:
+            int_kin = None
+
+        return int_kin
    
-    def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel, 
+    def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel,
                  task_state):
         """
         Rotation toward target state
         """
-        # estimate intended velocity vector using cursorGoal
-        # TODO this needs to be generalized so that the hold
-        # the r regular cna be specified simultaneously 
-        # cursor_pos = prev_state[0:2]
-
         cursor_pos = cursor_state[0:len(target_pos)]
         int_dir = target_pos - cursor_pos
         dist_to_targ = np.linalg.norm(int_dir)
@@ -237,7 +255,57 @@ class CursorGoalLearner(Learner):
         self.neuraldata = []
         return kindata, neuraldata
 
+class CursorGoalLearner2(CursorGoalLearner):
+    def calc_int_kin(self, decoder_state, target_state, decoder_output,
+                 task_state, state_order=None):
+        """
+        Calculate the intended kinematics and pair with the neural data
+        """
+        if state_order is None:
+            raise ValueError("New cursor goal requires state order to be specified!")
+
+        # The intended direction (abstract space) from the current state of the decoder to the target state for the task
+        int_dir = target_state - decoder_state
+        vel_inds, = np.nonzero(state_order == 1)
+        pos_inds, = np.nonzero(state_order == 0)
+        
+        # Calculate intended speed
+        if task_state in ['hold', 'origin_hold', 'target_hold']:
+            speed = 0
+        elif task_state in ['target', 'origin', 'terminus']:
+            if self.int_speed_type == 'dist_to_target':
+                speed = np.linalg.norm(int_dir[pos_inds])
+            elif self.int_speed_type == 'decoded_speed':
+                speed = np.linalg.norm(decoder_output[vel_inds])
+        else:
+            speed = np.nan
+
+        int_vel = speed*normalize(int_dir[pos_inds])
+        int_kin = np.hstack([decoder_output[pos_inds], int_vel, 1])
+
+        if np.any(np.isnan(int_kin)):
+            int_kin = None
+
+        return int_kin
+
+    def __call__(self, spike_counts, decoder_state, target_state, decoder_output,
+                 task_state, state_order=None):
+        """
+        Calculate the intended kinematics and pair with the neural data
+        """
+        if state_order is None:
+            raise ValueError("New cursor goal requires state order to be specified!")
+        int_kin = self.calc_int_kin(decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+        
+        if self.enabled and int_kin is not None:
+            n_subbins = spike_counts.shape[1]
+            for k in range(n_subbins):
+                self.kindata.append(int_kin)
+            self.neuraldata.append(spike_counts)
+
+##############################################################################
 ## Updaters
+##############################################################################
 class CLDARecomputeParameters(mp.Process):
     """Generic class for CLDA parameter recomputation"""
     def __init__(self, work_queue, result_queue):

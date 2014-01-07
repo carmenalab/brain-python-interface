@@ -27,12 +27,13 @@ states_3D_endpt = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_
 states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offset']
 
 class State(object):
-    def __init__(self, name, stochastic=False, drives_obs=False, min_val=np.nan, max_val=np.nan):
+    def __init__(self, name, stochastic=False, drives_obs=False, min_val=np.nan, max_val=np.nan, order=-1):
         self.name = name
         self.stochastic = stochastic 
         self.drives_obs = drives_obs
         self.min_val = min_val
         self.max_val = max_val
+        self.order = order
 
     def __repr__(self):
         return str(self.name) 
@@ -79,21 +80,25 @@ class StateSpace(object):
     def drives_obs_inds(self):
         return filter(lambda k: self.states[k].drives_obs, range(self.n_states))
 
+    @property 
+    def state_order(self):
+        return np.array([x.order for x in self.states])
+
     def get_ssm_matrices(self):
         raise NotImplementedError
 
-offset_state = State('offset',  stochastic=False, drives_obs=True)
+offset_state = State('offset', stochastic=False, drives_obs=True, order=-1)
 
 # TODO have some method of associating the A and W matrices with the State space model class
 class StateSpaceEndptVel(StateSpace):
     def __init__(self):
         super(StateSpaceEndptVel, self).__init__(
-            State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25.),
-            State('hand_py', stochastic=False, drives_obs=False),
-            State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14.),
-            State('hand_vx', stochastic=True,  drives_obs=True),
-            State('hand_vy', stochastic=False, drives_obs=False),
-            State('hand_vz', stochastic=True,  drives_obs=True),
+            State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
+            State('hand_py', stochastic=False, drives_obs=False, order=0),
+            State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+            State('hand_vx', stochastic=True,  drives_obs=True, order=1),
+            State('hand_vy', stochastic=False, drives_obs=False, order=1),
+            State('hand_vz', stochastic=True,  drives_obs=True, order=1),
             offset_state
         )
 
@@ -118,17 +123,17 @@ class StateSpaceExoArm(StateSpace):
     def __init__(self):
         super(StateSpaceExoArm, self).__init__(
                 # position states
-                State('sh_pflex', stochastic=False, drives_obs=False), 
-                State('sh_pabd', stochastic=False, drives_obs=False), 
-                State('el_prot', stochastic=False, drives_obs=False), 
-                State('el_pflex', stochastic=False, drives_obs=False), 
-                State('el_psup', stochastic=False, drives_obs=False), 
+                State('sh_pflex', stochastic=False, drives_obs=False, order=0),
+                State('sh_pabd', stochastic=False, drives_obs=False, order=0), 
+                State('sh_prot', stochastic=False, drives_obs=False, order=0), 
+                State('el_pflex', stochastic=False, drives_obs=False, order=0), 
+                State('el_psup', stochastic=False, drives_obs=False, order=0), 
                 # velocity states
-                State('sh_vflex', stochastic=True, drives_obs=True), 
-                State('sh_vabd', stochastic=True, drives_obs=True), 
-                State('el_vrot', stochastic=True, drives_obs=True), 
-                State('el_vflex', stochastic=True, drives_obs=True), 
-                State('el_vsup', stochastic=True, drives_obs=True), 
+                State('sh_vflex', stochastic=True, drives_obs=True, order=1), 
+                State('sh_vabd', stochastic=True, drives_obs=True, order=1), 
+                State('sh_vrot', stochastic=True, drives_obs=True, order=1), 
+                State('el_vflex', stochastic=True, drives_obs=True, order=1), 
+                State('el_vsup', stochastic=True, drives_obs=True, order=1), 
                 # offset
                 offset_state,
         )
@@ -144,17 +149,17 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
     def __init__(self):
         super(StateSpaceExoArm, self).__init__(
                 # position states
-                State('sh_pflex', stochastic=False, drives_obs=False, min_val=0, max_val=0), 
-                State('sh_pabd', stochastic=False, drives_obs=False, min_val=-pi, max_val=0), 
-                State('el_prot', stochastic=False, drives_obs=False, min_val=0, max_val=0), 
-                State('el_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0), 
-                State('el_psup', stochastic=False, drives_obs=False, min_val=0, max_val=0), 
+                State('sh_pflex', stochastic=False, drives_obs=False, min_val=0, max_val=0, order=0),
+                State('sh_pabd', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
+                State('sh_prot', stochastic=False, drives_obs=False, min_val=0, max_val=0, order=0),
+                State('el_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
+                State('el_psup', stochastic=False, drives_obs=False, min_val=0, max_val=0, order=0),
                 # velocity states
-                State('sh_vflex', stochastic=False, drives_obs=False), 
-                State('sh_vabd', stochastic=True, drives_obs=True), 
-                State('el_vrot', stochastic=False, drives_obs=False), 
-                State('el_vflex', stochastic=True, drives_obs=True), 
-                State('el_vsup', stochastic=False, drives_obs=False), 
+                State('sh_vflex', stochastic=False, drives_obs=False, order=1),
+                State('sh_vabd', stochastic=True, drives_obs=True, order=1),
+                State('sh_vrot', stochastic=False, drives_obs=False, order=1),
+                State('el_vflex', stochastic=True, drives_obs=True, order=1),
+                State('el_vsup', stochastic=False, drives_obs=False, order=1),
                 # offset
                 offset_state,
         )
@@ -164,8 +169,8 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
         State space model from expert data
         '''
         Delta_KINARM = 1./10
-        #w = 0.0007
-        w = 0.3 # TODO come up with this value more systematically!
+        w = 0.01 #0.0007
+        #w = 0.3 # TODO come up with this value more systematically!
         w_units_resc = w / 1 # velocity will always be in radians/sec
         a_resampled, w_resampled = state_space_models.resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
 
@@ -208,7 +213,7 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=0.1, t
     decoder = ppfdecoder.PPFDecoder(ppf, units, _ssm.bounding_box, 
         _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
         tslice=tslice)
-
+    decoder.ssm = _ssm
     return decoder
 
 def train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=0.1, tslice=None, _ssm=endpt_2D_state_space):
@@ -253,6 +258,7 @@ def train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=0.1, ts
     decoder.kf.T = T
     decoder.kf.ESS = ESS
     
+    decoder.ssm = _ssm
     return decoder
 
 def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
@@ -294,6 +300,7 @@ def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None
     decoder.kf.T = T
     decoder.kf.ESS = ESS
     
+    decoder.ssm = _ssm
     return decoder
 
 ###################
@@ -832,6 +839,8 @@ def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
     mm_to_m = 0.001
     m_to_mm = 1000.
     decoder.kf.C *= cm_to_m
+
+    decoder.ssm = _ssm
     return decoder
 
 def rand_KFDecoder(sim_units, state_units='cm'):
