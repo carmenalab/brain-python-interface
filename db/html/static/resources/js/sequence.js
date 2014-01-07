@@ -17,6 +17,7 @@ function Sequence() {
     this.options = {};
 }
 Sequence.prototype.update = function(info) {
+    //console.log("updating")
     $("#seqlist").unbind("change", this._handle_chlist);
     for (var id in this.options)
         $(this.options[id]).remove()
