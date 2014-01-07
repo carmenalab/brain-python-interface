@@ -430,6 +430,14 @@ def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     '''
     kin = hdf.root.task[:][key]
 
+    ##### this is to test on files that didn't save the full 5-joint kinematics, remove soon!
+    if key=='joint_angles' and kin.shape[1]==2:
+        newja = np.zeros([len(kin), 5])
+        newja[:,1] = kin[:,1]
+        newja[:,3] = kin[:,0]
+        kin = newja
+    ##########################
+
     inds, = np.nonzero(tmask)
     step_fl = binlen/(1./update_rate_hz)
     if step_fl < 1: # more than one spike bin per kinematic obs
@@ -488,7 +496,7 @@ def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='curso
     tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
     
     hdf = tables.openFile(files['hdf'])
-    kin = get_cursor_kinematics(hdf, binlen, tmask)
+    kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
     neurows = rows[tmask]
     spike_counts, units = get_spike_counts(plx, neurows, binlen, cells=cells)
     return kin, spike_counts, units
@@ -526,11 +534,11 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
         # TODO should not have to specify both the kin_var and the state space model
         _ssm=endpt_2D_state_space
     elif kin_var == 'joint_angles':
-        cursor_kin = kin
         _ssm=joint_2D_state_space
-        from tasks import manualcontrolmultitasks
-        shoulder_center = manualcontrolmultitasks.ArmPlant.shoulder_anchor
-        kin = get_joint_kinematics(cursor_kin, shoulder_center)
+        # cursor_kin = kin
+        # from tasks import manualcontrolmultitasks
+        # shoulder_center = manualcontrolmultitasks.ArmPlant.shoulder_anchor
+        # kin = get_joint_kinematics(cursor_kin, shoulder_center)
         
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
@@ -545,6 +553,12 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     if shuffle: decoder.shuffle()
 
     return decoder
+
+# Wrapper function for training joint decoder bc I don't know how to call above function with different arguments from trainbmi.py
+def _train_joint_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
+    _ssm=joint_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
+        _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice,_ssm=_ssm,source=source,kin_var=kin_var,shuffle=shuffle,**files)
+
 
 def _train_KFDecoder_visual_feedback_arm(cells=None, binlen=0.1, tslice=[None,None], 
     _ssm=joint_2D_state_space, source='task', kin_var='cursor', shuffle=False, **files):
