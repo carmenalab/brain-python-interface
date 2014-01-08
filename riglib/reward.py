@@ -12,6 +12,7 @@ import traceback
 import loc_config
 
 import serial
+import time
 
 try:
     import traits.api as traits
@@ -65,9 +66,29 @@ class Basic(object):
             self._write(stuff)
         else:
             raise Exception("Unrecognized reward system version!")
-        self.port.read(self.port.inWaiting())
-        
+        self.last_response = self.port.read(self.port.inWaiting())
 
+    def drain(self, drain_time=1200):
+        ''' Turns on the reward system drain for specified amount of time (in seconds)'''
+        assert drain_time > 0
+        assert drain_time < 9999
+        if loc_config.reward_system_version==0:
+            self._write("@CNSENN")
+            time.sleep(drain_time)
+            self._write("@CNSDNN")
+        elif loc_config.reward_system_version==1:
+            self._write('@M1' + struct.pack('H', drain_time) + 'D' + struct.pack('xx'))
+        else:
+            raise Exception("Unrecognized reward system version!")
+
+    def drain_off(self):
+        ''' Turns off drain if currently on '''
+        if loc_config.reward_system_version==0:
+            self.write("@CNSDNN")
+        elif loc_config.reward_system_version==1:
+            self._write('@M1' + struct.pack('H', 0) + 'A' + struct.pack('xx'))
+        else:
+            raise Exception("Unrecognized reward system version!")
 
 class System(traits.HasTraits, threading.Thread):
     _running = True
