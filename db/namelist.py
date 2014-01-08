@@ -94,6 +94,7 @@ tasks = dict(
     clda_rml_kf_ofc = bmimultitasks.CLDARMLKFOFC,
     clda_kf_cg_sb = bmimultitasks.CLDAControlKFCG,
     arm_plant = manualcontrolmultitasks.ArmPlant,
+    clda_kf_cg_joint_rml = bmimultitasks.CLDAControlKFCGJoint, 
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant']
