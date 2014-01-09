@@ -72,7 +72,7 @@ class Basic(object):
         ''' Turns on the reward system drain for specified amount of time (in seconds)'''
         assert drain_time > 0
         assert drain_time < 9999
-        if loc_config.reward_system_version==0:
+        if loc_config.reward_system_version==0: #have to wait and manually tell it to turn off
             self._write("@CNSENN")
             time.sleep(drain_time)
             self._write("@CNSDNN")
@@ -84,7 +84,7 @@ class Basic(object):
     def drain_off(self):
         ''' Turns off drain if currently on '''
         if loc_config.reward_system_version==0:
-            self.write("@CNSDNN")
+            self._write("@CNSDNN")
         elif loc_config.reward_system_version==1:
             self._write('@M1' + struct.pack('H', 0) + 'A' + struct.pack('xx'))
         else:

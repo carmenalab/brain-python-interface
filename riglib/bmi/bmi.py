@@ -6,6 +6,7 @@ import traceback
 import re
 from riglib.plexon import Spikes
 import multiprocessing as mp
+import Queue
 from itertools import izip
 import time
 import re
@@ -449,7 +450,7 @@ class AdaptiveBMI(object):
             if self.mp_updater:
                 try:
                     new_params = self.clda_output_queue.get_nowait()
-                except Empty:
+                except Queue.Empty:
                     pass
                 except:
                     f = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')

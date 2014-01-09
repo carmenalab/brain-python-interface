@@ -564,7 +564,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
 # Wrapper function for training joint decoder bc I don't know how to call above function with different arguments from trainbmi.py
 def _train_joint_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     _ssm=joint_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
-        _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice,_ssm=_ssm,source=source,kin_var=kin_var,shuffle=shuffle,**files)
+        return _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice,_ssm=_ssm,source=source,kin_var=kin_var,shuffle=shuffle,**files)
 
 
 def _train_KFDecoder_visual_feedback_arm(cells=None, binlen=0.1, tslice=[None,None], 
