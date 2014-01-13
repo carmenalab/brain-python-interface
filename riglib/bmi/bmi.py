@@ -129,7 +129,7 @@ class Decoder(object):
     def save_params_to_hdf(self, task_data):
         pass
 
-    def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], **kwargs):
+    def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         import matplotlib.pyplot as plt
         if ax == None:
             plt.figure()
@@ -140,6 +140,8 @@ class Decoder(object):
         x, z = state_inds
         n_neurons = C.shape[0]
         linestyles = ['-.', '-', '--', ':']
+        if invert:
+            C = C*-1
         for k in range(n_neurons):
             unit_str = '%d%s' % (self.units[k,0], chr(96 + self.units[k,1]))
             ax.plot([0, C[k, x]], [0, C[k, z]], label=unit_str, linestyle=linestyles[k/7 % len(linestyles)], **kwargs)
