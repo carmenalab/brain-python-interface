@@ -398,7 +398,8 @@ class SimHDF(object):
         self.data[key].append(value)
 
 class SimTime(object):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super(SimTime, self).__init__(*args, **kwargs)
         self.start_time = 0.
         self.loop_counter = 0
 

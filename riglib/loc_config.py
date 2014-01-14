@@ -1,3 +1,10 @@
-# This file is for variables specific to the particular rig and is not tracked by git.
+import os
+hostname = os.popen('hostname').readlines()[0].rstrip()
 
-reward_system_version = 1
+if hostname == 'arc':
+    reward_system_version = 1
+elif hostname == 'nucleus':
+    # Older Crist reward system (single channel)
+    reward_system_version = 0
+else:
+    pass

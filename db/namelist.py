@@ -44,6 +44,7 @@ generators = dict(
     centerout_2step=manualcontrol.rand_multi_sequence_2d_centerout2step,
     centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
     centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
+    centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
 )
 
 from tasks.rds import RDS, RDS_half
@@ -94,6 +95,7 @@ tasks = dict(
     clda_rml_kf_ofc = bmimultitasks.CLDARMLKFOFC,
     clda_kf_cg_sb = bmimultitasks.CLDAControlKFCG,
     arm_plant = manualcontrolmultitasks.ArmPlant,
+    clda_kf_cg_joint_rml = bmimultitasks.CLDAControlKFCGJoint, 
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant']

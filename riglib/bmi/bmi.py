@@ -6,6 +6,7 @@ import traceback
 import re
 from riglib.plexon import Spikes
 import multiprocessing as mp
+import Queue
 from itertools import izip
 import time
 import re
@@ -128,7 +129,7 @@ class Decoder(object):
     def save_params_to_hdf(self, task_data):
         pass
 
-    def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], **kwargs):
+    def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         import matplotlib.pyplot as plt
         if ax == None:
             plt.figure()
@@ -139,6 +140,8 @@ class Decoder(object):
         x, z = state_inds
         n_neurons = C.shape[0]
         linestyles = ['-.', '-', '--', ':']
+        if invert:
+            C = C*-1
         for k in range(n_neurons):
             unit_str = '%d%s' % (self.units[k,0], chr(96 + self.units[k,1]))
             ax.plot([0, C[k, x]], [0, C[k, z]], label=unit_str, linestyle=linestyles[k/7 % len(linestyles)], **kwargs)
@@ -449,7 +452,7 @@ class AdaptiveBMI(object):
             if self.mp_updater:
                 try:
                     new_params = self.clda_output_queue.get_nowait()
-                except Empty:
+                except Queue.Empty:
                     pass
                 except:
                     f = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
