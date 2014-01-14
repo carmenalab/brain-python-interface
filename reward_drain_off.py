@@ -1,4 +1,5 @@
 from riglib import reward
+import time
 
 r = reward.Basic()
 time.sleep(.5)
