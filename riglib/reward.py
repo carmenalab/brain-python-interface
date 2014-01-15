@@ -1,4 +1,4 @@
-'''Needs docs'''
+'''Code for interacting with the Crist reward system'''
 
 
 import glob
@@ -13,6 +13,8 @@ import loc_config
 
 import serial
 import time
+
+import numpy
 
 try:
     import traits.api as traits
@@ -38,6 +40,8 @@ class _parse_num(object):
 class Basic(object):
     def __init__(self):
         self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
+        self.set_beeper_volume(128)
+        time.sleep(.5)
         self.reset()
 
     def _write(self, msg):
@@ -52,10 +56,30 @@ class Basic(object):
         if loc_config.reward_system_version==0:
             self._write(struct.pack('<ccxHxx', '@', 'G', length))
         elif loc_config.reward_system_version==1:
+            #length = length + 20000*(numpy.random.rand()-.5)
+            #print length
             self._write(struct.pack('<cccHxxx', '@', 'G', '1', length))
         else:
             raise Exception("Unrecognized reward system version!")
         self.port.read(self.port.inWaiting())
+    
+    def setup_touch_sensor(self):
+        if loc_config.reward_system_version==1: #arc system
+            cmd = ['@', 'C', '1' ,'O','%c' % 0b10000000, '%c' % 1, '%c' % 0, 'E']
+            stuff = ''.join(cmd)
+            self._write(stuff)
+
+
+    def sensor_reward(self, length):
+        if loc_config.reward_system_version==1:
+            cmd = ['@', 'S',  '%c' % 0x02, '%c' % 0x02, '%c' %10, '%c' %0, '%c' %0]
+            stuff = ''.join(cmd)
+            self._write(stuff)
+
+    def set_beeper_volume(self, volume):
+        if not (volume >= 0 and volume <= 255):
+            raise ValueError("Invalid beeper volume: %g" % volume)
+        self._write('@CS' + '%c' % volume + 'E' + struct.pack('xxx'))
 
     def reset(self):
         if loc_config.reward_system_version==0:

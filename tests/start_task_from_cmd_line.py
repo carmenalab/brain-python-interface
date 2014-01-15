@@ -16,13 +16,13 @@ os.environ['DISPLAY'] = ':0'
 task = models.Task.objects.get(name='visual_feedback_multi')
 base_class = task.get()
 
-feats = [features.Autostart, features.SaveHDF]
+feats = [features.Autostart, features.SaveHDF, features.RewardSystem]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())
 params = dict(session_length=10)
 
-seq = models.Sequence.objects.get(id=91)
+seq = models.Sequence.objects.get(id=2)
 if issubclass(Exp, experiment.Sequence):
     gen, gp = seq.get()
     sequence = gen(Exp, **gp)
