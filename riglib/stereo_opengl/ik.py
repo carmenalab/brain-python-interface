@@ -140,28 +140,6 @@ class RobotArm2D(Group):
         self.link1.xfm.rotate = Quaternion.rotate_vecs((1,0,0), self.curr_vecs[0]).norm()
         self.link1._recache_xfm()
 
-
-class Cursor(Group):
-    def __init__(self, cursor_radius=2., cursor_color=(1.0, 1.0, 1.0, 1), **kwargs):
-        self.cursor = Sphere(radius=self.cursor_radius, color=self.cursor_color)
-
-    def get_endpoint_pos(self):
-        return self.cursor.xfm.move
-
-    def set_endpoint_pos(self, pt):
-        if pt is not None:
-            self.cursor.translate(*pt[:3], reset=True)
-
-    def get_joint_pos(self):
-        return np.array([])
-
-    def set_joint_pos(self, theta):
-        if len(theta > 0):
-            raise ValueError("Cursor has no joints to set!")
-
-    def _update_links(self):
-        pass
-
 class CursorPlant(object):
     def __init__(self, **kwargs):
         self.position = np.zeros(3)
@@ -262,6 +240,121 @@ class RobotArm2J2D(RobotArm2D):
         super(RobotArm2J2D, self).set_joint_pos(theta[0])
 
 
+class RobotArm5J2D(RobotArm2J2D):
+
+    def __init__(self, link_radii=[.2,.2,.2,.2,.2], joint_radii=[.5,.5,.5,.5,.5],link_lengths=[2,2,2,2,2], joint_colors = [(1,1,1,1), (1,1,1,1), (1,1,1,1),(1,1,1,1),(1,1,1,1)],
+        link_colors = [(1,1,1,1), (1,1,1,1),(1,1,1,1),(1,1,1,1),(1,1,1,1)], **kwargs):
+        self.num_joints = 5
+        self.link_radii = link_radii
+        self.joint_radii = joint_radii
+        self.link_lengths = link_lengths
+        self.joint_colors = joint_colors
+        self.link_colors = link_colors
+        self.curr_vecs = np.zeros([5,3]) #row 0 is most distal link
+
+        self.curr_vecs[:,0] = self.link_lengths
+
+        self.joint_planes = [1,1,1,1,0] #indicates which axis each joint does NOT move in (x=0,y=1,z=2), distal to proximal
+        
+        self.link5 = Group((Cylinder(radius=link_radii[4], height=link_lengths[4], color=link_colors[4]), Sphere(radius=joint_radii[4],color=joint_colors[4])))
+        self.link4 = Group((Cylinder(radius=link_radii[3], height=link_lengths[3], color=link_colors[3]), Sphere(radius=joint_radii[3],color=joint_colors[3])))
+        self.link3 = Group((Cylinder(radius=link_radii[2], height=link_lengths[2], color=link_colors[2]), Sphere(radius=joint_radii[2],color=joint_colors[2])))
+        self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
+        self.link1 = Group((Cone(radius1=link_radii[0], radius2 = link_radii[1]/2, height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
+        
+        self.link_group_1 = Group([self.link2, self.link1]).translate(0,0,self.link_lengths[2])
+        self.link_group_2 = Group([self.link3, self.link_group_1]).translate(0,0,self.link_lengths[3])
+        self.link_group_3 = Group([self.link4, self.link_group_2]).translate(0,0,self.link_lengths[4])
+        self.link_group_4 = Group([self.link5, self.link_group_3])
+
+        super(RobotArm2D, self).__init__([self.link_group_4], **kwargs)
+
+    def _update_links(self):
+        self.link_group_4.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[4,:]).norm()
+        self.link_group_4._recache_xfm()
+        self.link_group_3.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[3,:]).norm()
+        self.link_group_3._recache_xfm()
+        self.link_group_2.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[2,:]).norm()
+        self.link_group_2._recache_xfm()
+        super(RobotArm5J2D, self)._update_links()
+
+    def get_endpoint_pos(self):
+        '''
+        Returns the current position of the non-anchored end of the arm.
+        '''
+        relangs = np.zeros(5)
+        for i in range(5):
+            ref = np.array([0,1,2])
+            axes = ref[ref!=self.joint_planes[i]]
+            relangs[i] = np.arctan2(self.curr_vecs[i,axes[1]], self.curr_vecs[i,axes[0]])
+        return self.perform_fk(relangs)      
+
+    def perform_fk(self, angs):
+        absvecs = np.zeros([5,3])
+        for i in range(5):
+            if i>0:
+                angs_t = angs[:-i]
+                jp_t = self.joint_planes[:-i]
+            else:
+                angs_t = angs
+                jp_t = self.joint_planes
+            abs_yz_ang = np.sum(angs[jp_t[jp_t==0]])
+            abs_xz_ang = np.sum(angs[jp_t[jp_t==1]])
+            abs_xy_ang = np.sum(angs[jp_t[jp_t==2]])
+            absvecs[i] = self.link_lengths[i]*np.array([np.cos(abs_xz_ang), np.sin(abs_xy_ang), np.sin(abs_xz_ang)])
+        return np.sum(absvecs,axis=0)
+
+    def set_endpoint_pos(self,pos):
+        # '''
+        # Positions the arm according to specified endpoint position. Uses 2D inverse kinematic equations to calculate joint angles.
+        # '''
+        # if pos is not None:
+        #     angles = self.perform_ik(pos)
+        #     self.set_joint_pos([angles['el_pflex'], angles['sh_pabd']])
+        pass
+
+    def perform_ik(self,pos):
+        x,y,z = pos
+        # set y to 0 for 2D
+        y=0
+        # if position is out of reach, set it to nearest point that can be reached
+        mag = np.linalg.norm([x,y,z])
+        normed = np.array([x,y,z])/mag
+        if mag>np.sum(self.link_lengths):    
+            x,y,z = normed*np.sum(self.link_lengths)
+        if mag<np.abs(np.diff(self.link_lengths)):
+            x,y,z = normed*np.abs(np.diff(self.link_lengths))
+
+        return inv_kin_2D(np.array([x,y,z]), self.link_lengths[1], self.link_lengths[0])
+
+    def calc_joint_angles(self, vecs):
+        angs = np.zeros([5])
+        for i in range(5):
+            ref = np.array([0,1,2])
+            axes = ref[ref!=self.joint_planes[i]]
+            angs[i] = np.arctan2(vecs[i,axes[1]], vecs[i,axes[0]])
+        return angs
+
+    def get_joint_pos(self):
+        '''
+        Returns the joint angles of the arm in radians
+        '''
+        return self.calc_joint_angles(self.curr_vecs)
+        
+    def set_joint_pos(self,theta):
+        '''
+        Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
+        '''
+        for i in range(len(theta)):
+            if theta[i] is not None and ~np.isnan(theta[i]):
+                vec = np.zeros([3])
+                ref = np.array([0,1,2])
+                axes = ref[ref!=self.joint_planes[i]]
+                vec[axes] = self.link_lengths[i]*np.array([np.cos(theta[i]), np.sin(theta[i])])
+                self.curr_vecs[i] = vec
+
+        self._update_links()
+
 class TwoJoint(object):
     '''Models a two-joint IK system (arm, leg, etc). Constrains the system by 
     always having middle joint halfway between the origin and target'''
@@ -351,34 +444,6 @@ class TwoJoint(object):
 
         self.upperarm._recache_xfm()
 
-
-## Original, written by james
-
-# TexCylinder = type("TexCylinder", (Cylinder, TexModel), dict())
-# class RobotArm(Group):
-#     def __init__(self, radii=(2, 1.5), lengths=(15, 20), **kwargs):
-#         tex = cloudy_tex()
-#         self.forearm = Group([
-#             TexCylinder(radius=radii[1], height=lengths[1], tex=tex, shininess=50), 
-#             Sphere(radii[1]+0.5).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
-#         self.upperarm = Group([
-#             Sphere(radii[0]+0.5),
-#             TexCylinder(radius=radii[0], height=lengths[0], tex=tex, shininess=50), 
-#             Sphere(radii[0]+0.5).translate(0, 0, lengths[0]),
-#             self.forearm])
-#         self.system = TwoJoint(self.upperarm, self.forearm)
-#         super(RobotArm, self).__init__([self.upperarm], **kwargs)
-
-#     def set_endpoint_2D(self, target):
-#         self.system.set_endpoint_2D(target)
-
-#     def set_joints_2D(self, shoulder_angle, elbow_angle):
-#         ''' returns position of ball at end of forearm (hand)'''
-#         self.system.set_joints_2D(shoulder_angle, elbow_angle)
-#         return self.forearm.models[1].xfm.move
-
-
-## added by helene to prep for arm task
 
 class RobotArm(Group):
     def __init__(self, link_radii=(.2, .2), ball_radii=(.5,.5),lengths=(5, 4), ball_colors = ((1,1,1,1),(1,1,1,1)),\
