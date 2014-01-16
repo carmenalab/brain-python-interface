@@ -13,10 +13,10 @@ from riglib.experiment import features
 import os
 os.environ['DISPLAY'] = ':0'
 
-task = models.Task.objects.get(name='visual_feedback_multi')
+task = models.Task.objects.get(name='arm_plant')
 base_class = task.get()
 
-feats = [features.Autostart, features.SaveHDF, features.RewardSystem]
+feats = [features.SaveHDF]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())
@@ -28,6 +28,6 @@ if issubclass(Exp, experiment.Sequence):
     sequence = gen(Exp, **gp)
     exp = Exp(sequence, **params)
 else:
-    raise ValueError('Unknown experiment type')
+    exp = Exp(**params)
 
 exp.start()
