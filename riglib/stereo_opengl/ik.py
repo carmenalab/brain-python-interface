@@ -238,44 +238,72 @@ class RobotArm2J2D(RobotArm2D):
         super(RobotArm2J2D, self).set_joint_pos(theta[0])
 
 
-class RobotArm4J2D(RobotArm2J2D):
+class RobotArmGen2D(Group):
 
-    def __init__(self, link_radii=[.6,.6,.6,.6], joint_radii=[.6,.6,.6,.6],link_lengths=[5,5,15,15], joint_colors = [(1,1,1,1), (1,1,1,1), (1,1,1,1),(1,1,1,1)],
-        link_colors = [(1,1,1,1), (1,1,1,1),(1,1,1,1),(1,1,1,1)], **kwargs):
-        self.num_joints = 4
-        self.link_radii = link_radii
-        self.joint_radii = joint_radii
-        self.joint_colors = joint_colors
-        self.link_lengths = link_lengths
-        self.link_colors = link_colors
-        self.curr_vecs = np.zeros([4,3]) #row 0 is most distal link
+    def __init__(self, num_joints=4, link_radii=[.6], joint_radii=[.6],link_lengths=[6,6,2,2], joint_colors = [(1,1,1,1)],
+        link_colors = [(1,1,1,1)], **kwargs):
 
-        self.curr_vecs[-1,2] = self.link_lengths[-1]
-        self.curr_vecs[:-1,0] = self.link_lengths[:-1]
+        # For now inverse kinematics is specific to 4 joints
+        assert num_joints == 4, "Number of joints must be 4 for IK to work!!"
+        self.num_joints = num_joints
 
-        self.link4 = Group((Cylinder(radius=link_radii[3], height=link_lengths[3], color=link_colors[3]), Sphere(radius=joint_radii[3],color=joint_colors[3])))
-        self.link3 = Group((Cylinder(radius=link_radii[2], height=link_lengths[2], color=link_colors[2]), Sphere(radius=joint_radii[2],color=joint_colors[2])))
-        self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
-        self.link1 = Group((Cone(radius1=link_radii[0], radius2 = link_radii[1]/2, height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
+        if len(link_radii)>1: self.link_radii = link_radii
+        else: self.link_radii = link_radii * self.num_joints
+        if len(joint_radii)>1: self.joint_radii = joint_radii
+        else: self.joint_radii = joint_radii * self.num_joints
+        if len(joint_colors)>1: self.joint_colors = joint_colors
+        else: self.joint_colors = joint_colors * self.num_joints
+        if len(link_lengths)>1: self.link_lengths = link_lengths
+        else: self.link_lengths = link_lengths * self.num_joints
+        if len(link_colors)>1: self.link_colors = link_colors
+        else: self.link_colors = link_colors * self.num_joints
+
+        self.curr_vecs = np.zeros([4,3]) #rows go from proximal to distal links
+
+        # set initial vecs to correct orientations (arm starts out vertical)
+        self.curr_vecs[0,2] = self.link_lengths[0]
+        self.curr_vecs[1:,0] = self.link_lengths[1:]
+
+        # Create links for all but most distal link
+        self.links = [Group((Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i]), Sphere(radius=self.joint_radii[i],color=self.joint_colors[i]))) for i in range(self.num_joints-1)]
+        # Add distal link as a cone instead of cylinder
+        self.links = self.links + [Group((Cone(radius1=self.link_radii[-1], radius2 = self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1]), Sphere(radius=self.joint_radii[-1],color=self.joint_colors[-1]))).translate(0,0,self.link_lengths[-2])]
+
+        # self.link4 = Group((Cylinder(radius=link_radii[3], height=link_lengths[3], color=link_colors[3]), Sphere(radius=joint_radii[3],color=joint_colors[3])))
+        # self.link3 = Group((Cylinder(radius=link_radii[2], height=link_lengths[2], color=link_colors[2]), Sphere(radius=joint_radii[2],color=joint_colors[2])))
+        # self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
+        # self.link1 = Group((Cone(radius1=link_radii[0], radius2 = link_radii[1]/2, height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
         
-        self.link_group_1 = Group([self.link2, self.link1]).translate(0,0,self.link_lengths[2])
-        self.link_group_2 = Group([self.link3, self.link_group_1]).translate(0,0,self.link_lengths[3])
-        self.link_group_3 = Group([self.link4, self.link_group_2])
+        self.link_groups = [self.links[-1]]
+        for i in range(1,self.num_joints-1):
+            self.link_groups = self.link_groups + [Group([self.links[-i-1], self.link_groups[i-1]]).translate(0,0,self.link_lengths[-i-2])]
+        self.link_groups = self.link_groups + [Group([self.links[0], self.link_groups[2]])]
+        self.link_groups.reverse()
 
-        super(RobotArm2D, self).__init__([self.link_group_3], **kwargs)
+        # self.link_group_1 = Group([self.link2, self.link1]).translate(0,0,self.link_lengths[2])
+        # self.link_group_2 = Group([self.link3, self.link_group_1]).translate(0,0,self.link_lengths[3])
+        # self.link_group_3 = Group([self.link4, self.link_group_2])
+
+        super(RobotArmGen2D, self).__init__([self.link_groups[0]], **kwargs)
 
         from riglib.bmi import robot_arms
-        self.kin_chain = robot_arms.KinematicChain(link_lengths)
+        self.kin_chain = robot_arms.PlanarXZKinematicChain(link_lengths)
 
     def _update_links(self):
-        self.link_group_3.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[3]).norm()
-        self.link_group_3._recache_xfm()
-        self.link_group_2.xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[2]).norm()
-        self.link_group_2._recache_xfm()
-        self.link_group_1.xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[1]).norm()
-        self.link_group_1._recache_xfm()
-        self.link1.xfm.rotate = Quaternion.rotate_vecs((1,0,0), self.curr_vecs[0]).norm()
-        self.link1._recache_xfm()
+        self.link_groups[0].xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[0]).norm()
+        self.link_groups[0]._recache_xfm()
+        for i in range(1,self.num_joints):
+            self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[i]).norm()
+            self.link_groups[i]._recache_xfm()
+
+        # self.link_group_3.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[3]).norm()
+        # self.link_group_3._recache_xfm()
+        # self.link_group_2.xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[2]).norm()
+        # self.link_group_2._recache_xfm()
+        # self.link_group_1.xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[1]).norm()
+        # self.link_group_1._recache_xfm()
+        # self.link1.xfm.rotate = Quaternion.rotate_vecs((1,0,0), self.curr_vecs[0]).norm()
+        # self.link1._recache_xfm()
 
     def get_endpoint_pos(self):
         '''
@@ -287,19 +315,14 @@ class RobotArm4J2D(RobotArm2J2D):
     def perform_fk(self, angs):
         absvecs = np.zeros(self.curr_vecs.shape)
         for i in range(self.num_joints):
-            if i>0:
-                totang = np.sum(angs[i:])
-            else:
-                totang = np.sum(angs)
-            absvecs[i] = self.link_lengths[i]*np.array([np.cos(totang), 0, np.sin(totang)])
+            absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs[:i+1])), 0, np.sin(np.sum(angs[:i+1]))])
         return np.sum(absvecs,axis=0)
-        #return np.sum(self.link_lengths)*np.array([np.cos(angs[-1]), 0, np.sin(angs[-1])])
 
     def set_endpoint_pos(self, pos):
         '''
         Positions the arm according to specified endpoint position. 
         '''
-        angles = self.kin_chain.inverse_kinematics(pos)
+        angles = self.kin_chain.inverse_kinematics(-self.get_joint_pos(), pos)
 
         # Negate the angles. The convention in the robotics library is 
         # inverted, i.e. in the robotics library, positive is clockwise 
@@ -330,12 +353,14 @@ class RobotArm4J2D(RobotArm2J2D):
         '''
         Returns the joint angles of the arm in radians
         '''
+        
         return self.calc_joint_angles(self.curr_vecs)
         
     def set_joint_pos(self,theta):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
         '''
+
         for i in range(self.num_joints):
             if theta[i] is not None and ~np.isnan(theta[i]):
                 self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
