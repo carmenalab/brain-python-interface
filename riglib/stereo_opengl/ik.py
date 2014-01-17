@@ -243,21 +243,37 @@ class RobotArm4J2D(RobotArm2J2D):
     def __init__(self, link_radii=[.6,.6,.6,.6], joint_radii=[.6,.6,.6,.6],link_lengths=[5,5,15,15], joint_colors = [(1,1,1,1), (1,1,1,1), (1,1,1,1),(1,1,1,1)],
         link_colors = [(1,1,1,1), (1,1,1,1),(1,1,1,1),(1,1,1,1)], **kwargs):
         self.num_joints = 4
-        self.link_radii = link_radii
-        self.joint_radii = joint_radii
-        self.joint_colors = joint_colors
-        self.link_lengths = link_lengths
-        self.link_colors = link_colors
-        self.curr_vecs = np.zeros([4,3]) #row 0 is most distal link
+        if len(link_radii>1): self.link_radii = link_radii
+        else: self.link_radii = link_radii * self.num_joints
+        if len(joint_radii>1): self.joint_radii = joint_radii
+        else: self.joint_radii = joint_radii * self.num_joints
+        if len(joint_colors>1): self.joint_colors = joint_colors
+        else: self.joint_colors = joint_colors * self.num_joints
+        if len(link_lengths>1): self.link_lengths = link_lengths
+        else: self.link_lengths = link_lengths * self.num_joints
+        if len(link_colors>1): self.link_colors = link_colors
+        else: self.link_colors = link_colors * self.num_colors
 
-        self.curr_vecs[-1,2] = self.link_lengths[-1]
-        self.curr_vecs[:-1,0] = self.link_lengths[:-1]
+        self.curr_vecs = np.zeros([4,3]) #rows go from proximal to distal links
 
-        self.link4 = Group((Cylinder(radius=link_radii[3], height=link_lengths[3], color=link_colors[3]), Sphere(radius=joint_radii[3],color=joint_colors[3])))
-        self.link3 = Group((Cylinder(radius=link_radii[2], height=link_lengths[2], color=link_colors[2]), Sphere(radius=joint_radii[2],color=joint_colors[2])))
-        self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
-        self.link1 = Group((Cone(radius1=link_radii[0], radius2 = link_radii[1]/2, height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
+        # set initial vecs to correct orientations (arm starts out vertical)
+        self.curr_vecs[0,2] = self.link_lengths[-1]
+        self.curr_vecs[1:,0] = self.link_lengths[:-1]
+
+        # Create links for all but most distal link
+        self.links = [Group((Cylinder(radius=link_radii[i], height=link_lengths[i], color=link_colors[i]), Sphere(radius=joint_radii[i],color=joint_colors[i]))) for i in range(self.num_joints-1)]
+        # Add distal link as a cone instead of cylinder
+        self.links = self.links + [Group((Cone(radius1=link_radii[-1], radius2 = link_radii[-1]/2, height=link_lengths[-1], color=link_colors[-1]), Sphere(radius=joint_radii[-1],color=joint_colors[-1]))).translate(0,0,self.link_lengths[-2])]
+
+        # self.link4 = Group((Cylinder(radius=link_radii[3], height=link_lengths[3], color=link_colors[3]), Sphere(radius=joint_radii[3],color=joint_colors[3])))
+        # self.link3 = Group((Cylinder(radius=link_radii[2], height=link_lengths[2], color=link_colors[2]), Sphere(radius=joint_radii[2],color=joint_colors[2])))
+        # self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
+        # self.link1 = Group((Cone(radius1=link_radii[0], radius2 = link_radii[1]/2, height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
         
+        self.link_groups = []
+        for i in range(self.num_joints):
+            
+
         self.link_group_1 = Group([self.link2, self.link1]).translate(0,0,self.link_lengths[2])
         self.link_group_2 = Group([self.link3, self.link_group_1]).translate(0,0,self.link_lengths[3])
         self.link_group_3 = Group([self.link4, self.link_group_2])

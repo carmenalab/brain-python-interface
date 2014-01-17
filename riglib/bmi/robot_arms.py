@@ -30,7 +30,7 @@ class KinematicChain(object):
             links += [link1, link2, link3]
         
         # By convention, we start the arm in the XY-plane
-        links[1].offset = pi/2 
+        links[1].offset = -pi/2 
 
         self.robot = robot.SerialLink(links)
         self.robot.name = name
