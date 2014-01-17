@@ -60,7 +60,7 @@ class KinematicChain(object):
         return joint_angles
 
     def inverse_kinematics(self, starting_config, target_pos, n_iter=1000, 
-                           verbose=False, eps=0.1):
+                           verbose=False, eps=0.1, return_path=False):
         '''
         Default inverse kinematics method is RRT since for redundant 
         kinematic chains, an infinite number of inverse kinematics solutions 
@@ -83,10 +83,12 @@ class KinematicChain(object):
             J_pos = J[0:3,:]
 
             # take a step from the current position toward the target pos using the inverse Jacobian
-            J_inv = np.linalg.pinv(J_pos)
+            # J_inv = np.linalg.pinv(J_pos)
+            J_inv = J_pos.T
 
-            xdot = (endpoint_traj[k] - target_pos)/np.linalg.norm(endpoint_traj[k] - target_pos)
-            qdot = np.dot(J_inv, xdot)
+            # xdot = (endpoint_traj[k] - target_pos)/np.linalg.norm(endpoint_traj[k] - target_pos)
+            xdot = (target_pos - endpoint_traj[k])/np.linalg.norm(endpoint_traj[k] - target_pos)
+            qdot = 0.001*np.dot(J_inv, xdot)
             qdot = self.full_angles_to_subset(np.array(qdot).ravel())
 
             q += qdot
@@ -99,7 +101,10 @@ class KinematicChain(object):
         if verbose:
             print "Runtime: %g" % runtime
 
-        return q
+        if return_path:
+            return q, endpoint_traj
+        else:
+            return q
 
     def jacobian(self, joint_angles):
         joint_angles = self.calc_full_joint_angles(joint_angles)
