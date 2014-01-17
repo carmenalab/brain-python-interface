@@ -180,9 +180,7 @@ class RobotArm2J2D(RobotArm2D):
         super(RobotArm2D, self).__init__([self.link_group_1], **kwargs)
 
     def _update_links(self):
-        arg1 = (0,0,1)
-        arg2 = self.curr_vecs[1,:]
-        self.link_group_1.xfm.rotate = Quaternion.rotate_vecs(arg1,arg2).norm()
+        self.link_group_1.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[1]).norm()
         self.link_group_1._recache_xfm()
         super(RobotArm2J2D, self)._update_links()
 
@@ -240,23 +238,21 @@ class RobotArm2J2D(RobotArm2D):
         super(RobotArm2J2D, self).set_joint_pos(theta[0])
 
 
-class RobotArm5J2D(RobotArm2J2D):
+class RobotArm4J2D(RobotArm2J2D):
 
-    def __init__(self, link_radii=[.2,.2,.2,.2,.2], joint_radii=[.5,.5,.5,.5,.5],link_lengths=[2,2,2,2,2], joint_colors = [(1,1,1,1), (1,1,1,1), (1,1,1,1),(1,1,1,1),(1,1,1,1)],
-        link_colors = [(1,1,1,1), (1,1,1,1),(1,1,1,1),(1,1,1,1),(1,1,1,1)], **kwargs):
-        self.num_joints = 5
+    def __init__(self, link_radii=[.6,.6,.6,.6], joint_radii=[.6,.6,.6,.6],link_lengths=[5,5,15,15], joint_colors = [(1,1,1,1), (1,1,1,1), (1,1,1,1),(1,1,1,1)],
+        link_colors = [(1,1,1,1), (1,1,1,1),(1,1,1,1),(1,1,1,1)], **kwargs):
+        self.num_joints = 4
         self.link_radii = link_radii
         self.joint_radii = joint_radii
-        self.link_lengths = link_lengths
         self.joint_colors = joint_colors
+        self.link_lengths = link_lengths
         self.link_colors = link_colors
-        self.curr_vecs = np.zeros([5,3]) #row 0 is most distal link
+        self.curr_vecs = np.zeros([4,3]) #row 0 is most distal link
 
-        self.curr_vecs[:,0] = self.link_lengths
+        self.curr_vecs[-1,2] = self.link_lengths[-1]
+        self.curr_vecs[:-1,0] = self.link_lengths[:-1]
 
-        self.joint_planes = [1,1,1,1,0] #indicates which axis each joint does NOT move in (x=0,y=1,z=2), distal to proximal
-        
-        self.link5 = Group((Cylinder(radius=link_radii[4], height=link_lengths[4], color=link_colors[4]), Sphere(radius=joint_radii[4],color=joint_colors[4])))
         self.link4 = Group((Cylinder(radius=link_radii[3], height=link_lengths[3], color=link_colors[3]), Sphere(radius=joint_radii[3],color=joint_colors[3])))
         self.link3 = Group((Cylinder(radius=link_radii[2], height=link_lengths[2], color=link_colors[2]), Sphere(radius=joint_radii[2],color=joint_colors[2])))
         self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
@@ -264,45 +260,37 @@ class RobotArm5J2D(RobotArm2J2D):
         
         self.link_group_1 = Group([self.link2, self.link1]).translate(0,0,self.link_lengths[2])
         self.link_group_2 = Group([self.link3, self.link_group_1]).translate(0,0,self.link_lengths[3])
-        self.link_group_3 = Group([self.link4, self.link_group_2]).translate(0,0,self.link_lengths[4])
-        self.link_group_4 = Group([self.link5, self.link_group_3])
+        self.link_group_3 = Group([self.link4, self.link_group_2])
 
-        super(RobotArm2D, self).__init__([self.link_group_4], **kwargs)
+        super(RobotArm2D, self).__init__([self.link_group_3], **kwargs)
 
     def _update_links(self):
-        self.link_group_4.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[4,:]).norm()
-        self.link_group_4._recache_xfm()
-        self.link_group_3.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[3,:]).norm()
+        self.link_group_3.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[3]).norm()
         self.link_group_3._recache_xfm()
-        self.link_group_2.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[2,:]).norm()
+        self.link_group_2.xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[2]).norm()
         self.link_group_2._recache_xfm()
-        super(RobotArm5J2D, self)._update_links()
+        self.link_group_1.xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[1]).norm()
+        self.link_group_1._recache_xfm()
+        self.link1.xfm.rotate = Quaternion.rotate_vecs((1,0,0), self.curr_vecs[0]).norm()
+        self.link1._recache_xfm()
 
     def get_endpoint_pos(self):
         '''
         Returns the current position of the non-anchored end of the arm.
         '''
-        relangs = np.zeros(5)
-        for i in range(5):
-            ref = np.array([0,1,2])
-            axes = ref[ref!=self.joint_planes[i]]
-            relangs[i] = np.arctan2(self.curr_vecs[i,axes[1]], self.curr_vecs[i,axes[0]])
+        relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
         return self.perform_fk(relangs)      
 
     def perform_fk(self, angs):
-        absvecs = np.zeros([5,3])
-        for i in range(5):
+        absvecs = np.zeros(self.curr_vecs.shape)
+        for i in range(self.num_joints):
             if i>0:
-                angs_t = angs[:-i]
-                jp_t = self.joint_planes[:-i]
+                totang = np.sum(angs[i:])
             else:
-                angs_t = angs
-                jp_t = self.joint_planes
-            abs_yz_ang = np.sum(angs[jp_t[jp_t==0]])
-            abs_xz_ang = np.sum(angs[jp_t[jp_t==1]])
-            abs_xy_ang = np.sum(angs[jp_t[jp_t==2]])
-            absvecs[i] = self.link_lengths[i]*np.array([np.cos(abs_xz_ang), np.sin(abs_xy_ang), np.sin(abs_xz_ang)])
+                totang = np.sum(angs)
+            absvecs[i] = self.link_lengths[i]*np.array([np.cos(totang), 0, np.sin(totang)])
         return np.sum(absvecs,axis=0)
+        #return np.sum(self.link_lengths)*np.array([np.cos(angs[-1]), 0, np.sin(angs[-1])])
 
     def set_endpoint_pos(self,pos):
         # '''
@@ -328,12 +316,7 @@ class RobotArm5J2D(RobotArm2J2D):
         return inv_kin_2D(np.array([x,y,z]), self.link_lengths[1], self.link_lengths[0])
 
     def calc_joint_angles(self, vecs):
-        angs = np.zeros([5])
-        for i in range(5):
-            ref = np.array([0,1,2])
-            axes = ref[ref!=self.joint_planes[i]]
-            angs[i] = np.arctan2(vecs[i,axes[1]], vecs[i,axes[0]])
-        return angs
+        return np.arctan2(vecs[:,2], vecs[:,0])
 
     def get_joint_pos(self):
         '''
@@ -345,14 +328,10 @@ class RobotArm5J2D(RobotArm2J2D):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
         '''
-        for i in range(len(theta)):
+        for i in range(self.num_joints):
             if theta[i] is not None and ~np.isnan(theta[i]):
-                vec = np.zeros([3])
-                ref = np.array([0,1,2])
-                axes = ref[ref!=self.joint_planes[i]]
-                vec[axes] = self.link_lengths[i]*np.array([np.cos(theta[i]), np.sin(theta[i])])
-                self.curr_vecs[i] = vec
-
+                self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
+                
         self._update_links()
 
 class TwoJoint(object):

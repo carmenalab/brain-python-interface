@@ -100,7 +100,7 @@ tasks = dict(
     clda_kf_cg_joint_rml = bmimultitasks.CLDAControlKFCGJoint, 
 )
 
-arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArm5J2D']
+arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArm4J2D']
 
 ## BMI seed tasks
 # The below list shows which tasks can be used to train new Decoders
