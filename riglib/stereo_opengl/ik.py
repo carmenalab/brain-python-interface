@@ -280,6 +280,9 @@ class RobotArm4J2D(RobotArm2J2D):
 
         super(RobotArm2D, self).__init__([self.link_group_3], **kwargs)
 
+        from riglib.bmi import robot_arms
+        self.kin_chain = robot_arms.KinematicChain(link_lengths)
+
     def _update_links(self):
         self.link_group_3.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[3]).norm()
         self.link_group_3._recache_xfm()
@@ -308,14 +311,19 @@ class RobotArm4J2D(RobotArm2J2D):
         return np.sum(absvecs,axis=0)
         #return np.sum(self.link_lengths)*np.array([np.cos(angs[-1]), 0, np.sin(angs[-1])])
 
-    def set_endpoint_pos(self,pos):
-        # '''
-        # Positions the arm according to specified endpoint position. Uses 2D inverse kinematic equations to calculate joint angles.
-        # '''
-        # if pos is not None:
-        #     angles = self.perform_ik(pos)
-        #     self.set_joint_pos([angles['el_pflex'], angles['sh_pabd']])
-        pass
+    def set_endpoint_pos(self, pos):
+        '''
+        Positions the arm according to specified endpoint position. 
+        '''
+        angles = self.kin_chain.inverse_kinematics(pos)
+
+        # Negate the angles. The convention in the robotics library is 
+        # inverted, i.e. in the robotics library, positive is clockwise 
+        # rotation whereas here CCW rotation is positive. 
+        angles = -angles 
+
+        # Update the joint configuration
+        self.set_joint_pos(-angles)
 
     def perform_ik(self,pos):
         x,y,z = pos
