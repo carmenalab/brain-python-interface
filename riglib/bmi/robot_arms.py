@@ -71,6 +71,7 @@ class KinematicChain(object):
         start_time = time.time()
         n_iter = 1000
         endpoint_traj = np.zeros([n_iter, 3])
+
         for k in range(n_iter):
             # calc endpoint position of the manipulator
             endpoint_traj[k] = self.endpoint_pos(q)
@@ -83,10 +84,12 @@ class KinematicChain(object):
             J_pos = J[0:3,:]
 
             # take a step from the current position toward the target pos using the inverse Jacobian
-            J_inv = np.linalg.pinv(J_pos)
+            # J_inv = np.linalg.pinv(J_pos)
+            J_inv = J_pos.T
 
-            xdot = (endpoint_traj[k] - target_pos)/np.linalg.norm(endpoint_traj[k] - target_pos)
-            qdot = np.dot(J_inv, xdot)
+            xdot = (target_pos - endpoint_traj[k])/np.linalg.norm(endpoint_traj[k] - target_pos)
+            # xdot = (endpoint_traj[k] - target_pos)/np.linalg.norm(endpoint_traj[k] - target_pos)
+            qdot = 0.01*np.dot(J_inv, xdot)
             qdot = self.full_angles_to_subset(np.array(qdot).ravel())
 
             q += qdot
@@ -98,6 +101,7 @@ class KinematicChain(object):
         runtime = end_time - start_time
         if verbose:
             print "Runtime: %g" % runtime
+            print "# of iterations: %g" % k
 
         return q
 
