@@ -101,24 +101,11 @@ class KinematicChain(object):
             # else:
             #     stepsize = 0.01
 
-            # stepsize = 0.001
-            stepsize = 1
 
-            alpha = 1./10
-            
-            qdot = stepsize*np.dot(J_inv, xdot)
-            qdot = self.full_angles_to_subset(np.array(qdot).ravel())            
-            # for m in range(10):
-            #     prop_cost = np.linalg.norm(self.endpoint_pos(q + qdot) - target_pos)
-            #     print prop_cost, current_cost
-            #     if prop_cost < current_cost:
-            #         break
-            #     else:
-            #         qdot *= alpha
-
-
-            prop_cost = np.linalg.norm(self.endpoint_pos(q + qdot) - target_pos)
-            # print prop_cost, current_cost
+            xdot = (target_pos - endpoint_traj[k])#/np.linalg.norm(endpoint_traj[k] - target_pos)
+            # xdot = (endpoint_traj[k] - target_pos)/np.linalg.norm(endpoint_traj[k] - target_pos)
+            qdot = 0.001*np.dot(J_inv, xdot)
+            qdot = self.full_angles_to_subset(np.array(qdot).ravel())
 
             q += qdot
 
