@@ -60,7 +60,7 @@ class KinematicChain(object):
         return joint_angles
 
     def inverse_kinematics(self, starting_config, target_pos, n_iter=1000, 
-                           verbose=False, eps=0.1):
+                           verbose=True, eps=0.01):
         '''
         Default inverse kinematics method is RRT since for redundant 
         kinematic chains, an infinite number of inverse kinematics solutions 
@@ -87,9 +87,9 @@ class KinematicChain(object):
             # J_inv = np.linalg.pinv(J_pos)
             J_inv = J_pos.T
 
-            xdot = (target_pos - endpoint_traj[k])/np.linalg.norm(endpoint_traj[k] - target_pos)
+            xdot = (target_pos - endpoint_traj[k])#/np.linalg.norm(endpoint_traj[k] - target_pos)
             # xdot = (endpoint_traj[k] - target_pos)/np.linalg.norm(endpoint_traj[k] - target_pos)
-            qdot = 0.01*np.dot(J_inv, xdot)
+            qdot = 0.001*np.dot(J_inv, xdot)
             qdot = self.full_angles_to_subset(np.array(qdot).ravel())
 
             q += qdot
