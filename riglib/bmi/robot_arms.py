@@ -60,7 +60,7 @@ class KinematicChain(object):
         return joint_angles
 
     def inverse_kinematics(self, starting_config, target_pos, n_iter=1000, 
-                           verbose=False, eps=0.1, return_path=False):
+                           verbose=False, eps=0.01, return_path=False):
         '''
         Default inverse kinematics method is RRT since for redundant 
         kinematic chains, an infinite number of inverse kinematics solutions 
@@ -69,33 +69,61 @@ class KinematicChain(object):
 
         q = starting_config
         start_time = time.time()
-        n_iter = 1000
         endpoint_traj = np.zeros([n_iter, 3])
 
+        joint_limited = np.zeros(len(q))
+
         for k in range(n_iter):
+            # print k
             # calc endpoint position of the manipulator
             endpoint_traj[k] = self.endpoint_pos(q)
 
-            if np.linalg.norm(endpoint_traj[k] - target_pos) < eps:
+            current_cost = np.linalg.norm(endpoint_traj[k] - target_pos, 2)
+            if current_cost < eps:
+                print "Terminating early"
                 break
 
             # calculate the jacobian
             J = self.jacobian(q)
             J_pos = J[0:3,:]
 
+            # for joints that are at their limit, zero out the jacobian?
+            # J_pos[:, np.nonzero(self.calc_full_joint_angles(joint_limited))] = 0
+
             # take a step from the current position toward the target pos using the inverse Jacobian
-            # J_inv = np.linalg.pinv(J_pos)
-            J_inv = J_pos.T
+            J_inv = np.linalg.pinv(J_pos)
+            # J_inv = J_pos.T
 
-            xdot = (target_pos - endpoint_traj[k])/np.linalg.norm(endpoint_traj[k] - target_pos) 
-            qdot = 0.01*np.dot(J_inv, xdot)
+            xdot = (target_pos - endpoint_traj[k])#/np.linalg.norm(endpoint_traj[k] - target_pos) 
 
-            qdot = self.full_angles_to_subset(np.array(qdot).ravel())
+            # if current_cost < 3 or k > 10:
+            #     stepsize = 0.001
+            # else:
+            #     stepsize = 0.01
+
+            # stepsize = 0.001
+            stepsize = 1
+
+            alpha = 1./10
+            
+            qdot = stepsize*np.dot(J_inv, xdot)
+            qdot = self.full_angles_to_subset(np.array(qdot).ravel())            
+            # for m in range(10):
+            #     prop_cost = np.linalg.norm(self.endpoint_pos(q + qdot) - target_pos)
+            #     print prop_cost, current_cost
+            #     if prop_cost < current_cost:
+            #         break
+            #     else:
+            #         qdot *= alpha
+
+
+            prop_cost = np.linalg.norm(self.endpoint_pos(q + qdot) - target_pos)
+            # print prop_cost, current_cost
 
             q += qdot
 
             # apply joint limits
-            q = self.apply_joint_limits(q)
+            q, joint_limited = self.apply_joint_limits(q)
 
         end_time = time.time()
         runtime = end_time - start_time
@@ -104,7 +132,7 @@ class KinematicChain(object):
             print "# of iterations: %g" % k
 
         if return_path:
-            return q, endpoint_traj
+            return q, endpoint_traj[:k]
         else:
             return q
 
@@ -142,14 +170,18 @@ class PlanarXZKinematicChain(KinematicChain):
             return joint_angles
         else:
             angles = []
+            limit_hit = []
             for angle, (lim_min, lim_max) in izip(joint_angles, self.joint_limits):
+                limit_hit.append(angle < lim_min or angle > lim_max)
                 angle = max(lim_min, angle)
                 angle = min(angle, lim_max)
                 angles.append(angle)
 
-            return np.array(angles)
+            return np.array(angles), np.array(limit_hit)
 
-
+    @property 
+    def n_joints(self):
+        return len(self.link_lengths)
     # def inverse_kinematics(self, starting_config, endpoint_pos):
     #     x, y, z = endpoint_pos
     #     if not y == 0:
