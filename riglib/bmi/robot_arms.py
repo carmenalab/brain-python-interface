@@ -60,7 +60,7 @@ class KinematicChain(object):
         return joint_angles
 
     def inverse_kinematics(self, starting_config, target_pos, n_iter=1000, 
-                           verbose=True, eps=0.01):
+                           verbose=False, eps=0.1, return_path=False):
         '''
         Default inverse kinematics method is RRT since for redundant 
         kinematic chains, an infinite number of inverse kinematics solutions 
@@ -103,7 +103,10 @@ class KinematicChain(object):
             print "Runtime: %g" % runtime
             print "# of iterations: %g" % k
 
-        return q
+        if return_path:
+            return q, endpoint_traj
+        else:
+            return q
 
     def jacobian(self, joint_angles):
         joint_angles = self.calc_full_joint_angles(joint_angles)
