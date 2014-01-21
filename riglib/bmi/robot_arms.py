@@ -1,10 +1,5 @@
 import numpy as np
 import robot
-
-import matplotlib as mpl
-mpl.rcParams['legend.fontsize'] = 10
-
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from itertools import izip
@@ -131,6 +126,76 @@ class KinematicChain(object):
     def endpoint_pos(self, joint_angles):
         t, allt = self.forward_kinematics(joint_angles)
         return np.array(t[0:3,-1]).ravel()
+
+    def random_sample(self):
+        q_start = []
+        for lim_min, lim_max in self.joint_limits:
+            q_start.append(np.random.uniform(lim_min, lim_max))
+        return np.array(q_start)
+
+    def ik_cost(self, q, q_start, target_pos, weight=10):
+        return np.linalg.norm(q - q_start) + weight*np.linalg.norm(self.endpoint_pos(q) - target_pos)
+
+    def inverse_kinematics_pso(self, q_start, target_pos, time_limit=np.inf, verbose=False, eps=0.5, n_particles=10):
+        # Initialize the particles; 
+        n_joints = self.n_joints
+
+        n_iter = 10
+        particles_q = np.tile(q_start, [n_particles, 1])
+        particles_v = np.random.randn(n_particles, n_joints)
+
+        cost_fn = lambda q: self.ik_cost(q, q_start, target_pos)
+
+        gbest = particles_q.copy()
+        gbestcost = np.array(map(cost_fn, gbest))
+        pbest = gbest[np.argmin(gbestcost)]
+        pbestcost = cost_fn(pbest)
+
+        min_limits = np.array([x[0] for x in self.joint_limits])
+        max_limits = np.array([x[1] for x in self.joint_limits])
+        min_limits = np.tile(min_limits, [n_particles, 1])
+        max_limits = np.tile(max_limits, [n_particles, 1])
+
+        start_time = time.time()
+        for k in range(n_iter):
+            if time.time() - start_time > time_limit:
+                break
+
+            # update positions of particles
+            particles_q += particles_v
+
+            # apply joint limits
+            # particles_q = np.array(map(lambda x: planar_chain.apply_joint_limits(x)[0], particles_q))
+            min_viol = particles_q < min_limits
+            max_viol = particles_q > max_limits
+            particles_q[min_viol] = min_limits[min_viol]
+            particles_q[max_viol] = max_limits[max_viol]
+
+            # update the costs
+            costs = np.array(map(cost_fn, particles_q))
+
+            # update the 'bests'
+            gbest[gbestcost > costs] = particles_q[gbestcost > costs]
+            gbestcost = map(cost_fn, gbest)
+
+            pbest = gbest[np.argmin(gbestcost)]
+            pbestcost = cost_fn(pbest)  
+
+            # update the velocity
+            phi1 = 1#np.random.rand()
+            phi2 = 1#np.random.rand()
+            w=0.25
+            c1=0.5
+            c2=0.25
+            particles_v = w*particles_v + c1*phi1*(np.tile(pbest, [n_particles, 1]) - particles_q) + c2*phi2*(gbest - particles_q)
+
+            if np.linalg.norm(self.endpoint_pos(pbest) - target_pos) < eps:
+                break
+            
+        end_time = time.time()
+        if verbose: print "Runtime = %g" % (end_time-start_time)
+
+        return pbest        
 
 class PlanarXZKinematicChain(KinematicChain):
     '''
