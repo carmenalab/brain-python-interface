@@ -322,7 +322,7 @@ class RobotArmGen2D(Group):
         '''
         Positions the arm according to specified endpoint position. 
         '''
-        angles = self.kin_chain.inverse_kinematics(-self.get_joint_pos(), pos)
+        angles = self.kin_chain.inverse_kinematics_pso(-self.get_joint_pos(), pos)
 
         # Negate the angles. The convention in the robotics library is 
         # inverted, i.e. in the robotics library, positive is clockwise 
