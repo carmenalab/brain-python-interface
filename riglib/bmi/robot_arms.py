@@ -176,10 +176,12 @@ class KinematicChain(object):
 
             # update the 'bests'
             gbest[gbestcost > costs] = particles_q[gbestcost > costs]
-            gbestcost = map(cost_fn, gbest)
+            gbestcost[gbestcost > costs] = costs[gbestcost > costs]
+            # gbestcost = map(cost_fn, gbest)
 
-            pbest = gbest[np.argmin(gbestcost)]
-            pbestcost = cost_fn(pbest)  
+            idx = np.argmin(gbestcost)
+            pbest = gbest[idx]
+            pbestcost = gbestcost[idx] #cost_fn(pbest)  
 
             # update the velocity
             phi1 = 1#np.random.rand()
