@@ -86,6 +86,7 @@ tasks = dict(
     joystick_multi=manualcontrolmultitasks.JoystickMulti,
     joystick_move = manualcontrolmultitasks.JoystickMove,
     joystick_multi_plus_move = manualcontrolmultitasks.JoystickMulti_plusMove,
+    joystickMulti_directed = manualcontrolmultitasks.JoystickMulti_Directed,
     bmi_control_multi = bmimultitasks.BMIControlMulti,
     bmi_manipulated_feedback = bmilowfeedback.BMIControlManipulatedFB,
     clda_ppf_manipulated_feedback = bmilowfeedback.CLDAControlPPFContAdaptMFB,
