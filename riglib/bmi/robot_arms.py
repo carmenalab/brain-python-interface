@@ -142,7 +142,18 @@ class KinematicChain(object):
 
         n_iter = 10
         particles_q = np.tile(q_start, [n_particles, 1])
-        particles_v = np.random.randn(n_particles, n_joints)
+
+        if 1:
+            # initialize the velocities to be biased around the direction the jacobian tells you is correct
+            current_pos = self.endpoint_pos(q_start)
+            int_displ = target_pos - current_pos
+            J = self.jacobian(q_start)
+            endpoint_vel = np.random.randn(n_particles, 3) + int_displ
+            particles_v = np.dot(np.linalg.pinv(J[0:3,1::3]), endpoint_vel.T).T
+            pass
+        else:
+            # initialize particle velocities randomly
+            particles_v = np.random.randn(n_particles, n_joints)
 
         cost_fn = lambda q: self.ik_cost(q, q_start, target_pos)
 
