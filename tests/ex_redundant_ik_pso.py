@@ -115,9 +115,20 @@ angles = ik.inv_kin_2D(target_pos + noise, 15., 25.)
 q_start_constr = np.array([-angles[0][1], -angles[0][3], 0, 0])
 
 
-pbest = planar_chain.inverse_kinematics_pso(q_start_constr, target_pos, verbose=True, time_limit=0.010)
+pbest = planar_chain.inverse_kinematics_pso(q_start_constr, target_pos, verbose=True, time_limit=1.)
 
-# cProfile.run('planar_chain.inverse_kinematics_pso(q_start_constr, target_pos)')
+# cProfile.run('planar_chain.inverse_kinematics_pso(q_start_constr, target_pos)', timeunit=0.001)
+
+import cProfile, pstats, StringIO
+pr = cProfile.Profile(timeunit=0.001)
+pr.enable()
+planar_chain.inverse_kinematics_pso(q_start_constr, target_pos)
+pr.disable()
+s = StringIO.StringIO()
+sortby = 'time'
+ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+ps.print_stats()
+print s.getvalue()
 
 
 # print planar_chain.endpoint_pos(pbest)
