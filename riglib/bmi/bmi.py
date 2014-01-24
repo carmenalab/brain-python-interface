@@ -245,7 +245,9 @@ class Decoder(object):
         self._pickle_init()
 
     def _pickle_init(self):
-        pass
+        import train
+        if not hasattr(self, 'ssm'):
+            self.ssm = train.endpt_2D_state_space
 
     def __getstate__(self):
         """Create dictionary describing state of the decoder instance, 

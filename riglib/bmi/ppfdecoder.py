@@ -321,6 +321,8 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         if not hasattr(self, 'clda_dtype'):
             self.clda_dtype = [('filt_C', 'f8', (self.n_units, self.n_states))]
 
+        super(PPFDecoder, self)._pickle_init()
+
     def __call__(self, obs_t, **kwargs):
         '''
         '''
