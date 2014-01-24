@@ -12,6 +12,8 @@ from textures import TexModel
 from utils import cloudy_tex
 from collections import OrderedDict
 
+pi = np.pi
+
 joint_angles_dtype = [('sh_pflex', np.float64), ('sh_pabd', np.float64), ('sh_prot', np.float64), ('el_pflex', np.float64), ('el_psup', np.float64)]
 joint_vel_dtype = [('sh_vflex', np.float64), ('sh_vabd', np.float64), ('sh_vrot', np.float64), ('el_vflex', np.float64), ('el_vsup', np.float64)]
 def get_arm_class_list():
@@ -240,7 +242,7 @@ class RobotArm2J2D(RobotArm2D):
 
 class RobotArmGen2D(Group):
 
-    def __init__(self, num_joints=4, link_radii=[.6], joint_radii=[.6],link_lengths=[6,6,2,2], joint_colors = [(1,1,1,1)],
+    def __init__(self, num_joints=4, link_radii=[.6], joint_radii=[.6],link_lengths=[15,15,5,5], joint_colors = [(1,1,1,1)],
         link_colors = [(1,1,1,1)], **kwargs):
 
         # For now inverse kinematics is specific to 4 joints
@@ -280,14 +282,12 @@ class RobotArmGen2D(Group):
         self.link_groups = self.link_groups + [Group([self.links[0], self.link_groups[2]])]
         self.link_groups.reverse()
 
-        # self.link_group_1 = Group([self.link2, self.link1]).translate(0,0,self.link_lengths[2])
-        # self.link_group_2 = Group([self.link3, self.link_group_1]).translate(0,0,self.link_lengths[3])
-        # self.link_group_3 = Group([self.link4, self.link_group_2])
-
         super(RobotArmGen2D, self).__init__([self.link_groups[0]], **kwargs)
 
         from riglib.bmi import robot_arms
         self.kin_chain = robot_arms.PlanarXZKinematicChain(link_lengths)
+        self.kin_chain.joint_limits = [(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)]
+
 
     def _update_links(self):
         self.link_groups[0].xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[0]).norm()
@@ -295,15 +295,6 @@ class RobotArmGen2D(Group):
         for i in range(1,self.num_joints):
             self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[i]).norm()
             self.link_groups[i]._recache_xfm()
-
-        # self.link_group_3.xfm.rotate = Quaternion.rotate_vecs((0,0,1),self.curr_vecs[3]).norm()
-        # self.link_group_3._recache_xfm()
-        # self.link_group_2.xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[2]).norm()
-        # self.link_group_2._recache_xfm()
-        # self.link_group_1.xfm.rotate = Quaternion.rotate_vecs((1,0,0),self.curr_vecs[1]).norm()
-        # self.link_group_1._recache_xfm()
-        # self.link1.xfm.rotate = Quaternion.rotate_vecs((1,0,0), self.curr_vecs[0]).norm()
-        # self.link1._recache_xfm()
 
     def get_endpoint_pos(self):
         '''
@@ -322,7 +313,8 @@ class RobotArmGen2D(Group):
         '''
         Positions the arm according to specified endpoint position. 
         '''
-        angles = self.kin_chain.inverse_kinematics_pso(-self.get_joint_pos(), pos)
+
+        angles = self.kin_chain.inverse_kinematics_pso(-self.get_joint_pos(), pos, verbose=True, eps=0.008)
 
         # Negate the angles. The convention in the robotics library is 
         # inverted, i.e. in the robotics library, positive is clockwise 
@@ -330,7 +322,7 @@ class RobotArmGen2D(Group):
         angles = -angles 
 
         # Update the joint configuration
-        self.set_joint_pos(-angles)
+        self.set_joint_pos(angles)
 
     def perform_ik(self,pos):
         x,y,z = pos

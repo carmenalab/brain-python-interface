@@ -54,7 +54,12 @@ class KinematicChain(object):
     def apply_joint_limits(self, joint_angles):
         return joint_angles
 
-    def inverse_kinematics(self, starting_config, target_pos, n_iter=1000, 
+    def inverse_kinematics(self, q_start, target_pos, method='pso', **kwargs):
+        return self.inverse_kinematics_pso(q_start, target_pos, **kwargs)
+        # ik_method = getattr(self, 'inverse_kinematics_%s' % method)
+        # return ik_method(q_start, target_pos)
+
+    def inverse_kinematics_grad_descent(self, starting_config, target_pos, n_iter=1000, 
                            verbose=False, eps=0.01, return_path=False):
         '''
         Default inverse kinematics method is RRT since for redundant 
@@ -133,27 +138,29 @@ class KinematicChain(object):
             q_start.append(np.random.uniform(lim_min, lim_max))
         return np.array(q_start)
 
-    def ik_cost(self, q, q_start, target_pos, weight=10):
-        return np.linalg.norm(q - q_start) + weight*np.linalg.norm(self.endpoint_pos(q) - target_pos)
+    def ik_cost(self, q, q_start, target_pos, weight=100):
+        q_diff = q - q_start
+        return np.linalg.norm(q_diff[0:2]) + weight*np.linalg.norm(self.endpoint_pos(q) - target_pos)
 
-    def inverse_kinematics_pso(self, q_start, target_pos, time_limit=np.inf, verbose=False, eps=0.5, n_particles=10):
+    def inverse_kinematics_pso(self, q_start, target_pos, time_limit=np.inf, verbose=False, eps=0.5, n_particles=10, n_iter=10):
         # Initialize the particles; 
         n_joints = self.n_joints
 
-        n_iter = 10
         particles_q = np.tile(q_start, [n_particles, 1])
 
-        if 1:
-            # initialize the velocities to be biased around the direction the jacobian tells you is correct
-            current_pos = self.endpoint_pos(q_start)
-            int_displ = target_pos - current_pos
-            J = self.jacobian(q_start)
-            endpoint_vel = np.random.randn(n_particles, 3) + int_displ
-            particles_v = np.dot(np.linalg.pinv(J[0:3,1::3]), endpoint_vel.T).T
-            pass
-        else:
-            # initialize particle velocities randomly
-            particles_v = np.random.randn(n_particles, n_joints)
+        # if 0:
+        #     # initialize the velocities to be biased around the direction the jacobian tells you is correct
+        #     current_pos = self.endpoint_pos(q_start)
+        #     int_displ = target_pos - current_pos
+        #     print int_displ, target_pos
+        #     J = self.jacobian(q_start)
+        #     endpoint_vel = np.random.randn(n_particles, 3)# + int_displ
+        #     particles_v = np.dot(J[0:3,1::3].T, endpoint_vel.T).T
+        # else:
+        #     # initialize particle velocities randomly
+
+        
+        particles_v = np.random.randn(n_particles, n_joints) #/ np.array([1., 1., 1, 1]) #np.array(self.link_lengths)
 
         cost_fn = lambda q: self.ik_cost(q, q_start, target_pos)
 
@@ -176,7 +183,6 @@ class KinematicChain(object):
             particles_q += particles_v
 
             # apply joint limits
-            # particles_q = np.array(map(lambda x: planar_chain.apply_joint_limits(x)[0], particles_q))
             min_viol = particles_q < min_limits
             max_viol = particles_q > max_limits
             particles_q[min_viol] = min_limits[min_viol]
@@ -188,11 +194,10 @@ class KinematicChain(object):
             # update the 'bests'
             gbest[gbestcost > costs] = particles_q[gbestcost > costs]
             gbestcost[gbestcost > costs] = costs[gbestcost > costs]
-            # gbestcost = map(cost_fn, gbest)
 
             idx = np.argmin(gbestcost)
             pbest = gbest[idx]
-            pbestcost = gbestcost[idx] #cost_fn(pbest)  
+            pbestcost = gbestcost[idx]
 
             # update the velocity
             phi1 = 1#np.random.rand()
@@ -200,13 +205,14 @@ class KinematicChain(object):
             w=0.25
             c1=0.5
             c2=0.25
-            particles_v = w*particles_v + c1*phi1*(np.tile(pbest, [n_particles, 1]) - particles_q) + c2*phi2*(gbest - particles_q)
+            particles_v = w*particles_v + c1*phi1*(pbest - particles_q) + c2*phi2*(gbest - particles_q)
 
-            if np.linalg.norm(self.endpoint_pos(pbest) - target_pos) < eps:
+            error = np.linalg.norm(self.endpoint_pos(pbest) - target_pos)
+            if error < eps:
                 break
             
         end_time = time.time()
-        if verbose: print "Runtime = %g" % (end_time-start_time)
+        if verbose: print "Runtime = %g, error = %g, n_iter=%d" % (end_time-start_time, error, k)
 
         return pbest        
 
@@ -247,11 +253,45 @@ class PlanarXZKinematicChain(KinematicChain):
     @property 
     def n_joints(self):
         return len(self.link_lengths)
-    # def inverse_kinematics(self, starting_config, endpoint_pos):
-    #     x, y, z = endpoint_pos
-    #     if not y == 0:
-    #         raise ValueError("PlanarXZKinematicChain requires y=0")
-    #     return super(PlanarXZKinematicChain, self).inverse_kinematics(starting_config, endpoint_pos)
+
+class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
+    def __init__(self, link_lengths, *args, **kwargs):
+        if not len(link_lengths) == 2:
+            raise ValueError("Can't instantiate a 2-link arm with > 2 links!")
+
+        super(PlanarXZKinematicChain2Link, self).__init__(link_lengths, *args, **kwargs)
+
+    def inverse_kinematics(self, q_start, target_pos, **kwargs):
+        return inv_kin_2D(target_pos, self.link_lengths[0], self.link_lengths[1])
+
+
+def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
+    '''
+    NOTE: This function is almost exactly the same as riglib.stereo_opengl.ik.inv_kin_2D.
+    There can only be room for one...
+    '''
+    if np.ndim(pos) == 1:
+        pos = pos.reshape(1,-1)
+
+    # require the y-coordinate to be 0, i.e. flat on the screen
+    x, y, z = pos[:,0], pos[:,1], pos[:,2]
+    assert np.all(y == 0)
+
+    if vel is not None:
+        if np.ndim(vel) == 1:
+            vel = vel.reshape(1,-1)
+        assert pos.shape == vel.shape
+        vx, vy, vz = vel[:,0], vel[:,1], vel[:,2]
+        assert np.all(vy == 0)
+
+    L = np.sqrt(x**2 + z**2)
+    cos_el_pflex = (L**2 - l_forearm**2 - l_upperarm**2) / (2*l_forearm*l_upperarm)
+
+    cos_el_pflex[ (cos_el_pflex > 1) & (cos_el_pflex < 1 + 1e-9)] = 1
+    el_pflex = np.arccos(cos_el_pflex)
+
+    sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
+    return np.array([-sh_pabd, -el_pflex])
 
 
 class RobotArm(object):
