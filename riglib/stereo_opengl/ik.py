@@ -152,7 +152,7 @@ class CursorPlant(object):
     def get_endpoint_pos(self):
         return self.position
 
-    def set_endpoint_pos(self,pt, **kwargs):
+    def set_endpoint_pos(self, pt, **kwargs):
         self.position = pt
 
     def get_joint_pos(self):
