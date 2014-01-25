@@ -10,11 +10,10 @@ class FeatureExtractor(object):
     '''Docstring.'''
 
     def __init__(self, task):
-        raise NotImplementedError  # subclasses need to implement this
+        raise NotImplementedError
 
     def __call__(self):
-        raise NotImplementedError  # subclasses need to implement this
-
+        raise NotImplementedError
 
 
 class BinnedSpikeCountsExtractor(FeatureExtractor):
@@ -26,7 +25,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         self.units = units
         self.last_get_spike_counts_time = 0
 
-    def get_spike_ts(self):
+    def get_spike_ts(self, *args, **kwargs):
         return self.source.get()
 
     def get_bin_edges(self, ts):
@@ -37,8 +36,8 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
             max_ind = np.argmax(ts['ts'])
             bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])            
 
-    def __call__(self, start_time):
-        ts = self.get_spike_ts()
+    def __call__(self, start_time, *args, **kwargs):
+        ts = self.get_spike_ts(*args, **kwargs)
         if len(ts) == 0:
             counts = np.zeros([len(self.units), self.n_subbins])
         elif self.n_subbins > 1:
