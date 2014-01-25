@@ -1,4 +1,8 @@
 import numpy as np
+import time
+from riglib.bmi import sim_neurons
+
+ts_dtype_new = sim_neurons.ts_dtype_new
 
 # object that gets the data that it needs (e.g., spikes, LFP, etc.) from the neural data source and 
 # extracts features from it
@@ -8,74 +12,94 @@ class FeatureExtractor(object):
     def __init__(self, task):
         raise NotImplementedError  # subclasses need to implement this
 
-    def get_neural_data(self):
-        raise NotImplementedError  # subclasses need to implement this
-
-    def extract_features(self):
+    def __call__(self):
         raise NotImplementedError  # subclasses need to implement this
 
 
 
 class BinnedSpikeCountsExtractor(FeatureExtractor):
     '''Docstring.'''
+    feature_type = 'spike_counts'
+    def __init__(self, source, n_subbins=1, units=[]):
+        self.source = source
+        self.n_subbins = n_subbins
+        self.units = units
+        self.last_get_spike_counts_time = 0
 
-    # method takes the task as input and stores whatever aspects of the task
-    # it will need for the future
-    def __init__(self, task):
-        self.task = task  # eventually get rid of this so that we don't need to store self.task
-        self.n_subbins = task.n_subbins
-        self.units = task.decoder.units
+    def get_spike_ts(self):
+        return self.source.get()
 
-    def get_neural_data(self):
-        # eventually change this so that this extractor gets ts directly from 
-        # the neural data source (e.g., SpikeBMI feature), and not from the task
-        self.ts = self.task.get_spike_ts()
-
-    def extract_features(self):
-        ts = self.ts
-        
+    def get_bin_edges(self, ts):
         if len(ts) == 0:
-            counts = np.zeros([len(self.units), self.n_subbins])
             bin_edges = np.array([np.nan, np.nan])
         else:
             min_ind = np.argmin(ts['ts'])
             max_ind = np.argmax(ts['ts'])
-            bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])
-            if self.n_subbins > 1:
-                subbin_edges = np.linspace(self.task.last_get_spike_counts_time, start_time, self.n_subbins+1)
-                subbin_edges[0] -= 1 # Include any latent spikes that somehow got lost..
-                subbin_inds = np.digitize(ts['arrival_ts'], subbin_edges)
-                counts = np.vstack([bin_spikes(ts[subbin_inds == k], self.units) for k in range(1, self.n_subbins+1)]).T
-            else:
-                counts = bin_spikes(ts, self.units).reshape(-1, 1)
+            bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])            
 
-        # how to avoid setting this task_data variable from here?
-        # don't want to simply return bin_edges because we don't expect every
-        # feature extractor's extract_feature method to return that variable
-        # (e.g., all LFP feature extractors)
-        self.task.task_data['bin_edges'] = bin_edges
+    def __call__(self, start_time):
+        ts = self.get_spike_ts()
+        if len(ts) == 0:
+            counts = np.zeros([len(self.units), self.n_subbins])
+        elif self.n_subbins > 1:
+            subbin_edges = np.linspace(self.last_get_spike_counts_time, start_time, self.n_subbins+1)
 
-        # if len(ts) > 0 and task.verbose_plexnet:
-        #     print "Largest ts observed: %f", (task.largest_ts - task.task_start_time)
-        #     late_spikes = ts[ts['arrival_ts'] < task.last_get_spike_counts_time]
-        #     if len(late_spikes) > 0:
-        #         print "spikes that were before the first boundary:"
-        #         print late_spikes['arrival_ts'] - task.task_start_time
-        #         packet_error = np.all(late_spikes['arrival_ts'] == task.largest_ts)
-        #         print packet_error
-        #         if not packet_error:
-        #             print task.last_get_spike_counts_time - task.task_start_time
-        #         print "threading error of ", (task.last_get_spike_counts_time - late_spikes[0]['arrival_ts'])
-        #     task.largest_ts = max(ts['arrival_ts'])
-        #     print
+            # Decrease the first subbin index to include any spikes that were
+            # delayed in getting to the task layer due to threading issues
+            # An acceptable delay is 1 sec or less. Realistically, most delays should be
+            # on the millisecond order
+            subbin_edges[0] -= 1
+            subbin_inds = np.digitize(ts['arrival_ts'], subbin_edges)
+            counts = np.vstack([bin_spikes(ts[subbin_inds == k], self.units) for k in range(1, self.n_subbins+1)]).T
+        else:
+            counts = bin_spikes(ts, self.units).reshape(-1, 1)
 
-        neural_features = counts
-        return neural_features
+        counts = np.array(counts, dtype=np.uint32)
+        bin_edges = self.get_bin_edges(ts)
+        self.last_get_spike_counts_time = start_time
+        return counts, bin_edges
+
+class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
+    '''
+    A "feature extractor" that replays spike counts from an HDF file
+    '''    
+    feature_type = 'spike_counts'
+    def __init__(self, hdf_table, source='spike_counts', units=[]):
+        self.idx = 0
+        self.hdf_table = hdf_table
+        self.source = source
+        self.units = units
+        self.n_subbins = hdf_table[0][source].shape[1]
+        self.last_get_spike_counts_time = 0
+
+    def get_spike_ts(self):
+        # Get counts from HDF file
+        counts = self.hdf_table[self.idx][self.source]
+        n_subbins = counts.shape[1]
+
+        # Convert counts to timestamps between (self.idx*1./60, (self.idx+1)*1./60)
+        # NOTE: this code is mostly copied from riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
+        ts_data = []
+        for k in range(n_subbins):
+            fake_time = (self.idx - 1) * 1./60 + (k + 0.5)*1./(60*n_subbins)
+            nonzero_units, = np.nonzero(counts[:,k])
+            for unit_ind in nonzero_units:
+                n_spikes = counts[unit_ind, k]
+                for m in range(n_spikes):
+                    ts = (fake_time, self.units[unit_ind, 0], self.units[unit_ind, 1], fake_time)
+                    ts_data.append(ts)
+
+        return np.array(ts_data, dtype=ts_dtype_new)
+
+    def get_bin_edges(self, ts):
+        return self.hdf_table[self.idx]['bin_edges']
+
+    def __call__(self, *args, **kwargs):
+        output = super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
+        self.idx += 1 
+        return output
 
 
-
-# this function used to be part of the Decoder class
-# but has now been moved here
 def bin_spikes(ts, units, max_units_per_channel=13):
     '''
     Count up the number of BMI spikes in a list of spike timestamps.
