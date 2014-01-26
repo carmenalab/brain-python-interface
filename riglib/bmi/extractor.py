@@ -98,6 +98,22 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.idx += 1 
         return output
 
+class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
+    '''Doctstring.'''
+    def __init__(self, input_device, encoder, n_subbins, units):
+        self.input_device = input_device
+        self.encoder = encoder
+        self.n_subbins = n_subbins
+        self.units = units
+        self.last_get_spike_counts_time = 0
+
+    def get_spike_ts(self, cursor_pos, target_pos):
+        ctrl    = self.input_device.get(target_pos, cursor_pos)
+        ts_data = self.encoder(ctrl)
+        return ts_data
+
+    def __call__(self, start_time, cursor_pos, target_pos):
+        return super(SimBinnedSpikeCountsExtractor, self).__call__(start_time, cursor_pos, target_pos)
 
 def bin_spikes(ts, units, max_units_per_channel=13):
     '''
