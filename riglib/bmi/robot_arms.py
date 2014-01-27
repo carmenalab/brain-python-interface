@@ -54,12 +54,14 @@ class KinematicChain(object):
     def apply_joint_limits(self, joint_angles):
         return joint_angles
 
-    def inverse_kinematics(self, q_start, target_pos, method='pso', **kwargs):
-        return self.inverse_kinematics_pso(q_start, target_pos, **kwargs)
+    def inverse_kinematics(self, target_pos, q_start=None, method='pso', **kwargs):
+        if q_start == None:
+            q_start = self.random_sample()
+        return self.inverse_kinematics_pso(target_pos, q_start, **kwargs)
         # ik_method = getattr(self, 'inverse_kinematics_%s' % method)
         # return ik_method(q_start, target_pos)
 
-    def inverse_kinematics_grad_descent(self, starting_config, target_pos, n_iter=1000, 
+    def inverse_kinematics_grad_descent(self, target_pos, starting_config, n_iter=1000, 
                            verbose=False, eps=0.01, return_path=False):
         '''
         Default inverse kinematics method is RRT since for redundant 
@@ -142,7 +144,7 @@ class KinematicChain(object):
         q_diff = q - q_start
         return np.linalg.norm(q_diff[0:2]) + weight*np.linalg.norm(self.endpoint_pos(q) - target_pos)
 
-    def inverse_kinematics_pso(self, q_start, target_pos, time_limit=np.inf, verbose=False, eps=0.5, n_particles=10, n_iter=10):
+    def inverse_kinematics_pso(self, target_pos, q_start, time_limit=np.inf, verbose=False, eps=0.5, n_particles=10, n_iter=10):
         # Initialize the particles; 
         n_joints = self.n_joints
 
@@ -261,7 +263,7 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
 
         super(PlanarXZKinematicChain2Link, self).__init__(link_lengths, *args, **kwargs)
 
-    def inverse_kinematics(self, q_start, target_pos, **kwargs):
+    def inverse_kinematics(self, target_pos, q_start, **kwargs):
         return inv_kin_2D(target_pos, self.link_lengths[0], self.link_lengths[1])
 
 
