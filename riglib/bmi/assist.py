@@ -34,19 +34,19 @@ class SimpleEndpointAssister(Assister):
         super(SimpleEndpointAssister, self).__init__(*args, **kwargs)
         print 'simple endpoint assister created'
 
-    def calc_assisted_BMI_state(self, task):
+    def calc_assisted_BMI_state(self, task, current_level):
         Bu = None # By default, no assist
         assist_weight = 0.
 
-        if self.current_level > 0:
+        if current_level > 0:
             cursor_pos      = task.decoder['hand_px', 'hand_py', 'hand_pz']
             target_pos      = task.target_location
             decoder_binlen  = task.decoder.binlen
             speed           = self.assist_speed * decoder_binlen
             target_radius   = task.target_radius
 
-            Bu = endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen, speed, target_radius, self.current_level)
-            assist_weight = self.current_level
+            Bu = endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen, speed, target_radius, current_level)
+            assist_weight = current_level
 
         return Bu, assist_weight
 
