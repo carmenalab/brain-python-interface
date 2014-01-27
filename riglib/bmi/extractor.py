@@ -24,6 +24,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         self.n_subbins = n_subbins
         self.units = units
         self.last_get_spike_counts_time = 0
+        self.feature_dtype = ('spike_counts', 'u4', (len(units), n_subbins))
 
     def get_spike_ts(self, *args, **kwargs):
         return self.source.get()
@@ -34,7 +35,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         else:
             min_ind = np.argmin(ts['ts'])
             max_ind = np.argmax(ts['ts'])
-            bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])            
+            bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])
 
     def __call__(self, start_time, *args, **kwargs):
         ts = self.get_spike_ts(*args, **kwargs)
