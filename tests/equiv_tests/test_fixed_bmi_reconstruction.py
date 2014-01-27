@@ -7,6 +7,7 @@ import tasks
 from tasks import performance
 from tasks import generatorfunctions as genfns
 import numpy as np
+import testing
 
 def test_block(idx, n_iter=None):
     te = performance._get_te(idx)
