@@ -272,7 +272,7 @@ class RobotArmGen2D(Group):
             self.set_joint_pos(angles)
 
     def perform_ik(self, pos, **kwargs):
-        angles = self.kin_chain.inverse_kinematics(-self.get_joint_pos(), pos, verbose=False, eps=0.008, **kwargs)
+        angles = self.kin_chain.inverse_kinematics(pos, q_start=-self.get_joint_pos(), verbose=False, eps=0.008, **kwargs)
 
         # Negate the angles. The convention in the robotics library is 
         # inverted, i.e. in the robotics library, positive is clockwise 
