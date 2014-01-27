@@ -521,6 +521,11 @@ class TaskEntry(object):
     def total_reward_time(self):
         return self.n_rewards * self.reward_time
 
+    @property 
+    def datafiles(self):
+        datafiles = models.DataFile.objects.filter(entry_id=self.id)
+        datafiles = dict((str(d.system.name), d.get_path()) for d in datafiles)        
+        return datafiles
 
 class TaskEntrySet(object):
     def __init__(self, blocks, name=''):
@@ -599,6 +604,7 @@ class TaskEntrySet(object):
         self.plot_MV(axes[2], xlabel=False, **kwargs)
         self.plot_perc_correct(axes[3], xlabel=True, **kwargs)
         plt.suptitle(self.name)
+
 
     @classmethod
     def construct_from_queryset(cls, name='', filter_fns=[], **kwargs):
