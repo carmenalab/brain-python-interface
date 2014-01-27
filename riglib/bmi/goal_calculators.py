@@ -5,11 +5,6 @@ Calculate the goal state of the BMI for CLDA/assist/simulation
 import numpy as np
 import train
 
-class BMIGoalState(object):
-    def __init__(self, ssm):
-        self.ssm = ssm
-
-
 class EndpointControlGoal(object):
     def __init__(self, ssm):
         assert ssm == train.endpt_2D_state_space
@@ -23,7 +18,7 @@ class EndpointControlGoal(object):
 
 class TwoLinkJointGoal(object):
     def __init__(self, ssm, shoulder_anchor, link_lengths):
-        assert ssm = train.joint_2D_state_space
+        assert ssm == train.joint_2D_state_space
         self.ssm = ssm
         self.shoulder_anchor = shoulder_anchor
         self.link_lengths = link_lengths
@@ -32,38 +27,61 @@ class TwoLinkJointGoal(object):
         endpt_location = target_pos - self.shoulder_anchor
         joint_target_state = ik.inv_kin_2D(endpt_location, self.link_lengths[0], self.link_lengths[1])[0]
 
-
-
-
-    def get_target_BMI_state(self, bmi_state_ls):
-        '''
-        For CLDA purposes, this method allows the task to define the target
-        'state' of the BMI. Note that this is different from the *intended*
-        state
-        '''
-        # TODO extend this to 3D!
-        endpt_target_state = self.target_location
-        dtype=[('hand_px', np.float64), ('hand_py', np.float64), ('hand_pz', np.float64)]
-        endpt_target_state = np.zeros((1,), dtype)
-        endpt_target_state[0] = self.target_location
-
-        endpt_location = self.target_location - self.shoulder_anchor
-        joint_target_state = ik.inv_kin_2D(endpt_location, self.arm_link_lengths[1], self.arm_link_lengths[0])[0]
-
         target_state = []
         for state in bmi_state_ls:
             if state == 'offset': # offset state is always 1
                 target_state.append(1)
             elif re.match('.*?_v.*?', state): # Velocity states are always 0
                 target_state.append(0) 
-            elif state in endpt_target_state.dtype.names:
-                target_state.append(endpt_target_state[0][state])
             elif state in joint_target_state.dtype.names:
                 target_state.append(joint_target_state[state])
             else:
                 raise ValueError('Unrecognized state: %s' % state)
 
-        if not len(target_state) == len(bmi_state_ls):
-            raise ValueError("A state got lost somehow....")
+        return np.array(target_state)
 
-        return np.array(target_state).reshape(-1,1)
+
+# create process 
+from riglib.bmi.clda import CLDARecomputeParameters
+
+class PlanarMultiLinkJointGoalCalculator(CLDARecomputeParameters):
+    def calc(self, kin_chain, endpt_location):
+        return kin_chain.inverse_kinematics(endpt_location)
+
+
+class PlanarMultiLinkJointGoal(object):
+    def __init__(self, ssm, shoulder_anchor, kin_chain):
+        self.ssm = ssm
+        self.shoulder_anchor = shoulder_anchor
+        self.kin_chain = kin_chain
+        self.prev_target_pos = None
+        self.prev_target_state = None
+        self.queued_target_pos = None
+
+        self.input_queue = mp.Queue()
+        self.output_queue = mp.Queue()
+        self.thread = PlanarMultiLinkJointGoalCalculator(input_queue, output_queue)
+        self.waiting = False
+
+    def __call__(self, target_pos):
+        if target_pos == self.queued_target_pos:
+            try:
+                joint_pos = self.clda_output_queue.get_nowait()
+                target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
+
+                # update the cache
+                self.prev_target_pos = self.queued_target_pos
+                self.prev_target_state = target_state
+                return target_state
+            except Queue.Empty:
+                return self.prev_target_state
+            except:
+                pass
+        elif not target_pos == self.prev_target_pos:
+            endpt_location = target_pos - self.shoulder_anchor
+            ik_data = (self.kin_chain, endpt_location)
+            self.thread.put(ik_data)
+            self.queued_target_pos = target_pos
+            return self.prev_target_state
+        else:
+            return self.prev_target_state
