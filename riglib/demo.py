@@ -14,7 +14,7 @@ from riglib.stereo_opengl.textures import Texture, TexModel
 from riglib.stereo_opengl.render import ssao, stereo, Renderer
 from riglib.stereo_opengl.utils import cloudy_tex
 
-from riglib.stereo_opengl.ik import RobotArm, RobotArm2D, RobotArm2J2D, RobotArm4J2D
+from riglib.stereo_opengl.ik import RobotArm, RobotArm2D, RobotArm2J2D, RobotArmGen2D
 from stereo_opengl.xfm import Quaternion
 import time
 
@@ -22,19 +22,33 @@ from riglib.stereo_opengl.ik import RobotArm
 
 import pygame
 
-arm4j = RobotArm4J2D(link_radii = [.2,.2,.2,.2], joint_radii=[.2,.2,.2,.2])
+arm4j = RobotArmGen2D(link_radii = [.2], joint_radii=[.2], link_lengths = [4,4,2,2])
 cone = Sphere(radius=1)
+
+pos_list = np.array([[0,0,0],[0,0,5]])
 
 class Test2(Window):
 
+    def __init__(self, *args, **kwargs):
+        self.count=0
+        super(Test2,self).__init__(*args, **kwargs)
+
     def _start_draw(self):
-        arm4j.set_joint_pos([0,0,np.pi/2,np.pi/2])
-        arm4j.get_endpoint_pos()
+        #arm4j.set_joint_pos([0,0,np.pi/2,np.pi/2])
+        #arm4j.get_endpoint_pos()
         pass
 
     def _while_draw(self):
         ts = time.time() - self.start_time
-        t = (ts / 2.) * np.pi   
+        t = (ts / 2.) * np.pi
+        if self.count<len(pos_list):
+            print "initial position = ", np.around(arm4j.get_endpoint_pos(),decimals=2)
+            print "setting position to ", np.around(pos_list[self.count], decimals=2)
+            arm4j.set_endpoint_pos(pos_list[self.count])
+            time.sleep(2)
+            print "final position = ", np.around(arm4j.get_endpoint_pos(),decimals=2)
+            
+            self.count+=1
         self.draw_world()
 
 if __name__ == "__main__":
