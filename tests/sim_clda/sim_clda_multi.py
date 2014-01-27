@@ -129,7 +129,10 @@ if __name__ == '__main__':
     task = SimRML(gen)
     #task = SimCLDAControlMultiDispl2D_PPF(gen)
     #task = SimCLDAControlMultiDispl2D(gen)
-    
+
+    print 'task created'
+
     self = task
     task.init()
+    print 'task init called'
     task.run()
