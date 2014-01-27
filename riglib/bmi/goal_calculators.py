@@ -41,7 +41,7 @@ class TwoLinkJointGoal(object):
 
         return np.array(target_state)
 
-class PlanarMultiLinkJointGoalCalculator(mp_calc.FuncProxy):
+class PlanarMultiLinkJointGoal(mp_calc.FuncProxy):
     def __init__(self, ssm, shoulder_anchor, kin_chain):
         fn = lambda endpt_location: kin_chain.inverse_kinematics(endpt_location - shoulder_anchor)
-        super(PlanarMultiLinkJointGoalCalculator, self).__init__(fn, multiproc=True, waiting_resp='prev')
+        super(PlanarMultiLinkJointGoal, self).__init__(fn, multiproc=True, waiting_resp='prev')
