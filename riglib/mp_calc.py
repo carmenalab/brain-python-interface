@@ -1,4 +1,5 @@
 import multiprocessing as mp
+import time
 
 class MPCompute(mp.Process):
     """
