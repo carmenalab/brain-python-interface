@@ -122,9 +122,10 @@ class OFCLearner(BatchLearner):
         B = self.B
         return A*current_state + B*F*(target_state - current_state)
 
-    def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel, task_state):
+    def __call__(self, spike_counts, cursor_state, target_state, decoded_vel, task_state, state_order=None):
         if task_state in self.F_dict:
-            target_state = self._target_BMI_state(target_pos)
+            # target_state = self._target_BMI_state(target_pos)
+            target_state = np.mat(target_state).reshape(-1,1)
             current_state = np.mat(cursor_state).reshape(-1,1)
             int_state = self._run_fbcontroller(self.F_dict[task_state], current_state, target_state)
 
