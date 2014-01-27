@@ -38,6 +38,12 @@ class State(object):
     def __repr__(self):
         return str(self.name) 
 
+    def __eq__(self, other):
+        if not isinstance(other, State):
+            return False
+        else:
+            return np.all([self.__dict__[x] == other.__dict__[x] or (np.isnan(self.__dict__[x]) and np.isnan(other.__dict__[x])) for x in self.__dict__])
+            # return self.__dict__
 
 class StateSpace(object):
     def __init__(self, *states):
@@ -86,6 +92,12 @@ class StateSpace(object):
 
     def get_ssm_matrices(self):
         raise NotImplementedError
+
+    def __eq__(self, other):
+        if not isinstance(other, StateSpace):
+            return False
+        else:
+            return self.states == other.states
 
 offset_state = State('offset', stochastic=False, drives_obs=True, order=-1)
 
