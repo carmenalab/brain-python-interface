@@ -149,27 +149,28 @@ class Connection(object):
         '''Sets the channels from which to receive continuous data'''
         if not self._init:
             raise ValueError("Please initialize the connection first")
-        if not self.supports_spikes:
+        if not self.supports_cont:
             raise ValueError("Server does not support continuous data streaming!")
 
-        chans = range(0, self.n_cont, PACKETSIZE-20)+[self.n_cont]
-        for s, e in zip(chans[:-1], chans[1:]):
-            packet = array.array('i', '\x00'*20)
-            packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
-            packet[2] = s+1
-            packet[3] = e
-            raw = packet.tostring()
+        #chans = range(0, self.n_cont, PACKETSIZE-20)+[self.n_cont]
+        #chans = [0, 800]
+        #for s, e in zip(chans[:-1], chans[1:]):
+        packet = array.array('i', '\x00'*20)
+        packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
+        packet[2] = 768
+        packet[3] = 800
+        raw = packet.tostring()
 
-            if channels is None:
-                raw += array.array('b', [1]*(PACKETSIZE - 20)).tostring()
-            else:
-                packet = array.array('b', '\x00'*(PACKETSIZE - 20))
-                for c in channels:
-                    if c - s > 0:
-                        packet[c - s] = 1
-                raw += packet.tostring()
+        if channels is None:
+            raw += array.array('b', [1]*(PACKETSIZE - 20)).tostring()
+        else:
+            packet = array.array('b', [0]*(PACKETSIZE - 20))
+            for c in channels:
+                if c-1 < len(packet):
+                    packet[c] = 1
+            raw += packet.tostring()
             
-            self.sock.sendall(raw)
+        self.sock.sendall(raw)
 
     def start_data(self):
         '''Start the data pump from plexnet remote'''
