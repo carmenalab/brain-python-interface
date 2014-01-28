@@ -1,9 +1,12 @@
 import numpy as np 
 from riglib.stereo_opengl import ik
 
-
-class Assister(object): # should be an abstract class
-    '''Docstring.'''
+class Assister(object):
+    '''
+    Parent class for various methods of assistive BMI. Children of this class 
+    can compute an "optimal" input to the system, which is mixed in with the input
+    derived from the subject's neural input
+    '''
     def __init__(self, start_level, end_level, assist_time, assist_speed):
         self.start_level    = start_level
         self.end_level      = end_level
@@ -24,15 +27,31 @@ class Assister(object): # should be an abstract class
                 if (task.count % 3600 == 0):  # print every minute
                     print "Assist level: ", self.current_level
 
-    def calc_assisted_BMI_state(self, task):
+    def calc_assisted_BMI_state(self, current_state, target_state, mode=None, **kwargs):
         pass  # implement in subclasses -- should return (Bu, assist_weight)
 
 
+class LinearFeedbackControllerAssist(Assister):
+    def __init__(self, A, B, Q, R):
+        self.A = A
+        self.B = B
+        self. F
+        pass
+
+    def calc_assisted_BMI_state(self, current_state, target_state, mode=None, **kwargs):
+        A = self.A
+        B = self.B
+        return A*current_state + B*F*(target_state - current_state)        
+
+
 class SimpleEndpointAssister(Assister):
-    '''Docstring.'''
+    '''
+    Constant velocity toward the target if the cursor is outside the target. If the
+    cursor is inside the target, the speed becomes the distance to the center of the
+    target divided by 2.
+    '''
     def __init__(self, *args, **kwargs):
         super(SimpleEndpointAssister, self).__init__(*args, **kwargs)
-        print 'simple endpoint assister created'
 
     def calc_assisted_BMI_state(self, task, current_level):
         Bu = None # By default, no assist
