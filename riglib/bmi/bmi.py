@@ -202,12 +202,14 @@ class Decoder(object):
         """
         Set element(s) of the BMI state, indexed by name or number
         """
-        alg = self.get_filter()
         if isinstance(idx, int):
-            alg.state.mean[idx, 0] = value
+            self.filt.state.mean[idx, 0] = value
+        elif idx == 'q':
+            pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]), range(len(self.states)))
+            self.filt.state.mean[pos_states, 0] = value
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
-            alg.state.mean[idx, 0] = value
+            self.filt.state.mean[idx, 0] = value
         elif np.iterable(idx):
             [self.__setitem__(k, val) for k, val in izip(idx, value)]
         else:
@@ -228,9 +230,8 @@ class Decoder(object):
         Set decoder state after un-pickling
         """
         self.__dict__.update(state)
-        alg = self.get_filter()
-        alg._pickle_init()
-        alg._init_state()
+        self.filt._pickle_init()
+        self.filt._init_state()
 
         if not hasattr(self, 'n_subbins'):
             self.n_subbins = 1
@@ -264,7 +265,6 @@ class Decoder(object):
         Get the state of the decoder (mean of the Gaussian RV representing the
         state of the BMI)
         '''
-        #alg = self.get_filter()
         return np.array(self.filt.state.mean).ravel()
 
     def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,

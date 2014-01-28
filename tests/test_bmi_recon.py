@@ -71,6 +71,6 @@ parser.add_argument('--n_iter', help='', type=int, action="store", default=-1)
 args = parser.parse_args()
 
 n_iter = args.n_iter
-test_suite = unittest.TestSuite([TestPPFCLDA(), ]) # TestRML(), TestPPFCLDA(), TestRMLWithAssist()
+test_suite = unittest.TestSuite([TestRMLWithAssist(), ]) # TestRML(), TestPPFCLDA(), TestRMLWithAssist()
 # test_suite = unittest.TestSuite([TestFixedPPF(), TestFixedKF(), TestPPFCLDA()])
 unittest.TextTestRunner(verbosity=2).run(test_suite)
