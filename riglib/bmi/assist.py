@@ -69,7 +69,6 @@ class SimpleEndpointAssister(Assister):
     def __init__(self, *args, **kwargs):
         super(SimpleEndpointAssister, self).__init__(*args, **kwargs)
 
-    def __call__(self)
     def calc_assisted_BMI_state(self, task, current_level):
         Bu = None # By default, no assist
         assist_weight = 0.

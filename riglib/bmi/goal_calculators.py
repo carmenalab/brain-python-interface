@@ -45,7 +45,9 @@ class TwoLinkJointGoal(object):
 class PlanarMultiLinkJointGoal(mp_calc.FuncProxy):
     def __init__(self, ssm, shoulder_anchor, kin_chain, multiproc=False, init_resp=None):
         def fn(endpt_location, **kwargs):
-            print endpt_location
-            return kin_chain.inverse_kinematics(endpt_location - shoulder_anchor, **kwargs)
+            joint_pos = kin_chain.inverse_kinematics(endpt_location - shoulder_anchor, **kwargs)
+            target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
+            print "other process", target_state
+            return target_state
         super(PlanarMultiLinkJointGoal, self).__init__(fn, multiproc=multiproc, waiting_resp='prev', init_resp=init_resp)
 

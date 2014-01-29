@@ -13,6 +13,7 @@ import time
 from riglib import mp_calc
 reload(mp_calc)
 
+reload(assist)
 reload(robot_arms)
 reload(goal_calculators)
 
@@ -51,34 +52,17 @@ print "starting position"
 print starting_pos_ps
 print "error = %g" % np.linalg.norm(cursor_pos - starting_pos_ps)
 
-
-if 0:
-	target_joint_space = []
-	for k in range(n_targets):
-		joint_pos = chain.inverse_kinematics(target_list[k] - shoulder_anchor, verbose=True, n_particles=1000, eps=0.05, n_iter=20)
-		target_joint_space.append(joint_pos)
-
-	target_joint_space = np.vstack(target_joint_space)
-
-# from riglib.bmi import train, feedback_controllers
-# A, B, W = train.tentacle_2D_state_space.get_ssm_matrices()
-# Q = np.mat(np.diag(np.hstack([chain.link_lengths, np.zeros(5)])))
-# R = np.mat(np.eye(B.shape[1]))
-# F = feedback_controllers.dlqr(A, B, Q, R)
-
 assister = assist.TentacleAssist(ssm=train.tentacle_2D_state_space, kin_chain=chain)
 
 q_start = chain.inverse_kinematics(np.array([5., 0., 5.]) - shoulder_anchor, verbose=True, n_particles=500, eps=0.05, n_iter=10)
-
 x_init = np.hstack([q_start, np.zeros_like(q_start), 1])
 x_init = np.mat(x_init).reshape(-1, 1)
 x = [x_init]
+goal_calc = goal_calculators.PlanarMultiLinkJointGoal(train.tentacle_2D_state_space, shoulder_anchor, chain, multiproc=True, init_resp=x_init)
 
 target_idx = 0
 k = 0
 cursor_pos_hist = []
-
-goal_calc = goal_calculators.PlanarMultiLinkJointGoal(train.tentacle_2D_state_space, shoulder_anchor, chain, multiproc=True, init_resp=q_start)
 
 target_joint_pos = chain.inverse_kinematics(target_list[target_idx] - shoulder_anchor, verbose=True, n_particles=500, eps=0.05, n_iter=10)
 target = target_list[target_idx] - shoulder_anchor	
@@ -94,27 +78,12 @@ while True:
 		target_idx += 1
 		if target_idx >= n_targets: break
 		target = target_list[target_idx] - shoulder_anchor	
-		# target_joint_pos = chain.inverse_kinematics(target_list[target_idx] - shoulder_anchor, verbose=True, n_particles=500, eps=0.05, n_iter=10)
 
-	# v1
-	# target = target_list[target_idx] - shoulder_anchor
-	# target_joint_pos = target_joint_space[target_idx]
-	# target_state = np.hstack([target_joint_pos, np.zeros_like(target_joint_pos), 1]).reshape(-1, 1)
-
-	# v2
-	
-	# target_state = np.hstack([target_joint_pos, np.zeros_like(target_joint_pos), 1]).reshape(-1, 1)	
-
-	# v3
-	target_joint_pos = goal_calc(target_list[target_idx], verbose=True, n_particles=500, eps=0.05, n_iter=10)
-	# if target_joint_pos == None:
-	# 	# print 'none'
-	# 	target_joint_pos = q_start
-	target_state = np.hstack([target_joint_pos, np.zeros_like(target_joint_pos), 1]).reshape(-1, 1)	
+	target_state = goal_calc(target_list[target_idx], verbose=True, n_particles=500, eps=0.05, n_iter=10)
+	target_state = np.mat(target_state.reshape(-1, 1))
 
 	current_state = x[-1]
 	x_next = assister(current_state, target_state)
-	# x_next = A*current_state + B*F*(target_state - current_state)
 
 	x.append(x_next)
 	k += 1
@@ -127,38 +96,3 @@ plt.figure()
 plt.plot(cursor_pos_hist[:,0], cursor_pos_hist[:,2])
 plt.scatter(endpoint_locations[:,0], endpoint_locations[:,2])
 plt.show()
-
-# ### Run a feedback controller to the target
-# target_idx = 0
-# speed = 5 # cm/sec
-# DT = 1./60
-
-# k = 0
-# cursor_pos_hist = []
-# while target_idx < 3:
-# 	if k % 100 == 0: print "time", k * 1./60
-# 	# evaluate the cursor position
-# 	cursor_pos = chain.endpoint_pos(joint_pos)
-# 	cursor_pos_hist.append(cursor_pos)
-
-# 	target = target_list[target_idx] - shoulder_anchor
-# 	# print np.linalg.norm(cursor_pos - target)
-# 	if np.linalg.norm(cursor_pos - target) < 1.:
-# 		print target_idx
-# 		target_idx += 1
-# 		if target_idx >= n_targets: break
-# 		target = target_list[target_idx] - shoulder_anchor
-
-# 	# intended velocity
-# 	int_vel = (target - cursor_pos)/np.linalg.norm(target - cursor_pos) * speed
-# 	int_next_pos = cursor_pos + int_vel * DT
-
-# 	# run the IK
-# 	joint_pos = chain.inverse_kinematics_pso(int_next_pos, joint_pos, verbose=True, time_limit=0.100, n_particles=20, eps=0.008)
-# 	k += 1
-
-# cursor_pos_hist = np.vstack(cursor_pos_hist)
-# cursor_pos_hist = cursor_pos_hist + shoulder_anchor
-# plt.figure()
-# plt.plot(cursor_pos_hist[:,0], cursor_pos_hist[:,2])
-# plt.show()
