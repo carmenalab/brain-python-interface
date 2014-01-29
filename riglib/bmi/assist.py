@@ -30,18 +30,34 @@ class Assister(object):
     def calc_assisted_BMI_state(self, current_state, target_state, mode=None, **kwargs):
         pass  # implement in subclasses -- should return (Bu, assist_weight)
 
+    def __call__(self, *args, **kwargs):
+        return self.calc_assisted_BMI_state(*args, **kwargs)
 
 class LinearFeedbackControllerAssist(Assister):
     def __init__(self, A, B, Q, R):
         self.A = A
         self.B = B
-        self. F
-        pass
+        self.F = feedback_controllers.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, mode=None, **kwargs):
         A = self.A
         B = self.B
-        return A*current_state + B*F*(target_state - current_state)        
+        F = self.F
+        return A*current_state + B*F*(target_state - current_state)
+
+class TentacleAssist(LinearFeedbackControllerAssist):
+    def __init__(self, *args, **kwargs):
+        kin_chain = kwargs.pop('kin_chain')
+        ssm = kwargs.pop('ssm')
+        
+        from riglib.bmi import feedback_controllers
+        A, B, W = ssm.get_ssm_matrices()
+        Q = np.mat(np.diag(np.hstack([kin_chain.link_lengths, np.zeros(5)])))
+        R = np.mat(np.eye(B.shape[1]))
+
+        self.A = A
+        self.B = B
+        self.F = feedback_controllers.dlqr(A, B, Q, R)
 
 
 class SimpleEndpointAssister(Assister):
@@ -53,6 +69,7 @@ class SimpleEndpointAssister(Assister):
     def __init__(self, *args, **kwargs):
         super(SimpleEndpointAssister, self).__init__(*args, **kwargs)
 
+    def __call__(self)
     def calc_assisted_BMI_state(self, task, current_level):
         Bu = None # By default, no assist
         assist_weight = 0.

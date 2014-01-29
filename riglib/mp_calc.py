@@ -1,5 +1,8 @@
 import multiprocessing as mp
 import time
+from itertools import izip
+import numpy as np
+import Queue
 
 class MPCompute(mp.Process):
     """
@@ -49,7 +52,7 @@ class MPCompute(mp.Process):
         self.done.set()
 
 class FuncProxy(object):
-    def __init__(self, fn, multiproc=False, waiting_resp=None):
+    def __init__(self, fn, multiproc=False, waiting_resp=None, init_resp=None):
         self.multiproc = multiproc
         if self.multiproc:
             # create the queues
@@ -67,7 +70,7 @@ class FuncProxy(object):
         assert waiting_resp in [None, 'prev'], "Unrecognized waiting_resp"
         self.waiting_resp = waiting_resp
 
-        self.prev_result = None
+        self.prev_result = init_resp
         self.prev_input = None
         self.waiting = False
 
@@ -85,11 +88,33 @@ class FuncProxy(object):
         except:
             traceback.print_exc()
 
-    def __call__(self, *args, **kwargs):
-        if self.multiproc:
-            input_data = (args, kwargs)
-            input_same_as_last = input_data == self.prev_input
+    def input_same(self, stuff):
+        args, kwargs = stuff
+        if self.prev_input == None:
+            return False
 
+        args_same = True
+        for a1, a2 in izip(args, self.prev_input[0]):
+            try: 
+                args_same = args_same and np.all(a1 == a2)
+            except ValueError:
+                args_same = args_same and np.array_equal(a1, a2)
+
+        kwargs_same = kwargs.keys() == self.prev_input[1].keys()
+
+        for k1, k2 in izip(kwargs.values(), self.prev_input[1].values()):
+            try:
+                kwargs_same = kwargs_same and np.all(k1 == k2)
+            except:
+                kwargs_same = kwargs_same and np.array_equal(k1, k2)
+
+        return args_same and kwargs_same
+
+
+    def __call__(self, *args, **kwargs):
+        input_data = (args, kwargs)
+        input_same_as_last = self.input_same(input_data) #input_data == self.prev_input        
+        if self.multiproc:
             if input_same_as_last and not self.waiting:
                 return self.prev_result
 
@@ -103,7 +128,16 @@ class FuncProxy(object):
                 self.waiting = True
                 return self._stuff()
         else:
-            return fn(*args, **kwargs)
+            
+            if input_same_as_last:
+                return self.prev_result
+            else:
+                # print args
+                # print kwargs
+                # import pdb; pdb.set_trace()
+                self.prev_input = input_data
+                self.prev_result = self.fn(*args, **kwargs)
+                return self.prev_result
 
     def __del__(self):
         # Stop the child process if one was spawned
