@@ -1,5 +1,6 @@
 import numpy as np 
 from riglib.stereo_opengl import ik
+from riglib.bmi import feedback_controllers
 
 class Assister(object):
     '''
@@ -37,13 +38,11 @@ class LinearFeedbackControllerAssist(Assister):
     def __init__(self, A, B, Q, R):
         self.A = A
         self.B = B
-        self.F = feedback_controllers.dlqr(A, B, Q, R)
+        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-        A = self.A
         B = self.B
         F = self.F
-        # Bu = A*current_state + B*F*(target_state - current_state)
         Bu = assist_level * B*F*(target_state - current_state)
         assist_weight = assist_level
         return Bu, assist_weight
@@ -53,14 +52,15 @@ class TentacleAssist(LinearFeedbackControllerAssist):
         kin_chain = kwargs.pop('kin_chain')
         ssm = kwargs.pop('ssm')
         
-        from riglib.bmi import feedback_controllers
         A, B, W = ssm.get_ssm_matrices()
+
+        # TODO state dimension is clearly hardcoded below!!!!
         Q = np.mat(np.diag(np.hstack([kin_chain.link_lengths, np.zeros(5)])))
         R = 10000*np.mat(np.eye(B.shape[1]))
 
         self.A = A
         self.B = B
-        self.F = feedback_controllers.dlqr(A, B, Q, R)
+        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, *args, **kwargs):
         Bu, _ = super(TentacleAssist, self).calc_assisted_BMI_state(*args, **kwargs)

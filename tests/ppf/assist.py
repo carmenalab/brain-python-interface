@@ -29,7 +29,7 @@ A = dec.filt.A
 ## F.append(np.zeros([3, 7]))
 ## for k in range(num_assist_levels):
 ## 
-##     F_k = np.array(feedback_controllers.dlqr(A, B, Q, R, eps=1e-15))
+##     F_k = np.array(feedback_controllers.LQRController.dlqr(A, B, Q, R, eps=1e-15))
 ##     F.append(F_k)
 ## 
 ## F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
@@ -43,7 +43,7 @@ def calc_F(scale_factor):
     
     Q = np.mat(np.diag([w_x, w_x, w_x, w_v, w_v, w_v, 0]))
     R = np.mat(np.diag([w_r, w_r, w_r]))
-    F = feedback_controllers.dlqr(A, B, Q, R, eps=1e-15)
+    F = feedback_controllers.LQRController.dlqr(A, B, Q, R, eps=1e-15)
     return F
 
 def calc_traj(A, B, F, n_steps=10000):

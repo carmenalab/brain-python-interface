@@ -8,6 +8,7 @@ import time
 import cmath
 from itertools import izip
 import tables
+import re
 
 
 inv = np.linalg.inv
@@ -170,14 +171,33 @@ class OFCLearner3DEndptPPF(OFCLearner):
         Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
         R = np.mat(np.diag([w_r, w_r, w_r]))
         
-        F = feedback_controllers.dlqr(A, B, Q, R)
+        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
         F_dict = dict(target=F, hold=F)
         super(OFCLearner3DEndptPPF, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
         # Tell AdaptiveBMI that this learner wants the most recent output
         # of the decoder rather than the second most recent, to matcn MATLAB
         self.input_state_index = 0
+
+class FCModeDict(dict):
+    def __getitem__(self, key):
+        keys = self.keys()
+        matching_keys = filter(lambda x: re.match(x, key), keys)
+        if len(matching_keys) == 0:
+            raise KeyError
+        elif len(matching_keys) > 1:
+            raise ValueError("ambiguous match!")
+        else:
+            return super(FCModeDict, self).__getitem__(matching_keys[0])
         
+class OFCLearnerTentacle(OFCLearner):
+    def __init__(self, batch_size, A, B, Q, R, *args, **kwargs):
+        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        F_dict = FCModeDict()
+        F_dict['.*'] = F
+        super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+
 class CursorGoalLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):
         self.int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
