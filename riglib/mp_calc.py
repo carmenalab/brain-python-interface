@@ -70,21 +70,24 @@ class FuncProxy(object):
         assert waiting_resp in [None, 'prev'], "Unrecognized waiting_resp"
         self.waiting_resp = waiting_resp
 
-        self.prev_result = init_resp
+        self.prev_result = (init_resp, 0)
         self.prev_input = None
         self.waiting = False
+
+    def reset(self):
+        self.prev_input = None
 
     def _stuff(self):
         try:
             output_data = self.result_queue.get_nowait()
             self.prev_result = output_data
             self.waiting = False
-            return output_data
+            return output_data, True
         except Queue.Empty:
             if self.waiting_resp == None:
                 return None
             elif self.waiting_resp == 'prev':
-                return self.prev_result
+                return self.prev_result, False
         except:
             traceback.print_exc()
 
@@ -116,28 +119,25 @@ class FuncProxy(object):
         input_same_as_last = self.input_same(input_data) #input_data == self.prev_input        
         if self.multiproc:
             if input_same_as_last and not self.waiting:
-                return self.prev_result
+                return self.prev_result, False
 
             elif input_same_as_last and self.waiting:
                 # Return the new result if it's available, otherwise the previous result
                 return self._stuff()
 
             elif not input_same_as_last:
+                print "queuing job"
                 self.work_queue.put(input_data)    
                 self.prev_input = input_data
                 self.waiting = True
                 return self._stuff()
         else:
-            
             if input_same_as_last:
-                return self.prev_result
+                return self.prev_result, False
             else:
-                # print args
-                # print kwargs
-                # import pdb; pdb.set_trace()
                 self.prev_input = input_data
                 self.prev_result = self.fn(*args, **kwargs)
-                return self.prev_result
+                return self.prev_result, True
 
     def __del__(self):
         # Stop the child process if one was spawned

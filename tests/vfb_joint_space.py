@@ -36,6 +36,7 @@ n_targets = target_list.shape[0]
 chain = robot_arms.PlanarXZKinematicChain([15, 15, 5, 5])
 chain.joint_limits = [(-pi, pi), (-pi, 0), (-pi/2, pi/2), (-pi/2, 10*pi/180)]
 
+A, B, W = train.tentacle_2D_state_space.get_ssm_matrices()
 
 ### Initialize the state of the arm
 starting_pos_ps = starting_pos_ws - shoulder_anchor
@@ -79,11 +80,15 @@ while True:
 		if target_idx >= n_targets: break
 		target = target_list[target_idx] - shoulder_anchor	
 
-	target_state = goal_calc(target_list[target_idx], verbose=True, n_particles=500, eps=0.05, n_iter=10)
+	target_state, error = goal_calc(target_list[target_idx], verbose=True, n_particles=500, eps=0.05, n_iter=10)
+	if error > 2:
+		goal_calc.reset()
+	# print "approx error", error
 	target_state = np.mat(target_state.reshape(-1, 1))
 
 	current_state = x[-1]
-	x_next = assister(current_state, target_state)
+	Bu, weight = assister(current_state, target_state)
+	x_next = A*current_state + Bu
 
 	x.append(x_next)
 	k += 1

@@ -28,6 +28,7 @@ states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offs
 
 class State(object):
     def __init__(self, name, stochastic=False, drives_obs=False, min_val=np.nan, max_val=np.nan, order=-1):
+        assert not name == 'q', "'q' is a reserved keyword (symbol for generalized robot coordinates) and cannot be used as a state name"
         self.name = name
         self.stochastic = stochastic 
         self.drives_obs = drives_obs
