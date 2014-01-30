@@ -24,7 +24,6 @@ Exp = experiment.make(base_class, feats=feats)
 #params.trait_norm(Exp.class_traits())
 params = dict(session_length=10, arm_visible=True, arm_class='RobotArmGen2D')
 
-seq = models.Sequence.objects.get(id=2)
 if issubclass(Exp, experiment.Sequence):
     gen = genfns.sim_target_seq_generator_multi(8, 1000)
     exp = Exp(gen, **params)
