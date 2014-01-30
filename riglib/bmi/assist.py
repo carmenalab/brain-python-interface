@@ -27,7 +27,7 @@ class Assister(object):
                 if (task.count % 3600 == 0):  # print every minute
                     print "Assist level: ", self.current_level
 
-    def calc_assisted_BMI_state(self, current_state, target_state, mode=None, **kwargs):
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         pass  # implement in subclasses -- should return (Bu, assist_weight)
 
     def __call__(self, *args, **kwargs):
@@ -39,11 +39,14 @@ class LinearFeedbackControllerAssist(Assister):
         self.B = B
         self.F = feedback_controllers.dlqr(A, B, Q, R)
 
-    def calc_assisted_BMI_state(self, current_state, target_state, mode=None, **kwargs):
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         A = self.A
         B = self.B
         F = self.F
-        return A*current_state + B*F*(target_state - current_state)
+        # Bu = A*current_state + B*F*(target_state - current_state)
+        Bu = assist_level * B*F*(target_state - current_state)
+        assist_weight = assist_level
+        return Bu, assist_weight
 
 class TentacleAssist(LinearFeedbackControllerAssist):
     def __init__(self, *args, **kwargs):
@@ -53,11 +56,16 @@ class TentacleAssist(LinearFeedbackControllerAssist):
         from riglib.bmi import feedback_controllers
         A, B, W = ssm.get_ssm_matrices()
         Q = np.mat(np.diag(np.hstack([kin_chain.link_lengths, np.zeros(5)])))
-        R = np.mat(np.eye(B.shape[1]))
+        R = 10000*np.mat(np.eye(B.shape[1]))
 
         self.A = A
         self.B = B
         self.F = feedback_controllers.dlqr(A, B, Q, R)
+
+    def calc_assisted_BMI_state(self, *args, **kwargs):
+        Bu, _ = super(TentacleAssist, self).calc_assisted_BMI_state(*args, **kwargs)
+        assist_weight = 0
+        return Bu, assist_weight
 
 
 class SimpleEndpointAssister(Assister):
@@ -67,23 +75,41 @@ class SimpleEndpointAssister(Assister):
     target divided by 2.
     '''
     def __init__(self, *args, **kwargs):
-        super(SimpleEndpointAssister, self).__init__(*args, **kwargs)
+        self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
+        self.assist_speed = kwargs.pop('assist_speed', 5.)
+        self.target_radius = kwargs.pop('target_radius', 2.)
 
-    def calc_assisted_BMI_state(self, task, current_level):
-        Bu = None # By default, no assist
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        Bu = None
         assist_weight = 0.
 
-        if current_level > 0:
-            cursor_pos      = task.decoder['hand_px', 'hand_py', 'hand_pz']
-            target_pos      = task.target_location
-            decoder_binlen  = task.decoder.binlen
-            speed           = self.assist_speed * decoder_binlen
-            target_radius   = task.target_radius
-
-            Bu = endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen, speed, target_radius, current_level)
-            assist_weight = current_level
+        if assist_level > 0:
+            cursor_pos = np.array(current_state[0:3,0]).ravel()
+            target_pos = np.array(target_state[0:3,0]).ravel()
+            decoder_binlen = self.decoder_binlen
+            speed = self.assist_speed * decoder_binlen
+            target_radius = self.target_radius
+            Bu = endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen, speed, target_radius, assist_level)
+            assist_weight = assist_level 
 
         return Bu, assist_weight
+        pass
+
+    # def calc_assisted_BMI_state(self, task, current_level):
+    #     Bu = None # By default, no assist
+    #     assist_weight = 0.
+
+    #     if current_level > 0:
+    #         cursor_pos      = task.decoder['hand_px', 'hand_py', 'hand_pz']
+    #         target_pos      = task.target_location
+    #         decoder_binlen  = task.decoder.binlen
+    #         speed           = self.assist_speed * decoder_binlen
+    #         target_radius   = task.target_radius
+
+    #         Bu = endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen, speed, target_radius, current_level)
+    #         assist_weight = current_level
+
+    #     return Bu, assist_weight
 
 
 class Joint5DOFEndpointTargetAssister(Assister):
