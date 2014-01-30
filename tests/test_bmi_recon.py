@@ -59,11 +59,11 @@ class TestRMLWithAssist(unittest.TestCase):
 class TestJointRMLWithAssist(unittest.TestCase):
     def runTest(self):
         print "Testing Joint RML block with assist"
-        abs_max_error = bmi_block_reconstruction_error(3134, cls=tasks.KFRMLRecon, n_iter=n_iter)
+        abs_max_error = bmi_block_reconstruction_error(3088, cls=tasks.KFRMLRecon, n_iter=n_iter)
         print abs_max_error
         self.assertTrue(abs_max_error < 1e-10)
 
-te = performance._get_te(3134)
+
 
 import argparse
 parser = argparse.ArgumentParser(description='Analyze perf correlates of KF plant properties')
@@ -71,6 +71,15 @@ parser.add_argument('--n_iter', help='', type=int, action="store", default=-1)
 args = parser.parse_args()
 
 n_iter = args.n_iter
-test_suite = unittest.TestSuite([TestRMLWithAssist(), ]) # TestRML(), TestPPFCLDA(), TestRMLWithAssist()
-# test_suite = unittest.TestSuite([TestFixedPPF(), TestFixedKF(), TestPPFCLDA()])
+tests = []
+# tests.append(TestFixedPPF())
+# tests.append(TestFixedKF())
+# tests.append(TestPPFCLDA())
+# tests.append(TestRML)
+# tests.append(TestRMLWithAssist())
+# tests.append(TestJointRMLWithAssist())
+
+tests = [TestRMLWithAssist(), TestPPFCLDA()]
+
+test_suite = unittest.TestSuite(tests)
 unittest.TextTestRunner(verbosity=2).run(test_suite)
