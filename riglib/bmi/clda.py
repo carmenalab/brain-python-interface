@@ -179,21 +179,31 @@ class OFCLearner3DEndptPPF(OFCLearner):
         # of the decoder rather than the second most recent, to matcn MATLAB
         self.input_state_index = 0
 
-class FCModeDict(dict):
+class RegexKeyDict(dict):
     def __getitem__(self, key):
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
-            raise KeyError
+            raise KeyError("No matching keys were found!")
         elif len(matching_keys) > 1:
-            raise ValueError("ambiguous match!")
+            raise ValueError("Multiple keys match!")
         else:
-            return super(FCModeDict, self).__getitem__(matching_keys[0])
-        
+            return super(RegexKeyDict, self).__getitem__(matching_keys[0])
+
+    def __contains__(self, key):
+        keys = self.keys()
+        matching_keys = filter(lambda x: re.match(x, key), keys)
+        if len(matching_keys) == 0:
+            return False
+        elif len(matching_keys) > 1:
+            raise ValueError("Multiple keys match!")
+        else:
+            return True        
+
 class OFCLearnerTentacle(OFCLearner):
     def __init__(self, batch_size, A, B, Q, R, *args, **kwargs):
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = FCModeDict()
+        F_dict = RegexKeyDict()
         F_dict['.*'] = F
         super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
