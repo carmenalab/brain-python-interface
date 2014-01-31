@@ -105,7 +105,12 @@ class FuncProxy(object):
 
         kwargs_same = kwargs.keys() == self.prev_input[1].keys()
 
-        for k1, k2 in izip(kwargs.values(), self.prev_input[1].values()):
+        for key1, key2 in izip(kwargs.keys(), self.prev_input[1].keys()):
+            k1 = kwargs[key1]
+            k2 = kwargs[key2]
+            if key1 == 'q_start': 
+                continue
+        # for k1, k2 in izip(kwargs.values(), self.prev_input[1].values()):
             try:
                 kwargs_same = kwargs_same and np.all(k1 == k2)
             except:
