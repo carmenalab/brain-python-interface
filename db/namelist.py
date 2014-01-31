@@ -98,10 +98,11 @@ tasks = dict(
     clda_rml_kf_ofc = bmimultitasks.CLDARMLKFOFC,
     clda_kf_cg_sb = bmimultitasks.CLDAControlKFCG,
     arm_plant = manualcontrolmultitasks.ArmPlant,
-    clda_kf_cg_joint_rml = bmimultitasks.CLDAControlKFCGJoint, 
+    clda_kf_cg_joint_rml = bmimultitasks.CLDAControlKFCGJoint,
+    clda_kf_ofc_tentacle_rml = bmimultitasks.CLDAControlTentacle,
 )
 
-arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArm5J2D']
+arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']
 
 ## BMI seed tasks
 # The below list shows which tasks can be used to train new Decoders
@@ -138,5 +139,6 @@ bmis = dict(
     ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
     ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
     kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
+    kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
     )
 

@@ -28,6 +28,7 @@ states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offs
 
 class State(object):
     def __init__(self, name, stochastic=False, drives_obs=False, min_val=np.nan, max_val=np.nan, order=-1):
+        assert not name == 'q', "'q' is a reserved keyword (symbol for generalized robot coordinates) and cannot be used as a state name"
         self.name = name
         self.stochastic = stochastic 
         self.drives_obs = drives_obs
@@ -38,6 +39,12 @@ class State(object):
     def __repr__(self):
         return str(self.name) 
 
+    def __eq__(self, other):
+        if not isinstance(other, State):
+            return False
+        else:
+            return np.all([self.__dict__[x] == other.__dict__[x] or (np.isnan(self.__dict__[x]) and np.isnan(other.__dict__[x])) for x in self.__dict__])
+            # return self.__dict__
 
 class StateSpace(object):
     def __init__(self, *states):
@@ -86,6 +93,12 @@ class StateSpace(object):
 
     def get_ssm_matrices(self):
         raise NotImplementedError
+
+    def __eq__(self, other):
+        if not isinstance(other, StateSpace):
+            return False
+        else:
+            return self.states == other.states
 
 offset_state = State('offset', stochastic=False, drives_obs=True, order=-1)
 
@@ -184,10 +197,46 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
         B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, ndim])])
         return A, B, W
 
+class StateSpaceFourLinkTentacle2D(StateSpace):
+    def __init__(self):
+        super(StateSpaceFourLinkTentacle2D, self).__init__(
+                # position states
+                State('sh_pabd', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
+                State('el_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
+                State('wr_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
+                State('fi_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
+                # velocity states
+                State('sh_vabd', stochastic=True, drives_obs=True, order=1),
+                State('el_vflex', stochastic=True, drives_obs=True, order=1),
+                State('wr_vflex', stochastic=True, drives_obs=True, order=1),
+                State('fi_vflex', stochastic=True, drives_obs=True, order=1),
+                # offset
+                offset_state,
+        )
+
+    def get_ssm_matrices(self, update_rate=0.1):
+        '''
+        State space model from expert data
+        '''
+        Delta_KINARM = 1./10
+        w = 0.01 #0.0007
+        #w = 0.3 # TODO come up with this value more systematically!
+        w_units_resc = w / 1 # velocity will always be in radians/sec
+        a_resampled, w_resampled = state_space_models.resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
+
+        # TODO get the number of dimensions from the arm configuration (i.e. a method to return the order of each state
+        ndim = 4 # NOTE: This is the number of 1st order states, not the dimension of the state vector
+        A = state_space_models._gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
+        W = state_space_models._gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
+        
+        # Control input matrix for SSM for control inputs
+        I = np.mat(np.eye(ndim))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, ndim])])
+        return A, B, W        
 
 endpt_2D_state_space = StateSpaceEndptVel()
 joint_2D_state_space = StateSpaceExoArm2D()
-
+tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
 
 ################################################
 ## Functions to train endpoint velocity decoders
@@ -432,7 +481,7 @@ def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     ''' Get positions and calculate velocity
 
     Note: the two different cases below appear to calculate the velocity in two 
-    different ways. This is purely for legacy reasons, i.e. the second Method
+    different ways. This is purely for legacy reasons, i.e. the second method
     is intentionally slightly different from the first.
     '''
     kin = hdf.root.task[:][key]
@@ -532,20 +581,16 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     return decoder
 
 def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
-    _ssm=endpt_2D_state_space, source='task', kin_var='cursor', shuffle=False, **files):
+    _ssm=None, source='task', kin_var='cursor', shuffle=False, **files):
     '''
     Train a KFDecoder from visual feedback
     '''
     kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
-    if kin_var == 'cursor':
-        # TODO should not have to specify both the kin_var and the state space model
-        _ssm=endpt_2D_state_space
-    elif kin_var == 'joint_angles':
-        _ssm=joint_2D_state_space
-        # cursor_kin = kin
-        # from tasks import manualcontrolmultitasks
-        # shoulder_center = manualcontrolmultitasks.ArmPlant.shoulder_anchor
-        # kin = get_joint_kinematics(cursor_kin, shoulder_center)
+    if _ssm == None:
+        if kin_var == 'cursor':
+            _ssm=endpt_2D_state_space
+        elif kin_var == 'joint_angles':
+            _ssm=joint_2D_state_space
         
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
@@ -561,10 +606,26 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
 
     return decoder
 
-# Wrapper function for training joint decoder bc I don't know how to call above function with different arguments from trainbmi.py
 def _train_joint_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     _ssm=joint_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
-        return _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice,_ssm=_ssm,source=source,kin_var=kin_var,shuffle=shuffle,**files)
+    '''
+    One-liner to train a 2D2L joint BMI. To be removed as soon as the train BMI gui can be updated
+    to have more arguments
+    '''
+    return _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice,
+                                            _ssm=_ssm, source=source, kin_var=kin_var,
+                                            shuffle=shuffle, **files)
+
+def _train_tentacle_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None, None], 
+    _ssm=tentacle_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
+    '''
+    One-liner to train a tentacle BMI. To be removed as soon as the train BMI gui can be updated
+    to have more arguments
+    '''
+    print "using tentacletate space " , _ssm == tentacle_2D_state_space
+    return _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice, 
+                                            _ssm=_ssm, source=source, kin_var=kin_var, 
+                                            shuffle=shuffle, **files)
 
 
 def _train_KFDecoder_visual_feedback_arm(cells=None, binlen=0.1, tslice=[None,None], 

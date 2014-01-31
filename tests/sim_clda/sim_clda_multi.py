@@ -55,7 +55,7 @@ class SimCLDAControlMultiDispl2D(SimTime, WindowDispl2D, bmimultitasks.SimCLDACo
 
         self.hdf = SimHDF()
         self.task_data = SimHDF()
-        SimTime.__init__(self)
+        SimTime.__init__(self, *args, **kwargs)
 
     def create_updater(self):
         clda_input_queue = mp.Queue()
@@ -69,6 +69,8 @@ class SimRML(SimCLDAControlMultiDispl2D):
         self.batch_time = 0.1
         self.half_life  = (20.0, 20.0)
         self.starting_pos = (0., 0., 0.)
+        self.assist_level = 1., 0.
+        self.assist_time = 15.
 
     def create_updater(self):
         self.updater = clda.KFRML(None, None, self.batch_time, self.half_life[0])
@@ -127,7 +129,10 @@ if __name__ == '__main__':
     task = SimRML(gen)
     #task = SimCLDAControlMultiDispl2D_PPF(gen)
     #task = SimCLDAControlMultiDispl2D(gen)
-    
+
+    print 'task created'
+
     self = task
     task.init()
+    print 'task init called'
     task.run()

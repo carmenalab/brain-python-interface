@@ -389,7 +389,6 @@ class SimHDF(object):
         from collections import defaultdict
         self.data = defaultdict(list)
         self.task_data = dict()
-        print "self.task_data", self.task_data
 
     def sendMsg(self, msg):
         pass

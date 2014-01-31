@@ -52,27 +52,40 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
         joint_pos, joint_vel = ik.inv_kin_2D(pos, self.link_lengths[0], self.link_lengths[1], vel)
         return joint_vel[0]['sh_vabd'], joint_vel[0]['el_vflex']
 
+class LQRController(object):
+    def __init__(self, A, B, Q, R, **kwargs):
+        self.A = A
+        self.B = B
+        self.Q = Q
+        self.R = R
+        self.F = self.dlqr(A, B, Q, R, **kwargs)
+
+    def __call__(self, current_state, target_state):
+        Bu = self.B*self.F*(target_state - current_state)
+        return Bu        
+
+    @staticmethod
+    def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-10, dtype=np.mat):
+        if Q_f == None: 
+            Q_f = Q
+
+        if T < np.inf: # Finite horizon
+            K = [None]*T
+            P = Q_f
+            for t in range(0,T-1)[::-1]:
+                K[t] = (R + B.T*P*B).I * B.T*P*A
+                P = Q + A.T*P*A -A.T*P*B*K[t]
+            return dtype(K)
+        else: # Infinite horizon
+            P = Q_f
+            K = np.inf
+            for t in range(max_iter):
+                K_old = K
+                K = (R + B.T*P*B).I * B.T*P*A
+                P = Q + A.T*P*A -A.T*P*B*K 
+                if np.linalg.norm(K - K_old) < eps:
+                    break
+            return dtype(K)
 
 
-def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-10, dtype=np.mat):
-    if Q_f == None: 
-        Q_f = Q
-
-    if T < np.inf: # Finite horizon
-        K = [None]*T
-        P = Q_f
-        for t in range(0,T-1)[::-1]:
-            K[t] = (R + B.T*P*B).I * B.T*P*A
-            P = Q + A.T*P*A -A.T*P*B*K[t]
-        return dtype(K)
-    else: # Infinite horizon
-        P = Q_f
-        K = np.inf
-        for t in range(max_iter):
-            K_old = K
-            K = (R + B.T*P*B).I * B.T*P*A
-            P = Q + A.T*P*A -A.T*P*B*K 
-            if np.linalg.norm(K - K_old) < eps:
-                break
-        return dtype(K)
 
