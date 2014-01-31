@@ -38,6 +38,7 @@ class _parse_num(object):
         return i*self.m
 
 class Basic(object):
+    response_message_length = 16
     def __init__(self):
         self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
         self.set_beeper_volume(128)
@@ -50,6 +51,8 @@ class Basic(object):
         self.port.flushOutput()
         self.port.flushInput()
         self.port.write(fmsg)
+        msg_out = self.port.read(self.response_message_length)
+        return msg_out
 
     def reward(self, length):
         length /= .1
@@ -79,7 +82,7 @@ class Basic(object):
     def set_beeper_volume(self, volume):
         if not (volume >= 0 and volume <= 255):
             raise ValueError("Invalid beeper volume: %g" % volume)
-        self._write('@CS' + '%c' % volume + 'E' + struct.pack('xxx'))
+        return self._write('@CS' + '%c' % volume + 'E' + struct.pack('xxx')) 
 
     def reset(self):
         if loc_config.reward_system_version==0:
