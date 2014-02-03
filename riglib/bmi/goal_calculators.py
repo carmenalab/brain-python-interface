@@ -5,6 +5,8 @@ Calculate the goal state of the BMI for CLDA/assist/simulation
 import numpy as np
 import train
 from riglib import mp_calc
+from riglib.stereo_opengl import ik
+import re
 
 class EndpointControlGoal(object):
     def __init__(self, ssm):
@@ -33,7 +35,7 @@ class TwoLinkJointGoal(object):
         joint_target_state = ik.inv_kin_2D(endpt_location, self.link_lengths[0], self.link_lengths[1])[0]
 
         target_state = []
-        for state in bmi_state_ls:
+        for state in self.ssm.state_names:
             if state == 'offset': # offset state is always 1
                 target_state.append(1)
             elif re.match('.*?_v.*?', state): # Velocity states are always 0

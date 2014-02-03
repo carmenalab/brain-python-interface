@@ -93,41 +93,28 @@ class SimpleEndpointAssister(Assister):
             assist_weight = assist_level 
 
         return Bu, assist_weight
-        pass
-
-    # def calc_assisted_BMI_state(self, task, current_level):
-    #     Bu = None # By default, no assist
-    #     assist_weight = 0.
-
-    #     if current_level > 0:
-    #         cursor_pos      = task.decoder['hand_px', 'hand_py', 'hand_pz']
-    #         target_pos      = task.target_location
-    #         decoder_binlen  = task.decoder.binlen
-    #         speed           = self.assist_speed * decoder_binlen
-    #         target_radius   = task.target_radius
-
-    #         Bu = endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen, speed, target_radius, current_level)
-    #         assist_weight = current_level
-
-    #     return Bu, assist_weight
 
 
-class Joint5DOFEndpointTargetAssister(Assister):
+class Joint5DOFEndpointTargetAssister(SimpleEndpointAssister):
     '''Docstring.'''
-    def __init__(self, *args, **kwargs):
+    def __init__(self, arm, *args, **kwargs):
+        self.arm = arm
         super(Joint5DOFEndpointTargetAssister, self).__init__(*args, **kwargs)
 
-    def calc_assisted_BMI_state(self, task):
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         Bu = None # By default, no assist
         assist_weight = 0.
 
-        if self.current_level > 0:
-            cursor_pos      = task.get_arm_endpoint()
-            target_pos      = task.target_location
-            arm             = task.arm
-            decoder_binlen  = task.decoder.binlen
-            speed           = self.assist_speed * decoder_binlen
-            target_radius   = task.target_radius
+        if assist_level> 0:
+            cursor_joint_pos = np.asarray(current_state)[[1,3],0]
+            cursor_pos       = self.arm.perform_fk(cursor_joint_pos)
+            target_joint_pos = np.asarray(target_state)[[1,3],0]
+            target_pos       = self.arm.perform_fk(target_joint_pos)
+
+            arm              = self.arm
+            decoder_binlen   = self.decoder_binlen
+            speed            = self.assist_speed * decoder_binlen
+            target_radius    = self.target_radius
 
             # Get the endpoint control under full assist
             # Note: the keyword argument "assist_level" is intended to be set to 1. (and not self.current_level) 
@@ -138,16 +125,15 @@ class Joint5DOFEndpointTargetAssister(Assister):
             endpt_pos = Bu_endpoint[0:3]
             endpt_vel = Bu_endpoint[3:6]
 
-            # TODO when the arm configuration changes, these need to be switched!
-            l_forearm, l_upperarm = arm.link_lengths
-            shoulder_center = arm.xfm.move
+            l_upperarm, l_forearm = arm.link_lengths
+            shoulder_center = np.array([0., 0., 0.])#arm.xfm.move
             joint_pos, joint_vel = ik.inv_kin_2D(endpt_pos - shoulder_center, l_upperarm, l_forearm, vel=endpt_vel)
 
             Bu_joint = np.hstack([joint_pos[0].view((np.float64, 5)), joint_vel[0].view((np.float64, 5)), 1]).reshape(-1, 1)
 
             # Downweight the joint assist
-            Bu = self.current_level * np.mat(Bu_joint).reshape(-1,1)
-            assist_weight = self.current_level
+            Bu = assist_level * np.mat(Bu_joint).reshape(-1,1)
+            assist_weight = assist_level
 
         return Bu, assist_weight
 

@@ -17,10 +17,9 @@ pi = np.pi
 
 joint_angles_dtype = [('sh_pflex', np.float64), ('sh_pabd', np.float64), ('sh_prot', np.float64), ('el_pflex', np.float64), ('el_psup', np.float64)]
 joint_vel_dtype = [('sh_vflex', np.float64), ('sh_vabd', np.float64), ('sh_vrot', np.float64), ('el_vflex', np.float64), ('el_vsup', np.float64)]
+
 def get_arm_class_list():
     return [RobotArm2D, RobotArm2J2D]
-
-
 
 def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
     '''
@@ -109,7 +108,7 @@ class RobotArm2D(Group):
         '''
         return self.curr_vecs[0,:]
 
-    def set_endpoint_pos(self,x,y,z, **kwargs):
+    def set_endpoint_pos(self, x, y, z, **kwargs):
         '''
         Positions the arm according to specified endpoint position.
         '''
@@ -127,7 +126,7 @@ class RobotArm2D(Group):
         '''
         Returns the joint angles of the arm in radians
         '''
-        return np.arctan2(self.curr_vecs[0,2],self.curr_vecs[0,0])
+        return np.arctan2(self.curr_vecs[0,2], self.curr_vecs[0,0])
         
 
     def set_joint_pos(self,theta):
@@ -363,11 +362,17 @@ class RobotArm2J2D(RobotArm2D):
         relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
         return self.perform_fk(relangs)      
 
+    # def perform_fk(self, angs):
+    #     abselang = np.sum(angs)
+    #     abselvec = self.link_lengths[0]*np.array([np.cos(abselang), 0, np.sin(abselang)])
+    #     shvec = self.link_lengths[1]*np.array([np.cos(angs[1]), 0, np.sin(angs[1])])
+    #     return abselvec + shvec
+
     def perform_fk(self, angs):
-        abselang = np.sum(angs)
-        abselvec = self.link_lengths[0]*np.array([np.cos(abselang), 0, np.sin(abselang)])
-        shvec = self.link_lengths[1]*np.array([np.cos(angs[1]), 0, np.sin(angs[1])])
-        return abselvec + shvec
+        absvecs = np.zeros(self.curr_vecs.shape)
+        for i in range(self.num_joints):
+            absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs[:i+1])), 0, np.sin(np.sum(angs[:i+1]))])
+        return np.sum(absvecs,axis=0)        
 
     def set_endpoint_pos(self, pos, **kwargs):
         '''
@@ -375,7 +380,7 @@ class RobotArm2J2D(RobotArm2D):
         '''
         if pos is not None:
             angles = self.perform_ik(pos)
-            self.set_joint_pos([angles['el_pflex'], angles['sh_pabd']])
+            self.set_joint_pos([angles['sh_pabd'], angles['el_pflex']])
 
     def perform_ik(self,pos):
         x,y,z = pos
