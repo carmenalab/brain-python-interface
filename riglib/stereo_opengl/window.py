@@ -17,6 +17,7 @@ from models import Group, GroupDispl2D
 from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere
 import time
+from riglib import loc_config
 
 try:
     import pygame
@@ -47,7 +48,7 @@ class Window(LogExperiment):
         self.event = None
 
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
+        os.environ['SDL_VIDEO_WINDOW_POS'] = loc_config.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         
