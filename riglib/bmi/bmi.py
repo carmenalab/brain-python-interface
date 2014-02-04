@@ -207,6 +207,9 @@ class Decoder(object):
         elif idx == 'q':
             pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]), range(len(self.states)))
             self.filt.state.mean[pos_states, 0] = value
+        elif idx == 'q_stoch':
+            pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]) and self.states[k].stochastic, range(len(self.states)))
+            self.filt.state.mean[pos_states, 0] = value
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
             self.filt.state.mean[idx, 0] = value

@@ -56,10 +56,17 @@ class TestRMLWithAssist(unittest.TestCase):
         print abs_max_error
         self.assertTrue(abs_max_error < 1e-10)
 
+class TestJointRML(unittest.TestCase):
+    def runTest(self):
+        print "Testing Joint RML"
+        abs_max_error = bmi_block_reconstruction_error(3040, cls=tasks.KFRMLJointRecon, n_iter=n_iter)
+        print abs_max_error
+        self.assertTrue(abs_max_error < 1e-10)
+
 class TestJointRMLWithAssist(unittest.TestCase):
     def runTest(self):
         print "Testing Joint RML block with assist"
-        abs_max_error = bmi_block_reconstruction_error(3088, cls=tasks.KFRMLRecon, n_iter=n_iter)
+        abs_max_error = bmi_block_reconstruction_error(3088, cls=tasks.KFRMLJointRecon, n_iter=n_iter)
         print abs_max_error
         self.assertTrue(abs_max_error < 1e-10)
 
@@ -79,7 +86,10 @@ tests = []
 # tests.append(TestRMLWithAssist())
 # tests.append(TestJointRMLWithAssist())
 
-tests = [TestRMLWithAssist(), TestPPFCLDA()]
+
+te = performance._get_te(3040)
+
+tests = [TestJointRML(), TestJointRMLWithAssist()]
 
 test_suite = unittest.TestSuite(tests)
 unittest.TextTestRunner(verbosity=2).run(test_suite)
