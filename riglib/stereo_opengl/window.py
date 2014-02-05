@@ -48,7 +48,7 @@ class Window(LogExperiment):
         self.event = None
 
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0" #loc_config.display_start_pos
+        os.environ['SDL_VIDEO_WINDOW_POS'] = loc_config.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         
