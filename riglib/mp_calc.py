@@ -52,7 +52,8 @@ class MPCompute(mp.Process):
         self.done.set()
 
 class FuncProxy(object):
-    def __init__(self, fn, multiproc=False, waiting_resp=None, init_resp=None):
+    def __init__(self, fn, multiproc=False, waiting_resp=None, init_resp=None, verbose=False):
+        self.verbose = verbose
         self.multiproc = multiproc
         if self.multiproc:
             # create the queues
@@ -131,7 +132,7 @@ class FuncProxy(object):
                 return self._stuff()
 
             elif not input_same_as_last:
-                print "queuing job"
+                if self.verbose: print "queuing job"
                 self.work_queue.put(input_data)    
                 self.prev_input = input_data
                 self.waiting = True
