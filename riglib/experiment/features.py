@@ -417,12 +417,15 @@ class RelayPlexon(SinkRegister):
     '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
     def init(self):
         from riglib import sink
+        print "self.ni_out()", self.ni_out()
         self.nidaq = sink.sinks.start(self.ni_out)
+        print "self.nidaq", self.nidaq
         super(RelayPlexon, self).init()
 
     @property
     def ni_out(self):
         from riglib import nidaq
+        print 'nidaq.SendAll', nidaq.SendAll
         return nidaq.SendAll
 
     @property
