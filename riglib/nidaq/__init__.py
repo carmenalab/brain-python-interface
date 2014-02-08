@@ -33,6 +33,7 @@ class SendAll(object):
             pcidio.sendRow(self.systems[system], idx)
 
     def rstart(self, state):
+        print "Sending rstart command"
         pcidio.rstart(state)
 
 class SendRow(SendAll):
