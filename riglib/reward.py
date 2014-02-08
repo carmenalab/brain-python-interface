@@ -41,7 +41,7 @@ class Basic(object):
     response_message_length = 16
     def __init__(self):
         self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
-        self.set_beeper_volume(128)
+        if loc_config.reward_system_version==1: self.set_beeper_volume(128)
         time.sleep(.5)
         self.reset()
 
@@ -51,8 +51,8 @@ class Basic(object):
         self.port.flushOutput()
         self.port.flushInput()
         self.port.write(fmsg)
-        msg_out = self.port.read(self.response_message_length)
-        return msg_out
+        #msg_out = self.port.read(self.response_message_length)
+        #return msg_out
 
     def reward(self, length):
         length /= .1
