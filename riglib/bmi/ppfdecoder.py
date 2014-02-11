@@ -4,7 +4,7 @@ import numpy as np
 
 import bmi
 from bmi import GaussianState
-import statsmodels.api as sm # GLM fitting module
+import statsmodels.api as sm # GLM fitting module #!!!!!!!
 from scipy.io import loadmat
 import time
 import cmath
