@@ -40,7 +40,8 @@ PlexNetClient::PlexNetClient( const char* hostAddress, int port, PlexNetClient::
 PlexNetClient::~PlexNetClient( void )
 {
     if ( m_Socket != INVALID_SOCKET ) {
-        closesocket( m_Socket );
+        // closesocket( m_Socket );
+        close( m_Socket );
     }
 #ifdef WIN32
     WSACleanup();
@@ -125,12 +126,14 @@ void PlexNetClient::SendPacket()
         attempt++;
         if ( m_Protocol == ProtocolTCPIP ) {
             bytesSentInSingleSend = send( m_Socket, &m_SendBuffer[0] + totalBytesSent, PACKETSIZE - totalBytesSent, 0 );
-            if ( bytesSentInSingleSend == SOCKET_ERROR ) {
+            // if ( bytesSentInSingleSend == SOCKET_ERROR ) {
+            if ( bytesSentInSingleSend == -1 ) {
                 throw runtime_error( "Unable to send: send error" );
             }
         } else { // UDP
             bytesSentInSingleSend = sendto( m_Socket, &m_SendBuffer[0] + totalBytesSent, PACKETSIZE - totalBytesSent, 0, ( SOCKADDR* )&m_SocketAddress, sizeof( m_SocketAddress ) );
-            if ( bytesSentInSingleSend == SOCKET_ERROR ) {
+            // if ( bytesSentInSingleSend == SOCKET_ERROR ) {
+            if ( bytesSentInSingleSend == -1 ) {
                 throw runtime_error( "Unable to send: send error" );
             }
         }
@@ -153,12 +156,14 @@ void PlexNetClient::ReceivePacket()
         attempt++;
         if ( m_Protocol == ProtocolTCPIP ) {
             bytesReceivedInSingleRecv = recv( m_Socket, &m_ReceiveBuffer[0] + totalBytesReceived, PACKETSIZE - totalBytesReceived, 0 );
-            if ( bytesReceivedInSingleRecv == SOCKET_ERROR ) {
+            // if ( bytesReceivedInSingleRecv == SOCKET_ERROR ) {
+            if ( bytesReceivedInSingleRecv == -1 ) {
                 throw runtime_error( "Unable to receive: receive error" );
             }
         } else { // UDP
             bytesReceivedInSingleRecv = recvfrom( m_Socket, &m_ReceiveBuffer[0] + totalBytesReceived, PACKETSIZE - totalBytesReceived, 0, ( SOCKADDR* )&SenderAddr, &SenderAddrSize );
-            if ( bytesReceivedInSingleRecv == SOCKET_ERROR ) {
+            // if ( bytesReceivedInSingleRecv == SOCKET_ERROR ) {
+            if ( bytesReceivedInSingleRecv == -1 ) {
                 throw runtime_error( "Unable to receive: receive error" );
             }
         }
