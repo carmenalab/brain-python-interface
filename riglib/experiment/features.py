@@ -125,6 +125,24 @@ class Joystick(object):
         self.joystick.join()
         super(Joystick, self).join()
 
+class DualJoystick(object):
+    def init(self):
+        from riglib import source, phidgets
+        System = phidgets.make(4, 1)
+        self.joystick = source.DataSource(System)
+        super(Joystick, self).init()
+
+    def run(self):
+        self.joystick.start()
+        try:
+            super(Joystick, self).run()
+        finally:
+            self.joystick.stop()
+
+    def join(self):
+        self.joystick.join()
+        super(Joystick, self).join()
+
 
 ########################################################################################################
 # Eyetracker datasources
