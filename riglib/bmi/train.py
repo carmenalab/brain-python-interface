@@ -668,7 +668,10 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
     if tslice[1]==None:
         tslice=[0,int(last_spk)]
     else:
-        tslice=[tslice[0], np.min(tslice[1],int(last_spk))]
+        print tslice
+        print tslice[1]
+        print int(last_spk)
+        tslice=[tslice[0], np.min([tslice[1],int(last_spk)])]
 
     tmask, rows = _get_tmask(plx_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'])
     tmask_continuous = np.array_equal(np.unique(np.diff(np.nonzero(tmask)[0])), np.array([1]))
