@@ -24,7 +24,7 @@ int main( int argc, char* argv[] )
     // IP address of the remote machine to which the OPX/MAP system is connected;
     // substitute the actual IP address of your machine running PlexNetLocal
     // look up IP address at the top of PlexNetLocal dialog
-    string hostAddress = "10.0.1.16";
+    string hostAddress = "10.0.0.13";
 
     // Port used by PlexNet on the machine to which the OPX/MAP system is connected.
     // It can be set in the PlexNetLocal options dialog.
@@ -109,9 +109,10 @@ int main( int argc, char* argv[] )
             //contChannelsSelection[contChannel - 1 ] = 1;
 
             // select all continuous channels
-            for ( int i = 0; i < contChannelsSelection.size(); i++ ) {
-                contChannelsSelection[i] = 1;
-            }
+            // for ( int i = 0; i < contChannelsSelection.size(); i++ ) {
+            //     contChannelsSelection[i] = 1;
+            // }
+            contChannelsSelection[512] = 1;
             client.SelectContinuousChannels( contChannelsSelection );
 
             client.StartDataPump();
@@ -200,6 +201,6 @@ void ProcessPacket( const std::vector<char>& receiveBuffer )
         if ( wave.Type == PL_ExtEventType ) {
             nts++;
         }
-        cout << "type= " << ( int )wave.Type << " channel=" << ( int )wave.Channel << " unit=" << ( int )wave.Unit << " t=" << wave.TimeStamp << endl;
+        cout << "type=" << ( int )wave.Type << " channel=" << ( int )wave.Channel << " unit=" << ( int )wave.Unit << " t=" << wave.TimeStamp << endl;
     }
 }
