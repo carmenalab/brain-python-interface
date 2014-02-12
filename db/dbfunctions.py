@@ -10,7 +10,7 @@ import tables
 import matplotlib.pyplot as plt
 import time, datetime
 from scipy.stats import nanmean
-import plotutil
+import plotutil #!!!!!!
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
@@ -239,6 +239,17 @@ def get_hdf(entry):
     hdf_filename = get_hdf_file(entry)
     hdf = tables.openFile(hdf_filename)
     return hdf
+
+def get_binned_spikes_file(entry):
+    ''' Return binned spike file if it exists'''
+    entry = lookup_task_entries(entry)
+    fname = paths.data_path+'binned_spikes/'+entry.name+'.npz'
+    print fname
+    if os.path.isfile(fname):
+        return np.load(fname)
+    else:
+        print 'Not found'
+        return None
 
 def get_plx_file(entry):
     '''

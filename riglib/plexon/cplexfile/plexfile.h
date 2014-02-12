@@ -33,10 +33,10 @@ struct PlexFile {
     
     PL_FileHeader header;
     PL_ChanHeader chan_info[MAX_SPIKE_CHANNELS];
-    PL_EventHeader event_info[MAX_EVENT_CHANNELS];
     PL_SlowChannelHeader cont_head[MAX_SLOW_CHANNELS];
     PL_SlowChannelHeader* cont_info[4];
-    
+    PL_EventHeader event_info[MAX_EVENT_CHANNELS];
+
     bool has_cache;
     FILE* fp;
     unsigned long nframes;

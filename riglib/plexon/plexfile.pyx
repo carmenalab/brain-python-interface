@@ -25,6 +25,8 @@ cdef class Datafile:
     cdef public ContinuousFS spkc
     cdef public ContinuousFS lfp
     cdef public ContinuousFS analog
+    
+    cdef public object header
 
     def __cinit__(self, bytes filename):
         if not os.path.exists(filename):
@@ -35,6 +37,29 @@ cdef class Datafile:
             raise MemoryError
 
         self.length = self.plxfile.length
+        self.header = dict(
+            version=self.plxfile.header.Version,
+            n_events=self.plxfile.header.NumEventChannels,
+            n_slows=self.plxfile.header.NumSlowChannels,
+        )
+        self.header['chan_info'] = [dict(
+            name=self.plxfile.chan_info[i].Name,
+            signame=self.plxfile.chan_info[i].SIGName,
+            channel=self.plxfile.chan_info[i].Channel,
+            rate=self.plxfile.chan_info[i].WFRate,
+            sig=self.plxfile.chan_info[i].SIG,
+            ref=self.plxfile.chan_info[i].Ref,
+            gain=self.plxfile.chan_info[i].Gain,
+            
+        ) for i in range(self.plxfile.header.NumDSPChannels)]
+        self.header['slow_info'] = [dict(
+            name=self.plxfile.cont_head[i].Name,
+            channel=self.plxfile.cont_head[i].Channel,
+            freq=self.plxfile.cont_head[i].ADFreq,
+            gain=self.plxfile.cont_head[i].Gain,
+            enabled=self.plxfile.cont_head[i].Enabled,
+            preampgain=self.plxfile.cont_head[i].PreAmpGain,
+        ) for i in range(self.plxfile.header.NumSlowChannels)]
 
     def load(self, bool recache):
         plx_load(self.plxfile, recache)

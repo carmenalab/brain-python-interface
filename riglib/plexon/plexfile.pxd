@@ -64,6 +64,14 @@ cdef extern from "plexread.h":
         unsigned char reserved
         unsigned short ChanId
         int PadHeader[10]
+    
+    ctypedef struct PL_SlowChannelHeader:
+        char    Name[32]
+        int     Channel
+        int     ADFreq
+        int     Gain
+        int     Enabled
+        int     PreAmpGain
 
     ctypedef enum ChanType:
         spike, event, wideband, spkc, lfp, analog
@@ -75,6 +83,7 @@ cdef extern from "plexread.h":
 
         PL_FileHeader header
         PL_ChanHeader* chan_info
+        PL_SlowChannelHeader* cont_head
 
     ctypedef struct Spike:
         pass
