@@ -129,19 +129,19 @@ class DualJoystick(object):
     def init(self):
         from riglib import source, phidgets
         System = phidgets.make(4, 1)
-        self.joystick = source.DataSource(System)
-        super(Joystick, self).init()
+        self.dualjoystick = source.DataSource(System)
+        super(DualJoystick, self).init()
 
     def run(self):
-        self.joystick.start()
+        self.dualjoystick.start()
         try:
-            super(Joystick, self).run()
+            super(DualJoystick, self).run()
         finally:
-            self.joystick.stop()
+            self.dualjoystick.stop()
 
     def join(self):
-        self.joystick.join()
-        super(Joystick, self).join()
+        self.dualjoystick.join()
+        super(DualJoystick, self).join()
 
 
 ########################################################################################################
