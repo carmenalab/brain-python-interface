@@ -15,7 +15,9 @@
 #include <iostream>
 #include "PlexNetClient.h"
 
-void ProcessPacket( const std::vector<char>& receiveBuffer );
+#include <fstream>
+
+void ProcessPacket( const std::vector<char>& receiveBuffer, PL_WaveLong& wave);
 
 using namespace std;
 
@@ -116,12 +118,22 @@ int main( int argc, char* argv[] )
 
             client.StartDataPump();
 
+            // short data[10000] = {}
+            ofstream foo("plexnet_cpp.dat",ios::out | ios::binary);
+            int n_pts = 0;
+
             // receive and process data
-            int numberOfPacketsToProcess = 8;
+            int numberOfPacketsToProcess = 100;
             for ( int i = 0; i < numberOfPacketsToProcess; i++ ) {
                 client.ReceivePacket();
-                ProcessPacket( client.GetReceiveBuffer() );
+                // ProcessPacket( client.GetReceiveBuffer() );
+                PL_WaveLong wave;
+                ProcessPacket( client.GetReceiveBuffer() , wave);
+                if (wave.Channel == 512) {
+                    foo.write((char *)&wave.WaveForm, wave.NumberOfDataWords*sizeof(short));
+                }
             }
+            foo.close();
         }
         return 1;
     } catch ( exception ex ) {
@@ -132,7 +144,7 @@ int main( int argc, char* argv[] )
     return 0;
 }
 
-void ProcessPacket( const std::vector<char>& receiveBuffer )
+void ProcessPacket( const std::vector<char>& receiveBuffer, PL_WaveLong& wave)
 {
     if ( receiveBuffer.size() == 0 ) {
         return;
@@ -144,7 +156,7 @@ void ProcessPacket( const std::vector<char>& receiveBuffer )
     int NumMMFDropped = ibuf[3];
 
     PL_DataBlockHeader db;
-    PL_WaveLong wave;
+    // PL_WaveLong wave;
     int sizeOfDataBlockHeader = sizeof( db );
     int sizeOfWaveLong = sizeof( PL_WaveLong );
 
@@ -191,7 +203,7 @@ void ProcessPacket( const std::vector<char>& receiveBuffer )
             memcpy( wave.WaveForm, buf, nbuf * 2 );
         }
         if ( wave.Type == PL_SingleWFType ) { // spike timestamp, with or without waveform values
-            if ( nbuf > 0 )	{ // it has waveform values
+            if ( nbuf > 0 ) { // it has waveform values
                 nwaves++;
             } else { // no waveform values, timestamp only
                 nts++;
