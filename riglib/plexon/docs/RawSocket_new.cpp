@@ -114,13 +114,15 @@ int main( int argc, char* argv[] )
             // for ( int i = 0; i < contChannelsSelection.size(); i++ ) {
             //     contChannelsSelection[i] = 1;
             // }
-            contChannelsSelection[512] = 1;
+            int chan = 512+20;
+
+            contChannelsSelection[chan-1] = 1;
             client.SelectContinuousChannels( contChannelsSelection );
 
             client.StartDataPump();
 
             // short data[10000] = {}
-            ofstream foo("plexnet_cpp.dat",ios::out | ios::binary);
+            ofstream foo("plexnet_cpp_data_2.dat",ios::out | ios::binary);
             int n_pts = 0;
 
             // receive and process data
@@ -130,7 +132,7 @@ int main( int argc, char* argv[] )
                 // ProcessPacket( client.GetReceiveBuffer() );
                 PL_WaveLong wave;
                 ProcessPacket( client.GetReceiveBuffer() , wave);
-                if (wave.Channel == 512) {
+                if (wave.Channel == chan-1) {
                     foo.write((char *)&wave.WaveForm, wave.NumberOfDataWords*sizeof(short));
                 }
             }
