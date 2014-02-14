@@ -153,3 +153,10 @@ def make_kfdecoder_interpolate(decoder_record):
     print new_decoder_name
     from tracker import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
+
+def save_decoder(decoder, name, entry):
+    tf = tempfile.NamedTemporaryFile('wb')                                     
+    cPickle.dump(decoder, tf, 2)                                               
+    tf.flush()                                                                 
+    database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+    database.save_bmi(name, int(entry), tf.name)   
