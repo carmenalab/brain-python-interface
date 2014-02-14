@@ -15,7 +15,9 @@
 #include <iostream>
 #include "PlexNetClient.h"
 
-void ProcessPacket( const std::vector<char>& receiveBuffer );
+#include <fstream>
+
+void ProcessPacket( const std::vector<char>& receiveBuffer, PL_WaveLong& wave);
 
 using namespace std;
 
@@ -24,7 +26,7 @@ int main( int argc, char* argv[] )
     // IP address of the remote machine to which the OPX/MAP system is connected;
     // substitute the actual IP address of your machine running PlexNetLocal
     // look up IP address at the top of PlexNetLocal dialog
-    string hostAddress = "10.0.1.16";
+    string hostAddress = "10.0.0.13";
 
     // Port used by PlexNet on the machine to which the OPX/MAP system is connected.
     // It can be set in the PlexNetLocal options dialog.
@@ -109,19 +111,32 @@ int main( int argc, char* argv[] )
             //contChannelsSelection[contChannel - 1 ] = 1;
 
             // select all continuous channels
-            for ( int i = 0; i < contChannelsSelection.size(); i++ ) {
-                contChannelsSelection[i] = 1;
-            }
+            // for ( int i = 0; i < contChannelsSelection.size(); i++ ) {
+            //     contChannelsSelection[i] = 1;
+            // }
+            int chan = 512+20;
+
+            contChannelsSelection[chan-1] = 1;
             client.SelectContinuousChannels( contChannelsSelection );
 
             client.StartDataPump();
 
+            // short data[10000] = {}
+            ofstream foo("plexnet_cpp_data_2.dat",ios::out | ios::binary);
+            int n_pts = 0;
+
             // receive and process data
-            int numberOfPacketsToProcess = 8;
+            int numberOfPacketsToProcess = 100;
             for ( int i = 0; i < numberOfPacketsToProcess; i++ ) {
                 client.ReceivePacket();
-                ProcessPacket( client.GetReceiveBuffer() );
+                // ProcessPacket( client.GetReceiveBuffer() );
+                PL_WaveLong wave;
+                ProcessPacket( client.GetReceiveBuffer() , wave);
+                if (wave.Channel == chan-1) {
+                    foo.write((char *)&wave.WaveForm, wave.NumberOfDataWords*sizeof(short));
+                }
             }
+            foo.close();
         }
         return 1;
     } catch ( exception ex ) {
@@ -132,7 +147,7 @@ int main( int argc, char* argv[] )
     return 0;
 }
 
-void ProcessPacket( const std::vector<char>& receiveBuffer )
+void ProcessPacket( const std::vector<char>& receiveBuffer, PL_WaveLong& wave)
 {
     if ( receiveBuffer.size() == 0 ) {
         return;
@@ -144,7 +159,7 @@ void ProcessPacket( const std::vector<char>& receiveBuffer )
     int NumMMFDropped = ibuf[3];
 
     PL_DataBlockHeader db;
-    PL_WaveLong wave;
+    // PL_WaveLong wave;
     int sizeOfDataBlockHeader = sizeof( db );
     int sizeOfWaveLong = sizeof( PL_WaveLong );
 
@@ -191,7 +206,7 @@ void ProcessPacket( const std::vector<char>& receiveBuffer )
             memcpy( wave.WaveForm, buf, nbuf * 2 );
         }
         if ( wave.Type == PL_SingleWFType ) { // spike timestamp, with or without waveform values
-            if ( nbuf > 0 )	{ // it has waveform values
+            if ( nbuf > 0 ) { // it has waveform values
                 nwaves++;
             } else { // no waveform values, timestamp only
                 nts++;
@@ -200,6 +215,6 @@ void ProcessPacket( const std::vector<char>& receiveBuffer )
         if ( wave.Type == PL_ExtEventType ) {
             nts++;
         }
-        cout << "type= " << ( int )wave.Type << " channel=" << ( int )wave.Channel << " unit=" << ( int )wave.Unit << " t=" << wave.TimeStamp << endl;
+        cout << "type=" << ( int )wave.Type << " channel=" << ( int )wave.Channel << " unit=" << ( int )wave.Unit << " t=" << wave.TimeStamp << endl;
     }
 }
