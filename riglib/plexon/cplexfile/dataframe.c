@@ -39,7 +39,7 @@ void plx_get_frames(PlexFile* plxfile) {
               lasttype == lfp || lasttype == analog) && 
             lastchan+1 != header.chan) {
             fprintf(stderr, "Error, channels not in order: %d -- ts=%llu, type=%d, chan=%d\n", lastchan, header.ts, header.type, header.chan);
-            exit(1);
+            //exit(1);
         }
 
         lastchan = header.chan;
