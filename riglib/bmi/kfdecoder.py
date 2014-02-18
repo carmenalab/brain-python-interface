@@ -353,11 +353,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.binlen = binlen
         self.bounding_box = bounding_box
         self.states = states
-
         
         # The tslice parameter below properly belongs in the database and
         # not in the decoder object because the Decoder object has no record of 
-        # which plx file it was trained from. This is a leftover from when itw
+        # which plx file it was trained from. This is a leftover from when it
         # was assumed that every decoder would be trained entirely from a plx
         # file (i.e. and not CLDA)
         self.tslice = tslice
@@ -378,25 +377,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.sdFR_ratio = self.sdFR/sdFR_curr
         self.mFR_diff = mFR_curr-self.mFR
         self.zscore = True
-        
-    ###def __call__(self, obs_t, **kwargs):
-    ###    '''
-    ###    Return the predicted arm position given the new data.
-    ###    '''
-    ###    self.spike_counts += obs_t.reshape(-1, 1)
-    ###    if self.bmicount == self.bminum-1:  
-    ###        # Update using spike counts
-    ###        self.bmicount = 0
-    ###        self.predict(self.spike_counts, **kwargs)
-    ###        self.spike_counts = np.zeros([len(self.units), 1])
-    ###    elif self.interpolate_using_ssm:
-    ###        # Interpolate using the state-space model
-    ###        # Requires A and W to be tuned for 60 Hz operation
-    ###        self.predict_ssm() # Assist does not run during interpolation step
-    ###        self.bmicount += 1
-    ###    else:
-    ###        self.bmicount += 1
-    ###    return self.kf.get_mean().reshape(-1,1)
 
     def predict_ssm(self):
         self.kf.propagate_ssm()

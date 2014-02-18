@@ -933,7 +933,8 @@ def rand_KFDecoder(sim_units, state_units='cm'):
 
 def load_from_mat_file(decoder_fname, bounding_box=None, 
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
-    """Create KFDecoder from MATLAB decoder file used in a Dexterit-based
+    """
+    Create KFDecoder from MATLAB decoder file used in a Dexterit-based
     BMI
     """
     decoder_data = loadmat(decoder_fname)['decoder']
@@ -948,10 +949,13 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     unit_lut = {'a':1, 'b':2, 'c':3, 'd':4}
     units = [(int(sig[3:6]), unit_lut[sig[-1]]) for sig in pred_sigs]
 
-    kf = KalmanFilter(A, W, H, Q)
-    kfdecoder = KFDecoder(kf, mFR, sdFR, units, bounding_box, states, states_to_bound)
+    drives_neurons = np.array([False, False, True, True, True])
 
-    return kfdecoder
+    kf = kfdecoder.KalmanFilter(A, W, H, Q)
+    dec = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, states, drives_neurons, states_to_bound)
+
+
+    return dec
 
 def rescale_KFDecoder_units(dec, scale_factor=10):
     '''
