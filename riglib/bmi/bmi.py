@@ -232,6 +232,8 @@ class Decoder(object):
         """
         Set decoder state after un-pickling
         """
+        if 'db_entry' in state:
+            del state['db_entry']
         self.__dict__.update(state)
         self.filt._pickle_init()
         self.filt._init_state()
@@ -270,8 +272,7 @@ class Decoder(object):
         '''
         return np.array(self.filt.state.mean).ravel()
 
-    def predict(self, spike_counts, target=None, speed=0.5, target_radius=2,
-                assist_level=0.0, assist_inds=[0,1,2], Bu=None, **kwargs):
+    def predict(self, spike_counts, target=None, speed=0.5, target_radius=2, assist_level=0.0, assist_inds=[0,1,2], Bu=None, **kwargs):
         """Decode the spikes"""
         # Save the previous cursor state for assist
         prev_kin = self.filt.get_mean()
