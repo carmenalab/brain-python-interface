@@ -1,0 +1,97 @@
+# short version
+sudo apt-get install python-pip libhdf5-serial-dev
+sudo pip install numpy 
+sudo apt-get install python-scipy
+sudo pip install numexpr 
+sudo pip install cython 
+sudo pip install django-celery 
+sudo pip install traits 
+sudo pip install pandas 
+sudo pip install patsy 
+sudo pip install statsmodels 
+sudo pip install PyOpenGL PyOpenGL_accelerate
+
+# Django admin
+sudo apt-get install python-django
+# Uninstall the version of django that was just installed, it's probably out of date
+sudo pip install Django==1.6 
+
+# Install pytables
+
+# install plexon module
+
+# setup the CIFS 
+sudo apt-get install smbclient cifs-utils
+sudo mkdir /backup
+sudo chown lab /backup
+## edit fstab as instructed in the email from EECS
+
+# tornado web framework
+sudo pip install tornado
+
+# matplotlib
+sudo apt-get install python-matplotlib
+
+# make log directory
+mkdir $HOME/code/bmi3d/log
+
+# Make directory to store plots and other data analysis things
+mkdir /storage/plots
+
+
+
+# Get the main software code base
+mkdir ~/code
+cd ~/code
+sudo apt-get install git
+git clone gitolite@955oxford.dyndns.org:bmi3d
+sudo apt-get install vim-gnome
+
+# Add the following lines to .bashrc
+export PYTHONPATH=$PYTHONPATH:$HOME/code/bmi3d/
+export PYTHONPATH=$PYTHONPATH:$HOME/code/bmi3d/db
+export PYTHONPATH=$PYTHONPATH:$HOME/code/bmi3d/tests
+export PYTHONPATH=$PYTHONPATH:$HOME/code/bmi3d/analysis
+
+# Install pip & gen python prerequisites
+apt-get install python-pip
+
+# Installing requried python packages
+#====================================
+# numexpr (prerequisite for pytables)
+pip install numexpr
+
+# cython (used for pytables & plxread module)
+pip install cython
+apt-get install libhdf5-serial-dev
+
+# pytables
+# Install version 2.4: http://sourceforge.net/projects/pytables/files/pytables/2.4.0/
+cd ~/Downloads/
+tar xzf tables-2.4.0.tar.gz
+python setup.py install
+
+# plot library
+cd ~/code
+git clone https://github.com/sgowda/plot.git plotutil
+
+
+pip install Django==1.6
+pip install django-celery
+pip install traits
+
+# Install plexread module
+cd ~/code/bmi3d/riglib
+python setup.py install
+
+# Install statsmodels (requried for training PPF)
+sudo pip install pandas
+sudo pip install patsy
+sudo pip install statsmodels
+
+# pyopengl
+pip install PyOpenGL PyOpenGL_accelerate
+# TODO update the database in the git repo!
+
+# pygame
+# http://www.pygame.org/wiki/CompileUbuntu
