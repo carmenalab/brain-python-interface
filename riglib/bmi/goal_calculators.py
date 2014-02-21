@@ -7,6 +7,7 @@ import train
 from riglib import mp_calc
 from riglib.stereo_opengl import ik
 import re
+import pickle
 
 class EndpointControlGoal(object):
     def __init__(self, ssm):
@@ -50,7 +51,7 @@ class TwoLinkJointGoal(object):
         return (target_state, error), True
 
     def reset(self):
-        pass
+        pass        
 
 class PlanarMultiLinkJointGoal(mp_calc.FuncProxy):
     def __init__(self, ssm, shoulder_anchor, kin_chain, multiproc=False, init_resp=None):
@@ -65,3 +66,24 @@ class PlanarMultiLinkJointGoal(mp_calc.FuncProxy):
             return target_state, endpt_error
         super(PlanarMultiLinkJointGoal, self).__init__(fn, multiproc=multiproc, waiting_resp='prev', init_resp=init_resp)
 
+class PlanarMultiLinkJointGoalCached(object):
+    def __init__(self, ssm, shoulder_anchor, kin_chain, multiproc=False, init_resp=None):
+        self.ssm = ssm
+        self.shoulder_anchor = shoulder_anchor
+        self.kin_chain = kin_chain
+        self.cached_data = pickle.load(open('/storage/assist_params/tentacle_cache.pkl'))
+
+    def __call__(self, target_pos, **kwargs):
+        joint_pos = None
+        for pos in self.cached_data:
+            if np.linalg.norm(target_pos - np.array(pos)) < 0.001:
+                possible_joint_pos = self.cached_data[target_pos]
+                ind = np.random.randint(0, len(possible_joint_pos))
+                joint_pos = possible_joint_pos[ind]
+                break
+
+        if joint_pos == None:
+            raise ValueError("Unknown target position!")
+
+        target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
+        return target_state.reshape(-1, 1)
