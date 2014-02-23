@@ -272,27 +272,12 @@ class Decoder(object):
         '''
         return np.array(self.filt.state.mean).ravel()
 
-    def predict(self, spike_counts, target=None, speed=0.5, target_radius=2, assist_level=0.0, assist_inds=[0,1,2], Bu=None, **kwargs):
-        """Decode the spikes"""
-        # Save the previous cursor state for assist
-        prev_kin = self.filt.get_mean()
+    def predict(self, spike_counts, target=None, assist_level=0.0, Bu=None, **kwargs):
+        """
+        Decode the spikes
+        """
         if assist_level > 0 and Bu == None:
             raise ValueError("Assist cannot be used if the forcing term is not specified!")
-        # if assist_level > 0 and Bu == None:
-        #     cursor_pos = prev_kin[assist_inds]
-        #     diff_vec = target - cursor_pos 
-        #     dist_to_target = np.linalg.norm(diff_vec)
-        #     dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
-            
-        #     if dist_to_target > target_radius:
-        #         assist_cursor_pos = cursor_pos + speed*dir_to_target
-        #     else:
-        #         assist_cursor_pos = cursor_pos + speed*diff_vec/2
-
-        #     assist_cursor_vel = (assist_cursor_pos-cursor_pos)/self.binlen
-        #     Bu = assist_level * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
-        #     Bu = np.mat(Bu.reshape(-1,1))
-
         # TODO put this back in for the KF
         ### # re-normalize the variance of the spike observations, if nec
         ### if self.zscore:
@@ -301,26 +286,32 @@ class Decoder(object):
         ###     # This is essentially removing it from the decoder.
         ###     spike_counts[self.zeromeanunits] = self.mFR[self.zeromeanunits] 
 
-        # re-format as a 1D col vec
+        # re-format as a column matrix
         spike_counts = np.mat(spike_counts.reshape(-1,1))
 
         # Run the filter
-        #self.filt(spike_counts)
         self.filt(spike_counts, Bu=Bu)
 
-        # Bound cursor, if any hard bounds for states are applied
-        #self.bound_state()
-
         if assist_level > 0:
-            # cursor_kin = self.filt.state.mean
-            # kin = (1-assist_level) * (cursor_kin) + assist_level * Bu
-            # self.filt.state.mean[:,0] = kin.reshape(-1,1)
-
             self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
-        
+
+        # Bound cursor, if any hard bounds for states are applied
+        if hasattr(self, 'bounder'):
+            self.filt.state.mean = self.bounder(self.filt.state.mean, self.states)
 
         state = self.filt.get_mean()
         return state
+
+    def decode(self, spike_obs, **kwargs):
+        '''
+        Decode multiple observations sequentially.
+        '''
+        output = []
+        n_obs = spike_obs.shape[1]
+        for k in range(n_obs):
+            self.predict(spike_obs[:,k], **kwargs)
+            output.append(self.filt.get_mean())
+        return np.vstack(output)
 
     def __str__(self):
         if hasattr(self, 'db_entry'):
