@@ -1,3 +1,7 @@
+'''
+Collection of classes that calculate assist kinematics
+'''
+
 import numpy as np 
 from riglib.stereo_opengl import ik
 from riglib.bmi import feedback_controllers

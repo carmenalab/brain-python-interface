@@ -950,8 +950,8 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     W = decoder_data['W'][0,0]
     H = decoder_data['H'][0,0]
     Q = decoder_data['Q'][0,0]
-    mFR = decoder_data['mFR'][0,0]
-    sdFR = decoder_data['sdFR'][0,0]
+    mFR = decoder_data['mFR'][0,0].ravel()
+    sdFR = decoder_data['sdFR'][0,0].ravel()
 
     pred_sigs = [str(x[0]) for x in decoder_data['predSig'][0,0].ravel()]
     unit_lut = {'a':1, 'b':2, 'c':3, 'd':4}
@@ -962,6 +962,15 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     kf = kfdecoder.KalmanFilter(A, W, H, Q)
     dec = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, states, drives_neurons, states_to_bound)
 
+    # Load bounder for position state
+    from state_bounders import RectangularBounder
+    bounding_box_data = loadmat('/Users/sgowda/bmi/workspace/decoder_switching/jeev_center_out_bmi_targets.mat')
+    center_pos = bounding_box_data['centerPos'].ravel()
+    px_min, py_min = center_pos - 0.09
+    px_max, py_max = center_pos + 0.09
+    bounding_box = [(px_min, px_max), (py_min, py_max)]
+    bounder = RectangularBounder([px_min, py_min], [px_max, py_max], ['p_x', 'p_y'])    
+    dec.bounder = bounder
 
     return dec
 

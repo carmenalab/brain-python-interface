@@ -21,6 +21,7 @@ Contents:
     data
     comments
     analysis
+    bmi
 
 
 Indices and tables
