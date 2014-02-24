@@ -1,4 +1,7 @@
-''' Needs docs'''
+'''
+Client-side code to configure and receive neural data from the Plexon PC over
+the network.
+'''
 
 import re
 import math
