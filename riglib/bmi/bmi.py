@@ -14,11 +14,6 @@ import os
 
 gen_joint_coord_regex = re.compile('.*?_p.*')
 
-class BMI(object):
-    '''
-    Legacy class that decoders must inherit from for database reasons
-    '''
-    pass
 
 class GaussianState(object):
     '''
@@ -76,6 +71,9 @@ class GaussianState(object):
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
 class GaussianStateHMM():
+    '''
+    General hidden Markov model decoder where the state is represented as a Gaussian random vector
+    '''
     model_attrs = []
     def __init__(self, A, W):
         self.A = A
@@ -122,9 +120,10 @@ class GaussianStateHMM():
 
 
 class Decoder(object):
+    '''
+    All BMI decoders should inherit from this class
+    '''
     clda_dtype = [] # define parameters to store in HDF file during CLDA
-    def get_filter(self):
-        raise NotImplementedError
 
     def save_params_to_hdf(self, task_data):
         pass
@@ -252,6 +251,9 @@ class Decoder(object):
 
     def _pickle_init(self):
         import train
+
+        # If the decoder doesn't have an 'ssm' attribute, then it's an old
+        # decoder in which case the ssm is the 2D endpoint SSM
         if not hasattr(self, 'ssm'):
             self.ssm = train.endpt_2D_state_space
 
@@ -265,32 +267,32 @@ class Decoder(object):
                 state[k] = v
         return state
 
-    def get_state(self):
+    def get_state(self, shape=-1):
         '''
         Get the state of the decoder (mean of the Gaussian RV representing the
         state of the BMI)
         '''
-        return np.array(self.filt.state.mean).ravel()
+        return np.asarray(self.filt.state.mean).reshape(shape)
 
-    def predict(self, spike_counts, target=None, assist_level=0.0, Bu=None, **kwargs):
+    def predict(self, neural_obs, target=None, assist_level=0.0, Bu=None, **kwargs):
         """
         Decode the spikes
         """
         if assist_level > 0 and Bu == None:
             raise ValueError("Assist cannot be used if the forcing term is not specified!")
-        # TODO put this back in for the KF
-        ### # re-normalize the variance of the spike observations, if nec
-        ### if self.zscore:
-        ###     spike_counts = (spike_counts - self.mFR_diff) * self.sdFR_ratio
-        ###     # set the spike count of any unit with a 0 mean to it's original mean
-        ###     # This is essentially removing it from the decoder.
-        ###     spike_counts[self.zeromeanunits] = self.mFR[self.zeromeanunits] 
+
+        # re-normalize the variance of the spike observations, if nec
+        if self.zscore:
+            neural_obs = (np.asarray(neural_obs).ravel() - self.mFR_curr) * self.sdFR_ratio
+            # set the spike count of any unit that now has zero-mean with its original mean
+            # This functionally removes it from the decoder. 
+            neural_obs[self.zeromeanunits] = self.mFR[self.zeromeanunits] 
 
         # re-format as a column matrix
-        spike_counts = np.mat(spike_counts.reshape(-1,1))
+        neural_obs = np.mat(neural_obs.reshape(-1,1))
 
         # Run the filter
-        self.filt(spike_counts, Bu=Bu)
+        self.filt(neural_obs, Bu=Bu)
 
         if assist_level > 0:
             self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
@@ -356,6 +358,9 @@ class Decoder(object):
 
 
 class AdaptiveBMI(object):
+    '''
+    Container for all brain-machine interfaces
+    '''
     def __init__(self, decoder, learner, updater):
         self.decoder = decoder 
         self.learner = learner
@@ -375,17 +380,17 @@ class AdaptiveBMI(object):
         self.spike_counts = np.zeros([len(self.decoder.units), 1])
         #self.spike_counts = np.zeros([len(self.decoder.units), self.decoder.n_subbins])
 
-    def __call__(self, spike_obs, target_pos, task_state, *args, **kwargs):
+    def __call__(self, spike_obs, target_state, task_state, *args, **kwargs):
+        '''
+        This is the main function for running all the BMI operations for a single
+        set of observations. 
+        '''
         n_units, n_obs = spike_obs.shape
 
-        # If the target is specified as a 1D position (default behavior for 
-        # Python BMI tasks), tile to match the number of dimensions as the 
-        # spike counts
-        if np.ndim(target_pos) == 1:
-            target_pos = np.tile(target_pos, [n_obs, 1]).T
-            
-        pos_inds, = np.nonzero(self.decoder.ssm.state_order == 0)
-        vel_inds, = np.nonzero(self.decoder.ssm.state_order == 1)
+        # If the target is specified as a 1D position, tile to match 
+        # the number of dimensions as the neural features
+        if np.ndim(target_state) == 1:
+            target_state = np.tile(target_state, [n_obs, 1]).T
 
         decoded_states = []
         update_flag = False
@@ -393,18 +398,19 @@ class AdaptiveBMI(object):
 
         for k in range(n_obs):
             spike_obs_k = spike_obs[:,k].reshape(-1,1)
-            target_pos_k = target_pos[:,k]
+            target_state_k = target_state[:,k]
 
-            # NOTE: the conditional below should only ever be active when trying
-            # to run this code on MATLAB data! In all python cases, the task_state
-            # should accurately reflect the validity of the presented target position
-            if np.any(np.isnan(target_pos_k)):
-                task_state = 'no_target' 
+            # NOTE: the conditional below is *only* for compatibility with older Carmena
+            # lab data collected using a different MATLAB-based system. In all python cases, 
+            # the task_state should never contain NaN values. 
+            if np.any(np.isnan(target_state_k)): task_state = 'no_target' 
 
             # run the decoder
             prev_state = self.decoder.get_state()
             self.decoder(spike_obs_k, **kwargs)
             decoded_state = self.decoder.get_state()
+
+            # Store the decoded state
             decoded_states.append(decoded_state)
 
             # Determine whether the current state or previous state should be given to the learner
@@ -418,7 +424,7 @@ class AdaptiveBMI(object):
 
             self.spike_counts += spike_obs_k
             if learn_flag and self.decoder.bmicount == 0:
-                self.learner(self.spike_counts.copy(), learner_state, target_pos_k, 
+                self.learner(self.spike_counts.copy(), learner_state, target_state_k, 
                              decoded_state, task_state, state_order=self.decoder.ssm.state_order)
                 self.reset_spike_counts()
             elif self.decoder.bmicount == 0:
@@ -479,3 +485,10 @@ class AdaptiveBMI(object):
         # Stop updater if it's running in a separate process
         if self.mp_updater: 
             self.updater.stop()
+
+
+class BMI(object):
+    '''
+    Legacy class. Ignore completely.
+    '''
+    pass

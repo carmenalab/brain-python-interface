@@ -950,8 +950,8 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     W = decoder_data['W'][0,0]
     H = decoder_data['H'][0,0]
     Q = decoder_data['Q'][0,0]
-    mFR = decoder_data['mFR'][0,0]
-    sdFR = decoder_data['sdFR'][0,0]
+    mFR = decoder_data['mFR'][0,0].ravel()
+    sdFR = decoder_data['sdFR'][0,0].ravel()
 
     pred_sigs = [str(x[0]) for x in decoder_data['predSig'][0,0].ravel()]
     unit_lut = {'a':1, 'b':2, 'c':3, 'd':4}
