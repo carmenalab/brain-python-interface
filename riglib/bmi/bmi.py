@@ -396,6 +396,8 @@ class AdaptiveBMI(object):
         update_flag = False
         learn_flag = kwargs.pop('learn_flag', False)
 
+        feature_type = kwargs.pop('feature_type')
+
         for k in range(n_obs):
             spike_obs_k = spike_obs[:,k].reshape(-1,1)
             target_state_k = target_state[:,k]
@@ -422,7 +424,13 @@ class AdaptiveBMI(object):
                 print "Not implemented yet: %d" % self.learner.input_state_index
                 learner_state = prev_state
 
-            self.spike_counts += spike_obs_k
+            # self.spike_counts += spike_obs_k
+            if feature_type is 'lfp_power':
+                # hack to make to make lfp decoding work
+                self.spike_counts = spike_obs_k
+            else:
+                self.spike_counts += spike_obs_k
+
             if learn_flag and self.decoder.bmicount == 0:
                 self.learner(self.spike_counts.copy(), learner_state, target_state_k, 
                              decoded_state, task_state, state_order=self.decoder.ssm.state_order)

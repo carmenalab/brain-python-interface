@@ -5,9 +5,13 @@ from __future__ import division
 import time
 import numpy as np
 import plexnet
+import plexnet_softserver_oldfiles
 from collections import Counter
 import os
 
+PL_SingleWFType = 1
+PL_ExtEventType = 4
+PL_ADDataType   = 5
 
 class Spikes(object):
     update_freq = 40000
@@ -32,10 +36,51 @@ class Spikes(object):
 
     def get(self):
         d = self.data.next()
-        while d.type != 1:
+        while d.type != PL_SingleWFType:
             d = self.data.next()
 
         return np.array([(d.ts / self.update_freq, d.chan, d.unit, d.arrival_ts)], dtype=self.dtype)
+
+class LFP(object):
+    update_freq = 1000
+
+    # like the Spikes class, dtype is the numpy data type of items that will go 
+    #   into the (multi-channel, in this case) datasource's ringbuffer
+    # unlike the Spikes class, the get method below does not return objects of 
+    #   this type (this has to do with the fact that a potentially variable 
+    #   amount of LFP data is returned in d.waveform every time
+    #   self.data.next() is called
+    dtype = np.dtype('int16')
+
+    def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=512):
+        self.conn = plexnet.Connection(*addr)
+        self.conn.connect(256, waveforms=False, analog=True)
+        # self.conn = plexnet_softserver_oldfiles.Connection(*addr)
+        # self.conn.connect(192, waveforms=False, analog=True)
+
+        # for OmniPlex system, field potential (FP) channels are numbered 513-768
+        self.chan_offset = chan_offset
+
+        channels_offset = [c + self.chan_offset for c in channels]
+        try:
+        	self.conn.select_continuous(channels_offset)
+        except:
+            print "Cannot run select_continuous method"
+
+    def start(self):
+        self.conn.start_data()
+        self.data = self.conn.get_data()
+
+    def stop(self):
+        self.conn.stop_data()
+        # self.conn.disconnect()  # TODO -- Connection.__del__ calls disconnect too, only call this once?
+
+    def get(self):
+        d = self.data.next()
+        while d.type != PL_ADDataType:
+            d = self.data.next()
+
+        return (d.ts / self.update_freq, d.chan-self.chan_offset, d.arrival_ts, d.waveform)
 
 class SimSpikes(object):
     update_freq = 65536

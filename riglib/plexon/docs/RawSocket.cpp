@@ -319,10 +319,10 @@ int main( int argc, char* argv[] )
 
         memset( SendBuf, 0, PACKETSIZE );
         sendbuf[0] = PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_SPIKE_CHANNELS;
-        sendbuf[1] = 0;
-        sendbuf[2] = 1;
-        sendbuf[3] = NumSpikeChannels;
-        sendbuf[4] = 0;
+        sendbuf[1] = 0; // Packet index!!!
+        sendbuf[2] = 1; // number of packets
+        sendbuf[3] = NumSpikeChannels; // Number of bytes
+        sendbuf[4] = 0; // byte offset
 
         // specify what data we want for spike channels
         // we have 1 byte for each channel starting with byte 20

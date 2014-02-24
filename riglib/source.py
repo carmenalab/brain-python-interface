@@ -7,11 +7,16 @@ import inspect
 import traceback
 import multiprocessing as mp
 from multiprocessing import sharedctypes as shm
+import ctypes
 
 import numpy as np
 
 import sink
 from . import FuncProxy
+
+def my_print(s):
+    print s
+    sys.stdout.flush()
 
 class DataSource(mp.Process):
     def __init__(self, source, bufferlen=10, **kwargs):
@@ -21,12 +26,12 @@ class DataSource(mp.Process):
         self.source = source
         self.source_kwargs = kwargs
         self.bufferlen = bufferlen
-        self.max_len = bufferlen*self.source.update_freq
+        self.max_len = bufferlen * self.source.update_freq
         self.slice_size = self.source.dtype.itemsize
         
         self.lock = mp.Lock()
         self.idx = shm.RawValue('l', 0)
-        self.data = shm.RawArray('c', self.max_len*self.slice_size)
+        self.data = shm.RawArray('c', self.max_len * self.slice_size)
         self.pipe, self._pipe = mp.Pipe()
         self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1)
@@ -40,7 +45,7 @@ class DataSource(mp.Process):
         super(DataSource, self).start(*args, **kwargs)
 
     def run(self):
-        print "Starting datasource %r"%self.source
+        print "Starting datasource %r" % self.source
         try:
             system = self.source(**self.source_kwargs)
             system.start()
@@ -138,6 +143,213 @@ class DataSource(mp.Process):
             self.cmd_event.set()
             return self.pipe.recv()
         raise AttributeError(attr)
+
+
+class MultiChanDataSource(mp.Process):
+    def __init__(self, source, bufferlen=2, **kwargs):
+        super(MultiChanDataSource, self).__init__()
+        self.name = source.__module__.split('.')[-1]
+        self.filter = None
+        self.source = source
+        self.source_kwargs = kwargs
+        self.bufferlen = bufferlen
+        self.max_len = bufferlen * self.source.update_freq
+        
+        self.chan_to_row = dict()
+        for row, chan in enumerate(kwargs['channels']):
+            self.chan_to_row[chan] = row
+        self.n_chan = len(kwargs['channels'])
+
+        dtype = self.source.dtype  # e.g., np.dtype('int16') for LFP
+        self.slice_size = dtype.itemsize
+        self.idxs = shm.RawArray('l', self.n_chan)
+        self.last_read_idxs = np.zeros(self.n_chan)
+        rawarray = shm.RawArray('c', self.n_chan * self.max_len * self.slice_size)
+        self.data = np.frombuffer(rawarray, dtype).reshape((self.n_chan, self.max_len))
+        
+        self.lock = mp.Lock()
+        self.pipe, self._pipe = mp.Pipe()
+        self.cmd_event = mp.Event()
+        self.status = mp.Value('b', 1)
+        self.stream = mp.Event()
+
+        self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+
+    def start(self, *args, **kwargs):
+        self.sinks = sink.sinks
+        super(MultiChanDataSource, self).start(*args, **kwargs)
+
+    def run(self):
+        print "Starting datasource %r" % self.source
+        try:
+            system = self.source(**self.source_kwargs)
+            system.start()
+        except Exception as e:
+            print e
+            self.status.value = -1
+
+        streaming = True
+        size = self.slice_size
+        while self.status.value > 0:
+            if self.cmd_event.is_set():
+                cmd, args, kwargs = self._pipe.recv()
+                self.lock.acquire()
+                try:
+                    if cmd == "getattr":
+                        ret = getattr(system, args[0])
+                    else:
+                        ret = getattr(system, cmd)(*args, **kwargs)
+                except Exception as e:
+                    traceback.print_exc()
+                    ret = e
+                self.lock.release()
+                self._pipe.send(ret)
+                self.cmd_event.clear()
+            if self.stream.is_set():
+                self.stream.clear()
+                streaming = not streaming
+                if streaming:
+                    self.idx.value = 0
+                    system.start()
+                else:
+                    system.stop()
+            if streaming:
+                data = system.get()
+                # print 'data', data
+                sys.stdout.flush()
+                # for now, assume no multi-channel data source is registered
+                # self.sinks.send(self.name, data)
+                if data is not None:
+                    # print 'inside if'
+                    try:
+                        # print 'about to call self.lock.acquire()'
+                        self.lock.acquire()
+                        # print 'lock acquired'
+
+                        chan = data[1]
+                        try:
+                            row = self.chan_to_row[chan]  # row in ringbuffer corresponding to this channel
+                        except KeyError:
+                            # print 'data source was not configured to get data on channel', chan
+                            pass
+                        else:
+                            waveform = data[3]  # "waveform" = LFP analog samples
+                            n_pts = len(waveform)
+                            max_len = self.max_len
+
+                            if n_pts > max_len:
+                                waveform = waveform[-max_len:]
+                                n_pts = max_len
+
+                            idx = self.idxs[row] # for this channel, idx in ringbuffer
+                            if idx + n_pts <= self.max_len:
+                                self.data[row, idx:idx+n_pts] = waveform
+                                idx = (idx + n_pts)
+                                if idx >= max_len:
+                                    idx = idx % max_len
+                                    # print 'wrapping around'
+                            else: # need to write data at both end and start of buffer
+                                self.data[row, idx:] = waveform[:max_len-idx]
+                                self.data[row, :n_pts-(max_len-idx)] = waveform[max_len-idx:]
+                                idx = n_pts-(max_len-idx)
+                            self.idxs[row] = idx
+                            # print 'idx', idx
+                            sys.stdout.flush()
+
+                        self.lock.release()
+                    except Exception as e:
+                        print e
+            else:
+                time.sleep(.001)
+        system.stop()
+        print "ended datasource %r"%self.source
+
+    def get(self, n_pts, channels, **kwargs):
+        if self.status.value <= 0:
+            raise Exception('Error starting datasource '+self.name)
+
+        self.lock.acquire()
+        
+        # these channels must be a subset of the channels passed into __init__
+        n_chan = len(channels)
+        data = np.zeros((n_chan, n_pts), dtype=self.source.dtype)
+
+        if n_pts > self.max_len:
+            n_pts = self.max_len
+
+        for chan in channels:
+            try:
+                row = self.chan_to_row[chan]
+            except KeyError:
+                print 'data source was not configured to get data on channel', chan
+            else:  # executed if try clause does not raise a KeyError
+                idx = self.idxs[row]
+                if idx >= n_pts:  # no wrap-around required
+                    data[row, :] = self.data[row, idx-n_pts:idx]
+                else:
+                    data[row, :n_pts-idx] = self.data[row, -(n_pts-idx):]
+                    data[row, idx:] = self.data[row, :idx]
+
+        self.lock.release()
+
+        if self.filter is not None:
+            return self.filter(data, **kwargs)
+        return data
+
+    def get_new(self, channels, **kwargs):
+        if self.status.value <= 0:
+            raise Exception('Error starting datasource '+self.name)
+
+        # print 'about to call self.lock.acquire() in get_new'
+        self.lock.acquire()
+        # print 'lock acquired in get_new'
+        
+        # these channels must be a subset of the channels passed into __init__
+        n_chan = len(channels)
+        data = [] 
+        #np.zeros((n_chan, n_pts), dtype=self.source.dtype)
+
+        for chan in channels:
+            try:
+                row = self.chan_to_row[chan]
+            except KeyError:
+                print 'data source was not configured to get data on channel', chan
+                data.append(None)
+            else:  # executed if try clause does not raise a KeyError
+                idx = self.idxs[row]
+                last_read_idx = self.last_read_idxs[row]
+                if last_read_idx <= idx:  # no wrap-around required
+                    data.append(self.data[row, last_read_idx:idx])
+                else:
+                    data.append(np.hstack((self.data[row, last_read_idx:], self.data[row, :idx])))
+            self.last_read_idxs[row] = idx
+
+        self.lock.release()
+        # print 'lock released in get_new'
+
+        if self.filter is not None:
+            return self.filter(data, **kwargs)
+        return data
+
+    def pause(self):
+        self.stream.set()
+
+    def stop(self):
+        self.status.value = -1
+    
+    def __del__(self):
+        self.stop()
+
+    def __getattr__(self, attr):
+        if attr in self.methods:
+            return FuncProxy(attr, self.pipe, self.cmd_event)
+        elif not attr.beginsWith("__"):
+            print "getting attribute %s"%attr
+            self.pipe.send(("getattr", (attr,), {}))
+            self.cmd_event.set()
+            return self.pipe.recv()
+        raise AttributeError(attr)
+
 
 if __name__ == "__main__":
     from riglib import motiontracker

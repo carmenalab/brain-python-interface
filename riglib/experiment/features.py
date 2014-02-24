@@ -324,6 +324,35 @@ class SpikeBMI(SpikeData):
         #self.neurondata.filter = self.bmi
 
 
+class PlexonLFPData(traits.HasTraits):
+    '''Stream neural LFP data from the Plexon system'''
+    plexon_channels = None
+    
+    def init(self):
+        from riglib import plexon, source
+        self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
+        super(PlexonLFPData, self).init()
+
+    def run(self):
+        self.neurondata.start()
+        try:
+            super(PlexonLFPData, self).run()
+        finally:
+            self.neurondata.stop()
+
+class PlexonLFPBMI(PlexonLFPData):
+    '''Filters LFP data through a BMI'''
+    bmi = traits.Instance(bmi.BMI)
+
+    def init(self):
+        self.plexon_channels = self.bmi.units[:,0]
+
+        print "init bmi"
+        self.decoder = self.bmi
+        super(PlexonLFPBMI, self).init()
+
+
+
 #*******************************************************************************************************
 # Data Sinks
 #*******************************************************************************************************

@@ -1,6 +1,8 @@
 import numpy as np
 import time
 from riglib.bmi import sim_neurons
+from scipy.signal import butter, lfilter
+import math
 
 ts_dtype_new = sim_neurons.ts_dtype_new
 
@@ -129,10 +131,51 @@ def bin_spikes(ts, units, max_units_per_channel=13):
         
 
 
+# bands should be a list of tuples/lists representing ranges
+#   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
+# win_len specified in seconds
 
 class LFPPowerExtractor(object):
-    pass
+    '''Docstring.'''
+    feature_type = 'lfp_power'
 
+    def __init__(self, source, bands, win_len, channels):
+        self.source = source
+        self.bands = bands
+        self.win_len = win_len
+        self.channels = channels
 
+        self.fs = source.source.update_freq
+        self.n_pts = int(self.win_len * self.fs)
+        self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
+        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
+
+        self.filt_coeffs = dict()
+        order = 5
+        for band in bands:
+            nyq = 0.5 * fs
+            low = band[0] / nyq
+            high = band[1] / nyq
+            self.filt_coeffs[band] = butter(order, [low, high], btype='band')  # returns (b, a)
+
+    def get_cont_samples(self, *args, **kwargs):
+        return self.source.get(self.n_pts, self.channels)
+
+    def __call__(self, start_time, *args, **kwargs):
+        cont_samples = self.get_cont_samples(*args, **kwargs)
+
+        lfp_power = np.zeros((len(self.channels), len(self.bands)))
+
+        for i in range(len(self.channels)):
+            for j, band in enumerate(self.bands):
+                b, a = self.filter_coeffs[band]
+                y = lfilter(b, a, cont_samples[i, :])
+                lfp_power[i, j] = math.log((1 / self.n_pts) * sum(y**2))
+
+        lfp_power = lfp_power.reshape(-1, 1)
+        self.last_get_lfp_power_time = start_time
+
+        # TODO -- what to return as equivalent of bin_edges?
+        return lfp_power, None
 
 
