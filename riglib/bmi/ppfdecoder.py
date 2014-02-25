@@ -283,7 +283,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.n_subbins = n_subbins
         self.bmicount = 0
         self._pickle_init()
-        self.clda_dtype = [('filt_C', 'f8', (self.n_units, self.n_states))]
 
     def _pickle_init(self):
         ### # initialize the F_assist matrices
@@ -314,8 +313,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_ppf.pkl'))
         self.n_assist_levels = len(self.F_assist)
         self.prev_assist_level = self.n_assist_levels
-        if not hasattr(self, 'clda_dtype'):
-            self.clda_dtype = [('filt_C', 'f8', (self.n_units, self.n_states))]
 
         super(PPFDecoder, self)._pickle_init()
 
@@ -359,9 +356,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
 
         state = self.filt.get_mean()
         return state
-
-    def save_params_to_hdf(self, task_data):
-        task_data['filt_C'] = np.asarray(self.filt.C)
 
     def shuffle(self):
         ''' Shuffle the neural model
