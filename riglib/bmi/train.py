@@ -478,6 +478,54 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
     spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
     return spike_counts, units
 
+def get_lfp_power(plx, neurows, binlen, cells=None):
+    '''Compute lfp power features
+    '''
+    if isinstance(cells, np.ndarray):
+        units = cells
+    else:
+        if cells == None: cells = plx.units # Use all of the units if none are specified
+        cells = np.unique(cells)
+        print cells.shape
+        units = np.array(cells).astype(np.int32)
+    
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    # TODO -- how to pass this in?
+    fs = 1000
+    win_len = 0.2
+    bands = [(0, 10), (10, 20)]
+    channels = list(np.unique(units[:,0]))
+    filt_order = 5
+
+    filt_coeffs = dict()
+    for band in bands:
+        nyq = 0.5 * fs
+        low = band[0] / nyq
+        high = band[1] / nyq
+        filt_coeffs[band] = butter(filt_order, [low, high], btype='band')  # returns (b, a)
+
+    n_itrs = len(interp_rows)
+    n_chan = len(self.channels)
+        
+    lfp_power = np.zeros((n_itrs, n_chan * len(self.bands)))
+    for i, t in enumerate(interp_rows):
+        for j, band in enumerate(self.bands):
+            b, a = self.filter_coeffs[band]
+            y = lfilter(b, a, plx.lfp.data[t-win_len:t])
+            lfp_power[i, j*n_chan:(j+1)*n_chan] = math.log((1. / self.n_pts) * np.sum(y**2, axis=1))
+    
+    return lfp_power, units
+
 def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     ''' Get positions and calculate velocity
 
@@ -825,7 +873,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     try:
         state_inds = [hand_kin_vars.index(x) for x in state_vars]
         stochastic_inds = [hand_kin_vars.index(x) for x in stochastic_vars]
-    	train_inds = [hand_kin_vars.index(x) for x in train_vars]
+        train_inds = [hand_kin_vars.index(x) for x in train_vars]
         stochastic_state_inds = [state_vars.index(x) for x in stochastic_vars]
     except:
         raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")

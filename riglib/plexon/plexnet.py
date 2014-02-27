@@ -185,8 +185,9 @@ class Connection(object):
             header[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
             header[1] = packet_num
             header[2] = n_packets
-            # header[3] = number of channels selection that follow
-            header[4] = chan_offset
+            # header[3] = number of channels that are specified (or not specified) in the selection
+            #             bytes that follow
+            header[4] = chan_offset # channel offset in this packet
 
             if chan_offset + (PACKETSIZE-HEADERSIZE) < len(chan_selection[chan_offset:]):
                 payload = chan_selection[chan_offset:chan_offset+PACKETSIZE-HEADERSIZE]

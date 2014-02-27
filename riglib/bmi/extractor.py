@@ -148,7 +148,7 @@ class LFPPowerExtractor(object):
         self.fs = source.source.update_freq
         self.n_pts = int(self.win_len * self.fs)
         self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
-        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
+        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
 
         self.filt_coeffs = dict()
         order = 5
@@ -164,18 +164,44 @@ class LFPPowerExtractor(object):
     def __call__(self, start_time, *args, **kwargs):
         cont_samples = self.get_cont_samples(*args, **kwargs)
 
-        lfp_power = np.zeros((len(self.channels), len(self.bands)))
+        n_chan = len(self.channels)
+        
+        lfp_power = np.zeros((n_chan * len(self.bands), 1))
+        for i, band in enumerate(self.bands):
+            b, a = self.filter_coeffs[band]
+            y = lfilter(b, a, cont_samples)
+            lfp_power[i*n_chan:(i+1)*n_chan] = math.log((1. / self.n_pts) * np.sum(y**2, axis=1))
 
-        for i in range(len(self.channels)):
-            for j, band in enumerate(self.bands):
-                b, a = self.filter_coeffs[band]
-                y = lfilter(b, a, cont_samples[i, :])
-                lfp_power[i, j] = math.log((1 / self.n_pts) * sum(y**2))
-
-        lfp_power = lfp_power.reshape(-1, 1)
         self.last_get_lfp_power_time = start_time
 
         # TODO -- what to return as equivalent of bin_edges?
         return lfp_power, None
+
+
+class SimLFPPowerExtractor(LFPPowerExtractor):
+    def __init__(self, bands, win_len, channels):
+        self.bands = bands
+        self.win_len = win_len
+        self.channels = channels
+
+        self.fs = 1000.
+        self.n_pts = int(self.win_len * self.fs)
+        self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
+        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
+
+        self.filt_coeffs = dict()
+        order = 5
+        for band in bands:
+            nyq = 0.5 * fs
+            low = band[0] / nyq
+            high = band[1] / nyq
+            self.filt_coeffs[band] = butter(order, [low, high], btype='band')  # returns (b, a)
+
+    def get_cont_samples(self, cursor_pos, target_pos):
+        cont_samples = # TODO
+        return cont_samples
+
+    def __call__(self, start_time, cursor_pos, target_pos):
+        return super(SimLFPPowerExtractor, self).__call__(start_time, cursor_pos, target_pos)
 
 

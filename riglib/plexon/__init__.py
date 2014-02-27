@@ -8,6 +8,7 @@ import plexnet
 import plexnet_softserver_oldfiles
 from collections import Counter
 import os
+import array
 
 PL_SingleWFType = 1
 PL_ExtEventType = 4
@@ -42,7 +43,10 @@ class Spikes(object):
         return np.array([(d.ts / self.update_freq, d.chan, d.unit, d.arrival_ts)], dtype=self.dtype)
 
 class LFP(object):
-    update_freq = 1000
+    update_freq = 1000.
+
+    gain_digiamp = 1000.
+    gain_headstage = 1.
 
     # like the Spikes class, dtype is the numpy data type of items that will go 
     #   into the (multi-channel, in this case) datasource's ringbuffer
@@ -50,7 +54,8 @@ class LFP(object):
     #   this type (this has to do with the fact that a potentially variable 
     #   amount of LFP data is returned in d.waveform every time
     #   self.data.next() is called
-    dtype = np.dtype('int16')
+    # dtype = np.dtype('int16')
+    dtype = np.dtype('float')
 
     def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=512):
         self.conn = plexnet.Connection(*addr)
@@ -80,7 +85,14 @@ class LFP(object):
         while d.type != PL_ADDataType:
             d = self.data.next()
 
-        return (d.ts / self.update_freq, d.chan-self.chan_offset, d.arrival_ts, d.waveform)
+        # values are in currently signed integers in the range [-2048, 2047]
+        # first convert to float
+        waveform = array.array('f', d.waveform)
+
+        # convert to units of mV
+        waveform = waveform * 16 * (5000. / 2**15) * (1./gain_digiamp) * (1./gain_headstage)
+
+        return (d.ts / self.update_freq, d.chan-self.chan_offset, d.arrival_ts, waveform)
 
 class SimSpikes(object):
     update_freq = 65536
