@@ -386,17 +386,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     def filt(self):
         return self.kf
 
-    def get_filter(self):
-        return self.kf
-        
-    def get_state(self):
-        '''
-        Get the state of the decoder (mean of the Gaussian RV representing the
-        state of the BMI)
-        '''
-        #alg = self.get_filter()
-        return np.array(self.filt.state.mean).ravel()
-
     def update_params(self, new_params, steady_state=True):
         super(KFDecoder, self).update_params(new_params)
 

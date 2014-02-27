@@ -123,11 +123,6 @@ class Decoder(object):
     '''
     All BMI decoders should inherit from this class
     '''
-    clda_dtype = [] # define parameters to store in HDF file during CLDA
-
-    def save_params_to_hdf(self, task_data):
-        pass
-
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         import matplotlib.pyplot as plt
         if ax == None:

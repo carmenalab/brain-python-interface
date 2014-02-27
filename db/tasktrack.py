@@ -50,7 +50,7 @@ class Track(object):
         self.websock.stop()
 
     def pausetask(self):
-        self.status.vaue = self.task.pause()
+        self.status.value = self.task.pause()
 
     def stoptask(self):
         assert self.status.value in "testing,running"
@@ -208,6 +208,12 @@ class Task(object):
     
     def end_task(self):
         self.task.end_task()
+
+    def enable_clda(self):
+        self.task.enable_clda()
+
+    def disable_clda(self):
+        self.task.disable_clda()
     
     def get_state(self):
         return self.task.state
