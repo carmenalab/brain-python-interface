@@ -145,6 +145,8 @@ class Decoder(object):
             unit_str = '%d%s' % (self.units[k,0], chr(96 + self.units[k,1]))
             ax.plot([0, C[k, x]], [0, C[k, z]], label=unit_str, linestyle=linestyles[k/7 % len(linestyles)], **kwargs)
         ax.legend(bbox_to_anchor=(1.1, 1.05), prop=dict(size=8))
+        ax.set_xlabel(plot_states[0])
+        ax.set_ylabel(plot_states[1])
         ax.set_title(self)
 
     def plot_C(self, **kwargs):
