@@ -130,6 +130,38 @@ def stop_experiment(request):
         err.seek(0)
         return _respond(dict(status="error", msg=err.read()))
 
+def enable_clda(request):
+    #make sure that there exists an experiment to stop
+    if display.status.value not in ["running", "testing"]:
+        return _respond(dict(status="error", msg="No task running!"))
+    try:
+        status = display.status.value
+        display.task.enable_clda()
+        return _respond(dict(status="pending", msg=status))
+    except:
+        import cStringIO
+        import traceback
+        err = cStringIO.StringIO()
+        traceback.print_exc(None, err)
+        err.seek(0)
+        return _respond(dict(status="error", msg=err.read()))
+
+def disable_clda(request):
+    #make sure that there exists an experiment to stop
+    if display.status.value not in ["running", "testing"]:
+        return _respond(dict(status="error", msg="No task running!"))
+    try:
+        status = display.status.value
+        display.task.disable_clda()
+        return _respond(dict(status="pending", msg=status))
+    except:
+        import cStringIO
+        import traceback
+        err = cStringIO.StringIO()
+        traceback.print_exc(None, err)
+        err.seek(0)
+        return _respond(dict(status="error", msg=err.read()))        
+
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)
     te.notes = request.POST['notes']

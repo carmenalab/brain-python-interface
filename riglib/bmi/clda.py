@@ -3,7 +3,7 @@ CLDA classes
 '''
 import multiprocessing as mp
 import numpy as np
-from riglib.bmi import kfdecoder, ppfdecoder, train, bmi, feedback_controllers #!!!!!
+from riglib.bmi import kfdecoder, ppfdecoder, train, bmi, feedback_controllers
 import time
 import cmath
 from itertools import izip

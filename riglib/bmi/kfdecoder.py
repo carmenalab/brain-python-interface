@@ -81,7 +81,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         self.state = self.A*self.state
 
     def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, 
-                       obs_is_control_independent=True):
+                       obs_is_control_independent=True, bias_comp=False):
         using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
         pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
 
@@ -92,12 +92,18 @@ class KalmanFilter(bmi.GaussianStateHMM):
         I = np.mat(np.eye(self.C.shape[1]))
         D = self.C_xpose_Q_inv_C
         KC = P*(I - D*P*(I + D*P).I)*D
+        F = (I - KC)*self.A
 
         post_state = pred_state
         if obs_is_control_independent and using_control_input:
             post_state.mean += -KC*self.A*st.mean + K*obs_t
         else:
             post_state.mean += -KC*pred_state.mean + K*obs_t
+
+        if bias_comp:
+            bias = F[:,-1]
+            bias[1:, 0] = 0
+            post_state.mean -= bias
         post_state.cov = (I - KC) * P 
 
         return post_state
@@ -371,11 +377,12 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         # if interfacing with Kinarm system, may mean and sd will be shape nx1
-        self.zeromeanunits=np.nonzero(mFR_curr==0)[0] #find any units with a mean FR of zero for this session
-        sdFR_curr[self.zeromeanunits]=np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
-        mFR_curr[self.zeromeanunits]=np.nan
+        self.zeromeanunits, = np.nonzero(mFR_curr == 0) #find any units with a mean FR of zero for this session
+        sdFR_curr[self.zeromeanunits] = np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
+        mFR_curr[self.zeromeanunits] = np.nan
         self.sdFR_ratio = self.sdFR/sdFR_curr
         self.mFR_diff = mFR_curr-self.mFR
+        self.mFR_curr = mFR_curr
         self.zscore = True
 
     def predict_ssm(self):
@@ -384,17 +391,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     @property
     def filt(self):
         return self.kf
-
-    def get_filter(self):
-        return self.kf
-        
-    def get_state(self):
-        '''
-        Get the state of the decoder (mean of the Gaussian RV representing the
-        state of the BMI)
-        '''
-        #alg = self.get_filter()
-        return np.array(self.filt.state.mean).ravel()
 
     def update_params(self, new_params, steady_state=True):
         super(KFDecoder, self).update_params(new_params)

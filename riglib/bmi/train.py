@@ -7,7 +7,6 @@ import sys
 
 import numpy as np
 from scipy.io import loadmat
-from plexon import plexfile, psth
 from riglib.nidaq import parse
 
 import tables
@@ -423,6 +422,7 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     ''' Find the rows of the plx file to use for training the decoder
     '''
     # Open plx file
+    from plexon import plexfile
     if isinstance(plx, str) or isinstance(plx, unicode):
         plx = plexfile.openFile(plx)
     events = plx.events[:].data
@@ -461,6 +461,7 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
         print cells.shape
         units = np.array(cells).astype(np.int32)
 
+    from plexon import psth
     spike_bin_fn = psth.SpikeBin(units, binlen)
     
     # interpolate between the rows to 180 Hz
@@ -543,6 +544,7 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
 
 def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='cursor'):
     plx_fname = str(files['plexon']) 
+    from plexon import plexfile
     try:
         plx = plexfile.openFile(plx_fname)
     except IOError:
@@ -660,6 +662,7 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
     update_rate=binlen
     # Open plx file
     plx_fname = str(files['plexon'])
+    from plexon import plexfile
     plx = plexfile.openFile(plx_fname)
 
     # Compute last spike and set it to tslice[1]: 
@@ -696,6 +699,8 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
     ## Bin the neural data
     if cells == None: cells = plx.units # Use all of the units if none are specified
     units = np.array(cells).astype(np.int32)
+
+    from plexon import psth
     spike_bin_fn = psth.SpikeBin(units, binlen)
     neurows = rows[tmask]
     neurows = neurows[::step]
@@ -725,6 +730,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     Train KFDecoder from manual control
     """
     # Open plx file
+    from plexon import plexfile
     plx = plexfile.openFile(str(files['plexon']))
     events = plx.events[:].data
     syskey=0
@@ -762,6 +768,8 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     # Create PSTH function
     if cells == None: cells = plx.units
     units = np.array(cells).astype(np.int32)
+
+    from plexon import psth
     spike_bin_fn = psth.SpikeBin(units, binlen)
     
     neurows = rows[tmask][3::4]
@@ -942,8 +950,8 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     W = decoder_data['W'][0,0]
     H = decoder_data['H'][0,0]
     Q = decoder_data['Q'][0,0]
-    mFR = decoder_data['mFR'][0,0]
-    sdFR = decoder_data['sdFR'][0,0]
+    mFR = decoder_data['mFR'][0,0].ravel()
+    sdFR = decoder_data['sdFR'][0,0].ravel()
 
     pred_sigs = [str(x[0]) for x in decoder_data['predSig'][0,0].ravel()]
     unit_lut = {'a':1, 'b':2, 'c':3, 'd':4}
@@ -954,6 +962,15 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     kf = kfdecoder.KalmanFilter(A, W, H, Q)
     dec = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, states, drives_neurons, states_to_bound)
 
+    # Load bounder for position state
+    from state_bounders import RectangularBounder
+    bounding_box_data = loadmat('/Users/sgowda/bmi/workspace/decoder_switching/jeev_center_out_bmi_targets.mat')
+    center_pos = bounding_box_data['centerPos'].ravel()
+    px_min, py_min = center_pos - 0.09
+    px_max, py_max = center_pos + 0.09
+    bounding_box = [(px_min, px_max), (py_min, py_max)]
+    bounder = RectangularBounder([px_min, py_min], [px_max, py_max], ['p_x', 'p_y'])    
+    dec.bounder = bounder
 
     return dec
 

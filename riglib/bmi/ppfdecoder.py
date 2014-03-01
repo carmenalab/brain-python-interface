@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Decoder using the point-process filter algorithm
+'''
 
 import numpy as np
 
@@ -95,9 +97,7 @@ class PointProcessFilter():
         # check min rate is > 0
         rate_too_low_inds = (lambda_predict < 0)
         lambda_predict[rate_too_low_inds] = 0
-        #assert np.all(lambda_predict > 0)
 
-        #self._check_valid(self, lambda_predict, id)
         invalid_inds = nan_inds | rate_too_high_inds | rate_too_low_inds
         if np.any(invalid_inds):
             pass
@@ -133,8 +133,6 @@ class PointProcessFilter():
             P_pred = A*P_prev*A.T + W
         else:
             x_pred = A*x_prev + B*F*(target_state - x_prev)
-            #import pdb; pdb.set_trace()
-            #x_pred = A*x_prev - B*F*(x_prev - target_state)
             P_pred = (A-B*F) * P_prev * (A-B*F).T + W
         P_pred = P_pred[mesh]
 
@@ -178,7 +176,6 @@ class PointProcessFilter():
         """Return the model parameters {A, W, C} for pickling"""
         return dict(A=self.A, W=self.W, C=self.C, dt=self.dt, B=self.B, 
                     is_stochastic=self.is_stochastic)
-        #return {'A':self.A, 'W':self.W, 'C':self.C, 'dt':self.dt, }
 
     def tomlab(self, unit_scale=1.):
         '''
@@ -229,7 +226,6 @@ class PointProcessFilter():
         n_states = X.shape[0]
         C = np.zeros([n_units, n_states])
         pvalues = np.zeros([n_units, n_states])
-        #C = np.zeros([n_states, n_units])
         glm_family = sm.families.Poisson()
         for k in range(n_units):
             model = sm.GLM(Y[k,:], X.T, family=glm_family)
@@ -287,7 +283,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.n_subbins = n_subbins
         self.bmicount = 0
         self._pickle_init()
-        self.clda_dtype = [('filt_C', 'f8', (self.n_units, self.n_states))]
 
     def _pickle_init(self):
         ### # initialize the F_assist matrices
@@ -318,8 +313,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_ppf.pkl'))
         self.n_assist_levels = len(self.F_assist)
         self.prev_assist_level = self.n_assist_levels
-        if not hasattr(self, 'clda_dtype'):
-            self.clda_dtype = [('filt_C', 'f8', (self.n_units, self.n_states))]
 
         super(PPFDecoder, self)._pickle_init()
 
@@ -331,15 +324,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         obs_t = obs_t.copy()
         obs_t[obs_t > 1] = 1
         return super(PPFDecoder, self).__call__(obs_t, **kwargs)
-
-        ##### Infer the number of sub-bins from the size of the spike counts mat to decode
-        ####n_subbins = obs_t.shape[1]
-
-        ####outputs = []
-        ####for k in range(n_subbins):
-        ####    outputs.append(self.predict(obs_t[:,k], **kwargs))
-
-        ####return np.vstack(outputs).T
 
     def get_filter(self):
         return self.filt 
@@ -355,13 +339,11 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         else:
             target_state = None
 
-        #self.filt.F = np.mat( np.hstack([alpha*I, gamma*I, np.zeros([3,1])]) )
         assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
         if assist_level_idx < self.prev_assist_level:
             print "assist_level_idx decreasing to", assist_level_idx
             self.prev_assist_level = assist_level_idx
         self.filt.F = np.mat(self.F_assist[assist_level_idx])
-        #self.filt.B = np.mat( np.vstack([0*I, self.filt.dt*I*1000., np.zeros([1,3]) ]) )
 
         # re-format as a 1D col vec
         spike_counts = np.mat(spike_counts.reshape(-1,1))
@@ -374,9 +356,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
 
         state = self.filt.get_mean()
         return state
-
-    def save_params_to_hdf(self, task_data):
-        task_data['filt_C'] = np.asarray(self.filt.C)
 
     def shuffle(self):
         ''' Shuffle the neural model

@@ -1,5 +1,5 @@
 import numpy as np
-import robot #!!!!!!!!!!!
+import robot
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from itertools import izip
@@ -40,12 +40,12 @@ class KinematicChain(object):
         joint_angles = self.calc_full_joint_angles(joint_angles)
         self.robot.plot(joint_angles)
 
-    def forward_kinematics(self, joint_angles):
+    def forward_kinematics(self, joint_angles, **kwargs):
         '''
         Calculate forward kinematics using D-H parameter convention
         '''
         joint_angles = self.calc_full_joint_angles(joint_angles)
-        t, allt = self.robot.fkine(joint_angles)
+        t, allt = self.robot.fkine(joint_angles, **kwargs)
         self.joint_angles = joint_angles
         self.t = t
         self.allt = allt
@@ -125,7 +125,11 @@ class KinematicChain(object):
         else:
             return q
 
+
     def jacobian(self, joint_angles):
+        '''
+        Return the full jacobian 
+        '''
         joint_angles = self.calc_full_joint_angles(joint_angles)
         J = self.robot.jacobn(joint_angles)
         return J
@@ -216,7 +220,13 @@ class KinematicChain(object):
         end_time = time.time()
         if verbose: print "Runtime = %g, error = %g, n_iter=%d" % (end_time-start_time, error, k)
 
-        return pbest        
+        return pbest
+
+    def spatial_positions_of_joints(self, joint_angles):
+        _, allt = self.forward_kinematics(joint_angles, return_allt=True)
+        pos = allt[0:3, -1]
+        pos = np.hstack([np.zeros([3,1]), pos])
+        return pos
 
 class PlanarXZKinematicChain(KinematicChain):
     '''
@@ -255,6 +265,10 @@ class PlanarXZKinematicChain(KinematicChain):
     @property 
     def n_joints(self):
         return len(self.link_lengths)
+
+    def spatial_positions_of_joints(self, *args, **kwargs):
+        pos_all_joints = super(PlanarXZKinematicChain, self).spatial_positions_of_joints(*args, **kwargs)
+        return pos_all_joints[:,::3]
 
 class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
     def __init__(self, link_lengths, *args, **kwargs):
