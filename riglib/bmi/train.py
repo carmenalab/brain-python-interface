@@ -311,22 +311,67 @@ def train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=0.1, ts
     decoder.ssm = _ssm
     return decoder
 
+# original
+# def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
+#     binlen = update_rate
+#     n_neurons = spike_counts.shape[0]
+
+#     # C should be trained on all of the stochastic state variables, excluding the offset terms
+#     C = np.zeros([n_neurons, _ssm.n_states])
+#     C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], spike_counts)
+#     unit_inds, = np.nonzero(np.array(C)[:,-1])
+#     C = C[unit_inds,:]
+#     Q = Q[np.ix_(unit_inds, unit_inds)]
+#     units = units[unit_inds,:]
+
+#     mFR = np.mean(spike_counts[unit_inds, :], axis=1)
+#     sdFR = np.std(spike_counts[unit_inds, :], axis=1)
+
+#     # Set state space model
+#     A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
+
+#     # instantiate KFdecoder
+#     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=_ssm.is_stochastic)
+#     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, _ssm.bounding_box, 
+#         _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
+#         tslice=tslice)
+
+#     # Compute sufficient stats for C and Q matrices (used to initialze CLDA)
+#     from clda import KFRML
+#     n_neurons, n_states = C.shape
+#     R = np.mat(np.zeros([n_states, n_states]))
+#     S = np.mat(np.zeros([n_neurons, n_states]))
+#     R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], spike_counts[unit_inds,:])
+
+#     R[np.ix_(_ssm.drives_obs_inds, _ssm.drives_obs_inds)] = R_small
+#     S[:,_ssm.drives_obs_inds] = S_small
+    
+#     decoder.kf.R = R
+#     decoder.kf.S = S
+#     decoder.kf.T = T
+#     decoder.kf.ESS = ESS
+    
+#     decoder.ssm = _ssm
+#     return decoder
+
 def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
     binlen = update_rate
-    n_neurons = spike_counts.shape[0]
+    # n_neurons = spike_counts.shape[0]
+    n_features = spike_counts.shape[0]  # number of neural features
 
     # C should be trained on all of the stochastic state variables, excluding the offset terms
-    C = np.zeros([n_neurons, _ssm.n_states])
+    # C = np.zeros([n_neurons, _ssm.n_states])
+    C = np.zeros([n_features, _ssm.n_states])
     C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], spike_counts)
-    unit_inds, = np.nonzero(np.array(C)[:,-1])
-    C = C[unit_inds,:]
-    Q = Q[np.ix_(unit_inds, unit_inds)]
-    print 'unit_inds', unit_inds
-    print 'units', units
-    units = units[unit_inds,:]
+    # unit_inds, = np.nonzero(np.array(C)[:,-1])
+    # C = C[unit_inds,:]
+    # Q = Q[np.ix_(unit_inds, unit_inds)]
+    # units = units[unit_inds,:]
 
-    mFR = np.mean(spike_counts[unit_inds, :], axis=1)
-    sdFR = np.std(spike_counts[unit_inds, :], axis=1)
+    # mFR = np.mean(spike_counts[unit_inds, :], axis=1)
+    # sdFR = np.std(spike_counts[unit_inds, :], axis=1)
+    mFR = np.mean(spike_counts, axis=1)
+    sdFR = np.std(spike_counts, axis=1)
 
     # Set state space model
     A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
@@ -342,7 +387,8 @@ def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None
     n_neurons, n_states = C.shape
     R = np.mat(np.zeros([n_states, n_states]))
     S = np.mat(np.zeros([n_neurons, n_states]))
-    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], spike_counts[unit_inds,:])
+    # R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], spike_counts[unit_inds,:])
+    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], spike_counts)
 
     R[np.ix_(_ssm.drives_obs_inds, _ssm.drives_obs_inds)] = R_small
     S[:,_ssm.drives_obs_inds] = S_small
@@ -480,6 +526,12 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
     spike_bin_fn = psth.SpikeBin(units, binlen)
     spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
 
+    # discard units that never fired at all
+    # TODO -- verify that summing over axis 0 is correct
+    unit_inds = np.nonzero(np.sum(spike_counts, axis=0))
+    units = units[unit_inds,:]
+    spike_counts = spike_counts[:, unit_inds]
+
     extractor_cls = extractor.BinnedSpikeCountsExtractor
     extractor_kwargs = dict()
     extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode, how to know this value here?
@@ -539,6 +591,10 @@ def get_lfp_power(plx, neurows, binlen, cells=None):
             y = lfilter(b, a, plx.lfp[t-win_len:t].data[:, channels-1])
             lfp_power[i, j*n_chan:(j+1)*n_chan] = np.log((1. / n_pts) * np.sum(y**2, axis=0))
     
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+
     extractor_cls = extractor.LFPPowerExtractor
     extractor_kwargs = dict()
     extractor_kwargs['win_len'] = win_len
@@ -686,6 +742,8 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
 
     decoder = train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
 
+    # save extractor info into the decoder so we can create the appropriate
+    #   extractor object when we use this decoder later on
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
 
