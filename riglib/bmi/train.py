@@ -15,6 +15,8 @@ import pdb
 import state_space_models
 from itertools import izip
 
+import extractor
+
 ############
 ## Constants
 ############
@@ -461,9 +463,6 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
         print cells.shape
         units = np.array(cells).astype(np.int32)
 
-    from plexon import psth
-    spike_bin_fn = psth.SpikeBin(units, binlen)
-    
     # interpolate between the rows to 180 Hz
     if binlen < 1./60:
         interp_rows = []
@@ -475,12 +474,22 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
         step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
+    from plexon import psth
+    spike_bin_fn = psth.SpikeBin(units, binlen)
     spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
-    return spike_counts, units
+
+    extractor_cls = extractor.BinnedSpikeCountsExtractor
+    n_subbins=self.decoder.n_subbins, units=self.decoder.units
+    extractor_kwargs = dict()
+    extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode, how to know this value here?
+    extractor_kwargs['units'] = units
+
+    return spike_counts, units, extractor_cls, extractor_kwargs
 
 def get_lfp_power(plx, neurows, binlen, cells=None):
     '''Compute lfp power features
     '''
+    # TODO -- following ~15 lines of code are same as for get_spike_counts
     if isinstance(cells, np.ndarray):
         units = cells
     else:
@@ -500,8 +509,8 @@ def get_lfp_power(plx, neurows, binlen, cells=None):
         step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
-    # TODO -- how to pass this in?
-    fs = 1000
+    # TODO -- how to pass this info in?
+    fs = 1000.
     win_len = 0.2
     bands = [(0, 10), (10, 20)]
     channels = list(np.unique(units[:,0]))
@@ -524,7 +533,14 @@ def get_lfp_power(plx, neurows, binlen, cells=None):
             y = lfilter(b, a, plx.lfp.data[t-win_len:t])
             lfp_power[i, j*n_chan:(j+1)*n_chan] = math.log((1. / self.n_pts) * np.sum(y**2, axis=1))
     
-    return lfp_power, units
+    extractor_cls = extractor.LFPPowerExtractor
+    extractor_kwargs = dict()
+    extractor_kwargs['win_len'] = win_len
+    extractor_kwargs['bands'] = bands
+    extractor_kwargs['channels'] = channels
+    extractor_kwargs['filt_order'] = filt_order
+
+    return lfp_power, units, extractor_cls, extractor_kwargs
 
 def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     ''' Get positions and calculate velocity
@@ -604,8 +620,20 @@ def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='curso
     hdf = tables.openFile(files['hdf'])
     kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
     neurows = rows[tmask]
-    spike_counts, units = get_spike_counts(plx, neurows, binlen, cells=cells)
-    return kin, spike_counts, units
+    # spike_counts, units = get_spike_counts(plx, neurows, binlen, cells=cells)
+    # return kin, spike_counts, units
+
+    # TODO -- this needs to come from web interface!
+    feature_type = 'spikes'
+    if feature_type == 'spikes':
+        neural_features, units, extractor_cls, extractor_kwargs = get_spike_counts(plx, neurows, binlen, cells=cells)
+    elif feature_type == 'lfp':
+        neural_features, units, extractor_cls, extractor_kwargs = get_lfp_power(plx, neurows, binlen, cells=cells)
+    else:
+        raise Exception("Unrecognized feature type!")
+
+    return kin, neural_features, units, extractor_cls, extractor_kwargs
+
 
 def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,None], 
     _ssm=endpt_2D_state_space, source='task', kin_var='cursor', shuffle=False, **files):
@@ -635,7 +663,7 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     '''
     Train a KFDecoder from visual feedback
     '''
-    kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
+    kin, spike_counts, units, extractor_cls, extractor_kwargs = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
     if _ssm == None:
         if kin_var == 'cursor':
             _ssm=endpt_2D_state_space
@@ -651,6 +679,9 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     spike_counts = spike_counts[:-1].T
 
     decoder = train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
+
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
 
     if shuffle: decoder.shuffle()
 

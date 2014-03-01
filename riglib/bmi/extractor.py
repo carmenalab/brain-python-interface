@@ -139,7 +139,7 @@ class LFPPowerExtractor(object):
     '''Docstring.'''
     feature_type = 'lfp_power'
 
-    def __init__(self, source, bands, win_len, channels):
+    def __init__(self, source, bands=[(0, 10), (10, 20)], win_len=0.2, channels=[], filt_order=5):
         self.source = source
         self.bands = bands
         self.win_len = win_len

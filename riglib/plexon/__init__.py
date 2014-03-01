@@ -42,6 +42,7 @@ class Spikes(object):
 
         return np.array([(d.ts / self.update_freq, d.chan, d.unit, d.arrival_ts)], dtype=self.dtype)
 
+
 class LFP(object):
     update_freq = 1000.
 
@@ -54,7 +55,6 @@ class LFP(object):
     #   this type (this has to do with the fact that a potentially variable 
     #   amount of LFP data is returned in d.waveform every time
     #   self.data.next() is called
-    # dtype = np.dtype('int16')
     dtype = np.dtype('float')
 
     def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=512):
@@ -63,9 +63,8 @@ class LFP(object):
         # self.conn = plexnet_softserver_oldfiles.Connection(*addr)
         # self.conn.connect(192, waveforms=False, analog=True)
 
-        # for OmniPlex system, field potential (FP) channels are numbered 513-768
+        # for OPX system, field potential (FP) channels are numbered 513-768
         self.chan_offset = chan_offset
-
         channels_offset = [c + self.chan_offset for c in channels]
         try:
         	self.conn.select_continuous(channels_offset)
@@ -90,9 +89,54 @@ class LFP(object):
         waveform = array.array('f', d.waveform)
 
         # convert to units of mV
-        waveform = waveform * 16 * (5000. / 2**15) * (1./gain_digiamp) * (1./gain_headstage)
+        waveform = waveform * 16 * (5000. / 2**15) * (1./self.gain_digiamp) * (1./self.gain_headstage)
 
-        return (d.ts / self.update_freq, d.chan-self.chan_offset, d.arrival_ts, waveform)
+        return (d.chan-self.chan_offset, waveform)
+
+
+class Aux(object):
+    update_freq = 1000.
+
+    gain_digiamp = 1000.
+    gain_headstage = 1.
+
+    # see comment above
+    dtype = np.dtype('float')
+
+    def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=768):
+        self.conn = plexnet.Connection(*addr)
+        self.conn.connect(256, waveforms=False, analog=True)
+
+        # for OPX system, the 32 auxiliary input (AI) channels are numbered 769-800
+        self.chan_offset = chan_offset
+
+        channels_offset = [c + self.chan_offset for c in channels]
+        try:
+            self.conn.select_continuous(channels_offset)
+        except:
+            print "Cannot run select_continuous method"
+
+    def start(self):
+        self.conn.start_data()
+        self.data = self.conn.get_data()
+
+    def stop(self):
+        self.conn.stop_data()
+
+    def get(self):
+        d = self.data.next()
+        while d.type != PL_ADDataType:
+            d = self.data.next()
+
+        # values are in currently signed integers in the range [-2048, 2047]
+        # first convert to float
+        waveform = array.array('f', d.waveform)
+
+        # convert to units of mV
+        waveform = waveform * 16 * (5000. / 2**15) * (1./self.gain_digiamp) * (1./self.gain_headstage)
+
+        return (d.chan-self.chan_offset, waveform)
+
 
 class SimSpikes(object):
     update_freq = 65536

@@ -97,7 +97,7 @@ class DataSource(mp.Process):
 
     def get(self, all=False, **kwargs):
         if self.status.value <= 0:
-            raise Exception('Error starting datasource '+self.name)
+            raise Exception('Error starting datasource ' + self.name)
             
         self.lock.acquire()
         i = (self.idx.value % self.max_len) * self.slice_size
@@ -146,7 +146,7 @@ class DataSource(mp.Process):
 
 
 class MultiChanDataSource(mp.Process):
-    def __init__(self, source, bufferlen=2, **kwargs):
+    def __init__(self, source, bufferlen=5, **kwargs):
         super(MultiChanDataSource, self).__init__()
         self.name = source.__module__.split('.')[-1]
         self.filter = None
@@ -160,7 +160,7 @@ class MultiChanDataSource(mp.Process):
             self.chan_to_row[chan] = row
         self.n_chan = len(kwargs['channels'])
 
-        dtype = self.source.dtype  # e.g., np.dtype('int16') for LFP
+        dtype = self.source.dtype  # e.g., np.dtype('float') for LFP
         self.slice_size = dtype.itemsize
         self.idxs = shm.RawArray('l', self.n_chan)
         self.last_read_idxs = np.zeros(self.n_chan)
@@ -214,46 +214,44 @@ class MultiChanDataSource(mp.Process):
                 else:
                     system.stop()
             if streaming:
-                data = system.get()
-                # print 'data', data
+                # system.get() must return a tuple (chan, data), where 
+                #   chan is the the channel number and data should have dtype 
+                #   (or subdtype) self.source.dtype
+                chan, data = system.get()
                 sys.stdout.flush()
                 # for now, assume no multi-channel data source is registered
+                # TODO -- how to send MCDS data to a sink? (problem is that
+                #    "data" is a variable length and has no fixed-size dtype, 
+                #    which sinks require)
                 # self.sinks.send(self.name, data)
                 if data is not None:
-                    # print 'inside if'
                     try:
-                        # print 'about to call self.lock.acquire()'
                         self.lock.acquire()
-                        # print 'lock acquired'
 
-                        chan = data[1]
                         try:
                             row = self.chan_to_row[chan]  # row in ringbuffer corresponding to this channel
                         except KeyError:
                             # print 'data source was not configured to get data on channel', chan
                             pass
                         else:
-                            waveform = data[3]  # "waveform" = LFP analog samples
-                            n_pts = len(waveform)
+                            n_pts = len(data)
                             max_len = self.max_len
 
                             if n_pts > max_len:
-                                waveform = waveform[-max_len:]
+                                data = data[-max_len:]
                                 n_pts = max_len
 
                             idx = self.idxs[row] # for this channel, idx in ringbuffer
                             if idx + n_pts <= self.max_len:
-                                self.data[row, idx:idx+n_pts] = waveform
+                                self.data[row, idx:idx+n_pts] = data
                                 idx = (idx + n_pts)
                                 if idx >= max_len:
                                     idx = idx % max_len
-                                    # print 'wrapping around'
                             else: # need to write data at both end and start of buffer
-                                self.data[row, idx:] = waveform[:max_len-idx]
-                                self.data[row, :n_pts-(max_len-idx)] = waveform[max_len-idx:]
+                                self.data[row, idx:] = data[:max_len-idx]
+                                self.data[row, :n_pts-(max_len-idx)] = data[max_len-idx:]
                                 idx = n_pts-(max_len-idx)
                             self.idxs[row] = idx
-                            # print 'idx', idx
                             sys.stdout.flush()
 
                         self.lock.release()
@@ -298,16 +296,13 @@ class MultiChanDataSource(mp.Process):
 
     def get_new(self, channels, **kwargs):
         if self.status.value <= 0:
-            raise Exception('Error starting datasource '+self.name)
+            raise Exception('Error starting datasource ' + self.name)
 
-        # print 'about to call self.lock.acquire() in get_new'
         self.lock.acquire()
-        # print 'lock acquired in get_new'
         
         # these channels must be a subset of the channels passed into __init__
         n_chan = len(channels)
-        data = [] 
-        #np.zeros((n_chan, n_pts), dtype=self.source.dtype)
+        data = []
 
         for chan in channels:
             try:
@@ -325,7 +320,6 @@ class MultiChanDataSource(mp.Process):
             self.last_read_idxs[row] = idx
 
         self.lock.release()
-        # print 'lock released in get_new'
 
         if self.filter is not None:
             return self.filter(data, **kwargs)
