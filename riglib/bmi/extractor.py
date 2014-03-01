@@ -178,30 +178,31 @@ class LFPPowerExtractor(object):
         return lfp_power, None
 
 
-class SimLFPPowerExtractor(LFPPowerExtractor):
-    def __init__(self, bands, win_len, channels):
-        self.bands = bands
-        self.win_len = win_len
-        self.channels = channels
+# unfinished/untested
+# class SimLFPPowerExtractor(LFPPowerExtractor):
+#     def __init__(self, bands, win_len, channels):
+#         self.bands = bands
+#         self.win_len = win_len
+#         self.channels = channels
 
-        self.fs = 1000.
-        self.n_pts = int(self.win_len * self.fs)
-        self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
-        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
+#         self.fs = 1000.
+#         self.n_pts = int(self.win_len * self.fs)
+#         self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
+#         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
 
-        self.filt_coeffs = dict()
-        order = 5
-        for band in bands:
-            nyq = 0.5 * fs
-            low = band[0] / nyq
-            high = band[1] / nyq
-            self.filt_coeffs[band] = butter(order, [low, high], btype='band')  # returns (b, a)
+#         self.filt_coeffs = dict()
+#         order = 5
+#         for band in bands:
+#             nyq = 0.5 * fs
+#             low = band[0] / nyq
+#             high = band[1] / nyq
+#             self.filt_coeffs[band] = butter(order, [low, high], btype='band')  # returns (b, a)
 
-    def get_cont_samples(self, cursor_pos, target_pos):
-        cont_samples = # TODO
-        return cont_samples
+#     def get_cont_samples(self, cursor_pos, target_pos):
+#         cont_samples = # TODO
+#         return cont_samples
 
-    def __call__(self, start_time, cursor_pos, target_pos):
-        return super(SimLFPPowerExtractor, self).__call__(start_time, cursor_pos, target_pos)
+#     def __call__(self, start_time, cursor_pos, target_pos):
+#         return super(SimLFPPowerExtractor, self).__call__(start_time, cursor_pos, target_pos)
 
 

@@ -354,8 +354,8 @@ if __name__ == "__main__":
                 first_arrival_ts = wave.arrival_ts 
                 got_first = True
 
-            # if wave is not None:
-            #     csvfile.writerow(dict(wave._asdict()))
+            if wave is not None:
+                csvfile.writerow(dict(wave._asdict()))
 
             if write_to_mat and wave is not None:
                 row = chan_to_row[wave.chan]

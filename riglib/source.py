@@ -153,7 +153,7 @@ class MultiChanDataSource(mp.Process):
         self.source = source
         self.source_kwargs = kwargs
         self.bufferlen = bufferlen
-        self.max_len = bufferlen * self.source.update_freq
+        self.max_len = int(bufferlen * self.source.update_freq)
         
         self.chan_to_row = dict()
         for row, chan in enumerate(kwargs['channels']):

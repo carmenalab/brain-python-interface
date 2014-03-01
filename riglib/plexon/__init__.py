@@ -86,56 +86,56 @@ class LFP(object):
 
         # values are in currently signed integers in the range [-2048, 2047]
         # first convert to float
-        waveform = array.array('f', d.waveform)
+        waveform = np.array(d.waveform, dtype='float')
 
         # convert to units of mV
         waveform = waveform * 16 * (5000. / 2**15) * (1./self.gain_digiamp) * (1./self.gain_headstage)
 
         return (d.chan-self.chan_offset, waveform)
 
+# TODO -- copied from LFP class above -- needs to be modified
+# class Aux(object):
+#     update_freq = 1000.
 
-class Aux(object):
-    update_freq = 1000.
+#     gain_digiamp = 1000.
+#     gain_headstage = 1.
 
-    gain_digiamp = 1000.
-    gain_headstage = 1.
+#     # see comment above
+#     dtype = np.dtype('float')
 
-    # see comment above
-    dtype = np.dtype('float')
+#     def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=768):
+#         self.conn = plexnet.Connection(*addr)
+#         self.conn.connect(256, waveforms=False, analog=True)
 
-    def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=768):
-        self.conn = plexnet.Connection(*addr)
-        self.conn.connect(256, waveforms=False, analog=True)
+#         # for OPX system, the 32 auxiliary input (AI) channels are numbered 769-800
+#         self.chan_offset = chan_offset
 
-        # for OPX system, the 32 auxiliary input (AI) channels are numbered 769-800
-        self.chan_offset = chan_offset
+#         channels_offset = [c + self.chan_offset for c in channels]
+#         try:
+#             self.conn.select_continuous(channels_offset)
+#         except:
+#             print "Cannot run select_continuous method"
 
-        channels_offset = [c + self.chan_offset for c in channels]
-        try:
-            self.conn.select_continuous(channels_offset)
-        except:
-            print "Cannot run select_continuous method"
+#     def start(self):
+#         self.conn.start_data()
+#         self.data = self.conn.get_data()
 
-    def start(self):
-        self.conn.start_data()
-        self.data = self.conn.get_data()
+#     def stop(self):
+#         self.conn.stop_data()
 
-    def stop(self):
-        self.conn.stop_data()
+#     def get(self):
+#         d = self.data.next()
+#         while d.type != PL_ADDataType:
+#             d = self.data.next()
 
-    def get(self):
-        d = self.data.next()
-        while d.type != PL_ADDataType:
-            d = self.data.next()
+#         # values are in currently signed integers in the range [-2048, 2047]
+#         # first convert to float
+#         waveform = array.array('f', d.waveform)
 
-        # values are in currently signed integers in the range [-2048, 2047]
-        # first convert to float
-        waveform = array.array('f', d.waveform)
+#         # convert to units of mV
+#         waveform = waveform * 16 * (5000. / 2**15) * (1./self.gain_digiamp) * (1./self.gain_headstage)
 
-        # convert to units of mV
-        waveform = waveform * 16 * (5000. / 2**15) * (1./self.gain_digiamp) * (1./self.gain_headstage)
-
-        return (d.chan-self.chan_offset, waveform)
+#         return (d.chan-self.chan_offset, waveform)
 
 
 class SimSpikes(object):
