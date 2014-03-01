@@ -42,13 +42,8 @@ class Connection(object):
 
     def __init__(self, addr, port):
         self.addr = (addr, port)
-
-
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-
         self.sock.connect(self.addr)
-
 
         self.num_server_dropped = 0
         self.num_mmf_dropped = 0
@@ -315,7 +310,7 @@ if __name__ == "__main__":
 
         print 'selecting continuous channels'
         # cont_channels = 512 + np.array([1, 2, 5, 9, 10, 192, 250, 256]) #range(513, 768) #range(512+1, 512+192) #[1, 532, 533, 768, 800] #502, 503, 504, 505] #[85, 86]
-        cont_channels = 512 + np.array([8])
+        cont_channels = 512 + np.array([53])
         # cont_channels = [1, 532, 533, 768, 800] #502, 503, 504, 505] #[85, 86]
         conn.select_continuous(cont_channels)
         # conn.select_continuous()  # select all 800 continuous channels
@@ -364,7 +359,7 @@ if __name__ == "__main__":
                 data[row, idx:idx+n_pts] = wave.waveform
                 idxs[row] += n_pts
 
-            if wave is not None and wave.chan == 520:
+            if wave is not None and wave.chan == 512+53:
                 ts.append(wave.ts - first_ts)
                 arrival_ts.append(wave.arrival_ts - first_arrival_ts)
 

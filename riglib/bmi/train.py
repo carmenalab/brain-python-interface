@@ -321,6 +321,8 @@ def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None
     unit_inds, = np.nonzero(np.array(C)[:,-1])
     C = C[unit_inds,:]
     Q = Q[np.ix_(unit_inds, unit_inds)]
+    print 'unit_inds', unit_inds
+    print 'units', units
     units = units[unit_inds,:]
 
     mFR = np.mean(spike_counts[unit_inds, :], axis=1)
@@ -479,7 +481,6 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
     spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
 
     extractor_cls = extractor.BinnedSpikeCountsExtractor
-    n_subbins=self.decoder.n_subbins, units=self.decoder.units
     extractor_kwargs = dict()
     extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode, how to know this value here?
     extractor_kwargs['units'] = units
@@ -513,8 +514,11 @@ def get_lfp_power(plx, neurows, binlen, cells=None):
     fs = 1000.
     win_len = 0.2
     bands = [(0, 10), (10, 20)]
-    channels = list(np.unique(units[:,0]))
+    channels = np.unique(units[:,0])
     filt_order = 5
+
+    from scipy.signal import butter, lfilter
+    import math
 
     filt_coeffs = dict()
     for band in bands:
@@ -524,14 +528,16 @@ def get_lfp_power(plx, neurows, binlen, cells=None):
         filt_coeffs[band] = butter(filt_order, [low, high], btype='band')  # returns (b, a)
 
     n_itrs = len(interp_rows)
-    n_chan = len(self.channels)
+    n_chan = len(channels)
+
+    n_pts = int(win_len * fs)
         
-    lfp_power = np.zeros((n_itrs, n_chan * len(self.bands)))
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
     for i, t in enumerate(interp_rows):
-        for j, band in enumerate(self.bands):
-            b, a = self.filter_coeffs[band]
-            y = lfilter(b, a, plx.lfp.data[t-win_len:t])
-            lfp_power[i, j*n_chan:(j+1)*n_chan] = math.log((1. / self.n_pts) * np.sum(y**2, axis=1))
+        for j, band in enumerate(bands):
+            b, a = filt_coeffs[band]
+            y = lfilter(b, a, plx.lfp[t-win_len:t].data[:, channels-1])
+            lfp_power[i, j*n_chan:(j+1)*n_chan] = np.log((1. / n_pts) * np.sum(y**2, axis=0))
     
     extractor_cls = extractor.LFPPowerExtractor
     extractor_kwargs = dict()
@@ -624,7 +630,7 @@ def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='curso
     # return kin, spike_counts, units
 
     # TODO -- this needs to come from web interface!
-    feature_type = 'spikes'
+    feature_type = 'lfp'
     if feature_type == 'spikes':
         neural_features, units, extractor_cls, extractor_kwargs = get_spike_counts(plx, neurows, binlen, cells=cells)
     elif feature_type == 'lfp':

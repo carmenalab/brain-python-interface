@@ -168,7 +168,7 @@ class LFPPowerExtractor(object):
         
         lfp_power = np.zeros((n_chan * len(self.bands), 1))
         for i, band in enumerate(self.bands):
-            b, a = self.filter_coeffs[band]
+            b, a = self.filt_coeffs[band]
             y = lfilter(b, a, cont_samples)
             lfp_power[i*n_chan:(i+1)*n_chan] = math.log((1. / self.n_pts) * np.sum(y**2, axis=1))
 
