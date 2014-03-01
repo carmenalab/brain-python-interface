@@ -144,6 +144,7 @@ class LFPPowerExtractor(object):
         self.bands = bands
         self.win_len = win_len
         self.channels = channels
+        self.filt_order = filt_order
 
         self.fs = source.source.update_freq
         self.n_pts = int(self.win_len * self.fs)
@@ -151,12 +152,11 @@ class LFPPowerExtractor(object):
         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
 
         self.filt_coeffs = dict()
-        order = 5
         for band in bands:
             nyq = 0.5 * fs
             low = band[0] / nyq
             high = band[1] / nyq
-            self.filt_coeffs[band] = butter(order, [low, high], btype='band')  # returns (b, a)
+            self.filt_coeffs[band] = butter(self.filt_order, [low, high], btype='band')  # returns (b, a)
 
     def get_cont_samples(self, *args, **kwargs):
         return self.source.get(self.n_pts, self.channels)
