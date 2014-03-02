@@ -264,7 +264,7 @@ class MultiChanDataSource(mp.Process):
 
     def get(self, n_pts, channels, **kwargs):
         if self.status.value <= 0:
-            raise Exception('Error starting datasource '+self.name)
+            raise Exception('Error starting datasource ' + self.name)
 
         self.lock.acquire()
         
@@ -286,7 +286,8 @@ class MultiChanDataSource(mp.Process):
                     data[row, :] = self.data[row, idx-n_pts:idx]
                 else:
                     data[row, :n_pts-idx] = self.data[row, -(n_pts-idx):]
-                    data[row, idx:] = self.data[row, :idx]
+                    # data[row, idx:] = self.data[row, :idx]
+                    data[row, n_pts-idx:] = self.data[row, :idx]
 
         self.lock.release()
 

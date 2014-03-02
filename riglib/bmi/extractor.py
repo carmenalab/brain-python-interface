@@ -139,7 +139,7 @@ class LFPPowerExtractor(object):
     '''Docstring.'''
     feature_type = 'lfp_power'
 
-    def __init__(self, source, bands=[(0, 10), (10, 20)], win_len=0.2, channels=[], filt_order=5):
+    def __init__(self, source, bands=[(10, 20), (20, 30)], win_len=0.2, channels=[], filt_order=5):
         self.source = source
         self.bands = bands
         self.win_len = win_len
@@ -153,7 +153,7 @@ class LFPPowerExtractor(object):
 
         self.filt_coeffs = dict()
         for band in bands:
-            nyq = 0.5 * fs
+            nyq = 0.5 * self.fs
             low = band[0] / nyq
             high = band[1] / nyq
             self.filt_coeffs[band] = butter(self.filt_order, [low, high], btype='band')  # returns (b, a)
@@ -170,7 +170,7 @@ class LFPPowerExtractor(object):
         for i, band in enumerate(self.bands):
             b, a = self.filt_coeffs[band]
             y = lfilter(b, a, cont_samples)
-            lfp_power[i*n_chan:(i+1)*n_chan] = math.log((1. / self.n_pts) * np.sum(y**2, axis=1))
+            lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1, keepdims=True))
 
         self.last_get_lfp_power_time = start_time
 

@@ -311,7 +311,7 @@ def train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=0.1, ts
     decoder.ssm = _ssm
     return decoder
 
-# original
+# old version of train_KFDecoder -- updated below
 # def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
 #     binlen = update_rate
 #     n_neurons = spike_counts.shape[0]
@@ -399,6 +399,8 @@ def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None
     decoder.kf.ESS = ESS
     
     decoder.ssm = _ssm
+
+    print 'decoder trained'
     return decoder
 
 ###################
@@ -528,7 +530,7 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
 
     # discard units that never fired at all
     # TODO -- verify that summing over axis 0 is correct
-    unit_inds = np.nonzero(np.sum(spike_counts, axis=0))
+    unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
     units = units[unit_inds,:]
     spike_counts = spike_counts[:, unit_inds]
 
@@ -565,7 +567,7 @@ def get_lfp_power(plx, neurows, binlen, cells=None):
     # TODO -- how to pass this info in?
     fs = 1000.
     win_len = 0.2
-    bands = [(0, 10), (10, 20)]
+    bands = [(10, 20), (20, 30)]
     channels = np.unique(units[:,0])
     filt_order = 5
 
@@ -685,8 +687,8 @@ def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='curso
     # spike_counts, units = get_spike_counts(plx, neurows, binlen, cells=cells)
     # return kin, spike_counts, units
 
-    # TODO -- this needs to come from web interface!
-    feature_type = 'lfp'
+    # TODO -- hardcoding this here for now, but this needs to come from web interface!
+    feature_type = 'spikes'
     if feature_type == 'spikes':
         neural_features, units, extractor_cls, extractor_kwargs = get_spike_counts(plx, neurows, binlen, cells=cells)
     elif feature_type == 'lfp':
@@ -704,7 +706,7 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     '''
     binlen = 1./180 # TODO remove hardcoding!
 
-    kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
+    kin, spike_counts, units, extractor_cls, extractor_kwargs = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
     
@@ -716,6 +718,13 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     spike_counts[spike_counts > 1] = 1
     decoder = train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=binlen, tslice=tslice, _ssm=_ssm)
 
+    # save extractor info into the decoder so we can create the appropriate
+    #   extractor object when we use this decoder later on
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
+    decoder.n_features = spike_counts.shape[0]  # number of neural features
+
     if shuffle: decoder.shuffle()
 
     return decoder
@@ -725,27 +734,29 @@ def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
     '''
     Train a KFDecoder from visual feedback
     '''
-    kin, spike_counts, units, extractor_cls, extractor_kwargs = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
+    kin, neural_features, units, extractor_cls, extractor_kwargs = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
     if _ssm == None:
         if kin_var == 'cursor':
             _ssm=endpt_2D_state_space
         elif kin_var == 'joint_angles':
             _ssm=joint_2D_state_space
         
-    if len(kin) != len(spike_counts):
-        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
+    if len(kin) != len(neural_features):
+        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neural_features)))
     
     # Remove 1st kinematic sample and last spike counts sample to align the 
     # velocity with the spike counts
     kin = kin[1:].T
-    spike_counts = spike_counts[:-1].T
+    neural_features = neural_features[:-1].T
 
-    decoder = train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
+    decoder = train_KFDecoder(_ssm, kin, neural_features, units, update_rate=binlen, tslice=tslice)
 
     # save extractor info into the decoder so we can create the appropriate
     #   extractor object when we use this decoder later on
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
+
+    decoder.n_features = neural_features.shape[0]  # number of neural features
 
     if shuffle: decoder.shuffle()
 

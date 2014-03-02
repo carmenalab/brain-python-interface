@@ -241,7 +241,8 @@ class Decoder(object):
         if not hasattr(self, 'bmicount'):
             self.bmicount = 0
 
-        self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
+        # self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
+        self.spike_counts = np.zeros([self.n_features, self.n_subbins])
         self._pickle_init()
 
     def _pickle_init(self):
@@ -346,7 +347,8 @@ class Decoder(object):
                 # Update using spike counts
                 self.bmicount = 0
                 self.predict(self.spike_counts, **kwargs)
-                self.spike_counts = np.zeros([len(self.units), 1])
+                # self.spike_counts = np.zeros([len(self.units), 1])
+                self.spike_counts = np.zeros([self.n_features, 1])
             else:
                 self.bmicount += 1
             return self.filt.get_mean().reshape(-1,1)
@@ -372,7 +374,8 @@ class AdaptiveBMI(object):
         self.reset_spike_counts()
 
     def reset_spike_counts(self):
-        self.spike_counts = np.zeros([len(self.decoder.units), 1])
+        self.spike_counts = np.zeros([self.decoder.n_features, 1])
+        # self.spike_counts = np.zeros([len(self.decoder.units), 1])
         #self.spike_counts = np.zeros([len(self.decoder.units), self.decoder.n_subbins])
 
     def __call__(self, spike_obs, target_state, task_state, *args, **kwargs):
