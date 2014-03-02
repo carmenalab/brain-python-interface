@@ -266,94 +266,6 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=0.1, t
     decoder.ssm = _ssm
     return decoder
 
-def train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=0.1, tslice=None, _ssm=endpt_2D_state_space):
-    '''
-    Train a KFDecoder which predicts the endpoint velocity
-    '''
-    binlen = update_rate
-    n_neurons = spike_counts.shape[0]
-
-    # C should be trained on all of the stochastic state variables, excluding the offset terms
-    C = np.zeros([n_neurons, _ssm.n_states])
-    C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], spike_counts)
-    unit_inds, = np.nonzero(np.array(C)[:,-1])
-    C = C[unit_inds,:]
-    Q = Q[np.ix_(unit_inds, unit_inds)]
-    units = units[unit_inds,:]
-
-    mFR = np.mean(spike_counts[unit_inds, :], axis=1)
-    sdFR = np.std(spike_counts[unit_inds, :], axis=1)
-
-    # Set state space model
-    A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
-
-    # instantiate KFdecoder
-    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=_ssm.is_stochastic)
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, _ssm.bounding_box, 
-        _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
-        tslice=tslice)
-
-    # Compute sufficient stats for C and Q matrices (used to initialze CLDA)
-    from clda import KFRML
-    n_neurons, n_states = C.shape
-    R = np.mat(np.zeros([n_states, n_states]))
-    S = np.mat(np.zeros([n_neurons, n_states]))
-    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], spike_counts[unit_inds,:])
-
-    R[np.ix_(_ssm.drives_obs_inds, _ssm.drives_obs_inds)] = R_small
-    S[:,_ssm.drives_obs_inds] = S_small
-    
-    decoder.kf.R = R
-    decoder.kf.S = S
-    decoder.kf.T = T
-    decoder.kf.ESS = ESS
-    
-    decoder.ssm = _ssm
-    return decoder
-
-# old version of train_KFDecoder -- updated below
-# def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
-#     binlen = update_rate
-#     n_neurons = spike_counts.shape[0]
-
-#     # C should be trained on all of the stochastic state variables, excluding the offset terms
-#     C = np.zeros([n_neurons, _ssm.n_states])
-#     C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], spike_counts)
-#     unit_inds, = np.nonzero(np.array(C)[:,-1])
-#     C = C[unit_inds,:]
-#     Q = Q[np.ix_(unit_inds, unit_inds)]
-#     units = units[unit_inds,:]
-
-#     mFR = np.mean(spike_counts[unit_inds, :], axis=1)
-#     sdFR = np.std(spike_counts[unit_inds, :], axis=1)
-
-#     # Set state space model
-#     A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
-
-#     # instantiate KFdecoder
-#     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=_ssm.is_stochastic)
-#     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, _ssm.bounding_box, 
-#         _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
-#         tslice=tslice)
-
-#     # Compute sufficient stats for C and Q matrices (used to initialze CLDA)
-#     from clda import KFRML
-#     n_neurons, n_states = C.shape
-#     R = np.mat(np.zeros([n_states, n_states]))
-#     S = np.mat(np.zeros([n_neurons, n_states]))
-#     R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], spike_counts[unit_inds,:])
-
-#     R[np.ix_(_ssm.drives_obs_inds, _ssm.drives_obs_inds)] = R_small
-#     S[:,_ssm.drives_obs_inds] = S_small
-    
-#     decoder.kf.R = R
-#     decoder.kf.S = S
-#     decoder.kf.T = T
-#     decoder.kf.ESS = ESS
-    
-#     decoder.ssm = _ssm
-#     return decoder
-
 def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
     binlen = update_rate
     # n_neurons = spike_counts.shape[0]
@@ -783,27 +695,6 @@ def _train_tentacle_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[No
                                             _ssm=_ssm, source=source, kin_var=kin_var, 
                                             shuffle=shuffle, **files)
 
-
-def _train_KFDecoder_visual_feedback_arm(cells=None, binlen=0.1, tslice=[None,None], 
-    _ssm=joint_2D_state_space, source='task', kin_var='cursor', shuffle=False, **files):
-    '''
-    Function for training a joint-space decoder for 2D ArmPlant; Eventually
-    to be rolled in to the other functions when time/test cases permit(s)
-    '''
-    cursor_kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source='task')
-    from tasks import manualcontrolmultitasks
-    shoulder_center = manualcontrolmultitasks.ArmPlant.shoulder_anchor
-    joint_kin = get_joint_kinematics(cursor_kin, shoulder_center)
-
-    joint_kin = joint_kin[1:].T
-    spike_counts = spike_counts[:-1].T
-
-    decoder = train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=binlen, tslice=tslice, _ssm=_ssm)
-
-    if shuffle: decoder.shuffle()
-
-    return decoder
-
 def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], 
@@ -873,7 +764,7 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
     
     kin = np.hstack([kin, velocity]).T
     spike_counts = spike_counts.T
-    return train_endpt_velocity_KFDecoder(kin, spike_counts, units, update_rate=binlen, tslice=tslice)
+    return train_KFDecoder(endpt_2D_state_space, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
 
 def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
