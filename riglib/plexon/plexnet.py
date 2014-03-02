@@ -173,6 +173,10 @@ class Connection(object):
         HEADERSIZE = 20  # bytes
         chan_offset = 0
 
+        # e.g., for 800 continuous channels, 2 "packets" are formed
+        #   chan_offset is 0 for the first packet
+        #   chan_offset is 492 for the second packet
+
         raw = ''
         for packet_num in range(n_packets):
             # print 'subpacket:', packet_num

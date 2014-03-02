@@ -221,8 +221,8 @@ class MultiChanDataSource(mp.Process):
                 sys.stdout.flush()
                 # for now, assume no multi-channel data source is registered
                 # TODO -- how to send MCDS data to a sink? (problem is that
-                #    "data" is a variable length and has no fixed-size dtype, 
-                #    which sinks require)
+                #    "data" has a variable length each time and has no 
+                #    fixed-size dtype, which sinks require)
                 # self.sinks.send(self.name, data)
                 if data is not None:
                     try:
@@ -263,6 +263,9 @@ class MultiChanDataSource(mp.Process):
         print "ended datasource %r"%self.source
 
     def get(self, n_pts, channels, **kwargs):
+        '''
+        Return the most recent n_pts of data from the specified channels.
+        '''
         if self.status.value <= 0:
             raise Exception('Error starting datasource ' + self.name)
 
@@ -287,9 +290,7 @@ class MultiChanDataSource(mp.Process):
                 else:
                     data[row, :n_pts-idx] = self.data[row, -(n_pts-idx):]
                     data[row, n_pts-idx:] = self.data[row, :idx]
-        
-        # print 'data:', data
-        # print 'sum:', np.sum(self.data)
+                self.last_read_idxs[row] = idx
 
         self.lock.release()
 
@@ -298,6 +299,9 @@ class MultiChanDataSource(mp.Process):
         return data
 
     def get_new(self, channels, **kwargs):
+        '''
+        Return the new (unread) data from the specified channels.
+        '''
         if self.status.value <= 0:
             raise Exception('Error starting datasource ' + self.name)
 
@@ -341,7 +345,7 @@ class MultiChanDataSource(mp.Process):
         if attr in self.methods:
             return FuncProxy(attr, self.pipe, self.cmd_event)
         elif not attr.beginsWith("__"):
-            print "getting attribute %s"%attr
+            print "getting attribute %s" % attr
             self.pipe.send(("getattr", (attr,), {}))
             self.cmd_event.set()
             return self.pipe.recv()
