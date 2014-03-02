@@ -54,12 +54,13 @@ def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
     angles['sh_pabd'] = sh_pabd
     angles['el_pflex'] = el_pflex
     if np.any(np.isnan(angles['el_pflex'])) or np.any(np.isnan(angles['sh_pabd'])):
-        print "position = ", pos
-        print "angles = ", angles['el_pflex'], angles['sh_pabd']
-        print "L = ", L
-        print "cos_el_pflex = ", cos_el_pflex
-        print "np.arctan2(z, x = ", (np.arctan2(z, x))
-        print "np.arcsin(l_forearm * np.sin(np.pi - el_pflex) = ", (np.arcsin(l_forearm * np.sin(np.pi - el_pflex)))
+        # print "position = ", pos
+        # print "angles = ", angles['el_pflex'], angles['sh_pabd']
+        # print "L = ", L
+        # print "cos_el_pflex = ", cos_el_pflex
+        # print "np.arctan2(z, x = ", (np.arctan2(z, x))
+        # print "np.arcsin(l_forearm * np.sin(np.pi - el_pflex) = ", (np.arcsin(l_forearm * np.sin(np.pi - el_pflex)))
+        pass
 
     if vel is not None:
         joint_vel = np.zeros(len(pos), dtype=joint_vel_dtype)

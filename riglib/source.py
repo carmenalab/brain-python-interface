@@ -286,8 +286,10 @@ class MultiChanDataSource(mp.Process):
                     data[row, :] = self.data[row, idx-n_pts:idx]
                 else:
                     data[row, :n_pts-idx] = self.data[row, -(n_pts-idx):]
-                    # data[row, idx:] = self.data[row, :idx]
                     data[row, n_pts-idx:] = self.data[row, :idx]
+        
+        # print 'data:', data
+        # print 'sum:', np.sum(self.data)
 
         self.lock.release()
 

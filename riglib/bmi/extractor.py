@@ -146,6 +146,8 @@ class LFPPowerExtractor(object):
         self.channels = channels
         self.filt_order = filt_order
 
+        self.epsilon = 1e-9
+
         self.fs = source.source.update_freq
         self.n_pts = int(self.win_len * self.fs)
         self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
@@ -170,11 +172,12 @@ class LFPPowerExtractor(object):
         for i, band in enumerate(self.bands):
             b, a = self.filt_coeffs[band]
             y = lfilter(b, a, cont_samples)
-            lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1, keepdims=True))
+            lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1, keepdims=True) + self.epsilon)
 
         self.last_get_lfp_power_time = start_time
 
         # TODO -- what to return as equivalent of bin_edges?
+        # print 'lfp_power', lfp_power
         return lfp_power, None
 
 

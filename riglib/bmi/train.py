@@ -688,7 +688,7 @@ def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='curso
     # return kin, spike_counts, units
 
     # TODO -- hardcoding this here for now, but this needs to come from web interface!
-    feature_type = 'spikes'
+    feature_type = 'lfp' # 'spikes'
     if feature_type == 'spikes':
         neural_features, units, extractor_cls, extractor_kwargs = get_spike_counts(plx, neurows, binlen, cells=cells)
     elif feature_type == 'lfp':
