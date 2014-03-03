@@ -18,6 +18,8 @@ cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 from celery import task, chain
 from tracker import dbq
 
+import numpy as np
+
 @task()
 def cache_plx(plxfile):
     """Create cache for plexon file"""
@@ -31,12 +33,44 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     """
     cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
 
+    if cells == []:
+        units = None
+        # Note: inside training functions (e.g., _train_KFDecoder_manual_control,
+        #   _train_KFDecoder_visual_feedback, etc.), remember to check if units
+        #   variable is None, and if so, set the units from the plx file:
+        #       if units == None:
+        #           units = np.array(plx.units).astype(np.int32)"
+    else:
+        cells = np.unique(cells)
+        units = np.array(cells).astype(np.int32)
+
+    # TODO -- hardcoding this here for now, but this info should come from web interface!
+    # can either get a simple "neural_signal" variable from the web interface,
+    #    or get the extractor_cls and extractor_kwargs directly (better option)
+    neural_signal = 'spikes'
+
+    if neural_signal == 'spikes':
+        extractor_cls = extractor.BinnedSpikeCountsExtractor
+        extractor_kwargs = dict()
+        extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode, different for KF/PPF
+        extractor_kwargs['units'] = units
+    elif neural_signal == 'lfp':
+        extractor_cls = extractor.LFPPowerExtractor
+        extractor_kwargs = dict()
+        extractor_kwargs['win_len'] = 0.2
+        extractor_kwargs['bands'] = [(10, 20), (20, 30)]
+        extractor_kwargs['channels'] = np.unique(units[:,0])
+        extractor_kwargs['filt_order'] = 5
+    else:
+        raise Exception("Unknown neural signal!")
+
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
     datafiles = models.DataFile.objects.filter(entry_id=entry)
     inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
     training_method = namelist.bmis[clsname]
-    decoder = training_method(cells=cells, binlen=binlen, tslice=tslice, **inputdata)
+    decoder = training_method(extractor_cls=extractor_cls, extractor_kwargs=extractor_kwargs, 
+                                units=units, binlen=binlen, tslice=tslice, **inputdata)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()
