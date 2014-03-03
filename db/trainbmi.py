@@ -19,6 +19,7 @@ from celery import task, chain
 from tracker import dbq
 
 import numpy as np
+from riglib.bmi import extractor
 
 @task()
 def cache_plx(plxfile):
@@ -47,13 +48,14 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     # TODO -- hardcoding this here for now, but this info should come from web interface!
     # can either get a simple "neural_signal" variable from the web interface,
     #    or get the extractor_cls and extractor_kwargs directly (better option)
-    neural_signal = 'spikes'
+    neural_signal = 'lfp'
 
     if neural_signal == 'spikes':
         extractor_cls = extractor.BinnedSpikeCountsExtractor
         extractor_kwargs = dict()
         extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode, different for KF/PPF
         extractor_kwargs['units'] = units
+        print 'initial units:', units
     elif neural_signal == 'lfp':
         extractor_cls = extractor.LFPPowerExtractor
         extractor_kwargs = dict()

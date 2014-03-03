@@ -434,7 +434,7 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
     unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
     units = units[unit_inds,:]
     spike_counts = spike_counts[:, unit_inds]
-    extractor_kwargs['units'] = 'units'
+    extractor_kwargs['units'] = units
 
     return spike_counts, units, extractor_kwargs
 
@@ -571,9 +571,9 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
     neurows = rows[tmask]
 
     # TODO -- make the get_spike_counts and get_lfp_power functions part of their respective classes
-    if extractor_cls = extractor.BinnedSpikeCountsExtractor:
+    if extractor_cls == extractor.BinnedSpikeCountsExtractor:
         neural_features, units, extractor_kwargs = get_spike_counts(plx, neurows, binlen, units, extractor_kwargs)
-    elif extractor_cls = extractor.LFPPowerExtractor:
+    elif extractor_cls == extractor.LFPPowerExtractor:
         neural_features, units, extractor_kwargs = get_lfp_power(plx, neurows, binlen, units, extractor_kwargs)
     else:
         raise Exception("Unrecognized feature type!")

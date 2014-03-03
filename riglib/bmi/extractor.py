@@ -59,6 +59,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         counts = np.array(counts, dtype=np.uint32)
         bin_edges = self.get_bin_edges(ts)
         self.last_get_spike_counts_time = start_time
+
         return counts, bin_edges
 
 class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
