@@ -81,7 +81,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         self.state = self.A*self.state
 
     def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, 
-                       obs_is_control_independent=True):
+                       obs_is_control_independent=True, bias_comp=False):
         using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
         pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
 
@@ -92,12 +92,18 @@ class KalmanFilter(bmi.GaussianStateHMM):
         I = np.mat(np.eye(self.C.shape[1]))
         D = self.C_xpose_Q_inv_C
         KC = P*(I - D*P*(I + D*P).I)*D
+        F = (I - KC)*self.A
 
         post_state = pred_state
         if obs_is_control_independent and using_control_input:
             post_state.mean += -KC*self.A*st.mean + K*obs_t
         else:
             post_state.mean += -KC*pred_state.mean + K*obs_t
+
+        if bias_comp:
+            bias = F[:,-1]
+            bias[1:, 0] = 0
+            post_state.mean -= bias
         post_state.cov = (I - KC) * P 
 
         return post_state
