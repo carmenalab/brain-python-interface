@@ -693,6 +693,43 @@ class KFRML(object):
 
         return new_params
 
+class KFRML_baseline(KFRML):
+    def calc(self, intended_kin, spike_counts, rho, decoder):
+        drives_neurons = decoder.drives_neurons
+        mFR_old        = decoder.mFR
+        sdFR_old       = decoder.sdFR
+
+        x = intended_kin
+        y = spike_counts
+
+        self.R = rho*self.R + (x*x.T)
+        self.S = rho*self.S + (y*x.T)
+        self.T = rho*self.T + (y*y.T)
+        self.ESS = rho*self.ESS + 1
+
+        R_inv = np.mat(np.zeros(self.R.shape))
+        R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
+        C_new = self.S * R_inv
+
+        # Q = 1./(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
+        Q = decoder.filt.Q
+
+        mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
+        sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
+
+        C = decoder.filt.C
+        C[:,-1] = mFR.reshape(-1,1)
+
+        C_xpose_Q_inv   = C.T * Q.I
+        C_xpose_Q_inv_C = C_xpose_Q_inv * C
+        
+        new_params = {'kf.C':C, 'kf.Q':Q, 
+            'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
+            'mFR':mFR, 'sdFR':sdFR}
+
+        return new_params
+
+
 def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     '''
     Parameters
