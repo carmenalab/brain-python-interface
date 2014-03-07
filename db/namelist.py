@@ -101,6 +101,7 @@ tasks = dict(
     arm_plant = manualcontrolmultitasks.ArmPlant,
     clda_kf_cg_joint_rml = bmimultitasks.CLDAControlKFCGJoint,
     clda_kf_ofc_tentacle_rml = bmimultitasks.CLDAControlTentacle,
+    clda_kf_ofc_tentacle_rml_base = bmimultitasks.CLDAControlTentacleBaselineReestimate,
     joystick_tentacle = manualcontrolmultitasks.JoystickTentacle,
     bmi_baseline = bmimultitasks.BaselineControl,
 )
