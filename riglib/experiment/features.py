@@ -333,6 +333,10 @@ class SinkRegister(object):
         from riglib import sink
         self.sinks = sink.sinks
 
+        # Run the rest of the .init() functions of the custom experiment class
+        # NOTE: this MUST happen before the rest of the code executes. Otherwise,
+        # the dtype used to determine the task data attributes to be stored
+        # to the HDF file will be incorrect/incomplete
         super(SinkRegister, self).init()
 
         if isinstance(self, (MotionData, MotionSimulate)):
