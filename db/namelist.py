@@ -25,6 +25,7 @@ features = dict(
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
     norm_firingrates=experiment.features.NormFiringRates,
+    lfpbmi=None,
 )
 
 from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback

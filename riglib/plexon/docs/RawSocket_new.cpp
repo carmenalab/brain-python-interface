@@ -114,7 +114,7 @@ int main( int argc, char* argv[] )
             // for ( int i = 0; i < contChannelsSelection.size(); i++ ) {
             //     contChannelsSelection[i] = 1;
             // }
-            int chan = 512+20;
+            int chan = 512+8;
 
             contChannelsSelection[chan-1] = 1;
             client.SelectContinuousChannels( contChannelsSelection );
@@ -122,11 +122,11 @@ int main( int argc, char* argv[] )
             client.StartDataPump();
 
             // short data[10000] = {}
-            ofstream foo("plexnet_cpp_data_2.dat",ios::out | ios::binary);
+            ofstream foo("plexnet_cpp_data_3.dat",ios::out | ios::binary);
             int n_pts = 0;
 
             // receive and process data
-            int numberOfPacketsToProcess = 100;
+            int numberOfPacketsToProcess = 2000;
             for ( int i = 0; i < numberOfPacketsToProcess; i++ ) {
                 client.ReceivePacket();
                 // ProcessPacket( client.GetReceiveBuffer() );
@@ -215,6 +215,6 @@ void ProcessPacket( const std::vector<char>& receiveBuffer, PL_WaveLong& wave)
         if ( wave.Type == PL_ExtEventType ) {
             nts++;
         }
-        cout << "type=" << ( int )wave.Type << " channel=" << ( int )wave.Channel << " unit=" << ( int )wave.Unit << " t=" << wave.TimeStamp << endl;
+        // cout << "type=" << ( int )wave.Type << " channel=" << ( int )wave.Channel << " unit=" << ( int )wave.Unit << " t=" << wave.TimeStamp << endl;
     }
 }
