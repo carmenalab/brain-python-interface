@@ -45,26 +45,24 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
         cells = np.unique(cells)
         units = np.array(cells).astype(np.int32)
 
-    # TODO -- hardcoding this here for now, but this info should come from web interface!
-    # can either get a simple "neural_signal" variable from the web interface,
-    #    or get the extractor_cls and extractor_kwargs directly (better option)
+    # TODO -- hardcoding this here for now, but eventually this info (the type 
+    # of extractor and any extractor-specific parameters like 'bands' for LFP)
+    # should come from a file or from the web interface!
     neural_signal = 'lfp'
-
     if neural_signal == 'spikes':
         extractor_cls = extractor.BinnedSpikeCountsExtractor
         extractor_kwargs = dict()
-        extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode, different for KF/PPF
         extractor_kwargs['units'] = units
-        print 'initial units:', units
+        extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode (not = 1 for PPF)
     elif neural_signal == 'lfp':
         extractor_cls = extractor.LFPPowerExtractor
         extractor_kwargs = dict()
-        extractor_kwargs['win_len'] = 0.2
-        extractor_kwargs['bands'] = [(10, 20), (20, 30)]
         extractor_kwargs['channels'] = np.unique(units[:,0])
+        extractor_kwargs['bands'] = [(10, 20), (20, 30)]
+        extractor_kwargs['win_len'] = 0.2
         extractor_kwargs['filt_order'] = 5
     else:
-        raise Exception("Unknown neural signal!")
+        raise Exception("Unknown value for neural_signal!")
 
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 

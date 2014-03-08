@@ -358,7 +358,7 @@ class PlexonData(traits.HasTraits):
     def init(self):
         from riglib import plexon, source
 
-        if hasattr(self.decoder, 'extractor_cls') and hasattr(self.decoder, 'extractor_kwargs'):
+        if hasattr(self.decoder, 'extractor_cls'):
             # currently only one spike and one LFP extractor, but these lists may grow
             if decoder.extractor_cls in [BinnedSpikeCountsExtractor]:
                 self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
@@ -367,9 +367,9 @@ class PlexonData(traits.HasTraits):
             else:
                 raise Exception("Unknown extractor class, unable to create data source object!")
         else:
-            # if using an older decoder that doesn't have extractor_cls and 
-            # extractor_kwargs as attributes, then create a DataSource with
-            # plexon.Spikes by default
+            # if using an older decoder that doesn't have extractor_cls (and 
+            # extractor_kwargs) as attributes, then just create a DataSource 
+            # with plexon.Spikes by default
             self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
 
         super(PlexonLFPData, self).init()
