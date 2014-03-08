@@ -9,6 +9,8 @@ import numpy as np
 
 from riglib import calibrations, bmi
 
+from riblib.bmi.extractor import BinnedSpikeCountsExtractor, LFPPowerExtractor
+
 from . import traits
 
 class RewardSystem(traits.HasTraits):
@@ -294,17 +296,13 @@ class SpikeData(traits.HasTraits):
     
     def init(self):
         from riglib import plexon, source
-        #logging.debug("SpikeData feature creating Spikes source (SpikeData.init, features.py)")
         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
         super(SpikeData, self).init()
 
     def run(self):
-        #logging.debug("calling self.neurondata.start (SpikeData.run, features.py)")
         self.neurondata.start()
-        #logging.debug("finished starting neurondata source (SpikeData.run, features.py)")
         try:
             super(SpikeData, self).run()
-            #logging.debug("finished running neurondata source (SpikeData.run, features.py)")
         finally:
             self.neurondata.stop()
 
@@ -321,9 +319,9 @@ class SpikeBMI(SpikeData):
         print "init bmi"
         self.decoder = self.bmi
         super(SpikeBMI, self).init()
-        #self.neurondata.filter = self.bmi
 
 
+# to be removed once PlexonData and PlexonBMI features below work
 class PlexonLFPData(traits.HasTraits):
     '''Stream neural LFP data from the Plexon system'''
     plexon_channels = None
@@ -350,6 +348,49 @@ class PlexonLFPBMI(PlexonLFPData):
         print "init bmi"
         self.decoder = self.bmi
         super(PlexonLFPBMI, self).init()
+
+
+
+class PlexonData(traits.HasTraits):
+    '''Stream Plexon neural data'''
+    plexon_channels = None
+    
+    def init(self):
+        from riglib import plexon, source
+
+        if hasattr(self.decoder, 'extractor_cls') and hasattr(self.decoder, 'extractor_kwargs'):
+            # currently only one spike and one LFP extractor, but these lists may grow
+            if decoder.extractor_cls in [BinnedSpikeCountsExtractor]:
+                self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+            elif decoder.extractor_cls in [LFPPowerExtractor]:
+                self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
+            else:
+                raise Exception("Unknown extractor class, unable to create data source object!")
+        else:
+            # if using an older decoder that doesn't have extractor_cls and 
+            # extractor_kwargs as attributes, then create a DataSource with
+            # plexon.Spikes by default
+            self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+
+        super(PlexonLFPData, self).init()
+
+    def run(self):
+        self.neurondata.start()
+        try:
+            super(PlexonData, self).run()
+        finally:
+            self.neurondata.stop()
+
+class PlexonBMI(PlexonData):
+    '''Filters Plexon neural data through a BMI'''
+    bmi = traits.Instance(bmi.BMI)
+
+    def init(self):
+        self.plexon_channels = self.bmi.units[:,0]
+
+        print "init bmi"
+        self.decoder = self.bmi
+        super(PlexonBMI, self).init()
 
 
 
