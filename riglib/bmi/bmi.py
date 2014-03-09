@@ -359,6 +359,19 @@ class Decoder(object):
                 self.bmicount += 1
             return self.filt.get_mean().reshape(-1,1)
 
+    def save(self, filename=''):
+        if filename is not '':
+            f = open(filename, 'w')
+            pickle.dump(self, f)
+            f.close()
+            return filename
+        else:
+            import tempfile, cPickle
+            tf2 = tempfile.NamedTemporaryFile(delete=False) 
+            cPickle.dump(self, tf2)
+            tf2.flush()
+            return tf2.name
+
 
 class AdaptiveBMI(object):
     '''
