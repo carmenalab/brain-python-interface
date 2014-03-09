@@ -11,6 +11,7 @@ from itertools import izip
 import time
 import re
 import os
+import tables
 
 gen_joint_coord_regex = re.compile('.*?_p.*')
 
@@ -366,8 +367,15 @@ class Decoder(object):
             tf2.flush()
             return tf2.name
 
+    def save_attrs(self, hdf_filename, table_name='task'):
+        h5file = tables.openFile(hdf_filename, mode='a')
+        table = getattr(h5file.root, table_name)
+        for attr in self.filt.model_attrs:
+            table.attrs[attr] = np.array(getattr(self.filt, attr))
+        h5file.close()        
 
-class AdaptiveBMI(object):
+
+class BMISystem(object):
     '''
     Container for all brain-machine interfaces
     '''
