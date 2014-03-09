@@ -130,8 +130,11 @@ class Decoder(object):
             ax = plt.subplot(111)
             ax.hold(True)
 
-        state_inds = [self.states.index(x) for x in plot_states]
-        x, z = state_inds
+        if C.shape[1] > 2:
+            state_inds = [self.states.index(x) for x in plot_states]
+            x, z = state_inds
+        else:
+            x, z = 0, 1
         n_neurons = C.shape[0]
         linestyles = ['-.', '-', '--', ':']
         if invert:
@@ -140,8 +143,11 @@ class Decoder(object):
             unit_str = '%d%s' % (self.units[k,0], chr(96 + self.units[k,1]))
             ax.plot([0, C[k, x]], [0, C[k, z]], label=unit_str, linestyle=linestyles[k/7 % len(linestyles)], **kwargs)
         ax.legend(bbox_to_anchor=(1.1, 1.05), prop=dict(size=8))
-        ax.set_xlabel(plot_states[0])
-        ax.set_ylabel(plot_states[1])
+        try:
+            ax.set_xlabel(plot_states[0])
+            ax.set_ylabel(plot_states[1])
+        except:
+            pass
         ax.set_title(self)
 
     def plot_C(self, **kwargs):
