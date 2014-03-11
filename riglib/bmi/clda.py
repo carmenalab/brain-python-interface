@@ -175,7 +175,7 @@ class OFCLearner3DEndptPPF(OFCLearner):
         F_dict = dict(target=F, hold=F)
         super(OFCLearner3DEndptPPF, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
-        # Tell AdaptiveBMI that this learner wants the most recent output
+        # Tell BMISystem that this learner wants the most recent output
         # of the decoder rather than the second most recent, to matcn MATLAB
         self.input_state_index = 0
 

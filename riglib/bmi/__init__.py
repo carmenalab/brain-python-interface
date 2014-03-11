@@ -11,6 +11,6 @@ def load(decoder_fname):
     decoder = pickle.load(open(decoder_fname, 'rb'))
     return decoder
 
-from bmi import BMI, AdaptiveBMI
+from bmi import BMI, BMISystem, Decoder
 import kfdecoder
 import train
