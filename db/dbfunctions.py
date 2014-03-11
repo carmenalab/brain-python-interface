@@ -10,7 +10,11 @@ import tables
 import matplotlib.pyplot as plt
 import time, datetime
 from scipy.stats import nanmean
-import plotutil #!!!!!!
+try:
+    import plotutil
+except:
+    pass
+
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
