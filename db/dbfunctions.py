@@ -59,7 +59,9 @@ def get_decoder_entry(entry):
         return models.Decoder.objects.get(pk=entry)
     else:
         params = json.loads(entry.params)
-        if 'bmi' in params:
+        if 'decoder' in params:
+            return models.Decoder.objects.get(pk=params['decoder'])
+        elif 'bmi' in params:
             return models.Decoder.objects.get(pk=params['bmi'])
         else:
             return None
@@ -70,7 +72,10 @@ def get_decoder_name(entry):
     Takes TaskEntry object.
     '''
     entry = lookup_task_entries(entry)
-    decid = json.loads(entry.params)['bmi']
+    try:
+        decid = json.loads(entry.params)['decoder']
+    except:
+        decid = json.loads(entry.params)['bmi']
     return models.Decoder.objects.get(pk=decid).path
 
 def get_decoder_name_full(entry):
@@ -435,14 +440,21 @@ class TaskEntry(object):
 
         # Add the params dict to the object's dict
         for key, value in self.params.items():
-            setattr(self, key, value)
+            try:
+                setattr(self, key, value)
+            except AttributeError:
+                setattr(self, key + '_param', value)
+            except:
+                pass
 
         self.date = self.record.date
         self.notes = self.record.notes
         self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
 
         # Load decoder record
-        if 'bmi' in self.params:
+        if 'decoder' in self.params:
+            self.decoder_record = models.Decoder.objects.get(pk=self.params['decoder'])
+        elif 'bmi' in self.params:
             self.decoder_record = models.Decoder.objects.get(pk=self.params['bmi'])
         else:
             self.decoder_record = None

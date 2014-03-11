@@ -28,6 +28,7 @@ features = dict(
     lfpbmi=None,
 )
 
+import tasks
 from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
@@ -47,64 +48,65 @@ generators = dict(
     centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
     centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
     centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
+    centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
 )
 
-from tasks.rds import RDS, RDS_half
-from tasks.dots import Dots
-from tasks.redgreen import RedGreen, EyeCal
-from tasks.button import ButtonTask
+# from tasks.rds import RDS, RDS_half
+# from tasks.dots import Dots
+# from tasks.redgreen import RedGreen, EyeCal
+# from tasks.button import ButtonTask
 
 tasks = dict(
-    dots=Dots,
-    rds=RDS,
-    rds_half=RDS_half,
-    redgreen=RedGreen,
-    button=ButtonTask,
-    eye_calibration=EyeCal,
-    manual_control=manualcontrol.ManualControl,
-    bmi_control=bmitasks.BMIControl,
-    clda_control=bmitasks.CLDAControl,
-    manual_predict=bmitasks.ManualWithPredictions,
-    fixation_training=manualcontrol.FixationTraining,
-    target_capture=manualcontrol.TargetCapture,
-    movement_training=manualcontrol.MovementTraining,
-    direction_training=manualcontrol.TargetDirection,
-    test_boundary=manualcontrol.TestBoundary,
-    free_map=sensorymapping.FreeMap,
-    arm_position_training=sensorymapping.ArmPositionTraining,
-    number_map=sensorymapping.NumberMap,
-    joystick_control = manualcontrol.JoystickControl,
-    manual_control_2 = manualcontrol.ManualControl2,
-    visual_feedback = bmitasks.VisualFeedback,
-    visual_feedback_multi = bmimultitasks.VisualFeedbackMulti,
-    clda_auto_assist = bmitasks.CLDAAutoAssist,
-    clda_constrained_sskf = bmitasks.CLDAConstrainedSSKF,
-    sim_clda_control = bmitasks.SimCLDAControl,
-    sim_bmi_control = bmitasks.SimBMIControl,
+    dots=tasks.Dots,
+    rds=tasks.RDS,
+    rds_half=tasks.RDS_half,
+    redgreen=tasks.RedGreen,
+    button=tasks.ButtonTask,
+    eye_calibration=tasks.EyeCal,
+    manual_control=tasks.ManualControl,
+    bmi_control=tasks.BMIControl,
+    clda_control=tasks.CLDAControl,
+    manual_predict=tasks.ManualWithPredictions,
+    fixation_training=tasks.FixationTraining,
+    target_capture=tasks.TargetCapture,
+    movement_training=tasks.MovementTraining,
+    direction_training=tasks.TargetDirection,
+    test_boundary=tasks.TestBoundary,
+    free_map=tasks.FreeMap,
+    arm_position_training=tasks.ArmPositionTraining,
+    number_map=tasks.NumberMap,
+    joystick_control = tasks.JoystickControl,
+    manual_control_2 = tasks.ManualControl2,
+    visual_feedback = tasks.VisualFeedback,
+    visual_feedback_multi = tasks.VisualFeedbackMulti,
+    clda_auto_assist = tasks.CLDAAutoAssist,
+    clda_constrained_sskf = tasks.CLDAConstrainedSSKF,
+    sim_clda_control = tasks.SimCLDAControl,
+    sim_bmi_control = tasks.SimBMIControl,
 
     ######### V2 tasks
-    clda_constrained_sskf_multi = bmimultitasks.CLDAConstrainedSSKFMulti,
-    manual_control_multi =manualcontrolmultitasks.ManualControlMulti,
-    joystick_multi=manualcontrolmultitasks.JoystickMulti,
-    joystick_move = manualcontrolmultitasks.JoystickMove,
-    joystick_multi_plus_move = manualcontrolmultitasks.JoystickMulti_plusMove,
-    joystick_multi_directed = manualcontrolmultitasks.JoystickMulti_Directed,
-    bmi_control_multi = bmimultitasks.BMIControlMulti,
-    bmi_manipulated_feedback = bmilowfeedback.BMIControlManipulatedFB,
-    clda_ppf_manipulated_feedback = bmilowfeedback.CLDAControlPPFContAdaptMFB,
-    clda_control_multi = bmimultitasks.CLDAControlMulti,
-    sim_clda_control_multi = bmimultitasks.SimCLDAControlMulti,
-    clda_rml_kf = bmimultitasks.CLDARMLKF,
-    clda_cont_ppf= bmimultitasks.CLDAControlPPFContAdapt,
-    test_graphics = manualcontrolmultitasks.TestGraphics,
-    clda_rml_kf_ofc = bmimultitasks.CLDARMLKFOFC,
-    clda_kf_cg_sb = bmimultitasks.CLDAControlKFCG,
-    arm_plant = manualcontrolmultitasks.ArmPlant,
-    clda_kf_cg_joint_rml = bmimultitasks.CLDAControlKFCGJoint,
-    clda_kf_ofc_tentacle_rml = bmimultitasks.CLDAControlTentacle,
-    clda_kf_ofc_tentacle_rml_base = bmimultitasks.CLDAControlTentacleBaselineReestimate,
-    joystick_tentacle = manualcontrolmultitasks.JoystickTentacle,
-    bmi_baseline = bmimultitasks.BaselineControl,
+    clda_constrained_sskf_multi = tasks.CLDAConstrainedSSKFMulti,
+    manual_control_multi =tasks.ManualControlMulti,
+    joystick_multi=tasks.JoystickMulti,
+    joystick_move = tasks.JoystickMove,
+    joystick_multi_plus_move = tasks.JoystickMulti_plusMove,
+    joystick_multi_directed = tasks.JoystickMulti_Directed,
+    bmi_control_multi = tasks.BMIControlMulti,
+    bmi_manipulated_feedback = tasks.BMIControlManipulatedFB,
+    clda_ppf_manipulated_feedback = tasks.CLDAControlPPFContAdaptMFB,
+    clda_control_multi = tasks.CLDAControlMulti,
+    sim_clda_control_multi = tasks.SimCLDAControlMulti,
+    clda_rml_kf = tasks.CLDARMLKF,
+    clda_cont_ppf= tasks.CLDAControlPPFContAdapt,
+    test_graphics = tasks.TestGraphics,
+    clda_rml_kf_ofc = tasks.CLDARMLKFOFC,
+    clda_kf_cg_sb = tasks.CLDAControlKFCG,
+    arm_plant = tasks.ArmPlant,
+    clda_kf_cg_joint_rml = tasks.CLDAControlKFCGJoint,
+    clda_kf_ofc_tentacle_rml = tasks.CLDAControlTentacle,
+    clda_kf_ofc_tentacle_rml_base = tasks.CLDAControlTentacleBaselineReestimate,
+    joystick_tentacle = tasks.JoystickTentacle,
+    bmi_baseline = tasks.BaselineControl,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']
@@ -133,6 +135,7 @@ instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
     calibrations.AutoAlign:models.AutoAlignment,
     bmi.BMI: models.Decoder,
+    bmi.Decoder: models.Decoder,
 } )
 
 

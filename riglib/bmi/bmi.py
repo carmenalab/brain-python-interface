@@ -11,6 +11,7 @@ from itertools import izip
 import time
 import re
 import os
+import tables
 
 gen_joint_coord_regex = re.compile('.*?_p.*')
 
@@ -353,8 +354,28 @@ class Decoder(object):
                 self.bmicount += 1
             return self.filt.get_mean().reshape(-1,1)
 
+    def save(self, filename=''):
+        if filename is not '':
+            f = open(filename, 'w')
+            pickle.dump(self, f)
+            f.close()
+            return filename
+        else:
+            import tempfile, cPickle
+            tf2 = tempfile.NamedTemporaryFile(delete=False) 
+            cPickle.dump(self, tf2)
+            tf2.flush()
+            return tf2.name
 
-class AdaptiveBMI(object):
+    def save_attrs(self, hdf_filename, table_name='task'):
+        h5file = tables.openFile(hdf_filename, mode='a')
+        table = getattr(h5file.root, table_name)
+        for attr in self.filt.model_attrs:
+            table.attrs[attr] = np.array(getattr(self.filt, attr))
+        h5file.close()        
+
+
+class BMISystem(object):
     '''
     Container for all brain-machine interfaces
     '''

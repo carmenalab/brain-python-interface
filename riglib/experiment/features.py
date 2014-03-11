@@ -313,13 +313,13 @@ class SpikeSimulate(object):
 
 class SpikeBMI(SpikeData):
     '''Filters spike data through a BMI'''
-    bmi = traits.Instance(bmi.BMI)
+    decoder = traits.Instance(bmi.Decoder)
+    # decoder = traits.Instance(bmi.BMI)
 
     def init(self):
-        self.plexon_channels = self.bmi.units[:,0]
-
         print "init bmi"
-        self.decoder = self.bmi
+        # self.decoder = self.bmi
+        self.plexon_channels = self.decoder.units[:,0]
         super(SpikeBMI, self).init()
         #self.neurondata.filter = self.bmi
 
@@ -394,7 +394,9 @@ class SaveHDF(SinkRegister):
         try:
             self.cleanup_hdf()
         except:
-            print "cleanup error"
+            print "cleanup error!!!!!!!!!!!!!!!!!!!!"
+            import traceback
+            traceback.print_exc()
 
         database.save_data(self.h5file.name, "hdf", saveid)
 
