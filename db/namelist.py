@@ -48,6 +48,7 @@ generators = dict(
     centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
     centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
     centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
+    centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -134,6 +135,7 @@ instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
     calibrations.AutoAlign:models.AutoAlignment,
     bmi.BMI: models.Decoder,
+    bmi.Decoder: models.Decoder,
 } )
 
 
