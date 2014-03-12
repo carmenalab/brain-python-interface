@@ -55,7 +55,7 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
         extractor_kwargs['units'] = units
         extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode (not = 1 for PPF)
     elif neural_signal == 'lfp':
-        extractor_cls = extractor.LFPPowerExtractor
+        extractor_cls = extractor.LFPButterBPFPowerExtractor
         extractor_kwargs = dict()
         extractor_kwargs['channels'] = np.unique(units[:,0])
         extractor_kwargs['bands'] = [(10, 20), (20, 30)]

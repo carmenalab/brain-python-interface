@@ -478,7 +478,7 @@ def get_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
         for j, band in enumerate(bands):
             b, a = filt_coeffs[band]
             y = lfilter(b, a, plx.lfp[t-win_len:t].data[:, channels-1])
-            lfp_power[i, j*n_chan:(j+1)*n_chan] = np.log((1. / n_pts) * np.sum(y**2, axis=0))
+            lfp_power[i, j*n_chan:(j+1)*n_chan] = np.log10((1. / n_pts) * np.sum(y**2, axis=0))
     
     # TODO -- discard any channel(s) for which the log power in any frequency 
     #   bands was ever equal to -inf (i.e., power was equal to 0)
@@ -573,7 +573,7 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
     # TODO -- make the get_spike_counts and get_lfp_power functions part of their respective classes
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
         neural_features, units, extractor_kwargs = get_spike_counts(plx, neurows, binlen, units, extractor_kwargs)
-    elif extractor_cls == extractor.LFPPowerExtractor:
+    elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
         neural_features, units, extractor_kwargs = get_lfp_power(plx, neurows, binlen, units, extractor_kwargs)
     else:
         raise Exception("Unrecognized feature type!")

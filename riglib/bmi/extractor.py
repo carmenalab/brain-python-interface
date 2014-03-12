@@ -4,6 +4,9 @@ from riglib.bmi import sim_neurons
 from scipy.signal import butter, lfilter
 import math
 
+import nitime.algorithms as tsa
+
+
 ts_dtype_new = sim_neurons.ts_dtype_new
 
 # object that gets the data that it needs (e.g., spikes, LFP, etc.) from the neural data source and 
@@ -132,15 +135,15 @@ def bin_spikes(ts, units, max_units_per_channel=13):
         
 
 
-# bands should be a list of tuples/lists representing ranges
+# bands should be a list of tuples representing ranges
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
 # win_len specified in seconds
 
-class LFPPowerExtractor(object):
+class LFPButterBPFPowerExtractor(object):
     '''Docstring.'''
     feature_type = 'lfp_power'
 
-    def __init__(self, source, bands=[(10, 20), (20, 30)], win_len=0.2, channels=[], filt_order=5):
+    def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, filt_order=5):
         self.source = source
         self.bands = bands
         self.win_len = win_len
@@ -165,7 +168,7 @@ class LFPPowerExtractor(object):
         return self.source.get(self.n_pts, self.channels)
 
     def __call__(self, start_time, *args, **kwargs):
-        cont_samples = self.get_cont_samples(*args, **kwargs)
+        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
 
         n_chan = len(self.channels)
         
@@ -182,31 +185,46 @@ class LFPPowerExtractor(object):
         return lfp_power, None
 
 
-# unfinished/untested
-# class SimLFPPowerExtractor(LFPPowerExtractor):
-#     def __init__(self, bands, win_len, channels):
-#         self.bands = bands
-#         self.win_len = win_len
-#         self.channels = channels
+class LFPMTMPowerExtractor(object):
+    '''Docstring.'''
+    feature_type = 'lfp_power'
 
-#         self.fs = 1000.
-#         self.n_pts = int(self.win_len * self.fs)
-#         self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
-#         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
+    def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, NW=3):
+        self.source = source
+        self.bands = bands
+        self.win_len = win_len
+        self.channels = channels
 
-#         self.filt_coeffs = dict()
-#         order = 5
-#         for band in bands:
-#             nyq = 0.5 * fs
-#             low = band[0] / nyq
-#             high = band[1] / nyq
-#             self.filt_coeffs[band] = butter(order, [low, high], btype='band')  # returns (b, a)
+        self.epsilon = 1e-9
 
-#     def get_cont_samples(self, cursor_pos, target_pos):
-#         cont_samples = # TODO
-#         return cont_samples
+        self.fs = source.source.update_freq
+        self.n_pts = int(self.win_len * self.fs)
+        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
 
-#     def __call__(self, start_time, cursor_pos, target_pos):
-#         return super(SimLFPPowerExtractor, self).__call__(start_time, cursor_pos, target_pos)
+        # set as next power of 2 that is >= self.n_pts
+        self.nfft = 2**int(np.ceil(np.log2(self.n_pts)))
+        
+        self.NW = NW
 
+        fft_freqs = np.arange(0., fs, float(fs)/self.nfft)[:self.nfft/2 + 1]
+        self.fft_inds = dict()
+        for band_idx, band in enumerate(bands):
+            self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
+
+
+    def get_cont_samples(self, *args, **kwargs):
+        return self.source.get(self.n_pts, self.channels)
+
+    def __call__(self, start_time, *args, **kwargs):
+        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
+
+        psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
+        
+        # compute average power of each band of interest
+        n_chan = len(self.channels)
+        lfp_power = np.zeros((n_chan * len(self.bands), 1))
+        for idx, band in enumerate(self.bands):
+            lfp_power[idx*n_chan:(idx+1)*n_chan] = mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1)
+
+        return lfp_power, None
 
