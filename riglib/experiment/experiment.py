@@ -36,6 +36,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
         self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
 
+        # Attribute for task entry dtype. See SaveHDF feature
+        self.dtype = []
+
     @classmethod
     def class_editable_traits(cls):
         traits = super(Experiment, cls).class_editable_traits()
@@ -121,7 +124,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         traits = self.class_editable_traits()
         h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
-            if trait not in ['bmi']:#, 'arm_class', 'arm_visible']:
+            if trait not in ['bmi', 'decoder']:#, 'arm_class', 'arm_visible']:
                 h5file.root.task.attrs[trait] = getattr(self, trait)
         h5file.close()
 
@@ -172,6 +175,14 @@ class Experiment(traits.HasTraits, threading.Thread):
     
     def end_task(self):
         self.stop = True
+
+    def add_dtype(self, name, dtype, shape):
+        '''
+        Add to the dtype of the task. The task's dtype attribute is used to determine 
+        which attributes to save to file. 
+        '''
+        self.dtype.append((name, dtype, shape))
+
 
 class LogExperiment(Experiment):
     log_exclude = set()

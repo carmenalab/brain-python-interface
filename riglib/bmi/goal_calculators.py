@@ -96,21 +96,24 @@ class PlanarMultiLinkJointGoalCached(mp_calc.FuncProxy):
 
         super(PlanarMultiLinkJointGoalCached, self).__init__(fn, multiproc=multiproc, waiting_resp='prev', init_resp=init_resp)
 
-    # def __call__(self, target_pos, **kwargs):
-    #     joint_pos = None
-    #     for pos in self.cached_data:
-    #         if np.linalg.norm(target_pos - np.array(pos)) < 0.001:
-    #             possible_joint_pos = self.cached_data[pos]
-    #             ind = np.random.randint(0, len(possible_joint_pos))
-    #             joint_pos = possible_joint_pos[ind]
-    #             break
+    def __call__(self, target_pos, **kwargs):
+        joint_pos = None
+        for pos in self.cached_data:
+            if np.linalg.norm(target_pos - np.array(pos)) < 0.001:
+                joint_pos = self.cached_data[pos]
+                # possible_joint_pos = self.cached_data[pos]
+                # ind = np.random.randint(0, len(possible_joint_pos))
+                # joint_pos = possible_joint_pos[ind]
+                # break
 
-    #     if joint_pos == None:
-    #         raise ValueError("Unknown target position!")
+        # print joint_pos
 
-    #     target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
+        if joint_pos == None:
+            raise ValueError("Unknown target position!")
+
+        target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
         
-    #     # TODO These are wrong!
-    #     endpt_error = 0 #np.linalg.norm(kin_chain.endpoint_pos(joint_pos) - endpt_location)
+        # TODO These are wrong!
+        endpt_error = 0 #np.linalg.norm(kin_chain.endpoint_pos(joint_pos) - endpt_location)
 
-    #     return (target_state, endpt_error), True
+        return (target_state, endpt_error), True

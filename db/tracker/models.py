@@ -69,6 +69,8 @@ class Task(models.Model):
             if varname['type'] == "Enum":
                 varname['options'] = arms
             params[trait] = varname
+            if trait == 'bmi':
+                params['decoder'] = varname
 
         ordered_traits = Exp.ordered_traits
         for trait in ordered_traits:
@@ -295,6 +297,15 @@ class TaskEntry(models.Model):
         exp.event_log = json.loads(self.report)
         return exp
     
+    @property
+    def task_params(self):
+        from json_param import Parameters
+        data = Parameters(self.params).params
+        if 'bmi' in data:
+            data['decoder'] = data['bmi']
+        ##    del data['bmi']
+        return data
+
     def plexfile(self, path='/storage/plexon/', search=False):
         rplex = Feature.objects.get(name='relay_plexon')
         rplexb = Feature.objects.get(name='relay_plexbyte')
@@ -335,7 +346,8 @@ class TaskEntry(models.Model):
         state = 'completed' if self.pk is not None else "new"
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
-        js['params'] = self.task.params(self.feats.all(), values=Parameters(self.params).params)
+        js['params'] = self.task.params(self.feats.all(), values=self.task_params) #Parameters(self.task_params).params)
+
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)

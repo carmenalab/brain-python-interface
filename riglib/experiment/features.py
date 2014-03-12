@@ -295,12 +295,12 @@ class MotionAutoAlign(MotionData):
 # class SpikeData(traits.HasTraits):
 #     '''Stream neural spike data from the Plexon system'''
 #     plexon_channels = None
-    
+#     
 #     def init(self):
 #         from riglib import plexon, source
 #         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
 #         super(SpikeData, self).init()
-
+# 
 #     def run(self):
 #         self.neurondata.start()
 #         try:
@@ -310,14 +310,15 @@ class MotionAutoAlign(MotionData):
 
 # class SpikeBMI(SpikeData):
 #     '''Filters spike data through a BMI'''
-#     bmi = traits.Instance(bmi.BMI)
-
+#     decoder = traits.Instance(bmi.Decoder)
+#     # decoder = traits.Instance(bmi.BMI)
+# 
 #     def init(self):
-#         self.plexon_channels = self.bmi.units[:,0]
-
 #         print "init bmi"
-#         self.decoder = self.bmi
+#         # self.decoder = self.bmi
+#         self.plexon_channels = self.decoder.units[:,0]
 #         super(SpikeBMI, self).init()
+#         #self.neurondata.filter = self.bmi
 
 
 # NEW SpikeData and SpikeBMI features (they should really be renamed PlexonData and PlexonBMI)
@@ -351,47 +352,19 @@ class SpikeData(traits.HasTraits):
             self.neurondata.stop()
 
 class SpikeBMI(SpikeData):
-    '''Filters Plexon neural data through a BMI'''
-    bmi = traits.Instance(bmi.BMI)
+    '''Filters spike data through a BMI'''
+    decoder = traits.Instance(bmi.Decoder)
+    # decoder = traits.Instance(bmi.BMI)
 
     def init(self):
-        self.plexon_channels = self.bmi.units[:,0]
-
         print "init bmi"
-        self.decoder = self.bmi
+        # self.decoder = self.bmi
+        self.plexon_channels = self.decoder.units[:,0]
         super(SpikeBMI, self).init()
+        #self.neurondata.filter = self.bmi
 
 class SpikeSimulate(object):
     pass
-
-
-# to be removed once PlexonData and PlexonBMI features below work
-class PlexonLFPData(traits.HasTraits):
-    '''Stream neural LFP data from the Plexon system'''
-    plexon_channels = None
-    
-    def init(self):
-        from riglib import plexon, source
-        self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
-        super(PlexonLFPData, self).init()
-
-    def run(self):
-        self.neurondata.start()
-        try:
-            super(PlexonLFPData, self).run()
-        finally:
-            self.neurondata.stop()
-
-class PlexonLFPBMI(PlexonLFPData):
-    '''Filters LFP data through a BMI'''
-    bmi = traits.Instance(bmi.BMI)
-
-    def init(self):
-        self.plexon_channels = self.bmi.units[:,0]
-
-        print "init bmi"
-        self.decoder = self.bmi
-        super(PlexonLFPBMI, self).init()
 
 
 #*******************************************************************************************************
@@ -403,6 +376,10 @@ class SinkRegister(object):
         from riglib import sink
         self.sinks = sink.sinks
 
+        # Run the rest of the .init() functions of the custom experiment class
+        # NOTE: this MUST happen before the rest of the code executes. Otherwise,
+        # the dtype used to determine the task data attributes to be stored
+        # to the HDF file will be incorrect/incomplete
         super(SinkRegister, self).init()
 
         if isinstance(self, (MotionData, MotionSimulate)):
@@ -460,7 +437,9 @@ class SaveHDF(SinkRegister):
         try:
             self.cleanup_hdf()
         except:
-            print "cleanup error"
+            print "cleanup error!!!!!!!!!!!!!!!!!!!!"
+            import traceback
+            traceback.print_exc()
 
         database.save_data(self.h5file.name, "hdf", saveid)
 

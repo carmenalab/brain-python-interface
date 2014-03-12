@@ -102,7 +102,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         if bias_comp:
             bias = F[:,-1]
-            bias[1:, 0] = 0
+            bias[-1, 0] = 0
             post_state.mean -= bias
         post_state.cov = (I - KC) * P 
 
