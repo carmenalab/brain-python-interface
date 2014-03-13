@@ -9,7 +9,7 @@ import numpy as np
 
 from riglib import calibrations, bmi
 
-from riblib.bmi import extractor
+from riglib.bmi import extractor
 
 from . import traits
 
