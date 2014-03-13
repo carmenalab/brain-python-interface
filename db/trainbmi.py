@@ -48,7 +48,7 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     # TODO -- hardcoding this here for now, but eventually this info (the type 
     # of extractor and any extractor-specific parameters like 'bands' for LFP)
     # should come from a file or from the web interface!
-    neural_signal = 'lfp'
+    neural_signal = 'spikes'
     if neural_signal == 'spikes':
         extractor_cls = extractor.BinnedSpikeCountsExtractor
         extractor_kwargs = dict()
