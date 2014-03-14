@@ -453,12 +453,17 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
         step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
-    win_len  = extractor_kwargs['win_len']
-    bands    = extractor_kwargs['bands']
-    channels = extractor_kwargs['channels']
+    # TODO -- remove
+    # win_len  = extractor_kwargs['win_len']
+    # bands    = extractor_kwargs['bands']
+    # channels = extractor_kwargs['channels']
 
     # create extractor object
     f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
         
     n_itrs = len(interp_rows)
     n_chan = len(channels)
@@ -491,19 +496,24 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
         step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
-    win_len  = extractor_kwargs['win_len']
-    bands    = extractor_kwargs['bands']
-    channels = extractor_kwargs['channels']
+    # TODO -- remove
+    # win_len  = extractor_kwargs['win_len']
+    # bands    = extractor_kwargs['bands']
+    # channels = extractor_kwargs['channels']
 
     # create extractor object
     f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
 
     n_itrs = len(interp_rows)
     n_chan = len(channels)
     lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
     for i, t in enumerate(interp_rows):
         cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-        lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
 
     # TODO -- discard any channel(s) for which the log power in any frequency 
     #   bands was ever equal to -inf (i.e., power was equal to 0)

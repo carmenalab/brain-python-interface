@@ -238,7 +238,7 @@ class LFPMTMPowerExtractor(object):
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
-        psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=False, NFFT=self.nfft)[1]
+        psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
         
         # compute average power of each band of interest
         n_chan = len(self.channels)
