@@ -438,8 +438,8 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
 
     return spike_counts, units, extractor_kwargs
 
-def get_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
-    '''Compute lfp power features
+def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
+    '''Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
     '''
     
     # interpolate between the rows to 180 Hz
@@ -453,39 +453,66 @@ def get_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
         step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
-    fs = 1000.
-    win_len     = extractor_kwargs['win_len']
-    bands       = extractor_kwargs['bands']
-    channels    = extractor_kwargs['channels']
-    filt_order  = extractor_kwargs['filt_order']
+    win_len  = extractor_kwargs['win_len']
+    bands    = extractor_kwargs['bands']
+    channels = extractor_kwargs['channels']
 
-    from scipy.signal import butter, lfilter
-
-    filt_coeffs = dict()
-    for band in bands:
-        nyq = 0.5 * fs
-        low = band[0] / nyq
-        high = band[1] / nyq
-        filt_coeffs[band] = butter(filt_order, [low, high], btype='band')  # returns (b, a)
-
+    # create extractor object
+    extractor_obj = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+        
     n_itrs = len(interp_rows)
     n_chan = len(channels)
-
-    n_pts = int(win_len * fs)
-        
     lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
     for i, t in enumerate(interp_rows):
-        for j, band in enumerate(bands):
-            b, a = filt_coeffs[band]
-            y = lfilter(b, a, plx.lfp[t-win_len:t].data[:, channels-1])
-            lfp_power[i, j*n_chan:(j+1)*n_chan] = np.log10((1. / n_pts) * np.sum(y**2, axis=0))
+        cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+        lfp_power[i, :] = extractor_obj.extract_features(cont_samples).T
     
     # TODO -- discard any channel(s) for which the log power in any frequency 
     #   bands was ever equal to -inf (i.e., power was equal to 0)
     # or, perhaps just add a small epsilon inside the log to avoid this
     # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
 
     return lfp_power, units, extractor_kwargs
+
+
+def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
+    '''Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
+    '''
+    
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    win_len  = extractor_kwargs['win_len']
+    bands    = extractor_kwargs['bands']
+    channels = extractor_kwargs['channels']
+
+    # create extractor object
+    extractor_obj = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    for i, t in enumerate(interp_rows):
+        cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+        lfp_power[i, :] = extractor_obj.extract_features(cont_samples).T
+
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return lfp_power, units, extractor_kwargs
+
 
 def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     ''' Get positions and calculate velocity
@@ -570,13 +597,18 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
     kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
     neurows = rows[tmask]
 
-    # TODO -- make the get_spike_counts and get_lfp_power functions part of their respective classes
+    # TODO -- make the get_spike_counts, get_butter_bpf_lfp_power, etc. 
+    # functions part of their respective extractor classes
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
-        neural_features, units, extractor_kwargs = get_spike_counts(plx, neurows, binlen, units, extractor_kwargs)
+        extractor_fn = get_spike_counts
     elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
-        neural_features, units, extractor_kwargs = get_lfp_power(plx, neurows, binlen, units, extractor_kwargs)
+        extractor_fn = get_butter_bpf_lfp_power
+    elif extractor_cls == extractor.LFPMTMPowerExtractor:
+        extractor_fn = get_mtm_lfp_power
     else:
-        raise Exception("Unrecognized feature type!")
+        raise Exception("Unrecognized extractor class!")
+
+    neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
 
     return kin, neural_features, units, extractor_kwargs
 
@@ -600,8 +632,7 @@ def _train_PPFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=Non
     spike_counts[spike_counts > 1] = 1
     decoder = train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=binlen, tslice=tslice, _ssm=_ssm)
 
-    # save extractor info into the decoder so we can create the appropriate
-    #   extractor object when we use this decoder later on
+    # lets us create the appropriate extractor later when we use this decoder
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
 
@@ -631,8 +662,7 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
 
     decoder = train_KFDecoder(_ssm, kin, neural_features, units, update_rate=binlen, tslice=tslice)
 
-    # save extractor info into the decoder so we can create the appropriate
-    #   extractor object when we use this decoder later on
+    # lets us create the appropriate extractor later when we use this decoder
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
 
@@ -734,9 +764,9 @@ def _train_KFDecoder_cursor_epochs(extractor_cls, extractor_kwargs, units=None, 
 
     decoder = train_KFDecoder(endpt_2D_state_space, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
 
-    # save extractor info into the decoder so we can create the appropriate
-    #   extractor object when we use this decoder later on
     extractor_kwargs['units'] = units
+
+    # lets us create the appropriate extractor later when we use this decoder
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
 
@@ -874,9 +904,9 @@ def _train_KFDecoder_manual_control(extractor_cls, extractor_kwargs, units=None,
     states_to_bound = ['hand_px', 'hand_pz']
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound, binlen=binlen)
     
-    # save extractor info into the decoder so we can create the appropriate
-    #   extractor object when we use this decoder later on
     extractor_kwargs['units'] = units
+
+    # lets us create the appropriate extractor later when we use this decoder    
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
 

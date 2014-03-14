@@ -22,14 +22,20 @@ class FeatureExtractor(object):
 
 
 class BinnedSpikeCountsExtractor(FeatureExtractor):
-    '''Docstring.'''
+    '''
+    Bins spikes using rectangular windows.
+    '''
+
     feature_type = 'spike_counts'
+
     def __init__(self, source, n_subbins=1, units=[]):
+        self.feature_dtype = ('spike_counts', 'u4', (len(units), n_subbins))
+
         self.source = source
         self.n_subbins = n_subbins
         self.units = units
         self.last_get_spike_counts_time = 0
-        self.feature_dtype = ('spike_counts', 'u4', (len(units), n_subbins))
+        
 
     def get_spike_ts(self, *args, **kwargs):
         return self.source.get()
@@ -68,8 +74,10 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
     '''
     A "feature extractor" that replays spike counts from an HDF file
-    '''    
+    '''
+
     feature_type = 'spike_counts'
+    
     def __init__(self, hdf_table, source='spike_counts', units=[]):
         self.idx = 0
         self.hdf_table = hdf_table
@@ -107,6 +115,7 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
 
 class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
     '''Doctstring.'''
+    
     def __init__(self, input_device, encoder, n_subbins, units):
         self.input_device = input_device
         self.encoder = encoder
@@ -134,29 +143,32 @@ def bin_spikes(ts, units, max_units_per_channel=13):
 
         
 
-
 # bands should be a list of tuples representing ranges
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
 # win_len specified in seconds
 
 class LFPButterBPFPowerExtractor(object):
-    '''Docstring.'''
+    '''
+    Computes log power of the LFP in different frequency bands (for each 
+    channel) in time-domain using Butterworth band-pass filters.
+    '''
+
     feature_type = 'lfp_power'
 
-    def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, filt_order=5):
-        self.source = source
-        self.bands = bands
-        self.win_len = win_len
-        self.channels = channels
-        self.filt_order = filt_order
-
-        self.epsilon = 1e-9
-
-        self.fs = source.source.update_freq
-        self.n_pts = int(self.win_len * self.fs)
-        self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
+    def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, filt_order=5, fs=1000):
         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
 
+        self.source = source
+        self.channels = channels
+        self.bands = bands
+        self.win_len = win_len
+        self.filt_order = filt_order
+        if source is not None:
+            self.fs = source.source.update_freq
+        else:
+            self.fs = fs
+
+        self.n_pts = int(self.win_len * self.fs)
         self.filt_coeffs = dict()
         for band in bands:
             nyq = 0.5 * self.fs
@@ -164,12 +176,14 @@ class LFPButterBPFPowerExtractor(object):
             high = band[1] / nyq
             self.filt_coeffs[band] = butter(self.filt_order, [low, high], btype='band')  # returns (b, a)
 
+        self.epsilon = 1e-9
+
+        self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
+
     def get_cont_samples(self, *args, **kwargs):
         return self.source.get(self.n_pts, self.channels)
 
-    def __call__(self, start_time, *args, **kwargs):
-        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-
+    def extract_features(self, cont_samples):
         n_chan = len(self.channels)
         
         lfp_power = np.zeros((n_chan * len(self.bands), 1))
@@ -178,46 +192,50 @@ class LFPButterBPFPowerExtractor(object):
             y = lfilter(b, a, cont_samples)
             lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1, keepdims=True) + self.epsilon)
 
-        self.last_get_lfp_power_time = start_time
+    def __call__(self, start_time, *args, **kwargs):
+        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
+        lfp_power = self.extract_features(cont_samples)
 
+        self.last_get_lfp_power_time = start_time
+        
         # TODO -- what to return as equivalent of bin_edges?
-        # print 'lfp_power', lfp_power
         return lfp_power, None
 
 
 class LFPMTMPowerExtractor(object):
-    '''Docstring.'''
+    '''
+    Computes log power of the LFP in different frequency bands (for each 
+    channel) in freq-domain using the multi-taper method.
+    '''
+
     feature_type = 'lfp_power'
 
-    def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, NW=3):
-        self.source = source
-        self.bands = bands
-        self.win_len = win_len
-        self.channels = channels
-
-        self.epsilon = 1e-9
-
-        self.fs = source.source.update_freq
-        self.n_pts = int(self.win_len * self.fs)
+    def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, NW=3, fs=1000):
         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
 
-        # set as next power of 2 that is >= self.n_pts
-        self.nfft = 2**int(np.ceil(np.log2(self.n_pts)))
-        
+        self.source = source
+        self.channels = channels
+        self.bands = bands
+        self.win_len = win_len
         self.NW = NW
+        if source is not None:
+            self.fs = source.source.update_freq
+        else:
+            self.fs = fs
 
+        self.n_pts = int(self.win_len * self.fs)
+        self.nfft = 2**int(np.ceil(np.log2(self.n_pts)))  # nextpow2(self.n_pts)
         fft_freqs = np.arange(0., fs, float(fs)/self.nfft)[:self.nfft/2 + 1]
         self.fft_inds = dict()
         for band_idx, band in enumerate(bands):
             self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
 
+        self.epsilon = 1e-9
 
     def get_cont_samples(self, *args, **kwargs):
         return self.source.get(self.n_pts, self.channels)
 
-    def __call__(self, start_time, *args, **kwargs):
-        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-
+    def extract_features(self, cont_samples):
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
         
         # compute average power of each band of interest
@@ -226,5 +244,12 @@ class LFPMTMPowerExtractor(object):
         for idx, band in enumerate(self.bands):
             lfp_power[idx*n_chan:(idx+1)*n_chan] = mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1)
 
+        return lfp_power
+
+    def __call__(self, start_time, *args, **kwargs):
+        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
+        lfp_power = self.extract_features(cont_samples)
+
+        # TODO -- what to return as equivalent of bin_edges?
         return lfp_power, None
 
