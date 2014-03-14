@@ -344,6 +344,15 @@ class PseudoPPF(KalmanFilter):
         pass
 
 class KFDecoder(bmi.BMI, bmi.Decoder):
+    def __init__(self, *args, **kwargs):
+        super(KFDecoder, self).__init__(*args, **kwargs)
+        mFR = kwargs.pop('mFR', 0)
+        sdFR = kwargs.pop('sdFR', 0)
+        self.mFR = mFR
+        self.sdFR = sdFR
+        self.zeromeanunits = None
+        self.zscore = False
+
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1]):
         """ 
@@ -388,10 +397,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     def predict_ssm(self):
         self.kf.propagate_ssm()
 
-    @property
-    def filt(self):
-        return self.kf
-
     def update_params(self, new_params, steady_state=True):
         super(KFDecoder, self).update_params(new_params)
 
@@ -403,6 +408,9 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         """
         Set decoder state after un-pickling
         """
+        if 'kf' in state:
+            state['filt'] = state['kf']
+
         super(KFDecoder, self).__setstate__(state)
         self.bmicount = 0
         self.bminum = int(self.binlen/(1/60.0))
@@ -412,6 +420,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.plot_pds(K.T, **kwargs)
 
     def _pickle_init(self):
+        '''
+        Common functionality that must occur when instantiating a decoder or 
+        unpickling one. Also see Decoder._pickle_init
+        '''
         # Define 'dt' for the KF object
         self.filt.dt = self.binlen
         self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_kf.pkl'))
@@ -428,6 +440,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
         if not hasattr(self, 'ssm'):
             self.ssm = train.endpt_2D_state_space
+
 
     def shuffle(self):
         ''' Shuffle the neural model
