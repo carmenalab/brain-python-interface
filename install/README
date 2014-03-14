@@ -1,0 +1,4 @@
+Installation README
+-------------------
+
+The script install.sh is supposed to be an auto-install script.  It is still a work in progress.  Using the script requires superuser privileges so read it before executing it
