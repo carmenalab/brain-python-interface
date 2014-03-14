@@ -458,14 +458,14 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     channels = extractor_kwargs['channels']
 
     # create extractor object
-    extractor_obj = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+    f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
         
     n_itrs = len(interp_rows)
     n_chan = len(channels)
     lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
     for i, t in enumerate(interp_rows):
         cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-        lfp_power[i, :] = extractor_obj.extract_features(cont_samples).T
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
     
     # TODO -- discard any channel(s) for which the log power in any frequency 
     #   bands was ever equal to -inf (i.e., power was equal to 0)
@@ -496,14 +496,14 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     channels = extractor_kwargs['channels']
 
     # create extractor object
-    extractor_obj = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
+    f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
 
     n_itrs = len(interp_rows)
     n_chan = len(channels)
     lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
     for i, t in enumerate(interp_rows):
         cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-        lfp_power[i, :] = extractor_obj.extract_features(cont_samples).T
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
 
     # TODO -- discard any channel(s) for which the log power in any frequency 
     #   bands was ever equal to -inf (i.e., power was equal to 0)

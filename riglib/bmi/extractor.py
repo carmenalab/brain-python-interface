@@ -192,6 +192,8 @@ class LFPButterBPFPowerExtractor(object):
             y = lfilter(b, a, cont_samples)
             lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1, keepdims=True) + self.epsilon)
 
+        return lfp_power
+
     def __call__(self, start_time, *args, **kwargs):
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
         lfp_power = self.extract_features(cont_samples)
@@ -236,13 +238,13 @@ class LFPMTMPowerExtractor(object):
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
-        psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
+        psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=False, NFFT=self.nfft)[1]
         
         # compute average power of each band of interest
         n_chan = len(self.channels)
         lfp_power = np.zeros((n_chan * len(self.bands), 1))
         for idx, band in enumerate(self.bands):
-            lfp_power[idx*n_chan:(idx+1)*n_chan] = mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1)
+            lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
 
         return lfp_power
 
