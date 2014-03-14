@@ -3,15 +3,23 @@
 
 import numpy as np
 
+msgtype_mask = 0b0000111<<8
+auxdata_mask = 0b1111000<<8
+rawdata_mask = 0b11111111
+
 def _split(data, flip=False):
+    '''
+    '''
+    # If the data is a 1D array, extract the timestamps and the raw event codes
     if len(data.shape) < 2:
         data = np.array(data[data['chan'] == 257][['ts', 'unit']].tolist())
     msgs = data[:,1].astype(np.int16)
+    
     if not flip:
-        msgs = ~msgs
-    msgtype = np.right_shift(np.bitwise_and(msgs, 0b0000111<<8), 8).astype(np.uint8)
-    auxdata = np.right_shift(np.bitwise_and(msgs, 0b1111000<<8), 8).astype(np.uint8)
-    rawdata = np.bitwise_and(msgs, 255)
+        msgs = ~msgs # bit-flip the binary messages
+    msgtype = np.right_shift(np.bitwise_and(msgs, msgtype_mask), 8).astype(np.uint8)
+    auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
+    rawdata = np.bitwise_and(msgs, rawdata_mask)
     return np.vstack([data[:,0], msgtype, auxdata, rawdata]).T
 
 def registrations(data):
