@@ -330,9 +330,9 @@ class SpikeData(traits.HasTraits):
         from riglib import plexon, source
 
         if hasattr(self.decoder, 'extractor_cls'):
-            if 'spike' in decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
                 self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-            elif 'lfp' in decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
                 self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
             else:
                 raise Exception("Unknown extractor class, unable to create data source object!")

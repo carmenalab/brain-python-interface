@@ -156,7 +156,7 @@ class LFPButterBPFPowerExtractor(object):
     feature_type = 'lfp_power'
 
     def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, filt_order=5, fs=1000):
-        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
+        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
 
         self.source = source
         self.channels = channels
@@ -213,7 +213,7 @@ class LFPMTMPowerExtractor(object):
     feature_type = 'lfp_power'
 
     def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, NW=3, fs=1000):
-        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))  # TODO -- check what u4 means again
+        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
 
         self.source = source
         self.channels = channels

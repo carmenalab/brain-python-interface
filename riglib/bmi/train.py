@@ -430,7 +430,6 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
     spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
 
     # discard units that never fired at all
-    # TODO -- verify that summing over axis 0 is correct
     unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
     units = units[unit_inds,:]
     spike_counts = spike_counts[:, unit_inds]
@@ -453,10 +452,6 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
         step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
-    # TODO -- remove
-    # win_len  = extractor_kwargs['win_len']
-    # bands    = extractor_kwargs['bands']
-    # channels = extractor_kwargs['channels']
 
     # create extractor object
     f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
@@ -470,7 +465,7 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
     for i, t in enumerate(interp_rows):
         cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-        lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
     
     # TODO -- discard any channel(s) for which the log power in any frequency 
     #   bands was ever equal to -inf (i.e., power was equal to 0)
@@ -496,10 +491,6 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
         step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
-    # TODO -- remove
-    # win_len  = extractor_kwargs['win_len']
-    # bands    = extractor_kwargs['bands']
-    # channels = extractor_kwargs['channels']
 
     # create extractor object
     f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
