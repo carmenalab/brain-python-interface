@@ -64,7 +64,7 @@ class Task(models.Model):
                 varname['value'] = values[trait]
             if varname['type'] == "Instance":
                 Model = instance_to_model[ctraits[trait].trait_type.klass]
-                insts = Model.objects.order_by("-date")[:50]
+                insts = Model.objects.order_by("-date")[:100]
                 varname['options'] = [(i.pk, i.name) for i in insts]
             if varname['type'] == "Enum":
                 varname['options'] = arms

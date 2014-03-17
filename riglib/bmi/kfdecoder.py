@@ -82,6 +82,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
     def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, 
                        obs_is_control_independent=True, bias_comp=False):
+        '''
+        Estimate p(x_t | ..., y_{t-1}, y_t)
+        '''
         using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
         pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
 
