@@ -518,6 +518,7 @@ class NormFiringRates(traits.HasTraits):
         self.updated=False
 
     def update_fr_vals(self):
+        raise NotImplementedError("decoder.bin_spikes no longer exists, use the feature extractor instead")
         if self.elapsedtime>1.:
             bin = self.decoder.bin_spikes(self.neurondata.get(all=True).copy())
             self.count +=1
