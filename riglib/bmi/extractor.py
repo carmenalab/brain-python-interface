@@ -190,7 +190,7 @@ class LFPButterBPFPowerExtractor(object):
         for i, band in enumerate(self.bands):
             b, a = self.filt_coeffs[band]
             y = lfilter(b, a, cont_samples)
-            lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1, keepdims=True) + self.epsilon)
+            lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1) + self.epsilon).reshape(-1, 1)
 
         return lfp_power
 
