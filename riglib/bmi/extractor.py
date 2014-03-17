@@ -34,8 +34,13 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         self.source = source
         self.n_subbins = n_subbins
         self.units = units
+
+        extractor_kwargs = dict()
+        extractor_kwargs['n_subbins'] = self.n_subbins
+        extractor_kwargs['units']     = self.units
+        self.extractor_kwargs = extractor_kwargs
+
         self.last_get_spike_counts_time = 0
-        
 
     def get_spike_ts(self, *args, **kwargs):
         return self.source.get()
@@ -168,6 +173,14 @@ class LFPButterBPFPowerExtractor(object):
         else:
             self.fs = fs
 
+        extractor_kwargs = dict()
+        extractor_kwargs['channels']   = self.channels
+        extractor_kwargs['bands']      = self.bands
+        extractor_kwargs['win_len']    = self.win_len
+        extractor_kwargs['filt_order'] = self.filt_order
+        extractor_kwargs['fs']         = self.fs
+        self.extractor_kwargs = extractor_kwargs
+
         self.n_pts = int(self.win_len * self.fs)
         self.filt_coeffs = dict()
         for band in bands:
@@ -224,6 +237,14 @@ class LFPMTMPowerExtractor(object):
             self.fs = source.source.update_freq
         else:
             self.fs = fs
+
+        extractor_kwargs = dict()
+        extractor_kwargs['channels'] = self.channels
+        extractor_kwargs['bands']    = self.bands
+        extractor_kwargs['win_len']  = self.win_len
+        extractor_kwargs['NW']       = self.NW
+        extractor_kwargs['fs']       = self.fs
+        self.extractor_kwargs = extractor_kwargs
 
         self.n_pts = int(self.win_len * self.fs)
         self.nfft = 2**int(np.ceil(np.log2(self.n_pts)))  # nextpow2(self.n_pts)
