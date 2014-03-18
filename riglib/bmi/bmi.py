@@ -119,6 +119,12 @@ class GaussianStateHMM():
         import train
         return train.obj_diff(self, other, self.model_attrs)
 
+    def __call__(self, obs, **kwargs):
+        """ Call the 1-step forward inference function
+        """
+        self.state = self._forward_infer(self.state, obs, **kwargs)
+        return self.state.mean
+
 
 class Decoder(object):
     '''
@@ -277,15 +283,15 @@ class Decoder(object):
         else:
             raise ValueError("KFDecoder: Improper index type: %" % type(idx))
 
-    def bin_spikes(self, spikes, max_units_per_channel=13):
-        '''
-        Count up the number of BMI spikes in a list of spike timestamps
-        '''
-        unit_inds = self.units[:,0]*max_units_per_channel + self.units[:,1]
-        edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
-        spiking_unit_inds = spikes['chan']*max_units_per_channel + spikes['unit']
-        counts, _ = np.histogram(spiking_unit_inds, edges)
-        return counts[::2]
+    # def bin_spikes(self, spikes, max_units_per_channel=13):
+    #     '''
+    #     Count up the number of BMI spikes in a list of spike timestamps
+    #     '''
+    #     unit_inds = self.units[:,0]*max_units_per_channel + self.units[:,1]
+    #     edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
+    #     spiking_unit_inds = spikes['chan']*max_units_per_channel + spikes['unit']
+    #     counts, _ = np.histogram(spiking_unit_inds, edges)
+    #     return counts[::2]
 
     def __setstate__(self, state):
         """

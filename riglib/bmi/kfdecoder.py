@@ -3,12 +3,6 @@ Implementation of a Kalman filter and associated code to use it as a BMI
 decoder
 '''
 
-## try:
-##     from plexon import psth
-## except:
-##     import warnings
-##     warnings.warn('psth module not found, using python spike binning function')
-
 import numpy as np
 from scipy.io import loadmat
 
@@ -62,12 +56,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
             n_states = self.A.shape[0]
             self.is_stochastic = np.ones(n_states, dtype=bool)
 
-    def __call__(self, obs, **kwargs):
-        """ Call the 1-step forward inference function
-        """
-        self.state = self._forward_infer(self.state, obs, **kwargs)
-        return self.state.mean
-
     def get_mean(self):
         return np.array(self.state.mean).ravel()
 
@@ -80,8 +68,10 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         self.state = self.A*self.state
 
-    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, 
-                       obs_is_control_independent=True, bias_comp=False):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, bias_comp=False):
+        '''
+        Estimate p(x_t | ..., y_{t-1}, y_t)
+        '''
         using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
         pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
 

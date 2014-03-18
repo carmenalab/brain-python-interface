@@ -21,7 +21,7 @@ sudo pip install Django==1.6
 sudo pip install pylibftdi
 
 # setup the CIFS 
-sudo apt-get -y install smbclient cifs-utils
+sudo apt-get -y install smbclient cifs-utils smbfs
 sudo mkdir /backup
 sudo chown lab /backup
 
@@ -54,7 +54,7 @@ mkdir $HOME/code/bmi3d/log
 
 # Make directory to store plots and other data analysis things
 sudo mkdir /storage
-sudo chown lab /storage
+sudo chown -R lab /storage
 mkdir /storage/plots
 
 # Add the following lines to .bashrc

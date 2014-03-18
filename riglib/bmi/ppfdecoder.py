@@ -70,12 +70,6 @@ class PointProcessFilter():
         self.state_noise = GaussianState(0.0, self.W)
         self.id = np.zeros([1, self.C.shape[0]])
 
-    def __call__(self, obs, target_state=None):
-        """ Call the 1-step forward inference function
-        """
-        self.state = self._forward_infer(self.state, obs, target_state=target_state)
-        return self.state.mean
-
     def get_mean(self):
         return np.array(self.state.mean).ravel()
 
