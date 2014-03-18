@@ -59,10 +59,8 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
         extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode (not = 1 for PPF)
     elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
         extractor_kwargs['channels'] = np.unique(units[:,0])
-        extractor_kwargs['bands'] = [(10, 20), (20, 30)]
     elif extractor_cls == extractor.LFPMTMPowerExtractor:
         extractor_kwargs['channels'] = np.unique(units[:,0])
-        extractor_kwargs['bands'] = [(10, 20), (20, 30)]
     else:
         raise Exception("Unknown value for neural_signal!")
 
