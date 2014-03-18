@@ -230,54 +230,6 @@ class PointProcessFilter():
         return C, pvalues
 
 class PPFDecoder(bmi.BMI, bmi.Decoder):
-    def __init__(self, filt, units, bounding_box, states, drives_neurons,
-        states_to_bound, binlen=0.1, n_subbins=3, tslice=[-1,-1]):
-        '''
-        Initialize a PPF decoder
-
-        Parameters
-        ----------
-        filt : PointProcessFilter instance (not named ppf to keep things generic)
-            Generic point-process filter that does the actual observation decoding
-        units : array-like
-            N x 2 array of units, where each row is (chan, unit)
-        bounding_box : tuple
-            2-tuple of (lower bounds, upper bounds) for states that require 
-            hard bounds (e.g. position bounds for a cursor to keep it from 
-            going off the screen)
-        states : list of strings
-            List of variables known to the decoder
-        drives_neurons : list of strings
-            List of variables that the decoder uses to explain neural firing
-        states_to_bound : list of strings
-            List of variables to which to apply the hard bounds specified in 
-            the 'bounding_box' argument
-        binlen : float, optional, default = 0.1
-            Bin-length specified in seconds. Gets rounded to a multiple of 1./60
-            to match the update rate of the task
-        n_subbins : int, optional, default = 3
-            Neural observations are always acquired at the 60Hz screen update rate.
-            This parameter explains how many bins to sub-divide the observations 
-            into. Default of 3 is intended to correspond to ~180Hz / 5.5ms bins
-        tslice : array_like, optional, default=[-1, -1]
-            start and end times for the neural data used to train, e.g. from the .plx file
-            No idea why this was specified as an attribute of the decoder instead of 
-            the database, and changing it now is a high-risk, low-payoff option
-        '''
-        self.filt = filt
-        self.filt._init_state()
-        self.units = np.array(units, dtype=np.int32)
-        self.binlen = binlen
-        self.bounding_box = bounding_box
-        self.states = states
-        self.tslice = tslice
-        self.states_to_bound = states_to_bound
-        self.states = states
-        self.drives_neurons = drives_neurons
-        self.n_subbins = n_subbins
-        self.bmicount = 0
-        self._pickle_init()
-
     def _pickle_init(self):
         ### # initialize the F_assist matrices
         ### # TODO this needs to be its own function...
