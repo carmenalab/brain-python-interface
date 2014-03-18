@@ -18,16 +18,30 @@ sudo pip install patsy
 sudo pip install statsmodels 
 sudo pip install PyOpenGL PyOpenGL_accelerate
 sudo pip install Django==1.6 
+sudo pip install pylibftdi
 
 # setup the CIFS 
 sudo apt-get -y install smbclient cifs-utils
 sudo mkdir /backup
 sudo chown lab /backup
 
+MOUNTSTORAGE="/dev/sdb1 /storage        ext4    defaults 0       0"
+MOUNTBACKUP="//project.eecs.berkeley.edu/carmena /backup cifs noauto,username=sgowda,domain=EECS,sec=ntlmssp,uid=localuser,dir_mode=0777,file_mode=0777 0 0"
+MOUNTPLEXON="//10.0.0.13/PlexonData /storage/plexon  smbfs   user=arc,pass=c@rmena,uid=1000,gid=1000 0 0"
+
 ## edit fstab as instructed in the email from EECS
-if [ ! `cat /etc/fstab | cut -d " " -f 2 | grep "/backup"` ]; then
-    sudo sed -i '$a //project.eecs.berkeley.edu/carmena /backup cifs noauto,username=sgowda,domain=EECS,sec=ntlmssp,uid=lab,dir_mode=0700,file_mode=0700 0 0' /etc/fstab
+if [ ! `cat /etc/fstab | tr -s ' ' | cut -d " " -f 2 | grep "/backup"` ]; then
+    sudo sed -i '$a $MOUNTBACKUP' /etc/fstab
 fi
+
+if [ ! `cat /etc/fstab | tr -s ' ' | cut -d " " -f 2 | grep "/storage"` ]; then
+    sudo sed -i '$a $MOUNTSTORAGE' /etc/fstab
+fi
+
+if [ ! `cat /etc/fstab | tr -s ' ' | cut -d " " -f 2 | grep "/storage/plexon"` ]; then
+    sudo sed -i '$a $MOUNTPLEXON' /etc/fstab
+fi
+
 
 # tornado web framework
 sudo pip install tornado
@@ -100,3 +114,20 @@ sudo apt-get -y install isc-dhcp-server
 ## Add 'eth1' to interfaces in /etc/default/isc-dhcp-server
 # Edit /etc/dhcp/dhcpd.conf
 sudo /etc/init.d/isc-dhcp-server restart
+
+
+sudo apt-get install libusb-dev
+mkdir $HOME/src/
+cd $HOME/src/
+wget http://www.phidgets.com/downloads/libraries/libphidget.tar.gz
+tar xzf libphidget.tar.gz 
+cd libphidget*
+./configure
+make
+sudo make install
+# Copy udev rules
+sudo cp udev/99-phidgets.rules /etc/udev/rules.d
+
+cd $HOME/src/
+wget http://www.phidgets.com/downloads/libraries/PhidgetsPython.zip
+unzip PhidgetsPython.zip  
