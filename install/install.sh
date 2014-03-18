@@ -79,7 +79,7 @@ sudo apt-get -y install libcomedi-dev
 sudo apt-get -y install python-comedilib
 sudo apt-get -y install swig
 $HOME/code/bmi3d/riglib/nidaq/build.sh
-sudo cp $HOME/code/bmi3d/install/comedi.rules /etc/udev/rules.d/
+sudo cp $HOME/code/bmi3d/install/udev/comedi.rules /etc/udev/rules.d/
 sudo chmod a+r /etc/udev/rules.d/comedi.rules 
 sudo chown lab /dev/comedi0
 sudo udevadm control --reload-rules
