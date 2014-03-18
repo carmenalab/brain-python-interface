@@ -460,12 +460,19 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     win_len  = f_extractor.win_len
     bands    = f_extractor.bands
     channels = f_extractor.channels
+    fs       = f_extractor.fs
         
     n_itrs = len(interp_rows)
     n_chan = len(channels)
     lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    lfp = plx.lfp[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
     for i, t in enumerate(interp_rows):
-        cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+        sample_num = int(t * fs)
+        cont_samples = lfp[sample_num-n_pts:sample_num, :]
         lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
     
     # TODO -- discard any channel(s) for which the log power in any frequency 
@@ -500,13 +507,22 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     win_len  = f_extractor.win_len
     bands    = f_extractor.bands
     channels = f_extractor.channels
+    fs       = f_extractor.fs
 
     n_itrs = len(interp_rows)
     n_chan = len(channels)
     lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    lfp = plx.lfp[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
     for i, t in enumerate(interp_rows):
-        cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+        sample_num = int(t * fs)
+        cont_samples = lfp[sample_num-n_pts:sample_num, :]
         lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+
 
     # TODO -- discard any channel(s) for which the log power in any frequency 
     #   bands was ever equal to -inf (i.e., power was equal to 0)
