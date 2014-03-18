@@ -151,6 +151,9 @@ def bin_spikes(ts, units, max_units_per_channel=13):
 # bands should be a list of tuples representing ranges
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
 # win_len specified in seconds
+default_bands = []
+for start in range(10, 30): #150, 10):
+    default_bands.append((start, start+10))
 
 class LFPButterBPFPowerExtractor(object):
     '''
@@ -160,7 +163,7 @@ class LFPButterBPFPowerExtractor(object):
 
     feature_type = 'lfp_power'
 
-    def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, filt_order=5, fs=1000):
+    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, filt_order=5, fs=1000):
         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
 
         self.source = source
@@ -225,7 +228,7 @@ class LFPMTMPowerExtractor(object):
 
     feature_type = 'lfp_power'
 
-    def __init__(self, source, channels=[], bands=[(10, 20), (20, 30)], win_len=0.2, NW=3, fs=1000):
+    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000):
         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
 
         self.source = source

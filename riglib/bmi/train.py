@@ -455,7 +455,7 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
 
     # create extractor object
     f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
-    extractor_kwargs = extractor.extractor_kwargs
+    extractor_kwargs = f_extractor.extractor_kwargs
 
     win_len  = f_extractor.win_len
     bands    = f_extractor.bands
@@ -502,7 +502,7 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
 
     # create extractor object
     f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
-    extractor_kwargs = extractor.extractor_kwargs
+    extractor_kwargs = f_extractor.extractor_kwargs
 
     win_len  = f_extractor.win_len
     bands    = f_extractor.bands
