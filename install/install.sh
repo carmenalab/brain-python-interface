@@ -116,7 +116,7 @@ sudo apt-get -y install isc-dhcp-server
 sudo /etc/init.d/isc-dhcp-server restart
 
 
-sudo apt-get install libusb-dev
+sudo apt-get -y install libusb-dev
 mkdir $HOME/src/
 cd $HOME/src/
 wget http://www.phidgets.com/downloads/libraries/libphidget.tar.gz
@@ -131,3 +131,7 @@ sudo cp udev/99-phidgets.rules /etc/udev/rules.d
 cd $HOME/src/
 wget http://www.phidgets.com/downloads/libraries/PhidgetsPython.zip
 unzip PhidgetsPython.zip  
+cd PhidgetsPython
+sudo python setup.py install
+
+# Graphics driver stuff 
