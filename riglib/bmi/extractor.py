@@ -152,7 +152,7 @@ def bin_spikes(ts, units, max_units_per_channel=13):
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
 # win_len specified in seconds
 default_bands = []
-for start in range(10, 30): #150, 10):
+for start in range(10, 150, 10):
     default_bands.append((start, start+10))
 
 class LFPButterBPFPowerExtractor(object):
@@ -269,6 +269,7 @@ class LFPMTMPowerExtractor(object):
         lfp_power = np.zeros((n_chan * len(self.bands), 1))
         for idx, band in enumerate(self.bands):
             lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
+
 
         return lfp_power
 

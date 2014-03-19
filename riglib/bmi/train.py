@@ -508,6 +508,7 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     bands    = f_extractor.bands
     channels = f_extractor.channels
     fs       = f_extractor.fs
+    print 'bands:', bands
 
     n_itrs = len(interp_rows)
     n_chan = len(channels)
@@ -664,6 +665,15 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
     '''
     Train a KFDecoder from visual feedback
     '''
+
+    string = ''
+    string += 'extractor_cls: ' + str(extractor_cls)
+    string += 'extractor_kwargs: ' + str(extractor_kwargs)
+    string += 'units: ' + str(units)
+    string += 'binlen: ' + str(binlen)
+    string += 'tslice: ' + str(tslice)
+    # raise Exception(string)
+
     kin, neural_features, units, extractor_kwargs = preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source=source, kin_var=kin_var)
     if _ssm == None:
         if kin_var == 'cursor':
