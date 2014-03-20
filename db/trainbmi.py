@@ -48,7 +48,7 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     # TODO -- hardcoding this here for now, but eventually the extractor class
     # and corresponding kwargs (e.g., 'bands' for LFP) should come from a file
     # or from the web interface
-    extractor_cls = extractor.BinnedSpikeCountsExtractor
+    extractor_cls = extractor.LFPMTMPowerExtractor #BinnedSpikeCountsExtractor
     print 'Training with extractor class:', extractor_cls
     extractor_kwargs = dict()
 

@@ -146,7 +146,7 @@ class DataSource(mp.Process):
 
 
 class MultiChanDataSource(mp.Process):
-    def __init__(self, source, bufferlen=5, **kwargs):
+    def __init__(self, source, bufferlen=1, **kwargs):
         super(MultiChanDataSource, self).__init__()
         self.name = source.__module__.split('.')[-1]
         self.filter = None

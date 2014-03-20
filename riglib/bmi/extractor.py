@@ -152,7 +152,7 @@ def bin_spikes(ts, units, max_units_per_channel=13):
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
 # win_len specified in seconds
 default_bands = []
-for start in range(10, 150, 10):
+for start in range(10, 20, 10):
     default_bands.append((start, start+10))
 
 class LFPButterBPFPowerExtractor(object):
@@ -263,18 +263,21 @@ class LFPMTMPowerExtractor(object):
 
     def extract_features(self, cont_samples):
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
-        
+
         # compute average power of each band of interest
         n_chan = len(self.channels)
         lfp_power = np.zeros((n_chan * len(self.bands), 1))
         for idx, band in enumerate(self.bands):
             lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
 
-
+        # n_chan = len(self.channels)     
+        # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
+        
         return lfp_power
 
     def __call__(self, start_time, *args, **kwargs):
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
+        # cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
         lfp_power = self.extract_features(cont_samples)
 
         # TODO -- what to return as equivalent of bin_edges?
