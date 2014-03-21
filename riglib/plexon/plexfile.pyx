@@ -170,7 +170,10 @@ cdef class Continuous:
     property time:
         def __get__(self):
             cdef double start = self.info.start + self.info.t_start
-            return np.arange(start, self.info.stop, 1./self.info.freq)
+            cdef double stop = self.info.len / float(self.info.freq)
+            if self.info.stop != -1:
+                stop = self.info.stop
+            return np.arange(start, stop, 1./self.info.freq)
 
 cdef class DiscreteFS:
     cdef Datafile parent
