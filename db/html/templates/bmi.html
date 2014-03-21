@@ -24,6 +24,18 @@
         </tr>
         <tr>
             <td>
+                <label for='bmiextractor'>Feature Extractor:</label>
+            </td>
+            <td>
+                <select id='bmiextractor'>
+                    {% for name in extractors %}
+                    <option>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td>
                 <label for='bmibinlen'>Bin length</label>
             </td>
             <td>
