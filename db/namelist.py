@@ -21,7 +21,6 @@ features = dict(
     motion_simulate=experiment.features.MotionSimulate, 
     motion_autoalign=experiment.features.MotionAutoAlign,
     bmi=experiment.features.SpikeBMI,
-    # lfpbmi=experiment.features.PlexonLFPBMI,
     saveHDF=experiment.features.SaveHDF,
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
