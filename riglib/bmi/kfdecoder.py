@@ -3,12 +3,6 @@ Implementation of a Kalman filter and associated code to use it as a BMI
 decoder
 '''
 
-## try:
-##     from plexon import psth
-## except:
-##     import warnings
-##     warnings.warn('psth module not found, using python spike binning function')
-
 import numpy as np
 from scipy.io import loadmat
 
@@ -62,12 +56,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
             n_states = self.A.shape[0]
             self.is_stochastic = np.ones(n_states, dtype=bool)
 
-    def __call__(self, obs, **kwargs):
-        """ Call the 1-step forward inference function
-        """
-        self.state = self._forward_infer(self.state, obs, **kwargs)
-        return self.state.mean
-
     def get_mean(self):
         return np.array(self.state.mean).ravel()
 
@@ -80,8 +68,10 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         self.state = self.A*self.state
 
-    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, 
-                       obs_is_control_independent=True, bias_comp=False):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, bias_comp=False):
+        '''
+        Estimate p(x_t | ..., y_{t-1}, y_t)
+        '''
         using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
         pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
 
@@ -344,6 +334,15 @@ class PseudoPPF(KalmanFilter):
         pass
 
 class KFDecoder(bmi.BMI, bmi.Decoder):
+    def __init__(self, *args, **kwargs):
+        super(KFDecoder, self).__init__(*args, **kwargs)
+        mFR = kwargs.pop('mFR', 0)
+        sdFR = kwargs.pop('sdFR', 0)
+        self.mFR = mFR
+        self.sdFR = sdFR
+        self.zeromeanunits = None
+        self.zscore = False
+
     def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
         states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1]):
         """ 
@@ -388,10 +387,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     def predict_ssm(self):
         self.kf.propagate_ssm()
 
-    @property
-    def filt(self):
-        return self.kf
-
     def update_params(self, new_params, steady_state=True):
         super(KFDecoder, self).update_params(new_params)
 
@@ -403,6 +398,9 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         """
         Set decoder state after un-pickling
         """
+        if 'kf' in state:
+            state['filt'] = state['kf']
+
         super(KFDecoder, self).__setstate__(state)
         self.bmicount = 0
         self.bminum = int(self.binlen/(1/60.0))
@@ -412,6 +410,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.plot_pds(K.T, **kwargs)
 
     def _pickle_init(self):
+        '''
+        Common functionality that must occur when instantiating a decoder or 
+        unpickling one. Also see Decoder._pickle_init
+        '''
         # Define 'dt' for the KF object
         self.filt.dt = self.binlen
         self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_kf.pkl'))
@@ -428,6 +430,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
         if not hasattr(self, 'ssm'):
             self.ssm = train.endpt_2D_state_space
+
 
     def shuffle(self):
         ''' Shuffle the neural model

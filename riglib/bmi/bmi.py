@@ -119,11 +119,73 @@ class GaussianStateHMM():
         import train
         return train.obj_diff(self, other, self.model_attrs)
 
+    def __call__(self, obs, **kwargs):
+        """ Call the 1-step forward inference function
+        """
+        self.state = self._forward_infer(self.state, obs, **kwargs)
+        return self.state.mean
+
 
 class Decoder(object):
     '''
     All BMI decoders should inherit from this class
     '''
+    def __init__(self, filt, units, bounding_box, states, drives_neurons,
+        states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1], **kwargs):
+        """ 
+        Parameters
+        ----------
+        filt : PointProcessFilter or KalmanFilter instance
+            Generic inference algorithm that does the actual observation decoding
+        units : array-like
+            N x 2 array of units, where each row is (chan, unit)
+        bounding_box : tuple
+            2-tuple of (lower bounds, upper bounds) for states that require 
+            hard bounds (e.g. position bounds for a cursor to keep it from 
+            going off the screen)
+        states : list of strings
+            List of variables known to the decoder
+        drives_neurons : list of strings
+            List of variables that the decoder uses to explain neural firing
+        states_to_bound : list of strings
+            List of variables to which to apply the hard bounds specified in 
+            the 'bounding_box' argument
+        binlen : float, optional, default = 0.1
+            Bin-length specified in seconds. Gets rounded to a multiple of 1./60
+            to match the update rate of the task
+        n_subbins : int, optional, default = 3
+            Neural observations are always acquired at the 60Hz screen update rate.
+            This parameter explains how many bins to sub-divide the observations 
+            into. Default of 3 is intended to correspond to ~180Hz / 5.5ms bins
+        tslice : array_like, optional, default=[-1, -1]
+            start and end times for the neural data used to train, e.g. from the .plx file
+        """
+
+        self.filt = filt
+        self.filt._init_state()
+
+        self.units = np.array(units, dtype=np.int32)
+        self.binlen = binlen
+        self.bounding_box = bounding_box
+        self.states = states
+        
+        # The tslice parameter below properly belongs in the database and
+        # not in the decoder object because the Decoder object has no record of 
+        # which plx file it was trained from. This is a leftover from when it
+        # was assumed that every decoder would be trained entirely from a plx
+        # file (i.e. and not CLDA)
+        self.tslice = tslice
+        self.states_to_bound = states_to_bound
+        
+        self.drives_neurons = drives_neurons
+        self.n_subbins = n_subbins
+
+        self.bmicount = 0
+        self.bminum = int(self.binlen/(1/60.0))
+        self.spike_counts = np.zeros([len(units), 1])
+
+        self._pickle_init()      
+
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         import matplotlib.pyplot as plt
         if ax == None:
@@ -131,8 +193,11 @@ class Decoder(object):
             ax = plt.subplot(111)
             ax.hold(True)
 
-        state_inds = [self.states.index(x) for x in plot_states]
-        x, z = state_inds
+        if C.shape[1] > 2:
+            state_inds = [self.states.index(x) for x in plot_states]
+            x, z = state_inds
+        else:
+            x, z = 0, 1
         n_neurons = C.shape[0]
         linestyles = ['-.', '-', '--', ':']
         if invert:
@@ -141,8 +206,11 @@ class Decoder(object):
             unit_str = '%d%s' % (self.units[k,0], chr(96 + self.units[k,1]))
             ax.plot([0, C[k, x]], [0, C[k, z]], label=unit_str, linestyle=linestyles[k/7 % len(linestyles)], **kwargs)
         ax.legend(bbox_to_anchor=(1.1, 1.05), prop=dict(size=8))
-        ax.set_xlabel(plot_states[0])
-        ax.set_ylabel(plot_states[1])
+        try:
+            ax.set_xlabel(plot_states[0])
+            ax.set_ylabel(plot_states[1])
+        except:
+            pass
         ax.set_title(self)
 
     def plot_C(self, **kwargs):
@@ -215,15 +283,15 @@ class Decoder(object):
         else:
             raise ValueError("KFDecoder: Improper index type: %" % type(idx))
 
-    def bin_spikes(self, spikes, max_units_per_channel=13):
-        '''
-        Count up the number of BMI spikes in a list of spike timestamps
-        '''
-        unit_inds = self.units[:,0]*max_units_per_channel + self.units[:,1]
-        edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
-        spiking_unit_inds = spikes['chan']*max_units_per_channel + spikes['unit']
-        counts, _ = np.histogram(spiking_unit_inds, edges)
-        return counts[::2]
+    # def bin_spikes(self, spikes, max_units_per_channel=13):
+    #     '''
+    #     Count up the number of BMI spikes in a list of spike timestamps
+    #     '''
+    #     unit_inds = self.units[:,0]*max_units_per_channel + self.units[:,1]
+    #     edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
+    #     spiking_unit_inds = spikes['chan']*max_units_per_channel + spikes['unit']
+    #     counts, _ = np.histogram(spiking_unit_inds, edges)
+    #     return counts[::2]
 
     def __setstate__(self, state):
         """

@@ -497,7 +497,11 @@ class RelayPlexon(SinkRegister):
 
     @property
     def plexfile(self):
-        '''Calculates the plexon file that's most likely associated with the current task'''
+        '''
+        Calculates the plexon file that's most likely associated with the current task
+        based on the time at which the task ended and the "last modified" time of the 
+        plexon files located at /storage/plexon/
+        '''
         import os, sys, glob, time
         if len(self.event_log) < 1:
             return None
@@ -557,6 +561,7 @@ class NormFiringRates(traits.HasTraits):
         self.updated=False
 
     def update_fr_vals(self):
+        raise NotImplementedError("decoder.bin_spikes no longer exists, use the feature extractor instead")
         if self.elapsedtime>1.:
             bin = self.decoder.bin_spikes(self.neurondata.get(all=True).copy())
             self.count +=1
