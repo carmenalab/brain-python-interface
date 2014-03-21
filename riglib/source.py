@@ -14,9 +14,6 @@ import numpy as np
 import sink
 from . import FuncProxy
 
-def my_print(s):
-    print s
-    sys.stdout.flush()
 
 class DataSource(mp.Process):
     def __init__(self, source, bufferlen=10, **kwargs):
@@ -218,7 +215,6 @@ class MultiChanDataSource(mp.Process):
                 #   chan is the the channel number and data should have dtype 
                 #   (or subdtype) self.source.dtype
                 chan, data = system.get()
-                sys.stdout.flush()
                 # for now, assume no multi-channel data source is registered
                 # TODO -- how to send MCDS data to a sink? (problem is that
                 #    "data" has a variable length each time and has no 
@@ -252,7 +248,6 @@ class MultiChanDataSource(mp.Process):
                                 self.data[row, :n_pts-(max_len-idx)] = data[max_len-idx:]
                                 idx = n_pts-(max_len-idx)
                             self.idxs[row] = idx
-                            sys.stdout.flush()
 
                         self.lock.release()
                     except Exception as e:

@@ -12,3 +12,4 @@ riglib/plexon/psth.c
 db/settings.py
 tests/map_test
 db/db.sql
+docs/_build
