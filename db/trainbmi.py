@@ -68,7 +68,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
         extractor_kwargs['units'] = units
         extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode (not = 1 for PPF!)
-    elif extractor_cls == extractor.LFPButterBPFPowerExtractor
+    elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
         extractor_kwargs['channels'] = channels
     elif extractor_cls == extractor.LFPMTMPowerExtractor:
         extractor_kwargs['channels'] = channels
