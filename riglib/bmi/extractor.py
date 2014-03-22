@@ -150,10 +150,12 @@ def bin_spikes(ts, units, max_units_per_channel=13):
 
 # bands should be a list of tuples representing ranges
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
-# win_len specified in seconds
+start = 0
+end   = 150
+step  = 10
 default_bands = []
-for start in range(10, 20, 10):
-    default_bands.append((start, start+10))
+for freq in range(start, end, step):
+    default_bands.append((freq, freq+step))
 
 class LFPButterBPFPowerExtractor(object):
     '''
@@ -169,7 +171,7 @@ class LFPButterBPFPowerExtractor(object):
         self.source = source
         self.channels = channels
         self.bands = bands
-        self.win_len = win_len
+        self.win_len = win_len  # secs
         self.filt_order = filt_order
         if source is not None:
             self.fs = source.source.update_freq
