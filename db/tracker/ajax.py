@@ -179,6 +179,7 @@ def make_bmi(request, idx):
         clsname=request.POST['bmiclass'],
         extractorname=request.POST['bmiextractor']
         cells=request.POST['cells'],
+        channels=request.POST['channels'],
         binlen=float(request.POST['binlen']),
         tslice=map(float, request.POST.getlist('tslice[]')),
     )

@@ -18,6 +18,13 @@
     -moz-box-sizing:border-box;
     box-sizing:border-box;
 }
+#channelnames {
+    width:100%;
+    height:8em;
+    font-size:80%;
+    -moz-box-sizing:border-box;
+    box-sizing:border-box;
+}
 
 fieldset#bmi {
     border:1px solid;
