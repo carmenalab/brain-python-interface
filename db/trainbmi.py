@@ -27,7 +27,7 @@ def cache_plx(plxfile):
     plx = plexfile.openFile(str(plxfile)) 
 
 @task()
-def make_bmi(name, clsname, entry, cells, binlen, tslice):
+def make_bmi(name, clsname, extractorname, entry, cells, binlen, tslice):
     """Train BMI
 
     (see doc for cache_and_train for input argument info)
@@ -45,15 +45,19 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
         cells = np.unique(cells)
         units = np.array(cells).astype(np.int32)
 
-    # TODO -- hardcoding this here for now, but eventually the extractor class
-    # and corresponding kwargs (e.g., 'bands' for LFP) should come from a file
-    # or from the web interface
-    extractor_cls = extractor.LFPMTMPowerExtractor #BinnedSpikeCountsExtractor
-    print 'Training with extractor class:', extractor_cls
-    extractor_kwargs = dict()
+    database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
+    datafiles = models.DataFile.objects.filter(entry_id=entry)
+    inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
+    training_method = namelist.bmis[clsname]
+    extractor_cls = namelist.extractors[extractorname]
+    print 'Training with extractor class:', extractor_cls
+    
+    # TODO -- hardcoding this here for now, but eventually the extractor kwargs
+    #   should come from a file or from the web interface
     # for LFP extractors, only kwarg that needs to be set here is 'channels'
-    # other kwargs will default to values specified in the class's __init__ 
+    #   other kwargs will default to values specified in the class's __init__ 
+    extractor_kwargs = dict()
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
         extractor_kwargs['units'] = units
         extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode (not = 1 for PPF)
@@ -62,13 +66,9 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     elif extractor_cls == extractor.LFPMTMPowerExtractor:
         extractor_kwargs['channels'] = np.unique(units[:,0])
     else:
-        raise Exception("Unknown value for neural_signal!")
+        raise Exception("Unknown value for extractor_cls!")
 
-    database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
-    datafiles = models.DataFile.objects.filter(entry_id=entry)
-    inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
-    training_method = namelist.bmis[clsname]
     decoder = training_method(extractor_cls, extractor_kwargs, 
                                 units=units, binlen=binlen, tslice=tslice, **inputdata)
     tf = tempfile.NamedTemporaryFile('wb')
@@ -76,13 +76,15 @@ def make_bmi(name, clsname, entry, cells, binlen, tslice):
     tf.flush()
     database.save_bmi(name, int(entry), tf.name)
 
-def cache_and_train(name, clsname, entry, cells, binlen, tslice):
+def cache_and_train(name, clsname, extractorname, entry, cells, binlen, tslice):
     """Cache plexon file and train BMI
 
     Parameters
     ----------
     clsname : string
         BMI algorithm name (passed to namelist lookup table 'bmis')
+    extractorname : string
+        feature extractor algorithm name (passed to namelist lookup table 'extractors')
     entry : models.TaskEntry
         Django record of training task
     cells : string
@@ -98,10 +100,10 @@ def cache_and_train(name, clsname, entry, cells, binlen, tslice):
 
     if not plxfile.has_cache():
         cache = cache_plx.si(plxfile.get_path())
-        train = make_bmi.si(name, clsname, entry, cells, binlen, tslice)
+        train = make_bmi.si(name, clsname, extractorname, entry, cells, binlen, tslice)
         chain(cache, train)()
     else:
-        make_bmi.delay(name, clsname, entry, cells, binlen, tslice)
+        make_bmi.delay(name, clsname, extractorname, entry, cells, binlen, tslice)
 
 def conv_mm_dec_to_cm(decoder_record):
     '''
