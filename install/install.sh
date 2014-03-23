@@ -95,11 +95,11 @@ sudo apt-get -y install swig
 $HOME/code/bmi3d/riglib/nidaq/build.sh
 sudo cp $HOME/code/bmi3d/install/udev/comedi.rules /etc/udev/rules.d/
 sudo chmod a+r /etc/udev/rules.d/comedi.rules 
-sudo chown lab /dev/comedi0
 sudo udevadm control --reload-rules
 # Add 'lab' user to the iocard group to give write access to the NIDAQ card
 sudo usermod -a -G iocard lab
-# Will need to log out and log back in for the change to take effect?
+# Give 'lab' user access to the dialout group to connect to serial ports
+sudo usermod -a -G dialout lab
 
 # RabbitMQ
 sudo apt-add-repository "deb http://www.rabbitmq.com/debian/ testing main"
@@ -135,3 +135,9 @@ cd PhidgetsPython
 sudo python setup.py install
 
 # Graphics driver stuff 
+
+sudo apt-get -y install libtool automake bison flex
+sudo apt-get -y install openssh-server
+git clone https://github.com/sgowda/plot $HOME/code/plotutil
+
+sudo apt-get install apt-show-versions
