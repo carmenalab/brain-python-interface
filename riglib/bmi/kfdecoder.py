@@ -68,7 +68,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         self.state = self.A*self.state
 
-    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, bias_comp=False):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, bias_comp=True):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
         '''
@@ -91,8 +91,12 @@ class KalmanFilter(bmi.GaussianStateHMM):
             post_state.mean += -KC*pred_state.mean + K*obs_t
 
         if bias_comp:
-            bias = F[:,-1]
-            bias[-1, 0] = 0
+            bias = np.zeros([F.shape[0], 1])
+            bias[1,0] = F[1,-1]
+            # bias[2,0] = F[2,-1]
+            bias[3,0] = F[3,-1]
+            # bias = F[:,-1]
+            # bias[-1, 0] = 0
             post_state.mean -= bias
         post_state.cov = (I - KC) * P 
 

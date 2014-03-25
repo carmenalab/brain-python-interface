@@ -543,7 +543,7 @@ class BMISystem(object):
         
             new_params = None # by default, no new parameters are available
 
-            if self.learner.is_full():
+            if self.learner.is_ready():
                 self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
                 if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
                     half_life = kwargs['half_life']
