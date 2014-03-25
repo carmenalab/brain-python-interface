@@ -338,12 +338,15 @@ class CursorGoalLearner2(CursorGoalLearner):
 ## Updaters
 ##############################################################################
 class CLDARecomputeParameters(mp.Process):
-    """Generic class for CLDA parameter recomputation"""
+    update_kwargs = dict() 
     def __init__(self, work_queue, result_queue):
-        ''' __init__
-        work_queue, result_queue are mp.Queues
-        Jobs start when an entry is found in work_queue
-        Results of job are placed back onto result_queue
+        ''' 
+        Parameters
+        ----------
+        work_queue : mp.Queue
+            Jobs start when an entry is found in work_queue
+        result_queue : mp.Queues
+            Results of job are placed back onto result_queue
         '''
         # run base constructor
         super(CLDARecomputeParameters, self).__init__()
@@ -411,6 +414,7 @@ class KFSmoothbatchSingleThread(object):
         return new_params
 
 class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
+    update_kwargs = dict(steady_state=True)
     def __init__(self, work_queue, result_queue, batch_time, half_life):
         super(KFSmoothbatch, self).__init__(work_queue, result_queue)
         self.half_life = half_life
@@ -609,6 +613,7 @@ class KFContinuousBayesianUpdater(object):
 
 
 class KFRML(object):
+    update_kwargs = dict(steady_state=False)
     def __init__(self, work_queue, result_queue, batch_time, half_life):
         # super(KFRML, self).__init__(work_queue, result_queue)
         self.work_queue = None
