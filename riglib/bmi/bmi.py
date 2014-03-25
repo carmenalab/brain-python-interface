@@ -536,7 +536,7 @@ class BMISystem(object):
             self.spike_counts += neural_obs_k
             if learn_flag and self.decoder.bmicount == 0:
                 self.learner(self.spike_counts.copy(), learner_state, target_state_k, 
-                             decoded_state, task_state, state_order=self.decoder.ssm.state_order)
+                             decoded_states[:,k], task_state, state_order=self.decoder.ssm.state_order)
                 self.reset_spike_counts()
             elif self.decoder.bmicount == 0:
                 self.reset_spike_counts()
@@ -545,21 +545,21 @@ class BMISystem(object):
 
             if self.learner.is_ready():
                 self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-                if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
-                    half_life = kwargs['half_life']
-                    rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
-                elif hasattr(self.updater, 'half_life'):
-                    rho = self.updater.rho
-                else:
-                    rho = -1
-                clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder)
+                # if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
+                #     half_life = kwargs['half_life']
+                #     rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
+                # elif hasattr(self.updater, 'half_life'):
+                #     rho = self.updater.rho
+                # else:
+                #     rho = -1
+                args = (self.intended_kin, self.spike_counts_batch, self.decoder)
 
                 if self.mp_updater:
-                    self.clda_input_queue.put(clda_data)
+                    self.clda_input_queue.put(args, kwargs)
                     # Disable learner until parameter update is received
                     self.learner.disable() 
                 else:
-                    new_params = self.updater.calc(*clda_data)
+                    new_params = self.updater.calc(*args, **kwargs)
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available
