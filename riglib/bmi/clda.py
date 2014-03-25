@@ -620,10 +620,10 @@ class KFRML(object):
         return (R, S, T, ESS)
 
     def init_suff_stats(self, decoder):
-        self.R = decoder.kf.R
-        self.S = decoder.kf.S
-        self.T = decoder.kf.T
-        self.ESS = decoder.kf.ESS
+        self.R = decoder.filt.R
+        self.S = decoder.filt.S
+        self.T = decoder.filt.T
+        self.ESS = decoder.filt.ESS
 
     def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
         if half_life is not None:
