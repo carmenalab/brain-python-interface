@@ -108,16 +108,6 @@ class OFCLearner(BatchLearner):
         self.F_dict = F_dict
         self.A = A
 
-    def _target_BMI_state(self, target_pos):
-        '''
-        Determine the target state of the BMI. Changes depending on the coordinate
-        space of the decoder. For now, assume 3D endpoint pos/vel state and
-        override in child classes
-        '''
-        target_state = np.hstack([target_pos.ravel(), np.zeros(len(target_pos)), 1])
-        target_state = np.mat(target_state.reshape(-1,1))
-        return target_state
-
     def _run_fbcontroller(self, F, current_state, target_state):
         A = self.A
         B = self.B
@@ -125,7 +115,6 @@ class OFCLearner(BatchLearner):
 
     def __call__(self, spike_counts, cursor_state, target_state, decoded_vel, task_state, state_order=None):
         if task_state in self.F_dict:
-            # target_state = self._target_BMI_state(target_pos)
             target_state = np.mat(target_state).reshape(-1,1)
             current_state = np.mat(cursor_state).reshape(-1,1)
             int_state = self._run_fbcontroller(self.F_dict[task_state], current_state, target_state)
