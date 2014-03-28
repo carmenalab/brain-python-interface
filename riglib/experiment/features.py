@@ -363,8 +363,50 @@ class SpikeBMI(SpikeData):
         super(SpikeBMI, self).init()
         #self.neurondata.filter = self.bmi
 
+
 class SpikeSimulate(object):
     pass
+
+
+# perhaps eventually, combine these with the above Plexon features?
+class BlackrockData(traits.HasTraits):
+    '''Stream Blackrock neural data.'''
+    blackrock_channels = None
+
+    def init(self):
+        from riglib import blackrock, source
+
+        if hasattr(self.decoder, 'extractor_cls'):
+            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+                self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels)
+            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+                self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels)
+            else:
+                raise Exception("Unknown extractor class, unable to create data source object!")
+        else:
+            # if using an older decoder that doesn't have extractor_cls (and 
+            # extractor_kwargs) as attributes, then just create a DataSource 
+            # with blackrock.Spikes by default
+            self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels)
+
+        super(BlackrockData, self).init()
+
+    def run(self):
+        self.neurondata.start()
+        try:
+            super(BlackrockData, self).run()
+        finally:
+            self.neurondata.stop()
+
+class BlackrockBMI(BlackrockData):
+    '''Filters neural data from the Blackrock system through a BMI.'''
+    decoder = traits.Instance(bmi.Decoder)
+
+    def init(self):
+        print "init bmi"
+        self.blackrock_channels = self.decoder.units[:,0]
+        super(SpikeBMI, self).init()
+
 
 
 #*******************************************************************************************************
