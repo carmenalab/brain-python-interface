@@ -50,6 +50,7 @@ generators = dict(
     centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
     centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
     centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
+    centerout_3D=generatorfunctions.centerout_3D,
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -106,6 +107,7 @@ tasks = dict(
     clda_kf_cg_joint_rml = tasks.CLDAControlKFCGJoint,
     clda_kf_ofc_tentacle_rml = tasks.CLDAControlTentacle,
     clda_kf_ofc_tentacle_rml_base = tasks.CLDAControlTentacleBaselineReestimate,
+    clda_kf_ofc_tentacle_rml_trial = tasks.CLDAControlTentacleTrialBased,
     joystick_tentacle = tasks.JoystickTentacle,
     bmi_baseline = tasks.BaselineControl,
 )
