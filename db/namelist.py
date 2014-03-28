@@ -157,3 +157,5 @@ extractors = dict(
     LFPpowerBPF = bmi.extractor.LFPButterBPFPowerExtractor,
 )
 
+default_extractor = "spikecounts"
+

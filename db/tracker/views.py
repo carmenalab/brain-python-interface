@@ -26,6 +26,7 @@ def list(request):
         hostname=request.get_host(),
         bmis=namelist.bmis,
         extractors=namelist.extractors,
+        default_extractor=namelist.default_extractor,
     )
     if display.task is not None:
         fields['running'] = display.task.saveid

@@ -29,7 +29,11 @@
             <td>
                 <select id='bmiextractor'>
                     {% for name in extractors %}
-                    <option>{{ name }}</option>
+                        {% if name == default_extractor %}
+                            <option selected="selected">{{ name }}</option>
+                        {% else %}
+                            <option>{{ name }}</option>
+                        {% endif %}
                     {% endfor %}
                 </select>
             </td>
