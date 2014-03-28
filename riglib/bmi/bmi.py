@@ -553,6 +553,8 @@ class BMISystem(object):
                 # else:
                 #     rho = -1
                 args = (self.intended_kin, self.spike_counts_batch, self.decoder)
+                batch_size = self.intended_kin.shape[1]
+                kwargs['batch_time'] = batch_size * self.decoder.binlen
 
                 if self.mp_updater:
                     self.clda_input_queue.put(args, kwargs)
@@ -560,6 +562,7 @@ class BMISystem(object):
                     self.learner.disable() 
                 else:
                     new_params = self.updater.calc(*args, **kwargs)
+                    print "updating BMI"
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available

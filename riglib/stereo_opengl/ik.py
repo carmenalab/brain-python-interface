@@ -155,9 +155,10 @@ class CursorPlant(object):
         self.position = pt
 
     def get_joint_pos(self):
-        raise ValueError("cursor has no joints!")
+        return self.position
+        # raise ValueError("cursor has no joints!")
 
-    def set_joint_pos(self,theta):
+    def set_joint_pos(self, theta):
         raise ValueError("Cursor has no joints!")
 
 def make_list(value, num_joints):

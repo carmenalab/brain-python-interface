@@ -48,6 +48,7 @@ class Learner(object):
     def __init__(self, *args, **kwargs):
         self.enabled = True
         self.input_state_index = -1
+        self.reset()
 
     def disable(self):
         self.enabled = False
@@ -56,7 +57,8 @@ class Learner(object):
         self.enabled = True
 
     def reset(self):
-        pass
+        self.kindata = []
+        self.neuraldata = []
 
     def __call__(self, *args, **kwargs):
         raise NotImplementedError
@@ -78,28 +80,52 @@ class DumbLearner(Learner):
 
 class BatchLearner(Learner):
     def __init__(self, batch_size, *args, **kwargs):
-        super(BatchLearner, self).__init__(*args, **kwargs)
+        self.done_states = kwargs.pop('done_states', [])
+        self.reset_states = kwargs.pop('reset_states', [])
+        print "Reset states for learner: "
+        print self.reset_states
+        print "Done states for learner: "
+        print self.done_states        
         self.batch_size = batch_size
-        self.kindata = []
-        self.neuraldata = []
-    
-    def __call__(self, spike_counts, int_kin):
+        self.passed_done_state = False
+        super(BatchLearner, self).__init__(*args, **kwargs)
+
+    def __call__(self, spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=None):
         """
-        Rotation toward target state
+        Calculate the intended kinematics and pair with the neural data
         """
-        if self.enabled:
+        #print task_state
+        if task_state in self.reset_states:
+            print "resetting CLDA batch"
+            self.reset()
+
+        int_kin = self.calc_int_kin(decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+        
+        if self.passed_done_state and self.enabled:
+            if task_state in ['hold', 'target']:
+                self.passed_done_state = False
+
+        if self.enabled and not self.passed_done_state and int_kin is not None:
             self.kindata.append(int_kin)
             self.neuraldata.append(spike_counts)
+
+            if task_state in self.done_states:
+                self.passed_done_state = True
+
     
     def is_ready(self):
-        return len(self.kindata) >= self.batch_size
+        _is_ready = len(self.kindata) >= self.batch_size or ((len(self.kindata) > 0) and self.passed_done_state)
+        return _is_ready
 
     def get_batch(self):
+        print "getting batch"
         kindata = np.vstack(self.kindata).T
         neuraldata = np.hstack(self.neuraldata)
         self.kindata = []
         self.neuraldata = []
+        # self.passed_done_state = False
         return kindata, neuraldata
+
 
 class OFCLearner(BatchLearner):
     def __init__(self, batch_size, A, B, F_dict, *args, **kwargs):
@@ -113,15 +139,32 @@ class OFCLearner(BatchLearner):
         B = self.B
         return A*current_state + B*F*(target_state - current_state)
 
-    def __call__(self, spike_counts, cursor_state, target_state, decoded_vel, task_state, state_order=None):
-        if task_state in self.F_dict:
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        # print current_state
+        # print target_state
+        # print decoder_output
+        try:
+            current_state = np.mat(current_state).reshape(-1,1)
             target_state = np.mat(target_state).reshape(-1,1)
-            current_state = np.mat(cursor_state).reshape(-1,1)
-            int_state = self._run_fbcontroller(self.F_dict[task_state], current_state, target_state)
+            F = self.F_dict[task_state]
+            A = self.A
+            B = self.B
+            # print F
+            # print A
+            # print B
+            return A*current_state + B*F*(target_state - current_state)        
+        except KeyError:
+            return None
 
-            if self.enabled:
-                self.kindata.append(int_state)
-                self.neuraldata.append(spike_counts)
+    # def __call__(self, spike_counts, cursor_state, target_state, decoded_vel, task_state, state_order=None):
+    #     if task_state in self.F_dict:
+    #         target_state = np.mat(target_state).reshape(-1,1)
+    #         current_state = np.mat(cursor_state).reshape(-1,1)
+    #         int_state = self._run_fbcontroller(self.F_dict[task_state], current_state, target_state)
+
+    #         if self.enabled:
+    #             self.kindata.append(int_state)
+    #             self.neuraldata.append(spike_counts)
 
     def get_batch(self):
         kindata = np.hstack(self.kindata)
@@ -193,91 +236,23 @@ class OFCLearnerTentacle(OFCLearner):
     def __init__(self, batch_size, A, B, Q, R, *args, **kwargs):
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
         F_dict = RegexKeyDict()
+        # F_dict['target'] = F
+        # F_dict['hold'] = F
         F_dict['.*'] = F
         super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
-
-class CursorGoalLearner(Learner):
-    def __init__(self, batch_size, *args, **kwargs):
+class CursorGoalLearner2(BatchLearner):
+    def __init__(self, *args, **kwargs):
         self.int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
         if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
             raise ValueError("Unknown type of speed for cursor goal: %s" % self.int_speed_type)
 
-        super(CursorGoalLearner, self).__init__(*args, **kwargs)
-        self.batch_size = batch_size
-        self.kindata = []
-        self.neuraldata = []
+        super(CursorGoalLearner2, self).__init__(*args, **kwargs)
 
         if self.int_speed_type == 'dist_to_target':
             self.input_state_index = 0
 
-    def calc_int_kin(self, cursor_state, target_pos, decoded_vel, task_state):
-        cursor_pos = cursor_state[0:len(target_pos)]
-        int_dir = target_pos - cursor_pos
-        dist_to_targ = np.linalg.norm(int_dir)
-        
-        # Calculate intended speed
-        if self.int_speed_type == 'dist_to_target':
-            speed = np.linalg.norm(int_dir)
-        elif self.int_speed_type == 'decoded_speed':
-            speed = np.linalg.norm(decoded_vel)
-
-        if task_state in ['hold', 'origin_hold', 'target_hold']:
-            int_vel = np.zeros(int_dir.shape)            
-        elif task_state in ['target', 'origin', 'terminus']:
-            int_vel = normalize(int_dir)*speed
-        else:
-            int_vel = None
-
-        if int_vel is not None:
-            int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
-        else:
-            int_kin = None
-
-        return int_kin
-   
-    def __call__(self, spike_counts, cursor_state, target_pos, decoded_vel,
-                 task_state):
-        """
-        Rotation toward target state
-        """
-        cursor_pos = cursor_state[0:len(target_pos)]
-        int_dir = target_pos - cursor_pos
-        dist_to_targ = np.linalg.norm(int_dir)
-        
-        # Calculate intended speed
-        if self.int_speed_type == 'dist_to_target':
-            speed = np.linalg.norm(int_dir)
-        elif self.int_speed_type == 'decoded_speed':
-            speed = np.linalg.norm(decoded_vel)
-
-        if task_state in ['hold', 'origin_hold', 'target_hold']:
-            int_vel = np.zeros(int_dir.shape)            
-        elif task_state in ['target', 'origin', 'terminus']:
-            int_vel = normalize(int_dir)*speed
-        else:
-            int_vel = None
-        
-        if self.enabled and int_vel is not None:
-            n_subbins = spike_counts.shape[1]
-            int_kin = np.hstack([np.zeros(len(int_vel)), int_vel, 1])
-            for k in range(n_subbins):
-                self.kindata.append(int_kin)
-            self.neuraldata.append(spike_counts)
-    
-    def is_ready(self):
-        return len(self.kindata) >= self.batch_size
-
-    def get_batch(self):
-        kindata = np.vstack(self.kindata).T
-        neuraldata = np.hstack(self.neuraldata)
-        self.kindata = []
-        self.neuraldata = []
-        return kindata, neuraldata
-
-class CursorGoalLearner2(CursorGoalLearner):
-    def calc_int_kin(self, decoder_state, target_state, decoder_output,
-                 task_state, state_order=None):
+    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
         """
         Calculate the intended kinematics and pair with the neural data
         """
@@ -308,20 +283,30 @@ class CursorGoalLearner2(CursorGoalLearner):
 
         return int_kin
 
-    def __call__(self, spike_counts, decoder_state, target_state, decoder_output,
-                 task_state, state_order=None):
+    def __call__(self, spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=None):
         """
         Calculate the intended kinematics and pair with the neural data
         """
         if state_order is None:
-            raise ValueError("New cursor goal requires state order to be specified!")
-        int_kin = self.calc_int_kin(decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+            raise ValueError("CursorGoalLearner2.__call__ requires state order to be specified!")
+        super(CursorGoalLearner2, self).__call__(spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+        # int_kin = self.calc_int_kin(decoder_state, target_state, decoder_output, task_state, state_order=state_order)
         
-        if self.enabled and int_kin is not None:
-            n_subbins = spike_counts.shape[1]
-            for k in range(n_subbins):
-                self.kindata.append(int_kin)
-            self.neuraldata.append(spike_counts)
+        # if self.enabled and int_kin is not None:
+        #     n_subbins = spike_counts.shape[1]
+        #     for k in range(n_subbins):
+        #         self.kindata.append(int_kin)
+        #     self.neuraldata.append(spike_counts)
+
+    # def is_ready(self):
+    #     return len(self.kindata) >= self.batch_size
+
+    # def get_batch(self):
+    #     kindata = np.vstack(self.kindata).T
+    #     neuraldata = np.hstack(self.neuraldata)
+    #     self.kindata = []
+    #     self.neuraldata = []
+    #     return kindata, neuraldata            
 
 ##############################################################################
 ## Updaters
@@ -497,6 +482,7 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
 
 
 class PPFContinuousBayesianUpdater(object):
+    update_kwargs = dict()
     def __init__(self, decoder, units='cm', param_noise_scale=1.):
         self.n_units = decoder.filt.C.shape[0]
         #self.param_noise_variances = param_noise_variances
@@ -614,9 +600,12 @@ class KFRML(object):
         self.T = decoder.filt.T
         self.ESS = decoder.filt.ESS
 
-    def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
+    def calc(self, intended_kin, spike_counts, decoder, half_life=None, batch_time=None, **kwargs):
+        if batch_time is None:
+            batch_time = self.batch_time
+
         if half_life is not None:
-            rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
+            rho = np.exp(np.log(0.5)/(half_life/batch_time))
         else:
             rho = self.rho 
 
@@ -626,6 +615,7 @@ class KFRML(object):
 
         x = intended_kin
         y = spike_counts
+        n_samples = spike_counts.shape[1]
         
         # self.R = rho*self.R + (1-rho)*(x*x.T)
         # self.S = rho*self.S + (1-rho)*(y*x.T)
@@ -634,8 +624,8 @@ class KFRML(object):
 
         self.R = rho*self.R + (x*x.T)
         self.S = rho*self.S + (y*x.T)
-        self.T = rho*self.T + (y*y.T)
-        self.ESS = rho*self.ESS + 1
+        self.T = rho*self.T + np.dot(y, y.T) #(y*y.T).T
+        self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
         R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
@@ -673,7 +663,7 @@ class KFRML_baseline(KFRML):
 
         self.R = rho*self.R + (x*x.T)
         self.S = rho*self.S + (y*x.T)
-        self.T = rho*self.T + (y*y.T)
+        self.T = rho*self.T + np.dot(y, y.T) #(y*y.T)
         self.ESS = rho*self.ESS + 1
 
         R_inv = np.mat(np.zeros(self.R.shape))
