@@ -35,7 +35,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     extractor_cls = namelist.extractors[extractorname]
     print 'Training with extractor class:', extractor_cls
 
-    if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+    if 'spike' in extractor_cls.feature_type:  # e.g., 'spike_counts'
         # look at "cells" argument (ignore "channels")
         cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
         if cells == []:
@@ -48,7 +48,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         else:
             cells = np.unique(cells)
             units = np.array(cells).astype(np.int32)
-    elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+    elif 'lfp' in extractor_cls.feature_type:  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
         channels = np.array(channels.split(', ')).astype(np.int32)  # convert str to list of numbers
         if len(channels) == 0:
