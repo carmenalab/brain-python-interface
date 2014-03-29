@@ -153,8 +153,11 @@ class EyeData(traits.HasTraits):
     def init(self):
         from riglib import source
         src, ekw = self.eye_source
+        f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata = source.DataSource(src, **ekw)
+        f.write('instantiated source\n')
         super(EyeData, self).init()
+        f.close()
     
     @property
     def eye_source(self):
@@ -162,7 +165,10 @@ class EyeData(traits.HasTraits):
         return eyetracker.System, dict()
 
     def run(self):
+        f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata.start()
+        f.write('started eyedata\n')
+        f.close()
         try:
             super(EyeData, self).run()
         finally:

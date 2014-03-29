@@ -43,7 +43,9 @@ class DataSource(mp.Process):
         print "Starting datasource %r"%self.source
         try:
             system = self.source(**self.source_kwargs)
+            print "instantiated source %r" % self.source
             system.start()
+            print "finished system.start() for %r" % self.source
         except Exception as e:
             print e
             self.status.value = -1
@@ -51,6 +53,10 @@ class DataSource(mp.Process):
         streaming = True
         size = self.slice_size
         while self.status.value > 0:
+            f = open('/home/helene/code/bmi3d/log/source', 'a')
+            f.write("1\n")
+            f.close()
+
             if self.cmd_event.is_set():
                 cmd, args, kwargs = self._pipe.recv()
                 self.lock.acquire()
