@@ -21,8 +21,12 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
     model_attrs = ['F', 'K']
 
     def __init__(self, *args, **kwargs):
-        kf = kfdecoder.KalmanFilter(*args, **kwargs)
-        F, K = kf.get_sskf()
+        if 'A' in kwargs and 'C' in kwargs and 'W' in kwargs and 'Q' in kwargs:
+            kf = kfdecoder.KalmanFilter(*args, **kwargs)
+            F, K = kf.get_sskf()
+        else:
+            F = kwargs['F']
+            K = kwargs['K']
         self.F = F
         self.K = K
         self._pickle_init()
@@ -58,4 +62,4 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
         return dict(F=self.F, K=self.K)
 
 class SSKFDecoder(bmi.Decoder, bmi.BMI):
-    pass        
+    pass

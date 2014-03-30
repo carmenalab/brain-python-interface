@@ -151,5 +151,13 @@ bmis = dict(
     ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
     kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
     kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
-    )
+)
+
+extractors = dict(
+    spikecounts = bmi.extractor.BinnedSpikeCountsExtractor,
+    LFPpowerMTM = bmi.extractor.LFPMTMPowerExtractor,
+    LFPpowerBPF = bmi.extractor.LFPButterBPFPowerExtractor,
+)
+
+default_extractor = "spikecounts"
 

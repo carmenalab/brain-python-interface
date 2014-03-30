@@ -1,7 +1,4 @@
-'''
-Client-side code to configure and receive neural data from the Plexon PC over
-the network.
-'''
+''' Needs docs'''
 
 import re
 import math
@@ -11,7 +8,6 @@ import socket
 import time
 from collections import namedtuple
 import os
-import numpy as np
 import matplotlib.pyplot as plt
 
 PACKETSIZE = 512
@@ -41,9 +37,15 @@ class Connection(object):
     SPIKE_CHAN_UNSORTED_WAVEFORMS = (0x08)
 
     def __init__(self, addr, port):
+        print 'USING MODIFIED PLEXNET'
         self.addr = (addr, port)
+
+
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+
         self.sock.connect(self.addr)
+
 
         self.num_server_dropped = 0
         self.num_mmf_dropped = 0
@@ -93,25 +95,24 @@ class Connection(object):
                 self.supports_spikes = any([b == sup_spike for b in resp[4:]])
                 self.supports_cont = any([b == sup_cont for b in resp[4:]])
 
-        print 'supports spikes:', self.supports_spikes
-        print 'supports continuous:', self.supports_cont
+        # packet = array.array('i', '\x00'*PACKETSIZE)
+        # packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
+        # self.sock.sendall(packet.tostring())
 
-        packet = array.array('i', '\x00'*PACKETSIZE)
-        packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
-        self.sock.sendall(packet.tostring())
+        # self.params = []
 
-        self.params = []
-
-        gotServerArea = False
-        while not gotServerArea:
-            resp = array.array('i', self._recv())
-            self.params.append(resp)
+        # gotServerArea = False
+        # while not gotServerArea:
+        #     resp = array.array('i', self._recv())
+        #     self.params.append(resp)
             
-            if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
-                self.n_spike = resp[15]
-                self.n_cont = resp[17]
-                print "Spike channels: %d, continuous channels: %d"%(self.n_spike, self.n_cont)
-                gotServerArea = True
+        #     if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
+        #         self.n_spike = resp[15]
+        #         self.n_cont = resp[17]
+        #         print "Spike channels: %d, continuous channels: %d"%(self.n_spike, self.n_cont)
+        #         gotServerArea = True
+        self.n_spike = 0
+        self.n_cont = 192
         
         self._init = True
 
@@ -165,17 +166,13 @@ class Connection(object):
             # print 'selecting specified continuous channels'
             chan_selection = array.array('b', [0]*self.n_cont)
             for c in channels:
-                # always true unless channels outside the range [1,...,self.n_cont] were specified
+                # always true unless channels outside the range [0,1,...,self.n_cont-1] were specified
                 if c-1 < len(chan_selection):
                     chan_selection[c-1] = 1
 
         n_packets = int(math.ceil(float(self.n_cont) / PACKETSIZE))
         HEADERSIZE = 20  # bytes
         chan_offset = 0
-
-        # e.g., for 800 continuous channels, 2 "packets" are formed
-        #   chan_offset is 0 for the first packet
-        #   chan_offset is 492 for the second packet
 
         raw = ''
         for packet_num in range(n_packets):
@@ -184,11 +181,11 @@ class Connection(object):
             header[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_SELECT_CONTINUOUS_CHANNELS
             header[1] = packet_num
             header[2] = n_packets
-            # header[3] = number of channels that are specified (or not specified) in the selection
-            #             bytes that follow
-            header[4] = chan_offset # channel offset in this packet
+            # header[3] = number of channels selection that follow
+            header[4] = chan_offset
 
-            if chan_offset + (PACKETSIZE-HEADERSIZE) < len(chan_selection[chan_offset:]):
+            # TODO -- verify that this should be <= and not <
+            if chan_offset + (PACKETSIZE-HEADERSIZE) <= len(chan_selection[chan_offset:]):
                 payload = chan_selection[chan_offset:chan_offset+PACKETSIZE-HEADERSIZE]
                 n_selections = len(payload)
                 
@@ -293,7 +290,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Collects plexnet data for a set amount of time")
     parser.add_argument("address",help="Server's address")
     parser.add_argument("--port", type=int, help="Server's port (defaults to 6000)", default=6000)
-    parser.add_argument("--len", type=float, help="Time (in seconds) to record data", default=30.)
+    parser.add_argument("--discard_len", type=float, help="Amount of time (in secs) of initial data to discard", default=0.)
+    parser.add_argument("--len", type=float, help="Time (in seconds) to record data", default=5.)
     parser.add_argument("output", help="Output csv file")
     args = parser.parse_args()
 
@@ -302,49 +300,41 @@ if __name__ == "__main__":
         csvfile.writeheader()
 
         #Initialize the connection
-        print 'initializing connection'
         conn = Connection(args.address, args.port)
-        conn.connect(256, analog=True) #Request all 256 channels
+        conn.connect(192, analog=True)
         
-        print 'selecting spike channels'
-        spike_channels = [] #2, 3, 4]
-        unsorted = False #True
-        conn.select_spikes(spike_channels, unsorted=unsorted)
-        # conn.select_spikes(unsorted=unsorted)
+        # print 'selecting spike channels'
+        # spike_channels = [] #2, 3, 4]
+        # unsorted = False #True
+        # conn.select_spikes(spike_channels, unsorted=unsorted)
+        # # conn.select_spikes(unsorted=unsorted)
 
         print 'selecting continuous channels'
-        # cont_channels = 512 + np.array([1, 2, 5, 9, 10, 192, 250, 256]) #range(513, 768) #range(512+1, 512+192) #[1, 532, 533, 768, 800] #502, 503, 504, 505] #[85, 86]
-        cont_channels = 512 + np.array([53])
-        # cont_channels = [1, 532, 533, 768, 800] #502, 503, 504, 505] #[85, 86]
+        cont_channels = [65, 66] #502, 503, 504, 505] #[85, 86]
         conn.select_continuous(cont_channels)
         # conn.select_continuous()  # select all 800 continuous channels
- 
-        # for saving to mat file
-        write_to_mat = True 
-        n_samp = 2 * 1000*int(args.len)
-        n_chan = len(cont_channels)
-        data = np.zeros((n_chan, 2*n_samp), dtype='int16')
-        idxs = np.zeros(n_chan)
-        chan_to_row = dict()
-        for i, chan in enumerate(cont_channels):
-            chan_to_row[chan] = i
-
-
-        ts = []
-        arrival_ts = []
-        t = []
-        n_samples = 0
-        n_samp = []
-        got_first = False
-
-
+        
         print 'starting data'
         conn.start_data() #start the data pump
 
         waves = conn.get_data()
         start = time.time()
 
+        while (time.time()-start) < args.discard_len:
+            wave = waves.next()
 
+        got_first = False
+
+        n_samples = 0
+        n_packets = 0
+
+        ts = []
+        arrival_ts = []
+
+        t = []
+        n_samp = []
+
+        start = time.time()
         while (time.time()-start) < args.len:
             wave = waves.next()
             if not got_first and wave is not None:
@@ -353,21 +343,17 @@ if __name__ == "__main__":
                 first_arrival_ts = wave.arrival_ts 
                 got_first = True
 
-            if wave is not None:
+            # if wave is not None:
+                # csvfile.writerow(dict(wave._asdict()))
+
+            if wave is not None and wave.chan == 65:
                 csvfile.writerow(dict(wave._asdict()))
+                n_samples += len(wave.waveform)
+                n_packets += 1
 
-            if write_to_mat and wave is not None:
-                row = chan_to_row[wave.chan]
-                idx = idxs[row]
-                n_pts = len(wave.waveform)
-                data[row, idx:idx+n_pts] = wave.waveform
-                idxs[row] += n_pts
-
-            if wave is not None and wave.chan == 512+53:
                 ts.append(wave.ts - first_ts)
                 arrival_ts.append(wave.arrival_ts - first_arrival_ts)
 
-                n_samples += len(wave.waveform)
                 t.append(time.time() - start)
                 n_samp.append(n_samples)
 
@@ -376,16 +362,8 @@ if __name__ == "__main__":
         conn.stop_data()
         conn.disconnect()
 
-        if write_to_mat:
-            save_dict = dict()
-            save_dict['data'] = data
-            save_dict['channels'] = cont_channels
-
-            print 'saving data...',
-            import scipy.io as sio
-            sio.matlab.savemat('plexnet_data_0222_8pm_1.mat', save_dict)
-            print 'done.'
-
+    print 'n_samples', n_samples
+    print 'n_packets', n_packets
 
     plt.figure()
     plt.subplot(2,1,1)

@@ -146,6 +146,7 @@ BMI.prototype.set = function(name) {
         if ($(obj).text() == info.cls)
             $(obj).attr("selected", "selected");
     });
+    $("#bmiextractor option:first").attr("selected", "selected");
 }
 BMI.prototype.new = function() {
     $("#cells option").each(function(idx, obj) {
@@ -276,7 +277,9 @@ BMI.prototype.train = function() {
     var data = {};
     data.bminame = $("#bminame").val();
     data.bmiclass = $("#bmiclass").val();
+    data.bmiextractor = $("#bmiextractor").val();
     data.cells = $("#cellnames").val();
+    data.channels = $("#channelnames").val();
     data.binlen = $("#bmibinlen").val();
     data.tslice = $("#tslider").slider("values");
     data.csrfmiddlewaretoken = csrf.val();

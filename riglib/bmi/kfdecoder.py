@@ -91,12 +91,17 @@ class KalmanFilter(bmi.GaussianStateHMM):
             post_state.mean += -KC*pred_state.mean + K*obs_t
 
         if bias_comp:
-            bias = np.zeros([F.shape[0], 1])
-            bias[1,0] = F[1,-1]
-            # bias[2,0] = F[2,-1]
-            bias[3,0] = F[3,-1]
+            # bias = np.zeros([F.shape[0], 1])
             # bias = F[:,-1]
-            # bias[-1, 0] = 0
+            # bias[1,0] = F[1,-1]
+            # bias[5,0] = F[5,-1]
+            # bias[6,0] = F[6,-1]
+            # bias[2,0] = F[2,-1]
+            # bias[2,0] = F[2,-1]
+            bias = F[:,-1]
+            bias[[0,4], 0] = 0
+            bias[[2,6], 0] = 0
+            bias[-1, 0] = 0
             post_state.mean -= bias
         post_state.cov = (I - KC) * P 
 

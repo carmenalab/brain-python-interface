@@ -9,6 +9,8 @@ import numpy as np
 
 from riglib import calibrations, bmi
 
+from riglib.bmi import extractor
+
 from . import traits
 
 class RewardSystem(traits.HasTraits):
@@ -294,28 +296,66 @@ class MotionAutoAlign(MotionData):
 ########################################################################################################
 # Plexon datasources
 ########################################################################################################
+
+# ORIGINAL SpikeData and SpikeBMI features
+# class SpikeData(traits.HasTraits):
+#     '''Stream neural spike data from the Plexon system'''
+#     plexon_channels = None
+#     
+#     def init(self):
+#         from riglib import plexon, source
+#         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+#         super(SpikeData, self).init()
+# 
+#     def run(self):
+#         self.neurondata.start()
+#         try:
+#             super(SpikeData, self).run()
+#         finally:
+#             self.neurondata.stop()
+
+# class SpikeBMI(SpikeData):
+#     '''Filters spike data through a BMI'''
+#     decoder = traits.Instance(bmi.Decoder)
+#     # decoder = traits.Instance(bmi.BMI)
+# 
+#     def init(self):
+#         print "init bmi"
+#         # self.decoder = self.bmi
+#         self.plexon_channels = self.decoder.units[:,0]
+#         super(SpikeBMI, self).init()
+#         #self.neurondata.filter = self.bmi
+
+
+# NEW SpikeData and SpikeBMI features (they should really be renamed PlexonData and PlexonBMI)
 class SpikeData(traits.HasTraits):
-    '''Stream neural spike data from the Plexon system'''
+    '''Stream Plexon neural data'''
     plexon_channels = None
-    
+
     def init(self):
         from riglib import plexon, source
-        #logging.debug("SpikeData feature creating Spikes source (SpikeData.init, features.py)")
-        self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+
+        if hasattr(self.decoder, 'extractor_cls'):
+            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+                self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+                self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
+            else:
+                raise Exception("Unknown extractor class, unable to create data source object!")
+        else:
+            # if using an older decoder that doesn't have extractor_cls (and 
+            # extractor_kwargs) as attributes, then just create a DataSource 
+            # with plexon.Spikes by default
+            self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+
         super(SpikeData, self).init()
 
     def run(self):
-        #logging.debug("calling self.neurondata.start (SpikeData.run, features.py)")
         self.neurondata.start()
-        #logging.debug("finished starting neurondata source (SpikeData.run, features.py)")
         try:
             super(SpikeData, self).run()
-            #logging.debug("finished running neurondata source (SpikeData.run, features.py)")
         finally:
             self.neurondata.stop()
-
-class SpikeSimulate(object):
-    pass
 
 class SpikeBMI(SpikeData):
     '''Filters spike data through a BMI'''
@@ -328,6 +368,9 @@ class SpikeBMI(SpikeData):
         self.plexon_channels = self.decoder.units[:,0]
         super(SpikeBMI, self).init()
         #self.neurondata.filter = self.bmi
+
+class SpikeSimulate(object):
+    pass
 
 
 #*******************************************************************************************************

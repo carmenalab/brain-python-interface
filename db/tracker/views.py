@@ -25,6 +25,8 @@ def list(request):
         generators=Generator.objects.filter(visible=True).order_by("name"),
         hostname=request.get_host(),
         bmis=namelist.bmis,
+        extractors=namelist.extractors,
+        default_extractor=namelist.default_extractor,
     )
     if display.task is not None:
         fields['running'] = display.task.saveid

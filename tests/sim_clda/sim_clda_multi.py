@@ -81,6 +81,8 @@ class SimRML(SimCLDAControlMultiDispl2D):
 
     def _cycle(self):
         super(SimRML, self)._cycle()
+
+
  
 class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimCLDAControlMultiDispl2D):
     def __init__(self, *args, **kwargs):
