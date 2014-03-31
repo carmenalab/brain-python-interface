@@ -1,7 +1,7 @@
 mkdir -p $HOME/code
 cd $HOME/code
 
-sudo apt-get -y install git
+sudo apt-get -y install git gitk
 if [ ! -d "$HOME/code/bmi3d" ]; then
     git clone https://github.com/hgm110/bmi3d.git $HOME/code/bmi3d
 fi
@@ -141,3 +141,8 @@ sudo apt-get -y install openssh-server
 git clone https://github.com/sgowda/plot $HOME/code/plotutil
 
 sudo apt-get install apt-show-versions
+
+sudo add-apt-repository ppa:webupd8team/sublime-text-2
+sudo apt-get update
+sudo apt-get -y install sublime-text
+
