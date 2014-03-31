@@ -542,7 +542,7 @@ class BMISystem(object):
                 learner_state = prev_state
 
             # self.spike_counts += spike_obs_k
-            if feature_type is 'lfp_power':
+            if feature_type is 'lfp_power' or 'emg_amplitude':
                 # hack to make to make lfp decoding work
                 self.spike_counts = neural_obs_k
             else:

@@ -48,7 +48,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         else:
             cells = np.unique(cells)
             units = np.array(cells).astype(np.int32)
-    elif 'lfp' in extractor_cls.feature_type:  # e.g., 'lfp_power'
+    elif 'lfp' or 'emg' in extractor_cls.feature_type:  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
         channels = np.array(channels.split(', ')).astype(np.int32)  # convert str to list of numbers
         if len(channels) == 0:
@@ -71,6 +71,8 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
         extractor_kwargs['channels'] = channels
     elif extractor_cls == extractor.LFPMTMPowerExtractor:
+        extractor_kwargs['channels'] = channels
+    elif extractor_cls == extractor.EMGAmplitudeExtractor:
         extractor_kwargs['channels'] = channels
     else:
         raise Exception("Unknown extractor_cls!")
@@ -201,7 +203,7 @@ def conv_kfdecoder_to_sskfdecoder(decoder_record):
     new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_ppf.pkl'
     new_decoder_fname = '/tmp/%s' % new_decoder_basename
     pickle.dump(dec_ppf, open(new_decoder_fname, 'w'))
-    
+
 
     new_decoder_name = decoder_name + '_sskf'
 
