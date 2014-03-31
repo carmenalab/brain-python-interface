@@ -56,10 +56,10 @@ class Window(LogExperiment):
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.NOFRAME
         try:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,1)
-            pygame.display.set_mode(self.window_size, flags)
+            self.surf = pygame.display.set_mode(self.window_size, flags)
         except:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,0)
-            pygame.display.set_mode(self.window_size, flags)
+            self.surf = pygame.display.set_mode(self.window_size, flags)
         
         self.clock = pygame.time.Clock()
 

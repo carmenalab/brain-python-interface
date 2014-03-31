@@ -24,6 +24,22 @@
         </tr>
         <tr>
             <td>
+                <label for='bmiextractor'>Feature Extractor:</label>
+            </td>
+            <td>
+                <select id='bmiextractor'>
+                    {% for name in extractors %}
+                        {% if name == default_extractor %}
+                            <option selected="selected">{{ name }}</option>
+                        {% else %}
+                            <option>{{ name }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td>
                 <label for='bmibinlen'>Bin length</label>
             </td>
             <td>
@@ -68,6 +84,10 @@
         </tr>
         <tr>
             <td colspan='3'><textarea id='cellnames'></textarea>
+            </td>
+        </tr>
+        <tr>
+            <td colspan='3'><textarea id='channelnames'></textarea>
             </td>
         </tr>
     </table>

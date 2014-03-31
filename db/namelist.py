@@ -50,6 +50,7 @@ generators = dict(
     centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
     centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
     centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
+    centerout_3D=generatorfunctions.centerout_3D,
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -106,6 +107,7 @@ tasks = dict(
     clda_kf_cg_joint_rml = tasks.CLDAControlKFCGJoint,
     clda_kf_ofc_tentacle_rml = tasks.CLDAControlTentacle,
     clda_kf_ofc_tentacle_rml_base = tasks.CLDAControlTentacleBaselineReestimate,
+    clda_kf_ofc_tentacle_rml_trial = tasks.CLDAControlTentacleTrialBased,
     joystick_tentacle = tasks.JoystickTentacle,
     bmi_baseline = tasks.BaselineControl,
 )
@@ -149,5 +151,14 @@ bmis = dict(
     ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
     kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
     kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
-    )
+)
+
+extractors = dict(
+    spikecounts = bmi.extractor.BinnedSpikeCountsExtractor,
+    LFPpowerMTM = bmi.extractor.LFPMTMPowerExtractor,
+    LFPpowerBPF = bmi.extractor.LFPButterBPFPowerExtractor,
+    EMGAmplitude = bmi.extractor.EMGAmplitudeExtractor,
+)
+
+default_extractor = "spikecounts"
 

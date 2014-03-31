@@ -67,6 +67,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         return time.time()
 
     def set_state(self, condition):
+        # print "Experiment.set_state; setting state", condition
         self.state = condition
         self.start_time = self.get_time()
         self.update_report_stats()
@@ -88,9 +89,12 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         Generic method to run the finite state machine of the task
         '''
+        # print "Experiment.run()"
         self.screen_init()
+        # print "Experiment.run() after screen_init"
         self.set_state(self.state)
         self.reportstats['State'] = self.state
+        # print "Experiment.run(): before while loop"
         while self.state is not None:
             try:
                 if hasattr(self, "_while_%s"%self.state):

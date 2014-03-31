@@ -6,7 +6,7 @@ import numpy as np
 
 import bmi
 from bmi import GaussianState
-import statsmodels.api as sm # GLM fitting module #!!!!!!!
+import statsmodels.api as sm
 from scipy.io import loadmat
 import time
 import cmath
@@ -14,7 +14,7 @@ import feedback_controllers
 import pickle
 import train
 
-class PointProcessFilter():
+class PointProcessFilter(bmi.GaussianStateHMM):
     """
     Low-level Point-process filter, agnostic to application
 

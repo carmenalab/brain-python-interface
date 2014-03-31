@@ -15,6 +15,8 @@ import pdb
 import state_space_models
 from itertools import izip
 
+import extractor
+
 ############
 ## Constants
 ############
@@ -245,11 +247,11 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=0.1, t
     Train a Point-process filter decoder which predicts the endpoint velocity
     '''
     binlen = update_rate
-    n_neurons = spike_counts.shape[0]
+    n_features = spike_counts.shape[0]  # number of neural features
 
     # C should be trained on all of the stochastic state variables, excluding 
     # the offset terms
-    C = np.zeros([n_neurons, _ssm.n_states])
+    C = np.zeros([n_features, _ssm.n_states])
     C[:, _ssm.drives_obs_inds], pvals = ppfdecoder.PointProcessFilter.MLE_obs_model(kin[_ssm.train_inds, :], spike_counts)
     
     # Set state space model
@@ -261,23 +263,23 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=0.1, t
     decoder = ppfdecoder.PPFDecoder(ppf, units, _ssm.bounding_box, 
         _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
         tslice=tslice)
+
     decoder.ssm = _ssm
+
+    decoder.n_features = n_features
+    
     return decoder
 
-def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
+def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=None):
     binlen = update_rate
-    n_neurons = spike_counts.shape[0]
+    n_features = neural_features.shape[0]  # number of neural features
 
     # C should be trained on all of the stochastic state variables, excluding the offset terms
-    C = np.zeros([n_neurons, _ssm.n_states])
-    C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], spike_counts)
-    unit_inds, = np.nonzero(np.array(C)[:,-1])
-    C = C[unit_inds,:]
-    Q = Q[np.ix_(unit_inds, unit_inds)]
-    units = units[unit_inds,:]
+    C = np.zeros([n_features, _ssm.n_states])
+    C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], neural_features)
 
-    mFR = np.mean(spike_counts[unit_inds, :], axis=1)
-    sdFR = np.std(spike_counts[unit_inds, :], axis=1)
+    mFR = np.mean(neural_features, axis=1)
+    sdFR = np.std(neural_features, axis=1)
 
     # Set state space model
     A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
@@ -288,12 +290,12 @@ def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None
         _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
         tslice=tslice)
 
-    # Compute sufficient stats for C and Q matrices (used to initialze CLDA)
+    # Compute sufficient stats for C and Q matrices (used for RML CLDA)
     from clda import KFRML
-    n_neurons, n_states = C.shape
+    n_features, n_states = C.shape
     R = np.mat(np.zeros([n_states, n_states]))
-    S = np.mat(np.zeros([n_neurons, n_states]))
-    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], spike_counts[unit_inds,:])
+    S = np.mat(np.zeros([n_features, n_states]))
+    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], neural_features)
 
     R[np.ix_(_ssm.drives_obs_inds, _ssm.drives_obs_inds)] = R_small
     S[:,_ssm.drives_obs_inds] = S_small
@@ -304,6 +306,9 @@ def train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None
     decoder.kf.ESS = ESS
     
     decoder.ssm = _ssm
+
+    decoder.n_features = n_features
+
     return decoder
 
 ###################
@@ -405,19 +410,36 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     tmask = np.logical_and(lower, upper)
     return tmask, rows
 
-def get_spike_counts(plx, neurows, binlen, cells=None):
-    '''Bin the neural data
+def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
+    '''Compute binned spike count features
     '''
-    if isinstance(cells, np.ndarray):
-        units = cells
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
     else:
-        if cells == None: cells = plx.units # Use all of the units if none are specified
-        cells = np.unique(cells)
-        print cells.shape
-        units = np.array(cells).astype(np.int32)
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
 
     from plexon import psth
     spike_bin_fn = psth.SpikeBin(units, binlen)
+    spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
+
+    # discard units that never fired at all
+    unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+    units = units[unit_inds,:]
+    spike_counts = spike_counts[:, unit_inds]
+    extractor_kwargs['units'] = units
+
+    return spike_counts, units, extractor_kwargs
+
+def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
+    '''Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
+    '''
     
     # interpolate between the rows to 180 Hz
     if binlen < 1./60:
@@ -430,8 +452,156 @@ def get_spike_counts(plx, neurows, binlen, cells=None):
         step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
-    spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
-    return spike_counts, units
+
+    # create extractor object
+    f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+        
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    lfp = plx.lfp[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = lfp[sample_num-n_pts:sample_num, :]
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return lfp_power, units, extractor_kwargs
+
+
+def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
+    '''Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
+    '''
+    
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+    print 'bands:', bands
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    lfp = plx.lfp[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = lfp[sample_num-n_pts:sample_num, :]
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return lfp_power, units, extractor_kwargs
+
+def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs):
+    " compute EMG features"
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.EMGAmplitudeExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    emg = np.zeros((n_itrs, n_chan))
+    
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    emgraw = plx.analog[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = emgraw[sample_num-n_pts:sample_num, :]
+        emg[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return emg, units, extractor_kwargs
+
+
+    # Get the EMG amplitude for each kin sample
+    emg = np.zeros([len(kin),len(units)])
+    emgts = plx.analog[:].time
+    emgraw = plx.analog[:].data
+    for i in range(len(emg)):
+        ind=np.searchsorted(emgts,neurows[i])
+        emg[i,:] = np.mean(emgraw[ind-16:ind,16:],axis=0)
+
+    # Remove 1st kinematic sample and last emg sample to align the 
+    # velocity with the emg
+    kin = kin[1:].T
+    emg = emg[:-1].T
+    f.write('training decoder\n')
+
+    decoder = train_KFDecoder(_ssm, kin, emg, units, update_rate=binlen, tslice=tslice)
+
+    if shuffle: decoder.shuffle()
+
+    f.write('done\n')
+    f.close()
+    return emg, units, extractor_kwargs
+
 
 def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     ''' Get positions and calculate velocity
@@ -497,7 +667,7 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
     joint_kin = np.hstack([joint_angles, joint_vel_2D])
     return joint_kin
 
-def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='cursor'):
+def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source='task', kin_var='cursor'):
     plx_fname = str(files['plexon']) 
     from plexon import plexfile
     try:
@@ -505,23 +675,43 @@ def preprocess_files(files, binlen, cells, tslice, source='task', kin_var='curso
     except IOError:
         print "Could not open .plx file: %s" % plx_fname
         raise Exception
-            
+    
+    # Use all of the units if none are specified
+    if units == None:
+        units = np.array(plx.units).astype(np.int32)
+
     tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
     
     hdf = tables.openFile(files['hdf'])
     kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
     neurows = rows[tmask]
-    spike_counts, units = get_spike_counts(plx, neurows, binlen, cells=cells)
-    return kin, spike_counts, units
 
-def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,None], 
+    # TODO -- make the get_spike_counts, get_butter_bpf_lfp_power, etc. 
+    # functions part of their respective extractor classes
+    if extractor_cls == extractor.BinnedSpikeCountsExtractor:
+        extractor_fn = get_spike_counts
+    elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
+        extractor_fn = get_butter_bpf_lfp_power
+    elif extractor_cls == extractor.LFPMTMPowerExtractor:
+        extractor_fn = get_mtm_lfp_power
+    elif extractor_cls == extractor.EMGAmplitudeExtractor:
+        extractor_fn = get_emg_amplitude
+    else:
+        raise Exception("Unrecognized extractor class!")
+
+    neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
+
+    return kin, neural_features, units, extractor_kwargs
+
+
+def _train_PPFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=1./180, tslice=[None,None], 
     _ssm=endpt_2D_state_space, source='task', kin_var='cursor', shuffle=False, **files):
     '''
     Train a PPFDecoder from visual feedback
     '''
     binlen = 1./180 # TODO remove hardcoding!
 
-    kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
+    kin, spike_counts, units, extractor_kwargs = preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source=source, kin_var=kin_var)
     if len(kin) != len(spike_counts):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
     
@@ -533,58 +723,75 @@ def _train_PPFDecoder_visual_feedback(cells=None, binlen=1./180, tslice=[None,No
     spike_counts[spike_counts > 1] = 1
     decoder = train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=binlen, tslice=tslice, _ssm=_ssm)
 
+    # lets us create the appropriate extractor later when we use this decoder
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
     if shuffle: decoder.shuffle()
 
     return decoder
 
-def _train_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None], 
+def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None], 
     _ssm=None, source='task', kin_var='cursor', shuffle=False, **files):
     '''
     Train a KFDecoder from visual feedback
     '''
-    kin, spike_counts, units = preprocess_files(files, binlen, cells, tslice, source=source, kin_var=kin_var)
+
+    string = ''
+    string += 'extractor_cls: ' + str(extractor_cls)
+    string += 'extractor_kwargs: ' + str(extractor_kwargs)
+    string += 'units: ' + str(units)
+    string += 'binlen: ' + str(binlen)
+    string += 'tslice: ' + str(tslice)
+    # raise Exception(string)
+
+    kin, neural_features, units, extractor_kwargs = preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source=source, kin_var=kin_var)
     if _ssm == None:
         if kin_var == 'cursor':
             _ssm=endpt_2D_state_space
         elif kin_var == 'joint_angles':
             _ssm=joint_2D_state_space
         
-    if len(kin) != len(spike_counts):
-        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(spike_counts)))
+    if len(kin) != len(neural_features):
+        raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neural_features)))
     
-    # Remove 1st kinematic sample and last spike counts sample to align the 
-    # velocity with the spike counts
+    # Remove 1st kinematic sample and last neural features sample to align the 
+    # velocity with the neural features
     kin = kin[1:].T
-    spike_counts = spike_counts[:-1].T
+    neural_features = neural_features[:-1].T
 
-    decoder = train_KFDecoder(_ssm, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
+    decoder = train_KFDecoder(_ssm, kin, neural_features, units, update_rate=binlen, tslice=tslice)
+
+    # lets us create the appropriate extractor later when we use this decoder
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
 
     if shuffle: decoder.shuffle()
 
     return decoder
 
-def _train_joint_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None,None],
+def _train_joint_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
     _ssm=joint_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
     '''
     One-liner to train a 2D2L joint BMI. To be removed as soon as the train BMI gui can be updated
     to have more arguments
     '''
-    return _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice,
+    return _train_KFDecoder_visual_feedback(units=units, binlen=binlen, tslice=tslice,
                                             _ssm=_ssm, source=source, kin_var=kin_var,
                                             shuffle=shuffle, **files)
 
-def _train_tentacle_KFDecoder_visual_feedback(cells=None, binlen=0.1, tslice=[None, None], 
+def _train_tentacle_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None, None], 
     _ssm=tentacle_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
     '''
     One-liner to train a tentacle BMI. To be removed as soon as the train BMI gui can be updated
     to have more arguments
     '''
     print "using tentacletate space " , _ssm == tentacle_2D_state_space
-    return _train_KFDecoder_visual_feedback(cells=cells, binlen=binlen, tslice=tslice, 
+    return _train_KFDecoder_visual_feedback(units=units, binlen=binlen, tslice=tslice, 
                                             _ssm=_ssm, source=source, kin_var=kin_var, 
                                             shuffle=shuffle, **files)
 
-def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None], 
+def _train_KFDecoder_cursor_epochs(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], 
     exclude_targ_ind=[-1, 0], **files):
@@ -630,10 +837,11 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
         sub_targ_ind[i] = sum(targ_ind[i*step:((i+1)*step)])==step
     sub_targ_ind = np.where(sub_targ_ind>0)
 
-    ## Bin the neural data
-    if cells == None: cells = plx.units # Use all of the units if none are specified
-    units = np.array(cells).astype(np.int32)
+    # Use all of the units if none are specified
+    if units == None:
+        units = np.array(plx.units).astype(np.int32)
 
+    ## Bin the neural data
     from plexon import psth
     spike_bin_fn = psth.SpikeBin(units, binlen)
     neurows = rows[tmask]
@@ -653,9 +861,19 @@ def _train_KFDecoder_cursor_epochs(cells=None, binlen=0.1, tslice=[None,None],
     
     kin = np.hstack([kin, velocity]).T
     spike_counts = spike_counts.T
-    return train_KFDecoder(endpt_2D_state_space, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
 
-def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None], 
+    decoder = train_KFDecoder(endpt_2D_state_space, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
+
+    extractor_kwargs['units'] = units
+
+    # lets us create the appropriate extractor later when we use this decoder
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
+    return decoder
+
+
+def _train_KFDecoder_manual_control(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
     #state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
@@ -699,10 +917,11 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     motion[invalid] = 0
     kin = motion.sum(axis=1)
     
-    # Create PSTH function
-    if cells == None: cells = plx.units
-    units = np.array(cells).astype(np.int32)
+    # Use all of the units if none are specified
+    if units == None:
+        units = np.array(plx.units).astype(np.int32)
 
+    # Create PSTH function
     from plexon import psth
     spike_bin_fn = psth.SpikeBin(units, binlen)
     
@@ -759,7 +978,7 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     try:
         state_inds = [hand_kin_vars.index(x) for x in state_vars]
         stochastic_inds = [hand_kin_vars.index(x) for x in stochastic_vars]
-    	train_inds = [hand_kin_vars.index(x) for x in train_vars]
+        train_inds = [hand_kin_vars.index(x) for x in train_vars]
         stochastic_state_inds = [state_vars.index(x) for x in stochastic_vars]
     except:
         raise ValueError("Invalid kinematic variable(s) specified for KFDecoder state")
@@ -784,6 +1003,13 @@ def _train_KFDecoder_manual_control(cells=None, binlen=0.1, tslice=[None,None],
     bounding_box = np.array([-250., -140.]), np.array([250., 140.])
     states_to_bound = ['hand_px', 'hand_pz']
     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, state_vars, states_to_bound, binlen=binlen)
+    
+    extractor_kwargs['units'] = units
+
+    # lets us create the appropriate extractor later when we use this decoder    
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
     return decoder
 
 #######################

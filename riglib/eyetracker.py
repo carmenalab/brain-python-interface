@@ -42,11 +42,13 @@ class System(object):
         self.tracker.setOfflineMode()
     
     def start(self, filename=None):
+        print "eyetracker.System.start()"
         self.filename = filename
         if filename is None:
             self.filename = "%s.edf"%time.strftime("%Y%m%d") #%Y-%m-%d_%I:%M:%p
         self.tracker.openDataFile(self.filename)
-        pylink.beginRealTimeMode(100)
+        # pylink.beginRealTimeMode(100)
+        print "\n\ntracker.startRecording"
         self.tracker.startRecording(1,0,1,0)
 
     def stop(self):
