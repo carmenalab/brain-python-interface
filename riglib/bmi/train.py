@@ -386,7 +386,7 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     if isinstance(plx, str) or isinstance(plx, unicode):
         plx = plexfile.openFile(plx)
     events = plx.events[:].data
-    syskey=0
+    syskey=None
 
     # get system registrations
     reg = parse.registrations(events)
@@ -397,6 +397,9 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
         #if syskey_fn(system):
             syskey = key
             break
+
+    if syskey is None:
+        raise Exception('No source registration saved in plx file!')
 
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
@@ -570,36 +573,6 @@ def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs):
         cont_samples = emgraw[sample_num-n_pts:sample_num, :]
         emg[i, :] = f_extractor.extract_features(cont_samples.T).T
 
-
-    # TODO -- discard any channel(s) for which the log power in any frequency 
-    #   bands was ever equal to -inf (i.e., power was equal to 0)
-    # or, perhaps just add a small epsilon inside the log to avoid this
-    # then, remember to do this:  extractor_kwargs['channels'] = channels
-    #   and reset the units variable
-
-    return emg, units, extractor_kwargs
-
-
-    # Get the EMG amplitude for each kin sample
-    emg = np.zeros([len(kin),len(units)])
-    emgts = plx.analog[:].time
-    emgraw = plx.analog[:].data
-    for i in range(len(emg)):
-        ind=np.searchsorted(emgts,neurows[i])
-        emg[i,:] = np.mean(emgraw[ind-16:ind,16:],axis=0)
-
-    # Remove 1st kinematic sample and last emg sample to align the 
-    # velocity with the emg
-    kin = kin[1:].T
-    emg = emg[:-1].T
-    f.write('training decoder\n')
-
-    decoder = train_KFDecoder(_ssm, kin, emg, units, update_rate=binlen, tslice=tslice)
-
-    if shuffle: decoder.shuffle()
-
-    f.write('done\n')
-    f.close()
     return emg, units, extractor_kwargs
 
 
