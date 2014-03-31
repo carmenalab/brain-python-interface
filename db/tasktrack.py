@@ -167,20 +167,25 @@ class Task(object):
         ----------
         subj : database record for subject
         task : database record for task
-        feats : list of features to enable for the task
+        feats : list 
+            List of features to enable for the task
         params : user input on configurable task parameters
+        saveid : int, optional, default=None
+            ID number of db.tracker.models.TaskEntry associated with this task
+            if None specified, then the data saved will not be linked to the
+            database entry and will be lost after the program exits
         '''
         self.saveid = saveid
         self.taskname = task.name
         self.subj = subj
         self.params = Parameters(params)
 
-        # Send pulse to plexon box to start saving to file?
+        # Send pulse to plexon box to start saving to file
         if self.saveid is not None:
             try:
                 import comedi
                 self.com = comedi.comedi_open("/dev/comedi0")
-                comedi.comedi_dio_bitfield2(self.com,0,16,0,16)
+                comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
                 time.sleep(2)
             except:
                 print "No comedi, cannot start"
