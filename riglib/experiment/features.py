@@ -1,5 +1,7 @@
-'''Needs docs'''
-
+'''
+Code for the main "features" that can be used to extend and customize a 
+task/experiment by multiple inheritance.
+'''
 
 import time
 import tempfile
