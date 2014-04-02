@@ -294,7 +294,7 @@ class EMGAmplitudeExtractor(object):
     feature_type = 'emg_amplitude'
 
     def __init__(self, source, channels=[], win_len=0.1, fs=1000):
-        self.feature_dtype = ('lfp_power', 'u4', (len(channels), 1))
+        self.feature_dtype = ('emg_amplitude', 'u4', (len(channels), 1))
 
         self.source = source
         self.channels = channels
@@ -315,9 +315,13 @@ class EMGAmplitudeExtractor(object):
     def get_cont_samples(self, *args, **kwargs):
         return self.source.get(self.n_pts, self.channels)
 
-    def extract_features(self, cont_samples):       
-        return np.mean(cont_samples,axis=1)
+    def extract_features(self, cont_samples):
+        n_chan = len(self.channels)
+        emg_amplitude = np.mean(cont_samples,axis=1)
+        emg_amplitude = emg_amplitude[:,None]
+        return emg_amplitude
 
     def __call__(self, start_time, *args, **kwargs):
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
         emg = self.extract_features(cont_samples)
+        return emg, None

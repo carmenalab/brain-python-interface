@@ -130,7 +130,7 @@ class Aux(object):
 
         # values are in currently signed integers in the range [-2048, 2047]
         # first convert to float
-        waveform = array.array('f', d.waveform)
+        waveform = np.array(d.waveform, dtype='float')
 
         # convert to units of mV
         waveform = waveform * 16 * (5000. / 2**15) * (1./self.gain_digiamp) * (1./self.gain_headstage)
