@@ -60,8 +60,7 @@ mkdir /storage/plots
 # Add the following lines to .bashrc
 sed -i '$a source $HOME/code/bmi3d/pathconfig.sh' $HOME/.bashrc
 
-# get version 2.4.0 of pytables
-sudo pip install git+https://github.com/PyTables/PyTables.git@v.2.4.0#egg=tables
+sudo pip install tables
 
 # Install plexread module
 cd ~/code/bmi3d/riglib
