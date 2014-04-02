@@ -125,7 +125,6 @@ class KinematicChain(object):
         else:
             return q
 
-
     def jacobian(self, joint_angles):
         '''
         Return the full jacobian 
@@ -270,6 +269,35 @@ class PlanarXZKinematicChain(KinematicChain):
         pos_all_joints = super(PlanarXZKinematicChain, self).spatial_positions_of_joints(*args, **kwargs)
         return pos_all_joints[:,::3]
 
+    def create_ik_subchains(self):
+        proximal_link_lengths = self.link_lengths[:2]
+        distal_link_lengths = self.link_lengths[2:]
+        self.proximal_chain = PlanarXZKinematicChain2Link(proximal_link_lengths)
+        self.distal_chain = PlanarXZKinematicChain(distal_link_lengths)
+
+    def inverse_kinematics(self, target_pos, **kwargs):
+        if not hasattr(self, 'proximal_chain') or not hasattr(self, 'distal_chain'):
+            self.create_ik_subchains()
+        distal_angles = kwargs.pop('distal_angles', None)
+
+        if distal_angles is None:
+            # Sample randomly from the joint limits (-pi, pi) if not specified
+            if not hasattr(self, 'joint_limits') or len(self.joint_limits) < len(self.link_lengths):
+                joint_limits = [(-pi, pi)] * len(self.distal_chain.link_lengths)
+            else:
+                joint_limits = self.joint_limits[2:]
+            distal_angles = [np.random.uniform(*limits) for limits in joint_limits]
+
+        distal_displ = self.distal_chain.endpoint_pos(distal_angles)
+        proximal_endpoint_pos = target_pos - distal_displ
+        proximal_angles = self.proximal_chain.inverse_kinematics(proximal_endpoint_pos).ravel()
+        angles = distal_angles.copy()
+        joint_angles = proximal_angles.tolist()
+        angles[0] -= np.sum(proximal_angles)
+        return np.hstack([proximal_angles, angles])
+
+
+
 class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
     def __init__(self, link_lengths, *args, **kwargs):
         if not len(link_lengths) == 2:
@@ -277,7 +305,7 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
 
         super(PlanarXZKinematicChain2Link, self).__init__(link_lengths, *args, **kwargs)
 
-    def inverse_kinematics(self, target_pos, q_start, **kwargs):
+    def inverse_kinematics(self, target_pos, q_start=None, **kwargs):
         return inv_kin_2D(target_pos, self.link_lengths[0], self.link_lengths[1])
 
 
@@ -291,7 +319,7 @@ def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
 
     # require the y-coordinate to be 0, i.e. flat on the screen
     x, y, z = pos[:,0], pos[:,1], pos[:,2]
-    assert np.all(y == 0)
+    assert np.all(np.abs(np.array(y)) < 1e-10)
 
     if vel is not None:
         if np.ndim(vel) == 1:
