@@ -110,6 +110,7 @@ tasks = dict(
     clda_kf_ofc_tentacle_rml_trial = tasks.CLDAControlTentacleTrialBased,
     joystick_tentacle = tasks.JoystickTentacle,
     bmi_baseline = tasks.BaselineControl,
+    bmi_joint_perturb = tasks.BMIJointPerturb,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']
