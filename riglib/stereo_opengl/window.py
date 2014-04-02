@@ -98,6 +98,14 @@ class Window(LogExperiment):
             model.init()
             self.world.add(model)
 
+    @property 
+    def update_rate(self):
+        '''
+        Attribute for update rate of task. Using @property in case any future modifications
+        decide to change fps on initialization
+        '''
+        return 1./self.fps
+
     def show_object(self, obj, show=False):
         '''
         Show or hide an object
