@@ -1,5 +1,6 @@
-'''Needs docs'''
-
+'''
+NIDAQ Digital I/O interface code. Higher-level Python wrapper for pcidio 
+'''
 
 import parse
 try:
@@ -18,15 +19,11 @@ class SendAll(object):
             raise ValueError("Unable to close comedi system")
 
     def register(self, system, dtype):
-        print "nidaq register %s"%system
+        print "nidaq register %s" % system
         self.systems[system] = pcidio.register_sys(system, str(dtype.descr))
 
     def sendMsg(self, msg):
         pcidio.sendMsg(str(msg))
-
-    def send(self, system, data):
-        if system in self.systems:
-            pcidio.sendData(self.systems[system], data.tostring())
 
     def sendRow(self, system, idx):
         if system in self.systems:
@@ -36,7 +33,14 @@ class SendAll(object):
         print "Sending rstart command"
         pcidio.rstart(state)
 
+    def send(self, system, data):
+        if system in self.systems:
+            pcidio.sendData(self.systems[system], data.tostring())
+
 class SendRow(SendAll):
+    '''
+    Send the number of rows to the plexon system. Used by HDFWriter
+    '''
     def send(self, system, data):
         if system in self.systems:
             pcidio.sendRowCount(self.systems[system])

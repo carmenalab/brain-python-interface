@@ -1,5 +1,7 @@
-'''Needs docs'''
-
+'''
+Code for the main "features" that can be used to extend and customize a 
+task/experiment by multiple inheritance.
+'''
 
 import time
 import tempfile
@@ -155,8 +157,11 @@ class EyeData(traits.HasTraits):
     def init(self):
         from riglib import source
         src, ekw = self.eye_source
+        f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata = source.DataSource(src, **ekw)
+        f.write('instantiated source\n')
         super(EyeData, self).init()
+        f.close()
     
     @property
     def eye_source(self):
@@ -164,7 +169,10 @@ class EyeData(traits.HasTraits):
         return eyetracker.System, dict()
 
     def run(self):
+        f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata.start()
+        f.write('started eyedata\n')
+        f.close()
         try:
             super(EyeData, self).run()
         finally:
@@ -334,6 +342,8 @@ class SpikeData(traits.HasTraits):
                 self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
             elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
                 self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
+            elif 'emg' in self.decoder.extractor_cls.feature_type:  # e.g., 'emg_amplitude'
+                self.neurondata = source.MultiChanDataSource(plexon.Aux, channels=self.plexon_channels)
             else:
                 raise Exception("Unknown extractor class, unable to create data source object!")
         else:

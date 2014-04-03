@@ -1,0 +1,27 @@
+ DIO function 	DIO pin		DIO color		NIDAQ pin	DIO color		DIO pin		DIO function
+ ------		------		empty			1	2	------			------		------
+ ------		------		empty			3	4	------			------		------
+ unused		17		white/violet		5	6	------			------		------
+ RSTART		24		white/black/green	7	8	------			------		------
+ ------		------		empty			9	10	------			------		------
+ ------		------		empty			11	12	------			------		------
+ Strobe		22		white/black/orange	13	14	------			------		------
+ ------		------		empty			15	16	------			------		------
+ Data Bit 15	16		white/blue		17	18	------			------		------
+ Data Bit 14	15		white/green		19	20	------			------		------
+ Data Bit 13	14		white/yellow		21	22	------			------		------
+ Data Bit 12	13		white/orange		23	24	------			------		------
+ Data Bit 11	12		white/red		25	26	------			------		------
+ Data Bit 10	11		white/brown		27	28	------			------		------
+ Data Bit 9	10		black			29	30	white/black/violet	26		unused
+ Data Bit 8	9		white			31	32	white/gray		18		unused
+ Data Bit 7	8		gray			33	34	white/black		19		GND
+ Data Bit 6	7		violet			35	36	white/black/blue	25		GND
+ Data Bit 5	6		blue			37	38	white/black/yellow	23		GND
+ Data Bit 4	5		green			39	40	white/black/red		21		GND
+ Data Bit 3	4		yellow			41	42	------			------		------
+ Data Bit 2	3		orange			43	44	------			------		------
+ Data Bit 1	2		red			45	46	------			------		------
+ Data Bit 0	1		brown			47	48	------			------		------
+ -		-		unused (+5V)		49	50	------			------		------
+ 

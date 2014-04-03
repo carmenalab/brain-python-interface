@@ -35,7 +35,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     extractor_cls = namelist.extractors[extractorname]
     print 'Training with extractor class:', extractor_cls
 
-    if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+    if 'spike' in extractor_cls.feature_type:  # e.g., 'spike_counts'
         # look at "cells" argument (ignore "channels")
         cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
         if cells == []:
@@ -48,7 +48,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         else:
             cells = np.unique(cells)
             units = np.array(cells).astype(np.int32)
-    elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+    elif 'lfp' or 'emg' in extractor_cls.feature_type:  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
         channels = np.array(channels.split(', ')).astype(np.int32)  # convert str to list of numbers
         if len(channels) == 0:
@@ -71,6 +71,8 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
         extractor_kwargs['channels'] = channels
     elif extractor_cls == extractor.LFPMTMPowerExtractor:
+        extractor_kwargs['channels'] = channels
+    elif extractor_cls == extractor.EMGAmplitudeExtractor:
         extractor_kwargs['channels'] = channels
     else:
         raise Exception("Unknown extractor_cls!")
@@ -166,7 +168,6 @@ def conv_kfdecoder_binlen(decoder_record, new_binlen):
     dec.change_binlen(new_binlen)
     save_new_decoder(dec, decoder_record, suffix='_%dHz' % int(1./new_binlen))
 
-
 def conv_kfdecoder_to_ppfdecoder(decoder_record):
     # Load the decoder
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
@@ -186,6 +187,28 @@ def conv_kfdecoder_to_ppfdecoder(decoder_record):
     print new_decoder_name
     from tracker import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
+
+def conv_kfdecoder_to_sskfdecoder(decoder_record):
+    # Load the decoder
+    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
+    print decoder_fname
+    decoder_name = decoder_record.name
+    dec = pickle.load(open(decoder_fname))
+
+    F, K = dec.filt.get_sskf()
+    from riglib.bmi import sskfdecoder 
+    filt = sskfdecoder.SteadyStateKalmanFilter(F=F, K=K)
+    dec_sskf = sskfdecoder.SSKFDecoder()
+
+    new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_ppf.pkl'
+    new_decoder_fname = '/tmp/%s' % new_decoder_basename
+    pickle.dump(dec_ppf, open(new_decoder_fname, 'w'))
+
+
+    new_decoder_name = decoder_name + '_sskf'
+
+
+
 
 def make_kfdecoder_interpolate(decoder_record):
     # Load the decoder

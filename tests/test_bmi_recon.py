@@ -89,7 +89,10 @@ tests = []
 
 te = performance._get_te(3040)
 
-tests = [TestJointRML(), TestJointRMLWithAssist()]
+#tests = [TestJointRML(), TestJointRMLWithAssist()]
+#tests = [TestFixedPPF(), TestPPFCLDA()]
+tests = [TestRML()]
+#tests = [TestPPFCLDA(), TestRML()]
 
 test_suite = unittest.TestSuite(tests)
 unittest.TextTestRunner(verbosity=2).run(test_suite)

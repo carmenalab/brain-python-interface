@@ -285,3 +285,43 @@ class LFPMTMPowerExtractor(object):
         # TODO -- what to return as equivalent of bin_edges?
         return lfp_power, None
 
+
+class EMGAmplitudeExtractor(object):
+    '''
+    Computes the EMG amplitude
+    '''
+
+    feature_type = 'emg_amplitude'
+
+    def __init__(self, source, channels=[], win_len=0.1, fs=1000):
+        self.feature_dtype = ('emg_amplitude', 'u4', (len(channels), 1))
+
+        self.source = source
+        self.channels = channels
+        self.win_len = win_len
+        if source is not None:
+            self.fs = source.source.update_freq
+        else:
+            self.fs = fs
+
+        extractor_kwargs = dict()
+        extractor_kwargs['channels'] = self.channels
+        extractor_kwargs['fs']       = self.fs
+        extractor_kwargs['win_len']  = self.win_len
+        self.extractor_kwargs = extractor_kwargs
+
+        self.n_pts = int(self.win_len * self.fs)
+
+    def get_cont_samples(self, *args, **kwargs):
+        return self.source.get(self.n_pts, self.channels)
+
+    def extract_features(self, cont_samples):
+        n_chan = len(self.channels)
+        emg_amplitude = np.mean(cont_samples,axis=1)
+        emg_amplitude = emg_amplitude[:,None]
+        return emg_amplitude
+
+    def __call__(self, start_time, *args, **kwargs):
+        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
+        emg = self.extract_features(cont_samples)
+        return emg, None

@@ -78,7 +78,7 @@ for n in range(1, n_iter):
 
     learner(spike_counts[n-1, :].reshape(-1,1), int_kin)
 
-    if learner.is_full():
+    if learner.is_ready():
         # calc beta est from batch
         int_kin_batch, spike_counts_batch = learner.get_batch()
         beta_hist.append(decoder_sb.filt.C)

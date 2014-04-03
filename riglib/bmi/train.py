@@ -386,7 +386,7 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     if isinstance(plx, str) or isinstance(plx, unicode):
         plx = plexfile.openFile(plx)
     events = plx.events[:].data
-    syskey=0
+    syskey=None
 
     # get system registrations
     reg = parse.registrations(events)
@@ -397,6 +397,9 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
         #if syskey_fn(system):
             syskey = key
             break
+
+    if syskey is None:
+        raise Exception('No source registration saved in plx file!')
 
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
@@ -533,6 +536,45 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
 
     return lfp_power, units, extractor_kwargs
 
+def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs):
+    " compute EMG features"
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.EMGAmplitudeExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    emg = np.zeros((n_itrs, n_chan))
+    
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    emgraw = plx.analog[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = emgraw[sample_num-n_pts:sample_num, :]
+        emg[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+    return emg, units, extractor_kwargs
+
 
 def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     ''' Get positions and calculate velocity
@@ -625,6 +667,8 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
         extractor_fn = get_butter_bpf_lfp_power
     elif extractor_cls == extractor.LFPMTMPowerExtractor:
         extractor_fn = get_mtm_lfp_power
+    elif extractor_cls == extractor.EMGAmplitudeExtractor:
+        extractor_fn = get_emg_amplitude
     else:
         raise Exception("Unrecognized extractor class!")
 

@@ -374,14 +374,14 @@ class Decoder(object):
         state = self.filt.get_mean()
         return state
 
-    def decode(self, spike_obs, **kwargs):
+    def decode(self, neural_obs, **kwargs):
         '''
         Decode multiple observations sequentially.
         '''
         output = []
-        n_obs = spike_obs.shape[1]
+        n_obs = neural_obs.shape[1]
         for k in range(n_obs):
-            self.predict(spike_obs[:,k], **kwargs)
+            self.predict(neural_obs[:,k], **kwargs)
             output.append(self.filt.get_mean())
         return np.vstack(output)
 
@@ -472,26 +472,54 @@ class BMISystem(object):
         # self.spike_counts = np.zeros([len(self.decoder.units), 1])
         #self.spike_counts = np.zeros([len(self.decoder.units), self.decoder.n_subbins])
 
-    def __call__(self, spike_obs, target_state, task_state, *args, **kwargs):
+    def __call__(self, neural_obs, target_state, task_state, *args, **kwargs):
         '''
-        This is the main function for running all the BMI operations for a single
-        set of observations. 
+        Main function for all BMI functions, including running the decoder, adapting the decoder 
+        and incorporating assist
+
+        Parameters
+        ----------
+        neural_obs : np.ndarray, 
+            The shape of neural_obs should be [n_units, n_obs]. If multiple observations are given, then
+            the decoder will run multiple times before returning. 
+        target_state : np.ndarray
+            The assumed state that the subject is trying to drive the BMI toward, e.g. based on the 
+            objective of the task 
+        task_state : string
+            State of the task. Used by CLDA so that assist is only applied during certain states,
+            e.g. in some tasks, the target will be ambiguous during penalty states so CLDA should 
+            ignore data during those epochs. 
+        *args : tuple
+            addional unnamed arguments
+            This is mostly so that it won't complain if you make a mistake in calling the function
+        kwargs : dict
+            Instance-specific arguments, e.g. RML/SmoothBatch require a 'half_life' parameter 
+            that is not required of other CLDA methods. 
+
+        Returns
+        -------
+        decoded_states : np.ndarray
+            Columns of the array are vectors representing the decoder output as each of the 
+            observations are decoded.
+        update_flag : boolean
+            Boolean to indicate whether the parameters of the Decoder have changed based on the
+            current function call 
         '''
-        n_units, n_obs = spike_obs.shape
+        n_units, n_obs = neural_obs.shape
 
         # If the target is specified as a 1D position, tile to match 
         # the number of dimensions as the neural features
         if np.ndim(target_state) == 1:
             target_state = np.tile(target_state, [n_obs, 1]).T
 
-        decoded_states = []
+        decoded_states = np.zeros([self.decoder.n_states, n_obs])
         update_flag = False
         learn_flag = kwargs.pop('learn_flag', False)
 
         feature_type = kwargs.pop('feature_type')
 
         for k in range(n_obs):
-            spike_obs_k = spike_obs[:,k].reshape(-1,1)
+            neural_obs_k = neural_obs[:,k].reshape(-1,1)
             target_state_k = target_state[:,k]
 
             # NOTE: the conditional below is *only* for compatibility with older Carmena
@@ -501,15 +529,12 @@ class BMISystem(object):
 
             # run the decoder
             prev_state = self.decoder.get_state()
-            self.decoder(spike_obs_k, **kwargs)
-            decoded_state = self.decoder.get_state()
-
-            # Store the decoded state
-            decoded_states.append(decoded_state)
+            self.decoder(neural_obs_k, **kwargs)
+            decoded_states[:,k] = self.decoder.get_state()
 
             # Determine whether the current state or previous state should be given to the learner
             if self.learner.input_state_index == 0:
-                learner_state = decoded_state
+                learner_state = decoded_states[:,k]
             elif self.learner.input_state_index == -1:
                 learner_state = prev_state
             else:
@@ -517,38 +542,41 @@ class BMISystem(object):
                 learner_state = prev_state
 
             # self.spike_counts += spike_obs_k
-            if feature_type is 'lfp_power':
+            if feature_type is 'lfp_power' or 'emg_amplitude':
                 # hack to make to make lfp decoding work
-                self.spike_counts = spike_obs_k
+                self.spike_counts = neural_obs_k
             else:
-                self.spike_counts += spike_obs_k
+                self.spike_counts += neural_obs_k
 
             if learn_flag and self.decoder.bmicount == 0:
                 self.learner(self.spike_counts.copy(), learner_state, target_state_k, 
-                             decoded_state, task_state, state_order=self.decoder.ssm.state_order)
+                             decoded_states[:,k], task_state, state_order=self.decoder.ssm.state_order)
                 self.reset_spike_counts()
             elif self.decoder.bmicount == 0:
                 self.reset_spike_counts()
         
             new_params = None # by default, no new parameters are available
 
-            if self.learner.is_full():
+            if self.learner.is_ready():
                 self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-                if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
-                    half_life = kwargs['half_life']
-                    rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
-                elif hasattr(self.updater, 'half_life'):
-                    rho = self.updater.rho
-                else:
-                    rho = -1
-                clda_data = (self.intended_kin, self.spike_counts_batch, rho, self.decoder)
+                # if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
+                #     half_life = kwargs['half_life']
+                #     rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
+                # elif hasattr(self.updater, 'half_life'):
+                #     rho = self.updater.rho
+                # else:
+                #     rho = -1
+                args = (self.intended_kin, self.spike_counts_batch, self.decoder)
+                batch_size = self.intended_kin.shape[1]
+                kwargs['batch_time'] = batch_size * self.decoder.binlen
 
                 if self.mp_updater:
-                    self.clda_input_queue.put(clda_data)
+                    self.clda_input_queue.put(args, kwargs)
                     # Disable learner until parameter update is received
                     self.learner.disable() 
                 else:
-                    new_params = self.updater.calc(*clda_data)
+                    new_params = self.updater.calc(*args, **kwargs)
+                    print "updating BMI"
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available
@@ -564,21 +592,17 @@ class BMISystem(object):
 
             # Update the decoder if new parameters are available
             if new_params is not None:
+                self.decoder.update_params(new_params, **self.updater.update_kwargs)
                 new_params['intended_kin'] = self.intended_kin
                 new_params['spike_counts_batch'] = self.spike_counts_batch
-                self.param_hist.append(new_params)
-                import clda
-                if isinstance(self.updater, clda.KFRML):
-                    steady_state = False
-                else:
-                    steady_state = True
-                self.decoder.update_params(new_params, steady_state=steady_state)
+
                 self.learner.enable()
                 update_flag = True
-            else:
-                self.param_hist.append(None)
 
-        decoded_states = np.vstack(decoded_states).T
+            # Update parameter history
+            self.param_hist.append(new_params)
+
+        # decoded_states = np.vstack(decoded_states).T
         return decoded_states, update_flag
 
     def __del__(self):
