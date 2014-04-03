@@ -103,7 +103,6 @@ class Feature(models.Model):
     
     def get(self):
         from namelist import features
-        print self.name
         return features[self.name]
 
     @staticmethod
