@@ -217,9 +217,10 @@ class MultiChanDataSource(mp.Process):
                 else:
                     system.stop()
             if streaming:
-                # system.get() must return a tuple (chan, data), where 
-                #   chan is the the channel number and data should have dtype 
-                #   (or subdtype) self.source.dtype
+                # system.get() must return a tuple (chan, data), where: 
+                #   chan is the the channel number
+                #   data is a numpy array with a dtype (or subdtype) of
+                #   self.source.dtype
                 chan, data = system.get()
                 # for now, assume no multi-channel data source is registered
                 # TODO -- how to send MCDS data to a sink? (problem is that
