@@ -554,6 +554,15 @@ class TaskEntry(object):
         datafiles = dict((str(d.system.name), d.get_path()) for d in datafiles)        
         return datafiles
 
+    def decoder_filename(self):
+        try:
+            decid = self.params['decoder']
+        except:
+            decid = self.params['bmi']
+        decoder_basename = models.Decoder.objects.get(pk=decid).path
+        return os.path.join(paths.data_path, 'decoders', decoder_basename)
+
+
 class TaskEntrySet(object):
     def __init__(self, blocks, name=''):
         from tasks import performance
