@@ -42,12 +42,9 @@ class DataSource(mp.Process):
         super(DataSource, self).start(*args, **kwargs)
 
     def run(self):
-        print "Starting datasource %r" % self.source
         try:
             system = self.source(**self.source_kwargs)
-            print "instantiated source %r" % self.source
             system.start()
-            print "finished system.start() for %r" % self.source
         except Exception as e:
             print e
             self.status.value = -1
@@ -96,7 +93,6 @@ class DataSource(mp.Process):
             else:
                 time.sleep(.001)
         system.stop()
-        print "ended datasource %r"%self.source
 
     def get(self, all=False, **kwargs):
         if self.status.value <= 0:

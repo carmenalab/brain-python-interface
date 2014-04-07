@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from riglib.bmi import sim_neurons
+import sim_neurons
 from scipy.signal import butter, lfilter
 import math
 
