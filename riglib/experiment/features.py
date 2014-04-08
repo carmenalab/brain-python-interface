@@ -378,7 +378,6 @@ class SpikeSimulate(object):
     pass
 
 
-# perhaps eventually, combine these with the above Plexon features?
 class BlackrockData(traits.HasTraits):
     '''Stream Blackrock neural data.'''
     blackrock_channels = None

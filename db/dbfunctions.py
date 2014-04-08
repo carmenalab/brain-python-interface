@@ -308,6 +308,57 @@ def get_bmiparams_file(entry):
             return q[0].path
 
 
+def get_blackrock_files(entry):
+    '''
+    Returns a list containing the names of the nsx files (there could be more
+    than one) associated with the session.
+    '''
+    entry = lookup_task_entries(entry)
+    blackrock = models.System.objects.get(name='blackrock')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id)
+    if len(q)==0:
+        return None
+    else:
+        try:
+            import db.paths
+            return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
+        except:
+            return [datafile.path for datafile in q]
+
+def get_nev_file(entry):
+    '''
+    Returns the name of the nev file associated with the session.
+    '''
+    entry = lookup_task_entries(entry)
+    blackrock = models.System.objects.get(name='blackrock')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).filter('path__endswith'='.nev')
+    if len(q)==0:
+        return None
+    else:
+        try:
+            import db.paths
+            return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
+        except:
+            return q[0].path
+
+def get_nsx_files(entry):
+    '''
+    Returns a list containing the names of the nsx files (there could be more
+    than one) associated with the session.
+    '''
+    entry = lookup_task_entries(entry)
+    blackrock = models.System.objects.get(name='blackrock')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).exclude('path__endswith'='.nev')
+    if len(q)==0:
+        return None
+    else:
+        try:
+            import db.paths
+            return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
+        except:
+            return [datafile.path for datafile in q]
+
+
 def get_decoder_parent(decoder):
     '''
     decoder = database record of decoder object

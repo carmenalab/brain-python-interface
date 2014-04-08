@@ -142,7 +142,7 @@ class System(models.Model):
     
     @staticmethod
     def populate():
-        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params"]:
+        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params", "blackrock"]:
             try:
                 System.objects.get(name=name)
             except ObjectDoesNotExist:
@@ -372,7 +372,7 @@ class TaskEntry(models.Model):
             name, ext = os.path.splitext(name)
 
             from namelist import bmi_seed_tasks
-            js['bmi'] = dict(_plxinfo=dict(
+            js['bmi'] = dict(_neuralinfo=dict(
                 length=plx.length, 
                 units=plx.units, 
                 name=name,
@@ -380,7 +380,7 @@ class TaskEntry(models.Model):
                 ))
         except (ObjectDoesNotExist, AssertionError, IOError):
             print "No plexon file found"
-            js['bmi'] = dict(_plxinfo=None)
+            js['bmi'] = dict(_neuralinfo=None)
 
         for dec in Decoder.objects.filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()

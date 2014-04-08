@@ -243,7 +243,7 @@ TaskEntry.prototype.update = function(info) {
 		$("#files").append(this.filelist).show();
 		var found = false;
 		for (var sys in info.datafiles)
-			found = found || sys == "plexon"
+			found = found || sys == "plexon" || sys == 'blackrock'
 		if (found)
 			this.bmi = new BMI(this.idx, info.bmi, info.notes);
 	}

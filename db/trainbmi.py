@@ -48,7 +48,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         else:
             cells = np.unique(cells)
             units = np.array(cells).astype(np.int32)
-    elif 'lfp' or 'emg' in extractor_cls.feature_type:  # e.g., 'lfp_power'
+    elif ('lfp' in extractor_cls.feature_type) or ('emg' in extractor_cls.feature_type):  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
         channels = np.array(channels.split(', ')).astype(np.int32)  # convert str to list of numbers
         if len(channels) == 0:
@@ -82,7 +82,21 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
     datafiles = models.DataFile.objects.filter(entry_id=entry)
-    inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
+ 
+    # old inputdata dict assumed there was only one datafile associated with 
+    # each system, but this is not always the case (e.g., Blackrock has both 
+    # nev and nsx files) -- in this case, set the corresponding dict value as
+    # a list of files
+    # inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
+    inputdata = dict()
+    system_names = [d.system.name for d in datafiles]
+    for name in system_names:
+        files = [d.get_path() for d in datafiles if d.system.name == name]
+        if len(files) == 1:
+            inputdata[name] = files[0]  # just one file
+        else:
+            inputdata[name] = files  # list of files
+
     training_method = namelist.bmis[clsname]
     decoder = training_method(extractor_cls, extractor_kwargs, 
                                 units=units, binlen=binlen, tslice=tslice, **inputdata)
@@ -92,7 +106,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     database.save_bmi(name, int(entry), tf.name)
 
 def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice):
-    """Cache plexon file and train BMI
+    """Cache plexon file (if using plexon system) and train BMI.
 
     Parameters
     ----------
@@ -114,15 +128,26 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
     tslice : slice
         Task time to use when training the decoder
     """
-    plexon = models.System.objects.get(name='plexon')
-    plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
+    # TODO -- how best to determine this dynamically without hardcording?
+    neural_system = 'plexon'
 
-    if not plxfile.has_cache():
-        cache = cache_plx.si(plxfile.get_path())
-        train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
-        chain(cache, train)()
-    else:
+    if neural_system == 'plexon':
+        plexon = models.System.objects.get(name='plexon')
+        plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
+
+        if not plxfile.has_cache():
+            cache = cache_plx.si(plxfile.get_path())
+            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+            chain(cache, train)()
+        else:
+            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+    
+    elif neural_system == 'blackrock':
         make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+    
+    else:
+        raise Exception('Unknown neural_system!')
+
 
 def conv_mm_dec_to_cm(decoder_record):
     '''

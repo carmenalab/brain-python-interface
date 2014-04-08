@@ -413,8 +413,23 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     tmask = np.logical_and(lower, upper)
     return tmask, rows
 
+def _get_tmask_blackrock(nevfile, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_name='task'):
+    ''' Find the rows of the nev file to use for training the decoder
+    '''
+    
+    # TODO -- to be implemented
+    
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
+    return tmask, rows
+
 def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
-    '''Compute binned spike count features
+    '''Compute binned spike count features from a Plexon data file.
     '''
 
     # interpolate between the rows to 180 Hz
@@ -439,6 +454,67 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
     extractor_kwargs['units'] = units
 
     return spike_counts, units, extractor_kwargs
+
+def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs):
+    '''Compute binned spike count features from a Blackrock data file.
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    
+    nev_hdf_fname = nev_fname + '.hdf'
+    if True:  # replace True with a test to see if nev_hdf_fname already exists
+        # convert .nev file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+   
+    # The .value means to read the entire array in; if you don't do that, it 
+    # doesn't read the whole data but instead gives you lazy access to sub-parts 
+    # (very useful when the array is huge but you only need a small part of it).
+
+    channels = np.unique(units[:, 0])
+
+    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+    n_units = units.shape[0]
+    n_bins = len(interp_rows)
+    spike_counts = np.zeros((n_bins, n_units))
+
+    for i in range(n_units):
+        chan = units[i, 0]
+        unit = units[i, 1]
+
+        chan_str = str(chan).zfill(5)
+        path = 'channel/channel%s/spike_set' % chan_str
+        ts       = nev_hdf.get(path).value['TimeStamp']
+        units_ts = nev_hdf.get(path).value['Unit']  # the units corresponding to each timestamp in ts
+
+        # get the ts for this unit
+        ts = [t for idx, t in enumerate(ts) if units_ts[i] == unit]
+
+        # use ts to fill in the spike_counts that corresponds to unit u
+        # TODO!
+        # fs = 30000
+
+
+
+    # discard units that never fired at all
+    unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+    units = units[unit_inds,:]
+    spike_counts = spike_counts[:, unit_inds]
+    extractor_kwargs['units'] = units
+
+    return spike_counts, units, extractor_kwargs
+
 
 def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     '''Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
@@ -641,38 +717,63 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
     return joint_kin
 
 def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source='task', kin_var='cursor'):
-    plx_fname = str(files['plexon']) 
-    from plexon import plexfile
-    try:
-        plx = plexfile.openFile(plx_fname)
-    except IOError:
-        print "Could not open .plx file: %s" % plx_fname
-        raise Exception
-    
-    # Use all of the units if none are specified
-    if units == None:
-        units = np.array(plx.units).astype(np.int32)
-
-    tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
     
     hdf = tables.openFile(files['hdf'])
-    kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
-    neurows = rows[tmask]
 
-    # TODO -- make the get_spike_counts, get_butter_bpf_lfp_power, etc. 
-    # functions part of their respective extractor classes
-    if extractor_cls == extractor.BinnedSpikeCountsExtractor:
-        extractor_fn = get_spike_counts
-    elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
-        extractor_fn = get_butter_bpf_lfp_power
-    elif extractor_cls == extractor.LFPMTMPowerExtractor:
-        extractor_fn = get_mtm_lfp_power
-    elif extractor_cls == extractor.EMGAmplitudeExtractor:
-        extractor_fn = get_emg_amplitude
-    else:
-        raise Exception("Unrecognized extractor class!")
+    if 'plexon' in files:
+        plx_fname = str(files['plexon']) 
+        from plexon import plexfile
+        try:
+            plx = plexfile.openFile(plx_fname)
+        except IOError:
+            print "Could not open .plx file: %s" % plx_fname
+            raise Exception
+        
+        # Use all of the units if none are specified
+        if units == None:
+            units = np.array(plx.units).astype(np.int32)
 
-    neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
+        tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
+        
+        kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
+        neurows = rows[tmask]
+
+        # TODO -- make the get_spike_counts, get_butter_bpf_lfp_power, etc. 
+        # functions part of their respective extractor classes
+        if extractor_cls == extractor.BinnedSpikeCountsExtractor:
+            extractor_fn = get_spike_counts
+        elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
+            extractor_fn = get_butter_bpf_lfp_power
+        elif extractor_cls == extractor.LFPMTMPowerExtractor:
+            extractor_fn = get_mtm_lfp_power
+        elif extractor_cls == extractor.EMGAmplitudeExtractor:
+            extractor_fn = get_emg_amplitude
+        else:
+            raise Exception("No extractor_fn for this extractor class!")
+
+        neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
+
+    elif 'blackrock' in files:
+        nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+        nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]
+
+        if units == None:
+            raise Exception('"units" variable is None in preprocess_files!')
+
+        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
+        
+        kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
+        neurows = rows[tmask]
+
+        if extractor_cls == extractor.BinnedSpikeCountsExtractor:
+            extractor_fn = get_spike_counts_blackrock
+        else:
+            raise Exception("No extractor_fn for this extractor class!")
+
+        neural_features, units, extractor_kwargs = extractor_fn(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs)
+
+    else
+        raise Exception('Could not find any plexon or blackrock files!')
 
     return kin, neural_features, units, extractor_kwargs
 
@@ -709,14 +810,6 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
     '''
     Train a KFDecoder from visual feedback
     '''
-
-    string = ''
-    string += 'extractor_cls: ' + str(extractor_cls)
-    string += 'extractor_kwargs: ' + str(extractor_kwargs)
-    string += 'units: ' + str(units)
-    string += 'binlen: ' + str(binlen)
-    string += 'tslice: ' + str(tslice)
-    # raise Exception(string)
 
     kin, neural_features, units, extractor_kwargs = preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source=source, kin_var=kin_var)
     if _ssm == None:

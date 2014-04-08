@@ -29,8 +29,16 @@ def save_calibration(subject, system, name, params):
     sys = System.objects.get(name=system)
     Calibration(subject=subj, system=sys, name=name, params=params).save()
 
-def save_data(curfile, system, entry, move=True, local=True):
+def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None):
     suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz")
+    if system in suffix:
+        suff = suffix[system]
+    else:  # blackrock system saves multiple files (.nev, .ns1, .ns2, etc.)
+        if custom_suffix is not None:
+            suff = custom_suffix
+        else:
+            raise Exception('Must provide a custom suffix for system: ' + system)
+
     sys = System.objects.get(name=system)
     entry = TaskEntry.objects.get(pk=entry)
 
@@ -46,7 +54,7 @@ def save_data(curfile, system, entry, move=True, local=True):
         dataname = "{subj}{time}_{num:02}.{suff}".format(
             subj=entry.subject.name[:4].lower(),
             time=time.strftime('%Y%m%d'), num=num+1,
-            suff=suffix[system]
+            suff=suff
         )
         fullname = os.path.join(sys.path, dataname)
         permfile = dataname
