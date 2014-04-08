@@ -362,25 +362,84 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             js['report'] = dict()
 
-        try:
-            from plexon import plexfile
-            plexon = System.objects.get(name='plexon')
-            df = DataFile.objects.get(entry=self.id, system=plexon)
+        # TODO -- hardcoding this for now
+        neural_system = 'plexon'
 
-            plx = plexfile.openFile(str(df.get_path()), load=False)
-            path, name = os.path.split(df.get_path())
-            name, ext = os.path.splitext(name)
+        if neural_system == 'plexon':
+            try:
+                from plexon import plexfile
+                plexon = System.objects.get(name='plexon')
+                df = DataFile.objects.get(entry=self.id, system=plexon)
 
-            from namelist import bmi_seed_tasks
-            js['bmi'] = dict(_neuralinfo=dict(
-                length=plx.length, 
-                units=plx.units, 
-                name=name,
-                is_seed=int(self.task.name in bmi_seed_tasks),
-                ))
-        except (ObjectDoesNotExist, AssertionError, IOError):
-            print "No plexon file found"
-            js['bmi'] = dict(_neuralinfo=None)
+                plx = plexfile.openFile(str(df.get_path()), load=False)
+                path, name = os.path.split(df.get_path())
+                name, ext = os.path.splitext(name)
+
+                from namelist import bmi_seed_tasks
+                js['bmi'] = dict(_neuralinfo=dict(
+                    length=plx.length, 
+                    units=plx.units, 
+                    name=name,
+                    is_seed=int(self.task.name in bmi_seed_tasks),
+                    ))
+            except (ObjectDoesNotExist, AssertionError, IOError):
+                print "No plexon files found"
+                js['bmi'] = dict(_neuralinfo=None)
+        elif neural_system == 'blackrock':
+            try:
+                nev_fname = self.nev_file
+                path, name = os.path.split(nev_fname)
+                name, ext = os.path.splitext(name)
+
+                #### start -- TODO: put all this code somewhere else
+                # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
+                # this code goes through the spike_set for each channel in order to:
+                #   determine the last timestamp in the file
+                #   create a list of units that had spikes in this file
+                if not os.path.isfile(nev_hdf_fname):
+                    import subprocess
+                    subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+                
+                import h5py
+                nev_hdf_fname = nev_fname + '.hdf'
+                nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+                last_ts = 0
+                units = []
+
+                for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
+                    if 'spike_set' in nev_hdf.get('channel/' + key).keys():
+                        spike_set = nev_hdf.get('channel/' + key + '/spike_set')
+                        if spike_set is not None:
+                            tstamps = spike_set.value['TimeStamp']
+                            if len(tstamps) > 0:
+                                last_ts = max(last_ts, tstamps[-1])
+
+                            channel = int(key[-5:])
+                            for unit_num in np.sort(np.unique(spike_set.value['Unit'])):
+                                units.append((channel, unit_num))
+
+                fs = 30000.
+                length = last_ts / fs
+                #### end
+
+                # Blackrock units start from 0 (unlike plexon), so add 1
+                # for web interface purposes
+                units = [(chan, unit_num+1) for chan, unit in units]
+
+                from namelist import bmi_seed_tasks
+                js['bmi'] = dict(_neuralinfo=dict(
+                    length=length, 
+                    units=units, 
+                    name=name,
+                    is_seed=int(self.task.name in bmi_seed_tasks),
+                    ))
+            except (ObjectDoesNotExist, AssertionError, IOError):
+                print "No blackrock files found"
+                js['bmi'] = dict(_neuralinfo=None)
+        else:
+            raise Exception()
+
 
         for dec in Decoder.objects.filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
@@ -410,6 +469,23 @@ class TaskEntry(models.Model):
             try:
                 import db.paths
                 return os.path.join(db.paths.data_path, plexon.name, q[0].path)
+            except:
+                return q[0].path
+
+
+    @property
+    def nev_file(self):
+        '''
+        Returns the name of the nev file associated with the session.
+        '''
+        blackrock = System.objects.get(name='blackrock')
+        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).filter('path__endswith'='.nev')
+        if len(q)==0:
+            return 'nonevfile'
+        else:
+            try:
+                import db.paths
+                return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
             except:
                 return q[0].path
 
