@@ -151,6 +151,13 @@ def open_decoder_from_record(decoder_record):
     dec = pickle.load(open(decoder_fname))
     return dec
 
+def zero_out_SSKF_bias(decoder_record):
+    dec = open_decoder_from_record(decoder_record)
+    dec.filt.C_xpose_Q_inv_C[:,-1] = 0
+    dec.filt.C_xpose_Q_inv_C[-1,:] = 0
+    save_new_decoder(dec, decoder_record, suffix='_zero_bias')
+
+
 def save_new_decoder(obj, orig_decoder_record, suffix='_'):
     decoder_fname = os.path.join('/storage/decoders/', orig_decoder_record.path)
     new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '%s.pkl' % suffix

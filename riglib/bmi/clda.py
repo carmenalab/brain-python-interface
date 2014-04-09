@@ -613,8 +613,8 @@ class KFRML(object):
         mFR_old        = decoder.mFR
         sdFR_old       = decoder.sdFR
 
-        x = intended_kin
-        y = spike_counts
+        x = np.mat(intended_kin)
+        y = np.mat(spike_counts)
         n_samples = spike_counts.shape[1]
         
         # self.R = rho*self.R + (1-rho)*(x*x.T)
