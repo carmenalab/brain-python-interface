@@ -642,7 +642,7 @@ class KFRML(object):
         
         new_params = {'kf.C':C, 'kf.Q':Q, 
             'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
-            'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS}
+            'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS, 'filt.R':self.R, 'filt.S':self.S, 'filt.T':self.T}
 
         return new_params
 
