@@ -48,7 +48,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         else:
             cells = np.unique(cells)
             units = np.array(cells).astype(np.int32)
-    elif 'lfp' or 'emg' in extractor_cls.feature_type:  # e.g., 'lfp_power'
+    elif ('lfp' in extractor_cls.feature_type) or ('emg' in extractor_cls.feature_type):  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
         channels = np.array(channels.split(', ')).astype(np.int32)  # convert str to list of numbers
         if len(channels) == 0:
