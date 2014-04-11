@@ -48,7 +48,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         else:
             cells = np.unique(cells)
             units = np.array(cells).astype(np.int32)
-    elif 'lfp' or 'emg' in extractor_cls.feature_type:  # e.g., 'lfp_power'
+    elif ('lfp' in extractor_cls.feature_type) or ('emg' in extractor_cls.feature_type):  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
         channels = np.array(channels.split(', ')).astype(np.int32)  # convert str to list of numbers
         if len(channels) == 0:
@@ -150,6 +150,13 @@ def open_decoder_from_record(decoder_record):
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
     return dec
+
+def zero_out_SSKF_bias(decoder_record):
+    dec = open_decoder_from_record(decoder_record)
+    dec.filt.C_xpose_Q_inv_C[:,-1] = 0
+    dec.filt.C_xpose_Q_inv_C[-1,:] = 0
+    save_new_decoder(dec, decoder_record, suffix='_zero_bias')
+
 
 def save_new_decoder(obj, orig_decoder_record, suffix='_'):
     decoder_fname = os.path.join('/storage/decoders/', orig_decoder_record.path)
