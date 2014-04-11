@@ -51,7 +51,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         Over-ride in base class if there's anything to do just before the
         experiment starts running
         '''
-        pass
+        # Timestamp for rough loop timing
+        self.last_time = self.get_time()
+        self.cycle_count = 0
 
     def screen_init(self):
         pass
@@ -89,12 +91,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         Generic method to run the finite state machine of the task
         '''
-        # print "Experiment.run()"
+        
         self.screen_init()
-        # print "Experiment.run() after screen_init"
         self.set_state(self.state)
         self.reportstats['State'] = self.state
-        # print "Experiment.run(): before while loop"
+        
         while self.state is not None:
             try:
                 if hasattr(self, "_while_%s"%self.state):
@@ -108,13 +109,21 @@ class Experiment(traits.HasTraits, threading.Thread):
                                 getattr(self, "_end_%s"%self.state)()
                             self.trigger_event(event)
                             break;
-                self.loop_step()
             except:
                 traceback.print_exc()
                 self.state = None
 
     def _cycle(self):
-        pass
+        self.cycle_count += 1
+
+    def iter_time(self):
+        '''
+        Determine the time elapsed since the last time this function was called
+        '''
+        start_time = self.get_time()
+        loop_time = start_time - self.last_time
+        self.last_time = start_time
+        return loop_time
 
     def _test_stop(self, ts):
         return self.stop
