@@ -36,6 +36,8 @@ class BlackrockData(object):
 
 if __name__ == '__main__':
 
+    f = open('data.txt', 'w')
+
     self = BlackrockData()
     self.init()
     self.run()
@@ -48,10 +50,13 @@ if __name__ == '__main__':
         t_start = time.time()
 
         new_data = self.neurondata.get()
-        # print new_data
+        f.write(str(new_data))
 
         t_elapsed = time.time() - t_start
-        # print t_elapsed
-        time.sleep(update_rate - t_elapsed)
+
+        if t_elapsed < update_rate:
+            time.sleep(update_rate - t_elapsed)
 
     self.neurondata.stop()
+
+    f.close()

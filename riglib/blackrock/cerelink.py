@@ -34,10 +34,12 @@ class Connection(object):
     def connect(self):
         '''Open the interface to the NSP (or nPlay).'''
 
-        print 'calling cbpy.open'
+        print 'calling cbpy.open in cerelink.connect()'
         print 'self.parameters:', self.parameters
         result, return_dict = cbpy.open(connection='default', parameter=self.parameters)
         print 'cbpy.open result:', result
+        print 'cbpy.open return_dict:', return_dict
+        print ''
         
         # return_dict = cbpy.open('default', self.parameters)  # old cbpy
         
@@ -60,8 +62,11 @@ class Connection(object):
         range_parameter['begin_channel'] = channels[0]
         range_parameter['end_channel']   = channels[-1]
 
-        print 'calling cbpy.trial_config'
+        print 'calling cbpy.trial_config in cerelink.select_channels()'
         result, reset = cbpy.trial_config(range_parameter=range_parameter)
+        print 'cbpy.trial_config result:', result
+        print 'cbpy.trial_config reset:', reset
+        print ''
     
     def start_data(self):
         '''Start the buffering of data.'''
@@ -77,7 +82,12 @@ class Connection(object):
         if not self._init:
             raise ValueError("Please open the interface to Central/nPlay first.")
 
-        cbpy.trial_config(reset=False)
+        print 'calling cbpy.trial_config in cerelink.stop()'
+        result, reset = cbpy.trial_config(reset=False)
+        print 'cbpy.trial_config result:', result
+        print 'cbpy.trial_config reset:', reset
+        print ''
+
         self.streaming = False
 
     def disconnect(self):
@@ -86,7 +96,11 @@ class Connection(object):
         if not self._init:
             raise ValueError("Please open the interface to Central/nPlay first.")
         
-        cbpy.close()
+        print 'calling cbpy.close in cerelink.disconnect()'
+        result = cbpy.close()
+        print 'result:', result
+        print ''
+
         self._init = False
     
     def __del__(self):
