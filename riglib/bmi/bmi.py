@@ -492,7 +492,7 @@ class BMISystem(object):
         *args : tuple
             addional unnamed arguments
             This is mostly so that it won't complain if you make a mistake in calling the function
-        kwargs : dict
+        **kwargs : dict
             Instance-specific arguments, e.g. RML/SmoothBatch require a 'half_life' parameter 
             that is not required of other CLDA methods. 
 
@@ -576,7 +576,7 @@ class BMISystem(object):
                     self.learner.disable() 
                 else:
                     new_params = self.updater.calc(*args, **kwargs)
-                    print "updating BMI"
+                    if batch_size > 1: print "updating BMI"
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available
