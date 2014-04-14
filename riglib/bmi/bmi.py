@@ -447,6 +447,10 @@ class Decoder(object):
             table.attrs[attr] = np.array(getattr(self.filt, attr))
         h5file.close()        
 
+    @property
+    def state_shape_rt(self):
+        return (self.n_states, self.n_subbins)
+
 
 class BMISystem(object):
     '''
@@ -576,7 +580,7 @@ class BMISystem(object):
                     self.learner.disable() 
                 else:
                     new_params = self.updater.calc(*args, **kwargs)
-                    print "updating BMI"
+                    # print "updating BMI"
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available
