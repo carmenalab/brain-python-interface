@@ -122,7 +122,6 @@ class BatchLearner(Learner):
         neuraldata = np.hstack(self.neuraldata)
         self.kindata = []
         self.neuraldata = []
-        # self.passed_done_state = False
         return kindata, neuraldata
 
 
