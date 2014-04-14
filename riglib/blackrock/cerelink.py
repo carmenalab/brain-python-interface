@@ -3,13 +3,15 @@ Client-side code to configure and receive neural data from the Blackrock
 Neural Signal Processor (NSP).
 '''
 
+import sys
 import time
-import cerebus.cbpy as cbpy
+from cerebus import cbpy
+# from CereLink import cbpy  # old cbpy
 from collections import namedtuple
 
 
 SpikeEventData = namedtuple("SpikeEventData", ["chan", "unit", "ts", "arrival_ts"])
-ContinuousData = namedtuple("ContinuousData", ["chan", "samples", "ts", "arrival_ts"])
+ContinuousData = namedtuple("ContinuousData", ["chan", "samples", "arrival_ts"])
 
 class Connection(object):
     '''Here's a docstring'''
@@ -18,16 +20,27 @@ class Connection(object):
         self.parameters = dict()
         self.parameters['inst-addr']   = '192.168.137.128'
         self.parameters['inst-port']   = 51001
-        self.parameters['client-addr'] = '192.168.137.255'
         self.parameters['client-port'] = 51002
-        self.parameters['receive-buffer-size'] = 8388608
+
+        if sys.platform == 'darwin':  # OS X
+            print 'Using OS X settings for CereLink'
+            self.parameters['client-addr'] = '255.255.255.255'
+        else:  # linux
+            self.parameters['client-addr'] = '192.168.137.255'
+            self.parameters['receive-buffer-size'] = 8388608  # necessary?
 
         self._init = False
     
     def connect(self):
         '''Open the interface to the NSP (or nPlay).'''
 
+        print 'calling cbpy.open'
+        print 'self.parameters:', self.parameters
         result, return_dict = cbpy.open(connection='default', parameter=self.parameters)
+        print 'cbpy.open result:', result
+        
+        # return_dict = cbpy.open('default', self.parameters)  # old cbpy
+        
         
         self._init = True
         
@@ -47,6 +60,7 @@ class Connection(object):
         range_parameter['begin_channel'] = channels[0]
         range_parameter['end_channel']   = channels[-1]
 
+        print 'calling cbpy.trial_config'
         result, reset = cbpy.trial_config(range_parameter=range_parameter)
     
     def start_data(self):
@@ -90,33 +104,90 @@ class Connection(object):
         #            set True to clear all the data and reset the trial time to the current time.
         #    instance - (optional) library instance number
         # Outputs:
-        #    list of arrays [channel, digital_events] or [channel, unit0_ts, ..., unitN_ts]
+        #    list of arrays [channel, {'timestamps':[unit0_ts, ..., unitN_ts], 'events':digital_events}]
         #        channel: integer, channel number (1-based)
         #        digital_events: array, digital event values for channel (if a digital or serial channel)
         #        unitN_ts: array, spike timestamps of unit N for channel (if an electrode channel));
         # '''
 
+        sleep_time = 0.005
+
         while self.streaming:
-            array_list = cbpy.trial_event()
+
+            result, trial = cbpy.trial_event()  # TODO -- check if result = 0?
             arrival_ts = time.time()
 
-            for arr in array_list:
-                chan = arr[0]
-                for unit, unit_ts in enumerate(arr[1:]):
+            for list_ in trial:
+                chan = list_[0]
+                for unit, unit_ts in enumerate(list_[1]['timestamps']):
                     for ts in unit_ts:
                         yield SpikeEventData(chan=chan, unit=unit, ts=ts, arrival_ts=arrival_ts)
 
-            # TODO - some kind of pause/sleep?
+            time.sleep(sleep_time)
+
+            # TODO - sleep so that we don't call trial_event too often?
 
     def get_continuous_data(self):
         '''A generator which yields continuous data.'''
 
+        # trial_continuous(instance = 0, reset=False):
+        # ''' Trial continuous data.
+        # Inputs:
+        #    reset - (optional) boolean 
+        #            set False (default) to leave buffer intact.
+        #            set True to clear all the data and reset the trial time to the current time.
+        #    instance - (optional) library instance number
+        # Outputs:
+        #    list of the form [channel, continuous_array]
+        #        channel: integer, channel number (1-based)
+        #        continuous_array: array, continuous values for channel)
+        # '''
+
         while self.streaming:
-            # make call to cbpy.trial_continuous()
+            result, trial = cbpy.trial_continuous()
             arrival_ts = time.time()
 
-            # yield ContinuousData(chan=chan, samples=samples, ts=ts, arrival_ts=arrival_ts) in a loop
+            for list_ in trial:
+                chan = list_[0]
+                samples = list_[1]
+                yield ContinuousData(chan=chan, samples=samples, arrival_ts=arrival_ts)
 
-            # TODO - some kind of pause/sleep?
+            # TODO - sleep so that we don't call trial_continuous too often?
 
 
+if __name__ == "__main__":
+    import csv
+    import time
+    import argparse
+    parser = argparse.ArgumentParser(description="Collects plexnet data for a set amount of time")
+    parser.add_argument("output", help="Output csv file")
+    args = parser.parse_args()
+
+    with open(args.output, "w") as f:
+        csvfile = csv.DictWriter(f, SpikeEventData._fields)
+        csvfile.writeheader()
+
+        channels = [5, 6, 7, 8]
+
+        conn = Connection()
+        conn.connect()
+        conn.select_channels(channels)
+        conn.start_data() #start the data pump
+
+        gen = conn.get_event_data()
+
+        got_first = False
+
+        start = time.time()
+        while (time.time()-start) < 3:
+            spike_event_data = gen.next()
+            if not got_first and spike_event_data is not None:
+                print spike_event_data
+                got_first = True
+
+            if spike_event_data is not None:
+                csvfile.writerow(dict(spike_event_data._asdict()))
+
+        #Stop the connection
+        conn.stop_data()
+        conn.disconnect()

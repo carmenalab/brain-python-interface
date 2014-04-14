@@ -23,7 +23,7 @@ class DataSource(mp.Process):
         self.source = source
         self.source_kwargs = kwargs
         self.bufferlen = bufferlen
-        self.max_len = bufferlen * self.source.update_freq
+        self.max_len = bufferlen * int(self.source.update_freq)
         self.slice_size = self.source.dtype.itemsize
         
         self.lock = mp.Lock()

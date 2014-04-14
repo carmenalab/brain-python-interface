@@ -1,3 +1,7 @@
+import numpy as np
+import cerelink
+
+
 class Spikes(object):
     update_freq = 30000.  # TODO -- double check
     dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32), ("arrival_ts", np.float64)])

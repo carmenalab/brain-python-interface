@@ -772,7 +772,7 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
 
         neural_features, units, extractor_kwargs = extractor_fn(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs)
 
-    else
+    else:
         raise Exception('Could not find any plexon or blackrock files!')
 
     return kin, neural_features, units, extractor_kwargs
