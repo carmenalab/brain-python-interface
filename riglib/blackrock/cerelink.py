@@ -23,9 +23,10 @@ class Connection(object):
         self.parameters['client-port'] = 51002
 
         if sys.platform == 'darwin':  # OS X
-            print 'Using OS X settings for CereLink'
+            print 'Using OS X settings for cbpy'
             self.parameters['client-addr'] = '255.255.255.255'
         else:  # linux
+            print 'Using linux settings for cbpy'
             self.parameters['client-addr'] = '192.168.137.255'
             self.parameters['receive-buffer-size'] = 8388608
 
