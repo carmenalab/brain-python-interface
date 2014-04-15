@@ -5,7 +5,8 @@ import scipy.io as sio
 from riglib.bmi import extractor
 
 
-channels = [5, 6, 7, 8]
+channels = [5, 6, 7, 8, 9, 10, 11, 12]
+n_chan = len(channels)
 
 extractor_cls = extractor.BinnedSpikeCountsExtractor
 # extractor_cls = extractor.LFPMTMPowerExtractor
@@ -44,14 +45,29 @@ if __name__ == '__main__':
     update_rate = 1./60
     N = int(n_secs / update_rate)
 
+    data = dict()
+    for chan in channels:
+        data[chan] = np.zeros((2, 400))
+    idxs = np.zeros(n_chan)
+
     for k in range(N):
         t_start = time.time()
 
-        new_data = self.neurondata.get()
+        data = self.neurondata.get()
+        for (ts, chan, unit) in zip(new_data['ts'], new_data['chan'], new_data['unit']):
+            data[chan][0, idxs[chan]] = ts
+            data[chan][1, idxs[chan]] = unit
+            idxs[chan] += 1
+
         # print new_data
 
         t_elapsed = time.time() - t_start
-        # print t_elapsed
         time.sleep(update_rate - t_elapsed)
 
     self.neurondata.stop()
+     
+    save_dict = dict()
+    for chan in channels:
+        save_dict[str(chan)] = data[chan]
+
+    sio.matlab.savemat('cbpy_spike_data.mat', save_dict)
