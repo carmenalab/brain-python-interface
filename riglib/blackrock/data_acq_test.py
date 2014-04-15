@@ -48,11 +48,14 @@ if __name__ == '__main__':
 
     for k in range(N):
         t_start = time.time()
+        f.write('Iteration: %d\n' % k)
 
         new_data = self.neurondata.get()
         f.write(str(new_data))
 
         t_elapsed = time.time() - t_start
+
+        f.write('\n\n')
 
         if t_elapsed < update_rate:
             time.sleep(update_rate - t_elapsed)

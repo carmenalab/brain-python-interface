@@ -27,7 +27,7 @@ class Connection(object):
             self.parameters['client-addr'] = '255.255.255.255'
         else:  # linux
             self.parameters['client-addr'] = '192.168.137.255'
-            self.parameters['receive-buffer-size'] = 8388608  # necessary?
+            self.parameters['receive-buffer-size'] = 8388608
 
         self._init = False
     
@@ -35,7 +35,6 @@ class Connection(object):
         '''Open the interface to the NSP (or nPlay).'''
 
         print 'calling cbpy.open in cerelink.connect()'
-        print 'self.parameters:', self.parameters
         result, return_dict = cbpy.open(connection='default', parameter=self.parameters)
         print 'cbpy.open result:', result
         print 'cbpy.open return_dict:', return_dict
@@ -57,13 +56,16 @@ class Connection(object):
         
         if not self._init:
             raise ValueError("Please open the interface to Central/nPlay first.")
-        
-        range_parameter = dict()
-        range_parameter['begin_channel'] = channels[0]
-        range_parameter['end_channel']   = channels[-1]
+
+        buffer_parameter = {'absolute': True}  # want absolute timestamps
+
+        # ability to select desired channels not yet implemented in cbpy        
+        # range_parameter = dict()
+        # range_parameter['begin_channel'] = channels[0]
+        # range_parameter['end_channel']   = channels[-1]
 
         print 'calling cbpy.trial_config in cerelink.select_channels()'
-        result, reset = cbpy.trial_config(range_parameter=range_parameter)
+        result, reset = cbpy.trial_config(buffer_parameter=buffer_parameter)
         print 'cbpy.trial_config result:', result
         print 'cbpy.trial_config reset:', reset
         print ''
@@ -128,7 +130,7 @@ class Connection(object):
 
         while self.streaming:
 
-            result, trial = cbpy.trial_event()  # TODO -- check if result = 0?
+            result, trial = cbpy.trial_event(reset=True)  # TODO -- check if result = 0?
             arrival_ts = time.time()
 
             for list_ in trial:
