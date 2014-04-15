@@ -1,5 +1,5 @@
 '''
-High-level classes for BMI, reused between different decoding algorithms
+High-level classes for BMI used to tie all th BMI subcomponent systems together
 '''
 import numpy as np
 import traceback

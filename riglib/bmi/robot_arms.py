@@ -1,5 +1,17 @@
+'''
+Classes implementing various kinematic chains. This module is perhaps mis-located
+as it does not have a direct BMI role but rather contains code which is useful in
+supporting BMI control of kinematic chains.
+
+This code depends on the 'robot' module (https://github.com/sgowda/robotics_toolbox)
+'''
 import numpy as np
-import robot
+try:
+    import robot
+except ImportError:
+    import warnings
+    warnings.warn("The 'robot' module cannot be found! See https://github.com/sgowda/robotics_toolbox")
+
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from itertools import izip
@@ -286,7 +298,7 @@ class PlanarXZKinematicChain(KinematicChain):
                 joint_limits = [(-pi, pi)] * len(self.distal_chain.link_lengths)
             else:
                 joint_limits = self.joint_limits[2:]
-            distal_angles = [np.random.uniform(*limits) for limits in joint_limits]
+            distal_angles = np.array([np.random.uniform(*limits) for limits in joint_limits])
 
         distal_displ = self.distal_chain.endpoint_pos(distal_angles)
         proximal_endpoint_pos = target_pos - distal_displ

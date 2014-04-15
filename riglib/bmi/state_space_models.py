@@ -1,6 +1,8 @@
 #!/usr/bin/python
 """
-(Soon to be) a collection of state-space models for decoders
+State-space models for different types of BMIs (i.e. representations of various 
+BMI "plants"), and methods to manipulate the parameterizations of such models 
+e.g. time resampling of a linear discrete-time representation of a continuous-time model). 
 """
 import numpy as np
 

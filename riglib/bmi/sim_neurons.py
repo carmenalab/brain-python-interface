@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-Collection of modules to simulate neural activity
+Classes to simulate neural activity (spike firing rates) by various methods.
 """
 from __future__ import division
 import os

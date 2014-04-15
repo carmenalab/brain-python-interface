@@ -1,3 +1,7 @@
+'''
+Classes to apply hard (nonlinear) limits to the state of the Decoder.
+Example: screen limits on a cursor position to keep it always in view. 
+'''
 import numpy as np
 
 class RectangularBounder(object):

@@ -1,5 +1,5 @@
 '''
-Methods to create and train Decoder objects
+Methods to create and train Decoders
 '''
 import re
 import pickle
