@@ -45,7 +45,7 @@ if __name__ == '__main__':
     N = int(n_secs / update_rate)
 
     samp_freq = 1000
-    n_samp = N * update_rate * samp_freq  # approx number of samples we'll collect per channel
+    n_samp = int(n_secs * samp_freq)  # approx number of samples we'll collect per channel
 
     data = np.zeros((n_chan, 2*n_samp))
     idxs = np.zeros(n_chan)
