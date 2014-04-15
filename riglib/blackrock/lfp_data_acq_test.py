@@ -5,11 +5,10 @@ import scipy.io as sio
 from riglib.bmi import extractor
 
 
-channels = [5, 6, 7, 8, 9, 10, 11, 12]
+channels = [5, 6]
 n_chan = len(channels)
 
-extractor_cls = extractor.BinnedSpikeCountsExtractor
-# extractor_cls = extractor.LFPMTMPowerExtractor
+extractor_cls = extractor.LFPMTMPowerExtractor
 
 class BlackrockData(object):
 # class BlackrockData(traits.HasTraits):
@@ -37,8 +36,6 @@ class BlackrockData(object):
 
 if __name__ == '__main__':
 
-    # f = open('data.txt', 'w')
-
     self = BlackrockData()
     self.init()
     self.run()
@@ -47,26 +44,22 @@ if __name__ == '__main__':
     update_rate = 1./60
     N = int(n_secs / update_rate)
 
-    idxs = dict()
-    data = dict()
-    for chan in channels:
-        idxs[chan] = 0
-        data[chan] = np.zeros((2, 400))
+    samp_freq = 1000
+    n_samp = N * update_rate * samp_freq  # approx number of samples we'll collect per channel
+
+    data = np.zeros((n_chan, 2*n_samp))
+    idxs = np.zeros(n_chan)
 
     for k in range(N):
         t_start = time.time()
-        # f.write('Iteration: %d\n' % k)
 
-        new_data = self.neurondata.get()
-        for (ts, chan, unit) in zip(new_data['ts'], new_data['chan'], new_data['unit']):
-            data[chan][0, idxs[chan]] = ts * 30000
-            data[chan][1, idxs[chan]] = unit
-            idxs[chan] += 1
+        new_data = self.neurondata.get_new(channels=channels)
 
-        # print new_data
-
-        # f.write(str(new_data))
-        # f.write('\n\n')
+        for row in range(n_chan):
+            d = new_data[row]
+            idx = idxs[row]
+            data[row, idx:idx+len(d)] = d
+            idxs[row] += len(d)
 
         t_elapsed = time.time() - t_start
         time.sleep(update_rate - t_elapsed)
@@ -74,11 +67,6 @@ if __name__ == '__main__':
     self.neurondata.stop()
      
     save_dict = dict()
-    for chan in channels:
-        save_dict['chan' + str(chan)] = data[chan]
+    save_dict['data'] = data
 
-    sio.matlab.savemat('cbpy_spike_data.mat', save_dict)
-
-    # print save_dict
-
-    # f.close()
+    sio.matlab.savemat('cbpy_lfp_data.mat', save_dict)
