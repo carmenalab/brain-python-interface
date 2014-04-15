@@ -52,7 +52,7 @@ class DataSource(mp.Process):
         streaming = True
         size = self.slice_size
         while self.status.value > 0:
-            f = open('/home/helene/code/bmi3d/log/source', 'a')
+            f = open(os.path.join(os.getenv("HOME"), 'code/bmi3d/log'), 'a')
             f.write("1\n")
             f.close()
 

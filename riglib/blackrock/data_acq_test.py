@@ -37,6 +37,8 @@ class BlackrockData(object):
 
 if __name__ == '__main__':
 
+    # f = open('data.txt', 'w')
+
     self = BlackrockData()
     self.init()
     self.run()
@@ -52,14 +54,18 @@ if __name__ == '__main__':
 
     for k in range(N):
         t_start = time.time()
+        # f.write('Iteration: %d\n' % k)
 
-        data = self.neurondata.get()
+        new_data = self.neurondata.get()
         for (ts, chan, unit) in zip(new_data['ts'], new_data['chan'], new_data['unit']):
             data[chan][0, idxs[chan]] = ts
             data[chan][1, idxs[chan]] = unit
             idxs[chan] += 1
 
         # print new_data
+
+        # f.write(str(new_data))
+        # f.write('\n\n')
 
         t_elapsed = time.time() - t_start
         time.sleep(update_rate - t_elapsed)
@@ -71,3 +77,5 @@ if __name__ == '__main__':
         save_dict[str(chan)] = data[chan]
 
     sio.matlab.savemat('cbpy_spike_data.mat', save_dict)
+
+    # f.close()
