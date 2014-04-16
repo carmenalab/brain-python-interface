@@ -352,7 +352,8 @@ class TaskEntry(models.Model):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)
         
-        # blackrock system can have multiple datafiles, so need to do this a bit differently
+        # a TaskEntry can have multiple datafiles associated with the blackrock system
+        # (unlike for the plexon case), so need to do this a bit differently
         # js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
         js['datafiles'] = dict()
         system_names = [d.system.name for d in datafiles]
