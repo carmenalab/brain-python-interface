@@ -16,6 +16,7 @@ import state_space_models
 from itertools import izip
 
 import extractor
+import os
 
 ############
 ## Constants
@@ -417,16 +418,8 @@ def _get_tmask_blackrock(nevfile, tslice, syskey_fn=lambda x: x[0] in ['task', '
     ''' Find the rows of the nev file to use for training the decoder
     '''
     
-    # TODO -- to be implemented
+    raise NotImplementedError
     
-    lower, upper = 0 < rows, rows < rows.max() + 1
-    l, u = tslice
-    if l is not None:
-        lower = l < rows
-    if u is not None:
-        upper = rows < u
-    tmask = np.logical_and(lower, upper)
-    return tmask, rows
 
 def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
     '''Compute binned spike count features from a Plexon data file.
@@ -472,26 +465,19 @@ def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, ex
 
     
     nev_hdf_fname = nev_fname + '.hdf'
-    if True:  # replace True with a test to see if nev_hdf_fname already exists
+    if not os.path.isfile(nev_hdf_fname):
         # convert .nev file to hdf file using Blackrock's n2h5 utility
         subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
 
-   
-    # The .value means to read the entire array in; if you don't do that, it 
-    # doesn't read the whole data but instead gives you lazy access to sub-parts 
-    # (very useful when the array is huge but you only need a small part of it).
-
-    channels = np.unique(units[:, 0])
-
     nev_hdf = h5py.File(nev_hdf_fname, 'r')
 
-    n_units = units.shape[0]
     n_bins = len(interp_rows)
+    n_units = units.shape[0]
     spike_counts = np.zeros((n_bins, n_units))
 
     for i in range(n_units):
         chan = units[i, 0]
-        unit = units[i, 1]
+        unit = units[i, 1] - 1  # blackrock unit numbers start at 0, not 1
 
         chan_str = str(chan).zfill(5)
         path = 'channel/channel%s/spike_set' % chan_str
@@ -501,10 +487,11 @@ def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, ex
         # get the ts for this unit
         ts = [t for idx, t in enumerate(ts) if units_ts[i] == unit]
 
-        # use ts to fill in the spike_counts that corresponds to unit u
-        # TODO!
-        # fs = 30000
+        # insert value interp_rows[0]-step to beginning of interp_rows array
+        interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
 
+        # use ts to fill in the spike_counts that corresponds to unit i
+        spike_counts[:, i] = np.histogram(ts, interp_rows_)
 
 
     # discard units that never fired at all
