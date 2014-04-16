@@ -613,8 +613,8 @@ class KFRML(object):
         mFR_old        = decoder.mFR
         sdFR_old       = decoder.sdFR
 
-        x = intended_kin
-        y = spike_counts
+        x = np.mat(intended_kin)
+        y = np.mat(spike_counts)
         n_samples = spike_counts.shape[1]
         
         # self.R = rho*self.R + (1-rho)*(x*x.T)
@@ -642,7 +642,7 @@ class KFRML(object):
         
         new_params = {'kf.C':C, 'kf.Q':Q, 
             'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
-            'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS}
+            'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS, 'filt.R':self.R, 'filt.S':self.S, 'filt.T':self.T}
 
         return new_params
 

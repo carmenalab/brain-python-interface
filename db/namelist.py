@@ -112,6 +112,7 @@ tasks = dict(
     joystick_tentacle = tasks.JoystickTentacle,
     bmi_baseline = tasks.BaselineControl,
     bmi_joint_perturb = tasks.BMIJointPerturb,
+    bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']

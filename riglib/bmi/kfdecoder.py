@@ -497,6 +497,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         A, W = state_space_models.linear_kinarm_kf(update_rate=new_binlen)
         self.filt.A = A
         self.filt.W = W
+
+    @property
+    def state_shape_rt(self):
+        return (self.n_states, self.n_subbins)
         
 
 def project_Q(C_v, Q_hat):
