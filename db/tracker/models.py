@@ -351,7 +351,14 @@ class TaskEntry(models.Model):
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)
-        js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
+        
+        # blackrock system can have multiple datafiles, so need to do this a bit differently
+        # js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
+        js['datafiles'] = dict()
+        system_names = [d.system.name for d in datafiles]
+        for name in system_names:
+            js['datafiles'] = [d.get_path() for d in datafiles if d.system.name == name]
+
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         try:
             task = self.task.get(self.feats.all())

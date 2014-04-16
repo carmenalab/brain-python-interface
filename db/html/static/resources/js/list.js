@@ -220,22 +220,47 @@ TaskEntry.prototype.update = function(info) {
 	});
 	var numfiles = 0;
 	this.filelist = document.createElement("ul");
+	// for (var sys in info.datafiles) {
+	// 	var file = document.createElement("li");
+	// 	var link = document.createElement("a");
+	// 	link.href = "/static"+info.datafiles[sys];
+	// 	link.innerHTML = info.datafiles[sys];
+	// 	file.appendChild(link);
+	// 	if (sys == "sequence") {
+	// 		if (info.datafiles[sys]) {
+	// 			link.href = "sequence_for/"+this.idx;
+	// 			link.innerHTML = "Sequence";
+	// 			this.filelist.appendChild(file);
+	// 			numfiles++;
+	// 		}
+	// 	} else {
+	// 		this.filelist.appendChild(file);
+	// 		numfiles++;
+	// 	}
+	// }
+
+	// see TaskEntry.to_json in models.py
 	for (var sys in info.datafiles) {
-		var file = document.createElement("li");
-		var link = document.createElement("a");
-		link.href = "/static"+info.datafiles[sys];
-		link.innerHTML = info.datafiles[sys];
-		file.appendChild(link);
-		if (sys == "sequence") {
-			if (info.datafiles[sys]) {
+		if (sys == "sequence") {  // info.datafiles[sys] is a boolean
+			if (info.datafiles[sys]) {  
+				var file = document.createElement("li");
+				var link = document.createElement("a");
 				link.href = "sequence_for/"+this.idx;
 				link.innerHTML = "Sequence";
+				file.appendChild(link);
 				this.filelist.appendChild(file);
 				numfiles++;
 			}
-		} else {
-			this.filelist.appendChild(file);
-			numfiles++;
+		} else {  // info.datafiles[sys] is a list of files for that system
+			for (var datafile in info.datafiles[sys]) {}
+				var file = document.createElement("li");
+				var link = document.createElement("a");
+				link.href = "/static"+datafile;
+				link.innerHTML = datafile;
+				file.appendChild(link);
+				this.filelist.appendChild(file);
+				numfiles++;
+			}
 		}
 	}
 
