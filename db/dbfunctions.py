@@ -566,12 +566,28 @@ class TaskEntry(object):
         return get_plx2_file(self.record)
 
     @property
+    def nev_file(self):
+        return get_nev_file(self.record)
+
+    @property
+    def nsx_file(self):
+        return get_nsx_files(self.record)
+
+    @property
     def name(self):
         # TODO this needs to be hacked because the current way of determining a 
         # a filename depends on the number of things in the database, i.e. if 
         # after the fact a record is removed, the number might change. read from
         # the file instead
-        return str(os.path.basename(self.plx_file).rstrip('.plx'))
+        import system_setup
+        if system_setup.recording_system == 'plexon':
+            return str(os.path.basename(self.plx_file).rstrip('.plx'))
+        elif system_setup.recording_system == 'blackrock':
+            # TODO -- what if there are only nsx files and no nev file?
+            #         need to make sure it works for this case too
+            return str(os.path.basename(self.nev_file).rstrip('.nev'))
+        else:
+            raise Exception('Unrecognized recording_system!')
 
     def __str__(self):
         return self.record.__str__()

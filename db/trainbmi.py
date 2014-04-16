@@ -128,10 +128,9 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
     tslice : slice
         Task time to use when training the decoder
     """
-    # TODO -- how best to determine this dynamically without hardcording?
-    neural_system = 'plexon'
 
-    if neural_system == 'plexon':
+    import system_setup
+    if system_setup.recording_system == 'plexon':
         plexon = models.System.objects.get(name='plexon')
         plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
 
@@ -142,11 +141,11 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
         else:
             make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
     
-    elif neural_system == 'blackrock':
+    elif system_setup.recording_system == 'blackrock':
         make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
     
     else:
-        raise Exception('Unknown neural_system!')
+        raise Exception('Unknown recording_system!')
 
 
 def conv_mm_dec_to_cm(decoder_record):

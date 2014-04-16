@@ -362,10 +362,8 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             js['report'] = dict()
 
-        # TODO -- hardcoding this for now
-        neural_system = 'plexon'
-
-        if neural_system == 'plexon':
+        import system_setup
+        if system_setup.recording_system == 'plexon':
             try:
                 from plexon import plexfile
                 plexon = System.objects.get(name='plexon')
@@ -385,23 +383,25 @@ class TaskEntry(models.Model):
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print "No plexon files found"
                 js['bmi'] = dict(_neuralinfo=None)
-        elif neural_system == 'blackrock':
+        
+        elif system_setup.recording_system == 'blackrock':
             try:
                 nev_fname = self.nev_file
                 path, name = os.path.split(nev_fname)
                 name, ext = os.path.splitext(name)
 
-                #### start -- TODO: put all this code somewhere else
+                #### start -- TODO: eventually put this code in helper functions somewhere else
                 # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
                 # this code goes through the spike_set for each channel in order to:
-                #   determine the last timestamp in the file
-                #   create a list of units that had spikes in this file
+                #  1) determine the last timestamp in the file
+                #  2) create a list of units that had spikes in this file
+                nev_hdf_fname = nev_fname + '.hdf'
+
                 if not os.path.isfile(nev_hdf_fname):
                     import subprocess
                     subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
                 
                 import h5py
-                nev_hdf_fname = nev_fname + '.hdf'
                 nev_hdf = h5py.File(nev_hdf_fname, 'r')
 
                 last_ts = 0
@@ -425,6 +425,7 @@ class TaskEntry(models.Model):
 
                 # Blackrock units start from 0 (unlike plexon), so add 1
                 # for web interface purposes
+                # i.e., unit 0 on channel 3 will be "3a" on web interface
                 units = [(chan, unit_num+1) for chan, unit in units]
 
                 from namelist import bmi_seed_tasks
@@ -438,7 +439,7 @@ class TaskEntry(models.Model):
                 print "No blackrock files found"
                 js['bmi'] = dict(_neuralinfo=None)
         else:
-            raise Exception()
+            raise Exception('Unrecognized recording_system!')
 
 
         for dec in Decoder.objects.filter(entry=self.id):
@@ -499,10 +500,19 @@ class TaskEntry(models.Model):
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
-        try:
-            return str(os.path.basename(self.plx_file).rstrip('.plx'))
-        except:
-            return 'noname'
+        import system_setup
+        if system_setup.recording_system == 'plexon':
+            try:
+                return str(os.path.basename(self.plx_file).rstrip('.plx'))
+            except:
+                return 'noname'
+        elif system_setup.recording_system == 'blackrock':
+            try:
+                return str(os.path.basename(self.nev_file).rstrip('.nev'))
+            except:
+                return 'noname'
+        else:
+            raise Exception('Unrecognized recording_system!')
 
 
 
