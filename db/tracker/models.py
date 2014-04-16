@@ -479,7 +479,7 @@ class TaskEntry(models.Model):
         Returns the name of the nev file associated with the session.
         '''
         blackrock = System.objects.get(name='blackrock')
-        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).filter('path__endswith'='.nev')
+        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
         if len(q)==0:
             return 'nonevfile'
         else:

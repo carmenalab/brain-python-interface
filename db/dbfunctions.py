@@ -331,7 +331,7 @@ def get_nev_file(entry):
     '''
     entry = lookup_task_entries(entry)
     blackrock = models.System.objects.get(name='blackrock')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).filter('path__endswith'='.nev')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
     if len(q)==0:
         return None
     else:
@@ -348,7 +348,7 @@ def get_nsx_files(entry):
     '''
     entry = lookup_task_entries(entry)
     blackrock = models.System.objects.get(name='blackrock')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).exclude('path__endswith'='.nev')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).exclude(path__endswith='.nev')
     if len(q)==0:
         return None
     else:
