@@ -51,6 +51,7 @@ generators = dict(
     centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
     centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
     centerout_3D=generatorfunctions.centerout_3D,
+    outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
 )
 
 # from tasks.rds import RDS, RDS_half
