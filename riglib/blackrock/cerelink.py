@@ -176,7 +176,7 @@ if __name__ == "__main__":
     import csv
     import time
     import argparse
-    parser = argparse.ArgumentParser(description="Collects plexnet data for a set amount of time")
+    parser = argparse.ArgumentParser(description="Collects spike data for a set amount of time")
     parser.add_argument("output", help="Output csv file")
     args = parser.parse_args()
 
