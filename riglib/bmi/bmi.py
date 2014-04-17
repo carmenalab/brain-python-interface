@@ -1,5 +1,5 @@
 '''
-High-level classes for BMI, reused between different decoding algorithms
+High-level classes for BMI used to tie all th BMI subcomponent systems together
 '''
 import numpy as np
 import traceback
@@ -446,6 +446,10 @@ class Decoder(object):
         for attr in self.filt.model_attrs:
             table.attrs[attr] = np.array(getattr(self.filt, attr))
         h5file.close()        
+
+    @property
+    def state_shape_rt(self):
+        return (self.n_states, self.n_subbins)
 
 
 class BMISystem(object):

@@ -1,5 +1,9 @@
 '''
-Feedback controllers for assist/simulation purposes
+Feedback controllers. In the BMI context, these have three potential
+applications: (1) assisitve/shared control between neural and pure machine sources,
+(2) estimating the "intended" BMI movements of the subject (see clda.py), and
+(3) driving populations of simulated neurons with artificially constructed tuning
+functions. 
 '''
 import numpy as np
 
@@ -22,11 +26,10 @@ class CenterOutCursorGoal(object):
                 angular_noise_rad = np.random.normal(0, self.angular_noise_var)
         else:
             angular_noise_rad = 0
-        #angular_noise = np.array([np.cos(angular_noise_rad), np.sin(angular_noise_rad)])     
         angle = np.arctan2(dir_to_targ[2], dir_to_targ[0])
         sum_angle = angle + angular_noise_rad
         return self.gain*np.array([np.cos(sum_angle), np.sin(sum_angle)])
-        #return gain*( dir_to_targ/np.linalg.norm(dir_to_targ) + angular_noise )
+
 
 class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
     def __init__(self, link_lengths, shoulder_anchor, *args, **kwargs):
@@ -51,6 +54,7 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
         from riglib.stereo_opengl import ik
         joint_pos, joint_vel = ik.inv_kin_2D(pos, self.link_lengths[0], self.link_lengths[1], vel)
         return joint_vel[0]['sh_vabd'], joint_vel[0]['el_vflex']
+
 
 class LQRController(object):
     def __init__(self, A, B, Q, R, **kwargs):
@@ -86,6 +90,3 @@ class LQRController(object):
                 if np.linalg.norm(K - K_old) < eps:
                     break
             return dtype(K)
-
-
-

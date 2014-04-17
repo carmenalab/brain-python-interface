@@ -1,6 +1,5 @@
 '''
-Implementation of a Kalman filter and associated code to use it as a BMI
-decoder
+Classes for BMI decoding using the Kalman filter. 
 '''
 
 import numpy as np
@@ -272,6 +271,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
         Train state space model for KF from fully observed hidden state
         '''
         X = hidden_state
+        T = hidden_state.shape[1]
+        if include_offset:
+            X = np.vstack([ X, np.ones([1,T]) ])        
         X1 = X[:,:-1]
         X2 = X[:,1:]
         A = np.linalg.lstsq(X1.T, X2.T)[0].T
@@ -498,9 +500,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.filt.A = A
         self.filt.W = W
 
-    @property
-    def state_shape_rt(self):
-        return (self.n_states, self.n_subbins)
         
 
 def project_Q(C_v, Q_hat):

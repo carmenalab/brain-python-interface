@@ -1,5 +1,7 @@
 '''
-Collection of classes that calculate assist kinematics
+Various types of "assist", i.e. different methods for shared control
+between neural control and machine control. Only applies in cases where
+some knowledge of the task goals is available. 
 '''
 
 import numpy as np 
