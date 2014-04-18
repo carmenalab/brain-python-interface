@@ -747,17 +747,42 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
         if units == None:
             raise Exception('"units" variable is None in preprocess_files!')
 
-        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
-        
-        kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
-        neurows = rows[tmask]
+
+        # notes:
+        # tmask   --> logical vector of same length as rows that is True for rows inside the tslice
+        # rows    --> plexon timestamps that correspond to each row of the task in hdf file
+        # kin     --> every 6th row of kinematics within the tslice boundaries
+        # neurows --> the rows inside the tslice
+
+        try:
+            tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])        
+        except NotImplementedError:
+            # need to create a fake rows variable
+            n_rows = hdf.root.task[:]['cursor'].shape[0]
+
+            first_ts = binlen
+            update_rate_hz = 1./60
+            rows = np.linspace(first_ts, first_ts + (n_rows-1)*update_rate_hz, num=n_rows)
+
+            lower, upper = 0 < rows, rows < rows.max() + 1
+            l, u = tslice
+            if l is not None:
+                lower = l < rows
+            if u is not None:
+                upper = rows < u
+            tmask = np.logical_and(lower, upper)
+
+            kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
+            neurows = rows[tmask]
+
 
         if extractor_cls == extractor.BinnedSpikeCountsExtractor:
             extractor_fn = get_spike_counts_blackrock
         else:
             raise Exception("No extractor_fn for this extractor class!")
 
-        neural_features, units, extractor_kwargs = extractor_fn(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs)
+        extractor_fn_args = (nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs)
+        neural_features, units, extractor_kwargs = extractor_fn(*extractor_fn_args)
 
     else:
         raise Exception('Could not find any plexon or blackrock files!')
