@@ -91,7 +91,7 @@ te = performance._get_te(3040)
 
 #tests = [TestJointRML(), TestJointRMLWithAssist()]
 #tests = [TestFixedPPF(), TestPPFCLDA()]
-tests = [TestRML()]
+tests = [TestRMLWithAssist()]
 #tests = [TestPPFCLDA(), TestRML()]
 
 test_suite = unittest.TestSuite(tests)
