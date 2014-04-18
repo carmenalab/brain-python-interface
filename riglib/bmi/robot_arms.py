@@ -308,6 +308,15 @@ class PlanarXZKinematicChain(KinematicChain):
         angles[0] -= np.sum(proximal_angles)
         return np.hstack([proximal_angles, angles])
 
+    def jacobian(self, theta):
+        l = self.link_lengths
+        N = len(theta)
+        J = np.zeros([2, len(l)])
+        for m in range(N):
+            for i in range(m, N):
+                J[0, m] += -l[i]*np.sin(sum(theta[:i+1]))
+                J[1, m] +=  l[i]*np.cos(sum(theta[:i+1]))
+        return J
 
 
 class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
