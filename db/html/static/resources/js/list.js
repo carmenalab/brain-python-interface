@@ -220,6 +220,8 @@ TaskEntry.prototype.update = function(info) {
 	});
 	var numfiles = 0;
 	this.filelist = document.createElement("ul");
+	
+	// original code
 	// for (var sys in info.datafiles) {
 	// 	var file = document.createElement("li");
 	// 	var link = document.createElement("a");
@@ -239,6 +241,7 @@ TaskEntry.prototype.update = function(info) {
 	// 	}
 	// }
 
+	// new code
 	// see TaskEntry.to_json in models.py
 	for (var sys in info.datafiles) {
 		if (sys == "sequence") {  // info.datafiles[sys] is a boolean
@@ -252,7 +255,7 @@ TaskEntry.prototype.update = function(info) {
 				numfiles++;
 			}
 		} else {  // info.datafiles[sys] is a list of files for that system
-			for (var datafile in info.datafiles[sys]) {}
+			for (var datafile in info.datafiles[sys]) {
 				var file = document.createElement("li");
 				var link = document.createElement("a");
 				link.href = "/static"+datafile;

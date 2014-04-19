@@ -356,9 +356,9 @@ class TaskEntry(models.Model):
         # (unlike for the plexon case), so need to do this a bit differently
         # js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
         js['datafiles'] = dict()
-        system_names = [d.system.name for d in datafiles]
+        system_names = set(d.system.name for d in datafiles)
         for name in system_names:
-            js['datafiles'] = [d.get_path() for d in datafiles if d.system.name == name]
+            js['datafiles'][name] = [d.get_path() for d in datafiles if d.system.name == name]
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         try:

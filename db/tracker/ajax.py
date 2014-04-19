@@ -74,7 +74,10 @@ def start_experiment(request, save=True):
         kwargs = dict(subj=entry.subject, task=task, feats=Feature.getall(data['feats'].keys()),
                       params=params.to_json())
 
+        print 'task', task
+
         if issubclass(Exp, experiment.Sequence):
+            print data['sequence']
             seq = Sequence.from_json(data['sequence'])
             seq.task = task
             if save:

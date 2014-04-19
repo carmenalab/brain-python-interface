@@ -89,7 +89,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     # a list of files
     # inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
     inputdata = dict()
-    system_names = [d.system.name for d in datafiles]
+    system_names = set(d.system.name for d in datafiles)
     for name in system_names:
         files = [d.get_path() for d in datafiles if d.system.name == name]
         if len(files) == 1:
