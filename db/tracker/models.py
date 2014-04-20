@@ -231,7 +231,7 @@ class Sequence(models.Model):
         if self.generator.static:
             if len(self.sequence) > 0:
                 return generate.runseq, dict(seq=cPickle.loads(str(self.sequence)))
-            return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))
+            return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))            
 
         return self.generator.get(), Parameters(self.params).params
 
@@ -354,11 +354,11 @@ class TaskEntry(models.Model):
         
         # a TaskEntry can have multiple datafiles associated with the blackrock system
         # (unlike for the plexon case), so need to do this a bit differently
-        # js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
-        js['datafiles'] = dict()
-        system_names = set(d.system.name for d in datafiles)
-        for name in system_names:
-            js['datafiles'][name] = [d.get_path() for d in datafiles if d.system.name == name]
+        js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
+        # js['datafiles'] = dict()
+        # system_names = set(d.system.name for d in datafiles)
+        # for name in system_names:
+        #     js['datafiles'][name] = [d.get_path() for d in datafiles if d.system.name == name]
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         try:
@@ -425,7 +425,7 @@ class TaskEntry(models.Model):
 
                             channel = int(key[-5:])
                             for unit_num in np.sort(np.unique(spike_set.value['Unit'])):
-                                units.append((channel, unit_num))
+                                units.append((channel, int(unit_num)))
 
                 fs = 30000.
                 length = last_ts / fs
@@ -434,7 +434,7 @@ class TaskEntry(models.Model):
                 # Blackrock units start from 0 (unlike plexon), so add 1
                 # for web interface purposes
                 # i.e., unit 0 on channel 3 will be "3a" on web interface
-                units = [(chan, unit_num+1) for chan, unit in units]
+                units = [(chan, unit+1) for chan, unit in units]
 
                 from namelist import bmi_seed_tasks
                 js['bmi'] = dict(_neuralinfo=dict(

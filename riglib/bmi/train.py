@@ -469,6 +469,7 @@ def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, ex
         # convert .nev file to hdf file using Blackrock's n2h5 utility
         subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
 
+    import h5py
     nev_hdf = h5py.File(nev_hdf_fname, 'r')
 
     n_bins = len(interp_rows)
@@ -484,14 +485,15 @@ def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, ex
         ts       = nev_hdf.get(path).value['TimeStamp']
         units_ts = nev_hdf.get(path).value['Unit']  # the units corresponding to each timestamp in ts
 
-        # get the ts for this unit
-        ts = [t for idx, t in enumerate(ts) if units_ts[i] == unit]
+        # get the ts for this unit, in units of secs
+        fs = 30000.
+        ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
 
         # insert value interp_rows[0]-step to beginning of interp_rows array
         interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
 
         # use ts to fill in the spike_counts that corresponds to unit i
-        spike_counts[:, i] = np.histogram(ts, interp_rows_)
+        spike_counts[:, i] = np.histogram(ts, interp_rows_)[0]
 
 
     # discard units that never fired at all
@@ -646,7 +648,7 @@ def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     different ways. This is purely for legacy reasons, i.e. the second method
     is intentionally slightly different from the first.
     '''
-    kin = hdf.root.task[:][key]
+    kin = hdf.root.task[:][key]    
 
     ##### this is to test on files that didn't save the full 5-joint kinematics, remove soon!
     if key=='joint_angles' and kin.shape[1]==2:
@@ -750,7 +752,7 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
 
         # notes:
         # tmask   --> logical vector of same length as rows that is True for rows inside the tslice
-        # rows    --> plexon timestamps that correspond to each row of the task in hdf file
+        # rows    --> times (in units of s, measured on neural system) that correspond to each row of the task in hdf file
         # kin     --> every 6th row of kinematics within the tslice boundaries
         # neurows --> the rows inside the tslice
 
@@ -763,7 +765,6 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
             first_ts = binlen
             update_rate_hz = 1./60
             rows = np.linspace(first_ts, first_ts + (n_rows-1)*update_rate_hz, num=n_rows)
-
             lower, upper = 0 < rows, rows < rows.max() + 1
             l, u = tslice
             if l is not None:

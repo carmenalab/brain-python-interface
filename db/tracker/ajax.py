@@ -47,7 +47,6 @@ def task_info(request, idx):
     return _respond(task_info)
 
 def exp_info(request, idx):
-    print idx
     entry = TaskEntry.objects.get(pk=idx)
     return _respond(entry.to_json())
 
@@ -74,10 +73,7 @@ def start_experiment(request, save=True):
         kwargs = dict(subj=entry.subject, task=task, feats=Feature.getall(data['feats'].keys()),
                       params=params.to_json())
 
-        print 'task', task
-
         if issubclass(Exp, experiment.Sequence):
-            print data['sequence']
             seq = Sequence.from_json(data['sequence'])
             seq.task = task
             if save:

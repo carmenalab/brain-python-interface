@@ -83,6 +83,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
 
     datafiles = models.DataFile.objects.filter(entry_id=entry)
  
+    # this is sort of a hack, fix later
     # old inputdata dict assumed there was only one datafile associated with 
     # each system, but this is not always the case (e.g., Blackrock has both 
     # nev and nsx files) -- in this case, set the corresponding dict value as
@@ -92,10 +93,11 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     system_names = set(d.system.name for d in datafiles)
     for name in system_names:
         files = [d.get_path() for d in datafiles if d.system.name == name]
-        if len(files) == 1:
-            inputdata[name] = files[0]  # just one file
+        if name == 'blackrock':
+            inputdata[name] = files  # list of (one or more) files
         else:
-            inputdata[name] = files  # list of files
+            assert(len(files) == 1)
+            inputdata[name] = files[0]  # just one file
 
     training_method = namelist.bmis[clsname]
     decoder = training_method(extractor_cls, extractor_kwargs, 
