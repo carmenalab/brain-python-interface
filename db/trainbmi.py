@@ -91,13 +91,13 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     # inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
     inputdata = dict()
     system_names = set(d.system.name for d in datafiles)
-    for name in system_names:
-        files = [d.get_path() for d in datafiles if d.system.name == name]
-        if name == 'blackrock':
-            inputdata[name] = files  # list of (one or more) files
+    for system_name in system_names:
+        files = [d.get_path() for d in datafiles if d.system.name == system_name]
+        if system_name == 'blackrock':
+            inputdata[system_name] = files  # list of (one or more) files
         else:
             assert(len(files) == 1)
-            inputdata[name] = files[0]  # just one file
+            inputdata[system_name] = files[0]  # just one file
 
     training_method = namelist.bmis[clsname]
     decoder = training_method(extractor_cls, extractor_kwargs, 
