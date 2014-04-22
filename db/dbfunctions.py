@@ -490,6 +490,9 @@ class TaskEntry(object):
 
         self.task_msgs = TaskMessages(self.hdf.root.task_msgs[:])
 
+    @property 
+    def supplementary_data_file(self):
+        return '/storage/task_supplement/%d.mat' % self.record.id
 
     def get_matching_state_transition_seq(self, seq):
         task_msgs = self.hdf.root.task_msgs[:]
