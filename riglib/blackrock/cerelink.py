@@ -22,6 +22,9 @@ class Connection(object):
         self.parameters['inst-port']   = 51001
         self.parameters['client-port'] = 51002
 
+        self.channel_offset = 4  # some bug with nPlay
+        print 'Using cbpy channel offset of:', self.channel_offset
+
         if sys.platform == 'darwin':  # OS X
             print 'Using OS X settings for cbpy'
             self.parameters['client-addr'] = '255.255.255.255'
@@ -127,7 +130,7 @@ class Connection(object):
         #        unitN_ts: array, spike timestamps of unit N for channel (if an electrode channel));
         # '''
 
-        sleep_time = 0.005
+        sleep_time = 0 #0.005
 
         while self.streaming:
 
@@ -138,11 +141,10 @@ class Connection(object):
                 chan = list_[0]
                 for unit, unit_ts in enumerate(list_[1]['timestamps']):
                     for ts in unit_ts:
-                        yield SpikeEventData(chan=chan, unit=unit, ts=ts, arrival_ts=arrival_ts)
+                        yield SpikeEventData(chan=chan-self.channel_offset, unit=unit, ts=ts, arrival_ts=arrival_ts)
 
             time.sleep(sleep_time)
 
-            # TODO - sleep so that we don't call trial_event too often?
 
     def get_continuous_data(self):
         '''A generator which yields continuous data.'''

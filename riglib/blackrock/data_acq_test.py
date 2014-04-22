@@ -5,7 +5,7 @@ import scipy.io as sio
 from riglib.bmi import extractor
 
 
-channels = [5, 6, 7, 8, 9, 10, 11, 12]
+channels = [1, 2, 3, 4]
 n_chan = len(channels)
 
 extractor_cls = extractor.BinnedSpikeCountsExtractor
@@ -59,9 +59,14 @@ if __name__ == '__main__':
 
         new_data = self.neurondata.get()
         for (ts, chan, unit) in zip(new_data['ts'], new_data['chan'], new_data['unit']):
-            data[chan][0, idxs[chan]] = ts * 30000
-            data[chan][1, idxs[chan]] = unit
-            idxs[chan] += 1
+            if chan in channels:
+                data[chan][0, idxs[chan]] = ts * 30000
+                data[chan][1, idxs[chan]] = unit
+                idxs[chan] += 1
+                print (ts, chan, unit)
+            else:
+                pass
+                # print 'received data on unwanted channel:', chan
 
         # print new_data
 

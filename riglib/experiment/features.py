@@ -414,7 +414,7 @@ class BlackrockBMI(BlackrockData):
     def init(self):
         print "init bmi"
         self.blackrock_channels = self.decoder.units[:,0]
-        super(SpikeBMI, self).init()
+        super(BlackrockBMI, self).init()
 
 
 

@@ -478,7 +478,7 @@ def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, ex
 
     for i in range(n_units):
         chan = units[i, 0]
-        unit = units[i, 1] - 1  # blackrock unit numbers start at 0, not 1
+        unit = units[i, 1]
 
         chan_str = str(chan).zfill(5)
         path = 'channel/channel%s/spike_set' % chan_str
@@ -748,6 +748,10 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
 
         if units == None:
             raise Exception('"units" variable is None in preprocess_files!')
+
+        units[:, 1] -= 1  # blackrock unit numbers start from 0, not 1
+        if 'units' in extractor_kwargs:  # using spike extractor
+            extractor_kwargs['units'] = units
 
 
         # notes:

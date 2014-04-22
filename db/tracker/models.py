@@ -88,7 +88,7 @@ class Task(models.Model):
         seqs = dict()
         for s in Sequence.objects.filter(task=self.id):
             seqs[s.id] = s.to_json()
-        
+
         return seqs
 
 class Feature(models.Model):
@@ -354,11 +354,11 @@ class TaskEntry(models.Model):
         
         # a TaskEntry can have multiple datafiles associated with the blackrock system
         # (unlike for the plexon case), so need to do this a bit differently
-        js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
-        # js['datafiles'] = dict()
-        # system_names = set(d.system.name for d in datafiles)
-        # for name in system_names:
-        #     js['datafiles'][name] = [d.get_path() for d in datafiles if d.system.name == name]
+        # js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
+        js['datafiles'] = dict()
+        system_names = set(d.system.name for d in datafiles)
+        for name in system_names:
+            js['datafiles'][name] = [d.get_path() for d in datafiles if d.system.name == name]
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         try:

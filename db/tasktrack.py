@@ -150,9 +150,11 @@ def runtask(cmds, _cmds, websock, **kwargs):
 
     # Summarize performance during task
     try:
-        from tasks import performance
-        te = performance._get_te(task.saveid)
-        print te.summary()
+        # from tasks import performance
+        from analysis import performance
+        print 'removed these lines in tasktrack.py, unknown error'
+        # te = performance._get_te(task.saveid)
+        # print te.summary()
     except:
         print "=====traceback during performance calculations at end of block"
         import traceback
