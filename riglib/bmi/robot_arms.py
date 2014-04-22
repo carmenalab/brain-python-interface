@@ -25,9 +25,18 @@ class KinematicChain(object):
     Arbitrary kinematic chain (i.e. spherical joint at the beginning of 
     each joint)
     '''
-    def __init__(self, link_lengths=[10., 10.], name=''):
+    def __init__(self, link_lengths=[10., 10.], name='', base_loc=np.array([0., 0., 0.])):
+        '''
+        Parameters
+        ----------
+        link_lengths: iterable
+            Lengths of all the distances between joints
+        base_loc: np.array of shape (3,), default=np.array([0, 0, 0])
+            Location of the base of the kinematic chain in an "absolute" reference frame
+        '''
         self.n_links = len(link_lengths)
         self.link_lengths = link_lengths
+        self.base_loc = base_loc
 
         links = []
         for link_length in link_lengths:
@@ -147,7 +156,8 @@ class KinematicChain(object):
 
     def endpoint_pos(self, joint_angles):
         t, allt = self.forward_kinematics(joint_angles)
-        return np.array(t[0:3,-1]).ravel()
+        pos_rel_to_base = np.array(t[0:3,-1]).ravel()
+        return pos_rel_to_base + self.base_loc
 
     def random_sample(self):
         q_start = []
@@ -239,6 +249,7 @@ class KinematicChain(object):
         pos = np.hstack([np.zeros([3,1]), pos])
         return pos
 
+
 class PlanarXZKinematicChain(KinematicChain):
     '''
     Kinematic chain restricted to movement in the XZ-plane
@@ -288,6 +299,7 @@ class PlanarXZKinematicChain(KinematicChain):
         self.distal_chain = PlanarXZKinematicChain(distal_link_lengths)
 
     def inverse_kinematics(self, target_pos, **kwargs):
+        target_pos -= self.base_loc
         if not hasattr(self, 'proximal_chain') or not hasattr(self, 'distal_chain'):
             self.create_ik_subchains()
         distal_angles = kwargs.pop('distal_angles', None)
@@ -317,6 +329,28 @@ class PlanarXZKinematicChain(KinematicChain):
                 J[0, m] += -l[i]*np.sin(sum(theta[:i+1]))
                 J[1, m] +=  l[i]*np.cos(sum(theta[:i+1]))
         return J
+
+    def config_change_nullspace_workspace(self, config1, config2):
+        '''
+        For two configurations, determine how much joint displacement is in the "null" space and how much is in the "task" space
+        '''
+        config = config1
+        vel = config2 - config1
+        endpt1 = self.endpoint_pos(config1)
+        endpt2 = self.endpoint_pos(config2)
+        task_displ = np.linalg.norm(endpt1 - endpt2)
+        
+        # compute total displ of individual joints
+        total_joint_displ = 0
+        
+        n_joints = len(config1)
+        for k in range(n_joints):
+            jnt_k_vel = np.zeros(n_joints)
+            jnt_k_vel[k] = vel[k]
+            single_joint_displ_pos = self.endpoint_pos(config + jnt_k_vel)
+            total_joint_displ += np.linalg.norm(endpt1 - single_joint_displ_pos)
+            
+        return task_displ, total_joint_displ
 
 
 class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
