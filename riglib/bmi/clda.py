@@ -1,5 +1,8 @@
 '''
-CLDA classes
+Closed-loop decoder adaptation (CLDA) classes. There are two types of classes,
+"Learners" and "Updaters". Learners implement various methods to estimate the
+"intended" BMI movements of the user. Updaters implement various method for 
+updating 
 '''
 import multiprocessing as mp
 import numpy as np
@@ -15,8 +18,19 @@ inv = np.linalg.inv
 
 from numpy.linalg import lapack_lite
 lapack_routine = lapack_lite.dgesv
-# http://stackoverflow.com/questions/11972102/is-there-a-way-to-efficiently-invert-an-array-of-matrices-with-numpy 
+
 def fast_inv(A):
+    '''
+    This method represents a way to speed up matrix inverse computations when 
+    several independent matrix inverses of all the same shape must be taken all
+    at once. This is used by the PPFContinuousBayesianUpdater. Without this method,
+    the updates could not be performed in real time with ~30 cells (compute complexity 
+    is linear in the number of units, so it is possible that fewer units would not
+    have had this issue).
+
+    Code stolen from: 
+    # http://stackoverflow.com/questions/11972102/is-there-a-way-to-efficiently-invert-an-array-of-matrices-with-numpy 
+    '''
     b = np.identity(A.shape[2], dtype=A.dtype)
 
     n_eq = A.shape[1]
@@ -118,12 +132,10 @@ class BatchLearner(Learner):
         return _is_ready
 
     def get_batch(self):
-        print "getting batch"
         kindata = np.vstack(self.kindata).T
         neuraldata = np.hstack(self.neuraldata)
         self.kindata = []
         self.neuraldata = []
-        # self.passed_done_state = False
         return kindata, neuraldata
 
 

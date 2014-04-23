@@ -1,5 +1,6 @@
 '''
-Implementation of Kalman filter in steady-state 
+Classes for BMI decoding using the Steady-state Kalman filter. Based
+heavily on the kfdecoder module. 
 '''
 import numpy as np
 from scipy.io import loadmat

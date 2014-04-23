@@ -1,5 +1,5 @@
 '''
-Decoder using the point-process filter algorithm
+Classes for BMI decoding using the Point-process filter. 
 '''
 
 import numpy as np

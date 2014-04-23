@@ -1,3 +1,7 @@
+'''
+Classes for extracting "decodable features" from various types of neural signal sources. 
+Examples include spike rate estimation, LFP power, and EMG amplitude.
+'''
 import numpy as np
 import time
 import sim_neurons

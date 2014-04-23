@@ -1,6 +1,8 @@
 #!/usr/bin/python
 '''
-Calculate the goal state of the BMI for CLDA/assist/simulation
+Classes to determine the "goal" during a BMI task. Knowledge of the
+task goal is required for many versions of assistive control (see assist.py) and
+many versions of CLDA (see clda.py). 
 '''
 import numpy as np
 import train
