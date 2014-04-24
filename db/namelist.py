@@ -31,7 +31,7 @@ features = dict(
 )
 
 import tasks
-from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback, newtasks
+from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
@@ -114,7 +114,8 @@ tasks = dict(
     bmi_baseline = tasks.BaselineControl,
     bmi_joint_perturb = tasks.BMIJointPerturb,
     bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
-    combined_ap_mcm = tasks.Combined
+    combined_ap_mcm = tasks.Combined,
+    combined_ap_mcm_bmi = tasks.Combined_AP_MCM_BMI,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']
