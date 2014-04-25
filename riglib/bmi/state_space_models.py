@@ -165,6 +165,31 @@ class StateSpaceEndptVel(StateSpace):
         B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
         return A, B, W
 
+
+
+class StateSpaceArmAssist2D(StateSpace):
+    def __init__(self):
+        super(StateSpaceArmAssist2D, self).__init__(
+            State('_px',     stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
+            State('_py',     stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
+            # State('ang_pz', stochastic=False, drives_obs=False, order=0, min_val=-pi., max_val=pi.),
+            State('_vx',     stochastic=True,  drives_obs=True,  order=1),
+            State('_vy',     stochastic=True,  drives_obs=True,  order=1),
+            # State('ang_vz', stochastic=True,  drives_obs=True,  order=1),
+            offset_state
+        )
+
+    # fix
+    # def get_ssm_matrices(self, update_rate=0.1):
+    #     # State-space model set from expert data
+    #     A, W = linear_kinarm_kf(update_rate=update_rate)
+
+    #     # Control input matrix for SSM for control inputs
+    #     I = np.mat(np.eye(3))
+    #     B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
+    #     return A, B, W
+
+
 class StateSpaceExoArm(StateSpace):
     '''
     State space representing the kinematics of the exoskeleton
