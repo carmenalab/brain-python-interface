@@ -38,6 +38,9 @@ endpt_2D_state_space = StateSpaceEndptVel()
 joint_2D_state_space = StateSpaceExoArm2D()
 tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
 
+StateSpaceArmAssistXY = state_space_models.StateSpaceArmAssistXY
+aa_xy_state_space = StateSpaceArmAssistXY()
+
 ################################################
 ## Functions to train endpoint velocity decoders
 ################################################
@@ -632,6 +635,8 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
             _ssm=endpt_2D_state_space
         elif kin_var == 'joint_angles':
             _ssm=joint_2D_state_space
+        elif kin_var == 'armassist':
+            _ssm=aa_xy_state_space
         
     if len(kin) != len(neural_features):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neural_features)))
