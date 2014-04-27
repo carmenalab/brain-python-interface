@@ -189,7 +189,7 @@ class ArmAssistAssister(Assister):
 
 def endpoint_assist_simple_new(cursor_pos, target_pos, decoder_binlen=0.1, speed=5., target_radius=2., assist_level=0.):
 
-    diff_vec = target_pos - cursor_pos 
+    diff_vec = target_pos - cursor_pos
     dist_to_target = np.linalg.norm(diff_vec)
     dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
 

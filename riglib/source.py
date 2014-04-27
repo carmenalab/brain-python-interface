@@ -52,9 +52,9 @@ class DataSource(mp.Process):
         streaming = True
         size = self.slice_size
         while self.status.value > 0:
-            # f = open(os.path.join(os.getenv("HOME"), 'code/bmi3d/log'), 'a')
-            # f.write("1\n")
-            # f.close()
+            f = open(os.path.join(os.getenv("HOME"), 'code/bmi3d/log/source'), 'a')
+            f.write("1\n")
+            f.close()
 
             if self.cmd_event.is_set():
                 cmd, args, kwargs = self._pipe.recv()

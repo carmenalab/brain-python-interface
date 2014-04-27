@@ -310,7 +310,7 @@ def get_bmiparams_file(entry):
 
 def get_blackrock_files(entry):
     '''
-    Returns a list containing the names of the nsx files (there could be more
+    Returns a list containing the names of the blackrock files (there could be more
     than one) associated with the session.
     '''
     entry = lookup_task_entries(entry)
