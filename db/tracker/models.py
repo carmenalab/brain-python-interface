@@ -443,6 +443,8 @@ class TaskEntry(models.Model):
                     name=name,
                     is_seed=int(self.task.name in bmi_seed_tasks),
                     ))
+                print js['bmi']
+                print 'in models.TaskEntry.to_json; blackrock units:', units
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print "No blackrock files found"
                 js['bmi'] = dict(_neuralinfo=None)

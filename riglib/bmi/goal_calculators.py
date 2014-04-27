@@ -26,6 +26,22 @@ class EndpointControlGoal(object):
     def reset(self):
         pass
 
+class ArmAssistControlGoal(object):
+    def __init__(self, ssm):
+        assert ssm == train.aa_state_space
+        self.ssm = ssm
+
+    def __call__(self, target_pos, **kwargs):
+        target_vel = np.array([0, 0, 0])
+        offset_val = 1
+        error = 0
+        target_pos = np.array([target_pos[0], target_pos[2], 0.])
+        target_state = np.hstack([target_pos, target_vel, 1])
+        return (target_state, error), True
+
+    def reset(self):
+        pass
+
 class TwoLinkJointGoal(object):
     def __init__(self, ssm, shoulder_anchor, link_lengths):
         assert ssm == train.joint_2D_state_space

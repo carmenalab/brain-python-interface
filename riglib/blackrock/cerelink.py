@@ -141,7 +141,9 @@ class Connection(object):
                 chan = list_[0]
                 for unit, unit_ts in enumerate(list_[1]['timestamps']):
                     for ts in unit_ts:
-                        yield SpikeEventData(chan=chan-self.channel_offset, unit=unit, ts=ts, arrival_ts=arrival_ts)
+                        # blackrock unit numbers are actually 0-based
+                        # however, within Python code, web interface, etc., use 1-based numbering for unit number
+                        yield SpikeEventData(chan=chan-self.channel_offset, unit=unit+1, ts=ts, arrival_ts=arrival_ts)
 
             time.sleep(sleep_time)
 

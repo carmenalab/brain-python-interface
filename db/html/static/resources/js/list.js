@@ -275,6 +275,8 @@ TaskEntry.prototype.update = function(info) {
 		for (var sys in info.datafiles)
 			found = found || sys == "plexon" || sys == 'blackrock'
 		if (found)
+			console.log('info.bmi');
+			console.log(info.bmi);
 			this.bmi = new BMI(this.idx, info.bmi, info.notes);
 	}
 

@@ -167,14 +167,15 @@ class StateSpaceEndptVel(StateSpace):
 
 
 
-class StateSpaceArmAssistXY(StateSpace):
+class StateSpaceArmAssist(StateSpace):
     def __init__(self):
-        super(StateSpaceArmAssistXY, self).__init__(
+        super(StateSpaceArmAssist, self).__init__(
             State('wf_px',     stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
             State('wf_py',     stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
-            # State('wf_ang_pz', stochastic=False, drives_obs=False, order=0, min_val=-pi., max_val=pi.),
+            State('wf_ang_pz', stochastic=False, drives_obs=False, order=0, min_val=-pi,  max_val=pi),
             State('wf_vx',     stochastic=True,  drives_obs=True,  order=1),
             State('wf_vy',     stochastic=True,  drives_obs=True,  order=1),
+            State('wf_ang_vz', stochastic=False, drives_obs=False, order=1),
             # State('wf_ang_vz', stochastic=True,  drives_obs=True,  order=1),
             offset_state
         )
@@ -184,8 +185,8 @@ class StateSpaceArmAssistXY(StateSpace):
         A, W = linear_kinarm_kf(update_rate=update_rate)
 
         # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(2))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,2])])
+        I = np.mat(np.eye(3))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
         return A, B, W
 
 

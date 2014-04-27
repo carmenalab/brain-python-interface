@@ -38,8 +38,8 @@ endpt_2D_state_space = StateSpaceEndptVel()
 joint_2D_state_space = StateSpaceExoArm2D()
 tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
 
-StateSpaceArmAssistXY = state_space_models.StateSpaceArmAssistXY
-aa_xy_state_space = StateSpaceArmAssistXY()
+StateSpaceArmAssist = state_space_models.StateSpaceArmAssist
+aa_state_space = StateSpaceArmAssist()
 
 ################################################
 ## Functions to train endpoint velocity decoders
@@ -279,12 +279,17 @@ def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, ex
 
     for i in range(n_units):
         chan = units[i, 0]
-        unit = units[i, 1]
+
+        # 1-based numbering (comes from web interface)
+        unit = units[i, 1]  
 
         chan_str = str(chan).zfill(5)
         path = 'channel/channel%s/spike_set' % chan_str
-        ts       = nev_hdf.get(path).value['TimeStamp']
-        units_ts = nev_hdf.get(path).value['Unit']  # the units corresponding to each timestamp in ts
+        ts = nev_hdf.get(path).value['TimeStamp']
+
+        # the units corresponding to each timestamp in ts
+        # 0-based numbering (comes from .nev file), so add 1
+        units_ts = nev_hdf.get(path).value['Unit'] + 1
 
         # get the ts for this unit, in units of secs
         fs = 30000.
@@ -550,10 +555,9 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
         if units == None:
             raise Exception('"units" variable is None in preprocess_files!')
 
-        units[:, 1] -= 1  # blackrock unit numbers start from 0, not 1
-        if 'units' in extractor_kwargs:  # using spike extractor
-            extractor_kwargs['units'] = units
-
+        # Note: blackrock units are actually 0-based, but the units to be used for training
+        #       (which comes from web interface) are 1-based; to account for this, add 1
+        #       to unit numbers when reading from .nev file
 
         # notes:
         # tmask   --> logical vector of same length as rows that is True for rows inside the tslice
@@ -636,7 +640,7 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
         elif kin_var == 'joint_angles':
             _ssm=joint_2D_state_space
         elif kin_var == 'armassist':
-            _ssm=aa_xy_state_space
+            _ssm=aa_state_space
         
     if len(kin) != len(neural_features):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neural_features)))
@@ -663,6 +667,16 @@ def _train_joint_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, unit
     to have more arguments
     '''
     return _train_KFDecoder_visual_feedback(units=units, binlen=binlen, tslice=tslice,
+                                            _ssm=_ssm, source=source, kin_var=kin_var,
+                                            shuffle=shuffle, **files)
+
+def _train_armassist_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
+    _ssm=aa_state_space, source='task', kin_var='armassist_kin', shuffle=False, **files):
+    '''
+    One-liner to train an armassist BMI. To be removed as soon as the train BMI gui can be updated
+    to have more arguments
+    '''
+    return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
                                             _ssm=_ssm, source=source, kin_var=kin_var,
                                             shuffle=shuffle, **files)
 
