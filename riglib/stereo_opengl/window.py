@@ -154,8 +154,7 @@ class WindowDispl2D(Window):
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 
     def screen_init(self):
-        # os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "500, 500"
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         self.clock = pygame.time.Clock()
