@@ -23,7 +23,11 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
 
     def __init__(self, *args, **kwargs):
         if 'A' in kwargs and 'C' in kwargs and 'W' in kwargs and 'Q' in kwargs:
-            kf = kfdecoder.KalmanFilter(*args, **kwargs)
+            A = kwargs.pop('A')
+            C = kwargs.pop('C')
+            W = kwargs.pop('W')
+            Q = kwargs.pop('Q')
+            kf = kfdecoder.KalmanFilter(A, W, C, Q, **kwargs)
             F, K = kf.get_sskf()
         else:
             F = kwargs['F']
@@ -58,7 +62,6 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
     def __getstate__(self):
         '''
         Pickle only the F and the K matrices
-
         '''
         return dict(F=self.F, K=self.K)
 

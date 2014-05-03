@@ -196,26 +196,14 @@ def conv_kfdecoder_to_ppfdecoder(decoder_record):
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
 def conv_kfdecoder_to_sskfdecoder(decoder_record):
-    # Load the decoder
-    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
-    print decoder_fname
-    decoder_name = decoder_record.name
-    dec = pickle.load(open(decoder_fname))
+    dec = open_decoder_from_record(decoder_record)
 
     F, K = dec.filt.get_sskf()
     from riglib.bmi import sskfdecoder 
     filt = sskfdecoder.SteadyStateKalmanFilter(F=F, K=K)
-    dec_sskf = sskfdecoder.SSKFDecoder()
+    dec_sskf = sskfdecoder.SSKFDecoder(filt, dec.units, dec.ssm, binlen=decoder.binlen)
 
-    new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '_ppf.pkl'
-    new_decoder_fname = '/tmp/%s' % new_decoder_basename
-    pickle.dump(dec_ppf, open(new_decoder_fname, 'w'))
-
-
-    new_decoder_name = decoder_name + '_sskf'
-
-
-
+    save_new_decoder(decoder_record, '_sskf')
 
 def make_kfdecoder_interpolate(decoder_record):
     # Load the decoder
