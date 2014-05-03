@@ -290,7 +290,7 @@ class PlanarXZKinematicChain(KinematicChain):
 
     def spatial_positions_of_joints(self, *args, **kwargs):
         pos_all_joints = super(PlanarXZKinematicChain, self).spatial_positions_of_joints(*args, **kwargs)
-        return pos_all_joints[:,::3]
+        return (pos_all_joints[:,::3].T + self.base_loc).T
 
     def create_ik_subchains(self):
         proximal_link_lengths = self.link_lengths[:2]
