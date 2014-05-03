@@ -18,10 +18,18 @@ gen_joint_coord_regex = re.compile('.*?_p.*')
 
 class GaussianState(object):
     '''
-    Class representing a Gaussian state, commonly used to represent the state
+    Class representing a multivariate Gaussian. Gaussians are 
+    commonly used to represent the state
     of the BMI in decoders, including the KF and PPF decoders
     '''
     def __init__(self, mean, cov):
+        '''
+        Parameters
+        mean: np.array of shape (N, 1) or (N,)
+            N-dimensional vector representing the mean of the multivariate Gaussian distribution
+        cov: np.array of shape (N, N)
+            N-dimensional covariance matrix
+        '''
         if isinstance(mean, np.matrix):
             assert mean.shape[1] == 1 # column vector
             self.mean = mean
@@ -39,6 +47,10 @@ class GaussianState(object):
         self.cov = cov
     
     def __rmul__(self, other):
+        '''
+        Gaussian RV multiplication: 
+        If X ~ N(mu, sigma) and A is a matrix, then A*X ~ N(A*mu, A*sigma*A.T)
+        '''
         if isinstance(other, np.matrix):
             mu = other*self.mean
             cov = other*self.cov*other.T
@@ -55,6 +67,10 @@ class GaussianState(object):
         return GaussianState(mu, cov)
 
     def __mul__(self, other):
+        '''
+        Gaussian RV multiplication: 
+        If X ~ N(mu, sigma) and A is a matrix, then A*X ~ N(A*mu, A*sigma*A.T)
+        '''        
         mean = other*self.mean
         if isinstance(other, int) or isinstance(other, np.float64) or isinstance(other, float):
             cov = other**2 * self.cov
@@ -64,6 +80,10 @@ class GaussianState(object):
         return GaussianState(mean, cov)
 
     def __add__(self, other):
+        '''
+        Gaussian RV addition: If X ~ N(mu1, sigma1) and Y ~ N(mu2, sigma2), then
+        X + Y ~ N(mu1 + mu2, sigma1 + sigma2). If Y is a scalar, then X + Y ~ N(mu1 Y, sigma1)
+        '''
         if isinstance(other, GaussianState):
             return GaussianState(self.mean+other.mean, self.cov+other.cov)
         elif isinstance(other, np.matrix) and other.shape == self.mean.shape:
@@ -74,6 +94,7 @@ class GaussianState(object):
 class GaussianStateHMM():
     '''
     General hidden Markov model decoder where the state is represented as a Gaussian random vector
+    NOTE: DO NOT TURN THIS INTO A NEW-STYLE CLASS UNLESS YOU KNOW HOW TO HANDLE THE UNPICKLING OF OBJECTS THAT HAVE ALREADY BEEN CREATED!
     '''
     model_attrs = []
     def __init__(self, A, W):
@@ -120,7 +141,9 @@ class GaussianStateHMM():
         return train.obj_diff(self, other, self.model_attrs)
 
     def __call__(self, obs, **kwargs):
-        """ Call the 1-step forward inference function
+        """
+        When the object is called directly, it's a wrapper for the 
+        1-step forward inference function.
         """
         self.state = self._forward_infer(self.state, obs, **kwargs)
         return self.state.mean
@@ -187,6 +210,21 @@ class Decoder(object):
         self._pickle_init()      
 
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
+        '''
+        Plot 2D "preferred directions" of features in the Decoder
+
+        Parameters
+        ----------
+        C: np.array of shape (n_features, n_states)
+        ax: matplotlib.pyplot axis, default=None
+            axis to plot on. If None specified, a new one is created. 
+        plot_states: list of strings, default=['hand_vx', 'hand_vz']
+            List of decoder states to plot. Only two can be specified currently
+        invert: bool, default=False
+            If true, flip the signs of the arrows plotted
+        kwargs: dict
+            Keyword arguments for the low-level matplotlib function
+        '''
         import matplotlib.pyplot as plt
         if ax == None:
             plt.figure()
@@ -214,9 +252,23 @@ class Decoder(object):
         ax.set_title(self)
 
     def plot_C(self, **kwargs):
+        '''
+        Plot the C matrix (see plot_pds docstring), which is used
+        by the KFDecoder and the PPFDecoder
+        '''
         self.plot_pds(self.filt.C, linewidth=2, **kwargs)
 
     def update_params(self, new_params, **kwargs):
+        '''
+        Method for updating the parameters of the decoder
+
+        Parameters
+        ----------
+        new_params: dict 
+            Keys are the parameters to be replaced, values are the new value of 
+            the parameter to replace. In particular, the keys can be dot-separated,
+            e.g. to set the attribute 'self.kf.C', the key would be 'kf.C'
+        '''
         for key, val in new_params.items():
             attr_list = key.split('.')
             final_attr = attr_list[-1]
@@ -229,7 +281,8 @@ class Decoder(object):
             setattr(attr, final_attr, val)
         
     def bound_state(self):
-        """Apply bounds on state vector, if bounding box is specified
+        """
+        Apply bounds on state vector, if bounding box is specified
         """
         if not self.bounding_box == None:
             min_bounds, max_bounds = self.bounding_box
@@ -249,6 +302,12 @@ class Decoder(object):
         the position states. This strange letter choice was made to be consistent
         with the robotics literature, where 'q' refers to the vector of 
         generalized joint coordinates.
+
+        Parameters
+        ----------
+        idx: int or string
+            Name of the state, index of the state, or list of indices/names 
+            of the Decoder state(s) to return
         """
         if isinstance(idx, int):
             return self.filt.state.mean[idx, 0]
@@ -266,6 +325,12 @@ class Decoder(object):
     def __setitem__(self, idx, value):
         """
         Set element(s) of the BMI state, indexed by name or number
+
+        Parameters
+        ----------
+        idx: int or string
+            Name of the state, index of the state, or list of indices/names 
+            of the Decoder state(s) to return
         """
         if isinstance(idx, int):
             self.filt.state.mean[idx, 0] = value
@@ -282,16 +347,6 @@ class Decoder(object):
             [self.__setitem__(k, val) for k, val in izip(idx, value)]
         else:
             raise ValueError("KFDecoder: Improper index type: %" % type(idx))
-
-    # def bin_spikes(self, spikes, max_units_per_channel=13):
-    #     '''
-    #     Count up the number of BMI spikes in a list of spike timestamps
-    #     '''
-    #     unit_inds = self.units[:,0]*max_units_per_channel + self.units[:,1]
-    #     edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
-    #     spiking_unit_inds = spikes['chan']*max_units_per_channel + spikes['unit']
-    #     counts, _ = np.histogram(spiking_unit_inds, edges)
-    #     return counts[::2]
 
     def __setstate__(self, state):
         """
@@ -320,6 +375,10 @@ class Decoder(object):
         self._pickle_init()
 
     def _pickle_init(self):
+        '''
+        Functionality common to unpickling a Decoder from file and instantiating a new Decoder.
+        A call to this function is the last line in __init__ as well as __setstate__.
+        '''
         import train
 
         # If the decoder doesn't have an 'ssm' attribute, then it's an old
@@ -328,8 +387,14 @@ class Decoder(object):
             self.ssm = train.endpt_2D_state_space
 
     def __getstate__(self):
-        """Create dictionary describing state of the decoder instance, 
-        for pickling"""
+        """
+        Create dictionary describing state of the decoder instance, 
+        for pickling.
+
+        NOTE: this function was used originally to avoid pickling a 'bin_spikes',
+        which was a function added to the Decoder as an attribute rather than
+        being declared as a method. It should no longer be necessary. 
+        """
         state = dict(cells=self.units)
         exclude = set(['bin_spikes'])
         for k, v in self.__dict__.items():
@@ -344,9 +409,21 @@ class Decoder(object):
         '''
         return np.asarray(self.filt.state.mean).reshape(shape)
 
-    def predict(self, neural_obs, target=None, assist_level=0.0, Bu=None, **kwargs):
+    def predict(self, neural_obs, assist_level=0.0, Bu=None, **kwargs):
         """
         Decode the spikes
+
+        Parameters
+        ----------
+        neural_obs: np.array of shape (N,) or (N, 1)
+            One time-point worth of neural features to decode
+        assist_level: float
+            Weight given to the assist term
+        Bu: np.mat of shape (N, 1)
+            Assist vector to be added on to the Decoder state. Must be of the same dimension 
+            as the state vector.
+        kwargs: dict
+            Mostly for kwargs function call compatibility
         """
         if assist_level > 0 and Bu == None:
             raise ValueError("Assist cannot be used if the forcing term is not specified!")
@@ -377,6 +454,15 @@ class Decoder(object):
     def decode(self, neural_obs, **kwargs):
         '''
         Decode multiple observations sequentially.
+
+        Parameters
+        ----------
+        neural_obs: np.array of shape (# features, # observations)
+            Independent neural observations are columns of the data
+            matrix and are decoded sequentially
+        kwargs: dict
+            Container for special keyword-arguments for the specific decoding
+            algorithm's 'predict'. 
         '''
         output = []
         n_obs = neural_obs.shape[1]
@@ -393,18 +479,37 @@ class Decoder(object):
 
     @property
     def n_states(self):
+        '''
+        Return the number of states represented in the Decoder
+        '''
         return len(self.states)
 
     @property
     def n_units(self):
         '''
-        Return the number of units used in the decoder; For both the PPF and
-        the KF, this corresponds to the first dimension of the C matrix, 
-        but future decoders may need to return a different quantity
+        Return the number of units used in the decoder. Not sure what this 
+        does for LFP decoders, i.e. decoders which extract multiple features from
+        a single channel.
         '''
-        return self.filt.C.shape[0]
+        return len(self.units)
 
     def __call__(self, obs_t, **kwargs):
+        '''
+        This function does "rate-matching" to match the decoding rate to the 
+        control rate of the plant. For instance, for cursor decoding using a 
+        PPFDecoder, the decoder runs at 180Hz but the screen can only be updated
+        at 60Hz, so the observations have to be presented 3 at a time. Similarly 
+        a KFDecoder might run at 10 Hz, and the Decoder would have to accumulate
+        the decoder's features. 
+
+        Parameters
+        ----------
+        obs_t: np.array of shape (# features, # subbins)
+            Neural observation vector. If the decoding_rate of the Decoder is
+            greater than the control rate of the plant (e.g. 60 Hz )
+        kwargs: dictionary
+            Algorithm-specific arguments to be given to the Decoder.predict method
+        '''
         decoding_rate = 1./self.binlen
         if decoding_rate >= 60:
             # Infer the number of sub-bins from the size of the spike counts mat to decode
@@ -428,6 +533,19 @@ class Decoder(object):
             return self.filt.get_mean().reshape(-1,1)
 
     def save(self, filename=''):
+        '''
+        Pickle the Decoder object to a file
+
+        Parameters
+        ----------
+        filename: string, optional
+            Filename to pickle the decoder to. If unspecified, a temporary file will be created.
+
+        Returns
+        -------
+        filename: string
+            filename of pickled Decoder object 
+        '''
         if filename is not '':
             f = open(filename, 'w')
             pickle.dump(self, f)
@@ -441,6 +559,16 @@ class Decoder(object):
             return tf2.name
 
     def save_attrs(self, hdf_filename, table_name='task'):
+        '''
+        Save the attributes of the Decoder to the attributes of the specified HDF table
+
+        Parameters
+        ----------
+        hdf_filename: string
+            HDF filename to write data to
+        table_name: string, default='task'
+            Specify the table within the HDF file to set attributes in. 
+        '''
         h5file = tables.openFile(hdf_filename, mode='a')
         table = getattr(h5file.root, table_name)
         for attr in self.filt.model_attrs:
@@ -449,14 +577,27 @@ class Decoder(object):
 
     @property
     def state_shape_rt(self):
+        '''
+        Create attribute to access the shape of the accumulating spike counts feature.
+        '''
         return (self.n_states, self.n_subbins)
 
 
 class BMISystem(object):
-    '''
-    Container for all brain-machine interfaces
-    '''
     def __init__(self, decoder, learner, updater):
+        '''
+        Instantiate the BMISystem
+        
+        Parameters
+        ----------
+        decoder: bmi.Decoder instance
+            The decoder maps spike counts into the "state" of the prosthesis
+        learner: clda.Learner instance
+            The learner estimates the "intended" prosthesis state from task goals.
+        updater: clda.Updater instance
+            The updater remaps the decoder parameters to better match sets of 
+            observed spike counts and intended kinematics (from the learner)
+        '''
         self.decoder = decoder 
         self.learner = learner
         self.updater = updater
@@ -473,8 +614,6 @@ class BMISystem(object):
 
     def reset_spike_counts(self):
         self.spike_counts = np.zeros([self.decoder.n_features, 1])
-        # self.spike_counts = np.zeros([len(self.decoder.units), 1])
-        #self.spike_counts = np.zeros([len(self.decoder.units), self.decoder.n_subbins])
 
     def __call__(self, neural_obs, target_state, task_state, *args, **kwargs):
         '''

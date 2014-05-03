@@ -424,6 +424,35 @@ def get_decoders_trained_in_block(task_entry):
     if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
     return decoder_objects
 
+
+
+class TaskMessages(object):
+    def __init__(self, *task_msgs):
+        self.task_msgs = np.hstack(task_msgs)
+
+    def __getattr__(self, attr):
+        if attr == 'time':
+            return self.task_msgs['time']
+        elif attr == 'msg':
+            return self.task_msgs['msg']
+        else:
+            return TaskMessages(self.task_msgs[self.task_msgs['msg'] == attr])
+
+    def __getitem__(self, idx):
+        if isinstance(idx, int):
+            return self.task_msgs[idx]
+        elif isinstance(idx, str) or isinstance(idx, unicode):
+            return self.__getattr__(idx)
+        elif np.iterable(idx):
+            task_msgs = np.hstack([self.__getitem__(i).task_msgs for i in idx])
+            task_msg_inds = np.argsort(task_msgs['time'])
+            return TaskMessages(task_msgs[task_msg_inds])
+            # return np.hstack([self.__getitem__(i) for i in idx])
+
+
+
+
+
 class TaskEntry(object):
     '''
     Wrapper class for the TaskEntry django class
@@ -459,6 +488,39 @@ class TaskEntry(object):
         else:
             self.decoder_record = None
 
+        self.task_msgs = TaskMessages(self.hdf.root.task_msgs[:])
+
+    @property 
+    def supplementary_data_file(self):
+        return '/storage/task_supplement/%d.mat' % self.record.id
+
+    def get_matching_state_transition_seq(self, seq):
+        task_msgs = self.hdf.root.task_msgs[:]
+        seq = np.array(seq, dtype='|S256')
+        msg_list_inds = []
+        trial_msgs = []
+        epochs = []
+        for k in range(len(task_msgs)-len(seq)):
+            if np.all(task_msgs[k:k+len(seq)]['msg'] == seq):
+                msg_list_inds.append(k)
+                trial_msgs.append(task_msgs[k:k+len(seq)])  
+                epochs.append((task_msgs[k]['time'], task_msgs[k+len(seq)-1]['time']))      
+        epochs = np.vstack(epochs)
+        return msg_list_inds, trial_msgs, epochs
+
+    def get_task_var_during_epochs(self, epochs, var_name, comb_fn=lambda x:x, start_offset=0):
+        data = []
+        for st, end in epochs:
+            st += start_offset
+            epoch_data = self.hdf.root.task[st:end][var_name]
+            unique_epoch_data = np.unique(epoch_data.ravel())
+            if len(unique_epoch_data) == 1:
+                data.append(unique_epoch_data)
+            else:
+                print st, end
+                data.append(epoch_data)
+        return comb_fn(data)
+
     @property
     def hdf_filename(self):
         return get_hdf_file(self.record)
@@ -469,7 +531,10 @@ class TaskEntry(object):
             return self.hdf_file
         except:
             hdf_filename = get_hdf_file(self.record)
-            self.hdf_file = tables.openFile(hdf_filename)
+            try:
+                self.hdf_file = tables.open_file(hdf_filename)
+            except:
+                self.hdf_file = tables.openFile(hdf_filename)
             return self.hdf_file
 
     @property
@@ -565,7 +630,12 @@ class TaskEntry(object):
 
 class TaskEntrySet(object):
     def __init__(self, blocks, name=''):
-        from tasks import performance
+        if isinstance(blocks, int):
+            blocks = (blocks,)
+        # def fn(x): return (x,) if not isinstance(x, tuple) else x
+        # blocks = map(fn, blocks)        
+
+        from analysis import performance
         self.task_entries = map(performance._get_te, blocks)
         self.name = name
 
@@ -573,7 +643,13 @@ class TaskEntrySet(object):
         return np.array(map(fn, self.task_entries))
 
     def __getattr__(self, attr):
-        return self.map(lambda te: getattr(te, attr))
+        if callable(getattr(self.task_entries[0], attr)):
+            try:
+                return lambda : [getattr(te, attr)() for te in self.task_entries]
+            except:
+                return self.map(lambda te: getattr(te, attr))
+        else:
+            return self.map(lambda te: getattr(te, attr))
 
     def boxplot(self, attr, ax, plotattr=lambda x: '', xlabel=True):
         ax.boxplot(getattr(self, attr))
@@ -665,6 +741,8 @@ class TaskEntrySet(object):
 
         return blocks
         
+
+
 ######################
 ## Filter functions
 ######################

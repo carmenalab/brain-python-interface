@@ -25,9 +25,18 @@ class KinematicChain(object):
     Arbitrary kinematic chain (i.e. spherical joint at the beginning of 
     each joint)
     '''
-    def __init__(self, link_lengths=[10., 10.], name=''):
+    def __init__(self, link_lengths=[10., 10.], name='', base_loc=np.array([0., 0., 0.])):
+        '''
+        Parameters
+        ----------
+        link_lengths: iterable
+            Lengths of all the distances between joints
+        base_loc: np.array of shape (3,), default=np.array([0, 0, 0])
+            Location of the base of the kinematic chain in an "absolute" reference frame
+        '''
         self.n_links = len(link_lengths)
         self.link_lengths = link_lengths
+        self.base_loc = base_loc
 
         links = []
         for link_length in link_lengths:
@@ -147,7 +156,8 @@ class KinematicChain(object):
 
     def endpoint_pos(self, joint_angles):
         t, allt = self.forward_kinematics(joint_angles)
-        return np.array(t[0:3,-1]).ravel()
+        pos_rel_to_base = np.array(t[0:3,-1]).ravel()
+        return pos_rel_to_base + self.base_loc
 
     def random_sample(self):
         q_start = []
@@ -239,6 +249,7 @@ class KinematicChain(object):
         pos = np.hstack([np.zeros([3,1]), pos])
         return pos
 
+
 class PlanarXZKinematicChain(KinematicChain):
     '''
     Kinematic chain restricted to movement in the XZ-plane
@@ -288,6 +299,7 @@ class PlanarXZKinematicChain(KinematicChain):
         self.distal_chain = PlanarXZKinematicChain(distal_link_lengths)
 
     def inverse_kinematics(self, target_pos, **kwargs):
+        target_pos -= self.base_loc
         if not hasattr(self, 'proximal_chain') or not hasattr(self, 'distal_chain'):
             self.create_ik_subchains()
         distal_angles = kwargs.pop('distal_angles', None)
@@ -308,6 +320,37 @@ class PlanarXZKinematicChain(KinematicChain):
         angles[0] -= np.sum(proximal_angles)
         return np.hstack([proximal_angles, angles])
 
+    def jacobian(self, theta):
+        l = self.link_lengths
+        N = len(theta)
+        J = np.zeros([2, len(l)])
+        for m in range(N):
+            for i in range(m, N):
+                J[0, m] += -l[i]*np.sin(sum(theta[:i+1]))
+                J[1, m] +=  l[i]*np.cos(sum(theta[:i+1]))
+        return J
+
+    def config_change_nullspace_workspace(self, config1, config2):
+        '''
+        For two configurations, determine how much joint displacement is in the "null" space and how much is in the "task" space
+        '''
+        config = config1
+        vel = config2 - config1
+        endpt1 = self.endpoint_pos(config1)
+        endpt2 = self.endpoint_pos(config2)
+        task_displ = np.linalg.norm(endpt1 - endpt2)
+        
+        # compute total displ of individual joints
+        total_joint_displ = 0
+        
+        n_joints = len(config1)
+        for k in range(n_joints):
+            jnt_k_vel = np.zeros(n_joints)
+            jnt_k_vel[k] = vel[k]
+            single_joint_displ_pos = self.endpoint_pos(config + jnt_k_vel)
+            total_joint_displ += np.linalg.norm(endpt1 - single_joint_displ_pos)
+            
+        return task_displ, total_joint_displ
 
 
 class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
@@ -317,93 +360,25 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
 
         super(PlanarXZKinematicChain2Link, self).__init__(link_lengths, *args, **kwargs)
 
-    def inverse_kinematics(self, target_pos, q_start=None, **kwargs):
-        return inv_kin_2D(target_pos, self.link_lengths[0], self.link_lengths[1])
-
-
-def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
-    '''
-    NOTE: This function is almost exactly the same as riglib.stereo_opengl.ik.inv_kin_2D.
-    There can only be room for one...
-    '''
-    if np.ndim(pos) == 1:
-        pos = pos.reshape(1,-1)
-
-    # require the y-coordinate to be 0, i.e. flat on the screen
-    x, y, z = pos[:,0], pos[:,1], pos[:,2]
-    assert np.all(np.abs(np.array(y)) < 1e-10)
-
-    if vel is not None:
-        if np.ndim(vel) == 1:
-            vel = vel.reshape(1,-1)
-        assert pos.shape == vel.shape
-        vx, vy, vz = vel[:,0], vel[:,1], vel[:,2]
-        assert np.all(vy == 0)
-
-    L = np.sqrt(x**2 + z**2)
-    cos_el_pflex = (L**2 - l_forearm**2 - l_upperarm**2) / (2*l_forearm*l_upperarm)
-
-    cos_el_pflex[ (cos_el_pflex > 1) & (cos_el_pflex < 1 + 1e-9)] = 1
-    el_pflex = np.arccos(cos_el_pflex)
-
-    sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
-    return np.array([-sh_pabd, -el_pflex])
-
-
-class RobotArm(object):
-    def __init__(self, forearm_length=14.5, upper_arm_length=14.5):
-        self.forearm_length = forearm_length
-        self.upper_arm_length = upper_arm_length
-
-        link1 = robot.Link(theta=pi, alpha=-pi/2)
-        link2 = robot.Link(theta=pi, alpha=pi/2)
-        link2.offset = -pi/2
-        link3 = robot.Link(d=-upper_arm_length, theta=pi, alpha=-pi/2);
-        link4 = robot.Link(theta=pi, alpha=pi/2);
-        link5 = robot.Link(d=-forearm_length);
-
-        self.robot = robot.SerialLink([link1, link2, link3, link4, link5]);
-        self.robot.name = 'exo'
-
-    def forward_kinematics(self, joint_angles):
+    def inverse_kinematics(self, pos, **kwargs):
         '''
-        Calculate forward kinematics using D-H parameter convention
+        Inverse kinematics for a two-link kinematic chain. These equations can be solved
+        deterministically. 
         '''
-        t, allt = self.robot.fkine(joint_angles)
-        self.joint_angles = joint_angles
-        self.t = t
-        self.allt = allt
-        return t, allt
+        l_upperarm, l_forearm = self.link_lengths 
 
-    def inverse_kinematics(self):
-        '''
-        Inverse kinematics for redundant exoskeleton
-        '''
-        raise NotImplementedError
+        if np.ndim(pos) == 1:
+            pos = pos.reshape(1,-1)
 
-
-
-class RobotArm2D(RobotArm):
-    def inverse_kinematics(self, pos):
-        '''
-        Inverse kinematics for a 2D arm. This function returns all 5 angles required
-        to specify the pose of the exoskeleton (see riglib.bmi.train for the 
-        definitions of these angles). This pose is constrained to the x-z plane
-        by forcing shoulder flexion/extension, elbow rotation and supination/pronation
-        to always be 0. 
-        '''
-        l_upperarm = self.upper_arm_length
-        l_forearm = self.forearm_length
         # require the y-coordinate to be 0, i.e. flat on the screen
-        x, y, z = pos
-        assert y == 0
+        x, y, z = pos[:,0], pos[:,1], pos[:,2]
+        assert np.all(np.abs(np.array(y)) < 1e-10)
+
         L = np.sqrt(x**2 + z**2)
-        cos_el_pflex = (L**2 - l_forearm**2 + l_upperarm**2) / (2*l_forearm*l_upperarm)
-    
-        angles = OrderedDict()
-        angles['sh_pflex'] = 0
-        angles['sh_pabd'] = np.atan(z/x) - np.asin((l_forearm * cos_el_pflex) / L)
-        angles['el_pflex'] = np.acos(cos_el_pflex)
-        angles['el_prot'] = 0
-        angles['el_psup'] = 0
-        return angles
+        cos_el_pflex = (L**2 - l_forearm**2 - l_upperarm**2) / (2*l_forearm*l_upperarm)
+
+        cos_el_pflex[ (cos_el_pflex > 1) & (cos_el_pflex < 1 + 1e-9)] = 1
+        el_pflex = np.arccos(cos_el_pflex)
+
+        sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
+        return np.array([-sh_pabd, -el_pflex])

@@ -1,6 +1,6 @@
 #!/bin/bash
 DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
-if [[ -z `mount | grep /storage/plexon` ]]
+if [[ (`hostname` == nucleus || `hostname` == arc) && -z `mount | grep /storage/plexon` ]]
     then
     sudo mount /storage/plexon
 fi
