@@ -158,7 +158,7 @@ class StateSpaceEndptVel(StateSpace):
 
     def get_ssm_matrices(self, update_rate=0.1):
         # State-space model set from expert data
-        A, W = state_space_models.linear_kinarm_kf(update_rate=update_rate)
+        A, W = linear_kinarm_kf(update_rate=update_rate)
 
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(3))
