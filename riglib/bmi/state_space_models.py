@@ -226,12 +226,12 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
         w = 0.01 #0.0007
         #w = 0.3 # TODO come up with this value more systematically!
         w_units_resc = w / 1 # velocity will always be in radians/sec
-        a_resampled, w_resampled = state_space_models.resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
+        a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
 
         # TODO get the number of dimensions from the arm configuration (i.e. a method to return the order of each state
         ndim = 5 # NOTE: This is the number of 1st order states, not the dimension of the state vector
-        A = state_space_models._gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
-        W = state_space_models._gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
+        A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
+        W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
         
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(ndim))
@@ -263,12 +263,12 @@ class StateSpaceFourLinkTentacle2D(StateSpace):
         w = 0.01 #0.0007
         #w = 0.3 # TODO come up with this value more systematically!
         w_units_resc = w / 1 # velocity will always be in radians/sec
-        a_resampled, w_resampled = state_space_models.resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
+        a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
 
         # TODO get the number of dimensions from the arm configuration (i.e. a method to return the order of each state
         ndim = 4 # NOTE: This is the number of 1st order states, not the dimension of the state vector
-        A = state_space_models._gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
-        W = state_space_models._gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
+        A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
+        W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
         
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(ndim))
