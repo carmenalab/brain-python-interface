@@ -78,7 +78,7 @@ class PlanarMultiLinkJointGoalCached(mp_calc.FuncProxy):
             goal_cache_block = kwargs.pop('goal_cache_block')
             self.cached_data = pickle.load(open('/storage/assist_params/tentacle_cache_%d.pkl' % goal_cache_block))
         else:
-            self.cached_data = pickle.load(open('/storage/assist_params/tentacle_cache.pkl'))
+            self.cached_data = pickle.load(open('/storage/assist_params/tentacle_cache3.pkl'))
 
         def fn(target_pos, **kwargs):
             joint_pos = None
