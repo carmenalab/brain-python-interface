@@ -84,8 +84,8 @@ def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=N
 
     # instantiate KFdecoder
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=_ssm.is_stochastic)
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, _ssm.bounding_box, 
-        _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
+    decoder = kfdecoder.KFDecoder(kf, units, _ssm.bounding_box, 
+        _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, mFR=mFR, sdFR=sdFR, binlen=binlen, 
         tslice=tslice)
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)

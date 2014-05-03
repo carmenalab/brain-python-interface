@@ -107,7 +107,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         return post_state
 
     def _calc_kalman_gain(self, P):
-        ''' Calculate Kalman gain using the 'alternate' definition
+        '''
+        Calculate Kalman gain using the 'alternate' definition
         '''
         nX = P.shape[0]
         I = np.mat(np.eye(nX))
@@ -296,8 +297,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         iter_idx = 0
         for iter_idx in range(40):
-        #while iter_idx < 400:
-        #while np.linalg.norm(K-last_K) > tol and iter_idx < 4000:
             P = A*P*A.T + W
             last_K = K
             KC = P*(I - D*P*(I + D*P).I)*D
@@ -308,6 +307,17 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F, K = self.get_sskf()
         F = (I - KC)*A
         self._init_state(init_state=self.state.mean, init_cov=P)
+
+    def get_K_null(self):
+        '''
+        $$y_{null} = K_{null} * y_t$$ gives the "null" component of the spike inputs, i.e. $$K_t*y_{null} = 0_{N\times 1}$$
+        '''
+        F, K = self.get_sskf()
+        K = np.mat(K)
+        n_neurons = K.shape[1]
+        K_null = np.eye(n_neurons) - np.linalg.pinv(K) * K
+        return K_null
+
 
 class PseudoPPF(KalmanFilter):
     def _forward_infer(self, st, obs_t, **kwargs):
@@ -347,43 +357,13 @@ class PseudoPPF(KalmanFilter):
 class KFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, *args, **kwargs):
         super(KFDecoder, self).__init__(*args, **kwargs)
-        mFR = kwargs.pop('mFR', 0)
-        sdFR = kwargs.pop('sdFR', 0)
+        mFR = kwargs.pop('mFR', 0.)
+        sdFR = kwargs.pop('sdFR', 1.)
         self.mFR = mFR
         self.sdFR = sdFR
         self.zeromeanunits = None
         self.zscore = False
-
-    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
-        states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1]):
-        """ 
-        Initializes the Kalman filter decoder.  Includes BMI specific
-        features used to run the Kalman filter in a BMI context.
-        """
-        self.kf = kf
-        self.kf._init_state()
-        self.mFR = mFR
-        self.sdFR = sdFR
-        self.zscore = False
-        self.units = np.array(units, dtype=np.int32)
-        self.binlen = binlen
-        self.bounding_box = bounding_box
-        self.states = states
-        
-        # The tslice parameter below properly belongs in the database and
-        # not in the decoder object because the Decoder object has no record of 
-        # which plx file it was trained from. This is a leftover from when it
-        # was assumed that every decoder would be trained entirely from a plx
-        # file (i.e. and not CLDA)
-        self.tslice = tslice
-        self.states_to_bound = states_to_bound
-        self.zeromeanunits = None
-        self.drives_neurons = drives_neurons
-        self.n_subbins = n_subbins
-
-        self.bmicount = 0
-        self.bminum = int(self.binlen/(1/60.0))
-        self.spike_counts = np.zeros([len(units), 1])
+        self.kf = self.filt
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         # if interfacing with Kinarm system, may mean and sd will be shape nx1
@@ -444,7 +424,8 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
 
     def shuffle(self):
-        ''' Shuffle the neural model
+        '''
+        Shuffle the neural model
         '''
         # generate random permutation
         import random
