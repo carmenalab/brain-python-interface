@@ -37,10 +37,10 @@ endpt_2D_state_space = StateSpaceEndptVel()
 joint_2D_state_space = StateSpaceExoArm2D()
 tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
 
-################################################
-## Functions to train endpoint velocity decoders
-################################################
-def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=0.1, tslice=None, _ssm=endpt_2D_state_space):
+##########################
+## Main training functions
+##########################
+def train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
     '''
     Train a Point-process filter decoder which predicts the endpoint velocity
     '''
@@ -56,13 +56,10 @@ def train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=0.1, t
     A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
 
     # instantiate Decoder
-    ppf = ppfdecoder.PointProcessFilter(
-            A, W, C, B=B, dt=update_rate, is_stochastic=_ssm.is_stochastic)
-    decoder = ppfdecoder.PPFDecoder(ppf, units, _ssm.bounding_box, 
-        _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, binlen=binlen, 
-        tslice=tslice)
+    ppf = ppfdecoder.PointProcessFilter(A, W, C, B=B, dt=update_rate, is_stochastic=_ssm.is_stochastic)
+    decoder = ppfdecoder.PPFDecoder(ppf, units, _ssm, binlen=binlen, tslice=tslice)
 
-    decoder.ssm = _ssm
+    # decoder.ssm = _ssm
 
     decoder.n_features = n_features
     
@@ -84,8 +81,7 @@ def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=N
 
     # instantiate KFdecoder
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=_ssm.is_stochastic)
-    decoder = kfdecoder.KFDecoder(kf, units, _ssm.bounding_box, 
-        _ssm.state_names, _ssm.drives_obs, _ssm.states_to_bound, mFR=mFR, sdFR=sdFR, binlen=binlen, 
+    decoder = kfdecoder.KFDecoder(kf, units, _ssm, mFR=mFR, sdFR=sdFR, binlen=binlen, 
         tslice=tslice)
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
@@ -103,7 +99,7 @@ def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=N
     decoder.kf.T = T
     decoder.kf.ESS = ESS
     
-    decoder.ssm = _ssm
+    # decoder.ssm = _ssm
 
     decoder.n_features = n_features
 
@@ -492,7 +488,7 @@ def _train_PPFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=Non
     spike_counts = spike_counts[:-1].T
 
     spike_counts[spike_counts > 1] = 1
-    decoder = train_endpt_velocity_PPFDecoder(kin, spike_counts, units, update_rate=binlen, tslice=tslice, _ssm=_ssm)
+    decoder = train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=binlen, tslice=tslice)
 
     # lets us create the appropriate extractor later when we use this decoder
     decoder.extractor_cls = extractor_cls
