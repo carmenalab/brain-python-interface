@@ -156,7 +156,7 @@ def lookup_cells(cells):
 
 def inflate(A, current_states, full_state_ls, axis=0):
     ''' 'Inflate' a matrix by filling in rows/columns with zeros '''
-    nS = len(full_state_ls)#A.shape[0]
+    nS = len(full_state_ls)
     if axis == 0:
         A_new = np.zeros([nS, A.shape[1]])
     elif axis == 1:
@@ -844,6 +844,7 @@ def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
     decoder.kf.C *= cm_to_m
 
     decoder.ssm = _ssm
+    decoder.n_features = n_neurons
     return decoder
 
 def rand_KFDecoder(sim_units, state_units='cm'):
