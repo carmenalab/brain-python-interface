@@ -77,8 +77,6 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     else:
         raise Exception("Unknown extractor_cls!")
 
-
-
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
     datafiles = models.DataFile.objects.filter(entry_id=entry)
