@@ -124,6 +124,52 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
     else:
         make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
 
+def open_decoder_from_record(decoder_record):
+    '''
+    Parameters
+    ----------    
+    decoder_record: tracker.models.Decoder instance
+        Database record of the decoder to be opened
+
+    Returns
+    -------
+    dec: riglib.bmi.Decoder instance
+        Decoder instance corresponding to the specified database record
+    '''
+    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
+    decoder_name = decoder_record.name
+    dec = pickle.load(open(decoder_fname))
+    return dec
+
+def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
+    '''
+    Save a decoder that is created by manipulating the parameters of an older decoder
+
+    Parameters
+    ----------
+    obj: riglib.bmi.Decoder instance
+        New decoder object to be saved 
+    orig_decoder_record: tracker.models.Decoder instance
+        Database record of the original decoder
+    suffix: string, default='_'
+        The name of the new decoder is created by taking the name of the old decoder and adding the specified suffix
+
+    Returns
+    -------
+    None
+    '''
+
+    if not isinstance(obj, riglib.bmi.Decoder):
+        raise ValueError("This function is only intended for saving Decoder objects!")
+
+    new_decoder_fname = obj.save()
+    new_decoder_name = orig_decoder_record.name + suffix
+    training_block_id = orig_decoder_record.entry_id
+    print "Saving new decoder:", new_decoder_name
+    dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
+
+## Functions to manipulate existing (KF)Decoders. These belong elsewhere
+
 def conv_mm_dec_to_cm(decoder_record):
     '''
     Convert a mm unit decoder to cm
@@ -144,36 +190,16 @@ def conv_mm_dec_to_cm(decoder_record):
     print new_decoder_name
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
-def open_decoder_from_record(decoder_record):
-    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
-    print decoder_fname
-    decoder_name = decoder_record.name
-    dec = pickle.load(open(decoder_fname))
-    return dec
-
 def zero_out_SSKF_bias(decoder_record):
     dec = open_decoder_from_record(decoder_record)
     dec.filt.C_xpose_Q_inv_C[:,-1] = 0
     dec.filt.C_xpose_Q_inv_C[-1,:] = 0
-    save_new_decoder(dec, decoder_record, suffix='_zero_bias')
-
-
-def save_new_decoder(obj, orig_decoder_record, suffix='_'):
-    decoder_fname = os.path.join('/storage/decoders/', orig_decoder_record.path)
-    new_decoder_basename = os.path.basename(decoder_fname).rstrip('.pkl') + '%s.pkl' % suffix
-    new_decoder_fname = '/tmp/%s' % new_decoder_basename
-    pickle.dump(obj, open(new_decoder_fname, 'w'))
-
-    decoder_name = orig_decoder_record.name
-    new_decoder_name = decoder_name + suffix
-    training_block_id = orig_decoder_record.entry_id
-    print new_decoder_name
-    dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
+    save_new_decoder_from_existing(dec, decoder_record, suffix='_zero_bias')
 
 def conv_kfdecoder_binlen(decoder_record, new_binlen):
     dec = open_decoder_from_record(decoder_record)
     dec.change_binlen(new_binlen)
-    save_new_decoder(dec, decoder_record, suffix='_%dHz' % int(1./new_binlen))
+    save_new_decoder_from_existing(dec, decoder_record, suffix='_%dHz' % int(1./new_binlen))
 
 def conv_kfdecoder_to_ppfdecoder(decoder_record):
     # Load the decoder
@@ -203,7 +229,7 @@ def conv_kfdecoder_to_sskfdecoder(decoder_record):
     filt = sskfdecoder.SteadyStateKalmanFilter(F=F, K=K)
     dec_sskf = sskfdecoder.SSKFDecoder(filt, dec.units, dec.ssm, binlen=decoder.binlen)
 
-    save_new_decoder(decoder_record, '_sskf')
+    save_new_decoder_from_existing(decoder_record, '_sskf')
 
 def make_kfdecoder_interpolate(decoder_record):
     # Load the decoder
@@ -225,9 +251,3 @@ def make_kfdecoder_interpolate(decoder_record):
     from tracker import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
-def save_decoder(decoder, name, entry):
-    tf = tempfile.NamedTemporaryFile('wb')                                     
-    cPickle.dump(decoder, tf, 2)                                               
-    tf.flush()                                                                 
-    database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
-    database.save_bmi(name, int(entry), tf.name)   
