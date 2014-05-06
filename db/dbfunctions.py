@@ -644,10 +644,10 @@ class TaskEntry(object):
         # a filename depends on the number of things in the database, i.e. if 
         # after the fact a record is removed, the number might change. read from
         # the file instead
-        import system_setup
-        if system_setup.recording_system == 'plexon':
+        import loc_config
+        if loc_config.recording_system == 'plexon':
             return str(os.path.basename(self.plx_file).rstrip('.plx'))
-        elif system_setup.recording_system == 'blackrock':
+        elif loc_config.recording_system == 'blackrock':
             # TODO -- what if there are only nsx files and no nev file?
             #         need to make sure it works for this case too
             return str(os.path.basename(self.nev_file).rstrip('.nev'))

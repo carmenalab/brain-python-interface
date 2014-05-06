@@ -370,8 +370,8 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             js['report'] = dict()
 
-        import system_setup
-        if system_setup.recording_system == 'plexon':
+        import loc_config
+        if loc_config.recording_system == 'plexon':
             try:
                 from plexon import plexfile
                 plexon = System.objects.get(name='plexon')
@@ -392,7 +392,7 @@ class TaskEntry(models.Model):
                 print "No plexon files found"
                 js['bmi'] = dict(_neuralinfo=None)
         
-        elif system_setup.recording_system == 'blackrock':
+        elif loc_config.recording_system == 'blackrock':
             try:
                 nev_fname = self.nev_file
                 path, name = os.path.split(nev_fname)
@@ -510,13 +510,13 @@ class TaskEntry(models.Model):
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
-        import system_setup
-        if system_setup.recording_system == 'plexon':
+        import loc_config
+        if loc_config.recording_system == 'plexon':
             try:
                 return str(os.path.basename(self.plx_file).rstrip('.plx'))
             except:
                 return 'noname'
-        elif system_setup.recording_system == 'blackrock':
+        elif loc_config.recording_system == 'blackrock':
             try:
                 return str(os.path.basename(self.nev_file).rstrip('.nev'))
             except:
