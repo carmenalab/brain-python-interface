@@ -25,7 +25,7 @@ class KinematicChain(object):
     Arbitrary kinematic chain (i.e. spherical joint at the beginning of 
     each joint)
     '''
-    def __init__(self, link_lengths=[10., 10.], name='', base_loc=np.array([0., 0., 0.])):
+    def __init__(self, link_lengths=[10., 10.], name='', base_loc=np.array([0., 0., 0.]), rotation_convention=1):
         '''
         Parameters
         ----------
@@ -34,9 +34,14 @@ class KinematicChain(object):
         base_loc: np.array of shape (3,), default=np.array([0, 0, 0])
             Location of the base of the kinematic chain in an "absolute" reference frame
         '''
+        
+
         self.n_links = len(link_lengths)
         self.link_lengths = link_lengths
         self.base_loc = base_loc
+
+        assert rotation_convention in [-1, 1]
+        self.rotation_convention = rotation_convention
 
         links = []
         for link_length in link_lengths:
@@ -365,6 +370,7 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
         Inverse kinematics for a two-link kinematic chain. These equations can be solved
         deterministically. 
         '''
+        pos -= self.base_loc        
         l_upperarm, l_forearm = self.link_lengths 
 
         if np.ndim(pos) == 1:
