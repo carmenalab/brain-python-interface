@@ -513,11 +513,18 @@ class TaskEntry(object):
         for st, end in epochs:
             st += start_offset
             epoch_data = self.hdf.root.task[st:end][var_name]
-            unique_epoch_data = np.unique(epoch_data.ravel())
+
+            # Determine whether all the rows in the extracted sub-table are the same
+            # This code is stolen from the interweb:
+            # http://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy-array
+            a = epoch_data
+            b = np.ascontiguousarray(a).view(np.dtype((np.void, a.dtype.itemsize * a.shape[1])))
+            unique_epoch_data = np.unique(b).view(a.dtype).reshape(-1, a.shape[1])
+
+            # unique_epoch_data = np.unique(epoch_data.ravel())
             if len(unique_epoch_data) == 1:
                 data.append(unique_epoch_data)
             else:
-                print st, end
                 data.append(epoch_data)
         return comb_fn(data)
 
@@ -581,11 +588,7 @@ class TaskEntry(object):
 
     @property
     def name(self):
-        # TODO this needs to be hacked because the current way of determining a 
-        # a filename depends on the number of things in the database, i.e. if 
-        # after the fact a record is removed, the number might change. read from
-        # the file instead
-        return str(os.path.basename(self.plx_file).rstrip('.plx'))
+        return str(os.path.basename(self.hdf_filename).rstrip('.hdf'))
 
     def __str__(self):
         return self.record.__str__()
@@ -602,10 +605,11 @@ class TaskEntry(object):
 
     @property
     def n_rewards(self):
-        ''' # of rewards given during a block. This number could be different
-        from the total number of trials if children of this class over-ride
+        ''' 
+        # of rewards given during a block. This number could be different
+        from the total number of reward trials if children of this class over-ride
         the n_trials calculator to exclude trials of a certain type, e.g. BMI
-        trials in which the subject was assiste
+        trials in which the subject was assisted
         '''
         return self.record.offline_report()['Total rewards']
 
