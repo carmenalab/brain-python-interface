@@ -481,6 +481,9 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.filt.A = A
         self.filt.W = W
 
+    def conv_to_steady_state(self):
+        import sskfdecoder
+        self.filt = sskfdecoder.SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q) 
         
 
 def project_Q(C_v, Q_hat):
