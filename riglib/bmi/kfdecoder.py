@@ -55,9 +55,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
             n_states = self.A.shape[0]
             self.is_stochastic = np.ones(n_states, dtype=bool)
 
-    def get_mean(self):
-        return np.array(self.state.mean).ravel()
-
     def _obs_prob(self, state):
         return self.C * state + self.obs_noise
 
@@ -389,7 +386,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         """
         Set decoder state after un-pickling
         """
-        if 'kf' in state:
+        if 'kf' in state and 'filt' not in state:
             state['filt'] = state['kf']
 
         super(KFDecoder, self).__setstate__(state)
