@@ -36,6 +36,21 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
         self.K = K
         self._pickle_init()
 
+
+    def _init_state(self, init_state=None, init_cov=None):                     
+        """                                                                    
+        Initialize the state of the filter with a mean and covariance (uncertainty)
+        """                                                                    
+        ## Initialize the BMI state, assuming                                  
+        nS = self.n_states                                                 
+        if init_state == None:                                                 
+            init_state = np.mat( np.zeros([nS, 1]) )                           
+            if self.include_offset: init_state[-1,0] = 1                       
+        if init_cov == None:                                                   
+            init_cov = np.mat( np.zeros([nS, nS]) )                            
+        self.init_cov = init_cov                                               
+        self.state = bmi.GaussianState(init_state, init_cov)                       
+
     def _pickle_init(self):
         nS = self.F.shape[0]
         self.I = np.mat(np.eye(nS))
@@ -64,6 +79,14 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
         Pickle only the F and the K matrices
         '''
         return dict(F=self.F, K=self.K)
+    
+    @property
+    def n_states(self):
+        return self.F.shape[0]
+
+    @property
+    def include_offset(self):
+        return False
 
 class SSKFDecoder(bmi.Decoder, bmi.BMI):
     pass
