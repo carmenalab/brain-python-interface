@@ -100,7 +100,7 @@ def start_experiment(request, save=True):
         
         # Start the task FSM and display
         display.runtask(**kwargs)
-        logging.info('ajax.start_experiment: Started task with kwargs: %s\n' % str(kwargs))
+        #logging.info('ajax.start_experiment: Started task with kwargs: %s\n' % str(kwargs))
 
         # Return the JSON response
         return _respond(response)
