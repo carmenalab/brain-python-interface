@@ -10,11 +10,22 @@ import tables
 import matplotlib.pyplot as plt
 import time, datetime
 from scipy.stats import nanmean
+from collections import defaultdict, OrderedDict
+import sys
 try:
     import plotutil
 except:
     pass
 
+
+
+def default_trial_filter_fn(trial_msgs): return True
+
+def default_trial_proc_fn(te, trial_msgs): return 1
+
+def default_trial_condition_fn(te, trial_msgs): return 0
+
+default_data_comb_fn = lambda x: x
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
@@ -490,6 +501,25 @@ class TaskEntry(object):
 
         self.task_msgs = TaskMessages(self.hdf.root.task_msgs[:])
 
+    def proc(self, trial_filter_fn=default_trial_filter_fn, trial_proc_fn=default_trial_proc_fn, trial_condition_fn=default_trial_condition_fn, data_comb_fn=default_data_comb_fn):
+        te = self
+        trial_msgs = filter(trial_filter_fn, te.trial_msgs)
+        n_trials = len(trial_msgs)
+        
+        blockset_data = defaultdict(list)
+        
+        ## Call a function on each trial    
+        for k in range(n_trials):
+            output = trial_proc_fn(te, trial_msgs[k])
+            trial_condition = trial_condition_fn(te, trial_msgs[k])
+            blockset_data[trial_condition].append(output)
+        
+        newdata = dict()
+        for key in blockset_data:
+            newdata[key] = data_comb_fn(blockset_data[key])
+        return newdata
+
+
     @property 
     def supplementary_data_file(self):
         return '/storage/task_supplement/%d.mat' % self.record.id
@@ -744,7 +774,79 @@ class TaskEntrySet(object):
             blocks = filter(fn, blocks)
 
         return blocks
+
+
+class TaskEntryCollection(object):
+    '''
+    Container for analyzing multiple task entries with an arbitrarily deep hierarchical structure
+    '''
+    def __init__(self, blocks, name=''):
+        self.blocks = blocks
+        # if isinstance(blocks, int):
+        #     blocks = [blocks,]
         
+        # self.blocks = HierarchicalList(blocks)
+
+        # from analysis import performance
+        # self.task_entry_set = performance._get_te_set(self.blocks.flat_ls)
+        self.name = name
+
+    def proc_trials(self, trial_filter_fn=default_trial_filter_fn, trial_proc_fn=default_trial_proc_fn, 
+                    trial_condition_fn=default_trial_condition_fn, data_comb_fn=default_data_comb_fn,
+                    verbose=True):
+        '''
+        Generic framework to perform a trial-level analysis on the entire dataset
+
+        Parameters
+        ----------
+        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+            Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
+        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+            The main workhorse function 
+        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+            Determine what the trial *subtype* is (useful for separating out various types of catch trials)
+        data_comb_fn: callable; call signature: data_comb_fn(list)
+            Combine the list into the desired output structure
+
+        Returns
+        -------
+        result: list
+            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+            grouped by tuples are combined into a single result. 
+        '''
+        result = []
+        for blockset in self.blocks:
+            if isinstance(blockset, int):
+                blockset = (blockset,)
+            
+            from analysis import performance
+            blockset_data = defaultdict(list)
+            for b in blockset:
+                if verbose:
+                    print ".", 
+                    # sys.stdout.write('.')
+
+                te = performance._get_te(b)
+        
+                # Filter out the trials you want
+                trial_msgs = filter(trial_filter_fn, te.trial_msgs)
+                n_trials = len(trial_msgs)
+        
+                ## Call a function on each trial    
+                for k in range(n_trials):
+                    output = trial_proc_fn(te, trial_msgs[k])
+                    trial_condition = trial_condition_fn(te, trial_msgs[k])
+                    blockset_data[trial_condition].append(output)
+        
+            newdata = dict()
+            for key in blockset_data:
+                newdata[key] = data_comb_fn(blockset_data[key])
+            blockset_data = newdata
+            result.append(blockset_data)
+
+        sys.stdout.write('\n')
+        return result
+
 
 
 ######################
