@@ -22,19 +22,23 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
     model_attrs = ['F', 'K']
 
     def __init__(self, *args, **kwargs):
-        if 'A' in kwargs and 'C' in kwargs and 'W' in kwargs and 'Q' in kwargs:
-            A = kwargs.pop('A')
-            C = kwargs.pop('C')
-            W = kwargs.pop('W')
-            Q = kwargs.pop('Q')
-            kf = kfdecoder.KalmanFilter(A, W, C, Q, **kwargs)
-            F, K = kf.get_sskf()
+        if len(kwargs.keys()) == 0:
+            ## This condition should only be true in the unpickling phase
+            pass
         else:
-            F = kwargs['F']
-            K = kwargs['K']
-        self.F = F
-        self.K = K
-        self._pickle_init()
+            if 'A' in kwargs and 'C' in kwargs and 'W' in kwargs and 'Q' in kwargs:
+                A = kwargs.pop('A')
+                C = kwargs.pop('C')
+                W = kwargs.pop('W')
+                Q = kwargs.pop('Q')
+                kf = kfdecoder.KalmanFilter(A, W, C, Q, **kwargs)
+                F, K = kf.get_sskf()
+            elif 'F' in kwargs and 'K' in kwargs:
+                F = kwargs['F']
+                K = kwargs['K']
+            self.F = F
+            self.K = K
+            self._pickle_init()
 
 
     def _init_state(self, init_state=None, init_cov=None):                     
