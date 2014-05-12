@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -15,7 +13,7 @@
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '',
+        URL_ROOT:    './',
         VERSION:     '1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
@@ -27,6 +25,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="top" title="BMI3D 1.0 documentation" href="index.html" />
+    <link rel="next" title="Brain-machine interface (BMI) code" href="bmi.html" />
     <link rel="prev" title="Comment and doc string format guide" href="comments.html" /> 
   </head>
   <body>
@@ -39,6 +38,12 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bmi.html" title="Brain-machine interface (BMI) code"
+             accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="comments.html" title="Comment and doc string format guide"
              accesskey="P">previous</a> |</li>
@@ -65,7 +70,7 @@ across a long epoch.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
 <blockquote>
 <div><p>The plexon file containing the data.</p>
 </div></blockquote>
@@ -84,7 +89,7 @@ than bin size (and should be much longer).</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>mean_firing_rates</strong> : np array</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>mean_firing_rates</strong> : np array</p>
 <blockquote>
 <div><p>A 1D array containing the mean firing rate in hz for each unit across
 all bins.</p>
@@ -112,13 +117,13 @@ firing rate across all epochs</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
 <blockquote>
 <div><p>The file containing the data.</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>udict</strong> : dictionary</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>udict</strong> : dictionary</p>
 <blockquote class="last">
 <div><p>The keys are the channel-unit tuples in plxfile.units, and the values
 are the indices of those units in the list. This is to create an easy
@@ -152,7 +157,7 @@ arm markers 1-7 (0 is ok because it&#8217;s not used here).</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>arm_data</strong> : array</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>arm_data</strong> : array</p>
 <blockquote>
 <div><p>An n by 8 x 3 (timepoints x arm marker x coord) array of arm position
 data.</p>
@@ -163,7 +168,7 @@ data.</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>joints</strong> : array</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>joints</strong> : array</p>
 <blockquote class="last">
 <div><p>An n x 3 x 3 (timepoints x joint x coord) array of joint positions.
 Joint order is wrist, elbow, shoulder.</p>
@@ -182,7 +187,7 @@ Joint order is wrist, elbow, shoulder.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>raw_data</strong> : array</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>raw_data</strong> : array</p>
 <blockquote>
 <div><p>An n x m x 4 (timepoint x marker x coord/condition val) array of raw
 motiontracker data.</p>
@@ -194,7 +199,7 @@ greater than the threshold, nans are inserted.</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>processed_data</strong> : array</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>processed_data</strong> : array</p>
 <blockquote class="last">
 <div><p>An n x m x 3 (timepoint x marker x coord) array of interpolated data.</p>
 </div></blockquote>
@@ -212,7 +217,7 @@ greater than the threshold, nans are inserted.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
 <blockquote>
 <div><p>The plexon file containing the data.</p>
 </div></blockquote>
@@ -226,7 +231,7 @@ greater than the threshold, nans are inserted.</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>lfp</strong> : np array</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>lfp</strong> : np array</p>
 <blockquote class="last">
 <div><p>A time x nunits x nepochs array containing the LFP signal for each channel</p>
 </div></blockquote>
@@ -244,13 +249,13 @@ greater than the threshold, nans are inserted.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>session_name</strong> : string</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>session_name</strong> : string</p>
 <blockquote>
 <div><p>The name of the session of interest without file extension.</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>plx</strong> : plexon file</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>plx</strong> : plexon file</p>
 <blockquote>
 <div><p>The loaded plexon file.</p>
 </div></blockquote>
@@ -285,7 +290,7 @@ epochs.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
 <blockquote>
 <div><p>The plexon file containing the data.</p>
 </div></blockquote>
@@ -300,7 +305,7 @@ interest (plx timestamps).</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>firing_rates</strong> : np array</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>firing_rates</strong> : np array</p>
 <blockquote class="last">
 <div><p>A 2D array (unit x epoch) containing the mean firing rate in hz for
 each unit in each epoch.</p>
@@ -319,7 +324,7 @@ each unit in each epoch.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>plxfile</strong> : plexon file</p>
 <blockquote>
 <div><p>The plexon file containing the data.</p>
 </div></blockquote>
@@ -337,7 +342,7 @@ each unit in each epoch.</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>firing_rates</strong> : np array</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>firing_rates</strong> : np array</p>
 <blockquote class="last">
 <div><p>A nbins x nunits x nepochs array containing the mean spike counts for
 each bin.</p>
@@ -356,14 +361,14 @@ each bin.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>units</strong> : list of tuples of ints</p>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>units</strong> : list of tuples of ints</p>
 <blockquote>
 <div><p>List of tuples designating channel-unit combinations. Channels must be
 1-256.</p>
 </div></blockquote>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns :</th><td class="field-body"><p class="first"><strong>filt</strong> : function</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>filt</strong> : function</p>
 <blockquote class="last">
 <div><p>Filtering function that takes a record array of spike data
 (plx.spikes[timeslice]) and output type as input and returns a list of
@@ -396,6 +401,9 @@ to a unit in the units parameter.</p>
   <h4>Previous topic</h4>
   <p class="topless"><a href="comments.html"
                         title="previous chapter">Comment and doc string format guide</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="bmi.html"
+                        title="next chapter">Brain-machine interface (BMI) code</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/analysis.txt"
@@ -428,6 +436,12 @@ to a unit in the units parameter.</p>
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
+          <a href="np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bmi.html" title="Brain-machine interface (BMI) code"
+             >next</a> |</li>
+        <li class="right" >
           <a href="comments.html" title="Comment and doc string format guide"
              >previous</a> |</li>
         <li><a href="index.html">BMI3D 1.0 documentation</a> &raquo;</li> 
@@ -435,7 +449,7 @@ to a unit in the units parameter.</p>
     </div>
     <div class="footer">
         &copy; Copyright 2012, James Gao.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
     </div>
   </body>
 </html>

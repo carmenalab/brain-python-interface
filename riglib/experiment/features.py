@@ -518,17 +518,13 @@ class SimTime(object):
     def __init__(self, *args, **kwargs):
         super(SimTime, self).__init__(*args, **kwargs)
         self.start_time = 0.
-        self.loop_counter = 0
 
     def get_time(self):
         try:
-            return self.loop_counter * 1./60
+            return self.cycle_count * 1./60
         except:
             # loop_counter has not been initialized yet, return 0
             return 0
-
-    def loop_step(self):
-        self.loop_counter += 1
 
 
 class RelayPlexon(SinkRegister):

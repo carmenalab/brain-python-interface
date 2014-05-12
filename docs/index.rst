@@ -12,6 +12,7 @@ Contents:
     :maxdepth: 2
 
     about
+    install
     tasks
     extensions
     features
@@ -22,6 +23,7 @@ Contents:
     comments
     analysis
     bmi
+    nidaq
 
 
 Indices and tables

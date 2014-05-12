@@ -20,6 +20,8 @@ sudo pip install PyOpenGL PyOpenGL_accelerate
 sudo pip install Django==1.6 
 sudo pip install pylibftdi
 sudo pip install nitime==0.4
+sudo pip install sphinx
+sudo pip install numpydoc
 
 # setup the CIFS 
 sudo apt-get -y install smbclient cifs-utils smbfs

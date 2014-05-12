@@ -91,10 +91,9 @@ class GaussianState(object):
         else:
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
-class GaussianStateHMM():
+class GaussianStateHMM(object):
     '''
     General hidden Markov model decoder where the state is represented as a Gaussian random vector
-    NOTE: DO NOT TURN THIS INTO A NEW-STYLE CLASS UNLESS YOU KNOW HOW TO HANDLE THE UNPICKLING OF OBJECTS THAT HAVE ALREADY BEEN CREATED!
     '''
     model_attrs = []
     def __init__(self, A, W):
@@ -153,8 +152,7 @@ class Decoder(object):
     '''
     All BMI decoders should inherit from this class
     '''
-    def __init__(self, filt, units, bounding_box, states, drives_neurons,
-        states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1], **kwargs):
+    def __init__(self, filt, units, ssm, binlen=0.1, n_subbins=1, tslice=[-1,-1], **kwargs):
         """ 
         Parameters
         ----------
@@ -162,17 +160,9 @@ class Decoder(object):
             Generic inference algorithm that does the actual observation decoding
         units : array-like
             N x 2 array of units, where each row is (chan, unit)
-        bounding_box : tuple
-            2-tuple of (lower bounds, upper bounds) for states that require 
-            hard bounds (e.g. position bounds for a cursor to keep it from 
-            going off the screen)
-        states : list of strings
-            List of variables known to the decoder
-        drives_neurons : list of strings
-            List of variables that the decoder uses to explain neural firing
-        states_to_bound : list of strings
-            List of variables to which to apply the hard bounds specified in 
-            the 'bounding_box' argument
+        ssm : state_space_models.StateSpace instance 
+            The state-space model describes the states tracked by the decoder, whether or not
+            they are stochastic/related to the observations, bounds on the state, etc.
         binlen : float, optional, default = 0.1
             Bin-length specified in seconds. Gets rounded to a multiple of 1./60
             to match the update rate of the task
@@ -189,8 +179,8 @@ class Decoder(object):
 
         self.units = np.array(units, dtype=np.int32)
         self.binlen = binlen
-        self.bounding_box = bounding_box
-        self.states = states
+        self.bounding_box = ssm.bounding_box
+        self.states = ssm.state_names
         
         # The tslice parameter below properly belongs in the database and
         # not in the decoder object because the Decoder object has no record of 
@@ -198,9 +188,9 @@ class Decoder(object):
         # was assumed that every decoder would be trained entirely from a plx
         # file (i.e. and not CLDA)
         self.tslice = tslice
-        self.states_to_bound = states_to_bound
+        self.states_to_bound = ssm.states_to_bound
         
-        self.drives_neurons = drives_neurons
+        self.drives_neurons = ssm.drives_obs #drives_neurons
         self.n_subbins = n_subbins
 
         self.bmicount = 0

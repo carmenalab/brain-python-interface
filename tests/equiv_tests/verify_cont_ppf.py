@@ -2,7 +2,7 @@
 '''
 Test case to check that the current state of the code is able to reconstruct a TaskEntry using the BMIControlMulti task '''
 from db import dbfunctions as dbfn
-from tasks import performance
+from analysis import performance
 from scipy.io import loadmat
 import numpy as np
 import math
@@ -19,6 +19,7 @@ reload(clda)
 reload(train)
 reload(bmi)
 reload(ppfdecoder)
+
 
 idx = 2306
 from optparse import OptionParser
@@ -107,7 +108,7 @@ state_transitions = task_msgs[~(task_msgs['msg'] == 'update_bmi')]
 
 reload(bmi_recon_tasks)
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
-self = task = bmi_recon_tasks.ContCLDARecon(te, 10000, gen)
+self = task = bmi_recon_tasks.ContCLDARecon(te, n_iter, gen)
 task.init()
 error = task.calc_recon_error()
 

@@ -18,21 +18,25 @@ class KalmanFilter(bmi.GaussianStateHMM):
     """
     model_attrs = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C']
 
-    def __init__(self, A, W, C, Q, is_stochastic=None):
-        self.A = np.mat(A)
-        self.W = np.mat(W)
-        self.C = np.mat(C)
-        self.Q = np.mat(Q)
-
-        if is_stochastic == None:
-            n_states = A.shape[0]
-            self.is_stochastic = np.ones(n_states, dtype=bool)
+    def __init__(self, A=None, W=None, C=None, Q=None, is_stochastic=None):
+        if A is None and W is None and C is None and Q is None:
+            ## This condition should only be true in the unpickling phase
+            pass
         else:
-            self.is_stochastic = is_stochastic
-        
-        self.state_noise = bmi.GaussianState(0.0, W)
-        self.obs_noise = bmi.GaussianState(0.0, Q)
-        self._pickle_init()
+            self.A = np.mat(A)
+            self.W = np.mat(W)
+            self.C = np.mat(C)
+            self.Q = np.mat(Q)
+
+            if is_stochastic == None:
+                n_states = A.shape[0]
+                self.is_stochastic = np.ones(n_states, dtype=bool)
+            else:
+                self.is_stochastic = is_stochastic
+            
+            self.state_noise = bmi.GaussianState(0.0, W)
+            self.obs_noise = bmi.GaussianState(0.0, Q)
+            self._pickle_init()
 
     def _pickle_init(self):
         """Code common to unpickling and initialization
@@ -67,7 +71,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         self.state = self.A*self.state
 
-    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, bias_comp=False):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
         '''
@@ -89,25 +93,13 @@ class KalmanFilter(bmi.GaussianStateHMM):
         else:
             post_state.mean += -KC*pred_state.mean + K*obs_t
 
-        if bias_comp:
-            # bias = np.zeros([F.shape[0], 1])
-            # bias = F[:,-1]
-            # bias[1,0] = F[1,-1]
-            # bias[5,0] = F[5,-1]
-            # bias[6,0] = F[6,-1]
-            # bias[2,0] = F[2,-1]
-            # bias[2,0] = F[2,-1]
-            bias = F[:,-1]
-            bias[[0,4], 0] = 0
-            bias[[2,6], 0] = 0
-            bias[-1, 0] = 0
-            post_state.mean -= bias
         post_state.cov = (I - KC) * P 
 
         return post_state
 
     def _calc_kalman_gain(self, P):
-        ''' Calculate Kalman gain using the 'alternate' definition
+        '''
+        Calculate Kalman gain using the 'alternate' definition
         '''
         nX = P.shape[0]
         I = np.mat(np.eye(nX))
@@ -296,8 +288,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         iter_idx = 0
         for iter_idx in range(40):
-        #while iter_idx < 400:
-        #while np.linalg.norm(K-last_K) > tol and iter_idx < 4000:
             P = A*P*A.T + W
             last_K = K
             KC = P*(I - D*P*(I + D*P).I)*D
@@ -308,6 +298,17 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F, K = self.get_sskf()
         F = (I - KC)*A
         self._init_state(init_state=self.state.mean, init_cov=P)
+
+    def get_K_null(self):
+        '''
+        $$y_{null} = K_{null} * y_t$$ gives the "null" component of the spike inputs, i.e. $$K_t*y_{null} = 0_{N\times 1}$$
+        '''
+        F, K = self.get_sskf()
+        K = np.mat(K)
+        n_neurons = K.shape[1]
+        K_null = np.eye(n_neurons) - np.linalg.pinv(K) * K
+        return K_null
+
 
 class PseudoPPF(KalmanFilter):
     def _forward_infer(self, st, obs_t, **kwargs):
@@ -347,43 +348,13 @@ class PseudoPPF(KalmanFilter):
 class KFDecoder(bmi.BMI, bmi.Decoder):
     def __init__(self, *args, **kwargs):
         super(KFDecoder, self).__init__(*args, **kwargs)
-        mFR = kwargs.pop('mFR', 0)
-        sdFR = kwargs.pop('sdFR', 0)
+        mFR = kwargs.pop('mFR', 0.)
+        sdFR = kwargs.pop('sdFR', 1.)
         self.mFR = mFR
         self.sdFR = sdFR
         self.zeromeanunits = None
         self.zscore = False
-
-    def __init__(self, kf, mFR, sdFR, units, bounding_box, states, drives_neurons,
-        states_to_bound, binlen=0.1, n_subbins=1, tslice=[-1,-1]):
-        """ 
-        Initializes the Kalman filter decoder.  Includes BMI specific
-        features used to run the Kalman filter in a BMI context.
-        """
-        self.kf = kf
-        self.kf._init_state()
-        self.mFR = mFR
-        self.sdFR = sdFR
-        self.zscore = False
-        self.units = np.array(units, dtype=np.int32)
-        self.binlen = binlen
-        self.bounding_box = bounding_box
-        self.states = states
-        
-        # The tslice parameter below properly belongs in the database and
-        # not in the decoder object because the Decoder object has no record of 
-        # which plx file it was trained from. This is a leftover from when it
-        # was assumed that every decoder would be trained entirely from a plx
-        # file (i.e. and not CLDA)
-        self.tslice = tslice
-        self.states_to_bound = states_to_bound
-        self.zeromeanunits = None
-        self.drives_neurons = drives_neurons
-        self.n_subbins = n_subbins
-
-        self.bmicount = 0
-        self.bminum = int(self.binlen/(1/60.0))
-        self.spike_counts = np.zeros([len(units), 1])
+        self.kf = self.filt
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         # if interfacing with Kinarm system, may mean and sd will be shape nx1
@@ -444,7 +415,8 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
 
     def shuffle(self):
-        ''' Shuffle the neural model
+        '''
+        Shuffle the neural model
         '''
         # generate random permutation
         import random
@@ -500,7 +472,9 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.filt.A = A
         self.filt.W = W
 
-        
+    def conv_to_steady_state(self):
+        import sskfdecoder
+        self.filt = SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q)  
 
 def project_Q(C_v, Q_hat):
     """ Constrain Q such that the first two columns of the H matrix

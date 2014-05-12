@@ -12,6 +12,7 @@ from riglib.experiment.features import Autostart, SimHDF, SimTime
 import riglib.bmi
 from riglib.bmi import train, kfdecoder, clda, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
+from riglib.stereo_opengl.window import WindowDispl2D
 
 reload(kfdecoder)
 reload(ppfdecoder)
@@ -19,7 +20,14 @@ reload(clda)
 reload(riglib.bmi)
 reload(riglib.bmi.train)
 
-from riglib.stereo_opengl.window import WindowDispl2D
+import argparse
+parser = argparse.ArgumentParser(description='Analyze neural control of a redundant kinematic chain')
+parser.add_argument('--clean', help='', action="store_true")
+parser.add_argument('--show', help='', action="store_true")
+parser.add_argument('--alg', help='', action="store")
+
+args = parser.parse_args()
+
 
 class PointProcNeuralSim(object):
     def _init_neural_encoder(self):
@@ -44,9 +52,10 @@ class PointProcContinuous(object):
     def create_updater(self):
         self.updater = clda.PPFContinuousBayesianUpdater(self.decoder)
 
-class SimCLDAControlMultiDispl2D(SimTime, WindowDispl2D, bmimultitasks.SimCLDAControlMulti, Autostart):
+class SimCLDAControlMultiDispl2D(Autostart, SimTime, WindowDispl2D, bmimultitasks.SimCLDAControlMulti):
     update_rate = 0.1
     starting_pos = (0., 0., 0.)
+    rand_start = (0., 0.)
     def __init__(self, *args, **kwargs):
         self.target_radius = 1.8
         bmimultitasks.SimCLDAControlMulti.__init__(self, *args, **kwargs)
@@ -126,15 +135,17 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
         return SimCLDAControlMultiDispl2D.get_time(self)
 
 
-if __name__ == '__main__':
+if args.alg == 'RML':
     gen = genfns.sim_target_seq_generator_multi(8, 1000)
     task = SimRML(gen)
     #task = SimCLDAControlMultiDispl2D_PPF(gen)
-    #task = SimCLDAControlMultiDispl2D(gen)
+    # task = SimCLDAControlMultiDispl2D(gen)
 
-    print 'task created'
+else:
+    raise ValueError("Algorithm not recognized!")
 
-    self = task
-    task.init()
-    print 'task init called'
-    task.run()
+
+self = task
+task.init()
+print 'task init called'
+task.run()

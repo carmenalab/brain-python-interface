@@ -10,11 +10,22 @@ import tables
 import matplotlib.pyplot as plt
 import time, datetime
 from scipy.stats import nanmean
+from collections import defaultdict, OrderedDict
+import sys
 try:
     import plotutil
 except:
     pass
 
+
+
+def default_trial_filter_fn(trial_msgs): return True
+
+def default_trial_proc_fn(te, trial_msgs): return 1
+
+def default_trial_condition_fn(te, trial_msgs): return 0
+
+default_data_comb_fn = lambda x: x
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
@@ -541,6 +552,25 @@ class TaskEntry(object):
 
         self.task_msgs = TaskMessages(self.hdf.root.task_msgs[:])
 
+    def proc(self, trial_filter_fn=default_trial_filter_fn, trial_proc_fn=default_trial_proc_fn, trial_condition_fn=default_trial_condition_fn, data_comb_fn=default_data_comb_fn):
+        te = self
+        trial_msgs = filter(trial_filter_fn, te.trial_msgs)
+        n_trials = len(trial_msgs)
+        
+        blockset_data = defaultdict(list)
+        
+        ## Call a function on each trial    
+        for k in range(n_trials):
+            output = trial_proc_fn(te, trial_msgs[k])
+            trial_condition = trial_condition_fn(te, trial_msgs[k])
+            blockset_data[trial_condition].append(output)
+        
+        newdata = dict()
+        for key in blockset_data:
+            newdata[key] = data_comb_fn(blockset_data[key])
+        return newdata
+
+
     @property 
     def supplementary_data_file(self):
         return '/storage/task_supplement/%d.mat' % self.record.id
@@ -564,11 +594,18 @@ class TaskEntry(object):
         for st, end in epochs:
             st += start_offset
             epoch_data = self.hdf.root.task[st:end][var_name]
-            unique_epoch_data = np.unique(epoch_data.ravel())
+
+            # Determine whether all the rows in the extracted sub-table are the same
+            # This code is stolen from the interweb:
+            # http://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy-array
+            a = epoch_data
+            b = np.ascontiguousarray(a).view(np.dtype((np.void, a.dtype.itemsize * a.shape[1])))
+            unique_epoch_data = np.unique(b).view(a.dtype).reshape(-1, a.shape[1])
+
+            # unique_epoch_data = np.unique(epoch_data.ravel())
             if len(unique_epoch_data) == 1:
                 data.append(unique_epoch_data)
             else:
-                print st, end
                 data.append(epoch_data)
         return comb_fn(data)
 
@@ -640,19 +677,7 @@ class TaskEntry(object):
 
     @property
     def name(self):
-        # TODO this needs to be hacked because the current way of determining a 
-        # a filename depends on the number of things in the database, i.e. if 
-        # after the fact a record is removed, the number might change. read from
-        # the file instead
-        import loc_config
-        if loc_config.recording_system == 'plexon':
-            return str(os.path.basename(self.plx_file).rstrip('.plx'))
-        elif loc_config.recording_system == 'blackrock':
-            # TODO -- what if there are only nsx files and no nev file?
-            #         need to make sure it works for this case too
-            return str(os.path.basename(self.nev_file).rstrip('.nev'))
-        else:
-            raise Exception('Unrecognized recording_system!')
+        return str(os.path.basename(self.hdf_filename).rstrip('.hdf'))
 
     def __str__(self):
         return self.record.__str__()
@@ -669,10 +694,11 @@ class TaskEntry(object):
 
     @property
     def n_rewards(self):
-        ''' # of rewards given during a block. This number could be different
-        from the total number of trials if children of this class over-ride
+        ''' 
+        # of rewards given during a block. This number could be different
+        from the total number of reward trials if children of this class over-ride
         the n_trials calculator to exclude trials of a certain type, e.g. BMI
-        trials in which the subject was assiste
+        trials in which the subject was assisted
         '''
         return self.record.offline_report()['Total rewards']
 
@@ -807,7 +833,79 @@ class TaskEntrySet(object):
             blocks = filter(fn, blocks)
 
         return blocks
+
+
+class TaskEntryCollection(object):
+    '''
+    Container for analyzing multiple task entries with an arbitrarily deep hierarchical structure
+    '''
+    def __init__(self, blocks, name=''):
+        self.blocks = blocks
+        # if isinstance(blocks, int):
+        #     blocks = [blocks,]
         
+        # self.blocks = HierarchicalList(blocks)
+
+        # from analysis import performance
+        # self.task_entry_set = performance._get_te_set(self.blocks.flat_ls)
+        self.name = name
+
+    def proc_trials(self, trial_filter_fn=default_trial_filter_fn, trial_proc_fn=default_trial_proc_fn, 
+                    trial_condition_fn=default_trial_condition_fn, data_comb_fn=default_data_comb_fn,
+                    verbose=True):
+        '''
+        Generic framework to perform a trial-level analysis on the entire dataset
+
+        Parameters
+        ----------
+        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+            Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
+        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+            The main workhorse function 
+        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+            Determine what the trial *subtype* is (useful for separating out various types of catch trials)
+        data_comb_fn: callable; call signature: data_comb_fn(list)
+            Combine the list into the desired output structure
+
+        Returns
+        -------
+        result: list
+            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+            grouped by tuples are combined into a single result. 
+        '''
+        result = []
+        for blockset in self.blocks:
+            if isinstance(blockset, int):
+                blockset = (blockset,)
+            
+            from analysis import performance
+            blockset_data = defaultdict(list)
+            for b in blockset:
+                if verbose:
+                    print ".", 
+                    # sys.stdout.write('.')
+
+                te = performance._get_te(b)
+        
+                # Filter out the trials you want
+                trial_msgs = filter(trial_filter_fn, te.trial_msgs)
+                n_trials = len(trial_msgs)
+        
+                ## Call a function on each trial    
+                for k in range(n_trials):
+                    output = trial_proc_fn(te, trial_msgs[k])
+                    trial_condition = trial_condition_fn(te, trial_msgs[k])
+                    blockset_data[trial_condition].append(output)
+        
+            newdata = dict()
+            for key in blockset_data:
+                newdata[key] = data_comb_fn(blockset_data[key])
+            blockset_data = newdata
+            result.append(blockset_data)
+
+        sys.stdout.write('\n')
+        return result
+
 
 
 ######################
