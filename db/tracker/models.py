@@ -463,8 +463,8 @@ class TaskEntry(models.Model):
         js['plot_files'] = plot_files
 
         #print js['report'].keys()
-        import pprint
-        pprint.pprint(js)
+        # import pprint
+        # pprint.pprint(js)
 
         return js
 

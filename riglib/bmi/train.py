@@ -70,6 +70,7 @@ def train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=Non
     return decoder
 
 def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=None):
+
     binlen = update_rate
     n_features = neural_features.shape[0]  # number of neural features
 
@@ -103,7 +104,9 @@ def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=N
     decoder.kf.T = T
     decoder.kf.ESS = ESS
     
-    # decoder.ssm = _ssm
+    # TODO: this line was commented out, but needs to be here because otherwise
+    #       other state spaces won't work
+    decoder.ssm = _ssm
 
     decoder.n_features = n_features
 
@@ -635,7 +638,7 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
             _ssm=endpt_2D_state_space
         elif kin_var == 'joint_angles':
             _ssm=joint_2D_state_space
-        elif kin_var == 'armassist':
+        elif kin_var == 'armassist_kin':
             _ssm=aa_state_space
         
     if len(kin) != len(neural_features):
