@@ -18,21 +18,25 @@ class KalmanFilter(bmi.GaussianStateHMM):
     """
     model_attrs = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C']
 
-    def __init__(self, A, W, C, Q, is_stochastic=None):
-        self.A = np.mat(A)
-        self.W = np.mat(W)
-        self.C = np.mat(C)
-        self.Q = np.mat(Q)
-
-        if is_stochastic == None:
-            n_states = A.shape[0]
-            self.is_stochastic = np.ones(n_states, dtype=bool)
+    def __init__(self, A=None, W=None, C=None, Q=None, is_stochastic=None):
+        if A is None and W is None and C is None and Q is None:
+            ## This condition should only be true in the unpickling phase?
+            pass
         else:
-            self.is_stochastic = is_stochastic
-        
-        self.state_noise = bmi.GaussianState(0.0, W)
-        self.obs_noise = bmi.GaussianState(0.0, Q)
-        self._pickle_init()
+            self.A = np.mat(A)
+            self.W = np.mat(W)
+            self.C = np.mat(C)
+            self.Q = np.mat(Q)
+
+            if is_stochastic == None:
+                n_states = A.shape[0]
+                self.is_stochastic = np.ones(n_states, dtype=bool)
+            else:
+                self.is_stochastic = is_stochastic
+            
+            self.state_noise = bmi.GaussianState(0.0, W)
+            self.obs_noise = bmi.GaussianState(0.0, Q)
+            self._pickle_init()
 
     def _pickle_init(self):
         """Code common to unpickling and initialization
@@ -67,7 +71,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         self.state = self.A*self.state
 
-    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, bias_comp=False):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
         '''
@@ -89,19 +93,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
         else:
             post_state.mean += -KC*pred_state.mean + K*obs_t
 
-        if bias_comp:
-            # bias = np.zeros([F.shape[0], 1])
-            # bias = F[:,-1]
-            # bias[1,0] = F[1,-1]
-            # bias[5,0] = F[5,-1]
-            # bias[6,0] = F[6,-1]
-            # bias[2,0] = F[2,-1]
-            # bias[2,0] = F[2,-1]
-            bias = F[:,-1]
-            bias[[0,4], 0] = 0
-            bias[[2,6], 0] = 0
-            bias[-1, 0] = 0
-            post_state.mean -= bias
         post_state.cov = (I - KC) * P 
 
         return post_state
@@ -481,7 +472,9 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.filt.A = A
         self.filt.W = W
 
-        
+    def conv_to_steady_state(self):
+        import sskfdecoder
+        self.filt = SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q)  
 
 def project_Q(C_v, Q_hat):
     """ Constrain Q such that the first two columns of the H matrix

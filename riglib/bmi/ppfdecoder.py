@@ -304,7 +304,8 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         return state
 
     def shuffle(self):
-        ''' Shuffle the neural model
+        '''
+        Shuffle the neural model
         '''
         import random
         inds = range(self.filt.C.shape[0])

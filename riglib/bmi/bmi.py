@@ -91,7 +91,7 @@ class GaussianState(object):
         else:
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
-class GaussianStateHMM():
+class GaussianStateHMM(object):
     '''
     General hidden Markov model decoder where the state is represented as a Gaussian random vector
     NOTE: DO NOT TURN THIS INTO A NEW-STYLE CLASS UNLESS YOU KNOW HOW TO HANDLE THE UNPICKLING OF OBJECTS THAT HAVE ALREADY BEEN CREATED!
