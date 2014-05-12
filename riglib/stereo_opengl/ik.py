@@ -18,9 +18,6 @@ pi = np.pi
 joint_angles_dtype = [('sh_pflex', np.float64), ('sh_pabd', np.float64), ('sh_prot', np.float64), ('el_pflex', np.float64), ('el_psup', np.float64)]
 joint_vel_dtype = [('sh_vflex', np.float64), ('sh_vabd', np.float64), ('sh_vrot', np.float64), ('el_vflex', np.float64), ('el_vsup', np.float64)]
 
-def get_arm_class_list():
-    return [RobotArm2D, RobotArm2J2D]
-
 def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
     '''
     Inverse kinematics for a 2D arm. This function returns all 5 angles required
