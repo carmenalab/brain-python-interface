@@ -4,7 +4,7 @@ BMI reconstruction test cases. Any modificaitons to BMI code should pass all the
 '''
 import unittest
 import tasks
-from tasks import performance
+from analysis import performance
 from tasks import generatorfunctions as genfns
 import numpy as np 
 

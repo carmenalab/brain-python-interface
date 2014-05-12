@@ -53,6 +53,7 @@ generators = dict(
     centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
     centerout_3D=generatorfunctions.centerout_3D,
     outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
+    outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -156,7 +157,7 @@ bmis = dict(
     ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
     kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
     kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
-    kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
+    # kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
 )
 
 extractors = dict(

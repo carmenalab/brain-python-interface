@@ -244,7 +244,7 @@ TaskEntry.prototype.update = function(info) {
 	// new code
 	// see TaskEntry.to_json in models.py
 	for (var sys in info.datafiles) {
-		if (sys == "sequence") {  // info.datafiles[sys] is a boolean
+		if (sys == "sequence") {  // info.datafiles["sequence"] is a boolean
 			if (info.datafiles[sys]) {  
 				var file = document.createElement("li");
 				var link = document.createElement("a");
@@ -255,7 +255,6 @@ TaskEntry.prototype.update = function(info) {
 				numfiles++;
 			}
 		} else {  // info.datafiles[sys] is an array of files for that system
-			console.log('hello')
 			for (var i = 0; i < info.datafiles[sys].length; i++) {
 				datafile = info.datafiles[sys][i]
 				var file = document.createElement("li");
@@ -275,8 +274,6 @@ TaskEntry.prototype.update = function(info) {
 		for (var sys in info.datafiles)
 			found = found || sys == "plexon" || sys == 'blackrock'
 		if (found)
-			console.log('info.bmi');
-			console.log(info.bmi);
 			this.bmi = new BMI(this.idx, info.bmi, info.notes);
 	}
 
