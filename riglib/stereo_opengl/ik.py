@@ -81,66 +81,6 @@ def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
     else:
         return angles    
 
-class RobotArm2D(Group):
-    '''
-    A basic robot arm plant. One link with one rotating joint. Joints have one degree of freedom.
-    Initialized with anchor point at origin and joint moving in x-z plane. Takes coordinates in 3D
-    for future compatibility with tasks but all movements restricted to x-z plane and y coordinates ignored.
-    '''
-    def __init__(self, link_radii=[.2], joint_radii=[.5],link_lengths=[5], joint_colors = [(1,1,1,1)],
-        link_colors = [(1,1,1,1)], **kwargs):
-        self.num_joints = 1
-        self.link_radii = link_radii
-        self.joint_radii = joint_radii
-        self.link_lengths = link_lengths
-        self.joint_colors = joint_colors
-        self.link_colors = link_colors
-        self.curr_vecs = np.zeros([1,3])
-        self.curr_vecs[0,:] = np.array([self.link_lengths[0],0,0])
-        self.link1 = Group((Cylinder(radius=link_radii[0], height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0])))
-        super(RobotArm2D, self).__init__([self.link1], **kwargs)
-
-    def get_endpoint_pos(self):
-        '''
-        Returns the current position of the non-anchored end of the arm.
-        '''
-        return self.curr_vecs[0,:]
-
-    def set_endpoint_pos(self, x, y, z, **kwargs):
-        '''
-        Positions the arm according to specified endpoint position.
-        '''
-        
-        #normalize vector from origin to endpoint
-        mag = np.linalg.norm([x,0,z]) #project onto xz plane
-        normed = np.array([x,0,z])/mag
-
-        #set link vector to be aligned with endpoint. if endpoint is not on circle, endpoint will
-        #end up at closest possible point on circle
-        self.curr_vecs[0,:] = normed*self.link_lengths[0]
-        self._update_links()
-
-    def get_joint_pos(self):
-        '''
-        Returns the joint angles of the arm in radians
-        '''
-        return np.arctan2(self.curr_vecs[0,2], self.curr_vecs[0,0])
-        
-
-    def set_joint_pos(self,theta):
-        '''
-        Set the joint by specifying the angle in radians.
-        '''
-        if theta is not None and ~np.isnan(theta):
-            xs = self.link_lengths[0]*np.cos(theta)
-            ys = 0.0
-            zs = self.link_lengths[0]*np.sin(theta)
-            self.curr_vecs[0,:] = np.array([xs, ys, zs])
-        self._update_links()   
-
-    def _update_links(self):
-        self.link1.xfm.rotate = Quaternion.rotate_vecs((1,0,0), self.curr_vecs[0]).norm()
-        self.link1._recache_xfm()
 
 class CursorPlant(object):
     def __init__(self, **kwargs):
@@ -186,17 +126,6 @@ class RobotArmGen2D(Group):
         self.joint_colors = make_list(joint_colors, num_joints)
         self.link_colors = make_list(link_colors, num_joints)
 
-        # if len(link_radii)>1: self.link_radii = link_radii
-        # else: self.link_radii = link_radii * self.num_joints
-        # if len(joint_radii)>1: self.joint_radii = joint_radii
-        # else: self.joint_radii = joint_radii * self.num_joints
-        # if len(joint_colors)>1: self.joint_colors = joint_colors
-        # else: self.joint_colors = joint_colors * self.num_joints
-        # if len(link_lengths)>1: self.link_lengths = link_lengths
-        # else: self.link_lengths = link_lengths * self.num_joints
-        # if len(link_colors)>1: self.link_colors = link_colors
-        # else: self.link_colors = link_colors * self.num_joints
-
         self.curr_vecs = np.zeros([num_joints, 3]) #rows go from proximal to distal links
 
         # set initial vecs to correct orientations (arm starts out vertical)
@@ -208,16 +137,9 @@ class RobotArmGen2D(Group):
         
         # Add distal link as a cone instead of cylinder
         cone = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
-        sphere = Sphere(radius=self.joint_radii[-1],color=self.joint_colors[-1])
+        sphere = Sphere(radius=self.joint_radii[-1], color=self.joint_colors[-1])
         distal_link = Group((cone, sphere)).translate(0, 0, self.link_lengths[-2])
         self.links.append(distal_link)
-
-        # self.links = self.links + [distal_link]
-
-        # self.link4 = Group((Cylinder(radius=link_radii[3], height=link_lengths[3], color=link_colors[3]), Sphere(radius=joint_radii[3],color=joint_colors[3])))
-        # self.link3 = Group((Cylinder(radius=link_radii[2], height=link_lengths[2], color=link_colors[2]), Sphere(radius=joint_radii[2],color=joint_colors[2])))
-        # self.link2 = Group((Cylinder(radius=link_radii[1], height=link_lengths[1], color=link_colors[1]), Sphere(radius=joint_radii[1],color=joint_colors[1])))
-        # self.link1 = Group((Cone(radius1=link_radii[0], radius2 = link_radii[1]/2, height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0]))).translate(0,0,self.link_lengths[1])
         
         self.link_groups = [self.links[-1]]
         for i in range(1,self.num_joints-1):
@@ -316,6 +238,67 @@ class RobotArmGen2D(Group):
     #         x,y,z = normed*np.abs(np.diff(self.link_lengths))
 
     #     return inv_kin_2D(np.array([x,y,z]), self.link_lengths[1], self.link_lengths[0])
+
+class RobotArm2D(Group):
+    '''
+    A basic robot arm plant. One link with one rotating joint. Joints have one degree of freedom.
+    Initialized with anchor point at origin and joint moving in x-z plane. Takes coordinates in 3D
+    for future compatibility with tasks but all movements restricted to x-z plane and y coordinates ignored.
+    '''
+    def __init__(self, link_radii=[.2], joint_radii=[.5],link_lengths=[5], joint_colors = [(1,1,1,1)],
+        link_colors = [(1,1,1,1)], **kwargs):
+        self.num_joints = 1
+        self.link_radii = link_radii
+        self.joint_radii = joint_radii
+        self.link_lengths = link_lengths
+        self.joint_colors = joint_colors
+        self.link_colors = link_colors
+        self.curr_vecs = np.zeros([1,3])
+        self.curr_vecs[0,:] = np.array([self.link_lengths[0],0,0])
+        self.link1 = Group((Cylinder(radius=link_radii[0], height=link_lengths[0], color=link_colors[0]), Sphere(radius=joint_radii[0],color=joint_colors[0])))
+        super(RobotArm2D, self).__init__([self.link1], **kwargs)
+
+    def get_endpoint_pos(self):
+        '''
+        Returns the current position of the non-anchored end of the arm.
+        '''
+        return self.curr_vecs[0,:]
+
+    def set_endpoint_pos(self, x, y, z, **kwargs):
+        '''
+        Positions the arm according to specified endpoint position.
+        '''
+        
+        #normalize vector from origin to endpoint
+        mag = np.linalg.norm([x,0,z]) #project onto xz plane
+        normed = np.array([x,0,z])/mag
+
+        #set link vector to be aligned with endpoint. if endpoint is not on circle, endpoint will
+        #end up at closest possible point on circle
+        self.curr_vecs[0,:] = normed*self.link_lengths[0]
+        self._update_links()
+
+    def get_joint_pos(self):
+        '''
+        Returns the joint angles of the arm in radians
+        '''
+        return np.arctan2(self.curr_vecs[0,2], self.curr_vecs[0,0])
+        
+
+    def set_joint_pos(self,theta):
+        '''
+        Set the joint by specifying the angle in radians.
+        '''
+        if theta is not None and ~np.isnan(theta):
+            xs = self.link_lengths[0]*np.cos(theta)
+            ys = 0.0
+            zs = self.link_lengths[0]*np.sin(theta)
+            self.curr_vecs[0,:] = np.array([xs, ys, zs])
+        self._update_links()   
+
+    def _update_links(self):
+        self.link1.xfm.rotate = Quaternion.rotate_vecs((1,0,0), self.curr_vecs[0]).norm()
+        self.link1._recache_xfm()
 
 
 class RobotArm2J2D(RobotArm2D):
