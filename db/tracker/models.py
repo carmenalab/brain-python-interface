@@ -442,9 +442,7 @@ class TaskEntry(models.Model):
                     units=units, 
                     name=name,
                     is_seed=int(self.task.name in bmi_seed_tasks),
-                    ))
-                print js['bmi']
-                print 'in models.TaskEntry.to_json; blackrock units:', units
+                    ))    
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print "No blackrock files found"
                 js['bmi'] = dict(_neuralinfo=None)
@@ -465,6 +463,9 @@ class TaskEntry(models.Model):
         js['plot_files'] = plot_files
 
         #print js['report'].keys()
+        import pprint
+        pprint.pprint(js)
+
         return js
 
     @property
