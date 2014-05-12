@@ -24,24 +24,28 @@ class PointProcessFilter(bmi.GaussianStateHMM):
     """
     model_attrs = ['A', 'W', 'C']
 
-    def __init__(self, A, W, C, dt, is_stochastic=None, B=0, F=0):
-        self.A = np.mat(A)
-        self.W = np.mat(W)
-        self.C = np.mat(C)
-        self.dt = dt
-        self.spike_rate_dt = dt
-        
-        self.B = B
-        self.F = F
-
-        if is_stochastic == None:
-            n_states = A.shape[0]
-            self.is_stochastic = np.ones(n_states, dtype=bool)
+    def __init__(self, A=None, W=None, C=None, dt=None, is_stochastic=None, B=0, F=0):
+        if A is None and W is None and C is None and dt is None:
+            ## This condition should only be true in the unpickling phase
+            pass            
         else:
-            self.is_stochastic = np.array(is_stochastic)
-        
-        self.state_noise = GaussianState(0.0, W)
-        self._pickle_init()
+            self.A = np.mat(A)
+            self.W = np.mat(W)
+            self.C = np.mat(C)
+            self.dt = dt
+            self.spike_rate_dt = dt
+            
+            self.B = B
+            self.F = F
+
+            if is_stochastic == None:
+                n_states = A.shape[0]
+                self.is_stochastic = np.ones(n_states, dtype=bool)
+            else:
+                self.is_stochastic = np.array(is_stochastic)
+            
+            self.state_noise = GaussianState(0.0, W)
+            self._pickle_init()
 
     def _pickle_init(self):
         """Code common to unpickling and initialization

@@ -20,7 +20,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
     def __init__(self, A=None, W=None, C=None, Q=None, is_stochastic=None):
         if A is None and W is None and C is None and Q is None:
-            ## This condition should only be true in the unpickling phase?
+            ## This condition should only be true in the unpickling phase
             pass
         else:
             self.A = np.mat(A)
