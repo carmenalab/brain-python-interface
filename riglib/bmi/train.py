@@ -548,6 +548,11 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
         neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
 
     elif 'blackrock' in files:
+
+        print 'inside "blackrock" elif of train.preprocess_files()'
+        print 'hardcoding kin_var as armassist_kin'
+        kin_var = 'armassist_kin'
+
         nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
         nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]
 
@@ -568,7 +573,8 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
             tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])        
         except NotImplementedError:
             # need to create a fake rows variable
-            n_rows = hdf.root.task[:]['cursor'].shape[0]
+            # n_rows = hdf.root.task[:]['cursor'].shape[0]
+            n_rows = hdf.root.task[:][kin_var].shape[0]
 
             first_ts = binlen
             update_rate_hz = 1./60
@@ -632,6 +638,7 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
     Train a KFDecoder from visual feedback
     '''
 
+    # TODO -- why is kin_var set AFTER the call to preprocess_files -- it should be before, right?
     kin, neural_features, units, extractor_kwargs = preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source=source, kin_var=kin_var)
     if _ssm == None:
         if kin_var == 'cursor':
