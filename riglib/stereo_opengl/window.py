@@ -225,6 +225,8 @@ class WindowDispl2D(Window):
                 #Draws cursor and targets on transparent surfaces
                 pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
                 i += 1
+            elif isinstance(model, Cylinder):
+                pass
             else:
                 pass
 
