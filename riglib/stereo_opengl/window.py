@@ -25,6 +25,9 @@ except:
     import warnings
     warnings.warn('riglib/stereo_opengl/window.py: not importing name pygame')
 
+# for WindowDispl2D only
+from riglib.stereo_opengl.primitives import Sector
+
 
 class Window(LogExperiment):
     status = dict(draw=dict(stop=None))
@@ -225,8 +228,23 @@ class WindowDispl2D(Window):
                 #Draws cursor and targets on transparent surfaces
                 pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
                 i += 1
-            elif isinstance(model, Cylinder):
-                pass
+            elif isinstance(model, Sector):
+                pos = model.center_pos[[0,2]]
+                pix_pos = self.pos2pix(pos)
+                color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+                rad = model.radius
+                pix_radius = int(rad * self.pix_per_m)
+                
+                start_angle = model.ang_range[0]
+                stop_angle  = model.ang_range[1]
+                radius = model.radius
+
+                arc_angles = np.linspace(start_angle, stop_angle, 100)
+                sector_pts = list(pos + radius*np.c_[np.cos(arc_angles), np.sin(arc_angles)])
+                sector_pts.append(pos)
+                point_list = [self.pos2pix(pt) for pt in sector_pts]
+                pygame.draw.polygon(self.surf[str(np.min([i,1]))], color, point_list) #self.pos2pix(np.r_[pos, arc_pts]))
+                i += 1
             else:
                 pass
 

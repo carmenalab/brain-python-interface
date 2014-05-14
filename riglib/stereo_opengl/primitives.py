@@ -111,3 +111,12 @@ class Cone(TriMesh):
 
         super(Cone, self).__init__(pts, np.array(polys), 
             tcoords=tcoord, normals=normals, **kwargs)
+
+
+## below code added by Sid, only for use with WindowDispl2D class (not Window)
+class Sector(object):
+    def __init__(self, center_pos, radius, ang_range, color):
+        self.center_pos = center_pos
+        self.radius     = radius
+        self.ang_range  = ang_range
+        self.color      = color
