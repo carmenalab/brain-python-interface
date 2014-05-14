@@ -54,7 +54,7 @@ generators = dict(
     centerout_3D=generatorfunctions.centerout_3D,
     outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
     outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
-    CO_2D_discrete_angle=generatorfunctions.centerout_2D_discrete_with_angle,
+    armassist_CO_angle_discrete=generatorfunctions.armassist_centerout_angle_discrete,
 )
 
 # from tasks.rds import RDS, RDS_half
