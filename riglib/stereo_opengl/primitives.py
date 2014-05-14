@@ -120,3 +120,11 @@ class Sector(object):
         self.radius     = radius
         self.ang_range  = ang_range
         self.color      = color
+
+class Line(object):
+    def __init__(self, start_pos, length, angle, width, color):
+        self.start_pos = start_pos
+        self.length    = length
+        self.angle     = angle
+        self.width     = width
+        self.color     = color
