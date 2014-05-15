@@ -8,6 +8,8 @@ import numpy as np
 from riglib.stereo_opengl import ik
 from riglib.bmi import feedback_controllers
 
+from utils.angle_utils import *
+
 class Assister(object):
     '''
     Parent class for various methods of assistive BMI. Children of this class 
@@ -162,52 +164,95 @@ def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5
 
 
 class ArmAssistAssister(Assister):
-    '''
-    Constant velocity toward the target if the cursor is outside the target. If the
-    cursor is inside the target, the speed becomes the distance to the center of the
-    target divided by 2.
-    '''
+    '''Docstring.'''
     def __init__(self, *args, **kwargs):
         self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         self.assist_speed = kwargs.pop('assist_speed', 5.)
         self.target_radius = kwargs.pop('target_radius', 2.)
 
+    # note: current_state and target_state are both length 3, and in aa state space
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-        Bu = None
-        assist_weight = 0.
-
         if assist_level > 0:
-            cursor_pos = np.array(current_state[0:3,0]).ravel()  # in aa state space
-            target_pos = np.array(target_state[0:3,0]).ravel()   # in aa state space
-            decoder_binlen = self.decoder_binlen
-            speed = self.assist_speed
-            target_radius = self.target_radius
-            Bu = endpoint_assist_simple_new(cursor_pos, target_pos, decoder_binlen, speed, target_radius, assist_level)
+            xy_pos = np.array(current_state[0:2,0]).ravel()
+            target_xy_pos = np.array(target_state[0:2,0]).ravel()
+            assist_xy_pos, assist_xy_vel = self.xy_assist(xy_pos, target_xy_pos)
+
+            psi_pos = np.array(current_state[2,0]).ravel()
+            target_psi_pos = np.array(target_state[2,0]).ravel()
+            assist_psi_pos, assist_psi_vel = self.psi_assist(psi_pos, target_psi_pos)
+
+            Bu = assist_level * np.hstack([assist_xy_pos, 
+                                           assist_psi_pos,
+                                           assist_xy_vel,
+                                           assist_psi_vel,
+                                           1])
+
+            Bu = np.mat(Bu.reshape(-1,1))
+
             assist_weight = assist_level
+        else:
+            Bu = None
+            assist_weight = 0.
 
         return Bu, assist_weight
 
-def endpoint_assist_simple_new(cursor_pos, target_pos, decoder_binlen=0.1, speed=5., target_radius=2., assist_level=0.):
+    def xy_assist(self, xy_pos, target_xy_pos):
+        binlen        = self.decoder_binlen
+        speed         = self.assist_speed
+        target_radius = self.target_radius 
 
-    diff_vec = target_pos - cursor_pos
-    dist_to_target = np.linalg.norm(diff_vec)
-    dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+        diff_vec = target_xy_pos - xy_pos
+        dist_to_target = np.linalg.norm(diff_vec)
+        dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
 
-    if dist_to_target > target_radius:
-        assist_cursor_pos = cursor_pos + speed*decoder_binlen*dir_to_target
-    else:
-        frac = dist_to_target/target_radius
-        assist_cursor_pos = cursor_pos + frac*speed*decoder_binlen*dir_to_target
+        if dist_to_target > target_radius:
+            assist_xy_pos = xy_pos + speed*binlen*dir_to_target
+        else:
+            frac = dist_to_target/target_radius
+            assist_xy_pos = xy_pos + frac*speed*binlen*dir_to_target
 
-    assist_cursor_vel = (assist_cursor_pos-cursor_pos)/decoder_binlen
+        assist_xy_vel = (assist_xy_pos - xy_pos)/binlen
 
-    assist_cursor_pos[2] = 0.
-    assist_cursor_vel[2] = 0.
+        return assist_xy_pos, assist_xy_vel
 
-    Bu = assist_level * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
-    Bu = np.mat(Bu.reshape(-1,1))
+    def psi_assist(self, psi_pos, target_psi_pos):
+        binlen = self.decoder_binlen
 
-    return Bu
+        angular_speed = 15*(np.pi/180)  # in rad/s (10 deg/s)
+        cutoff_diff = 5*(np.pi/180)  # in rad (5 deg)
+        psi_diff = angle_subtract(target_psi_pos, psi_pos)
+        
+        if abs(psi_diff) > cutoff_diff:
+            assist_psi_vel = np.sign(psi_diff) * angular_speed
+        else:
+            assist_psi_vel = (psi_diff / cutoff_diff) * angular_speed
+
+        assist_psi_pos = psi_pos + assist_psi_vel*binlen
+
+        return assist_psi_pos, assist_psi_vel
+
+
+# def endpoint_assist_simple_new(cursor_pos, target_pos, decoder_binlen=0.1, speed=5., target_radius=2., assist_level=0.):
+
+#     diff_vec = target_pos - cursor_pos
+#     dist_to_target = np.linalg.norm(diff_vec)
+#     dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+
+#     if dist_to_target > target_radius:
+#         assist_cursor_pos = cursor_pos + speed*decoder_binlen*dir_to_target
+#     else:
+#         frac = dist_to_target/target_radius
+#         assist_cursor_pos = cursor_pos + frac*speed*decoder_binlen*dir_to_target
+
+#     assist_cursor_vel = (assist_cursor_pos-cursor_pos)/decoder_binlen
+
+#     assist_cursor_pos[2] = 0.
+#     assist_cursor_vel[2] = 0.
+
+#     Bu = assist_level * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
+#     Bu = np.mat(Bu.reshape(-1,1))
+
+#     return Bu
 
 
 ## TODO the code below should be a feedback controller equivalent to the "simple" method above

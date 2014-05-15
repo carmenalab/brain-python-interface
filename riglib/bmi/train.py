@@ -928,31 +928,68 @@ def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     '''
     raise NotImplementedError
 
+# def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
+#     n_neurons = units.shape[0]
+#     ###if include_y:
+#     ###    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+#     ###    A = np.array([[1, 0, 0, dt, 0,  0,  0],
+#     ###                  [0, 1, 0, 0,  dt, 0,  0],
+#     ###                  [0, 0, 1, 0,  0,  dt, 0],
+#     ###                  [0, 0, 0, v,  0,  0,  0],
+#     ###                  [0, 0, 0, 0,  v,  0,  0],
+#     ###                  [0, 0, 0, 0,  0,  v,  0],
+#     ###                  [0, 0, 0, 0,  0,  0,  1]])
+#     ###else:
+#     ###    states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
+#     ###    A = np.array([[1, 0, dt, 0, 0],
+#     ###                  [0, 1, 0, dt, 0],
+#     ###                  [0, 0, v,  0, 0],
+#     ###                  [0, 0, 0,  v, 0],
+#     ###                  [0, 0, 0,  0, 1]])
+
+#     states = _ssm.state_names
+#     A, B, W = _ssm.get_ssm_matrices(update_rate=dt)
+#     drives_neurons = _ssm.drives_obs
+#     is_stochastic = _ssm.is_stochastic
+#     bounding_box = _ssm.bounding_box
+#     states_to_bound = _ssm.states_to_bound
+#     nX = _ssm.n_states
+
+#     C = np.random.standard_normal([n_neurons, nX])
+#     C[:, ~drives_neurons] = 0
+#     Q = 10 * np.identity(n_neurons) 
+
+#     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
+
+#     mFR = 0
+#     sdFR = 1
+#     decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
+#         states, drives_neurons, states_to_bound)
+
+#     cm_to_m = 0.01
+#     decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
+#     decoder.kf.S = decoder.kf.C * cm_to_m
+#     decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
+#     decoder.kf.ESS = 3000.
+
+#     cm_to_m = 0.01
+#     m_to_cm = 100.
+#     mm_to_m = 0.001
+#     m_to_mm = 1000.
+#     decoder.kf.C *= cm_to_m
+
+#     decoder.ssm = _ssm
+#     decoder.n_features = n_neurons
+#     return decoder
+
+## added by Sid to replace above version of function (which seems outdated)
 def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
     n_neurons = units.shape[0]
-    ###if include_y:
-    ###    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-    ###    A = np.array([[1, 0, 0, dt, 0,  0,  0],
-    ###                  [0, 1, 0, 0,  dt, 0,  0],
-    ###                  [0, 0, 1, 0,  0,  dt, 0],
-    ###                  [0, 0, 0, v,  0,  0,  0],
-    ###                  [0, 0, 0, 0,  v,  0,  0],
-    ###                  [0, 0, 0, 0,  0,  v,  0],
-    ###                  [0, 0, 0, 0,  0,  0,  1]])
-    ###else:
-    ###    states = ['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset']
-    ###    A = np.array([[1, 0, dt, 0, 0],
-    ###                  [0, 1, 0, dt, 0],
-    ###                  [0, 0, v,  0, 0],
-    ###                  [0, 0, 0,  v, 0],
-    ###                  [0, 0, 0,  0, 1]])
+    binlen = dt
 
-    states = _ssm.state_names
     A, B, W = _ssm.get_ssm_matrices(update_rate=dt)
     drives_neurons = _ssm.drives_obs
     is_stochastic = _ssm.is_stochastic
-    bounding_box = _ssm.bounding_box
-    states_to_bound = _ssm.states_to_bound
     nX = _ssm.n_states
 
     C = np.random.standard_normal([n_neurons, nX])
@@ -963,24 +1000,18 @@ def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
 
     mFR = 0
     sdFR = 1
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
-        states, drives_neurons, states_to_bound)
+    decoder = kfdecoder.KFDecoder(kf, units, _ssm, mFR=mFR, sdFR=sdFR, binlen=binlen)
 
-    cm_to_m = 0.01
     decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
-    decoder.kf.S = decoder.kf.C * cm_to_m
+    decoder.kf.S = decoder.kf.C
     decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
     decoder.kf.ESS = 3000.
-
-    cm_to_m = 0.01
-    m_to_cm = 100.
-    mm_to_m = 0.001
-    m_to_mm = 1000.
-    decoder.kf.C *= cm_to_m
 
     decoder.ssm = _ssm
     decoder.n_features = n_neurons
     return decoder
+
+
 
 def rand_KFDecoder(sim_units, state_units='cm'):
     if not state_units == 'cm': 
