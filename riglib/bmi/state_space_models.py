@@ -172,11 +172,11 @@ class StateSpaceArmAssist(StateSpace):
         super(StateSpaceArmAssist, self).__init__(
             State('wf_px',     stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
             State('wf_py',     stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
-            State('wf_ang_pz', stochastic=False, drives_obs=False, order=0, min_val=-pi,  max_val=pi),
-            State('wf_vx',     stochastic=True,  drives_obs=True,  order=1),
-            State('wf_vy',     stochastic=True,  drives_obs=True,  order=1),
-            State('wf_ang_vz', stochastic=False, drives_obs=False, order=1),
-            # State('wf_ang_vz', stochastic=True,  drives_obs=True,  order=1),
+            State('wf_ang_pz', stochastic=False, drives_obs=False, order=0), #, min_val=-pi,  max_val=pi),  # bound, or no?
+            State('wf_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-2,   max_val=2),
+            State('wf_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-2,   max_val=2),
+            # State('wf_ang_vz', stochastic=False, drives_obs=False, order=1),
+            State('wf_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
             offset_state
         )
 
