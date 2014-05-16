@@ -435,6 +435,12 @@ def get_decoders_trained_in_block(task_entry):
     if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
     return decoder_objects
 
+def get_records_of_trained_decoders(task_entry):
+    task_entry = lookup_task_entries(task_entry)
+    records = models.Decoder.objects.filter(entry_id=task_entry.id)
+    if len(records) == 1: 
+        records = records[0]
+    return records
 
 
 class TaskMessages(object):
