@@ -323,7 +323,9 @@ class PlanarXZKinematicChain(KinematicChain):
         angles = distal_angles.copy()
         joint_angles = proximal_angles.tolist()
         angles[0] -= np.sum(proximal_angles)
-        return np.hstack([proximal_angles, angles])
+        ik_angles = np.hstack([proximal_angles, angles])
+        ik_angles = np.array([np.arctan2(np.sin(angle), np.cos(angle)) for angle in ik_angles])
+        return ik_angles
 
     def jacobian(self, theta):
         l = self.link_lengths
