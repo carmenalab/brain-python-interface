@@ -115,11 +115,12 @@ class Cone(TriMesh):
 
 ## below code added by Sid, only for use with WindowDispl2D class (not Window)
 class Sector(object):
-    def __init__(self, center_pos, radius, ang_range, color):
+    def __init__(self, center_pos, radius, ang_range, color, visible=True):
         self.center_pos = center_pos
         self.radius     = radius
         self.ang_range  = ang_range
         self.color      = color
+        self.visible    = visible
 
 class Line(object):
     def __init__(self, start_pos, length, angle, width, color):

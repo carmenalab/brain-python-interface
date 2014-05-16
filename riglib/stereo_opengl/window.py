@@ -229,19 +229,20 @@ class WindowDispl2D(Window):
                 pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
                 i += 1
             elif isinstance(model, Sector):
-                center_pos = model.center_pos[[0,2]]
-                color = tuple(map(lambda x: int(255*x), model.color[0:3]))
-                
-                start_angle = model.ang_range[0]
-                stop_angle  = model.ang_range[1]
-                radius = model.radius
+                if model.visible:
+                    center_pos = model.center_pos[[0,2]]
+                    color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+                    
+                    start_angle = model.ang_range[0]
+                    stop_angle  = model.ang_range[1]
+                    radius = model.radius
 
-                arc_angles = np.linspace(start_angle, stop_angle, 100)
-                sector_pts = list(center_pos + radius*np.c_[np.cos(arc_angles), np.sin(arc_angles)])
-                sector_pts.append(center_pos)
-                point_list = [self.pos2pix(pt) for pt in sector_pts]
-                pygame.draw.polygon(self.surf[str(np.min([i,1]))], color, point_list)
-                i += 1
+                    arc_angles = np.linspace(start_angle, stop_angle, 100)
+                    sector_pts = list(center_pos + radius*np.c_[np.cos(arc_angles), np.sin(arc_angles)])
+                    sector_pts.append(center_pos)
+                    point_list = [self.pos2pix(pt) for pt in sector_pts]
+                    pygame.draw.polygon(self.surf[str(np.min([i,1]))], color, point_list)
+                    i += 1
             elif isinstance(model, Line):
                 start_pos = model.start_pos[[0,2]]
                 angle = model.angle
