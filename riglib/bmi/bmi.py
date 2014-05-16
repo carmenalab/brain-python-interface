@@ -100,6 +100,9 @@ class GaussianStateHMM(object):
         self.A = A
         self.W = W
 
+    def get_mean(self):                                                                                                                                                                                        
+        return np.array(self.state.mean).ravel()      
+
     def _init_state(self, init_state=None, init_cov=None):
         """
         Initialize the state of the filter with a mean and covariance (uncertainty)
