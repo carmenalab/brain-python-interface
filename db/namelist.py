@@ -62,6 +62,8 @@ generators = dict(
 # from tasks.redgreen import RedGreen, EyeCal
 # from tasks.button import ButtonTask
 
+from tasks import blackrocktasks
+
 tasks = dict(
     dots=tasks.Dots,
     rds=tasks.RDS,
@@ -85,7 +87,7 @@ tasks = dict(
     manual_control_2 = tasks.ManualControl2,
     visual_feedback = tasks.VisualFeedback,
     # visual_feedback_multi = tasks.VisualFeedbackMulti,
-    visual_feedback_multi = tasks.blackrocktasks.VisualFeedbackMulti,
+    visual_feedback_multi = blackrocktasks.VisualFeedbackMulti,
     clda_auto_assist = tasks.CLDAAutoAssist,
     clda_constrained_sskf = tasks.CLDAConstrainedSSKF,
     sim_clda_control = tasks.SimCLDAControl,
@@ -98,10 +100,12 @@ tasks = dict(
     joystick_move = tasks.JoystickMove,
     joystick_multi_plus_move = tasks.JoystickMulti_plusMove,
     joystick_multi_directed = tasks.JoystickMulti_Directed,
-    bmi_control_multi = tasks.BMIControlMulti,
+    # bmi_control_multi = tasks.BMIControlMulti,
+    bmi_control_multi = blackrocktasks.BMIControlMulti,
     bmi_manipulated_feedback = tasks.BMIControlManipulatedFB,
     clda_ppf_manipulated_feedback = tasks.CLDAControlPPFContAdaptMFB,
-    clda_control_multi = tasks.CLDAControlMulti,
+    # clda_control_multi = tasks.CLDAControlMulti,
+    clda_control_multi = blackrocktasks.CLDAControlMulti,
     sim_clda_control_multi = tasks.SimCLDAControlMulti,
     clda_rml_kf = tasks.CLDARMLKF,
     clda_cont_ppf= tasks.CLDAControlPPFContAdapt,
