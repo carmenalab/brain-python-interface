@@ -171,7 +171,10 @@ class ArmAssistAssister(Assister):
         self.target_radius = kwargs.pop('target_radius', 2.)
 
     # note: current_state and target_state are both length 3, and in aa state space
+    # TODO: above note is WRONG! length 7!
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        # print 'current_state.shape', current_state.shape
+        # print 'target_state.shape', target_state.shape
         if assist_level > 0:
             xy_pos = np.array(current_state[0:2,0]).ravel()
             target_xy_pos = np.array(target_state[0:2,0]).ravel()

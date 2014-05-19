@@ -12,6 +12,7 @@ import cmath
 from itertools import izip
 import tables
 import re
+import assist
 
 
 inv = np.linalg.inv
@@ -323,69 +324,30 @@ class CursorGoalLearner2(BatchLearner):
 
 class ArmAssistLearner(BatchLearner):
     def __init__(self, *args, **kwargs):
-        # self.int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
-        # if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
-        #     raise ValueError("Unknown type of speed for cursor goal: %s" % self.int_speed_type)
-        super(CursorGoalLearner2, self).__init__(*args, **kwargs)
+        decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
+        assist_speed   = kwargs.pop('assist_speed', 5.)
+        target_radius  = kwargs.pop('target_radius', 2.)
+        assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
+        self.assister = assist.ArmAssistAssister(**assister_kwargs)
 
-        if self.int_speed_type == 'dist_to_target':
-            self.input_state_index = 0
+        super(ArmAssistLearner, self).__init__(*args, **kwargs)
+
+        self.input_state_index = 0  # TODO: 0 or -1?
 
     def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        """
-        Calculate the intended kinematics and pair with the neural data
-        """
-        if state_order is None:
-            raise ValueError("New cursor goal requires state order to be specified!")
+        """Calculate/estimate the intended ArmAssist kinematics."""
+        current_state = decoder_state[:, None]  # assister expects shape to be (7, 1)
+        target_state  = target_state[:, None]   # assister expects shape to be (7, 1)
+        intended_state = self.assister(current_state, target_state, 1)[0]
+        intended_state = intended_state.ravel()  # want shape to be (7,)
 
-        # The intended direction (abstract space) from the current state of the decoder to the target state for the task
-        int_dir = target_state - decoder_state
-        vel_inds, = np.nonzero(state_order == 1)
-        pos_inds, = np.nonzero(state_order == 0)
-        
-        # Calculate intended speed
-        if task_state in ['hold', 'origin_hold', 'target_hold']:
-            speed = 0
-        elif task_state in ['target', 'origin', 'terminus']:
-            if self.int_speed_type == 'dist_to_target':
-                speed = np.linalg.norm(int_dir[pos_inds])
-            elif self.int_speed_type == 'decoded_speed':
-                speed = np.linalg.norm(decoder_output[vel_inds])
-        else:
-            speed = np.nan
+        return intended_state
 
-        int_vel = speed*normalize(int_dir[pos_inds])
-        int_kin = np.hstack([decoder_output[pos_inds], int_vel, 1])
+    def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        '''Calculate the intended kinematics and pair with the neural data.'''
+        super(ArmAssistLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
 
-        if np.any(np.isnan(int_kin)):
-            int_kin = None
 
-        return int_kin
-
-    def __call__(self, spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        """
-        Calculate the intended kinematics and pair with the neural data
-        """
-        if state_order is None:
-            raise ValueError("CursorGoalLearner2.__call__ requires state order to be specified!")
-        super(CursorGoalLearner2, self).__call__(spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
-        # int_kin = self.calc_int_kin(decoder_state, target_state, decoder_output, task_state, state_order=state_order)
-        
-        # if self.enabled and int_kin is not None:
-        #     n_subbins = spike_counts.shape[1]
-        #     for k in range(n_subbins):
-        #         self.kindata.append(int_kin)
-        #     self.neuraldata.append(spike_counts)
-
-    # def is_ready(self):
-    #     return len(self.kindata) >= self.batch_size
-
-    # def get_batch(self):
-    #     kindata = np.vstack(self.kindata).T
-    #     neuraldata = np.hstack(self.neuraldata)
-    #     self.kindata = []
-    #     self.neuraldata = []
-    #     return kindata, neuraldata    
 
 ##############################################################################
 ## Updaters
