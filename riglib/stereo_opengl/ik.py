@@ -133,33 +133,38 @@ class RobotArmGen2D(Group):
         self.curr_vecs[0,2] = self.link_lengths[0]
         self.curr_vecs[1:,0] = self.link_lengths[1:]
 
-        # Create links for all but most distal link
+        # Create links
         self.links = []
 
         for i in range(self.num_joints):
             joint = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
+
+            # The most distal link gets a tapered cylinder (for purely stylistic reasons)
             if i < self.num_joints - 1:
                 link = Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i])
-                link_i = Group((link, joint))
-                self.links.append(link_i)
+                # link_i = Group((link, joint))
+                # self.links.append(link_i)
             else:
-                cone = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
+                link = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
                 # sphere = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
-                distal_link = Group((cone, joint)).translate(0, 0, self.link_lengths[-2])
-                self.links.append(distal_link)                
-        # self.links = [Group((Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i]), Sphere(radius=self.joint_radii[i],color=self.joint_colors[i]))) for i in range(self.num_joints-1)]
-        
-        # Add distal link as a cone instead of cylinder
-        # cone = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
-        # sphere = Sphere(radius=self.joint_radii[-1], color=self.joint_colors[-1])
-        # distal_link = Group((cone, sphere)).translate(0, 0, self.link_lengths[-2])
-        # self.links.append(distal_link)
-        
-        self.link_groups = [self.links[-1]]
+            link_i = Group((link, joint))
+            self.links.append(link_i)
+
+        self.link_groups = [self.links[-1].translate(0, 0, self.link_lengths[-2])]
         for i in range(1, self.num_joints-1):
-            self.link_groups = self.link_groups + [Group([self.links[-i-1], self.link_groups[i-1]]).translate(0,0,self.link_lengths[-i-2])]
-        self.link_groups = self.link_groups + [Group([self.links[0], self.link_groups[2]])]
+            # Declare the group
+            new_group = Group([self.links[-i-1], self.link_groups[i-1]])
+            
+            # Move to the end of the chain
+            new_group.translate(0, 0, self.link_lengths[-i-2])
+
+            self.link_groups.append(new_group)
+
+        self.link_groups = self.link_groups + [Group([self.links[0], self.link_groups[-1]])]
+
+        # Put the most proximal links at the beginning of the list
         self.link_groups.reverse()
+
 
         # Call the parent constructor
         super(RobotArmGen2D, self).__init__([self.link_groups[0]], **kwargs)
@@ -174,11 +179,30 @@ class RobotArmGen2D(Group):
             # TODO the code below is (obviously) specific to a 4-joint chain
             self.kin_chain.joint_limits = [(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)]
 
+
+        # self.links = [Group((Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i]), Sphere(radius=self.joint_radii[i],color=self.joint_colors[i]))) for i in range(self.num_joints-1)]
+        
+        # Add distal link as a cone instead of cylinder
+        # cone = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
+        # sphere = Sphere(radius=self.joint_radii[-1], color=self.joint_colors[-1])
+        # distal_link = Group((cone, sphere)).translate(0, 0, self.link_lengths[-2])
+        # self.links.append(distal_link)
+
     def _update_links(self):
-        self.link_groups[0].xfm.rotate = Quaternion.rotate_vecs((0,0,1), self.curr_vecs[0]).norm()
-        self.link_groups[0]._recache_xfm()
-        for i in range(1, self.num_joints):
-            self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs((1,0,0), self.curr_vecs[i]).norm()
+        for i in range(0, self.num_joints):
+            # Rotate each joint to the vector specified by the corresponding row in self.curr_vecs
+            # Annoyingly, the baseline orientation of the first group is always different from the 
+            # more distal attachments, so the rotations have to be found relative to the orientation 
+            # established at instantiation time.
+            if i == 0:
+                baseline_orientation = (0, 0, 1)
+            else:
+                baseline_orientation = (1, 0, 0)
+
+            # Find the normalized quaternion that represents the desired joint rotation
+            self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs(baseline_orientation, self.curr_vecs[i]).norm()
+
+            # Recompute any cached transformations after the change
             self.link_groups[i]._recache_xfm()
 
     def get_endpoint_pos(self):
