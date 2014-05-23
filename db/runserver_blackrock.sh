@@ -1,13 +1,12 @@
 #!/bin/bash
 DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
-# if [[ -z `mount | grep /storage/blackrock` ]]
-#     then
-#     sudo mount /storage/blackrock
-# fi
+if [[ -z `mount | grep /storage/blackrock` ]]
+    then
+    sudo mount /storage/blackrock
+fi
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
 MANAGER=$HOME/code/bmi3d/db/manage.py
-#MANAGER=manage.py
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)

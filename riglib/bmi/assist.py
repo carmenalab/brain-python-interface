@@ -176,12 +176,12 @@ class ArmAssistAssister(Assister):
         # print 'current_state.shape', current_state.shape
         # print 'target_state.shape', target_state.shape
         if assist_level > 0:
-            xy_pos = np.array(current_state[0:2,0]).ravel()
-            target_xy_pos = np.array(target_state[0:2,0]).ravel()
+            xy_pos = np.array(current_state[0:2, 0]).ravel()
+            target_xy_pos = np.array(target_state[0:2, 0]).ravel()
             assist_xy_pos, assist_xy_vel = self.xy_assist(xy_pos, target_xy_pos)
 
-            psi_pos = np.array(current_state[2,0]).ravel()
-            target_psi_pos = np.array(target_state[2,0]).ravel()
+            psi_pos = np.array(current_state[2, 0]).ravel()
+            target_psi_pos = np.array(target_state[2, 0]).ravel()
             assist_psi_pos, assist_psi_vel = self.psi_assist(psi_pos, target_psi_pos)
 
             Bu = assist_level * np.hstack([assist_xy_pos, 
@@ -190,7 +190,7 @@ class ArmAssistAssister(Assister):
                                            assist_psi_vel,
                                            1])
 
-            Bu = np.mat(Bu.reshape(-1,1))
+            Bu = np.mat(Bu.reshape(-1, 1))
 
             assist_weight = assist_level
         else:

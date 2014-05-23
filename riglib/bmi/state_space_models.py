@@ -186,7 +186,7 @@ class StateSpaceArmAssist(StateSpace):
 
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(3))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 3])])
         return A, B, W
 
 

@@ -32,10 +32,9 @@ class ArmAssistControlGoal(object):
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
-        target_vel = np.array([0, 0, 0])
+        target_vel = np.array([0, 0, 0])  # TODO -- may not always want zero velocity 
         offset_val = 1
         error = 0
-        # target_pos = np.array([target_pos[0], target_pos[2], 0.])  # old, not needed anymore
         target_state = np.hstack([target_pos, target_vel, 1])
         return (target_state, error), True
 
