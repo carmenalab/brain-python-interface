@@ -207,10 +207,13 @@ class KalmanFilter(bmi.GaussianStateHMM):
         data = dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
                     C_xpose_Q_inv=self.C_xpose_Q_inv, 
                     C_xpose_Q_inv_C=self.C_xpose_Q_inv_C)
-        data['R'] = self.R
-        data['S'] = self.S
-        data['T'] = self.T
-        data['ESS'] = self.ESS
+        try:
+            data['R'] = self.R
+            data['S'] = self.S
+            data['T'] = self.T
+            data['ESS'] = self.ESS
+        except:
+            pass
         return data
 
     @classmethod

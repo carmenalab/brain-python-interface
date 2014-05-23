@@ -20,7 +20,17 @@ class KalmanFilterWithReset(kfdecoder.KalmanFilter):
         return obj
 
     def __getstate__(self):
-        raise NotImplementedError("need to add clf and threshold and reset state to dict")     
+        data = super(KalmanFilterWithReset, self).__getstate__()
+        data['clf'] = self.clf
+        data['threshold'] = self.threshold
+        data['reset_state'] = self.reset_state
+        return data
+
+    def __setstate__(self, state):
+        self.clf = state['clf']
+        self.threshold = state['threshold']
+        self.reset_state = state['reset_state']
+        super(KalmanFilterWithReset, self).__setstate__(state)
 
     def _pickle_init(self):
         super(KalmanFilterWithReset, self)._pickle_init()
@@ -58,6 +68,7 @@ class KalmanFilterWithReset(kfdecoder.KalmanFilter):
             self.state = self._forward_infer(self.state, obs, **kwargs)
         else:
             ## Drive state toward the specified reset state by hijacking the "assist" forcing term input
+            print 'driving toward init state!'
             if 'Bu' in kwargs: kwargs.pop('Bu')
             if 'assist_level' in kwargs: kwargs.pop('assist_level')
             Bu, assist_weight = self.resetter(self.state.mean, self.reset_state, 0.3, mode='target')            
