@@ -162,7 +162,7 @@ class RobotArmGen2D(Group):
 
         # Instantiate the kinematic chain object
         if self.num_joints == 2:
-            self.kin_chain = robot_arms.PlanarXZKinematicChain2Link(link_lengths, base_loc=base_loc)
+            self.kin_chain = robot_arms.PlanarXZKinematicChain(link_lengths)
             self.kin_chain.joint_limits = [(-pi,pi), (-pi,0)]
         else:
             self.kin_chain = robot_arms.PlanarXZKinematicChain(link_lengths)
@@ -213,7 +213,7 @@ class RobotArmGen2D(Group):
 
     def perform_ik(self, pos, **kwargs):
         angles = self.kin_chain.inverse_kinematics(pos, q_start=-self.get_joint_pos(), verbose=False, eps=0.008, **kwargs)
-        print self.kin_chain.endpoint_pos(angles)
+        # print self.kin_chain.endpoint_pos(angles)
 
         # Negate the angles. The convention in the robotics library is 
         # inverted, i.e. in the robotics library, positive is clockwise 
