@@ -248,9 +248,9 @@ class OFCLearnerTentacle(OFCLearner):
     def __init__(self, batch_size, A, B, Q, R, *args, **kwargs):
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
         F_dict = RegexKeyDict()
-        F_dict['target'] = F
-        F_dict['hold'] = F
-        # F_dict['.*'] = F
+        # F_dict['target'] = F
+        # F_dict['hold'] = F
+        F_dict['.*'] = F
         super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
 class CursorGoalLearner2(BatchLearner):
