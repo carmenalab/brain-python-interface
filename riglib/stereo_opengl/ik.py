@@ -150,21 +150,30 @@ class RobotArmGen2D(Group):
             link_i = Group((link, joint))
             self.links.append(link_i)
 
-        self.link_groups = [self.links[-1].translate(0, 0, self.link_lengths[-2])]
-        for i in range(1, self.num_joints-1):
-            # Declare the group
-            new_group = Group([self.links[-i-1], self.link_groups[i-1]])
+        # self.link_groups = [self.links[-1].translate(0, 0, self.link_lengths[-2])]
+        # link_offsets = [0] + self.link_lengths[:-1]
+        # for i in range(1, self.num_joints-1):
+        #     # Declare the group
+        #     new_group = Group([self.links[-i-1], self.link_groups[i-1]])
             
-            # Move to the end of the chain
-            new_group.translate(0, 0, self.link_lengths[-i-2])
+        #     # Move to the end of the chain
+        #     new_group.translate(0, 0, self.link_lengths[-i-2])
 
-            self.link_groups.append(new_group)
+        #     self.link_groups.append(new_group)
 
-        self.link_groups = self.link_groups + [Group([self.links[0], self.link_groups[-1]])]
+        # self.link_groups = self.link_groups + [Group([self.links[0], self.link_groups[-1]])]
 
-        # Put the most proximal links at the beginning of the list
-        self.link_groups.reverse()
+        # # Put the most proximal links at the beginning of the list
+        # self.link_groups.reverse()
 
+        self.link_groups = [None]*self.num_joints
+        for i in range(self.num_joints)[::-1]:
+            if i == self.num_joints-1:
+                self.link_groups[i] = self.links[i]
+            else:
+                self.link_groups[i] = Group([self.links[i], self.link_groups[i+1]])
+
+            self.link_groups[i].translate(0, 0, link_offsets[i])
 
         # Call the parent constructor
         super(RobotArmGen2D, self).__init__([self.link_groups[0]], **kwargs)
