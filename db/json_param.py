@@ -35,7 +35,14 @@ def norm_trait(trait, value):
         value = tuple(value)
         
     #use Cast to validate the value
-    return trait.cast(value)
+    try:
+        return trait.cast(value)
+    except:
+        print value
+        import traceback
+        traceback.print_exc()
+        raise Exception
+
 
 def _parse_str(value):
     try:
