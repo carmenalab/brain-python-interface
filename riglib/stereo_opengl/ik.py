@@ -142,30 +142,12 @@ class RobotArmGen2D(Group):
             # The most distal link gets a tapered cylinder (for purely stylistic reasons)
             if i < self.num_joints - 1:
                 link = Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i])
-                # link_i = Group((link, joint))
-                # self.links.append(link_i)
             else:
                 link = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
-                # sphere = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
             link_i = Group((link, joint))
             self.links.append(link_i)
 
-        # self.link_groups = [self.links[-1].translate(0, 0, self.link_lengths[-2])]
-        # link_offsets = [0] + self.link_lengths[:-1]
-        # for i in range(1, self.num_joints-1):
-        #     # Declare the group
-        #     new_group = Group([self.links[-i-1], self.link_groups[i-1]])
-            
-        #     # Move to the end of the chain
-        #     new_group.translate(0, 0, self.link_lengths[-i-2])
-
-        #     self.link_groups.append(new_group)
-
-        # self.link_groups = self.link_groups + [Group([self.links[0], self.link_groups[-1]])]
-
-        # # Put the most proximal links at the beginning of the list
-        # self.link_groups.reverse()
-
+        link_offsets = [0] + self.link_lengths[:-1]
         self.link_groups = [None]*self.num_joints
         for i in range(self.num_joints)[::-1]:
             if i == self.num_joints-1:
@@ -187,15 +169,6 @@ class RobotArmGen2D(Group):
 
             # TODO the code below is (obviously) specific to a 4-joint chain
             self.kin_chain.joint_limits = [(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)]
-
-
-        # self.links = [Group((Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i]), Sphere(radius=self.joint_radii[i],color=self.joint_colors[i]))) for i in range(self.num_joints-1)]
-        
-        # Add distal link as a cone instead of cylinder
-        # cone = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
-        # sphere = Sphere(radius=self.joint_radii[-1], color=self.joint_colors[-1])
-        # distal_link = Group((cone, sphere)).translate(0, 0, self.link_lengths[-2])
-        # self.links.append(distal_link)
 
     def _update_links(self):
         for i in range(0, self.num_joints):
