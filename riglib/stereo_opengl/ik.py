@@ -221,8 +221,8 @@ class RobotArmGen2D(Group):
         self._update_links()
 
     def drive(self, decoder):
-        self.set_arm_joints(decoder['q'])
-        decoder['q'] = self.get_arm_joints()
+        self.set_joint_pos(decoder['q'])
+        decoder['q'] = self.get_joint_pos()
 
 # class RobotArm2J2D(RobotArmGen2D):
 #     pass
