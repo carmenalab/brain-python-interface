@@ -177,6 +177,9 @@ class RobotArmGen2D(Plant, Group):
             # TODO the code below is (obviously) specific to a 4-joint chain
             self.kin_chain.joint_limits = [(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)]
 
+        self.base_loc = base_loc
+        self.translate(*self.base_loc, reset=True)
+
     def _update_links(self):
         for i in range(0, self.num_joints):
             # Rotate each joint to the vector specified by the corresponding row in self.curr_vecs
@@ -199,7 +202,7 @@ class RobotArmGen2D(Plant, Group):
         Returns the current position of the non-anchored end of the arm.
         '''
         relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
-        return self.perform_fk(relangs)      
+        return self.perform_fk(relangs) + self.base_loc
 
     def perform_fk(self, angs):
         absvecs = np.zeros(self.curr_vecs.shape)
@@ -219,7 +222,7 @@ class RobotArmGen2D(Plant, Group):
             self.set_joint_pos(angles)
 
     def perform_ik(self, pos, **kwargs):
-        angles = self.kin_chain.inverse_kinematics(pos, q_start=-self.get_joint_pos(), verbose=False, eps=0.008, **kwargs)
+        angles = self.kin_chain.inverse_kinematics(pos - self.base_loc, q_start=-self.get_joint_pos(), verbose=False, eps=0.008, **kwargs)
         # print self.kin_chain.endpoint_pos(angles)
 
         # Negate the angles. The convention in the robotics library is 
@@ -385,13 +388,14 @@ class RobotArm(Group):
 
 chain_kwargs = dict(link_radii=.6, joint_radii=0.6, joint_colors=(181/256., 116/256., 96/256., 1), link_colors=(181/256., 116/256., 96/256., 1))
 
-chain_15_15_5_5 = RobotArmGen2D(link_lengths=[15, 15, 5, 5], **chain_kwargs)
+shoulder_anchor = np.array([2., 0., -15])
+
+chain_15_15_5_5 = RobotArmGen2D(link_lengths=[15, 15, 5, 5], base_loc=shoulder_anchor, **chain_kwargs)
 init_joint_pos = np.array([ 0.47515737,  1.1369006 ,  1.57079633,  0.29316668])
 chain_15_15_5_5.set_joint_pos(init_joint_pos)
 
-chain_20_20 = RobotArmGen2D(link_lengths=[20, 20], **chain_kwargs)
+chain_20_20 = RobotArmGen2D(link_lengths=[20, 20], base_loc=shoulder_anchor, **chain_kwargs)
 starting_pos = np.array([5., 0., 5])
-shoulder_anchor = np.array([2., 0., -15])
 chain_20_20.set_endpoint_pos(starting_pos - shoulder_anchor, n_iter=10, n_particles=500)
 
 cursor = CursorPlant()
