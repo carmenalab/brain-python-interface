@@ -51,18 +51,10 @@ def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
     angles['sh_pabd'] = sh_pabd
     angles['el_pflex'] = el_pflex
     if np.any(np.isnan(angles['el_pflex'])) or np.any(np.isnan(angles['sh_pabd'])):
-        # print "position = ", pos
-        # print "angles = ", angles['el_pflex'], angles['sh_pabd']
-        # print "L = ", L
-        # print "cos_el_pflex = ", cos_el_pflex
-        # print "np.arctan2(z, x = ", (np.arctan2(z, x))
-        # print "np.arcsin(l_forearm * np.sin(np.pi - el_pflex) = ", (np.arcsin(l_forearm * np.sin(np.pi - el_pflex)))
         pass
 
     if vel is not None:
         joint_vel = np.zeros(len(pos), dtype=joint_vel_dtype)
-        # if len(vel) > 0:
-        #     raise NotImplementedError
         
         # Calculate the jacobian
         for k, angle in enumerate(angles):
@@ -80,8 +72,6 @@ def inv_kin_2D(pos, l_upperarm, l_forearm, vel=None):
         return angles, joint_vel
     else:
         return angles    
-
-
 
 def make_list(value, num_joints):
     '''
@@ -250,18 +240,6 @@ class RobotArmGen2D(Plant, Group):
                 self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
                 
         self._update_links()
-
-    def drive(self, decoder):
-        self.set_joint_pos(decoder['q'])
-        decoder['q'] = self.get_joint_pos()
-
-
-class RobotArm2J2D(RobotArmGen2D):
-    pass
-
-
-class RobotArm2D(RobotArmGen2D):
-    pass
 
 
 class TwoJoint(object):
