@@ -334,7 +334,8 @@ class ArmAssistLearner(BatchLearner):
 
         super(ArmAssistLearner, self).__init__(*args, **kwargs)
 
-        self.input_state_index = 0  # TODO: 0 or -1?
+        # self.input_state_index = 0  # TODO: 0 or -1?
+        self.input_state_index = -1  # TODO: 0 or -1?
 
     def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
         """Calculate/estimate the intended ArmAssist kinematics."""
@@ -373,8 +374,9 @@ class ArmAssistOFCLearner(OFCLearner):
 
         super(ArmAssistOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
-        # TODO -- include this line?
-        self.input_state_index = 0
+        # TODO -- 0 or -1?
+        # self.input_state_index = 0
+        self.input_state_index = -1
     
     def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
         '''Overriding to account for proper subtraction of angles.'''
