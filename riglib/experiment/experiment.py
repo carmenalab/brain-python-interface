@@ -14,6 +14,13 @@ import tables
 import numpy as np
 from . import traits
 
+try:
+    import pygame
+except ImportError:
+    import warnings
+    warnings.warn("experiment.py: Cannot import 'pygame'")
+
+
 class Experiment(traits.HasTraits, threading.Thread):
     status = dict(
         wait = dict(start_trial="trial", premature="penalty", stop=None),
@@ -25,6 +32,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     stop = False
     exclude_parent_traits = []
     ordered_traits = []
+    fps = 60
 
     def __init__(self, **kwargs):
         traits.HasTraits.__init__(self, **kwargs)
@@ -38,6 +46,8 @@ class Experiment(traits.HasTraits, threading.Thread):
 
         # Attribute for task entry dtype. See SaveHDF feature
         self.dtype = []
+
+        self.clock = pygame.time.Clock()        
 
     @classmethod
     def class_editable_traits(cls):
@@ -115,6 +125,8 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def _cycle(self):
         self.cycle_count += 1
+        if self.fps > 0:
+            self.clock.tick(self.fps)
 
     def iter_time(self):
         '''
