@@ -145,6 +145,10 @@ class DataSource(mp.Process):
 
 
 class MultiChanDataSource(mp.Process):
+'''
+Docstring -- TODO. Note that kwargs['channels'] does not need to a list of integers,
+it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
+'''
     def __init__(self, source, bufferlen=1, **kwargs):
         super(MultiChanDataSource, self).__init__()
         self.name = source.__module__.split('.')[-1]
@@ -173,6 +177,8 @@ class MultiChanDataSource(mp.Process):
         self.stream = mp.Event()
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+
+        print 'reached here'
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
@@ -218,6 +224,8 @@ class MultiChanDataSource(mp.Process):
                 #   data is a numpy array with a dtype (or subdtype) of
                 #   self.source.dtype
                 chan, data = system.get()
+                # print 'chan:', chan
+                # print 'data:', data
                 # for now, assume no multi-channel data source is registered
                 # TODO -- how to send MCDS data to a sink? (problem is that
                 #    "data" has a variable length each time and has no 
