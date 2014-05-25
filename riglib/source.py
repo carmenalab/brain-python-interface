@@ -224,8 +224,6 @@ it can also be a list of strings (e.g., see feedback multi-chan data source for 
                 #   data is a numpy array with a dtype (or subdtype) of
                 #   self.source.dtype
                 chan, data = system.get()
-                # print 'chan:', chan
-                # print 'data:', data
                 # for now, assume no multi-channel data source is registered
                 # TODO -- how to send MCDS data to a sink? (problem is that
                 #    "data" has a variable length each time and has no 

@@ -365,7 +365,7 @@ class ArmAssistOFCLearner(OFCLearner):
         self.Q = Q
         
         # TODO -- scaling?
-        R = 1e6 * np.mat(np.diag([1., 1., 10.]))
+        R = 1e7 * np.mat(np.diag([1., 1., 1.]))
         self.R = R
 
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
