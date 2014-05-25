@@ -88,12 +88,13 @@ arm_radius = 0.6
 
 class Plant(object):
     def drive(self, decoder):
-        self.set_joint_pos(decoder['q'])
-        decoder['q'] = self.get_joint_pos()
+        self.set_intrinsic_coordinates(decoder['q'])
+        decoder['q'] = self.get_intrinsic_coordinates()
 
 
 class CursorPlant(Plant):
-    def __init__(self, **kwargs):
+    def __init__(self, endpt_bounds=None, **kwargs):
+        self.endpt_bounds = endpt_bounds
         self.position = np.zeros(3)
 
     def get_endpoint_pos(self):
@@ -102,11 +103,25 @@ class CursorPlant(Plant):
     def set_endpoint_pos(self, pt, **kwargs):
         self.position = pt
 
-    def get_joint_pos(self):
+    def get_intrinsic_coordinates(self):
         return self.position
 
-    def set_joint_pos(self, theta):
-        raise ValueError("Cursor has no joints!")
+    def set_intrinsic_coordinates(self, pt):
+        self.position = pt
+
+    def drive(self, decoder):
+        pos = decoder['q'].copy()
+        
+        if self.endpt_bounds is not None:
+            if pos[0] < self.endpt_bounds[0]: pos[0] = self.endpt_bounds[0]
+            if pos[0] > self.endpt_bounds[1]: pos[0] = self.endpt_bounds[1]
+            if pos[1] < self.endpt_bounds[2]: pos[1] = self.endpt_bounds[2]
+            if pos[1] > self.endpt_bounds[3]: pos[1] = self.endpt_bounds[3]
+            if pos[2] < self.endpt_bounds[4]: pos[2] = self.endpt_bounds[4]
+            if pos[2] > self.endpt_bounds[5]: pos[2] = self.endpt_bounds[5]
+        
+        decoder['q'] = bounded_pos
+        super(CursorPlant, self).drive(decoder)
 
 
 class RobotArmGen2D(Plant, Group):
@@ -209,10 +224,10 @@ class RobotArmGen2D(Plant, Group):
             angles = self.perform_ik(pos, **kwargs)
 
             # Update the joint configuration    
-            self.set_joint_pos(angles)
+            self.set_intrinsic_coordinates(angles)
 
     def perform_ik(self, pos, **kwargs):
-        angles = self.kin_chain.inverse_kinematics(pos - self.base_loc, q_start=-self.get_joint_pos(), verbose=False, eps=0.008, **kwargs)
+        angles = self.kin_chain.inverse_kinematics(pos - self.base_loc, q_start=-self.get_intrinsic_coordinates(), verbose=False, eps=0.008, **kwargs)
         # print self.kin_chain.endpoint_pos(angles)
 
         # Negate the angles. The convention in the robotics library is 
@@ -224,14 +239,14 @@ class RobotArmGen2D(Plant, Group):
     def calc_joint_angles(self, vecs):
         return np.arctan2(vecs[:,2], vecs[:,0])
 
-    def get_joint_pos(self):
+    def get_intrinsic_coordinates(self):
         '''
         Returns the joint angles of the arm in radians
         '''
         
         return self.calc_joint_angles(self.curr_vecs)
         
-    def set_joint_pos(self,theta):
+    def set_intrinsic_coordinates(self,theta):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
         '''
@@ -241,6 +256,21 @@ class RobotArmGen2D(Plant, Group):
                 
         self._update_links()
 
+
+class RobotArm2J2D(RobotArmGen2D):
+    def drive(self, decoder):
+        raise NotImplementedError("deal with the state bounding stuff!")
+        # elif self.decoder.ssm == train.joint_2D_state_space:
+        #     self.set_arm_joints(self.decoder['sh_pabd', 'el_pflex'])
+
+        #     # Force the arm to a joint configuration where the cursor is on-screen
+        #     pos = self.get_arm_endpoint()
+        #     pos = self.apply_cursor_bounds(pos)
+        #     self.set_arm_endpoint(pos)
+
+        #     # Reset the decoder state to match the joint configuration of the arm
+        #     joint_pos = self.get_arm_joints()
+        #     self.decoder['sh_pabd', 'el_pflex'] = joint_pos
 
 class TwoJoint(object):
     '''Models a two-joint IK system (arm, leg, etc). Constrains the system by 
@@ -363,6 +393,7 @@ class RobotArm(Group):
 
 
 
+# cursor_bounds = traits.Tuple((-25, 25, 0, 0, -14, 14), "Boundaries for where the cursor can travel on the screen")
 
 chain_kwargs = dict(link_radii=.6, joint_radii=0.6, joint_colors=(181/256., 116/256., 96/256., 1), link_colors=(181/256., 116/256., 96/256., 1))
 
@@ -370,9 +401,9 @@ shoulder_anchor = np.array([2., 0., -15])
 
 chain_15_15_5_5 = RobotArmGen2D(link_lengths=[15, 15, 5, 5], base_loc=shoulder_anchor, **chain_kwargs)
 init_joint_pos = np.array([ 0.47515737,  1.1369006 ,  1.57079633,  0.29316668])
-chain_15_15_5_5.set_joint_pos(init_joint_pos)
+chain_15_15_5_5.set_intrinsic_coordinates(init_joint_pos)
 
-chain_20_20 = RobotArmGen2D(link_lengths=[20, 20], base_loc=shoulder_anchor, **chain_kwargs)
+chain_20_20 = RobotArm2J2D(link_lengths=[20, 20], base_loc=shoulder_anchor, **chain_kwargs)
 starting_pos = np.array([5., 0., 5])
 chain_20_20.set_endpoint_pos(starting_pos - shoulder_anchor, n_iter=10, n_particles=500)
 
