@@ -10,7 +10,7 @@ class IsMoreFeedbackData(object):
     def init(self):
         from riglib import blackrock, source
 
-        self.feedbackdata = source.MultiChanDataSource(blackrock.FeedbackData, channels=channels)
+        self.feedback_source = source.MultiChanDataSource(blackrock.FeedbackData, channels=channels)
 
         try:
             super(IsMoreFeedbackData, self).init()
@@ -18,7 +18,7 @@ class IsMoreFeedbackData(object):
             print 'IsMoreFeedbackData: running without a task'
 
     def run(self):
-        self.feedbackdata.start()
+        self.feedback_source.start()
 
 
 if __name__ == '__main__':
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     for k in range(N):
         t_start = time.time()
 
-        new_data = self.feedbackdata.get_new(channels=channels)
+        new_data = self.feedback_source.get_new(channels=channels)
         print new_data
         print ''
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
         t_elapsed = time.time() - t_start
         time.sleep(update_rate - t_elapsed)
 
-    self.feedbackdata.stop()
+    self.feedback_source.stop()
      
     # save_dict = dict()
     # save_dict['data'] = data

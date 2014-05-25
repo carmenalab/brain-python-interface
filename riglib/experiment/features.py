@@ -417,6 +417,26 @@ class BlackrockBMI(BlackrockData):
         super(BlackrockBMI, self).init()
 
 
+class IsMoreFeedbackData(traits.HasTraits):
+    '''Acquire plant feedback data sent over UDP by the ArmAssist and ReHand processes.'''
+    def init(self):
+        from riglib import blackrock, source
+        ismore_ss = state_space_models.StateSpaceIsMoreFull()
+        channels = ismore_ss.state_names
+
+        self.feedback_source = source.MultiChanDataSource(blackrock.FeedbackData, channels=channels)
+
+        try:
+            super(IsMoreFeedbackData, self).init()
+        except:
+            print 'IsMoreFeedbackData: running without a task'
+
+    def run(self):
+        self.feedback_source.start()
+        try:
+            super(IsMoreFeedbackData, self).run()
+        finally:
+            self.feedback_source.stop()
 
 #*******************************************************************************************************
 # Data Sinks
