@@ -853,9 +853,14 @@ class TaskEntryCollection(object):
         
                 ## Call a function on each trial    
                 for k in range(n_trials):
-                    output = trial_proc_fn(te, trial_msgs[k])
-                    trial_condition = trial_condition_fn(te, trial_msgs[k])
-                    blockset_data[trial_condition].append(output)
+                    try:
+                        output = trial_proc_fn(te, trial_msgs[k])
+                        trial_condition = trial_condition_fn(te, trial_msgs[k])
+                        blockset_data[trial_condition].append(output)
+                    except:
+                        print trial_msgs[k]
+                        import traceback
+                        traceback.print_exc()
         
             newdata = dict()
             for key in blockset_data:
