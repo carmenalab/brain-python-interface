@@ -145,10 +145,10 @@ class DataSource(mp.Process):
 
 
 class MultiChanDataSource(mp.Process):
-'''
-Docstring -- TODO. Note that kwargs['channels'] does not need to a list of integers,
-it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
-'''
+    '''
+    Docstring -- TODO. Note that kwargs['channels'] does not need to a list of integers,
+    it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
+    '''
     def __init__(self, source, bufferlen=1, **kwargs):
         super(MultiChanDataSource, self).__init__()
         self.name = source.__module__.split('.')[-1]
@@ -177,8 +177,6 @@ it can also be a list of strings (e.g., see feedback multi-chan data source for 
         self.stream = mp.Event()
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
-
-        print 'reached here'
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
@@ -282,7 +280,7 @@ it can also be a list of strings (e.g., see feedback multi-chan data source for 
         if n_pts > self.max_len:
             n_pts = self.max_len
 
-        for chan in channels:
+        for chan_num, chan in enumerate(channels):
             try:
                 row = self.chan_to_row[chan]
             except KeyError:
@@ -290,10 +288,10 @@ it can also be a list of strings (e.g., see feedback multi-chan data source for 
             else:  # executed if try clause does not raise a KeyError
                 idx = self.idxs[row]
                 if idx >= n_pts:  # no wrap-around required
-                    data[row, :] = self.data[row, idx-n_pts:idx]
+                    data[chan_num, :] = self.data[row, idx-n_pts:idx]
                 else:
-                    data[row, :n_pts-idx] = self.data[row, -(n_pts-idx):]
-                    data[row, n_pts-idx:] = self.data[row, :idx]
+                    data[chan_num, :n_pts-idx] = self.data[row, -(n_pts-idx):]
+                    data[chan_num, n_pts-idx:] = self.data[row, :idx]
                 self.last_read_idxs[row] = idx
 
         self.lock.release()
