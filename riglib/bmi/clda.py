@@ -394,17 +394,16 @@ class ArmAssistOFCLearner(OFCLearner):
             state_cost = diff.T * self.Q * diff
             ctrl_cost  = u.T * self.R * u
 
-            print 'target_state:', target_state
-            print 'state x cost:', diff[0]**2 * float(self.Q[0, 0])
-            print 'state y cost:', diff[1]**2 * float(self.Q[1, 1])
-            print 'state z cost:', diff[2]**2 * float(self.Q[2, 2])
-            print 'u x cost:', u[0]**2 * float(self.R[0, 0])
-            print 'u y cost:', u[1]**2 * float(self.R[1, 1])
-            print 'u z cost:', u[2]**2 * float(self.R[2, 2])
-            print 'state cost:', float(state_cost)
-            print 'ctrl cost:', float(ctrl_cost)
-            print '\n'
-
+            # print 'target_state:', target_state
+            # print 'state x cost:', diff[0]**2 * float(self.Q[0, 0])
+            # print 'state y cost:', diff[1]**2 * float(self.Q[1, 1])
+            # print 'state z cost:', diff[2]**2 * float(self.Q[2, 2])
+            # print 'u x cost:', u[0]**2 * float(self.R[0, 0])
+            # print 'u y cost:', u[1]**2 * float(self.R[1, 1])
+            # print 'u z cost:', u[2]**2 * float(self.R[2, 2])
+            # print 'state cost:', float(state_cost)
+            # print 'ctrl cost:', float(ctrl_cost)
+            # print '\n'
             
             return A*current_state + B*F*(diff)        
         except KeyError:

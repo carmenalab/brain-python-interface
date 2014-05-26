@@ -213,7 +213,7 @@ class StateSpaceIsMoreFull(StateSpace):
             State('aa_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
             State('aa_ang_vw', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
             State('rh_ang_vx', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
-            State('rh_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
+            State('rh_ang_vy', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
             State('rh_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
             
             # offset state

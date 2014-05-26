@@ -36,7 +36,7 @@ class Client(object):
         self.stop()
 
     def get_feedback_data(self):
-        '''Docstring.'''
+        '''TODO -- Docstring.'''
 
         sleep_time = 0 #0.005
 
@@ -46,14 +46,28 @@ class Client(object):
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 arrival_ts = time.time()
+                # print 'received feedback:', feedback
 
-                # temporary for now
-                # structure of feedback packets is still TBD
-                state_names = ['aa_px', 'aa_py', 'aa_ang_pz', 'aa_vx', 'aa_vy', 'aa_ang_vz']
-                values = [float(s) for s in feedback.rstrip('\r').split(' ')]
-                
+                # final structure of feedback packets is still TBD
+                # for now, assume, feedback packets are of the form, e.g., :
+                #   "Feedback ReHand pos pos pos vel vel vel\r"
+                #      or 
+                #   "Feedback ArmAssist pos pos pos pos vel vel vel vel\r"
+
+                items = feedback.rstrip('\r').split(' ')
+                cmd_id = items[0]
+                dev_id = items[1]
+                values = [float(s) for s in items[2:]]
+
+                # determine state names corresponding to the values
+                if dev_id == 'ArmAssist':
+                    state_names = ['aa_px', 'aa_py', 'aa_ang_pz', 'aa_ang_pw', 'aa_vx', 'aa_vy', 'aa_ang_vz', 'aa_ang_vw']
+                elif dev_id == 'ReHand':
+                    state_names = ['rh_ang_px', 'rh_ang_py', 'rh_ang_pz', 'rh_ang_vx', 'rh_ang_vy', 'rh_ang_vz']
+                else:
+                    raise Exception('Feedback data received from unknown device: ' + dev_id)
+                 
                 for state_name, value in zip(state_names, values):
-                    # print 'yielding'
                     yield PlantFeedbackData(state_name=state_name, value=value, arrival_ts=arrival_ts)
 
-                time.sleep(sleep_time)
+            time.sleep(sleep_time)
