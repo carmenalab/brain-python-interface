@@ -8,7 +8,7 @@ Analysis of neural data often feels like busywork. This document describes code 
 The basic architecture
 ======================
 Experiments run with the BMI3D experimental software are automatically logged into a database using the python package django. Central to the analysis of experimental data is the TaskEntry
-model in the Django database (*)db.tracker.TaskEntry). However, it's not desireable to be 
+model in the Django database (db.tracker.TaskEntry). However, it's not desireable to be 
 manipulating the database code frequently since it's critical to the recording of data, so we mostly put our analysis code in a different place:
 
 .. autoclass:: db.dbfunctions.TaskEntry

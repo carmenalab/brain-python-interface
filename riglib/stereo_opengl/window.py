@@ -63,8 +63,6 @@ class Window(LogExperiment):
         except:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,0)
             self.surf = pygame.display.set_mode(self.window_size, flags)
-        
-        self.clock = pygame.time.Clock()
 
         glEnable(GL_BLEND)
         glDepthFunc(GL_LESS)
@@ -123,8 +121,6 @@ class Window(LogExperiment):
         self.renderer.draw(self.world)
         pygame.display.flip()
         self.renderer.draw_done()
-        self.clock.tick(self.fps)
-        self.event = self._get_event()
     
     def _get_event(self):
         for e in pygame.event.get(pygame.KEYDOWN):
@@ -146,8 +142,9 @@ class Window(LogExperiment):
         self.renderer._queue_render(self.world)
 
     def _cycle(self):
-        super(Window, self)._cycle()
         self.draw_world()
+        super(Window, self)._cycle()
+        self.event = self._get_event()
 
 
 class WindowDispl2D(Window):

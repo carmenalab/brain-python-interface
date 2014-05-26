@@ -58,6 +58,57 @@
             
   <div class="section" id="data-analysis-code">
 <span id="analysis"></span><h1>Data analysis code<a class="headerlink" href="#data-analysis-code" title="Permalink to this headline">¶</a></h1>
+<p>Analysis of neural data often feels like busywork. This document describes code part of the BMI3D library intended to cut down on such busywork.</p>
+<div class="section" id="the-basic-architecture">
+<h2>The basic architecture<a class="headerlink" href="#the-basic-architecture" title="Permalink to this headline">¶</a></h2>
+<p>Experiments run with the BMI3D experimental software are automatically logged into a database using the python package django. Central to the analysis of experimental data is the TaskEntry
+model in the Django database (db.tracker.TaskEntry). However, it&#8217;s not desireable to be
+manipulating the database code frequently since it&#8217;s critical to the recording of data, so we mostly put our analysis code in a different place:</p>
+<dl class="class">
+<dt id="db.dbfunctions.TaskEntry">
+<em class="property">class </em><tt class="descclassname">db.dbfunctions.</tt><tt class="descname">TaskEntry</tt><big>(</big><em>task_entry_id</em><big>)</big><a class="headerlink" href="#db.dbfunctions.TaskEntry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper class for the TaskEntry django class</p>
+<p class="rubric">Methods</p>
+<dl class="method">
+<dt id="db.dbfunctions.TaskEntry.proc">
+<tt class="descname">proc</tt><big>(</big><em>trial_filter_fn=None</em>, <em>trial_proc_fn=None</em>, <em>trial_condition_fn=None</em>, <em>data_comb_fn=None</em><big>)</big><a class="headerlink" href="#db.dbfunctions.TaskEntry.proc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic trial-level data analysis function</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)</strong> :</p>
+<blockquote>
+<div><p>Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis</p>
+</div></blockquote>
+<p><strong>trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)</strong> :</p>
+<blockquote>
+<div><p>The main workhorse function</p>
+</div></blockquote>
+<p><strong>trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)</strong> :</p>
+<blockquote>
+<div><p>Determine what the trial <em>subtype</em> is (useful for separating out various types of catch trials)</p>
+</div></blockquote>
+<p><strong>data_comb_fn: callable; call signature: data_comb_fn(list)</strong> :</p>
+<blockquote>
+<div><p>Combine the list into the desired output structure</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>result: list</strong> :</p>
+<blockquote class="last">
+<div><p>The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+grouped by tuples are combined into a single result.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
 <div class="section" id="module-analysis.basicanalysis">
 <span id="basicanalysis"></span><h2>basicanalysis<a class="headerlink" href="#module-analysis.basicanalysis" title="Permalink to this headline">¶</a></h2>
 <p>Basic functions for analyzing BMI3D data.</p>
@@ -393,6 +444,7 @@ to a unit in the units parameter.</p>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Data analysis code</a><ul>
+<li><a class="reference internal" href="#the-basic-architecture">The basic architecture</a></li>
 <li><a class="reference internal" href="#module-analysis.basicanalysis">basicanalysis</a></li>
 </ul>
 </li>

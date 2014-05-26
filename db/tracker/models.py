@@ -5,7 +5,7 @@ for a basic introduction
 
 import os
 import json
-import cPickle
+import cPickle, pickle
 import inspect
 from collections import OrderedDict
 from django.db import models
@@ -574,6 +574,13 @@ class Decoder(models.Model):
     def __unicode__(self):
         return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
+    def load(self):
+        decoder_fname = os.path.join('/storage/decoders/', self.path)
+        decoder_name = self.name
+        dec = pickle.load(open(decoder_fname))
+        dec.name = decoder_name
+        return dec        
+
     def get(self):
         sys = System.objects.get(name='bmi').path
         return cPickle.load(open(os.path.join(sys, self.path)))

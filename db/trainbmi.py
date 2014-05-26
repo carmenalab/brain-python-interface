@@ -183,6 +183,7 @@ def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     None
     '''
 
+    import riglib.bmi
     if not isinstance(obj, riglib.bmi.Decoder):
         raise ValueError("This function is only intended for saving Decoder objects!")
 

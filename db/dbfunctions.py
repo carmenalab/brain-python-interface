@@ -235,21 +235,6 @@ def query_daterange(startdate, enddate=datetime.date.today()):
     are date objects. End date is optional- today's date by default.
     '''
     return models.TaskEntry.objects.filter(date__gte=startdate).filter(date__lte=enddate)
-    
-def get_hdf_file(entry):
-    '''
-    Returns the name of the hdf file associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    hdf = models.System.objects.get(name='hdf')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=hdf.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            return os.path.join(db.paths.rawdata_path, hdf.name, q[0].path)
-        except:
-            return q[0].path
 
 def get_hdf(entry):
     '''
@@ -270,22 +255,6 @@ def get_binned_spikes_file(entry):
     else:
         print 'Not found'
         return None
-
-def get_plx_file(entry):
-    '''
-    Returns the name of the plx file associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    plexon = models.System.objects.get(name='plexon')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            import db.paths
-            return os.path.join(db.paths.data_path, plexon.name, q[0].path)
-        except:
-            return q[0].path
         
 def get_plx2_file(entry):
     '''
@@ -486,6 +455,12 @@ def get_decoders_trained_in_block(task_entry):
     if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
     return decoder_objects
 
+def get_records_of_trained_decoders(task_entry):
+    task_entry = lookup_task_entries(task_entry)
+    records = models.Decoder.objects.filter(entry_id=task_entry.id)
+    if len(records) == 1: 
+        records = records[0]
+    return records
 
 
 class TaskMessages(object):
@@ -550,11 +525,35 @@ class TaskEntry(object):
         else:
             self.decoder_record = None
 
-        self.task_msgs = TaskMessages(self.hdf.root.task_msgs[:])
+    def proc(self, trial_filter_fn=None, trial_proc_fn=None, trial_condition_fn=None, data_comb_fn=None):
+        '''
+        Generic trial-level data analysis function
 
-    def proc(self, trial_filter_fn=default_trial_filter_fn, trial_proc_fn=default_trial_proc_fn, trial_condition_fn=default_trial_condition_fn, data_comb_fn=default_data_comb_fn):
+        Parameters
+        ----------
+        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+            Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
+        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+            The main workhorse function 
+        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+            Determine what the trial *subtype* is (useful for separating out various types of catch trials)
+        data_comb_fn: callable; call signature: data_comb_fn(list)
+            Combine the list into the desired output structure
+
+        Returns
+        -------
+        result: list
+            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+            grouped by tuples are combined into a single result. 
+
+        '''
+        if trial_filter_fn == None: trial_filter_fn = default_trial_filter_fn
+        if trial_proc_fn == None: trial_proc_fn = default_trial_proc_fn
+        if trial_condition_fn == None: trial_condition_fn = default_trial_condition_fn
+        if data_comb_fn == None: default_data_comb_fn = np.hstack
+
         te = self
-        trial_msgs = filter(trial_filter_fn, te.trial_msgs)
+        trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
         n_trials = len(trial_msgs)
         
         blockset_data = defaultdict(list)
@@ -569,7 +568,6 @@ class TaskEntry(object):
         for key in blockset_data:
             newdata[key] = data_comb_fn(blockset_data[key])
         return newdata
-
 
     @property 
     def supplementary_data_file(self):
@@ -611,14 +609,24 @@ class TaskEntry(object):
 
     @property
     def hdf_filename(self):
-        return get_hdf_file(self.record)
+        entry = self.record
+        entry = lookup_task_entries(entry)
+        hdf = models.System.objects.get(name='hdf')
+        q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=hdf.id)
+        if len(q)==0:
+            return None
+        else:
+            try:
+                return os.path.join(db.paths.rawdata_path, hdf.name, q[0].path)
+            except:
+                return q[0].path        
 
     @property
     def hdf(self):
         try:
             return self.hdf_file
         except:
-            hdf_filename = get_hdf_file(self.record)
+            hdf_filename = self.hdf_filename
             try:
                 self.hdf_file = tables.open_file(hdf_filename)
             except:
@@ -661,7 +669,18 @@ class TaskEntry(object):
     
     @property
     def plx_file(self):
-        return get_plx_file(self.record)
+        entry = self.record
+        entry = lookup_task_entries(entry)
+        plexon = models.System.objects.get(name='plexon')
+        q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
+        if len(q)==0:
+            return None
+        else:
+            try:
+                import db.paths
+                return os.path.join(db.paths.data_path, plexon.name, q[0].path)
+            except:
+                return q[0].path
 
     @property
     def plx2_file(self):
@@ -888,14 +907,19 @@ class TaskEntryCollection(object):
                 te = performance._get_te(b)
         
                 # Filter out the trials you want
-                trial_msgs = filter(trial_filter_fn, te.trial_msgs)
+                trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
                 n_trials = len(trial_msgs)
         
                 ## Call a function on each trial    
                 for k in range(n_trials):
-                    output = trial_proc_fn(te, trial_msgs[k])
-                    trial_condition = trial_condition_fn(te, trial_msgs[k])
-                    blockset_data[trial_condition].append(output)
+                    try:
+                        output = trial_proc_fn(te, trial_msgs[k])
+                        trial_condition = trial_condition_fn(te, trial_msgs[k])
+                        blockset_data[trial_condition].append(output)
+                    except:
+                        print trial_msgs[k]
+                        import traceback
+                        traceback.print_exc()
         
             newdata = dict()
             for key in blockset_data:
@@ -906,6 +930,18 @@ class TaskEntryCollection(object):
         sys.stdout.write('\n')
         return result
 
+    def __iter__(self):
+        '''
+        Return an iterator over all the ID numbers of task entry records in the collection.
+        IDs are returned depth-first
+        '''
+        for blockset in self.blocks:
+            if isinstance(blockset, int):
+                blockset = (blockset,)
+            
+            perf = defaultdict(list)
+            for b in blockset:        
+                yield b
 
 
 ######################

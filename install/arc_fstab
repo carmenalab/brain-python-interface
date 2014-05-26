@@ -1,4 +1,3 @@
 /dev/sdb1 /storage        ext4    defaults 0       0
 //project.eecs.berkeley.edu/carmena /backup cifs noauto,username=sgowda,domain=EECS,sec=ntlmssp,uid=localuser,dir_mode=0777,file_mode=0777 0 0
 //10.0.0.13/PlexonData /storage/plexon  smbfs   user=arc,pass=c@rmena,uid=1000,gid=1000 0 0
-

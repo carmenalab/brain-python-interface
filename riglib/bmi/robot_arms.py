@@ -301,29 +301,38 @@ class PlanarXZKinematicChain(KinematicChain):
         proximal_link_lengths = self.link_lengths[:2]
         distal_link_lengths = self.link_lengths[2:]
         self.proximal_chain = PlanarXZKinematicChain2Link(proximal_link_lengths)
-        self.distal_chain = PlanarXZKinematicChain(distal_link_lengths)
+        if len(self.link_lengths) > 2:
+            self.distal_chain = PlanarXZKinematicChain(distal_link_lengths)
+        else:
+            self.distal_chain = None
 
     def inverse_kinematics(self, target_pos, **kwargs):
         target_pos -= self.base_loc
         if not hasattr(self, 'proximal_chain') or not hasattr(self, 'distal_chain'):
             self.create_ik_subchains()
-        distal_angles = kwargs.pop('distal_angles', None)
 
-        if distal_angles is None:
-            # Sample randomly from the joint limits (-pi, pi) if not specified
-            if not hasattr(self, 'joint_limits') or len(self.joint_limits) < len(self.link_lengths):
-                joint_limits = [(-pi, pi)] * len(self.distal_chain.link_lengths)
-            else:
-                joint_limits = self.joint_limits[2:]
-            distal_angles = np.array([np.random.uniform(*limits) for limits in joint_limits])
+        if len(self.link_lengths) > 2:
+            distal_angles = kwargs.pop('distal_angles', None)
 
-        distal_displ = self.distal_chain.endpoint_pos(distal_angles)
-        proximal_endpoint_pos = target_pos - distal_displ
-        proximal_angles = self.proximal_chain.inverse_kinematics(proximal_endpoint_pos).ravel()
-        angles = distal_angles.copy()
-        joint_angles = proximal_angles.tolist()
-        angles[0] -= np.sum(proximal_angles)
-        return np.hstack([proximal_angles, angles])
+            if distal_angles is None:
+                # Sample randomly from the joint limits (-pi, pi) if not specified
+                if not hasattr(self, 'joint_limits') or len(self.joint_limits) < len(self.link_lengths):
+                    joint_limits = [(-pi, pi)] * len(self.distal_chain.link_lengths)
+                else:
+                    joint_limits = self.joint_limits[2:]
+                distal_angles = np.array([np.random.uniform(*limits) for limits in joint_limits])
+
+            distal_displ = self.distal_chain.endpoint_pos(distal_angles)
+            proximal_endpoint_pos = target_pos - distal_displ
+            proximal_angles = self.proximal_chain.inverse_kinematics(proximal_endpoint_pos).ravel()
+            angles = distal_angles.copy()
+            joint_angles = proximal_angles.tolist()
+            angles[0] -= np.sum(proximal_angles)
+            ik_angles = np.hstack([proximal_angles, angles])
+            ik_angles = np.array([np.arctan2(np.sin(angle), np.cos(angle)) for angle in ik_angles])
+            return ik_angles
+        else:
+            return self.proximal_chain.inverse_kinematics(target_pos).ravel()
 
     def jacobian(self, theta):
         l = self.link_lengths
