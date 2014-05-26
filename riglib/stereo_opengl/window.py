@@ -161,10 +161,13 @@ class WindowDispl2D(Window):
 
         flags = pygame.NOFRAME
 
-        self.workspace_ll = np.array([-25., -14.])
+        # self.workspace_ll = np.array([-25., -14.])
+        self.workspace_ll = np.array([-35., -24.])
 
-        win_res = (480, 270)
-        self.workspace_size = 50, 28. #win_res
+        # win_res = (480, 270)
+        win_res = (600, 400)
+        # self.workspace_size = 50, 28. #win_res
+        self.workspace_size = 70, 48. #win_res
         self.size = np.array(win_res)
         self.screen = pygame.display.set_mode(win_res, flags)
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
