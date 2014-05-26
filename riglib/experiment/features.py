@@ -13,7 +13,7 @@ from riglib import calibrations, bmi
 
 from riglib.bmi import extractor
 
-from . import traits
+from . import traits, experiment
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
@@ -549,8 +549,9 @@ class RelayPlexByte(RelayPlexon):
         from riglib import nidaq
         return nidaq.SendRowByte
 
-
-
+########################################################################################################
+# Decoder/BMISystem add-ons
+########################################################################################################
 class NormFiringRates(traits.HasTraits):
     
     norm_time = traits.Float(120.,desc="Number of seconds to use for mean and SD estimate")
@@ -594,3 +595,51 @@ class NormFiringRates(traits.HasTraits):
 
         super(NormFiringRates, self).update_cursor()
 
+
+class LinearlyDecreasingAttribute(traits.HasTraits):
+    def __init__(self, *args, **kwargs):
+        assert isinstance(self, experiment.Experiment)
+        super(LinearlyDecreasingAttribute, self).__init__(*args, **kwargs)
+        self.attr_start, self.attr_min = getattr(self, self.attr)
+        setattr(self, 'current_%s' % self.attr, self.attr_start)
+        self.assist_flag = True
+
+    def init(self):
+        super(LinearlyDecreasingAttribute, self).init()
+        if isinstance(self, SaveHDF):
+            self.add_dtype(self.attr, 'f8', (1,))
+
+    def _linear_change(self, start_val, end_val, decay_time):
+        if start_val == end_val:
+            return end_val
+        else:
+            elapsed_time = self.get_time() - self.task_start_time
+            temp = start_val - elapsed_time/decay_time*(start_val-end_val)
+            if start_val > end_val:
+                return max(temp, end_val)
+            elif start_val < end_val:
+                return min(temp, end_val)
+
+    def update_level(self):
+        decay_time = float(getattr(self, '%s_time' % self.attr)) #self.assist_level_time
+        current_level = self._linear_change(self.attr_start, self.attr_min, decay_time)
+        setattr(self, 'current_%s' % self.attr, current_level) 
+        if self.assist_flag and getattr(self, 'current_%s' % self.attr) == self.attr_min:
+            print "%s at minimum after %d successful trials" % (self.attr, self.calc_n_rewards())
+            self.assist_flag = False
+
+        if self.cycle_count % 3600 == 0 and self.assist_flag:
+            print "%s: " % self.attr, getattr(self, 'current_%s' % self.attr)
+
+    def _cycle(self):
+        # Update the assist level
+        self.update_level()
+        if hasattr(self, 'task_data'):
+            self.task_data[self.attr] = getattr(self, 'current_%s' % self.attr)
+
+        super(LinearlyDecreasingAttribute, self)._cycle()
+
+class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
+    assist_level = traits.Tuple((0.0, 0.0), desc="Level of assist to apply to BMI output")
+    assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")    
+    attr = 'assist_level'
