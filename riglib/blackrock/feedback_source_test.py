@@ -1,7 +1,7 @@
 import time
 from riglib.bmi import state_space_models
 
-ismore_ss = state_space_models.StateSpaceIsMoreFull()
+ismore_ss = state_space_models.StateSpaceIsMore()
 # channels = ismore_ss.state_names
 channels = ['aa_px', 'aa_py']
 

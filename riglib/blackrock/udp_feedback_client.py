@@ -59,11 +59,13 @@ class Client(object):
                 dev_id = items[1]
                 values = [float(s) for s in items[2:]]
 
+                # TODO -- don't hardcode state names below, get them from corresponding state space models
+
                 # determine state names corresponding to the values
                 if dev_id == 'ArmAssist':
-                    state_names = ['aa_px', 'aa_py', 'aa_ang_pz', 'aa_ang_pw', 'aa_vx', 'aa_vy', 'aa_ang_vz', 'aa_ang_vw']
+                    state_names = ['aa_px', 'aa_py', 'aa_ang_pz', 'aa_vx', 'aa_vy', 'aa_ang_vz']
                 elif dev_id == 'ReHand':
-                    state_names = ['rh_ang_px', 'rh_ang_py', 'rh_ang_pz', 'rh_ang_vx', 'rh_ang_vy', 'rh_ang_vz']
+                    state_names = ['rh_ang_px', 'rh_ang_py', 'rh_ang_pz', 'rh_ang_pw', 'rh_ang_vx', 'rh_ang_vy', 'rh_ang_vz', 'rh_ang_pw']
                 else:
                     raise Exception('Feedback data received from unknown device: ' + dev_id)
                  
