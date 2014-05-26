@@ -9,7 +9,8 @@ import numpy as np
 ############
 ## Constants
 ############
-pi = np.pi 
+pi = np.pi
+deg_to_rad = pi/180
 
 def resample_ssm(A, W, Delta_old=0.1, Delta_new=0.005, include_offset=True):
     A = A.copy()
@@ -167,15 +168,17 @@ class StateSpaceEndptVel(StateSpace):
 
 
 
+
 class StateSpaceArmAssist(StateSpace):
     def __init__(self):
+        max_ang_vel = 15 * deg_to_rad
         super(StateSpaceArmAssist, self).__init__(
             State('aa_px',     stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
             State('aa_py',     stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
-            State('aa_ang_pz', stochastic=False, drives_obs=False, order=0), #, min_val=-pi,  max_val=pi),  # bound, or no?
-            State('aa_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-2,   max_val=2),
-            State('aa_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-2,   max_val=2),
-            State('aa_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
+            State('aa_ang_pz', stochastic=False, drives_obs=False, order=0),
+            State('aa_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-2, max_val=2),
+            State('aa_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-2, max_val=2),
+            State('aa_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
             offset_state
         )
 
@@ -189,32 +192,56 @@ class StateSpaceArmAssist(StateSpace):
         return A, B, W
 
 
-class StateSpaceIsMoreFull(StateSpace):
-    '''
-    Notes:
+class StateSpaceReHand(StateSpace):
+    '''x: thumb, y: index, z: fing3.'''
+    def __init__(self):
+        max_ang_vel = 15 * deg_to_rad
+        super(StateSpaceReHand, self).__init__(
+            State('rh_ang_px', stochastic=False, drives_obs=False, order=0),
+            State('rh_ang_py', stochastic=False, drives_obs=False, order=0),
+            State('rh_ang_pz', stochastic=False, drives_obs=False, order=0),
+            State('rh_ang_vx', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_ang_vy', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            offset_state
+        )
+
+    def get_ssm_matrices(self, update_rate=0.1):
+        # State-space model set from expert data
+        A, W = linear_kinarm_kf(update_rate=update_rate)
+
+        # Control input matrix for SSM for control inputs
+        I = np.mat(np.eye(3))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 3])])
+        return A, B, W
+
+
+class StateSpaceIsMore(StateSpace):
+    '''Notes:
         1) "aa" --> ArmAssist, "rh" --> ReHand
         2) "ang" in the state name means that state is angular (i.e., angular pos or angular vel)
         3) using "w" for pronosupination joint (e.g., aa_ang_pw)
     '''
     def __init__(self):
-        super(StateSpaceIsMoreFull, self).__init__(
+        max_ang_vel = 15 * deg_to_rad
+        super(StateSpaceIsMore, self).__init__(
             # position states
             State('aa_px',     stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
             State('aa_py',     stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
             State('aa_ang_pz', stochastic=False, drives_obs=False, order=0),
-            State('aa_ang_pw', stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
-            State('rh_ang_px', stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
+            State('aa_ang_pw', stochastic=False, drives_obs=False, order=0),
+            State('rh_ang_px', stochastic=False, drives_obs=False, order=0),
             State('rh_ang_py', stochastic=False, drives_obs=False, order=0),
             State('rh_ang_pz', stochastic=False, drives_obs=False, order=0),
 
             # velocity states
-            State('aa_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-2,   max_val=2),
-            State('aa_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-2,   max_val=2),
-            State('aa_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
-            State('aa_ang_vw', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
-            State('rh_ang_vx', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
-            State('rh_ang_vy', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
-            State('rh_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-15*(pi/180), max_val=15*(pi/180)),
+            State('aa_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-2, max_val=2),
+            State('aa_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-2, max_val=2),
+            State('aa_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('aa_ang_vw', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_ang_vx', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_ang_vy', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_ang_vz', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
             
             # offset state
             offset_state
