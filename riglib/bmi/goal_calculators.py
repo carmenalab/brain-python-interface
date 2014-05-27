@@ -32,7 +32,7 @@ class EndpointControlGoal(object):
 
 class ArmAssistControlGoal(object):
     def __init__(self, ssm):
-        assert isinstance(ssm, state_space_models.StateSpaceArmAssist)
+        assert type(ssm) == state_space_models.StateSpaceArmAssist
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
@@ -47,7 +47,7 @@ class ArmAssistControlGoal(object):
 
 class ReHandControlGoal(object):
     def __init__(self, ssm):
-        assert isinstance(ssm, state_space_models.StateSpaceReHand)
+        assert type(ssm) == state_space_models.StateSpaceReHand
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
@@ -63,7 +63,7 @@ class ReHandControlGoal(object):
 class IsMoreControlGoal(object):
     '''Full ArmAssist+ReHand.'''
     def __init__(self, ssm):
-        assert isinstance(ssm, state_space_models.StateSpaceIsMore)
+        assert type(ssm) == state_space_models.StateSpaceIsMore
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
