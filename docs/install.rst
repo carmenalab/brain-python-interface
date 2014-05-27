@@ -268,6 +268,24 @@ To fire up the experimental rig, from the same 'db' directory run::
     ./runserver.sh
 
 
+Running a simple task
+---------------------
+
+
+Testing the NIDAQ interface
+---------------------------
+
+
+Celery
+------
+This still doesn't work in newer versions of Django/Celery! But it's okay since it's very rarely used and is only a convenience, i.e. not required.
+
+
+Rsync
+-----
+
+
+
 
 
 
