@@ -10,6 +10,10 @@ from riglib import mp_calc
 from riglib.stereo_opengl import ik
 import re
 import pickle
+from riglib.bmi import state_space_models
+
+# TODO -- does ssm really need to be passed as an argument into __init__?
+# maybe just make it an optional kwarg for the classes that really need it
 
 class EndpointControlGoal(object):
     def __init__(self, ssm):
@@ -28,11 +32,42 @@ class EndpointControlGoal(object):
 
 class ArmAssistControlGoal(object):
     def __init__(self, ssm):
-        assert ssm == train.aa_state_space
+        assert isinstance(ssm, state_space_models.StateSpaceArmAssist)
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
-        target_vel = np.array([0, 0, 0])  # TODO -- may not always want zero velocity 
+        target_vel = np.zeros(3)  # TODO -- may not always want zero velocity 
+        offset_val = 1
+        error = 0
+        target_state = np.hstack([target_pos, target_vel, 1])
+        return (target_state, error), True
+
+    def reset(self):
+        pass
+
+class ReHandControlGoal(object):
+    def __init__(self, ssm):
+        assert isinstance(ssm, state_space_models.StateSpaceReHand)
+        self.ssm = ssm
+
+    def __call__(self, target_pos, **kwargs):
+        target_vel = np.zeros(4)  # TODO -- may not always want zero velocity 
+        offset_val = 1
+        error = 0
+        target_state = np.hstack([target_pos, target_vel, 1])
+        return (target_state, error), True
+
+    def reset(self):
+        pass
+
+class IsMoreControlGoal(object):
+    '''Full ArmAssist+ReHand.'''
+    def __init__(self, ssm):
+        assert isinstance(ssm, state_space_models.StateSpaceIsMore)
+        self.ssm = ssm
+
+    def __call__(self, target_pos, **kwargs):
+        target_vel = np.zeros(7)  # TODO -- may not always want zero velocity 
         offset_val = 1
         error = 0
         target_state = np.hstack([target_pos, target_vel, 1])
