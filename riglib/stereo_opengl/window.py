@@ -274,7 +274,7 @@ class WindowDispl2D(Window):
         self.screen.blit(self.surf['0'], (0,0))
         self.screen.blit(self.surf['1'], (0,0))
         pygame.display.update()
-        self.clock.tick(self.fps)  # uncommented this
+        # self.clock.tick(self.fps)  # uncommented this
 
     def requeue(self):
         '''
