@@ -410,6 +410,32 @@ class ArmAssistOFCLearner(OFCLearner):
             return None
 
 
+class IsMoreLearner(BatchLearner):
+    def __init__(self, *args, **kwargs):
+        decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
+        assist_speed   = kwargs.pop('assist_speed', 5.)
+        target_radius  = kwargs.pop('target_radius', 2.)
+        assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
+        self.assister = assist.IsMoreAssister(**assister_kwargs)
+
+        super(IsMoreLearner, self).__init__(*args, **kwargs)
+
+        self.input_state_index = -1
+
+    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        """Calculate/estimate the intended ArmAssist+ReHand kinematics."""
+        current_state = decoder_state[:, None]  # assister expects shape to be (15, 1)
+        target_state  = target_state[:, None]   # assister expects shape to be (15, 1)
+        intended_state = self.assister(current_state, target_state, 1)[0]
+        intended_state = intended_state.ravel()  # want shape to be (15,)
+
+        return intended_state
+
+    def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        '''Calculate the intended kinematics and pair with the neural data.'''
+        super(IsMoreLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+
+
 
 ##############################################################################
 ## Updaters

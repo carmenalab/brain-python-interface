@@ -167,14 +167,10 @@ class ArmAssistAssister(Assister):
     '''Docstring.'''
     def __init__(self, *args, **kwargs):
         self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        self.assist_speed = kwargs.pop('assist_speed', 5.)
+        self.assist_speed = kwargs.pop('assist_speed', 5.)  # TODO -- 5 cm/s too fast?
         self.target_radius = kwargs.pop('target_radius', 2.)
 
-    # note: current_state and target_state are both length 3, and in aa state space
-    # TODO: above note is WRONG! length 7!
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-        # print 'current_state.shape', current_state.shape
-        # print 'target_state.shape', target_state.shape
         if assist_level > 0:
             xy_pos = np.array(current_state[0:2, 0]).ravel()
             target_xy_pos = np.array(target_state[0:2, 0]).ravel()
@@ -221,7 +217,7 @@ class ArmAssistAssister(Assister):
     def psi_assist(self, psi_pos, target_psi_pos):
         binlen = self.decoder_binlen
 
-        angular_speed = 15*(np.pi/180)  # in rad/s (10 deg/s)
+        angular_speed = 15*(np.pi/180)  # in rad/s (15 deg/s)
         cutoff_diff = 5*(np.pi/180)  # in rad (5 deg)
         psi_diff = angle_subtract(target_psi_pos, psi_pos)
         
@@ -234,28 +230,101 @@ class ArmAssistAssister(Assister):
 
         return assist_psi_pos, assist_psi_vel
 
+class IsMoreAssister(Assister):
+    '''Docstring.'''
+    def __init__(self, *args, **kwargs):
+        self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
+        self.assist_speed = kwargs.pop('assist_speed', 5.)
+        self.target_radius = kwargs.pop('target_radius', 2.)
 
-# def endpoint_assist_simple_new(cursor_pos, target_pos, decoder_binlen=0.1, speed=5., target_radius=2., assist_level=0.):
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        if assist_level > 0:
+            # TODO -- code below is *unnecessarily* long/inefficient, find way to shorten
 
-#     diff_vec = target_pos - cursor_pos
-#     dist_to_target = np.linalg.norm(diff_vec)
-#     dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+            # ArmAssist
+            xy_pos = np.array(current_state[0:2, 0]).ravel()
+            target_xy_pos = np.array(target_state[0:2, 0]).ravel()
+            assist_xy_pos, assist_xy_vel = self.xy_assist(xy_pos, target_xy_pos)
 
-#     if dist_to_target > target_radius:
-#         assist_cursor_pos = cursor_pos + speed*decoder_binlen*dir_to_target
-#     else:
-#         frac = dist_to_target/target_radius
-#         assist_cursor_pos = cursor_pos + frac*speed*decoder_binlen*dir_to_target
+            psi_pos = np.array(current_state[2, 0]).ravel()
+            target_psi_pos = np.array(target_state[2, 0]).ravel()
+            assist_psi_pos, assist_psi_vel = self.angle_assist(psi_pos, target_psi_pos)
 
-#     assist_cursor_vel = (assist_cursor_pos-cursor_pos)/decoder_binlen
+            # ReHand
+            rh1_pos = np.array(current_state[3, 0]).ravel()
+            target_rh1_pos = np.array(target_state[3, 0]).ravel()
+            assist_rh1_pos, assist_rh1_vel = self.angle_assist(rh1_pos, target_rh1_pos)
 
-#     assist_cursor_pos[2] = 0.
-#     assist_cursor_vel[2] = 0.
+            rh2_pos = np.array(current_state[4, 0]).ravel()
+            target_rh3_pos = np.array(target_state[4, 0]).ravel()
+            assist_rh2_pos, assist_rh2_vel = self.angle_assist(rh2_pos, target_rh2_pos)
 
-#     Bu = assist_level * np.hstack([assist_cursor_pos, assist_cursor_vel, 1])
-#     Bu = np.mat(Bu.reshape(-1,1))
+            rh3_pos = np.array(current_state[5, 0]).ravel()
+            target_rh3_pos = np.array(target_state[5, 0]).ravel()
+            assist_rh3_pos, assist_rh3_vel = self.angle_assist(rh3_pos, target_rh3_pos)
 
-#     return Bu
+            rh4_pos = np.array(current_state[6, 0]).ravel()
+            target_rh4_pos = np.array(target_state[6, 0]).ravel()
+            assist_rh4_pos, assist_rh4_vel = self.angle_assist(rh4_pos, target_rh4_pos)
+
+            Bu = assist_level * np.hstack([assist_xy_pos, 
+                                           assist_psi_pos,
+                                           assist_rh1_pos,
+                                           assist_rh2_pos,
+                                           assist_rh3_pos,
+                                           assist_rh4_pos,
+                                           assist_xy_vel,
+                                           assist_psi_vel,
+                                           assist_rh1_vel,
+                                           assist_rh2_vel,
+                                           assist_rh3_vel,
+                                           assist_rh4_vel,
+                                           1])
+
+            Bu = np.mat(Bu.reshape(-1, 1))
+
+            assist_weight = assist_level
+        else:
+            Bu = None
+            assist_weight = 0.
+
+        return Bu, assist_weight
+
+    def xy_assist(self, xy_pos, target_xy_pos):
+        binlen        = self.decoder_binlen
+        speed         = self.assist_speed
+        target_radius = self.target_radius 
+
+        diff_vec = target_xy_pos - xy_pos
+        dist_to_target = np.linalg.norm(diff_vec)
+        dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+
+        if dist_to_target > target_radius:
+            assist_xy_pos = xy_pos + speed*binlen*dir_to_target
+        else:
+            frac = dist_to_target/target_radius
+            assist_xy_pos = xy_pos + frac*speed*binlen*dir_to_target
+
+        assist_xy_vel = (assist_xy_pos - xy_pos)/binlen
+
+        return assist_xy_pos, assist_xy_vel
+
+    def angle_assist(self, ang_pos, target_ang_pos):
+        binlen = self.decoder_binlen
+
+        angular_speed = 15*(np.pi/180)  # in rad/s (15 deg/s)
+        cutoff_diff = 5*(np.pi/180)  # in rad (5 deg)
+        ang_diff = angle_subtract(target_ang_pos, ang_pos)
+        
+        if abs(ang_diff) > cutoff_diff:
+            assist_ang_vel = np.sign(ang_diff) * angular_speed
+        else:
+            assist_ang_vel = (ang_diff / cutoff_diff) * angular_speed
+
+        assist_ang_pos = ang_pos + assist_ang_vel*binlen
+
+        return assist_ang_pos, assist_ang_vel
+
 
 
 ## TODO the code below should be a feedback controller equivalent to the "simple" method above
