@@ -58,14 +58,14 @@ def _gen_A(t, s, m, n, off, ndim=3):
     A[-1,-1] = off
     return np.mat(A)
 
-def linear_kinarm_kf(update_rate=1./10, units_mult=0.01):
+def linear_kinarm_kf(update_rate=1./10, units_mult=0.01, ndim=3):
     Delta_KINARM = 1./10
     loop_update_ratio = update_rate/Delta_KINARM
     w_in_meters = 0.0007
     w_units_resc = w_in_meters / (units_mult ** 2)
     a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
-    A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=3)
-    W = _gen_A(0, 0, 0, w_resampled, 0, ndim=3)
+    A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
+    W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
     return A, W
     
 
@@ -184,7 +184,7 @@ class StateSpaceArmAssist(StateSpace):
 
     def get_ssm_matrices(self, update_rate=0.1):
         # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate)
+        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=3)
 
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(3))
@@ -210,7 +210,7 @@ class StateSpaceReHand(StateSpace):
 
     def get_ssm_matrices(self, update_rate=0.1):
         # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate)
+        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=4)
 
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(3))
@@ -250,7 +250,7 @@ class StateSpaceIsMore(StateSpace):
 
     def get_ssm_matrices(self, update_rate=0.1):
         # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate)
+        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=7)
 
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(7))
