@@ -1,0 +1,224 @@
+'''Docstring.'''
+
+import numpy as np
+import socket
+
+from riglib import blackrock, source
+from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
+
+import armassist
+import rehand
+
+
+class IsMorePlant(object):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated ArmAssist and/or ReHand.
+     '''
+    def __init__(self):
+        ismore_ss = StateSpaceIsMore()
+        channels = ismore_ss.state_names
+
+        self.feedback_source = source.MultiChanDataSource(blackrock.FeedbackData, channels=channels)
+        self.feedback_source.start()
+
+        # used only for sending commands (not for receiving feedback)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        self.aa_addr = ('127.0.0.1', 5001)
+        self.rh_addr = ('127.0.0.1', 5000)
+
+        # TODO -- don't hardcode these lists here, use names from state space models instead
+        self.aa_p_state_names = ['aa_px', 'aa_py', 'aa_ang_pz']
+        self.aa_v_state_names = ['aa_vx', 'aa_vy', 'aa_ang_vz']
+        self.rh_p_state_names = ['rh_ang_px', 'rh_ang_py', 'rh_ang_pz', 'rh_ang_pw']
+        self.rh_v_state_names = ['rh_ang_vx', 'rh_ang_vy', 'rh_ang_vz', 'rh_ang_vw']
+        self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
+        self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
+
+    def send_vel(self, vel, dev='armassist'):
+        if dev == 'armassist':
+            # units of vel should be: (cm/s, cm/s, rad/s)
+            assert len(vel) == 3
+            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
+            self.sock.sendto(command, self.aa_addr)
+            print 'sending command:', command
+        
+        elif dev == 'rehand':
+            # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
+            assert len(vel) == 4
+            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
+            self.sock.sendto(command, self.rh_addr)
+            print 'sending command:', command
+        
+        elif dev == 'ismore':
+            # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
+            assert len(vel) == 7
+            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel[0:3])
+            self.sock.sendto(command, self.aa_addr)
+            print 'sending command:', command
+
+            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel[3:7])
+            self.sock.sendto(command, self.rh_addr)
+            print 'sending command:', command
+        
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+    def get_pos(self, dev='armassist'):
+        if dev == 'armassist':
+            state_names = self.aa_p_state_names
+        elif dev == 'rehand':
+            state_names = self.rh_p_state_names
+        elif dev == 'ismore':
+            state_names = self.all_p_state_names
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+        return self.feedback_source.get(n_pts=1, channels=state_names).reshape(-1)
+
+    def get_vel(self, dev='armassist'):
+        if dev == 'armassist':
+            state_names = self.aa_v_state_names
+        elif dev == 'rehand':
+            state_names = self.rh_v_state_names
+        elif dev == 'ismore':
+            state_names = self.all_v_state_names
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+        return self.feedback_source.get(n_pts=1, channels=state_names).reshape(-1)
+        
+
+class IsMorePlantNoUDP(object):
+    '''Similar methods as IsMorePlant, but: 1) doesn't send/receive anything
+    over UDP and 2) uses simulated ArmAssist and/or ReHand. Use this plant if
+    you want to simulate having (near) instantaneous feedback.
+    '''
+    def __init__(self):
+        self.aa = armassist.ArmAssist(tstep=0.005)
+        self.aa.daemon = True
+
+        # P gain matrix
+        KP = np.mat([[-10.,   0., 0.], 
+                     [  0., -20., 0.],
+                     [  0.,   0., 20.]])
+        TI = 0.1*np.identity(3)  # I gain matrix
+        self.aa_pic = armassist.ArmAssistPIController(tstep=0.01, KP=KP, TI=TI, plant=self.aa)
+        self.aa_pic.daemon = True
+
+        self.rh = rehand.ReHand(tstep=0.005)
+        self.rh.daemon = True
+
+        # start ArmAssist, ArmAssistPIController, and ReHand simulation processes
+        self.aa.start()
+        self.aa_pic.start()
+        self.rh.start()
+
+    # # a "magic" function that instantaneously moves the ArmAssist and ReHand to a new configuration
+    # # IMPORTANT: only use to set initial position/orientation
+    # def set_pos(self, pos):
+    #     '''Magically set position (x, y, psi) in units of (cm, cm, rad).'''
+    #     wf = np.mat(pos).T
+    #     self.aa._set_wf(wf)
+
+    def send_vel(self, vel, dev='armassist'):
+        if dev == 'armassist':
+            assert len(vel) == 3
+            vel = np.mat(vel).T
+            self.aa_pic.update_reference(vel)
+
+        elif dev == 'rehand':
+            assert len(vel) == 4
+            vel = np.mat(vel).T
+            self.rh.set_vel(vel)
+
+        elif dev == 'ismore':
+            assert len(vel) == 7
+            aa_vel = np.mat(vel[0:3]).T
+            self.aa_pic.update_reference(aa_vel)
+
+            rh_vel = np.mat(vel[3:7]).T
+            self.rh.set_vel(rh_vel)
+
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+        
+    def _get_state(self):
+        aa_state = self.aa.get_state()
+        aa_pos = np.array(aa_state['wf']).reshape((3,))
+        aa_vel = np.array(aa_state['wf_dot']).reshape((3,))
+
+        rh_state = self.rh.get_state()
+        rh_pos = np.array(rh_state['pos']).reshape((4,))
+        rh_vel = np.array(rh_state['vel']).reshape((4,))
+
+        return aa_pos, aa_vel, rh_pos, rh_vel
+
+    def get_pos(self, dev='armassist'):
+        aa_pos, _, rh_pos, _ = self._get_state()
+
+        if dev == 'armassist':
+            return aa_pos
+        elif dev == 'rehand':
+            return rh_pos
+        elif dev == 'ismore':
+            return np.hstack([aa_pos, rh_pos])
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+    def get_vel(self, dev='armassist'):
+        _, aa_vel, _, rh_vel = self._get_state()
+
+        if dev == 'armassist':
+            return aa_vel
+        elif dev == 'rehand':
+            return rh_vel
+        elif dev == 'ismore':
+            return np.hstack([aa_vel, rh_vel])
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+
+# No need to use this one anymore -- can just use IsMorePlantNoUDP or IsMorePlant,
+# even if you want to control only the ArmAssist or only the ReHand
+# class ArmAssistPlant(object):
+#     def __init__(self):
+#         self.aa = armassist.ArmAssist(tstep=0.005)
+#         self.aa.daemon = True
+
+#         # P gain matrix
+#         KP = np.mat([[-10.,   0., 0.], 
+#                      [  0., -20., 0.],
+#                      [  0.,   0., 20.]])
+#         TI = 0.1*np.identity(3)  # I gain matrix
+#         self.aa_pic = armassist.ArmAssistPIController(tstep=0.01, KP=KP, TI=TI, plant=self.aa)
+#         self.aa_pic.daemon = True
+
+#         # start ArmAssist and ArmAssistPIController processes
+#         self.aa.start()
+#         self.aa_pic.start()
+
+#     # # a "magic" function that instantaneously moves the ArmAssist to a new position
+#     # # IMPORTANT: only use to set initial position/orientation
+#     # def set_pos(self, pos):
+#     #     '''Magically set position (x, y, psi) in units of (cm, cm, rad).'''
+#     #     wf = np.mat(pos).T
+#     #     self.aa._set_wf(wf)
+
+#     def send_vel(self, vel):
+#         '''Send velocity in units of (cm/s, cm/s, rad/s).'''
+#         vel = np.mat(vel).T
+#         self.aa_pic.update_reference(vel)
+
+#     def _get_state(self):
+#         state = self.aa.get_state()
+#         pos = np.array(state['wf']).reshape((3,))
+#         vel = np.array(state['wf_dot']).reshape((3,))
+
+#         return pos, vel
+
+#     def get_pos(self):
+#         return self._get_state()[0]
+
+#     def get_vel(self):
+#         return self._get_state()[1]
