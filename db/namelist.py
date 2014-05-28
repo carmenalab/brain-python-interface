@@ -55,7 +55,7 @@ generators = dict(
     outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
     outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
     armassist_CO_angle_discrete=generatorfunctions.armassist_centerout_angle_discrete,
-    aa_rh_discrete=generatorfunctions.aa_rh_discrete,
+    ismore_discrete=generatorfunctions.ismore_discrete,
 )
 
 # from tasks.rds import RDS, RDS_half
