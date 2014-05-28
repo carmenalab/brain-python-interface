@@ -256,7 +256,7 @@ class IsMoreAssister(Assister):
             assist_rh1_pos, assist_rh1_vel = self.angle_assist(rh1_pos, target_rh1_pos)
 
             rh2_pos = np.array(current_state[4, 0]).ravel()
-            target_rh3_pos = np.array(target_state[4, 0]).ravel()
+            target_rh2_pos = np.array(target_state[4, 0]).ravel()
             assist_rh2_pos, assist_rh2_vel = self.angle_assist(rh2_pos, target_rh2_pos)
 
             rh3_pos = np.array(current_state[5, 0]).ravel()
