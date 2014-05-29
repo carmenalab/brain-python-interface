@@ -35,22 +35,22 @@ class IsMorePlant(object):
         self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
         self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
 
-    def send_vel(self, vel, dev='armassist'):
-        if dev == 'armassist':
+    def send_vel(self, vel, dev='IsMore'):
+        if dev == 'ArmAssist':
             # units of vel should be: (cm/s, cm/s, rad/s)
             assert len(vel) == 3
             command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
             self.sock.sendto(command, self.aa_addr)
             print 'sending command:', command
         
-        elif dev == 'rehand':
+        elif dev == 'ReHand':
             # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
             assert len(vel) == 4
             command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
             self.sock.sendto(command, self.rh_addr)
             print 'sending command:', command
         
-        elif dev == 'ismore':
+        elif dev == 'IsMore':
             # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
             assert len(vel) == 7
             command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel[0:3])
@@ -64,24 +64,24 @@ class IsMorePlant(object):
         else:
             raise Exception('Unknown device: ' + str(dev))
 
-    def get_pos(self, dev='armassist'):
-        if dev == 'armassist':
+    def get_pos(self, dev='IsMore'):
+        if dev == 'ArmAssist':
             state_names = self.aa_p_state_names
-        elif dev == 'rehand':
+        elif dev == 'ReHand':
             state_names = self.rh_p_state_names
-        elif dev == 'ismore':
+        elif dev == 'IsMore':
             state_names = self.all_p_state_names
         else:
             raise Exception('Unknown device: ' + str(dev))
 
         return self.feedback_source.get(n_pts=1, channels=state_names).reshape(-1)
 
-    def get_vel(self, dev='armassist'):
-        if dev == 'armassist':
+    def get_vel(self, dev='IsMore'):
+        if dev == 'ArmAssist':
             state_names = self.aa_v_state_names
-        elif dev == 'rehand':
+        elif dev == 'ReHand':
             state_names = self.rh_v_state_names
-        elif dev == 'ismore':
+        elif dev == 'IsMore':
             state_names = self.all_v_state_names
         else:
             raise Exception('Unknown device: ' + str(dev))
@@ -121,18 +121,18 @@ class IsMorePlantNoUDP(object):
     #     wf = np.mat(pos).T
     #     self.aa._set_wf(wf)
 
-    def send_vel(self, vel, dev='armassist'):
-        if dev == 'armassist':
+    def send_vel(self, vel, dev='IsMore'):
+        if dev == 'ArmAssist':
             assert len(vel) == 3
             vel = np.mat(vel).T
             self.aa_pic.update_reference(vel)
 
-        elif dev == 'rehand':
+        elif dev == 'ReHand':
             assert len(vel) == 4
             vel = np.mat(vel).T
             self.rh.set_vel(vel)
 
-        elif dev == 'ismore':
+        elif dev == 'IsMore':
             assert len(vel) == 7
             aa_vel = np.mat(vel[0:3]).T
             self.aa_pic.update_reference(aa_vel)
@@ -154,32 +154,32 @@ class IsMorePlantNoUDP(object):
 
         return aa_pos, aa_vel, rh_pos, rh_vel
 
-    def get_pos(self, dev='armassist'):
+    def get_pos(self, dev='IsMore'):
         aa_pos, _, rh_pos, _ = self._get_state()
 
-        if dev == 'armassist':
+        if dev == 'ArmAssist':
             return aa_pos
-        elif dev == 'rehand':
+        elif dev == 'ReHand':
             return rh_pos
-        elif dev == 'ismore':
+        elif dev == 'IsMore':
             return np.hstack([aa_pos, rh_pos])
         else:
             raise Exception('Unknown device: ' + str(dev))
 
-    def get_vel(self, dev='armassist'):
+    def get_vel(self, dev='IsMore'):
         _, aa_vel, _, rh_vel = self._get_state()
 
-        if dev == 'armassist':
+        if dev == 'ArmAssist':
             return aa_vel
-        elif dev == 'rehand':
+        elif dev == 'ReHand':
             return rh_vel
-        elif dev == 'ismore':
+        elif dev == 'IsMore':
             return np.hstack([aa_vel, rh_vel])
         else:
             raise Exception('Unknown device: ' + str(dev))
 
 
-# No need to use this one anymore -- can just use IsMorePlantNoUDP or IsMorePlant,
+# Old, no need to use this one anymore -- can use IsMorePlantNoUDP or IsMorePlant,
 # even if you want to control only the ArmAssist or only the ReHand
 # class ArmAssistPlant(object):
 #     def __init__(self):
