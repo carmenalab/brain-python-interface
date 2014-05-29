@@ -230,6 +230,69 @@ class ArmAssistAssister(Assister):
 
         return assist_psi_pos, assist_psi_vel
 
+
+class ReHandAssister(Assister):
+    '''Docstring.'''
+    def __init__(self, *args, **kwargs):
+        self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
+        self.assist_speed = kwargs.pop('assist_speed', 5.)
+        self.target_radius = kwargs.pop('target_radius', 2.)
+
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        if assist_level > 0:
+            # TODO -- code below is *unnecessarily* long/inefficient, find way to shorten
+            rh1_pos = np.array(current_state[0, 0]).ravel()
+            target_rh1_pos = np.array(target_state[0, 0]).ravel()
+            assist_rh1_pos, assist_rh1_vel = self.angle_assist(rh1_pos, target_rh1_pos)
+
+            rh2_pos = np.array(current_state[1, 0]).ravel()
+            target_rh2_pos = np.array(target_state[1, 0]).ravel()
+            assist_rh2_pos, assist_rh2_vel = self.angle_assist(rh2_pos, target_rh2_pos)
+
+            rh3_pos = np.array(current_state[2, 0]).ravel()
+            target_rh3_pos = np.array(target_state[2, 0]).ravel()
+            assist_rh3_pos, assist_rh3_vel = self.angle_assist(rh3_pos, target_rh3_pos)
+
+            rh4_pos = np.array(current_state[3, 0]).ravel()
+            target_rh4_pos = np.array(target_state[3, 0]).ravel()
+            assist_rh4_pos, assist_rh4_vel = self.angle_assist(rh4_pos, target_rh4_pos)
+
+            Bu = assist_level * np.hstack([assist_rh1_pos,
+                                           assist_rh2_pos,
+                                           assist_rh3_pos,
+                                           assist_rh4_pos,
+                                           assist_rh1_vel,
+                                           assist_rh2_vel,
+                                           assist_rh3_vel,
+                                           assist_rh4_vel,
+                                           1])
+
+            Bu = np.mat(Bu.reshape(-1, 1))
+
+            assist_weight = assist_level
+        else:
+            Bu = None
+            assist_weight = 0.
+
+        return Bu, assist_weight
+
+    def angle_assist(self, ang_pos, target_ang_pos):
+        binlen = self.decoder_binlen
+
+        angular_speed = 15*(np.pi/180)  # in rad/s (15 deg/s)
+        cutoff_diff = 5*(np.pi/180)  # in rad (5 deg)
+        ang_diff = angle_subtract(target_ang_pos, ang_pos)
+        
+        if abs(ang_diff) > cutoff_diff:
+            assist_ang_vel = np.sign(ang_diff) * angular_speed
+        else:
+            assist_ang_vel = (ang_diff / cutoff_diff) * angular_speed
+
+        assist_ang_pos = ang_pos + assist_ang_vel*binlen
+
+        return assist_ang_pos, assist_ang_vel
+
+
 class IsMoreAssister(Assister):
     '''Docstring.'''
     def __init__(self, *args, **kwargs):
