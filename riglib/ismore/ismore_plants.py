@@ -28,10 +28,10 @@ class IsMorePlant(object):
         self.rh_addr = ('127.0.0.1', 5000)
 
         # TODO -- don't hardcode these lists here, use names from state space models instead
-        self.aa_p_state_names = ['aa_px', 'aa_py', 'aa_ang_pz']
-        self.aa_v_state_names = ['aa_vx', 'aa_vy', 'aa_ang_vz']
-        self.rh_p_state_names = ['rh_ang_px', 'rh_ang_py', 'rh_ang_pz', 'rh_ang_pw']
-        self.rh_v_state_names = ['rh_ang_vx', 'rh_ang_vy', 'rh_ang_vz', 'rh_ang_vw']
+        self.aa_p_state_names = ['aa_px', 'aa_py', 'aa_ppsi']
+        self.aa_v_state_names = ['aa_vx', 'aa_vy', 'aa_vpsi']
+        self.rh_p_state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
+        self.rh_v_state_names = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
         self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
         self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
 
