@@ -4,7 +4,12 @@ import sys
 import time
 import socket
 import select
+import numpy as np
 from collections import namedtuple
+
+# CONSTANTS
+rad_to_deg = 180 / np.pi
+deg_to_rad = np.pi / 180
 
 PlantFeedbackData = namedtuple("PlantFeedbackData", ["state_name", "value", "arrival_ts"])
 
@@ -70,6 +75,9 @@ class Client(object):
                     raise Exception('Feedback data received from unknown device: ' + dev_id)
                  
                 for state_name, value in zip(state_names, values):
+                    # for angular values, convert from deg to rad (and deg/s to rad/s)
+                    if state_name not in ['aa_px', 'aa_py', 'aa_vx', 'aa_vy']:
+                        value *= deg_to_rad
                     yield PlantFeedbackData(state_name=state_name, value=value, arrival_ts=arrival_ts)
 
             time.sleep(sleep_time)

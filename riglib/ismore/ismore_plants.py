@@ -9,6 +9,10 @@ from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand,
 import armassist
 import rehand
 
+# CONSTANTS
+rad_to_deg = 180 / np.pi
+deg_to_rad = np.pi / 180
+
 
 class IsMorePlant(object):
     '''Sends velocity commands and receives feedback over UDP. Can be used
@@ -39,6 +43,10 @@ class IsMorePlant(object):
         if dev == 'ArmAssist':
             # units of vel should be: (cm/s, cm/s, rad/s)
             assert len(vel) == 3
+
+            # convert from rad/s to deg/s
+            vel[2] *= rad_to_deg
+
             command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
             self.sock.sendto(command, self.aa_addr)
             print 'sending command:', command
@@ -46,6 +54,10 @@ class IsMorePlant(object):
         elif dev == 'ReHand':
             # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
             assert len(vel) == 4
+            
+            # convert from rad/s to deg/s
+            vel *= rad_to_deg
+
             command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
             self.sock.sendto(command, self.rh_addr)
             print 'sending command:', command
@@ -53,6 +65,10 @@ class IsMorePlant(object):
         elif dev == 'IsMore':
             # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
             assert len(vel) == 7
+            
+            # convert from rad/s to deg/s
+            vel[2:] *= rad_to_deg
+
             command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel[0:3])
             self.sock.sendto(command, self.aa_addr)
             print 'sending command:', command
@@ -63,6 +79,9 @@ class IsMorePlant(object):
         
         else:
             raise Exception('Unknown device: ' + str(dev))
+
+    # Note: for get_pos and get_vel, conversion from deg to rad occurs inside
+    # udp_feedback_client.py
 
     def get_pos(self, dev='IsMore'):
         if dev == 'ArmAssist':
@@ -123,17 +142,32 @@ class IsMorePlantNoUDP(object):
 
     def send_vel(self, vel, dev='IsMore'):
         if dev == 'ArmAssist':
+            # units of vel should be: (cm/s, cm/s, rad/s)
             assert len(vel) == 3
+
+            # don't need to convert from rad/s to deg/s
+            # (aa_pic expects units of rad/s)
+
             vel = np.mat(vel).T
             self.aa_pic.update_reference(vel)
 
         elif dev == 'ReHand':
+            # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
             assert len(vel) == 4
+            
+            # don't need to convert from rad/s to deg/s
+            # (rh expects units of rad/s)
+
             vel = np.mat(vel).T
             self.rh.set_vel(vel)
 
         elif dev == 'IsMore':
+            # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
             assert len(vel) == 7
+            
+            # don't need to convert from rad/s to deg/s
+            # (aa_pic and rh expect units of rad/s)
+
             aa_vel = np.mat(vel[0:3]).T
             self.aa_pic.update_reference(aa_vel)
 
@@ -151,6 +185,8 @@ class IsMorePlantNoUDP(object):
         rh_state = self.rh.get_state()
         rh_pos = np.array(rh_state['pos']).reshape((4,))
         rh_vel = np.array(rh_state['vel']).reshape((4,))
+
+        # no conversion needed (everything already in units of rad)
 
         return aa_pos, aa_vel, rh_pos, rh_vel
 
