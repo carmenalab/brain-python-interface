@@ -54,7 +54,8 @@ generators = dict(
     centerout_3D=generatorfunctions.centerout_3D,
     outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
     outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
-    armassist_CO_angle_discrete=generatorfunctions.armassist_centerout_angle_discrete,
+    armassist_discrete=generatorfunctions.armassist_discrete,
+    rehand_discrete=generatorfunctions.rehand_discrete,
     ismore_discrete=generatorfunctions.ismore_discrete,
 )
 
@@ -164,6 +165,8 @@ bmis = dict(
     kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
     kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
     kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
+    kalmanVFrehand=bmi.train._train_rehand_KFDecoder_visual_feedback,
+    kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
 )
 
 extractors = dict(

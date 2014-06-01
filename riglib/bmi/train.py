@@ -39,7 +39,12 @@ joint_2D_state_space = StateSpaceExoArm2D()
 tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
 
 StateSpaceArmAssist = state_space_models.StateSpaceArmAssist
-aa_state_space = StateSpaceArmAssist()
+StateSpaceReHand    = state_space_models.StateSpaceReHand
+StateSpaceIsMore    = state_space_models.StateSpaceIsMore
+
+armassist_state_space = StateSpaceArmAssist()
+rehand_state_space = StateSpaceReHand()
+ismore_state_space = StateSpaceIsMore()
 
 ##########################
 ## Main training functions
@@ -215,9 +220,8 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     return tmask, rows
 
 def _get_tmask_blackrock(nevfile, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_name='task'):
-    ''' Find the rows of the nev file to use for training the decoder
-    '''
-    
+    ''' Find the rows of the nev file to use for training the decoder.'''
+
     raise NotImplementedError
     
 
@@ -510,6 +514,27 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
     joint_kin = np.hstack([joint_angles, joint_vel_2D])
     return joint_kin
 
+def get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=60.):
+    '''Docstring.'''
+
+    # 'plant_pos' and 'plant_vel' are the pos/vel that were saved by 
+    # the task, and not directly through the feedback source
+    pos = hdf.root.task[:]['plant_pos']    
+    vel = hdf.root.task[:]['plant_vel']
+
+    inds, = np.nonzero(tmask)
+    
+    step = int(binlen/(1./update_rate_hz))
+
+    assert step >= 1
+
+    inds = inds[::step]
+    pos = pos[inds]
+    vel = vel[inds]
+    kin = np.hstack([pos, vel])
+
+    return kin
+
 def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source='task', kin_var='cursor'):
     
     hdf = tables.openFile(files['hdf'])
@@ -549,10 +574,6 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
 
     elif 'blackrock' in files:
 
-        print 'inside "blackrock" elif of train.preprocess_files()'
-        print 'hardcoding kin_var as armassist_kin'
-        kin_var = 'armassist_kin'
-
         nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
         nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]
 
@@ -574,7 +595,7 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
         except NotImplementedError:
             # need to create a fake rows variable
             # n_rows = hdf.root.task[:]['cursor'].shape[0]
-            n_rows = hdf.root.task[:][kin_var].shape[0]
+            n_rows = hdf.root.task[:]['plant_pos'].shape[0]
 
             first_ts = binlen
             update_rate_hz = 1./60
@@ -587,7 +608,10 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
                 upper = rows < u
             tmask = np.logical_and(lower, upper)
 
-            kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
+            # Note: kin_var doesn't need to be passed into get_ismore_kinematics because
+            # kinematics are saved as 'plant_pos' and 'plant_vel' regardless of
+            # whether the plant is armassist, rehand, or ismore (armassist+rehand)
+            kin = get_ismore_kinematics(hdf, binlen, tmask)
             neurows = rows[tmask]
 
 
@@ -638,15 +662,12 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
     Train a KFDecoder from visual feedback
     '''
 
-    # TODO -- why is kin_var set AFTER the call to preprocess_files -- it should be before, right?
     kin, neural_features, units, extractor_kwargs = preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source=source, kin_var=kin_var)
     if _ssm == None:
         if kin_var == 'cursor':
             _ssm=endpt_2D_state_space
         elif kin_var == 'joint_angles':
             _ssm=joint_2D_state_space
-        elif kin_var == 'armassist_kin':
-            _ssm=aa_state_space
         
     if len(kin) != len(neural_features):
         raise ValueError('Training data and neural data are the wrong length: %d vs. %d'%(len(kin), len(neural_features)))
@@ -677,10 +698,30 @@ def _train_joint_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, unit
                                             shuffle=shuffle, **files)
 
 def _train_armassist_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
-    _ssm=aa_state_space, source='task', kin_var='armassist_kin', shuffle=False, **files):
+    _ssm=armassist_state_space, source='task', kin_var=None, shuffle=False, **files):
     '''
     One-liner to train an armassist BMI. To be removed as soon as the train BMI gui can be updated
-    to have more arguments
+    to have more arguments.
+    '''
+    return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
+                                            _ssm=_ssm, source=source, kin_var=kin_var,
+                                            shuffle=shuffle, **files)
+
+def _train_rehand_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
+    _ssm=rehand_state_space, source='task', kin_var=None, shuffle=False, **files):
+    '''
+    One-liner to train a rehand BMI. To be removed as soon as the train BMI gui can be updated
+    to have more arguments.
+    '''
+    return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
+                                            _ssm=_ssm, source=source, kin_var=kin_var,
+                                            shuffle=shuffle, **files)
+
+def _train_ismore_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
+    _ssm=ismore_state_space, source='task', kin_var=None, shuffle=False, **files):
+    '''
+    One-liner to train an ismore (armassist+rehand) BMI. To be removed as soon as the train BMI gui can be updated
+    to have more arguments.
     '''
     return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
                                             _ssm=_ssm, source=source, kin_var=kin_var,

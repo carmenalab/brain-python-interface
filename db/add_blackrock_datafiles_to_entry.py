@@ -25,9 +25,9 @@ for file_ in sample_blackrock_files:
 	if os.path.isfile(fullpath):
 		raise Exception('File %s already exists!' % fullpath)
 	else:
-		print "Executing system command: cp %s %s" % (file_, fullpath)
+		print "Executing system command: sudo cp %s %s" % (file_, fullpath)
 		print ''
-		os.system("cp %s %s" % (file_, fullpath))
+		os.system("sudo cp %s %s" % (file_, fullpath))
 
 
 		print 'Saving DataFile object to database with following params:'
