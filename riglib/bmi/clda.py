@@ -61,8 +61,16 @@ def normalize(vec):
     
     return norm_vec
 
-class Learner(object):
-    def __init__(self, *args, **kwargs):
+class BatchLearner(object):
+    def __init__(self, batch_size, *args, **kwargs):
+        self.done_states = kwargs.pop('done_states', [])
+        self.reset_states = kwargs.pop('reset_states', [])
+        print "Reset states for learner: "
+        print self.reset_states
+        print "Done states for learner: "
+        print self.done_states        
+        self.batch_size = batch_size
+        self.passed_done_state = False
         self.enabled = True
         self.input_state_index = -1
         self.reset()
@@ -77,41 +85,10 @@ class Learner(object):
         self.kindata = []
         self.neuraldata = []
 
-    def __call__(self, *args, **kwargs):
-        raise NotImplementedError
-
-class DumbLearner(Learner):
-    def __init__(self, *args, **kwargs):
-        self.enabled = False
-        self.input_state_index = 0
-
-    def __call__(self, *args, **kwargs):
-        """ Do nothing; hence the name of the class"""
-        pass
-
-    def is_ready(self):
-        return False
-
-    def get_batch(self):
-        raise NotImplementedError
-
-class BatchLearner(Learner):
-    def __init__(self, batch_size, *args, **kwargs):
-        self.done_states = kwargs.pop('done_states', [])
-        self.reset_states = kwargs.pop('reset_states', [])
-        print "Reset states for learner: "
-        print self.reset_states
-        print "Done states for learner: "
-        print self.done_states        
-        self.batch_size = batch_size
-        self.passed_done_state = False
-        super(BatchLearner, self).__init__(*args, **kwargs)
-
     def __call__(self, spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=None):
         """
         Calculate the intended kinematics and pair with the neural data
         """
-        #print task_state
         if task_state in self.reset_states:
             print "resetting CLDA batch"
             self.reset()
@@ -129,18 +106,31 @@ class BatchLearner(Learner):
             if task_state in self.done_states:
                 self.passed_done_state = True
 
-    
     def is_ready(self):
         _is_ready = len(self.kindata) >= self.batch_size or ((len(self.kindata) > 0) and self.passed_done_state)
         return _is_ready
 
     def get_batch(self):
-        kindata = np.vstack(self.kindata).T
+        kindata = np.hstack(self.kindata)
         neuraldata = np.hstack(self.neuraldata)
         self.kindata = []
         self.neuraldata = []
         return kindata, neuraldata
 
+class DumbLearner(BatchLearner):
+    def __init__(self, *args, **kwargs):
+        self.enabled = False
+        self.input_state_index = 0
+
+    def __call__(self, *args, **kwargs):
+        """ Do nothing; hence the name of the class"""
+        pass
+
+    def is_ready(self):
+        return False
+
+    def get_batch(self):
+        raise NotImplementedError
 
 class OFCLearner(BatchLearner):
     def __init__(self, batch_size, A, B, F_dict, *args, **kwargs):
@@ -149,44 +139,16 @@ class OFCLearner(BatchLearner):
         self.F_dict = F_dict
         self.A = A
 
-    def _run_fbcontroller(self, F, current_state, target_state):
-        A = self.A
-        B = self.B
-        return A*current_state + B*F*(target_state - current_state)
-
     def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        # print current_state
-        # print target_state
-        # print decoder_output
         try:
             current_state = np.mat(current_state).reshape(-1,1)
             target_state = np.mat(target_state).reshape(-1,1)
             F = self.F_dict[task_state]
             A = self.A
             B = self.B
-            # print F
-            # print A
-            # print B
             return A*current_state + B*F*(target_state - current_state)        
         except KeyError:
             return None
-
-    # def __call__(self, spike_counts, cursor_state, target_state, decoded_vel, task_state, state_order=None):
-    #     if task_state in self.F_dict:
-    #         target_state = np.mat(target_state).reshape(-1,1)
-    #         current_state = np.mat(cursor_state).reshape(-1,1)
-    #         int_state = self._run_fbcontroller(self.F_dict[task_state], current_state, target_state)
-
-    #         if self.enabled:
-    #             self.kindata.append(int_state)
-    #             self.neuraldata.append(spike_counts)
-
-    def get_batch(self):
-        kindata = np.hstack(self.kindata)
-        neuraldata = np.hstack(self.neuraldata)
-        self.kindata = []
-        self.neuraldata = []
-        return kindata, neuraldata
 
 class OFCLearner3DEndptPPF(OFCLearner):
     def __init__(self, batch_size, *args, **kwargs):
@@ -305,23 +267,7 @@ class CursorGoalLearner2(BatchLearner):
         if state_order is None:
             raise ValueError("CursorGoalLearner2.__call__ requires state order to be specified!")
         super(CursorGoalLearner2, self).__call__(spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
-        # int_kin = self.calc_int_kin(decoder_state, target_state, decoder_output, task_state, state_order=state_order)
-        
-        # if self.enabled and int_kin is not None:
-        #     n_subbins = spike_counts.shape[1]
-        #     for k in range(n_subbins):
-        #         self.kindata.append(int_kin)
-        #     self.neuraldata.append(spike_counts)
-
-    # def is_ready(self):
-    #     return len(self.kindata) >= self.batch_size
-
-    # def get_batch(self):
-    #     kindata = np.vstack(self.kindata).T
-    #     neuraldata = np.hstack(self.neuraldata)
-    #     self.kindata = []
-    #     self.neuraldata = []
-    #     return kindata, neuraldata            
+    
 
 
 class ArmAssistLearner(BatchLearner):

@@ -1,7 +1,7 @@
 #!/bin/bash
 ####### Declare environment variables
 CODE=$HOME/code/
-BMI3D=$HOME/code/bmi3d ### Directory in which to install the bmi3d software
+BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 
 
 ####### Set up directories
@@ -11,7 +11,7 @@ sudo chown $USER /backup
 # make log directory
 mkdir $BMI3D/log
 sudo mkdir /storage
-sudo chown -R lab /storage
+sudo chown -R $USER /storage
 mkdir /storage/plots
 mkdir $CODE/src/
 
