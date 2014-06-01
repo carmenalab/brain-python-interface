@@ -167,7 +167,7 @@ class ArmAssistAssister(Assister):
     '''Docstring.'''
     def __init__(self, *args, **kwargs):
         self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        self.assist_speed = kwargs.pop('assist_speed', 5.)  # TODO -- 5 cm/s too fast?
+        self.assist_speed = kwargs.pop('assist_speed', 2.)
         self.target_radius = kwargs.pop('target_radius', 2.)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):

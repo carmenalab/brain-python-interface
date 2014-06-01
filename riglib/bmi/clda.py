@@ -111,7 +111,8 @@ class BatchLearner(object):
         return _is_ready
 
     def get_batch(self):
-        kindata = np.hstack(self.kindata)
+        # kindata = np.hstack(self.kindata)  # not the same as line below
+        kindata = np.vstack(self.kindata).T
         neuraldata = np.hstack(self.neuraldata)
         self.kindata = []
         self.neuraldata = []
