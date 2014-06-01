@@ -16,9 +16,12 @@ from . import FuncProxy
 
 
 class DataSource(mp.Process):
-    def __init__(self, source, bufferlen=10, **kwargs):
+    def __init__(self, source, bufferlen=10, name=None, **kwargs):
         super(DataSource, self).__init__()
-        self.name = source.__module__.split('.')[-1]
+        if name is not None:
+            self.name = name
+        else:
+            self.name = source.__module__.split('.')[-1]
         self.filter = None
         self.source = source
         self.source_kwargs = kwargs
@@ -114,6 +117,33 @@ class DataSource(mp.Process):
                 data = self.data[last:i]
             
         self.last_idx = self.idx.value
+        self.lock.release()
+        try:
+            data = np.fromstring(data, dtype=self.source.dtype)
+        except:
+            print "can't get fromstring..."
+
+        if self.filter is not None:
+            return self.filter(data, **kwargs)
+        return data
+
+    # TODO -- change name, add documentation
+    def read(self, n_pts=1, **kwargs):
+        if self.status.value <= 0:
+            raise Exception('Error starting datasource ' + self.name)
+            
+        self.lock.acquire()
+        idx = self.idx.value % self.max_len 
+        i = idx * self.slice_size
+        
+        if n_pts > self.max_len:
+            n_pts = self.max_len
+
+        if idx >= n_pts:  # no wrap-around required
+            data = self.data[(idx-n_pts)*self.slice_size:idx*self.slice_size]
+        else:
+            data = self.data[-(n_pts-idx)*self.slice_size:] + self.data[:idx*self.slice_size]
+
         self.lock.release()
         try:
             data = np.fromstring(data, dtype=self.source.dtype)

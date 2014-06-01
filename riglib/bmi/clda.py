@@ -111,8 +111,7 @@ class BatchLearner(object):
         return _is_ready
 
     def get_batch(self):
-        # kindata = np.hstack(self.kindata)  # not the same as line below
-        kindata = np.vstack(self.kindata).T
+        kindata = np.hstack(self.kindata)
         neuraldata = np.hstack(self.neuraldata)
         self.kindata = []
         self.neuraldata = []
@@ -289,7 +288,6 @@ class ArmAssistLearner(BatchLearner):
         current_state = decoder_state[:, None]  # assister expects shape to be (7, 1)
         target_state  = target_state[:, None]   # assister expects shape to be (7, 1)
         intended_state = self.assister(current_state, target_state, 1)[0]
-        intended_state = intended_state.ravel()  # want shape to be (7,)
 
         return intended_state
 
@@ -303,8 +301,8 @@ class ArmAssistOFCLearner(OFCLearner):
         '''Specific instance of the OFCLearner for the ArmAssist.'''
         dt = kwargs.pop('dt', 0.1)
 
-        import train
-        ssm = train.aa_state_space
+        import state_space_models
+        ssm = state_space_models.StateSpaceArmAssist()
         A, B, _ = ssm.get_ssm_matrices()
         
         # TODO -- velocity cost? not necessary?
@@ -351,7 +349,7 @@ class ArmAssistOFCLearner(OFCLearner):
             # print 'state cost:', float(state_cost)
             # print 'ctrl cost:', float(ctrl_cost)
             # print '\n'
-            
+
             return A*current_state + B*F*(diff)        
         except KeyError:
             return None
@@ -373,7 +371,6 @@ class ReHandLearner(BatchLearner):
         current_state = decoder_state[:, None]  # assister expects shape to be (9, 1)
         target_state  = target_state[:, None]   # assister expects shape to be (9, 1)
         intended_state = self.assister(current_state, target_state, 1)[0]
-        intended_state = intended_state.ravel()  # want shape to be (9,)
 
         return intended_state
 
@@ -399,7 +396,6 @@ class IsMoreLearner(BatchLearner):
         current_state = decoder_state[:, None]  # assister expects shape to be (15, 1)
         target_state  = target_state[:, None]   # assister expects shape to be (15, 1)
         intended_state = self.assister(current_state, target_state, 1)[0]
-        intended_state = intended_state.ravel()  # want shape to be (15,)
 
         return intended_state
 

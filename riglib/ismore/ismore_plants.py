@@ -16,7 +16,8 @@ deg_to_rad = np.pi / 180
 
 class IsMorePlant(object):
     '''Sends velocity commands and receives feedback over UDP. Can be used
-    with either the real or simulated ArmAssist and/or ReHand.
+    with either the real or simulated ArmAssist and/or ReHand. Uses a single
+    multi-chan data source for ArmAssist and ReHand.
      '''
     def __init__(self):
         ismore_ss = StateSpaceIsMore()
@@ -106,6 +107,118 @@ class IsMorePlant(object):
             raise Exception('Unknown device: ' + str(dev))
 
         return self.feedback_source.get(n_pts=1, channels=state_names).reshape(-1)
+
+
+class IsMorePlantNew(object):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated ArmAssist and/or ReHand. Uses 2 separate
+    data sources for ArmAssist and ReHand.
+    '''
+    def __init__(self):
+        self.aa_source = source.DataSource(blackrock.ArmAssistData, name='armassist')  # TODO -- set small buffer length
+        self.rh_source = source.DataSource(blackrock.ReHandData, name='rehand')     # TODO -- set small buffer length
+
+        self.aa_source.start()
+        self.rh_source.start()
+
+        # used only for sending commands (not for receiving feedback)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        self.aa_addr = ('127.0.0.1', 5001)
+        self.rh_addr = ('127.0.0.1', 5000)
+
+        # TODO -- don't hardcode these lists here, use names from state space models instead
+        self.aa_p_state_names = ['aa_px', 'aa_py', 'aa_ppsi']
+        self.aa_v_state_names = ['aa_vx', 'aa_vy', 'aa_vpsi']
+        self.rh_p_state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
+        self.rh_v_state_names = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
+        self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
+        self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
+
+    def send_vel(self, vel, dev='IsMore'):
+        if dev == 'ArmAssist':
+            # units of vel should be: (cm/s, cm/s, rad/s)
+            assert len(vel) == 3
+
+            # convert from rad/s to deg/s
+            vel[2] *= rad_to_deg
+
+            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
+            self.sock.sendto(command, self.aa_addr)
+            print 'sending command:', command
+        
+        elif dev == 'ReHand':
+            # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
+            assert len(vel) == 4
+            
+            # convert from rad/s to deg/s
+            vel *= rad_to_deg
+
+            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
+            self.sock.sendto(command, self.rh_addr)
+            print 'sending command:', command
+        
+        elif dev == 'IsMore':
+            # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
+            assert len(vel) == 7
+            
+            # convert from rad/s to deg/s
+            vel[2:] *= rad_to_deg
+
+            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel[0:3])
+            self.sock.sendto(command, self.aa_addr)
+            print 'sending command:', command
+
+            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel[3:7])
+            self.sock.sendto(command, self.rh_addr)
+            print 'sending command:', command
+        
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+    # Note: for get_pos and get_vel, conversion from deg to rad occurs inside
+    # udp_feedback_client.py
+
+    def get_pos(self, dev='IsMore'):
+        if dev == 'ArmAssist':
+            feedback = np.array(tuple(self.aa_source.read(n_pts=1)[0]))
+            pos = feedback[0:3]
+        elif dev == 'ReHand':
+            feedback = np.array(tuple(self.rh_source.read(n_pts=1)[0]))
+            pos = feedback[0:4]
+        elif dev == 'IsMore':
+            feedback = np.array(tuple(self.aa_source.read(n_pts=1)[0]))
+            aa_pos = feedback[0:3]
+
+            feedback = np.array(tuple(self.rh_source.read(n_pts=1)[0]))
+            rh_pos = feedback[0:4]
+
+            pos = np.hstack([aa_pos, rh_pos]) 
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+        return pos
+
+    def get_vel(self, dev='IsMore'):
+        if dev == 'ArmAssist':
+            feedback = np.array(tuple(self.aa_source.read(n_pts=1)[0]))
+            vel = feedback[3:6]
+        elif dev == 'ReHand':
+            feedback = np.array(tuple(self.rh_source.read(n_pts=1)[0]))
+            vel = feedback[4:8]
+        elif dev == 'IsMore':
+            feedback = np.array(tuple(self.aa_source.read(n_pts=1)[0]))
+            aa_vel = feedback[3:6]
+
+            feedback = np.array(tuple(self.rh_source.read(n_pts=1)[0]))
+            rh_vel = feedback[4:8]
+
+            vel = np.hstack([aa_vel, rh_vel]) 
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+        return vel
+
         
 
 class IsMorePlantNoUDP(object):
