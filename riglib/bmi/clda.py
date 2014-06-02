@@ -14,6 +14,7 @@ import tables
 import re
 import assist
 
+from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from utils.angle_utils import *
 
 
@@ -280,8 +281,7 @@ class ArmAssistLearner(BatchLearner):
 
         super(ArmAssistLearner, self).__init__(*args, **kwargs)
 
-        # self.input_state_index = 0  # TODO: 0 or -1?
-        self.input_state_index = -1  # TODO: 0 or -1?
+        self.input_state_index = -1
 
     def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
         """Calculate/estimate the intended ArmAssist kinematics."""
@@ -301,8 +301,7 @@ class ArmAssistOFCLearner(OFCLearner):
         '''Specific instance of the OFCLearner for the ArmAssist.'''
         dt = kwargs.pop('dt', 0.1)
 
-        import state_space_models
-        ssm = state_space_models.StateSpaceArmAssist()
+        ssm = StateSpaceArmAssist()
         A, B, _ = ssm.get_ssm_matrices()
         
         # TODO -- velocity cost? not necessary?
@@ -319,8 +318,6 @@ class ArmAssistOFCLearner(OFCLearner):
 
         super(ArmAssistOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
-        # TODO -- 0 or -1?
-        # self.input_state_index = 0
         self.input_state_index = -1
     
     def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
