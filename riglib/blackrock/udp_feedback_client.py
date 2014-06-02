@@ -27,7 +27,7 @@ ReHandFeedbackData = namedtuple("ReHandFeedbackData", ['data', 'arrival_ts'])
 class Client(object):
     '''Docstring.'''
 
-    MAX_MSG_LEN = 100
+    MAX_MSG_LEN = 200
 
     def __init__(self, ip='127.0.0.1', port=5002):
         address = (ip, port)
@@ -58,16 +58,24 @@ class Client(object):
                 arrival_ts = time.time()
                 # print 'received feedback:', feedback
 
-                # final structure of feedback packets is still TBD
-                # for now, assume feedback packets are of the form, e.g., :
-                #   "Feedback ReHand pos pos pos pos vel vel vel vel\r"
-                #      or 
-                #   "Feedback ArmAssist pos pos pos vel vel vel\r"
-
                 items = feedback.rstrip('\r').split(' ')
                 cmd_id = items[0]
                 dev_id = items[1]
-                values = [float(s) for s in items[2:]]
+                freq   = items[2]  # don't need this
+                values = [float(s) for s in items[3:]]
+
+                vel = []
+                pos = []
+                torque = []
+
+                i = 0
+                for i, value in enumerate(values):
+                    if i % 3 == 0:
+                        vel.append(value)
+                    if i % 3 == 1:
+                        pos.append(value)
+                    if i % 3 == 2:
+                        torque.append(value)
 
                 # TODO -- don't hardcode state names below, get them from corresponding state space models
 
@@ -79,7 +87,7 @@ class Client(object):
                 else:
                     raise Exception('Feedback data received from unknown device: ' + dev_id)
                  
-                for state_name, value in zip(state_names, values):
+                for state_name, value in zip(state_names, pos + vel):
                     # for angular values, convert from deg to rad (and deg/s to rad/s)
                     if state_name not in ['aa_px', 'aa_py', 'aa_vx', 'aa_vy']:
                         value *= deg_to_rad
@@ -107,21 +115,23 @@ class ArmAssistClient(Client):
                 arrival_ts = time.time()
                 # print 'received feedback:', feedback
 
-                # final structure of feedback packets is still TBD
-                # for now, assume ArmAssist feedback packets are of the form, e.g., :
-                #   "Feedback ArmAssist pos pos pos vel vel vel\r"
-
                 items = feedback.rstrip('\r').split(' ')
                 cmd_id = items[0]
                 dev_id = items[1]
-                data = np.array([float(s) for s in items[2:]])
+                freq   = items[2]  # don't need this
+                values = [float(s) for s in items[3:]]
+
+                assert dev_id == 'ArmAssist'
+                assert len(values) == 9
+
+                pos = [values[1], values[4], values[7]]
+                vel = [values[0], values[3], values[6]]
+
+                data = np.array(pos + vel)
 
                 # convert angular values from deg to rad (and deg/s to rad/s)
                 data[2] *= deg_to_rad  # aa_ppsi
-                data[5] *= deg_to_rad  # aa_vpsi
-
-                assert dev_id == 'ArmAssist'
-                assert len(data) == 6
+                data[5] *= deg_to_rad  # aa_vpsi                
 
                 yield ArmAssistFeedbackData(data=data, arrival_ts=arrival_ts)
 
@@ -147,20 +157,22 @@ class ReHandClient(Client):
                 arrival_ts = time.time()
                 # print 'received feedback:', feedback
 
-                # final structure of feedback packets is still TBD
-                # for now, assume ReHand feedback packets are of the form, e.g., :
-                #   "Feedback ReHand pos pos pos pos vel vel vel vel\r"
-
                 items = feedback.rstrip('\r').split(' ')
                 cmd_id = items[0]
                 dev_id = items[1]
-                data = np.array([float(s) for s in items[2:]])
+                freq   = items[2]  # don't need this
+                values = [float(s) for s in items[3:]]
+
+                assert dev_id == 'ReHand'
+                assert len(values) == 12
+
+                pos = [values[1], values[4], values[7], values[10]]
+                vel = [values[0], values[3], values[6], values[9]]
+
+                data = np.array(pos + vel)
 
                 # convert angular values from deg to rad (and deg/s to rad/s)
                 data *= deg_to_rad
-
-                assert dev_id == 'ReHand'
-                assert len(data) == 8
 
                 yield ReHandFeedbackData(data=data, arrival_ts=arrival_ts)
 
