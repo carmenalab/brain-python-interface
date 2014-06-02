@@ -357,10 +357,18 @@ class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
         self.B = B
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
-    def calc_assisted_BMI_state(self, *args, **kwargs):
-        Bu, assist_weight = super(ArmAssistLFCAssister, self).calc_assisted_BMI_state(*args, **kwargs)
-        return Bu, assist_weight
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        B = self.B
+        F = self.F
 
+        diff = target_state - current_state
+        diff[2] = angle_subtract(target_state[2], current_state[2])
+
+        Bu = assist_level * B*F*(diff)
+        assist_weight = assist_level
+
+        return Bu, assist_weight
+            
 
 class ReHandLFCAssister(LinearFeedbackControllerAssist):
     def __init__(self, *args, **kwargs):
@@ -379,8 +387,17 @@ class ReHandLFCAssister(LinearFeedbackControllerAssist):
         self.B = B
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
-    def calc_assisted_BMI_state(self, *args, **kwargs):
-        Bu, assist_weight = super(ReHandLFCAssister, self).calc_assisted_BMI_state(*args, **kwargs)
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        B = self.B
+        F = self.F
+
+        diff = target_state - current_state
+        for i in range(4):
+            diff[i] = angle_subtract(target_state[i], current_state[i])
+
+        Bu = assist_level * B*F*(diff)
+        assist_weight = assist_level
+
         return Bu, assist_weight
 
 
@@ -401,8 +418,17 @@ class IsMoreLFCAssister(LinearFeedbackControllerAssist):
         self.B = B
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
-    def calc_assisted_BMI_state(self, *args, **kwargs):
-        Bu, assist_weight = super(IsMoreLFCAssister, self).calc_assisted_BMI_state(*args, **kwargs)
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        B = self.B
+        F = self.F
+
+        diff = target_state - current_state
+        for i in range(2, 7):
+            diff[i] = angle_subtract(target_state[i], current_state[i])
+
+        Bu = assist_level * B*F*(diff)
+        assist_weight = assist_level
+
         return Bu, assist_weight
 
 

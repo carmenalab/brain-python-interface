@@ -270,6 +270,11 @@ class CursorGoalLearner2(BatchLearner):
         super(CursorGoalLearner2, self).__call__(spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
     
 
+###################
+## iBMI learners ##
+###################
+
+# simple iBMI learners that just use an "assister" object
 
 class ArmAssistLearner(BatchLearner):
     def __init__(self, *args, **kwargs):
@@ -295,61 +300,6 @@ class ArmAssistLearner(BatchLearner):
         '''Calculate the intended kinematics and pair with the neural data.'''
         super(ArmAssistLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
 
-
-class ArmAssistOFCLearner(OFCLearner):
-    def __init__(self, batch_size, *args, **kwargs):
-        '''Specific instance of the OFCLearner for the ArmAssist.'''
-        dt = kwargs.pop('dt', 0.1)
-
-        ssm = StateSpaceArmAssist()
-        A, B, _ = ssm.get_ssm_matrices()
-        
-        # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 50., 0, 0, 0, 0]))
-        self.Q = Q
-        
-        # TODO -- scaling?
-        R = 1e7 * np.mat(np.diag([1., 1., 1.]))
-        self.R = R
-
-        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = RegexKeyDict()
-        F_dict['.*'] = F
-
-        super(ArmAssistOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
-
-        self.input_state_index = -1
-    
-    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        '''Overriding to account for proper subtraction of angles.'''
-        try:
-            current_state = np.mat(current_state).reshape(-1, 1)
-            target_state = np.mat(target_state).reshape(-1, 1)
-            F = self.F_dict[task_state]
-            A = self.A
-            B = self.B
-
-            diff = target_state - current_state
-            diff[2] = angle_subtract(target_state[2], current_state[2])
-
-            u = F*diff
-            state_cost = diff.T * self.Q * diff
-            ctrl_cost  = u.T * self.R * u
-
-            # print 'target_state:', target_state
-            # print 'state x cost:', diff[0]**2 * float(self.Q[0, 0])
-            # print 'state y cost:', diff[1]**2 * float(self.Q[1, 1])
-            # print 'state z cost:', diff[2]**2 * float(self.Q[2, 2])
-            # print 'u x cost:', u[0]**2 * float(self.R[0, 0])
-            # print 'u y cost:', u[1]**2 * float(self.R[1, 1])
-            # print 'u z cost:', u[2]**2 * float(self.R[2, 2])
-            # print 'state cost:', float(state_cost)
-            # print 'ctrl cost:', float(ctrl_cost)
-            # print '\n'
-
-            return A*current_state + B*F*(diff)        
-        except KeyError:
-            return None
 
 class ReHandLearner(BatchLearner):
     def __init__(self, *args, **kwargs):
@@ -399,6 +349,64 @@ class IsMoreLearner(BatchLearner):
     def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
         '''Calculate the intended kinematics and pair with the neural data.'''
         super(IsMoreLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+
+
+# OFC iBMI learners
+
+class ArmAssistOFCLearner(OFCLearner):
+    def __init__(self, batch_size, *args, **kwargs):
+        '''Specific instance of the OFCLearner for the ArmAssist.'''
+        dt = kwargs.pop('dt', 0.1)
+
+        ssm = StateSpaceArmAssist()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = np.mat(np.diag([1., 1., 50., 0, 0, 0, 0]))
+        self.Q = Q
+        
+        R = 1e7 * np.mat(np.diag([1., 1., 1.]))
+        self.R = R
+
+        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        F_dict = RegexKeyDict()
+        F_dict['.*'] = F
+
+        super(ArmAssistOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+        self.input_state_index = -1
+    
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''Overriding to account for proper subtraction of angles.'''
+        try:
+            current_state = np.mat(current_state).reshape(-1, 1)
+            target_state = np.mat(target_state).reshape(-1, 1)
+            F = self.F_dict[task_state]
+            A = self.A
+            B = self.B
+
+            diff = target_state - current_state
+            diff[2] = angle_subtract(target_state[2], current_state[2])
+
+            u = F*diff
+            state_cost = diff.T * self.Q * diff
+            ctrl_cost  = u.T * self.R * u
+
+            # print 'target_state:', target_state
+            # print 'state x cost:', diff[0]**2 * float(self.Q[0, 0])
+            # print 'state y cost:', diff[1]**2 * float(self.Q[1, 1])
+            # print 'state z cost:', diff[2]**2 * float(self.Q[2, 2])
+            # print 'u x cost:', u[0]**2 * float(self.R[0, 0])
+            # print 'u y cost:', u[1]**2 * float(self.R[1, 1])
+            # print 'u z cost:', u[2]**2 * float(self.R[2, 2])
+            # print 'state cost:', float(state_cost)
+            # print 'ctrl cost:', float(ctrl_cost)
+            # print '\n'
+
+            return A*current_state + B*F*(diff)        
+        except KeyError:
+            return None
+
 
 
 
