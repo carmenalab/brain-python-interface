@@ -40,6 +40,9 @@ class IsMorePlant(object):
         self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
         self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
 
+    def init(self):
+        pass
+
     def send_vel(self, vel, dev='IsMore'):
         if dev == 'ArmAssist':
             # units of vel should be: (cm/s, cm/s, rad/s)
@@ -134,6 +137,13 @@ class IsMorePlantNew(object):
         self.rh_v_state_names = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
         self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
         self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
+
+    def init(self):
+        from riglib import sink
+        self.sinks = sink.sinks
+
+        self.sinks.register(self.aa_source)
+        self.sinks.register(self.rh_source)
 
     def send_vel(self, vel, dev='IsMore'):
         if dev == 'ArmAssist':
@@ -252,6 +262,9 @@ class IsMorePlantNoUDP(object):
     #     '''Magically set position (x, y, psi) in units of (cm, cm, rad).'''
     #     wf = np.mat(pos).T
     #     self.aa._set_wf(wf)
+
+    def init(self):
+        pass
 
     def send_vel(self, vel, dev='IsMore'):
         if dev == 'ArmAssist':

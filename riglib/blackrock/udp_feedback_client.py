@@ -97,7 +97,7 @@ class ArmAssistClient(Client):
     def get_feedback_data(self):
         '''TODO -- Docstring.'''
 
-        sleep_time = 0 #0.005
+        sleep_time = 0.020 #0.005
 
         while self.listening:
             r, _, _ = select.select([self.sock], [], [], 0)
@@ -137,7 +137,7 @@ class ReHandClient(Client):
     def get_feedback_data(self):
         '''TODO -- Docstring.'''
 
-        sleep_time = 0 #0.005
+        sleep_time = 0.020 #0.005
 
         while self.listening:
             r, _, _ = select.select([self.sock], [], [], 0)
