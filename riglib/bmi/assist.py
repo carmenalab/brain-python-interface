@@ -326,7 +326,11 @@ class IsMoreAssister(Assister):
                             rh_Bu[0:4],
                             aa_Bu[3:6],
                             rh_Bu[4:8],
-                            1])
+                            assist_level * 1])
+
+            # print 'aa_Bu', aa_Bu
+            # print 'rh_Bu', rh_Bu
+            # print 'Bu', Bu
 
             Bu = np.mat(Bu.reshape(-1, 1))
 
@@ -358,6 +362,7 @@ class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''Overriding to account for proper subtraction of angles.'''
         B = self.B
         F = self.F
 
@@ -385,9 +390,16 @@ class ReHandLFCAssister(LinearFeedbackControllerAssist):
 
         self.A = A
         self.B = B
+
+
+        print 'A.shape', A.shape
+        print 'B.shape', B.shape
+        print 'Q.shape', Q.shape
+        print 'R.shape', R.shape
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''Overriding to account for proper subtraction of angles.'''
         B = self.B
         F = self.F
 
@@ -419,6 +431,7 @@ class IsMoreLFCAssister(LinearFeedbackControllerAssist):
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''Overriding to account for proper subtraction of angles.'''
         B = self.B
         F = self.F
 

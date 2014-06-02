@@ -212,8 +212,8 @@ class StateSpaceReHand(StateSpace):
         A, W = linear_kinarm_kf(update_rate=update_rate, ndim=4)
 
         # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(3))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 3])])
+        I = np.mat(np.eye(4))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 4])])
         return A, B, W
 
 

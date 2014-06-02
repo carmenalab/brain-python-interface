@@ -408,6 +408,88 @@ class ArmAssistOFCLearner(OFCLearner):
             return None
 
 
+class ReHandOFCLearner(OFCLearner):
+    def __init__(self, batch_size, *args, **kwargs):
+        '''Specific instance of the OFCLearner for the ReHand.'''
+        dt = kwargs.pop('dt', 0.1)
+
+        ssm = StateSpaceReHand()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
+        self.Q = Q
+        
+        R = 1e3 * np.mat(np.diag([1., 1., 1., 1.]))
+        self.R = R
+
+        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        F_dict = RegexKeyDict()
+        F_dict['.*'] = F
+
+        super(ReHandOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+        self.input_state_index = -1
+    
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''Overriding to account for proper subtraction of angles.'''
+        try:
+            current_state = np.mat(current_state).reshape(-1, 1)
+            target_state = np.mat(target_state).reshape(-1, 1)
+            F = self.F_dict[task_state]
+            A = self.A
+            B = self.B
+
+            diff = target_state - current_state
+            for i in range(4):
+                diff[i] = angle_subtract(target_state[i], current_state[i])
+
+            return A*current_state + B*F*(diff)        
+        except KeyError:
+            return None
+
+
+class IsMoreOFCLearner(OFCLearner):
+    def __init__(self, batch_size, *args, **kwargs):
+        '''Specific instance of the OFCLearner for full IsMore system
+        (ArmAssist + ReHand).'''
+        dt = kwargs.pop('dt', 0.1)
+
+        ssm = StateSpaceIsMore()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = np.mat(np.diag([1., 1., 1., 1., 1., 1., 1., 0, 0, 0, 0, 0, 0, 0, 0]))
+        self.Q = Q
+        
+        R = 1e3 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
+        self.R = R
+
+        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        F_dict = RegexKeyDict()
+        F_dict['.*'] = F
+
+        super(IsMoreOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+        self.input_state_index = -1
+    
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''Overriding to account for proper subtraction of angles.'''
+        try:
+            current_state = np.mat(current_state).reshape(-1, 1)
+            target_state = np.mat(target_state).reshape(-1, 1)
+            F = self.F_dict[task_state]
+            A = self.A
+            B = self.B
+
+            diff = target_state - current_state
+            for i in range(2, 7):
+                diff[i] = angle_subtract(target_state[i], current_state[i])
+
+            return A*current_state + B*F*(diff)        
+        except KeyError:
+            return None
+
 
 
 ##############################################################################
