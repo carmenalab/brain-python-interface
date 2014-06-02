@@ -8,6 +8,7 @@ import numpy as np
 from riglib.stereo_opengl import ik
 from riglib.bmi import feedback_controllers
 
+from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from utils.angle_utils import *
 
 class Assister(object):
@@ -161,9 +162,13 @@ def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5
     Bu = np.mat(Bu.reshape(-1,1))
     return Bu
 
+
+
 ####################
 ## iBMI assisters ##
 ####################
+
+# simple iBMI assisters
 
 class ArmAssistAssister(Assister):
     '''Simple assister that moves ArmAssist position towards the xy target 
@@ -294,7 +299,7 @@ class ReHandAssister(Assister):
 class IsMoreAssister(Assister):
     '''Simple assister that combines an ArmAssistAssister and a 
     ReHandAssister.'''
-    
+
     def __init__(self, *args, **kwargs):
         self.aa_assister = ArmAssistAssister(*args, **kwargs)
         self.rh_assister = ReHandAssister(*args, **kwargs)
@@ -333,6 +338,72 @@ class IsMoreAssister(Assister):
         return Bu, assist_weight
 
 
+# LFC iBMI assisters
+
+class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
+    def __init__(self, *args, **kwargs):
+        ssm = StateSpaceArmAssist()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
+        self.Q = Q
+        
+        # TODO -- scaling?
+        R = 1e2 * np.mat(np.diag([1., 1., 1.]))
+        self.R = R
+
+        self.A = A
+        self.B = B
+        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+
+    def calc_assisted_BMI_state(self, *args, **kwargs):
+        Bu, assist_weight = super(ArmAssistLFCAssister, self).calc_assisted_BMI_state(*args, **kwargs)
+        return Bu, assist_weight
+
+
+class ReHandLFCAssister(LinearFeedbackControllerAssist):
+    def __init__(self, *args, **kwargs):
+        ssm = StateSpaceReHand()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
+        self.Q = Q
+        
+        # TODO -- scaling?
+        R = 1e2 * np.mat(np.diag([1., 1., 1., 1.]))
+        self.R = R
+
+        self.A = A
+        self.B = B
+        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+
+    def calc_assisted_BMI_state(self, *args, **kwargs):
+        Bu, assist_weight = super(ReHandLFCAssister, self).calc_assisted_BMI_state(*args, **kwargs)
+        return Bu, assist_weight
+
+
+class IsMoreLFCAssister(LinearFeedbackControllerAssist):
+    def __init__(self, *args, **kwargs):
+        ssm = StateSpaceIsMore()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = np.mat(np.diag([1., 1., 1., 1., 1., 1., 1., 0, 0, 0, 0, 0, 0, 0, 0]))
+        self.Q = Q
+        
+        # TODO -- scaling?
+        R = 1e2 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
+        self.R = R
+
+        self.A = A
+        self.B = B
+        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+
+    def calc_assisted_BMI_state(self, *args, **kwargs):
+        Bu, assist_weight = super(IsMoreLFCAssister, self).calc_assisted_BMI_state(*args, **kwargs)
+        return Bu, assist_weight
 
 
 ## TODO the code below should be a feedback controller equivalent to the "simple" method above
