@@ -66,7 +66,7 @@ Many of the commands to execute below are available in the file $BMI3D/install/i
 Directory structure
 -------------------
 We make several directories. The main BMI3D package code base will be installed to $HOME/code/bmi3d. But if you're already reading these instructions from the git repository, you can change the installation location(s) if you want by modifying the environment variables::
-    CODE=$HOME/code/
+    CODE=$HOME/code
     BMI3D=$HOME/code/bmi3d
 
 We also make the directories /backup and /storage. /backup is the mount point for off-site data backup. /storage is where files created during the process of running experiments, e.g. HDF files containing BMI kinematics, will be stored. Most of the file handling in /storage is done through Django::

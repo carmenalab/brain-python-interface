@@ -1,6 +1,6 @@
 #!/bin/bash
 ####### Declare environment variables
-CODE=$HOME/code/
+CODE=$HOME/code
 BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 
 
@@ -8,8 +8,7 @@ BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 mkdir -p $CODE
 sudo mkdir /backup
 sudo chown $USER /backup
-# make log directory
-mkdir $BMI3D/log
+
 sudo mkdir /storage
 sudo chown -R $USER /storage
 mkdir /storage/plots
@@ -19,6 +18,9 @@ sudo apt-get -y install git gitk
 if [ ! -d "$HOME/code/bmi3d" ]; then
     git clone https://github.com/hgm110/bmi3d.git $HOME/code/bmi3d
 fi
+
+# make log directory
+mkdir $BMI3D/log
 
 ####### Reconfigure Ubuntu package manager
 sudo apt-add-repository "deb http://www.rabbitmq.com/debian/ testing main"
@@ -134,6 +136,8 @@ sudo usermod -a -G dialout lab # Serial ports belong to 'dialout' group
 sed -i '$a export PYTHONPATH=$PYTHONPATH:$HOME/code/robotics' $HOME/.bashrc
 sed -i '$a source $HOME/code/bmi3d/pathconfig.sh' $HOME/.bashrc
 source $HOME/.bashrc
+
+sudo chown -R $USER ~/.matplotlib
 
 cd $HOME/code/bmi3d/db
 python manage.py syncdb
