@@ -117,7 +117,9 @@ class IsMorePlantNew(object):
     with either the real or simulated ArmAssist and/or ReHand. Uses 2 separate
     data sources for ArmAssist and ReHand.
     '''
-    def __init__(self):
+    def __init__(self, print_commands=True):
+        self.print_commands = print_commands
+
         self.aa_source = source.DataSource(blackrock.ArmAssistData, name='armassist')  # TODO -- set small buffer length
         self.rh_source = source.DataSource(blackrock.ReHandData, name='rehand')     # TODO -- set small buffer length
 
@@ -155,7 +157,8 @@ class IsMorePlantNew(object):
 
             command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
             self.sock.sendto(command, self.aa_addr)
-            print 'sending command:', command
+            if self.print_commands:
+                print 'sending command:', command
         
         elif dev == 'ReHand':
             # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
@@ -166,7 +169,8 @@ class IsMorePlantNew(object):
 
             command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
             self.sock.sendto(command, self.rh_addr)
-            print 'sending command:', command
+            if self.print_commands:
+                print 'sending command:', command
         
         elif dev == 'IsMore':
             # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
@@ -177,11 +181,13 @@ class IsMorePlantNew(object):
 
             command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel[0:3])
             self.sock.sendto(command, self.aa_addr)
-            print 'sending command:', command
+            if self.print_commands:
+                print 'sending command:', command
 
             command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel[3:7])
             self.sock.sendto(command, self.rh_addr)
-            print 'sending command:', command
+            if self.print_commands:
+                print 'sending command:', command
         
         else:
             raise Exception('Unknown device: ' + str(dev))
