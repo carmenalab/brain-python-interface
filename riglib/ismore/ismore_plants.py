@@ -16,104 +16,6 @@ deg_to_rad = np.pi / 180
 
 class IsMorePlant(object):
     '''Sends velocity commands and receives feedback over UDP. Can be used
-    with either the real or simulated ArmAssist and/or ReHand. Uses a single
-    multi-chan data source for ArmAssist and ReHand.
-     '''
-    def __init__(self):
-        ismore_ss = StateSpaceIsMore()
-        channels = ismore_ss.state_names
-
-        self.feedback_source = source.MultiChanDataSource(blackrock.FeedbackData, channels=channels)
-        self.feedback_source.start()
-
-        # used only for sending commands (not for receiving feedback)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-        self.aa_addr = ('127.0.0.1', 5001)
-        self.rh_addr = ('127.0.0.1', 5000)
-
-        # TODO -- don't hardcode these lists here, use names from state space models instead
-        self.aa_p_state_names = ['aa_px', 'aa_py', 'aa_ppsi']
-        self.aa_v_state_names = ['aa_vx', 'aa_vy', 'aa_vpsi']
-        self.rh_p_state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
-        self.rh_v_state_names = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
-        self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
-        self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
-
-    def init(self):
-        pass
-
-    def send_vel(self, vel, dev='IsMore'):
-        if dev == 'ArmAssist':
-            # units of vel should be: (cm/s, cm/s, rad/s)
-            assert len(vel) == 3
-
-            # convert from rad/s to deg/s
-            vel[2] *= rad_to_deg
-
-            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
-            self.sock.sendto(command, self.aa_addr)
-            print 'sending command:', command
-        
-        elif dev == 'ReHand':
-            # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
-            assert len(vel) == 4
-            
-            # convert from rad/s to deg/s
-            vel *= rad_to_deg
-
-            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
-            self.sock.sendto(command, self.rh_addr)
-            print 'sending command:', command
-        
-        elif dev == 'IsMore':
-            # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
-            assert len(vel) == 7
-            
-            # convert from rad/s to deg/s
-            vel[2:] *= rad_to_deg
-
-            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel[0:3])
-            self.sock.sendto(command, self.aa_addr)
-            print 'sending command:', command
-
-            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel[3:7])
-            self.sock.sendto(command, self.rh_addr)
-            print 'sending command:', command
-        
-        else:
-            raise Exception('Unknown device: ' + str(dev))
-
-    # Note: for get_pos and get_vel, conversion from deg to rad occurs inside
-    # udp_feedback_client.py
-
-    def get_pos(self, dev='IsMore'):
-        if dev == 'ArmAssist':
-            state_names = self.aa_p_state_names
-        elif dev == 'ReHand':
-            state_names = self.rh_p_state_names
-        elif dev == 'IsMore':
-            state_names = self.all_p_state_names
-        else:
-            raise Exception('Unknown device: ' + str(dev))
-
-        return self.feedback_source.get(n_pts=1, channels=state_names).reshape(-1)
-
-    def get_vel(self, dev='IsMore'):
-        if dev == 'ArmAssist':
-            state_names = self.aa_v_state_names
-        elif dev == 'ReHand':
-            state_names = self.rh_v_state_names
-        elif dev == 'IsMore':
-            state_names = self.all_v_state_names
-        else:
-            raise Exception('Unknown device: ' + str(dev))
-
-        return self.feedback_source.get(n_pts=1, channels=state_names).reshape(-1)
-
-
-class IsMorePlantNew(object):
-    '''Sends velocity commands and receives feedback over UDP. Can be used
     with either the real or simulated ArmAssist and/or ReHand. Uses 2 separate
     data sources for ArmAssist and ReHand.
     '''
@@ -122,9 +24,6 @@ class IsMorePlantNew(object):
 
         self.aa_source = source.DataSource(blackrock.ArmAssistData, name='armassist')  # TODO -- set small buffer length
         self.rh_source = source.DataSource(blackrock.ReHandData, name='rehand')     # TODO -- set small buffer length
-
-        self.aa_source.start()
-        self.rh_source.start()
 
         # used only for sending commands (not for receiving feedback)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -146,6 +45,17 @@ class IsMorePlantNew(object):
 
         self.sinks.register(self.aa_source)
         self.sinks.register(self.rh_source)
+
+    def start(self):
+        # only want to start these DataSources after they have been
+        # register with the SinkManager singleton (self.sinks)
+        # in the call to init()
+        self.aa_source.start()
+        self.rh_source.start()
+
+    def stop(self):
+        self.aa_source.stop()
+        self.rh_source.stop()
 
     def send_vel(self, vel, dev='IsMore'):
         if dev == 'ArmAssist':
@@ -258,10 +168,6 @@ class IsMorePlantNoUDP(object):
         self.rh = rehand.ReHand(tstep=0.005)
         self.rh.daemon = True
 
-        # start ArmAssist and ReHand simulation processes
-        self.aa.start()
-        self.rh.start()
-
     # # a "magic" function that instantaneously moves the ArmAssist and ReHand to a new configuration
     # # IMPORTANT: only use to set initial position/orientation
     # def set_pos(self, pos):
@@ -270,6 +176,14 @@ class IsMorePlantNoUDP(object):
     #     self.aa._set_wf(wf)
 
     def init(self):
+        pass
+
+    def start(self):
+        # start ArmAssist and ReHand simulation processes
+        self.aa.start()
+        self.rh.start()
+
+    def stop(self):
         pass
 
     def send_vel(self, vel, dev='IsMore'):
@@ -349,46 +263,105 @@ class IsMorePlantNoUDP(object):
             raise Exception('Unknown device: ' + str(dev))
 
 
-# Old, no need to use this one anymore -- can use IsMorePlantNoUDP or IsMorePlant,
-# even if you want to control only the ArmAssist or only the ReHand
-# class ArmAssistPlant(object):
-#     def __init__(self):
-#         self.aa = armassist.ArmAssist(tstep=0.005)
-#         self.aa.daemon = True
 
-#         # P gain matrix
-#         KP = np.mat([[-10.,   0., 0.], 
-#                      [  0., -20., 0.],
-#                      [  0.,   0., 20.]])
-#         TI = 0.1*np.identity(3)  # I gain matrix
-#         self.aa_pic = armassist.ArmAssistPIController(tstep=0.01, KP=KP, TI=TI, plant=self.aa)
-#         self.aa_pic.daemon = True
+class IsMorePlantOld(object):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated ArmAssist and/or ReHand. Uses a single
+    multi-chan data source for ArmAssist and ReHand.
+     '''
+    def __init__(self):
+        ismore_ss = StateSpaceIsMore()
+        channels = ismore_ss.state_names
 
-#         # start ArmAssist and ArmAssistPIController processes
-#         self.aa.start()
-#         self.aa_pic.start()
+        self.feedback_source = source.MultiChanDataSource(blackrock.FeedbackData, channels=channels)
 
-#     # # a "magic" function that instantaneously moves the ArmAssist to a new position
-#     # # IMPORTANT: only use to set initial position/orientation
-#     # def set_pos(self, pos):
-#     #     '''Magically set position (x, y, psi) in units of (cm, cm, rad).'''
-#     #     wf = np.mat(pos).T
-#     #     self.aa._set_wf(wf)
+        # used only for sending commands (not for receiving feedback)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-#     def send_vel(self, vel):
-#         '''Send velocity in units of (cm/s, cm/s, rad/s).'''
-#         vel = np.mat(vel).T
-#         self.aa_pic.update_reference(vel)
+        self.aa_addr = ('127.0.0.1', 5001)
+        self.rh_addr = ('127.0.0.1', 5000)
 
-#     def _get_state(self):
-#         state = self.aa.get_state()
-#         pos = np.array(state['wf']).reshape((3,))
-#         vel = np.array(state['wf_dot']).reshape((3,))
+        # TODO -- don't hardcode these lists here, use names from state space models instead
+        self.aa_p_state_names = ['aa_px', 'aa_py', 'aa_ppsi']
+        self.aa_v_state_names = ['aa_vx', 'aa_vy', 'aa_vpsi']
+        self.rh_p_state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
+        self.rh_v_state_names = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
+        self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
+        self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
 
-#         return pos, vel
+    def init(self):
+        pass
 
-#     def get_pos(self):
-#         return self._get_state()[0]
+    def start(self):
+        self.feedback_source.start()
 
-#     def get_vel(self):
-#         return self._get_state()[1]
+    def stop(self):
+        self.feedback_source.stop()
+
+    def send_vel(self, vel, dev='IsMore'):
+        if dev == 'ArmAssist':
+            # units of vel should be: (cm/s, cm/s, rad/s)
+            assert len(vel) == 3
+
+            # convert from rad/s to deg/s
+            vel[2] *= rad_to_deg
+
+            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
+            self.sock.sendto(command, self.aa_addr)
+            print 'sending command:', command
+        
+        elif dev == 'ReHand':
+            # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
+            assert len(vel) == 4
+            
+            # convert from rad/s to deg/s
+            vel *= rad_to_deg
+
+            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
+            self.sock.sendto(command, self.rh_addr)
+            print 'sending command:', command
+        
+        elif dev == 'IsMore':
+            # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
+            assert len(vel) == 7
+            
+            # convert from rad/s to deg/s
+            vel[2:] *= rad_to_deg
+
+            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel[0:3])
+            self.sock.sendto(command, self.aa_addr)
+            print 'sending command:', command
+
+            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel[3:7])
+            self.sock.sendto(command, self.rh_addr)
+            print 'sending command:', command
+        
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+    # Note: for get_pos and get_vel, conversion from deg to rad occurs inside
+    # udp_feedback_client.py
+
+    def get_pos(self, dev='IsMore'):
+        if dev == 'ArmAssist':
+            state_names = self.aa_p_state_names
+        elif dev == 'ReHand':
+            state_names = self.rh_p_state_names
+        elif dev == 'IsMore':
+            state_names = self.all_p_state_names
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+        return self.feedback_source.get(n_pts=1, channels=state_names).reshape(-1)
+
+    def get_vel(self, dev='IsMore'):
+        if dev == 'ArmAssist':
+            state_names = self.aa_v_state_names
+        elif dev == 'ReHand':
+            state_names = self.rh_v_state_names
+        elif dev == 'IsMore':
+            state_names = self.all_v_state_names
+        else:
+            raise Exception('Unknown device: ' + str(dev))
+
+        return self.feedback_source.get(n_pts=1, channels=state_names).reshape(-1)
