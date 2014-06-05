@@ -17,6 +17,7 @@ from itertools import izip
 
 import extractor
 import os
+import subprocess
 
 ############
 ## Constants

@@ -237,23 +237,23 @@ class IsMorePlantNoUDP(object):
     you want to simulate having (near) instantaneous feedback.
     '''
     def __init__(self):
-        self.aa = armassist.ArmAssist(tstep=0.005)
+        # create and start ArmAssist object (includes ArmAssist and its PIC)
+        aa_tstep = 0.005
+        aa_pic_tstep = 0.01
+        KP = np.mat([[-10.,   0.,  0.],
+                     [  0., -20.,  0.],
+                     [  0.,   0., 20.]])  # P gain matrix
+        TI = 0.1*np.identity(3)  # I gain matrix
+
+        self.aa = armassist.ArmAssist(aa_tstep, aa_pic_tstep, KP, TI)
         self.aa.daemon = True
 
-        # P gain matrix
-        KP = np.mat([[-10.,   0., 0.], 
-                     [  0., -20., 0.],
-                     [  0.,   0., 20.]])
-        TI = 0.1*np.identity(3)  # I gain matrix
-        self.aa_pic = armassist.ArmAssistPIController(tstep=0.01, KP=KP, TI=TI, plant=self.aa)
-        self.aa_pic.daemon = True
 
         self.rh = rehand.ReHand(tstep=0.005)
         self.rh.daemon = True
 
-        # start ArmAssist, ArmAssistPIController, and ReHand simulation processes
+        # start ArmAssist and ReHand simulation processes
         self.aa.start()
-        self.aa_pic.start()
         self.rh.start()
 
     # # a "magic" function that instantaneously moves the ArmAssist and ReHand to a new configuration
@@ -275,7 +275,8 @@ class IsMorePlantNoUDP(object):
             # (aa_pic expects units of rad/s)
 
             vel = np.mat(vel).T
-            self.aa_pic.update_reference(vel)
+            # self.aa_pic.update_reference(vel)
+            self.aa.update_reference(vel)
 
         elif dev == 'ReHand':
             # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
@@ -295,7 +296,8 @@ class IsMorePlantNoUDP(object):
             # (aa_pic and rh expect units of rad/s)
 
             aa_vel = np.mat(vel[0:3]).T
-            self.aa_pic.update_reference(aa_vel)
+            # self.aa_pic.update_reference(aa_vel)
+            self.aa.update_reference(aa_vel)
 
             rh_vel = np.mat(vel[3:7]).T
             self.rh.set_vel(rh_vel)
