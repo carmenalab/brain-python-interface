@@ -81,6 +81,9 @@ git clone https://github.com/sgowda/plot $HOME/code/plotutil
 git clone https://github.com/sgowda/robotics_toolbox $HOME/code/robotics
 # pygame
 hg clone https://bitbucket.org/pygame/pygame $HOME/code/pygame
+# Phidgets code
+wget http://www.phidgets.com/downloads/libraries/libphidget.tar.gz
+wget http://www.phidgets.com/downloads/libraries/PhidgetsPython.zip
 
 
 
@@ -102,7 +105,6 @@ $HOME/code/bmi3d/riglib/nidaq/build.sh
 
 # Phidgets libraries
 cd $CODE/src/
-wget http://www.phidgets.com/downloads/libraries/libphidget.tar.gz
 tar xzf libphidget.tar.gz 
 cd libphidget*
 ./configure
@@ -110,7 +112,6 @@ make
 sudo make install
 
 cd $CODE/src/
-wget http://www.phidgets.com/downloads/libraries/PhidgetsPython.zip
 unzip PhidgetsPython.zip  
 cd PhidgetsPython
 sudo python setup.py install
@@ -119,15 +120,15 @@ sudo python setup.py install
 
 ####### Configure udev rules, permissions
 # Phidgets
-sudo cp udev/99-phidgets.rules /etc/udev/rules.d
+sudo cp $CODE/src/libphidget*/udev/99-phidgets.rules /etc/udev/rules.d
 sudo chmod a+r /etc/udev/rules.d/99-phidgets.rules
 # NIDAQ
 sudo cp $HOME/code/bmi3d/install/udev/comedi.rules /etc/udev/rules.d/
 sudo chmod a+r /etc/udev/rules.d/comedi.rules 
 sudo udevadm control --reload-rules
 # Group permissions
-sudo usermod -a -G iocard lab # NIDAQ card belongs to iocard group
-sudo usermod -a -G dialout lab # Serial ports belong to 'dialout' group
+sudo usermod -a -G iocard $USER # NIDAQ card belongs to iocard group
+sudo usermod -a -G dialout $USER # Serial ports belong to 'dialout' group
 
 
 ####### Reconfigure .bashrc
@@ -135,6 +136,6 @@ sed -i '$a export PYTHONPATH=$PYTHONPATH:$HOME/code/robotics' $HOME/.bashrc
 sed -i '$a source $HOME/code/bmi3d/pathconfig.sh' $HOME/.bashrc
 source $HOME/.bashrc
 
-cd $HOME/code/bmi3d/db
-python manage.py syncdb
+## cd $BMI3D/db
+## python manage.py syncdb
 # Add superuser 'lab' with password 'lab'
