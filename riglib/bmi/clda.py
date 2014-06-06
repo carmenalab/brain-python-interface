@@ -13,6 +13,7 @@ from itertools import izip
 import tables
 import re
 import assist
+import os
 
 from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from utils.angle_utils import *
@@ -881,7 +882,8 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     data : list of dictionaries with the same keys and same dtypes for values
     '''
     
-    log_file = open('/home/helene/code/bmi3d/log/clda_log', 'w')
+    # log_file = open('/home/helene/code/bmi3d/log/clda_log', 'w')
+    log_file = open(os.path.join(os.getenv("HOME"), 'code/bmi3d/log/clda_log'), 'w')
     compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
     if len(data) > 0:
         # Find the first parameter update dictionary
@@ -906,7 +908,7 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     
         h5file = tables.openFile(hdf_fname, mode='a')
         arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
-    
+        
         null_update = np.zeros((1,), dtype=dtype)
         for col_name in table_col_names:
             null_update[col_name.replace('.', '_')] *= np.nan
@@ -925,7 +927,7 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     
             arr.append(data_row)
         h5file.close()
-    
+        
 
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties
