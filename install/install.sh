@@ -1,17 +1,16 @@
 #!/bin/bash
 ####### Declare environment variables
-CODE=$HOME/code/
-BMI3D=$HOME/code/bmi3d ### Directory in which to install the bmi3d software
+CODE=$HOME/code
+BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 
 
 ####### Set up directories
 mkdir -p $CODE
 sudo mkdir /backup
 sudo chown $USER /backup
-# make log directory
-mkdir $BMI3D/log
+
 sudo mkdir /storage
-sudo chown -R lab /storage
+sudo chown -R $USER /storage
 mkdir /storage/plots
 mkdir $CODE/src/
 
@@ -19,6 +18,9 @@ sudo apt-get -y install git gitk
 if [ ! -d "$HOME/code/bmi3d" ]; then
     git clone https://github.com/hgm110/bmi3d.git $HOME/code/bmi3d
 fi
+
+# make log directory
+mkdir $BMI3D/log
 
 ####### Reconfigure Ubuntu package manager
 sudo apt-add-repository "deb http://www.rabbitmq.com/debian/ testing main"
@@ -136,6 +138,8 @@ sed -i '$a export PYTHONPATH=$PYTHONPATH:$HOME/code/robotics' $HOME/.bashrc
 sed -i '$a source $HOME/code/bmi3d/pathconfig.sh' $HOME/.bashrc
 source $HOME/.bashrc
 
-## cd $BMI3D/db
-## python manage.py syncdb
+sudo chown -R $USER ~/.matplotlib
+
+cd $HOME/code/bmi3d/db
+python manage.py syncdb
 # Add superuser 'lab' with password 'lab'

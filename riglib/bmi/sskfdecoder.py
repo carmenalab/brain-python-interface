@@ -90,7 +90,7 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
 
     @property
     def include_offset(self):
-        return False
+        return np.all(self.F[-1, :-1] == 0) and (self.F[-1, -1] == 1)
 
 class SSKFDecoder(bmi.Decoder, bmi.BMI):
     pass

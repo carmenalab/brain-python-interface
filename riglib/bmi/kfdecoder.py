@@ -414,7 +414,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             self.ssm = train.endpt_2D_state_space
 
 
-    def shuffle(self):
+    def shuffle(self, shuffle_baselines=False):
         '''
         Shuffle the neural model
         '''
@@ -424,7 +424,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         random.shuffle(inds)
 
         # shuffle rows of C, and rows+cols of Q
+        C_orig = self.filt.C.copy()
         self.filt.C = self.filt.C[inds, :]
+        if not shuffle_baselines:
+            self.filt.C[:,-1] = C_orig[:,-1]
         self.filt.Q = self.filt.Q[inds, :]
         self.filt.Q = self.filt.Q[:, inds]
 
