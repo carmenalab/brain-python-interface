@@ -18,6 +18,7 @@ from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere
 import time
 from riglib import loc_config
+from profile_support import profile
 
 try:
     import pygame
@@ -141,6 +142,7 @@ class Window(LogExperiment):
     def requeue(self):
         self.renderer._queue_render(self.world)
 
+    @profile
     def _cycle(self):
         self.draw_world()
         super(Window, self)._cycle()
@@ -210,6 +212,7 @@ class WindowDispl2D(Window):
         pix_pos = np.array(pix_pos, dtype=int) 
         return pix_pos
 
+    @profile
     def draw_world(self):
         #Refreshes the screen with original background
         self.screen.blit(self.screen_background, (0, 0))
@@ -237,7 +240,7 @@ class WindowDispl2D(Window):
                     stop_angle  = model.ang_range[1]
                     radius = model.radius
 
-                    arc_angles = np.linspace(start_angle, stop_angle, 100)
+                    arc_angles = np.linspace(start_angle, stop_angle, 5)
                     sector_pts = list(center_pos + radius*np.c_[np.cos(arc_angles), np.sin(arc_angles)])
                     sector_pts.append(center_pos)
                     point_list = [self.pos2pix(pt) for pt in sector_pts]
