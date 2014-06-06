@@ -280,7 +280,7 @@ class CursorGoalLearner2(BatchLearner):
 class ArmAssistLearner(BatchLearner):
     def __init__(self, *args, **kwargs):
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        assist_speed   = kwargs.pop('assist_speed', 5.)
+        assist_speed   = kwargs.pop('assist_speed', 2.)
         target_radius  = kwargs.pop('target_radius', 2.)
         assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
         self.assister = assist.ArmAssistAssister(**assister_kwargs)
@@ -305,7 +305,7 @@ class ArmAssistLearner(BatchLearner):
 class ReHandLearner(BatchLearner):
     def __init__(self, *args, **kwargs):
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        assist_speed   = kwargs.pop('assist_speed', 5.)
+        assist_speed   = kwargs.pop('assist_speed', 2.)
         target_radius  = kwargs.pop('target_radius', 2.)
         assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
         self.assister = assist.ReHandAssister(**assister_kwargs)
@@ -330,7 +330,7 @@ class ReHandLearner(BatchLearner):
 class IsMoreLearner(BatchLearner):
     def __init__(self, *args, **kwargs):
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        assist_speed   = kwargs.pop('assist_speed', 5.)
+        assist_speed   = kwargs.pop('assist_speed', 2.)
         target_radius  = kwargs.pop('target_radius', 2.)
         assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
         self.assister = assist.IsMoreAssister(**assister_kwargs)
@@ -908,7 +908,7 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     
         h5file = tables.openFile(hdf_fname, mode='a')
         arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
-        
+
         null_update = np.zeros((1,), dtype=dtype)
         for col_name in table_col_names:
             null_update[col_name.replace('.', '_')] *= np.nan

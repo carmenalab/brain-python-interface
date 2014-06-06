@@ -58,6 +58,7 @@ class IsMorePlant(object):
         self.rh_source.stop()
 
     def send_vel(self, vel, dev='IsMore'):
+        vel = vel.copy()
         if dev == 'ArmAssist':
             # units of vel should be: (cm/s, cm/s, rad/s)
             assert len(vel) == 3
@@ -187,6 +188,7 @@ class IsMorePlantNoUDP(object):
         pass
 
     def send_vel(self, vel, dev='IsMore'):
+        vel = vel.copy()
         if dev == 'ArmAssist':
             # units of vel should be: (cm/s, cm/s, rad/s)
             assert len(vel) == 3

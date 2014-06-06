@@ -191,6 +191,13 @@ class ArmAssistAssister(Assister):
             target_psi_pos = np.array(target_state[2, 0]).ravel()
             assist_psi_pos, assist_psi_vel = self.angle_assist(psi_pos, target_psi_pos)
 
+            # if mode == 'hold':
+            #     print 'task state is "hold", setting assist vels to 0'
+            #     assist_xy_vel[:] = 0.
+            #     assist_psi_vel[:] = 0.
+
+            # print 'assist_xy_vel:', assist_xy_vel
+
             Bu = assist_level * np.hstack([assist_xy_pos, 
                                            assist_psi_pos,
                                            assist_xy_vel,
@@ -265,6 +272,10 @@ class ReHandAssister(Assister):
                 assist_rh_pos = np.vstack([assist_rh_pos, assist_rh_i_pos])
                 assist_rh_vel = np.vstack([assist_rh_vel, assist_rh_i_vel])
 
+            # if mode == 'hold':
+            #     print 'task state is "hold", setting assist vels to 0'
+            #     assist_rh_vel[:] = 0.
+
             Bu = assist_level * np.vstack([assist_rh_pos,
                                            assist_rh_vel,
                                            1])
@@ -327,10 +338,6 @@ class IsMoreAssister(Assister):
                             aa_Bu[3:6],
                             rh_Bu[4:8],
                             assist_level * 1])
-
-            # print 'aa_Bu', aa_Bu
-            # print 'rh_Bu', rh_Bu
-            # print 'Bu', Bu
 
             Bu = np.mat(Bu.reshape(-1, 1))
 
