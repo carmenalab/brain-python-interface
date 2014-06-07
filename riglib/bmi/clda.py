@@ -6,7 +6,7 @@ updating
 '''
 import multiprocessing as mp
 import numpy as np
-from riglib.bmi import kfdecoder, ppfdecoder, train, bmi, feedback_controllers
+from . import kfdecoder, ppfdecoder, train, bmi, feedback_controllers
 import time
 import cmath
 from itertools import izip
@@ -58,8 +58,21 @@ def normalize(vec):
     
     return norm_vec
 
-class BatchLearner(object):
+class Learner(object):
     def __init__(self, batch_size, *args, **kwargs):
+        '''
+        Instantiate a Learner for estimating intention during CLDA
+
+        Parameters
+        ----------
+        batch_size: int
+            number of samples used to estimate each new decoder parameter setting
+        done_states: list of strings, default = []
+            states of the task which end a batch, regardless of the length of the batch 
+        reset_states: list of strings, default = []
+            states of the task which, if encountered, reset the batch regardless of its length
+
+        '''
         self.done_states = kwargs.pop('done_states', [])
         self.reset_states = kwargs.pop('reset_states', [])
         print "Reset states for learner: "
@@ -114,7 +127,7 @@ class BatchLearner(object):
         self.neuraldata = []
         return kindata, neuraldata
 
-class DumbLearner(BatchLearner):
+class DumbLearner(Learner):
     def __init__(self, *args, **kwargs):
         self.enabled = False
         self.input_state_index = 0
@@ -129,7 +142,7 @@ class DumbLearner(BatchLearner):
     def get_batch(self):
         raise NotImplementedError
 
-class OFCLearner(BatchLearner):
+class OFCLearner(Learner):
     def __init__(self, batch_size, A, B, F_dict, *args, **kwargs):
         super(OFCLearner, self).__init__(batch_size, *args, **kwargs)
         self.B = B
@@ -215,7 +228,7 @@ class OFCLearnerTentacle(OFCLearner):
         F_dict['.*'] = F
         super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
-class CursorGoalLearner2(BatchLearner):
+class CursorGoalLearner2(Learner):
     def __init__(self, *args, **kwargs):
         self.int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
         if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
