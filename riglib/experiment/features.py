@@ -15,6 +15,9 @@ from riglib.bmi import extractor
 
 from . import traits, experiment
 
+###### CONSTANTS
+sec_per_min = 60
+
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
     def __init__(self, *args, **kwargs):
@@ -480,7 +483,7 @@ class SimTime(object):
 
     def get_time(self):
         try:
-            return self.cycle_count * 1./60
+            return self.cycle_count * 1./self.fps
         except:
             # loop_counter has not been initialized yet, return 0
             return 0
@@ -518,7 +521,7 @@ class RelayPlexon(SinkRegister):
         
         if len(files) > 0:
             tdiff = os.stat(files[0]).st_mtime - start
-            if abs(tdiff) < 60:
+            if abs(tdiff) < sec_per_min:
                  return files[0]
     
     def run(self):
@@ -628,7 +631,7 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
             print "%s at minimum after %d successful trials" % (self.attr, self.calc_n_rewards())
             self.assist_flag = False
 
-        if self.cycle_count % 3600 == 0 and self.assist_flag:
+        if self.cycle_count % (self.fps * sec_per_min) == 0 and self.assist_flag:
             print "%s: " % self.attr, getattr(self, 'current_%s' % self.attr)
 
     def _cycle(self):
