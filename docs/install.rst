@@ -259,21 +259,29 @@ First, for some reason the matplotlib configuration file directory appears to be
     sudo chown -R $USER ~/.matplotlib
 
 Before running the experiment server, we have to create an empty database file. This is done by::
+
     cd $BMI3D/db
     python manage.py syncdb
 
 You will be prompted to create a superuser account for the database. Since our database will never be publicly visible (it's more for record-keeping purposes than for building a website, which is what Django was intended for), there's no need to worry too much about password security here. 
 
 To fire up the experimental rig, from the same 'db' directory run::
+
     ./runserver.sh
+
+Then, from your browser, point to the address::
+
+    localhost:8000
 
 
 Running a simple task
 ---------------------
+From the browser, start the visual_feedback_multi task. Make sure to check the 'autostart' and 'saveHDF' features (otherwise the task will not run), select the 'centerout_2D_discerete' generator from the Sequence menu, and select 'CursorPlant' in the arm_class. 
 
 
 Testing the NIDAQ interface
 ---------------------------
+The NIDAQ card uses the 'comedi' device driver for linux, written in C. There is a wrapper for the library, pycomedi. Unfortunately we don't seem to have properly configured things, so initializing the device doesn't seem to work form python. Instead, the C version of the code must be used for initializing the device, after which the IO lanes can be read/written from python. 
 
 
 Celery
