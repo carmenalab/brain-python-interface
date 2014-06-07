@@ -9,6 +9,7 @@ import threading
 import traceback
 import collections
 import re
+import os
 import tables
 
 import numpy as np
