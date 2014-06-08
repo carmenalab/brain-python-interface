@@ -32,12 +32,16 @@ class IsMorePlant(object):
         self.rh_addr = ('127.0.0.1', 5000)
 
         # TODO -- don't hardcode these lists here, use names from state space models instead
-        self.aa_p_state_names = ['aa_px', 'aa_py', 'aa_ppsi']
-        self.aa_v_state_names = ['aa_vx', 'aa_vy', 'aa_vpsi']
-        self.rh_p_state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
-        self.rh_v_state_names = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
-        self.all_p_state_names = self.aa_p_state_names + self.rh_p_state_names
-        self.all_v_state_names = self.aa_v_state_names + self.rh_v_state_names
+        ssm_armassist = StateSpaceArmAssist()
+        ssm_rehand    = StateSpaceReHand()
+        ssm_ismore    = StateSpaceIsMore()
+
+        self.aa_p_state_names  = [s.name for s in ssm_armassist.states if s.order == 0]
+        self.aa_v_state_names  = [s.name for s in ssm_armassist.states if s.order == 1]
+        self.rh_p_state_names  = [s.name for s in ssm_rehand.states if s.order == 0]
+        self.rh_v_state_names  = [s.name for s in ssm_rehand.states if s.order == 1]
+        self.all_p_state_names = [s.name for s in ssm_ismore.states if s.order == 0]
+        self.all_v_state_names = [s.name for s in ssm_ismore.states if s.order == 1]
 
     def init(self):
         from riglib import sink

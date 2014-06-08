@@ -13,14 +13,7 @@ deg_to_rad = np.pi / 180
 
 PlantFeedbackData = namedtuple("PlantFeedbackData", ["state_name", "value", "arrival_ts"])
 
-# ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", ['aa_px', 'aa_py', 'aa_ppsi', 
-#                                                      'aa_vx', 'aa_vy', 'aa_vpsi', 
-#                                                      'arrival_ts'])
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", ['data', 'arrival_ts'])
-
-# ReHandFeedbackData = namedtuple("ReHandFeedbackData", ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 
-#                                                'rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono', 
-#                                                'arrival_ts'])
 ReHandFeedbackData = namedtuple("ReHandFeedbackData", ['data', 'arrival_ts'])
 
 
@@ -76,8 +69,6 @@ class Client(object):
                         pos.append(value)
                     if i % 3 == 2:
                         torque.append(value)
-
-                # TODO -- don't hardcode state names below, get them from corresponding state space models
 
                 # determine state names corresponding to the values
                 if dev_id == 'ArmAssist':
