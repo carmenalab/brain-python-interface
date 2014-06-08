@@ -27,7 +27,7 @@ class Spikes(object):
 
 # for use with a MultiChanDataSource
 class LFP(object):
-    update_freq = 1000.  # TODO -- double check
+    update_freq = 2000 #1000.  # TODO -- double check
 
     dtype = np.dtype('float')
 
