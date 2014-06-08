@@ -3,7 +3,8 @@ import os
 import sys
 
 # sample_blackrock_files = [r'/storage/blackrock/test.nev', r'/storage/blackrock/test.ns5']
-sample_blackrock_files = [r'/storage/blackrock/sampledata001.nev', r'/storage/blackrock/sampledata001.ns5']
+sample_blackrock_files = [r'/storage/blackrock/sampledata001.nev', r'/storage/blackrock/sampledata001.ns5', r'/storage/blackrock/sample_ecog.ns3']
+# sample_blackrock_files = [r'/storage/blackrock/sample_ecog.ns3']
 
 entry_num = sys.argv[1]
 entry = TaskEntry.objects.get(id=entry_num)

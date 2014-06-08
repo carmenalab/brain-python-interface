@@ -253,67 +253,6 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
 
     return spike_counts, units, extractor_kwargs
 
-def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs):
-    '''Compute binned spike count features from a Blackrock data file.
-    '''
-
-    # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
-        interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
-        for r1, r2 in izip(neurows[:-1], neurows[1:]):
-            interp_rows += list(np.linspace(r1, r2, 4)[1:])
-        interp_rows = np.array(interp_rows)
-    else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-        interp_rows = neurows[::step]
-
-    
-    nev_hdf_fname = nev_fname + '.hdf'
-    if not os.path.isfile(nev_hdf_fname):
-        # convert .nev file to hdf file using Blackrock's n2h5 utility
-        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
-
-    import h5py
-    nev_hdf = h5py.File(nev_hdf_fname, 'r')
-
-    n_bins = len(interp_rows)
-    n_units = units.shape[0]
-    spike_counts = np.zeros((n_bins, n_units))
-
-    for i in range(n_units):
-        chan = units[i, 0]
-
-        # 1-based numbering (comes from web interface)
-        unit = units[i, 1]  
-
-        chan_str = str(chan).zfill(5)
-        path = 'channel/channel%s/spike_set' % chan_str
-        ts = nev_hdf.get(path).value['TimeStamp']
-
-        # the units corresponding to each timestamp in ts
-        # 0-based numbering (comes from .nev file), so add 1
-        units_ts = nev_hdf.get(path).value['Unit'] + 1
-
-        # get the ts for this unit, in units of secs
-        fs = 30000.
-        ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
-
-        # insert value interp_rows[0]-step to beginning of interp_rows array
-        interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
-
-        # use ts to fill in the spike_counts that corresponds to unit i
-        spike_counts[:, i] = np.histogram(ts, interp_rows_)[0]
-
-
-    # discard units that never fired at all
-    unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
-    units = units[unit_inds,:]
-    spike_counts = spike_counts[:, unit_inds]
-    extractor_kwargs['units'] = units
-
-    return spike_counts, units, extractor_kwargs
-
 
 def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     '''Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
@@ -411,6 +350,7 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
 
     return lfp_power, units, extractor_kwargs
 
+
 def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs):
     " compute EMG features"
 
@@ -449,6 +389,142 @@ def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs):
         emg[i, :] = f_extractor.extract_features(cont_samples.T).T
 
     return emg, units, extractor_kwargs
+
+
+##########################################################################
+################ extractor functions for Blackrock system ################
+##########################################################################
+
+def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs):
+    '''Compute binned spike count features from a Blackrock data file.
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    
+    nev_hdf_fname = nev_fname + '.hdf'
+    if not os.path.isfile(nev_hdf_fname):
+        # convert .nev file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+    import h5py
+    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+    n_bins = len(interp_rows)
+    n_units = units.shape[0]
+    spike_counts = np.zeros((n_bins, n_units))
+
+    for i in range(n_units):
+        chan = units[i, 0]
+
+        # 1-based numbering (comes from web interface)
+        unit = units[i, 1]  
+
+        chan_str = str(chan).zfill(5)
+        path = 'channel/channel%s/spike_set' % chan_str
+        ts = nev_hdf.get(path).value['TimeStamp']
+
+        # the units corresponding to each timestamp in ts
+        # 0-based numbering (comes from .nev file), so add 1
+        units_ts = nev_hdf.get(path).value['Unit'] + 1
+
+        # get the ts for this unit, in units of secs
+        fs = 30000.
+        ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
+
+        # insert value interp_rows[0]-step to beginning of interp_rows array
+        interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
+
+        # use ts to fill in the spike_counts that corresponds to unit i
+        spike_counts[:, i] = np.histogram(ts, interp_rows_)[0]
+
+
+    # discard units that never fired at all
+    unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+    units = units[unit_inds,:]
+    spike_counts = spike_counts[:, unit_inds]
+    extractor_kwargs['units'] = units
+
+    return spike_counts, units, extractor_kwargs
+
+
+def get_butter_bpf_lfp_power_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs):
+    '''Compute lfp power features from a blackrock data file.
+    Corresponds to LFPButterBPFPowerExtractor.
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./60:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    # TODO -- for now, use .ns3 file (2 kS/s)
+    for fname in nsx_fnames:
+        if '.ns3' in fname:
+            nsx_fname = fname
+    extractor_kwargs['fs'] = 2000
+
+    # default order of 5 seems to cause problems when fs > 1000
+    extractor_kwargs['filt_order'] = 3
+
+    
+    nsx_hdf_fname = nsx_fname + '.hdf'
+    if not os.path.isfile(nsx_hdf_fname):
+        # convert .nsx file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+    import h5py
+    nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+    # create extractor object
+    f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = np.zeros((n_chan, n_pts))
+
+        for j, chan in enumerate(channels):
+            chan_str = str(chan).zfill(5)
+            path = 'channel/channel%s/continuous_set' % chan_str
+            cont_samples[j, :] = nsx_hdf.get(path).value[sample_num-n_pts:sample_num]
+
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
+    
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return lfp_power, units, extractor_kwargs
+
+##########################################################################
+##########################################################################
 
 
 def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
@@ -618,6 +694,8 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
 
         if extractor_cls == extractor.BinnedSpikeCountsExtractor:
             extractor_fn = get_spike_counts_blackrock
+        elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
+            extractor_fn = get_butter_bpf_lfp_power_blackrock
         else:
             raise Exception("No extractor_fn for this extractor class!")
 
