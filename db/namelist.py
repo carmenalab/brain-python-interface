@@ -105,6 +105,7 @@ tasks = dict(
     test_graphics = tasks.TestGraphics,
     clda_rml_kf_ofc = tasks.CLDARMLKFOFC,
     clda_kf_cg_sb = tasks.CLDAControlKFCG,
+    clda_kf_cg_rml = tasks.CLDAControlKFCGRML, 
     arm_plant = tasks.ArmPlant,
     clda_kf_cg_joint_rml = tasks.CLDAControlKFCGJoint,
     clda_kf_ofc_tentacle_rml = tasks.CLDAControlTentacle,
