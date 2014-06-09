@@ -25,8 +25,7 @@ features = dict(
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
     norm_firingrates=experiment.features.NormFiringRates,
-    lfpbmi=None,
-    continous_bmi=None,
+    ttl_reward=experiment.features.TTLReward,
 )
 
 import tasks
