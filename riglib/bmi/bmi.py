@@ -202,7 +202,7 @@ class Decoder(object):
         self.bminum = int(self.binlen/(1/call_rate))
         self.spike_counts = np.zeros([len(units), 1])
 
-        self.call_rate = call_rate
+        self.set_call_rate(call_rate)
 
         self._pickle_init()      
 
@@ -330,6 +330,9 @@ class Decoder(object):
         elif idx == 'q':
             pos_states = filter(gen_joint_coord_regex.match, self.states)
             return np.array([self.__getitem__(k) for k in pos_states])
+        elif idx == 'qdot':
+            vel_states = filter(lambda k: self.ssm.states[k].order == 1, range(len(self.states)))
+            return np.array([self.__getitem__(k) for k in vel_states])      
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
             return self.filt.state.mean[idx, 0]
@@ -353,6 +356,9 @@ class Decoder(object):
         elif idx == 'q':
             pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]), range(len(self.states)))
             self.filt.state.mean[pos_states, 0] = value
+        elif idx == 'qdot':
+            vel_states = filter(lambda k: self.ssm.states[k].order == 1, range(len(self.states)))
+            self.filt.state.mean[vel_states, 0] = value
         elif idx == 'q_stoch':
             pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]) and self.states[k].stochastic, range(len(self.states)))
             self.filt.state.mean[pos_states, 0] = value
@@ -409,7 +415,7 @@ class Decoder(object):
     def set_call_rate(self, call_rate):
         self.call_rate = call_rate
         self.bmicount = 0
-        self.bminum = int(self.binlen/(1/self.call_rate))
+        self.bminum = int(self.binlen/(1./self.call_rate))
 
     def get_state(self, shape=-1):
         '''
