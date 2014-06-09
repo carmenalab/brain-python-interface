@@ -155,7 +155,7 @@ class Decoder(object):
     '''
     All BMI decoders should inherit from this class
     '''
-    def __init__(self, filt, units, ssm, binlen=0.1, n_subbins=1, tslice=[-1,-1], **kwargs):
+    def __init__(self, filt, units, ssm, binlen=0.1, n_subbins=1, tslice=[-1,-1], call_rate=60.0, **kwargs):
         """ 
         Parameters
         ----------
@@ -175,6 +175,8 @@ class Decoder(object):
             into. Default of 3 is intended to correspond to ~180Hz / 5.5ms bins
         tslice : array_like, optional, default=[-1, -1]
             start and end times for the neural data used to train, e.g. from the .plx file
+        call_rate: float, optional, default = 60 Hz
+            Rate in Hz at which the task will run the __call__ function.
         """
 
         self.filt = filt
@@ -197,10 +199,31 @@ class Decoder(object):
         self.n_subbins = n_subbins
 
         self.bmicount = 0
-        self.bminum = int(self.binlen/(1/60.0))
+        self.bminum = int(self.binlen/(1/call_rate))
         self.spike_counts = np.zeros([len(units), 1])
 
+        self.call_rate = call_rate
+
         self._pickle_init()      
+
+    def _pickle_init(self):
+        '''
+        Functionality common to unpickling a Decoder from file and instantiating a new Decoder.
+        A call to this function is the last line in __init__ as well as __setstate__.
+        '''
+        import train
+
+        # If the decoder doesn't have an 'ssm' attribute, then it's an old
+        # decoder in which case the ssm is the 2D endpoint SSM
+        if not hasattr(self, 'ssm'):
+            self.ssm = train.endpt_2D_state_space
+
+        # Assign a default call rate of 60 Hz and initialize the bmicount/bminum attributes
+        if hasattr(self, 'call_rate'):
+            self.set_call_rate(self.call_rate)
+        else:
+            self.set_call_rate(60.0)
+
 
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         '''
@@ -367,18 +390,6 @@ class Decoder(object):
         self.spike_counts = np.zeros([self.n_features, self.n_subbins])
         self._pickle_init()
 
-    def _pickle_init(self):
-        '''
-        Functionality common to unpickling a Decoder from file and instantiating a new Decoder.
-        A call to this function is the last line in __init__ as well as __setstate__.
-        '''
-        import train
-
-        # If the decoder doesn't have an 'ssm' attribute, then it's an old
-        # decoder in which case the ssm is the 2D endpoint SSM
-        if not hasattr(self, 'ssm'):
-            self.ssm = train.endpt_2D_state_space
-
     def __getstate__(self):
         """
         Create dictionary describing state of the decoder instance, 
@@ -394,6 +405,11 @@ class Decoder(object):
             if k not in exclude:
                 state[k] = v
         return state
+
+    def set_call_rate(self, call_rate):
+        self.call_rate = call_rate
+        self.bmicount = 0
+        self.bminum = int(self.binlen/(1/self.call_rate))
 
     def get_state(self, shape=-1):
         '''
@@ -500,11 +516,15 @@ class Decoder(object):
         obs_t: np.array of shape (# features, # subbins)
             Neural observation vector. If the decoding_rate of the Decoder is
             greater than the control rate of the plant (e.g. 60 Hz )
+        call_rate: float, optional, default = 60 Hz
+            Rate in Hz at which the task will run the __call__ function.            
         kwargs: dictionary
             Algorithm-specific arguments to be given to the Decoder.predict method
         '''
+
+        call_rate = self.call_rate
         decoding_rate = 1./self.binlen
-        if decoding_rate >= 60:
+        if decoding_rate >= call_rate:
             # Infer the number of sub-bins from the size of the spike counts mat to decode
             n_subbins = obs_t.shape[1]
 
@@ -513,7 +533,7 @@ class Decoder(object):
                 outputs.append(self.predict(obs_t[:,k], **kwargs))
 
             return np.vstack(outputs).T
-        elif decoding_rate < 60:
+        elif decoding_rate < call_rate:
             self.spike_counts += obs_t.reshape(-1, 1)
             if self.bmicount == self.bminum-1:
                 # Update using spike counts

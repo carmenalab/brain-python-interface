@@ -384,8 +384,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             state['filt'] = state['kf']
 
         super(KFDecoder, self).__setstate__(state)
-        self.bmicount = 0
-        self.bminum = int(self.binlen/(1/60.0))
 
     def plot_K(self, **kwargs):
         F, K = self.kf.get_sskf()
@@ -444,23 +442,30 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             #   (R, S, T, and ESS) as attributes of self.filt
             pass
 
-    def change_binlen(self, new_binlen):
+    def change_binlen(self, new_binlen, screen_update_rate=60.0):
         '''
         Function to change the binlen of the KFDecoder analytically. 
+
+        Parameters
+        ----------
+        new_binlen : float
+            New bin length of the decoder, in seconds
+        screen_update_rate: float, optional, default = 60Hz
+            Rate at which the __call__ function will be called
         '''
         bin_gain = new_binlen / self.binlen
         self.binlen = new_binlen
 
         # Alter bminum, bmicount, # of subbins
-        screen_update_rate = 1./60
-        if self.binlen < screen_update_rate:
-            self.n_subbins = int(screen_update_rate / self.binlen)
+        screen_update_period = 1./screen_update_rate
+        if self.binlen < screen_update_period:
+            self.n_subbins = int(screen_update_period / self.binlen)
             self.bmicount = 0
             if hasattr(self, 'bminum'):
                 del self.bminum
         else:
             self.n_subbins = 1
-            self.bminum = int(self.binlen / screen_update_rate)
+            self.bminum = int(self.binlen / screen_update_period)
             self.bmicount = 0
 
         # change C matrix
