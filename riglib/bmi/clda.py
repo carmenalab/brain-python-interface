@@ -263,7 +263,7 @@ class CursorGoalLearner2(Learner):
             speed = np.nan
 
         int_vel = speed*normalize(int_dir[pos_inds])
-        int_kin = np.hstack([decoder_output[pos_inds], int_vel, 1])
+        int_kin = np.hstack([decoder_output[pos_inds], int_vel, 1]).reshape(-1, 1)
 
         if np.any(np.isnan(int_kin)):
             int_kin = None
