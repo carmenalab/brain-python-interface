@@ -363,10 +363,10 @@ class ArmAssistOFCLearner(OFCLearner):
         A, B, _ = ssm.get_ssm_matrices()
         
         # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 50., 0, 0, 0, 0]))
+        Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
         self.Q = Q
         
-        R = 1e7 * np.mat(np.diag([1., 1., 1.]))
+        R = 1e6 * np.mat(np.diag([1., 1., 1.]))
         self.R = R
 
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
@@ -421,7 +421,7 @@ class ReHandOFCLearner(OFCLearner):
         Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
         self.Q = Q
         
-        R = 1e3 * np.mat(np.diag([1., 1., 1., 1.]))
+        R = 1e6 * np.mat(np.diag([1., 1., 1., 1.]))
         self.R = R
 
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
@@ -463,7 +463,7 @@ class IsMoreOFCLearner(OFCLearner):
         Q = np.mat(np.diag([1., 1., 1., 1., 1., 1., 1., 0, 0, 0, 0, 0, 0, 0, 0]))
         self.Q = Q
         
-        R = 1e3 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
+        R = 1e6 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
         self.R = R
 
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)

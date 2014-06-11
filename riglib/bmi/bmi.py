@@ -437,6 +437,9 @@ class Decoder(object):
         if assist_level > 0:
             self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
 
+        # print 'before bounder:'
+        # print self.filt.state.mean
+
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):
             self.filt.state.mean = self.bounder(self.filt.state.mean, self.states)
@@ -695,6 +698,8 @@ class BMISystem(object):
 
             if self.learner.is_ready():
                 self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
+                print 'self.intended_kin:'
+                print self.intended_kin
                 # if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
                 #     half_life = kwargs['half_life']
                 #     rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))

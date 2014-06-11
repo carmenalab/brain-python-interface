@@ -357,11 +357,10 @@ class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
         A, B, _ = ssm.get_ssm_matrices()
         
         # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
+        Q = np.mat(np.diag([1., 1., 7., 0, 0, 0, 0]))
         self.Q = Q
         
-        # TODO -- scaling?
-        R = 1e2 * np.mat(np.diag([1., 1., 1.]))
+        R = 1e6 * np.mat(np.diag([1., 1., 1.]))
         self.R = R
 
         self.A = A
@@ -377,10 +376,9 @@ class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
         diff[2] = angle_subtract(target_state[2], current_state[2])
 
         Bu = assist_level * B*F*(diff)
-        assist_weight = assist_level
+        assist_weight = 0
 
-        return Bu, assist_weight
-            
+        return Bu, assist_weight            
 
 class ReHandLFCAssister(LinearFeedbackControllerAssist):
     def __init__(self, *args, **kwargs):
@@ -388,21 +386,14 @@ class ReHandLFCAssister(LinearFeedbackControllerAssist):
         A, B, _ = ssm.get_ssm_matrices()
         
         # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
+        Q = np.mat(np.diag([7., 7., 7., 7., 0, 0, 0, 0, 0]))
         self.Q = Q
         
-        # TODO -- scaling?
-        R = 1e2 * np.mat(np.diag([1., 1., 1., 1.]))
+        R = 1e6 * np.mat(np.diag([1., 1., 1., 1.]))
         self.R = R
 
         self.A = A
         self.B = B
-
-
-        print 'A.shape', A.shape
-        print 'B.shape', B.shape
-        print 'Q.shape', Q.shape
-        print 'R.shape', R.shape
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
@@ -415,7 +406,7 @@ class ReHandLFCAssister(LinearFeedbackControllerAssist):
             diff[i] = angle_subtract(target_state[i], current_state[i])
 
         Bu = assist_level * B*F*(diff)
-        assist_weight = assist_level
+        assist_weight = 0
 
         return Bu, assist_weight
 
@@ -426,11 +417,10 @@ class IsMoreLFCAssister(LinearFeedbackControllerAssist):
         A, B, _ = ssm.get_ssm_matrices()
         
         # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 1., 1., 1., 1., 1., 0, 0, 0, 0, 0, 0, 0, 0]))
+        Q = np.mat(np.diag([1., 1., 7., 7., 7., 7., 7., 0, 0, 0, 0, 0, 0, 0, 0]))
         self.Q = Q
         
-        # TODO -- scaling?
-        R = 1e2 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
+        R = 1e6 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
         self.R = R
 
         self.A = A
@@ -447,7 +437,7 @@ class IsMoreLFCAssister(LinearFeedbackControllerAssist):
             diff[i] = angle_subtract(target_state[i], current_state[i])
 
         Bu = assist_level * B*F*(diff)
-        assist_weight = assist_level
+        assist_weight = 0
 
         return Bu, assist_weight
 
