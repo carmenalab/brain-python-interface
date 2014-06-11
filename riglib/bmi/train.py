@@ -47,6 +47,8 @@ armassist_state_space = StateSpaceArmAssist()
 rehand_state_space = StateSpaceReHand()
 ismore_state_space = StateSpaceIsMore()
 
+from state_bounders import RectangularBounder, make_rect_bounder_from_ssm
+
 ##########################
 ## Main training functions
 ##########################
@@ -776,15 +778,21 @@ def _train_joint_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, unit
                                             _ssm=_ssm, source=source, kin_var=kin_var,
                                             shuffle=shuffle, **files)
 
+# TODO -- code for next three iBMI training functions is 
+#   very repetitive, only thing that differs is the ssm
 def _train_armassist_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
     _ssm=armassist_state_space, source='task', kin_var=None, shuffle=False, **files):
     '''
     One-liner to train an armassist BMI. To be removed as soon as the train BMI gui can be updated
     to have more arguments.
     '''
-    return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
-                                            _ssm=_ssm, source=source, kin_var=kin_var,
-                                            shuffle=shuffle, **files)
+    decoder = _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
+                                               _ssm=_ssm, source=source, kin_var=kin_var,
+                                               shuffle=shuffle, **files)
+
+    decoder.bounder = make_rect_bounder_from_ssm(_ssm)
+
+    return decoder
 
 def _train_rehand_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
     _ssm=rehand_state_space, source='task', kin_var=None, shuffle=False, **files):
@@ -792,9 +800,13 @@ def _train_rehand_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, uni
     One-liner to train a rehand BMI. To be removed as soon as the train BMI gui can be updated
     to have more arguments.
     '''
-    return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
-                                            _ssm=_ssm, source=source, kin_var=kin_var,
-                                            shuffle=shuffle, **files)
+    decoder = _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
+                                               _ssm=_ssm, source=source, kin_var=kin_var,
+                                               shuffle=shuffle, **files)
+
+    decoder.bounder = make_rect_bounder_from_ssm(_ssm)
+
+    return decoder
 
 def _train_ismore_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
     _ssm=ismore_state_space, source='task', kin_var=None, shuffle=False, **files):
@@ -802,9 +814,13 @@ def _train_ismore_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, uni
     One-liner to train an ismore (armassist+rehand) BMI. To be removed as soon as the train BMI gui can be updated
     to have more arguments.
     '''
-    return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
-                                            _ssm=_ssm, source=source, kin_var=kin_var,
-                                            shuffle=shuffle, **files)
+    decoder = _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
+                                               _ssm=_ssm, source=source, kin_var=kin_var,
+                                               shuffle=shuffle, **files)
+
+    decoder.bounder = make_rect_bounder_from_ssm(_ssm)
+
+    return decoder
 
 def _train_tentacle_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None, None], 
     _ssm=tentacle_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
@@ -1129,6 +1145,9 @@ def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
 
     decoder.ssm = _ssm
     decoder.n_features = n_neurons
+
+    decoder.bounder = make_rect_bounder_from_ssm(_ssm)
+
     return decoder
 
 
