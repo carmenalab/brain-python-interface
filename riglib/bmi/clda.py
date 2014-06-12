@@ -366,7 +366,7 @@ class ArmAssistOFCLearner(OFCLearner):
         Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
         self.Q = Q
         
-        R = 1e6 * np.mat(np.diag([1., 1., 1.]))
+        R = 1e7 * np.mat(np.diag([1., 1., 1.]))
         self.R = R
 
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
@@ -421,7 +421,7 @@ class ReHandOFCLearner(OFCLearner):
         Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
         self.Q = Q
         
-        R = 1e6 * np.mat(np.diag([1., 1., 1., 1.]))
+        R = 1e7 * np.mat(np.diag([1., 1., 1., 1.]))
         self.R = R
 
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
@@ -460,10 +460,10 @@ class IsMoreOFCLearner(OFCLearner):
         A, B, _ = ssm.get_ssm_matrices()
         
         # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 1., 1., 1., 1., 1., 0, 0, 0, 0, 0, 0, 0, 0]))
+        Q = 1*np.mat(np.diag([1., 1., 1., 1., 1., 1., 1., 0, 0, 0, 0, 0, 0, 0, 0]))
         self.Q = Q
         
-        R = 1e6 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
+        R = 1e7 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
         self.R = R
 
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
@@ -487,6 +487,15 @@ class IsMoreOFCLearner(OFCLearner):
             for i in range(2, 7):
                 diff[i] = angle_subtract(target_state[i], current_state[i])
 
+            # print 'diff:'
+            # print diff
+            # print 'A*current_state'
+            # print A*current_state
+            BF = B*F
+            print 'c1:', BF[7,0]
+            print 'c2:', BF[7,7]
+            print 'B*F*diff'
+            print B*F*diff
             return A*current_state + B*F*(diff)        
         except KeyError:
             return None
