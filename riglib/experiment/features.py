@@ -299,36 +299,6 @@ class MotionAutoAlign(MotionData):
 # Plexon datasources
 ########################################################################################################
 
-# ORIGINAL SpikeData and SpikeBMI features
-# class SpikeData(traits.HasTraits):
-#     '''Stream neural spike data from the Plexon system'''
-#     plexon_channels = None
-#     
-#     def init(self):
-#         from riglib import plexon, source
-#         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-#         super(SpikeData, self).init()
-# 
-#     def run(self):
-#         self.neurondata.start()
-#         try:
-#             super(SpikeData, self).run()
-#         finally:
-#             self.neurondata.stop()
-
-# class SpikeBMI(SpikeData):
-#     '''Filters spike data through a BMI'''
-#     decoder = traits.Instance(bmi.Decoder)
-#     # decoder = traits.Instance(bmi.BMI)
-# 
-#     def init(self):
-#         print "init bmi"
-#         # self.decoder = self.bmi
-#         self.plexon_channels = self.decoder.units[:,0]
-#         super(SpikeBMI, self).init()
-#         #self.neurondata.filter = self.bmi
-
-
 # NEW SpikeData and SpikeBMI features (they should really be renamed PlexonData and PlexonBMI)
 class SpikeData(traits.HasTraits):
     '''Stream Plexon neural data'''
@@ -416,27 +386,6 @@ class BlackrockBMI(BlackrockData):
         self.blackrock_channels = self.decoder.units[:,0]
         super(BlackrockBMI, self).init()
 
-
-# class IsMoreFeedbackData(traits.HasTraits):
-#     '''Acquire plant feedback data sent over UDP by the ArmAssist and ReHand processes.'''
-#     def init(self):
-#         from riglib import blackrock, source
-#         ismore_ss = state_space_models.StateSpaceIsMore()
-#         channels = ismore_ss.state_names
-
-#         self.feedback_source = source.MultiChanDataSource(blackrock.FeedbackData, channels=channels)
-
-#         try:
-#             super(IsMoreFeedbackData, self).init()
-#         except:
-#             print 'IsMoreFeedbackData: running without a task'
-
-#     def run(self):
-#         self.feedback_source.start()
-#         try:
-#             super(IsMoreFeedbackData, self).run()
-#         finally:
-#             self.feedback_source.stop()
 
 #*******************************************************************************************************
 # Data Sinks
@@ -604,6 +553,77 @@ class RelayPlexByte(RelayPlexon):
         if not isinstance(self, SaveHDF):
             raise ValueError("RelayPlexByte feature only available with SaveHDF")
         super(RelayPlexByte, self).init()
+
+    @property
+    def ni_out(self):
+        from riglib import nidaq
+        return nidaq.SendRowByte
+
+###
+
+class RelayBlackrock(SinkRegister):
+    '''Sends full data directly into the Blackrock system.'''
+    def init(self):
+        from riglib import sink
+        print "self.ni_out()", self.ni_out()
+        self.nidaq = sink.sinks.start(self.ni_out)
+        print "self.nidaq", self.nidaq
+        super(RelayBlackrock, self).init()
+
+    @property
+    def ni_out(self):
+        from riglib import nidaq
+        print 'nidaq.SendAll', nidaq.SendAll
+        return nidaq.SendAll
+
+    @property    
+    def blackrockfiles(self):
+        '''Finds the blackrock files --- .nev and .nsx (.ns1 through .ns6) 
+        --- that are most likely associated with the current task based on 
+        the time at which the task ended and the "last modified" time of the 
+        files located at /storage/blackrock/.
+        '''
+        import os, sys, glob, time
+        if len(self.event_log) < 1:
+            return None
+
+        start = self.event_log[-1][2]
+        
+        files = []
+        for ext in ['.nev', '.ns1', '.ns2', '.ns3', '.ns4', '.ns5', '.ns6']:
+            pattern = "/storage/blackrock/*" + ext
+            matches = sorted(glob.glob(pattern), key=lambda f: abs(os.stat(f).st_mtime - start))
+            
+            if len(matches) > 0:
+                tdiff = os.stat(matches[0]).st_mtime - start
+                if abs(tdiff) < 60:
+                     files.append(matches[0])
+
+        return files
+    
+    def run(self):
+        try:
+            super(RelayBlackrock, self).run()
+        finally:
+            self.nidaq.stop()
+
+    def set_state(self, condition, **kwargs):
+        self.nidaq.sendMsg(condition)
+        super(RelayBlackrock, self).set_state(condition, **kwargs)
+
+    def cleanup(self, database, saveid, **kwargs):
+        super(RelayBlackrock, self).cleanup(database, saveid, **kwargs)
+        time.sleep(2)
+        for file_ in self.blackrockfiles:
+            suffix = file_[-3:]  # e.g., 'nev', 'ns3', etc.
+            database.save_data(self.nevfile, "blackrock", saveid, True, False, custom_suffix=suffix)
+        
+class RelayBlackrockByte(RelayBlackrock):
+    '''Relays a single byte (0-255) as a row checksum for when a data packet arrives.'''
+    def init(self):
+        if not isinstance(self, SaveHDF):
+            raise ValueError("RelayBlackrockByte feature only available with SaveHDF")
+        super(RelayBlackrockByte, self).init()
 
     @property
     def ni_out(self):
