@@ -180,12 +180,22 @@ class Task(object):
         self.subj = subj
         self.params = Parameters(params)
 
-        # Send pulse to plexon box to start saving to file
+        # Send pulse to plexon or blackrock box to start saving to file
         if self.saveid is not None:
             try:
                 import comedi
                 self.com = comedi.comedi_open("/dev/comedi0")
-                comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
+
+                from riglib import loc_config
+                if loc_config.recording_system == 'plexon':
+                    comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
+                elif loc_config.recording_system == 'blackrock':
+                    # set last data pin ("D15"; 16th pin) high
+                    write_mask   = 1
+                    bits         = 1
+                    base_channel = 15
+                    comedi.comedi_dio_bitfield2(self.com, 0, write_mask, bits, base_channel)
+
                 time.sleep(2)
             except:
                 print "No comedi, cannot start"
@@ -233,7 +243,15 @@ class Task(object):
         if self.saveid is not None:
             try:
                 import comedi
-                comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
+                from riglib import loc_config
+                if loc_config.recording_system == 'plexon':
+                    comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
+                elif loc_config.recording_system == 'blackrock':
+                    # set last data pin ("D15"; 16th pin) low
+                    write_mask   = 1
+                    bits         = 0
+                    base_channel = 15
+                    comedi.comedi_dio_bitfield2(self.com, 0, write_mask, bits, base_channel)
             except:
                 pass
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)

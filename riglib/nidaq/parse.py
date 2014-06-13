@@ -3,6 +3,18 @@
 
 import numpy as np
 
+from riglib import loc_config
+if loc_config.recording_system == 'plexon':
+    FLIP_DEFAULT = False
+elif loc_config.recording_system == 'blackrock':
+    # whereas Plexon OmniPlex system in Carmena lab are set to use
+    # low-true logic, the Blackrock Neuroport system only uses
+    # high-true logic, so we don't need to bit-flip the binary messages
+    # that were stored in the blackrock .nev file (which means
+    # we want to set FLIP_DEFAULT=True --- this variable and "flip"
+    # keyword argument of the _split function below are misnomers...)
+    FLIP_DEFAULT = True
+
 msgtype_mask = 0b0000111<<8
 auxdata_mask = 0b1111000<<8
 rawdata_mask = 0b11111111
@@ -14,7 +26,7 @@ MSG_TYPE_REGISTER_SHAPE = 3
 MSG_TYPE_ROW = 4
 MSG_TYPE_ROWBYTE = 5
 
-def _split(data, flip=False):
+def _split(data, flip=FLIP_DEFAULT):
     '''
     '''
     # If the data is a 1D array, extract the timestamps and the raw event codes
