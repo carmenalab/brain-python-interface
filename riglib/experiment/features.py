@@ -355,18 +355,12 @@ class BlackrockData(traits.HasTraits):
     def init(self):
         from riglib import blackrock, source
 
-        if hasattr(self.decoder, 'extractor_cls'):
-            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
-                self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels)
-            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
-                self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels)
-            else:
-                raise Exception("Unknown extractor class, unable to create data source object!")
+        if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+            self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels, send_data_to_sink_man=False)
+        elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+            self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels)
         else:
-            # if using an older decoder that doesn't have extractor_cls (and 
-            # extractor_kwargs) as attributes, then just create a DataSource 
-            # with blackrock.Spikes by default
-            self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels)
+            raise Exception("Unknown extractor class, unable to create data source object!")
 
         super(BlackrockData, self).init()
 

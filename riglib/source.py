@@ -16,7 +16,7 @@ from . import FuncProxy
 
 
 class DataSource(mp.Process):
-    def __init__(self, source, bufferlen=10, name=None, **kwargs):
+    def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_man=True, **kwargs):
         super(DataSource, self).__init__()
         if name is not None:
             self.name = name
@@ -39,6 +39,12 @@ class DataSource(mp.Process):
         self.last_idx = 0
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+
+        # in DataSource.run, there is a call to "self.sinks.send(...)",
+        # but if the DataSource was never registered with the sink manager,
+        # then this line results in unnecessary IPC
+        # so, set send_data_to_sink_man to False if you want to avoid this
+        self.send_data_to_sink_man = send_data_to_sink_man
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
@@ -83,7 +89,8 @@ class DataSource(mp.Process):
                     system.stop()
             if streaming:
                 data = system.get()
-                self.sinks.send(self.name, data)
+                if self.send_data_to_sink_man:
+                    self.sinks.send(self.name, data)
                 if data is not None:
                     try:
                         self.lock.acquire()
