@@ -51,9 +51,8 @@ class IsMorePlant(object):
         self.sinks.register(self.rh_source)
 
     def start(self):
-        # only want to start these DataSources after they have been
-        # register with the SinkManager singleton (self.sinks)
-        # in the call to init()
+        # only start these DataSources after they have been registered with 
+        # the SinkManager singleton (self.sinks) in the call to init()
         self.aa_source.start()
         self.rh_source.start()
 
@@ -112,19 +111,13 @@ class IsMorePlant(object):
 
     def get_pos(self, dev='IsMore'):
         if dev == 'ArmAssist':
-            feedback = np.array(tuple(self.aa_source.read(n_pts=1)[0]))
-            pos = feedback[0:3]
+            pos = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_p_state_names][0]))
         elif dev == 'ReHand':
-            feedback = np.array(tuple(self.rh_source.read(n_pts=1)[0]))
-            pos = feedback[0:4]
+            pos = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_p_state_names][0]))
         elif dev == 'IsMore':
-            feedback = np.array(tuple(self.aa_source.read(n_pts=1)[0]))
-            aa_pos = feedback[0:3]
-
-            feedback = np.array(tuple(self.rh_source.read(n_pts=1)[0]))
-            rh_pos = feedback[0:4]
-
-            pos = np.hstack([aa_pos, rh_pos]) 
+            aa_pos = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_p_state_names][0]))
+            rh_pos = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_p_state_names][0])) 
+            pos = np.hstack([aa_pos, rh_pos])
         else:
             raise Exception('Unknown device: ' + str(dev))
 
@@ -132,18 +125,12 @@ class IsMorePlant(object):
 
     def get_vel(self, dev='IsMore'):
         if dev == 'ArmAssist':
-            feedback = np.array(tuple(self.aa_source.read(n_pts=1)[0]))
-            vel = feedback[3:6]
+            vel = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_v_state_names][0]))
         elif dev == 'ReHand':
-            feedback = np.array(tuple(self.rh_source.read(n_pts=1)[0]))
-            vel = feedback[4:8]
+            vel = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
         elif dev == 'IsMore':
-            feedback = np.array(tuple(self.aa_source.read(n_pts=1)[0]))
-            aa_vel = feedback[3:6]
-
-            feedback = np.array(tuple(self.rh_source.read(n_pts=1)[0]))
-            rh_vel = feedback[4:8]
-
+            aa_vel = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_v_state_names][0]))
+            rh_vel = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
             vel = np.hstack([aa_vel, rh_vel]) 
         else:
             raise Exception('Unknown device: ' + str(dev))

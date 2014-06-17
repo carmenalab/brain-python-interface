@@ -82,7 +82,8 @@ class ArmAssistData(object):
     update_freq = 25.  # every 40 ms -- TODO check
 
     state_names = ['aa_px', 'aa_py', 'aa_ppsi', 'aa_vx', 'aa_vy', 'aa_vpsi']
-    dtype = np.dtype([(state_name, np.float64) for state_name in state_names])
+    sub_dtype = np.dtype([(state_name, np.float64) for state_name in state_names])
+    dtype = np.dtype([('data', sub_dtype), ('arrival_ts', np.float64)])
 
     def __init__(self):
         self.client = udp_feedback_client.ArmAssistClient()
@@ -97,7 +98,8 @@ class ArmAssistData(object):
     def get(self):
         d = self.data.next()
 
-        return np.array([tuple(d.data)], dtype=self.dtype)
+        return np.array([(tuple(d.data), d.arrival_ts)], dtype=self.dtype)
+
 
 
 # for use with a DataSource
@@ -105,7 +107,8 @@ class ReHandData(object):
     update_freq = 25.  # every 40 ms -- TODO check
 
     state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 'rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
-    dtype = np.dtype([(state_name, np.float64) for state_name in state_names])
+    sub_dtype = np.dtype([(state_name, np.float64) for state_name in state_names])
+    dtype = np.dtype([('data', sub_dtype), ('arrival_ts', np.float64)])
 
     def __init__(self):
         self.client = udp_feedback_client.ReHandClient()
@@ -120,4 +123,5 @@ class ReHandData(object):
     def get(self):
         d = self.data.next()
 
-        return np.array([tuple(d.data)], dtype=self.dtype)
+        return np.array([(tuple(d.data), d.arrival_ts)], dtype=self.dtype)
+
