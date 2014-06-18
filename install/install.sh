@@ -75,7 +75,7 @@ sudo pip install nitime
 sudo pip install sphinx
 sudo pip install numpydoc
 sudo pip install tornado
-sudo pip install tables
+sudo pip install tables==2.4.0
 
 
 ####### Download any src code
