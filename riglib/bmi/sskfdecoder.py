@@ -92,5 +92,14 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
     def include_offset(self):
         return np.all(self.F[-1, :-1] == 0) and (self.F[-1, -1] == 1)
 
+    def get_K_null(self):
+        '''
+        $$y_{null} = K_{null} * y_t$$ gives the "null" component of the spike inputs, i.e. $$K_t*y_{null} = 0_{N\times 1}$$
+        '''
+        K = np.mat(self.K)
+        n_neurons = K.shape[1]
+        K_null = np.eye(n_neurons) - np.linalg.pinv(K) * K
+        return K_null
+
 class SSKFDecoder(bmi.Decoder, bmi.BMI):
     pass
