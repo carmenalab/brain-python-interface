@@ -6,7 +6,8 @@ import parse
 try:
     import pcidio
 except:
-    pass
+    import warnings
+    warnings.warn('Cannot import pcidio. Did you run its build script?')
 
 class SendAll(object):
     def __init__(self, device="/dev/comedi0"):

@@ -222,25 +222,42 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     tmask = np.logical_and(lower, upper)
     return tmask, rows
 
+
 def _get_tmask_blackrock(nevfile, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_name='task'):
     ''' Find the rows of the nev file to use for training the decoder.'''
 
     raise NotImplementedError
     
 
-def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
-    '''Compute binned spike count features from a Plexon data file.
+
+def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    Compute binned spike count features
+
+    Parameters
+    ----------
+    plx: neural data file instance
+    neurows: np.ndarray of shape (T,)
+        Timestamps in the plexon time reference corresponding to bin boundaries
+    binlen: float
+        Length of time over which to sum spikes from the specified cells
+    units: np.ndarray of shape (N, 2)
+        List of units that the decoder will be trained on. The first column specifies the electrode number and the second specifies the unit on the electrode
+    extractor_kwargs: dict 
+        Any additional parameters to be passed to the feature extractor. This function is agnostic to the actual extractor utilized
+    strobe_rate: 60.0
+        The rate at which the task sends the sync pulse to the plx file
     '''
 
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
     from plexon import psth
@@ -255,20 +272,20 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
 
     return spike_counts, units, extractor_kwargs
 
+def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
 
-def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     '''Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
     '''
     
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
 
@@ -303,19 +320,19 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     return lfp_power, units, extractor_kwargs
 
 
-def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
+def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
     '''
     
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
 
@@ -352,19 +369,18 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
 
     return lfp_power, units, extractor_kwargs
 
-
-def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs):
+def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     " compute EMG features"
 
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
 
@@ -836,7 +852,7 @@ def _train_tentacle_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, u
 def _train_KFDecoder_cursor_epochs(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], 
-    exclude_targ_ind=[-1, 0], **files):
+    exclude_targ_ind=[-1, 0], strobe_rate=60.0, **files):
     '''
     Train a KFDecoder from cursor movement on screen, but only for selected epochs
     Define which epochs you want to remove from training: 
@@ -866,7 +882,7 @@ def _train_KFDecoder_cursor_epochs(extractor_cls, extractor_kwargs, units=None, 
     h5 = tables.openFile(files['hdf'])
     kin = h5.root.task[tmask]['cursor']
     targ_ind = h5.root.task[tmask]['target_index']
-    step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+    step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
     kin = kin[::step, :]
     velocity = np.diff(kin, axis=0) * 1./binlen
     kin = kin[1:] #Remove 1st element to match size of velocity
@@ -917,9 +933,7 @@ def _train_KFDecoder_cursor_epochs(extractor_cls, extractor_kwargs, units=None, 
 
 def _train_KFDecoder_manual_control(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
-    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
-    #state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
-    #stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
+    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], task_update_rate=60.0, **files):
     """
     Train KFDecoder from manual control
     """
@@ -1000,7 +1014,7 @@ def _train_KFDecoder_manual_control(extractor_cls, extractor_kwargs, units=None,
     # calculate velocity
     kin[(kin[...,:3] == 0).all(-1)] = np.ma.masked
     kin[kin[...,-1] < 0] = np.ma.masked
-    velocity = np.ma.diff(kin[...,:3], axis=0)*60
+    velocity = np.ma.diff(kin[...,:3], axis=0)*task_update_rate
     kin = np.ma.hstack([kin[:-1,:,:3], velocity])
     
     hand_kin = kin[:, [14,kin.shape[1]/2+14], :]
@@ -1028,7 +1042,7 @@ def _train_KFDecoder_manual_control(extractor_cls, extractor_kwargs, units=None,
     C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[train_inds, :], neurons[:,:-1])
     
     # State-space model set from expert data
-    A, W = state_space_models.linear_kinarm_kf(update_rate=1./60)
+    A, W = state_space_models.linear_kinarm_kf(update_rate=1./task_update_rate)
     A = A[np.ix_(state_inds, state_inds)]
     W = W[np.ix_(state_inds, state_inds)]
     

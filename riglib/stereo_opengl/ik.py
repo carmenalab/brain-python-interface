@@ -111,16 +111,32 @@ class CursorPlant(Plant):
 
     def drive(self, decoder):
         pos = decoder['q'].copy()
+        vel = decoder['qdot'].copy()
         
         if self.endpt_bounds is not None:
-            if pos[0] < self.endpt_bounds[0]: pos[0] = self.endpt_bounds[0]
-            if pos[0] > self.endpt_bounds[1]: pos[0] = self.endpt_bounds[1]
-            if pos[1] < self.endpt_bounds[2]: pos[1] = self.endpt_bounds[2]
-            if pos[1] > self.endpt_bounds[3]: pos[1] = self.endpt_bounds[3]
-            if pos[2] < self.endpt_bounds[4]: pos[2] = self.endpt_bounds[4]
-            if pos[2] > self.endpt_bounds[5]: pos[2] = self.endpt_bounds[5]
+            if pos[0] < self.endpt_bounds[0]: 
+                pos[0] = self.endpt_bounds[0]
+                vel[0] = 0
+            if pos[0] > self.endpt_bounds[1]: 
+                pos[0] = self.endpt_bounds[1]
+                vel[0] = 0
+
+            if pos[1] < self.endpt_bounds[2]: 
+                pos[1] = self.endpt_bounds[2]
+                vel[1] = 0
+            if pos[1] > self.endpt_bounds[3]: 
+                pos[1] = self.endpt_bounds[3]
+                vel[1] = 0
+
+            if pos[2] < self.endpt_bounds[4]: 
+                pos[2] = self.endpt_bounds[4]
+                vel[2] = 0
+            if pos[2] > self.endpt_bounds[5]: 
+                pos[2] = self.endpt_bounds[5]
+                vel[2] = 0
         
-        decoder['q'] = bounded_pos
+        decoder['q'] = pos
+        decoder['qdot'] = vel
         super(CursorPlant, self).drive(decoder)
 
 
@@ -406,9 +422,10 @@ chain_15_15_5_5.set_intrinsic_coordinates(init_joint_pos)
 chain_20_20 = RobotArm2J2D(link_lengths=[20, 20], base_loc=shoulder_anchor, **chain_kwargs)
 starting_pos = np.array([5., 0., 5])
 chain_20_20.set_endpoint_pos(starting_pos - shoulder_anchor, n_iter=10, n_particles=500)
-
-cursor = CursorPlant()
 chain_20_20.set_endpoint_pos(starting_pos, n_iter=10, n_particles=500)
+
+cursor = CursorPlant(endpt_bounds=(-14, 14., 0., 0., -14., 14.))
+#cursor = CursorPlant(endpt_bounds=(-24., 24., 0., 0., -14., 14.))
 
 plants = dict(RobotArmGen2D=chain_15_15_5_5, 
               RobotArm2J2D=chain_20_20,

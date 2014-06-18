@@ -3,18 +3,62 @@
 Data analysis code
 ------------------
 
-Analysis of neural data often feels like busywork. This document describes code part of the BMI3D library intended to cut down on such busywork. 
+The high-level flow of any analysis is 
 
-The basic architecture
+	1. collect the ID numbers of blocks you want to process, either manually or using database filters
+	2. group the blocks by some criterion, e.g., date, type of BMI decoder used, task parameters.
+	3. analyze the data
+
+Collecting the data blocks
+==========================
+
+Grouping the data blocks
+========================
+Often different data blocks will not be independent and should be treated as a single block for "analysis" purposes. For example, if you want to calculate the performance of a particular set of decoder parameters, and you have two BMI blocks from the same day that used the same parameters, then for the purposes of analysis you may want to treat the data as having come from one big block. Once you have identified which blocks of data you want to analyze, this function can help group them:
+
+.. automodule :: db.dbfunctions
+	:members: group_ids
+
+By default, the grouping is by date, as this is the most common use case that we have encountered.
+
+Processing data blocks
 ======================
 Experiments run with the BMI3D experimental software are automatically logged into a database using the python package django. Central to the analysis of experimental data is the TaskEntry
 model in the Django database (db.tracker.TaskEntry). However, it's not desireable to be 
-manipulating the database code frequently since it's critical to the recording of data, so we mostly put our analysis code in a different place:
+manipulating the database code frequently since it's critical to data recording, so we mostly put our analysis code in a different place:
 
 .. autoclass:: db.dbfunctions.TaskEntry
 	:members: proc
+
+Note that dbfunctions.TaskEntry does not inherit from db.tracker.models.TaskEntry because inhertinging from Django models is a little more involved than inheriting from a normal python class. Instead, dbfunctions.TaskEntry is a wrapper for db.tracker.models.TaskEntry. 
+
+Instantiating a dbfunctions.TaskEntry object with a database ID number creates an object with basic attributes, e.g., names of linked HDF/plexon files. However, we will often want to perform analyses that are only meaningful for the particular task of a block. For this, we create task-specific child classes, one for each task. These are declared in the semi-misnamed analysis.performance module. 
+
+To get one of these task-specific TaskEntry classes, you can do::
+
+	from bmi3d import analysis
+	te = analysis.get(id)
+
+
 
 basicanalysis
 =============
 ..  automodule:: analysis.basicanalysis
     :members:
+
+Performance metrics
+-------------------
+For cursor tasks, there are various classes of performance metric:
+
+block-level performance
+    hold errors per minute, per successful trial
+    timeout penalties per minute
+
+trial-level performance
+    movement error
+    reach time
+    path length
+    integrated distance to target
+
+``instantaneous'' performance
+    angular error

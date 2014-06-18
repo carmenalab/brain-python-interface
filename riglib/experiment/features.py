@@ -15,6 +15,16 @@ from riglib.bmi import extractor
 
 from . import traits, experiment
 
+
+
+from riglib.nidaq import pcidio
+import comedi
+import time
+
+###### CONSTANTS
+sec_per_min = 60
+
+
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
     def __init__(self, *args, **kwargs):
@@ -27,6 +37,40 @@ class RewardSystem(traits.HasTraits):
             self.reward.reward(self.reward_time*1000.)
             self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
         super(RewardSystem, self)._start_reward()
+
+class TTLReward(traits.HasTraits):
+    def __init__(self, *args, **kwargs):
+        self.com = comedi.comedi_open('/dev/comedi0')
+        super(TTLReward, self).__init__(*args, **kwargs)        
+
+# // extern int ttl_reward_pulse(float pulse_time) {
+# //     if (ni == NULL) {
+# //         init("/dev/comedi0");
+# //     }
+# //     uint val = 0x800000; //0x900000; //16777215;
+# //     uint subdevice = 0;
+# //     uint write_mask = 0x800000;
+# //     uint base_channel = 0;
+# //     comedi_dio_bitfield2(ni, subdevice, write_mask, &val, base_channel);
+
+# //     sleep(pulse_time);
+
+# //     uint val2 = 0;
+# //     comedi_dio_bitfield2(ni, subdevice, write_mask, &val2, base_channel);
+
+
+    def _start_reward(self):
+        super(TTLReward, self)._start_reward()
+        subdevice = 0
+        write_mask = 0x800000
+        val = 0x800000
+        base_channel = 0
+        comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
+        time.sleep(self.reward_time)
+        comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
+        
+        
+
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
@@ -484,7 +528,7 @@ class SimTime(object):
 
     def get_time(self):
         try:
-            return self.cycle_count * 1./60
+            return self.cycle_count * 1./self.fps
         except:
             # loop_counter has not been initialized yet, return 0
             return 0
@@ -522,7 +566,7 @@ class RelayPlexon(SinkRegister):
         
         if len(files) > 0:
             tdiff = os.stat(files[0]).st_mtime - start
-            if abs(tdiff) < 60:
+            if abs(tdiff) < sec_per_min:
                  return files[0]
     
     def run(self):
@@ -700,10 +744,10 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         current_level = self._linear_change(self.attr_start, self.attr_min, decay_time)
         setattr(self, 'current_%s' % self.attr, current_level) 
         if self.assist_flag and getattr(self, 'current_%s' % self.attr) == self.attr_min:
-            print "%s at minimum after %d successful trials" % (self.attr, self.calc_n_rewards())
+            print "%s at final value after %d successful trials" % (self.attr, self.calc_n_rewards())
             self.assist_flag = False
 
-        if self.cycle_count % 3600 == 0 and self.assist_flag:
+        if self.cycle_count % (self.fps * sec_per_min) == 0 and self.assist_flag:
             print "%s: " % self.attr, getattr(self, 'current_%s' % self.attr)
 
     def _cycle(self):

@@ -178,7 +178,7 @@ class PSTHfilter(object):
             return ret
         return counts
 
-def test_filter():
+def test_filter(update_rate=60.):
     from riglib import source
     ds = source.DataSource(SimSpikes, channels=100)
     ds.start()
@@ -189,5 +189,5 @@ def test_filter():
         times[i] = time.time()
         print ds.get(True)
         times[i] = time.time() - times[i]
-        time.sleep(1/60.)
+        time.sleep(1/update_rate)
     return times

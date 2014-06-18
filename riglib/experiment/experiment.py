@@ -9,6 +9,7 @@ import threading
 import traceback
 import collections
 import re
+import os
 import tables
 
 import numpy as np
@@ -20,6 +21,9 @@ except ImportError:
     import warnings
     warnings.warn("experiment.py: Cannot import 'pygame'")
 
+
+min_per_hour = 60
+sec_per_min = 60
 
 class Experiment(traits.HasTraits, threading.Thread):
     status = dict(
@@ -154,13 +158,13 @@ class Experiment(traits.HasTraits, threading.Thread):
         h5file.close()
 
     @classmethod
-    def _time_to_string(self, sec):
+    def _time_to_string(cls, sec):
         '''
         Convert a time in seconds to a string of format hh:mm:ss.
         '''
-        nhours = int(sec/3600)
-        nmins = int((sec-nhours*3600)/60)
-        nsecs = int(sec - nhours*3600 - nmins*60)
+        nhours = int(sec/(min_per_hour * sec_per_min))
+        nmins = int((sec-nhours*min_per_hour*sec_per_min)/sec_per_min)
+        nsecs = int(sec - nhours*min_per_hour*sec_per_min - nmins*sec_per_min)
         return str(nhours).zfill(2) + ':' + str(nmins).zfill(2) + ':' + str(nsecs).zfill(2)
 
     def update_report_stats(self):

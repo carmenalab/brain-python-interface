@@ -17,25 +17,8 @@ class Assister(object):
     can compute an "optimal" input to the system, which is mixed in with the input
     derived from the subject's neural input
     '''
-    def __init__(self, start_level, end_level, assist_time, assist_speed):
-        self.start_level    = start_level
-        self.end_level      = end_level
-        self.assist_time    = assist_time
-        self.assist_speed   = assist_speed
-
-        self.current_level  = start_level
-
-    def update_level(self, task):
-        if self.current_level != self.end_level:
-            elapsed_time = task.get_time() - task.task_start_time
-            temp = self.start_level - elapsed_time*(self.start_level-self.end_level)/self.assist_time
-            if temp <= self.end_level:
-                self.current_level = self.end_level
-                print "Assist reached end level"
-            else:
-                self.current_level = temp
-                if (task.count % 3600 == 0):  # print every minute
-                    print "Assist level: ", self.current_level
+    def __init__(self, *args, **kwargs):
+        pass
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         pass  # implement in subclasses -- should return (Bu, assist_weight)

@@ -87,24 +87,26 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
 
     feature_type = 'spike_counts'
     
-    def __init__(self, hdf_table, source='spike_counts', units=[]):
+    def __init__(self, hdf_table, source='spike_counts', cycle_rate=60.0, units=[]):
         self.idx = 0
         self.hdf_table = hdf_table
         self.source = source
         self.units = units
         self.n_subbins = hdf_table[0][source].shape[1]
         self.last_get_spike_counts_time = 0
+        self.cycle_rate = cycle_rate
 
     def get_spike_ts(self):
         # Get counts from HDF file
         counts = self.hdf_table[self.idx][self.source]
         n_subbins = counts.shape[1]
 
-        # Convert counts to timestamps between (self.idx*1./60, (self.idx+1)*1./60)
+        # Convert counts to timestamps between (self.idx*1./cycle_rate, (self.idx+1)*1./cycle_rate)
         # NOTE: this code is mostly copied from riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
         ts_data = []
+        cycle_rate = self.cycle_rate
         for k in range(n_subbins):
-            fake_time = (self.idx - 1) * 1./60 + (k + 0.5)*1./(60*n_subbins)
+            fake_time = (self.idx - 1) * 1./cycle_rate + (k + 0.5)*1./cycle_rate*1./n_subbins
             nonzero_units, = np.nonzero(counts[:,k])
             for unit_ind in nonzero_units:
                 n_spikes = counts[unit_ind, k]
