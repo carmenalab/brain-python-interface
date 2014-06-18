@@ -44,6 +44,28 @@ Functions to train new decoder objects are in the module riglib.bmi.train:
     :members:
 
 
+CLDA
+----
+
+Learner
+-------
+The Learner is an object which estimates the "intention" of the subject performing the task. 
+
+.. autoclass:: riglib.bmi.clda.Learner
+	:members: __init__
+
+The learner can be configured to run in trial-based mode, a time-based mode, or some combination of the two. This must be specified when the object is instantiated, using the batch_size, done_states and reset_states. For instance, with the BMIControlMulti task state machine, we can configure the learner to operate in a purely time based mode by specifying::
+	
+	done_states = []
+	reset_states = []
+	batch_size = N
+
+or in a purely trial-based mode by specifying::
+
+	done_states = ['reward', 'hold_penalty']
+	reset_states = ['timeout_penalty']
+	batch_size = np.inf
+
 .. [Koyama2010] Koyama S., Chase S. M., Whitford A. S., Velliste M., Schwartz A. B., and Kass R. E. Comparison of brain-computer interface decoding algorithms in open-loop and closed-loop control. J. Comput. Neurosci., 29(1-2):73–87, August 2010.
 
 .. [Ganguly2010] Ganguly K. and Carmena J. M. Neural Correlates of Skill Acquisition with a Cortical Brain-Machine Interface. Journal of Motor Behavior, (September 2012):37–41, 2010    
