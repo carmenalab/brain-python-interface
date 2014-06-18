@@ -302,8 +302,8 @@ class SimSpikes(object):
         self.wait_time[am] = np.random.exponential(1/self.rates[am])
         return np.array([(time.time()*1e6, am, 0)], dtype=self.dtype)
 
-class PSTHfilter(objec
-    ''' Docstring '''t):
+class PSTHfilter(object):
+    ''' Docstring '''
     def __init__(self, length, cells=None):
         '''
         Docstring
