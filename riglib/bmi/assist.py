@@ -85,7 +85,9 @@ class SimpleEndpointAssister(Assister):
 
 
 class Joint5DOFEndpointTargetAssister(SimpleEndpointAssister):
-    '''Docstring.'''
+    '''
+    Assister for 5DOF 3-D arm (e.g., a kinematic model of the exoskeleton), restricted to movements in a 2D plane
+    '''
     def __init__(self, arm, *args, **kwargs):
         self.arm = arm
         super(Joint5DOFEndpointTargetAssister, self).__init__(*args, **kwargs)

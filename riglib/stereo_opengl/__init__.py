@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Namespace configuration for 'from riglib import stereo_opengl'. Currentl unused
+'''
 
 try:
     from window import Window

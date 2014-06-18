@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Base code for 'motiontracker' feature, compatible with _____ motiontracker
+'''
 
 import os
 import time

@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+General-purpose "pygame" experiment class. Mostly unused
+'''
 
 import os
 import pygame

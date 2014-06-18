@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Base code for 'saveHDF' feature in experiments for periodically writing data to an HDF file during experiment
+'''
 
 import tables
 import numpy as np

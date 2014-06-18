@@ -1,4 +1,4 @@
-'''Needs docs
+'''
 Experiment constructors. 'experiment' instances are the combination of 
 a task and a list of features.  Rather than have a separate class for
 all the possible combinations of tasks and features, a custom class for

@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Various generic generators to combine with tasks. These appear to be mostly deprecated at this point
+'''
 
 import random
 import itertools

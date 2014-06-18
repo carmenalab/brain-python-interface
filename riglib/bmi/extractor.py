@@ -16,7 +16,9 @@ ts_dtype_new = sim_neurons.ts_dtype_new
 # object that gets the data that it needs (e.g., spikes, LFP, etc.) from the neural data source and 
 # extracts features from it
 class FeatureExtractor(object):
-    '''Docstring.'''
+    '''
+    Parent of all feature extractors, used only for interfacing/type-checking
+    '''
 
     def __init__(self, task):
         raise NotImplementedError

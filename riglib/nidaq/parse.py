@@ -1,5 +1,6 @@
-'''Needs docs'''
-
+'''
+Parse digital data from neural recording system into task data/messages/synchronization pulses
+'''
 
 import numpy as np
 

@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Calibration for the EyeLink eyetracker
+'''
 
 import numpy as np
 from scipy.interpolate import Rbf

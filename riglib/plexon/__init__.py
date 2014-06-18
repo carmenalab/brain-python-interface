@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Base code for 'bmi' feature (both spikes and fields) when using the plexon system
+'''
 
 
 from __future__ import division

@@ -1,4 +1,7 @@
-'''Needs docs'''
+'''
+Generic data source module. Sources run in separate processes and continuously collect/save
+data and interact with the main process through the methods here.
+'''
 
 import os
 import sys
@@ -176,10 +179,23 @@ class DataSource(mp.Process):
 
 class MultiChanDataSource(mp.Process):
     '''
-    Docstring -- TODO. Note that kwargs['channels'] does not need to a list of integers,
-    it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
+    Multi-channel version of 'Source'
     '''
     def __init__(self, source, bufferlen=1, **kwargs):
+        '''
+        Constructor for MultiChanDataSource
+
+        Parameters
+        ----------
+        source: class 
+            lower-level class for interacting directly with the incoming data (e.g., plexnet)
+        bufferlen: int
+            Constrains the maximum amount of data history stored by the source
+        kwargs: dict, optional, default = {}
+            For the multi-channel data source, you MUST specify a 'channels' keyword argument
+            Note that kwargs['channels'] does not need to a list of integers,
+            it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
+        '''
         super(MultiChanDataSource, self).__init__()
         self.name = source.__module__.split('.')[-1]
         self.filter = None

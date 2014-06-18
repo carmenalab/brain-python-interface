@@ -1,4 +1,6 @@
-''' Needs docs'''
+'''
+Interact with a peripheral 'button' device hooked up to an FTDI chip
+'''
 
 import threading
 import Queue
