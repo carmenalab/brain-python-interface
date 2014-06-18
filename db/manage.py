@@ -19,7 +19,7 @@ else:
     # configure celery
     import celery
     c = celery.Celery()
-    c.conf.update(CELERY_ACCEPT_CONTENT = ['json'])
+    c.conf.update(CELERY_ACCEPT_CONTENT = ['json', 'pickle'])
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "db.settings")
 

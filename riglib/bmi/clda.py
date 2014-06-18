@@ -12,6 +12,7 @@ import cmath
 from itertools import izip
 import tables
 import re
+import os
 
 
 inv = np.linalg.inv
@@ -25,7 +26,7 @@ def fast_inv(A):
     several independent matrix inverses of all the same shape must be taken all
     at once. This is used by the PPFContinuousBayesianUpdater. Without this method,
     the updates could not be performed in real time with ~30 cells (compute complexity 
-    is linear in the number of units, so it is possible that fewer units would not
+is linear in the number of units, so it is possible that fewer units would not
     have had this issue).
 
     Code stolen from: 
@@ -668,7 +669,7 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     data : list of dictionaries with the same keys and same dtypes for values
     '''
     
-    log_file = open('/home/helene/code/bmi3d/log/clda_log', 'w')
+    log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
     compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
     if len(data) > 0:
         # Find the first parameter update dictionary

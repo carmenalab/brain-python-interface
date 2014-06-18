@@ -2,7 +2,7 @@
 Performance calcuating functions
 '''
 from django.http import HttpResponse
-from tasks import performance
+from analysis import performance
 import os
 
 html_plot_dir = '/static/storage/plots/'

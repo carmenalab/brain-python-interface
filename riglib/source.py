@@ -16,14 +16,17 @@ from . import FuncProxy
 
 
 class DataSource(mp.Process):
-    def __init__(self, source, bufferlen=10, **kwargs):
+    def __init__(self, source, bufferlen=10, name=None, **kwargs):
         super(DataSource, self).__init__()
-        self.name = source.__module__.split('.')[-1]
+        if name is not None:
+            self.name = name
+        else:
+            self.name = source.__module__.split('.')[-1]
         self.filter = None
         self.source = source
         self.source_kwargs = kwargs
         self.bufferlen = bufferlen
-        self.max_len = bufferlen * self.source.update_freq
+        self.max_len = bufferlen * int(self.source.update_freq)
         self.slice_size = self.source.dtype.itemsize
         
         self.lock = mp.Lock()
@@ -52,7 +55,7 @@ class DataSource(mp.Process):
         streaming = True
         size = self.slice_size
         while self.status.value > 0:
-            f = open('/home/helene/code/bmi3d/log/source', 'a')
+            f = open(os.path.join(os.getenv("HOME"), 'code/bmi3d/log/source'), 'a')
             f.write("1\n")
             f.close()
 
@@ -124,6 +127,33 @@ class DataSource(mp.Process):
             return self.filter(data, **kwargs)
         return data
 
+    # TODO -- change name, add documentation
+    def read(self, n_pts=1, **kwargs):
+        if self.status.value <= 0:
+            raise Exception('Error starting datasource ' + self.name)
+            
+        self.lock.acquire()
+        idx = self.idx.value % self.max_len 
+        i = idx * self.slice_size
+        
+        if n_pts > self.max_len:
+            n_pts = self.max_len
+
+        if idx >= n_pts:  # no wrap-around required
+            data = self.data[(idx-n_pts)*self.slice_size:idx*self.slice_size]
+        else:
+            data = self.data[-(n_pts-idx)*self.slice_size:] + self.data[:idx*self.slice_size]
+
+        self.lock.release()
+        try:
+            data = np.fromstring(data, dtype=self.source.dtype)
+        except:
+            print "can't get fromstring..."
+
+        if self.filter is not None:
+            return self.filter(data, **kwargs)
+        return data
+
     def pause(self):
         self.stream.set()
 
@@ -145,6 +175,10 @@ class DataSource(mp.Process):
 
 
 class MultiChanDataSource(mp.Process):
+    '''
+    Docstring -- TODO. Note that kwargs['channels'] does not need to a list of integers,
+    it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
+    '''
     def __init__(self, source, bufferlen=1, **kwargs):
         super(MultiChanDataSource, self).__init__()
         self.name = source.__module__.split('.')[-1]
@@ -213,9 +247,10 @@ class MultiChanDataSource(mp.Process):
                 else:
                     system.stop()
             if streaming:
-                # system.get() must return a tuple (chan, data), where 
-                #   chan is the the channel number and data should have dtype 
-                #   (or subdtype) self.source.dtype
+                # system.get() must return a tuple (chan, data), where: 
+                #   chan is the the channel number
+                #   data is a numpy array with a dtype (or subdtype) of
+                #   self.source.dtype
                 chan, data = system.get()
                 # for now, assume no multi-channel data source is registered
                 # TODO -- how to send MCDS data to a sink? (problem is that
@@ -275,7 +310,7 @@ class MultiChanDataSource(mp.Process):
         if n_pts > self.max_len:
             n_pts = self.max_len
 
-        for chan in channels:
+        for chan_num, chan in enumerate(channels):
             try:
                 row = self.chan_to_row[chan]
             except KeyError:
@@ -283,10 +318,10 @@ class MultiChanDataSource(mp.Process):
             else:  # executed if try clause does not raise a KeyError
                 idx = self.idxs[row]
                 if idx >= n_pts:  # no wrap-around required
-                    data[row, :] = self.data[row, idx-n_pts:idx]
+                    data[chan_num, :] = self.data[row, idx-n_pts:idx]
                 else:
-                    data[row, :n_pts-idx] = self.data[row, -(n_pts-idx):]
-                    data[row, n_pts-idx:] = self.data[row, :idx]
+                    data[chan_num, :n_pts-idx] = self.data[row, -(n_pts-idx):]
+                    data[chan_num, n_pts-idx:] = self.data[row, :idx]
                 self.last_read_idxs[row] = idx
 
         self.lock.release()
