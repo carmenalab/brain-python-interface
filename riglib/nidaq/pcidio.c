@@ -20,13 +20,23 @@ comedi_t* ni;
 uint nsys = 0;
 uint rowcount[32];
 
+// Call signature for comedi_dio_bitfield2 (in C)
+// int comedi_dio_bitfield2(   comedi_t * device,
+//     unsigned int subdevice,
+//     unsigned int write_mask,
+//     unsigned int * bits,
+//     unsigned int base_channel);
+
 //Send a string
 uchar _send(char header, char* msg) {
     uint m, i = 0, flush;
 
     do {
+        // "Load" the data message
         m = header << 8 | msg[i];
         comedi_dio_bitfield2(ni, 0, writemask, &m, 0);
+
+        // Flash the "Strobed" pin
         flush = 2;
         comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
     } while (msg[i++] != '\0');
