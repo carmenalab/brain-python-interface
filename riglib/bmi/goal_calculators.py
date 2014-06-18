@@ -12,11 +12,14 @@ import re
 import pickle
 
 class EndpointControlGoal(object):
+    '''    Docstring    '''
     def __init__(self, ssm):
+        '''    Docstring    '''
         assert ssm == train.endpt_2D_state_space
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
+        '''    Docstring    '''
         target_vel = np.array([0, 0, 0])
         offset_val = 1
         error = 0
@@ -24,16 +27,20 @@ class EndpointControlGoal(object):
         return (target_state, error), True
 
     def reset(self):
+        '''    Docstring    '''
         pass
 
 class TwoLinkJointGoal(object):
+    '''    Docstring    '''
     def __init__(self, ssm, shoulder_anchor, link_lengths):
+        '''    Docstring    '''
         assert ssm == train.joint_2D_state_space
         self.ssm = ssm
         self.shoulder_anchor = shoulder_anchor
         self.link_lengths = link_lengths
 
     def __call__(self, target_pos, **kwargs):
+        '''    Docstring    '''
         endpt_location = target_pos - self.shoulder_anchor
         joint_target_state = ik.inv_kin_2D(endpt_location, self.link_lengths[0], self.link_lengths[1])[0]
 
@@ -53,11 +60,15 @@ class TwoLinkJointGoal(object):
         return (target_state, error), True
 
     def reset(self):
+        '''    Docstring    '''
         pass        
 
 class PlanarMultiLinkJointGoal(mp_calc.FuncProxy):
+    '''    Docstring    '''
     def __init__(self, ssm, shoulder_anchor, kin_chain, multiproc=False, init_resp=None):
+        '''    Docstring    '''
         def fn(target_pos, **kwargs):
+            '''    Docstring    '''
             endpt_location = target_pos - shoulder_anchor
             joint_pos = kin_chain.inverse_kinematics(endpt_location, **kwargs)
             endpt_error = np.linalg.norm(kin_chain.endpoint_pos(joint_pos) - endpt_location)
@@ -70,7 +81,9 @@ class PlanarMultiLinkJointGoal(mp_calc.FuncProxy):
 
 
 class PlanarMultiLinkJointGoalCached(mp_calc.FuncProxy):
+    '''    Docstring    '''
     def __init__(self, ssm, shoulder_anchor, kin_chain, multiproc=False, init_resp=None, **kwargs):
+        '''    Docstring    '''
         self.ssm = ssm
         self.shoulder_anchor = shoulder_anchor
         self.kin_chain = kin_chain
@@ -81,6 +94,7 @@ class PlanarMultiLinkJointGoalCached(mp_calc.FuncProxy):
             self.cached_data = pickle.load(open('/storage/assist_params/tentacle_cache3.pkl'))
 
         def fn(target_pos, **kwargs):
+            '''    Docstring    '''
             joint_pos = None
             for pos in self.cached_data:
                 if np.linalg.norm(target_pos - np.array(pos)) < 0.001:
@@ -103,6 +117,7 @@ class PlanarMultiLinkJointGoalCached(mp_calc.FuncProxy):
         super(PlanarMultiLinkJointGoalCached, self).__init__(fn, multiproc=multiproc, waiting_resp='prev', init_resp=init_resp)
 
     def __call__(self, target_pos, **kwargs):
+        '''    Docstring    '''
         joint_pos = None
         for pos in self.cached_data:
             if np.linalg.norm(target_pos - np.array(pos)) < 0.001:

@@ -12,6 +12,15 @@ import numpy as np
 pi = np.pi 
 
 def resample_ssm(A, W, Delta_old=0.1, Delta_new=0.005, include_offset=True):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     A = A.copy()
     W = W.copy()
     if include_offset:
@@ -36,6 +45,15 @@ def resample_ssm(A, W, Delta_old=0.1, Delta_new=0.005, include_offset=True):
         return A_new, W_new
 
 def resample_scalar_ssm(a, w, Delta_old=0.1, Delta_new=0.005):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     loop_ratio = Delta_new/Delta_old
     a_delta_new = a**loop_ratio
     w_delta_new = w / ((1-a_delta_new**(2*(1./loop_ratio)))/(1- a_delta_new**2))
@@ -50,6 +68,13 @@ def resample_scalar_ssm(a, w, Delta_old=0.1, Delta_new=0.005):
 def _gen_A(t, s, m, n, off, ndim=3):
     """utility function for generating block-diagonal matrices
     used by the KF
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
     A = np.zeros([2*ndim+1, 2*ndim+1])
     A_lower_dim = np.array([[t, s], [m, n]])
@@ -58,6 +83,15 @@ def _gen_A(t, s, m, n, off, ndim=3):
     return np.mat(A)
 
 def linear_kinarm_kf(update_rate=1./10, units_mult=0.01):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     Delta_KINARM = 1./10
     loop_update_ratio = update_rate/Delta_KINARM
     w_in_meters = 0.0007
@@ -69,7 +103,17 @@ def linear_kinarm_kf(update_rate=1./10, units_mult=0.01):
     
 
 class State(object):
+    ''' Docstring '''
     def __init__(self, name, stochastic=False, drives_obs=False, min_val=np.nan, max_val=np.nan, order=-1):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         assert not name == 'q', "'q' is a reserved keyword (symbol for generalized robot coordinates) and cannot be used as a state name"
         self.name = name
         self.stochastic = stochastic 
@@ -79,9 +123,27 @@ class State(object):
         self.order = order
 
     def __repr__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return str(self.name) 
 
     def __eq__(self, other):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if not isinstance(other, State):
             return False
         else:
@@ -89,54 +151,172 @@ class State(object):
             # return self.__dict__
 
 class StateSpace(object):
+    ''' Docstring '''
     def __init__(self, *states):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.states = list(states)
 
     def __repr__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return 'State space: ' + str(self.state_names)
 
     @property
     def is_stochastic(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return np.array([x.stochastic for x in self.states])
 
     @property
     def drives_obs(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return np.array([x.drives_obs for x in self.states])
 
     @property
     def state_names(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return [x.name for x in self.states]
 
     @property
     def bounding_box(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         min_bounds = np.array(filter(lambda x: x is not np.nan, [x.min_val for x in self.states]))
         max_bounds = np.array(filter(lambda x: x is not np.nan, [x.max_val for x in self.states]))
         return (min_bounds, max_bounds)
 
     @property
     def states_to_bound(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return [x.name for x in filter(lambda x: x.min_val is not np.nan, self.states)]
 
     @property
     def n_states(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return len(self.states)
 
     @property
     def train_inds(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return filter(lambda k: self.states[k].stochastic, range(self.n_states))
 
     @property
     def drives_obs_inds(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return filter(lambda k: self.states[k].drives_obs, range(self.n_states))
 
     @property 
     def state_order(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return np.array([x.order for x in self.states])
 
     def get_ssm_matrices(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         raise NotImplementedError
 
     def __eq__(self, other):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if not isinstance(other, StateSpace):
             return False
         else:
@@ -145,7 +325,17 @@ class StateSpace(object):
 offset_state = State('offset', stochastic=False, drives_obs=True, order=-1)
 
 class StateSpaceEndptVel(StateSpace):
+    ''' Docstring '''
     def __init__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(StateSpaceEndptVel, self).__init__(
             State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
             State('hand_py', stochastic=False, drives_obs=False, order=0),
@@ -157,6 +347,15 @@ class StateSpaceEndptVel(StateSpace):
         )
 
     def get_ssm_matrices(self, update_rate=0.1):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         # State-space model set from expert data
         A, W = linear_kinarm_kf(update_rate=update_rate)
 
@@ -175,6 +374,15 @@ class StateSpaceExoArm(StateSpace):
         5) pronation/supination
     '''
     def __init__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(StateSpaceExoArm, self).__init__(
                 # position states
                 State('sh_pflex', stochastic=False, drives_obs=False, order=0),
@@ -193,6 +401,15 @@ class StateSpaceExoArm(StateSpace):
         )
 
     def get_ssm_matrices(self, update_rate=0.1):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         raise NotImplementedError("Still need to determine A for the full joint space. Need 3D reaching data from real primate")
 
 class StateSpaceExoArm2D(StateSpaceExoArm):
@@ -201,6 +418,15 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
     should abduction/adduction and elbow flexion/extension
     '''
     def __init__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(StateSpaceExoArm, self).__init__(
                 # position states
                 State('sh_pflex', stochastic=False, drives_obs=False, min_val=0, max_val=0, order=0),
@@ -221,6 +447,14 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
     def get_ssm_matrices(self, update_rate=0.1):
         '''
         State space model from expert data
+
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
         '''
         Delta_KINARM = 1./10
         w = 0.01 #0.0007
@@ -239,7 +473,17 @@ class StateSpaceExoArm2D(StateSpaceExoArm):
         return A, B, W
 
 class StateSpaceFourLinkTentacle2D(StateSpace):
+    ''' Docstring '''
     def __init__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(StateSpaceFourLinkTentacle2D, self).__init__(
                 # position states
                 State('sh_pabd', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
@@ -258,6 +502,14 @@ class StateSpaceFourLinkTentacle2D(StateSpace):
     def get_ssm_matrices(self, update_rate=0.1):
         '''
         State space model from expert data
+
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
         '''
         Delta_KINARM = 1./10
         w = 0.01 #0.0007

@@ -5,11 +5,30 @@ Example: screen limits on a cursor position to keep it always in view.
 import numpy as np
 
 class RectangularBounder(object):
+    ''' Docstring '''
     def __init__(self, min_vals, max_vals, states_to_bound):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.bounding_box = (np.array(min_vals), np.array(max_vals))
         self.states_to_bound = states_to_bound
 
     def __call__(self, state, state_ls):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if not self.bounding_box == None:
             state_inds = np.array([state_ls.index(x) for x in self.states_to_bound])
 

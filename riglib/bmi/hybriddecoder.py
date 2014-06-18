@@ -6,7 +6,9 @@ import numpy as np
 import kfdecoder
 
 class KalmanFilterWithReset(kfdecoder.KalmanFilter):
+    '''    Docstring    '''
     def __init__(self, A, W, C, Q, clf, threshold, reset_state, is_stochastic=None):    
+        '''    Docstring    '''
         super(KalmanFilterWithReset, self).__init__(A, W, C, Q, is_stochastic=None)
         self.clf = clf
         self.threshold = threshold
@@ -14,12 +16,14 @@ class KalmanFilterWithReset(kfdecoder.KalmanFilter):
 
     @classmethod
     def create_from_kf(cls, kf, clf, threshold, reset_state):
+        '''    Docstring    '''
         obj = KalmanFilterWithReset(kf.A, kf.W, kf.C, kf.Q, clf, threshold, reset_state, is_stochastic=kf.is_stochastic)
         obj.clf = clf
         obj.threshold = threshold   
         return obj
 
     def __getstate__(self):
+        '''    Docstring    '''
         data = super(KalmanFilterWithReset, self).__getstate__()
         data['clf'] = self.clf
         data['threshold'] = self.threshold
@@ -27,12 +31,14 @@ class KalmanFilterWithReset(kfdecoder.KalmanFilter):
         return data
 
     def __setstate__(self, state):
+        '''    Docstring    '''
         self.clf = state['clf']
         self.threshold = state['threshold']
         self.reset_state = state['reset_state']
         super(KalmanFilterWithReset, self).__setstate__(state)
 
     def _pickle_init(self):
+        '''    Docstring    '''
         super(KalmanFilterWithReset, self)._pickle_init()
         self.trying_prob = np.nan
 
@@ -48,9 +54,10 @@ class KalmanFilterWithReset(kfdecoder.KalmanFilter):
 
         self.resetter = assist.TentacleAssist(ssm=ssm, kin_chain=kin_chain)
         
-
     def __call__(self, obs, testing=False, **kwargs):
         """
+        Docstring 
+        
         When the object is called directly, it's a wrapper for the 
         1-step forward inference function.
         """

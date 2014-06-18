@@ -97,10 +97,12 @@ class GaussianStateHMM(object):
     '''
     model_attrs = []
     def __init__(self, A, W):
+        '''    Docstring    '''
         self.A = A
         self.W = W
 
-    def get_mean(self):                                                                                                                                                                                        
+    def get_mean(self):
+        '''    Docstring    '''
         return np.array(self.state.mean).ravel()      
 
     def _init_state(self, init_state=None, init_cov=None):
@@ -120,6 +122,7 @@ class GaussianStateHMM(object):
         self.obs_noise = GaussianState(0.0, self.Q)
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
+        '''    Docstring    '''
         A = self.A
 
         if Bu is not None:
@@ -135,10 +138,12 @@ class GaussianStateHMM(object):
             return A*state + self.state_noise
 
     def __eq__(self, other):
+        '''    Docstring    '''
         import train
         return train.obj_eq(self, other, self.model_attrs)
 
     def __sub__(self, other):
+        '''    Docstring    '''
         import train
         return train.obj_diff(self, other, self.model_attrs)
 
@@ -413,6 +418,7 @@ class Decoder(object):
         return state
 
     def set_call_rate(self, call_rate):
+        '''    Docstring    '''
         self.call_rate = call_rate
         self.bmicount = 0
         self.bminum = int(self.binlen/(1./self.call_rate))
@@ -487,6 +493,7 @@ class Decoder(object):
         return np.vstack(output)
 
     def __str__(self):
+        '''    Docstring    '''
         if hasattr(self, 'db_entry'):
             return self.db_entry.name
         else:
@@ -632,6 +639,7 @@ class BMISystem(object):
         self.reset_spike_counts()
 
     def reset_spike_counts(self):
+        '''    Docstring    '''
         self.spike_counts = np.zeros([self.decoder.n_features, 1])
 
     def __call__(self, neural_obs, target_state, task_state, *args, **kwargs):
@@ -768,6 +776,7 @@ class BMISystem(object):
         return decoded_states, update_flag
 
     def __del__(self):
+        '''    Docstring    '''
         # Stop updater if it's running in a separate process
         if self.mp_updater: 
             self.updater.stop()

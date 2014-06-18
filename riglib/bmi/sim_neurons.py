@@ -18,10 +18,23 @@ from scipy.integrate import trapz, simps
 
 ts_dtype = [('ts', float), ('chan', np.int32), ('unit', np.int32)]
 ts_dtype_new = [('ts', float), ('chan', np.int32), ('unit', np.int32), ('arrival_ts', np.float64)]
+
 class CosEnc(object):
+    ''' Docstring '''
     def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, 
         unit_inds=None, fname='', return_ts=False, DT=0.1):
-        """Create neurons cosine-tuned to random directions."""
+        """
+        Create neurons cosine-tuned to random directions.
+
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+
+        """
 
         self.return_ts = return_ts
         self.fname = fname
@@ -54,10 +67,28 @@ class CosEnc(object):
             self.save()
 
     def get_units(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         return np.array([ (int(ind/4)+1, ind % 4) for ind in self.unit_inds ])
 
     def __call__(self, user_input):
         """ Encode two-dimensional user input into firing rates.
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+
         """
         if isinstance(self.baselines, np.ndarray):
             baselines = self.baselines.ravel()
@@ -84,16 +115,44 @@ class CosEnc(object):
             return counts
 
     def save(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''        
         savemat(self.fname, {'n_neurons':self.n_neurons, 'baselines':self.baselines,
             'angles':self.angles, 'pds':self.pds, 'mod_depth':self.mod_depth,
             'unit_inds':self.unit_inds})
 
 class CLDASimCosEnc(CosEnc):
+    ''' Docstring '''    
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''        
         super(CLDASimCosEnc, self).__init__(*args, **kwargs)
         self.call_count = 0
 
     def __call__(self, user_input):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''        
         if self.call_count % 6 == 0: # TODO this assumes the neurons cannot change faster than 10 Hz
             ts_data = super(CLDASimCosEnc, self).__call__(user_input)
         elif self.return_ts:
@@ -105,18 +164,47 @@ class CLDASimCosEnc(CosEnc):
 
 
 class CosEncJoints(CosEnc):
+    ''' Docstring '''
     def __init__(self, link_lengths, *args, **kwargs):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''        
         mod_depth = kwargs.pop('mod_depth', 14/0.2)
         kwargs['mod_depth'] = mod_depth/max(link_lengths)
         super(CosEncJoints, self).__init__(*args, **kwargs)
 
 # TODO the class below is completely redundant!
 class CLDASimCosEncJoints(CosEncJoints):
+    ''' Docstring '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         super(CLDASimCosEncJoints, self).__init__(*args, **kwargs)
         self.call_count = 0
 
     def __call__(self, user_input):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         if self.call_count % 6 == 0: # TODO this assumes the neurons cannot change faster than 10 Hz
             ts_data = super(CLDASimCosEncJoints, self).__call__(user_input)
         elif self.return_ts:
@@ -127,7 +215,17 @@ class CLDASimCosEncJoints(CosEncJoints):
         return ts_data
 
 class PointProcess():
+    ''' Docstring '''
     def __init__(self, beta, dt, tau_samples=[], K=0, eps=1e-3):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         self.beta = beta.reshape(-1, 1)
         self.dt = dt
         self.tau_samples = tau_samples
@@ -141,6 +239,15 @@ class PointProcess():
         self.rate = np.nan
 
     def _exp_sample(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         if len(self.tau_samples) > 0:
             self.tau = self.tau_samples.pop(0)
         else:
@@ -148,10 +255,28 @@ class PointProcess():
             self.tau = np.log(1 - u);
 
     def _reset_res(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         self.resold = 1000
         self.resnew = np.nan
 
     def _integrate_rate(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         # integrate rate
         loglambda = np.dot(self.X[self.last_spike_ind:self.j+1, :], self.beta) #log of lambda delta
         self.rate = np.ravel(np.exp(loglambda)/self.dt)
@@ -162,6 +287,15 @@ class PointProcess():
             self.resnew = self.tau + trapz(self.rate, dx=self.dt)
 
     def _decide(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         if (self.resold > 0) and (self.resnew > self.resold):
             return True
         else:
@@ -170,9 +304,27 @@ class PointProcess():
             return False
 
     def _push(self, x_t):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         self.X = np.vstack([self.X, x_t])
 
     def __call__(self, x_t):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         self._push(x_t)
         if np.abs(self.resold) < self.eps:
             spiking_bin = True
@@ -192,6 +344,15 @@ class PointProcess():
         return spiking_bin
 
     def _init_sampling(self, x_t):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         self._push(x_t) # initialize the observed extrinsic covariates
         self._reset_res()
         self._exp_sample()
@@ -199,6 +360,15 @@ class PointProcess():
         self.last_spike_ind = 0 # initialization
 
     def sim_batch(self, X, verbose=False):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''              
         framelength = X.shape[0]
         spikes = np.zeros(framelength);
 
@@ -214,10 +384,21 @@ class PointProcess():
 
 
 class PointProcessEnsemble(object):
+    ''' Docstring '''
     def __init__(self, beta, dt, init_state=None, tau_samples=None, eps=1e-3, 
                  hist_len=0, units=None):
         '''
         Initialize a point process ensemble
+        
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+
         '''
         self.n_neurons, n_covariates = beta.shape
         if init_state == None:
@@ -237,9 +418,29 @@ class PointProcessEnsemble(object):
             self.units = units
 
     def get_units(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         return self.units
 
     def __call__(self, x_t):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         x_t = np.hstack([x_t, 1])
         counts = np.array(map(lambda unit: unit(x_t), self.point_process_units)).astype(int)
         return counts
@@ -250,6 +451,16 @@ class CLDASimPointProcessEnsemble(PointProcessEnsemble):
     spike timestamps at 180 Hz
     '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         super(CLDASimPointProcessEnsemble, self).__init__(*args, **kwargs)
         self.call_count = -1
 
@@ -257,6 +468,13 @@ class CLDASimPointProcessEnsemble(PointProcessEnsemble):
         '''
         Ensemble is called at 60 Hz but expects the timestamps to reflect spike
         bins determined at 180 Hz
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+
         '''
         ts_data = []
         for k in range(3):
@@ -272,6 +490,16 @@ class CLDASimPointProcessEnsemble(PointProcessEnsemble):
         
 
 def load_ppf_encoder_2D_vel_tuning(fname, dt=0.005):
+    '''
+    Docstring    
+        
+    Parameters
+    ----------
+        
+    Returns
+    -------
+    '''
+
     data = loadmat(fname)
     beta = data['beta']
     beta = np.vstack([beta[1:, :], beta[0,:]]).T
@@ -287,6 +515,15 @@ def load_ppf_encoder_2D_vel_tuning(fname, dt=0.005):
     return encoder
 
 def load_ppf_encoder_2D_vel_tuning_clda_sim(fname, dt=0.005):
+    '''
+    Docstring    
+        
+    Parameters
+    ----------
+        
+    Returns
+    -------
+    '''    
     data = loadmat(fname)
     beta = data['beta']
     beta = np.vstack([beta[1:, :], beta[0,:]]).T

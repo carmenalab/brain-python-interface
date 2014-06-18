@@ -26,7 +26,7 @@ def fast_inv(A):
     several independent matrix inverses of all the same shape must be taken all
     at once. This is used by the PPFContinuousBayesianUpdater. Without this method,
     the updates could not be performed in real time with ~30 cells (compute complexity 
-is linear in the number of units, so it is possible that fewer units would not
+    is linear in the number of units, so it is possible that fewer units would not
     have had this issue).
 
     Code stolen from: 
@@ -52,6 +52,7 @@ is linear in the number of units, so it is possible that fewer units would not
 ## Learners
 ##############################################################################
 def normalize(vec):
+    '''    Docstring    '''
     norm_vec = vec / np.linalg.norm(vec)
     
     if np.any(np.isnan(norm_vec)):
@@ -87,12 +88,15 @@ class Learner(object):
         self.reset()
 
     def disable(self):
+        '''    Docstring    '''
         self.enabled = False
 
     def enable(self):
+        '''    Docstring    '''
         self.enabled = True
 
     def reset(self):
+        '''    Docstring    '''
         self.kindata = []
         self.neuraldata = []
 
@@ -118,10 +122,12 @@ class Learner(object):
                 self.passed_done_state = True
 
     def is_ready(self):
+        '''    Docstring    '''
         _is_ready = len(self.kindata) >= self.batch_size or ((len(self.kindata) > 0) and self.passed_done_state)
         return _is_ready
 
     def get_batch(self):
+        '''    Docstring    '''
         kindata = np.hstack(self.kindata)
         neuraldata = np.hstack(self.neuraldata)
         self.kindata = []
@@ -129,7 +135,9 @@ class Learner(object):
         return kindata, neuraldata
 
 class DumbLearner(Learner):
+    '''    Docstring    '''
     def __init__(self, *args, **kwargs):
+        '''    Docstring    '''
         self.enabled = False
         self.input_state_index = 0
 
@@ -138,19 +146,24 @@ class DumbLearner(Learner):
         pass
 
     def is_ready(self):
+        '''    Docstring    '''
         return False
 
     def get_batch(self):
+        '''    Docstring    '''
         raise NotImplementedError
 
 class OFCLearner(Learner):
+    '''    Docstring    '''
     def __init__(self, batch_size, A, B, F_dict, *args, **kwargs):
+        '''    Docstring    '''
         super(OFCLearner, self).__init__(batch_size, *args, **kwargs)
         self.B = B
         self.F_dict = F_dict
         self.A = A
 
     def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''    Docstring    '''
         try:
             current_state = np.mat(current_state).reshape(-1,1)
             target_state = np.mat(target_state).reshape(-1,1)
@@ -162,9 +175,11 @@ class OFCLearner(Learner):
             return None
 
 class OFCLearner3DEndptPPF(OFCLearner):
+    '''
+    Specific instance of the OFCLearner for a PPF-controlled cursor
+    '''
     def __init__(self, batch_size, *args, **kwargs):
         '''
-        Specific instance of the OFCLearner for the 3D endpoint PPF
         TODO to generalize this better, should be able to store these objects
         to file, just like a decoder, since the feedback matrices may change 
         on different days...
@@ -200,7 +215,9 @@ class OFCLearner3DEndptPPF(OFCLearner):
         self.input_state_index = 0
 
 class RegexKeyDict(dict):
+    '''    Docstring    '''
     def __getitem__(self, key):
+        '''    Docstring    '''
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
@@ -211,6 +228,7 @@ class RegexKeyDict(dict):
             return super(RegexKeyDict, self).__getitem__(matching_keys[0])
 
     def __contains__(self, key):
+        '''    Docstring    '''
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
@@ -221,7 +239,9 @@ class RegexKeyDict(dict):
             return True        
 
 class OFCLearnerTentacle(OFCLearner):
+    '''    Docstring    '''
     def __init__(self, batch_size, A, B, Q, R, *args, **kwargs):
+        '''    Docstring    '''
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
         F_dict = RegexKeyDict()
         # F_dict['target'] = F
@@ -230,7 +250,9 @@ class OFCLearnerTentacle(OFCLearner):
         super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
 class CursorGoalLearner2(Learner):
+    '''    Docstring    '''
     def __init__(self, *args, **kwargs):
+        '''    Docstring    '''
         self.int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
         if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
             raise ValueError("Unknown type of speed for cursor goal: %s" % self.int_speed_type)
@@ -284,6 +306,7 @@ class CursorGoalLearner2(Learner):
 ## Updaters
 ##############################################################################
 class CLDARecomputeParameters(mp.Process):
+    '''    Docstring    '''
     update_kwargs = dict() 
     def __init__(self, work_queue, result_queue):
         ''' 
@@ -302,6 +325,7 @@ class CLDARecomputeParameters(mp.Process):
         self.done = mp.Event()
 
     def _check_for_job(self):
+        '''    Docstring    '''
         try:
             job = self.work_queue.get_nowait()
         except:
@@ -309,7 +333,7 @@ class CLDARecomputeParameters(mp.Process):
         return job
         
     def run(self):
-        """ The main loop """
+        '''    Docstring    '''
         while not self.done.is_set():
             job = self._check_for_job()
 
@@ -322,11 +346,14 @@ class CLDARecomputeParameters(mp.Process):
             time.sleep(0.5)
 
     def calc(self, *args, **kwargs):
-        """Re-calculate parameters based on input arguments.  This
-        method should be overwritten for any useful CLDA to occur!"""
+        """
+        Re-calculate parameters based on input arguments.  This
+        method should be overwritten for any useful CLDA to occur!
+        """
         return None
 
     def stop(self):
+        '''    Docstring    '''
         self.done.set()
 
 class KFSmoothbatchSingleThread(object):
@@ -366,22 +393,27 @@ class KFSmoothbatchSingleThread(object):
         return new_params
 
 class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
+    '''    Docstring    '''
     update_kwargs = dict(steady_state=True)
     def __init__(self, work_queue, result_queue, batch_time, half_life):
+        '''    Docstring    '''
         super(KFSmoothbatch, self).__init__(work_queue, result_queue)
         self.half_life = half_life
         self.batch_time = batch_time
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         
 class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
+    '''    Docstring    '''
     def __init__(self, default_gain=None):
         self.default_gain = default_gain
 
     @classmethod
     def scalar_riccati_eq_soln(cls, a, w, n):
+        '''    Docstring    '''
         return (1-a*n)/w * (a-n)/n 
 
     def calc(self, *args, **kwargs):
+        '''    Docstring    '''
         # args = (intended_kin, spike_counts, rho, decoder)
         new_params = super(KFOrthogonalPlantSmoothbatchSingleThread, self).calc(*args, **kwargs)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
@@ -407,11 +439,14 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
 
 
 class KFOrthogonalPlantSmoothbatch(KFOrthogonalPlantSmoothbatchSingleThread, KFSmoothbatch):
+    '''    Docstring    '''
     def __init__(self, *args, **kwargs):
+        '''    Docstring    '''
         self.default_gain = kwargs.pop('default_gain', None)
         KFSmoothbatch.__init__(self, *args, **kwargs)
         
 class PPFSmoothbatchSingleThread(object):
+    '''    Docstring    '''
     def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
         """
         Smoothbatch calculations
@@ -447,15 +482,19 @@ class PPFSmoothbatchSingleThread(object):
 
 
 class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
+    '''    Docstring    '''
     def __init__(self, work_queue, result_queue, batch_time, half_life):
+        '''    Docstring    '''
         super(PPFSmoothbatch, self).__init__(work_queue, result_queue)
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
 
 
 class PPFContinuousBayesianUpdater(object):
+    '''    Docstring    '''
     update_kwargs = dict()
     def __init__(self, decoder, units='cm', param_noise_scale=1.):
+        '''    Docstring    '''
         self.n_units = decoder.filt.C.shape[0]
         #self.param_noise_variances = param_noise_variances
         if units == 'm':
@@ -483,6 +522,7 @@ class PPFContinuousBayesianUpdater(object):
         self.beta_est = np.array(decoder.filt.C) #[:,self.neuron_driving_state_inds])
 
     def calc(self, int_kin_full, spike_obs_full, decoder, **kwargs):
+        '''    Docstring    '''
         n_samples = int_kin_full.shape[1]
 
         # Squash any observed spike counts which are greater than 1
@@ -524,8 +564,10 @@ class PPFContinuousBayesianUpdater(object):
 
 
 class KFRML(object):
+    '''    Docstring    '''
     update_kwargs = dict(steady_state=False)
     def __init__(self, work_queue, result_queue, batch_time, half_life):
+        '''    Docstring    '''
         # super(KFRML, self).__init__(work_queue, result_queue)
         self.work_queue = None
         self.batch_time = batch_time
@@ -536,6 +578,7 @@ class KFRML(object):
 
     @staticmethod
     def compute_suff_stats(hidden_state, obs, include_offset=True):
+        '''    Docstring    '''
         assert hidden_state.shape[1] == obs.shape[1]
     
         if isinstance(hidden_state, np.ma.core.MaskedArray):
@@ -567,12 +610,14 @@ class KFRML(object):
         return (R, S, T, ESS)
 
     def init_suff_stats(self, decoder):
+        '''    Docstring    '''
         self.R = decoder.filt.R
         self.S = decoder.filt.S
         self.T = decoder.filt.T
         self.ESS = decoder.filt.ESS
 
     def calc(self, intended_kin, spike_counts, decoder, half_life=None, batch_time=None, **kwargs):
+        '''    Docstring    '''
         if batch_time is None:
             batch_time = self.batch_time
 
@@ -619,7 +664,9 @@ class KFRML(object):
         return new_params
 
 class KFRML_baseline(KFRML):
+    '''    Docstring    '''
     def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
+        '''    Docstring    '''
 
         if half_life is not None:
             rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
@@ -663,6 +710,8 @@ class KFRML_baseline(KFRML):
 
 def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     '''
+    Save CLDA data generated during the experiment to the specified HDF file
+
     Parameters
     ==========
     hdf_fname : filename of HDF file

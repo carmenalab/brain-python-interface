@@ -10,6 +10,15 @@ import numpy as np
 from experiment import TrialTypes
 
 def endless(exp, probs=None):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     if probs is None:
         while True:
             yield random.choice(exp.trial_types)
@@ -24,7 +33,17 @@ def endless(exp, probs=None):
 
 def sequence(length, probs=2):
     '''Generates a sequence of numbers with the given probabilities.
-    If probs is not a list, generate a uniformly distributed set of options.'''
+    If probs is not a list, generate a uniformly distributed set of options.
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    '''
     try:
         opts = len(probs)
         probs = _fix_missing(probs)
@@ -34,6 +53,15 @@ def sequence(length, probs=2):
     return np.random.permutation([i for i, p in enumerate(probs) for _ in xrange(int(length*p))])
 
 def runseq(exp, seq=None, reps=1):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     if hasattr(exp, "trial_types"):
         assert max(seq)+1 == len(exp.trial_types)
         for _ in range(reps):
@@ -45,7 +73,18 @@ def runseq(exp, seq=None, reps=1):
                 yield s
 
 def _fix_missing(probs):
-    '''Takes a probability list with possibly None entries, and fills it up'''
+    '''
+    Takes a probability list with possibly None entries, and fills it up
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    '''
     total, n = map(sum, zip(*((i, 1) for i in probs if i is not None)))
     if n < len(probs):
         p = (1 - total) / (len(probs) - n)
@@ -53,6 +92,15 @@ def _fix_missing(probs):
     return probs
 
 class AdaptiveTrials(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, exp, blocklen=8):
         assert issubclass(exp, TrialTypes)
         self.blocklen = blocklen

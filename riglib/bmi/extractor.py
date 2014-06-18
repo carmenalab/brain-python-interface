@@ -35,6 +35,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
     feature_type = 'spike_counts'
 
     def __init__(self, source, n_subbins=1, units=[]):
+        '''    Docstring    '''
         self.feature_dtype = ('spike_counts', 'u4', (len(units), n_subbins))
 
         self.source = source
@@ -49,9 +50,11 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         self.last_get_spike_counts_time = 0
 
     def get_spike_ts(self, *args, **kwargs):
+        '''    Docstring    '''
         return self.source.get()
 
     def get_bin_edges(self, ts):
+        '''    Docstring    '''
         if len(ts) == 0:
             bin_edges = np.array([np.nan, np.nan])
         else:
@@ -60,6 +63,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
             bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])
 
     def __call__(self, start_time, *args, **kwargs):
+        '''    Docstring    '''
         ts = self.get_spike_ts(*args, **kwargs)
         if len(ts) == 0:
             counts = np.zeros([len(self.units), self.n_subbins])
@@ -90,6 +94,7 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
     feature_type = 'spike_counts'
     
     def __init__(self, hdf_table, source='spike_counts', cycle_rate=60.0, units=[]):
+        '''    Docstring    '''
         self.idx = 0
         self.hdf_table = hdf_table
         self.source = source
@@ -99,6 +104,7 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.cycle_rate = cycle_rate
 
     def get_spike_ts(self):
+        '''    Docstring    '''
         # Get counts from HDF file
         counts = self.hdf_table[self.idx][self.source]
         n_subbins = counts.shape[1]
@@ -119,9 +125,11 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         return np.array(ts_data, dtype=ts_dtype_new)
 
     def get_bin_edges(self, ts):
+        '''    Docstring    '''
         return self.hdf_table[self.idx]['bin_edges']
 
     def __call__(self, *args, **kwargs):
+        '''    Docstring    '''
         output = super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
         self.idx += 1 
         return output
@@ -130,6 +138,7 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
     '''Doctstring.'''
     
     def __init__(self, input_device, encoder, n_subbins, units):
+        '''    Docstring    '''
         self.input_device = input_device
         self.encoder = encoder
         self.n_subbins = n_subbins
@@ -137,11 +146,13 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.last_get_spike_counts_time = 0
 
     def get_spike_ts(self, cursor_pos, target_pos):
+        '''    Docstring    '''
         ctrl    = self.input_device.get(target_pos, cursor_pos)
         ts_data = self.encoder(ctrl)
         return ts_data
 
     def __call__(self, start_time, cursor_pos, target_pos):
+        '''    Docstring    '''
         return super(SimBinnedSpikeCountsExtractor, self).__call__(start_time, cursor_pos, target_pos)
 
 def bin_spikes(ts, units, max_units_per_channel=13):
@@ -174,6 +185,7 @@ class LFPButterBPFPowerExtractor(object):
     feature_type = 'lfp_power'
 
     def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, filt_order=5, fs=1000):
+        '''    Docstring    '''
         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
 
         self.source = source
@@ -207,9 +219,11 @@ class LFPButterBPFPowerExtractor(object):
         self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
 
     def get_cont_samples(self, *args, **kwargs):
+        '''    Docstring    '''
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
+        '''    Docstring    '''
         n_chan = len(self.channels)
         
         lfp_power = np.zeros((n_chan * len(self.bands), 1))
@@ -221,6 +235,7 @@ class LFPButterBPFPowerExtractor(object):
         return lfp_power
 
     def __call__(self, start_time, *args, **kwargs):
+        '''    Docstring    '''
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
         lfp_power = self.extract_features(cont_samples)
 
@@ -239,6 +254,7 @@ class LFPMTMPowerExtractor(object):
     feature_type = 'lfp_power'
 
     def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000):
+        '''    Docstring    '''
         self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
 
         self.source = source
@@ -269,9 +285,11 @@ class LFPMTMPowerExtractor(object):
         self.epsilon = 1e-9
 
     def get_cont_samples(self, *args, **kwargs):
+        '''    Docstring    '''
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
+        '''    Docstring    '''
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
 
         # compute average power of each band of interest
@@ -286,6 +304,7 @@ class LFPMTMPowerExtractor(object):
         return lfp_power
 
     def __call__(self, start_time, *args, **kwargs):
+        '''    Docstring    '''
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
         # cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
         lfp_power = self.extract_features(cont_samples)
@@ -302,6 +321,7 @@ class EMGAmplitudeExtractor(object):
     feature_type = 'emg_amplitude'
 
     def __init__(self, source, channels=[], win_len=0.1, fs=1000):
+        '''    Docstring    '''
         self.feature_dtype = ('emg_amplitude', 'u4', (len(channels), 1))
 
         self.source = source
@@ -321,15 +341,18 @@ class EMGAmplitudeExtractor(object):
         self.n_pts = int(self.win_len * self.fs)
 
     def get_cont_samples(self, *args, **kwargs):
+        '''    Docstring    '''
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
+        '''    Docstring    '''
         n_chan = len(self.channels)
         emg_amplitude = np.mean(cont_samples,axis=1)
         emg_amplitude = emg_amplitude[:,None]
         return emg_amplitude
 
     def __call__(self, start_time, *args, **kwargs):
+        '''    Docstring    '''
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
         emg = self.extract_features(cont_samples)
         return emg, None
