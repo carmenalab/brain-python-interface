@@ -60,6 +60,7 @@ class TTLReward(traits.HasTraits):
 
 
     def _start_reward(self):
+        super(TTLReward, self)._start_reward()
         subdevice = 0
         write_mask = 0x800000
         val = 0x800000
@@ -67,7 +68,7 @@ class TTLReward(traits.HasTraits):
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
         time.sleep(self.reward_time)
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
-        super(RewardSystem, self)._start_reward()
+        
         
 
 
