@@ -91,6 +91,7 @@ tasks = dict(
     clda_constrained_sskf_multi = tasks.CLDAConstrainedSSKFMulti,
     manual_control_multi =tasks.ManualControlMulti,
     joystick_multi=tasks.JoystickMulti,
+    joystick_leaky_vel=tasks.LeakyIntegratorVelocityJoystick,
     joystick_move = tasks.JoystickMove,
     joystick_multi_plus_move = tasks.JoystickMulti_plusMove,
     joystick_multi_directed = tasks.JoystickMulti_Directed,
