@@ -115,6 +115,7 @@ tasks = dict(
     bmi_baseline = tasks.BaselineControl,
     bmi_joint_perturb = tasks.BMIJointPerturb,
     bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
+    bmi_cursor_bias=tasks.BMICursorBias,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']

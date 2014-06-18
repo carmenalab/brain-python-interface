@@ -127,7 +127,7 @@ class CursorPlant(Plant):
             if pos[1] > self.endpt_bounds[3]: 
                 pos[1] = self.endpt_bounds[3]
                 vel[1] = 0
-                
+
             if pos[2] < self.endpt_bounds[4]: 
                 pos[2] = self.endpt_bounds[4]
                 vel[2] = 0
@@ -424,7 +424,8 @@ starting_pos = np.array([5., 0., 5])
 chain_20_20.set_endpoint_pos(starting_pos - shoulder_anchor, n_iter=10, n_particles=500)
 chain_20_20.set_endpoint_pos(starting_pos, n_iter=10, n_particles=500)
 
-cursor = CursorPlant(endpt_bounds=(-24., 24., 0., 0., -14., 14.))
+cursor = CursorPlant(endpt_bounds=(-14, 14., 0., 0., -14., 14.))
+#cursor = CursorPlant(endpt_bounds=(-24., 24., 0., 0., -14., 14.))
 
 plants = dict(RobotArmGen2D=chain_15_15_5_5, 
               RobotArm2J2D=chain_20_20,

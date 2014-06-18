@@ -669,7 +669,7 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         current_level = self._linear_change(self.attr_start, self.attr_min, decay_time)
         setattr(self, 'current_%s' % self.attr, current_level) 
         if self.assist_flag and getattr(self, 'current_%s' % self.attr) == self.attr_min:
-            print "%s at minimum after %d successful trials" % (self.attr, self.calc_n_rewards())
+            print "%s at final value after %d successful trials" % (self.attr, self.calc_n_rewards())
             self.assist_flag = False
 
         if self.cycle_count % (self.fps * sec_per_min) == 0 and self.assist_flag:
