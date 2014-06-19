@@ -19,7 +19,7 @@ os.environ['DISPLAY'] = ':0'
 task = models.Task.objects.get(name='clda_kf_ofc_tentacle_rml_trial')
 base_class = task.get()
 
-feats = [features.SaveHDF, features.SpikeBMI, features.Autostart]
+feats = [features.SaveHDF, features.PlexonBMI, features.Autostart]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())

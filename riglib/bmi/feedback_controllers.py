@@ -8,10 +8,24 @@ functions.
 import numpy as np
 
 class CenterOutCursorGoal(object):
-    '''    Docstring    '''
+    '''
+    Cursor controller which moves the cursor toward the target at a constant speed
+    '''
     def __init__(self, angular_noise_var=0, gain=0.15):
-        '''    Docstring    '''
-        self.interactive = False
+        '''
+        Constructor for CenterOutCursorGoal
+
+        Parameters
+        ----------
+        angular_noise_var: float, optional, default=0
+            Angular noise is added onto the control direction as a clipped Gaussian distribution with this variance
+        gain: float, optional, default=0.15
+            Speed at which to move the cursor, in m/s
+
+        Returns
+        -------
+        CenterOutCursorGoal instance
+        '''
         self.angular_noise_var = angular_noise_var
         self.gain = gain
 
@@ -35,9 +49,21 @@ class CenterOutCursorGoal(object):
 
 
 class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
-    '''    Docstring    '''
+    '''2-link arm controller which moves the endpoint toward a target position at a constant speed'''
     def __init__(self, link_lengths, shoulder_anchor, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        Constructor for CenterOutCursorGoalJointSpace2D
+
+        Parameters
+        ----------
+        link_lengths: 
+        shoulder_anchor: 
+        args, kwargs: positional and keyword arguments for parent constructor (CenterOutCursorGoal)
+
+
+        Returns
+        -------
+        '''
         self.link_lengths = link_lengths
         self.shoulder_anchor = shoulder_anchor
         super(CenterOutCursorGoalJointSpace2D, self).__init__(*args, **kwargs)
@@ -64,9 +90,32 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
 
 
 class LQRController(object):
-    '''    Docstring    '''
+    '''Linear feedback controller with a quadratic cost function'''
     def __init__(self, A, B, Q, R, **kwargs):
-        '''    Docstring    '''
+        '''
+        Constructor for LQRController
+
+        The system should evolve as
+        $$x_{t+1} = Ax_t + Bu_t + w_t; w_t ~ N(0, W)$$
+
+        with infinite horizon cost 
+        $$\sum{t=0}^{+\infty} (x_t - x_target)^T * Q * (x_t - x_target) + u_t^T * R * u_t$$
+
+        Parameters
+        ----------
+        A: np.ndarray of shape (n_states, n_states)
+            Model of the state transition matrix of the system to be controlled. 
+        B: np.ndarray of shape (n_states, n_controls)
+            Control input matrix of the system to be controlled. 
+        Q: np.ndarray of shape (n_states, n_states)
+            Quadratic cost on state
+        R: np.ndarray of shape (n_controls, n_controls)
+            Quadratic cost on control inputs
+
+        Returns
+        -------
+        LQRController instance
+        '''
         self.A = A
         self.B = B
         self.Q = Q

@@ -12,55 +12,126 @@ class Assister(object):
     '''
     Parent class for various methods of assistive BMI. Children of this class 
     can compute an "optimal" input to the system, which is mixed in with the input
-    derived from the subject's neural input
+    derived from the subject's neural input. The parent exists primarily for 
+    interface standardization and type-checking.
     '''
-    def __init__(self, *args, **kwargs):
-        '''    Docstring    '''
-        pass
-
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-        '''    Docstring    '''
+        '''
+        Main assist calculation function
+
+        Parameters
+        ----------
+        current_state: np.ndarray of shape (n_states, 1)
+            Vector representing the current state of the prosthesis 
+        target_state: np.ndarray of shape (n_states, 1)
+            Vector representing the target state of the prosthesis, i.e. the optimal state for the prosthesis to be in
+        assist_level: float
+            Number indicating the level of the assist. This can in general have arbitrary units but most assisters
+            will have this be a number in the range (0, 1) where 0 is no assist and 1 is full assist
+        mode: hashable type, optional, default=None
+            Indicator of which mode of the assistive controller to use. When applied, this 'mode' is used as a dictionary key and must be hashable
+
+        Returns
+        -------
+        '''
         pass  # implement in subclasses -- should return (Bu, assist_weight)
 
     def __call__(self, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        Wrapper for self.calc_assisted_BMI_state
+        '''
         return self.calc_assisted_BMI_state(*args, **kwargs)
 
 class LinearFeedbackControllerAssist(Assister):
-    '''    Docstring    '''
+    '''
+    Assister where the machine control is an LQR controller, possibly with different 'modes' depending on the state of the task
+    '''
     def __init__(self, A, B, Q, R):
-        '''    Docstring    '''
+        '''
+        Constructor for LinearFeedbackControllerAssist
+
+        The system should evolve as
+        $$x_{t+1} = Ax_t + Bu_t + w_t; w_t ~ N(0, W)$$
+
+        with infinite horizon cost 
+        $$\sum{t=0}^{+\infty} (x_t - x_target)^T * Q * (x_t - x_target) + u_t^T * R * u_t$$
+
+        Parameters
+        ----------
+        A: np.ndarray of shape (n_states, n_states)
+            Model of the state transition matrix of the system to be controlled. 
+        B: np.ndarray of shape (n_states, n_controls)
+            Control input matrix of the system to be controlled. 
+        Q: np.ndarray of shape (n_states, n_states)
+            Quadratic cost on state
+        R: np.ndarray of shape (n_controls, n_controls)
+            Quadratic cost on control inputs
+
+        Returns
+        -------
+        LinearFeedbackControllerAssist instance
+        '''
         self.A = A
         self.B = B
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-        '''    Docstring    '''
+        '''
+        See docs for Assister.calc_assisted_BMI_state
+        '''
         B = self.B
         F = self.F
         Bu = assist_level * B*F*(target_state - current_state)
         assist_weight = assist_level
         return Bu, assist_weight
 
-class TentacleAssist(LinearFeedbackControllerAssist):
-    '''    Docstring    '''
-    def __init__(self, *args, **kwargs):
-        '''    Docstring    '''
-        kin_chain = kwargs.pop('kin_chain')
-        ssm = kwargs.pop('ssm')
-        
-        A, B, W = ssm.get_ssm_matrices()
+class SSMLFCAssister(LinearFeedbackControllerAssist):
+    def __init__(ssm, Q, R, **kwargs):
+        if ssm == None:
+            raise ValueError("SSMLFCAssister requires a state space model!")
 
-        # TODO state dimension is clearly hardcoded below!!!!
-        Q = np.mat(np.diag(np.hstack([kin_chain.link_lengths, np.zeros(5)])))
+        A, B, W = ssm.get_ssm_matrices()
+        super(SSMLFCAssister, self).__init__(A, B, Q, R)
+
+class TentacleAssist(SSMLFCAssister):
+    '''
+    Assister which can be used for a kinematic chain of any length. The cost function is calibrated for the experiments with the 4-link arm
+    '''
+    def __init__(self, ssm, *args, **kwargs):
+        '''
+        Constructor for TentacleAssist
+
+        Parameters
+        ----------
+        ssm: riglib.bmi.state_space_models.StateSpace instance
+            The state-space model's A and B matrices represent the system to be controlled
+        args: positional arguments
+            These are ignored (none are necessary)
+        kwargs: keyword arguments
+            The constructor must be supplied with the 'kin_chain' kwarg, which must have the attribute 'link_lengths'
+            This is specific to 'KinematicChain' plants.
+
+        Returns
+        -------
+        TentacleAssist instance
+
+        '''
+        try:
+            kin_chain = kwargs.pop('kin_chain')
+        except KeyError:
+            raise ValueError("kin_chain must be supplied for TentacleAssist")
+        
+        Q = np.mat(np.diag(np.hstack([kin_chain.link_lengths, np.zeros_like(kin_chain.link_lengths), 0])))
         R = 10000*np.mat(np.eye(B.shape[1]))
 
-        self.A = A
-        self.B = B
-        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        super(TentacleAssist, self).__init__(ssm, Q, R)
 
     def calc_assisted_BMI_state(self, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        see Assister.calc_assisted_BMI_state. This method always returns an 'assist_weight' of 0, 
+        which is required for the feedback controller style of assist to cooperate with the rest of the 
+        Decoder
+        '''
         Bu, _ = super(TentacleAssist, self).calc_assisted_BMI_state(*args, **kwargs)
         assist_weight = 0
         return Bu, assist_weight
