@@ -38,7 +38,7 @@ class Window(LogExperiment):
     window_size = (3840, 1080) #(1280*2, 1024)#
     #window_size = (960, 270)
     background = (0,0,0,1)
-    fps = 60
+    # fps = 60  # TODO (already defined in Experiment class)
 
     #Screen parameters, all in centimeters -- adjust for monkey
     fov = np.degrees(np.arctan(14.65/(44.5+3)))*2
