@@ -11,4 +11,5 @@ elif hostname == 'nucleus':
     display_start_pos = "0,0"
     recording_system = "plexon"
 else:
+    display_start_pos = "0,0"
     recording_system = "blackrock"

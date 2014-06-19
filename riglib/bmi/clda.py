@@ -292,7 +292,7 @@ class CursorGoalLearner2(Learner):
 
 # simple iBMI learners that just use an "assister" object
 
-class ArmAssistLearner(BatchLearner):
+class ArmAssistLearner(Learner):
     def __init__(self, *args, **kwargs):
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         assist_speed   = kwargs.pop('assist_speed', 2.)
@@ -317,7 +317,7 @@ class ArmAssistLearner(BatchLearner):
         super(ArmAssistLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
 
 
-class ReHandLearner(BatchLearner):
+class ReHandLearner(Learner):
     def __init__(self, *args, **kwargs):
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         assist_speed   = kwargs.pop('assist_speed', 2.)
@@ -342,7 +342,7 @@ class ReHandLearner(BatchLearner):
         super(ReHandLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
 
 
-class IsMoreLearner(BatchLearner):
+class IsMoreLearner(Learner):
     def __init__(self, *args, **kwargs):
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         assist_speed   = kwargs.pop('assist_speed', 2.)
