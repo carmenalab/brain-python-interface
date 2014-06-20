@@ -73,10 +73,12 @@ class LFP(object):
 
 
 class FeedbackData(object):
-    '''Parent class for ArmAssistData and ReHandData below.'''
+    '''Abstract parent class, not meant to be instantiated.'''
 
-    def __init__(self, client_cls):
-        self.client = client_cls()
+    client_cls = None
+
+    def __init__(self):
+        self.client = self.client_cls()
 
     def start(self):
         self.client.start()
@@ -100,21 +102,17 @@ class FeedbackData(object):
 # for use with a DataSource
 class ArmAssistData(FeedbackData):
     update_freq = 25.  # every 40 ms -- TODO check
+    client_cls = udp_feedback_client.ArmAssistClient
 
     state_names = ['aa_px', 'aa_py', 'aa_ppsi', 'aa_vx', 'aa_vy', 'aa_vpsi']
     dtype = FeedbackData._get_dtype(state_names)
-
-    def __init__(self):
-        super(ArmAssistData, self).__init__(udp_feedback_client.ArmAssistClient)
 
 
 # for use with a DataSource
 class ReHandData(FeedbackData):
     update_freq = 25.  # every 40 ms -- TODO check
+    client_cls = udp_feedback_client.ReHandClient
 
     state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 'rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
     dtype = FeedbackData._get_dtype(state_names)
-
-    def __init__(self):
-        super(ReHandData, self).__init__(udp_feedback_client.ReHandClient)
 
