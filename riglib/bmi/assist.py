@@ -42,6 +42,8 @@ class Assister(object):
         '''
         return self.calc_assisted_BMI_state(*args, **kwargs)
 
+
+
 class LinearFeedbackControllerAssist(Assister):
     '''
     Assister where the machine control is an LQR controller, possibly with different 'modes' depending on the state of the task
@@ -71,22 +73,44 @@ class LinearFeedbackControllerAssist(Assister):
         -------
         LinearFeedbackControllerAssist instance
         '''
-        self.A = A
-        self.B = B
-        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        self.lqr_controller = feedback_controllers.LQRController(A, B, Q, R)
+        # self.A = A
+        # self.B = B
+        # self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         '''
         See docs for Assister.calc_assisted_BMI_state
         '''
-        B = self.B
-        F = self.F
-        Bu = assist_level * B*F*(target_state - current_state)
-        assist_weight = assist_level
+        Bu = assist_level * self.lqr_controller(current_state, target_state)
+        assist_weight = 0
+        # assist_weight = assist_level
+        # B = self.B
+        # F = self.F
+        # Bu = assist_level * B*F*(target_state - current_state)
+        # assist_weight = assist_level
         return Bu, assist_weight
 
 class SSMLFCAssister(LinearFeedbackControllerAssist):
     def __init__(ssm, Q, R, **kwargs):
+        '''
+        Constructor for TentacleAssist
+
+        Parameters
+        ----------
+        ssm: riglib.bmi.state_space_models.StateSpace instance
+            The state-space model's A and B matrices represent the system to be controlled
+        args: positional arguments
+            These are ignored (none are necessary)
+        kwargs: keyword arguments
+            The constructor must be supplied with the 'kin_chain' kwarg, which must have the attribute 'link_lengths'
+            This is specific to 'KinematicChain' plants.
+
+        Returns
+        -------
+        TentacleAssist instance
+
+        '''        
         if ssm == None:
             raise ValueError("SSMLFCAssister requires a state space model!")
 
@@ -126,15 +150,15 @@ class TentacleAssist(SSMLFCAssister):
 
         super(TentacleAssist, self).__init__(ssm, Q, R)
 
-    def calc_assisted_BMI_state(self, *args, **kwargs):
-        '''
-        see Assister.calc_assisted_BMI_state. This method always returns an 'assist_weight' of 0, 
-        which is required for the feedback controller style of assist to cooperate with the rest of the 
-        Decoder
-        '''
-        Bu, _ = super(TentacleAssist, self).calc_assisted_BMI_state(*args, **kwargs)
-        assist_weight = 0
-        return Bu, assist_weight
+    # def calc_assisted_BMI_state(self, *args, **kwargs):
+    #     '''
+    #     see Assister.calc_assisted_BMI_state. This method always returns an 'assist_weight' of 0, 
+    #     which is required for the feedback controller style of assist to cooperate with the rest of the 
+    #     Decoder
+    #     '''
+    #     Bu, _ = super(TentacleAssist, self).calc_assisted_BMI_state(*args, **kwargs)
+    #     assist_weight = 0
+    #     return Bu, assist_weight
 
 
 class SimpleEndpointAssister(Assister):
@@ -231,22 +255,21 @@ def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5
 
 
 
-## TODO the code below should be a feedback controller equivalent to the "simple" method above
-    ## def create_learner(self):
-    ##     dt = 0.1
-    ##     A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
-    ##                 [0., 0, 0, 0,  0, 0, 0],
-    ##                 [0., 0, 1, 0, 0, dt, 0],
-    ##                 [0., 0, 0, 0, 0,  0, 0],
-    ##                 [0., 0, 0, 0, 0,  0, 0],
-    ##                 [0., 0, 0, 0, 0,  0, 0],
-    ##                 [0., 0, 0, 0, 0,  0, 1]])
+class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
+    def __init__(self, *args, **kwargs):        
+        dt = 0.1
+        A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
+                    [0., 1, 0, 0,  dt, 0, 0],
+                    [0., 0, 1, 0, 0, dt, 0],
+                    [0., 0, 0, 0, 0,  0, 0],
+                    [0., 0, 0, 0, 0,  0, 0],
+                    [0., 0, 0, 0, 0,  0, 0],
+                    [0., 0, 0, 0, 0,  0, 1]])
 
-    ##     I = np.mat(np.eye(3))
-    ##     B = np.vstack([0*I, I, np.zeros([1,3])])
-    ##     F_target = np.hstack([I, 0*I, np.zeros([3,1])])
-    ##     F_hold = np.hstack([0*I, 0*I, np.zeros([3,1])])
-    ##     F_dict = dict(hold=F_hold, target=F_target)
-    ##     self.learner = clda.OFCLearner(self.batch_size, A, B, F_dict)
-    ##     self.learn_flag = True
 
+        I = np.mat(np.eye(3))
+        B = np.vstack([0*I, I, np.zeros([1,3])])
+        F_target = np.hstack([I, 0*I, np.zeros([3,1])])
+        F_hold = np.hstack([0*I, 0*I, np.zeros([3,1])])
+        F_dict = dict(hold=F_hold, target=F_target)
+        super(SimpleEndpointAssisterLFC, self).__init__(B=B, F=F_dict)
