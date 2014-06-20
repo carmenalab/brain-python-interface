@@ -53,25 +53,25 @@ class LFP(object):
 # old
 # use this class if using only one data source for armassist+rehand
 # for use with a MultiChanDataSource
-class FeedbackData(object):
-    update_freq = 25.  # every 40 ms -- TODO check
+# class FeedbackData(object):
+#     update_freq = 25.  # every 40 ms -- TODO check
 
-    dtype = np.dtype('float')
+#     dtype = np.dtype('float')
 
-    def __init__(self, channels):
-        self.client = udp_feedback_client.Client()
+#     def __init__(self, channels):
+#         self.client = udp_feedback_client.Client()
 
-    def start(self):
-        self.client.start()
-        self.data = self.client.get_feedback_data()
+#     def start(self):
+#         self.client.start()
+#         self.data = self.client.get_feedback_data()
 
-    def stop(self):
-        self.client.stop()
+#     def stop(self):
+#         self.client.stop()
 
-    def get(self):
-        d = self.data.next()
+#     def get(self):
+#         d = self.data.next()
 
-        return (d.state_name, np.array([d.value]))
+#         return (d.state_name, np.array([d.value]))
 
 
 # new
@@ -83,7 +83,7 @@ class ArmAssistData(object):
 
     state_names = ['aa_px', 'aa_py', 'aa_ppsi', 'aa_vx', 'aa_vy', 'aa_vpsi']
     sub_dtype = np.dtype([(state_name, np.float64) for state_name in state_names])
-    dtype = np.dtype([('data', sub_dtype), ('arrival_ts', np.float64)])
+    dtype = np.dtype([('data', sub_dtype), ('ts', sub_dtype), ('arrival_ts', np.float64)])
 
     def __init__(self):
         self.client = udp_feedback_client.ArmAssistClient()
@@ -98,7 +98,7 @@ class ArmAssistData(object):
     def get(self):
         d = self.data.next()
 
-        return np.array([(tuple(d.data), d.arrival_ts)], dtype=self.dtype)
+        return np.array([(tuple(d.data), tuple(d.ts), d.arrival_ts)], dtype=self.dtype)
 
 
 
@@ -108,7 +108,7 @@ class ReHandData(object):
 
     state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 'rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
     sub_dtype = np.dtype([(state_name, np.float64) for state_name in state_names])
-    dtype = np.dtype([('data', sub_dtype), ('arrival_ts', np.float64)])
+    dtype = np.dtype([('data', sub_dtype), ('ts', sub_dtype), ('arrival_ts', np.float64)])
 
     def __init__(self):
         self.client = udp_feedback_client.ReHandClient()
@@ -123,5 +123,5 @@ class ReHandData(object):
     def get(self):
         d = self.data.next()
 
-        return np.array([(tuple(d.data), d.arrival_ts)], dtype=self.dtype)
+        return np.array([(tuple(d.data), tuple(d.ts), d.arrival_ts)], dtype=self.dtype)
 
