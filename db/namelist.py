@@ -88,7 +88,6 @@ tasks = dict(
     manual_control_2 = tasks.ManualControl2,
     visual_feedback = tasks.VisualFeedback,
     visual_feedback_multi = tasks.VisualFeedbackMulti,
-    ibmi_visual_feedback = blackrocktasks.VisualFeedback,
     clda_auto_assist = tasks.CLDAAutoAssist,
     clda_constrained_sskf = tasks.CLDAConstrainedSSKF,
     sim_clda_control = tasks.SimCLDAControl,
@@ -103,11 +102,9 @@ tasks = dict(
     joystick_multi_plus_move = tasks.JoystickMulti_plusMove,
     joystick_multi_directed = tasks.JoystickMulti_Directed,
     bmi_control_multi = tasks.BMIControlMulti,
-    ibmi_bmi_control = blackrocktasks.BMIControl,
     bmi_manipulated_feedback = tasks.BMIControlManipulatedFB,
     clda_ppf_manipulated_feedback = tasks.CLDAControlPPFContAdaptMFB,
     clda_control_multi = tasks.CLDAControlMulti,
-    ibmi_clda_control = blackrocktasks.CLDAControl,
     sim_clda_control_multi = tasks.SimCLDAControlMulti,
     clda_rml_kf = tasks.CLDARMLKF,
     clda_cont_ppf= tasks.CLDAControlPPFContAdapt,
@@ -125,6 +122,12 @@ tasks = dict(
     bmi_joint_perturb = tasks.BMIJointPerturb,
     bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
     bmi_cursor_bias=tasks.BMICursorBias,
+
+    ######## iBMI tasks
+    ibmi_visual_feedback = blackrocktasks.VisualFeedback,
+    ibmi_manual_control  = blackrocktasks.ManualControl,
+    ibmi_bmi_control     = blackrocktasks.BMIControl,
+    ibmi_clda_control    = blackrocktasks.CLDAControl,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']
@@ -133,7 +136,7 @@ arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']
 # The below list shows which tasks can be used to train new Decoders
 bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi']
 
-ibmi_seed_tasks = ['ibmi_visual_feedback']
+ibmi_seed_tasks = ['ibmi_visual_feedback', 'ibmi_manual_control']
 
 bmi_seed_tasks.extend(ibmi_seed_tasks)
 
