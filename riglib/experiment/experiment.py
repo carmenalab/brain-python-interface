@@ -36,8 +36,8 @@ class Experiment(traits.HasTraits, threading.Thread):
     stop = False
     exclude_parent_traits = []
     ordered_traits = []
-    fps = 60
-    # fps = 10
+    # fps = 60
+    fps = 10
 
     def __init__(self, **kwargs):
         traits.HasTraits.__init__(self, **kwargs)

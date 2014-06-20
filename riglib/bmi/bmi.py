@@ -714,10 +714,10 @@ class BMISystem(object):
                 self.spike_counts += neural_obs_k
 
             if learn_flag and self.decoder.bmicount == 0:
-                # print 'current_state:'
-                # print learner_state
-                # print 'target_state:'
-                # print target_state_k
+                print 'current_state:'
+                print learner_state
+                print 'target_state:'
+                print target_state_k
                 self.learner(self.spike_counts.copy(), learner_state, target_state_k, 
                              decoded_states[:,k], task_state, state_order=self.decoder.ssm.state_order)
                 # TODO -- remove
@@ -731,8 +731,8 @@ class BMISystem(object):
 
             if self.learner.is_ready():
                 self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-                # print 'self.intended_kin, ref_learner intended_kin'
-                # print np.hstack([self.intended_kin, self.ref_learner.get_batch()[0]])
+                print 'self.intended_kin, ref_learner intended_kin'
+                print np.hstack([self.intended_kin, self.ref_learner.get_batch()[0]])
                 # if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
                 #     half_life = kwargs['half_life']
                 #     rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
