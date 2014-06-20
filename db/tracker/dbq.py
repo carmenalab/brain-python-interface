@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Methods for remotely interacting with the sqlite3 database using remote procedure call (RPC)
+'''
 
 import os
 import time

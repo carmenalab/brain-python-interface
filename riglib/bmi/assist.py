@@ -18,21 +18,27 @@ class Assister(object):
     derived from the subject's neural input
     '''
     def __init__(self, *args, **kwargs):
+        '''    Docstring    '''
         pass
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''    Docstring    '''
         pass  # implement in subclasses -- should return (Bu, assist_weight)
 
     def __call__(self, *args, **kwargs):
+        '''    Docstring    '''
         return self.calc_assisted_BMI_state(*args, **kwargs)
 
 class LinearFeedbackControllerAssist(Assister):
+    '''    Docstring    '''
     def __init__(self, A, B, Q, R):
+        '''    Docstring    '''
         self.A = A
         self.B = B
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''    Docstring    '''
         B = self.B
         F = self.F
         Bu = assist_level * B*F*(target_state - current_state)
@@ -40,7 +46,9 @@ class LinearFeedbackControllerAssist(Assister):
         return Bu, assist_weight
 
 class TentacleAssist(LinearFeedbackControllerAssist):
+    '''    Docstring    '''
     def __init__(self, *args, **kwargs):
+        '''    Docstring    '''
         kin_chain = kwargs.pop('kin_chain')
         ssm = kwargs.pop('ssm')
         
@@ -55,6 +63,7 @@ class TentacleAssist(LinearFeedbackControllerAssist):
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, *args, **kwargs):
+        '''    Docstring    '''
         Bu, _ = super(TentacleAssist, self).calc_assisted_BMI_state(*args, **kwargs)
         assist_weight = 0
         return Bu, assist_weight
@@ -67,11 +76,13 @@ class SimpleEndpointAssister(Assister):
     target divided by 2.
     '''
     def __init__(self, *args, **kwargs):
+        '''    Docstring    '''
         self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         self.assist_speed = kwargs.pop('assist_speed', 5.)
         self.target_radius = kwargs.pop('target_radius', 2.)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''    Docstring    '''
         Bu = None
         assist_weight = 0.
 
@@ -88,12 +99,16 @@ class SimpleEndpointAssister(Assister):
 
 
 class Joint5DOFEndpointTargetAssister(SimpleEndpointAssister):
-    '''Docstring.'''
+    '''
+    Assister for 5DOF 3-D arm (e.g., a kinematic model of the exoskeleton), restricted to movements in a 2D plane
+    '''
     def __init__(self, arm, *args, **kwargs):
+        '''    Docstring    '''
         self.arm = arm
         super(Joint5DOFEndpointTargetAssister, self).__init__(*args, **kwargs)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''    Docstring    '''
         Bu = None # By default, no assist
         assist_weight = 0.
 
@@ -131,6 +146,7 @@ class Joint5DOFEndpointTargetAssister(SimpleEndpointAssister):
 
 
 def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5, target_radius=2., assist_level=0.):
+    '''    Docstring    '''
     diff_vec = target_pos - cursor_pos 
     dist_to_target = np.linalg.norm(diff_vec)
     dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)

@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Base code for including the 'eyetracker' features in experiments
+'''
 
 
 import time

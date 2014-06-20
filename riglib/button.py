@@ -1,4 +1,6 @@
-''' Needs docs'''
+'''
+Interact with a peripheral 'button' device hooked up to an FTDI chip
+'''
 
 import threading
 import Queue
@@ -6,7 +8,17 @@ import ftdi
 import time
 
 class Button(threading.Thread):
+    ''' Docstring '''
     def __init__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(Button, self).__init__()
         self.port = None
         port = ftdi.ftdi_new()
@@ -20,6 +32,15 @@ class Button(threading.Thread):
         self.start()
        
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         last = None
         while True:
             k = self._check()
@@ -29,17 +50,44 @@ class Button(threading.Thread):
             time.sleep(0.01)
     
     def _check(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         test = ' '
         ftdi.ftdi_read_pins(self.port, test)
         return ord(test)
     
     def pressed(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         try:
             return self.queue.get_nowait()
         except:
             return None
     
     def __del__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if self.port is not None:
             ftdi.ftdi_disable_bitbang(self.port)
             ftdi.ftdi_usb_close(self.port)

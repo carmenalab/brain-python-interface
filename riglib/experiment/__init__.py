@@ -1,4 +1,4 @@
-'''Needs docs
+'''
 Experiment constructors. 'experiment' instances are the combination of 
 a task and a list of features.  Rather than have a separate class for
 all the possible combinations of tasks and features, a custom class for
@@ -27,6 +27,15 @@ except:
     Pygame = object
 
 def make(exp_class, feats=()):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     logging.info('experiment.make: %s, %s\n' % (exp_class, feats))
     # construct the class list to define inheritance order for the custom task
     # inherit from the features first, then the base class
@@ -38,6 +47,13 @@ def make(exp_class, feats=()):
 def make_and_inst(exp_class, features=(), probs=None, **kwargs):
     """
     Instantiate a task from the shell
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
     # Construct the custom task instance as a 
     # as a combination of the base task and the selected features
@@ -56,6 +72,13 @@ def make_and_inst(exp_class, features=(), probs=None, **kwargs):
 def consolerun(exp_class, features=(), probs=None, **kwargs):
     """
     Instantiate a task from the shell
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
     # Construct the custom task instance as a 
     # as a combination of the base task and the selected features

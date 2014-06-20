@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Generic data sink. Sinks run in separate processes and interact with the main process through code here
+'''
 
 
 import inspect

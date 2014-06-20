@@ -25,6 +25,16 @@ class PointProcessFilter(bmi.GaussianStateHMM):
     model_attrs = ['A', 'W', 'C']
 
     def __init__(self, A=None, W=None, C=None, dt=None, is_stochastic=None, B=0, F=0):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         if A is None and W is None and C is None and dt is None:
             ## This condition should only be true in the unpickling phase
             pass            
@@ -48,7 +58,8 @@ class PointProcessFilter(bmi.GaussianStateHMM):
             self._pickle_init()
 
     def _pickle_init(self):
-        """Code common to unpickling and initialization
+        """
+        Code common to unpickling and initialization
         """
         nS = self.A.shape[0]
         offset_row = np.zeros(nS)
@@ -61,7 +72,15 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         if not hasattr(self, 'F'): self.F = 0
 
     def _init_state(self, init_state=None, init_cov=None):
-        """ Initialize the state of the KF prior to running in real-time
+        """
+        Initialize the state of the KF prior to running in real-time
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+
         """
         ## Initialize the BMI state, assuming 
         nS = self.A.shape[0] # number of state variables
@@ -75,13 +94,42 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         self.id = np.zeros([1, self.C.shape[0]])
 
     def get_mean(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''        
         return np.array(self.state.mean).ravel()
 
     def _check_valid(self, lambda_predict):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         if np.any((lambda_predict * self.spike_rate_dt) > 1): 
             raise ValueError("Cell exploded!")
 
     def _obs_prob(self, state):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         Loglambda_predict = self.C * state.mean
         lambda_predict = np.exp(Loglambda_predict)/self.spike_rate_dt
 
@@ -103,6 +151,16 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         return lambda_predict
     
     def _ssm_pred(self, state, target_state=None):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         A = self.A
         B = self.B
         F = self.F
@@ -112,6 +170,16 @@ class PointProcessFilter(bmi.GaussianStateHMM):
             return (A - B*F)*state + B*F*target_state + self.state_noise
 
     def _forward_infer(self, st, obs_t, target_state=None):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         obs_t = np.mat(obs_t.reshape(-1,1))
         C = self.C
         n_obs, n_states = C.shape
@@ -159,8 +227,18 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         return post_state
 
     def __setstate__(self, state):
-        """Set the model parameters {A, W, C, Q} stored in the pickled
-        object"""
+        """
+        Set the model parameters {A, W, C, Q} stored in the pickled
+        object
+
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        """
         # TODO clean this up!
         self.A = state['A']
         self.W = state['W']
@@ -171,13 +249,29 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         self._pickle_init()
 
     def __getstate__(self):
-        """Return the model parameters {A, W, C} for pickling"""
+        """
+        Return the model parameters {A, W, C} for pickling
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------        
+        """
         return dict(A=self.A, W=self.W, C=self.C, dt=self.dt, B=self.B, 
                     is_stochastic=self.is_stochastic)
 
     def tomlab(self, unit_scale=1.):
         '''
         convert the beta to the same format as MATLAB PPF decoders
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------        
         '''
         return np.array(np.hstack([self.C[:,-1], unit_scale*self.C[:,self.is_stochastic]])).T
 
@@ -191,6 +285,13 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         """
         Unconstrained ML estimator of {C, } given observations and
         the corresponding hidden states
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------            
         """
         assert hidden_state.shape[1] == obs.shape[1]
     
@@ -235,6 +336,16 @@ class PointProcessFilter(bmi.GaussianStateHMM):
 
 class PPFDecoder(bmi.BMI, bmi.Decoder):
     def _pickle_init(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         ### # initialize the F_assist matrices
         ### # TODO this needs to be its own function...
         ### tau_scale = (28.*28)/1000/3. * np.array([18., 12., 6, 3., 2.5, 1.5])
@@ -268,7 +379,15 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
 
     def __call__(self, obs_t, **kwargs):
         '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
         '''
+
         # The PPF model predicts that at most one spike can be observed in 
         # each bin; if more are observed, squash the counts
         obs_t = obs_t.copy()
@@ -276,11 +395,32 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         return super(PPFDecoder, self).__call__(obs_t, **kwargs)
 
     def get_filter(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         return self.filt 
 
     def predict(self, spike_counts, target=None, speed=0.05, assist_level=0, **kwargs):
         """
         Run decoder, assist, and bound any states
+        
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+
+
         """
         # Define target state, if specified
         if target is not None:
@@ -310,6 +450,15 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def shuffle(self):
         '''
         Shuffle the neural model
+
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+
         '''
         import random
         inds = range(self.filt.C.shape[0])

@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+Basic OpenGL shapes constructed out of triangular meshes
+'''
 
 import numpy as np
 from numpy import pi

@@ -39,27 +39,14 @@ class RewardSystem(traits.HasTraits):
         super(RewardSystem, self)._start_reward()
 
 class TTLReward(traits.HasTraits):
+    ''' Docstring '''
     def __init__(self, *args, **kwargs):
+        ''' Docstring '''
         self.com = comedi.comedi_open('/dev/comedi0')
-        super(TTLReward, self).__init__(*args, **kwargs)        
-
-# // extern int ttl_reward_pulse(float pulse_time) {
-# //     if (ni == NULL) {
-# //         init("/dev/comedi0");
-# //     }
-# //     uint val = 0x800000; //0x900000; //16777215;
-# //     uint subdevice = 0;
-# //     uint write_mask = 0x800000;
-# //     uint base_channel = 0;
-# //     comedi_dio_bitfield2(ni, subdevice, write_mask, &val, base_channel);
-
-# //     sleep(pulse_time);
-
-# //     uint val2 = 0;
-# //     comedi_dio_bitfield2(ni, subdevice, write_mask, &val2, base_channel);
-
+        super(TTLReward, self).__init__(*args, **kwargs)
 
     def _start_reward(self):
+        ''' Docstring '''
         super(TTLReward, self)._start_reward()
         subdevice = 0
         write_mask = 0x800000
@@ -68,8 +55,6 @@ class TTLReward(traits.HasTraits):
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
         time.sleep(self.reward_time)
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
-        
-        
 
 
 class Autostart(traits.HasTraits):

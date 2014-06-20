@@ -1,4 +1,8 @@
-'''Needs docs'''
+'''
+Django's standard place to look for URL pattern matching. See 
+https://docs.djangoproject.com/en/dev/topics/http/urls/
+for more complete documentation
+'''
 
 
 #from django.conf.urls.defaults import *

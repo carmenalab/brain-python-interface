@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+General-purpose "pygame" experiment class. Mostly unused
+'''
 
 import os
 import pygame
@@ -7,6 +9,7 @@ from . import traits
 from experiment import LogExperiment
 
 class Pygame(LogExperiment):
+    ''' Docstring '''
     background = (0,0,0)
     fps = 60
     
@@ -15,6 +18,15 @@ class Pygame(LogExperiment):
     reward_time = traits.Float(5, desc='Time of reward in seconds')
 
     def screen_init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
 

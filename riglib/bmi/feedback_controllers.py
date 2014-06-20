@@ -8,12 +8,15 @@ functions.
 import numpy as np
 
 class CenterOutCursorGoal(object):
+    '''    Docstring    '''
     def __init__(self, angular_noise_var=0, gain=0.15):
+        '''    Docstring    '''
         self.interactive = False
         self.angular_noise_var = angular_noise_var
         self.gain = gain
 
     def get(self, cur_target, cur_pos, keys_pressed=None):
+        '''    Docstring    '''
         # Make sure y-dimension is 0
         assert cur_pos[1] == 0
         assert cur_target[1] == 0
@@ -32,7 +35,9 @@ class CenterOutCursorGoal(object):
 
 
 class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
+    '''    Docstring    '''
     def __init__(self, link_lengths, shoulder_anchor, *args, **kwargs):
+        '''    Docstring    '''
         self.link_lengths = link_lengths
         self.shoulder_anchor = shoulder_anchor
         super(CenterOutCursorGoalJointSpace2D, self).__init__(*args, **kwargs)
@@ -40,6 +45,8 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
 
     def get(self, cur_target, cur_pos, keys_pressed=None):
         '''
+        Docstring 
+
         cur_target and cur_pos should be specified in workspace coordinates
         '''
         vx, vz = super(CenterOutCursorGoalJointSpace2D, self).get(cur_target, cur_pos, keys_pressed)
@@ -57,7 +64,9 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
 
 
 class LQRController(object):
+    '''    Docstring    '''
     def __init__(self, A, B, Q, R, **kwargs):
+        '''    Docstring    '''
         self.A = A
         self.B = B
         self.Q = Q
@@ -65,11 +74,13 @@ class LQRController(object):
         self.F = self.dlqr(A, B, Q, R, **kwargs)
 
     def __call__(self, current_state, target_state):
+        '''    Docstring    '''
         Bu = self.B*self.F*(target_state - current_state)
         return Bu        
 
     @staticmethod
     def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-10, dtype=np.mat):
+        '''    Docstring    '''
         if Q_f == None: 
             Q_f = Q
 
