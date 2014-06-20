@@ -88,21 +88,29 @@ class Learner(object):
         self.reset()
 
     def disable(self):
-        '''    Docstring    '''
+        '''Set a flag to disable forming intention estimates from new incoming data'''
         self.enabled = False
 
     def enable(self):
-        '''    Docstring    '''
+        '''Set a flag to enable forming intention estimates from new incoming data'''
         self.enabled = True
 
     def reset(self):
-        '''    Docstring    '''
+        '''Reset the lists of saved intention estimates and corresponding neural data'''
         self.kindata = []
         self.neuraldata = []
 
     def __call__(self, spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=None):
         """
         Calculate the intended kinematics and pair with the neural data
+
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
         """
         if task_state in self.reset_states:
             print "resetting CLDA batch"
@@ -122,7 +130,9 @@ class Learner(object):
                 self.passed_done_state = True
 
     def is_ready(self):
-        '''    Docstring    '''
+        '''
+        Returns True if the collected estimates of the subject's intention are ready for processing into new decoder parameters
+        '''
         _is_ready = len(self.kindata) >= self.batch_size or ((len(self.kindata) > 0) and self.passed_done_state)
         return _is_ready
 
@@ -135,14 +145,38 @@ class Learner(object):
         return kindata, neuraldata
 
 class DumbLearner(Learner):
-    '''    Docstring    '''
+    '''
+    A learner that never learns anything. Used to make non-adaptive BMI tasks interact the same as CLDA tasks.
+    '''
     def __init__(self, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        Constructor for DumbLearner
+
+        Parameters
+        ----------
+        args, kwargs: positional and keyword arguments
+            Ignored, none are needed
+
+        Returns
+        -------
+        DumbLearner instance
+        '''
         self.enabled = False
         self.input_state_index = 0
 
     def __call__(self, *args, **kwargs):
-        """ Do nothing; hence the name of the class"""
+        """
+        Do nothing; hence the name of the class
+
+        Parameters
+        ----------
+        args, kwargs: positional and keyword arguments
+            Ignored, none are needed
+
+        Returns
+        -------
+        None
+        """
         pass
 
     def is_ready(self):
@@ -154,9 +188,17 @@ class DumbLearner(Learner):
         raise NotImplementedError
 
 class OFCLearner(Learner):
-    '''    Docstring    '''
+    '''An intention estimator where the subject is assumed to operate like a muiti-modal LQR controller'''
     def __init__(self, batch_size, A, B, F_dict, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(OFCLearner, self).__init__(batch_size, *args, **kwargs)
         self.B = B
         self.F_dict = F_dict

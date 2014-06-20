@@ -357,6 +357,106 @@ class MotionAutoAlign(MotionData):
         cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)
         return cls, dict()
 
+#*******************************************************************************************************
+# Data Sinks
+#*******************************************************************************************************
+class SinkRegister(object):
+    '''Superclass for all features which contain data sinks -- registers the various sources'''
+    def init(self):
+        from riglib import sink
+        self.sinks = sink.sinks
+
+        # Run the rest of the .init() functions of the custom experiment class
+        # NOTE: this MUST happen before the rest of the code executes. Otherwise,
+        # the dtype used to determine the task data attributes to be stored
+        # to the HDF file will be incorrect/incomplete
+        super(SinkRegister, self).init()
+
+        if isinstance(self, (MotionData, MotionSimulate)):
+            self.sinks.register(self.motiondata)
+        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
+            self.sinks.register(self.eyedata)
+        if isinstance(self, Joystick):
+            self.sinks.register(self.joystick)
+
+        # Register sink for task data
+        try:
+            self.dtype = np.dtype(self.dtype)
+            self.sinks.register("task", self.dtype)
+            self.task_data = np.zeros((1,), dtype=self.dtype)
+        except:
+            self.task_data = None
+
+    def _cycle(self):
+        ''' Docstring '''
+        super(SinkRegister, self)._cycle()
+        if self.task_data is not None:
+            self.sinks.send("task", self.task_data)
+        
+class SaveHDF(SinkRegister):
+    '''
+    Saves data from registered sources into tables in an HDF file
+    '''
+    def init(self):
+        ''' Docstring '''
+        import tempfile
+        from riglib import sink
+        self.h5file = tempfile.NamedTemporaryFile()
+        self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
+        super(SaveHDF, self).init()
+
+    @property
+    def hdf_class(self):
+        ''' Docstring '''
+        from riglib import hdfwriter
+        return hdfwriter.HDFWriter
+
+    def run(self):
+        ''' Docstring '''
+        try:
+            super(SaveHDF, self).run()
+        finally:
+            self.hdf.stop()
+    
+    def join(self):
+        ''' Docstring '''
+        self.hdf.join()
+        super(SaveHDF, self).join()
+
+    def set_state(self, condition, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        self.hdf.sendMsg(condition)
+        super(SaveHDF, self).set_state(condition, **kwargs)
+
+    def cleanup(self, database, saveid, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        super(SaveHDF, self).cleanup(database, saveid, **kwargs)
+        print "#################%s"%self.h5file.name
+        try:
+            self.cleanup_hdf()
+        except:
+            print "cleanup error!!!!!!!!!!!!!!!!!!!!"
+            import traceback
+            traceback.print_exc()
+
+        database.save_data(self.h5file.name, "hdf", saveid)
+
 ########################################################################################################
 # Plexon features
 ########################################################################################################
@@ -496,106 +596,6 @@ class RelayPlexByte(RelayPlexon):
         '''
         from riglib import nidaq
         return nidaq.SendRowByte
-
-#*******************************************************************************************************
-# Data Sinks
-#*******************************************************************************************************
-class SinkRegister(object):
-    '''Superclass for all features which contain data sinks -- registers the various sources'''
-    def init(self):
-        from riglib import sink
-        self.sinks = sink.sinks
-
-        # Run the rest of the .init() functions of the custom experiment class
-        # NOTE: this MUST happen before the rest of the code executes. Otherwise,
-        # the dtype used to determine the task data attributes to be stored
-        # to the HDF file will be incorrect/incomplete
-        super(SinkRegister, self).init()
-
-        if isinstance(self, (MotionData, MotionSimulate)):
-            self.sinks.register(self.motiondata)
-        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
-            self.sinks.register(self.eyedata)
-        if isinstance(self, Joystick):
-            self.sinks.register(self.joystick)
-
-        # Register sink for task data
-        try:
-            self.dtype = np.dtype(self.dtype)
-            self.sinks.register("task", self.dtype)
-            self.task_data = np.zeros((1,), dtype=self.dtype)
-        except:
-            self.task_data = None
-
-    def _cycle(self):
-        ''' Docstring '''
-        super(SinkRegister, self)._cycle()
-        if self.task_data is not None:
-            self.sinks.send("task", self.task_data)
-        
-class SaveHDF(SinkRegister):
-    '''
-    Saves data from registered sources into tables in an HDF file
-    '''
-    def init(self):
-        ''' Docstring '''
-        import tempfile
-        from riglib import sink
-        self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
-        super(SaveHDF, self).init()
-
-    @property
-    def hdf_class(self):
-        ''' Docstring '''
-        from riglib import hdfwriter
-        return hdfwriter.HDFWriter
-
-    def run(self):
-        ''' Docstring '''
-        try:
-            super(SaveHDF, self).run()
-        finally:
-            self.hdf.stop()
-    
-    def join(self):
-        ''' Docstring '''
-        self.hdf.join()
-        super(SaveHDF, self).join()
-
-    def set_state(self, condition, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        self.hdf.sendMsg(condition)
-        super(SaveHDF, self).set_state(condition, **kwargs)
-
-    def cleanup(self, database, saveid, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        super(SaveHDF, self).cleanup(database, saveid, **kwargs)
-        print "#################%s"%self.h5file.name
-        try:
-            self.cleanup_hdf()
-        except:
-            print "cleanup error!!!!!!!!!!!!!!!!!!!!"
-            import traceback
-            traceback.print_exc()
-
-        database.save_data(self.h5file.name, "hdf", saveid)
 
 ######################
 ## Simulation Features
