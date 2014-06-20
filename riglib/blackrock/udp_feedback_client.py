@@ -120,6 +120,8 @@ class ArmAssistClient(Client):
                 pos    = [values[1], values[5], values[9]]
                 torque = [values[2], values[6], values[10]]
                 ts     = [values[3], values[7], values[11]]
+
+                ts = [int(t) for t in ts]
                 
                 data = np.array(pos + vel)
                 ts   = np.array(ts + ts)
@@ -165,6 +167,8 @@ class ReHandClient(Client):
                 pos    = [values[1], values[5], values[9], values[13]]
                 torque = [values[2], values[6], values[10], values[14]]
                 ts     = [values[3], values[7], values[11], values[15]]
+
+                ts = [int(t) for t in ts]
 
                 data = np.array(pos + vel)
                 ts   = np.array(ts + ts)
