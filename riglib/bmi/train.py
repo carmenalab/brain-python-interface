@@ -354,10 +354,8 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=
     return spike_counts, units, extractor_kwargs
 
 def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-
-    '''Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
-
-    Docstring
+    '''
+    Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
 
     Parameters
     ----------
@@ -410,7 +408,8 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, stro
 
 
 def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-    '''Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
+    '''
+    Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
 
     Docstring
 
@@ -468,8 +467,7 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate
 
 def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''
-    compute EMG features
-    Docstring
+    Compute EMG features.
 
     Parameters
     ----------
@@ -519,19 +517,25 @@ def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate
 ################ extractor functions for Blackrock system ################
 ##########################################################################
 
-def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs):
+def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs, strobe_rate=10.0):
     '''Compute binned spike count features from a Blackrock data file.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
 
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
     
@@ -581,20 +585,20 @@ def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, ex
     return spike_counts, units, extractor_kwargs
 
 
-def get_butter_bpf_lfp_power_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs):
+def get_butter_bpf_lfp_power_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs, strobe_rate=10.0):
     '''Compute lfp power features from a blackrock data file.
     Corresponds to LFPButterBPFPowerExtractor.
     '''
 
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
     # TODO -- for now, use .ns3 file (2 kS/s)
@@ -731,7 +735,7 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
     joint_kin = np.hstack([joint_angles, joint_vel_2D])
     return joint_kin
 
-def get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=60.):
+def get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=10.):
     '''Docstring.'''
 
     # 'plant_pos' and 'plant_vel' are the pos/vel that were saved by 
@@ -820,12 +824,13 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
             tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])        
         except NotImplementedError:
             # need to create a fake rows variable
-            # n_rows = hdf.root.task[:]['cursor'].shape[0]
-            n_rows = hdf.root.task[:]['plant_pos'].shape[0]
+            
+            from riglib.experiment import experiment
+            strobe_rate = experiment.Experiment.fps  # in Hz
 
+            n_rows = hdf.root.task[:]['plant_pos'].shape[0]
             first_ts = binlen
-            update_rate_hz = 1./60
-            rows = np.linspace(first_ts, first_ts + (n_rows-1)*update_rate_hz, num=n_rows)
+            rows = np.linspace(first_ts, first_ts + (n_rows-1)*(1./strobe_rate), num=n_rows)
             lower, upper = 0 < rows, rows < rows.max() + 1
             l, u = tslice
             if l is not None:
@@ -837,7 +842,7 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
             # Note: kin_var doesn't need to be passed into get_ismore_kinematics because
             # kinematics are saved as 'plant_pos' and 'plant_vel' regardless of
             # whether the plant is armassist, rehand, or ismore (armassist+rehand)
-            kin = get_ismore_kinematics(hdf, binlen, tmask)
+            kin = get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=strobe_rate)
             neurows = rows[tmask]
 
 
@@ -849,7 +854,8 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
             raise Exception("No extractor_fn for this extractor class!")
 
         extractor_fn_args = (nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs)
-        neural_features, units, extractor_kwargs = extractor_fn(*extractor_fn_args)
+        extractor_fn_kwargs = {'strobe_rate': strobe_rate}
+        neural_features, units, extractor_kwargs = extractor_fn(*extractor_fn_args, **extractor_fn_kwargs)
 
     else:
         raise Exception('Could not find any plexon or blackrock files!')

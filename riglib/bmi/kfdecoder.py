@@ -133,6 +133,13 @@ class KalmanFilter(bmi.GaussianStateHMM):
         I = np.mat(np.eye(nX))
         D = self.C_xpose_Q_inv_C
         L = self.C_xpose_Q_inv
+        # print 'P:', P
+        # print 'I:', I
+        # print 'D:', D
+        # print 'L:', L
+        # print 'D*P:', D*P
+        # print '(I + D*P):', (I + D*P)
+        # print '(I + D*P).I:', (I + D*P).I
         K = P * (I - D*P*(I + D*P).I) * L
         return K
 
