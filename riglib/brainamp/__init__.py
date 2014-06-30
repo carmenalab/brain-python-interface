@@ -1,12 +1,15 @@
+import numpy as np
+import rda
+
 class EMG(object):
-    update_freq = 2000.  # TODO -- double check
+    update_freq = 2500.  # TODO -- double check
 
     dtype = np.dtype('float')
 
     def __init__(self, channels):
-        self.conn = rda.Connection()
+        recorder_ip_addr = '192.168.137.1'  # TODO
+        self.conn = rda.Connection(recorder_ip_addr)
         self.conn.connect()
-        # self.conn.select_channels(channels)
 
     def start(self):
         self.conn.start_data()

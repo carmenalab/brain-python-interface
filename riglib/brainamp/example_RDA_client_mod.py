@@ -172,7 +172,8 @@ con = socket(AF_INET, SOCK_STREAM)
 # Connect to recorder host via 32Bit RDA-port
 # adapt to your host, if recorder is not running on local machine
 # change port to 51234 to connect to 16Bit RDA-port
-con.connect(("localhost", port))
+# con.connect(("localhost", port))
+con.connect(("192.168.137.1", port))
 
 # Flag for main loop
 finish = False
@@ -191,6 +192,7 @@ while not finish:
 
     # Split array into usefull information id1 to id4 are constants
     (id1, id2, id3, id4, msgsize, msgtype) = unpack('<llllLL', rawhdr)
+    print '(id1, id2, id3, id4, msgsize, msgtype)', (id1, id2, id3, id4, msgsize, msgtype)
 
     # Get data part of message, which is of variable size
     rawdata = RecvData(con, msgsize - 24)
@@ -233,6 +235,9 @@ while not finish:
             index = int(len(data1s) - channelCount * 1000000 / samplingInterval)
             data1s = data1s[index:]
 
+            for i in range(len(data1s)):
+                print 'value:', data1s[i]*resolutions[i % channelCount]
+
             avg = 0
             # Do not forget to respect the resolution !!!
             for i in range(len(data1s)):
@@ -266,6 +271,9 @@ while not finish:
         if len(data1s) > channelCount * 1000000 / samplingInterval:
             index = int(len(data1s) - channelCount * 1000000 / samplingInterval)
             data1s = data1s[index:]
+
+            for i in range(len(data1s)):
+                print 'value:', data1s[i]*resolutions[i % channelCount]
 
             avg = 0
             # Do not forget to respect the resolution !!!

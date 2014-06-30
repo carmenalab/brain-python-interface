@@ -88,7 +88,7 @@ class Connection(object):
         self.sock = socket(AF_INET, SOCK_STREAM)
         
         # Connect to the Recorder host
-        self.sock.connect((self.recorder_ip_addr, self.port))
+        # self.sock.connect((self.recorder_ip_addr, self.port))
         
         self._init = False
     
@@ -99,20 +99,6 @@ class Connection(object):
         # (in plexnet.py, self.sock.connect is also called in __init__())
         
         self._init = True
-        
-    # def select_channels(self, channels):
-    #     '''Sets the channels on which to receive data.
-
-    #     Parameters
-    #     ----------
-    #     channels : array_like
-    #         A sorted list of channels on which you want to receive data.
-    #     '''
-        
-    #     # if not self._init:
-    #     #     raise ValueError("Please connect to Recorder first.")
-        
-        
     
     def start_data(self):
         '''Start the buffering of data.'''
@@ -145,6 +131,8 @@ class Connection(object):
         '''A generator which yields packets as they are received'''
         assert self._init, "Please initialize the connection first"
         
+        self.sock.connect((self.recorder_ip_addr, self.port))
+
         chan_idx = 0
 
         while self.streaming:
@@ -154,6 +142,7 @@ class Connection(object):
 
             # Split array into useful information; id1 to id4 are constants
             (id1, id2, id3, id4, msgsize, msgtype) = unpack('<llllLL', rawhdr)
+            # print '(id1, id2, id3, id4, msgsize, msgtype)', (id1, id2, id3, id4, msgsize, msgtype)
 
             # Get data part of message, which is of variable size
             rawdata = RecvData(self.sock, msgsize - 24)
@@ -178,6 +167,7 @@ class Connection(object):
                 
                 # TODO -- what to do here? set self.streaming = False?
                 # call self.stop_data()? self.disconnect()?
+                pass
 
             elif (msgtype == self.RDA_MessageData) or (msgtype == self.RDA_MessageData32):
 
@@ -204,5 +194,6 @@ class Connection(object):
                 # lastBlock = block
 
             else:
-                raise Exception('Unrecognized RDA message type: ' + str(msgtype))
+                # print 'message type 10000, skipping'
+                # raise Exception('Unrecognized RDA message type: ' + str(msgtype))
 
