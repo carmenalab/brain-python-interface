@@ -30,8 +30,6 @@ class BrainAmpData(object):
 
 if __name__ == '__main__':
 
-    # f = open('data.txt', 'w')
-
     self = BrainAmpData()
     self.init()
     self.run()
@@ -40,20 +38,20 @@ if __name__ == '__main__':
     update_rate = 1./10
     N = int(n_secs / update_rate)
 
-    samp_freq = 1000
+    samp_freq = 2500
     n_samp = N * update_rate * samp_freq  # approx number of samples we'll collect per channel
 
     n_chan = len(channels)
     data = np.zeros((n_chan, 2*n_samp))
     idxs = np.zeros(n_chan)
 
-    print 'discarding initial data...',
-    t_start = time.time()
-    while time.time() - t_start < 5:
-        # get new_data but don't do anything with it
-        new_data = self.emgdata.get_new(channels=channels)
-        time.sleep(0.005)
-    print 'done.'
+    # print 'discarding initial data...',
+    # t_start = time.time()
+    # while time.time() - t_start < 5:
+    #     # get new_data but don't do anything with it
+    #     new_data = self.emgdata.get_new(channels=channels)
+    #     time.sleep(0.005)
+    # print 'done.'
 
     for k in range(N):
         t_start = time.time()
@@ -76,7 +74,6 @@ if __name__ == '__main__':
     save_dict = dict()
     save_dict['data'] = data
     save_dict['channels'] = channels
-    # save_dict['n_garbage'] = n_garbage
 
     print 'saving data...',
     sio.matlab.savemat('emg_data.mat', save_dict)

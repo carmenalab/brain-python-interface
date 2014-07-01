@@ -87,6 +87,8 @@ class Connection(object):
         # Create a tcpip socket
         self.sock = socket(AF_INET, SOCK_STREAM)
         
+        # This needs to happen in get_data so that we don't miss the first
+        # packet with msgtype == RDA_MessageStart
         # Connect to the Recorder host
         # self.sock.connect((self.recorder_ip_addr, self.port))
         
@@ -94,9 +96,6 @@ class Connection(object):
     
     def connect(self):
         '''Docstring.'''
-
-        # TODO -- what to do here?
-        # (in plexnet.py, self.sock.connect is also called in __init__())
         
         self._init = True
     
