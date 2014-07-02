@@ -410,6 +410,23 @@ class BlackrockBMI(BlackrockData):
         super(BlackrockBMI, self).init()
 
 
+class BrainAmpData(traits.HasTraits):
+    '''Stream BrainAmp neural data.'''
+
+    def init(self):
+        from riglib import brainamp, source
+
+        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
+
+        try:
+            super(BrainAmpData, self).init()
+        except:
+            print "BrainAmpData: running without a task"
+
+    def run(self):
+        self.emgdata.start()
+
+
 #*******************************************************************************************************
 # Data Sinks
 #*******************************************************************************************************
