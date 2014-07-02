@@ -183,22 +183,29 @@ class Task(object):
         self.taskname = task.name
         self.subj = subj
         self.params = Parameters(params)
-
-        # Send pulse to plexon or blackrock box to start saving to file
+ving to file
         if self.saveid is not None:
             try:
                 import comedi
                 self.com = comedi.comedi_open("/dev/comedi0")
 
                 from riglib import loc_config
+        # Send pulse to plexon or blackrock box to start sa
                 if loc_config.recording_system == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
+                
                 elif loc_config.recording_system == 'blackrock':
+                    # set strobe pin low
+                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
+
                     # set last data pin ("D15"; 16th pin) high
-                    write_mask   = 1
-                    bits         = 1
-                    base_channel = 15
-                    comedi.comedi_dio_bitfield2(self.com, 0, write_mask, bits, base_channel)
+                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 15)
+
+                    # set strobe pin high
+                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
+
+                    # set strobe pin low
+                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
                 time.sleep(2)
             except:
@@ -251,11 +258,16 @@ class Task(object):
                 if loc_config.recording_system == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
                 elif loc_config.recording_system == 'blackrock':
+                    # strobe pin should already be low
+
                     # set last data pin ("D15"; 16th pin) low
-                    write_mask   = 1
-                    bits         = 0
-                    base_channel = 15
-                    comedi.comedi_dio_bitfield2(self.com, 0, write_mask, bits, base_channel)
+                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 15)
+
+                    # set strobe pin high
+                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
+
+                    # set strobe pin low
+                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
             except:
                 pass
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
