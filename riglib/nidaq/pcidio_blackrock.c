@@ -39,11 +39,11 @@ uchar _send(char header, char* msg) {
 
         // set strobe pin high
         bits = 1;
-        comedi_dio_bitfield2(self.com, 0, 1, &bits, 16);
+        comedi_dio_bitfield2(ni, 0, 1, &bits, 16);
 
         // set strobe pin low
         bits = 0;
-        comedi_dio_bitfield2(self.com, 0, 1, &bits, 16);
+        comedi_dio_bitfield2(ni, 0, 1, &bits, 16);
     } while (msg[i++] != '\0');
     return 0;
 }
