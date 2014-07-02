@@ -34,11 +34,11 @@ if __name__ == '__main__':
     self.init()
     self.run()
 
-    n_secs = 15
+    n_secs = 10
     update_rate = 1./10
     N = int(n_secs / update_rate)
 
-    samp_freq = 2500
+    samp_freq = self.emgdata.source.update_freq
     n_samp = N * update_rate * samp_freq  # approx number of samples we'll collect per channel
 
     n_chan = len(channels)

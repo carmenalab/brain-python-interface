@@ -193,6 +193,6 @@ class Connection(object):
                 # lastBlock = block
 
             else:
+                pass
                 # print 'message type 10000, skipping'
                 # raise Exception('Unrecognized RDA message type: ' + str(msgtype))
-
