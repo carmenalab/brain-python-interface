@@ -20,13 +20,12 @@ features = dict(
     motion_data=experiment.features.MotionData,
     motion_simulate=experiment.features.MotionSimulate, 
     motion_autoalign=experiment.features.MotionAutoAlign,
-    bmi=experiment.features.SpikeBMI,
+    bmi=experiment.features.PlexonBMI,
     saveHDF=experiment.features.SaveHDF,
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
     norm_firingrates=experiment.features.NormFiringRates,
-    lfpbmi=None,
-    continous_bmi=None,
+    ttl_reward=experiment.features.TTLReward,
 )
 
 import tasks
@@ -92,6 +91,7 @@ tasks = dict(
     clda_constrained_sskf_multi = tasks.CLDAConstrainedSSKFMulti,
     manual_control_multi =tasks.ManualControlMulti,
     joystick_multi=tasks.JoystickMulti,
+    joystick_leaky_vel=tasks.LeakyIntegratorVelocityJoystick,
     joystick_move = tasks.JoystickMove,
     joystick_multi_plus_move = tasks.JoystickMulti_plusMove,
     joystick_multi_directed = tasks.JoystickMulti_Directed,
@@ -105,6 +105,7 @@ tasks = dict(
     test_graphics = tasks.TestGraphics,
     clda_rml_kf_ofc = tasks.CLDARMLKFOFC,
     clda_kf_cg_sb = tasks.CLDAControlKFCG,
+    clda_kf_cg_rml = tasks.CLDAControlKFCGRML, 
     arm_plant = tasks.ArmPlant,
     clda_kf_cg_joint_rml = tasks.CLDAControlKFCGJoint,
     clda_kf_ofc_tentacle_rml = tasks.CLDAControlTentacle,
@@ -114,6 +115,7 @@ tasks = dict(
     bmi_baseline = tasks.BaselineControl,
     bmi_joint_perturb = tasks.BMIJointPerturb,
     bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
+    bmi_cursor_bias=tasks.BMICursorBias,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']

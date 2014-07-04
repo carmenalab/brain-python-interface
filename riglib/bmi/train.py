@@ -43,6 +43,13 @@ tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
 def train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
     '''
     Train a Point-process filter decoder which predicts the endpoint velocity
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     binlen = update_rate
     n_features = spike_counts.shape[0]  # number of neural features
@@ -66,6 +73,15 @@ def train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=Non
     return decoder
 
 def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=None):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     binlen = update_rate
     n_features = neural_features.shape[0]  # number of neural features
 
@@ -112,6 +128,14 @@ def unit_conv(starting_unit, ending_unit):
     ''' Convert between units, e.g. cm to m
     Lookup table for conversion factors between units; this function exists
     only to avoid hard-coded constants in most of the code
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
 
     if starting_unit == ending_unit:
@@ -122,7 +146,16 @@ def unit_conv(starting_unit, ending_unit):
         return 100
 
 def obj_eq(self, other, attrs=[]):
-    ''' Determine if two objects have mattching array attributes
+    '''
+    Determine if two objects have mattching array attributes
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     if isinstance(other, type(self)):
         attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
@@ -132,7 +165,16 @@ def obj_eq(self, other, attrs=[]):
         return False
     
 def obj_diff(self, other, attrs=[]):
-    ''' Calculate the difference of the two objects w.r.t the specified attributes
+    '''
+    Calculate the difference of the two objects w.r.t the specified attributes
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     if isinstance(other, type(self)):
         attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
@@ -145,13 +187,32 @@ def lookup_cells(cells):
     ''' Convert string names of units to 'machine' format.
     Take a list of neural units specified as a list of strings and convert 
     to the 2D array format used to specify neural units to train decoders
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
     cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
     return cells
 
 def inflate(A, current_states, full_state_ls, axis=0):
-    ''' 'Inflate' a matrix by filling in rows/columns with zeros '''
+    '''
+    'Inflate' a matrix by filling in rows/columns with zeros
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    '''
     nS = len(full_state_ls)
     if axis == 0:
         A_new = np.zeros([nS, A.shape[1]])
@@ -167,13 +228,31 @@ def inflate(A, current_states, full_state_ls, axis=0):
     return A_new
 
 def sys_eq(sys1, sys2):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     return sys1 in [sys2, sys2[1:]]
 
 #####################
 ## Data Preprocessing
 #####################
 def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_name='task'):
-    ''' Find the rows of the plx file to use for training the decoder
+    '''
+    Find the rows of the plx file to use for training the decoder
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     # Open plx file
     from plexon import plexfile
@@ -207,19 +286,37 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     tmask = np.logical_and(lower, upper)
     return tmask, rows
 
-def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
-    '''Compute binned spike count features
+def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    Compute binned spike count features
+
+    Parameters
+    ----------
+    plx: neural data file instance
+    neurows: np.ndarray of shape (T,)
+        Timestamps in the plexon time reference corresponding to bin boundaries
+    binlen: float
+        Length of time over which to sum spikes from the specified cells
+    units: np.ndarray of shape (N, 2)
+        List of units that the decoder will be trained on. The first column specifies the electrode number and the second specifies the unit on the electrode
+    extractor_kwargs: dict 
+        Any additional parameters to be passed to the feature extractor. This function is agnostic to the actual extractor utilized
+    strobe_rate: 60.0
+        The rate at which the task sends the sync pulse to the plx file
+
+    Returns
+    -------
     '''
 
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
     from plexon import psth
@@ -234,19 +331,27 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs):
 
     return spike_counts, units, extractor_kwargs
 
-def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
+def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
 
@@ -281,19 +386,27 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
     return lfp_power, units, extractor_kwargs
 
 
-def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
+def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
 
@@ -330,18 +443,27 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs):
 
     return lfp_power, units, extractor_kwargs
 
-def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs):
-    " compute EMG features"
+def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    compute EMG features
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
 
     # interpolate between the rows to 180 Hz
-    if binlen < 1./60:
+    if binlen < 1./strobe_rate:
         interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./60, neurows])
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
         for r1, r2 in izip(neurows[:-1], neurows[1:]):
             interp_rows += list(np.linspace(r1, r2, 4)[1:])
         interp_rows = np.array(interp_rows)
     else:
-        step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
         interp_rows = neurows[::step]
 
 
@@ -376,6 +498,14 @@ def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     Note: the two different cases below appear to calculate the velocity in two 
     different ways. This is purely for legacy reasons, i.e. the second method
     is intentionally slightly different from the first.
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     kin = hdf.root.task[:][key]
 
@@ -418,6 +548,14 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
     NOTE: the binlength would not be required if the joint velocities were
     calculated from the endpoint velocities using the Jacobian transformation!
     (see note below
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     from riglib.stereo_opengl import ik
     endpoint_pos = cursor_kin[:,0:3] + shoulder_center
@@ -435,6 +573,15 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
     return joint_kin
 
 def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source='task', kin_var='cursor'):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     plx_fname = str(files['plexon']) 
     from plexon import plexfile
     try:
@@ -475,6 +622,13 @@ def _train_PPFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=Non
     _ssm=endpt_2D_state_space, source='task', kin_var='cursor', shuffle=False, **files):
     '''
     Train a PPFDecoder from visual feedback
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     binlen = 1./180 # TODO remove hardcoding!
 
@@ -502,6 +656,13 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
     _ssm=None, source='task', kin_var='cursor', shuffle=False, **files):
     '''
     Train a KFDecoder from visual feedback
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
 
     string = ''
@@ -542,6 +703,13 @@ def _train_joint_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, unit
     '''
     One-liner to train a 2D2L joint BMI. To be removed as soon as the train BMI gui can be updated
     to have more arguments
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     return _train_KFDecoder_visual_feedback(units=units, binlen=binlen, tslice=tslice,
                                             _ssm=_ssm, source=source, kin_var=kin_var,
@@ -552,6 +720,13 @@ def _train_tentacle_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, u
     '''
     One-liner to train a tentacle BMI. To be removed as soon as the train BMI gui can be updated
     to have more arguments
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     print "using tentacletate space " , _ssm == tentacle_2D_state_space
     return _train_KFDecoder_visual_feedback(units=units, binlen=binlen, tslice=tslice, 
@@ -561,11 +736,19 @@ def _train_tentacle_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, u
 def _train_KFDecoder_cursor_epochs(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
     stochastic_vars=['hand_vx', 'hand_vz', 'offset'], 
-    exclude_targ_ind=[-1, 0], **files):
+    exclude_targ_ind=[-1, 0], strobe_rate=60.0, **files):
     '''
     Train a KFDecoder from cursor movement on screen, but only for selected epochs
     Define which epochs you want to remove from training: 
         exclude_targ_ind=[-1, 0] removes original state and when origin is displayed
+
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
     '''
     update_rate=binlen
     # Open plx file
@@ -591,7 +774,7 @@ def _train_KFDecoder_cursor_epochs(extractor_cls, extractor_kwargs, units=None, 
     h5 = tables.openFile(files['hdf'])
     kin = h5.root.task[tmask]['cursor']
     targ_ind = h5.root.task[tmask]['target_index']
-    step = int(binlen/(1./60)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+    step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
     kin = kin[::step, :]
     velocity = np.diff(kin, axis=0) * 1./binlen
     kin = kin[1:] #Remove 1st element to match size of velocity
@@ -642,11 +825,17 @@ def _train_KFDecoder_cursor_epochs(extractor_cls, extractor_kwargs, units=None, 
 
 def _train_KFDecoder_manual_control(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None], 
     state_vars=['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset'], 
-    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
-    #state_vars=['hand_px', 'hand_pz', 'hand_vx', 'hand_vz', 'offset'], 
-    #stochastic_vars=['hand_vx', 'hand_vz', 'offset'], **files):
+    stochastic_vars=['hand_vx', 'hand_vz', 'offset'], task_update_rate=60.0, **files):
     """
     Train KFDecoder from manual control
+
+    Docstring    
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
     # Open plx file
     from plexon import plexfile
@@ -725,7 +914,7 @@ def _train_KFDecoder_manual_control(extractor_cls, extractor_kwargs, units=None,
     # calculate velocity
     kin[(kin[...,:3] == 0).all(-1)] = np.ma.masked
     kin[kin[...,-1] < 0] = np.ma.masked
-    velocity = np.ma.diff(kin[...,:3], axis=0)*60
+    velocity = np.ma.diff(kin[...,:3], axis=0)*task_update_rate
     kin = np.ma.hstack([kin[:-1,:,:3], velocity])
     
     hand_kin = kin[:, [14,kin.shape[1]/2+14], :]
@@ -753,7 +942,7 @@ def _train_KFDecoder_manual_control(extractor_cls, extractor_kwargs, units=None,
     C[:, stochastic_state_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(hand_kin[train_inds, :], neurons[:,:-1])
     
     # State-space model set from expert data
-    A, W = state_space_models.linear_kinarm_kf(update_rate=1./60)
+    A, W = state_space_models.linear_kinarm_kf(update_rate=1./task_update_rate)
     A = A[np.ix_(state_inds, state_inds)]
     W = W[np.ix_(state_inds, state_inds)]
     
@@ -786,10 +975,27 @@ def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     bounding_box, states_to_bound, include_y=True, dt=0.1, v=0.4):
     '''
     Train a simulation PPFDecoder
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     raise NotImplementedError
 
 def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     n_neurons = units.shape[0]
     ###if include_y:
     ###    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
@@ -844,6 +1050,15 @@ def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
     return decoder
 
 def rand_KFDecoder(sim_units, state_units='cm'):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     if not state_units == 'cm': 
         raise ValueError("only works for cm right now")
     # Instantiate random seed decoder
@@ -872,6 +1087,14 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     """
     Create KFDecoder from MATLAB decoder file used in a Dexterit-based
     BMI
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
     decoder_data = loadmat(decoder_fname)['decoder']
     A = decoder_data['A'][0,0]
@@ -935,6 +1158,14 @@ def rescale_KFDecoder_units(dec, scale_factor=10):
 def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     '''
     Create a PPFDecoder object to decode 2D velocity from a known 'beta' matrix
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     units_mult_lut = dict(m=1., cm=0.01)
     units_mult = units_mult_lut[dist_units]
@@ -971,6 +1202,15 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     return dec
 
 def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     data = loadmat(fname)
     a = data['A'][2,2]
     w = data['W'][0,0]
@@ -1018,6 +1258,15 @@ def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
 ## To be deprecated
 ###################
 def _train_PPFDecoder_visual_feedback_shuffled(*args, **kwargs):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     decoder = _train_PPFDecoder_visual_feedback(*args, **kwargs)
     import random
     inds = range(decoder.filt.C.shape[0])
@@ -1030,6 +1279,14 @@ def _train_PPFDecoder_visual_feedback_shuffled(*args, **kwargs):
 def _train_KFDecoder_visual_feedback_shuffled(*args, **kwargs):
     '''
     Train a KFDecoder from visual feedback and shuffle it
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     dec = _train_KFDecoder_visual_feedback(*args, **kwargs)
     return shuffle_kf_decoder(dec)
@@ -1037,6 +1294,14 @@ def _train_KFDecoder_visual_feedback_shuffled(*args, **kwargs):
 def shuffle_kf_decoder(decoder):
     '''
     Shuffle a KFDecoder
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     # generate random permutation
     import random

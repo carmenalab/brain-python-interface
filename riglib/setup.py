@@ -1,4 +1,7 @@
-'''Needs docs'''
+'''
+Install the cython code required to open plexon files. In the far future when riglib is not undergoing constant development, this
+should be the install script for the actual 'riglib' module.
+'''
 
 #! /usr/bin/env python
 

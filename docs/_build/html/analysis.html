@@ -58,12 +58,50 @@
             
   <div class="section" id="data-analysis-code">
 <span id="analysis"></span><h1>Data analysis code<a class="headerlink" href="#data-analysis-code" title="Permalink to this headline">¶</a></h1>
-<p>Analysis of neural data often feels like busywork. This document describes code part of the BMI3D library intended to cut down on such busywork.</p>
+<p>The high-level flow of any analysis is</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>collect the ID numbers of blocks you want to process, either manually or using database filters</li>
+<li>group the blocks by some criterion, e.g., date, type of BMI decoder used, task parameters.</li>
+<li>analyze the data</li>
+</ol>
+</div></blockquote>
+<div class="section" id="collecting-the-data-blocks">
+<h2>Collecting the data blocks<a class="headerlink" href="#collecting-the-data-blocks" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="grouping-the-data-blocks">
+<h2>Grouping the data blocks<a class="headerlink" href="#grouping-the-data-blocks" title="Permalink to this headline">¶</a></h2>
+<p>Often different data blocks will not be independent and should be treated as a single block for &#8220;analysis&#8221; purposes. For example, if you want to calculate the performance of a particular set of decoder parameters, and you have two BMI blocks from the same day that used the same parameters, then for the purposes of analysis you may want to treat the data as having come from one big block. Once you have identified which blocks of data you want to analyze, this function can help group them:</p>
+<span class="target" id="module-db.dbfunctions"></span><dl class="function">
+<dt id="db.dbfunctions.group_ids">
+<tt class="descclassname">db.dbfunctions.</tt><tt class="descname">group_ids</tt><big>(</big><em>ids</em>, <em>grouping_fn=&lt;function &lt;lambda&gt; at 0x10b0a4b18&gt;</em><big>)</big><a class="headerlink" href="#db.dbfunctions.group_ids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Automatically group together a flat list of database IDs</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>ids: iterable</strong> :</p>
+<blockquote>
+<div><p>iterable of ints representing the ID numbers of TaskEntry objects to group</p>
+</div></blockquote>
+<p><strong>grouping_fn: callable, optional (default=sort by date); call signature: grouping_fn(task_entry)</strong> :</p>
+<blockquote class="last">
+<div><p>Takes a dbfn.TaskEntry as its only argument and returns a hashable and sortable object
+by which to group the ids</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p>By default, the grouping is by date, as this is the most common use case that we have encountered.</p>
+</div>
 <div class="section" id="the-basic-architecture">
 <h2>The basic architecture<a class="headerlink" href="#the-basic-architecture" title="Permalink to this headline">¶</a></h2>
 <p>Experiments run with the BMI3D experimental software are automatically logged into a database using the python package django. Central to the analysis of experimental data is the TaskEntry
 model in the Django database (db.tracker.TaskEntry). However, it&#8217;s not desireable to be
-manipulating the database code frequently since it&#8217;s critical to the recording of data, so we mostly put our analysis code in a different place:</p>
+manipulating the database code frequently since it&#8217;s critical to data recording, so we mostly put our analysis code in a different place:</p>
 <dl class="class">
 <dt id="db.dbfunctions.TaskEntry">
 <em class="property">class </em><tt class="descclassname">db.dbfunctions.</tt><tt class="descname">TaskEntry</tt><big>(</big><em>task_entry_id</em><big>)</big><a class="headerlink" href="#db.dbfunctions.TaskEntry" title="Permalink to this definition">¶</a></dt>
@@ -108,6 +146,7 @@ grouped by tuples are combined into a single result.</p>
 
 </dd></dl>
 
+<p>Note that dbfunctions.TaskEntry does not inherit from db.tracker.models.TaskEntry because inhertinging from Django models is a little more involved than inheriting from a normal python class. Instead, dbfunctions.TaskEntry is a wrapper for db.tracker.models.TaskEntry.</p>
 </div>
 <div class="section" id="module-analysis.basicanalysis">
 <span id="basicanalysis"></span><h2>basicanalysis<a class="headerlink" href="#module-analysis.basicanalysis" title="Permalink to this headline">¶</a></h2>
@@ -434,6 +473,22 @@ to a unit in the units parameter.</p>
 
 </div>
 </div>
+<div class="section" id="performance-metrics">
+<h1>Performance metrics<a class="headerlink" href="#performance-metrics" title="Permalink to this headline">¶</a></h1>
+<p>For cursor tasks, there are various classes of performance metric:</p>
+<dl class="docutils">
+<dt>block-level performance</dt>
+<dd>hold errors per minute, per successful trial
+timeout penalties per minute</dd>
+<dt>trial-level performance</dt>
+<dd>movement error
+reach time
+path length
+integrated distance to target</dd>
+<dt><a href="#id1"><span class="problematic" id="id2">``</span></a>instantaneous&#8217;&#8217; performance</dt>
+<dd>angular error</dd>
+</dl>
+</div>
 
 
           </div>
@@ -444,10 +499,13 @@ to a unit in the units parameter.</p>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Data analysis code</a><ul>
+<li><a class="reference internal" href="#collecting-the-data-blocks">Collecting the data blocks</a></li>
+<li><a class="reference internal" href="#grouping-the-data-blocks">Grouping the data blocks</a></li>
 <li><a class="reference internal" href="#the-basic-architecture">The basic architecture</a></li>
 <li><a class="reference internal" href="#module-analysis.basicanalysis">basicanalysis</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#performance-metrics">Performance metrics</a></li>
 </ul>
 
   <h4>Previous topic</h4>

@@ -31,7 +31,7 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    window_size = (3840, 1080)
+    window_size = (3840, 1080) #(1280*2, 1024)#
     #window_size = (960, 270)
     background = (0,0,0,1)
     fps = 60
@@ -144,11 +144,28 @@ class Window(LogExperiment):
         self.event = self._get_event()
 
 
-class WindowDispl2D(Window):
-    background = (0,0,0,1)
+class WindowWithHeadsUp(Window):
+    def screen_init(self):
+        super(WindowWithHeadsUp, self).screen_init()
+        flags = pygame.NOFRAME
 
+        self.workspace_ll = np.array([-25., -14.])
+
+        win_res = (480, 270)
+        self.workspace_size = 50, 28. #win_res
+        self.size = np.array(win_res)
+        self.screen = pygame.display.set_mode(win_res, flags)
+
+
+
+
+class Simple2DWindow(object):
+    background = (1,1,1,1)
     def __init__(self, *args, **kwargs):
-        super(WindowDispl2D, self).__init__(*args, **kwargs)
+        self.models = []
+        self.world = None
+        self.event = None        
+        super(Simple2DWindow, self).__init__(*args, **kwargs)
 
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
@@ -238,6 +255,11 @@ class WindowDispl2D(Window):
         '''
         
         pass
+
+class WindowDispl2D(Simple2DWindow, Window):
+    def __init__(self, *args, **kwargs):
+        super(WindowDispl2D, self).__init__(*args, **kwargs)
+
 
 
 class FPScontrol(Window):

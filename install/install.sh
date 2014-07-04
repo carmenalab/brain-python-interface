@@ -1,6 +1,6 @@
 #!/bin/bash
 ####### Declare environment variables
-CODE=$HOME/code/
+CODE=$HOME/code
 BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 
 
@@ -8,8 +8,7 @@ BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 mkdir -p $CODE
 sudo mkdir /backup
 sudo chown $USER /backup
-# make log directory
-mkdir $BMI3D/log
+
 sudo mkdir /storage
 sudo chown -R $USER /storage
 mkdir /storage/plots
@@ -19,6 +18,9 @@ sudo apt-get -y install git gitk
 if [ ! -d "$HOME/code/bmi3d" ]; then
     git clone https://github.com/hgm110/bmi3d.git $HOME/code/bmi3d
 fi
+
+# make log directory
+mkdir $BMI3D/log
 
 ####### Reconfigure Ubuntu package manager
 sudo apt-add-repository "deb http://www.rabbitmq.com/debian/ testing main"
@@ -73,7 +75,7 @@ sudo pip install nitime
 sudo pip install sphinx
 sudo pip install numpydoc
 sudo pip install tornado
-sudo pip install tables
+sudo pip install tables==2.4.0
 
 
 ####### Download any src code
@@ -81,6 +83,9 @@ git clone https://github.com/sgowda/plot $HOME/code/plotutil
 git clone https://github.com/sgowda/robotics_toolbox $HOME/code/robotics
 # pygame
 hg clone https://bitbucket.org/pygame/pygame $HOME/code/pygame
+# Phidgets code
+wget http://www.phidgets.com/downloads/libraries/libphidget.tar.gz
+wget http://www.phidgets.com/downloads/libraries/PhidgetsPython.zip
 
 
 
@@ -102,7 +107,6 @@ $HOME/code/bmi3d/riglib/nidaq/build.sh
 
 # Phidgets libraries
 cd $CODE/src/
-wget http://www.phidgets.com/downloads/libraries/libphidget.tar.gz
 tar xzf libphidget.tar.gz 
 cd libphidget*
 ./configure
@@ -110,7 +114,6 @@ make
 sudo make install
 
 cd $CODE/src/
-wget http://www.phidgets.com/downloads/libraries/PhidgetsPython.zip
 unzip PhidgetsPython.zip  
 cd PhidgetsPython
 sudo python setup.py install
@@ -119,21 +122,23 @@ sudo python setup.py install
 
 ####### Configure udev rules, permissions
 # Phidgets
-sudo cp udev/99-phidgets.rules /etc/udev/rules.d
+sudo cp $CODE/src/libphidget*/udev/99-phidgets.rules /etc/udev/rules.d
 sudo chmod a+r /etc/udev/rules.d/99-phidgets.rules
 # NIDAQ
 sudo cp $HOME/code/bmi3d/install/udev/comedi.rules /etc/udev/rules.d/
 sudo chmod a+r /etc/udev/rules.d/comedi.rules 
 sudo udevadm control --reload-rules
 # Group permissions
-sudo usermod -a -G iocard lab # NIDAQ card belongs to iocard group
-sudo usermod -a -G dialout lab # Serial ports belong to 'dialout' group
+sudo usermod -a -G iocard $USER # NIDAQ card belongs to iocard group
+sudo usermod -a -G dialout $USER # Serial ports belong to 'dialout' group
 
 
 ####### Reconfigure .bashrc
 sed -i '$a export PYTHONPATH=$PYTHONPATH:$HOME/code/robotics' $HOME/.bashrc
 sed -i '$a source $HOME/code/bmi3d/pathconfig.sh' $HOME/.bashrc
 source $HOME/.bashrc
+
+sudo chown -R $USER ~/.matplotlib
 
 cd $HOME/code/bmi3d/db
 python manage.py syncdb

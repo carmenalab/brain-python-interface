@@ -11,6 +11,9 @@ import time, datetime
 from scipy.stats import nanmean
 import db
 import db.paths
+from collections import defaultdict, OrderedDict
+from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
+
 try:
     import plotutil
 except:
@@ -25,18 +28,38 @@ except:
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
 
-
 sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
 from tracker import models
 dbname = eval(dbname_short+'.DATABASES[\'default\'][\'NAME\']')
 
+def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
+    '''
+    Automatically group together a flat list of database IDs
 
-def get_task_entry(entry_id):
+    Parameters
+    ----------
+    ids: iterable
+        iterable of ints representing the ID numbers of TaskEntry objects to group
+    grouping_fn: callable, optional (default=sort by date); call signature: grouping_fn(task_entry)
+        Takes a dbfn.TaskEntry as its only argument and returns a hashable and sortable object
+        by which to group the ids
     '''
-    Returns the task entry object from the database with the specified entry_id.
-    entry_id = int
-    '''
-    return models.TaskEntry.objects.get(pk=entry_id)
+    keyed_ids = defaultdict(list)
+    for id in ids:
+        te = TaskEntry(id)
+        key = grouping_fn(te)
+        keyed_ids[key].append(id)
+
+    keys = keyed_ids.keys()
+    keys.sort()
+
+    grouped_ids = []
+    for date in keys:
+        grouped_ids.append(tuple(keyed_ids[date]))
+    return grouped_ids
+
+def default_data_comb_fn(x):
+    return x
 
 def lookup_task_entries(*task_entry):
     '''
@@ -48,11 +71,10 @@ def lookup_task_entries(*task_entry):
         if isinstance(task_entry, models.TaskEntry):
             pass
         elif isinstance(task_entry, int):
-            task_entry = get_task_entry(task_entry)
+            task_entry = models.TaskEntry.objects.get(pk=task_entry) #get_task_entry(task_entry)
         return task_entry
     else:
         return [lookup_task_entries(x) for x in task_entry]
-
 
 def get_task_id(name):
     '''
@@ -186,26 +208,6 @@ def get_reward_rate(entry):
             count+=1
     return count/(length/60.0)
     
-def get_completed_trials(entry):
-    '''
-    Returns # of trials rewarded.
-    Takes TaskEntry object.
-    '''
-    report = json.loads(entry.report)
-    count1=0.0
-    for s in report:
-        if s[0]=='reward':
-            count1+=1
-    return count1
-    
-def get_param(entry, name):
-    '''
-    Returns the value of a specific parameter in the param list. Takes
-    TaskEntry object and string for exact param name.
-    '''
-    params = get_params(entry)
-    return params[name]
-    
 def session_summary(entry):
     '''
     Prints a summary of info about session.
@@ -314,7 +316,6 @@ def get_bmiparams_file(entry):
         except:
             return q[0].path
 
-
 def get_decoder_parent(decoder):
     '''
     decoder = database record of decoder object
@@ -332,18 +333,6 @@ def get_decoder_sequence(decoder):
         return [decoder]
     else:
         return [decoder] + get_decoder_sequence(parent)
-
-def search_by_date(date, subj=None):
-    '''
-    Get all the task entries for a particular date
-    '''
-    kwargs = dict(date__year=date.year, date__month=date.month, 
-                  date__day=date.day)
-    if isinstance(subj, str) or isinstance(subj, unicode):
-        kwargs['subject__name__startswith'] = str(subj)
-    elif subj is not None:
-        kwargs['subject__name'] = subj.name
-    return models.TaskEntry.objects.filter(**kwargs)
 
 def search_by_decoder(decoder):
     '''
@@ -384,37 +373,38 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
     return dec_list
 
 def get_code_version():
-    import os
     git_version_hash = os.popen('bmi3d_git_hash').readlines()
     git_version_hash = git_version_hash[0].rstrip('\n')
     return git_version_hash
 
-def get_task_entries_by_date(subj=None, **kwargs):
+def get_task_entries_by_date(subj=None, date=datetime.date.today(), **kwargs):
     '''
     Get all the task entries for a particular date
+
+    Parameters
+    ----------
+    subj: string, optional, default=None
+        Specify the beginning of the name of the subject or the full name. If not specified, blocks from all subjects are returned
+    date: multiple types, optional, default=today
+        Query date for blocks. The date can be specified as a datetime.date object 
+        or a 3-tuple (year, month, day). 
+    kwargs: dict, optional
+        Additional keyword arguments to pass to models.TaskEntry.objects.filter
     '''
-    date = kwargs.pop('date', datetime.date.today())
+    
     if isinstance(date, datetime.date):
-        kwargs.update(dict(date__year=date.year, date__month=date.month,
-                      date__day=date.day))
+        kwargs.update(dict(date__year=date.year, date__month=date.month, date__day=date.day))
     elif isinstance(date, tuple) and len(date) == 3:
-        kwargs.update(dict(date__year=date[0], date__month=date[1],
-                      date__day=date[2]))
-    elif isinstance(date, tuple) and len(date) == 2:
-        kwargs.update(dict(date__year=2013, date__month=date[0],
-                      date__day=date[1]))
+        kwargs.update(dict(date__year=date[0], date__month=date[1], date__day=date[2]))
+    else:
+        raise ValueError("Cannot interpret date: %r" % date)
+
     if isinstance(subj, str) or isinstance(subj, unicode):
         kwargs['subject__name__startswith'] = str(subj)
     elif subj is not None:
         kwargs['subject__name'] = subj.name
-    return list(models.TaskEntry.objects.filter(**kwargs))
 
-def load_decoder_from_record(rec):
-    full_path = os.path.join(db.paths.data_path, 'decoders', rec.path)
-    dec = pickle.load(open(full_path))
-    dec.db_entry = rec
-    dec.name = rec.name
-    return dec
+    return list(models.TaskEntry.objects.filter(**kwargs))
 
 def load_last_decoder():
     '''
@@ -423,7 +413,7 @@ def load_last_decoder():
     '''
     all_decoder_records = models.Decoder.objects.all()
     record = all_decoder_records[len(all_decoder_records)-1]
-    return load_decoder_from_record(record)
+    return record.load()
 
 def get_decoders_trained_in_block(task_entry):
     '''
@@ -467,6 +457,10 @@ class TaskEntry(object):
                 pass
 
         self.date = self.record.date
+
+        ## Extract a date month-day-year date for determining if other blocks were on the same day
+        self.calendar_date = datetime.datetime(self.date.year, self.date.month, self.date.day)
+
         self.notes = self.record.notes
         self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
 
@@ -477,6 +471,92 @@ class TaskEntry(object):
             self.decoder_record = models.Decoder.objects.get(pk=self.params['bmi'])
         else:
             self.decoder_record = None
+
+    def summary_stats(self):
+        report = self.record.offline_report()
+        for key in report:
+            print key, report[key]
+
+    def proc(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
+             trial_condition_fn=trial_condition_functions.default, data_comb_fn=None):
+        '''
+        Generic trial-level data analysis function
+
+        Parameters
+        ----------
+        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+            Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
+        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+            The main workhorse function 
+        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+            Determine what the trial *subtype* is (useful for separating out various types of catch trials)
+        data_comb_fn: callable; call signature: data_comb_fn(list)
+            Combine the list into the desired output structure
+
+        Returns
+        -------
+        result: list
+            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+            grouped by tuples are combined into a single result. 
+
+        '''
+        if data_comb_fn == None: 
+            default_data_comb_fn = np.hstack
+
+        te = self
+        trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
+        n_trials = len(trial_msgs)
+        
+        blockset_data = defaultdict(list)
+        
+        ## Call a function on each trial    
+        for k in range(n_trials):
+            output = trial_proc_fn(te, trial_msgs[k])
+            trial_condition = trial_condition_fn(te, trial_msgs[k])
+            blockset_data[trial_condition].append(output)
+        
+        newdata = dict()
+        for key in blockset_data:
+            newdata[key] = data_comb_fn(blockset_data[key])
+        return newdata
+
+    @property 
+    def supplementary_data_file(self):
+        return '/storage/task_supplement/%d.mat' % self.record.id
+
+    def get_matching_state_transition_seq(self, seq):
+        task_msgs = self.hdf.root.task_msgs[:]
+        seq = np.array(seq, dtype='|S256')
+        msg_list_inds = []
+        trial_msgs = []
+        epochs = []
+        for k in range(len(task_msgs)-len(seq)):
+            if np.all(task_msgs[k:k+len(seq)]['msg'] == seq):
+                msg_list_inds.append(k)
+                trial_msgs.append(task_msgs[k:k+len(seq)])  
+                epochs.append((task_msgs[k]['time'], task_msgs[k+len(seq)-1]['time']))      
+        epochs = np.vstack(epochs)
+        return msg_list_inds, trial_msgs, epochs
+
+    def get_task_var_during_epochs(self, epochs, var_name, comb_fn=lambda x:x, start_offset=0):
+        data = []
+        for st, end in epochs:
+            st += start_offset
+            epoch_data = self.hdf.root.task[st:end][var_name]
+
+            # Determine whether all the rows in the extracted sub-table are the same
+            # This code is stolen from the interweb:
+            # http://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy-array
+            a = epoch_data
+            b = np.ascontiguousarray(a).view(np.dtype((np.void, a.dtype.itemsize * a.shape[1])))
+            unique_epoch_data = np.unique(b).view(a.dtype).reshape(-1, a.shape[1])
+
+            # unique_epoch_data = np.unique(epoch_data.ravel())
+            if len(unique_epoch_data) == 1:
+                data.append(unique_epoch_data)
+            else:
+                data.append(epoch_data)
+        return comb_fn(data)
 
     @property
     def hdf_filename(self):
@@ -507,7 +587,13 @@ class TaskEntry(object):
     @property
     def decoder(self):
         if not hasattr(self, '_decoder_obj'):
-            self._decoder_obj = get_decoder(self.record)
+            # entry = lookup_task_entries(entry)
+            # filename = get_decoder_name_full(entry)
+            # dec = pickle.load(open(filename, 'r'))
+            # dec.db_entry = get_decoder_entry(entry)
+            # dec.name = dec.db_entry.name
+
+            self._decoder_obj = self.decoder_record.load() #get_decoder(self.record)
         return self._decoder_obj
 
     @property
@@ -674,6 +760,58 @@ class TaskEntrySet(object):
             blocks = filter(fn, blocks)
 
         return blocks
+
+class TaskEntryCollection(object):
+    '''
+    Container for analyzing multiple task entries with an arbitrarily deep hierarchical structure
+    '''
+    def __init__(self, blocks, name=''):
+        self.blocks = blocks
+        # if isinstance(blocks, int):
+        #     blocks = [blocks,]
+        
+        # self.blocks = HierarchicalList(blocks)
+
+        # from analysis import performance
+        # self.task_entry_set = performance._get_te_set(self.blocks.flat_ls)
+        self.name = name
+
+    def proc_trials(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
+                    trial_condition_fn=trial_condition_functions.default, data_comb_fn=default_data_comb_fn,
+                    verbose=True):
+        '''
+        Generic framework to perform a trial-level analysis on the entire dataset
+
+        Parameters
+        ----------
+        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+            Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
+        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+            The main workhorse function 
+        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+            Determine what the trial *subtype* is (useful for separating out various types of catch trials)
+        data_comb_fn: callable; call signature: data_comb_fn(list)
+            Combine the list into the desired output structure
+
+        Returns
+        -------
+        result: list
+            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+            grouped by tuples are combined into a single result. 
+        '''
+        result = []
+        for blockset in self.blocks:
+            if isinstance(blockset, int):
+                blockset = (blockset,)
+            
+            from analysis import performance
+            blockset_data = defaultdict(list)
+            for b in blockset:
+                if verbose:
+                    print ".", 
+                    # sys.stdout.write('.')
+
+                te = performance._get_te(b)
         
 ######################
 ## Filter functions

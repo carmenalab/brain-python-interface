@@ -1,4 +1,7 @@
-'''Needs docs'''
+'''
+An extension of Tornado's web socket which enables the task to 
+print data to the web interface while the task is running.
+'''
 
 import os
 import sys

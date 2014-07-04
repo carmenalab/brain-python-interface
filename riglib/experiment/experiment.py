@@ -9,6 +9,7 @@ import threading
 import traceback
 import collections
 import re
+import os
 import tables
 
 import numpy as np
@@ -21,7 +22,11 @@ except ImportError:
     warnings.warn("experiment.py: Cannot import 'pygame'")
 
 
+min_per_hour = 60
+sec_per_min = 60
+
 class Experiment(traits.HasTraits, threading.Thread):
+    ''' Docstring '''
     status = dict(
         wait = dict(start_trial="trial", premature="penalty", stop=None),
         trial = dict(correct="reward", incorrect="penalty", timeout="penalty"),
@@ -35,6 +40,15 @@ class Experiment(traits.HasTraits, threading.Thread):
     fps = 60
 
     def __init__(self, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         traits.HasTraits.__init__(self, **kwargs)
         threading.Thread.__init__(self)
         self.task_start_time = self.get_time()
@@ -51,6 +65,15 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     @classmethod
     def class_editable_traits(cls):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         traits = super(Experiment, cls).class_editable_traits()
         editable_traits = filter(lambda x: x not in cls.exclude_parent_traits, traits)
         return editable_traits
@@ -72,13 +95,39 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         Transition the task state, where the next state depends on the 
         trigger event
+
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
         '''
         self.set_state(self.status[self.state][event])
 
     def get_time(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return time.time()
 
     def set_state(self, condition):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         # print "Experiment.set_state; setting state", condition
         self.state = condition
         self.start_time = self.get_time()
@@ -87,6 +136,15 @@ class Experiment(traits.HasTraits, threading.Thread):
             getattr(self, "_start_%s"%condition)()
 
     def start(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.init()
         super(Experiment, self).start()
 
@@ -154,13 +212,13 @@ class Experiment(traits.HasTraits, threading.Thread):
         h5file.close()
 
     @classmethod
-    def _time_to_string(self, sec):
+    def _time_to_string(cls, sec):
         '''
         Convert a time in seconds to a string of format hh:mm:ss.
         '''
-        nhours = int(sec/3600)
-        nmins = int((sec-nhours*3600)/60)
-        nsecs = int(sec - nhours*3600 - nmins*60)
+        nhours = int(sec/(min_per_hour * sec_per_min))
+        nmins = int((sec-nhours*min_per_hour*sec_per_min)/sec_per_min)
+        nsecs = int(sec - nhours*min_per_hour*sec_per_min - nmins*sec_per_min)
         return str(nhours).zfill(2) + ':' + str(nmins).zfill(2) + ':' + str(nsecs).zfill(2)
 
     def update_report_stats(self):
@@ -210,41 +268,98 @@ class Experiment(traits.HasTraits, threading.Thread):
 
 
 class LogExperiment(Experiment):
+    ''' Docstring '''
     log_exclude = set()
     def __init__(self, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.state_log = []
         self.event_log = []
         super(LogExperiment, self).__init__(**kwargs)
     
     def trigger_event(self, event):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         log = (self.state, event) not in self.log_exclude
         if log:  
             self.event_log.append((self.state, event, self.get_time()))
         self.set_state(self.status[self.state][event], log=log)
 
     def set_state(self, condition, log=True):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if log:
             self.state_log.append((condition, self.get_time()))
         super(LogExperiment, self).set_state(condition)
 
     def cleanup(self, database, saveid, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
         database.save_log(saveid, self.event_log)
 
 class Sequence(LogExperiment):
+    ''' Docstring '''
     def __init__(self, gen, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.gen = gen
         assert hasattr(gen, "next"), "gen must be a generator"
         super(Sequence, self).__init__(**kwargs)
         #self.next_trial = self.gen.next()
     
     def _start_wait(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         try:
             self.next_trial = self.gen.next()
         except StopIteration:
             self.end_task()
 
 class TrialTypes(Sequence):
+    ''' Docstring '''
     trial_types = []
         
     status = dict(
@@ -254,6 +369,15 @@ class TrialTypes(Sequence):
     )
 
     def __init__(self, gen, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(TrialTypes, self).__init__(gen, **kwargs)
         assert len(self.trial_types) > 0
 

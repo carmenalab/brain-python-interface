@@ -19,6 +19,15 @@ class KalmanFilter(bmi.GaussianStateHMM):
     model_attrs = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C']
 
     def __init__(self, A=None, W=None, C=None, Q=None, is_stochastic=None):
+        '''
+        Docstring    
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if A is None and W is None and C is None and Q is None:
             ## This condition should only be true in the unpickling phase
             pass
@@ -60,6 +69,16 @@ class KalmanFilter(bmi.GaussianStateHMM):
             self.is_stochastic = np.ones(n_states, dtype=bool)
 
     def _obs_prob(self, state):
+        '''
+        Docstring    
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+
         return self.C * state + self.obs_noise
 
     def propagate_ssm(self):
@@ -71,6 +90,12 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
+        Parameters
+        ----------
+
+        Returns
+        -------
+
         '''
         using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
         pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
@@ -97,6 +122,12 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def _calc_kalman_gain(self, P):
         '''
         Calculate Kalman gain using the 'alternate' definition
+
+        Parameters
+        ----------
+
+        Returns
+        -------        
         '''
         nX = P.shape[0]
         I = np.mat(np.eye(nX))
@@ -110,6 +141,12 @@ class KalmanFilter(bmi.GaussianStateHMM):
         """Calculate the steady-state KF matrices
 
         value of P returned is the posterior error cov, i.e. P_{t|t}
+
+        Parameters
+        ----------
+
+        Returns
+        -------        
         """ 
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
 
@@ -148,6 +185,16 @@ class KalmanFilter(bmi.GaussianStateHMM):
             return dtype(F), dtype(K)
 
     def get_kalman_gain_seq(self, N=1000, tol=1e-10, verbose=False):
+        '''
+        Docstring    
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+
         A, W, H, Q = np.mat(self.kf.A), np.mat(self.kf.W), np.mat(self.kf.H), np.mat(self.kf.Q)
         P = np.mat( np.zeros(A.shape) )
         K = [None]*N
@@ -168,6 +215,12 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
     def get_kf_system_mats(self, T):
         """KF system matrices
+        Parameters
+        ----------
+
+        Returns
+        -------
+
         """
         F = [None]*T
         K, ss_idx = self.get_kalman_gain_seq(N=T, verbose=False)
@@ -181,8 +234,16 @@ class KalmanFilter(bmi.GaussianStateHMM):
         return F, K
 
     def __setstate__(self, state):
-        """Set the model parameters {A, W, C, Q} stored in the pickled
-        object"""
+        """
+        Set the model parameters {A, W, C, Q} stored in the pickled
+        object
+
+        Parameters
+        ----------
+
+        Returns
+        -------        
+        """
         self.A = state['A']
         self.W = state['W']
         self.C = state['C']
@@ -203,7 +264,15 @@ class KalmanFilter(bmi.GaussianStateHMM):
         self._pickle_init()
 
     def __getstate__(self):
-        """Return the model parameters {A, W, C, Q} for pickling"""
+        """
+        Return the model parameters {A, W, C, Q} for pickling
+
+        Parameters
+        ----------
+
+        Returns
+        -------        
+        """
         data = dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
                     C_xpose_Q_inv=self.C_xpose_Q_inv, 
                     C_xpose_Q_inv_C=self.C_xpose_Q_inv_C)
@@ -219,8 +288,15 @@ class KalmanFilter(bmi.GaussianStateHMM):
     @classmethod
     def MLE_obs_model(self, hidden_state, obs, include_offset=True, 
                       drives_obs=None):
-        """Unconstrained ML estimator of {C, Q} given observations and
+        """
+        Unconstrained ML estimator of {C, Q} given observations and
         the corresponding hidden states
+
+        Parameters
+        ----------
+
+        Returns
+        -------        
         """
         assert hidden_state.shape[1] == obs.shape[1]
     
@@ -261,6 +337,12 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def MLE_state_space_model(self, hidden_state, include_offset=True):
         '''
         Train state space model for KF from fully observed hidden state
+
+        Parameters
+        ----------
+
+        Returns
+        -------        
         '''
         X = hidden_state
         T = hidden_state.shape[1]
@@ -273,9 +355,28 @@ class KalmanFilter(bmi.GaussianStateHMM):
         return A, W
 
     def get_params(self):
+        '''
+        Docstring    
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.A, self.W, self.C, self.Q
 
     def set_steady_state_pred_cov(self):
+        '''
+        Docstring    
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
         D = self.C_xpose_Q_inv_C 
 
@@ -302,6 +403,11 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def get_K_null(self):
         '''
         $$y_{null} = K_{null} * y_t$$ gives the "null" component of the spike inputs, i.e. $$K_t*y_{null} = 0_{N\times 1}$$
+        Parameters
+        ----------
+
+        Returns
+        -------        
         '''
         F, K = self.get_sskf()
         K = np.mat(K)
@@ -311,7 +417,19 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
 
 class PseudoPPF(KalmanFilter):
+    '''
+    Docstring
+    '''
     def _forward_infer(self, st, obs_t, **kwargs):
+        '''
+        Docstring    
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''        
         pred_state = self._ssm_pred(st)
 
         C, Q = self.C, self.Q
@@ -332,6 +450,11 @@ class PseudoPPF(KalmanFilter):
     def _calc_kalman_gain(self, P, Q_inv):
         '''
         Calculate Kalman gain using the alternate definition
+        Parameters
+        ----------
+
+        Returns
+        -------
         '''
         C = self.C
         nX = P.shape[0]
@@ -343,10 +466,31 @@ class PseudoPPF(KalmanFilter):
         return K
         
     def set_steady_state_pred_cov(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         pass
 
 class KFDecoder(bmi.BMI, bmi.Decoder):
+    ''' Docstring '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         super(KFDecoder, self).__init__(*args, **kwargs)
         mFR = kwargs.pop('mFR', 0.)
         sdFR = kwargs.pop('sdFR', 1.)
@@ -357,6 +501,16 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.kf = self.filt
 
     def init_zscore(self, mFR_curr, sdFR_curr):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         # if interfacing with Kinarm system, may mean and sd will be shape nx1
         self.zeromeanunits, = np.nonzero(mFR_curr == 0) #find any units with a mean FR of zero for this session
         sdFR_curr[self.zeromeanunits] = np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
@@ -367,9 +521,29 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.zscore = True
 
     def predict_ssm(self):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         self.kf.propagate_ssm()
 
     def update_params(self, new_params, steady_state=True):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         super(KFDecoder, self).update_params(new_params)
 
         # set the KF to the new steady state
@@ -379,15 +553,33 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     def __setstate__(self, state):
         """
         Set decoder state after un-pickling
+        
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+
         """
         if 'kf' in state and 'filt' not in state:
             state['filt'] = state['kf']
 
         super(KFDecoder, self).__setstate__(state)
-        self.bmicount = 0
-        self.bminum = int(self.binlen/(1/60.0))
 
     def plot_K(self, **kwargs):
+        '''
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        '''
+
         F, K = self.kf.get_sskf()
         self.plot_pds(K.T, **kwargs)
 
@@ -414,9 +606,19 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             self.ssm = train.endpt_2D_state_space
 
 
-    def shuffle(self):
+    def shuffle(self, shuffle_baselines=False):
         '''
         Shuffle the neural model
+        
+        Docstring    
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+
         '''
         # generate random permutation
         import random
@@ -424,7 +626,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         random.shuffle(inds)
 
         # shuffle rows of C, and rows+cols of Q
+        C_orig = self.filt.C.copy()
         self.filt.C = self.filt.C[inds, :]
+        if not shuffle_baselines:
+            self.filt.C[:,-1] = C_orig[:,-1]
         self.filt.Q = self.filt.Q[inds, :]
         self.filt.Q = self.filt.Q[:, inds]
 
@@ -441,23 +646,30 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             #   (R, S, T, and ESS) as attributes of self.filt
             pass
 
-    def change_binlen(self, new_binlen):
+    def change_binlen(self, new_binlen, screen_update_rate=60.0):
         '''
         Function to change the binlen of the KFDecoder analytically. 
+
+        Parameters
+        ----------
+        new_binlen : float
+            New bin length of the decoder, in seconds
+        screen_update_rate: float, optional, default = 60Hz
+            Rate at which the __call__ function will be called
         '''
         bin_gain = new_binlen / self.binlen
         self.binlen = new_binlen
 
         # Alter bminum, bmicount, # of subbins
-        screen_update_rate = 1./60
-        if self.binlen < screen_update_rate:
-            self.n_subbins = int(screen_update_rate / self.binlen)
+        screen_update_period = 1./screen_update_rate
+        if self.binlen < screen_update_period:
+            self.n_subbins = int(screen_update_period / self.binlen)
             self.bmicount = 0
             if hasattr(self, 'bminum'):
                 del self.bminum
         else:
             self.n_subbins = 1
-            self.bminum = int(self.binlen / screen_update_rate)
+            self.bminum = int(self.binlen / screen_update_period)
             self.bmicount = 0
 
         # change C matrix
@@ -477,10 +689,16 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.filt = sskfdecoder.SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q) 
 
 def project_Q(C_v, Q_hat):
-    """ Constrain Q such that the first two columns of the H matrix
+    """ 
+    Constrain Q such that the first two columns of the H matrix
     are independent and have identical gain in the steady-state KF
+        
+    Parameters
+    ----------
+        
+    Returns
+    -------
 
-    TODO next: implement without using the math trick
     """
     print "projecting!"
     from scipy.optimize import fmin_bfgs, fmin_ncg

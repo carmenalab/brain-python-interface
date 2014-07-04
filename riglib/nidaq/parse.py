@@ -1,5 +1,6 @@
-'''Needs docs'''
-
+'''
+Parse digital data from neural recording system into task data/messages/synchronization pulses
+'''
 
 import numpy as np
 
@@ -16,6 +17,13 @@ MSG_TYPE_ROWBYTE = 5
 
 def _split(data, flip=False):
     '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     '''
     # If the data is a 1D array, extract the timestamps and the raw event codes
     if len(data.shape) < 2:
@@ -98,6 +106,15 @@ def rowbyte(data, **kwargs):
     return systems
 
 def messages(data, **kwargs):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     if data.ndim < 2 or data.shape[1] != 4:
         data = _split(data, **kwargs)
 
