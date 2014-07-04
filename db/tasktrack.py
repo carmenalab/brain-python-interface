@@ -183,14 +183,14 @@ class Task(object):
         self.taskname = task.name
         self.subj = subj
         self.params = Parameters(params)
-ving to file
+
+        # Send pulse to plexon box to start saving to file
         if self.saveid is not None:
             try:
                 import comedi
                 self.com = comedi.comedi_open("/dev/comedi0")
 
                 from riglib import loc_config
-        # Send pulse to plexon or blackrock box to start sa
                 if loc_config.recording_system == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
                 
