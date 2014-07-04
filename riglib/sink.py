@@ -84,6 +84,9 @@ class SinkManager(object):
         if isinstance(system, source.DataSource):
             name = system.name
             dtype = system.source.dtype
+        if isinstance(system, source.MultiChanDataSource):
+            name = system.name
+            dtype = 
         elif isinstance(system, str):
             name = system
         else:
