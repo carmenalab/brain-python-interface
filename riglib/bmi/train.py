@@ -321,7 +321,8 @@ def _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in ['task',
     auxdata_mask = 0b1111000<<8
     rawdata_mask = 0b11111111
     msgtype = np.right_shift(np.bitwise_and(msgs, msgtype_mask), 8).astype(np.uint8)
-    auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
+    # auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
+    auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8+3).astype(np.uint8)
     rawdata = np.bitwise_and(msgs, rawdata_mask)
 
     # data is an N x 4 matrix that will be the argument to parse.registrations()
