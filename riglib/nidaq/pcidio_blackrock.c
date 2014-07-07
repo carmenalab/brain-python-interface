@@ -92,10 +92,26 @@ extern uchar sendRow(uchar idx, uint row) {
     return 0;
 }
 extern uchar sendRowByte(uchar idx) {
-    uint flush = 2, msg = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
-    comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
-    comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
-    rowcount[idx]++;
+    // uint flush = 2, msg = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
+    // comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
+    // comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
+    // rowcount[idx]++;
+    // return 0;
+
+    uint bits;
+
+    // "Load" the data message
+    bits = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
+    comedi_dio_bitfield2(ni, 0, writemask, &bits, 0);
+
+    // set strobe pin high
+    bits = 1;
+    comedi_dio_bitfield2(ni, 0, 1, &bits, 16);
+
+    // set strobe pin low
+    bits = 0;
+    comedi_dio_bitfield2(ni, 0, 1, &bits, 16);
+
     return 0;
 }
 extern uchar sendRowCount(uchar idx) {
