@@ -164,8 +164,10 @@ class Connection(object):
         #        continuous_array: array, continuous values for channel)
         # '''
 
+        sleep_time = 0 #0.005
+
         while self.streaming:
-            result, trial = cbpy.trial_continuous()
+            result, trial = cbpy.trial_continuous(reset=True)
             arrival_ts = time.time()
 
             for list_ in trial:
@@ -174,6 +176,7 @@ class Connection(object):
                 yield ContinuousData(chan=chan, samples=samples, arrival_ts=arrival_ts)
 
             # TODO - sleep so that we don't call trial_continuous too often?
+            time.sleep(sleep_time)
 
 
 if __name__ == "__main__":
