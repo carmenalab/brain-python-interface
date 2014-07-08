@@ -311,7 +311,8 @@ class MultiChanDataSource(mp.Process):
                                 #     idx = idx % max_len
                                 if idx == self.max_len:
                                     idx = 0
-                                    self.wrap_flags[row] = True
+                                    if self.send_data_to_sinks:
+                                        self.wrap_flags[row] = True
                             else: # need to write data at both end and start of buffer
                                 self.data[row, idx:] = data[:max_len-idx]
                                 self.data[row, :n_pts-(max_len-idx)] = data[max_len-idx:]
