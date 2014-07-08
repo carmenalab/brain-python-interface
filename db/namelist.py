@@ -25,6 +25,7 @@ features = dict(
     saveHDF=experiment.features.SaveHDF,
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
+    relay_blackrockbyte=experiment.features.RelayBlackrockByte,
     norm_firingrates=experiment.features.NormFiringRates,
     ttl_reward=experiment.features.TTLReward,
 )

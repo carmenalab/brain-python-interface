@@ -104,29 +104,33 @@ class ArmAssistClient(Client):
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
+                # self.sock.sendto("ACK\r", ('127.0.0.1', 5001))
                 arrival_ts = time.time()
                 # print 'received feedback:', feedback
 
+                # Expected ArmAssist feedback packet structure, as decided
+                # by Sid and David on 7/8/14:
+                # "Status ArmAssist freq xpos ypos angpos timestamp force barangle\r"
+
                 items = feedback.rstrip('\r').split(' ')
-                cmd_id = items[0]
-                dev_id = items[1]
-                freq   = items[2]  # don't need this
-                values = [float(s) for s in items[3:]]
+                cmd_id     = items[0]
+                dev_id     = items[1]
+                freq       = int(items[2])
+                px         = float(items[3])
+                py         = float(items[4])
+                ppsi       = float(items[5])
+                ts_pos     = int(items[6])      
+                force      = float(items[7])
+                bar_angle  = float(items[8])
+                ts_aux     = int(items[9])
 
+                assert cmd_id == 'Status'
                 assert dev_id == 'ArmAssist'
-                assert len(values) == 12
 
-                vel    = [values[0], values[4], values[8]]
-                pos    = [values[1], values[5], values[9]]
-                torque = [values[2], values[6], values[10]]
-                ts     = [values[3], values[7], values[11]]
+                data = np.array(pos)
+                ts   = np.array([ts_pos, ts_pos, ts_pos])
 
-                ts = [int(t) for t in ts]
-                
-                data = np.array(pos + vel)
-                ts   = np.array(ts + ts)
-
-                # convert angular values from deg to rad (and deg/s to rad/s)
+                # TODO -- fix! convert angular values from deg to rad (and deg/s to rad/s)
                 data[2] *= deg_to_rad  # aa_ppsi
                 data[5] *= deg_to_rad  # aa_vpsi                
 

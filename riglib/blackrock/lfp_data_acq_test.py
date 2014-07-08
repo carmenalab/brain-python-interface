@@ -41,10 +41,10 @@ if __name__ == '__main__':
     self.run()
 
     n_secs = 15
-    update_rate = 1./60
+    update_rate = 0.1
     N = int(n_secs / update_rate)
 
-    samp_freq = 1000
+    samp_freq = 2000
     n_samp = int(n_secs * samp_freq)  # approx number of samples we'll collect per channel
 
     data = np.zeros((n_chan, 2*n_samp))
@@ -57,6 +57,7 @@ if __name__ == '__main__':
 
         for row in range(n_chan):
             d = new_data[row]
+            print row, d.shape
             idx = idxs[row]
             data[row, idx:idx+len(d)] = d
             idxs[row] += len(d)

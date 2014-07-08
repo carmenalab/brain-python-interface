@@ -10,8 +10,7 @@
 #define SEND_ROW 4
 #define SEND_ROWBYTE 5
 
-// writemask is 1 0111 1111 1111 1111
-#define writemask (1 << 16 | 127 << 8 | 255)
+#define writemask (2 << 16 | 127<<8 | 255)
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
@@ -21,29 +20,15 @@ comedi_t* ni;
 uint nsys = 0;
 uint rowcount[32];
 
-// Call signature for comedi_dio_bitfield2 (in C)
-// int comedi_dio_bitfield2(   comedi_t * device,
-//     unsigned int subdevice,
-//     unsigned int write_mask,
-//     unsigned int * bits,
-//     unsigned int base_channel);
-
 //Send a string
 uchar _send(char header, char* msg) {
-    uint m, i = 0, bits;
+    uint m, i = 0, flush;
 
     do {
-        // "Load" the data message
         m = header << 8 | msg[i];
         comedi_dio_bitfield2(ni, 0, writemask, &m, 0);
-
-        // set strobe pin high
-        bits = 1;
-        comedi_dio_bitfield2(ni, 0, 1, &bits, 16);
-
-        // set strobe pin low
-        bits = 0;
-        comedi_dio_bitfield2(ni, 0, 1, &bits, 16);
+        flush = 2;
+        comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
     } while (msg[i++] != '\0');
     return 0;
 }
@@ -92,26 +77,10 @@ extern uchar sendRow(uchar idx, uint row) {
     return 0;
 }
 extern uchar sendRowByte(uchar idx) {
-    // uint flush = 2, msg = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
-    // comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
-    // comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
-    // rowcount[idx]++;
-    // return 0;
-
-    uint bits;
-
-    // "Load" the data message
-    bits = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
-    comedi_dio_bitfield2(ni, 0, writemask, &bits, 0);
-
-    // set strobe pin high
-    bits = 1;
-    comedi_dio_bitfield2(ni, 0, 1, &bits, 16);
-
-    // set strobe pin low
-    bits = 0;
-    comedi_dio_bitfield2(ni, 0, 1, &bits, 16);
-
+    uint flush = 2, msg = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
+    comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
+    comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
+    rowcount[idx]++;
     return 0;
 }
 extern uchar sendRowCount(uchar idx) {
@@ -121,6 +90,15 @@ extern uchar sendRowCount(uchar idx) {
 extern int rstart(uint start) {
     uint val = start ? 0 : 16;
     return comedi_dio_bitfield2(ni, 0, 16, &val, 16);
+}
+
+extern int buzzer_test(int on_or_off) {
+    uint val = 0; //on_or_off ? 0 : 16777215;
+    //uint val = on_or_off ? 0 : 16777215;
+    uint subdevice = 0;
+    uint write_mask = 16777215; //pow(2, 24)-1;
+    uint base_channel = 0;
+    return comedi_dio_bitfield2(ni, subdevice, write_mask, &val, base_channel);
 }
 
 extern uchar closeall(void) {
@@ -139,12 +117,23 @@ void test_bits() {
 }
 
 int main(int argc, char** argv) {
-    //init("/dev/comedi0");
-    //sendMsg("This is a test!");
-    uint t = 26729;
-    char* m = (char*) &t;
-    printf("%c, %c, %c, %c\n", m[0], m[1], m[2], m[3]);
+    init("/dev/comedi0");
 
-    printf("I sent all the messages...\n");
-    return 0;
+    uint val1 = 1; //0x100000; //0x900000; //16777215;
+    uint subdevice = 0;
+    uint write_mask = 16777215;
+    uint base_channel = 0;
+
+    uint val2 = 0;
+    
+    int i;
+    for (i = 0; i < 4; i++) {
+        comedi_dio_bitfield2(ni, subdevice, write_mask, &val1, base_channel);
+        usleep(1e6);
+        
+        comedi_dio_bitfield2(ni, subdevice, write_mask, &val2, base_channel);
+        usleep(1e6);
+    }
+
+    closeall();
 }

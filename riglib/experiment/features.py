@@ -8,6 +8,8 @@ import tempfile
 import random
 import traceback
 import numpy as np
+import fnmatch
+import os
 
 from riglib import calibrations, bmi
 
@@ -632,12 +634,19 @@ class RelayBlackrock(SinkRegister):
         files = []
         for ext in ['.nev', '.ns1', '.ns2', '.ns3', '.ns4', '.ns5', '.ns6']:
             pattern = "/storage/blackrock/*" + ext
-            matches = sorted(glob.glob(pattern), key=lambda f: abs(os.stat(f).st_mtime - start))
-            
-            if len(matches) > 0:
-                tdiff = os.stat(matches[0]).st_mtime - start
+
+            #matches = sorted(glob.glob(pattern), key=lambda f: abs(os.stat(f).st_mtime - start))
+            matches = []
+            for root, dirnames, filenames in os.walk('/storage/blackrock'):
+                for filename in fnmatch.filter(filenames, '*' + ext):
+                    matches.append(os.path.join(root, filename))
+
+            sorted_matches = sorted(matches, key=lambda f: abs(os.stat(f).st_mtime - start))
+
+            if len(sorted_matches) > 0:
+                tdiff = os.stat(sorted_matches[0]).st_mtime - start
                 if abs(tdiff) < 60:
-                     files.append(matches[0])
+                     files.append(sorted_matches[0])
 
         return files
     
@@ -656,7 +665,8 @@ class RelayBlackrock(SinkRegister):
         time.sleep(2)
         for file_ in self.blackrockfiles:
             suffix = file_[-3:]  # e.g., 'nev', 'ns3', etc.
-            database.save_data(self.nevfile, "blackrock", saveid, True, False, custom_suffix=suffix)
+            # database.save_data(file_, "blackrock", saveid, True, False, custom_suffix=suffix)
+            database.save_data(file_, "blackrock", saveid, False, False, suffix)
         
 class RelayBlackrockByte(RelayBlackrock):
     '''Relays a single byte (0-255) as a row checksum for when a data packet arrives.'''
