@@ -13,6 +13,12 @@ import rehand
 rad_to_deg = 180 / np.pi
 deg_to_rad = np.pi / 180
 
+cm_to_mm = 10.
+mm_to_cm = 0.1
+
+ARMASSIST_USE_CM = False
+ARMASSIST_USE_MM = True
+
 
 class IsMorePlant(object):
     '''Sends velocity commands and receives feedback over UDP. Can be used
@@ -31,6 +37,9 @@ class IsMorePlant(object):
         self.aa_addr = ('127.0.0.1', 5001)
         self.rh_addr = ('127.0.0.1', 5000)
 
+        command = 'SetControlMode ArmAssist Global\n'
+        self.sock.sendto(command, self.aa_addr)
+        
         # TODO -- don't hardcode these lists here, use names from state space models instead
         ssm_armassist = StateSpaceArmAssist()
         ssm_rehand    = StateSpaceReHand()
@@ -66,6 +75,10 @@ class IsMorePlant(object):
             # units of vel should be: (cm/s, cm/s, rad/s)
             assert len(vel) == 3
 
+            if ARMASSIST_USE_MM:
+                vel[0] *= cm_to_mm
+                vel[1] *= cm_to_mm
+
             # convert from rad/s to deg/s
             vel[2] *= rad_to_deg
 
@@ -89,6 +102,10 @@ class IsMorePlant(object):
         elif dev == 'IsMore':
             # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
             assert len(vel) == 7
+
+            if ARMASSIST_USE_MM:
+                vel[0] *= cm_to_mm
+                vel[1] *= cm_to_mm
             
             # convert from rad/s to deg/s
             vel[2:] *= rad_to_deg
@@ -111,13 +128,19 @@ class IsMorePlant(object):
 
     def get_pos(self, dev='IsMore'):
         if dev == 'ArmAssist':
-            pos = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_p_state_names][0]))
+            pos = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_p_state_names][0]))     
+            if ARMASSIST_USE_MM:
+                pos[0] *= mm_to_cm
+                pos[1] *= mm_to_cm
         elif dev == 'ReHand':
             pos = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_p_state_names][0]))
         elif dev == 'IsMore':
             aa_pos = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_p_state_names][0]))
             rh_pos = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_p_state_names][0])) 
             pos = np.hstack([aa_pos, rh_pos])
+            if ARMASSIST_USE_MM:
+                pos[0] *= mm_to_cm
+                pos[1] *= mm_to_cm
         else:
             raise Exception('Unknown device: ' + str(dev))
 
@@ -126,12 +149,18 @@ class IsMorePlant(object):
     def get_vel(self, dev='IsMore'):
         if dev == 'ArmAssist':
             vel = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_v_state_names][0]))
+            if ARMASSIST_USE_MM:
+                vel[0] *= mm_to_cm
+                vel[1] *= mm_to_cm
         elif dev == 'ReHand':
             vel = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
         elif dev == 'IsMore':
             aa_vel = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_v_state_names][0]))
             rh_vel = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
-            vel = np.hstack([aa_vel, rh_vel]) 
+            vel = np.hstack([aa_vel, rh_vel])
+            if ARMASSIST_USE_MM:
+                vel[0] *= mm_to_cm
+                vel[1] *= mm_to_cm 
         else:
             raise Exception('Unknown device: ' + str(dev))
 
