@@ -104,6 +104,7 @@ class ArmAssistClient(Client):
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
+                # self.sock.sendto("ACK\r", ('127.0.0.1', 5001))
                 arrival_ts = time.time()
                 # print 'received feedback:', feedback
 
