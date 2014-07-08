@@ -868,7 +868,9 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
         # neurows --> the rows inside the tslice
 
         try:
-            tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])        
+            # tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])        
+            print 'not using _get_tmask_blackrock'
+            raise NotImplementedError
         except NotImplementedError:
             # need to create a fake rows variable
             
