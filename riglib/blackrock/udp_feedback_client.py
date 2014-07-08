@@ -11,10 +11,11 @@ from collections import namedtuple
 rad_to_deg = 180 / np.pi
 deg_to_rad = np.pi / 180
 
-PlantFeedbackData = namedtuple("PlantFeedbackData", ["state_name", "value", "arrival_ts"])
+mm_to_cm = 0.1
+cm_to_mm = 10.
 
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", ['data', 'ts', 'arrival_ts'])
-ReHandFeedbackData = namedtuple("ReHandFeedbackData", ['data', 'ts', 'arrival_ts'])
+ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    ['data', 'ts', 'arrival_ts'])
 
 
 class Client(object):
@@ -22,7 +23,7 @@ class Client(object):
 
     MAX_MSG_LEN = 200
 
-    def __init__(self, ip='127.0.0.1', port=5002):
+    def __init__(self, ip, port):
         address = (ip, port)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(address)        
@@ -39,53 +40,8 @@ class Client(object):
         self.stop()
 
     def get_feedback_data(self):
+        '''Implement in subclasses.'''
         raise NotImplementedError
-    #     '''TODO -- Docstring.'''
-
-    #     sleep_time = 0 #0.005
-
-    #     while self.listening:
-    #         r, _, _ = select.select([self.sock], [], [], 0)
-            
-    #         if r:  # if the list r is not empty
-    #             feedback = self.sock.recv(self.MAX_MSG_LEN)
-    #             arrival_ts = time.time()
-    #             # print 'received feedback:', feedback
-
-    #             items = feedback.rstrip('\r').split(' ')
-    #             cmd_id = items[0]
-    #             dev_id = items[1]
-    #             freq   = items[2]  # don't need this
-    #             values = [float(s) for s in items[3:]]
-
-    #             vel = []
-    #             pos = []
-    #             torque = []
-
-    #             i = 0
-    #             for i, value in enumerate(values):
-    #                 if i % 3 == 0:
-    #                     vel.append(value)
-    #                 if i % 3 == 1:
-    #                     pos.append(value)
-    #                 if i % 3 == 2:
-    #                     torque.append(value)
-
-    #             # determine state names corresponding to the values
-    #             if dev_id == 'ArmAssist':
-    #                 state_names = ['aa_px', 'aa_py', 'aa_ppsi', 'aa_vx', 'aa_vy', 'aa_vpsi']
-    #             elif dev_id == 'ReHand':
-    #                 state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 'rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
-    #             else:
-    #                 raise Exception('Feedback data received from unknown device: ' + dev_id)
-                 
-    #             for state_name, value in zip(state_names, pos + vel):
-    #                 # for angular values, convert from deg to rad (and deg/s to rad/s)
-    #                 if state_name not in ['aa_px', 'aa_py', 'aa_vx', 'aa_vy']:
-    #                     value *= deg_to_rad
-    #                 yield PlantFeedbackData(state_name=state_name, value=value, arrival_ts=arrival_ts)
-
-    #         time.sleep(sleep_time)
 
 
 class ArmAssistClient(Client):
@@ -95,7 +51,7 @@ class ArmAssistClient(Client):
         super(ArmAssistClient, self).__init__('127.0.0.1', 5002)
 
     def get_feedback_data(self):
-        '''TODO -- Docstring.'''
+        '''Docstring.'''
 
         sleep_time = 0 #0.020 #0.005
 
@@ -110,29 +66,30 @@ class ArmAssistClient(Client):
 
                 # Expected ArmAssist feedback packet structure, as decided
                 # by Sid and David on 7/8/14:
-                # "Status ArmAssist freq xpos ypos angpos timestamp force barangle\r"
+                # "Status ArmAssist freq px py ppsi ts force bar_angle ts_aux\r"
 
                 items = feedback.rstrip('\r').split(' ')
-                cmd_id     = items[0]
-                dev_id     = items[1]
-                freq       = int(items[2])
-                px         = float(items[3])
-                py         = float(items[4])
-                ppsi       = float(items[5])
-                ts_pos     = int(items[6])      
-                force      = float(items[7])
-                bar_angle  = float(items[8])
-                ts_aux     = int(items[9])
-
+                
+                cmd_id = items[0]
+                dev_id = items[1]
                 assert cmd_id == 'Status'
                 assert dev_id == 'ArmAssist'
 
-                data = np.array(pos)
-                ts   = np.array([ts_pos, ts_pos, ts_pos])
+                freq = int(items[2])
+                
+                # position data and corresponding timestamp
+                px   = float(items[3]) * mm_to_cm
+                py   = float(items[4]) * mm_to_cm
+                ppsi = float(items[5]) * deg_to_rad
+                ts   = int(items[6])
 
-                # TODO -- fix! convert angular values from deg to rad (and deg/s to rad/s)
-                data[2] *= deg_to_rad  # aa_ppsi
-                data[5] *= deg_to_rad  # aa_vpsi                
+                # auxiliary data and corresponding timestamp
+                force     = float(items[7])
+                bar_angle = float(items[8])
+                ts_aux    = int(items[9])
+
+                data = np.array([px, py, ppsi])
+                ts   = np.array([ts, ts, ts])
 
                 yield ArmAssistFeedbackData(data=data, ts=ts, arrival_ts=arrival_ts)
 
