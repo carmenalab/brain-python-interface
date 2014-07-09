@@ -68,8 +68,8 @@ class Connection(object):
     RDA_MessageStop     = 3  # 
     RDA_MessageData32   = 4  # message-type for 32-bit data
 
-    def __init__(self, recorder_ip_addr, nbits=16):
-        self.recorder_ip_addr = recorder_ip_addr
+    def __init__(self, recorder_ip, nbits=16):
+        self.recorder_ip = recorder_ip
 
         if nbits == 16:
             self.port = 51234
@@ -90,7 +90,7 @@ class Connection(object):
         # This needs to happen in get_data so that we don't miss the first
         # packet with msgtype == RDA_MessageStart
         # Connect to the Recorder host
-        # self.sock.connect((self.recorder_ip_addr, self.port))
+        # self.sock.connect((self.recorder_ip, self.port))
         
         self._init = False
     
@@ -130,7 +130,7 @@ class Connection(object):
         '''A generator which yields packets as they are received'''
         assert self._init, "Please initialize the connection first"
         
-        self.sock.connect((self.recorder_ip_addr, self.port))
+        self.sock.connect((self.recorder_ip, self.port))
 
         chan_idx = 0
 

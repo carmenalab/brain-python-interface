@@ -1,14 +1,16 @@
+'''Docstring.'''
+
 import numpy as np
+
 import rda
 
-class EMG(object):
-    update_freq = 2500.  # TODO -- double check
 
+class EMG(object):
+    update_freq = 2500.
     dtype = np.dtype('float')
 
-    def __init__(self, channels):
-        recorder_ip_addr = '192.168.137.1'  # TODO
-        self.conn = rda.Connection(recorder_ip_addr)
+    def __init__(self, recorder_ip):
+        self.conn = rda.Connection(recorder_ip)
         self.conn.connect()
 
     def start(self):

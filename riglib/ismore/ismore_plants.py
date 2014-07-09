@@ -3,11 +3,14 @@
 import numpy as np
 import socket
 
-from riglib import blackrock, source
+from riglib import ismore, blackrock, source
 from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 
 import armassist
 import rehand
+
+import utils
+print dir(utils)
 
 # CONSTANTS
 rad_to_deg = 180 / np.pi
@@ -29,12 +32,13 @@ class IsMorePlant(object):
     def __init__(self, print_commands=True):
         self.print_commands = print_commands
 
-        self.aa_source = source.DataSource(blackrock.ArmAssistData, name='armassist')  # TODO -- set small buffer length
-        self.rh_source = source.DataSource(blackrock.ReHandData,    name='rehand')     # TODO -- set small buffer length
+        self.aa_source = source.DataSource(ismore.ArmAssistData, name='armassist')  # TODO -- set small buffer length
+        self.rh_source = source.DataSource(ismore.ReHandData,    name='rehand')     # TODO -- set small buffer length
 
         # used only for sending commands (not for receiving feedback)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+        # TODO -- encode this info in one place
         self.aa_addr = ('127.0.0.1', 5001)
         self.rh_addr = ('127.0.0.1', 5000)
 
