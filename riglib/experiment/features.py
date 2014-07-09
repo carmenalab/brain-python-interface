@@ -35,7 +35,7 @@ class RewardSystem(traits.HasTraits):
 
 class TTLReward(traits.HasTraits):
     '''During the reward phase, send a timed TTL pulse to the reward system'''
-    def __init__(self, pulse_device='/dev/comedi0', *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         '''
         Constructor for TTLReward
 
@@ -51,7 +51,7 @@ class TTLReward(traits.HasTraits):
         TTLReward instance
         '''
         import comedi
-        self.com = comedi.comedi_open(pulse_device)
+        self.com = comedi.comedi_open('/dev/comedi0')
         super(TTLReward, self).__init__(*args, **kwargs)
 
     def _start_reward(self):
@@ -73,26 +73,28 @@ class TTLReward(traits.HasTraits):
         val = 0x800000
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
-
-    def _end_reward(self):
-        '''
-        After the reward state has elapsed, turn off the solenoid
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        '''
-        import comedi
-        super(TTLReward, self)._end_reward()
-        subdevice = 0
-        write_mask = 0x800000
-        val = 0x800000
-        base_channel = 0
+        time.sleep(self.reward_time)
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
+
+    # def _end_reward(self):
+    #     '''
+    #     After the reward state has elapsed, turn off the solenoid
+
+    #     Parameters
+    #     ----------
+    #     None
+
+    #     Returns
+    #     -------
+    #     None
+    #     '''
+    #     import comedi
+    #     super(TTLReward, self)._end_reward()
+    #     subdevice = 0
+    #     write_mask = 0x800000
+    #     val = 0x000000
+    #     base_channel = 0
+    #     comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
