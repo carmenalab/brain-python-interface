@@ -60,7 +60,8 @@ class ArmAssistClient(Client):
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
-                # self.sock.sendto("ACK\r", ('127.0.0.1', 5001))
+                #time.sleep(0.000500)  # wait 500 us
+                self.sock.sendto("ACK ArmAssist\r", ('127.0.0.1', 5001))
                 arrival_ts = time.time()
                 # print 'received feedback:', feedback
 
@@ -74,6 +75,9 @@ class ArmAssistClient(Client):
                 dev_id = items[1]
                 assert cmd_id == 'Status'
                 assert dev_id == 'ArmAssist'
+
+                if cmd_id == 'Status':
+                    print 'received feedback packet:', feedback
 
                 freq = int(items[2])
                 
