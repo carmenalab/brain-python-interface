@@ -261,7 +261,7 @@ class DataSource(mp.Process):
 
 class MultiChanDataSource(mp.Process):
     '''
-    Multi-channel version of 'Source'
+    Multi-channel version of 'DataSource'
     '''
     def __init__(self, source, bufferlen=1, **kwargs):
         '''
