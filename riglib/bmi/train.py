@@ -343,6 +343,8 @@ def _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in ['task',
 
     # get the corresponding hdf rows
     rows = parse.rowbyte(data)[syskey][:,0]
+
+    rows = rows / 30000.
     
     lower, upper = 0 < rows, rows < rows.max() + 1
     l, u = tslice
@@ -351,6 +353,7 @@ def _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in ['task',
     if u is not None:
         upper = rows < u
     tmask = np.logical_and(lower, upper)
+
     return tmask, rows
     
 
@@ -679,23 +682,33 @@ def get_butter_bpf_lfp_power_blackrock(nev_fname, nsx_fnames, neurows, binlen, u
     n_chan = len(channels)
     lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
     n_pts = int(win_len * fs)
-    for i, t in enumerate(interp_rows):
-        sample_num = int(t * fs)
-        cont_samples = np.zeros((n_chan, n_pts))
 
-        for j, chan in enumerate(channels):
-            chan_str = str(chan).zfill(5)
-            path = 'channel/channel%s/continuous_set' % chan_str
-            cont_samples[j, :] = nsx_hdf.get(path).value[sample_num-n_pts:sample_num]
+    print '*' * 40
+    print 'WARNING: replacing LFP values from .ns3 file with random values!!'
+    print '*' * 40
 
-        lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
+    # for i, t in enumerate(interp_rows):
+    #     sample_num = int(t * fs)
+    #     # cont_samples = np.zeros((n_chan, n_pts))
+
+    #     # for j, chan in enumerate(channels):
+    #     #     chan_str = str(chan).zfill(5)
+    #     #     path = 'channel/channel%s/continuous_set' % chan_str
+    #     #     cont_samples[j, :] = nsx_hdf.get(path).value[sample_num-n_pts:sample_num]
+    #     cont_samples = abs(np.random.randn(n_chan, n_pts))
+
+    #     feats = f_extractor.extract_features(cont_samples).T
+    #     print feats
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
     
+    lfp_power = abs(np.random.randn(n_itrs, n_chan * len(bands)))
+
     # TODO -- discard any channel(s) for which the log power in any frequency 
     #   bands was ever equal to -inf (i.e., power was equal to 0)
     # or, perhaps just add a small epsilon inside the log to avoid this
     # then, remember to do this:  extractor_kwargs['channels'] = channels
     #   and reset the units variable
-
+    
     return lfp_power, units, extractor_kwargs
 
 ##########################################################################
@@ -867,16 +880,16 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
         # kin     --> every 6th row of kinematics within the tslice boundaries
         # neurows --> the rows inside the tslice
 
-        try:
-            # tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])        
-            print 'not using _get_tmask_blackrock'
-            raise NotImplementedError
-        except NotImplementedError:
-            # need to create a fake rows variable
-            
-            from riglib.experiment import experiment
-            strobe_rate = experiment.Experiment.fps  # in Hz
+        from riglib.experiment import experiment
+        strobe_rate = experiment.Experiment.fps  # in Hz
 
+        try:
+            tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])      
+            #print 'not using _get_tmask_blackrock'
+            #raise NotImplementedError
+        except NotImplementedError:
+            # need to create fake "rows" and "tmask" variables
+            
             n_rows = hdf.root.task[:]['plant_pos'].shape[0]
             first_ts = binlen
             rows = np.linspace(first_ts, first_ts + (n_rows-1)*(1./strobe_rate), num=n_rows)
@@ -888,11 +901,11 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
                 upper = rows < u
             tmask = np.logical_and(lower, upper)
 
-            # Note: kin_var doesn't need to be passed into get_ismore_kinematics because
-            # kinematics are saved as 'plant_pos' and 'plant_vel' regardless of
-            # whether the plant is armassist, rehand, or ismore (armassist+rehand)
-            kin = get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=strobe_rate)
-            neurows = rows[tmask]
+        # Note: kin_var doesn't need to be passed into get_ismore_kinematics because
+        # kinematics are saved as 'plant_pos' and 'plant_vel' regardless of
+        # whether the plant is armassist, rehand, or ismore (armassist+rehand)
+        kin = get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=strobe_rate)
+        neurows = rows[tmask]
 
 
         if extractor_cls == extractor.BinnedSpikeCountsExtractor:
