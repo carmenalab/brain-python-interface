@@ -370,7 +370,7 @@ class StateSpaceEndptVel(StateSpace):
 
 class StateSpaceArmAssist(StateSpace):
     def __init__(self):
-        max_ang_vel = 15 * deg_to_rad
+        max_ang_vel = 7.5 * deg_to_rad
         super(StateSpaceArmAssist, self).__init__(
             State('aa_px',   stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
             State('aa_py',   stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
@@ -393,7 +393,7 @@ class StateSpaceArmAssist(StateSpace):
 
 class StateSpaceReHand(StateSpace):
     def __init__(self):
-        max_ang_vel = 15 * deg_to_rad
+        max_ang_vel = 7.5 * deg_to_rad
         super(StateSpaceReHand, self).__init__(
             State('rh_pthumb', stochastic=False, drives_obs=False, order=0),
             State('rh_pindex', stochastic=False, drives_obs=False, order=0),
@@ -418,7 +418,7 @@ class StateSpaceReHand(StateSpace):
 
 class StateSpaceIsMore(StateSpace):
     def __init__(self):
-        max_ang_vel = 15 * deg_to_rad
+        max_ang_vel = 7.5 * deg_to_rad
         super(StateSpaceIsMore, self).__init__(
             # position states
             State('aa_px',     stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
