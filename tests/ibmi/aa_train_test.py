@@ -2,16 +2,22 @@ from riglib.bmi import train, extractor
 import numpy as np
 from db.tracker import models
 
-channels = range(1, 7)
-units = np.hstack([np.array(channels).reshape(-1,1), np.ones((len(channels),1), dtype=np.int)])
-extractor_cls = extractor.BinnedSpikeCountsExtractor
+#channels = range(1, 7)
+#units = np.hstack([np.array(channels).reshape(-1,1), np.ones((len(channels),1), dtype=np.int)])
+#extractor_cls = extractor.BinnedSpikeCountsExtractor
+#extractor_kwargs = dict()
+#extractor_kwargs['units'] = units
+#extractor_kwargs['n_subbins'] = 1
+
+channels = np.array(range(1, 9))
+units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
+extractor_cls = extractor.LFPButterBPFPowerExtractor
 extractor_kwargs = dict()
-extractor_kwargs['units'] = units
-extractor_kwargs['n_subbins'] = 1
+extractor_kwargs['channels'] = channels
 
 armassist_state_space = train.armassist_state_space
 
-entry = 10
+entry = 63
 datafiles = models.DataFile.objects.filter(entry_id=entry)
  
 # this is sort of a hack, fix later
