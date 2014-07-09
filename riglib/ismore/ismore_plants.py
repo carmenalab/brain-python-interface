@@ -5,25 +5,14 @@ import socket
 
 from riglib import ismore, blackrock, source
 from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
+from riglib.ismore import settings
+from utils.constants import *
 
 import armassist
 import rehand
 
-import utils
-print dir(utils)
 
-# CONSTANTS
-rad_to_deg = 180 / np.pi
-deg_to_rad = np.pi / 180
-
-cm_to_mm = 10.
-mm_to_cm = 0.1
-
-ms_to_s = 0.001
-
-ARMASSIST_USE_MM_FOR_UDP = True
-
-
+# TODO -- separate this into 2 separate classes
 class IsMorePlant(object):
     '''Sends velocity commands and receives feedback over UDP. Can be used
     with either the real or simulated ArmAssist and/or ReHand. Uses 2 separate
@@ -39,8 +28,8 @@ class IsMorePlant(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # TODO -- encode this info in one place
-        self.aa_addr = ('127.0.0.1', 5001)
-        self.rh_addr = ('127.0.0.1', 5000)
+        self.aa_addr = settings.armassist_udp_server
+        self.rh_addr = settings.rehand_udp_server
 
         command = 'SetControlMode ArmAssist Global\n'
         self.sock.sendto(command, self.aa_addr)
@@ -76,56 +65,12 @@ class IsMorePlant(object):
     def send_vel(self, vel, dev):
         vel = vel.copy()
         if dev == 'ArmAssist':
-            # units of vel should be: (cm/s, cm/s, rad/s)
-            assert len(vel) == 3
-
-            if ARMASSIST_USE_MM_FOR_UDP:
-                # convert from cm/s to mm/s
-                vel[0] *= cm_to_mm
-                vel[1] *= cm_to_mm
-
-            # convert from rad/s to deg/s
-            vel[2] *= rad_to_deg
-
-            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
-            self.sock.sendto(command, self.aa_addr)
-            if self.print_commands:
-                print 'sending command:', command
-        
+            self._send_vel_armassist(vel)
         elif dev == 'ReHand':
-            # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
-            assert len(vel) == 4
-            
-            # convert from rad/s to deg/s
-            vel *= rad_to_deg
-
-            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
-            self.sock.sendto(command, self.rh_addr)
-            if self.print_commands:
-                print 'sending command:', command
-        
+            self._send_vel_rehand(vel)
         elif dev == 'IsMore':
-            # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
-            assert len(vel) == 7
-
-            if ARMASSIST_USE_MM_FOR_UDP:
-                # convert from cm/s to mm/s
-                vel[0] *= cm_to_mm
-                vel[1] *= cm_to_mm
-            
-            # convert from rad/s to deg/s
-            vel[2:] *= rad_to_deg
-
-            command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel[0:3])
-            self.sock.sendto(command, self.aa_addr)
-            if self.print_commands:
-                print 'sending command:', command
-
-            command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel[3:7])
-            self.sock.sendto(command, self.rh_addr)
-            if self.print_commands:
-                print 'sending command:', command
-        
+            self._send_vel_armassist(vel[0:3])
+            self._send_vel_rehand(vel[3:7])
         else:
             raise Exception('Unknown device: ' + str(dev))
 
@@ -134,18 +79,13 @@ class IsMorePlant(object):
 
     def get_pos(self, dev):
         if dev == 'ArmAssist':
-            pos = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_p_state_names][0]))     
-
+            pos = self._get_pos_armassist()
         elif dev == 'ReHand':
-            pos = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_p_state_names][0]))
-
+            pos = self._get_pos_rehand()
         elif dev == 'IsMore':
-            aa_pos = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_p_state_names][0]))
-
-            rh_pos = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_p_state_names][0])) 
-            
+            aa_pos = self._get_pos_armassist()
+            rh_pos = self._get_pos_rehand()            
             pos = np.hstack([aa_pos, rh_pos])
-            
         else:
             raise Exception('Unknown device: ' + str(dev))
 
@@ -153,49 +93,76 @@ class IsMorePlant(object):
 
     def get_vel(self, dev):
         if dev == 'ArmAssist':
-            pos = self.aa_source.read(n_pts=2)['data'][self.aa_p_state_names]
-            ts = self.aa_source.read(n_pts=2)['ts'][self.aa_p_state_names]
-
-            delta_pos = np.array(tuple(pos[1])) - np.array(tuple(pos[0]))
-            delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[0]))
-
-            vel = delta_pos / (delta_ts * ms_to_s)
-
-            for i in range(3):
-                if np.isnan(vel[i]):
-                    print "warning vel[%d] is nan" % i
-                    print "pos", pos
-                    print "ts", ts
-                    print "delta_pos", delta_pos
-                    print "delta_ts", delta_ts
-                    vel[i] = 0
-
-
-            # vel = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_v_state_names][0]))
-
+            vel = _get_vel_armassist()
         elif dev == 'ReHand':
-            vel = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
-
+            vel = _get_vel_rehand()
         elif dev == 'IsMore':
-            pos = self.aa_source.read(n_pts=2)['data'][self.aa_p_state_names]
-            ts = self.aa_source.read(n_pts=2)['ts'][self.aa_p_state_names]
-
-            delta_pos = np.array(tuple(pos[1])) - np.array(tuple(pos[0]))
-            delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[1]))
-            
-            aa_vel = delta_pos / (delta_ts * ms_to_s)
-
-            # aa_vel = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_v_state_names][0]))
-
-            rh_vel = np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
-            
+            aa_vel = _get_vel_armassist()
+            rh_vel = _get_vel_rehand() 
             vel = np.hstack([aa_vel, rh_vel])
-            
-
         else:
             raise Exception('Unknown device: ' + str(dev))
+        return vel
+
+
+    ## helper functions ##
+
+    def _send_vel_armassist(self, vel):
+        # units of vel should be: [cm/s, cm/s, rad/s]
+        assert len(vel) == 3
+
+        # convert units to: [mm/s, mm/s, deg/s]
+        vel[0] *= cm_to_mm
+        vel[1] *= cm_to_mm
+        vel[2] *= rad_to_deg
+
+        command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
+        self.sock.sendto(command, self.aa_addr)
+        if self.print_commands:
+            print 'sending command:', command
+
+    def _send_vel_rehand(self, vel):
+        # units of vel should be: [rad/s, rad/s, rad/s, rad/s]
+        assert len(vel) == 4
+        
+        # convert units to: [deg/s, deg/s, deg/s, deg/s]
+        vel *= rad_to_deg
+
+        command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
+        self.sock.sendto(command, self.rh_addr)
+        if self.print_commands:
+            print 'sending command:', command
+
+    def _get_pos_armassist(self):
+        return np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_p_state_names][0]))     
+
+    def _get_pos_rehand(self):
+        return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_p_state_names][0]))
+
+    def _get_vel_armassist(self):
+        pos = self.aa_source.read(n_pts=2)['data'][self.aa_p_state_names]
+        ts = self.aa_source.read(n_pts=2)['ts'][self.aa_p_state_names]
+
+        delta_pos = np.array(tuple(pos[1])) - np.array(tuple(pos[0]))
+        delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[0]))
+
+        vel = delta_pos / (delta_ts * ms_to_s)
+
+        for i in range(3):
+            if np.isnan(vel[i]):
+                print "warning vel[%d] is nan" % i
+                print "pos", pos
+                print "ts", ts
+                print "delta_pos", delta_pos
+                print "delta_ts", delta_ts
+                vel[i] = 0
 
         return vel
+
+    def _get_vel_rehand(self):
+        return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
+
+
 
         
 

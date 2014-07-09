@@ -7,12 +7,9 @@ import select
 import numpy as np
 from collections import namedtuple
 
-# CONSTANTS
-rad_to_deg = 180 / np.pi
-deg_to_rad = np.pi / 180
+from riglib.ismore import settings
+from utils.constants import *
 
-mm_to_cm = 0.1
-cm_to_mm = 10.
 
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", ['data', 'ts', 'arrival_ts'])
 ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    ['data', 'ts', 'arrival_ts'])
@@ -27,7 +24,7 @@ class Client(object):
     def _create_and_bind_socket(self):
         '''Called in subclasses in their __init__() method.'''
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(self.address)        
+        self.sock.bind(self.address)
 
         self._init = True
         
@@ -48,8 +45,7 @@ class ArmAssistClient(Client):
     '''Client code for receiving feedback data packets over UDP from the 
     ArmAssist application.'''
 
-    address        = ('127.0.0.1', 5002)
-    server_address = ('127.0.0.1', 5001)    
+    address = settings.armassist_udp_client
 
     def __init__(self):
         self._create_and_bind_socket()
@@ -65,7 +61,7 @@ class ArmAssistClient(Client):
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 arrival_ts = time.time()
-                self.sock.sendto("ACK ArmAssist\r", self.server_address)
+                self.sock.sendto("ACK ArmAssist\r", settings.armassist_udp_server)
 
                 # Example feedback string:
                 # "Status ArmAssist freq px py ppsi ts force bar_angle ts_aux\r"
@@ -102,8 +98,7 @@ class ReHandClient(Client):
     '''Client code for receiving feedback data packets over UDP from the 
     ReHand application.'''
 
-    address        = ('127.0.0.1', 5003)
-    server_address = ('127.0.0.1', 5000)
+    address = settings.rehand_udp_client
 
     def __init__(self):
         self._create_and_bind_socket()
@@ -119,7 +114,7 @@ class ReHandClient(Client):
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 arrival_ts = time.time()
-                self.sock.sendto("ACK ReHand\r", self.server_address)
+                self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
 
                 items = feedback.rstrip('\r').split(' ')
                 
