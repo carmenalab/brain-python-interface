@@ -233,7 +233,7 @@ class ArmAssistAssister(Assister):
 
     def angle_assist(self, ang_pos, target_ang_pos):
         binlen = self.decoder_binlen
-        angular_speed = 15*(np.pi/180)  # in rad/s (15 deg/s)
+        angular_speed = 7.5*(np.pi/180)  # in rad/s (7.5 deg/s)
         
         # when angular difference is below cutoff_diff, use smaller angular speeds
         cutoff_diff = 5*(np.pi/180)  # in rad (5 deg)
@@ -290,7 +290,7 @@ class ReHandAssister(Assister):
 
     def angle_assist(self, ang_pos, target_ang_pos):
         binlen = self.decoder_binlen
-        angular_speed = 15*(np.pi/180)  # in rad/s (15 deg/s)
+        angular_speed = 7.5*(np.pi/180)  # in rad/s (7.5 deg/s)
         
         # when angular difference is below cutoff_diff, use smaller angular speeds
         cutoff_diff = 5*(np.pi/180)  # in rad (5 deg)
