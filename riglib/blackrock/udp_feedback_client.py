@@ -23,10 +23,11 @@ class Client(object):
 
     MAX_MSG_LEN = 200
 
-    def __init__(self, ip, port):
-        address = (ip, port)
+    # TODO -- rename this function to something else?
+    def _create_and_bind_socket(self):
+        '''Called in subclasses in their __init__() method.'''
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(address)        
+        self.sock.bind(self.address)        
 
         self._init = True
         
@@ -40,33 +41,33 @@ class Client(object):
         self.stop()
 
     def get_feedback_data(self):
-        '''Implement in subclasses.'''
-        raise NotImplementedError
+        raise NotImplementedError('Implement in subclasses!')
 
 
 class ArmAssistClient(Client):
-    '''Docstring.'''
+    '''Client code for receiving feedback data packets over UDP from the 
+    ArmAssist application.'''
+
+    address        = ('127.0.0.1', 5002)
+    server_address = ('127.0.0.1', 5001)    
 
     def __init__(self):
-        super(ArmAssistClient, self).__init__('127.0.0.1', 5002)
+        self._create_and_bind_socket()
 
     def get_feedback_data(self):
-        '''Docstring.'''
+        '''Yield received feedback data.'''
 
-        sleep_time = 0 #0.020 #0.005
+        sleep_time = 0
 
         while self.listening:
             r, _, _ = select.select([self.sock], [], [], 0)
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
-                #time.sleep(0.000500)  # wait 500 us
-                self.sock.sendto("ACK ArmAssist\r", ('127.0.0.1', 5001))
                 arrival_ts = time.time()
-                # print 'received feedback:', feedback
+                self.sock.sendto("ACK ArmAssist\r", self.server_address)
 
-                # Expected ArmAssist feedback packet structure, as decided
-                # by Sid and David on 7/8/14:
+                # Example feedback string:
                 # "Status ArmAssist freq px py ppsi ts force bar_angle ts_aux\r"
 
                 items = feedback.rstrip('\r').split(' ')
@@ -75,9 +76,6 @@ class ArmAssistClient(Client):
                 dev_id = items[1]
                 assert cmd_id == 'Status'
                 assert dev_id == 'ArmAssist'
-
-                #if cmd_id == 'Status':
-                #    print 'received feedback packet:', feedback
 
                 freq = int(items[2])
                 
@@ -101,15 +99,19 @@ class ArmAssistClient(Client):
 
 
 class ReHandClient(Client):
-    '''Docstring.'''
+    '''Client code for receiving feedback data packets over UDP from the 
+    ReHand application.'''
+
+    address        = ('127.0.0.1', 5003)
+    server_address = ('127.0.0.1', 5000)
 
     def __init__(self):
-        super(ReHandClient, self).__init__('127.0.0.1', 5003)
+        self._create_and_bind_socket()
 
     def get_feedback_data(self):
-        '''TODO -- Docstring.'''
+        '''Yield received feedback data.'''
 
-        sleep_time = 0 #0.020 #0.005
+        sleep_time = 0
 
         while self.listening:
             r, _, _ = select.select([self.sock], [], [], 0)
@@ -117,15 +119,18 @@ class ReHandClient(Client):
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 arrival_ts = time.time()
-                # print 'received feedback:', feedback
+                self.sock.sendto("ACK ReHand\r", self.server_address)
 
                 items = feedback.rstrip('\r').split(' ')
+                
                 cmd_id = items[0]
                 dev_id = items[1]
-                freq   = items[2]  # don't need this
-                values = [float(s) for s in items[3:]]
+                assert cmd_id == 'Status'
+                assert dev_id == 'ReHand'                
 
-                assert dev_id == 'ReHand'
+                freq = items[2]
+
+                values = [float(s) for s in items[3:]]
                 assert len(values) == 16
 
                 vel    = [values[0], values[4], values[8], values[12]]

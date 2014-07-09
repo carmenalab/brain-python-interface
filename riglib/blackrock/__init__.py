@@ -1,6 +1,8 @@
 import numpy as np
+
 import cerelink
 import udp_feedback_client
+
 
 # for use with a DataSource
 class Spikes(object):
@@ -27,7 +29,7 @@ class Spikes(object):
 
 # for use with a MultiChanDataSource
 class LFP(object):
-    update_freq = 2000 #1000.  # TODO -- double check
+    update_freq = 2000  # TODO -- change back to 1000 
 
     dtype = np.dtype('float')
 
@@ -80,17 +82,16 @@ class FeedbackData(object):
 
 # for use with a DataSource
 class ArmAssistData(FeedbackData):
-    update_freq = 25.  # every 40 ms -- TODO check
+    update_freq = 25.  # TODO check
     client_cls = udp_feedback_client.ArmAssistClient
 
-    # state_names = ['aa_px', 'aa_py', 'aa_ppsi', 'aa_vx', 'aa_vy', 'aa_vpsi']
     state_names = ['aa_px', 'aa_py', 'aa_ppsi']
     dtype = FeedbackData._get_dtype(state_names)
 
 
 # for use with a DataSource
 class ReHandData(FeedbackData):
-    update_freq = 25.  # every 40 ms -- TODO check
+    update_freq = 25.  # TODO check
     client_cls = udp_feedback_client.ReHandClient
 
     state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 'rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']

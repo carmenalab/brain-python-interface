@@ -5,10 +5,10 @@ Neural Signal Processor (NSP).
 
 import sys
 import time
-from cerebus import cbpy
-# from CereLink import cbpy  # old cbpy
 from collections import namedtuple
 
+from cerebus import cbpy
+# from CereLink import cbpy  # old cbpy
 
 SpikeEventData = namedtuple("SpikeEventData", ["chan", "unit", "ts", "arrival_ts"])
 ContinuousData = namedtuple("ContinuousData", ["chan", "samples", "arrival_ts"])
@@ -130,7 +130,7 @@ class Connection(object):
         #        unitN_ts: array, spike timestamps of unit N for channel (if an electrode channel));
         # '''
 
-        sleep_time = 0 #0.005
+        sleep_time = 0
 
         while self.streaming:
 
@@ -164,7 +164,7 @@ class Connection(object):
         #        continuous_array: array, continuous values for channel)
         # '''
 
-        sleep_time = 0 #0.005
+        sleep_time = 0
 
         while self.streaming:
             result, trial = cbpy.trial_continuous(reset=True)
@@ -175,7 +175,6 @@ class Connection(object):
                 samples = list_[1]
                 yield ContinuousData(chan=chan, samples=samples, arrival_ts=arrival_ts)
 
-            # TODO - sleep so that we don't call trial_continuous too often?
             time.sleep(sleep_time)
 
 
@@ -196,7 +195,7 @@ if __name__ == "__main__":
         conn = Connection()
         conn.connect()
         conn.select_channels(channels)
-        conn.start_data() #start the data pump
+        conn.start_data()
 
         gen = conn.get_event_data()
 
@@ -212,6 +211,5 @@ if __name__ == "__main__":
             if spike_event_data is not None:
                 csvfile.writerow(dict(spike_event_data._asdict()))
 
-        #Stop the connection
         conn.stop_data()
         conn.disconnect()
