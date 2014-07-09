@@ -50,27 +50,6 @@ class LFP(object):
         return (d.chan, d.samples)
 
 
-# old -- was using before when there was only one MCDS for armassist+rehand
-# class FeedbackData(object):
-#     update_freq = 25.  # every 40 ms -- TODO check
-
-#     dtype = np.dtype('float')
-
-#     def __init__(self, channels):
-#         self.client = udp_feedback_client.Client()
-
-#     def start(self):
-#         self.client.start()
-#         self.data = self.client.get_feedback_data()
-
-#     def stop(self):
-#         self.client.stop()
-
-#     def get(self):
-#         d = self.data.next()
-
-#         return (d.state_name, np.array([d.value]))
-
 
 class FeedbackData(object):
     '''Abstract parent class, not meant to be instantiated.'''
@@ -104,7 +83,8 @@ class ArmAssistData(FeedbackData):
     update_freq = 25.  # every 40 ms -- TODO check
     client_cls = udp_feedback_client.ArmAssistClient
 
-    state_names = ['aa_px', 'aa_py', 'aa_ppsi', 'aa_vx', 'aa_vy', 'aa_vpsi']
+    # state_names = ['aa_px', 'aa_py', 'aa_ppsi', 'aa_vx', 'aa_vy', 'aa_vpsi']
+    state_names = ['aa_px', 'aa_py', 'aa_ppsi']
     dtype = FeedbackData._get_dtype(state_names)
 
 
