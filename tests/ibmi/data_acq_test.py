@@ -12,7 +12,6 @@ extractor_cls = extractor.BinnedSpikeCountsExtractor
 # extractor_cls = extractor.LFPMTMPowerExtractor
 
 class BlackrockData(object):
-# class BlackrockData(traits.HasTraits):
     '''Stream Blackrock neural data.'''
 
     def init(self):
