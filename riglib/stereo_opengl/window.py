@@ -187,6 +187,14 @@ class Simple2DWindow(object):
         win_res = (1000, 560)
         # self.workspace_size = 50, 28. #win_res
         self.workspace_size = 100, 56. #win_res
+
+        self.workspace_bottom_left = (0., 0.)
+        self.workspace_top_right   = (42., 30.)
+        self.workspace_x_len = self.workspace_top_right[0] - self.workspace_bottom_left[0]
+        self.workspace_y_len = self.workspace_top_right[1] - self.workspace_bottom_left[1]
+
+        self.display_border = 10
+
         self.size = np.array(win_res)
         self.screen = pygame.display.set_mode(win_res, flags)
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
@@ -217,7 +225,11 @@ class Simple2DWindow(object):
 
     def pos2pix(self, kfpos):
         # rescale the cursor position to (0,1)
-        norm_workspace_pos = (kfpos - self.workspace_ll)/self.workspace_size
+        #norm_workspace_pos = (kfpos - self.workspace_ll)/self.workspace_size
+
+        norm_x_pos = (self.display_border + (kfpos[0] - self.workspace_bottom_left[0])) / (self.workspace_x_len + 2*self.display_border)
+        norm_y_pos = (self.display_border + (kfpos[1] - self.workspace_bottom_left[1])) / (self.workspace_y_len + 2*self.display_border)
+        norm_workspace_pos = np.array([norm_x_pos, norm_y_pos])
 
         # multiply by the workspace size in pixels 
         pix_pos = self.size*norm_workspace_pos
