@@ -153,8 +153,8 @@ class IsMorePlant(object):
             ts = self.aa_source.read(n_pts=2)['ts'][self.aa_p_state_names]
 
             delta_pos = np.array(tuple(pos[1])) - np.array(tuple(pos[0]))
-            delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[1]))
-            
+            delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[0]))
+
             vel = delta_pos / (delta_ts * ms_to_s)
 
             # vel = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_v_state_names][0]))
