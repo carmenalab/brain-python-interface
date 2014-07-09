@@ -428,7 +428,39 @@ class TaskEntry(models.Model):
                                 units.append((channel, int(unit_num)))
 
                 fs = 30000.
-                length = last_ts / fs
+                nev_length = last_ts / fs
+
+                nsx_fs = dict()
+                nsx_fs['.ns1'] = 500
+                nsx_fs['.ns2'] = 1000
+                nsx_fs['.ns3'] = 2000
+                nsx_fs['.ns4'] = 10000
+                nsx_fs['.ns5'] = 30000
+                nsx_fs['.ns6'] = 30000
+
+                NSP_channels = np.arange(128) + 1
+
+                nsx_lengths = []
+                for nsx_fname in self.nsx_files:
+
+                    nsx_hdf_fname = nsx_fname + '.hdf'
+                    if not os.path.isfile(nsx_hdf_fname):
+                        # convert .nsx file to hdf file using Blackrock's n2h5 utility
+                        subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+                    nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+                    for chan in NSP_channels:
+                        chan_str = str(chan).zfill(5)
+                        path = 'channel/channel%s/continuous_set' % chan_str
+                        if nsx_hdf.get(path) is not None:
+                            last_ts = len(nsx_hdf.get(path).value)
+                            fs = nsx_fs[nsx_fname[-4:]]
+                            nsx_lengths.append(last_ts / fs)
+                            
+                            break
+
+                length = max([nev_length] + nsx_lengths)
                 #### end
 
                 # Blackrock units start from 0 (unlike plexon), so add 1
@@ -488,7 +520,7 @@ class TaskEntry(models.Model):
     @property
     def nev_file(self):
         '''
-        Returns the name of the nev file associated with the session.
+        Return the name of the nev file associated with the session.
         '''
         blackrock = System.objects.get(name='blackrock')
         q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
@@ -500,6 +532,23 @@ class TaskEntry(models.Model):
                 return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
             except:
                 return q[0].path
+
+    @property
+    def nsx_files(self):
+        '''Return a list containing the names of the nsx files (there could be more
+        than one) associated with the session.
+        '''
+        blackrock = System.objects.get(name='blackrock')
+        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).exclude(path__endswith='.nev')
+        if len(q)==0:
+            return []
+        else:
+            try:
+                import db.paths
+                return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
+            except:
+                return [datafile.path for datafile in q]
+
 
     @property
     def name(self):

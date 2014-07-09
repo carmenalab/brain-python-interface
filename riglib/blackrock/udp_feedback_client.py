@@ -76,8 +76,8 @@ class ArmAssistClient(Client):
                 assert cmd_id == 'Status'
                 assert dev_id == 'ArmAssist'
 
-                if cmd_id == 'Status':
-                    print 'received feedback packet:', feedback
+                #if cmd_id == 'Status':
+                #    print 'received feedback packet:', feedback
 
                 freq = int(items[2])
                 
