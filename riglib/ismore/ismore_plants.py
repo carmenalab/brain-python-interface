@@ -93,12 +93,12 @@ class IsMorePlant(object):
 
     def get_vel(self, dev):
         if dev == 'ArmAssist':
-            vel = _get_vel_armassist()
+            vel = self._get_vel_armassist()
         elif dev == 'ReHand':
-            vel = _get_vel_rehand()
+            vel = self._get_vel_rehand()
         elif dev == 'IsMore':
-            aa_vel = _get_vel_armassist()
-            rh_vel = _get_vel_rehand() 
+            aa_vel = self._get_vel_armassist()
+            rh_vel = self._get_vel_rehand() 
             vel = np.hstack([aa_vel, rh_vel])
         else:
             raise Exception('Unknown device: ' + str(dev))

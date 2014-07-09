@@ -190,6 +190,8 @@ class Simple2DWindow(object):
 
         self.workspace_bottom_left = (0., 0.)
         self.workspace_top_right   = (42., 30.)
+        # self.workspace_bottom_left = (-18., -12.)
+        # self.workspace_top_right   = (18., 12.)
         self.workspace_x_len = self.workspace_top_right[0] - self.workspace_bottom_left[0]
         self.workspace_y_len = self.workspace_top_right[1] - self.workspace_bottom_left[1]
 
