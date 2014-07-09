@@ -57,6 +57,7 @@ generators = dict(
     armassist_discrete=generatorfunctions.armassist_discrete,
     rehand_discrete=generatorfunctions.rehand_discrete,
     ismore_discrete=generatorfunctions.ismore_discrete,
+    armassist_simple=generatorfunctions.armassist_simple,
 )
 
 # from tasks.rds import RDS, RDS_half
