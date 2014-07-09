@@ -157,6 +157,16 @@ class IsMorePlant(object):
 
             vel = delta_pos / (delta_ts * ms_to_s)
 
+            for i in range(3):
+                if np.isnan(vel[i]):
+                    print "warning vel[%d] is nan" % i
+                    print "pos", pos
+                    print "ts", ts
+                    print "delta_pos", delta_pos
+                    print "delta_ts", delta_ts
+                    vel[i] = 0
+
+
             # vel = np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.aa_v_state_names][0]))
 
         elif dev == 'ReHand':
