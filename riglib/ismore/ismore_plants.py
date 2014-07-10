@@ -160,14 +160,9 @@ class IsMorePlant(object):
         return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
 
 
-################################################################
-
 class ArmAssistPlant(object):
-    pass
-
-class CommonPlant(object):
     '''Sends velocity commands and receives feedback over UDP. Can be used
-    with either the real or simulated plant.
+    with either the real or simulated ArmAssist.
     '''
 
     def __init__(self, print_commands=True):
@@ -234,6 +229,55 @@ class CommonPlant(object):
                 vel[i] = 0
 
         return vel
+
+
+class ReHandPlant(object):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated ReHand.
+    '''
+
+    def __init__(self, print_commands=True):
+        self.print_commands = print_commands
+
+        self.rh_source = source.DataSource(ismore.ReHandData, name='rehand')     # TODO -- set small buffer length
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
+        self.rh_addr = settings.rehand_udp_server
+
+        ssm = StateSpaceReHand()
+        self.pos_state_names = [s.name for s in ssm.states if s.order == 0]
+        self.vel_state_names = [s.name for s in ssm.states if s.order == 1]
+
+    def init(self):
+        from riglib import sink
+        sink.sinks.register(self.aa_source)
+
+    def start(self):
+        # only start this DataSource after it has been registered with 
+        # the SinkManager singleton (sink.sinks) in the call to init()
+        self.rh_source.start()
+
+    def stop(self):
+        self.rh_source.stop()
+
+    def _send_vel_rehand(self, vel):
+        vel = vel.copy()
+
+        # units of vel should be: [rad/s, rad/s, rad/s, rad/s]
+        assert len(vel) == 4
+        
+        # convert units to: [deg/s, deg/s, deg/s, deg/s]
+        vel *= rad_to_deg
+
+        command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
+        self.sock.sendto(command, self.rh_addr)
+        if self.print_commands:
+            print 'sending command:', command
+
+     def _get_pos_rehand(self):
+        return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.pos_state_names][0]))
+
+    def _get_vel_rehand(self):
+        return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.vel_state_names][0]))
 
 
 class ArmAssistPlant(object):
@@ -354,7 +398,7 @@ class ReHandPlant(object):
 
     def _get_vel_rehand(self):
         return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.vel_state_names][0]))
-
+    
         
 
 class IsMorePlantNoUDP(object):
