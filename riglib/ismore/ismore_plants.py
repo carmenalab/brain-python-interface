@@ -27,7 +27,6 @@ class IsMorePlant(object):
         # used only for sending commands (not for receiving feedback)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        # TODO -- encode this info in one place
         self.aa_addr = settings.armassist_udp_server
         self.rh_addr = settings.rehand_udp_server
 
@@ -161,6 +160,200 @@ class IsMorePlant(object):
         return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.rh_v_state_names][0]))
 
 
+################################################################
+
+class ArmAssistPlant(object):
+    pass
+
+class CommonPlant(object):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated plant.
+    '''
+
+    def __init__(self, print_commands=True):
+        self.print_commands = print_commands
+
+        self.aa_source = source.DataSource(ismore.ArmAssistData, name='armassist')  # TODO -- set small buffer length
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
+        self.aa_addr = settings.armassist_udp_server
+        
+        command = 'SetControlMode ArmAssist Global\n'
+        self.sock.sendto(command, self.aa_addr)
+        
+        ssm = StateSpaceArmAssist()
+        self.pos_state_names  = [s.name for s in ssm.states if s.order == 0]
+        self.vel_state_names  = [s.name for s in ssm.states if s.order == 1]
+
+    def init(self):
+        from riglib import sink
+        sink.sinks.register(self.aa_source)
+
+    def start(self):
+        # only start this DataSource after it has been registered with 
+        # the SinkManager singleton (sink.sinks) in the call to init()
+        self.aa_source.start()
+
+    def stop(self):
+        self.aa_source.stop()
+
+    def send_vel(self, vel):
+        vel = vel.copy()
+
+        # units of vel should be: [cm/s, cm/s, rad/s]
+        assert len(vel) == 3
+
+        # convert units to: [mm/s, mm/s, deg/s]
+        vel[0] *= cm_to_mm
+        vel[1] *= cm_to_mm
+        vel[2] *= rad_to_deg
+
+        command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
+        self.sock.sendto(command, self.aa_addr)
+        if self.print_commands:
+            print 'sending command:', command
+
+    def get_pos(self):
+        return np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.pos_state_names][0]))     
+
+    def get_vel(self):
+        pos = self.aa_source.read(n_pts=2)['data'][self.pos_state_names]
+        ts = self.aa_source.read(n_pts=2)['ts'][self.pos_state_names]
+
+        delta_pos = np.array(tuple(pos[1])) - np.array(tuple(pos[0]))
+        delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[0]))
+
+        vel = delta_pos / (delta_ts * ms_to_s)
+
+        for i in range(3):
+            if np.isnan(vel[i]):
+                print "warning vel[%d] is nan" % i
+                print "pos", pos
+                print "ts", ts
+                print "delta_pos", delta_pos
+                print "delta_ts", delta_ts
+                vel[i] = 0
+
+        return vel
+
+
+class ArmAssistPlant(object):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated ArmAssist.
+    '''
+
+    def __init__(self, print_commands=True):
+        self.print_commands = print_commands
+
+        self.aa_source = source.DataSource(ismore.ArmAssistData, name='armassist')  # TODO -- set small buffer length
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
+        self.aa_addr = settings.armassist_udp_server
+        
+        command = 'SetControlMode ArmAssist Global\n'
+        self.sock.sendto(command, self.aa_addr)
+        
+        ssm = StateSpaceArmAssist()
+        self.pos_state_names  = [s.name for s in ssm.states if s.order == 0]
+        self.vel_state_names  = [s.name for s in ssm.states if s.order == 1]
+
+    def init(self):
+        from riglib import sink
+        sink.sinks.register(self.aa_source)
+
+    def start(self):
+        # only start this DataSource after it has been registered with 
+        # the SinkManager singleton (sink.sinks) in the call to init()
+        self.aa_source.start()
+
+    def stop(self):
+        self.aa_source.stop()
+
+    def send_vel(self, vel):
+        vel = vel.copy()
+
+        # units of vel should be: [cm/s, cm/s, rad/s]
+        assert len(vel) == 3
+
+        # convert units to: [mm/s, mm/s, deg/s]
+        vel[0] *= cm_to_mm
+        vel[1] *= cm_to_mm
+        vel[2] *= rad_to_deg
+
+        command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
+        self.sock.sendto(command, self.aa_addr)
+        if self.print_commands:
+            print 'sending command:', command
+
+    def get_pos(self):
+        return np.array(tuple(self.aa_source.read(n_pts=1)['data'][self.pos_state_names][0]))     
+
+    def get_vel(self):
+        pos = self.aa_source.read(n_pts=2)['data'][self.pos_state_names]
+        ts = self.aa_source.read(n_pts=2)['ts'][self.pos_state_names]
+
+        delta_pos = np.array(tuple(pos[1])) - np.array(tuple(pos[0]))
+        delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[0]))
+
+        vel = delta_pos / (delta_ts * ms_to_s)
+
+        for i in range(3):
+            if np.isnan(vel[i]):
+                print "warning vel[%d] is nan" % i
+                print "pos", pos
+                print "ts", ts
+                print "delta_pos", delta_pos
+                print "delta_ts", delta_ts
+                vel[i] = 0
+
+        return vel
+
+
+class ReHandPlant(object):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated ReHand.
+    '''
+
+    def __init__(self, print_commands=True):
+        self.print_commands = print_commands
+
+        self.rh_source = source.DataSource(ismore.ReHandData, name='rehand')     # TODO -- set small buffer length
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
+        self.rh_addr = settings.rehand_udp_server
+
+        ssm = StateSpaceReHand()
+        self.pos_state_names = [s.name for s in ssm.states if s.order == 0]
+        self.vel_state_names = [s.name for s in ssm.states if s.order == 1]
+
+    def init(self):
+        from riglib import sink
+        sink.sinks.register(self.aa_source)
+
+    def start(self):
+        # only start this DataSource after it has been registered with 
+        # the SinkManager singleton (sink.sinks) in the call to init()
+        self.rh_source.start()
+
+    def stop(self):
+        self.rh_source.stop()
+
+    def _send_vel_rehand(self, vel):
+        vel = vel.copy()
+
+        # units of vel should be: [rad/s, rad/s, rad/s, rad/s]
+        assert len(vel) == 4
+        
+        # convert units to: [deg/s, deg/s, deg/s, deg/s]
+        vel *= rad_to_deg
+
+        command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
+        self.sock.sendto(command, self.rh_addr)
+        if self.print_commands:
+            print 'sending command:', command
+
+     def _get_pos_rehand(self):
+        return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.pos_state_names][0]))
+
+    def _get_vel_rehand(self):
+        return np.array(tuple(self.rh_source.read(n_pts=1)['data'][self.vel_state_names][0]))
 
         
 
