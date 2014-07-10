@@ -19,7 +19,7 @@ from . import FuncProxy
 
 
 class DataSource(mp.Process):
-    def __init__(self, source, bufferlen=10, name=None, send_data_to_sinks=True, **kwargs):
+    def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, **kwargs):
         super(DataSource, self).__init__()
         if name is not None:
             self.name = name
@@ -46,8 +46,8 @@ class DataSource(mp.Process):
         # in DataSource.run, there is a call to "self.sinks.send(...)",
         # but if the DataSource was never registered with the sink manager,
         # then this line results in unnecessary IPC
-        # so, set send_data_to_sinks to False if you want to avoid this
-        self.send_data_to_sinks = send_data_to_sinks
+        # so, set send_data_to_sink_manager to False if you want to avoid this
+        self.send_data_to_sink_manager = send_data_to_sink_manager
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
@@ -92,7 +92,7 @@ class DataSource(mp.Process):
                     system.stop()
             if streaming:
                 data = system.get()
-                if self.send_data_to_sinks:
+                if self.send_data_to_sink_manager:
                     self.sinks.send(self.name, data)
                 if data is not None:
                     try:
@@ -188,7 +188,7 @@ class MultiChanDataSource(mp.Process):
     '''
     Multi-channel version of 'Source'
     '''
-    def __init__(self, source, bufferlen=1, send_data_to_sinks=False, **kwargs):
+    def __init__(self, source, bufferlen=2, send_data_to_sink_manager=False, **kwargs):
         '''
         Constructor for MultiChanDataSource
 
@@ -231,10 +231,10 @@ class MultiChanDataSource(mp.Process):
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
 
-        self.send_data_to_sinks = send_data_to_sinks
-        if self.send_data_to_sinks:
+        self.send_data_to_sink_manager = send_data_to_sink_manager
+        if self.send_data_to_sink_manager:
             self.send_to_sinks_dtype = np.dtype([(str(chan), dtype) for chan in kwargs['channels']])
-            self.next_send_idx = mp.Value('l', -1)
+            self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros by default
 
     def start(self, *args, **kwargs):
@@ -311,7 +311,7 @@ class MultiChanDataSource(mp.Process):
                                 #     idx = idx % max_len
                                 if idx == self.max_len:
                                     idx = 0
-                                    if self.send_data_to_sinks:
+                                    if self.send_data_to_sink_manager:
                                         self.wrap_flags[row] = True
                             else: # need to write data at both end and start of buffer
                                 self.data[row, idx:] = data[:max_len-idx]
@@ -323,24 +323,36 @@ class MultiChanDataSource(mp.Process):
                     except Exception as e:
                         print e
 
-                    if self.send_data_to_sinks:
+                    if self.send_data_to_sink_manager:
+                        self.lock.acquire()
+
                         while True:
                             if all(self.wrap_flags):
                                 offset = self.max_len
                             else:
                                 offset = 0
 
-                            if all(idx + self.max_len > self.next_send_idx.value for idx in self.idxs):
-                                data = np.array(tuple(self.data[:, next_send_idx.value]),
+                            # print 'self.idxs:', self.idxs
+                            # print 'self.wrap_flags:', self.wrap_flags
+                            # print 'self.next_send_idx.value:', self.next_send_idx.value
+
+                            if all(idx + offset > self.next_send_idx.value for idx in self.idxs):
+                                # print "reached here"
+                                # print "self.data[:, next_send_idx.value]", self.data[:, self.next_send_idx.value]
+                                # print "self.send_to_sinks_dtype", self.send_to_sinks_dtype
+                                data = np.array([tuple(self.data[:, self.next_send_idx.value])],
                                                 dtype=self.send_to_sinks_dtype)
+                                # print "data", data
                                 self.sinks.send(self.name, data)
                                 self.next_send_idx.value += 1
                                 if self.next_send_idx.value == self.max_len:
+                                    print "wrote data at end of buffer"
                                     self.next_send_idx.value = 0
                                     for row in range(self.n_chan):
                                         self.wrap_flags[row] = False
                             else:
                                 break
+                        self.lock.release()
             else:
                 time.sleep(.001)
         system.stop()
