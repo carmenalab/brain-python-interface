@@ -34,6 +34,8 @@ class Connection(object):
             self.parameters['receive-buffer-size'] = 8388608
 
         self._init = False
+
+        self.nsamples_chan1 = 0
     
     def connect(self):
         '''Open the interface to the NSP (or nPlay).'''
@@ -95,6 +97,8 @@ class Connection(object):
         print ''
 
         self.streaming = False
+
+        print 'self.nsamples_chan1:', self.nsamples_chan1
 
     def disconnect(self):
         '''Close the interface to the NSP (or nPlay).'''
@@ -173,6 +177,9 @@ class Connection(object):
             for list_ in trial:
                 chan = list_[0]
                 samples = list_[1]
+
+                if chan == 1:
+                    self.nsamples_chan1 += len(samples)
                 yield ContinuousData(chan=chan, samples=samples, arrival_ts=arrival_ts)
 
             time.sleep(sleep_time)
