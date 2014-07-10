@@ -112,7 +112,7 @@ class SinkManager(object):
         for s in self.sinks:
             yield s
 
-#Data Sink manager singleton to be used by features
+# Data Sink manager singleton to be used by features
 sinks = SinkManager()
 
 

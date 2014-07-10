@@ -281,11 +281,7 @@ class MultiChanDataSource(mp.Process):
                 #   data is a numpy array with a dtype (or subdtype) of
                 #   self.source.dtype
                 chan, data = system.get()
-                # for now, assume no multi-channel data source is registered
-                # TODO -- how to send MCDS data to a sink? (problem is that
-                #    "data" has a variable length each time and has no 
-                #    fixed-size dtype, which sinks require)
-                # self.sinks.send(self.name, data)
+
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -332,29 +328,30 @@ class MultiChanDataSource(mp.Process):
                             else:
                                 offset = 0
 
-                            # print 'self.idxs:', self.idxs
-                            # print 'self.wrap_flags:', self.wrap_flags
-                            # print 'self.next_send_idx.value:', self.next_send_idx.value
-
-                            if all(idx + offset > self.next_send_idx.value for idx in self.idxs):
-                                # print "reached here"
-                                # print "self.data[:, next_send_idx.value]", self.data[:, self.next_send_idx.value]
-                                # print "self.send_to_sinks_dtype", self.send_to_sinks_dtype
-                                data = np.array([tuple(self.data[:, self.next_send_idx.value])],
+                            if all(idx + offset > self.next_send_idx.value for idx in self.idxs): 
+                                start_idx = self.next_send_idx.value
+                                if offset == self.max_len:
+                                    end_idx = self.max_len
+                                else:
+                                    end_idx = np.min(self.idxs[:])
+                                
+                                data_to_send = self.data[:, start_idx:end_idx]
+                                data = np.array([tuple(x) for x in data_to_send.T.tolist()], 
                                                 dtype=self.send_to_sinks_dtype)
-                                # print "data", data
                                 self.sinks.send(self.name, data)
-                                self.next_send_idx.value += 1
+                                self.next_send_idx.value = end_idx
+
                                 if self.next_send_idx.value == self.max_len:
-                                    print "wrote data at end of buffer"
                                     self.next_send_idx.value = 0
                                     for row in range(self.n_chan):
                                         self.wrap_flags[row] = False
                             else:
                                 break
+
                         self.lock.release()
             else:
                 time.sleep(.001)
+        
         system.stop()
         print "ended datasource %r" % self.source
 

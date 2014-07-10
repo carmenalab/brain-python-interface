@@ -29,7 +29,7 @@ class HDFWriter(object):
         self.data = {}
         self.msgs = {}
 
-        self.f = open('hdfdebug.txt', 'w')
+        #self.f = open('hdfdebug.txt', 'w')
     
     def register(self, name, dtype, include_msgs=True):
         '''
@@ -68,10 +68,11 @@ class HDFWriter(object):
         # self.f.write('system:\n' + str(system) + '\n')
         # self.f.write('data:\n' + str(data) + '\n')
         # self.f.write('type(data)\n' + str(type(data)) + '\n')
-        
+
         if system in self.data:
             if len(data) != 1:
-                data = np.array(data)[np.newaxis]
+                # data = np.array(data)[np.newaxis]
+                pass
             self.data[system].append(data)
 
     def sendMsg(self, msg):
