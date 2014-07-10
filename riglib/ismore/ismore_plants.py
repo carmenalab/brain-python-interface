@@ -47,14 +47,12 @@ class IsMorePlant(object):
 
     def init(self):
         from riglib import sink
-        self.sinks = sink.sinks
-
-        self.sinks.register(self.aa_source)
-        self.sinks.register(self.rh_source)
+        sink.sinks.register(self.aa_source)
+        sink.sinks.register(self.rh_source)
 
     def start(self):
         # only start these DataSources after they have been registered with 
-        # the SinkManager singleton (self.sinks) in the call to init()
+        # the SinkManager singleton (sink.sinks) in the call to init()
         self.aa_source.start()
         self.rh_source.start()
 
