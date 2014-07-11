@@ -61,6 +61,19 @@ def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
 def default_data_comb_fn(x):
     return x
 
+
+def get_records_of_trained_decoders(task_entry):
+    '''
+    Returns unpickled decoder objects that were trained in a specified session.
+    '''
+    task_entry = lookup_task_entries(task_entry)
+    records = models.Decoder.objects.filter(entry_id=task_entry.id)
+    records = list(records)
+    if len(records) == 1:
+        return records[0]
+    else:
+        return records
+
 def lookup_task_entries(*task_entry):
     '''
     Enable multiple ways to specify a task entry, e.g. by primary key or by
