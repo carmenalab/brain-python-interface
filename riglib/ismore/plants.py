@@ -167,10 +167,12 @@ class IsMorePlant(object):
         rh_vel = self.rh_plant.get_vel()
         return np.hstack([aa_vel, rh_vel])
 
-        
 
-class IsMorePlantNoUDP(object):
-    '''Similar methods as IsMorePlant, but: 1) doesn't send/receive anything
+################################################        
+
+
+class ArmAssistPlantNoUDP(object):
+    '''Similar methods as ArmAssistPlant, but: 1) doesn't send/receive anything
     over UDP and 2) uses simulated ArmAssist and/or ReHand. Use this plant if
     you want to simulate having (near) instantaneous feedback.
     '''
@@ -187,9 +189,6 @@ class IsMorePlantNoUDP(object):
         self.aa.daemon = True
 
 
-        self.rh = rehand.ReHand(tstep=0.005)
-        self.rh.daemon = True
-
     # # a "magic" function that instantaneously moves the ArmAssist and ReHand to a new configuration
     # # IMPORTANT: only use to set initial position/orientation
     # def set_pos(self, pos):
@@ -201,84 +200,104 @@ class IsMorePlantNoUDP(object):
         pass
 
     def start(self):
-        # start ArmAssist and ReHand simulation processes
+        # start ArmAssist simulation process
         self.aa.start()
+
+    def stop(self):
+        pass
+
+    def send_vel(self, vel):
+        vel = vel.copy()
+        
+        # units of vel should be: (cm/s, cm/s, rad/s)
+        assert len(vel) == 3
+
+        # don't need to convert from rad/s to deg/s
+        # (aa_pic expects units of rad/s)
+
+        vel = np.mat(vel).T
+        self.aa.update_reference(vel)
+
+    # make note -- no conversion needed
+
+    def get_pos(self):
+        return np.array(self.aa.get_state()['wf']).reshape((3,))
+
+    def get_vel(self):
+        return np.array(self.aa.get_state()['wf_dot']).reshape((3,))
+
+
+class ReHandPlantNoUDP(object):
+    '''Similar methods as ReHandPlant, but: 1) doesn't send/receive anything
+    over UDP and 2) uses simulated ReHand. Use this plant if
+    you want to simulate having (near) instantaneous feedback.
+    '''
+    def __init__(self):
+        # create ReHand process
+        self.rh = rehand.ReHand(tstep=0.005)
+        self.rh.daemon = True
+
+    def init(self):
+        pass
+
+    def start(self):
+        # start ReHand simulation process
         self.rh.start()
 
     def stop(self):
         pass
 
-    def send_vel(self, vel, dev):
+    def send_vel(self, vel):
         vel = vel.copy()
-        if dev == 'ArmAssist':
-            # units of vel should be: (cm/s, cm/s, rad/s)
-            assert len(vel) == 3
 
-            # don't need to convert from rad/s to deg/s
-            # (aa_pic expects units of rad/s)
-
-            vel = np.mat(vel).T
-            self.aa.update_reference(vel)
-
-        elif dev == 'ReHand':
-            # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
-            assert len(vel) == 4
-            
-            # don't need to convert from rad/s to deg/s
-            # (rh expects units of rad/s)
-
-            vel = np.mat(vel).T
-            self.rh.set_vel(vel)
-
-        elif dev == 'IsMore':
-            # units of vel should be: (cm/s, cm/s, rad/s, rad/s, rad/s, rad/s, rad/s)
-            assert len(vel) == 7
-            
-            # don't need to convert from rad/s to deg/s
-            # (aa_pic and rh expect units of rad/s)
-
-            aa_vel = np.mat(vel[0:3]).T
-            self.aa.update_reference(aa_vel)
-
-            rh_vel = np.mat(vel[3:7]).T
-            self.rh.set_vel(rh_vel)
-
-        else:
-            raise Exception('Unknown device: ' + str(dev))
+        # units of vel should be: (rad/s, rad/s, rad/s, rad/s)
+        assert len(vel) == 4
         
-    def _get_state(self):
-        aa_state = self.aa.get_state()
-        aa_pos = np.array(aa_state['wf']).reshape((3,))
-        aa_vel = np.array(aa_state['wf_dot']).reshape((3,))
+        # don't need to convert from rad/s to deg/s
+        # (rh expects units of rad/s)
 
-        rh_state = self.rh.get_state()
-        rh_pos = np.array(rh_state['pos']).reshape((4,))
-        rh_vel = np.array(rh_state['vel']).reshape((4,))
+        vel = np.mat(vel).T
+        self.rh.set_vel(vel)
 
-        # no conversion needed (everything already in units of rad)
+    # no conversion needed (everything already in units of rad)
 
-        return aa_pos, aa_vel, rh_pos, rh_vel
+    def get_pos(self):
+        return np.array(self.rh.get_state()['pos']).reshape((4,))
 
-    def get_pos(self, dev):
-        aa_pos, _, rh_pos, _ = self._get_state()
+    def get_vel(self):
+        return np.array(self.rh.get_state()['vel']).reshape((4,))
 
-        if dev == 'ArmAssist':
-            return aa_pos
-        elif dev == 'ReHand':
-            return rh_pos
-        elif dev == 'IsMore':
-            return np.hstack([aa_pos, rh_pos])
-        else:
-            raise Exception('Unknown device: ' + str(dev))
 
-    def get_vel(self, dev):
-        _, aa_vel, _, rh_vel = self._get_state()
+class IsMorePlantNoUDP(object):
+    '''Similar methods as IsMorePlant, but: 1) doesn't send/receive anything
+    over UDP and 2) uses simulated ArmAssist and/or ReHand. Use this plant if
+    you want to simulate having (near) instantaneous feedback.
+    '''
+    def __init__(self):
+        self.aa_plant = ArmAssistPlantNoUDP()
+        self.rh_plant = ReHandPlantNoUDP()
 
-        if dev == 'ArmAssist':
-            return aa_vel
-        elif dev == 'ReHand':
-            return rh_vel
-        elif dev == 'IsMore':
-            return np.hstack([aa_vel, rh_vel])
-        else:
-            raise Exception('Unknown device: ' + str(dev))
+    def init(self):
+        pass
+
+    def start(self):
+        # start ArmAssist and ReHand simulation processes
+        self.aa_plant.start()
+        self.rh_plant.start()
+
+    def stop(self):
+        pass
+
+    def send_vel(self, vel):
+        self.aa_plant.send_vel(vel[0:3])
+        self.rh_plant.send_vel(vel[3:7])
+        
+    def get_pos(self):
+        aa_pos = self.aa_plant.get_pos()
+        rh_pos = self.rh_plant.get_pos()
+        return np.hstack([aa_pos, rh_pos])
+
+    def get_vel(self):
+        aa_vel = self.aa_plant.get_vel()
+        rh_vel = self.rh_plant.get_vel()
+        return np.hstack([aa_vel, rh_vel])
