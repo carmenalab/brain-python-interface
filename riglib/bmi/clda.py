@@ -52,11 +52,23 @@ def fast_inv(A):
 ## Learners
 ##############################################################################
 def normalize(vec):
-    '''    Docstring    '''
+    '''
+    Vector normalization. If the vector to be normalized is of norm 0, a vector of 0's is returned
+
+    Parameters
+    ----------
+    vec: np.ndarray of shape (N,) or (N, 1)
+        Vector to be normalized
+
+    Returns
+    -------
+    norm_vec: np.ndarray of shape matching 'vec'
+        Normalized version of vec
+    '''
     norm_vec = vec / np.linalg.norm(vec)
     
     if np.any(np.isnan(norm_vec)):
-        norm_vec = np.zeros(len(vec))
+        norm_vec = np.zeros_like(vec)
     
     return norm_vec
 
@@ -146,7 +158,7 @@ class Learner(object):
 
 class DumbLearner(Learner):
     '''
-    A learner that never learns anything. Used to make non-adaptive BMI tasks interact the same as CLDA tasks.
+    A learner that never learns anything. Used to make non-adaptive BMI tasks interface the same as CLDA tasks.
     '''
     def __init__(self, *args, **kwargs):
         '''
@@ -292,10 +304,25 @@ class OFCLearnerTentacle(OFCLearner):
         super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
 class CursorGoalLearner2(Learner):
-    '''    Docstring    '''
-    def __init__(self, *args, **kwargs):
-        '''    Docstring    '''
-        self.int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
+    '''
+    CLDA intention estimator based on CursorGoal/Refit-KF ("innovation 1" in Gilja*, Nuyujukian* et al, Nat Neurosci 2012)
+    '''
+    def __init__(self, int_speed_type='dist_to_target', *args, **kwargs):
+        '''
+        Constructor for CursorGoalLearner2
+
+        Parameters
+        ----------
+        int_speed_type: string, optional, default='dist_to_target'
+            Specifies the method to use to estimate the intended speed of the target.
+                dist_to_target: scales based on remaining distance to the target position
+                decoded_speed: use the speed output provided by the decoder, i.e., the difference between the intention and the decoder output can be described by a pure vector rotation
+
+        Returns
+        -------
+        CursorGoalLearner2 instance
+        '''
+        self.int_speed_type = int_speed_type
         if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
             raise ValueError("Unknown type of speed for cursor goal: %s" % self.int_speed_type)
 
