@@ -19,6 +19,8 @@ from . import FuncProxy
 
 
 class DataSource(mp.Process):
+    '''Docstring.'''
+
     def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, **kwargs):
         super(DataSource, self).__init__()
         if name is not None:
@@ -188,6 +190,7 @@ class MultiChanDataSource(mp.Process):
     '''
     Multi-channel version of 'Source'
     '''
+
     def __init__(self, source, bufferlen=2, send_data_to_sink_manager=False, **kwargs):
         '''
         Constructor for MultiChanDataSource
@@ -203,6 +206,7 @@ class MultiChanDataSource(mp.Process):
             Note that kwargs['channels'] does not need to a list of integers,
             it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
         '''
+
         super(MultiChanDataSource, self).__init__()
         self.name = source.__module__.split('.')[-1]
         self.filter = None
