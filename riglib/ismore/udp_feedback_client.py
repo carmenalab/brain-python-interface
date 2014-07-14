@@ -114,12 +114,15 @@ class ReHandClient(Client):
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 arrival_ts = time.time()
-                self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
+                #self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
 
                 items = feedback.rstrip('\r').split(' ')
                 
-                cmd_id = items[0]
-                dev_id = items[1]
+                #cmd_id = items[0]
+                #dev_id = items[1]
+                dev_id = items[0]
+                cmd_id = items[1]
+
                 assert cmd_id == 'Status'
                 assert dev_id == 'ReHand'                
 
