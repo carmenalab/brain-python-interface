@@ -36,6 +36,9 @@ class Connection(object):
             self.parameters['receive-buffer-size'] = 8388608
 
         self._init = False
+
+        self.nsamp_chan1 = 0
+        self.nsamp_last_print = 0
     
     def connect(self):
         '''Open the interface to the NSP (or nPlay).'''
@@ -111,6 +114,7 @@ class Connection(object):
         self._init = False
     
     def __del__(self):
+        print "cerelink.py: inside Connection.__del__"
         self.disconnect()
 
     def get_event_data(self):
@@ -144,6 +148,15 @@ class Connection(object):
             arrival_ts = time.time()
 
             for list_ in trial:
+
+                chan = list_[0]
+                samples = list_[1]
+                if chan == 1:
+                    self.nsamp_chan1 += len(samples)
+                    if self.nsamp_chan1 > self.nsamp_last_print + 2000:
+                        print "cerelink.py: # samples =", self.nsamp_chan1
+                        self.nsamp_last_print = self.nsamp_chan1
+
                 yield ContinuousData(chan=list_[0],
                                      samples=list_[1],
                                      arrival_ts=arrival_ts)

@@ -241,6 +241,9 @@ class MultiChanDataSource(mp.Process):
             self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros by default
 
+            self.nsamp_sent = 0
+            self.nsamp_last_print = 0
+
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
         super(MultiChanDataSource, self).start(*args, **kwargs)
@@ -344,6 +347,11 @@ class MultiChanDataSource(mp.Process):
                                                 dtype=self.send_to_sinks_dtype)
                                 self.sinks.send(self.name, data)
                                 self.next_send_idx.value = end_idx
+
+                                self.nsamp_sent += (end_idx-start_idx)
+                                if self.nsamp_sent > self.nsamp_last_print + 2000:
+                                    print "source.py: # samples =", self.nsamp_sent
+                                    self.nsamp_last_print = self.nsamp_sent
 
                                 if self.next_send_idx.value == self.max_len:
                                     self.next_send_idx.value = 0

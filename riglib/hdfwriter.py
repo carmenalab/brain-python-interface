@@ -30,6 +30,9 @@ class HDFWriter(object):
         self.msgs = {}
 
         #self.f = open('hdfdebug.txt', 'w')
+
+        self.nsamp_appended = 0
+        self.nsamp_last_print = 0
     
     def register(self, name, dtype, include_msgs=True):
         '''
@@ -74,6 +77,12 @@ class HDFWriter(object):
                 # data = np.array(data)[np.newaxis]
                 pass
             self.data[system].append(data)
+
+            self.nsamp_appended += len(data)
+            if self.nsamp_appended > self.nsamp_last_print + 2000:
+                print "hdfwriter.py: # samples =", self.nsamp_appended
+                print ""
+                self.nsamp_last_print = self.nsamp_appended
 
     def sendMsg(self, msg):
         '''
