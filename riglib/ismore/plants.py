@@ -40,6 +40,8 @@ class ArmAssistPlant(object):
         self.source.start()
 
     def stop(self):
+        print "setting ArmAssist speeds to 0"
+        self.send_vel(np.zeros(3))
         self.source.stop()
 
     def send_vel(self, vel):
@@ -109,6 +111,8 @@ class ReHandPlant(object):
         self.source.start()
 
     def stop(self):
+        print "setting ReHand speeds to 0"
+        self.send_vel(np.zeros(4))
         self.source.stop()
 
     def send_vel(self, vel):
