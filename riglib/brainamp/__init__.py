@@ -6,6 +6,10 @@ import rda
 
 
 class EMG(object):
+    '''For use with a MultiChanDataSource in order to acquire streaming EMG
+    data from the BrainProducts BrainVision Recorder.
+    '''
+
     update_freq = 2500.
     dtype = np.dtype('float')
 
@@ -22,5 +26,4 @@ class EMG(object):
 
     def get(self):
         d = self.data.next()
-
         return (d.chan, np.array([d.uV_value], dtype='float'))

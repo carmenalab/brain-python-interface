@@ -19,7 +19,7 @@ class ArmAssistPlant(object):
     def __init__(self, print_commands=True):
         self.print_commands = print_commands
 
-        self.source = source.DataSource(ismore.ArmAssistData, name='armassist')  # TODO -- set small buffer length
+        self.source = source.DataSource(ismore.ArmAssistData, bufferlen=5, name='armassist')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
         self.aa_addr = settings.armassist_udp_server
         
@@ -91,7 +91,7 @@ class ReHandPlant(object):
     def __init__(self, print_commands=True):
         self.print_commands = print_commands
 
-        self.source = source.DataSource(ismore.ReHandData, name='rehand')     # TODO -- set small buffer length
+        self.source = source.DataSource(ismore.ReHandData, bufferlen=5, name='rehand')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
         self.rh_addr = settings.rehand_udp_server
 
@@ -172,10 +172,12 @@ class IsMorePlant(object):
 
 
 class ArmAssistPlantNoUDP(object):
-    '''Similar methods as ArmAssistPlant, but: 1) doesn't send/receive anything
-    over UDP and 2) uses simulated ArmAssist and/or ReHand. Use this plant if
-    you want to simulate having (near) instantaneous feedback.
+    '''Similar methods as ArmAssistPlant, but: 
+        1) doesn't send/receive anything over UDP, and 
+        2) uses simulated ArmAssist (can't be used with real ArmAssist).
+       Use this plant to simulate having (near) instantaneous feedback.
     '''
+
     def __init__(self):
         # create and start ArmAssist object (includes ArmAssist and its PIC)
         aa_tstep = 0.005
@@ -200,7 +202,8 @@ class ArmAssistPlantNoUDP(object):
         pass
 
     def start(self):
-        # start ArmAssist simulation process
+        '''Start the ArmAssist simulation processes.'''
+        
         self.aa.start()
 
     def stop(self):
@@ -228,10 +231,12 @@ class ArmAssistPlantNoUDP(object):
 
 
 class ReHandPlantNoUDP(object):
-    '''Similar methods as ReHandPlant, but: 1) doesn't send/receive anything
-    over UDP and 2) uses simulated ReHand. Use this plant if
-    you want to simulate having (near) instantaneous feedback.
+    '''Similar methods as ReHandPlant, but: 
+        1) doesn't send/receive anything over UDP, and 
+        2) uses simulated ReHand (can't be used with real ReHand).
+       Use this plant to simulate having (near) instantaneous feedback.
     '''
+    
     def __init__(self):
         # create ReHand process
         self.rh = rehand.ReHand(tstep=0.005)
@@ -241,7 +246,8 @@ class ReHandPlantNoUDP(object):
         pass
 
     def start(self):
-        # start ReHand simulation process
+        '''Start the ReHand simulation process.'''
+
         self.rh.start()
 
     def stop(self):
@@ -269,10 +275,12 @@ class ReHandPlantNoUDP(object):
 
 
 class IsMorePlantNoUDP(object):
-    '''Similar methods as IsMorePlant, but: 1) doesn't send/receive anything
-    over UDP and 2) uses simulated ArmAssist and/or ReHand. Use this plant if
-    you want to simulate having (near) instantaneous feedback.
+    '''Similar methods as IsMorePlant, but: 
+        1) doesn't send/receive anything over UDP, and 
+        2) uses simulated ArmAssist+ReHand (can't be used with real devices).
+       Use this plant to simulate having (near) instantaneous feedback.
     '''
+
     def __init__(self):
         self.aa_plant = ArmAssistPlantNoUDP()
         self.rh_plant = ReHandPlantNoUDP()
@@ -281,7 +289,8 @@ class IsMorePlantNoUDP(object):
         pass
 
     def start(self):
-        # start ArmAssist and ReHand simulation processes
+        '''Start the ArmAssist and ReHand simulation processes.'''
+
         self.aa_plant.start()
         self.rh_plant.start()
 

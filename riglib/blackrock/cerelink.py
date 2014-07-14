@@ -1,6 +1,6 @@
 '''
-Client-side code to configure and receive neural data from the Blackrock
-Neural Signal Processor (NSP).
+Client-side code that uses cbpy to configure and receive neural data from the 
+Blackrock Neural Signal Processor (NSP) (or nPlay).
 '''
 
 import sys
@@ -8,10 +8,12 @@ import time
 from collections import namedtuple
 
 from cerebus import cbpy
-# from CereLink import cbpy  # old cbpy
 
-SpikeEventData = namedtuple("SpikeEventData", ["chan", "unit", "ts", "arrival_ts"])
-ContinuousData = namedtuple("ContinuousData", ["chan", "samples", "arrival_ts"])
+
+SpikeEventData = namedtuple("SpikeEventData",
+                            ["chan", "unit", "ts", "arrival_ts"])
+ContinuousData = namedtuple("ContinuousData", 
+                            ["chan", "samples", "arrival_ts"])
 
 class Connection(object):
     '''Here's a docstring'''
@@ -22,7 +24,7 @@ class Connection(object):
         self.parameters['inst-port']   = 51001
         self.parameters['client-port'] = 51002
 
-        self.channel_offset = 4  # some bug with nPlay
+        self.channel_offset = 4  # TODO -- some bug with nPlay
         print 'Using cbpy channel offset of:', self.channel_offset
 
         if sys.platform == 'darwin':  # OS X
@@ -112,22 +114,7 @@ class Connection(object):
         self.disconnect()
 
     def get_event_data(self):
-        '''A generator which yields spike event data.'''
-
-        # trial_event(instance = 0, reset=False):
-        # '''
-        # Trial spike and event data.
-        # Inputs:
-        #    reset - (optional) boolean 
-        #            set False (default) to leave buffer intact.
-        #            set True to clear all the data and reset the trial time to the current time.
-        #    instance - (optional) library instance number
-        # Outputs:
-        #    list of arrays [channel, {'timestamps':[unit0_ts, ..., unitN_ts], 'events':digital_events}]
-        #        channel: integer, channel number (1-based)
-        #        digital_events: array, digital event values for channel (if a digital or serial channel)
-        #        unitN_ts: array, spike timestamps of unit N for channel (if an electrode channel));
-        # '''
+        '''A generator that yields spike event data.'''
 
         sleep_time = 0
 
@@ -148,20 +135,7 @@ class Connection(object):
 
 
     def get_continuous_data(self):
-        '''A generator which yields continuous data.'''
-
-        # trial_continuous(instance = 0, reset=False):
-        # ''' Trial continuous data.
-        # Inputs:
-        #    reset - (optional) boolean 
-        #            set False (default) to leave buffer intact.
-        #            set True to clear all the data and reset the trial time to the current time.
-        #    instance - (optional) library instance number
-        # Outputs:
-        #    list of the form [channel, continuous_array]
-        #        channel: integer, channel number (1-based)
-        #        continuous_array: array, continuous values for channel)
-        # '''
+        '''A generator that yields continuous data.'''
 
         sleep_time = 0
 
@@ -176,39 +150,3 @@ class Connection(object):
 
             time.sleep(sleep_time)
 
-
-if __name__ == "__main__":
-    import csv
-    import time
-    import argparse
-    parser = argparse.ArgumentParser(description="Collects spike data for a set amount of time")
-    parser.add_argument("output", help="Output csv file")
-    args = parser.parse_args()
-
-    with open(args.output, "w") as f:
-        csvfile = csv.DictWriter(f, SpikeEventData._fields)
-        csvfile.writeheader()
-
-        channels = [5, 6, 7, 8]
-
-        conn = Connection()
-        conn.connect()
-        conn.select_channels(channels)
-        conn.start_data()
-
-        gen = conn.get_event_data()
-
-        got_first = False
-
-        start = time.time()
-        while (time.time()-start) < 3:
-            spike_event_data = gen.next()
-            if not got_first and spike_event_data is not None:
-                print spike_event_data
-                got_first = True
-
-            if spike_event_data is not None:
-                csvfile.writerow(dict(spike_event_data._asdict()))
-
-        conn.stop_data()
-        conn.disconnect()

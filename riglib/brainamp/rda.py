@@ -62,11 +62,13 @@ def GetProperties(rawdata):
 
 
 class Connection(object):
-    '''Here's a docstring'''
-    RDA_MessageStart    = 1  # 
-    RDA_MessageData     = 2  # message-type for 16-bit data
-    RDA_MessageStop     = 3  # 
-    RDA_MessageData32   = 4  # message-type for 32-bit data
+    '''Docstring.'''
+
+    RDA_MessageStart     = 1      # 
+    RDA_MessageData      = 2      # message type for 16-bit data
+    RDA_MessageStop      = 3      # 
+    RDA_MessageData32    = 4      # message type for 32-bit data
+    RDA_MessageKeepAlive = 10000  # packets of this message type can discarded
 
     def __init__(self, recorder_ip, nbits=16):
         self.recorder_ip = recorder_ip
@@ -141,8 +143,7 @@ class Connection(object):
 
             # Split array into useful information; id1 to id4 are constants
             (id1, id2, id3, id4, msgsize, msgtype) = unpack('<llllLL', rawhdr)
-            # print '(id1, id2, id3, id4, msgsize, msgtype)', (id1, id2, id3, id4, msgsize, msgtype)
-
+            
             # Get data part of message, which is of variable size
             rawdata = RecvData(self.sock, msgsize - 24)
             arrival_ts = time.time()
@@ -151,6 +152,7 @@ class Connection(object):
             if msgtype == self.RDA_MessageStart:
                 # Start message, extract eeg properties and display them
                 (channelCount, samplingInterval, resolutions, channelNames) = GetProperties(rawdata)
+                
                 # reset block counter
                 lastBlock = -1
 
@@ -192,6 +194,8 @@ class Connection(object):
                 #     print "*** Overflow with " + str(block - lastBlock) + " datablocks ***" 
                 # lastBlock = block
 
+            elif msgtype == RDA_MessageKeepAlive:
+                pass
             else:
                 pass
                 # print 'message type 10000, skipping'
