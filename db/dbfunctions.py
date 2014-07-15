@@ -130,6 +130,13 @@ def get_params(entry):
     '''
     return json.loads(entry.params)
 
+def get_param(entry,paramname):
+    '''
+    Returns parameter value.
+    Takes TaskEntry object.
+    '''
+    return json.loads(entry.params)[paramname]
+
 def get_task_name(entry):
     '''
     Returns name of task used for session.
@@ -182,6 +189,13 @@ def get_success_rate(entry):
             total+=1
     return rew/total
 
+def get_completed_trials(entry):
+    '''
+    Returns # of trials rewarded
+    '''
+    report = json.loads(entry.report)
+    return len([s for s in report if s[0]=="reward"])
+
 def get_initiate_rate(entry):
     '''
     Returns average # of trials initated per minute.
@@ -200,13 +214,19 @@ def get_reward_rate(entry):
     Returns average # of trials completed per minute.
     Takes TaskEntry object.
     '''
-    length = get_length(entry)
+    
     report = json.loads(entry.report)
     count=0.0
+    rewardtimes = []
     for s in report:
         if s[0]=='reward':
             count+=1
-    return count/(length/60.0)
+            rewardtimes.append(s[2])
+    if len(rewardtimes)==0:
+        return 0
+    else:
+        length = rewardtimes[-1] - report[0][2]
+        return count/(length/60.0)
     
 def session_summary(entry):
     '''
