@@ -10,9 +10,9 @@ from collections import namedtuple
 from riglib.ismore import settings
 from utils.constants import *
 
-
-ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", ['data', 'ts', 'arrival_ts'])
-ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    ['data', 'ts', 'arrival_ts'])
+field_names = ['data', 'ts', 'ts_sent', 'ts_arrival']
+ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
+ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
 
 
 class Client(object):
@@ -60,7 +60,7 @@ class ArmAssistClient(Client):
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
-                arrival_ts = time.time()
+                ts_arrival = int(time.time() * 1e6)
                 #print "feedback aa:", feedback
                 self.sock.sendto("ACK ArmAssist\r", settings.armassist_udp_server)
 
@@ -90,7 +90,12 @@ class ArmAssistClient(Client):
                 data = np.array([px, py, ppsi])
                 ts   = np.array([ts, ts, ts])
 
-                yield ArmAssistFeedbackData(data=data, ts=ts, arrival_ts=arrival_ts)
+                ts_sent = 0  # TODO -- fix
+
+                yield ArmAssistFeedbackData(data=data, ts=ts, ts_sent=ts_sent, ts_arrival=ts_arrival)
+                                            # ts=ts, 
+                                            # #ts_sent=ts_sent,
+                                            # ts_arrival=ts_arrival)
 
             time.sleep(sleep_time)
 
@@ -114,38 +119,38 @@ class ReHandClient(Client):
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
-                arrival_ts = time.time()
+                ts_arrival = int(time.time() * 1e6)  # microseconds
                 #print "feedback rh:", feedback
                 #self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
 
                 items = feedback.rstrip('\r').split(' ')
                 
-                #cmd_id = items[0]
-                #dev_id = items[1]
                 dev_id = items[0]
                 cmd_id = items[1]
+                assert dev_id == 'ReHand'
+                assert cmd_id == 'Status'                
 
-                assert cmd_id == 'Status'
-                assert dev_id == 'ReHand'                
+                data_fields = items[2:]
 
-                freq = items[2]
+                freq = data_fields[0]
 
-                values = [float(s) for s in items[3:]]
-                assert len(values) == 16
+                # values = [float(s) for s in items[3:]]
+                # assert len(values) == 16
 
-                vel    = [values[0], values[4], values[8], values[12]]
-                pos    = [values[1], values[5], values[9], values[13]]
-                torque = [values[2], values[6], values[10], values[14]]
-                ts     = [values[3], values[7], values[11], values[15]]
+                vel    = [float(data_fields[i]) for i in [1, 5,  9, 13]]
+                pos    = [float(data_fields[i]) for i in [2, 6, 10, 14]]
+                torque = [float(data_fields[i]) for i in [3, 7, 11, 15]]
+                ts     = [  int(data_fields[i]) for i in [4, 8, 12, 16]]
 
-                ts = [int(t) for t in ts]
+                ts_sent = int(data_fields[17])
 
-                print "timestamps:"
-                print "ts thumb  ", ts[0] 
-                print "ts index  ", ts[1]
-                print "ts fing3  ", ts[2]
-                print "ts prono  ", ts[3]
-                print "ts arrival", int(arrival_ts * 1000)
+                # print "timestamps:"
+                # print "ts thumb  ", ts[0] 
+                # print "ts index  ", ts[1]
+                # print "ts fing3  ", ts[2]
+                # print "ts prono  ", ts[3]
+                # print "ts sent   ", ts_sent
+                # print "ts arrival", int(ts_arrival * 1e6)
 
                 data = np.array(pos + vel)
                 ts   = np.array(ts + ts)
@@ -153,6 +158,9 @@ class ReHandClient(Client):
                 # convert angular values from deg to rad (and deg/s to rad/s)
                 data *= deg_to_rad
 
-                yield ReHandFeedbackData(data=data, ts=ts, arrival_ts=arrival_ts)
+                yield ReHandFeedbackData(data=data, 
+                                         ts=ts, 
+                                         ts_sent=ts_sent,
+                                         ts_arrival=ts_arrival)
 
             time.sleep(sleep_time)
