@@ -61,6 +61,7 @@ class ArmAssistClient(Client):
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 arrival_ts = time.time()
+                #print "feedback aa:", feedback
                 self.sock.sendto("ACK ArmAssist\r", settings.armassist_udp_server)
 
                 # Example feedback string:
@@ -114,6 +115,7 @@ class ReHandClient(Client):
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 arrival_ts = time.time()
+                #print "feedback rh:", feedback
                 #self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
 
                 items = feedback.rstrip('\r').split(' ')
@@ -137,6 +139,13 @@ class ReHandClient(Client):
                 ts     = [values[3], values[7], values[11], values[15]]
 
                 ts = [int(t) for t in ts]
+
+                print "timestamps:"
+                print "ts thumb  ", ts[0] 
+                print "ts index  ", ts[1]
+                print "ts fing3  ", ts[2]
+                print "ts prono  ", ts[3]
+                print "ts arrival", int(arrival_ts * 1000)
 
                 data = np.array(pos + vel)
                 ts   = np.array(ts + ts)
