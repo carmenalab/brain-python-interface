@@ -389,12 +389,12 @@ class BlackrockData(traits.HasTraits):
         if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
             self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels, send_data_to_sink_manager=False)
         elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
-            self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels, send_data_to_sink_manager=True)
+            self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels, send_data_to_sink_manager=False)
         else:
             raise Exception("Unknown extractor class, unable to create data source object!")
 
-        from riglib import sink
-        sink.sinks.register(self.neurondata)
+        # from riglib import sink
+        # sink.sinks.register(self.neurondata)
 
         super(BlackrockData, self).init()
 
