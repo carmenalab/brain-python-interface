@@ -241,8 +241,11 @@ class MultiChanDataSource(mp.Process):
             self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros by default
 
+            self.nsamp_stored = 0
+            self.nsamp_stored_last_print = 0
+
             self.nsamp_sent = 0
-            self.nsamp_last_print = 0
+            self.nsamp_sent_last_print = 0
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
@@ -313,7 +316,7 @@ class MultiChanDataSource(mp.Process):
                                 # if idx >= max_len:
                                 #     idx = idx % max_len
                                 if idx == self.max_len:
-                                    idx = 0
+                                    idx =    0
                                     if self.send_data_to_sink_manager:
                                         self.wrap_flags[row] = True
                             else: # need to write data at both end and start of buffer
@@ -321,6 +324,12 @@ class MultiChanDataSource(mp.Process):
                                 self.data[row, :n_pts-(max_len-idx)] = data[max_len-idx:]
                                 idx = n_pts-(max_len-idx)
                             self.idxs[row] = idx
+
+                            # if chan == 1:
+                            #     self.nsamp_stored += n_pts
+                            #     if self.nsamp_stored > self.nsamp_stored_last_print + 2000:
+                            #         print "source.py: # stored =", self.nsamp_stored
+                            #         self.nsamp_stored_last_print = self.nsamp_stored
 
                         self.lock.release()
                     except Exception as e:
@@ -342,6 +351,7 @@ class MultiChanDataSource(mp.Process):
                                 else:
                                     end_idx = np.min(self.idxs[:])
                                 
+                                print "sending idxs %d through %d" % (start_idx, end_idx)
                                 data_to_send = self.data[:, start_idx:end_idx]
                                 data = np.array([tuple(x) for x in data_to_send.T.tolist()], 
                                                 dtype=self.send_to_sinks_dtype)
@@ -349,9 +359,9 @@ class MultiChanDataSource(mp.Process):
                                 self.next_send_idx.value = end_idx
 
                                 self.nsamp_sent += (end_idx-start_idx)
-                                if self.nsamp_sent > self.nsamp_last_print + 2000:
-                                    print "source.py: # samples =", self.nsamp_sent
-                                    self.nsamp_last_print = self.nsamp_sent
+                                if self.nsamp_sent > self.nsamp_sent_last_print + 2000:
+                                    print "source.py: # sent =", self.nsamp_sent
+                                    self.nsamp_sent_last_print = self.nsamp_sent
 
                                 if self.next_send_idx.value == self.max_len:
                                     self.next_send_idx.value = 0
