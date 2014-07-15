@@ -154,7 +154,7 @@ class Connection(object):
                 if chan == 1:
                     self.nsamp_chan1 += len(samples)
                     if self.nsamp_chan1 > self.nsamp_last_print + 2000:
-                        print "cerelink.py: # samples =", self.nsamp_chan1
+                        print "cerelink.py: # received =", self.nsamp_chan1
                         self.nsamp_last_print = self.nsamp_chan1
 
                 yield ContinuousData(chan=list_[0],
