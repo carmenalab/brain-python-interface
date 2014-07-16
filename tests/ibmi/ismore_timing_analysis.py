@@ -64,6 +64,28 @@ t.analyze_aa = True
 t.analyze_rh = True
 tests.append(t)
 
+t = Test()
+t.name = "armassist + rehand + blackrock (using 100ms for GetJointDataEnable)"
+t.hdf_file ='/storage/rawdata/hdf/test20140716_02.hdf'
+t.analyze_aa = True
+t.analyze_rh = True
+tests.append(t)
+
+t = Test()
+t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable, switched USB ports/order for ArmAssist/ReHand)"
+t.hdf_file ='/storage/rawdata/hdf/test20140716_04.hdf'
+t.analyze_aa = True
+t.analyze_rh = True
+tests.append(t)
+
+t = Test()
+t.name = "armassist + rehand + blackrock (using 100ms for GetJointDataEnable, switched USB ports/order for ArmAssist/ReHand)"
+t.hdf_file ='/storage/rawdata/hdf/test20140716_05.hdf'
+t.analyze_aa = True
+t.analyze_rh = True
+tests.append(t)
+
+
 
 def print_stats(values, units=""):
 	print "mean   %.2f %s" % (np.mean(values),   units)
