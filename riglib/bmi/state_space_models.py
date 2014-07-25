@@ -338,10 +338,10 @@ class StateSpaceEndptVel(StateSpace):
         '''
         super(StateSpaceEndptVel, self).__init__(
             State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
-            State('hand_py', stochastic=False, drives_obs=False, order=0),
+            State('hand_py', stochastic=False, drives_obs=False, min_val=-10, max_val=10, order=0),
             State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
             State('hand_vx', stochastic=True,  drives_obs=True, order=1),
-            State('hand_vy', stochastic=False, drives_obs=False, order=1),
+            State('hand_vy', stochastic=True, drives_obs=True, order=1),
             State('hand_vz', stochastic=True,  drives_obs=True, order=1),
             offset_state
         )
@@ -363,6 +363,29 @@ class StateSpaceEndptVel(StateSpace):
         I = np.mat(np.eye(3))
         B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
         return A, B, W
+
+class StateSpaceEndptVel2D(StateSpace):
+    ''' Docstring '''
+    def __init__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        super(StateSpaceEndptVel2D, self).__init__(
+            State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
+            State('hand_py', stochastic=False, drives_obs=False, order=0),
+            State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+            State('hand_vx', stochastic=True,  drives_obs=True, order=1),
+            State('hand_vy', stochastic=False, drives_obs=False, order=1),
+            State('hand_vz', stochastic=True,  drives_obs=True, order=1),
+            offset_state
+        )
+
 
 class StateSpaceExoArm(StateSpace):
     '''

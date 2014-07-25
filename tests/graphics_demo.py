@@ -14,15 +14,15 @@ from riglib.stereo_opengl.textures import Texture, TexModel
 from riglib.stereo_opengl.render import ssao, stereo, Renderer
 from riglib.stereo_opengl.utils import cloudy_tex
 
-from riglib.stereo_opengl.ik import RobotArm, RobotArm2D, RobotArm2J2D, RobotArmGen2D
-from stereo_opengl.xfm import Quaternion
+from riglib.stereo_opengl.ik import RobotArmGen2D
+from riglib.stereo_opengl.xfm import Quaternion
 import time
 
 from riglib.stereo_opengl.ik import RobotArm
 
 import pygame
 
-arm4j = RobotArmGen2D(link_radii = [.2], joint_radii=[.2], link_lengths = [4,4,2,2])
+arm4j = RobotArmGen2D(link_radii=.2, joint_radii=.2, link_lengths=[4,4,2,2])
 cone = Sphere(radius=1)
 
 pos_list = np.array([[0,0,0],[0,0,5]])

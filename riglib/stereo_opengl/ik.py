@@ -87,6 +87,9 @@ arm_color = (181/256., 116/256., 96/256., 1)
 arm_radius = 0.6
 
 class Plant(object):
+    def __init__(self, *args, **kwargs):
+        super(Plant, self).__init__(*args, **kwargs)
+
     def drive(self, decoder):
         self.set_intrinsic_coordinates(decoder['q'])
         decoder['q'] = self.get_intrinsic_coordinates()
@@ -289,8 +292,10 @@ class RobotArm2J2D(RobotArmGen2D):
         #     self.decoder['sh_pabd', 'el_pflex'] = joint_pos
 
 class TwoJoint(object):
-    '''Models a two-joint IK system (arm, leg, etc). Constrains the system by 
-    always having middle joint halfway between the origin and target'''
+    '''
+    Models a two-joint IK system (arm, leg, etc). Constrains the system by 
+    always having middle joint halfway between the origin and target
+    '''
     def __init__(self, origin_bone, target_bone, lengths=(20,20)):
         '''Takes two Model objects for the "upperarm" bone and the "lowerarm" bone.
         Assumes the models start at origin, with vector to (0,0,1) for bones'''
@@ -335,6 +340,12 @@ class TwoJoint(object):
                 Quaternion.rotate_vecs((0,0,1), target-elbow)).norm()
         
         self.upperarm._recache_xfm()
+        # print self.upperarm.xfm.rotate
+        self.curr_vecs[0] = self.lengths[0]*self.upperarm.xfm.rotate.quat[1:]
+        self.curr_vecs[1] = self.lengths[1]*self.forearm.xfm.rotate.quat[1:]
+        print self.forearm.xfm
+        print self.upperarm.xfm
+        # raise NotImplementedError("update curr_vecs!")
 
     def set_endpoint_2D(self, target):
         ''' Given an endpoint coordinate in the x-z plane, solves for joint positions in that plane via inverse kinematics'''
@@ -378,15 +389,32 @@ class TwoJoint(object):
         self.upperarm._recache_xfm()
 
 
-class RobotArm(Group):
-    def __init__(self, link_radii=(.2, .2), ball_radii=(.5,.5),lengths=(5, 4), ball_colors = ((1,1,1,1),(1,1,1,1)),\
-        link_colors = ((1,1,1,1), (1,1,1,1)), **kwargs):
+        # cursor_color = (.5,0,.5,1)
+        # cursor_radius = 0.4
+        # self.endpt_cursor = Sphere(radius=cursor_radius, color=cursor_color)
+        # self.endpt_cursor.translate(0, 0, lengths[1])
+        # self.forearm = Group([
+        #     Cylinder(radius=link_radii[1], height=lengths[1], color=link_colors[1]), 
+        #     self.endpt_cursor])
+        # self.forearm.translate(0,0,lengths[0])
+        
+        # self.upperarm = Group([
+        #     Cylinder(radius=link_radii[0], height=lengths[0],color=link_colors[0]), 
+        #     Sphere(radius=ball_radii[0],color=ball_colors[0]).translate(0, 0, lengths[0]),
+        #     self.forearm])
+        # self.system = TwoJoint(self.upperarm, self.forearm, lengths = (self.lengths))
+
+class RobotArm(Plant, Group):
+    def __init__(self, link_radii=(.2, .2), ball_radii=(.5,.5),lengths=(20, 20), ball_colors = ((1,1,1,1),(1,1,1,1)),\
+        link_colors = ((1,1,1,1), (1,1,1,1)), base_loc=np.array([2., 0., -10.]), **kwargs):
         self.link_radii = link_radii
         self.ball_radii = ball_radii
         self.lengths = lengths
+
+        self.endpt_cursor = Sphere(radius=ball_radii[1], color=(1, 0, 1, 1)) #ball_colors[1])
         self.forearm = Group([
             Cylinder(radius=link_radii[1], height=lengths[1], color=link_colors[1]), 
-            Sphere(radius=ball_radii[1],color=ball_colors[1]).translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
+            self.endpt_cursor.translate(0, 0, lengths[1])]).translate(0,0,lengths[0])
         self.upperarm = Group([
             Cylinder(radius=link_radii[0], height=lengths[0],color=link_colors[0]), 
             Sphere(radius=ball_radii[0],color=ball_colors[0]).translate(0, 0, lengths[0]),
@@ -394,18 +422,47 @@ class RobotArm(Group):
         self.system = TwoJoint(self.upperarm, self.forearm, lengths = (self.lengths))
         super(RobotArm, self).__init__([self.upperarm], **kwargs)
 
-    def set_endpoint_2D(self, target):
-        self.system.set_endpoint_2D(target)
+        self.num_links = len(link_radii)
+        self.num_joints = 3 # abstract joints. this system is fully characterized by the endpoint position since the elbow angle is determined by IK
 
-    def set_joints_2D(self, shoulder_angle, elbow_angle): 
-        self.system.set_joints_2D(shoulder_angle, elbow_angle)
+        self.base_loc = base_loc
 
-    def get_hand_location(self, shoulder_anchor):
-        ''' returns position of ball at end of forearm (hand)'''
-        return shoulder_anchor + self.system.curr_vecs[0] +self.system.curr_vecs[1]
+        self.translate(*self.base_loc, reset=True)
 
-    def get_joint_angles_2D(self):
-        return self.system.curr_angles[0], self.system.curr_angles[1] - np.pi/2
+    def get_endpoint_pos(self):
+        print 'curr_vecs', self.system.curr_vecs
+        print
+        return np.sum(self.system.curr_vecs, axis=0) + self.base_loc
+
+    def set_endpoint_pos(self, pos, **kwargs):
+        self.system.set_endpoint_3D(pos - self.base_loc)
+
+    def get_intrinsic_coordinates(self):
+        return self.get_endpoint_pos()
+
+    def set_intrinsic_coordinates(self, pos):
+        self.set_endpoint_pos(pos)
+
+    def drive(self, decoder):
+        print 'decoder pos', decoder['q']
+        
+        self.set_intrinsic_coordinates(decoder['q'])
+        print 'arm pos', self.get_endpoint_pos()
+
+    # def set_endpoint_2D(self, target):
+    #     self.system.set_endpoint_2D(target)
+
+    # def set_joints_2D(self, shoulder_angle, elbow_angle): 
+    #     self.system.set_joints_2D(shoulder_angle, elbow_angle)
+
+    # def get_hand_location(self, shoulder_anchor):
+    #     ''' returns position of ball at end of forearm (hand)'''
+    #     return shoulder_anchor + self.system.curr_vecs[0] +self.system.curr_vecs[1]
+
+    # def get_joint_angles_2D(self):
+    #     return self.system.curr_angles[0], self.system.curr_angles[1] - np.pi/2
+
+
 
 
 
@@ -424,9 +481,12 @@ starting_pos = np.array([5., 0., 5])
 chain_20_20.set_endpoint_pos(starting_pos - shoulder_anchor, n_iter=10, n_particles=500)
 chain_20_20.set_endpoint_pos(starting_pos, n_iter=10, n_particles=500)
 
-cursor = CursorPlant(endpt_bounds=(-14, 14., 0., 0., -14., 14.))
+cursor = CursorPlant(endpt_bounds=(-14, 14., -8., 8., -14., 14.))
 #cursor = CursorPlant(endpt_bounds=(-24., 24., 0., 0., -14., 14.))
+
+arm_3d = RobotArm()
 
 plants = dict(RobotArmGen2D=chain_15_15_5_5, 
               RobotArm2J2D=chain_20_20,
-              CursorPlant=cursor)
+              CursorPlant=cursor,
+              Arm3D=arm_3d)
