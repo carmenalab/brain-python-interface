@@ -217,7 +217,8 @@ def search_by_decoder(decoder):
         decid = decoder
     else:
         decid = decoder.id
-    return models.TaskEntry.objects.filter(params__contains='"bmi": '+str(decid))
+    blocks = list(models.TaskEntry.objects.filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.filter(params__contains='"decoder": '+str(decid))) 
+    return blocks
 
 def search_by_units(unitlist, decoderlist = None, exact=False):
     '''
@@ -291,7 +292,7 @@ def load_last_decoder():
 def get_decoders_trained_in_block(task_entry):
     task_entry = lookup_task_entries(task_entry)
     records = models.Decoder.objects.filter(entry_id=task_entry.id)
-    decoder_objects = map(load_decoder_from_record, records)
+    decoder_objects = map(lambda x: x.load(), records)#map(load_decoder_from_record, records)
     if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
     return decoder_objects
 
