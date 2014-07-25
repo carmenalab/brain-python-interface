@@ -276,6 +276,185 @@ class RobotArmGen2D(Plant, Group):
         self._update_links()
 
 
+class RobotArmGen3D(Plant, Group):
+    def __init__(self, link_radii=arm_radius, joint_radii=arm_radius, link_lengths=[15,15,5,5], joint_colors=arm_color,
+        link_colors=arm_color, base_loc=np.array([2., 0., -15]), **kwargs):
+        '''
+        Instantiate the graphics and the virtual arm for a kinematic chain
+        '''
+        self.num_joints = 2
+
+        self.link_radii = make_list(link_radii, num_joints)
+        self.joint_radii = make_list(joint_radii, num_joints)
+        self.link_lengths = make_list(link_lengths, num_joints)
+        self.joint_colors = make_list(joint_colors, num_joints)
+        self.link_colors = make_list(link_colors, num_joints)
+
+        self.curr_vecs = np.zeros([num_joints, 3]) #rows go from proximal to distal links
+
+        # set initial vecs to correct orientations (arm starts out vertical)
+        self.curr_vecs[0,2] = self.link_lengths[0]
+        self.curr_vecs[1:,0] = self.link_lengths[1:]
+
+        # Create links
+        self.links = []
+
+        for i in range(self.num_joints):
+            joint = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
+
+            # The most distal link gets a tapered cylinder (for purely stylistic reasons)
+            if i < self.num_joints - 1:
+                link = Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i])
+            else:
+                link = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
+            link_i = Group((link, joint))
+            self.links.append(link_i)
+
+        link_offsets = [0] + self.link_lengths[:-1]
+        self.link_groups = [None]*self.num_joints
+        for i in range(self.num_joints)[::-1]:
+            if i == self.num_joints-1:
+                self.link_groups[i] = self.links[i]
+            else:
+                self.link_groups[i] = Group([self.links[i], self.link_groups[i+1]])
+
+            self.link_groups[i].translate(0, 0, link_offsets[i])
+
+        # Call the parent constructor
+        super(RobotArmGen3D, self).__init__([self.link_groups[0]], **kwargs)
+
+        # Instantiate the kinematic chain object
+        if self.num_joints == 2:
+            self.kin_chain = robot_arms.PlanarXZKinematicChain(link_lengths)
+            self.kin_chain.joint_limits = [(-pi,pi), (-pi,0)]
+        else:
+            self.kin_chain = robot_arms.PlanarXZKinematicChain(link_lengths)
+
+            # TODO the code below is (obviously) specific to a 4-joint chain
+            self.kin_chain.joint_limits = [(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)]
+
+        self.base_loc = base_loc
+        self.translate(*self.base_loc, reset=True)
+
+    def _update_links(self):
+        for i in range(0, self.num_joints):
+            # Rotate each joint to the vector specified by the corresponding row in self.curr_vecs
+            # Annoyingly, the baseline orientation of the first group is always different from the 
+            # more distal attachments, so the rotations have to be found relative to the orientation 
+            # established at instantiation time.
+            if i == 0:
+                baseline_orientation = (0, 0, 1)
+            else:
+                baseline_orientation = (1, 0, 0)
+
+            # Find the normalized quaternion that represents the desired joint rotation
+            self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs(baseline_orientation, self.curr_vecs[i]).norm()
+
+            # Recompute any cached transformations after the change
+            self.link_groups[i]._recache_xfm()
+
+    def get_endpoint_pos(self):
+        '''
+        Returns the current position of the non-anchored end of the arm.
+        '''
+        relangs_xz = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
+        relangs_xy = np.arctan2(self.curr_vecs[:,1], self.curr_vecs[:,0])
+        return self.perform_fk(relangs_xz, relangs_xy) + self.base_loc
+
+    def perform_fk(self, angs_xz, angs_xy):
+        absvecs = np.zeros(self.curr_vecs.shape)
+        for i in range(self.num_joints):
+            absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs_xz[:i+1])), np.sin_xy(np.sum(angs[:i+1])), np.sin_xz(np.sum(angs[:i+1]))])
+        return np.sum(absvecs,axis=0)
+
+    def set_endpoint_pos(self, pos, **kwargs):
+        '''
+        Positions the arm according to specified endpoint position. 
+        '''
+        if pos is not None:
+            # Run the inverse kinematics
+            angles = self.perform_ik(pos, **kwargs)
+
+            # Update the joint configuration    
+            self.set_intrinsic_coordinates(angles)
+
+
+    def perform_ik(self, pos, **kwargs):
+        angles = self.kin_chain.inverse_kinematics(pos - self.base_loc, q_start=-self.get_intrinsic_coordinates(), verbose=False, eps=0.008, **kwargs)
+        # print self.kin_chain.endpoint_pos(angles)
+
+        # Negate the angles. The convention in the robotics library is 
+        # inverted, i.e. in the robotics library, positive is clockwise 
+        # rotation whereas here CCW rotation is positive. 
+        angles = -angles
+
+
+
+
+        '''Sets the endpoint coordinate for the two-joint system'''
+        #Make sure the target is actually achievable
+        if np.linalg.norm(pos) > self.tlen:
+            self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), target).norm()
+            self.forearm.xfm.rotate = Quaternion()
+        else:
+            elbow = np.array(self._midpos(target))
+            
+            #rotate the upperarm to the elbow
+            self.upperarm.xfm.rotate = Quaternion.rotate_vecs((0,0,1), elbow).norm()
+
+            #this broke my mind for 2 hours at least, so I cheated
+            #Rotate first to (0,0,1), then rotate to the target-elbow
+            self.forearm.xfm.rotate = (Quaternion.rotate_vecs(elbow, (0,0,1)) *
+                Quaternion.rotate_vecs((0,0,1), target-elbow)).norm()
+        
+        self.upperarm._recache_xfm()
+        # print self.upperarm.xfm.rotate
+        self.curr_vecs[0] = self.lengths[0]*self.upperarm.xfm.rotate.quat[1:]
+        self.curr_vecs[1] = self.lengths[1]*self.forearm.xfm.rotate.quat[1:]
+        print self.forearm.xfm
+        print self.upperarm.xfm
+        # raise NotImplementedError("update curr_vecs!")
+
+              
+        return angles
+
+    def calc_joint_angles(self, vecs):
+        return np.arctan2(vecs[:,2], vecs[:,0]), np.arctan2(vecs[:,1], vecs[:,0])
+
+    def get_intrinsic_coordinates(self):
+        '''
+        Returns the joint angles of the arm in radians
+        '''
+        
+        return self.calc_joint_angles(self.curr_vecs)
+        
+    def set_intrinsic_coordinates(self,theta_xz, theta_xy):
+        '''
+        Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
+        '''
+        for i in range(self.num_joints):
+            if theta_xz[i] is not None and ~np.isnan(theta_xz[i]) and theta_xy[i] is not None and ~np.isnan(theta_xy[i]):
+                self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos_xz(theta[i]), np.sin(theta_xy[i]), np.sin(theta_xz[i])])
+                
+        self._update_links()
+
+    def _midpos(self, target):
+            m, n = self.link_lengths
+            x, y, z = target
+
+            #this heinous equation brought to you by Wolfram Alpha
+            #it is ONE of the solutions to this system of equations:
+            # a^2 + b^2 + (z/2)^2 = m^2
+            # (x-a)^2 + (y-b)^2 + (z/2)^2 = n^2
+            if x > 0:
+                a = (m**2*x**2+y*np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*x**2+x**4+x**2*y**2)/(2*x*(x**2+y**2))
+                b = (m**2*y-np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*y+x**2*y+y**3)/(2*(x**2+y**2))
+            else:
+                a = (m**2*x**2-y*np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*x**2+x**4+x**2*y**2)/(2*x*(x**2+y**2))
+                b = (m**2*y+np.sqrt(-x**2*(m**4-2*m**2*n**2-2*m**2*x**2-2*m**2*y**2+n**4-2*n**2*x**2-2*n**2*y**2+x**4+2*x**2*y**2+x**2*z**2+y**4+y**2*z**2))-n**2*y+x**2*y+y**3)/(2*(x**2+y**2))
+            return a, b, z/2
+
+
 class RobotArm2J2D(RobotArmGen2D):
     def drive(self, decoder):
         raise NotImplementedError("deal with the state bounding stuff!")
