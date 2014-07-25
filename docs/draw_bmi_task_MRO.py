@@ -16,7 +16,7 @@ os.environ['DISPLAY'] = ':0'
 task = models.Task.objects.get(name='bmi_control_multi')
 base_class = task.get()
 
-feats = [features.Autostart, features.SaveHDF, features.RelayPlexByte, features.SpikeBMI]
+feats = [features.Autostart, features.SaveHDF, features.RelayPlexByte, features.PlexonBMI]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())

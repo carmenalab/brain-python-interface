@@ -1,4 +1,6 @@
-'''Code for interacting with the Crist reward system'''
+'''
+Code for interacting with the Crist reward systems
+'''
 
 
 import glob
@@ -22,10 +24,28 @@ except:
     import enthought.traits.api as traits
 
 def _xsum(msg):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     chrval = map(lambda x: int(''.join(x), 16), zip(*[iter(binascii.b2a_hex(msg))]*2))
     return chr(sum(chrval) % 256)
 
 class _parse_num(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     types = {1:'<B', 2:'<H', 4:'<I'}
     def __init__(self, length=2, mult=1, unit=""):
         self.t = self.types[length]
@@ -38,14 +58,33 @@ class _parse_num(object):
         return i*self.m
 
 class Basic(object):
+    ''' Docstring '''
     response_message_length = 16
     def __init__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
         if loc_config.reward_system_version==1: self.set_beeper_volume(128)
         time.sleep(.5)
         self.reset()
 
     def _write(self, msg):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         fmsg = msg+_xsum(msg)
         #print "sending %r"%fmsg
         self.port.flushOutput()
@@ -55,6 +94,15 @@ class Basic(object):
         #return msg_out
 
     def reward(self, length):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         length /= .1
         if loc_config.reward_system_version==0:
             self._write(struct.pack('<ccxHxx', '@', 'G', length))
@@ -67,6 +115,15 @@ class Basic(object):
         self.port.read(self.port.inWaiting())
     
     def setup_touch_sensor(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if loc_config.reward_system_version==1: #arc system
             cmd = ['@', 'C', '1' ,'O','%c' % 0b10000000, '%c' % 1, '%c' % 0, 'E']
             stuff = ''.join(cmd)
@@ -74,17 +131,44 @@ class Basic(object):
 
 
     def sensor_reward(self, length):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if loc_config.reward_system_version==1:
             cmd = ['@', 'S',  '%c' % 0x02, '%c' % 0x02, '%c' %10, '%c' %0, '%c' %0]
             stuff = ''.join(cmd)
             self._write(stuff)
 
     def set_beeper_volume(self, volume):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if not (volume >= 0 and volume <= 255):
             raise ValueError("Invalid beeper volume: %g" % volume)
         return self._write('@CS' + '%c' % volume + 'E' + struct.pack('xxx')) 
 
     def reset(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if loc_config.reward_system_version==0:
             self._write("@CPSNNN")
         elif loc_config.reward_system_version==1:
@@ -96,7 +180,17 @@ class Basic(object):
         self.last_response = self.port.read(self.port.inWaiting())
 
     def drain(self, drain_time=1200):
-        ''' Turns on the reward system drain for specified amount of time (in seconds)'''
+        '''
+        Turns on the reward system drain for specified amount of time (in seconds)
+
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         assert drain_time > 0
         assert drain_time < 9999
         if loc_config.reward_system_version==0: #have to wait and manually tell it to turn off
@@ -109,7 +203,17 @@ class Basic(object):
             raise Exception("Unrecognized reward system version!")
 
     def drain_off(self):
-        ''' Turns off drain if currently on '''
+        '''
+        Turns off drain if currently on
+
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if loc_config.reward_system_version==0:
             self._write("@CNSDNN")
         elif loc_config.reward_system_version==1:

@@ -515,7 +515,7 @@ class Decoder(object):
         '''
         return len(self.units)
 
-    def __call__(self, obs_t, **kwargs):
+    def __call__(self, obs_t, accumulate=True, **kwargs):
         '''
         This function does "rate-matching" to match the decoding rate to the 
         control rate of the plant. For instance, for cursor decoding using a 
@@ -537,6 +537,7 @@ class Decoder(object):
 
         call_rate = self.call_rate
         decoding_rate = 1./self.binlen
+
         if decoding_rate >= call_rate:
             # Infer the number of sub-bins from the size of the spike counts mat to decode
             n_subbins = obs_t.shape[1]
@@ -547,7 +548,11 @@ class Decoder(object):
 
             return np.vstack(outputs).T
         elif decoding_rate < call_rate:
-            self.spike_counts += obs_t.reshape(-1, 1)
+            if accumulate:
+                self.spike_counts += obs_t.reshape(-1, 1)
+            else:
+                self.spike_counts = obs_t.reshape(-1, 1)
+
             if self.bmicount == self.bminum-1:
                 # Update using spike counts
                 self.bmicount = 0
@@ -688,6 +693,11 @@ class BMISystem(object):
 
         feature_type = kwargs.pop('feature_type')
 
+        if feature_type in ['lfp_power', 'emg_amplitude']:
+            accumulate = False
+        else:
+            accumulate = True
+
         for k in range(n_obs):
             neural_obs_k = neural_obs[:,k].reshape(-1,1)
             target_state_k = target_state[:,k]
@@ -699,7 +709,7 @@ class BMISystem(object):
 
             # run the decoder
             prev_state = self.decoder.get_state()
-            self.decoder(neural_obs_k, **kwargs)
+            self.decoder(neural_obs_k, accumulate=accumulate, **kwargs)
             decoded_states[:,k] = self.decoder.get_state()
 
             # Determine whether the current state or previous state should be given to the learner
@@ -715,8 +725,10 @@ class BMISystem(object):
             if feature_type in ['lfp_power', 'emg_amplitude']:
                 # hack to make to make lfp decoding work
                 self.spike_counts = neural_obs_k
+                accumulate = False
             else:
                 self.spike_counts += neural_obs_k
+                accumulate = True
 
             if learn_flag and self.decoder.bmicount == 0:
                 self.learner(self.spike_counts.copy(), learner_state, target_state_k, 

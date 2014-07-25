@@ -11,10 +11,24 @@ from xfm import Transform
 class Model(object):
     def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), 
         shininess=10, specular_color=(1.,1.,1.,1.)):
+        '''
+        Docstring Constructor for Model
+
+        Parameters
+        ----------
+        shader: string
+            OpenGL shading method?
+        color: tuple of length 4
+            (r, g, b, translucence)
+        shininess: float
+            ???
+        specular_color: tuple of length 4
+            color of the light source???
+        '''
         self.shader = shader
         self.parent = None
 
-        # TODO why isn't this self.xfm = Transform()?
+        # This is different from self.xfm = Transform() for children of Model implemented with multiple inheritance
         super(Model, self).__setattr__("xfm", Transform())
         self.color = color
         self.shininess = shininess

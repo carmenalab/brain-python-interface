@@ -15,15 +15,10 @@ from riglib.bmi import extractor
 
 from . import traits, experiment
 
-
-
-from riglib.nidaq import pcidio
-import comedi
 import time
 
 ###### CONSTANTS
 sec_per_min = 60
-
 
 class RewardSystem(traits.HasTraits):
     '''Use the reward system during the reward phase'''
@@ -39,14 +34,39 @@ class RewardSystem(traits.HasTraits):
         super(RewardSystem, self)._start_reward()
 
 class TTLReward(traits.HasTraits):
-    ''' Docstring '''
+    '''During the reward phase, send a timed TTL pulse to the reward system'''
     def __init__(self, *args, **kwargs):
-        ''' Docstring '''
+        '''
+        Constructor for TTLReward
+
+        Parameters
+        ----------
+        pulse_device: string
+            Path to the NIDAQ device used to generate the solenoid pulse
+        args, kwargs: optional positional and keyword arguments to be passed to parent constructor
+            None necessary
+
+        Returns
+        -------
+        TTLReward instance
+        '''
+        import comedi
         self.com = comedi.comedi_open('/dev/comedi0')
         super(TTLReward, self).__init__(*args, **kwargs)
 
     def _start_reward(self):
-        ''' Docstring '''
+        '''
+        At the start of the reward state, turn on the solenoid
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        '''
+        import comedi
         super(TTLReward, self)._start_reward()
         subdevice = 0
         write_mask = 0x800000
@@ -56,6 +76,25 @@ class TTLReward(traits.HasTraits):
         time.sleep(self.reward_time)
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
 
+    # def _end_reward(self):
+    #     '''
+    #     After the reward state has elapsed, turn off the solenoid
+
+    #     Parameters
+    #     ----------
+    #     None
+
+    #     Returns
+    #     -------
+    #     None
+    #     '''
+    #     import comedi
+    #     super(TTLReward, self)._end_reward()
+    #     subdevice = 0
+    #     write_mask = 0x800000
+    #     val = 0x000000
+    #     base_channel = 0
+    #     comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
@@ -126,7 +165,6 @@ class IgnoreCorrectness(object):
     def _test_incorrect(self, ts):
         return False
 
-
 class AdaptiveGenerator(object):
     def __init__(self, *args, **kwargs):
         super(AdaptiveGenerator, self).__init__(*args, **kwargs)
@@ -175,7 +213,6 @@ class DualJoystick(object):
     def join(self):
         self.dualjoystick.join()
         super(DualJoystick, self).join()
-
 
 ########################################################################################################
 # Eyetracker datasources
@@ -266,8 +303,6 @@ class FixationStart(CalibratedEyeData):
     def _test_start_trial(self, ts):
         return ts > self.fixation_length
 
-
-
 ########################################################################################################
 # Phasespace datasources
 ########################################################################################################
@@ -324,88 +359,6 @@ class MotionAutoAlign(MotionData):
         cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)
         return cls, dict()
 
-########################################################################################################
-# Plexon datasources
-########################################################################################################
-
-# ORIGINAL SpikeData and SpikeBMI features
-# class SpikeData(traits.HasTraits):
-#     '''Stream neural spike data from the Plexon system'''
-#     plexon_channels = None
-#     
-#     def init(self):
-#         from riglib import plexon, source
-#         self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-#         super(SpikeData, self).init()
-# 
-#     def run(self):
-#         self.neurondata.start()
-#         try:
-#             super(SpikeData, self).run()
-#         finally:
-#             self.neurondata.stop()
-
-# class SpikeBMI(SpikeData):
-#     '''Filters spike data through a BMI'''
-#     decoder = traits.Instance(bmi.Decoder)
-#     # decoder = traits.Instance(bmi.BMI)
-# 
-#     def init(self):
-#         print "init bmi"
-#         # self.decoder = self.bmi
-#         self.plexon_channels = self.decoder.units[:,0]
-#         super(SpikeBMI, self).init()
-#         #self.neurondata.filter = self.bmi
-
-
-# NEW SpikeData and SpikeBMI features (they should really be renamed PlexonData and PlexonBMI)
-class SpikeData(traits.HasTraits):
-    '''Stream Plexon neural data'''
-    plexon_channels = None
-
-    def init(self):
-        from riglib import plexon, source
-
-        if hasattr(self.decoder, 'extractor_cls'):
-            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
-                self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
-                self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
-            elif 'emg' in self.decoder.extractor_cls.feature_type:  # e.g., 'emg_amplitude'
-                self.neurondata = source.MultiChanDataSource(plexon.Aux, channels=self.plexon_channels)
-            else:
-                raise Exception("Unknown extractor class, unable to create data source object!")
-        else:
-            # if using an older decoder that doesn't have extractor_cls (and 
-            # extractor_kwargs) as attributes, then just create a DataSource 
-            # with plexon.Spikes by default
-            self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-
-        super(SpikeData, self).init()
-
-    def run(self):
-        self.neurondata.start()
-        try:
-            super(SpikeData, self).run()
-        finally:
-            self.neurondata.stop()
-
-class SpikeBMI(SpikeData):
-    '''Filters spike data through a BMI'''
-    decoder = traits.Instance(bmi.Decoder)
-    # decoder = traits.Instance(bmi.BMI)
-
-    def init(self):
-        print "init bmi"
-        # self.decoder = self.bmi
-        self.plexon_channels = self.decoder.units[:,0]
-        super(SpikeBMI, self).init()
-        #self.neurondata.filter = self.bmi
-
-class SpikeSimulate(object):
-    pass
-
-
 #*******************************************************************************************************
 # Data Sinks
 #*******************************************************************************************************
@@ -437,14 +390,17 @@ class SinkRegister(object):
             self.task_data = None
 
     def _cycle(self):
+        ''' Docstring '''
         super(SinkRegister, self)._cycle()
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)
         
-
 class SaveHDF(SinkRegister):
-    '''Saves any associated MotionData and EyeData into an HDF5 file.'''
+    '''
+    Saves data from registered sources into tables in an HDF file
+    '''
     def init(self):
+        ''' Docstring '''
         import tempfile
         from riglib import sink
         self.h5file = tempfile.NamedTemporaryFile()
@@ -453,24 +409,45 @@ class SaveHDF(SinkRegister):
 
     @property
     def hdf_class(self):
+        ''' Docstring '''
         from riglib import hdfwriter
         return hdfwriter.HDFWriter
 
     def run(self):
+        ''' Docstring '''
         try:
             super(SaveHDF, self).run()
         finally:
             self.hdf.stop()
     
     def join(self):
+        ''' Docstring '''
         self.hdf.join()
         super(SaveHDF, self).join()
 
     def set_state(self, condition, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
     def cleanup(self, database, saveid, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
         print "#################%s"%self.h5file.name
         try:
@@ -482,42 +459,61 @@ class SaveHDF(SinkRegister):
 
         database.save_data(self.h5file.name, "hdf", saveid)
 
-######################
-## Simulation Features
-######################
-class SimHDF(object):
-    '''
-    An interface-compatbile HDF for simulations which do not require saving an
-    HDF file
-    '''
-    def __init__(self, *args, **kwargs):
-        super(SimHDF, self).__init__(*args, **kwargs)
-        from collections import defaultdict
-        self.data = defaultdict(list)
-        self.task_data = dict()
+########################################################################################################
+# Plexon features
+########################################################################################################
+class PlexonData(traits.HasTraits):
+    '''Stream Plexon neural data'''
+    plexon_channels = None
 
-    def sendMsg(self, msg):
-        pass
+    def init(self):
+        from riglib import plexon, source
 
-    def __setitem__(self, key, value):
-        self.data[key].append(value)
+        if hasattr(self.decoder, 'extractor_cls'):
+            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+                self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+                self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
+            elif 'emg' in self.decoder.extractor_cls.feature_type:  # e.g., 'emg_amplitude'
+                self.neurondata = source.MultiChanDataSource(plexon.Aux, channels=self.plexon_channels)
+            else:
+                raise Exception("Unknown extractor class, unable to create data source object!")
+        else:
+            # if using an older decoder that doesn't have extractor_cls (and 
+            # extractor_kwargs) as attributes, then just create a DataSource 
+            # with plexon.Spikes by default
+            self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
 
-class SimTime(object):
-    def __init__(self, *args, **kwargs):
-        super(SimTime, self).__init__(*args, **kwargs)
-        self.start_time = 0.
+        super(PlexonData, self).init()
 
-    def get_time(self):
+    def run(self):
+        self.neurondata.start()
         try:
-            return self.cycle_count * 1./self.fps
-        except:
-            # loop_counter has not been initialized yet, return 0
-            return 0
+            super(PlexonData, self).run()
+        finally:
+            self.neurondata.stop()
 
+class PlexonBMI(PlexonData):
+    '''
+    Special case of PlexonData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
+    May not be available for all recording systems. 
+    '''
+    decoder = traits.Instance(bmi.Decoder)
+
+    def init(self):
+        print "init bmi"
+        self.plexon_channels = self.decoder.units[:,0]
+        super(PlexonBMI, self).init()
+
+class SpikeSimulate(object):
+    pass
 
 class RelayPlexon(SinkRegister):
-    '''Sends the full data from eyetracking and motiontracking systems directly into Plexon'''
+    '''
+    Sends the full data from eyetracking and motiontracking systems directly into Plexon
+    '''
     def init(self):
+        ''' Docstring '''
         from riglib import sink
         print "self.ni_out()", self.ni_out()
         self.nidaq = sink.sinks.start(self.ni_out)
@@ -526,6 +522,7 @@ class RelayPlexon(SinkRegister):
 
     @property
     def ni_out(self):
+        ''' Docstring '''
         from riglib import nidaq
         print 'nidaq.SendAll', nidaq.SendAll
         return nidaq.SendAll
@@ -551,23 +548,44 @@ class RelayPlexon(SinkRegister):
                  return files[0]
     
     def run(self):
+        ''' Docstring '''
         try:
             super(RelayPlexon, self).run()
         finally:
             self.nidaq.stop()
 
     def set_state(self, condition, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.nidaq.sendMsg(condition)
         super(RelayPlexon, self).set_state(condition, **kwargs)
 
     def cleanup(self, database, saveid, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(RelayPlexon, self).cleanup(database, saveid, **kwargs)
         time.sleep(2)
         if self.plexfile is not None:
             database.save_data(self.plexfile, "plexon", saveid, True, False)
         
 class RelayPlexByte(RelayPlexon):
-    '''Relays a single byte (0-255) as a row checksum for when a data packet arrives'''
+    '''
+    Relays a single byte (0-255) to synchronize the rows of the HDF table(s) with the plexon recording clock.
+    '''
     def init(self):
         if not isinstance(self, SaveHDF):
             raise ValueError("RelayPlexByte feature only available with SaveHDF")
@@ -575,17 +593,92 @@ class RelayPlexByte(RelayPlexon):
 
     @property
     def ni_out(self):
+        '''
+        see documentation for RelayPlexon.ni_out 
+        '''
         from riglib import nidaq
         return nidaq.SendRowByte
+
+######################
+## Simulation Features
+######################
+class SimHDF(object):
+    '''
+    An interface-compatbile HDF for simulations which do not require saving an
+    HDF file
+    '''
+    def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        super(SimHDF, self).__init__(*args, **kwargs)
+        from collections import defaultdict
+        self.data = defaultdict(list)
+        self.task_data = dict()
+
+    def sendMsg(self, msg):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        pass
+
+    def __setitem__(self, key, value):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        self.data[key].append(value)
+
+class SimTime(object):
+    ''' Docstring '''
+    def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        super(SimTime, self).__init__(*args, **kwargs)
+        self.start_time = 0.
+
+    def get_time(self):
+        ''' Docstring '''
+        try:
+            return self.cycle_count * 1./self.fps
+        except:
+            # loop_counter has not been initialized yet, return 0
+            return 0
 
 ########################################################################################################
 # Decoder/BMISystem add-ons
 ########################################################################################################
 class NormFiringRates(traits.HasTraits):
+    ''' Docstring '''
     
-    norm_time = traits.Float(120.,desc="Number of seconds to use for mean and SD estimate")
+    norm_time = traits.Float(120., desc="Number of seconds to use for mean and SD estimate")
 
     def __init__(self, *args, **kwargs):
+        raise NotImplementedError("This feature is extremely depricated and probably does not work properly anymore.")
         super(NormFiringRates, self).__init__(*args, **kwargs)
         import time
         self.starttime = time.time()
@@ -624,9 +717,18 @@ class NormFiringRates(traits.HasTraits):
 
         super(NormFiringRates, self).update_cursor()
 
-
 class LinearlyDecreasingAttribute(traits.HasTraits):
+    ''' Docstring '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         assert isinstance(self, experiment.Experiment)
         super(LinearlyDecreasingAttribute, self).__init__(*args, **kwargs)
         self.attr_start, self.attr_min = getattr(self, self.attr)
@@ -634,11 +736,29 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         self.assist_flag = True
 
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(LinearlyDecreasingAttribute, self).init()
         if isinstance(self, SaveHDF):
             self.add_dtype(self.attr, 'f8', (1,))
 
     def _linear_change(self, start_val, end_val, decay_time):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if start_val == end_val:
             return end_val
         else:
@@ -650,6 +770,15 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
                 return min(temp, end_val)
 
     def update_level(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         decay_time = float(getattr(self, '%s_time' % self.attr)) #self.assist_level_time
         current_level = self._linear_change(self.attr_start, self.attr_min, decay_time)
         setattr(self, 'current_%s' % self.attr, current_level) 
@@ -661,7 +790,9 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
             print "%s: " % self.attr, getattr(self, 'current_%s' % self.attr)
 
     def _cycle(self):
-        # Update the assist level
+        '''
+        Update and save the current attribute value before calling the next _cycle in the MRO
+        '''
         self.update_level()
         if hasattr(self, 'task_data'):
             self.task_data[self.attr] = getattr(self, 'current_%s' % self.attr)
@@ -669,6 +800,13 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         super(LinearlyDecreasingAttribute, self)._cycle()
 
 class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
+    ''' Docstring '''
     assist_level = traits.Tuple((0.0, 0.0), desc="Level of assist to apply to BMI output")
     assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")    
     attr = 'assist_level'
+
+class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
+    ''' Docstring '''
+    half_Life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
+    half_life_time = traits.Float(600, desc="Number of seconds to go from initial to final half life")
+    attr = 'half_life'    

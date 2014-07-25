@@ -11,7 +11,17 @@ import source
 from . import FuncProxy
 
 class DataSink(mp.Process):
+    ''' Docstring '''
     def __init__(self, output, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(DataSink, self).__init__()
         self.output = output
         self.kwargs = kwargs
@@ -22,6 +32,15 @@ class DataSink(mp.Process):
         self.methods = set(n for n in dir(output) if inspect.ismethod(getattr(output, n)))
     
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         output = self.output(**self.kwargs)
 
         while self.status.value > 0:
@@ -47,28 +66,74 @@ class DataSink(mp.Process):
         print "ended datasink"
     
     def __getattr__(self, attr):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if attr in self.methods:
             return FuncProxy(attr, self.cmd_pipe, self.cmd_event)
         else:
             super(DataSink, self).__getattr__(self, attr)
 
     def send(self, system, data):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if self.status.value > 0:
             self.pipe.send((system, data))
 
     def stop(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.status.value = 0
 
     def __del__(self):
         self.stop()
 
 class SinkManager(object):
+    ''' Docstring '''
     def __init__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.sinks = []
         self.sources = []
         self.registrations = dict()
 
     def start(self, output, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         print "sinkmanager start %s"%output
         sink = DataSink(output, **kwargs)
         sink.start()
@@ -81,6 +146,15 @@ class SinkManager(object):
         return sink
 
     def register(self, system, dtype=None):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if isinstance(system, source.DataSource):
             name = system.name
             dtype = system.source.dtype
@@ -98,14 +172,41 @@ class SinkManager(object):
                 s.register(name, dtype)
                 
     def send(self, system, data):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         for s in self.sinks:
             s.send(system, data)
     
     def stop(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         for s in self.sinks:
             s.stop()
 
     def __iter__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         for s in self.sinks:
             yield s
 

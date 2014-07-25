@@ -61,6 +61,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         # Attribute for task entry dtype. See SaveHDF feature
         self.dtype = []
 
+        self.cycle_count = 0
         self.clock = pygame.time.Clock()        
 
     @classmethod
@@ -233,7 +234,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         in the web interface. Not called while task is running, only offline, so stats must come from information
         available in a sessions event log. Inputs are task object and event_log.'''
         offline_report = collections.OrderedDict()  
-        explength = event_log[-1][-1] - event_log[0][-1]
+        if len(event_log) == 0:
+            explength = 0
+        else:
+            explength = event_log[-1][-1] - event_log[0][-1]
         offline_report['Runtime'] = self._time_to_string(explength)
         n_trials = 0
         n_success_trials = 0

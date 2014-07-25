@@ -19,7 +19,17 @@ from . import FuncProxy
 
 
 class DataSource(mp.Process):
+    ''' Docstring '''
     def __init__(self, source, bufferlen=10, name=None, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(DataSource, self).__init__()
         if name is not None:
             self.name = name
@@ -44,10 +54,28 @@ class DataSource(mp.Process):
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
 
     def start(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.sinks = sink.sinks
         super(DataSource, self).start(*args, **kwargs)
 
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         try:
             system = self.source(**self.source_kwargs)
             system.start()
@@ -101,6 +129,15 @@ class DataSource(mp.Process):
         system.stop()
 
     def get(self, all=False, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if self.status.value <= 0:
             raise Exception('Error starting datasource ' + self.name)
             
@@ -132,6 +169,15 @@ class DataSource(mp.Process):
 
     # TODO -- change name, add documentation
     def read(self, n_pts=1, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if self.status.value <= 0:
             raise Exception('Error starting datasource ' + self.name)
             
@@ -158,15 +204,51 @@ class DataSource(mp.Process):
         return data
 
     def pause(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.stream.set()
 
     def stop(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.status.value = -1
     
     def __del__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.stop()
 
     def __getattr__(self, attr):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if attr in self.methods:
             return FuncProxy(attr, self.pipe, self.cmd_event)
         elif not attr.beginsWith("__"):
@@ -179,7 +261,7 @@ class DataSource(mp.Process):
 
 class MultiChanDataSource(mp.Process):
     '''
-    Multi-channel version of 'Source'
+    Multi-channel version of 'DataSource'
     '''
     def __init__(self, source, bufferlen=1, **kwargs):
         '''
@@ -225,10 +307,28 @@ class MultiChanDataSource(mp.Process):
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
 
     def start(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.sinks = sink.sinks
         super(MultiChanDataSource, self).start(*args, **kwargs)
 
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         print "Starting datasource %r" % self.source
         try:
             system = self.source(**self.source_kwargs)
@@ -313,6 +413,14 @@ class MultiChanDataSource(mp.Process):
     def get(self, n_pts, channels, **kwargs):
         '''
         Return the most recent n_pts of data from the specified channels.
+
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
         '''
         if self.status.value <= 0:
             raise Exception('Error starting datasource ' + self.name)
@@ -349,6 +457,13 @@ class MultiChanDataSource(mp.Process):
     def get_new(self, channels, **kwargs):
         '''
         Return the new (unread) data from the specified channels.
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
         '''
         if self.status.value <= 0:
             raise Exception('Error starting datasource ' + self.name)
@@ -381,15 +496,51 @@ class MultiChanDataSource(mp.Process):
         return data
 
     def pause(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.stream.set()
 
     def stop(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.status.value = -1
     
     def __del__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.stop()
 
     def __getattr__(self, attr):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if attr in self.methods:
             return FuncProxy(attr, self.pipe, self.cmd_event)
         elif not attr.beginsWith("__"):
