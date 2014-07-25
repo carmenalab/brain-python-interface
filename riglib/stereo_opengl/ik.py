@@ -92,7 +92,9 @@ class Plant(object):
 
     def drive(self, decoder):
         self.set_intrinsic_coordinates(decoder['q'])
-        decoder['q'] = self.get_intrinsic_coordinates()
+        intrinsic_coords = self.get_intrinsic_coordinates()
+        if not np.any(np.isnan(intrinsic_coords)):
+            decoder['q'] = self.get_intrinsic_coordinates()        
 
 
 class CursorPlant(Plant):
@@ -282,6 +284,7 @@ class RobotArmGen3D(Plant, Group):
         '''
         Instantiate the graphics and the virtual arm for a kinematic chain
         '''
+        num_joints = 2
         self.num_joints = 2
 
         self.link_radii = make_list(link_radii, num_joints)
@@ -364,7 +367,7 @@ class RobotArmGen3D(Plant, Group):
     def perform_fk(self, angs_xz, angs_xy):
         absvecs = np.zeros(self.curr_vecs.shape)
         for i in range(self.num_joints):
-            absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs_xz[:i+1])), np.sin_xy(np.sum(angs[:i+1])), np.sin_xz(np.sum(angs[:i+1]))])
+            absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs_xz[:i+1])), np.sin(np.sum(angs_xy[:i+1])), np.sin(np.sum(angs_xz[:i+1]))])
         return np.sum(absvecs,axis=0)
 
     def set_endpoint_pos(self, pos, **kwargs):
@@ -434,7 +437,7 @@ class RobotArmGen3D(Plant, Group):
         '''
         for i in range(self.num_joints):
             if theta_xz[i] is not None and ~np.isnan(theta_xz[i]) and theta_xy[i] is not None and ~np.isnan(theta_xy[i]):
-                self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos_xz(theta[i]), np.sin(theta_xy[i]), np.sin(theta_xz[i])])
+                self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta_xz[i]), np.sin(theta_xy[i]), np.sin(theta_xz[i])])
                 
         self._update_links()
 
@@ -520,10 +523,13 @@ class TwoJoint(object):
         
         self.upperarm._recache_xfm()
         # print self.upperarm.xfm.rotate
-        self.curr_vecs[0] = self.lengths[0]*self.upperarm.xfm.rotate.quat[1:]
-        self.curr_vecs[1] = self.lengths[1]*self.forearm.xfm.rotate.quat[1:]
-        print self.forearm.xfm
-        print self.upperarm.xfm
+        upperarm_affine_xform = self.upperarm.xfm.rotate.to_mat()
+        forearm_affine_xform = (self.upperarm.xfm * self.forearm.xfm).rotate.to_mat()
+        # print np.dot(upperarm_affine_xform, np.array([0., 0, self.lengths[0], 1]))
+        self.curr_vecs[0] = np.dot(upperarm_affine_xform, np.array([0., 0, self.lengths[0], 1]))[:-1]#self.lengths[0]*self.upperarm.xfm.rotate.quat[1:]
+        self.curr_vecs[1] = np.dot(forearm_affine_xform, np.array([0, 0, self.lengths[1], 1]))[:-1]#self.lengths[1]*self.forearm.xfm.rotate.quat[1:]
+        # print self.forearm.xfm
+        # print self.upperarm.xfm
         # raise NotImplementedError("update curr_vecs!")
 
     def set_endpoint_2D(self, target):
@@ -609,8 +615,8 @@ class RobotArm(Plant, Group):
         self.translate(*self.base_loc, reset=True)
 
     def get_endpoint_pos(self):
-        print 'curr_vecs', self.system.curr_vecs
-        print
+        # print 'curr_vecs', self.system.curr_vecs
+        # print
         return np.sum(self.system.curr_vecs, axis=0) + self.base_loc
 
     def set_endpoint_pos(self, pos, **kwargs):
@@ -622,11 +628,12 @@ class RobotArm(Plant, Group):
     def set_intrinsic_coordinates(self, pos):
         self.set_endpoint_pos(pos)
 
-    def drive(self, decoder):
-        print 'decoder pos', decoder['q']
-        
-        self.set_intrinsic_coordinates(decoder['q'])
-        print 'arm pos', self.get_endpoint_pos()
+    # def drive(self, decoder):
+    #     self.set_intrinsic_coordinates(decoder['q'])
+    #     intrinsic_coords = self.get_intrinsic_coordinates()
+    #     if not np.any(np.isnan(intrinsic_coords)):
+    #         decoder['q'] = self.get_intrinsic_coordinates()
+    #     print 'arm pos', self.get_endpoint_pos()
 
     # def set_endpoint_2D(self, target):
     #     self.system.set_endpoint_2D(target)
@@ -659,6 +666,8 @@ chain_20_20 = RobotArm2J2D(link_lengths=[20, 20], base_loc=shoulder_anchor, **ch
 starting_pos = np.array([5., 0., 5])
 chain_20_20.set_endpoint_pos(starting_pos - shoulder_anchor, n_iter=10, n_particles=500)
 chain_20_20.set_endpoint_pos(starting_pos, n_iter=10, n_particles=500)
+
+test_3d = RobotArmGen3D(link_lengths=[8,6], base_loc=shoulder_anchor, **chain_kwargs)
 
 cursor = CursorPlant(endpt_bounds=(-14, 14., -8., 8., -14., 14.))
 #cursor = CursorPlant(endpt_bounds=(-24., 24., 0., 0., -14., 14.))
