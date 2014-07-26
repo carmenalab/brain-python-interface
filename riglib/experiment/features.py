@@ -68,33 +68,35 @@ class TTLReward(traits.HasTraits):
         '''
         import comedi
         super(TTLReward, self)._start_reward()
+        self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
         subdevice = 0
         write_mask = 0x800000
         val = 0x800000
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
-        time.sleep(self.reward_time)
+        self.reward_start = self.get_time() - self.start_time
+
+    def _test_reward_end(self, ts):
+        return (ts - self.reward_start) > self.reward_time
+
+    def _end_reward(self):
+        '''
+        After the reward state has elapsed, turn off the solenoid
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        '''
+        import comedi
+        subdevice = 0
+        write_mask = 0x800000
+        val = 0x000000
+        base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
-
-    # def _end_reward(self):
-    #     '''
-    #     After the reward state has elapsed, turn off the solenoid
-
-    #     Parameters
-    #     ----------
-    #     None
-
-    #     Returns
-    #     -------
-    #     None
-    #     '''
-    #     import comedi
-    #     super(TTLReward, self)._end_reward()
-    #     subdevice = 0
-    #     write_mask = 0x800000
-    #     val = 0x000000
-    #     base_channel = 0
-    #     comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
@@ -184,6 +186,8 @@ class Joystick(object):
         System = phidgets.make(2, 1)
         self.joystick = source.DataSource(System)
         super(Joystick, self).init()
+        if isinstance(self, SaveHDF):
+            self.add_dtype('joystick_sensor_vals', 'f8', (2,))
 
     def run(self):
         self.joystick.start()
