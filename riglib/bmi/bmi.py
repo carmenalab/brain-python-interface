@@ -758,7 +758,8 @@ class BMISystem(object):
                     self.learner.disable() 
                 else:
                     new_params = self.updater.calc(*args, **kwargs)
-                    if batch_size > 1: print "updating BMI"
+                    if batch_size > 1: 
+                        print "updating BMI"
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available

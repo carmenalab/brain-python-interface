@@ -33,8 +33,24 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
     feature_type = 'spike_counts'
 
     def __init__(self, source, n_subbins=1, units=[]):
-        '''    Docstring    '''
-        self.feature_dtype = ('spike_counts', 'u4', (len(units), n_subbins))
+        '''
+        Constructor for BinnedSpikeCountsExtractor
+
+        Parameters
+        ----------
+        source: DataSource instance
+            Source must implement a '.get()' function which returns the appropriate data 
+            (appropriateness will change depending on the source)
+        n_subbins: int, optional, default=1
+            Number of bins into which to divide the observed spike counts 
+        units: np.ndarray of shape (N, 2), optional, default=[]
+            Units which need spike binning. Each row of the array corresponds to (channel, unit). By default no units will be binned.
+
+        Returns
+        -------
+        BinnedSpikeCountsExtractor instance
+        '''
+        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
 
         self.source = source
         self.n_subbins = n_subbins
@@ -48,11 +64,25 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         self.last_get_spike_counts_time = 0
 
     def get_spike_ts(self, *args, **kwargs):
-        '''    Docstring    '''
+        '''Get the spike timestamps from the neural data source. 
+
+        This function has no type checking, i.e. it is assumed that the object was created with the proper source
+
+        Parameters
+        ----------
+        None are needed (args and kwargs are ignored)
+
+        Returns
+        -------
+        Spike timestamps of type ??????
+        '''
         return self.source.get()
 
     def get_bin_edges(self, ts):
-        '''    Docstring    '''
+        '''
+        Determine the first and last spike timestamps to allow HDF files 
+        created by the BMI to be semi-synchronized with the neural data file
+        '''
         if len(ts) == 0:
             bin_edges = np.array([np.nan, np.nan])
         else:
@@ -82,7 +112,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         bin_edges = self.get_bin_edges(ts)
         self.last_get_spike_counts_time = start_time
 
-        return counts, bin_edges
+        return dict(spike_count=counts, bin_edges=bin_edges)
 
 class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
     '''
@@ -270,7 +300,16 @@ class LFPMTMPowerExtractor(object):
     feature_type = 'lfp_power'
 
     def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000):
-        '''    Docstring    '''
+        '''
+        Docstring
+        Constructor for LFPMTMPowerExtractor, which extracts LFP power using the multi-taper method
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
 
         self.source = source
@@ -326,7 +365,8 @@ class LFPMTMPowerExtractor(object):
         lfp_power = self.extract_features(cont_samples)
 
         # TODO -- what to return as equivalent of bin_edges?
-        return lfp_power, None
+        return dict(lfp_power=lfp_power)
+        # return lfp_power, None
 
 
 class EMGAmplitudeExtractor(object):

@@ -52,6 +52,7 @@ generators = dict(
     centerout_3D=generatorfunctions.centerout_3D,
     outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
     outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
+    centerout_2D_discrete_offset=generatorfunctions.centerout_2D_discrete_offset,
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -116,6 +117,9 @@ tasks = dict(
     bmi_joint_perturb = tasks.BMIJointPerturb,
     bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
     bmi_cursor_bias=tasks.BMICursorBias,
+    joystick_ops=tasks.JoystickDrivenCursorOPS,
+    joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
+    clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']

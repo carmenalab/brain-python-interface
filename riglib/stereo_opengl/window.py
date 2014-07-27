@@ -31,8 +31,8 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    window_size = (3840, 1080) #(1280*2, 1024)#
-    #window_size = (960, 270)
+    # window_size = (1280*2, 1024) # kinarm rig
+    window_size = (3840, 1080) # exo rig
     background = (0,0,0,1)
     fps = 60
 
@@ -42,7 +42,9 @@ class Window(LogExperiment):
     iod = 2.5
 
     def __init__(self, **kwargs):
+        # self.window_size = (self.window_size[0]*2, self.window_size[1]) # Stereo window display
         super(Window, self).__init__(**kwargs)
+
         self.models = []
         self.world = None
         self.event = None
