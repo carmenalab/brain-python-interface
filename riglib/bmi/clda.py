@@ -307,7 +307,7 @@ class CursorGoalLearner2(Learner):
     '''
     CLDA intention estimator based on CursorGoal/Refit-KF ("innovation 1" in Gilja*, Nuyujukian* et al, Nat Neurosci 2012)
     '''
-    def __init__(self, int_speed_type='dist_to_target', *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         '''
         Constructor for CursorGoalLearner2
 
@@ -322,6 +322,7 @@ class CursorGoalLearner2(Learner):
         -------
         CursorGoalLearner2 instance
         '''
+        int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
         self.int_speed_type = int_speed_type
         if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
             raise ValueError("Unknown type of speed for cursor goal: %s" % self.int_speed_type)

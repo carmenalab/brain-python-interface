@@ -295,7 +295,7 @@ class StateSpace(object):
         '''
         return np.array([x.order for x in self.states])
 
-    def get_ssm_matrices(self):
+    def get_ssm_matrices(self, *args, **kwargs):
         '''
         Docstring
 
@@ -386,6 +386,23 @@ class StateSpaceEndptVel2D(StateSpace):
             offset_state
         )
 
+    def get_ssm_matrices(self, update_rate=0.1):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        # State-space model set from expert data
+        A, W = linear_kinarm_kf(update_rate=update_rate)
+
+        # Control input matrix for SSM for control inputs
+        I = np.mat(np.eye(3))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
+        return A, B, W
 
 class StateSpaceExoArm(StateSpace):
     '''
