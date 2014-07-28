@@ -46,6 +46,7 @@ generators = dict(
     centerout_back=manualcontrol.rand_multi_sequence_2d_centeroutback,
     centerout_2step=manualcontrol.rand_multi_sequence_2d_centerout2step,
     centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
+    centerout_2D_discrete_randorder=generatorfunctions.centerout_2D_discrete_randorder,
     centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
     centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
     centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
@@ -53,6 +54,8 @@ generators = dict(
     outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
     outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
     centerout_2D_discrete_offset=generatorfunctions.centerout_2D_discrete_offset,
+    depth_trainer=generatorfunctions.depth_trainer,
+    centerout_3D_cube=generatorfunctions.centerout_3D_cube,
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -120,9 +123,11 @@ tasks = dict(
     joystick_ops=tasks.JoystickDrivenCursorOPS,
     joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
+    bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
+    movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
 )
 
-arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D']
+arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D', 'Arm3D']
 
 ## BMI seed tasks
 # The below list shows which tasks can be used to train new Decoders
@@ -161,6 +166,7 @@ bmis = dict(
     ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
     kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
     kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
+    kalmanVF3d=bmi.train._train_KFDecoder_visual_feedback_3d,
 )
 
 extractors = dict(

@@ -377,7 +377,8 @@ def search_by_decoder(decoder):
         decid = decoder
     else:
         decid = decoder.id
-    return models.TaskEntry.objects.filter(params__contains='"bmi": '+str(decid))
+    blocks = list(models.TaskEntry.objects.filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.filter(params__contains='"decoder": '+str(decid))) 
+    return blocks
 
 def search_by_units(unitlist, decoderlist = None, exact=False):
     '''

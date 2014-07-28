@@ -63,9 +63,23 @@ class Quaternion(object):
                 return self.w*vec.T + np.
             return self.w*vec + np.outer(w, self.vec).squeeze() + np.cross(self.vec, vec)
             '''
-        raise ValueError
+        else:
+            raise ValueError
 
     def to_mat(self):
+        '''
+        Convert to an augmented rotation matrix if the quaternion is of unit norm
+        ??? Does this function provide a sensible result for non-unit quaternions?
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        np.ndarray of shape (4, 4)
+            Affine transformation matrix
+        '''
         a, b, c, d = self.quat
         return np.array([
             [a**2+b**2-c**2-d**2,       2*b*c-2*a*d,            2*b*d+2*a*c,        0],
@@ -82,7 +96,20 @@ class Quaternion(object):
 
     @classmethod
     def rotate_vecs(cls, vec1, vec2):
-        '''Get the quaternion which rotates a vector onto another one'''
+        '''
+        Get the quaternion which rotates vec1 onto vec2
+
+        Parameters
+        ----------
+        vec1: np.ndarray of shape (3,)
+            Starting vector
+        vec2: np.ndarray of shape (3,)
+            Vector which defines the orientation that you want to rotate the first vector to
+
+        Returns
+        -------
+        Quaternion representing the rotation
+        '''
         vec1, vec2 = np.array(vec1), np.array(vec2)
         svec = vec1 / np.sqrt((vec1**2).sum())
         nvec = vec2 / np.sqrt((vec2**2).sum())
@@ -98,6 +125,20 @@ class Quaternion(object):
     
     @classmethod
     def from_axisangle(cls, axis, rad):
+        '''
+        Convert from the Axis-angle representation of rotations to the quaternion representation
+
+        Parameters
+        ----------
+        axis: np.ndarray of shape (3,) or ?????
+            Rotation axis
+        rad: float
+            Angle to rotate around the specified axis in radians
+
+        Returns
+        -------
+        Quaternion representing the rotation
+        '''
         #normalize the axis first
         axis = np.array(axis)
         if axis.ndim > 1:
@@ -110,6 +151,9 @@ class Quaternion(object):
         return cls(w, *v)
 
 class Transform(object):
+    '''
+    Homogenous transformations ???
+    '''
     def __init__(self, move=(0,0,0), scale=1, rotate=None):
         self.move = np.array(move, dtype=np.float)
         self.scale = scale
@@ -134,6 +178,16 @@ class Transform(object):
         return self.scale * (self.rotate * vecs) + self.move
 
     def translate(self, x, y, z, reset=False):
+        '''
+        Set the translation point of the transformation
+
+        Parameters
+        ----------
+        x, y, z: float
+            Coordinates representing how much to move
+        reset: bool, optional, default=False 
+            If true, the new coordinates replace the old ones. If false, they are added on
+        '''
         if reset:
             self.move[:] = x,y,z
         else:

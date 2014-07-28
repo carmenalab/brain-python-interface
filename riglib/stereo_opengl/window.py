@@ -11,13 +11,16 @@ import numpy as np
 from OpenGL.GL import *
 
 from riglib.experiment import LogExperiment
+from riglib.experiment import traits
 
 from render import stereo
 from models import Group, GroupDispl2D
 from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere
+from riglib.stereo_opengl.environment import Box
 import time
 from riglib import loc_config
+from primitives import Cylinder, Sphere, Cone
 
 try:
     import pygame
@@ -41,6 +44,8 @@ class Window(LogExperiment):
     screen_dist = 44.5+3
     iod = 2.5
 
+    show_environment=traits.Int(0)
+
     def __init__(self, **kwargs):
         # self.window_size = (self.window_size[0]*2, self.window_size[1]) # Stereo window display
         super(Window, self).__init__(**kwargs)
@@ -48,6 +53,9 @@ class Window(LogExperiment):
         self.models = []
         self.world = None
         self.event = None
+
+        if self.show_environment:
+            self.add_model(Box())
 
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = loc_config.display_start_pos
@@ -144,7 +152,7 @@ class Window(LogExperiment):
         self.draw_world()
         super(Window, self)._cycle()
         self.event = self._get_event()
-
+        
 
 class WindowWithHeadsUp(Window):
     def screen_init(self):
