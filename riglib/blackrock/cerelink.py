@@ -37,7 +37,7 @@ class Connection(object):
 
         self._init = False
 
-        self.nsamp_chan1 = 0
+        self.nsamp_recv = 0
         self.nsamp_last_print = 0
     
     def connect(self):
@@ -151,11 +151,12 @@ class Connection(object):
 
                 chan = list_[0]
                 samples = list_[1]
-                if chan == 1:
-                    self.nsamp_chan1 += len(samples)
-                    if self.nsamp_chan1 > self.nsamp_last_print + 2000:
-                        print "cerelink.py: # received =", self.nsamp_chan1
-                        self.nsamp_last_print = self.nsamp_chan1
+
+                if chan == 8:
+                    self.nsamp_recv += len(samples)
+                    if self.nsamp_recv > self.nsamp_last_print + 2000:
+                        print "cerelink.py: # received =", self.nsamp_recv
+                        self.nsamp_last_print = self.nsamp_recv
 
                 yield ContinuousData(chan=list_[0],
                                      samples=list_[1],

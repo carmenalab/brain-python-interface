@@ -22,16 +22,17 @@ class FeedbackData(object):
 
     def get(self):
         d = self.data.next()
-        return np.array([(tuple(d.data), tuple(d.ts), d.arrival_ts)], 
-                        dtype=self.dtype)
+        return np.array([(tuple(d.data), tuple(d.ts), d.ts_sent, d.ts_arrival, d.freq)], dtype=self.dtype)
 
     @staticmethod
     def _get_dtype(state_names):
         sub_dtype_data = np.dtype([(name, np.float64) for name in state_names])
-        sub_dtype_ts   = np.dtype([(name, np.int64) for name in state_names])
-        return np.dtype([('data', sub_dtype_data), 
-                         ('ts', sub_dtype_ts), 
-                         ('arrival_ts', np.float64)])
+        sub_dtype_ts   = np.dtype([(name, np.int64)   for name in state_names])
+        return np.dtype([('data',       sub_dtype_data),
+                         ('ts',         sub_dtype_ts),
+                         ('ts_sent',    np.float64),
+                         ('ts_arrival', np.float64),
+                         ('freq',       np.float64)])
 
 
 class ArmAssistData(FeedbackData):
