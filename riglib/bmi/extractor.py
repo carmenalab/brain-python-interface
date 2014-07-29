@@ -287,8 +287,7 @@ class LFPButterBPFPowerExtractor(object):
 
         self.last_get_lfp_power_time = start_time
         
-        # TODO -- what to return as equivalent of bin_edges?
-        return lfp_power, None
+        return dict(lfp_power=lfp_power)
 
 
 class LFPMTMPowerExtractor(object):
@@ -364,9 +363,7 @@ class LFPMTMPowerExtractor(object):
         # cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
         lfp_power = self.extract_features(cont_samples)
 
-        # TODO -- what to return as equivalent of bin_edges?
         return dict(lfp_power=lfp_power)
-        # return lfp_power, None
 
 
 class EMGAmplitudeExtractor(object):
