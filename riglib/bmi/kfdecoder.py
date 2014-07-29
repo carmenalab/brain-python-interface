@@ -143,7 +143,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         K = P * (I - D*P*(I + D*P).I) * L
         return K
 
-    def get_sskf(self, tol=1e-10, return_P=False, dtype=np.array, max_iter=4000,
+    def get_sskf(self, tol=1e-15, return_P=False, dtype=np.array, max_iter=4000,
         verbose=False, return_Khist=False, alt=True):
         """Calculate the steady-state KF matrices
 

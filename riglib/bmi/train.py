@@ -31,11 +31,13 @@ states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offs
 
 
 State = state_space_models.State
-StateSpaceEndptVel = state_space_models.StateSpaceEndptVel
+StateSpaceEndptVel2D = state_space_models.StateSpaceEndptVel2D
 StateSpaceExoArm2D = state_space_models.StateSpaceExoArm2D
 StateSpaceFourLinkTentacle2D = state_space_models.StateSpaceFourLinkTentacle2D
+StateSpaceEndptVel = state_space_models.StateSpaceEndptVel
 
-endpt_2D_state_space = StateSpaceEndptVel()
+endpt_3D_state_space = StateSpaceEndptVel()
+endpt_2D_state_space = StateSpaceEndptVel2D()
 joint_2D_state_space = StateSpaceExoArm2D()
 tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
 
@@ -958,6 +960,10 @@ def _train_PPFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=Non
     if shuffle: decoder.shuffle()
 
     return decoder
+
+def _train_KFDecoder_visual_feedback_3d(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None, None], _ssm=endpt_3D_state_space, source='task', kin_var='cursor', shuffle=False, **kwargs):
+    return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice, _ssm=endpt_3D_state_space, source=source, kin_var=kin_var, shuffle=shuffle, **kwargs)
+
 
 def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None], 
     _ssm=None, source='task', kin_var='cursor', shuffle=False, **files):
