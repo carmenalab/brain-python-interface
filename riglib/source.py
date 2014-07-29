@@ -191,7 +191,7 @@ class MultiChanDataSource(mp.Process):
     Multi-channel version of 'Source'
     '''
 
-    def __init__(self, source, bufferlen=2, send_data_to_sink_manager=False, **kwargs):
+    def __init__(self, source, bufferlen=5, send_data_to_sink_manager=False, **kwargs):
         '''
         Constructor for MultiChanDataSource
 
@@ -237,18 +237,15 @@ class MultiChanDataSource(mp.Process):
 
         self.send_data_to_sink_manager = send_data_to_sink_manager
         if self.send_data_to_sink_manager:
-            self.send_to_sinks_dtype = np.dtype([(str(chan), dtype) for chan in kwargs['channels']])
+            self.send_to_sinks_dtype = np.dtype([('chan'+str(chan), dtype) for chan in kwargs['channels']])
             self.next_send_idx = mp.Value('l', 0)
-            self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros by default
+            self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros/Falses by default
 
-            self.nsamp_stored = 0
-            self.nsamp_stored_last_print = 0
-
-            self.nsamp_sent = 0
-            self.nsamp_sent_last_print = 0
-
-            self.nsamp_stored = 0
-            self.nsamp_stored_last_print = 0
+            # only for debugging
+            # self.nsamp_stored = 0
+            # self.nsamp_stored_last_print = 0
+            # self.nsamp_sent = 0
+            # self.nsamp_sent_last_print = 0
 
     def start(self, *args, **kwargs):
         self.sinks = sink.sinks
@@ -280,6 +277,7 @@ class MultiChanDataSource(mp.Process):
                 self.lock.release()
                 self._pipe.send(ret)
                 self.cmd_event.clear()
+
             if self.stream.is_set():
                 self.stream.clear()
                 streaming = not streaming
@@ -288,6 +286,7 @@ class MultiChanDataSource(mp.Process):
                     system.start()
                 else:
                     system.stop()
+
             if streaming:
                 # system.get() must return a tuple (chan, data), where: 
                 #   chan is the the channel number
@@ -316,8 +315,6 @@ class MultiChanDataSource(mp.Process):
                             if idx + n_pts <= self.max_len:
                                 self.data[row, idx:idx+n_pts] = data
                                 idx = (idx + n_pts)
-                                # if idx >= max_len:
-                                #     idx = idx % max_len
                                 if idx == self.max_len:
                                     idx = 0
                                     if self.send_data_to_sink_manager:
@@ -326,13 +323,16 @@ class MultiChanDataSource(mp.Process):
                                 self.data[row, idx:] = data[:max_len-idx]
                                 self.data[row, :n_pts-(max_len-idx)] = data[max_len-idx:]
                                 idx = n_pts-(max_len-idx)
+                                if self.send_data_to_sink_manager:
+                                    self.wrap_flags[row] = True
                             self.idxs[row] = idx
 
-                            if chan == 8:
-                                self.nsamp_stored += n_pts
-                                if self.nsamp_stored > self.nsamp_stored_last_print + 2000:
-                                    print "source.py: # stored =", self.nsamp_stored
-                                    self.nsamp_stored_last_print = self.nsamp_stored
+                            # only for debugging
+                            # if chan == 8:
+                            #     self.nsamp_stored += n_pts
+                            #     if self.nsamp_stored > self.nsamp_stored_last_print + 2000:
+                            #         print "source.py: # stored =", self.nsamp_stored
+                            #         self.nsamp_stored_last_print = self.nsamp_stored
 
                         self.lock.release()
                     except Exception as e:
@@ -341,68 +341,37 @@ class MultiChanDataSource(mp.Process):
                     if self.send_data_to_sink_manager:
                         self.lock.acquire()
 
-                        # while True:
-                        #     if all(self.wrap_flags):
-                        #         offset = self.max_len
-                        #     else:
-                        #         offset = 0
+                        # check if there is at least one column of data that
+                        # has not yet been sent to the sink manager
+                        if all(self.next_send_idx.value < idx + int(flag)*self.max_len for (idx, flag) in zip(self.idxs, self.wrap_flags)):
 
-                        #     if all(idx + offset > self.next_send_idx.value for idx in self.idxs): 
-                        #         start_idx = self.next_send_idx.value
-                        #         if offset == self.max_len:
-                        #             end_idx = self.max_len
-                        #         else:
-                        #             end_idx = np.min(self.idxs[:])
-                                
-                        #         # print "sending idxs %d through %d" % (start_idx, end_idx)
-                        #         data_to_send = self.data[:, start_idx:end_idx]
-                        #         data = np.array([tuple(x) for x in data_to_send.T.tolist()], 
-                        #                         dtype=self.send_to_sinks_dtype)
-                        #         self.sinks.send(self.name, data)
-                        #         self.next_send_idx.value = end_idx
-
-                        #         self.nsamp_sent += (end_idx-start_idx)
-                        #         if self.nsamp_sent > self.nsamp_sent_last_print + 2000:
-                        #             print "source.py: # sent =", self.nsamp_sent
-                        #             self.nsamp_sent_last_print = self.nsamp_sent
-
-                        #         if self.next_send_idx.value == self.max_len:
-                        #             self.next_send_idx.value = 0
-                        #             for row in range(self.n_chan):
-                        #                 self.wrap_flags[row] = False
-                        #     else:
-                        #         break
-
-                        wrap = all(self.wrap_flags)
-
-                        if wrap:
-                            offset = self.max_len
-                        else:
-                            offset = 0
-
-                        if all(idx + offset > self.next_send_idx.value for idx in self.idxs): 
                             start_idx = self.next_send_idx.value
-                            if wrap:
-                                end_idx = self.max_len
+                            if not all(self.wrap_flags):
+
+                                # look at minimum value of self.idxs only 
+                                # among channels which have not wrapped, 
+                                # in order to determine end_idx
+                                end_idx = np.min([idx for (idx, flag) in zip(self.idxs, self.wrap_flags) if not flag])
+                                idxs_to_send = range(start_idx, end_idx)
                             else:
-                                end_idx = np.min(self.idxs[:])
-                            
-                            # print "sending idxs %d through %d" % (start_idx, end_idx)
-                            data_to_send = self.data[:, start_idx:end_idx]
-                            data = np.array([tuple(x) for x in data_to_send.T.tolist()], 
-                                            dtype=self.send_to_sinks_dtype)
-                            self.sinks.send(self.name, data)
-                            self.next_send_idx.value = end_idx
-
-                            self.nsamp_sent += (end_idx-start_idx)
-                            if self.nsamp_sent > self.nsamp_sent_last_print + 2000:
-                                print "source.py: # sent =", self.nsamp_sent
-                                self.nsamp_sent_last_print = self.nsamp_sent
-
-                            if self.next_send_idx.value == self.max_len:
-                                self.next_send_idx.value = 0
+                                min_idx = np.min(self.idxs[:])
+                                idxs_to_send = range(start_idx, self.max_len) + range(0, min_idx)
+                                
                                 for row in range(self.n_chan):
                                     self.wrap_flags[row] = False
+
+                            # send the data to the sink manager, one column at a time
+                            for idx in idxs_to_send:
+                                data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
+                                self.sinks.send(self.name, data)
+
+                            self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)
+
+                            # only for debugging
+                            # self.nsamp_sent += len(idxs_to_send)
+                            # if self.nsamp_sent > self.nsamp_sent_last_print + 2000:
+                            #     print "source.py: # sent =", self.nsamp_sent
+                            #     self.nsamp_sent_last_print = self.nsamp_sent
 
                         self.lock.release()
             else:

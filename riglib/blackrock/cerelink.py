@@ -37,8 +37,9 @@ class Connection(object):
 
         self._init = False
 
-        self.nsamp_recv = 0
-        self.nsamp_last_print = 0
+        # only for debugging
+        # self.nsamp_recv = 0
+        # self.nsamp_last_print = 0
     
     def connect(self):
         '''Open the interface to the NSP (or nPlay).'''
@@ -114,7 +115,6 @@ class Connection(object):
         self._init = False
     
     def __del__(self):
-        print "cerelink.py: inside Connection.__del__"
         self.disconnect()
 
     def get_event_data(self):
@@ -149,14 +149,14 @@ class Connection(object):
 
             for list_ in trial:
 
-                chan = list_[0]
-                samples = list_[1]
-
-                if chan == 8:
-                    self.nsamp_recv += len(samples)
-                    if self.nsamp_recv > self.nsamp_last_print + 2000:
-                        print "cerelink.py: # received =", self.nsamp_recv
-                        self.nsamp_last_print = self.nsamp_recv
+                # only for debugging
+                # chan = list_[0]
+                # samples = list_[1]
+                # if chan == 8:
+                #     self.nsamp_recv += len(samples)
+                #     if self.nsamp_recv > self.nsamp_last_print + 2000:
+                #         print "cerelink.py: # received =", self.nsamp_recv
+                #         self.nsamp_last_print = self.nsamp_recv
 
                 yield ContinuousData(chan=list_[0],
                                      samples=list_[1],

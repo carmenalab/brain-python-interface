@@ -29,8 +29,6 @@ class HDFWriter(object):
         self.data = {}
         self.msgs = {}
 
-        #self.f = open('hdfdebug.txt', 'w')
-
         self.nsamp_appended = 0
         self.nsamp_last_print = 0
     
@@ -44,7 +42,7 @@ class HDFWriter(object):
         Returns
         -------
         '''
-        print "HDFWriter registered %r"%name
+        print "HDFWriter registered %r" % name
         if dtype.subdtype is not None:
             #just a simple dtype with a shape
             dtype, sliceshape = dtype.subdtype
@@ -68,9 +66,6 @@ class HDFWriter(object):
         Returns
         -------
         '''
-        # self.f.write('system:\n' + str(system) + '\n')
-        # self.f.write('data:\n' + str(data) + '\n')
-        # self.f.write('type(data)\n' + str(type(data)) + '\n')
 
         if system in self.data:
             if len(data) != 1:
@@ -78,11 +73,12 @@ class HDFWriter(object):
                 pass
             self.data[system].append(data)
 
-            self.nsamp_appended += len(data)
-            if self.nsamp_appended > self.nsamp_last_print + 2000:
-                print "hdfwriter.py: # saved =", self.nsamp_appended
-                print ""
-                self.nsamp_last_print = self.nsamp_appended
+            # only for debugging
+            # if system == 'blackrock':
+            #     self.nsamp_appended += len(data)
+            #     if self.nsamp_appended > self.nsamp_last_print + 2000:
+            #         print "hdfwriter.py: # saved =", self.nsamp_appended, "\n"
+            #         self.nsamp_last_print = self.nsamp_appended
 
     def sendMsg(self, msg):
         '''
