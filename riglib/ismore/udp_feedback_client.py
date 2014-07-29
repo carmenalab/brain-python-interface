@@ -33,7 +33,7 @@ class Client(object):
 
     def stop(self):
         self.listening = False
-        self.file_.close()
+        # self.file_.close()
     
     def __del__(self):
         self.stop()
@@ -51,7 +51,7 @@ class ArmAssistClient(Client):
     def __init__(self):
         self._create_and_bind_socket()
 
-        self.file_ = open('armassist_feedback.txt', 'w')
+        # self.file_ = open('armassist_feedback.txt', 'w')
 
     def get_feedback_data(self):
         '''Yield received feedback data.'''
@@ -67,7 +67,7 @@ class ArmAssistClient(Client):
                 # print "feedback aa:", feedback
                 self.sock.sendto("ACK ArmAssist\r", settings.armassist_udp_server)
 
-                self.file_.write(feedback.rstrip('\r') + "\n")
+                # self.file_.write(feedback.rstrip('\r') + "\n")
 
                 # Example feedback string:
                 # "Status ArmAssist freq px py ppsi ts force bar_angle ts_aux\r"
@@ -119,7 +119,7 @@ class ReHandClient(Client):
     def __init__(self):
         self._create_and_bind_socket()
 
-        self.file_ = open('rehand_feedback.txt', 'w')
+        # self.file_ = open('rehand_feedback.txt', 'w')
 
     def get_feedback_data(self):
         '''Yield received feedback data.'''
@@ -135,7 +135,7 @@ class ReHandClient(Client):
                 #print "feedback rh:", feedback
                 #self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
 
-                self.file_.write(feedback.rstrip('\r') + "\n")
+                # self.file_.write(feedback.rstrip('\r') + "\n")
 
                 items = feedback.rstrip('\r').split(' ')
                 
