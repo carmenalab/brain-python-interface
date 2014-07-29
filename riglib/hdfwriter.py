@@ -81,7 +81,6 @@ class HDFWriter(object):
             # self.nsamp_appended += len(data)
             # if self.nsamp_appended > self.nsamp_last_print + 2000:
             #     print "hdfwriter.py: # saved =", self.nsamp_appended
-            #     print ""
             #     self.nsamp_last_print = self.nsamp_appended
 
     def sendMsg(self, msg):

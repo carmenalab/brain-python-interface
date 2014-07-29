@@ -884,9 +884,9 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
         strobe_rate = experiment.Experiment.fps  # in Hz
 
         try:
-            tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])      
-            #print 'not using _get_tmask_blackrock'
-            #raise NotImplementedError
+            #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])      
+            print 'not using _get_tmask_blackrock'
+            raise NotImplementedError
         except NotImplementedError:
             # need to create fake "rows" and "tmask" variables
             

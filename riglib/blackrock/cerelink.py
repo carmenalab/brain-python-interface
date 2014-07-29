@@ -149,13 +149,13 @@ class Connection(object):
 
             for list_ in trial:
 
-                # chan = list_[0]
-                # samples = list_[1]
-                # if chan == 1:
-                #     self.nsamp_recv += len(samples)
-                #     if self.nsamp_recv > self.nsamp_last_print + 2000:
-                #         print "cerelink.py: # received =", self.nsamp_recv
-                #         self.nsamp_last_print = self.nsamp_recv
+                chan = list_[0]
+                samples = list_[1]
+                if chan == 8:
+                    self.nsamp_recv += len(samples)
+                    if self.nsamp_recv > self.nsamp_last_print + 2000:
+                        print "cerelink.py: # received =", self.nsamp_recv
+                        self.nsamp_last_print = self.nsamp_recv
 
                 yield ContinuousData(chan=list_[0],
                                      samples=list_[1],

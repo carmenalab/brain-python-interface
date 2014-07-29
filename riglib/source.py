@@ -316,7 +316,7 @@ class MultiChanDataSource(mp.Process):
                                 # if idx >= max_len:
                                 #     idx = idx % max_len
                                 if idx == self.max_len:
-                                    idx =    0
+                                    idx = 0
                                     if self.send_data_to_sink_manager:
                                         self.wrap_flags[row] = True
                             else: # need to write data at both end and start of buffer
@@ -325,11 +325,11 @@ class MultiChanDataSource(mp.Process):
                                 idx = n_pts-(max_len-idx)
                             self.idxs[row] = idx
 
-                            # if chan == 1:
-                            #     self.nsamp_stored += n_pts
-                            #     if self.nsamp_stored > self.nsamp_stored_last_print + 2000:
-                            #         print "source.py: # stored =", self.nsamp_stored
-                            #         self.nsamp_stored_last_print = self.nsamp_stored
+                            if chan == 8:
+                                self.nsamp_stored += n_pts
+                                if self.nsamp_stored > self.nsamp_stored_last_print + 2000:
+                                    print "source.py: # stored =", self.nsamp_stored
+                                    self.nsamp_stored_last_print = self.nsamp_stored
 
                         self.lock.release()
                     except Exception as e:
@@ -338,37 +338,68 @@ class MultiChanDataSource(mp.Process):
                     if self.send_data_to_sink_manager:
                         self.lock.acquire()
 
-                        while True:
-                            if all(self.wrap_flags):
-                                offset = self.max_len
-                            else:
-                                offset = 0
+                        # while True:
+                        #     if all(self.wrap_flags):
+                        #         offset = self.max_len
+                        #     else:
+                        #         offset = 0
 
-                            if all(idx + offset > self.next_send_idx.value for idx in self.idxs): 
-                                start_idx = self.next_send_idx.value
-                                if offset == self.max_len:
-                                    end_idx = self.max_len
-                                else:
-                                    end_idx = np.min(self.idxs[:])
+                        #     if all(idx + offset > self.next_send_idx.value for idx in self.idxs): 
+                        #         start_idx = self.next_send_idx.value
+                        #         if offset == self.max_len:
+                        #             end_idx = self.max_len
+                        #         else:
+                        #             end_idx = np.min(self.idxs[:])
                                 
-                                print "sending idxs %d through %d" % (start_idx, end_idx)
-                                data_to_send = self.data[:, start_idx:end_idx]
-                                data = np.array([tuple(x) for x in data_to_send.T.tolist()], 
-                                                dtype=self.send_to_sinks_dtype)
-                                self.sinks.send(self.name, data)
-                                self.next_send_idx.value = end_idx
+                        #         # print "sending idxs %d through %d" % (start_idx, end_idx)
+                        #         data_to_send = self.data[:, start_idx:end_idx]
+                        #         data = np.array([tuple(x) for x in data_to_send.T.tolist()], 
+                        #                         dtype=self.send_to_sinks_dtype)
+                        #         self.sinks.send(self.name, data)
+                        #         self.next_send_idx.value = end_idx
 
-                                self.nsamp_sent += (end_idx-start_idx)
-                                if self.nsamp_sent > self.nsamp_sent_last_print + 2000:
-                                    print "source.py: # sent =", self.nsamp_sent
-                                    self.nsamp_sent_last_print = self.nsamp_sent
+                        #         self.nsamp_sent += (end_idx-start_idx)
+                        #         if self.nsamp_sent > self.nsamp_sent_last_print + 2000:
+                        #             print "source.py: # sent =", self.nsamp_sent
+                        #             self.nsamp_sent_last_print = self.nsamp_sent
 
-                                if self.next_send_idx.value == self.max_len:
-                                    self.next_send_idx.value = 0
-                                    for row in range(self.n_chan):
-                                        self.wrap_flags[row] = False
+                        #         if self.next_send_idx.value == self.max_len:
+                        #             self.next_send_idx.value = 0
+                        #             for row in range(self.n_chan):
+                        #                 self.wrap_flags[row] = False
+                        #     else:
+                        #         break
+
+                        wrap = all(self.wrap_flags)
+
+                        if wrap:
+                            offset = self.max_len
+                        else:
+                            offset = 0
+
+                        if all(idx + offset > self.next_send_idx.value for idx in self.idxs): 
+                            start_idx = self.next_send_idx.value
+                            if wrap:
+                                end_idx = self.max_len
                             else:
-                                break
+                                end_idx = np.min(self.idxs[:])
+                            
+                            # print "sending idxs %d through %d" % (start_idx, end_idx)
+                            data_to_send = self.data[:, start_idx:end_idx]
+                            data = np.array([tuple(x) for x in data_to_send.T.tolist()], 
+                                            dtype=self.send_to_sinks_dtype)
+                            self.sinks.send(self.name, data)
+                            self.next_send_idx.value = end_idx
+
+                            self.nsamp_sent += (end_idx-start_idx)
+                            if self.nsamp_sent > self.nsamp_sent_last_print + 2000:
+                                print "source.py: # sent =", self.nsamp_sent
+                                self.nsamp_sent_last_print = self.nsamp_sent
+
+                            if self.next_send_idx.value == self.max_len:
+                                self.next_send_idx.value = 0
+                                for row in range(self.n_chan):
+                                    self.wrap_flags[row] = False
 
                         self.lock.release()
             else:
