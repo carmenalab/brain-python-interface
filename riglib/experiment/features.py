@@ -660,8 +660,6 @@ class RelayPlexByte(RelayPlexon):
         from riglib import nidaq
         return nidaq.SendRowByte
 
-<<<<<<< HEAD
-###
 
 class RelayBlackrock(SinkRegister):
     '''Sends full data directly into the Blackrock system.'''
@@ -739,7 +737,7 @@ class RelayBlackrockByte(RelayBlackrock):
     def ni_out(self):
         from riglib import nidaq
         return nidaq.SendRowByte
-=======
+
 ######################
 ## Simulation Features
 ######################
@@ -809,7 +807,6 @@ class SimTime(object):
         except:
             # loop_counter has not been initialized yet, return 0
             return 0
->>>>>>> master
 
 ########################################################################################################
 # Decoder/BMISystem add-ons
