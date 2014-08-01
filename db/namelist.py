@@ -53,6 +53,7 @@ generators = dict(
     centerout_3D=generatorfunctions.centerout_3D,
     outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
     outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
+    centerout_2D_discrete_offset=generatorfunctions.centerout_2D_discrete_offset,
     depth_trainer=generatorfunctions.depth_trainer,
     centerout_3D_cube=generatorfunctions.centerout_3D_cube,
 )
@@ -119,6 +120,9 @@ tasks = dict(
     bmi_joint_perturb = tasks.BMIJointPerturb,
     bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
     bmi_cursor_bias=tasks.BMICursorBias,
+    joystick_ops=tasks.JoystickDrivenCursorOPS,
+    joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
+    clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
 )

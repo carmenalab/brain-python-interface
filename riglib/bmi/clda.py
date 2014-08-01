@@ -347,13 +347,14 @@ class CursorGoalLearner2(Learner):
         # Calculate intended speed
         if task_state in ['hold', 'origin_hold', 'target_hold']:
             speed = 0
-        elif task_state in ['target', 'origin', 'terminus']:
+        #elif task_state in ['target', 'origin', 'terminus']:
+        else:
             if self.int_speed_type == 'dist_to_target':
                 speed = np.linalg.norm(int_dir[pos_inds])
             elif self.int_speed_type == 'decoded_speed':
                 speed = np.linalg.norm(decoder_output[vel_inds])
-        else:
-            speed = np.nan
+        #else:
+        #    speed = np.nan
 
         int_vel = speed*normalize(int_dir[pos_inds])
         int_kin = np.hstack([decoder_output[pos_inds], int_vel, 1]).reshape(-1, 1)
@@ -732,6 +733,33 @@ class KFRML(object):
             'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS, 'filt.R':self.R, 'filt.S':self.S, 'filt.T':self.T}
 
         return new_params
+
+
+class KFRML_IVC(KFRML):
+    default_gain = None
+    def calc(self, *args, **kwargs):
+        new_params = super(KFRML_IVC, self).calc(*args, **kwargs)
+        C, Q, = new_params['kf.C'], new_params['kf.Q']
+
+        D = (C.T * Q.I * C)
+        if self.default_gain == None:
+            d = np.mean([D[3,3], D[5,5]])
+            D[3:6, 3:6] = np.diag([d, d, d])
+        else:
+            # calculate the gain from the riccati equation solution
+            A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
+            W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
+            D_diag = []
+            for a, w, n in izip(A_diag, W_diag, self.default_gain):
+                d = KFOrthogonalPlantSmoothbatchSingleThread.scalar_riccati_eq_soln(a, w, n)
+                D_diag.append(d)
+
+            D[3:6, 3:6] = np.mat(np.diag(D_diag))
+
+        new_params['kf.C_xpose_Q_inv_C'] = D
+        new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
+        return new_params
+
 
 class KFRML_baseline(KFRML):
     '''    Docstring    '''

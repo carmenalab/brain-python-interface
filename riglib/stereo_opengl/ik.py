@@ -100,7 +100,7 @@ class Plant(object):
 class CursorPlant(Plant):
     def __init__(self, endpt_bounds=None, **kwargs):
         self.endpt_bounds = endpt_bounds
-        self.position = np.zeros(3)
+        self.position = np.array([0., 0., 0.]) #np.zeros(3)
 
     def get_endpoint_pos(self):
         return self.position
@@ -121,24 +121,24 @@ class CursorPlant(Plant):
         if self.endpt_bounds is not None:
             if pos[0] < self.endpt_bounds[0]: 
                 pos[0] = self.endpt_bounds[0]
-                vel[0] = 0
+                #vel[0] = 0
             if pos[0] > self.endpt_bounds[1]: 
                 pos[0] = self.endpt_bounds[1]
-                vel[0] = 0
+                #vel[0] = 0
 
             if pos[1] < self.endpt_bounds[2]: 
                 pos[1] = self.endpt_bounds[2]
-                vel[1] = 0
+                #vel[1] = 0
             if pos[1] > self.endpt_bounds[3]: 
                 pos[1] = self.endpt_bounds[3]
-                vel[1] = 0
+                #vel[1] = 0
 
             if pos[2] < self.endpt_bounds[4]: 
                 pos[2] = self.endpt_bounds[4]
-                vel[2] = 0
+                #vel[2] = 0
             if pos[2] > self.endpt_bounds[5]: 
                 pos[2] = self.endpt_bounds[5]
-                vel[2] = 0
+                #vel[2] = 0
         
         decoder['q'] = pos
         decoder['qdot'] = vel
@@ -667,9 +667,10 @@ starting_pos = np.array([5., 0., 5])
 chain_20_20.set_endpoint_pos(starting_pos - shoulder_anchor, n_iter=10, n_particles=500)
 chain_20_20.set_endpoint_pos(starting_pos, n_iter=10, n_particles=500)
 
-test_3d = RobotArmGen3D(link_lengths=[8,6], base_loc=shoulder_anchor, **chain_kwargs)
-
-cursor = CursorPlant(endpt_bounds=(-14, 14., -8., 8., -14., 14.))
+cursor = CursorPlant(endpt_bounds=(-10, 10, 0., 0., -10, 10))
+#cursor = CursorPlant(endpt_bounds=(-9.5, 9.5, 0., 0., -7.5, 11.5))
+#cursor = CursorPlant(endpt_bounds=(-11, 11., 0., 0., -11., 11.))
+#cursor = CursorPlant(endpt_bounds=(-10, 10., 0., 0., -10., 10.))
 #cursor = CursorPlant(endpt_bounds=(-24., 24., 0., 0., -14., 14.))
 
 arm_3d = RobotArm()
