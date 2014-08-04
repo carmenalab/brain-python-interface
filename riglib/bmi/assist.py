@@ -451,11 +451,25 @@ class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
         A, B, _ = ssm.get_ssm_matrices()
         
         # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 7., 0, 0, 0, 0]))
+        Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
         self.Q = Q
         
         R = 1e6 * np.mat(np.diag([1., 1., 1.]))
         self.R = R
+
+        # for testing only
+        # dt = 0.1
+        # A = np.mat([[1., 0,  0,  dt, 0,  0,  0], 
+        #             [0., 1,  0,  0,  dt, 0,  0],
+        #             [0., 0,  1,  0,  0,  dt, 0],
+        #             [0., 0,  0,  0,  0,  0,  0],
+        #             [0., 0,  0,  0,  0,  0,  0],
+        #             [0., 0,  0,  0,  0,  0,  0],
+        #             [0., 0,  0,  0,  0,  0,  1]])
+        # I = np.mat(np.eye(3))
+        # B = np.vstack([0*I, I, np.zeros([1,3])])
+        # F = np.hstack([10*I, 0*I, np.zeros([3,1])])
+        # self.F = F
 
         self.A = A
         self.B = B
@@ -472,7 +486,47 @@ class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
         Bu = assist_level * B*F*(diff)
         assist_weight = 0
 
-        return Bu, assist_weight            
+        return Bu, assist_weight
+
+
+class ArmAssistLFCAssister2(LinearFeedbackControllerAssist):
+    def __init__(self, *args, **kwargs):
+        ssm = StateSpaceArmAssist()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        self.A = A
+
+        B_ = np.vstack([B, np.zeros(3)])
+        self.B_ = B_
+
+        # TODO -- velocity cost? not necessary?
+        # Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
+        Q_ = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0, 0]))
+        self.Q_ = Q_
+        
+        R = 1e6 * np.mat(np.diag([1., 1., 1.]))
+        self.R = R
+
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''Overriding to account for proper subtraction of angles.'''
+        A = self.A
+        B_ = self.B_
+        Q_ = self.Q_
+        R = self.R
+
+        A_ = np.vstack([np.hstack([A, A*np.mat(target_state)]), np.array([0, 0, 0, 0, 0, 0, 0, 1])])
+
+        F_ = feedback_controllers.LQRController.dlqr(A_, B_, Q_, R)
+
+        diff = target_state - current_state
+        diff[2] = angle_subtract(target_state[2], current_state[2])
+
+        BF = B_ * F_
+
+        Bu = assist_level * BF[:-1, :-1] * diff
+        assist_weight = 0
+
+        return Bu, assist_weight
 
 class ReHandLFCAssister(LinearFeedbackControllerAssist):
     def __init__(self, *args, **kwargs):
