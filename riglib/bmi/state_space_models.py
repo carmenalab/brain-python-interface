@@ -410,13 +410,14 @@ class StateSpaceEndptVel2D(StateSpace):
 
 class StateSpaceArmAssist(StateSpace):
     def __init__(self):
-        max_ang_vel = 5 * deg_to_rad
+        max_vel = 2  # cm/s
+        max_ang_vel = 7.5 * deg_to_rad
         super(StateSpaceArmAssist, self).__init__(
-            State('aa_px',   stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
-            State('aa_py',   stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
+            State('aa_px',   stochastic=False, drives_obs=False, order=0, min_val=0., max_val=42.),
+            State('aa_py',   stochastic=False, drives_obs=False, order=0, min_val=0., max_val=30.),
             State('aa_ppsi', stochastic=False, drives_obs=False, order=0),
-            State('aa_vx',   stochastic=True,  drives_obs=True,  order=1, min_val=-2, max_val=2),
-            State('aa_vy',   stochastic=True,  drives_obs=True,  order=1, min_val=-2, max_val=2),
+            State('aa_vx',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
+            State('aa_vy',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
             State('aa_vpsi', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
             offset_state
         )
@@ -433,7 +434,7 @@ class StateSpaceArmAssist(StateSpace):
 
 class StateSpaceReHand(StateSpace):
     def __init__(self):
-        max_ang_vel = 5 * deg_to_rad
+        max_ang_vel = 7.5 * deg_to_rad
         super(StateSpaceReHand, self).__init__(
             State('rh_pthumb', stochastic=False, drives_obs=False, order=0),
             State('rh_pindex', stochastic=False, drives_obs=False, order=0),
@@ -458,11 +459,12 @@ class StateSpaceReHand(StateSpace):
 
 class StateSpaceIsMore(StateSpace):
     def __init__(self):
-        max_ang_vel = 5 * deg_to_rad
+        max_vel = 2  # cm/s
+        max_ang_vel = 7.5 * deg_to_rad
         super(StateSpaceIsMore, self).__init__(
             # position states
-            State('aa_px',     stochastic=False, drives_obs=False, order=0, min_val=-25., max_val=25.),
-            State('aa_py',     stochastic=False, drives_obs=False, order=0, min_val=-14., max_val=14.),
+            State('aa_px',     stochastic=False, drives_obs=False, order=0, min_val=0., max_val=42.),
+            State('aa_py',     stochastic=False, drives_obs=False, order=0, min_val=0., max_val=30.),
             State('aa_ppsi',   stochastic=False, drives_obs=False, order=0),
             State('rh_pthumb', stochastic=False, drives_obs=False, order=0),
             State('rh_pindex', stochastic=False, drives_obs=False, order=0),
@@ -470,8 +472,8 @@ class StateSpaceIsMore(StateSpace):
             State('rh_pprono', stochastic=False, drives_obs=False, order=0),
 
             # velocity states
-            State('aa_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-2, max_val=2),
-            State('aa_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-2, max_val=2),
+            State('aa_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
+            State('aa_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
             State('aa_vpsi',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
             State('rh_vthumb', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
             State('rh_vindex', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),

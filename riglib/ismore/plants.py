@@ -195,12 +195,12 @@ class ArmAssistPlantNoUDP(object):
         self.aa.daemon = True
 
 
-    # # a "magic" function that instantaneously moves the ArmAssist and ReHand to a new configuration
-    # # IMPORTANT: only use to set initial position/orientation
-    # def set_pos(self, pos):
-    #     '''Magically set position (x, y, psi) in units of (cm, cm, rad).'''
-    #     wf = np.mat(pos).T
-    #     self.aa._set_wf(wf)
+    # a "magic" function that instantaneously moves the ArmAssist to a new configuration
+    # IMPORTANT: only use to set initial position/orientation
+    def set_pos(self, pos):
+        '''Magically set position (x, y, psi) in units of (cm, cm, rad).'''
+        wf = np.mat(pos).T
+        self.aa._set_wf(wf)
 
     def init(self):
         pass

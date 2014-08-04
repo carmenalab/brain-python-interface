@@ -459,18 +459,26 @@ class Decoder(object):
         # re-format as a column matrix
         neural_obs = np.mat(neural_obs.reshape(-1,1))
 
+        weighted_avg_lfc = kwargs.pop('weighted_avg_lfc', False)
+        x = self.filt.state.mean
+        
         # Run the filter
         # self.filt(neural_obs, Bu=Bu)
-        filt_kwargs = dict()
-        if 'obs_is_control_independent' in kwargs:
-            filt_kwargs['obs_is_control_independent'] = kwargs['obs_is_control_independent']
+        filt_kwargs = dict(obs_is_control_independent=weighted_avg_lfc)        
+        
         self.filt(neural_obs, Bu=Bu, **filt_kwargs)
 
-        if assist_level > 0:
-            self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
+        # if assist_level > 0:
+        #     self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
 
-        # print 'before bounder:'
-        # print self.filt.state.mean
+        if assist_level > 0:
+            if weighted_avg_lfc:
+                # calculates assist as:
+                #   (1-assist)*(Ax + K(y-CAx)) + assist*(Ax + Bu)
+                # Note: the variable "Bu" here is really equal to assist_level*Bu
+                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*self.filt.A*x + Bu
+            else:
+                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
 
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):
