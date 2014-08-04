@@ -460,7 +460,11 @@ class Decoder(object):
         neural_obs = np.mat(neural_obs.reshape(-1,1))
 
         # Run the filter
-        self.filt(neural_obs, Bu=Bu)
+        # self.filt(neural_obs, Bu=Bu)
+        filt_kwargs = dict()
+        if 'obs_is_control_independent' in kwargs:
+            filt_kwargs['obs_is_control_independent'] = kwargs['obs_is_control_independent']
+        self.filt(neural_obs, Bu=Bu, **filt_kwargs)
 
         if assist_level > 0:
             self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
