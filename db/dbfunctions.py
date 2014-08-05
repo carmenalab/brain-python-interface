@@ -143,6 +143,13 @@ def get_params(entry):
     '''
     return json.loads(entry.params)
 
+def get_param(entry,paramname):
+    '''
+    Returns parameter value.
+    Takes TaskEntry object.
+    '''
+    return json.loads(entry.params)[paramname]
+
 def get_task_name(entry):
     '''
     Returns name of task used for session.
@@ -176,7 +183,10 @@ def get_length(entry):
     Returns length of session in seconds.
     Takes TaskEntry object.
     '''
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except:
+        return 0.0
     return report[-1][2]-report[0][2]
     
 def get_success_rate(entry):
@@ -184,7 +194,9 @@ def get_success_rate(entry):
     Returns (# of trials rewarded)/(# of trials intiated).
     Takes TaskEntry object.
     '''
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     total=0.0
     rew=0.0
     for s in report:
@@ -195,13 +207,24 @@ def get_success_rate(entry):
             total+=1
     return rew/total
 
+def get_completed_trials(entry):
+    '''
+    Returns # of trials rewarded
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    return len([s for s in report if s[0]=="reward"])
+
 def get_initiate_rate(entry):
     '''
     Returns average # of trials initated per minute.
     Takes TaskEntry object.
     '''
     length = get_length(entry)
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     count=0.0
     for s in report:
         if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
@@ -213,13 +236,20 @@ def get_reward_rate(entry):
     Returns average # of trials completed per minute.
     Takes TaskEntry object.
     '''
-    length = get_length(entry)
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     count=0.0
+    rewardtimes = []
     for s in report:
         if s[0]=='reward':
             count+=1
-    return count/(length/60.0)
+            rewardtimes.append(s[2])
+    if len(rewardtimes)==0:
+        return 0
+    else:
+        length = rewardtimes[-1] - report[0][2]
+        return count/(length/60.0)
     
 def session_summary(entry):
     '''
@@ -357,7 +387,8 @@ def search_by_decoder(decoder):
         decid = decoder
     else:
         decid = decoder.id
-    return models.TaskEntry.objects.filter(params__contains='"bmi": '+str(decid))
+    blocks = list(models.TaskEntry.objects.filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.filter(params__contains='"decoder": '+str(decid))) 
+    return blocks
 
 def search_by_units(unitlist, decoderlist = None, exact=False):
     '''

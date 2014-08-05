@@ -15,6 +15,9 @@ from riglib.bmi import extractor
 
 from . import traits, experiment
 
+import os
+import subprocess
+
 import time
 
 ###### CONSTANTS
@@ -68,33 +71,57 @@ class TTLReward(traits.HasTraits):
         '''
         import comedi
         super(TTLReward, self)._start_reward()
+        self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
         subdevice = 0
         write_mask = 0x800000
         val = 0x800000
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
-        time.sleep(self.reward_time)
+        self.reward_start = self.get_time() - self.start_time
+
+    def _test_reward_end(self, ts):
+        return (ts - self.reward_start) > self.reward_time
+
+    def _end_reward(self):
+        '''
+        After the reward state has elapsed, turn off the solenoid
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        '''
+        import comedi
+        subdevice = 0
+        write_mask = 0x800000
+        val = 0x000000
+        base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
 
-    # def _end_reward(self):
-    #     '''
-    #     After the reward state has elapsed, turn off the solenoid
+class JuiceLogging(traits.HasTraits):
+    '''
+    Save screenshots of the juice camera and link them to the task entry that has been created
+    '''
+    def cleanup(self, database, saveid, **kwargs):
+        super(JuiceLogging, self).cleanup(database, saveid, **kwargs)
 
-    #     Parameters
-    #     ----------
-    #     None
+        ## Remove the old screenshot, if any
+        fname = '/storage/temp/_juice_logging_temp.png'
+        subprocess.call(['rm', fname])
 
-    #     Returns
-    #     -------
-    #     None
-    #     '''
-    #     import comedi
-    #     super(TTLReward, self)._end_reward()
-    #     subdevice = 0
-    #     write_mask = 0x800000
-    #     val = 0x000000
-    #     base_channel = 0
-    #     comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
+        ## Use the script to run the snapshot
+        subprocess.call(['camera_snapshot.sh', fname])
+        # os.subprocess('camera_snapshot.sh %s' % fname)
+
+        ## Wait for a second to make sure the file is created (TODO should really be a timed loop!)
+        time.sleep(1)
+
+        ## Link the image to the database
+        database.save_data(fname, 'juice_log', saveid)
+
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
@@ -184,6 +211,8 @@ class Joystick(object):
         System = phidgets.make(2, 1)
         self.joystick = source.DataSource(System)
         super(Joystick, self).init()
+        if isinstance(self, SaveHDF):
+            self.add_dtype('joystick_sensor_vals', 'f8', (2,))
 
     def run(self):
         self.joystick.start()

@@ -9,4 +9,4 @@ elif hostname == 'nucleus':
     reward_system_version = 0
     display_start_pos = "0,0"
 else:
-    pass
+    display_start_pos = "0,0"

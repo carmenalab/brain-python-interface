@@ -142,7 +142,7 @@ class System(models.Model):
     
     @staticmethod
     def populate():
-        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params"]:
+        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params", "juice_log"]:
             try:
                 System.objects.get(name=name)
             except ObjectDoesNotExist:
@@ -337,26 +337,45 @@ class TaskEntry(models.Model):
         Exp = self.task.get(self.feats.all())
         task = self.task.get(self.feats.all())
         report = json.loads(self.report)
-        return Exp.offline_report(report)
+        rpt = Exp.offline_report(report)
+
+        ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
+        try:
+            from db import dbfunctions
+            te = dbfunctions.TaskEntry(self.id)
+            rpt['Decoder name'] = te.decoder_record.name
+        except:
+            import traceback
+            traceback.print_exc()
+        return rpt
 
     def to_json(self):
+        '''
+        Create a JSON dictionary of the metadata associated with this block for display in the web interface
+        '''
         from json_param import Parameters
+
+        # Run the metaclass constructor for the experiment used. If this can be avoided it would help to break some of the cross-package software dependencies,
+        # making it easier to analyze data without installing software for the entire rig
         Exp = self.task.get(self.feats.all())
 
         state = 'completed' if self.pk is not None else "new"
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
-        js['params'] = self.task.params(self.feats.all(), values=self.task_params) #Parameters(self.task_params).params)
+        js['params'] = self.task.params(self.feats.all(), values=self.task_params)
 
+
+        ## Add data files to the web interface. To be removed (never ever used)
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)
         js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
+        
         try:
             task = self.task.get(self.feats.all())
             report = json.loads(self.report)
-            js['report'] = Exp.offline_report(report)
+            js['report'] = self.offline_report()
         except:
             import traceback
             traceback.print_exc()
@@ -378,6 +397,9 @@ class TaskEntry(models.Model):
                 name=name,
                 is_seed=int(self.task.name in bmi_seed_tasks),
                 ))
+        except MemoryError:
+            print "Memory error opening plexon file!"
+            js['bmi'] = dict(_plxinfo=None)
         except (ObjectDoesNotExist, AssertionError, IOError):
             print "No plexon file found"
             js['bmi'] = dict(_plxinfo=None)
@@ -385,16 +407,25 @@ class TaskEntry(models.Model):
         for dec in Decoder.objects.filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
         
-        # TODO include paths to any plots associated with this task entry, if offline
+        # include paths to any plots associated with this task entry, if offline
         files = os.popen('find /storage/plots/ -name %s*.png' % self.id)
         plot_files = dict()
         for f in files:
             fname = f.rstrip()
             keyname = os.path.basename(fname).rstrip('.png')[len(str(self.id)):]
             plot_files[keyname] = os.path.join('/static', fname)
+
+        # if the juice log feature is checked, also include the snapshot of the juice if it exists
+        try:
+            juice_sys = System.objects.get(name='juice_log')
+            df = DataFile.objects.get(system=juice_sys, entry=self.id)
+            plot_files['juice'] = os.path.join(df.system.path, df.path)
+        except:
+            import traceback
+            traceback.print_exc()
+
         js['plot_files'] = plot_files
 
-        #print js['report'].keys()
         return js
 
     @property
@@ -403,15 +434,13 @@ class TaskEntry(models.Model):
         Returns the name of the plx file associated with the session.
         '''
         plexon = System.objects.get(name='plexon')
-        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=plexon.id)
-        if len(q)==0:
+        try:
+            df = DataFile.objects.get(system=plexon, entry=self.id)
+            return os.path.join(df.system.path, df.path)
+        except:
+            import traceback
+            traceback.print_exc()
             return 'noplxfile'
-        else:
-            try:
-                import db.paths
-                return os.path.join(db.paths.data_path, plexon.name, q[0].path)
-            except:
-                return q[0].path
 
     @property
     def name(self):
@@ -427,8 +456,6 @@ class TaskEntry(models.Model):
             return str(os.path.basename(self.plx_file).rstrip('.plx'))
         except:
             return 'noname'
-
-
 
     @classmethod
     def from_json(cls, js):

@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
     init("/dev/comedi0");
 
     // Write a '1' on every channel
-    uint val = 0x100000; //0x900000; //16777215;
+    uint val = 0x800000; //0x900000; //16777215;
     uint subdevice = 0;
     uint write_mask = 16777215;
     uint base_channel = 0;
