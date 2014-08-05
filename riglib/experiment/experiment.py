@@ -26,7 +26,9 @@ min_per_hour = 60
 sec_per_min = 60
 
 class Experiment(traits.HasTraits, threading.Thread):
-    ''' Docstring '''
+    '''
+    Common ancestor of all task/experiment classes
+    '''
     status = dict(
         wait = dict(start_trial="trial", premature="penalty", stop=None),
         trial = dict(correct="reward", incorrect="penalty", timeout="penalty"),
@@ -41,13 +43,16 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def __init__(self, **kwargs):
         '''
-        Docstring
+        Constructor for Experiment
 
         Parameters
         ----------
+        kwargs: dictionary
+            Keyword arguments to be passed to the traits.HasTraits parent.
 
         Returns
         -------
+        Experiment instance
         '''
         traits.HasTraits.__init__(self, **kwargs)
         threading.Thread.__init__(self)
@@ -66,13 +71,18 @@ class Experiment(traits.HasTraits, threading.Thread):
     @classmethod
     def class_editable_traits(cls):
         '''
-        Docstring
+        Class method to retrieve the list of editable traits for the given experiment. 
+        The default behavior for an experiment class is to make all traits editable except for those
+        listed in the attribute 'exclude_parent_traits'. 
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        editable_traits: list of strings
+            Names of traits which are designated to be runtime-editable
         '''
         traits = super(Experiment, cls).class_editable_traits()
         editable_traits = filter(lambda x: x not in cls.exclude_parent_traits, traits)
@@ -100,21 +110,26 @@ class Experiment(traits.HasTraits, threading.Thread):
 
         Parameters
         ----------
+        event: string
 
         Returns
         -------
+        String representing the next state that the task will enter
         '''
         self.set_state(self.status[self.state][event])
 
     def get_time(self):
         '''
-        Docstring
+        Abstraction to get the current time. State transitions are based on wall clock time, not on iteration count, 
+        so to get simulations to run faster than real time, this function must be overwritten.
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        float: The current time in seconds
         '''
         return time.time()
 
