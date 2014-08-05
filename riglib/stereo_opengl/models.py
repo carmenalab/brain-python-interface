@@ -32,6 +32,9 @@ class Model(object):
         return val
     
     def _recache_xfm(self):
+        '''
+        For models with a parent, the transform of the current model must be cascaded with the parent model's transform 
+        '''
         if self.parent is not None:
             self._xfm = self.parent._xfm * self.xfm
         else:

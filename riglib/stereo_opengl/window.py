@@ -31,8 +31,7 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    window_size = (3840, 1080) #(1280*2, 1024)#
-    #window_size = (960, 270)
+    window_size = (3840, 1080)
     background = (0,0,0,1)
     fps = 60
 
