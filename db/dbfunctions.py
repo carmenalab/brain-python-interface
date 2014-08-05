@@ -485,6 +485,10 @@ class TaskEntry(object):
         else:
             self.decoder_record = None
 
+    def decoder_filename(self):
+        decoder_basename = self.decoder_record.path
+        return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
+
     def summary_stats(self):
         report = self.record.offline_report()
         for key in report:
@@ -674,7 +678,7 @@ class TaskEntry(object):
 
 class TaskEntrySet(object):
     def __init__(self, blocks, name=''):
-        from tasks import performance
+        from analysis import performance
         self.task_entries = map(performance._get_te, blocks)
         self.name = name
 
@@ -823,8 +827,57 @@ class TaskEntryCollection(object):
                 if verbose:
                     print ".", 
                     # sys.stdout.write('.')
-
+          
+                # Filter out the trials you want
                 te = performance._get_te(b)
+                trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
+                n_trials = len(trial_msgs)
+        
+                ## Call a function on each trial    
+                for k in range(n_trials):
+                    try:
+                        output = trial_proc_fn(te, trial_msgs[k])
+                        trial_condition = trial_condition_fn(te, trial_msgs[k])
+                        blockset_data[trial_condition].append(output)
+                    except:
+                        print trial_msgs[k]
+                        import traceback
+                        traceback.print_exc()
+        
+            newdata = dict()
+            for key in blockset_data:
+                newdata[key] = data_comb_fn(blockset_data[key])
+            blockset_data = newdata
+            result.append(blockset_data)
+
+        sys.stdout.write('\n')
+        return result
+
+    def proc_blocks(self, block_filter_fn=trial_filter_functions.default, block_proc_fn=trial_proc_functions.default, 
+                    data_comb_fn=default_data_comb_fn, verbose=True):
+        '''
+        Docstring
+        '''
+        result = []
+        for blockset in self.blocks:
+            if isinstance(blockset, int):
+                blockset = (blockset,)
+            
+            from analysis import performance
+            blockset_data = []
+            for b in blockset:
+                if verbose:
+                    print ".", 
+          
+                te = performance._get_te(b)
+                if block_filter_fn(te):
+                    blockset_data.append(block_proc_fn(te))
+
+            blockset_data = data_comb_fn(blockset_data)
+            result.append(blockset_data)
+
+        sys.stdout.write('\n')
+        return result                
         
 ######################
 ## Filter functions
