@@ -257,6 +257,25 @@ def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5
     return Bu
 
 
+class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
+    def __init__(self, *args, **kwargs):        
+        dt = 0.1
+        A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
+                    [0., 1, 0, 0,  dt, 0, 0],
+                    [0., 0, 1, 0, 0, dt, 0],
+                    [0., 0, 0, 0, 0,  0, 0],
+                    [0., 0, 0, 0, 0,  0, 0],
+                    [0., 0, 0, 0, 0,  0, 0],
+                    [0., 0, 0, 0, 0,  0, 1]])
+
+        I = np.mat(np.eye(3))
+        B = np.vstack([0*I, I, np.zeros([1,3])])
+        F_target = np.hstack([I, 0*I, np.zeros([3,1])])
+        F_hold = np.hstack([0*I, 0*I, np.zeros([3,1])])
+        F_dict = dict(hold=F_hold, target=F_target)
+        super(SimpleEndpointAssisterLFC, self).__init__(B=B, F=F_dict)
+
+
 
 ####################
 ## iBMI assisters ##
@@ -444,13 +463,14 @@ class IsMoreAssister(Assister):
 
 
 # LFC iBMI assisters
+# currently not inheriting from LinearFeedbackControllerAssist/SSMLFCAssister
+#   because of need for "special angle subtraction"
 
-class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
+class ArmAssistLFCAssister(Assister):
     def __init__(self, *args, **kwargs):
         ssm = StateSpaceArmAssist()
         A, B, _ = ssm.get_ssm_matrices()
         
-        # TODO -- velocity cost? not necessary?
         Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
         self.Q = Q
         
@@ -542,13 +562,12 @@ class ArmAssistLFCAssister(LinearFeedbackControllerAssist):
 
 #         return Bu, assist_weight
 
-class ReHandLFCAssister(LinearFeedbackControllerAssist):
+class ReHandLFCAssister(Assister):
     def __init__(self, *args, **kwargs):
         ssm = StateSpaceReHand()
         A, B, _ = ssm.get_ssm_matrices()
         
-        # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([7., 7., 7., 7., 0, 0, 0, 0, 0]))
+        Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
         self.Q = Q
         
         R = 1e6 * np.mat(np.diag([1., 1., 1., 1.]))
@@ -568,17 +587,17 @@ class ReHandLFCAssister(LinearFeedbackControllerAssist):
             diff[i] = angle_subtract(target_state[i], current_state[i])
 
         Bu = assist_level * B*F*(diff)
-        assist_weight = 0
+        # assist_weight = 0
+        assist_weight = assist_level
 
         return Bu, assist_weight
 
 
-class IsMoreLFCAssister(LinearFeedbackControllerAssist):
+class IsMoreLFCAssister(Assister):
     def __init__(self, *args, **kwargs):
         ssm = StateSpaceIsMore()
         A, B, _ = ssm.get_ssm_matrices()
         
-        # TODO -- velocity cost? not necessary?
         Q = np.mat(np.diag([1., 1., 7., 7., 7., 7., 7., 0, 0, 0, 0, 0, 0, 0, 0]))
         self.Q = Q
         
@@ -599,25 +618,7 @@ class IsMoreLFCAssister(LinearFeedbackControllerAssist):
             diff[i] = angle_subtract(target_state[i], current_state[i])
 
         Bu = assist_level * B*F*(diff)
-        assist_weight = 0
+        # assist_weight = 0
+        assist_weight = assist_level
 
         return Bu, assist_weight
-
-
-class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
-    def __init__(self, *args, **kwargs):        
-        dt = 0.1
-        A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
-                    [0., 1, 0, 0,  dt, 0, 0],
-                    [0., 0, 1, 0, 0, dt, 0],
-                    [0., 0, 0, 0, 0,  0, 0],
-                    [0., 0, 0, 0, 0,  0, 0],
-                    [0., 0, 0, 0, 0,  0, 0],
-                    [0., 0, 0, 0, 0,  0, 1]])
-
-        I = np.mat(np.eye(3))
-        B = np.vstack([0*I, I, np.zeros([1,3])])
-        F_target = np.hstack([I, 0*I, np.zeros([3,1])])
-        F_hold = np.hstack([0*I, 0*I, np.zeros([3,1])])
-        F_dict = dict(hold=F_hold, target=F_target)
-        super(SimpleEndpointAssisterLFC, self).__init__(B=B, F=F_dict)

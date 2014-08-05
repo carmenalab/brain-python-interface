@@ -194,14 +194,6 @@ class ArmAssistPlantNoUDP(object):
         self.aa = armassist.ArmAssist(aa_tstep, aa_pic_tstep, KP, TI)
         self.aa.daemon = True
 
-
-    # a "magic" function that instantaneously moves the ArmAssist to a new configuration
-    # IMPORTANT: only use to set initial position/orientation
-    def set_pos(self, pos):
-        '''Magically set position (x, y, psi) in units of (cm, cm, rad).'''
-        wf = np.mat(pos).T
-        self.aa._set_wf(wf)
-
     def init(self):
         pass
 
@@ -232,6 +224,13 @@ class ArmAssistPlantNoUDP(object):
 
     def get_vel(self):
         return np.array(self.aa.get_state()['wf_dot']).reshape((3,))
+
+    # a magic function that instantaneously moves the simulated ArmAssist to a 
+    #   new position+orientation
+    def set_pos(self, pos):
+        '''Magically set position+orientation in units of (cm, cm, rad).'''
+        wf = np.mat(pos).T
+        self.aa._set_wf(wf)
 
 
 class ReHandPlantNoUDP(object):
@@ -277,6 +276,11 @@ class ReHandPlantNoUDP(object):
     def get_vel(self):
         return np.array(self.rh.get_state()['vel']).reshape((4,))
 
+    # a magic function that instantaneously sets the simulated ReHand's angles
+    def set_pos(self, pos):
+        '''Magically set angles in units of (rad, rad, rad, rad).'''
+        self.rh._set_pos(pos)
+
 
 class IsMorePlantNoUDP(object):
     '''Similar methods as IsMorePlant, but: 
@@ -314,3 +318,13 @@ class IsMorePlantNoUDP(object):
         aa_vel = self.aa_plant.get_vel()
         rh_vel = self.rh_plant.get_vel()
         return np.hstack([aa_vel, rh_vel])
+
+    # a magic function that instantaneously moves the simulated ArmAssist to a 
+    #   new position+orientation and sets the simulated ReHand's angles
+    def set_pos(self, pos):
+        '''Magically set ArmAssist's position+orientation in units of 
+        (cm, cm, rad) and ReHand's angles in units of (rad, rad, rad, rad).
+        '''
+        self.aa_plant.set_pos(pos[0:3])
+        self.aa_plant.set_pos(pos[3:7])
+
