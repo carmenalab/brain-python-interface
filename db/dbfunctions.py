@@ -126,7 +126,7 @@ def get_decoder_name(entry):
 def get_decoder_name_full(entry):
     entry = lookup_task_entries(entry)
     decoder_basename = get_decoder_name(entry)
-    return os.path.join(db.paths.data_path, 'decoders', decoder_basename)
+    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
 
 def get_decoder(entry):
     entry = lookup_task_entries(entry)
