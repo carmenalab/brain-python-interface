@@ -52,7 +52,15 @@ class TestRML(unittest.TestCase):
 class TestRMLWithAssist(unittest.TestCase):
     def runTest(self):
         print "Testing RML block with assist"
-        abs_max_error = bmi_block_reconstruction_error(3134, cls=tasks.KFRMLRecon, n_iter=n_iter)
+        raise NotImplementedError("ID Number is wrong! find a correct block")
+        abs_max_error = bmi_block_reconstruction_error(3040, cls=tasks.KFRMLRecon, n_iter=n_iter)
+        print abs_max_error
+        self.assertTrue(abs_max_error < 1e-10)
+
+class TestRMLCGWithAssist(unittest.TestCase):
+    def runTest(self):
+        print "Testing RML block with assist"
+        abs_max_error = bmi_block_reconstruction_error(5270, cls=tasks.KFRMLCGRecon, n_iter=n_iter)
         print abs_max_error
         self.assertTrue(abs_max_error < 1e-10)
 
@@ -91,7 +99,7 @@ te = performance._get_te(3040)
 
 #tests = [TestJointRML(), TestJointRMLWithAssist()]
 #tests = [TestFixedPPF(), TestPPFCLDA()]
-tests = [TestRMLWithAssist()]
+tests = [TestRMLCGWithAssist()]
 #tests = [TestPPFCLDA(), TestRML()]
 
 test_suite = unittest.TestSuite(tests)
