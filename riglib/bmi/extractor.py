@@ -112,7 +112,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         bin_edges = self.get_bin_edges(ts)
         self.last_get_spike_counts_time = start_time
 
-        return dict(spike_count=counts, bin_edges=bin_edges)
+        return dict(spike_counts=counts, bin_edges=bin_edges)
 
 class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
     '''
