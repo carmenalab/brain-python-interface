@@ -71,7 +71,7 @@ sudo pip install statsmodels
 sudo pip install PyOpenGL PyOpenGL_accelerate
 sudo pip install Django==1.6 
 sudo pip install pylibftdi
-sudo pip install nitime==0.4
+sudo pip install nitime
 sudo pip install sphinx
 sudo pip install numpydoc
 sudo pip install tornado
