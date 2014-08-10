@@ -55,7 +55,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             channels = [1, 2, 3, 4]  # use these channels by default
         else:
             channels = np.unique(channels)
-            # units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
+            #  units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
             units = np.hstack([channels.reshape(-1, 1), np.ones(channels.reshape(-1, 1).shape, dtype=np.int32)])
     else:
         raise Exception('Unknown feature_type!')
