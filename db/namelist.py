@@ -28,6 +28,7 @@ features = dict(
     relay_blackrockbyte=experiment.features.RelayBlackrockByte,
     norm_firingrates=experiment.features.NormFiringRates,
     ttl_reward=experiment.features.TTLReward,
+    juice_log=experiment.features.JuiceLogging,
 )
 
 import tasks

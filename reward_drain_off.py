@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from riglib import reward
 import time
 

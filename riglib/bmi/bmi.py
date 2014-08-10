@@ -102,7 +102,9 @@ class GaussianStateHMM(object):
         self.W = W
 
     def get_mean(self):
-        '''    Docstring    '''
+        '''
+        Return just the mean of the Gaussian representing the state estimate as a 1D array
+        '''
         return np.array(self.state.mean).ravel()      
 
     def _init_state(self, init_state=None, init_cov=None):
@@ -122,7 +124,21 @@ class GaussianStateHMM(object):
         self.obs_noise = GaussianState(0.0, self.Q)
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
-        '''    Docstring    '''
+        ''' Docstring
+        Run the "predict" step of the Kalman filter/HMM inference algorithm
+
+        Parameters
+        ----------
+        state: GaussianState instance
+            State estimate and estimator covariance of current state
+        u: np.mat 
+        
+
+        Returns
+        -------
+        GaussianState instance
+            Represents the mean and estimator covariance of the new state estimate
+        '''
         A = self.A
 
         if Bu is not None:
@@ -430,7 +446,7 @@ class Decoder(object):
         '''
         return np.asarray(self.filt.state.mean).reshape(shape)
 
-    def predict(self, neural_obs, assist_level=0.0, Bu=None, **kwargs):
+    def predict(self, neural_obs, assist_level=0.0, Bu=None, x_target=None, **kwargs):
         """
         Decode the spikes
 
@@ -450,7 +466,7 @@ class Decoder(object):
             raise ValueError("Assist cannot be used if the forcing term is not specified!")
 
         # re-normalize the variance of the spike observations, if nec
-        if self.zscore:
+        if hasattr(self, 'zscore') and self.zscore:
             neural_obs = (np.asarray(neural_obs).ravel() - self.mFR_curr) * self.sdFR_ratio
             # set the spike count of any unit that now has zero-mean with its original mean
             # This functionally removes it from the decoder. 
@@ -466,7 +482,7 @@ class Decoder(object):
         # self.filt(neural_obs, Bu=Bu)
         filt_kwargs = dict(obs_is_control_independent=weighted_avg_lfc)        
         
-        self.filt(neural_obs, Bu=Bu, **filt_kwargs)
+        self.filt(neural_obs, Bu=Bu, x_target=x_target, **filt_kwargs)
 
         # if assist_level > 0:
         #     self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
@@ -568,7 +584,7 @@ class Decoder(object):
             else:
                 self.spike_counts = obs_t.reshape(-1, 1)
 
-            if self.bmicount == self.bminum-1:
+            if self.bmicount == self.bminum - 1:
                 # Update using spike counts
                 self.bmicount = 0
                 self.predict(self.spike_counts, **kwargs)

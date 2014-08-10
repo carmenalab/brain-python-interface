@@ -126,7 +126,7 @@ def get_decoder_name(entry):
 def get_decoder_name_full(entry):
     entry = lookup_task_entries(entry)
     decoder_basename = get_decoder_name(entry)
-    return os.path.join(db.paths.data_path, 'decoders', decoder_basename)
+    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
 
 def get_decoder(entry):
     entry = lookup_task_entries(entry)
@@ -183,7 +183,10 @@ def get_length(entry):
     Returns length of session in seconds.
     Takes TaskEntry object.
     '''
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except:
+        return 0.0
     return report[-1][2]-report[0][2]
     
 def get_success_rate(entry):
@@ -191,7 +194,9 @@ def get_success_rate(entry):
     Returns (# of trials rewarded)/(# of trials intiated).
     Takes TaskEntry object.
     '''
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     total=0.0
     rew=0.0
     for s in report:
@@ -206,7 +211,9 @@ def get_completed_trials(entry):
     '''
     Returns # of trials rewarded
     '''
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     return len([s for s in report if s[0]=="reward"])
 
 def get_initiate_rate(entry):
@@ -215,7 +222,9 @@ def get_initiate_rate(entry):
     Takes TaskEntry object.
     '''
     length = get_length(entry)
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     count=0.0
     for s in report:
         if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
@@ -227,8 +236,9 @@ def get_reward_rate(entry):
     Returns average # of trials completed per minute.
     Takes TaskEntry object.
     '''
-    
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     count=0.0
     rewardtimes = []
     for s in report:
@@ -682,11 +692,15 @@ class TaskEntry(object):
 
     @property
     def clda_param_hist(self):
+        bmi_params = models.System.objects.get(name='bmi_params')
+        q = models.DataFile.objects.filter(entry_id=self.id, system_id=bmi_params.id)
+
         if not hasattr(self, '_clda_param_hist'):
             if hasattr(self.hdf.root, 'clda'):
                 self._clda_param_hist = self.hdf.root.clda[:]
-            elif get_bmiparams_file(self.record) is not None:
-                self._clda_param_hist = np.load(get_bmiparams_file(self.record))
+            elif len(q) > 0: #get_bmiparams_file(self.record) is not None:
+                fname = os.path.join(q[0].system.path, q[0].path)
+                self._clda_param_hist = np.load(fname)
             else:
                 self._clda_param_hist = None
         return self._clda_param_hist

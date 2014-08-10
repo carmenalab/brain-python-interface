@@ -7,6 +7,7 @@ some knowledge of the task goals is available.
 import numpy as np 
 from riglib.stereo_opengl import ik
 from riglib.bmi import feedback_controllers
+import pickle
 
 from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from utils.angle_utils import *
@@ -46,6 +47,31 @@ class Assister(object):
         return self.calc_assisted_BMI_state(*args, **kwargs)
 
 
+class OFCEndpointAssister(Assister):
+    def __init__(self, decoding_rate=180):
+        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_ppf.pkl'))
+        self.n_assist_levels = len(self.F_assist)                              
+        self.prev_assist_level = self.n_assist_levels          
+        self.B = np.mat(np.vstack([np.zeros([3,3]), np.eye(3)*1000*1./decoding_rate, np.zeros(3)]))
+
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        ##assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
+        ##if assist_level_idx < self.prev_assist_level:                        
+        ##    print "assist_level_idx decreasing to", assist_level_idx         
+        ##    self.prev_assist_level = assist_level_idx                        
+        ##F = np.mat(self.F_assist[assist_level_idx])    
+        F = self.get_F(assist_level)
+        Bu = self.B*F*(target_state - current_state)
+        print Bu
+        return Bu, 0
+
+    def get_F(self, assist_level):
+        assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
+        if assist_level_idx < self.prev_assist_level:                        
+            print "assist_level_idx decreasing to", assist_level_idx         
+            self.prev_assist_level = assist_level_idx                        
+        F = np.mat(self.F_assist[assist_level_idx])    
+        return F
 
 class LinearFeedbackControllerAssist(Assister):
     '''

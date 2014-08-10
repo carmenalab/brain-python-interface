@@ -1,5 +1,5 @@
 '''
-Code for interacting with the Crist reward systems
+Code for interacting with the Crist reward system(s)
 '''
 
 
@@ -59,7 +59,7 @@ class _parse_num(object):
 
 class Basic(object):
     ''' Docstring '''
-    response_message_length = 16
+    response_message_length = 7
     def __init__(self):
         '''
         Docstring
@@ -70,7 +70,7 @@ class Basic(object):
         Returns
         -------
         '''
-        self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
+        self.port = serial.Serial(glob.glob("/dev/ttyUSB0")[0], baudrate=38400)
         if loc_config.reward_system_version==1: self.set_beeper_volume(128)
         time.sleep(.5)
         self.reset()
@@ -90,8 +90,11 @@ class Basic(object):
         self.port.flushOutput()
         self.port.flushInput()
         self.port.write(fmsg)
-        #msg_out = self.port.read(self.response_message_length)
-        #return msg_out
+        # msg_out = self.port.read()
+        
+        msg_out = self.port.read(self.port.inWaiting())
+        print msg_out
+        return msg_out
 
     def reward(self, length):
         '''
@@ -107,8 +110,6 @@ class Basic(object):
         if loc_config.reward_system_version==0:
             self._write(struct.pack('<ccxHxx', '@', 'G', length))
         elif loc_config.reward_system_version==1:
-            #length = length + 20000*(numpy.random.rand()-.5)
-            #print length
             self._write(struct.pack('<cccHxxx', '@', 'G', '1', length))
         else:
             raise Exception("Unrecognized reward system version!")
@@ -172,7 +173,7 @@ class Basic(object):
         if loc_config.reward_system_version==0:
             self._write("@CPSNNN")
         elif loc_config.reward_system_version==1:
-            cmd = ['@', 'C', '1', 'O', '%c' % 0b10000000, '%c' % 0, '%c' % 0, 'E']
+            cmd = ['@', 'C', '1', 'P', '%c' % 0b10000000, '%c' % 0, '%c' % 0, 'D']
             stuff = ''.join(cmd)
             self._write(stuff)
         else:
