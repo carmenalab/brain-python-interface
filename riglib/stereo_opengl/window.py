@@ -190,18 +190,19 @@ class Simple2DWindow(object):
 
         flags = pygame.NOFRAME
 
-        # self.workspace_ll = np.array([-25., -14.])
-        self.workspace_ll = np.array([-50., -28.])
-
         # win_res = (480, 270)
         win_res = (1000, 560)
-        # self.workspace_size = 50, 28. #win_res
-        self.workspace_size = 100, 56. #win_res
 
-        self.workspace_bottom_left = (0., 0.)
-        self.workspace_top_right   = (42., 30.)
-        # self.workspace_bottom_left = (-18., -12.)
-        # self.workspace_top_right   = (18., 12.)
+        from riglib import loc_config
+        if loc_config.recording_system == 'plexon':
+            self.workspace_bottom_left = (-18., -12.)
+            self.workspace_top_right   = (18., 12.)
+        elif loc_config.recording_system == 'blackrock':
+            self.workspace_bottom_left = (0., 0.)
+            self.workspace_top_right   = (42., 30.)
+        else:
+            raise Exception('Unknown recording_system!')
+
         self.workspace_x_len = self.workspace_top_right[0] - self.workspace_bottom_left[0]
         self.workspace_y_len = self.workspace_top_right[1] - self.workspace_bottom_left[1]
 
@@ -237,7 +238,6 @@ class Simple2DWindow(object):
 
     def pos2pix(self, kfpos):
         # rescale the cursor position to (0,1)
-        #norm_workspace_pos = (kfpos - self.workspace_ll)/self.workspace_size
 
         norm_x_pos = (self.display_border + (kfpos[0] - self.workspace_bottom_left[0])) / (self.workspace_x_len + 2*self.display_border)
         norm_y_pos = (self.display_border + (kfpos[1] - self.workspace_bottom_left[1])) / (self.workspace_y_len + 2*self.display_border)
@@ -329,6 +329,7 @@ class Simple2DWindow(object):
         pass
 
 class WindowDispl2D(Simple2DWindow, Window):
+    # TODO -- defining this __init__ is probably not necessary
     def __init__(self, *args, **kwargs):
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 
