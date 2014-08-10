@@ -321,12 +321,6 @@ class MultiChanDataSource(mp.Process):
             self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros/Falses by default
 
-            # only for debugging
-            # self.nsamp_stored = 0
-            # self.nsamp_stored_last_print = 0
-            # self.nsamp_sent = 0
-            # self.nsamp_sent_last_print = 0
-
     def start(self, *args, **kwargs):
         '''
         Docstring
@@ -425,13 +419,6 @@ class MultiChanDataSource(mp.Process):
                                     self.wrap_flags[row] = True
                             self.idxs[row] = idx
 
-                            # only for debugging
-                            # if chan == 8:
-                            #     self.nsamp_stored += n_pts
-                            #     if self.nsamp_stored > self.nsamp_stored_last_print + 2000:
-                            #         print "source.py: # stored =", self.nsamp_stored
-                            #         self.nsamp_stored_last_print = self.nsamp_stored
-
                         self.lock.release()
                     except Exception as e:
                         print e
@@ -464,12 +451,6 @@ class MultiChanDataSource(mp.Process):
                                 self.sinks.send(self.name, data)
 
                             self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)
-
-                            # only for debugging
-                            # self.nsamp_sent += len(idxs_to_send)
-                            # if self.nsamp_sent > self.nsamp_sent_last_print + 2000:
-                            #     print "source.py: # sent =", self.nsamp_sent
-                            #     self.nsamp_sent_last_print = self.nsamp_sent
 
                         self.lock.release()
             else:

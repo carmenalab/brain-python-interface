@@ -28,9 +28,6 @@ class HDFWriter(object):
         self.h5 = tables.openFile(filename, "w")
         self.data = {}
         self.msgs = {}
-
-        self.nsamp_appended = 0
-        self.nsamp_last_print = 0
     
     def register(self, name, dtype, include_msgs=True):
         '''
@@ -69,16 +66,9 @@ class HDFWriter(object):
 
         if system in self.data:
             if len(data) != 1:
-                # data = np.array(data)[np.newaxis]
-                pass
+                # this might not be necessary
+                data = np.array(data)[np.newaxis]
             self.data[system].append(data)
-
-            # only for debugging
-            # if system == 'blackrock':
-            #     self.nsamp_appended += len(data)
-            #     if self.nsamp_appended > self.nsamp_last_print + 2000:
-            #         print "hdfwriter.py: # saved =", self.nsamp_appended, "\n"
-            #         self.nsamp_last_print = self.nsamp_appended
 
     def sendMsg(self, msg):
         '''
