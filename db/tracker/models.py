@@ -142,7 +142,7 @@ class System(models.Model):
     
     @staticmethod
     def populate():
-        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params"]:
+        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params", "juice_log"]:
             try:
                 System.objects.get(name=name)
             except ObjectDoesNotExist:
@@ -364,11 +364,14 @@ class TaskEntry(models.Model):
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=self.task_params)
 
+
+        ## Add data files to the web interface. To be removed (never ever used)
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)
         js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
+        
         try:
             task = self.task.get(self.feats.all())
             report = json.loads(self.report)
@@ -411,6 +414,16 @@ class TaskEntry(models.Model):
             fname = f.rstrip()
             keyname = os.path.basename(fname).rstrip('.png')[len(str(self.id)):]
             plot_files[keyname] = os.path.join('/static', fname)
+
+        # if the juice log feature is checked, also include the snapshot of the juice if it exists
+        try:
+            juice_sys = System.objects.get(name='juice_log')
+            df = DataFile.objects.get(system=juice_sys, entry=self.id)
+            plot_files['juice'] = os.path.join(df.system.path, df.path)
+        except:
+            import traceback
+            traceback.print_exc()
+
         js['plot_files'] = plot_files
 
         return js
@@ -421,15 +434,13 @@ class TaskEntry(models.Model):
         Returns the name of the plx file associated with the session.
         '''
         plexon = System.objects.get(name='plexon')
-        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=plexon.id)
-        if len(q)==0:
+        try:
+            df = DataFile.objects.get(system=plexon, entry=self.id)
+            return os.path.join(df.system.path, df.path)
+        except:
+            import traceback
+            traceback.print_exc()
             return 'noplxfile'
-        else:
-            try:
-                import db.paths
-                return os.path.join(db.paths.data_path, plexon.name, q[0].path)
-            except:
-                return q[0].path
 
     @property
     def name(self):

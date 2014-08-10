@@ -183,7 +183,10 @@ def get_length(entry):
     Returns length of session in seconds.
     Takes TaskEntry object.
     '''
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except:
+        return 0.0
     return report[-1][2]-report[0][2]
     
 def get_success_rate(entry):
@@ -191,7 +194,9 @@ def get_success_rate(entry):
     Returns (# of trials rewarded)/(# of trials intiated).
     Takes TaskEntry object.
     '''
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     total=0.0
     rew=0.0
     for s in report:
@@ -206,7 +211,9 @@ def get_completed_trials(entry):
     '''
     Returns # of trials rewarded
     '''
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     return len([s for s in report if s[0]=="reward"])
 
 def get_initiate_rate(entry):
@@ -215,7 +222,9 @@ def get_initiate_rate(entry):
     Takes TaskEntry object.
     '''
     length = get_length(entry)
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     count=0.0
     for s in report:
         if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
@@ -227,8 +236,9 @@ def get_reward_rate(entry):
     Returns average # of trials completed per minute.
     Takes TaskEntry object.
     '''
-    
-    report = json.loads(entry.report)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
     count=0.0
     rewardtimes = []
     for s in report:

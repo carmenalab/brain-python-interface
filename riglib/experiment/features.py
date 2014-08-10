@@ -15,6 +15,9 @@ from riglib.bmi import extractor
 
 from . import traits, experiment
 
+import os
+import subprocess
+
 import time
 
 ###### CONSTANTS
@@ -97,6 +100,28 @@ class TTLReward(traits.HasTraits):
         val = 0x000000
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
+
+class JuiceLogging(traits.HasTraits):
+    '''
+    Save screenshots of the juice camera and link them to the task entry that has been created
+    '''
+    def cleanup(self, database, saveid, **kwargs):
+        super(JuiceLogging, self).cleanup(database, saveid, **kwargs)
+
+        ## Remove the old screenshot, if any
+        fname = '/storage/temp/_juice_logging_temp.png'
+        subprocess.call(['rm', fname])
+
+        ## Use the script to run the snapshot
+        subprocess.call(['camera_snapshot.sh', fname])
+        # os.subprocess('camera_snapshot.sh %s' % fname)
+
+        ## Wait for a second to make sure the file is created (TODO should really be a timed loop!)
+        time.sleep(1)
+
+        ## Link the image to the database
+        database.save_data(fname, 'juice_log', saveid)
+
 
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
