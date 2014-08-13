@@ -39,6 +39,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     stop = False
     exclude_parent_traits = []
     ordered_traits = []
+    hidden_traits = []
     fps = 60
 
     def __init__(self, **kwargs):
@@ -89,6 +90,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         editable_traits = filter(lambda x: x not in cls.exclude_parent_traits, traits)
         return editable_traits
 
+    @classmethod
+    def is_hidden(cls, trait):
+        return trait in cls.hidden_traits
+
     def init(self):
         '''
         Initialization method to run *after* object construction (see self.start)
@@ -136,16 +141,20 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def set_state(self, condition):
         '''
-        Docstring
+        Change the state of the task
 
         Parameters
         ----------
+        condition: string
+            Name of new state to transition into. The state name must be a key in the 'status' dictionary attribute of the task
 
         Returns
         -------
+        None
         '''
-        # print "Experiment.set_state; setting state", condition
         self.state = condition
+
+        # Record the time at which the new state is entered. Used for timed states, e.g., the reward state
         self.start_time = self.get_time()
         self.update_report_stats()
         if hasattr(self, "_start_%s"%condition):
@@ -191,6 +200,8 @@ class Experiment(traits.HasTraits, threading.Thread):
                         if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
                             if hasattr(self, "_end_%s"%self.state):
                                 getattr(self, "_end_%s"%self.state)()
+
+                            # Execute the event. In the base class, this means changing the state to the next state
                             self.trigger_event(event)
                             break;
             except:
@@ -287,17 +298,24 @@ class Experiment(traits.HasTraits, threading.Thread):
 
 
 class LogExperiment(Experiment):
-    ''' Docstring '''
+    '''
+    Extension of the experiment class which logs state transitions
+    '''
+    # List out state/trigger pairs to exclude from logging
     log_exclude = set()
     def __init__(self, **kwargs):
         '''
-        Docstring
+        Constructor for LogExperiment
 
         Parameters
         ----------
+        kwargs: dict
+            These are all propagated to the parent (none used for this constructor)
 
         Returns
         -------
+        LogExperiment instance
+
         '''
         self.state_log = []
         self.event_log = []
@@ -360,7 +378,6 @@ class Sequence(LogExperiment):
         self.gen = gen
         assert hasattr(gen, "next"), "gen must be a generator"
         super(Sequence, self).__init__(**kwargs)
-        #self.next_trial = self.gen.next()
     
     def _start_wait(self):
         '''

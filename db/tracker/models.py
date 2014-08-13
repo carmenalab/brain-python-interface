@@ -60,6 +60,7 @@ class Task(models.Model):
             varname['type'] = ctraits[trait].trait_type.__class__.__name__
             varname['default'] = _get_trait_default(ctraits[trait])
             varname['desc'] = ctraits[trait].desc
+            varname['hidden'] = 'hidden' if Exp.is_hidden(trait) else 'visible'
             if trait in values:
                 varname['value'] = values[trait]
             if varname['type'] == "Instance":
@@ -75,6 +76,10 @@ class Task(models.Model):
         ordered_traits = Exp.ordered_traits
         for trait in ordered_traits:
             if trait in Exp.class_editable_traits():
+                add_trait(trait)
+
+        for trait in Exp.class_editable_traits():
+            if trait not in params and not Exp.is_hidden(trait):
                 add_trait(trait)
 
         for trait in Exp.class_editable_traits():
