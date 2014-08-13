@@ -19,11 +19,7 @@ class FeatureExtractor(object):
     '''
     Parent of all feature extractors, used only for interfacing/type-checking
     '''
-    def __init__(self, task):
-        raise NotImplementedError
-
-    def __call__(self):
-        raise NotImplementedError
+    pass
 
 
 class BinnedSpikeCountsExtractor(FeatureExtractor):
@@ -112,15 +108,13 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         bin_edges = self.get_bin_edges(ts)
         self.last_get_spike_counts_time = start_time
 
-        return dict(spike_count=counts, bin_edges=bin_edges)
+        return dict(spike_counts=counts, bin_edges=bin_edges)
 
 class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
     '''
     A "feature extractor" that replays spike counts from an HDF file
     '''
-
     feature_type = 'spike_counts'
-    
     def __init__(self, hdf_table, source='spike_counts', cycle_rate=60.0, units=[]):
         '''    Docstring    '''
         self.idx = 0
@@ -132,7 +126,9 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.cycle_rate = cycle_rate
 
     def get_spike_ts(self):
-        '''    Docstring    '''
+        '''
+        Make up fake timestamps to go with the spike counts extracted from the HDF file
+        '''
         # Get counts from HDF file
         counts = self.hdf_table[self.idx][self.source]
         n_subbins = counts.shape[1]
@@ -153,12 +149,16 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         return np.array(ts_data, dtype=ts_dtype_new)
 
     def get_bin_edges(self, ts):
-        '''    Docstring    '''
+        '''
+        Get the first and last timestamp of spikes in the current "bin" as saved in the HDF file
+        '''
         return self.hdf_table[self.idx]['bin_edges']
 
     def __call__(self, *args, **kwargs):
         '''    Docstring    '''
         output = super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
+        if not np.array_equal(output['spike_counts'], self.hdf_table[self.idx][self.source]):
+            print "spike binning error: ", self.idx
         self.idx += 1 
         return output
 

@@ -126,7 +126,7 @@ def get_decoder_name(entry):
 def get_decoder_name_full(entry):
     entry = lookup_task_entries(entry)
     decoder_basename = get_decoder_name(entry)
-    return os.path.join(db.paths.data_path, 'decoders', decoder_basename)
+    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
 
 def get_decoder(entry):
     entry = lookup_task_entries(entry)
@@ -646,11 +646,15 @@ class TaskEntry(object):
 
     @property
     def clda_param_hist(self):
+        bmi_params = models.System.objects.get(name='bmi_params')
+        q = models.DataFile.objects.filter(entry_id=self.id, system_id=bmi_params.id)
+
         if not hasattr(self, '_clda_param_hist'):
             if hasattr(self.hdf.root, 'clda'):
                 self._clda_param_hist = self.hdf.root.clda[:]
-            elif get_bmiparams_file(self.record) is not None:
-                self._clda_param_hist = np.load(get_bmiparams_file(self.record))
+            elif len(q) > 0: #get_bmiparams_file(self.record) is not None:
+                fname = os.path.join(q[0].system.path, q[0].path)
+                self._clda_param_hist = np.load(fname)
             else:
                 self._clda_param_hist = None
         return self._clda_param_hist

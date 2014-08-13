@@ -169,7 +169,7 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         else:
             return (A - B*F)*state + B*F*target_state + self.state_noise
 
-    def _forward_infer(self, st, obs_t, target_state=None):
+    def _forward_infer(self, st, obs_t, x_target=None, **kwargs):
         '''
         Docstring    
         
@@ -179,6 +179,9 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         Returns
         -------
         '''
+        if x_target is not None:
+            x_target = np.mat(x_target[:,0].reshape(-1,1))
+        target_state = x_target
 
         obs_t = np.mat(obs_t.reshape(-1,1))
         C = self.C
@@ -200,6 +203,10 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         else:
             x_pred = A*x_prev + B*F*(target_state - x_prev)
             P_pred = (A-B*F) * P_prev * (A-B*F).T + W
+            if np.all(B*F == 0):
+                #import pdb; pdb.set_trace()
+                if not (np.array_equal(A*x_prev, A*x_prev + B*F*(target_state - x_prev)) and np.array_equal((A-B*F) * P_prev * (A-B*F).T + W, A*P_prev*A.T + W)):
+                    print 'wtf'
         P_pred = P_pred[mesh]
 
         Loglambda_predict = self.C * x_pred 
@@ -407,45 +414,45 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
 
         return self.filt 
 
-    def predict(self, spike_counts, target=None, speed=0.05, assist_level=0, **kwargs):
-        """
-        Run decoder, assist, and bound any states
+    # def predict(self, spike_counts, target=None, speed=0.05, assist_level=0, **kwargs):
+    #     """
+    #     Run decoder, assist, and bound any states
         
-        Docstring    
+    #     Docstring    
         
-        Parameters
-        ----------
+    #     Parameters
+    #     ----------
         
-        Returns
-        -------
+    #     Returns
+    #     -------
         
 
 
-        """
-        # Define target state, if specified
-        if target is not None:
-            target_state = np.hstack([target, np.zeros(3), 1])
-            target_state = np.mat(target_state).reshape(-1,1)
-        else:
-            target_state = None
+    #     """
+    #     # Define target state, if specified
+    #     if target is not None:
+    #         target_state = np.hstack([target, np.zeros(3), 1])
+    #         target_state = np.mat(target_state).reshape(-1,1)
+    #     else:
+    #         target_state = None
 
-        assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
-        if assist_level_idx < self.prev_assist_level:
-            print "assist_level_idx decreasing to", assist_level_idx
-            self.prev_assist_level = assist_level_idx
-        self.filt.F = np.mat(self.F_assist[assist_level_idx])
+    #     assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
+    #     if assist_level_idx < self.prev_assist_level:
+    #         print "assist_level_idx decreasing to", assist_level_idx
+    #         self.prev_assist_level = assist_level_idx
+    #     self.filt.F = np.mat(self.F_assist[assist_level_idx])
 
-        # re-format as a 1D col vec
-        spike_counts = np.mat(spike_counts.reshape(-1,1))
+    #     # re-format as a 1D col vec
+    #     spike_counts = np.mat(spike_counts.reshape(-1,1))
 
-        # Run the filter
-        self.filt(spike_counts, target_state=target_state)
+    #     # Run the filter
+    #     self.filt(spike_counts, target_state=target_state)
 
-        # Bound cursor, if any hard bounds for states are applied
-        self.bound_state()
+    #     # Bound cursor, if any hard bounds for states are applied
+    #     self.bound_state()
 
-        state = self.filt.get_mean()
-        return state
+    #     state = self.filt.get_mean()
+    #     return state
 
     def shuffle(self):
         '''
