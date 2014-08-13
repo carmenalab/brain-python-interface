@@ -456,13 +456,16 @@ class SaveHDF(SinkRegister):
 
     def set_state(self, condition, **kwargs):
         '''
-        Docstring
+        Save task state transitions to HDF
 
         Parameters
         ----------
+        condition: string
+            Name of new state to transition into. The state name must be a key in the 'status' dictionary attribute of the task
 
         Returns
         -------
+        None
         '''
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
