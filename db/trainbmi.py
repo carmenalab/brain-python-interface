@@ -55,7 +55,8 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             channels = [1, 2, 3, 4]  # use these channels by default
         else:
             channels = np.unique(channels)
-            units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
+            #  units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
+            units = np.hstack([channels.reshape(-1, 1), np.ones(channels.reshape(-1, 1).shape, dtype=np.int32)])
     else:
         raise Exception('Unknown feature_type!')
 
@@ -80,7 +81,23 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
     datafiles = models.DataFile.objects.filter(entry_id=entry)
-    inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
+ 
+    # this is sort of a hack, fix later
+    # old inputdata dict assumed there was only one datafile associated with 
+    # each system, but this is not always the case (e.g., Blackrock has both 
+    # nev and nsx files) -- in this case, set the corresponding dict value as
+    # a list of files
+    # inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
+    inputdata = dict()
+    system_names = set(d.system.name for d in datafiles)
+    for system_name in system_names:
+        files = [d.get_path() for d in datafiles if d.system.name == system_name]
+        if system_name == 'blackrock':
+            inputdata[system_name] = files  # list of (one or more) files
+        else:
+            assert(len(files) == 1)
+            inputdata[system_name] = files[0]  # just one file
+
     training_method = namelist.bmis[clsname]
     decoder = training_method(extractor_cls, extractor_kwargs, 
                                 units=units, binlen=binlen, tslice=tslice, **inputdata)
@@ -90,7 +107,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     database.save_bmi(name, int(entry), tf.name)
 
 def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice):
-    """Cache plexon file and train BMI
+    """Cache plexon file (if using plexon system) and train BMI.
 
     Parameters
     ----------
@@ -112,15 +129,25 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
     tslice : slice
         Task time to use when training the decoder
     """
-    plexon = models.System.objects.get(name='plexon')
-    plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
 
-    if not plxfile.has_cache():
-        cache = cache_plx.si(plxfile.get_path())
-        train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
-        chain(cache, train)()
-    else:
+    import loc_config
+    if loc_config.recording_system == 'plexon':
+        plexon = models.System.objects.get(name='plexon')
+        plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
+
+        if not plxfile.has_cache():
+            cache = cache_plx.si(plxfile.get_path())
+            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+            chain(cache, train)()
+        else:
+            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+    
+    elif loc_config.recording_system == 'blackrock':
         make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+    
+    else:
+        raise Exception('Unknown recording_system!')
+
 
 def open_decoder_from_record(decoder_record):
     '''

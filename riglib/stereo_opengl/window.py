@@ -21,12 +21,16 @@ from riglib.stereo_opengl.environment import Box
 import time
 from riglib import loc_config
 from primitives import Cylinder, Sphere, Cone
+from profile_support import profile
 
 try:
     import pygame
 except:
     import warnings
     warnings.warn('riglib/stereo_opengl/window.py: not importing name pygame')
+
+# for WindowDispl2D only
+from riglib.stereo_opengl.primitives import Sector, Line
 
 
 class Window(LogExperiment):
@@ -36,7 +40,7 @@ class Window(LogExperiment):
 
     window_size = (3840, 1080)
     background = (0,0,0,1)
-    fps = 60
+    # fps = 60  # TODO (already defined in Experiment class)
 
     #Screen parameters, all in centimeters -- adjust for monkey
     fov = np.degrees(np.arctan(14.65/(44.5+3)))*2
@@ -147,6 +151,7 @@ class Window(LogExperiment):
     def requeue(self):
         self.renderer._queue_render(self.world)
 
+    @profile
     def _cycle(self):
         self.draw_world()
         super(Window, self)._cycle()
@@ -184,10 +189,24 @@ class Simple2DWindow(object):
 
         flags = pygame.NOFRAME
 
-        self.workspace_ll = np.array([-25., -14.])
+        # win_res = (480, 270)
+        win_res = (1000, 560)
 
-        win_res = (480, 270)
-        self.workspace_size = 50, 28. #win_res
+        from riglib import loc_config
+        if loc_config.recording_system == 'plexon':
+            self.workspace_bottom_left = (-18., -12.)
+            self.workspace_top_right   = (18., 12.)
+        elif loc_config.recording_system == 'blackrock':
+            self.workspace_bottom_left = (0., 0.)
+            self.workspace_top_right   = (42., 30.)
+        else:
+            raise Exception('Unknown recording_system!')
+
+        self.workspace_x_len = self.workspace_top_right[0] - self.workspace_bottom_left[0]
+        self.workspace_y_len = self.workspace_top_right[1] - self.workspace_bottom_left[1]
+
+        self.display_border = 10
+
         self.size = np.array(win_res)
         self.screen = pygame.display.set_mode(win_res, flags)
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
@@ -218,7 +237,10 @@ class Simple2DWindow(object):
 
     def pos2pix(self, kfpos):
         # rescale the cursor position to (0,1)
-        norm_workspace_pos = (kfpos - self.workspace_ll)/self.workspace_size
+
+        norm_x_pos = (self.display_border + (kfpos[0] - self.workspace_bottom_left[0])) / (self.workspace_x_len + 2*self.display_border)
+        norm_y_pos = (self.display_border + (kfpos[1] - self.workspace_bottom_left[1])) / (self.workspace_y_len + 2*self.display_border)
+        norm_workspace_pos = np.array([norm_x_pos, norm_y_pos])
 
         # multiply by the workspace size in pixels 
         pix_pos = self.size*norm_workspace_pos
@@ -230,6 +252,7 @@ class Simple2DWindow(object):
         pix_pos = np.array(pix_pos, dtype=int) 
         return pix_pos
 
+    @profile
     def draw_world(self):
         #Refreshes the screen with original background
         self.screen.blit(self.screen_background, (0, 0))
@@ -248,6 +271,45 @@ class Simple2DWindow(object):
                 #Draws cursor and targets on transparent surfaces
                 pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
                 i += 1
+            elif isinstance(model, Sector):
+                if model.visible:
+                    center_pos = model.center_pos[[0,2]]
+                    color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+                    
+                    start_angle = model.ang_range[0]
+                    stop_angle  = model.ang_range[1]
+                    radius = model.radius
+
+                    arc_angles = np.linspace(start_angle, stop_angle, 5)
+                    sector_pts = list(center_pos + radius*np.c_[np.cos(arc_angles), np.sin(arc_angles)])
+                    sector_pts.append(center_pos)
+                    point_list = [self.pos2pix(pt) for pt in sector_pts]
+                    pygame.draw.polygon(self.surf[str(np.min([i,1]))], color, point_list)
+                    i += 1
+            elif isinstance(model, Line):
+                start_pos = model.start_pos[[0,2]]
+                angle = model.angle
+                length = model.length
+                width = model.width
+
+                origin = np.zeros([0, 0])
+
+                # plot line as thin rectangle
+                pts = np.array([[0, width/2], 
+                                [0, -width/2], 
+                                [length, -width/2], 
+                                [length, width/2]])
+
+                # rotate rectangle to correct orientation
+                rot_mat = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+                pts = np.dot(rot_mat, pts.T).T
+                pts = pts + np.array([start_pos[0], start_pos[1]])
+
+                color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+
+                point_list = [self.pos2pix(pt) for pt in pts]
+                pygame.draw.polygon(self.surf[str(np.min([i,1]))], color, point_list, 0)
+                i += 1
             else:
                 pass
 
@@ -255,7 +317,7 @@ class Simple2DWindow(object):
         self.screen.blit(self.surf['0'], (0,0))
         self.screen.blit(self.surf['1'], (0,0))
         pygame.display.update()
-        #self.clock.tick(self.fps)
+        # self.clock.tick(self.fps)
 
     def requeue(self):
         '''
@@ -266,6 +328,7 @@ class Simple2DWindow(object):
         pass
 
 class WindowDispl2D(Simple2DWindow, Window):
+    # TODO -- defining this __init__ is probably not necessary
     def __init__(self, *args, **kwargs):
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 

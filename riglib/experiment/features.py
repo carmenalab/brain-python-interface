@@ -8,6 +8,8 @@ import tempfile
 import random
 import traceback
 import numpy as np
+import fnmatch
+import os
 
 from riglib import calibrations, bmi
 
@@ -388,6 +390,61 @@ class MotionAutoAlign(MotionData):
         cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)
         return cls, dict()
 
+
+class BlackrockData(traits.HasTraits):
+    '''Stream Blackrock neural data.'''
+    blackrock_channels = None
+
+    def init(self):
+        from riglib import blackrock, source
+
+        if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+            self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels, send_data_to_sink_manager=False)
+        elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+            self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels, send_data_to_sink_manager=True)
+        else:
+            raise Exception("Unknown extractor class, unable to create data source object!")
+
+        from riglib import sink
+        sink.sinks.register(self.neurondata)
+
+        super(BlackrockData, self).init()
+
+    def run(self):
+        self.neurondata.start()
+        try:
+            super(BlackrockData, self).run()
+        finally:
+            self.neurondata.stop()
+
+class BlackrockBMI(BlackrockData):
+    '''Filters neural data from the Blackrock system through a BMI.'''
+    decoder = traits.Instance(bmi.Decoder)
+
+    def init(self):
+        print "init bmi"
+        self.blackrock_channels = self.decoder.units[:,0]
+        super(BlackrockBMI, self).init()
+
+
+class BrainAmpData(traits.HasTraits):
+    '''Stream BrainAmp neural data.'''
+
+    def init(self):
+        from riglib import brainamp, source
+
+        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
+
+        try:
+            super(BrainAmpData, self).init()
+        except:
+            print "BrainAmpData: running without a task"
+
+    def run(self):
+        self.emgdata.start()
+
+
+
 #*******************************************************************************************************
 # Data Sinks
 #*******************************************************************************************************
@@ -628,6 +685,84 @@ class RelayPlexByte(RelayPlexon):
         '''
         see documentation for RelayPlexon.ni_out 
         '''
+        from riglib import nidaq
+        return nidaq.SendRowByte
+
+
+class RelayBlackrock(SinkRegister):
+    '''Sends full data directly into the Blackrock system.'''
+    def init(self):
+        from riglib import sink
+        print "self.ni_out()", self.ni_out()
+        self.nidaq = sink.sinks.start(self.ni_out)
+        print "self.nidaq", self.nidaq
+        super(RelayBlackrock, self).init()
+
+    @property
+    def ni_out(self):
+        from riglib import nidaq
+        print 'nidaq.SendAll', nidaq.SendAll
+        return nidaq.SendAll
+
+    @property    
+    def blackrockfiles(self):
+        '''Finds the blackrock files --- .nev and .nsx (.ns1 through .ns6) 
+        --- that are most likely associated with the current task based on 
+        the time at which the task ended and the "last modified" time of the 
+        files located at /storage/blackrock/.
+        '''
+        import os, sys, glob, time
+        if len(self.event_log) < 1:
+            return None
+
+        start = self.event_log[-1][2]
+        
+        files = []
+        for ext in ['.nev', '.ns1', '.ns2', '.ns3', '.ns4', '.ns5', '.ns6']:
+            pattern = "/storage/blackrock/*" + ext
+
+            #matches = sorted(glob.glob(pattern), key=lambda f: abs(os.stat(f).st_mtime - start))
+            matches = []
+            for root, dirnames, filenames in os.walk('/storage/blackrock'):
+                for filename in fnmatch.filter(filenames, '*' + ext):
+                    matches.append(os.path.join(root, filename))
+
+            sorted_matches = sorted(matches, key=lambda f: abs(os.stat(f).st_mtime - start))
+
+            if len(sorted_matches) > 0:
+                tdiff = os.stat(sorted_matches[0]).st_mtime - start
+                if abs(tdiff) < 60:
+                     files.append(sorted_matches[0])
+
+        return files
+    
+    def run(self):
+        try:
+            super(RelayBlackrock, self).run()
+        finally:
+            self.nidaq.stop()
+
+    def set_state(self, condition, **kwargs):
+        self.nidaq.sendMsg(condition)
+        super(RelayBlackrock, self).set_state(condition, **kwargs)
+
+    def cleanup(self, database, saveid, **kwargs):
+        super(RelayBlackrock, self).cleanup(database, saveid, **kwargs)
+        time.sleep(2)
+        for file_ in self.blackrockfiles:
+            suffix = file_[-3:]  # e.g., 'nev', 'ns3', etc.
+            # database.save_data(file_, "blackrock", saveid, True, False, custom_suffix=suffix)
+            database.save_data(file_, "blackrock", saveid, False, False, suffix)
+        
+class RelayBlackrockByte(RelayBlackrock):
+    '''Relays a single byte (0-255) as a row checksum for when a data packet arrives.'''
+    def init(self):
+        if not isinstance(self, SaveHDF):
+            raise ValueError("RelayBlackrockByte feature only available with SaveHDF")
+        super(RelayBlackrockByte, self).init()
+
+    @property
+    def ni_out(self):
         from riglib import nidaq
         return nidaq.SendRowByte
 

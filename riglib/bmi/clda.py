@@ -12,7 +12,13 @@ import cmath
 from itertools import izip
 import tables
 import re
+import assist
 import os
+
+from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
+from utils.angle_utils import *
+
+
 
 
 inv = np.linalg.inv
@@ -261,7 +267,7 @@ class OFCLearner3DEndptPPF(OFCLearner):
         R = np.mat(np.diag([w_r, w_r, w_r]))
         
         F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = dict(target=F, hold=F)
+        F_dict = dict(target=F, hold=F) 
         super(OFCLearner3DEndptPPF, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
 
         # Tell BMISystem that this learner wants the most recent output
@@ -372,6 +378,237 @@ class CursorGoalLearner2(Learner):
             raise ValueError("CursorGoalLearner2.__call__ requires state order to be specified!")
         super(CursorGoalLearner2, self).__call__(spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
     
+
+###################
+## iBMI learners ##
+###################
+
+# simple iBMI learners that just use an "assister" object
+
+class ArmAssistLearner(Learner):
+    def __init__(self, *args, **kwargs):
+        decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
+        assist_speed   = kwargs.pop('assist_speed', 2.)
+        target_radius  = kwargs.pop('target_radius', 2.)
+        assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
+        self.assister = assist.ArmAssistAssister(**assister_kwargs)
+
+        super(ArmAssistLearner, self).__init__(*args, **kwargs)
+
+        self.input_state_index = -1
+
+    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        """Calculate/estimate the intended ArmAssist kinematics."""
+        current_state = decoder_state[:, None]  # assister expects shape to be (7, 1)
+        target_state  = target_state[:, None]   # assister expects shape to be (7, 1)
+        intended_state = self.assister(current_state, target_state, 1)[0]
+
+        return intended_state
+
+    def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        '''Calculate the intended kinematics and pair with the neural data.'''
+        super(ArmAssistLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+
+
+class ReHandLearner(Learner):
+    def __init__(self, *args, **kwargs):
+        decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
+        assist_speed   = kwargs.pop('assist_speed', 2.)
+        target_radius  = kwargs.pop('target_radius', 2.)
+        assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
+        self.assister = assist.ReHandAssister(**assister_kwargs)
+
+        super(ReHandLearner, self).__init__(*args, **kwargs)
+
+        self.input_state_index = -1
+
+    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        """Calculate/estimate the intended ReHand kinematics."""
+        current_state = decoder_state[:, None]  # assister expects shape to be (9, 1)
+        target_state  = target_state[:, None]   # assister expects shape to be (9, 1)
+        intended_state = self.assister(current_state, target_state, 1)[0]
+
+        return intended_state
+
+    def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        '''Calculate the intended kinematics and pair with the neural data.'''
+        super(ReHandLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+
+
+class IsMoreLearner(Learner):
+    def __init__(self, *args, **kwargs):
+        decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
+        assist_speed   = kwargs.pop('assist_speed', 2.)
+        target_radius  = kwargs.pop('target_radius', 2.)
+        assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
+        self.assister = assist.IsMoreAssister(**assister_kwargs)
+
+        super(IsMoreLearner, self).__init__(*args, **kwargs)
+
+        self.input_state_index = -1
+
+    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        """Calculate/estimate the intended ArmAssist+ReHand kinematics."""
+        current_state = decoder_state[:, None]  # assister expects shape to be (15, 1)
+        target_state  = target_state[:, None]   # assister expects shape to be (15, 1)
+        intended_state = self.assister(current_state, target_state, 1)[0]
+
+        return intended_state
+
+    def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
+        '''Calculate the intended kinematics and pair with the neural data.'''
+        super(IsMoreLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+
+
+# OFC iBMI learners
+
+class ArmAssistOFCLearner(OFCLearner):
+    def __init__(self, batch_size, *args, **kwargs):
+        '''Specific instance of the OFCLearner for the ArmAssist.'''
+        dt = kwargs.pop('dt', 0.1)
+
+        ssm = StateSpaceArmAssist()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
+        self.Q = Q
+        
+        R = 1e7 * np.mat(np.diag([1., 1., 1.]))
+        self.R = R
+
+        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        F_dict = RegexKeyDict()
+        F_dict['.*'] = F
+
+        super(ArmAssistOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+        self.input_state_index = -1
+    
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''Overriding to account for proper subtraction of angles.'''
+        try:
+            current_state = np.mat(current_state).reshape(-1, 1)
+            target_state = np.mat(target_state).reshape(-1, 1)
+            F = self.F_dict[task_state]
+            A = self.A
+            B = self.B
+
+            diff = target_state - current_state
+            diff[2] = angle_subtract(target_state[2], current_state[2])
+
+            u = F*diff
+            state_cost = diff.T * self.Q * diff
+            ctrl_cost  = u.T * self.R * u
+
+            # print 'target_state:', target_state
+            # print 'state x cost:', diff[0]**2 * float(self.Q[0, 0])
+            # print 'state y cost:', diff[1]**2 * float(self.Q[1, 1])
+            # print 'state z cost:', diff[2]**2 * float(self.Q[2, 2])
+            # print 'u x cost:', u[0]**2 * float(self.R[0, 0])
+            # print 'u y cost:', u[1]**2 * float(self.R[1, 1])
+            # print 'u z cost:', u[2]**2 * float(self.R[2, 2])
+            # print 'state cost:', float(state_cost)
+            # print 'ctrl cost:', float(ctrl_cost)
+            # print '\n'
+
+            return A*current_state + B*F*(diff)        
+        except KeyError:
+            return None
+
+
+class ReHandOFCLearner(OFCLearner):
+    def __init__(self, batch_size, *args, **kwargs):
+        '''Specific instance of the OFCLearner for the ReHand.'''
+        dt = kwargs.pop('dt', 0.1)
+
+        ssm = StateSpaceReHand()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
+        self.Q = Q
+        
+        R = 1e7 * np.mat(np.diag([1., 1., 1., 1.]))
+        self.R = R
+
+        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        F_dict = RegexKeyDict()
+        F_dict['.*'] = F
+
+        super(ReHandOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+        self.input_state_index = -1
+    
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''Overriding to account for proper subtraction of angles.'''
+        try:
+            current_state = np.mat(current_state).reshape(-1, 1)
+            target_state = np.mat(target_state).reshape(-1, 1)
+            F = self.F_dict[task_state]
+            A = self.A
+            B = self.B
+
+            diff = target_state - current_state
+            for i in range(4):
+                diff[i] = angle_subtract(target_state[i], current_state[i])
+
+            return A*current_state + B*F*(diff)        
+        except KeyError:
+            return None
+
+
+class IsMoreOFCLearner(OFCLearner):
+    def __init__(self, batch_size, *args, **kwargs):
+        '''Specific instance of the OFCLearner for full IsMore system
+        (ArmAssist + ReHand).'''
+        dt = kwargs.pop('dt', 0.1)
+
+        ssm = StateSpaceIsMore()
+        A, B, _ = ssm.get_ssm_matrices()
+        
+        # TODO -- velocity cost? not necessary?
+        Q = 1*np.mat(np.diag([1., 1., 1., 1., 1., 1., 1., 0, 0, 0, 0, 0, 0, 0, 0]))
+        self.Q = Q
+        
+        R = 1e7 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
+        self.R = R
+
+        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+        F_dict = RegexKeyDict()
+        F_dict['.*'] = F
+
+        super(IsMoreOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+        self.input_state_index = -1
+    
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''Overriding to account for proper subtraction of angles.'''
+        try:
+            current_state = np.mat(current_state).reshape(-1, 1)
+            target_state = np.mat(target_state).reshape(-1, 1)
+            F = self.F_dict[task_state]
+            A = self.A
+            B = self.B
+
+            diff = target_state - current_state
+            for i in range(2, 7):
+                diff[i] = angle_subtract(target_state[i], current_state[i])
+
+            # print 'diff:'
+            # print diff
+            # print 'A*current_state'
+            # print A*current_state
+            BF = B*F
+            print 'c1:', BF[7,0]
+            print 'c2:', BF[7,7]
+            print 'B*F*diff'
+            print B*F*diff
+            return A*current_state + B*F*(diff)        
+        except KeyError:
+            return None
+
+
 
 ##############################################################################
 ## Updaters
@@ -815,8 +1052,8 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     hdf_fname : filename of HDF file
     data : list of dictionaries with the same keys and same dtypes for values
     '''
-    
     log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
+
     compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
     if len(data) > 0:
         # Find the first parameter update dictionary
@@ -841,7 +1078,7 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     
         h5file = tables.openFile(hdf_fname, mode='a')
         arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
-    
+
         null_update = np.zeros((1,), dtype=dtype)
         for col_name in table_col_names:
             null_update[col_name.replace('.', '_')] *= np.nan
@@ -860,7 +1097,7 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     
             arr.append(data_row)
         h5file.close()
-    
+        
 
 if __name__ == '__main__':
     # Test case for CLDARecomputeParameters, to show non-blocking properties
