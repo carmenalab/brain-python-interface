@@ -2,7 +2,7 @@ import os
 #os.nice(4)
 
 try:
-    import models
+    from . import models
     subjects = models.Subject.objects.all()
     if len(subjects) == 0:
         subj = models.Subject(name='testing')
