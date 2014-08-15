@@ -21,9 +21,11 @@ features = dict(
     motion_simulate=experiment.features.MotionSimulate, 
     motion_autoalign=experiment.features.MotionAutoAlign,
     bmi=experiment.features.PlexonBMI,
+    blackrockbmi=experiment.features.BlackrockBMI,
     saveHDF=experiment.features.SaveHDF,
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
+    relay_blackrockbyte=experiment.features.RelayBlackrockByte,
     norm_firingrates=experiment.features.NormFiringRates,
     ttl_reward=experiment.features.TTLReward,
     juice_log=experiment.features.JuiceLogging,
@@ -57,12 +59,17 @@ generators = dict(
     centerout_2D_discrete_offset=generatorfunctions.centerout_2D_discrete_offset,
     depth_trainer=generatorfunctions.depth_trainer,
     centerout_3D_cube=generatorfunctions.centerout_3D_cube,
+    armassist_simple=generatorfunctions.armassist_simple,
+    rehand_simple=generatorfunctions.rehand_simple,
+    ismore_simple=generatorfunctions.ismore_simple,
 )
 
 # from tasks.rds import RDS, RDS_half
 # from tasks.dots import Dots
 # from tasks.redgreen import RedGreen, EyeCal
 # from tasks.button import ButtonTask
+
+from tasks import blackrocktasks
 
 tasks = dict(
     dots=tasks.Dots,
@@ -126,6 +133,12 @@ tasks = dict(
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
+
+    ######## iBMI tasks
+    ibmi_visual_feedback = blackrocktasks.VisualFeedback,
+    ibmi_manual_control  = blackrocktasks.ManualControl,
+    ibmi_bmi_control     = blackrocktasks.BMIControl,
+    ibmi_clda_control    = blackrocktasks.CLDAControl,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D', 'Arm3D']
@@ -133,6 +146,10 @@ arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D', 'Arm3D']
 ## BMI seed tasks
 # The below list shows which tasks can be used to train new Decoders
 bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi']
+
+ibmi_seed_tasks = ['ibmi_visual_feedback', 'ibmi_manual_control']
+
+bmi_seed_tasks.extend(ibmi_seed_tasks)
 
 from tracker import models
 
@@ -168,6 +185,9 @@ bmis = dict(
     kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
     kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
     kalmanVF3d=bmi.train._train_KFDecoder_visual_feedback_3d,
+    kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
+    kalmanVFrehand=bmi.train._train_rehand_KFDecoder_visual_feedback,
+    kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
 )
 
 extractors = dict(

@@ -9,7 +9,8 @@ import numpy as np
 ############
 ## Constants
 ############
-pi = np.pi 
+pi = np.pi
+deg_to_rad = pi/180
 
 def resample_ssm(A, W, Delta_old=0.1, Delta_new=0.005, include_offset=True):
     '''
@@ -82,7 +83,7 @@ def _gen_A(t, s, m, n, off, ndim=3):
     A[-1,-1] = off
     return np.mat(A)
 
-def linear_kinarm_kf(update_rate=1./10, units_mult=0.01):
+def linear_kinarm_kf(update_rate=1./10, units_mult=0.01, ndim=3, vel_decay=0.8):
     '''
     Docstring
 
@@ -96,9 +97,9 @@ def linear_kinarm_kf(update_rate=1./10, units_mult=0.01):
     loop_update_ratio = update_rate/Delta_KINARM
     w_in_meters = 0.0007
     w_units_resc = w_in_meters / (units_mult ** 2)
-    a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
-    A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=3)
-    W = _gen_A(0, 0, 0, w_resampled, 0, ndim=3)
+    a_resampled, w_resampled = resample_scalar_ssm(vel_decay, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
+    A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
+    W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
     return A, W
     
 
@@ -403,6 +404,95 @@ class StateSpaceEndptVel2D(StateSpace):
         I = np.mat(np.eye(3))
         B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
         return A, B, W
+
+
+
+
+class StateSpaceArmAssist(StateSpace):
+    def __init__(self):
+        max_vel = 2  # cm/s
+        max_ang_vel = 7.5 * deg_to_rad
+        super(StateSpaceArmAssist, self).__init__(
+            State('aa_px',   stochastic=False, drives_obs=False, order=0, min_val=0., max_val=42.),
+            State('aa_py',   stochastic=False, drives_obs=False, order=0, min_val=0., max_val=30.),
+            State('aa_ppsi', stochastic=False, drives_obs=False, order=0),
+            State('aa_vx',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
+            State('aa_vy',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
+            State('aa_vpsi', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            offset_state
+        )
+
+    def get_ssm_matrices(self, update_rate=0.1):
+        # State-space model set from expert data
+        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=3, vel_decay=0.95)
+
+        # Control input matrix for SSM for control inputs
+        I = np.mat(np.eye(3))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 3])])
+        return A, B, W
+
+
+class StateSpaceReHand(StateSpace):
+    def __init__(self):
+        max_ang_vel = 7.5 * deg_to_rad
+        super(StateSpaceReHand, self).__init__(
+            State('rh_pthumb', stochastic=False, drives_obs=False, order=0),
+            State('rh_pindex', stochastic=False, drives_obs=False, order=0),
+            State('rh_pfing3', stochastic=False, drives_obs=False, order=0),
+            State('rh_pprono', stochastic=False, drives_obs=False, order=0),
+            State('rh_vthumb', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_vindex', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_vfing3', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_vprono', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            offset_state
+        )
+
+    def get_ssm_matrices(self, update_rate=0.1):
+        # State-space model set from expert data
+        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=4, vel_decay=0.95)
+
+        # Control input matrix for SSM for control inputs
+        I = np.mat(np.eye(4))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 4])])
+        return A, B, W
+
+
+class StateSpaceIsMore(StateSpace):
+    def __init__(self):
+        max_vel = 2  # cm/s
+        max_ang_vel = 7.5 * deg_to_rad
+        super(StateSpaceIsMore, self).__init__(
+            # position states
+            State('aa_px',     stochastic=False, drives_obs=False, order=0, min_val=0., max_val=42.),
+            State('aa_py',     stochastic=False, drives_obs=False, order=0, min_val=0., max_val=30.),
+            State('aa_ppsi',   stochastic=False, drives_obs=False, order=0),
+            State('rh_pthumb', stochastic=False, drives_obs=False, order=0),
+            State('rh_pindex', stochastic=False, drives_obs=False, order=0),
+            State('rh_pfing3', stochastic=False, drives_obs=False, order=0),
+            State('rh_pprono', stochastic=False, drives_obs=False, order=0),
+
+            # velocity states
+            State('aa_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
+            State('aa_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
+            State('aa_vpsi',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_vthumb', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_vindex', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_vfing3', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+            State('rh_vprono', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
+
+            # offset state
+            offset_state
+        )
+
+    def get_ssm_matrices(self, update_rate=0.1):
+        # State-space model set from expert data
+        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=7, vel_decay=0.95)
+
+        # Control input matrix for SSM for control inputs
+        I = np.mat(np.eye(7))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 7])])
+        return A, B, W
+
 
 class StateSpaceExoArm(StateSpace):
     '''

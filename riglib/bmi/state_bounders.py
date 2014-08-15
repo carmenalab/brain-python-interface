@@ -39,3 +39,16 @@ class RectangularBounder(object):
             repl_with_max = np.asarray(state)[state_inds, 0] > max_bounds
             state[state_inds[repl_with_max], 0] = max_bounds[repl_with_max]
         return state
+
+
+def make_rect_bounder_from_ssm(ssm):
+    min_vals = []
+    max_vals = []
+    states_to_bound = []
+    for state in ssm.states:
+        if not ((state.min_val == np.nan) or (state.max_val == np.nan)):
+            min_vals.append(state.min_val)
+            max_vals.append(state.max_val)
+            states_to_bound.append(state.name)
+
+    return RectangularBounder(min_vals, max_vals, states_to_bound)
