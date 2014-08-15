@@ -92,6 +92,18 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     @classmethod
     def is_hidden(cls, trait):
+        '''
+        Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden 
+
+        Parameters
+        ----------
+        trait: string
+            Name of trait to check
+
+        Returns
+        -------
+        bool
+        '''
         return trait in cls.hidden_traits
 
     def init(self):
@@ -105,6 +117,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.cycle_count = 0
 
     def screen_init(self):
+        '''
+        This method is implemented by the window class, which is not used by all tasks. However, 
+        since Experiment is the ancestor of all tasks, a stub function is here so that any children
+        using the window can safely use 'super'. 
+        '''
         pass
 
     def trigger_event(self, event):
@@ -117,10 +134,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         Parameters
         ----------
         event: string
+            Based on the current state, a particular event will trigger a particular state transition (Mealy machine)
 
         Returns
         -------
-        String representing the next state that the task will enter
+        None
         '''
         self.set_state(self.status[self.state][event])
 
@@ -162,23 +180,20 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def start(self):
         '''
-        Docstring
+        Begin the task. Since Experiment inherits from threading.Thread, this spawns a 
+        thread when the super constructor is called. Prior to the thread spawning, 
+        the secondary init function (self.init) is called
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         self.init()
         super(Experiment, self).start()
-
-    def loop_step(self):
-        '''
-        Override this function to run some code every loop iteration of 
-        the FSM
-        '''
-        pass
 
     def run(self):
         '''
@@ -209,6 +224,9 @@ class Experiment(traits.HasTraits, threading.Thread):
                 self.state = None
 
     def _cycle(self):
+        '''
+        Code that needs to run every task loop iteration goes here
+        '''
         self.cycle_count += 1
         if self.fps > 0:
             self.clock.tick(self.fps)
@@ -223,6 +241,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         return loop_time
 
     def _test_stop(self, ts):
+        ''' 
+        FSM 'test' function. Returns the 'stop' attribute of the task
+        '''
         return self.stop
 
     def cleanup_hdf(self):
