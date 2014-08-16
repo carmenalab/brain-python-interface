@@ -158,6 +158,9 @@ class SinkManager(object):
         if isinstance(system, source.DataSource):
             name = system.name
             dtype = system.source.dtype
+        elif isinstance(system, source.MultiChanDataSource):
+            name = system.name
+            dtype = system.send_to_sinks_dtype
         elif isinstance(system, str):
             name = system
         else:
@@ -210,7 +213,7 @@ class SinkManager(object):
         for s in self.sinks:
             yield s
 
-#Data Sink manager singleton to be used by features
+# Data Sink manager singleton to be used by features
 sinks = SinkManager()
 
 

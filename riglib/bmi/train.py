@@ -16,6 +16,8 @@ import state_space_models
 from itertools import izip
 
 import extractor
+import os
+import subprocess
 
 ############
 ## Constants
@@ -38,6 +40,16 @@ endpt_3D_state_space = StateSpaceEndptVel()
 endpt_2D_state_space = StateSpaceEndptVel2D()
 joint_2D_state_space = StateSpaceExoArm2D()
 tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
+
+StateSpaceArmAssist = state_space_models.StateSpaceArmAssist
+StateSpaceReHand    = state_space_models.StateSpaceReHand
+StateSpaceIsMore    = state_space_models.StateSpaceIsMore
+
+armassist_state_space = StateSpaceArmAssist()
+rehand_state_space = StateSpaceReHand()
+ismore_state_space = StateSpaceIsMore()
+
+from state_bounders import RectangularBounder, make_rect_bounder_from_ssm
 
 ##########################
 ## Main training functions
@@ -117,7 +129,9 @@ def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=N
     decoder.kf.T = T
     decoder.kf.ESS = ESS
     
-    # decoder.ssm = _ssm
+    # TODO: this line was commented out, but needs to be here because otherwise
+    #       other state spaces won't work
+    decoder.ssm = _ssm
 
     decoder.n_features = n_features
 
@@ -288,6 +302,64 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     tmask = np.logical_and(lower, upper)
     return tmask, rows
 
+
+def _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_name='task'):
+    ''' Find the rows of the nev file to use for training the decoder.'''
+
+    nev_hdf_fname = nev_fname + '.hdf'
+    if not os.path.isfile(nev_hdf_fname):
+        # convert .nev file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+    import h5py
+    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+    path = 'channel/digital00001/digital_set'
+    ts = nev_hdf.get(path).value['TimeStamp']
+    msgs = nev_hdf.get(path).value['Value']
+
+    # copied from riglib/nidaq/parse.py
+    msgtype_mask = 0b0000111<<8
+    auxdata_mask = 0b1111000<<8
+    rawdata_mask = 0b11111111
+    msgtype = np.right_shift(np.bitwise_and(msgs, msgtype_mask), 8).astype(np.uint8)
+    # auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
+    auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8+3).astype(np.uint8)
+    rawdata = np.bitwise_and(msgs, rawdata_mask)
+
+    # data is an N x 4 matrix that will be the argument to parse.registrations()
+    data = np.vstack([ts, msgtype, auxdata, rawdata]).T
+
+    # get system registrations
+    reg = parse.registrations(data)
+
+    syskey = None
+
+    for key, system in reg.items():
+        if sys_eq(system[0], sys_name):
+            syskey = key
+            break
+
+    if syskey is None:
+        raise Exception('No source registration saved in the file!')
+
+    # get the corresponding hdf rows
+    rows = parse.rowbyte(data)[syskey][:,0]
+
+    rows = rows / 30000.
+    
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
+
+    return tmask, rows
+    
+
+
 def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''
     Compute binned spike count features
@@ -334,9 +406,8 @@ def get_spike_counts(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=
     return spike_counts, units, extractor_kwargs
 
 def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-    '''Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
-
-    Docstring
+    '''
+    Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
 
     Parameters
     ----------
@@ -389,7 +460,8 @@ def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, stro
 
 
 def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-    '''Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
+    '''
+    Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
 
     Docstring
 
@@ -447,8 +519,7 @@ def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate
 
 def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''
-    compute EMG features
-    Docstring
+    Compute EMG features.
 
     Parameters
     ----------
@@ -494,6 +565,158 @@ def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate
     return emg, units, extractor_kwargs
 
 
+##########################################################################
+################ extractor functions for Blackrock system ################
+##########################################################################
+
+def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs, strobe_rate=10.0):
+    '''Compute binned spike count features from a Blackrock data file.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    
+    nev_hdf_fname = nev_fname + '.hdf'
+    if not os.path.isfile(nev_hdf_fname):
+        # convert .nev file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+    import h5py
+    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+    n_bins = len(interp_rows)
+    n_units = units.shape[0]
+    spike_counts = np.zeros((n_bins, n_units))
+
+    for i in range(n_units):
+        chan = units[i, 0]
+
+        # 1-based numbering (comes from web interface)
+        unit = units[i, 1]  
+
+        chan_str = str(chan).zfill(5)
+        path = 'channel/channel%s/spike_set' % chan_str
+        ts = nev_hdf.get(path).value['TimeStamp']
+
+        # the units corresponding to each timestamp in ts
+        # 0-based numbering (comes from .nev file), so add 1
+        units_ts = nev_hdf.get(path).value['Unit'] + 1
+
+        # get the ts for this unit, in units of secs
+        fs = 30000.
+        ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
+
+        # insert value interp_rows[0]-step to beginning of interp_rows array
+        interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
+
+        # use ts to fill in the spike_counts that corresponds to unit i
+        spike_counts[:, i] = np.histogram(ts, interp_rows_)[0]
+
+
+    # discard units that never fired at all
+    unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+    units = units[unit_inds,:]
+    spike_counts = spike_counts[:, unit_inds]
+    extractor_kwargs['units'] = units
+
+    return spike_counts, units, extractor_kwargs
+
+
+def get_butter_bpf_lfp_power_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs, strobe_rate=10.0):
+    '''Compute lfp power features from a blackrock data file.
+    Corresponds to LFPButterBPFPowerExtractor.
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    # TODO -- for now, use .ns3 file (2 kS/s)
+    for fname in nsx_fnames:
+        if '.ns3' in fname:
+            nsx_fname = fname
+    extractor_kwargs['fs'] = 2000
+
+    # default order of 5 seems to cause problems when fs > 1000
+    extractor_kwargs['filt_order'] = 3
+
+    
+    nsx_hdf_fname = nsx_fname + '.hdf'
+    if not os.path.isfile(nsx_hdf_fname):
+        # convert .nsx file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+    import h5py
+    nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+    # create extractor object
+    f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    n_pts = int(win_len * fs)
+
+    print '*' * 40
+    print 'WARNING: replacing LFP values from .ns3 file with random values!!'
+    print '*' * 40
+
+    # for i, t in enumerate(interp_rows):
+    #     sample_num = int(t * fs)
+    #     # cont_samples = np.zeros((n_chan, n_pts))
+
+    #     # for j, chan in enumerate(channels):
+    #     #     chan_str = str(chan).zfill(5)
+    #     #     path = 'channel/channel%s/continuous_set' % chan_str
+    #     #     cont_samples[j, :] = nsx_hdf.get(path).value[sample_num-n_pts:sample_num]
+    #     cont_samples = abs(np.random.randn(n_chan, n_pts))
+
+    #     feats = f_extractor.extract_features(cont_samples).T
+    #     print feats
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
+    
+    lfp_power = abs(np.random.randn(n_itrs, n_chan * len(bands)))
+
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+    
+    return lfp_power, units, extractor_kwargs
+
+##########################################################################
+##########################################################################
+
+
 def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     ''' Get positions and calculate velocity
 
@@ -509,7 +732,7 @@ def get_cursor_kinematics(hdf, binlen, tmask, update_rate_hz=60., key='cursor'):
     Returns
     -------
     '''
-    kin = hdf.root.task[:][key]
+    kin = hdf.root.task[:][key]    
 
     ##### this is to test on files that didn't save the full 5-joint kinematics, remove soon!
     if key=='joint_angles' and kin.shape[1]==2:
@@ -574,6 +797,27 @@ def get_joint_kinematics(cursor_kin, shoulder_center, binlen=0.1):
     joint_kin = np.hstack([joint_angles, joint_vel_2D])
     return joint_kin
 
+def get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=10.):
+    '''Docstring.'''
+
+    # 'plant_pos' and 'plant_vel' are the pos/vel that were saved by 
+    # the task, and not directly through the feedback source
+    pos = hdf.root.task[:]['plant_pos']    
+    vel = hdf.root.task[:]['plant_vel']
+
+    inds, = np.nonzero(tmask)
+    
+    step = int(binlen/(1./update_rate_hz))
+
+    assert step >= 1
+
+    inds = inds[::step]
+    pos = pos[inds]
+    vel = vel[inds]
+    kin = np.hstack([pos, vel])
+
+    return kin
+
 def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source='task', kin_var='cursor'):
     '''
     Docstring
@@ -584,38 +828,101 @@ def preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwar
     Returns
     -------
     '''
-    plx_fname = str(files['plexon']) 
-    from plexon import plexfile
-    try:
-        plx = plexfile.openFile(plx_fname)
-    except IOError:
-        print "Could not open .plx file: %s" % plx_fname
-        raise Exception
-    
-    # Use all of the units if none are specified
-    if units == None:
-        units = np.array(plx.units).astype(np.int32)
-
-    tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
     
     hdf = tables.openFile(files['hdf'])
-    kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
-    neurows = rows[tmask]
 
-    # TODO -- make the get_spike_counts, get_butter_bpf_lfp_power, etc. 
-    # functions part of their respective extractor classes
-    if extractor_cls == extractor.BinnedSpikeCountsExtractor:
-        extractor_fn = get_spike_counts
-    elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
-        extractor_fn = get_butter_bpf_lfp_power
-    elif extractor_cls == extractor.LFPMTMPowerExtractor:
-        extractor_fn = get_mtm_lfp_power
-    elif extractor_cls == extractor.EMGAmplitudeExtractor:
-        extractor_fn = get_emg_amplitude
+    if 'plexon' in files:
+        plx_fname = str(files['plexon']) 
+        from plexon import plexfile
+        try:
+            plx = plexfile.openFile(plx_fname)
+        except IOError:
+            print "Could not open .plx file: %s" % plx_fname
+            raise Exception
+        
+        # Use all of the units if none are specified
+        if units == None:
+            units = np.array(plx.units).astype(np.int32)
+
+        tmask, rows = _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
+        
+        kin = get_cursor_kinematics(hdf, binlen, tmask, key=kin_var)
+        neurows = rows[tmask]
+
+        # TODO -- make the get_spike_counts, get_butter_bpf_lfp_power, etc. 
+        # functions part of their respective extractor classes
+        if extractor_cls == extractor.BinnedSpikeCountsExtractor:
+            extractor_fn = get_spike_counts
+        elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
+            extractor_fn = get_butter_bpf_lfp_power
+        elif extractor_cls == extractor.LFPMTMPowerExtractor:
+            extractor_fn = get_mtm_lfp_power
+        elif extractor_cls == extractor.EMGAmplitudeExtractor:
+            extractor_fn = get_emg_amplitude
+        else:
+            raise Exception("No extractor_fn for this extractor class!")
+
+        neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
+
+    elif 'blackrock' in files:
+
+        nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+        nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]
+
+        if units == None:
+            raise Exception('"units" variable is None in preprocess_files!')
+
+        # Note: blackrock units are actually 0-based, but the units to be used for training
+        #       (which comes from web interface) are 1-based; to account for this, add 1
+        #       to unit numbers when reading from .nev file
+
+        # notes:
+        # tmask   --> logical vector of same length as rows that is True for rows inside the tslice
+        # rows    --> times (in units of s, measured on neural system) that correspond to each row of the task in hdf file
+        # kin     --> every 6th row of kinematics within the tslice boundaries
+        # neurows --> the rows inside the tslice
+
+        from riglib.experiment import experiment
+        strobe_rate = experiment.Experiment.fps  # in Hz
+
+        try:
+            #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])      
+            print 'not using _get_tmask_blackrock'
+            raise NotImplementedError
+        except NotImplementedError:
+            # need to create fake "rows" and "tmask" variables
+            
+            n_rows = hdf.root.task[:]['plant_pos'].shape[0]
+            first_ts = binlen
+            rows = np.linspace(first_ts, first_ts + (n_rows-1)*(1./strobe_rate), num=n_rows)
+            lower, upper = 0 < rows, rows < rows.max() + 1
+            l, u = tslice
+            if l is not None:
+                lower = l < rows
+            if u is not None:
+                upper = rows < u
+            tmask = np.logical_and(lower, upper)
+
+        # Note: kin_var doesn't need to be passed into get_ismore_kinematics because
+        # kinematics are saved as 'plant_pos' and 'plant_vel' regardless of
+        # whether the plant is armassist, rehand, or ismore (armassist+rehand)
+        kin = get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=strobe_rate)
+        neurows = rows[tmask]
+
+
+        if extractor_cls == extractor.BinnedSpikeCountsExtractor:
+            extractor_fn = get_spike_counts_blackrock
+        elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
+            extractor_fn = get_butter_bpf_lfp_power_blackrock
+        else:
+            raise Exception("No extractor_fn for this extractor class!")
+
+        extractor_fn_args = (nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs)
+        extractor_fn_kwargs = {'strobe_rate': strobe_rate}
+        neural_features, units, extractor_kwargs = extractor_fn(*extractor_fn_args, **extractor_fn_kwargs)
+
     else:
-        raise Exception("Unrecognized extractor class!")
-
-    neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
+        raise Exception('Could not find any plexon or blackrock files!')
 
     return kin, neural_features, units, extractor_kwargs
 
@@ -671,14 +978,6 @@ def _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None
     -------
     '''
 
-    string = ''
-    string += 'extractor_cls: ' + str(extractor_cls)
-    string += 'extractor_kwargs: ' + str(extractor_kwargs)
-    string += 'units: ' + str(units)
-    string += 'binlen: ' + str(binlen)
-    string += 'tslice: ' + str(tslice)
-    # raise Exception(string)
-
     kin, neural_features, units, extractor_kwargs = preprocess_files(files, binlen, units, tslice, extractor_cls, extractor_kwargs, source=source, kin_var=kin_var)
     if _ssm == None:
         if kin_var == 'cursor':
@@ -720,6 +1019,50 @@ def _train_joint_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, unit
     return _train_KFDecoder_visual_feedback(units=units, binlen=binlen, tslice=tslice,
                                             _ssm=_ssm, source=source, kin_var=kin_var,
                                             shuffle=shuffle, **files)
+
+# TODO -- code for next three iBMI training functions is 
+#   very repetitive, only thing that differs is the ssm
+def _train_armassist_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
+    _ssm=armassist_state_space, source='task', kin_var=None, shuffle=False, **files):
+    '''
+    One-liner to train an armassist BMI. To be removed as soon as the train BMI gui can be updated
+    to have more arguments.
+    '''
+    decoder = _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
+                                               _ssm=_ssm, source=source, kin_var=kin_var,
+                                               shuffle=shuffle, **files)
+
+    decoder.bounder = make_rect_bounder_from_ssm(_ssm)
+
+    return decoder
+
+def _train_rehand_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
+    _ssm=rehand_state_space, source='task', kin_var=None, shuffle=False, **files):
+    '''
+    One-liner to train a rehand BMI. To be removed as soon as the train BMI gui can be updated
+    to have more arguments.
+    '''
+    decoder = _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
+                                               _ssm=_ssm, source=source, kin_var=kin_var,
+                                               shuffle=shuffle, **files)
+
+    decoder.bounder = make_rect_bounder_from_ssm(_ssm)
+
+    return decoder
+
+def _train_ismore_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None,None],
+    _ssm=ismore_state_space, source='task', kin_var=None, shuffle=False, **files):
+    '''
+    One-liner to train an ismore (armassist+rehand) BMI. To be removed as soon as the train BMI gui can be updated
+    to have more arguments.
+    '''
+    decoder = _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice,
+                                               _ssm=_ssm, source=source, kin_var=kin_var,
+                                               shuffle=shuffle, **files)
+
+    decoder.bounder = make_rect_bounder_from_ssm(_ssm)
+
+    return decoder
 
 def _train_tentacle_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=None, binlen=0.1, tslice=[None, None], 
     _ssm=tentacle_2D_state_space, source='task', kin_var='joint_angles', shuffle=False, **files):
@@ -993,15 +1336,6 @@ def _train_PPFDecoder_2D_sim(stochastic_states, neuron_driving_states, units,
     raise NotImplementedError
 
 def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
     n_neurons = units.shape[0]
     ###if include_y:
     ###    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
@@ -1054,6 +1388,49 @@ def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
     decoder.ssm = _ssm
     decoder.n_features = n_neurons
     return decoder
+
+## added by Sid to as a new version of above function (which seems outdated)
+def _train_KFDecoder_2D_sim_2(_ssm, units, dt=0.1):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    n_neurons = units.shape[0]
+    binlen = dt
+
+    A, B, W = _ssm.get_ssm_matrices(update_rate=dt)
+    drives_neurons = _ssm.drives_obs
+    is_stochastic = _ssm.is_stochastic
+    nX = _ssm.n_states
+
+    C = np.random.standard_normal([n_neurons, nX])
+    C[:, ~drives_neurons] = 0
+    Q = 10 * np.identity(n_neurons) 
+
+    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
+
+    mFR = 0
+    sdFR = 1
+    decoder = kfdecoder.KFDecoder(kf, units, _ssm, mFR=mFR, sdFR=sdFR, binlen=binlen)
+
+    decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
+    decoder.kf.S = decoder.kf.C
+    decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
+    decoder.kf.ESS = 3000.
+
+    decoder.ssm = _ssm
+    decoder.n_features = n_neurons
+
+    decoder.bounder = make_rect_bounder_from_ssm(_ssm)
+
+    return decoder
+
+
 
 def rand_KFDecoder(sim_units, state_units='cm'):
     '''

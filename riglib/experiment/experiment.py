@@ -26,7 +26,9 @@ min_per_hour = 60
 sec_per_min = 60
 
 class Experiment(traits.HasTraits, threading.Thread):
-    ''' Docstring '''
+    '''
+    Common ancestor of all task/experiment classes
+    '''
     status = dict(
         wait = dict(start_trial="trial", premature="penalty", stop=None),
         trial = dict(correct="reward", incorrect="penalty", timeout="penalty"),
@@ -37,17 +39,21 @@ class Experiment(traits.HasTraits, threading.Thread):
     stop = False
     exclude_parent_traits = []
     ordered_traits = []
+    hidden_traits = []
     fps = 60
 
     def __init__(self, **kwargs):
         '''
-        Docstring
+        Constructor for Experiment
 
         Parameters
         ----------
+        kwargs: dictionary
+            Keyword arguments to be passed to the traits.HasTraits parent.
 
         Returns
         -------
+        Experiment instance
         '''
         traits.HasTraits.__init__(self, **kwargs)
         threading.Thread.__init__(self)
@@ -67,17 +73,38 @@ class Experiment(traits.HasTraits, threading.Thread):
     @classmethod
     def class_editable_traits(cls):
         '''
-        Docstring
+        Class method to retrieve the list of editable traits for the given experiment. 
+        The default behavior for an experiment class is to make all traits editable except for those
+        listed in the attribute 'exclude_parent_traits'. 
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        editable_traits: list of strings
+            Names of traits which are designated to be runtime-editable
         '''
         traits = super(Experiment, cls).class_editable_traits()
         editable_traits = filter(lambda x: x not in cls.exclude_parent_traits, traits)
         return editable_traits
+
+    @classmethod
+    def is_hidden(cls, trait):
+        '''
+        Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden 
+
+        Parameters
+        ----------
+        trait: string
+            Name of trait to check
+
+        Returns
+        -------
+        bool
+        '''
+        return trait in cls.hidden_traits
 
     def init(self):
         '''
@@ -90,6 +117,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.cycle_count = 0
 
     def screen_init(self):
+        '''
+        This method is implemented by the window class, which is not used by all tasks. However, 
+        since Experiment is the ancestor of all tasks, a stub function is here so that any children
+        using the window can safely use 'super'. 
+        '''
         pass
 
     def trigger_event(self, event):
@@ -101,36 +133,46 @@ class Experiment(traits.HasTraits, threading.Thread):
 
         Parameters
         ----------
+        event: string
+            Based on the current state, a particular event will trigger a particular state transition (Mealy machine)
 
         Returns
         -------
+        None
         '''
         self.set_state(self.status[self.state][event])
 
     def get_time(self):
         '''
-        Docstring
+        Abstraction to get the current time. State transitions are based on wall clock time, not on iteration count, 
+        so to get simulations to run faster than real time, this function must be overwritten.
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        float: The current time in seconds
         '''
         return time.time()
 
     def set_state(self, condition):
         '''
-        Docstring
+        Change the state of the task
 
         Parameters
         ----------
+        condition: string
+            Name of new state to transition into. The state name must be a key in the 'status' dictionary attribute of the task
 
         Returns
         -------
+        None
         '''
-        # print "Experiment.set_state; setting state", condition
         self.state = condition
+
+        # Record the time at which the new state is entered. Used for timed states, e.g., the reward state
         self.start_time = self.get_time()
         self.update_report_stats()
         if hasattr(self, "_start_%s"%condition):
@@ -138,23 +180,20 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def start(self):
         '''
-        Docstring
+        Begin the task. Since Experiment inherits from threading.Thread, this spawns a 
+        thread when the super constructor is called. Prior to the thread spawning, 
+        the secondary init function (self.init) is called
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         self.init()
         super(Experiment, self).start()
-
-    def loop_step(self):
-        '''
-        Override this function to run some code every loop iteration of 
-        the FSM
-        '''
-        pass
 
     def run(self):
         '''
@@ -176,6 +215,8 @@ class Experiment(traits.HasTraits, threading.Thread):
                         if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
                             if hasattr(self, "_end_%s"%self.state):
                                 getattr(self, "_end_%s"%self.state)()
+
+                            # Execute the event. In the base class, this means changing the state to the next state
                             self.trigger_event(event)
                             break;
             except:
@@ -183,6 +224,9 @@ class Experiment(traits.HasTraits, threading.Thread):
                 self.state = None
 
     def _cycle(self):
+        '''
+        Code that needs to run every task loop iteration goes here
+        '''
         self.cycle_count += 1
         if self.fps > 0:
             self.clock.tick(self.fps)
@@ -197,6 +241,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         return loop_time
 
     def _test_stop(self, ts):
+        ''' 
+        FSM 'test' function. Returns the 'stop' attribute of the task
+        '''
         return self.stop
 
     def cleanup_hdf(self):
@@ -272,17 +319,24 @@ class Experiment(traits.HasTraits, threading.Thread):
 
 
 class LogExperiment(Experiment):
-    ''' Docstring '''
+    '''
+    Extension of the experiment class which logs state transitions
+    '''
+    # List out state/trigger pairs to exclude from logging
     log_exclude = set()
     def __init__(self, **kwargs):
         '''
-        Docstring
+        Constructor for LogExperiment
 
         Parameters
         ----------
+        kwargs: dict
+            These are all propagated to the parent (none used for this constructor)
 
         Returns
         -------
+        LogExperiment instance
+
         '''
         self.state_log = []
         self.event_log = []
@@ -345,7 +399,6 @@ class Sequence(LogExperiment):
         self.gen = gen
         assert hasattr(gen, "next"), "gen must be a generator"
         super(Sequence, self).__init__(**kwargs)
-        #self.next_trial = self.gen.next()
     
     def _start_wait(self):
         '''

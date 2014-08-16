@@ -13,17 +13,17 @@ function BMI(idx, info, notes) {
 
     this.info = info;
     //this.bmi_seed = info['is_seed'];
-    this.plxinfo = info['_plxinfo'];
-    delete info['_plxinfo']
+    this.neuralinfo = info['_neuralinfo'];
+    delete info['_neuralinfo']
 
     this.available = {};
     this.selected = {};
 
-    if (this.plxinfo !== null) {
-        if (this.plxinfo.is_seed) {
-            for (var i = 0; i < this.plxinfo.units.length; i++) {
-                var name = this.plxinfo.units[i][0];
-                name += String.fromCharCode(this.plxinfo.units[i][1]+96);
+    if (this.neuralinfo !== null) {
+        if (this.neuralinfo.is_seed) {
+            for (var i = 0; i < this.neuralinfo.units.length; i++) {
+                var name = this.neuralinfo.units[i][0];
+                name += String.fromCharCode(this.neuralinfo.units[i][1]+96);
                 this.remove(name);
             }
 
@@ -159,7 +159,7 @@ BMI.prototype.new = function() {
     var selected_bmi_class = document.getElementById("bmiclass");
     var strSel = '_'.concat(selected_bmi_class.options[selected_bmi_class.selectedIndex].text);
     
-    var new_bmi_name = this.plxinfo.name.concat(strSel);
+    var new_bmi_name = this.neuralinfo.name.concat(strSel);
     $("#bminame").val(new_bmi_name);
     for (var i = 0; i < this.cells.length; i++) 
         this.add(this.cells[i]);
@@ -193,14 +193,14 @@ BMI.prototype.cancel = function() {
 }
 BMI.prototype._bindui = function() {
     $("#tslider").slider({
-        range:true, min:0, max:this.plxinfo.length, values:[0, this.plxinfo.length],
+        range:true, min:0, max:this.neuralinfo.length, values:[0, this.neuralinfo.length],
         slide: function(event, ui) {
             $("#tstart").val(BMI.hms(ui.values[0]));
             $("#tend").val(BMI.hms(ui.values[1]));
         },
     });
     $("#tstart").val(BMI.hms(0));
-    $("#tend").val(BMI.hms(this.plxinfo.length));
+    $("#tend").val(BMI.hms(this.neuralinfo.length));
     $("#tstart").keyup(function(e) {
         var values = $("#tslider").slider("values");
         var sec = BMI.ptime(this.value);
@@ -253,8 +253,8 @@ BMI.prototype._bindui = function() {
     $("#bmi").show();
 }
 BMI.prototype.destroy = function() {
-    if (this.plxinfo !== null) {
-        if (this.plxinfo.is_seed) {
+    if (this.neuralinfo !== null) {
+        if (this.neuralinfo.is_seed) {
             $("#tslider").slider("destroy");
             $("#tstart").unbind("keyup");
             $("#tstart").unbind("blur");

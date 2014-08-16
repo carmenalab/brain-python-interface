@@ -220,22 +220,51 @@ TaskEntry.prototype.update = function(info) {
 	});
 	var numfiles = 0;
 	this.filelist = document.createElement("ul");
+	
+	// original code
+	// for (var sys in info.datafiles) {
+	// 	var file = document.createElement("li");
+	// 	var link = document.createElement("a");
+	// 	link.href = "/static"+info.datafiles[sys];
+	// 	link.innerHTML = info.datafiles[sys];
+	// 	file.appendChild(link);
+	// 	if (sys == "sequence") {
+	// 		if (info.datafiles[sys]) {
+	// 			link.href = "sequence_for/"+this.idx;
+	// 			link.innerHTML = "Sequence";
+	// 			this.filelist.appendChild(file);
+	// 			numfiles++;
+	// 		}
+	// 	} else {
+	// 		this.filelist.appendChild(file);
+	// 		numfiles++;
+	// 	}
+	// }
+
+	// new code
+	// see TaskEntry.to_json in models.py
 	for (var sys in info.datafiles) {
-		var file = document.createElement("li");
-		var link = document.createElement("a");
-		link.href = "/static"+info.datafiles[sys];
-		link.innerHTML = info.datafiles[sys];
-		file.appendChild(link);
-		if (sys == "sequence") {
-			if (info.datafiles[sys]) {
+		if (sys == "sequence") {  // info.datafiles["sequence"] is a boolean
+			if (info.datafiles[sys]) {  
+				var file = document.createElement("li");
+				var link = document.createElement("a");
 				link.href = "sequence_for/"+this.idx;
 				link.innerHTML = "Sequence";
+				file.appendChild(link);
 				this.filelist.appendChild(file);
 				numfiles++;
 			}
-		} else {
-			this.filelist.appendChild(file);
-			numfiles++;
+		} else {  // info.datafiles[sys] is an array of files for that system
+			for (var i = 0; i < info.datafiles[sys].length; i++) {
+				datafile = info.datafiles[sys][i]
+				var file = document.createElement("li");
+				var link = document.createElement("a");
+				link.href = "/static"+datafile;
+				link.innerHTML = datafile;
+				file.appendChild(link);
+				this.filelist.appendChild(file);
+				numfiles++;
+			}
 		}
 	}
 
@@ -245,7 +274,7 @@ TaskEntry.prototype.update = function(info) {
 		// make the BMI show up if there's a plexon file in the provided data files
 		var found = false;
 		for (var sys in info.datafiles)
-			found = found || sys == "plexon"
+			found = found || sys == "plexon" || sys == 'blackrock'
 		if (found)
 			this.bmi = new BMI(this.idx, info.bmi, info.notes);
 	}

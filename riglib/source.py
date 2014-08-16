@@ -20,7 +20,7 @@ from . import FuncProxy
 
 class DataSource(mp.Process):
     ''' Docstring '''
-    def __init__(self, source, bufferlen=10, name=None, **kwargs):
+    def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, **kwargs):
         '''
         Docstring
 
@@ -52,6 +52,12 @@ class DataSource(mp.Process):
         self.last_idx = 0
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+
+        # in DataSource.run, there is a call to "self.sinks.send(...)",
+        # but if the DataSource was never registered with the sink manager,
+        # then this line results in unnecessary IPC
+        # so, set send_data_to_sink_manager to False if you want to avoid this
+        self.send_data_to_sink_manager = send_data_to_sink_manager
 
     def start(self, *args, **kwargs):
         '''
@@ -114,7 +120,8 @@ class DataSource(mp.Process):
                     system.stop()
             if streaming:
                 data = system.get()
-                self.sinks.send(self.name, data)
+                if self.send_data_to_sink_manager:
+                    self.sinks.send(self.name, data)
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -263,7 +270,8 @@ class MultiChanDataSource(mp.Process):
     '''
     Multi-channel version of 'DataSource'
     '''
-    def __init__(self, source, bufferlen=1, **kwargs):
+
+    def __init__(self, source, bufferlen=5, send_data_to_sink_manager=False, **kwargs):
         '''
         Constructor for MultiChanDataSource
 
@@ -278,6 +286,7 @@ class MultiChanDataSource(mp.Process):
             Note that kwargs['channels'] does not need to a list of integers,
             it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
         '''
+
         super(MultiChanDataSource, self).__init__()
         self.name = source.__module__.split('.')[-1]
         self.filter = None
@@ -305,6 +314,12 @@ class MultiChanDataSource(mp.Process):
         self.stream = mp.Event()
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+
+        self.send_data_to_sink_manager = send_data_to_sink_manager
+        if self.send_data_to_sink_manager:
+            self.send_to_sinks_dtype = np.dtype([('chan'+str(chan), dtype) for chan in kwargs['channels']])
+            self.next_send_idx = mp.Value('l', 0)
+            self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros/Falses by default
 
     def start(self, *args, **kwargs):
         '''
@@ -354,6 +369,7 @@ class MultiChanDataSource(mp.Process):
                 self.lock.release()
                 self._pipe.send(ret)
                 self.cmd_event.clear()
+
             if self.stream.is_set():
                 self.stream.clear()
                 streaming = not streaming
@@ -362,17 +378,14 @@ class MultiChanDataSource(mp.Process):
                     system.start()
                 else:
                     system.stop()
+
             if streaming:
                 # system.get() must return a tuple (chan, data), where: 
                 #   chan is the the channel number
                 #   data is a numpy array with a dtype (or subdtype) of
                 #   self.source.dtype
                 chan, data = system.get()
-                # for now, assume no multi-channel data source is registered
-                # TODO -- how to send MCDS data to a sink? (problem is that
-                #    "data" has a variable length each time and has no 
-                #    fixed-size dtype, which sinks require)
-                # self.sinks.send(self.name, data)
+
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -394,21 +407,57 @@ class MultiChanDataSource(mp.Process):
                             if idx + n_pts <= self.max_len:
                                 self.data[row, idx:idx+n_pts] = data
                                 idx = (idx + n_pts)
-                                if idx >= max_len:
-                                    idx = idx % max_len
+                                if idx == self.max_len:
+                                    idx = 0
+                                    if self.send_data_to_sink_manager:
+                                        self.wrap_flags[row] = True
                             else: # need to write data at both end and start of buffer
                                 self.data[row, idx:] = data[:max_len-idx]
                                 self.data[row, :n_pts-(max_len-idx)] = data[max_len-idx:]
                                 idx = n_pts-(max_len-idx)
+                                if self.send_data_to_sink_manager:
+                                    self.wrap_flags[row] = True
                             self.idxs[row] = idx
 
                         self.lock.release()
                     except Exception as e:
                         print e
+
+                    if self.send_data_to_sink_manager:
+                        self.lock.acquire()
+
+                        # check if there is at least one column of data that
+                        # has not yet been sent to the sink manager
+                        if all(self.next_send_idx.value < idx + int(flag)*self.max_len for (idx, flag) in zip(self.idxs, self.wrap_flags)):
+
+                            start_idx = self.next_send_idx.value
+                            if not all(self.wrap_flags):
+
+                                # look at minimum value of self.idxs only 
+                                # among channels which have not wrapped, 
+                                # in order to determine end_idx
+                                end_idx = np.min([idx for (idx, flag) in zip(self.idxs, self.wrap_flags) if not flag])
+                                idxs_to_send = range(start_idx, end_idx)
+                            else:
+                                min_idx = np.min(self.idxs[:])
+                                idxs_to_send = range(start_idx, self.max_len) + range(0, min_idx)
+                                
+                                for row in range(self.n_chan):
+                                    self.wrap_flags[row] = False
+
+                            # send the data to the sink manager, one column at a time
+                            for idx in idxs_to_send:
+                                data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
+                                self.sinks.send(self.name, data)
+
+                            self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)
+
+                        self.lock.release()
             else:
                 time.sleep(.001)
+        
         system.stop()
-        print "ended datasource %r"%self.source
+        print "ended datasource %r" % self.source
 
     def get(self, n_pts, channels, **kwargs):
         '''

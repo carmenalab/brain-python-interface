@@ -39,7 +39,7 @@ class HDFWriter(object):
         Returns
         -------
         '''
-        print "HDFWriter registered %r"%name
+        print "HDFWriter registered %r" % name
         if dtype.subdtype is not None:
             #just a simple dtype with a shape
             dtype, sliceshape = dtype.subdtype
@@ -63,8 +63,10 @@ class HDFWriter(object):
         Returns
         -------
         '''
+
         if system in self.data:
             if len(data) != 1:
+                # this might not be necessary
                 data = np.array(data)[np.newaxis]
             self.data[system].append(data)
 

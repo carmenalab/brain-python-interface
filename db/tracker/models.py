@@ -60,6 +60,7 @@ class Task(models.Model):
             varname['type'] = ctraits[trait].trait_type.__class__.__name__
             varname['default'] = _get_trait_default(ctraits[trait])
             varname['desc'] = ctraits[trait].desc
+            varname['hidden'] = 'hidden' if Exp.is_hidden(trait) else 'visible'
             if trait in values:
                 varname['value'] = values[trait]
             if varname['type'] == "Instance":
@@ -78,6 +79,10 @@ class Task(models.Model):
                 add_trait(trait)
 
         for trait in Exp.class_editable_traits():
+            if trait not in params and not Exp.is_hidden(trait):
+                add_trait(trait)
+
+        for trait in Exp.class_editable_traits():
             if trait not in params:
                 add_trait(trait)
 
@@ -88,7 +93,7 @@ class Task(models.Model):
         seqs = dict()
         for s in Sequence.objects.filter(task=self.id):
             seqs[s.id] = s.to_json()
-        
+
         return seqs
 
 class Feature(models.Model):
@@ -142,7 +147,7 @@ class System(models.Model):
     
     @staticmethod
     def populate():
-        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params", "juice_log"]:
+        for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params", "juice_log", "blackrock"]:
             try:
                 System.objects.get(name=name)
             except ObjectDoesNotExist:
@@ -231,7 +236,7 @@ class Sequence(models.Model):
         if self.generator.static:
             if len(self.sequence) > 0:
                 return generate.runseq, dict(seq=cPickle.loads(str(self.sequence)))
-            return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))
+            return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))            
 
         return self.generator.get(), Parameters(self.params).params
 
@@ -369,7 +374,15 @@ class TaskEntry(models.Model):
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)
-        js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
+        
+        # a TaskEntry can have multiple datafiles associated with the blackrock system
+        # (unlike for the plexon case), so need to do this a bit differently
+        # js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
+        js['datafiles'] = dict()
+        system_names = set(d.system.name for d in datafiles)
+        for name in system_names:
+            js['datafiles'][name] = [d.get_path() for d in datafiles if d.system.name == name]
+
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         
         try:
@@ -381,28 +394,120 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             js['report'] = dict()
 
-        try:
-            from plexon import plexfile
-            plexon = System.objects.get(name='plexon')
-            df = DataFile.objects.get(entry=self.id, system=plexon)
+        import loc_config
+        if loc_config.recording_system == 'plexon':
+            try:
+                from plexon import plexfile
+                plexon = System.objects.get(name='plexon')
+                df = DataFile.objects.get(entry=self.id, system=plexon)
 
-            plx = plexfile.openFile(str(df.get_path()), load=False)
-            path, name = os.path.split(df.get_path())
-            name, ext = os.path.splitext(name)
+                plx = plexfile.openFile(str(df.get_path()), load=False)
+                path, name = os.path.split(df.get_path())
+                name, ext = os.path.splitext(name)
 
-            from namelist import bmi_seed_tasks
-            js['bmi'] = dict(_plxinfo=dict(
-                length=plx.length, 
-                units=plx.units, 
-                name=name,
-                is_seed=int(self.task.name in bmi_seed_tasks),
-                ))
-        except MemoryError:
-            print "Memory error opening plexon file!"
-            js['bmi'] = dict(_plxinfo=None)
-        except (ObjectDoesNotExist, AssertionError, IOError):
-            print "No plexon file found"
-            js['bmi'] = dict(_plxinfo=None)
+                from namelist import bmi_seed_tasks
+                js['bmi'] = dict(_plxinfo=dict(
+                    length=plx.length, 
+                    units=plx.units, 
+                    name=name,
+                    is_seed=int(self.task.name in bmi_seed_tasks),
+                    ))
+            except MemoryError:
+                print "Memory error opening plexon file!"
+                js['bmi'] = dict(_plxinfo=None)
+            except (ObjectDoesNotExist, AssertionError, IOError):
+                print "No plexon file found"
+                js['bmi'] = dict(_plxinfo=None)
+        
+        elif loc_config.recording_system == 'blackrock':
+            try:
+                nev_fname = self.nev_file
+                path, name = os.path.split(nev_fname)
+                name, ext = os.path.splitext(name)
+
+                #### start -- TODO: eventually put this code in helper functions somewhere else
+                # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
+                # this code goes through the spike_set for each channel in order to:
+                #  1) determine the last timestamp in the file
+                #  2) create a list of units that had spikes in this file
+                nev_hdf_fname = nev_fname + '.hdf'
+
+                if not os.path.isfile(nev_hdf_fname):
+                    import subprocess
+                    subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+                
+                import h5py
+                nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+                last_ts = 0
+                units = []
+
+                for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
+                    if 'spike_set' in nev_hdf.get('channel/' + key).keys():
+                        spike_set = nev_hdf.get('channel/' + key + '/spike_set')
+                        if spike_set is not None:
+                            tstamps = spike_set.value['TimeStamp']
+                            if len(tstamps) > 0:
+                                last_ts = max(last_ts, tstamps[-1])
+
+                            channel = int(key[-5:])
+                            for unit_num in np.sort(np.unique(spike_set.value['Unit'])):
+                                units.append((channel, int(unit_num)))
+
+                fs = 30000.
+                nev_length = last_ts / fs
+
+                nsx_fs = dict()
+                nsx_fs['.ns1'] = 500
+                nsx_fs['.ns2'] = 1000
+                nsx_fs['.ns3'] = 2000
+                nsx_fs['.ns4'] = 10000
+                nsx_fs['.ns5'] = 30000
+                nsx_fs['.ns6'] = 30000
+
+                NSP_channels = np.arange(128) + 1
+
+                nsx_lengths = []
+                for nsx_fname in self.nsx_files:
+
+                    nsx_hdf_fname = nsx_fname + '.hdf'
+                    if not os.path.isfile(nsx_hdf_fname):
+                        # convert .nsx file to hdf file using Blackrock's n2h5 utility
+                        subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+                    nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+                    for chan in NSP_channels:
+                        chan_str = str(chan).zfill(5)
+                        path = 'channel/channel%s/continuous_set' % chan_str
+                        if nsx_hdf.get(path) is not None:
+                            last_ts = len(nsx_hdf.get(path).value)
+                            fs = nsx_fs[nsx_fname[-4:]]
+                            nsx_lengths.append(last_ts / fs)
+                            
+                            break
+
+                length = max([nev_length] + nsx_lengths)
+                #### end
+
+                # Blackrock units start from 0 (unlike plexon), so add 1
+                # for web interface purposes
+                # i.e., unit 0 on channel 3 will be "3a" on web interface
+                units = [(chan, unit+1) for chan, unit in units]
+
+                from namelist import bmi_seed_tasks
+                js['bmi'] = dict(_neuralinfo=dict(
+                    length=length, 
+                    units=units, 
+                    name=name,
+                    is_seed=int(self.task.name in bmi_seed_tasks),
+                    ))    
+            except (ObjectDoesNotExist, AssertionError, IOError):
+                print "No blackrock files found"
+                js['bmi'] = dict(_neuralinfo=None)
+        else:
+            raise Exception('Unrecognized recording_system!')
+
 
         for dec in Decoder.objects.filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
@@ -442,6 +547,40 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             return 'noplxfile'
 
+
+    @property
+    def nev_file(self):
+        '''
+        Return the name of the nev file associated with the session.
+        '''
+        blackrock = System.objects.get(name='blackrock')
+        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
+        if len(q)==0:
+            return 'nonevfile'
+        else:
+            try:
+                import db.paths
+                return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
+            except:
+                return q[0].path
+
+    @property
+    def nsx_files(self):
+        '''Return a list containing the names of the nsx files (there could be more
+        than one) associated with the session.
+        '''
+        blackrock = System.objects.get(name='blackrock')
+        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).exclude(path__endswith='.nev')
+        if len(q)==0:
+            return []
+        else:
+            try:
+                import db.paths
+                return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
+            except:
+                return [datafile.path for datafile in q]
+
+
     @property
     def name(self):
         '''
@@ -452,10 +591,19 @@ class TaskEntry(models.Model):
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
-        try:
-            return str(os.path.basename(self.plx_file).rstrip('.plx'))
-        except:
-            return 'noname'
+        import loc_config
+        if loc_config.recording_system == 'plexon':
+            try:
+                return str(os.path.basename(self.plx_file).rstrip('.plx'))
+            except:
+                return 'noname'
+        elif loc_config.recording_system == 'blackrock':
+            try:
+                return str(os.path.basename(self.nev_file).rstrip('.nev'))
+            except:
+                return 'noname'
+        else:
+            raise Exception('Unrecognized recording_system!')
 
     @classmethod
     def from_json(cls, js):
