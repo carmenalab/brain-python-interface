@@ -1,0 +1,12 @@
+[reward_sys]
+version = 0                                                                             
+
+[recording_sys]
+make = plexon
+
+[graphics]
+window_start_x = 0
+window_start_y = 0
+
+[database]
+sqlite3_path = /home/helene/code/bmi3d/db/db.sql
