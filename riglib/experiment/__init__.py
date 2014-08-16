@@ -12,11 +12,10 @@ try:
 except ImportError:
     import enthought.traits.api as traits
 
-import generate
-
-import report
-import features
-from experiment import Experiment, LogExperiment, Sequence, TrialTypes
+from . import generate
+from . import report
+from . import features
+from .experiment import Experiment, LogExperiment, Sequence, TrialTypes
 import logging
 
 try:

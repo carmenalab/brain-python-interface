@@ -8,8 +8,12 @@ from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand,
 from riglib.ismore import settings
 from utils.constants import *
 
-import armassist
-import rehand
+try:
+    import armassist
+    import rehand
+except:
+    import warnings
+    warnings.warn('clone the iBMI repo and put it on the path!')
 
 class ArmAssistPlant(object):
     '''Sends velocity commands and receives feedback over UDP. Can be used

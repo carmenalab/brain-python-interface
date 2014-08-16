@@ -89,14 +89,10 @@ class Basic(object):
         -------
         '''
         fmsg = msg+_xsum(msg)
-        #print "sending %r"%fmsg
         self.port.flushOutput()
         self.port.flushInput()
         self.port.write(fmsg)
-        # msg_out = self.port.read()
-        
         msg_out = self.port.read(self.port.inWaiting())
-        print msg_out
         return msg_out
 
     def reward(self, length):

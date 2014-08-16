@@ -1,10 +1,28 @@
 '''
-Declarations for importing riglib as a module. Currently unused
+riglib module imports
 '''
+
+from . import experiment
+from . import blackrock
+from . import bmi
+from . import brainamp
+from . import calibrations
+from . import eyetracker
+from . import hdfwriter
+from . import ismore
+from . import motiontracker
+from . import mp_calc
+from . import nidaq
+from . import phidgets
+from . import plexon
+from . import reward
+from . import stereo_opengl
+from . import loc_config
+
 
 class FuncProxy(object):
     '''
-    This class is similar to tasktrack.FuncProxy but appears to be unused
+    This class is similar to tasktrack.FuncProxy. Used by source.py
     '''
     def __init__(self, name, pipe, event):
         '''
@@ -33,3 +51,6 @@ class FuncProxy(object):
         self.pipe.send((self.name, args, kwargs))
         self.event.set()
         return self.pipe.recv()
+
+from . import sink
+from . import source
