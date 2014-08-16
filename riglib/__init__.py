@@ -17,6 +17,7 @@ from . import phidgets
 from . import plexon
 from . import reward
 from . import stereo_opengl
+from . import loc_config
 
 
 class FuncProxy(object):

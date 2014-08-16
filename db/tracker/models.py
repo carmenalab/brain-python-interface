@@ -349,6 +349,8 @@ class TaskEntry(models.Model):
             from db import dbfunctions
             te = dbfunctions.TaskEntry(self.id)
             rpt['Decoder name'] = te.decoder_record.name
+        except AttributeError:
+            pass
         except:
             import traceback
             traceback.print_exc()
@@ -394,8 +396,8 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             js['report'] = dict()
 
-        import loc_config
-        if loc_config.recording_system == 'plexon':
+        import config
+        if config.recording_system == 'plexon':
             try:
                 from plexon import plexfile
                 plexon = System.objects.get(name='plexon')
@@ -406,7 +408,8 @@ class TaskEntry(models.Model):
                 name, ext = os.path.splitext(name)
 
                 from namelist import bmi_seed_tasks
-                js['bmi'] = dict(_plxinfo=dict(
+                #js['bmi'] = dict(_plxinfo=dict(
+                js['bmi'] = dict(_neuralinfo=dict(
                     length=plx.length, 
                     units=plx.units, 
                     name=name,
@@ -419,7 +422,7 @@ class TaskEntry(models.Model):
                 print "No plexon file found"
                 js['bmi'] = dict(_plxinfo=None)
         
-        elif loc_config.recording_system == 'blackrock':
+        elif config.recording_system == 'blackrock':
             try:
                 nev_fname = self.nev_file
                 path, name = os.path.split(nev_fname)
@@ -525,6 +528,8 @@ class TaskEntry(models.Model):
             juice_sys = System.objects.get(name='juice_log')
             df = DataFile.objects.get(system=juice_sys, entry=self.id)
             plot_files['juice'] = os.path.join(df.system.path, df.path)
+        except DataFile.DoesNotExist:
+            pass
         except:
             import traceback
             traceback.print_exc()
@@ -591,13 +596,13 @@ class TaskEntry(models.Model):
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
-        import loc_config
-        if loc_config.recording_system == 'plexon':
+        import config
+        if config.recording_system == 'plexon':
             try:
                 return str(os.path.basename(self.plx_file).rstrip('.plx'))
             except:
                 return 'noname'
-        elif loc_config.recording_system == 'blackrock':
+        elif config.recording_system == 'blackrock':
             try:
                 return str(os.path.basename(self.nev_file).rstrip('.nev'))
             except:
