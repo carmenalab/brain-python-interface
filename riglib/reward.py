@@ -58,7 +58,10 @@ class _parse_num(object):
         return i*self.m
 
 class Basic(object):
-    ''' Docstring '''
+    '''
+    Bare-bones interface for the Crist reward system. Can give timed reward and drain on/off.
+    This class is sufficient for all the tasks implemented as of Aug. 2014.
+    '''
     response_message_length = 7
     def __init__(self):
         '''
@@ -223,6 +226,9 @@ class Basic(object):
             raise Exception("Unrecognized reward system version!")
 
 class System(traits.HasTraits, threading.Thread):
+    '''
+    More complete reward system interface. Only tested for "version 0" of the system
+    '''
     _running = True
     port = traits.Instance(serial.Serial)
 
