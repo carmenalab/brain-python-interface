@@ -38,8 +38,8 @@ Parameters.prototype.update = function(desc) {
         "Bool":this.add_bool,
     }
     for (var name in desc) {
-        if (funcs[desc[name]['type']])
-            funcs[desc[name]['type']].bind(this)(name, desc[name]);
+        if (funcs[desc[name]['type']]) // if there is a recognized constructor function for the trait type,
+            funcs[desc[name]['type']].bind(this)(name, desc[name]); // call the function 
         else
             console.log(desc[name]['type']);
     }
@@ -68,6 +68,8 @@ Parameters.prototype.add_tuple = function(name, info) {
     this.obj.appendChild(trait);
 
     this.traits[name] = {"obj":trait, "inputs":[]};
+
+    // Create an input text field for element of the attribute tuple
     for (var i=0; i < len; i++) {
         var input = document.createElement("input");
         input.type = "text";
