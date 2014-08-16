@@ -44,7 +44,7 @@ class Window(LogExperiment):
     screen_dist = 44.5+3
     iod = 2.5
 
-    show_environment=traits.Int(0)
+    show_environment = traits.Int(0)
 
     def __init__(self, **kwargs):
         # self.window_size = (self.window_size[0]*2, self.window_size[1]) # Stereo window display
@@ -58,7 +58,7 @@ class Window(LogExperiment):
             self.add_model(Box())
 
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = loc_config.display_start_pos
+        os.environ['SDL_VIDEO_WINDOW_POS'] = '0,0' #loc_config.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         
