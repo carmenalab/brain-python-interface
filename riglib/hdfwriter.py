@@ -8,7 +8,9 @@ import numpy as np
 compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
 
 class MsgTable(tables.IsDescription):
-    ''' Docstring '''
+    '''
+    Pytables custom table atom type used for the HDF tables named *_msgs
+    '''
     time = tables.UIntCol()
     msg = tables.StringCol(256)
 

@@ -1,3 +1,6 @@
+'''
+Code for interacting with the Phdigets API
+'''
 import time
 import itertools
 import numpy as np
@@ -5,9 +8,21 @@ import numpy as np
 from Phidgets.Devices.InterfaceKit import InterfaceKit
 
 class System(object):
+    '''
+    Docstring
+    '''
     update_freq = 1000
 
     def __init__(self, n_sensors=2, n_inputs=1):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.n_sensors = n_sensors
         self.n_inputs = n_inputs
         self.interval = 1. / self.update_freq
@@ -21,12 +36,39 @@ class System(object):
         self.kit.waitForAttach(1000)
     
     def start(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.tic = time.time()
 
     def stop(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         pass
     
     def get(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         toc = time.time() - self.tic
         if 0 < toc < self.interval:
             time.sleep(self.interval - toc)
@@ -40,13 +82,40 @@ class System(object):
         return self.data
     
     def sendMsg(self, msg):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         pass
 
     def __del__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.kit.closePhidget()
 
 def make(sensors, inputs, cls=System, **kwargs):
-    """This ridiculous function dynamically creates a class with a new init function"""
+    '''
+    Docstring
+    This ridiculous function dynamically creates a class with a new init function
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def init(self, **kwargs):
         super(self.__class__, self).__init__(n_sensors=sensors, n_inputs=inputs, **kwargs)
     

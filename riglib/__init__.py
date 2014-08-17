@@ -1,6 +1,7 @@
 '''
 riglib module imports
 '''
+import warnings
 
 from . import experiment
 from . import blackrock
@@ -13,11 +14,15 @@ from . import ismore
 from . import motiontracker
 from . import mp_calc
 from . import nidaq
-from . import phidgets
+try:
+    from . import phidgets
+except ImportError:
+    warnings.warn('Phidgets import problem!')
+
 from . import plexon
 from . import reward
 from . import stereo_opengl
-from . import loc_config
+# from . import loc_config
 
 
 class FuncProxy(object):

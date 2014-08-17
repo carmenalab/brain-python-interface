@@ -447,7 +447,25 @@ class TrialTypes(Sequence):
             #setattr(self, "_end_%s"%ttype, self._end_trial)
     
     def _start_picktrial(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.set_state(self.next_trial)
     
     def _start_incorrect(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.set_state("penalty")

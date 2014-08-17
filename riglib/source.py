@@ -19,7 +19,9 @@ from . import FuncProxy
 
 
 class DataSource(mp.Process):
-    ''' Docstring '''
+    '''
+    Generic single-channel data source
+    '''
     def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, **kwargs):
         '''
         Docstring
@@ -270,7 +272,6 @@ class MultiChanDataSource(mp.Process):
     '''
     Multi-channel version of 'DataSource'
     '''
-
     def __init__(self, source, bufferlen=5, send_data_to_sink_manager=False, **kwargs):
         '''
         Constructor for MultiChanDataSource

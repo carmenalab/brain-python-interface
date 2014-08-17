@@ -19,7 +19,8 @@ from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere
 from riglib.stereo_opengl.environment import Box
 import time
-from riglib import loc_config
+# from riglib import loc_config
+import config as loc_config
 from primitives import Cylinder, Sphere, Cone
 from profile_support import profile
 

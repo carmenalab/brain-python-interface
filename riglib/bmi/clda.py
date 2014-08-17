@@ -79,6 +79,15 @@ def normalize(vec):
     return norm_vec
 
 class Learner(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, batch_size, *args, **kwargs):
         '''
         Instantiate a Learner for estimating intention during CLDA
@@ -386,7 +395,25 @@ class CursorGoalLearner2(Learner):
 # simple iBMI learners that just use an "assister" object
 
 class ArmAssistLearner(Learner):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         assist_speed   = kwargs.pop('assist_speed', 2.)
         target_radius  = kwargs.pop('target_radius', 2.)
@@ -411,7 +438,25 @@ class ArmAssistLearner(Learner):
 
 
 class ReHandLearner(Learner):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         assist_speed   = kwargs.pop('assist_speed', 2.)
         target_radius  = kwargs.pop('target_radius', 2.)
@@ -436,7 +481,25 @@ class ReHandLearner(Learner):
 
 
 class IsMoreLearner(Learner):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         assist_speed   = kwargs.pop('assist_speed', 2.)
         target_radius  = kwargs.pop('target_radius', 2.)
@@ -463,6 +526,15 @@ class IsMoreLearner(Learner):
 # OFC iBMI learners
 
 class ArmAssistOFCLearner(OFCLearner):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, batch_size, *args, **kwargs):
         '''Specific instance of the OFCLearner for the ArmAssist.'''
         dt = kwargs.pop('dt', 0.1)
@@ -518,6 +590,15 @@ class ArmAssistOFCLearner(OFCLearner):
 
 
 class ReHandOFCLearner(OFCLearner):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, batch_size, *args, **kwargs):
         '''Specific instance of the OFCLearner for the ReHand.'''
         dt = kwargs.pop('dt', 0.1)
@@ -559,6 +640,15 @@ class ReHandOFCLearner(OFCLearner):
 
 
 class IsMoreOFCLearner(OFCLearner):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, batch_size, *args, **kwargs):
         '''Specific instance of the OFCLearner for full IsMore system
         (ArmAssist + ReHand).'''
@@ -665,6 +755,15 @@ class CLDARecomputeParameters(mp.Process):
         self.done.set()
 
 class KFSmoothbatchSingleThread(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
         """
         Smoothbatch calculations
@@ -973,8 +1072,26 @@ class KFRML(object):
 
 
 class KFRML_IVC(KFRML):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     default_gain = None
     def calc(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         new_params = super(KFRML_IVC, self).calc(*args, **kwargs)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
 

@@ -1,3 +1,5 @@
+
+raise ImportError('riglib.loc_config: This module should now be deprecated, replaced by the config.py file!')
 import os
 hostname = os.popen('hostname').readlines()[0].rstrip()
 

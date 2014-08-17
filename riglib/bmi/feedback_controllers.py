@@ -93,10 +93,28 @@ class LinearFeedbackController(object):
     Generic linear state-feedback controller. Can be time-varying in general and not be related to a specific cost function
     '''
     def __init__(self, B=None, F=None):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.B = B
         self.F = F 
 
     def calc_F(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.F
 
     def __call__(self, current_state, target_state):
@@ -117,10 +135,37 @@ class LinearFeedbackController(object):
 
 
 class MultiModalLFC(LinearFeedbackController):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, B=None, F=dict()):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(MultiModalLFC, self).__init__(B=B, F=F)
 
     def calc_F(self, mode, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.F[mode]
 
     def __call__(self, current_state, target_state, mode):

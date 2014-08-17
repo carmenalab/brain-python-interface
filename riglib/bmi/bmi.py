@@ -97,7 +97,18 @@ class GaussianStateHMM(object):
     '''
     model_attrs = []
     def __init__(self, A, W):
-        '''    Docstring    '''
+        '''
+        Constructor for GaussianStateHMM
+
+        x_{t+1} = A*x_t + w_t; w_t ~ N(0, W)
+
+        Parameters
+        ----------
+        A: np.mat of shape (N, N)
+            State transition matrix
+        W: np.mat of shape (N, N)
+            Noise covariance
+        '''
         self.A = A
         self.W = W
 
@@ -648,6 +659,15 @@ class Decoder(object):
 
 
 class BMISystem(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, decoder, learner, updater):
         '''
         Instantiate the BMISystem

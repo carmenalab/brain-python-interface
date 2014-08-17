@@ -10,7 +10,18 @@ class MPCompute(mp.Process):
     but take longer than a single BMI loop iteration
     """
     def __init__(self, work_queue, result_queue, fn):
-        ''' __init__
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+
+        __init__
+
         work_queue, result_queue are mp.Queues
         Jobs start when an entry is found in work_queue
         Results of job are placed back onto result_queue
@@ -24,6 +35,15 @@ class MPCompute(mp.Process):
         self.fn = fn
 
     def _check_for_job(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         try:
             job = self.work_queue.get_nowait()
         except:
@@ -31,6 +51,15 @@ class MPCompute(mp.Process):
         return job
         
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         """
         The main loop. Starts automatically when 
         """
@@ -46,12 +75,39 @@ class MPCompute(mp.Process):
             time.sleep(0.5)
 
     def calc(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.fn(*args, **kwargs)
 
     def stop(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.done.set()
 
 class FuncProxy(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, fn, multiproc=False, waiting_resp=None, init_resp=None, verbose=False):
         self.verbose = verbose
         self.multiproc = multiproc
@@ -76,9 +132,27 @@ class FuncProxy(object):
         self.waiting = False
 
     def reset(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.prev_input = None
 
     def _stuff(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         try:
             output_data = self.result_queue.get_nowait()
             self.prev_result = output_data
@@ -93,6 +167,15 @@ class FuncProxy(object):
             traceback.print_exc()
 
     def input_same(self, stuff):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         args, kwargs = stuff
         if self.prev_input == None:
             return False
@@ -121,6 +204,15 @@ class FuncProxy(object):
 
 
     def __call__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         input_data = (args, kwargs)
         input_same_as_last = self.input_same(input_data) #input_data == self.prev_input        
         if self.multiproc:
@@ -146,6 +238,15 @@ class FuncProxy(object):
                 return self.prev_result, True
 
     def __del__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         # Stop the child process if one was spawned
         if self.multiproc:
             self.calculator.stop()

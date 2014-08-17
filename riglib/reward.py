@@ -11,7 +11,7 @@ import binascii
 import threading
 import cStringIO
 import traceback
-import loc_config
+import config as loc_config
 
 import serial
 import time

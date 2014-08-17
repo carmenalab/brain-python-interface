@@ -1,4 +1,6 @@
-'''Needs docs'''
+'''
+This module appears to be deprecated.....
+'''
 
 import plexnet
 from riglib.source import DataSource
