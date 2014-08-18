@@ -2,15 +2,23 @@
 '''
 Create the configuration file for the BMI3D code
 '''
+import os
+from collections import OrderedDict
 
-stuff = dict(reward_sys=dict(version=0),
-             recording_sys=dict(make='plexon', mount_point='/storage/plexon'),
-             graphics=dict(window_start_x=0, window_start_y=0),
-             database=dict(db='/home/helene/code/bmi3d/db/db.sql'))
+stuff = OrderedDict()
 
-# TODO get this from command line?
-config_filename = 'config'
-config_fh = open(config_filename, 'w')
+stuff['reward_sys'] = dict(version=0)
+stuff['recording_sys'] = dict(make='plexon', mount_point='/storage/plexon')
+stuff['graphics'] = dict(window_start_x=0, window_start_y=0)
+
+from db import settings
+databases = settings.DATABASES.keys()
+
+for dbname in databases:
+    stuff['db_config_%s' % dbname] = dict(data_path='/storage')
+
+config_filename = '$BMI3D/config'
+config_fh = open(os.path.expandvars(config_filename), 'w')
 
 for system_name, system_opts in stuff.items():
     config_fh.write('[%s]\n' % system_name)
