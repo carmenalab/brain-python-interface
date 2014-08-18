@@ -65,7 +65,7 @@ class Task(models.Model):
                 varname['value'] = values[trait]
             if varname['type'] == "Instance":
                 Model = instance_to_model[ctraits[trait].trait_type.klass]
-                insts = Model.objects.order_by("-date")[:200]
+                insts = Model.objects.order_by("-date")#[:200]
                 varname['options'] = [(i.pk, i.name) for i in insts]
             if varname['type'] == "Enum":
                 varname['options'] = arms
@@ -417,10 +417,10 @@ class TaskEntry(models.Model):
                     ))
             except MemoryError:
                 print "Memory error opening plexon file!"
-                js['bmi'] = dict(_plxinfo=None)
+                js['bmi'] = dict(_neuralinfo=None)
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print "No plexon file found"
-                js['bmi'] = dict(_plxinfo=None)
+                js['bmi'] = dict(_neuralinfo=None)
         
         elif config.recording_system == 'blackrock':
             try:
