@@ -17,7 +17,7 @@ for system_name, system_opts in stuff.items():
     print system_name
     for option, default in system_opts.items():
         print option, default
-        opt_val = raw_input("Enter value for '%s' (default=%s)" % (option, str(default)))
+        opt_val = raw_input("Enter value for '%s' (default=%s): " % (option, str(default)))
         if opt_val == '':
             opt_val = default
         config_fh.write('%s = %s\n' % (option, opt_val))
