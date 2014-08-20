@@ -2,7 +2,10 @@ import time
 import itertools
 import numpy as np
 
-from Phidgets.Devices.InterfaceKit import InterfaceKit
+try:
+    from Phidgets.Devices.InterfaceKit import InterfaceKit
+except ImportError:
+    pass
 
 class System(object):
     update_freq = 1000
