@@ -12,10 +12,28 @@ except ImportError:
     print "Couldn't find eyetracker module"
 
 class Simulate(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     update_freq = 500
     dtype = np.dtype((np.float, (2,)))
 
     def __init__(self, fixations=[(0,0), (-0.6,0.3), (0.6,0.3)], isi=500, slen=15):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from scipy.interpolate import interp1d
         flen = range(len(fixations)+1)
         t = list(itertools.chain(*[(i*isi + slen*i, (i+1)*isi + slen*i) for i in flen]))[:-1]
@@ -26,24 +44,78 @@ class Simulate(object):
         self.isi = isi
 
     def start(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.stime = time.time()
 
     def get(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         time.sleep(1./update_freq)
         return self.interp((time.time() - self.stime) % self.mod) + np.random.randn(2)*.01
 
     def stop(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return 
 
 class System(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     update_freq = 500
     dtype = np.dtype((np.float, (2,)))
 
     def __init__(self, address='10.0.0.2'):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.tracker = pylink.EyeLink(address)
         self.tracker.setOfflineMode()
     
     def start(self, filename=None):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         print "eyetracker.System.start()"
         self.filename = filename
         if filename is None:
@@ -54,10 +126,28 @@ class System(object):
         self.tracker.startRecording(1,0,1,0)
 
     def stop(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.tracker.stopRecording()
         pylink.endRealTimeMode()
     
     def get(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         samp = self.tracker.getNextData()
         while samp != pylink.SAMPLE_TYPE:
             time.sleep(.001)
@@ -72,16 +162,52 @@ class System(object):
         return data
         
     def set_filter(self, filt):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.filter = filt
     
     def retrieve(self, filename):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.tracker.setOfflineMode()
         pylink.msecDelay(1)
         self.tracker.closeDataFile()
         self.tracker.receiveDataFile(self.filename, filename)
     
     def sendMsg(self, msg):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.tracker.sendMessage(msg)
 
     def __del__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.tracker.close()

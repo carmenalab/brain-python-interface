@@ -19,7 +19,7 @@ from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere
 from riglib.stereo_opengl.environment import Box
 import time
-from riglib import loc_config
+import config
 from primitives import Cylinder, Sphere, Cone
 from profile_support import profile
 
@@ -61,7 +61,7 @@ class Window(LogExperiment):
             self.add_model(Box())
 
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = loc_config.display_start_pos
+        os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         
@@ -192,11 +192,11 @@ class Simple2DWindow(object):
         # win_res = (480, 270)
         win_res = (1000, 560)
 
-        from riglib import loc_config
-        if loc_config.recording_system == 'plexon':
+        
+        if config.recording_system == 'plexon':
             self.workspace_bottom_left = (-18., -12.)
             self.workspace_top_right   = (18., 12.)
-        elif loc_config.recording_system == 'blackrock':
+        elif config.recording_system == 'blackrock':
             self.workspace_bottom_left = (0., 0.)
             self.workspace_top_right   = (42., 30.)
         else:

@@ -11,7 +11,9 @@ import source
 from . import FuncProxy
 
 class DataSink(mp.Process):
-    ''' Docstring '''
+    '''
+    Generic single-channel data sink
+    '''
     def __init__(self, output, **kwargs):
         '''
         Docstring

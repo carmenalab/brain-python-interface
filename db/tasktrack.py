@@ -190,11 +190,11 @@ class Task(object):
                 import comedi
                 self.com = comedi.comedi_open("/dev/comedi0")
 
-                from riglib import loc_config
-                if loc_config.recording_system == 'plexon':
+                import config
+                if config.recording_system == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
                 
-                elif loc_config.recording_system == 'blackrock':
+                elif config.recording_system == 'blackrock':
                     # set strobe pin low
                     comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
@@ -254,10 +254,10 @@ class Task(object):
         if self.saveid is not None:
             try:
                 import comedi
-                from riglib import loc_config
-                if loc_config.recording_system == 'plexon':
+                import config
+                if config.recording_system == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
-                elif loc_config.recording_system == 'blackrock':
+                elif config.recording_system == 'blackrock':
                     # strobe pin should already be low
 
                     # set last data pin ("D15"; 16th pin) low
