@@ -1552,4 +1552,4 @@ class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
     ''' Docstring '''
     half_Life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
     half_life_time = traits.Float(600, desc="Number of seconds to go from initial to final half life")
-    attr = 'half_life'    
+    attr = 'half_life'
