@@ -62,6 +62,7 @@ generators = dict(
     armassist_simple=generatorfunctions.armassist_simple,
     rehand_simple=generatorfunctions.rehand_simple,
     ismore_simple=generatorfunctions.ismore_simple,
+    ibmi_noninvasive=generatorfunctions.ibmi_noninvasive,
     centerout_2D_discrete_multiring=generatorfunctions.centerout_2D_discrete_multiring,
 )
 
@@ -140,6 +141,8 @@ tasks = dict(
     ibmi_manual_control  = blackrocktasks.ManualControl,
     ibmi_bmi_control     = blackrocktasks.BMIControl,
     ibmi_clda_control    = blackrocktasks.CLDAControl,
+    ibmi_record_traj     = blackrocktasks.RecordTrajectories,
+    ibmi_playback_traj   = blackrocktasks.PlaybackTrajectories,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D', 'Arm3D']
