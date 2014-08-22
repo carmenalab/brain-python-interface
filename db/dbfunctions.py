@@ -14,6 +14,8 @@ import db.paths
 from collections import defaultdict, OrderedDict
 from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
+import config
+
 try:
     import plotutil
 except:
@@ -509,11 +511,12 @@ def load_last_decoder():
     record = all_decoder_records[len(all_decoder_records)-1]
     return record.load()
 
-def get_decoders_trained_in_block(task_entry):
+def get_decoders_trained_in_block(task_entry, dbname='default'):
     '''
     Returns unpickled decoder objects that were trained in a specified session.
     '''
-    task_entry = lookup_task_entries(task_entry)
+    if not isinstance(task_entry, models.TaskEntry):
+        task_entry = models.TaskEntry.objects.using(dbname).get(id=task_entry)
     records = models.Decoder.objects.filter(entry_id=task_entry.id)
     decoder_objects = map(lambda x: x.load(), records)
     if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
@@ -531,11 +534,21 @@ class TaskEntry(object):
     '''
     Wrapper class for the TaskEntry django class
     '''
-    def __init__(self, task_entry_id):
+    def __init__(self, task_entry_id, dbname='default', **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        self.dbname = dbname
         if isinstance(task_entry_id, models.TaskEntry):
             self.record = task_entry_id
         else:
-            self.record = lookup_task_entries(task_entry_id)
+            self.record = models.TaskEntry.objects.using(self.dbname).get(id=task_entry_id) #lookup_task_entries(task_entry_id)
         self.id = self.record.id
         self.params = self.record.params
         if isinstance(self.params, str) or isinstance(self.params, unicode):
@@ -556,21 +569,56 @@ class TaskEntry(object):
         self.calendar_date = datetime.datetime(self.date.year, self.date.month, self.date.day)
 
         self.notes = self.record.notes
-        self.subject = models.Subject.objects.get(pk=self.record.subject_id).name
+        self.subject = models.Subject.objects.using(dbname).get(pk=self.record.subject_id).name
 
         # Load decoder record
         if 'decoder' in self.params:
-            self.decoder_record = models.Decoder.objects.get(pk=self.params['decoder'])
+            self.decoder_record = models.Decoder.objects.using(self.record._state.db).get(pk=self.params['decoder'])
         elif 'bmi' in self.params:
-            self.decoder_record = models.Decoder.objects.get(pk=self.params['bmi'])
+            self.decoder_record = models.Decoder.objects.using(self.record._state.db).get(pk=self.params['bmi'])
         else:
             self.decoder_record = None
 
+    def get_decoders_trained_in_block(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        records = models.Decoder.objects.using(self.dbname).filter(entry_id=self.id)
+        decoder_objects = map(lambda x: x.load(), records)
+        if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
+        return decoder_objects
+
+    @property
     def decoder_filename(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         decoder_basename = self.decoder_record.path
-        return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
+        dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
+        return os.path.join(dbconfig['data_path'], 'decoders', decoder_basename)
 
     def summary_stats(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         report = self.record.offline_report()
         for key in report:
             print key, report[key]
@@ -620,9 +668,27 @@ class TaskEntry(object):
 
     @property 
     def supplementary_data_file(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return '/storage/task_supplement/%d.mat' % self.record.id
 
     def get_matching_state_transition_seq(self, seq):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         task_msgs = self.hdf.root.task_msgs[:]
         seq = np.array(seq, dtype='|S256')
         msg_list_inds = []
@@ -637,6 +703,15 @@ class TaskEntry(object):
         return msg_list_inds, trial_msgs, epochs
 
     def get_task_var_during_epochs(self, epochs, var_name, comb_fn=lambda x:x, start_offset=0):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         data = []
         for st, end in epochs:
             st += start_offset
@@ -658,19 +733,47 @@ class TaskEntry(object):
 
     @property
     def hdf_filename(self):
-        return get_hdf_file(self.record)
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
+        dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
+        return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
 
     @property
     def hdf(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         try:
             return self.hdf_file
         except:
-            hdf_filename = get_hdf_file(self.record)
-            self.hdf_file = tables.openFile(hdf_filename)
+            self.hdf_file = tables.openFile(self.hdf_filename)
             return self.hdf_file
 
     @property
     def plx(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         try:
             self._plx
         except:
@@ -680,6 +783,15 @@ class TaskEntry(object):
 
     @property
     def task(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.record.task
 
     @property
@@ -696,6 +808,15 @@ class TaskEntry(object):
 
     @property
     def clda_param_hist(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         bmi_params = models.System.objects.get(name='bmi_params')
         q = models.DataFile.objects.filter(entry_id=self.id, system_id=bmi_params.id)
 
@@ -711,26 +832,80 @@ class TaskEntry(object):
 
     @property
     def length(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return get_length(self.record)
     
     @property
     def plx_file(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return get_plx_file(self.record)
 
     @property
     def plx2_file(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return get_plx2_file(self.record)
 
     @property
     def nev_file(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return get_nev_file(self.record)
 
     @property
     def nsx_file(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return get_nsx_files(self.record)
 
     @property
     def name(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         # TODO this needs to be hacked because the current way of determining a 
         # a filename depends on the number of things in the database, i.e. if 
         # after the fact a record is removed, the number might change. read from
@@ -738,13 +913,40 @@ class TaskEntry(object):
         return str(os.path.basename(self.plx_file).rstrip('.plx'))
 
     def __str__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.record.__str__()
 
     def __repr__(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.record.__repr__()
 
     @property
     def task_type(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if 'bmi' in self.task.name: 
             return 'BMI'
         elif 'clda' in self.task.name:
@@ -752,7 +954,15 @@ class TaskEntry(object):
 
     @property
     def n_rewards(self):
-        ''' # of rewards given during a block. This number could be different
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+         # of rewards given during a block. This number could be different
         from the total number of trials if children of this class over-ride
         the n_trials calculator to exclude trials of a certain type, e.g. BMI
         trials in which the subject was assiste
@@ -761,10 +971,28 @@ class TaskEntry(object):
 
     @property
     def total_reward_time(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.n_rewards * self.reward_time
 
     @property 
     def datafiles(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         datafiles = models.DataFile.objects.filter(entry_id=self.id)
         datafiles = dict((str(d.system.name), d.get_path()) for d in datafiles)        
         return datafiles
@@ -875,7 +1103,16 @@ class TaskEntryCollection(object):
     '''
     Container for analyzing multiple task entries with an arbitrarily deep hierarchical structure
     '''
-    def __init__(self, blocks, name=''):
+    def __init__(self, blocks, name='', **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.blocks = blocks
         # if isinstance(blocks, int):
         #     blocks = [blocks,]
@@ -884,6 +1121,7 @@ class TaskEntryCollection(object):
 
         # from analysis import performance
         # self.task_entry_set = performance._get_te_set(self.blocks.flat_ls)
+        self.kwargs = kwargs
         self.name = name
 
     def proc_trials(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
@@ -922,7 +1160,7 @@ class TaskEntryCollection(object):
                     # sys.stdout.write('.')
           
                 # Filter out the trials you want
-                te = performance._get_te(b)
+                te = performance._get_te(b, **self.kwargs)
                 trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
                 n_trials = len(trial_msgs)
         

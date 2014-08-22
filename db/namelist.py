@@ -62,6 +62,7 @@ generators = dict(
     armassist_simple=generatorfunctions.armassist_simple,
     rehand_simple=generatorfunctions.rehand_simple,
     ismore_simple=generatorfunctions.ismore_simple,
+    centerout_2D_discrete_multiring=generatorfunctions.centerout_2D_discrete_multiring,
 )
 
 # from tasks.rds import RDS, RDS_half

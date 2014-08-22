@@ -11,7 +11,7 @@ import binascii
 import threading
 import cStringIO
 import traceback
-import loc_config
+import config
 
 import serial
 import time
@@ -58,7 +58,10 @@ class _parse_num(object):
         return i*self.m
 
 class Basic(object):
-    ''' Docstring '''
+    '''
+    Bare-bones interface for the Crist reward system. Can give timed reward and drain on/off.
+    This class is sufficient for all the tasks implemented as of Aug. 2014.
+    '''
     response_message_length = 7
     def __init__(self):
         '''
@@ -71,7 +74,8 @@ class Basic(object):
         -------
         '''
         self.port = serial.Serial(glob.glob("/dev/ttyUSB0")[0], baudrate=38400)
-        if loc_config.reward_system_version==1: self.set_beeper_volume(128)
+        self.version = config.reward_system_version
+        if self.version==1: self.set_beeper_volume(128)
         time.sleep(.5)
         self.reset()
 
@@ -103,9 +107,9 @@ class Basic(object):
         -------
         '''
         length /= .1
-        if loc_config.reward_system_version==0:
+        if self.version==0:
             self._write(struct.pack('<ccxHxx', '@', 'G', length))
-        elif loc_config.reward_system_version==1:
+        elif self.version==1:
             self._write(struct.pack('<cccHxxx', '@', 'G', '1', length))
         else:
             raise Exception("Unrecognized reward system version!")
@@ -121,7 +125,7 @@ class Basic(object):
         Returns
         -------
         '''
-        if loc_config.reward_system_version==1: #arc system
+        if self.version==1: #arc system
             cmd = ['@', 'C', '1' ,'O','%c' % 0b10000000, '%c' % 1, '%c' % 0, 'E']
             stuff = ''.join(cmd)
             self._write(stuff)
@@ -137,7 +141,7 @@ class Basic(object):
         Returns
         -------
         '''
-        if loc_config.reward_system_version==1:
+        if self.version==1:
             cmd = ['@', 'S',  '%c' % 0x02, '%c' % 0x02, '%c' %10, '%c' %0, '%c' %0]
             stuff = ''.join(cmd)
             self._write(stuff)
@@ -166,9 +170,9 @@ class Basic(object):
         Returns
         -------
         '''
-        if loc_config.reward_system_version==0:
+        if self.version==0:
             self._write("@CPSNNN")
-        elif loc_config.reward_system_version==1:
+        elif self.version==1:
             cmd = ['@', 'C', '1', 'P', '%c' % 0b10000000, '%c' % 0, '%c' % 0, 'D']
             stuff = ''.join(cmd)
             self._write(stuff)
@@ -190,11 +194,11 @@ class Basic(object):
         '''
         assert drain_time > 0
         assert drain_time < 9999
-        if loc_config.reward_system_version==0: #have to wait and manually tell it to turn off
+        if self.version==0: #have to wait and manually tell it to turn off
             self._write("@CNSENN")
             time.sleep(drain_time)
             self._write("@CNSDNN")
-        elif loc_config.reward_system_version==1:
+        elif self.version==1:
             self._write('@M1' + struct.pack('H', drain_time) + 'D' + struct.pack('xx'))
         else:
             raise Exception("Unrecognized reward system version!")
@@ -211,14 +215,17 @@ class Basic(object):
         Returns
         -------
         '''
-        if loc_config.reward_system_version==0:
+        if self.version==0:
             self._write("@CNSDNN")
-        elif loc_config.reward_system_version==1:
+        elif self.version==1:
             self._write('@M1' + struct.pack('H', 0) + 'A' + struct.pack('xx'))
         else:
             raise Exception("Unrecognized reward system version!")
 
 class System(traits.HasTraits, threading.Thread):
+    '''
+    More complete reward system interface. Only tested for "version 0" of the system
+    '''
     _running = True
     port = traits.Instance(serial.Serial)
 

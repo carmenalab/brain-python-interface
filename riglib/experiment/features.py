@@ -108,6 +108,15 @@ class JuiceLogging(traits.HasTraits):
     Save screenshots of the juice camera and link them to the task entry that has been created
     '''
     def cleanup(self, database, saveid, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(JuiceLogging, self).cleanup(database, saveid, **kwargs)
 
         ## Remove the old screenshot, if any
@@ -130,29 +139,83 @@ class Autostart(traits.HasTraits):
     rand_start = traits.Tuple((0.5, 2.), desc="Start interval")
 
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.pause = False
         super(Autostart, self).__init__(*args, **kwargs)
 
     def _start_wait(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         s, e = self.rand_start
         self.wait_time = random.random()*(e-s) + s
         super(Autostart, self)._start_wait()
         
     def _test_start_trial(self, ts):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return ts > self.wait_time and not self.pause
     
     def _test_premature(self, ts):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.event is not None
 
 class Button(object):
     '''Adds the ability to respond to the button, as well as to keyboard responses'''
     def screen_init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(Button, self).screen_init()
         import pygame
         pygame.event.set_grab(True)
         pygame.mouse.set_visible(False)
 
     def _get_event(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         import pygame
         btnmap = {1:1, 3:4}
         for btn in pygame.event.get(pygame.MOUSEBUTTONDOWN):
@@ -162,17 +225,44 @@ class Button(object):
         return super(Button, self)._get_event()
     
     def _while_reward(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(Button, self)._while_reward()
         import pygame
         pygame.event.clear()
     
     def _while_penalty(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         #Clear out the button buffers
         super(Button, self)._while_penalty()
         import pygame
         pygame.event.clear()
     
     def _while_wait(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(Button, self)._while_wait()
         import pygame
         pygame.event.clear()
@@ -180,6 +270,15 @@ class Button(object):
 class IgnoreCorrectness(object):
     '''Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(IgnoreCorrectness, self).__init__(*args, **kwargs)
         if hasattr(self, "trial_types"):
             for ttype in self.trial_types:
@@ -189,26 +288,98 @@ class IgnoreCorrectness(object):
                 self.status[ttype]["incorrect"] = "penalty"
 
     def _test_correct(self, ts):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return self.event is not None
 
     def _test_incorrect(self, ts):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return False
 
 class AdaptiveGenerator(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(AdaptiveGenerator, self).__init__(*args, **kwargs)
         assert hasattr(self.gen, "correct"), "Must use adaptive generator!"
 
     def _start_reward(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.gen.correct()
         super(AdaptiveGenerator, self)._start_reward()
     
     def _start_incorrect(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.gen.incorrect()
         super(AdaptiveGenerator, self)._start_incorrect()
 
 class Joystick(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import source, phidgets
         System = phidgets.make(2, 1)
         self.joystick = source.DataSource(System)
@@ -217,6 +388,15 @@ class Joystick(object):
             self.add_dtype('joystick_sensor_vals', 'f8', (2,))
 
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.joystick.start()
         try:
             super(Joystick, self).run()
@@ -224,17 +404,53 @@ class Joystick(object):
             self.joystick.stop()
 
     def join(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.joystick.join()
         super(Joystick, self).join()
 
 class DualJoystick(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import source, phidgets
         System = phidgets.make(4, 1)
         self.dualjoystick = source.DataSource(System)
         super(DualJoystick, self).init()
 
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.dualjoystick.start()
         try:
             super(DualJoystick, self).run()
@@ -242,6 +458,15 @@ class DualJoystick(object):
             self.dualjoystick.stop()
 
     def join(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.dualjoystick.join()
         super(DualJoystick, self).join()
 
@@ -252,6 +477,15 @@ class EyeData(traits.HasTraits):
     '''Pulls data from the eyetracking system and make it available on self.eyedata'''
 
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import source
         src, ekw = self.eye_source
         f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
@@ -262,10 +496,28 @@ class EyeData(traits.HasTraits):
     
     @property
     def eye_source(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import eyetracker
         return eyetracker.System, dict()
 
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata.start()
         f.write('started eyedata\n')
@@ -276,10 +528,28 @@ class EyeData(traits.HasTraits):
             self.eyedata.stop()
     
     def join(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.eyedata.join()
         super(EyeData, self).join()
     
     def _start_None(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.eyedata.pause()
         self.eyefile = tempfile.mktemp()
         print "retrieving data from eyetracker..."
@@ -289,10 +559,28 @@ class EyeData(traits.HasTraits):
         super(EyeData, self)._start_None()
     
     def set_state(self, state, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.eyedata.sendMsg(state)
         super(EyeData, self).set_state(state, **kwargs)
 
     def cleanup(self, database, saveid, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(EyeData, self).cleanup(database, saveid, **kwargs)
         database.save_data(self.eyefile, "eyetracker", saveid)
 
@@ -303,6 +591,15 @@ class SimulatedEyeData(EyeData):
 
     @property
     def eye_source(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import eyetracker
         return eyetracker.Simulate, dict(fixations=fixations, fixation_len=fixation_len)
 
@@ -311,6 +608,15 @@ class CalibratedEyeData(EyeData):
     cal_profile = traits.Instance(calibrations.EyeProfile)
 
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
         self.eyedata.set_filter(self.cal_profile)
 
@@ -320,18 +626,54 @@ class FixationStart(CalibratedEyeData):
     fixation_dist = traits.Float(50., desc="Distance from center that is considered a broken fixation")
 
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(FixationStart, self).__init__(*args, **kwargs)
         self.status['wait']['fixation_break'] = "wait"
         self.log_exclude.add(("wait", "fixation_break"))
     
     def _start_wait(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.eyedata.get()
         super(FixationStart, self)._start_wait()
 
     def _test_fixation_break(self, ts):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return (np.sqrt((self.eyedata.get()**2).sum(1)) > self.fixation_dist).any()
     
     def _test_start_trial(self, ts):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         return ts > self.fixation_length
 
 ########################################################################################################
@@ -342,6 +684,15 @@ class MotionData(traits.HasTraits):
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import source
         src, mkw = self.motion_source
         self.motiondata = source.DataSource(src, **mkw)
@@ -349,10 +700,28 @@ class MotionData(traits.HasTraits):
     
     @property
     def motion_source(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import motiontracker
         return motiontracker.make(self.marker_count), dict()
 
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.motiondata.start()
         try:
             super(MotionData, self).run()
@@ -360,10 +729,28 @@ class MotionData(traits.HasTraits):
             self.motiondata.stop()
     
     def join(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.motiondata.join()
         super(MotionData, self).join()
     
     def _start_None(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.motiondata.stop()
         super(MotionData, self)._start_None()
 
@@ -381,11 +768,29 @@ class MotionAutoAlign(MotionData):
     autoalign = traits.Instance(calibrations.AutoAlign)
     
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(MotionAutoAlign, self).init()
         self.motiondata.filter = self.autoalign
 
     @property
     def motion_source(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import motiontracker
         cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)
         return cls, dict()
@@ -396,6 +801,15 @@ class BlackrockData(traits.HasTraits):
     blackrock_channels = None
 
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import blackrock, source
 
         if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
@@ -411,6 +825,15 @@ class BlackrockData(traits.HasTraits):
         super(BlackrockData, self).init()
 
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.neurondata.start()
         try:
             super(BlackrockData, self).run()
@@ -422,6 +845,15 @@ class BlackrockBMI(BlackrockData):
     decoder = traits.Instance(bmi.Decoder)
 
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         print "init bmi"
         self.blackrock_channels = self.decoder.units[:,0]
         super(BlackrockBMI, self).init()
@@ -431,6 +863,15 @@ class BrainAmpData(traits.HasTraits):
     '''Stream BrainAmp neural data.'''
 
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import brainamp, source
 
         self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
@@ -451,6 +892,15 @@ class BrainAmpData(traits.HasTraits):
 class SinkRegister(object):
     '''Superclass for all features which contain data sinks -- registers the various sources'''
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import sink
         self.sinks = sink.sinks
 
@@ -556,6 +1006,15 @@ class PlexonData(traits.HasTraits):
     plexon_channels = None
 
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import plexon, source
 
         if hasattr(self.decoder, 'extractor_cls'):
@@ -576,6 +1035,15 @@ class PlexonData(traits.HasTraits):
         super(PlexonData, self).init()
 
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.neurondata.start()
         try:
             super(PlexonData, self).run()
@@ -595,6 +1063,15 @@ class PlexonBMI(PlexonData):
         super(PlexonBMI, self).init()
 
 class SpikeSimulate(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     pass
 
 class RelayPlexon(SinkRegister):
@@ -676,6 +1153,15 @@ class RelayPlexByte(RelayPlexon):
     Relays a single byte (0-255) to synchronize the rows of the HDF table(s) with the plexon recording clock.
     '''
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if not isinstance(self, SaveHDF):
             raise ValueError("RelayPlexByte feature only available with SaveHDF")
         super(RelayPlexByte, self).init()
@@ -692,6 +1178,15 @@ class RelayPlexByte(RelayPlexon):
 class RelayBlackrock(SinkRegister):
     '''Sends full data directly into the Blackrock system.'''
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import sink
         print "self.ni_out()", self.ni_out()
         self.nidaq = sink.sinks.start(self.ni_out)
@@ -700,6 +1195,15 @@ class RelayBlackrock(SinkRegister):
 
     @property
     def ni_out(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import nidaq
         print 'nidaq.SendAll', nidaq.SendAll
         return nidaq.SendAll
@@ -737,16 +1241,43 @@ class RelayBlackrock(SinkRegister):
         return files
     
     def run(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         try:
             super(RelayBlackrock, self).run()
         finally:
             self.nidaq.stop()
 
     def set_state(self, condition, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.nidaq.sendMsg(condition)
         super(RelayBlackrock, self).set_state(condition, **kwargs)
 
     def cleanup(self, database, saveid, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         super(RelayBlackrock, self).cleanup(database, saveid, **kwargs)
         time.sleep(2)
         for file_ in self.blackrockfiles:
@@ -757,12 +1288,30 @@ class RelayBlackrock(SinkRegister):
 class RelayBlackrockByte(RelayBlackrock):
     '''Relays a single byte (0-255) as a row checksum for when a data packet arrives.'''
     def init(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if not isinstance(self, SaveHDF):
             raise ValueError("RelayBlackrockByte feature only available with SaveHDF")
         super(RelayBlackrockByte, self).init()
 
     @property
     def ni_out(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         from riglib import nidaq
         return nidaq.SendRowByte
 
@@ -845,6 +1394,15 @@ class NormFiringRates(traits.HasTraits):
     norm_time = traits.Float(120., desc="Number of seconds to use for mean and SD estimate")
 
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         raise NotImplementedError("This feature is extremely depricated and probably does not work properly anymore.")
         super(NormFiringRates, self).__init__(*args, **kwargs)
         import time
@@ -857,6 +1415,15 @@ class NormFiringRates(traits.HasTraits):
         self.updated=False
 
     def update_fr_vals(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         raise NotImplementedError("decoder.bin_spikes no longer exists, use the feature extractor instead")
         if self.elapsedtime>1.:
             bin = self.decoder.bin_spikes(self.neurondata.get(all=True).copy())
@@ -870,6 +1437,15 @@ class NormFiringRates(traits.HasTraits):
             self.mFR2 = self.mFR2 + delta*(bin - self.mFR)
 
     def update_cursor(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.elapsedtime = time.time()-self.starttime
         if self.elapsedtime<self.norm_time:
             self.update_fr_vals()
@@ -976,4 +1552,4 @@ class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
     ''' Docstring '''
     half_Life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
     half_life_time = traits.Float(600, desc="Number of seconds to go from initial to final half life")
-    attr = 'half_life'    
+    attr = 'half_life'

@@ -7,7 +7,6 @@ from __future__ import division
 import time
 import numpy as np
 import plexnet
-import plexnet_softserver_oldfiles
 from collections import Counter
 import os
 import array

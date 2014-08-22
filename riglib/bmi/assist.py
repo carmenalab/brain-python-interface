@@ -48,13 +48,40 @@ class Assister(object):
 
 
 class OFCEndpointAssister(Assister):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, decoding_rate=180):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_ppf.pkl'))
         self.n_assist_levels = len(self.F_assist)                              
         self.prev_assist_level = self.n_assist_levels          
         self.B = np.mat(np.vstack([np.zeros([3,3]), np.eye(3)*1000*1./decoding_rate, np.zeros(3)]))
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         ##assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
         ##if assist_level_idx < self.prev_assist_level:                        
         ##    print "assist_level_idx decreasing to", assist_level_idx         
@@ -66,6 +93,15 @@ class OFCEndpointAssister(Assister):
         return Bu, 0
 
     def get_F(self, assist_level):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
         if assist_level_idx < self.prev_assist_level:                        
             print "assist_level_idx decreasing to", assist_level_idx         
@@ -121,6 +157,15 @@ class LinearFeedbackControllerAssist(Assister):
         return Bu, assist_weight
 
 class SSMLFCAssister(LinearFeedbackControllerAssist):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, ssm, Q, R, **kwargs):
         '''
         Constructor for TentacleAssist
@@ -285,7 +330,25 @@ def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5
 
 
 class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, *args, **kwargs):        
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         dt = 0.1
         A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
                     [0., 1, 0, 0,  dt, 0, 0],
@@ -317,11 +380,29 @@ class ArmAssistAssister(Assister):
     these speeds are reduced.'''
 
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         self.assist_speed = kwargs.pop('assist_speed', 2.)
         self.target_radius = kwargs.pop('target_radius', 2.)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if assist_level > 0:
             xy_pos = np.array(current_state[0:2, 0]).ravel()
             target_xy_pos = np.array(target_state[0:2, 0]).ravel()
@@ -354,6 +435,15 @@ class ArmAssistAssister(Assister):
         return Bu, assist_weight
 
     def xy_assist(self, xy_pos, target_xy_pos):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         binlen        = self.decoder_binlen
         speed         = self.assist_speed
         target_radius = self.target_radius 
@@ -373,6 +463,15 @@ class ArmAssistAssister(Assister):
         return assist_xy_pos, assist_xy_vel
 
     def angle_assist(self, ang_pos, target_ang_pos):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         binlen = self.decoder_binlen
         angular_speed = 5*(np.pi/180)  # in rad/s (5 deg/s)
         
@@ -396,11 +495,29 @@ class ReHandAssister(Assister):
     angles, these speeds are reduced.'''
 
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
         self.assist_speed = kwargs.pop('assist_speed', 5.)
         self.target_radius = kwargs.pop('target_radius', 2.)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if assist_level > 0:
             assist_rh_pos = np.zeros((0, 1))
             assist_rh_vel = np.zeros((0, 1))
@@ -430,6 +547,15 @@ class ReHandAssister(Assister):
         return Bu, assist_weight
 
     def angle_assist(self, ang_pos, target_ang_pos):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         binlen = self.decoder_binlen
         angular_speed = 5*(np.pi/180)  # in rad/s (5 deg/s)
         
@@ -452,10 +578,28 @@ class IsMoreAssister(Assister):
     ReHandAssister.'''
 
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         self.aa_assister = ArmAssistAssister(*args, **kwargs)
         self.rh_assister = ReHandAssister(*args, **kwargs)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         if assist_level > 0:
             aa_current_state = np.vstack([current_state[0:3], current_state[7:10], 1])
             aa_target_state  = np.vstack([target_state[0:3], target_state[7:10], 1])
@@ -494,7 +638,25 @@ class IsMoreAssister(Assister):
 #   because of need for "special angle subtraction"
 
 class ArmAssistLFCAssister(Assister):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         ssm = StateSpaceArmAssist()
         A, B, _ = ssm.get_ssm_matrices()
         
@@ -590,7 +752,25 @@ class ArmAssistLFCAssister(Assister):
 #         return Bu, assist_weight
 
 class ReHandLFCAssister(Assister):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         ssm = StateSpaceReHand()
         A, B, _ = ssm.get_ssm_matrices()
         
@@ -621,7 +801,25 @@ class ReHandLFCAssister(Assister):
 
 
 class IsMoreLFCAssister(Assister):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         ssm = StateSpaceIsMore()
         A, B, _ = ssm.get_ssm_matrices()
         

@@ -35,11 +35,38 @@ class EndpointControlGoal(object):
         pass
 
 class ArmAssistControlGoal(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, ssm):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         assert type(ssm) == state_space_models.StateSpaceArmAssist
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         target_vel = np.zeros(3)  # TODO -- may not always want zero velocity 
         offset_val = 1
         error = 0
@@ -47,14 +74,50 @@ class ArmAssistControlGoal(object):
         return (target_state, error), True
 
     def reset(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         pass
 
 class ReHandControlGoal(object):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
     def __init__(self, ssm):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         assert type(ssm) == state_space_models.StateSpaceReHand
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         target_vel = np.zeros(4)  # TODO -- may not always want zero velocity 
         offset_val = 1
         error = 0
@@ -62,15 +125,42 @@ class ReHandControlGoal(object):
         return (target_state, error), True
 
     def reset(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         pass
 
 class IsMoreControlGoal(object):
     '''Full ArmAssist+ReHand.'''
     def __init__(self, ssm):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         assert type(ssm) == state_space_models.StateSpaceIsMore
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         target_vel = np.zeros(7)  # TODO -- may not always want zero velocity 
         offset_val = 1
         error = 0
@@ -78,6 +168,15 @@ class IsMoreControlGoal(object):
         return (target_state, error), True
 
     def reset(self):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
         pass
 
 class TwoLinkJointGoal(object):

@@ -130,8 +130,8 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
         Task time to use when training the decoder
     """
 
-    import loc_config
-    if loc_config.recording_system == 'plexon':
+    import config
+    if config.recording_system == 'plexon':
         plexon = models.System.objects.get(name='plexon')
         plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
 
@@ -142,7 +142,7 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
         else:
             make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
     
-    elif loc_config.recording_system == 'blackrock':
+    elif config.recording_system == 'blackrock':
         make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
     
     else:
