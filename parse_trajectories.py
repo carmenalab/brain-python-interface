@@ -1,12 +1,15 @@
 import tables
 import pickle
 
-
-hdf = tables.openFile('/storage/rawdata/hdf/test20140822_07.hdf')
-pkl_name = 'traj.pkl'
-
-# hdf = tables.openFile('/storage/rawdata/hdf/test20140822_09.hdf')
+# hdf = tables.openFile('/storage/rawdata/hdf/test20140827_05.hdf')
+# pkl_name = 'traj.pkl'
+# hdf = tables.openFile('/storage/rawdata/hdf/test20140827_10.hdf')
 # pkl_name = 'traj2.pkl'
+
+hdf = tables.openFile('/storage/rawdata/hdf/test20140827_17.hdf')
+pkl_name = 'traj.pkl'
+hdf = tables.openFile('/storage/rawdata/hdf/test20140827_19.hdf')
+pkl_name = 'traj2.pkl'
 
 task      = hdf.root.task
 task_msgs = hdf.root.task_msgs
@@ -26,6 +29,10 @@ for idx in trial_idxs:
     
     if not (trial_type in trajectories):
         trajectories[trial_type] = dict()
+        # trajectories[trial_type]['armassist'] = dict()
+        # trajectories[trial_type]['rehand'] = dict()
+        # trajectories[trial_type]['aim_pos'] = dict()
+        # trajectories[trial_type]['plant_pos'] = dict()
 
         t_end = task_msgs[idx+1]['time'] - 1
         
@@ -47,5 +54,14 @@ for idx in trial_idxs:
 
 
         trajectories[trial_type]['armassist'] = armassist[idxs]
+
+
+        idxs = [i for i in range(len(task[:])) if t_start <= i <= t_end]
+        try:
+            trajectories[trial_type]['aim_pos'] = hdf.root.task[idxs]['aim_pos']
+            trajectories[trial_type]['plant_pos'] = hdf.root.task[idxs]['plant_pos']
+            trajectories[trial_type]['command_vel'] = hdf.root.task[idxs]['command_vel']
+        except:
+            pass
 
 pickle.dump(trajectories, open(pkl_name, 'wb'))
