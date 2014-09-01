@@ -71,7 +71,7 @@ generators = dict(
 # from tasks.redgreen import RedGreen, EyeCal
 # from tasks.button import ButtonTask
 
-from tasks import blackrocktasks
+from tasks import ibmitasks
 
 tasks = dict(
     dots=tasks.Dots,
@@ -137,12 +137,12 @@ tasks = dict(
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
 
     ######## iBMI tasks
-    ibmi_visual_feedback = blackrocktasks.VisualFeedback,
-    ibmi_manual_control  = blackrocktasks.ManualControl,
-    ibmi_bmi_control     = blackrocktasks.BMIControl,
-    ibmi_clda_control    = blackrocktasks.CLDAControl,
-    ibmi_record_traj     = blackrocktasks.RecordTrajectories,
-    ibmi_playback_traj   = blackrocktasks.PlaybackTrajectories,
+    ibmi_visual_feedback = ibmitasks.VisualFeedback,
+    ibmi_manual_control  = ibmitasks.ManualControl,
+    ibmi_bmi_control     = ibmitasks.BMIControl,
+    ibmi_clda_control    = ibmitasks.CLDAControl,
+    ibmi_record_traj     = ibmitasks.RecordTrajectories,
+    ibmi_playback_traj   = ibmitasks.PlaybackTrajectories,
 )
 
 arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D', 'Arm3D']
