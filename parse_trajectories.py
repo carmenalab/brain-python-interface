@@ -29,10 +29,6 @@ for idx in trial_idxs:
     
     if not (trial_type in trajectories):
         trajectories[trial_type] = dict()
-        # trajectories[trial_type]['armassist'] = dict()
-        # trajectories[trial_type]['rehand'] = dict()
-        # trajectories[trial_type]['aim_pos'] = dict()
-        # trajectories[trial_type]['plant_pos'] = dict()
 
         t_end = task_msgs[idx+1]['time'] - 1
         
@@ -46,14 +42,10 @@ for idx in trial_idxs:
         # print 'last ts:', armassist[idxs[-1]]['ts_arrival'] * 1e-6
         # print 'ts_end:', ts_end
 
-        # t   = armassist[idxs]['ts_arrival']
-        # pos = armassist[idxs]['data']
-        # # vel = 
-        # print 't', t 
-        # print 'pos', pos
-
-
+        trajectories[trial_type]['ts_start']  = ts_start
+        trajectories[trial_type]['ts_end']    = ts_end
         trajectories[trial_type]['armassist'] = armassist[idxs]
+
 
 
         idxs = [i for i in range(len(task[:])) if t_start <= i <= t_end]
