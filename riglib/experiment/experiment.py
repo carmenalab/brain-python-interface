@@ -305,6 +305,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         return offline_report
 
     def cleanup(self, database, saveid, **kwargs):
+        print "experimient.Experiment.cleanup executing"
         pass
     
     def end_task(self):
@@ -381,6 +382,7 @@ class LogExperiment(Experiment):
         Returns
         -------
         '''
+        print "experiment.LogExperiment.cleanup"
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
         database.save_log(saveid, self.event_log)
 
