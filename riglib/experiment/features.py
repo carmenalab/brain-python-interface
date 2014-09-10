@@ -384,8 +384,8 @@ class Joystick(object):
         System = phidgets.make(2, 1)
         self.joystick = source.DataSource(System)
         super(Joystick, self).init()
-        if isinstance(self, SaveHDF):
-            self.add_dtype('joystick_sensor_vals', 'f8', (2,))
+        # if isinstance(self, SaveHDF):
+            # self.add_dtype('joystick_sensor_vals', 'f8', (2,))
 
     def run(self):
         '''
@@ -988,6 +988,7 @@ class SaveHDF(SinkRegister):
         -------
         '''
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
+        print "Beginning HDF file cleanup"
         print "#################%s"%self.h5file.name
         try:
             self.cleanup_hdf()
@@ -1550,6 +1551,83 @@ class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
 
 class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
     ''' Docstring '''
-    half_Life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
+    half_life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
     half_life_time = traits.Float(600, desc="Number of seconds to go from initial to final half life")
     attr = 'half_life'
+
+
+########################################################################################################
+# Video Recording
+########################################################################################################
+import multiprocessing as mp 
+
+class MultiprocShellCommand(mp.Process):
+    def __init__(self, cmd, *args, **kwargs):
+        self.cmd = cmd
+        self.done = mp.Event()
+        super(MultiprocShellCommand, self).__init__(*args, **kwargs)
+
+    def run(self):
+        import subprocess
+        import os
+        os.popen(self.cmd)
+        # subprocess.call(self.cmd)
+        self.done.set()
+
+    def is_done(self):
+        return self.done.is_set()
+
+
+
+class SingleChannelVideo(traits.HasTraits):
+    def __init__(self, *args, **kwargs):
+        super(SingleChannelVideo, self).__init__(*args, **kwargs)
+
+    def init(self):
+        '''
+        Spawn process to run ssh command to begin video recording
+        '''
+        self.video_basename = 'video_%s.avi' % time.strftime('%Y_%m_%d_%H_%M_%S')
+        # 
+        
+        # cmd = """/usr/bin/ssh -tt video "cvlc v4l2:///dev/video0 --sout '#transcode{vcodec=h264}:std{access=file,mux=ts,dst=%s}'" """ % self.video_basename
+        
+        cmd = "ssh -tt video /home/lab/bin/recording_start.sh %s" % self.video_basename
+        
+        # subprocess.call(cmd)
+        cmd_caller = MultiprocShellCommand(cmd)
+        cmd_caller.start()
+        self.cmd_caller = cmd_caller
+        print "started video recording"
+        print cmd
+        
+        super(SingleChannelVideo, self).init()
+
+    def cleanup(self, database, saveid, **kwargs):
+        '''
+        Stop video recording and link file to database
+
+        Parameters
+        ----------
+        database
+        saveid
+
+        Returns
+        -------
+        None
+        '''
+
+        print "executing command to stop video recording"
+        os.popen('ssh -tt video /home/lab/bin/recording_end.sh')
+
+        print "Checking if video recording is done"
+        if self.cmd_caller.done.is_set():
+            print "SSH command finished!"
+
+        time.sleep(0.5)
+        super(SingleChannelVideo, self).cleanup(database, saveid, **kwargs)
+
+        ## Get the video filename
+        video_fname = os.path.join('/storage/video/%s' % self.video_basename)
+
+        database.save_data(video_fname, "video", saveid)
