@@ -29,6 +29,7 @@ features = dict(
     norm_firingrates=experiment.features.NormFiringRates,
     ttl_reward=experiment.features.TTLReward,
     juice_log=experiment.features.JuiceLogging,
+    single_video=experiment.features.SingleChannelVideo,
 )
 
 import tasks
