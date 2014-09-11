@@ -184,7 +184,7 @@ class Task(object):
         self.subj = subj
         self.params = Parameters(params)
 
-        # Send pulse to plexon box to start saving to file
+        # Send pulse to neural recording system to start saving to file
         if self.saveid is not None:
             try:
                 import comedi
@@ -253,6 +253,7 @@ class Task(object):
         
         if self.saveid is not None:
             try:
+                print "Stopping neural recording"
                 import comedi
                 import config
                 if config.recording_system == 'plexon':
@@ -269,6 +270,7 @@ class Task(object):
                     # set strobe pin low
                     comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
             except:
+                print "error stopping neural recording system!"
                 pass
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
             self.task.cleanup(database, self.saveid, subject=self.subj)
