@@ -32,7 +32,7 @@ def save_calibration(subject, system, name, params):
     Calibration(subject=subj, system=sys, name=name, params=params).save()
 
 def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None):
-    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png")
+    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png", video="avi")
     if system in suffix:
         suff = suffix[system]
     else:  # blackrock system saves multiple files (.nev, .ns1, .ns2, etc.)
