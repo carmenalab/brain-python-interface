@@ -18,6 +18,13 @@ import logging
 
 display = Track()
 
+# create the object representing the reward system. 
+try:
+    from riglib import reward
+    r = reward.Basic()
+except:
+    pass
+
 class encoder(json.JSONEncoder):
     '''
     Encoder for JSON data that defines how the data should be returned. 
@@ -29,6 +36,16 @@ class encoder(json.JSONEncoder):
             return o.params
         else:
             return super(encoder, self).default(o)
+
+def reward_drain(request, onoff):
+    if onoff == 'on':
+        r.drain(600)
+        print 'drain on'
+    else:
+        print 'drain off'
+        r.drain_off()
+    return HttpResponse('Turning reward %s' % onoff)
+
 
 def _respond(data):
     '''
@@ -169,6 +186,7 @@ def save_notes(request, idx):
     return _respond(dict(status="success"))
 
 def make_bmi(request, idx):
+    ## Check if the name of the decoder is already taken
     collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
     if len(collide) > 0:
         return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
