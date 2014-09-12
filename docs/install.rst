@@ -253,6 +253,9 @@ In our setup, the external internet is used only sparingly by the neural recordi
 
 At this point, you should be able to get external internet on the Windows PC. You may need to renew the DHCP license to do so. 
 
+NOTE: every time you add a new machine to the dchp config file, it seems that you must re-run the NAT setup script. Otherwise the new machine will get an
+IP address from DHCP but will not be able to reach the outside internet. 
+
 Running the Django server for the first time
 --------------------------------------------
 First, for some reason the matplotlib configuration file directory appears to be owned by root when making these instructions. The Django software needs matplotlib for some reason, so we change ownership of the directorh $HOME/.matplotlib back to the user, which is what it should be anyway::
