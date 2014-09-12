@@ -270,6 +270,8 @@ TaskEntry.prototype.update = function(info) {
 
 	if (numfiles > 0) {
 		$("#files").append(this.filelist).show();
+
+		// make the BMI show up if there's a plexon file in the provided data files
 		var found = false;
 		for (var sys in info.datafiles)
 			found = found || sys == "plexon" || sys == 'blackrock'

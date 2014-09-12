@@ -73,12 +73,13 @@ class SimCLDAControlMultiDispl2D(Autostart, SimTime, WindowDispl2D, bmimultitask
         
 class SimRML(SimCLDAControlMultiDispl2D):
     assist_level = (0., 0.)
+    arm_class = 'CursorPlant'
     def __init__(self, *args, **kwargs):
         super(SimRML, self).__init__(*args, **kwargs)
         self.batch_time = 0.1
         self.half_life  = (20.0, 20.0)
         self.starting_pos = (0., 0., 0.)
-        self.assist_level = 1., 0.
+        #self.assist_level = 1., 0.
         self.assist_time = 15.
 
     def create_updater(self):

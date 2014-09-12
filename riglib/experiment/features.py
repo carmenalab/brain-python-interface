@@ -384,8 +384,8 @@ class Joystick(object):
         System = phidgets.make(2, 1)
         self.joystick = source.DataSource(System)
         super(Joystick, self).init()
-        if isinstance(self, SaveHDF):
-            self.add_dtype('joystick_sensor_vals', 'f8', (2,))
+        # if isinstance(self, SaveHDF):
+            # self.add_dtype('joystick_sensor_vals', 'f8', (2,))
 
     def run(self):
         '''
@@ -988,6 +988,7 @@ class SaveHDF(SinkRegister):
         -------
         '''
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
+        print "Beginning HDF file cleanup"
         print "#################%s"%self.h5file.name
         try:
             self.cleanup_hdf()
@@ -1461,7 +1462,11 @@ class NormFiringRates(traits.HasTraits):
         super(NormFiringRates, self).update_cursor()
 
 class LinearlyDecreasingAttribute(traits.HasTraits):
-    ''' Docstring '''
+    ''' 
+    Generic feature which linearly decreases an attribute used by the task
+    '''
+    attrs = []
+    attr_flags = dict()
     def __init__(self, *args, **kwargs):
         '''
         Docstring
@@ -1474,9 +1479,6 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         '''
         assert isinstance(self, experiment.Experiment)
         super(LinearlyDecreasingAttribute, self).__init__(*args, **kwargs)
-        self.attr_start, self.attr_min = getattr(self, self.attr)
-        setattr(self, 'current_%s' % self.attr, self.attr_start)
-        self.assist_flag = True
 
     def init(self):
         '''
@@ -1489,8 +1491,14 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         -------
         '''
         super(LinearlyDecreasingAttribute, self).init()
+        for attr in self.attrs:
+            self.attr_start, self.attr_min = getattr(self, attr)
+            setattr(self, 'current_%s' % attr, self.attr_start)
+            self.attr_flags[attr] = True
+
         if isinstance(self, SaveHDF):
-            self.add_dtype(self.attr, 'f8', (1,))
+            for attr in self.attrs:
+                self.add_dtype(attr, 'f8', (1,))
 
     def _linear_change(self, start_val, end_val, decay_time):
         '''
@@ -1522,15 +1530,18 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         Returns
         -------
         '''
-        decay_time = float(getattr(self, '%s_time' % self.attr)) #self.assist_level_time
-        current_level = self._linear_change(self.attr_start, self.attr_min, decay_time)
-        setattr(self, 'current_%s' % self.attr, current_level) 
-        if self.assist_flag and getattr(self, 'current_%s' % self.attr) == self.attr_min:
-            print "%s at final value after %d successful trials" % (self.attr, self.calc_n_rewards())
-            self.assist_flag = False
+        for attr in self.attrs:
+            decay_time = float(getattr(self, '%s_time' % attr))
+            attr_start, attr_min = getattr(self, attr)
+            current_level = self._linear_change(attr_start, attr_min, decay_time)
+            setattr(self, 'current_%s' % attr, current_level)
+            flag = self.attr_flags[attr]
+            if flag and getattr(self, 'current_%s' % attr) == attr_min:
+                print "%s at final value after %d successful trials" % (attr, self.calc_n_rewards())
+                self.attr_flags[attr] = False
 
-        if self.cycle_count % (self.fps * sec_per_min) == 0 and self.assist_flag:
-            print "%s: " % self.attr, getattr(self, 'current_%s' % self.attr)
+            if self.cycle_count % (self.fps * sec_per_min) == 0 and self.attr_flags[attr]:
+                print "%s: " % attr, getattr(self, 'current_%s' % attr)
 
     def _cycle(self):
         '''
@@ -1538,7 +1549,8 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         '''
         self.update_level()
         if hasattr(self, 'task_data'):
-            self.task_data[self.attr] = getattr(self, 'current_%s' % self.attr)
+            for attr in self.attrs:
+                self.task_data[attr] = getattr(self, 'current_%s' % attr)
 
         super(LinearlyDecreasingAttribute, self)._cycle()
 
@@ -1546,10 +1558,94 @@ class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
     ''' Docstring '''
     assist_level = traits.Tuple((0.0, 0.0), desc="Level of assist to apply to BMI output")
     assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")    
-    attr = 'assist_level'
+    # attr = 'assist_level'
+    def __init__(self, *args, **kwargs):
+        super(LinearlyDecreasingAssist, self).__init__(*args, **kwargs)
+        self.attrs.append('assist_level')
+    
 
 class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
     ''' Docstring '''
-    half_Life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
+    half_life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
     half_life_time = traits.Float(600, desc="Number of seconds to go from initial to final half life")
-    attr = 'half_life'
+    # attr = 'half_life'
+    def __init__(self, *args, **kwargs):
+        super(LinearlyDecreasingHalfLife, self).__init__(*args, **kwargs)
+        self.attrs.append('half_life')    
+
+
+########################################################################################################
+# Video Recording
+########################################################################################################
+import multiprocessing as mp 
+
+class MultiprocShellCommand(mp.Process):
+    def __init__(self, cmd, *args, **kwargs):
+        self.cmd = cmd
+        self.done = mp.Event()
+        super(MultiprocShellCommand, self).__init__(*args, **kwargs)
+
+    def run(self):
+        import subprocess
+        import os
+        os.popen(self.cmd)
+        # subprocess.call(self.cmd)
+        self.done.set()
+
+    def is_done(self):
+        return self.done.is_set()
+
+
+
+class SingleChannelVideo(traits.HasTraits):
+    def __init__(self, *args, **kwargs):
+        super(SingleChannelVideo, self).__init__(*args, **kwargs)
+
+    def init(self):
+        '''
+        Spawn process to run ssh command to begin video recording
+        '''
+        self.video_basename = 'video_%s.avi' % time.strftime('%Y_%m_%d_%H_%M_%S')
+        # 
+        
+        # cmd = """/usr/bin/ssh -tt video "cvlc v4l2:///dev/video0 --sout '#transcode{vcodec=h264}:std{access=file,mux=ts,dst=%s}'" """ % self.video_basename
+        
+        cmd = "ssh -tt video /home/lab/bin/recording_start.sh %s" % self.video_basename
+        
+        # subprocess.call(cmd)
+        cmd_caller = MultiprocShellCommand(cmd)
+        cmd_caller.start()
+        self.cmd_caller = cmd_caller
+        print "started video recording"
+        print cmd
+        
+        super(SingleChannelVideo, self).init()
+
+    def cleanup(self, database, saveid, **kwargs):
+        '''
+        Stop video recording and link file to database
+
+        Parameters
+        ----------
+        database
+        saveid
+
+        Returns
+        -------
+        None
+        '''
+
+        print "executing command to stop video recording"
+        os.popen('ssh -tt video /home/lab/bin/recording_end.sh')
+
+        print "Checking if video recording is done"
+        if self.cmd_caller.done.is_set():
+            print "SSH command finished!"
+
+        time.sleep(0.5)
+        super(SingleChannelVideo, self).cleanup(database, saveid, **kwargs)
+
+        ## Get the video filename
+        video_fname = os.path.join('/storage/video/%s' % self.video_basename)
+
+        database.save_data(video_fname, "video", saveid)

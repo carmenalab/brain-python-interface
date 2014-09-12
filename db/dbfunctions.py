@@ -14,7 +14,7 @@ import db.paths
 from collections import defaultdict, OrderedDict
 from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
-import config
+from config import config
 
 try:
     import plotutil
@@ -123,7 +123,7 @@ def get_decoder_name(entry):
         decid = json.loads(entry.params)['decoder']
     except:
         decid = json.loads(entry.params)['bmi']
-    return models.Decoder.objects.get(pk=decid).path
+    return models.Decoder.objects.get(pk=decid).name
 
 def get_decoder_name_full(entry):
     entry = lookup_task_entries(entry)
@@ -734,13 +734,15 @@ class TaskEntry(object):
     @property
     def hdf_filename(self):
         '''
-        Docstring
+        Get the task-generated HDF file linked to this TaskEntry
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        string
         '''
         q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
         dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
@@ -1147,6 +1149,16 @@ class TaskEntryCollection(object):
             The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
             grouped by tuples are combined into a single result. 
         '''
+
+        if isinstance(trial_filter_fn, str):
+            trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
+
+        if isinstance(trial_proc_fn, str):
+            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
+
+        if isinstance(trial_condition_fn, str):
+            trial_condition_fn = getattr(trial_condition_functions, trial_proc_fn)            
+
         result = []
         for blockset in self.blocks:
             if isinstance(blockset, int):

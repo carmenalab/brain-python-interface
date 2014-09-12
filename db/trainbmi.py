@@ -20,6 +20,7 @@ from tracker import dbq
 
 import numpy as np
 from riglib.bmi import extractor
+from config import config 
 
 @task()
 def cache_plx(plxfile):
@@ -58,7 +59,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             #  units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
             units = np.hstack([channels.reshape(-1, 1), np.ones(channels.reshape(-1, 1).shape, dtype=np.int32)])
     else:
-        raise Exception('Unknown feature_type!')
+        raise Exception('Unknown extractor class!')
 
 
     # TODO -- hardcoding this here for now, but eventually the extractor kwargs
@@ -130,8 +131,8 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
         Task time to use when training the decoder
     """
 
-    import config
-    if config.recording_system == 'plexon':
+    # import config
+    if config.recording_sys['make'] == 'plexon':
         plexon = models.System.objects.get(name='plexon')
         plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
 
@@ -142,7 +143,7 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
         else:
             make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
     
-    elif config.recording_system == 'blackrock':
+    elif config.recording_sys['make'] == 'blackrock':
         make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
     
     else:

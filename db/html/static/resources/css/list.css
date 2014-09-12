@@ -21,9 +21,12 @@ table#main th {
 	border-bottom:1px solid;
 	border-color:inherit;
 }
+
+/* Make the cursor over the list appear like a pointer */
 table#main tr {
 	cursor:pointer;
 }
+
 table#main tbody>tr:hover {
 	background:#DDD;
 }
@@ -31,12 +34,20 @@ table#main tr#newentry {
 	display:none;
 }
 th { text-align:left;}
-.colDate {	min-width:160px; }
-.colSubj {	min-width:60px;}
-.colTask {	min-width:60px;}
+.colDate {	width:200px; }
+.colSubj {	width:60px;}
+.colTask {	width:60px;}
 .rowactive td { 
 	position:relative; 
 	z-index:10;
+}
+
+input[type="text"] {
+    width: 50px;
+}
+
+input[type="number"] {
+    width: 50px;
 }
 
 #report td:first-child {
@@ -44,11 +55,11 @@ th { text-align:left;}
 }
 
 div#leftpane { 
-	width:500px; 
+	width:450px; 
 	overflow:auto;
 }
 div#rightpane { 
-	left:500px; 
+	left:450px; 
 	width:1000px; 
 	height:100%;
 	position:fixed;
@@ -62,7 +73,7 @@ div#content {
 	display:none;
 }
 form#experiment { 
-	padding:0.5em;
+	padding:0.5em; /* padding around the entire right pane */
 }
 ul {
 	margin:0px;

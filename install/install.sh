@@ -58,6 +58,8 @@ sudo apt-get -y install python-comedilib
 sudo apt-get -y install swig
 # DHCP server
 sudo apt-get -y install isc-dhcp-server
+# cURL: command line utility for url transfer
+sudo apt-get -y install curl
 
 
 ####### Install Python dependencies
