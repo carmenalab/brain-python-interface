@@ -11,7 +11,7 @@ import binascii
 import threading
 import cStringIO
 import traceback
-import config
+from config import config
 
 
 import serial
@@ -75,7 +75,7 @@ class Basic(object):
         -------
         '''
         self.port = serial.Serial(glob.glob("/dev/ttyUSB0")[0], baudrate=38400)
-        self.version = config.reward_system_version
+        self.version = int(config.reward_sys['version'])
         if self.version==1: self.set_beeper_volume(128)
         time.sleep(.5)
         self.reset()

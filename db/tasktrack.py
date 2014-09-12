@@ -15,6 +15,7 @@ import collections
 from riglib import experiment
 import websocket
 
+from config import config
 from json_param import Parameters
 
 class Track(object):
@@ -190,11 +191,11 @@ class Task(object):
                 import comedi
                 self.com = comedi.comedi_open("/dev/comedi0")
 
-                import config
-                if config.recording_system == 'plexon':
+                
+                if config.recording_sys['make'] == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
                 
-                elif config.recording_system == 'blackrock':
+                elif config.recording_sys['make'] == 'blackrock':
                     # set strobe pin low
                     comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
@@ -256,9 +257,9 @@ class Task(object):
                 print "Stopping neural recording"
                 import comedi
                 import config
-                if config.recording_system == 'plexon':
+                if config.recording_sys['make'] == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
-                elif config.recording_system == 'blackrock':
+                elif config.recording_sys['make'] == 'blackrock':
                     # strobe pin should already be low
 
                     # set last data pin ("D15"; 16th pin) low

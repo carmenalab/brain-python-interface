@@ -3,7 +3,7 @@
 import numpy as np
 
 import config
-if config.recording_system == 'blackrock':
+if config.recording_sys['make'] == 'blackrock':
     import cerelink
     
 

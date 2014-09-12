@@ -14,7 +14,7 @@ import db.paths
 from collections import defaultdict, OrderedDict
 from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
-import config
+from config import config
 
 try:
     import plotutil
@@ -606,7 +606,7 @@ class TaskEntry(object):
         -------
         '''
         decoder_basename = self.decoder_record.path
-        dbconfig = getattr(config.config, 'db_config_%s' % self.record._state.db)
+        dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
         return os.path.join(dbconfig['data_path'], 'decoders', decoder_basename)
 
     def summary_stats(self):
@@ -745,7 +745,7 @@ class TaskEntry(object):
         string
         '''
         q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
-        dbconfig = getattr(config.config, 'db_config_%s' % self.record._state.db)
+        dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
         return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
 
     @property
