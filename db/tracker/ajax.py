@@ -113,6 +113,24 @@ def start_experiment(request, save=True):
         err.seek(0)
         return _respond(dict(status="error", msg=err.read()))
 
+def rpc(fn):
+    '''
+    Generic remote procedure call function
+    '''
+    #make sure that there exists an experiment to stop
+    if display.status.value not in ["running", "testing"]:
+        return _respond(dict(status="error", msg="No task to end!"))
+    try:
+        status = display.status.value
+        display.stoptask()
+        return _respond(dict(status="pending", msg=status))
+    except:
+        import cStringIO
+        import traceback
+        err = cStringIO.StringIO()
+        traceback.print_exc(None, err)
+        err.seek(0)
+        return _respond(dict(status="error", msg=err.read()))    
 
 def stop_experiment(request):
     #make sure that there exists an experiment to stop
