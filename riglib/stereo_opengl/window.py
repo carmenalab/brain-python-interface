@@ -19,7 +19,7 @@ from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere
 from riglib.stereo_opengl.environment import Box
 import time
-import config
+from config import config
 from primitives import Cylinder, Sphere, Cone
 from profile_support import profile
 
@@ -193,10 +193,10 @@ class Simple2DWindow(object):
         win_res = (1000, 560)
 
         
-        if config.recording_system == 'plexon':
+        if config.recording_sys['make'] == 'plexon':
             self.workspace_bottom_left = (-18., -12.)
             self.workspace_top_right   = (18., 12.)
-        elif config.recording_system == 'blackrock':
+        elif config.recording_sys['make'] == 'blackrock':
             self.workspace_bottom_left = (0., 0.)
             self.workspace_top_right   = (42., 30.)
         else:

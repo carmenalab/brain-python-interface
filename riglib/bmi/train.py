@@ -1370,8 +1370,7 @@ def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
 
     mFR = 0
     sdFR = 1
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
-        states, drives_neurons, states_to_bound)
+    decoder = kfdecoder.KFDecoder(kf, units, _ssm, binlen=dt, n_subbins=1, mFR=mFR, sdFR=sdFR)
 
     cm_to_m = 0.01
     decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
