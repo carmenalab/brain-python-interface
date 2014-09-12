@@ -12,10 +12,6 @@ class Config:
 		self.recording_system = dict(parser.items('recording_sys'))['make']
 		self.data_path = dict(parser.items('db_config_default'))['data_path']
 
-		self.db_config_default = dict(parser.items('db_config_default'))
-		self.db_config_bmi3d = dict(parser.items('db_config_bmi3d'))
-		self.db_config_exorig = dict(parser.items('db_config_exorig'))
-
 		self.window_start_x = dict(parser.items('graphics'))['window_start_x']
 		self.window_start_y = dict(parser.items('graphics'))['window_start_y']
 		self.display_start_pos = '%s,%s' % (self.window_start_x, self.window_start_y)

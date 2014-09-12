@@ -47,7 +47,7 @@ class Window(LogExperiment):
     screen_dist = 44.5+3
     iod = 2.5
 
-    show_environment=traits.Int(0)
+    show_environment = traits.Int(0)
 
     def __init__(self, **kwargs):
         # self.window_size = (self.window_size[0]*2, self.window_size[1]) # Stereo window display

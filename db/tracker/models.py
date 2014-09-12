@@ -14,6 +14,7 @@ from django.core.exceptions import ObjectDoesNotExist
 import numpy as np
 
 from riglib import calibrations, experiment
+import db.paths
 
 def _get_trait_default(trait):
     '''Function which tries to resolve traits' retarded default value system'''
@@ -658,7 +659,8 @@ class Decoder(models.Model):
         return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
     def load(self):
-        decoder_fname = os.path.join('/storage/decoders/', self.path)
+        decoder_fname = os.path.join(db.paths.data_path, 'decoders', self.path)
+        #print decoder_fname
         decoder_name = self.name
         dec = pickle.load(open(decoder_fname))
         dec.name = decoder_name

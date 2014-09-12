@@ -13,6 +13,7 @@ import cStringIO
 import traceback
 import config
 
+
 import serial
 import time
 
@@ -194,11 +195,11 @@ class Basic(object):
         '''
         assert drain_time > 0
         assert drain_time < 9999
-        if self.version==0: #have to wait and manually tell it to turn off
+        if self.version == 0: #have to wait and manually tell it to turn off
             self._write("@CNSENN")
             time.sleep(drain_time)
             self._write("@CNSDNN")
-        elif self.version==1:
+        elif self.version == 1:
             self._write('@M1' + struct.pack('H', drain_time) + 'D' + struct.pack('xx'))
         else:
             raise Exception("Unrecognized reward system version!")

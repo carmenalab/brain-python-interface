@@ -2,7 +2,10 @@
 
 import numpy as np
 
-import cerelink
+import config
+if config.recording_system == 'blackrock':
+    import cerelink
+    
 
 
 class Spikes(object):

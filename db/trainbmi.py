@@ -58,7 +58,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             #  units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
             units = np.hstack([channels.reshape(-1, 1), np.ones(channels.reshape(-1, 1).shape, dtype=np.int32)])
     else:
-        raise Exception('Unknown feature_type!')
+        raise Exception('Unknown extractor class!')
 
 
     # TODO -- hardcoding this here for now, but eventually the extractor kwargs
