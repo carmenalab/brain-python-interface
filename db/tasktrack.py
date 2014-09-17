@@ -52,6 +52,9 @@ class Track(object):
         self.proc.start()
         
     def __del__(self):
+        '''
+        Destructor for Track object. Not sure if this function ever gets called since Track is a singleton created upon import of the ajax library...
+        '''
         self.websock.stop()
 
     def pausetask(self):
@@ -75,7 +78,9 @@ class Track(object):
         return status
 
 def runtask(cmds, _cmds, websock, **kwargs):
-
+    '''
+    Target function to execute in the separate process to start the task
+    '''
     import time
     from riglib.experiment import report
 
@@ -155,7 +160,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
 
     # Summarize performance during task
     try:
-        from tasks import performance
+        from analysis import performance
         te = performance._get_te(task.saveid)
         print te.summary()
     except:
