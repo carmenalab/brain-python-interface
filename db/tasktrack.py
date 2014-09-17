@@ -213,7 +213,8 @@ class Task(object):
                     # set strobe pin low
                     comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
-                time.sleep(2)
+                # Wait a couple of seconds for the recording system to start up
+                time.sleep(3)
             except:
                 print "No comedi, cannot start"
         
@@ -261,7 +262,6 @@ class Task(object):
             try:
                 print "Stopping neural recording"
                 import comedi
-                import config
                 if config.recording_sys['make'] == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
                 elif config.recording_sys['make'] == 'blackrock':
