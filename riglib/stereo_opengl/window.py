@@ -207,12 +207,25 @@ class Simple2DWindow(object):
 
         self.display_border = 10
 
-        self.size = np.array(win_res)
+        self.size = np.array(win_res, dtype=np.float64)
         self.screen = pygame.display.set_mode(win_res, flags)
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
         self.screen_background.fill(self.background)
 
-        self.pix_per_m = 10.4 #38.4 #self.size/self.workspace_size
+        x1, y1 = self.workspace_top_right
+        x0, y0 = self.workspace_bottom_left
+        self.normalize = np.array(np.diag([1./(x1-x0), 1./(y1-y0), 1]))
+        self.center_xform = np.array([[1., 0, -x0], 
+                                      [0, 1., -y0],
+                                      [0, 0, 1]])
+        self.norm_to_screen = np.array(np.diag(np.hstack([self.size, 1])))
+
+        # the y-coordinate in pixel space has to be swapped for some graphics convention reason
+        self.flip_y_coord = np.array([[1, 0, 0],
+                                      [0, -1, self.size[1]],
+                                      [0, 0, 1]])
+
+        self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
 
         self.world = GroupDispl2D(self.models)
         self.world.init()
@@ -236,20 +249,13 @@ class Simple2DWindow(object):
         self.surf_background.fill(TRANSPARENT)
 
     def pos2pix(self, kfpos):
-        # rescale the cursor position to (0,1)
+        # re-specify the point in homogenous coordinates
+        pt = np.hstack([kfpos, 1]).reshape(-1, 1)
 
-        norm_x_pos = (self.display_border + (kfpos[0] - self.workspace_bottom_left[0])) / (self.workspace_x_len + 2*self.display_border)
-        norm_y_pos = (self.display_border + (kfpos[1] - self.workspace_bottom_left[1])) / (self.workspace_y_len + 2*self.display_border)
-        norm_workspace_pos = np.array([norm_x_pos, norm_y_pos])
+        # perform the homogenous transformation
+        pix_coords = np.dot(self.pos_space_to_pixel_space, pt)
 
-        # multiply by the workspace size in pixels 
-        pix_pos = self.size*norm_workspace_pos
-
-        # flip y-coordinate
-        pix_pos[1] = self.size[1] - pix_pos[1]
-
-        # cast to integer
-        pix_pos = np.array(pix_pos, dtype=int) 
+        pix_pos = np.array(pix_coords[:2,0], dtype=int)
         return pix_pos
 
     @profile
@@ -266,7 +272,7 @@ class Simple2DWindow(object):
                 pix_pos = self.pos2pix(pos)
                 color = tuple(map(lambda x: int(255*x), model.color[0:3]))
                 rad = model.radius
-                pix_radius = int(rad * self.pix_per_m)
+                pix_radius = self.pos2pix(np.array([model.radius, 0]))[0] - self.pos2pix([0,0])[0]
 
                 #Draws cursor and targets on transparent surfaces
                 pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
@@ -317,7 +323,6 @@ class Simple2DWindow(object):
         self.screen.blit(self.surf['0'], (0,0))
         self.screen.blit(self.surf['1'], (0,0))
         pygame.display.update()
-        # self.clock.tick(self.fps)
 
     def requeue(self):
         '''
