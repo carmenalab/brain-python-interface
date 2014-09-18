@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import time, datetime
 from scipy.stats import nanmean
 import db
-import db.paths
 from collections import defaultdict, OrderedDict
 from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
