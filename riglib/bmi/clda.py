@@ -23,9 +23,12 @@ from utils.angle_utils import *
 
 inv = np.linalg.inv
 
-from numpy.linalg import lapack_lite
-lapack_routine = lapack_lite.dgesv
-
+try:
+    from numpy.linalg import lapack_lite
+    lapack_routine = lapack_lite.dgesv
+except:
+    pass
+    
 def fast_inv(A):
     '''
     This method represents a way to speed up matrix inverse computations when 
