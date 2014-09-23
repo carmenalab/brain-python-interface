@@ -14,7 +14,6 @@ from django.core.exceptions import ObjectDoesNotExist
 import numpy as np
 
 from riglib import calibrations, experiment
-import db.paths
 from config import config
 
 def _get_trait_default(trait):
