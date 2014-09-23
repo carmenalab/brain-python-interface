@@ -1589,7 +1589,6 @@ class MultiprocShellCommand(mp.Process):
         import subprocess
         import os
         os.popen(self.cmd)
-        # subprocess.call(self.cmd)
         self.done.set()
 
     def is_done(self):
@@ -1605,14 +1604,9 @@ class SingleChannelVideo(traits.HasTraits):
         '''
         Spawn process to run ssh command to begin video recording
         '''
-        self.video_basename = 'video_%s.avi' % time.strftime('%Y_%m_%d_%H_%M_%S')
-        # 
-        
-        # cmd = """/usr/bin/ssh -tt video "cvlc v4l2:///dev/video0 --sout '#transcode{vcodec=h264}:std{access=file,mux=ts,dst=%s}'" """ % self.video_basename
-        
+        self.video_basename = 'video_%s.avi' % time.strftime('%Y_%m_%d_%H_%M_%S')        
         cmd = "ssh -tt video /home/lab/bin/recording_start.sh %s" % self.video_basename
         
-        # subprocess.call(cmd)
         cmd_caller = MultiprocShellCommand(cmd)
         cmd_caller.start()
         self.cmd_caller = cmd_caller
