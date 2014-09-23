@@ -1,3 +1,6 @@
+'''
+Interface between the Django database methods/models and data analysis code
+'''
 import os
 import sys
 import json
