@@ -338,6 +338,39 @@ class WindowDispl2D(Simple2DWindow, Window):
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 
 
+class FakeWindow(object):
+    '''
+    A dummy class to secretly avoid rendering graphics without 
+    the graphics-based tasks knowing about it. Used e.g. for simulation 
+    purposes where the graphics only slow down the simulation.
+    '''
+    background = (1,1,1,1)
+    def __init__(self, *args, **kwargs):
+        self.models = []
+        self.world = None
+        self.event = None        
+        super(FakeWindow, self).__init__(*args, **kwargs)
+
+    def screen_init(self):
+        pass
+
+    def draw_world(self):
+        pass
+
+    def requeue(self):
+        pass
+
+    def _start_reward(self, *args, **kwargs):
+        if self.calc_n_rewards() % 10 == 0:
+            print self.calc_n_rewards()
+        super(FakeWindow, self)._start_reward(*args, **kwargs)
+
+    def show_object(self, *args, **kwargs):
+        pass
+
+    def _get_event(self):
+        pass
+
 
 class FPScontrol(Window):
     '''A mixin that adds a WASD + Mouse controller to the window. 
