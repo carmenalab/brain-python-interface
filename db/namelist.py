@@ -32,6 +32,12 @@ features = dict(
     single_video=experiment.features.SingleChannelVideo,
 )
 
+
+## BMI Plants
+from riglib import plants
+cursor_14x14 = plants.CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14))
+plantlist = dict(cursor_14x14=cursor_14x14)
+
 import tasks
 from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback
 generators = dict(
@@ -143,8 +149,6 @@ tasks = dict(
     ibmi_clda_control    = blackrocktasks.CLDAControl,
 )
 
-arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D', 'Arm3D']
-
 ## BMI seed tasks
 # The below list shows which tasks can be used to train new Decoders
 bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi']
@@ -200,4 +204,5 @@ extractors = dict(
 )
 
 default_extractor = "spikecounts"
+
 

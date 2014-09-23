@@ -48,7 +48,7 @@ class Task(models.Model):
 
     def params(self, feats=(), values=None):
         from riglib import experiment
-        from namelist import instance_to_model, arms
+        from namelist import instance_to_model, plantlist
         if values is None:
             values = dict()
         
@@ -69,7 +69,8 @@ class Task(models.Model):
                 insts = Model.objects.order_by("-date")#[:200]
                 varname['options'] = [(i.pk, i.name) for i in insts]
             if varname['type'] == "Enum":
-                varname['options'] = arms
+                if trait == 'arm_class':
+                    varname['options'] = plantlist.keys()
             params[trait] = varname
             if trait == 'bmi':
                 params['decoder'] = varname
