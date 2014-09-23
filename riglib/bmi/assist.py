@@ -34,6 +34,8 @@ class Assister(object):
             will have this be a number in the range (0, 1) where 0 is no assist and 1 is full assist
         mode: hashable type, optional, default=None
             Indicator of which mode of the assistive controller to use. When applied, this 'mode' is used as a dictionary key and must be hashable
+        kwargs: additional keyword arguments
+            These are ignored
 
         Returns
         -------
@@ -313,7 +315,27 @@ class Joint5DOFEndpointTargetAssister(SimpleEndpointAssister):
 
 
 def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5, target_radius=2., assist_level=0.):
-    '''    Docstring    '''
+    '''
+    Parameters
+    ----------
+    cursor_pos: np.ndarray of shape (3,)
+        Current position of the cursor
+    target_pos: np.ndarray of shape (3,)
+        Specified target position
+    decoder_binlen: float
+        Time between iterations of the decoder
+    speed: float
+        Speed of the machine-assisted cursor
+    target_radius: float
+        Radius of the target. When the cursor is inside the target, the machine assisted cursor speed decreases.
+    assist_level: float
+        Scalar between (0, 1) where 1 indicates full machine control and 0 indicates full neural control.
+
+    Returns
+    -------
+    Bu: np.ndarray of shape (7, 1)
+        Control vector to add onto the state vector to assist control.
+    '''
     diff_vec = target_pos - cursor_pos 
     dist_to_target = np.linalg.norm(diff_vec)
     dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
