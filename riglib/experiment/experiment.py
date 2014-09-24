@@ -229,7 +229,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         self.cycle_count += 1
         if self.fps > 0:
-            print "clock ticking!"
             self.clock.tick(self.fps)
 
     def iter_time(self):
@@ -386,7 +385,10 @@ class LogExperiment(Experiment):
         print "experiment.LogExperiment.cleanup"
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
-        database.save_log(saveid, self.event_log, dbname=dbname)
+        if dbname == 'default':
+            database.save_log(saveid, self.event_log)
+        else:
+            database.save_log(saveid, self.event_log, dbname=dbname)
 
 class Sequence(LogExperiment):
     ''' Docstring '''

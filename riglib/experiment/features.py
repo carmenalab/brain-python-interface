@@ -132,7 +132,10 @@ class JuiceLogging(traits.HasTraits):
 
         ## Link the image to the database
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
-        database.save_data(fname, 'juice_log', saveid, dbname=dbname)
+        if dbname == 'default':
+            database.save_data(fname, 'juice_log', saveid)
+        else:
+            database.save_data(fname, 'juice_log', saveid, dbname=dbname)
 
 
 class Autostart(traits.HasTraits):
@@ -578,7 +581,10 @@ class EyeData(traits.HasTraits):
         '''
         super(EyeData, self).cleanup(database, saveid, **kwargs)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
-        database.save_data(self.eyefile, "eyetracker", saveid, dbname=dbname)
+        if dbname == 'default':
+            database.save_data(self.eyefile, "eyetracker", saveid)
+        else:
+            database.save_data(self.eyefile, "eyetracker", saveid, dbname=dbname)
 
 class SimulatedEyeData(EyeData):
     '''Simulate an eyetracking system using a series of fixations, with saccades interpolated'''
@@ -998,7 +1004,10 @@ class SaveHDF(SinkRegister):
             traceback.print_exc()
 
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
-        database.save_data(self.h5file.name, "hdf", saveid, dbname=dbname)
+        if dbname == 'default':
+            database.save_data(self.h5file.name, "hdf", saveid)
+        else:
+            database.save_data(self.h5file.name, "hdf", saveid, dbname=dbname)
 
 ########################################################################################################
 # Plexon features
@@ -1149,7 +1158,10 @@ class RelayPlexon(SinkRegister):
         time.sleep(2)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if self.plexfile is not None:
-            database.save_data(self.plexfile, "plexon", saveid, True, False, dbname=dbname)
+            if dbname == 'default':
+                database.save_data(self.plexfile, "plexon", saveid, True, False)
+            else:
+                database.save_data(self.plexfile, "plexon", saveid, True, False, dbname=dbname)
         
 class RelayPlexByte(RelayPlexon):
     '''
@@ -1674,4 +1686,7 @@ class SingleChannelVideo(traits.HasTraits):
         video_fname = os.path.join('/storage/video/%s' % self.video_basename)
 
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
-        database.save_data(video_fname, "video", saveid, dbname=dbname)
+        if dbname == 'default':
+            database.save_data(video_fname, "video", saveid)
+        else:
+            database.save_data(video_fname, "video", saveid, dbname=dbname)
