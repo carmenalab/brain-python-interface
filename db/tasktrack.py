@@ -148,7 +148,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
         import traceback
         err = cStringIO.StringIO()
         traceback.print_exc(None, err)
-        with open('/tmp/exceptions', 'w') as fp:
+        with open(os.path.expandvars('$BMI3D/log/tasktrack_log'), 'w') as fp:
             err.seek(0)
             fp.write(err.read())
         err.seek(0)

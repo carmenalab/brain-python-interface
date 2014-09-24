@@ -34,7 +34,7 @@ table#main tr#newentry {
 	display:none;
 }
 th { text-align:left;}
-.colDate {	width:200px; }
+.colDate {	width:250px; }
 .colSubj {	width:60px;}
 .colTask {	width:60px;}
 .rowactive td { 
