@@ -2,7 +2,7 @@
 Lookup table for features, generators and tasks for experiments
 '''
 
-
+import numpy as np
 from riglib import experiment, calibrations, bmi
 
 features = dict(
@@ -36,7 +36,14 @@ features = dict(
 ## BMI Plants
 from riglib import plants
 cursor_14x14 = plants.CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14))
-plantlist = dict(cursor_14x14=cursor_14x14)
+
+chain_kwargs = dict(link_radii=.6, joint_radii=0.6, joint_colors=(181/256., 116/256., 96/256., 1), link_colors=(181/256., 116/256., 96/256., 1))
+shoulder_anchor = np.array([2., 0., -15])
+chain_15_15_5_5 = plants.RobotArmGen2D(link_lengths=[15, 15, 5, 5], base_loc=shoulder_anchor, **chain_kwargs)
+init_joint_pos = np.array([ 0.47515737,  1.1369006 ,  1.57079633,  0.29316668])
+chain_15_15_5_5.set_intrinsic_coordinates(init_joint_pos)
+
+plantlist = dict(cursor_14x14=cursor_14x14, chain_15_15_5_5=chain_15_15_5_5)
 
 import tasks
 from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback
