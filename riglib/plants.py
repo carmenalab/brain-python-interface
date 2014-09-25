@@ -91,7 +91,7 @@ class CursorPlant(Plant):
 
 class VirtualKinematicChain(Plant):
     def __init__(self, *args, **kwargs):
-        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.arm.num_joints, )), ('arm_visible','f8',(1,))]
+        
         super(VirtualKinematicChain, self).__init__(*args, **kwargs)
 
 
@@ -115,8 +115,7 @@ class RobotArmGen2D(Plant):
         '''
         Instantiate the graphics and the virtual arm for a planar kinematic chain
         '''
-        num_joints = len(link_lengths)
-        self.num_joints = num_joints
+        self.num_joints = num_joints = len(link_lengths)
 
         self.link_radii = make_list(link_radii, num_joints)
         self.joint_radii = make_list(joint_radii, num_joints)
@@ -136,6 +135,8 @@ class RobotArmGen2D(Plant):
 
         self.base_loc = base_loc
         self._pickle_init()
+
+        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.arm.num_joints, )), ('arm_visible','f8',(1,))]
 
     def _pickle_init(self):
         '''
