@@ -153,6 +153,7 @@ class Window(LogExperiment):
 
     @profile
     def _cycle(self):
+        self.requeue()
         self.draw_world()
         super(Window, self)._cycle()
         self.event = self._get_event()
