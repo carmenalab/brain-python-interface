@@ -6,6 +6,7 @@ import numpy as np
 from stereo_opengl.primitives import Cylinder, Sphere, Cone
 
 class Plant(object):
+    hdf_attrs = []
     def __init__(self):
         raise NotImplementedError
 
@@ -15,8 +16,11 @@ class Plant(object):
         if not np.any(np.isnan(intrinsic_coords)):
             decoder['q'] = self.get_intrinsic_coordinates()
 
+    def get_data_to_save(self):
+        raise NotImplementedError
 
 class CursorPlant(Plant):
+    hdf_attrs = [('cursor', 'f8', (3,))]
     def __init__(self, endpt_bounds=None, cursor_radius=0.4, cursor_color=(.5, 0, .5, 1), starting_pos=np.array([0., 0., 0.]), **kwargs):
         self.endpt_bounds = endpt_bounds
         self.position = starting_pos
@@ -30,17 +34,22 @@ class CursorPlant(Plant):
         self.cursor.translate(*self.position, reset=True)
         self.graphics_models = [self.cursor]
 
+    def draw(self):
+        self.cursor.translate(*self.position, reset=True)
+
     def get_endpoint_pos(self):
         return self.position
 
     def set_endpoint_pos(self, pt, **kwargs):
         self.position = pt
+        self.draw()
 
     def get_intrinsic_coordinates(self):
         return self.position
 
     def set_intrinsic_coordinates(self, pt):
         self.position = pt
+        self.draw()
 
     def drive(self, decoder):
         pos = decoder['q'].copy()
@@ -66,7 +75,12 @@ class CursorPlant(Plant):
         decoder['qdot'] = vel
         super(CursorPlant, self).drive(decoder)
 
+    def get_data_to_save(self):
+        return dict(cursor=self.position)
+
 
 
 class VirtualKinematicChain(Plant):
-	pass
+    def __init__(self, *args, **kwargs):
+        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.arm.num_joints, )), ('arm_visible','f8',(1,))]
+        super(VirtualKinematicChain, self).__init__(*args, **kwargs)
