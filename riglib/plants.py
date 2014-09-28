@@ -22,6 +22,24 @@ class Plant(object):
     def get_data_to_save(self):
         raise NotImplementedError
 
+    def init(self):
+        '''
+        Secondary initialization after object construction. Does nothing by default
+        '''
+        pass
+
+    def start(self):
+        '''
+        Start any auxiliary processes used by the plant
+        '''
+        pass
+
+    def stop(self):
+        '''
+        Stop any auxiliary processes used by the plant
+        '''        
+        pass
+
 class CursorPlant(Plant):
     hdf_attrs = [('cursor', 'f8', (3,))]
     def __init__(self, endpt_bounds=None, cursor_radius=0.4, cursor_color=(.5, 0, .5, 1), starting_pos=np.array([0., 0., 0.]), **kwargs):
