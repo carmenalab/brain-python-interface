@@ -30,6 +30,8 @@ class CursorPlant(Plant):
         self.starting_pos = starting_pos
         self.cursor_radius = cursor_radius
         self.cursor_color = cursor_color
+        from riglib.bmi import state_space_models
+        self.ssm = state_space_models.StateSpaceEndptVel2D()
         self._pickle_init()
 
     def _pickle_init(self):
@@ -136,7 +138,10 @@ class RobotArmGen2D(Plant):
         self.base_loc = base_loc
         self._pickle_init()
 
-        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.arm.num_joints, )), ('arm_visible','f8',(1,))]
+        from riglib.bmi import state_space_models
+        self.ssm = state_space_models.StateSpaceFourLinkTentacle2D()
+
+        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
 
     def _pickle_init(self):
         '''
@@ -167,6 +172,7 @@ class RobotArmGen2D(Plant):
             self.link_groups[i].translate(0, 0, link_offsets[i])
 
         self.link_groups[0].translate(*self.base_loc, reset=True)
+        self.graphics_models = [self.link_groups[0]]
 
     def _update_link_graphics(self):
         for i in range(0, self.num_joints):
@@ -238,3 +244,6 @@ class RobotArmGen2D(Plant):
                 self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
                 
         self._update_link_graphics()
+
+    def get_data_to_save(self):
+        return dict(cursor=self.get_endpoint_pos(), joint_angles=self.get_intrinsic_coordinates())
