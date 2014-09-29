@@ -362,8 +362,9 @@ class FakeWindow(object):
         pass
 
     def _start_reward(self, *args, **kwargs):
-        if self.calc_n_rewards() % 10 == 0:
-            print self.calc_n_rewards()
+        n_rewards = self.calc_state_occurrences('reward')
+        if n_rewards % 10 == 0:
+            print n_rewards
         super(FakeWindow, self)._start_reward(*args, **kwargs)
 
     def show_object(self, *args, **kwargs):

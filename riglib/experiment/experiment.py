@@ -341,6 +341,7 @@ class LogExperiment(Experiment):
     '''
     # List out state/trigger pairs to exclude from logging
     log_exclude = set()
+    trial_end_states = []
     def __init__(self, **kwargs):
         '''
         Constructor for LogExperiment
@@ -413,6 +414,15 @@ class LogExperiment(Experiment):
             database.save_log(saveid, self.event_log)
         else:
             database.save_log(saveid, self.event_log, dbname=dbname)
+
+    def calc_state_occurrences(self, state_name):
+        times = np.array([state[1] for state in self.state_log if state[0] == state_name])
+        return len(times)
+
+    def calc_trial_num(self):
+        '''Calculates the current trial count'''
+        trialtimes = [state[1] for state in self.state_log if state[0] in self.trial_end_states]
+        return len(trialtimes)
 
 class Sequence(LogExperiment):
     '''

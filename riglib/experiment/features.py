@@ -1580,7 +1580,7 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
             setattr(self, 'current_%s' % attr, current_level)
             flag = self.attr_flags[attr]
             if flag and getattr(self, 'current_%s' % attr) == attr_min:
-                print "%s at final value after %d successful trials" % (attr, self.calc_n_rewards())
+                print "%s at final value after %d successful trials" % (attr, self.calc_state_occurrences('reward'))
                 self.attr_flags[attr] = False
 
             if self.cycle_count % (1./self.update_rate * sec_per_min) == 0 and self.attr_flags[attr]:
