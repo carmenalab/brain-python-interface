@@ -14,7 +14,7 @@ from django.core.exceptions import ObjectDoesNotExist
 import numpy as np
 
 from riglib import calibrations, experiment
-import db.paths
+from config import config
 
 def _get_trait_default(trait):
     '''Function which tries to resolve traits' retarded default value system'''
@@ -48,7 +48,7 @@ class Task(models.Model):
 
     def params(self, feats=(), values=None):
         from riglib import experiment
-        from namelist import instance_to_model, arms
+        from namelist import instance_to_model, plantlist
         if values is None:
             values = dict()
         
@@ -69,7 +69,8 @@ class Task(models.Model):
                 insts = Model.objects.order_by("-date")#[:200]
                 varname['options'] = [(i.pk, i.name) for i in insts]
             if varname['type'] == "Enum":
-                varname['options'] = arms
+                if trait == 'arm_class':
+                    varname['options'] = plantlist.keys()
             params[trait] = varname
             if trait == 'bmi':
                 params['decoder'] = varname
@@ -397,8 +398,8 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             js['report'] = dict()
 
-        import config
-        if config.recording_system == 'plexon':
+        # import config
+        if config.recording_sys['make'] == 'plexon':
             try:
                 from plexon import plexfile
                 plexon = System.objects.get(name='plexon')
@@ -423,7 +424,7 @@ class TaskEntry(models.Model):
                 print "No plexon file found"
                 js['bmi'] = dict(_neuralinfo=None)
         
-        elif config.recording_system == 'blackrock':
+        elif config.recording_sys['make'] == 'blackrock':
             try:
                 nev_fname = self.nev_file
                 path, name = os.path.split(nev_fname)
@@ -597,13 +598,13 @@ class TaskEntry(models.Model):
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
-        import config
-        if config.recording_system == 'plexon':
+        # import config
+        if config.recording_sys['make'] == 'plexon':
             try:
                 return str(os.path.basename(self.plx_file).rstrip('.plx'))
             except:
                 return 'noname'
-        elif config.recording_system == 'blackrock':
+        elif config.recording_sys['make'] == 'blackrock':
             try:
                 return str(os.path.basename(self.nev_file).rstrip('.nev'))
             except:
@@ -659,7 +660,8 @@ class Decoder(models.Model):
         return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
     def load(self):
-        decoder_fname = os.path.join(db.paths.data_path, 'decoders', self.path)
+        data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+        decoder_fname = os.path.join(data_path, 'decoders', self.path)
         #print decoder_fname
         decoder_name = self.name
         dec = pickle.load(open(decoder_fname))

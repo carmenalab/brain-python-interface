@@ -142,6 +142,7 @@ class CLDASimCosEnc(CosEnc):
         '''        
         super(CLDASimCosEnc, self).__init__(*args, **kwargs)
         self.call_count = 0
+        self.call_ds_rate = 6
 
     def __call__(self, user_input):
         '''
@@ -153,7 +154,7 @@ class CLDASimCosEnc(CosEnc):
         Returns
         -------
         '''        
-        if self.call_count % 6 == 0: # TODO this assumes the neurons cannot change faster than 10 Hz
+        if self.call_count % self.call_ds_rate == 0: # TODO this assumes the neurons cannot change faster than 10 Hz
             ts_data = super(CLDASimCosEnc, self).__call__(user_input)
         elif self.return_ts:
             ts_data = np.array([])

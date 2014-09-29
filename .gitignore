@@ -22,3 +22,4 @@ tasks/debugging.txt
 riglib/plexon/plexfile.py
 riglib/plexon/psth.py
 config
+docs/_build/*

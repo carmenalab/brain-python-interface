@@ -19,7 +19,7 @@ from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere
 from riglib.stereo_opengl.environment import Box
 import time
-import config
+from config import config
 from primitives import Cylinder, Sphere, Cone
 from profile_support import profile
 
@@ -47,7 +47,7 @@ class Window(LogExperiment):
     screen_dist = 44.5+3
     iod = 2.5
 
-    show_environment=traits.Int(0)
+    show_environment = traits.Int(0)
 
     def __init__(self, **kwargs):
         # self.window_size = (self.window_size[0]*2, self.window_size[1]) # Stereo window display
@@ -153,6 +153,7 @@ class Window(LogExperiment):
 
     @profile
     def _cycle(self):
+        self.requeue()
         self.draw_world()
         super(Window, self)._cycle()
         self.event = self._get_event()
@@ -193,10 +194,10 @@ class Simple2DWindow(object):
         win_res = (1000, 560)
 
         
-        if config.recording_system == 'plexon':
+        if config.recording_sys['make'] == 'plexon':
             self.workspace_bottom_left = (-18., -12.)
             self.workspace_top_right   = (18., 12.)
-        elif config.recording_system == 'blackrock':
+        elif config.recording_sys['make'] == 'blackrock':
             self.workspace_bottom_left = (0., 0.)
             self.workspace_top_right   = (42., 30.)
         else:
@@ -207,12 +208,25 @@ class Simple2DWindow(object):
 
         self.display_border = 10
 
-        self.size = np.array(win_res)
+        self.size = np.array(win_res, dtype=np.float64)
         self.screen = pygame.display.set_mode(win_res, flags)
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
         self.screen_background.fill(self.background)
 
-        self.pix_per_m = 10.4 #38.4 #self.size/self.workspace_size
+        x1, y1 = self.workspace_top_right
+        x0, y0 = self.workspace_bottom_left
+        self.normalize = np.array(np.diag([1./(x1-x0), 1./(y1-y0), 1]))
+        self.center_xform = np.array([[1., 0, -x0], 
+                                      [0, 1., -y0],
+                                      [0, 0, 1]])
+        self.norm_to_screen = np.array(np.diag(np.hstack([self.size, 1])))
+
+        # the y-coordinate in pixel space has to be swapped for some graphics convention reason
+        self.flip_y_coord = np.array([[1, 0, 0],
+                                      [0, -1, self.size[1]],
+                                      [0, 0, 1]])
+
+        self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
 
         self.world = GroupDispl2D(self.models)
         self.world.init()
@@ -236,20 +250,13 @@ class Simple2DWindow(object):
         self.surf_background.fill(TRANSPARENT)
 
     def pos2pix(self, kfpos):
-        # rescale the cursor position to (0,1)
+        # re-specify the point in homogenous coordinates
+        pt = np.hstack([kfpos, 1]).reshape(-1, 1)
 
-        norm_x_pos = (self.display_border + (kfpos[0] - self.workspace_bottom_left[0])) / (self.workspace_x_len + 2*self.display_border)
-        norm_y_pos = (self.display_border + (kfpos[1] - self.workspace_bottom_left[1])) / (self.workspace_y_len + 2*self.display_border)
-        norm_workspace_pos = np.array([norm_x_pos, norm_y_pos])
+        # perform the homogenous transformation
+        pix_coords = np.dot(self.pos_space_to_pixel_space, pt)
 
-        # multiply by the workspace size in pixels 
-        pix_pos = self.size*norm_workspace_pos
-
-        # flip y-coordinate
-        pix_pos[1] = self.size[1] - pix_pos[1]
-
-        # cast to integer
-        pix_pos = np.array(pix_pos, dtype=int) 
+        pix_pos = np.array(pix_coords[:2,0], dtype=int)
         return pix_pos
 
     @profile
@@ -266,7 +273,7 @@ class Simple2DWindow(object):
                 pix_pos = self.pos2pix(pos)
                 color = tuple(map(lambda x: int(255*x), model.color[0:3]))
                 rad = model.radius
-                pix_radius = int(rad * self.pix_per_m)
+                pix_radius = self.pos2pix(np.array([model.radius, 0]))[0] - self.pos2pix([0,0])[0]
 
                 #Draws cursor and targets on transparent surfaces
                 pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
@@ -317,7 +324,6 @@ class Simple2DWindow(object):
         self.screen.blit(self.surf['0'], (0,0))
         self.screen.blit(self.surf['1'], (0,0))
         pygame.display.update()
-        # self.clock.tick(self.fps)
 
     def requeue(self):
         '''
@@ -332,6 +338,40 @@ class WindowDispl2D(Simple2DWindow, Window):
     def __init__(self, *args, **kwargs):
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 
+
+class FakeWindow(object):
+    '''
+    A dummy class to secretly avoid rendering graphics without 
+    the graphics-based tasks knowing about it. Used e.g. for simulation 
+    purposes where the graphics only slow down the simulation.
+    '''
+    background = (1,1,1,1)
+    def __init__(self, *args, **kwargs):
+        self.models = []
+        self.world = None
+        self.event = None        
+        super(FakeWindow, self).__init__(*args, **kwargs)
+
+    def screen_init(self):
+        pass
+
+    def draw_world(self):
+        pass
+
+    def requeue(self):
+        pass
+
+    def _start_reward(self, *args, **kwargs):
+        n_rewards = self.calc_state_occurrences('reward')
+        if n_rewards % 10 == 0:
+            print n_rewards
+        super(FakeWindow, self)._start_reward(*args, **kwargs)
+
+    def show_object(self, *args, **kwargs):
+        pass
+
+    def _get_event(self):
+        pass
 
 
 class FPScontrol(Window):

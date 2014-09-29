@@ -274,13 +274,13 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
     from plexon import plexfile
     if isinstance(plx, str) or isinstance(plx, unicode):
         plx = plexfile.openFile(plx)
-    events = plx.events[:].data
-    syskey=None
 
-    # get system registrations
+    # get system registrations        
+    events = plx.events[:].data
     reg = parse.registrations(events)
 
     # find the key for the motiontracker system data
+    syskey=None    
     for key, system in reg.items():
         if sys_eq(system[0], sys_name):
         #if syskey_fn(system):
@@ -288,7 +288,7 @@ def _get_tmask(plx, tslice, syskey_fn=lambda x: x[0] in ['task', 'ask'], sys_nam
             break
 
     if syskey is None:
-        raise Exception('No source registration saved in plx file!')
+        raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')
 
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
@@ -1370,8 +1370,7 @@ def _train_KFDecoder_2D_sim(_ssm, units, dt=0.1):
 
     mFR = 0
     sdFR = 1
-    decoder = kfdecoder.KFDecoder(kf, mFR, sdFR, units, bounding_box, 
-        states, drives_neurons, states_to_bound)
+    decoder = kfdecoder.KFDecoder(kf, units, _ssm, binlen=dt, n_subbins=1, mFR=mFR, sdFR=sdFR)
 
     cm_to_m = 0.01
     decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))

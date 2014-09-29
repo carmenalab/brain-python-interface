@@ -43,9 +43,8 @@ Parameters.prototype.update = function(desc) {
     this.hidden_trait_labels = {};
 
     for (var name in desc) {
-        if (funcs[desc[name]['type']])
-            // Bind the function to the current object and call
-            funcs[desc[name]['type']].bind(this)(name, desc[name]);
+        if (funcs[desc[name]['type']]) // if there is a recognized constructor function for the trait type,
+            funcs[desc[name]['type']].bind(this)(name, desc[name]); // call the function 
         else
             console.log(desc[name]['type']);
     }
@@ -128,6 +127,8 @@ Parameters.prototype.add_tuple = function(name, info) {
     this.obj.appendChild(trait);
 
     this.traits[name] = {"obj":trait, "inputs":[]};
+
+    // Create an input text field for element of the attribute tuple
     for (var i=0; i < len; i++) {
         var input = document.createElement("input");
         input.type = "text";

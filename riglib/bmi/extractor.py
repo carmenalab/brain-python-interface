@@ -60,7 +60,8 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         self.last_get_spike_counts_time = 0
 
     def get_spike_ts(self, *args, **kwargs):
-        '''Get the spike timestamps from the neural data source. 
+        '''
+        Get the spike timestamps from the neural data source. 
 
         This function has no type checking, i.e. it is assumed that the object was created with the proper source
 
@@ -190,6 +191,7 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.n_subbins = n_subbins
         self.units = units
         self.last_get_spike_counts_time = 0
+        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
 
     def get_spike_ts(self, cursor_pos, target_pos):
         '''    Docstring    '''
