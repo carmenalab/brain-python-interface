@@ -214,6 +214,7 @@ class Decoder(object):
 
         self.filt = filt
         self.filt._init_state()
+        self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
         self.binlen = binlen
