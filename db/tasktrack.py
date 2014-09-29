@@ -52,6 +52,9 @@ class Track(object):
         self.proc.start()
         
     def __del__(self):
+        '''
+        Destructor for Track object. Not sure if this function ever gets called since Track is a singleton created upon import of the ajax library...
+        '''
         self.websock.stop()
 
     def pausetask(self):
@@ -75,7 +78,9 @@ class Track(object):
         return status
 
 def runtask(cmds, _cmds, websock, **kwargs):
-
+    '''
+    Target function to execute in the separate process to start the task
+    '''
     import time
     from riglib.experiment import report
 
@@ -143,7 +148,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
         import traceback
         err = cStringIO.StringIO()
         traceback.print_exc(None, err)
-        with open('/tmp/exceptions', 'w') as fp:
+        with open(os.path.expandvars('$BMI3D/log/tasktrack_log'), 'w') as fp:
             err.seek(0)
             fp.write(err.read())
         err.seek(0)
@@ -155,7 +160,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
 
     # Summarize performance during task
     try:
-        from tasks import performance
+        from analysis import performance
         te = performance._get_te(task.saveid)
         print te.summary()
     except:
@@ -208,7 +213,8 @@ class Task(object):
                     # set strobe pin low
                     comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
-                time.sleep(2)
+                # Wait a couple of seconds for the recording system to start up
+                time.sleep(3)
             except:
                 print "No comedi, cannot start"
         
@@ -256,7 +262,6 @@ class Task(object):
             try:
                 print "Stopping neural recording"
                 import comedi
-                import config
                 if config.recording_sys['make'] == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
                 elif config.recording_sys['make'] == 'blackrock':

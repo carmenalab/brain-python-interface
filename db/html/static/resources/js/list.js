@@ -142,7 +142,6 @@ function TaskEntry(idx, info){
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			this.notes = new Notes(this.idx);
 			this.update(expinfo);
-            //console.log(expinfo)
 			this.disable();
 			$("#content").show("slide", "fast");
 		}.bind(this));
@@ -292,12 +291,14 @@ TaskEntry.prototype.update = function(info) {
         for (var plot_type in info.plot_files) {
             var img = document.createElement("img");
             img.setAttribute('src', '/static'+info.plot_files[plot_type])
-            //$("#plots").append("<img src='/static/storage/plots/cart20131112_19_clda_param_hist.png' alt='Img not found'>")
             $("#plots").append(img)
         }
     } else {
         $("#plots").empty()
     }
+}
+TaskEntry.plot_performance = function() {
+
 }
 TaskEntry.copy = function() {
     /* Called when the 'Copy Parameters' button is pressed?
@@ -306,6 +307,7 @@ TaskEntry.copy = function() {
 	info.report = {};
 	info.datafiles = {};
 	info.notes = "";
+	info.plot_files = {};
 	te = new TaskEntry(null, info);
 }
 TaskEntry.prototype.destroy = function() {

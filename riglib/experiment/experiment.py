@@ -305,6 +305,22 @@ class Experiment(traits.HasTraits, threading.Thread):
         return offline_report
 
     def cleanup(self, database, saveid, **kwargs):
+        '''
+        Commands to execute at the end of a task.
+
+        Parameters
+        ----------
+        database : object
+            Needs to have the methods save_bmi, save_data, etc. For instance, the db.tracker.dbq module or an RPC representation of the database
+        saveid : int
+            TaskEntry database record id to link files/data to
+        kwargs : optional dict arguments
+            Optional arguments to dbq methods. kwargs cannot be used when database is an RPC object.
+
+        Returns
+        -------
+        None
+        '''
         print "experimient.Experiment.cleanup executing"
         pass
     
@@ -325,6 +341,7 @@ class LogExperiment(Experiment):
     '''
     # List out state/trigger pairs to exclude from logging
     log_exclude = set()
+    trial_end_states = []
     def __init__(self, **kwargs):
         '''
         Constructor for LogExperiment
@@ -374,29 +391,57 @@ class LogExperiment(Experiment):
 
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Docstring
+        Commands to execute at the end of a task. 
+        Save the task event log to the database
 
         Parameters
         ----------
+        database : object
+            Needs to have the methods save_bmi, save_data, etc. For instance, the db.tracker.dbq module or an RPC representation of the database
+        saveid : int
+            TaskEntry database record id to link files/data to
+        kwargs : optional dict arguments
+            Optional arguments to dbq methods. kwargs cannot be used when database is an RPC object.
 
         Returns
         -------
+        None
         '''
         print "experiment.LogExperiment.cleanup"
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
-        database.save_log(saveid, self.event_log)
+        dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        if dbname == 'default':
+            database.save_log(saveid, self.event_log)
+        else:
+            database.save_log(saveid, self.event_log, dbname=dbname)
+
+    def calc_state_occurrences(self, state_name):
+        times = np.array([state[1] for state in self.state_log if state[0] == state_name])
+        return len(times)
+
+    def calc_trial_num(self):
+        '''Calculates the current trial count'''
+        trialtimes = [state[1] for state in self.state_log if state[0] in self.trial_end_states]
+        return len(trialtimes)
 
 class Sequence(LogExperiment):
-    ''' Docstring '''
+    '''
+    Task where the targets are presented by a Python generator
+    '''
     def __init__(self, gen, **kwargs):
         '''
-        Docstring
+        Constructor for Sequence
 
         Parameters
         ----------
+        gen : Python generator
+            Object with a 'next' attribute used in the special "wait" state to get the target sequence for the next trial.
+        kwargs: optonal keyword-arguments
+            Passed to the super constructor
 
         Returns
         -------
+        Sequence instance
         '''
         self.gen = gen
         assert hasattr(gen, "next"), "gen must be a generator"

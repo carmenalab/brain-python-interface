@@ -14,7 +14,6 @@ from django.core.exceptions import ObjectDoesNotExist
 import numpy as np
 
 from riglib import calibrations, experiment
-import db.paths
 from config import config
 
 def _get_trait_default(trait):
@@ -49,7 +48,7 @@ class Task(models.Model):
 
     def params(self, feats=(), values=None):
         from riglib import experiment
-        from namelist import instance_to_model, arms
+        from namelist import instance_to_model, plantlist
         if values is None:
             values = dict()
         
@@ -70,7 +69,8 @@ class Task(models.Model):
                 insts = Model.objects.order_by("-date")#[:200]
                 varname['options'] = [(i.pk, i.name) for i in insts]
             if varname['type'] == "Enum":
-                varname['options'] = arms
+                if trait == 'arm_class':
+                    varname['options'] = plantlist.keys()
             params[trait] = varname
             if trait == 'bmi':
                 params['decoder'] = varname
@@ -660,7 +660,8 @@ class Decoder(models.Model):
         return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
     def load(self):
-        decoder_fname = os.path.join(db.paths.data_path, 'decoders', self.path)
+        data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+        decoder_fname = os.path.join(data_path, 'decoders', self.path)
         #print decoder_fname
         decoder_name = self.name
         dec = pickle.load(open(decoder_fname))

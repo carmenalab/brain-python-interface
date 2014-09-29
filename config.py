@@ -22,6 +22,6 @@ class Config:
 		if attr in self.parser.sections():
 			return dict(self.parser.items(attr))
 		else:
-			return super(Hack, self).__getattr__(attr)
+			return super(Config, self).__getattr__(attr)
 
 config = Config()

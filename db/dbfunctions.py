@@ -1,3 +1,6 @@
+'''
+Interface between the Django database methods/models and data analysis code
+'''
 import os
 import sys
 import json
@@ -10,7 +13,6 @@ import matplotlib.pyplot as plt
 import time, datetime
 from scipy.stats import nanmean
 import db
-import db.paths
 from collections import defaultdict, OrderedDict
 from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
@@ -551,17 +553,17 @@ class TaskEntry(object):
             self.record = models.TaskEntry.objects.using(self.dbname).get(id=task_entry_id) #lookup_task_entries(task_entry_id)
         self.id = self.record.id
         self.params = self.record.params
-        if isinstance(self.params, str) or isinstance(self.params, unicode):
+        if (isinstance(self.params, str) or isinstance(self.params, unicode)) and len(self.params) > 0:
             self.params = json.loads(self.record.params)
 
-        # Add the params dict to the object's dict
-        for key, value in self.params.items():
-            try:
-                setattr(self, key, value)
-            except AttributeError:
-                setattr(self, key + '_param', value)
-            except:
-                pass
+            # Add the params dict to the object's dict
+            for key, value in self.params.items():
+                try:
+                    setattr(self, key, value)
+                except AttributeError:
+                    setattr(self, key + '_param', value)
+                except:
+                    pass
 
         self.date = self.record.date
 
@@ -576,8 +578,11 @@ class TaskEntry(object):
             self.decoder_record = models.Decoder.objects.using(self.record._state.db).get(pk=self.params['decoder'])
         elif 'bmi' in self.params:
             self.decoder_record = models.Decoder.objects.using(self.record._state.db).get(pk=self.params['bmi'])
-        else:
-            self.decoder_record = None
+        else: # Try direct lookup
+            try:
+                self.decoder_record = models.Decoder.objects.using(self.record._state.db).get(entry_id=self.id)
+            except:
+                self.decoder_record = None
 
     def get_decoders_trained_in_block(self):
         '''
