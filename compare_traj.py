@@ -15,6 +15,8 @@ trial_type = 'touch red'
 traj_file1 = 'traj_reference.pkl'
 traj_file2 = 'traj_playback.pkl'
 
+plot_aim_lines = False
+
 
 traj1 = pickle.load(open(traj_file1, 'rb'))
 traj2 = pickle.load(open(traj_file2, 'rb'))
@@ -45,12 +47,13 @@ markersize = 5
 fig = plt.figure()
 plt.title('xy trajectories')
 
-plt.plot(aa1.ix['aa_px', :], aa1.ix['aa_py', :], '-D', color='red', markersize=markersize)
-plt.plot(aa2.ix['aa_px', :], aa2.ix['aa_py', :], '-D', color='blue', markersize=markersize)
+plt.plot(aa1.ix['aa_px', :], aa1.ix['aa_py', :], '-D', color='red', markersize=5)
+plt.plot(aa2.ix['aa_px', :], aa2.ix['aa_py', :], '-D', color='blue', markersize=2.5)
 
-# plot lines to indicate aiming position
-for idx, (a_pos, p_pos, c_vel) in enumerate(zip(aim_pos, plant_pos, command_vel)):
-    plt.plot([p_pos[0], a_pos[0]], [p_pos[1], a_pos[1]], color='gray')
+if plot_aim_lines:
+    # plot lines to indicate aiming position
+    for idx, (a_pos, p_pos, c_vel) in enumerate(zip(aim_pos, plant_pos, command_vel)):
+        plt.plot([p_pos[0], a_pos[0]], [p_pos[1], a_pos[1]], color='gray')
 
 # plot first plant position in green
 plt.plot(aa1.ix['aa_px', 0], aa1.ix['aa_py', 0], 'D', color='green', markersize=10)  

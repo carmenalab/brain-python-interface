@@ -7,7 +7,7 @@ import pickle
 from utils.constants import *
 
 
-hdf_name = '/storage/rawdata/hdf/test20140930_02.hdf'
+hdf_name = '/storage/rawdata/hdf/test20140930_05.hdf'
 pkl_name = 'traj_playback.pkl'
 
 
