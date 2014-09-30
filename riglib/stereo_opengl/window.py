@@ -197,8 +197,8 @@ class Simple2DWindow(object):
             self.workspace_bottom_left = (-18., -12.)
             self.workspace_top_right   = (18., 12.)
         elif config.recording_system == 'blackrock':
-            self.workspace_bottom_left = (0., 0.)
-            self.workspace_top_right   = (42., 30.)
+            self.workspace_bottom_left = (-10., -10.) #(0., 0.)
+            self.workspace_top_right   = (52., 40.) #(42., 30.)
         else:
             raise Exception('Unknown recording_system!')
 

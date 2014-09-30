@@ -6,9 +6,9 @@ import pickle
 # hdf = tables.openFile('/storage/rawdata/hdf/test20140827_10.hdf')
 # pkl_name = 'traj2.pkl'
 
-hdf = tables.openFile('/storage/rawdata/hdf/test20140827_17.hdf')
-pkl_name = 'traj.pkl'
-hdf = tables.openFile('/storage/rawdata/hdf/test20140827_19.hdf')
+# hdf = tables.openFile('/storage/rawdata/hdf/test20140827_17.hdf')
+# pkl_name = 'traj.pkl'
+hdf = tables.openFile('/storage/rawdata/hdf/test20140911_04.hdf')
 pkl_name = 'traj2.pkl'
 
 task      = hdf.root.task
