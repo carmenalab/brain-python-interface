@@ -27,15 +27,15 @@ traj2_len_t = us_to_s * (traj2.ix['ts', traj2.columns[-1]] - traj2.ix['ts', 0])
 print "length of traj1:", traj1.shape[1]
 print "length of traj2:", traj2.shape[1]
 
-aim_pos_traj = trajectories2[trial_type]['aim_pos']
+aim_pos_traj = trajectories2[trial_type]['task']['aim_pos']
 print "length of aim_pos_traj:", len(aim_pos_traj)
 
-plant_pos_traj = trajectories2[trial_type]['plant_pos']
+plant_pos_traj = trajectories2[trial_type]['task']['plant_pos']
 print "length of plant_pos_traj:", len(plant_pos_traj)
 
-command_vel_traj = trajectories2[trial_type]['command_vel']
+command_vel_traj = trajectories2[trial_type]['task']['command_vel']
 
-aim_idx = trajectories2[trial_type]['aim_idx']
+aim_idx = trajectories2[trial_type]['task']['aim_idx']
 
 
 
