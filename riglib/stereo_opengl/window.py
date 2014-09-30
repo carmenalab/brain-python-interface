@@ -57,6 +57,8 @@ class Window(LogExperiment):
         self.world = None
         self.event = None
 
+        os.popen('sudo vbetool dpms on')
+
         if self.show_environment:
             self.add_model(Box())
 

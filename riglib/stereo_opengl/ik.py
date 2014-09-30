@@ -659,7 +659,7 @@ chain_kwargs = dict(link_radii=.6, joint_radii=0.6, joint_colors=(181/256., 116/
 shoulder_anchor = np.array([2., 0., -15])
 
 chain_15_15_5_5 = RobotArmGen2D(link_lengths=[15, 15, 5, 5], base_loc=shoulder_anchor, **chain_kwargs)
-init_joint_pos = np.array([ 0.47515737,  1.1369006 ,  1.57079633,  0.29316668])
+init_joint_pos = np.array([ 0.47515737,  1.1369006 ,  1.57079633,  0.29316668])  ## center pos coordinates: 0.63017,  1.38427,  1.69177,  0.42104 
 chain_15_15_5_5.set_intrinsic_coordinates(init_joint_pos)
 
 chain_20_20 = RobotArm2J2D(link_lengths=[20, 20], base_loc=shoulder_anchor, **chain_kwargs)
