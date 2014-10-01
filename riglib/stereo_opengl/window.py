@@ -57,7 +57,7 @@ class Window(LogExperiment):
         self.world = None
         self.event = None
 
-        os.popen('sudo vbetool dpms on')
+        # os.popen('sudo vbetool dpms on')
 
         if self.show_environment:
             self.add_model(Box())
@@ -173,8 +173,57 @@ class WindowWithHeadsUp(Window):
         self.size = np.array(win_res)
         self.screen = pygame.display.set_mode(win_res, flags)
 
+import matplotlib.pyplot as plt
+import plotutil
+from pylab import Circle
 
+class MatplotlibWindow(object):
+    background = (0, 0, 0, 1)
+    def __init__(self, *args, **kwargs):
+        print 'constructor for MatplotlibWindow'
+        self.fig = plt.figure(figsize=(3,2))
+        print 1
+        axes = plotutil.subplots(1, 1, hold=True, aspect=1, left_offset=0.1)
+        print 2
+        self.ax = axes[0,0]
+        print 3
+        self.ax.set_xlim([-25, 25])
+        self.ax.set_ylim([-14, 14])
+        print 4
 
+        self.model_patches = dict()
+        print 5
+        super(MatplotlibWindow, self).__init__(*args, **kwargs)
+        print 6
+
+        self.mpl_background = (1, 1, 1, 1) # self.background
+        self.ax.set_axis_bgcolor(self.mpl_background)
+        print 7
+
+    def draw_world(self):
+        print 'matplotlib window, draw world'  
+        # TODO make sure cursor is on top
+        for model in self.model_patches:
+            if model not in self.world.models:
+                patch = self.model_patches[model]
+                patch.set_facecolor(self.mpl_background[:3])
+                patch.set_edgecolor(self.mpl_background[:3])
+
+        for model in self.world.models:
+            if isinstance(model, Sphere):
+                if model not in self.model_patches:
+                    self.model_patches[model] = Circle(np.zeros(2), radius=model.radius, color='white', alpha=0.5)
+                    self.ax.add_patch(self.model_patches[model])
+
+                patch = self.model_patches[model]
+                patch.set_facecolor(model.color[:3])
+                patch.set_edgecolor(model.color[:3])
+
+                pos = model.xfm.move[[0,2]]
+                patch.center = pos
+
+        plt.draw()
+        super(MatplotlibWindow, self).draw_world()
 
 class Simple2DWindow(object):
     background = (1,1,1,1)
