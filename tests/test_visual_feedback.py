@@ -18,14 +18,34 @@ from analysis import performance
 import os
 os.environ['DISPLAY'] = ':0'
 
+save = False
+
 task = models.Task.objects.get(name='visual_feedback_multi')
 base_class = task.get()
 
-feats = [features.SaveHDF, features.Autostart]
+import matplotlib.pyplot as plt
+
+class Debugging(object):
+    def __init__(self, *args, **kwargs):
+        super(Debugging, self).__init__(*args, **kwargs)
+
+    def init(self):
+        super(Debugging, self).init()
+
+    def _start_reward(self, *args, **kwargs):
+        print "starting reward!"
+        super(Debugging, self)._start_reward(*args, **kwargs)
+    
+    def _cycle(self):
+        #print self.arm.get_endpoint_pos()
+        super(Debugging, self)._cycle()
+
+from riglib.stereo_opengl.window import MatplotlibWindow
+feats = [features.SaveHDF, features.Autostart, MatplotlibWindow]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())
-params = dict(session_length=10, arm_visible=True, arm_class='cursor_14x14', 
+params = dict(session_length=0, arm_visible=True, arm_class='cursor_14x14', 
         rand_start=(0.,0.), max_tries=1)
 
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
@@ -34,18 +54,19 @@ exp = Exp(gen, **params)
 exp.init()
 exp.run()
 
-from db import dbfunctions
-from db.tracker import models
-from db.tracker import dbq
-from json_param import Parameters
-params_obj = Parameters.from_dict(params)
-
-te = models.TaskEntry()
-subj = models.Subject.objects.get(name='Testing')
-te.subject = subj
-te.task = models.Task.objects.get(name='visual_feedback_multi')
-te.params = params_obj.to_json()
-te.sequence_id = 0
-te.save()
-
-exp.cleanup(dbq, te.id)
+if save:
+    from db import dbfunctions
+    from db.tracker import models
+    from db.tracker import dbq
+    from json_param import Parameters
+    params_obj = Parameters.from_dict(params)
+    
+    te = models.TaskEntry()
+    subj = models.Subject.objects.get(name='Testing')
+    te.subject = subj
+    te.task = models.Task.objects.get(name='visual_feedback_multi')
+    te.params = params_obj.to_json()
+    te.sequence_id = 0
+    te.save()
+    
+    exp.cleanup(dbq, te.id)
