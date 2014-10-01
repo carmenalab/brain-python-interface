@@ -197,9 +197,21 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def run(self):
         '''
-        Generic method to run the finite state machine of the task
+        Generic method to run the finite state machine of the task. Code that needs to execute 
+        imediately before the task starts running in child classes should be of the form:
+
+        def run(self):
+            do stuff
+            try:
+                super(class_name, self).run()
+            finally:
+                clean up stuff
+
+        where the try block may or may not be necessary depending on what stuff you're doing before
+        the main loop executes. For example, if you're opening a UDP port, you may want to always
+        close the socket whether or not the main loop executes properly so that you don't loose the 
+        reference to the socket. 
         '''
-        
         self.screen_init()
         self.set_state(self.state)
         self.reportstats['State'] = self.state
@@ -270,9 +282,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         return str(nhours).zfill(2) + ':' + str(nmins).zfill(2) + ':' + str(nsecs).zfill(2)
 
     def update_report_stats(self):
-        '''Function to update any relevant report stats for the task. Values are saved in self.reportstats,
+        '''
+        Function to update any relevant report stats for the task. Values are saved in self.reportstats,
         an ordered dictionary. Keys are strings that will be displayed as the label for the stat in the web interface,
-        values can be numbers or strings. Called every time task state changes.'''
+        values can be numbers or strings. Called every time task state changes.
+        '''
         self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
 
     @classmethod
@@ -420,9 +434,34 @@ class LogExperiment(Experiment):
         return len(times)
 
     def calc_trial_num(self):
-        '''Calculates the current trial count'''
+        '''
+        Counts the number of trials which have finished.
+        '''
         trialtimes = [state[1] for state in self.state_log if state[0] in self.trial_end_states]
         return len(trialtimes)
+
+    def calc_events_per_min(self, event_name, window):
+        '''
+        Calculates the rate of event_name, per minute
+
+        Parameters
+        ----------
+        event_name: string
+            Name of state representing "event"
+        window: float
+            Number of seconds into the past to look to calculate the current event rate estimate.
+
+        Returns
+        -------
+        rate : float
+            Rate of specified event, per minute
+        '''
+        rewardtimes = np.array([state[1] for state in self.state_log if state[0]==event_name])
+        if (self.get_time() - self.task_start_time) < window:
+            divideby = (self.get_time() - self.task_start_time)/sec_per_min
+        else:
+            divideby = window/sec_per_min
+        return np.sum(rewardtimes >= (self.get_time() - window))/divideby
 
 class Sequence(LogExperiment):
     '''
