@@ -4,6 +4,7 @@ Lookup table for features, generators and tasks for experiments
 
 import numpy as np
 from riglib import experiment, calibrations, bmi
+from riglib.stereo_opengl.window import MatplotlibWindow
 
 features = dict(
     autostart=experiment.features.Autostart, 
@@ -30,6 +31,7 @@ features = dict(
     ttl_reward=experiment.features.TTLReward,
     juice_log=experiment.features.JuiceLogging,
     single_video=experiment.features.SingleChannelVideo,
+    exp_display=MatplotlibWindow,
 )
 
 
@@ -148,6 +150,7 @@ tasks = dict(
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
+    machine_control=bmimultitasks.TargetCaptureVisualFeedback,
 
     ######## iBMI tasks
     ibmi_visual_feedback = blackrocktasks.VisualFeedback,
@@ -158,7 +161,7 @@ tasks = dict(
 
 ## BMI seed tasks
 # The below list shows which tasks can be used to train new Decoders
-bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi']
+bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi', 'machine_control']
 
 ibmi_seed_tasks = ['ibmi_visual_feedback', 'ibmi_manual_control']
 
