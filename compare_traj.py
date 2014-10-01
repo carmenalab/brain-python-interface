@@ -18,6 +18,11 @@ traj_file2 = 'traj_playback.pkl'
 plot_aim_lines = False
 
 
+aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
+rh_pos_states = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
+rh_vel_states = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
+
+
 traj1 = pickle.load(open(traj_file1, 'rb'))
 traj2 = pickle.load(open(traj_file2, 'rb'))
 
@@ -31,10 +36,22 @@ print "length of aa2:", aa2.shape[1]
 print "length of aa1 (secs):", aa1_len_t
 print "length of aa2 (secs):", aa2_len_t
 
-aim_idx     = traj2[trial_type]['task']['aim_idx']
+aim_idx_aa  = traj2[trial_type]['task']['aim_idx_aa']
+aim_idx_rh  = traj2[trial_type]['task']['aim_idx_rh']
 aim_pos     = traj2[trial_type]['task']['aim_pos']
 plant_pos   = traj2[trial_type]['task']['plant_pos']
 command_vel = traj2[trial_type]['task']['command_vel']
+
+try:
+    rh1 = traj1[trial_type]['rehand']
+except:
+    pass
+
+try:
+    rh2 = traj2[trial_type]['rehand']
+except:
+    pass
+
 
 
 ############
@@ -66,20 +83,36 @@ plt.plot(rad_to_deg * aa2.ix['aa_ppsi', :], color='blue')
 
 
 fig = plt.figure()
-plt.title('time-warped trajectories')
+plt.title('ArmAssist trajectories (time-warped)')
 grid = (3, 1)
 
-ax = plt.subplot2grid(grid, (0, 0))
-plt.plot(aa1.ix['aa_px', aim_idx.reshape(-1)], color='red')
-plt.plot(plant_pos[:, 0], color='blue')
+for i, state in enumerate(aa_pos_states):
+    ax = plt.subplot2grid(grid, (i, 0))
+    if state == 'aa_ppsi':
+        scale = rad_to_deg
+    else:
+        scale = 1
+    plt.plot(scale * aa1.ix[state, aim_idx_aa.reshape(-1)], color='red')
+    plt.plot(scale * plant_pos[:, i], color='blue')
 
-ax = plt.subplot2grid(grid, (1, 0))
-plt.plot(aa1.ix['aa_py', aim_idx.reshape(-1)], color='red')
-plt.plot(plant_pos[:, 1], color='blue')
 
-ax = plt.subplot2grid(grid, (2, 0))
-plt.plot(rad_to_deg * aa1.ix['aa_ppsi', aim_idx.reshape(-1)], color='red')
-plt.plot(rad_to_deg * plant_pos[:, 2], color='blue')
+fig = plt.figure()
+plt.title('ReHand trajectories (time-warped)')
+grid = (4, 1)
+
+for i, state in enumerate(rh_pos_states):
+    ax = plt.subplot2grid(grid, (i, 0))
+    plt.plot(rad_to_deg * rh1.ix[state, aim_idx_rh.reshape(-1)], color='red')
+    plt.plot(rad_to_deg * plant_pos[:, 3+i], color='blue')
+
+
+# fig = plt.figure()
+# plt.title('ArmAssist trajectories (not time-warped)')
+# grid = (4, 1)
+# for i, state in enumerate(rh_pos_states):
+#     ax = plt.subplot2grid(grid, (i, 0))
+#     plt.plot(rad_to_deg * rh1.ix[state, :], color='red')
+#     plt.plot(rad_to_deg * plant_pos[:, 3+i], color='blue')
 
 
 delta_pos = np.diff(aa1.ix[['aa_px', 'aa_py'], :])
@@ -129,6 +162,18 @@ plt.plot(rad_to_deg * command_vel[:, 2], color='blue')
 command_xy_speed = np.array([np.sqrt(np.sum(vel[0:2]**2)) for vel in command_vel])
 ax = plt.subplot2grid(grid, (3, 0))
 plt.plot(command_xy_speed, color='blue')
+
+
+
+# # plot rehand angles for reference trajectory
+# fig = plt.figure()
+# grid = (4, 1)
+
+# for i, state in enumerate(rh_pos_states):
+#     ax = plt.subplot2grid(grid, (i, 0))
+#     plt.plot(rad_to_deg * rh1.ix[state, :], color='red')
+
+
 
 
 plt.show()

@@ -7,12 +7,13 @@ import pickle
 from utils.constants import *
 
 
-hdf_name = '/storage/rawdata/hdf/test20140930_05.hdf'
+hdf_name = '/storage/rawdata/hdf/test20141001_24.hdf'
 pkl_name = 'traj_playback.pkl'
 
 
 aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
 rh_pos_states = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
+rh_vel_states = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
 
 # load task, armassist, and rehand data from hdf file
 hdf = tables.openFile(hdf_name)
@@ -31,7 +32,8 @@ else:
 traj = dict()
 
 trial_idxs = [idx for (idx, msg) in enumerate(task_msgs[:]['msg']) if msg == 'trial']
-for idx in trial_idxs:
+# for idx in trial_idxs:
+for idx in [trial_idxs[0]]:  # ONLY LOOK AT FIRST TRIAL FOR NOW
     t_start = task_msgs[idx]['time']
     trial_type = task[t_start]['trial_type']
 
@@ -59,6 +61,10 @@ for idx in trial_idxs:
         # save rehand data
         if rehand_flag:
             idxs = [i for (i, x) in enumerate(rehand[:]) if ts_start <= us_to_s*x['ts_arrival'] <= ts_end]
-            traj[trial_type]['rehand'] = pd.DataFrame(np.array(rehand[idxs]['data'].tolist()).T, index=rh_pos_states)
+            df_rh1 = pd.DataFrame(np.array(rehand[idxs]['data'].tolist()).T, 
+                                  index=rh_pos_states+rh_vel_states)
+            rh_ts = (np.array(rehand[idxs]['ts'].tolist()).T)[0:1, :]
+            df_rh2 = pd.DataFrame(rh_ts, index=['ts'])
+            traj[trial_type]['rehand'] = pd.concat([df_rh1, df_rh2])
 
 pickle.dump(traj, open(pkl_name, 'wb'))

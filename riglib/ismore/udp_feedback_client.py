@@ -18,7 +18,7 @@ ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
 class Client(object):
     '''Docstring.'''
 
-    MAX_MSG_LEN = 200
+    MAX_MSG_LEN = 300
 
     # TODO -- rename this function to something else?
     def _create_and_bind_socket(self):

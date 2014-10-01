@@ -38,9 +38,15 @@ field_mapping = {
     'Fingers(dg)':      'rh_pfing3',
 }
 
+aa_xy_states   = ['aa_px', 'aa_py']
+aa_pos_states  = ['aa_px', 'aa_py', 'aa_ppsi']
+rh_pos_states  = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
+rh_vel_states  = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
+ang_pos_states = ['aa_ppsi', 'rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
+
 # ArmAssist and ReHand trajectories are saved as separate pandas DataFrames with the following indexes
-aa_fields = ['ts', 'aa_px', 'aa_py', 'aa_ppsi']
-rh_fields = ['ts', 'rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']  # TODO -- what about rh velocity?
+aa_fields = ['ts'] + aa_pos_states
+rh_fields = ['ts'] + rh_pos_states + rh_vel_states
 
 
 def preprocess_data(df):
@@ -49,14 +55,30 @@ def preprocess_data(df):
 
     # convert units to usec, cm, rad
     df.ix['ts'] *= ms_to_us
-    df.ix[['aa_px', 'aa_py']] *= mm_to_cm
-    df.ix[['aa_ppsi', 'rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']] *= deg_to_rad
+    df.ix[aa_xy_states] *= mm_to_cm
+    df.ix[ang_pos_states] *= deg_to_rad
     
-    # translate trajectories have a particular starting position
-    starting_pos = np.array([21., 15.])
-    pos_offset = df.ix[['aa_px', 'aa_py'], 0] - starting_pos
-    df.ix['aa_px', :] -= pos_offset[0]
-    df.ix['aa_py', :] -= pos_offset[1]
+    # translate ArmAssist trajectories to start at a particular position
+    starting_pos = np.array([21., 15., 0.])
+    pos_offset = df.ix[aa_pos_states, 0] - starting_pos
+    df.ix['aa_px', :]   -= pos_offset[0]
+    df.ix['aa_py', :]   -= pos_offset[1]
+    df.ix['aa_ppsi', :] -= pos_offset[2]
+
+    # translate ReHand trajectories to start at a particular angular position
+    starting_pos = deg_to_rad * np.array([30., 30., 30., 20.])
+    pos_offset = df.ix[rh_pos_states, 0] - starting_pos
+    df.ix['rh_pthumb', :] -= pos_offset[0]
+    df.ix['rh_pindex', :] -= pos_offset[1]
+    df.ix['rh_pfing3', :] -= pos_offset[2]
+    df.ix['rh_pprono', :] -= pos_offset[3]
+
+    # differentiate ReHand positions to get ReHand velocity data
+    delta_pos = np.diff(df.ix[rh_pos_states, :])
+    delta_ts  = us_to_s * np.diff(df.ix['ts', :])
+    vel = np.hstack([np.zeros((4, 1)), delta_pos / delta_ts])
+    df_rh_vel = pd.DataFrame(vel, index=rh_vel_states)
+    df = pd.concat([df, df_rh_vel])
 
     return df
 
