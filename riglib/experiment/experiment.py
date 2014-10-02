@@ -22,8 +22,8 @@ except ImportError:
     warnings.warn("experiment.py: Cannot import 'pygame'")
 
 
-min_per_hour = 60
-sec_per_min = 60
+min_per_hour = 60.
+sec_per_min = 60.
 
 class Experiment(traits.HasTraits, threading.Thread):
     '''
@@ -232,7 +232,7 @@ class Experiment(traits.HasTraits, threading.Thread):
                             self.trigger_event(event)
                             break;
             except:
-                traceback.print_exc()
+                traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
                 self.state = None
 
     def _cycle(self):
@@ -339,6 +339,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         pass
     
     def end_task(self):
+        print "Ending task by function call"
         self.stop = True
 
     def add_dtype(self, name, dtype, shape):
