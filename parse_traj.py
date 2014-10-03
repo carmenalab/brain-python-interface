@@ -7,7 +7,8 @@ import pickle
 from utils.constants import *
 
 
-hdf_name = '/storage/rawdata/hdf/test20141001_24.hdf'
+# hdf_name = '/storage/rawdata/hdf/test20141001_24.hdf'
+hdf_name = '/storage/rawdata/hdf/test20141003_08.hdf'
 pkl_name = 'traj_playback.pkl'
 
 
@@ -19,7 +20,15 @@ rh_vel_states = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
 hdf = tables.openFile(hdf_name)
 task      = hdf.root.task
 task_msgs = hdf.root.task_msgs
-armassist = hdf.root.armassist
+
+try:
+    armassist = hdf.root.armassist
+except:
+    print 'No armassist data saved in hdf file.'
+    armassist_flag = False
+else:
+    armassist_flag = True
+
 try:
     rehand = hdf.root.rehand
 except:
@@ -52,11 +61,12 @@ for idx in [trial_idxs[0]]:  # ONLY LOOK AT FIRST TRIAL FOR NOW
         traj[trial_type]['task'] = task[idxs]
 
         # save armassist data
-        idxs = [i for (i, x) in enumerate(armassist[:]) if ts_start <= us_to_s*x['ts_arrival'] <= ts_end]
-        df_aa1 = pd.DataFrame(np.array(armassist[idxs]['data'].tolist()).T, index=aa_pos_states)
-        aa_px_ts = (np.array(armassist[idxs]['ts'].tolist()).T)[0:1, :]
-        df_aa2 = pd.DataFrame(aa_px_ts, index=['ts'])
-        traj[trial_type]['armassist'] = pd.concat([df_aa1, df_aa2])
+        if armassist_flag:
+            idxs = [i for (i, x) in enumerate(armassist[:]) if ts_start <= us_to_s*x['ts_arrival'] <= ts_end]
+            df_aa1 = pd.DataFrame(np.array(armassist[idxs]['data'].tolist()).T, index=aa_pos_states)
+            aa_px_ts = (np.array(armassist[idxs]['ts'].tolist()).T)[0:1, :]
+            df_aa2 = pd.DataFrame(aa_px_ts, index=['ts'])
+            traj[trial_type]['armassist'] = pd.concat([df_aa1, df_aa2])
 
         # save rehand data
         if rehand_flag:
