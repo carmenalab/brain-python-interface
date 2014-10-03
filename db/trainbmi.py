@@ -24,8 +24,10 @@ from config import config
 
 @task()
 def cache_plx(plxfile):
-    """Create cache for plexon file"""
-    plx = plexfile.openFile(str(plxfile)) 
+    """
+    Create cache for plexon file
+    """
+    plexfile.openFile(str(plxfile)) 
 
 @task()
 def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice):
@@ -149,23 +151,6 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
     else:
         raise Exception('Unknown recording_system!')
 
-
-def open_decoder_from_record(decoder_record):
-    '''
-    Parameters
-    ----------    
-    decoder_record: tracker.models.Decoder instance
-        Database record of the decoder to be opened
-
-    Returns
-    -------
-    dec: riglib.bmi.Decoder instance
-        Decoder instance corresponding to the specified database record
-    '''
-    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
-    decoder_name = decoder_record.name
-    dec = pickle.load(open(decoder_fname))
-    return dec
 
 def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     '''
