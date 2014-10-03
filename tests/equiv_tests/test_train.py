@@ -14,11 +14,11 @@ reload(ppfdecoder)
 
 class TestDecoderTrain(unittest.TestCase):
     def test_kalman_vf(self):
-        te = dbfn.get_task_entry(2424)
-        dec_record = dbfn.get_decoder_entry(te)
-        dec = dbfn.get_decoder(te)
+        te = dbfn.TaskEntry(2424)
+        dec_record = te.decoder_record
+        dec = dec_record.load()
         
-        training_block = dbfn.get_task_entry(dec_record.entry_id)
+        training_block = dbfn.TaskEntry(dec_record.entry_id)
         datafiles = models.DataFile.objects.filter(entry_id=training_block.id)
         files = dict((d.system.name, d.get_path()) for d in datafiles)
         
@@ -47,11 +47,11 @@ class TestDecoderTrain(unittest.TestCase):
         #self.assertTrue(dec.filt == dec_new.filt)
 
     def test_ppf_vf(self):
-        te = dbfn.get_task_entry(2425)
-        dec_record = dbfn.get_decoder_entry(te)
-        dec = dbfn.get_decoder(te)
+        te = dbfn.TaskEntry(2425)
+        dec_record = te.decoder_record
+        dec = dec_record.load()
         
-        training_block = dbfn.get_task_entry(dec_record.entry_id)
+        training_block = dbfn.TaskEntry(dec_record.entry_id)
         datafiles = models.DataFile.objects.filter(entry_id=training_block.id)
         files = dict((d.system.name, d.get_path()) for d in datafiles)
         
