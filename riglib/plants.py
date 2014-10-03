@@ -8,7 +8,29 @@ from stereo_opengl.models import Group
 from riglib.bmi import robot_arms
 from riglib.stereo_opengl.xfm import Quaternion
 
+import sys
+import time
+import socket
+import select
+import numpy as np
+from collections import namedtuple
+
+from riglib.ismore import settings
+from utils.constants import *
+from riglib.bmi import state_space_models as ssm
+from riglib.bmi import state_space_models
+from riglib import source
+
+field_names = ['data', 'ts', 'ts_sent', 'ts_arrival', 'freq']
+ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
+ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
+PassiveExoFeedbackData = namedtuple("PassiveExoFeedbackData", ['data', 'ts_arrival'])
+
+
 class Plant(object):
+    '''
+    Generic interface for task-plant interaction
+    '''
     hdf_attrs = []
     def __init__(self):
         raise NotImplementedError
@@ -39,6 +61,181 @@ class Plant(object):
         Stop any auxiliary processes used by the plant
         '''        
         pass
+
+
+class FeedbackData(object):
+    '''Abstract parent class, not meant to be instantiated.'''
+
+    client_cls = None
+
+    def __init__(self):
+        self.client = self.client_cls()
+
+    def start(self):
+        self.client.start()
+        self.data = self.client.get_feedback_data()
+
+    def stop(self):
+        self.client.stop()
+
+    def get(self):
+        d = self.data.next()
+        return np.array([(tuple(d.data), tuple(d.ts), d.ts_sent, d.ts_arrival, d.freq)], dtype=self.dtype)
+
+    @staticmethod
+    def _get_dtype(state_names):
+        sub_dtype_data = np.dtype([(name, np.float64) for name in state_names])
+        sub_dtype_ts   = np.dtype([(name, np.int64)   for name in state_names])
+        return np.dtype([('data',       sub_dtype_data),
+                         ('ts',         sub_dtype_ts),
+                         ('ts_sent',    np.float64),
+                         ('ts_arrival', np.float64),
+                         ('freq',       np.float64)])
+
+class Client(object):
+    '''
+    Generic client for UDP data sources
+    '''
+
+    MAX_MSG_LEN = 200
+    sleep_time = 0
+
+    # TODO -- rename this function to something else?
+    def _create_and_bind_socket(self):
+        '''
+        Create UDP receive socket and bind
+        '''
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(self.address)
+
+        self._init = True
+        
+    def start(self):
+        self.listening = True
+
+    def stop(self):
+        self.listening = False
+    
+    def __del__(self):
+        self.stop()
+
+    def get_feedback_data(self):
+        raise NotImplementedError('Implement in subclasses!')
+
+import struct
+
+class UpperArmPassiveExoClient(Client):
+    ##  socket to read from
+    address = ('localhost', 60000) ### In production mode, this should be ('10.0.0.1', 60000). An explicit IP addr should be used to specify the interface, instead of just using localhost
+    send_port = ('localhost', 60001) ### In production mode, this should be ('10.0.0.12', 60001) 
+    MAX_MSG_LEN = 48
+    sleep_time = 1 #### In production mode, this should be 1./60
+
+    def __init__(self):
+        self._create_and_bind_socket()
+        self.tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def get_feedback_data(self):
+        '''
+        Yield received feedback data.
+        '''
+        while self.listening:
+            self.tx_sock.sendto('s', self.send_port)
+            # Hang until the read socket is "ready" for reading
+            # "r" represents the list of devices that are ready from the list that was passed in
+            r, _, _ = select.select([self.sock], [], [], 0)
+            
+            if len(r) > 0:
+                ts_arrival = int(time.time() * 1e6)
+                
+                time.sleep(self.sleep_time)
+                data = self.sock.recvfrom(self.MAX_MSG_LEN)
+                self.tx_sock.sendto('c', self.send_port)
+
+                # unpack the data
+                data = struct.unpack('>dddddd', data[0])
+
+                yield PassiveExoFeedbackData(data=data, ts_arrival=ts_arrival)
+
+class StateSpaceUpperArmPassiveExo(state_space_models.StateSpace):
+    '''
+    State space to represent the EFRI exoskeleton in passive mode
+    '''
+    def __init__(self):
+        '''
+        Constructor for StateSpaceUpperArmPassiveExo
+        A 6-D state space is created to represent all the position states. No velocity states are included.
+        '''
+        super(StateSpaceUpperArmPassiveExo, self).__init__(
+            state_space_models.State('q1', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
+            state_space_models.State('q2', stochastic=False, drives_obs=False, min_val=-10, max_val=10, order=0),
+            state_space_models.State('q3', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+            state_space_models.State('q4', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+            state_space_models.State('q5', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+            state_space_models.State('q6', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+        )    
+
+def _get_dtype2(state_names):
+    sub_dtype_data = np.dtype([(name, np.float64) for name in state_names])
+    sub_dtype_ts   = np.dtype([(name, np.int64)   for name in state_names])
+    return np.dtype([('data',       sub_dtype_data),
+                     ('ts_arrival', np.float64)])
+
+class UpperArmPassiveExoData(FeedbackData):
+    '''
+    Docstring
+    '''
+
+    update_freq = 60.
+    client_cls = UpperArmPassiveExoClient
+
+    ssm = StateSpaceUpperArmPassiveExo()
+    state_names = [s.name for s in StateSpaceUpperArmPassiveExo().states if s.order == 0]
+    dtype = _get_dtype2(state_names)
+
+    def get(self):
+        d = self.data.next()
+        return np.array([(tuple(d.data), d.ts_arrival)], dtype=self.dtype)        
+
+
+class PassivePlant(Plant):
+    def drive(self, *args, **kwargs):
+        raise NotImplementedError("Passive plant cannot be driven!")
+
+
+class AsynchronousPlant(Plant):
+    def init(self):
+        from riglib import sink
+        sink.sinks.register(self.source)
+        super(AsynchronousPlant, self).init()
+
+    def start(self):
+        '''
+        Only start the DataSource after it has been registered with 
+        The SinkManager singleton (sink.sinks) in the call to init()
+        '''
+        self.source.start()
+        super(AsynchronousPlant, self).start()
+
+    def stop(self):
+        self.source.stop()    
+        super(AsynchronousPlant, self).stop()
+
+
+
+
+class UpperArmPassiveExo(AsynchronousPlant, PassivePlant):
+    def __init__(self, print_commands=True):
+        self.print_commands = print_commands
+        from riglib.ismore import ArmAssistData
+        self.source = source.DataSource(UpperArmPassiveExoData, bufferlen=5, name='exo')
+        ssm = StateSpaceUpperArmPassiveExo()
+
+    def get_data_to_save(self):
+        joint_angles = np.array(tuple(self.source.read(n_pts=1)['data'][0]))
+        return dict(joint_angles=joint_angles)
+
+
 
 class CursorPlant(Plant):
     hdf_attrs = [('cursor', 'f8', (3,))]
@@ -108,10 +305,8 @@ class CursorPlant(Plant):
         return dict(cursor=self.position)
 
 
-
 class VirtualKinematicChain(Plant):
     def __init__(self, *args, **kwargs):
-        
         super(VirtualKinematicChain, self).__init__(*args, **kwargs)
 
 
