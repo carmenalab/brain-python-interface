@@ -26,17 +26,28 @@ import time
 sec_per_min = 60
 
 class RewardSystem(traits.HasTraits):
-    '''Use the reward system during the reward phase'''
+    '''
+    Feature for the Crist solenoid reward system
+    '''
+    trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
     def __init__(self, *args, **kwargs):
         from riglib import reward
         super(RewardSystem, self).__init__(*args, **kwargs)
         self.reward = reward.open()
 
     def _start_reward(self):
+        self.reward_start = self.get_time()
         if self.reward is not None:
-            self.reward.reward(self.reward_time*1000.)
-            self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
+            self.reportstats['Reward #'] += 1
+            if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+                self.reward.reward(self.reward_time*1000.)
         super(RewardSystem, self)._start_reward()
+
+    def _test_reward_end(self, ts):
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            return ts > self.reward_time
+        else:
+            return True
 
 class TTLReward(traits.HasTraits):
     '''During the reward phase, send a timed TTL pulse to the reward system'''
