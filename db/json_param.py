@@ -30,6 +30,11 @@ def norm_trait(trait, value):
             
             value = cname.objects.get(pk=value).get()
         #Otherwise, let's hope it's already an instance
+    elif ttype == 'Bool':
+        if value == 'on':
+            value = True
+        elif value == 'off':
+            value = False
     elif ttype == 'Tuple':
         #Let's make sure this works, for older batches of data
         value = tuple(value)
@@ -38,7 +43,11 @@ def norm_trait(trait, value):
     try:
         return trait.cast(value)
     except:
+        print trait
         print value
+        f = open('/home/helene/code/bmi3d/log/trait_log', 'w')
+        f.write('%s, %s' % (str(ttype), str(value)))
+        f.close()
         import traceback
         traceback.print_exc()
         raise Exception
