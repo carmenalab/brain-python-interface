@@ -126,8 +126,12 @@ import struct
 
 class UpperArmPassiveExoClient(Client):
     ##  socket to read from
-    address = ('localhost', 60000) ### In production mode, this should be ('10.0.0.1', 60000). An explicit IP addr should be used to specify the interface, instead of just using localhost
-    send_port = ('localhost', 60001) ### In production mode, this should be ('10.0.0.12', 60001) 
+    address = ('10.0.0.1', 60000)
+    send_port = ('10.0.0.12', 60001)
+
+    #address = ('localhost', 60000) 
+    #send_port = ('localhost', 60001)
+
     MAX_MSG_LEN = 48
     sleep_time = 1 #### In production mode, this should be 1./60
 
@@ -143,12 +147,12 @@ class UpperArmPassiveExoClient(Client):
             self.tx_sock.sendto('s', self.send_port)
             # Hang until the read socket is "ready" for reading
             # "r" represents the list of devices that are ready from the list that was passed in
+            time.sleep(self.sleep_time)
             r, _, _ = select.select([self.sock], [], [], 0)
             
             if len(r) > 0:
                 ts_arrival = int(time.time() * 1e6)
                 
-                time.sleep(self.sleep_time)
                 data = self.sock.recvfrom(self.MAX_MSG_LEN)
                 self.tx_sock.sendto('c', self.send_port)
 
@@ -221,20 +225,43 @@ class AsynchronousPlant(Plant):
         self.source.stop()    
         super(AsynchronousPlant, self).stop()
 
-
-
-
-class UpperArmPassiveExo(AsynchronousPlant, PassivePlant):
+import struct
+class UpperArmPassiveExo(PassivePlant):
+    hdf_attrs = [('joint_angles', 'f8', (6,))]
+    read_addr = ('10.0.0.1', 60000)
     def __init__(self, print_commands=True):
         self.print_commands = print_commands
-        from riglib.ismore import ArmAssistData
-        self.source = source.DataSource(UpperArmPassiveExoData, bufferlen=5, name='exo')
         ssm = StateSpaceUpperArmPassiveExo()
+        self.initialized = False
+        self.rx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.ssm = StateSpaceUpperArmPassiveExo()
+        self.tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def start(self):
+        self.rx_sock.bind(('10.0.0.1', 60000))
+        super(UpperArmPassiveExo, self).start()        
 
     def get_data_to_save(self):
-        joint_angles = np.array(tuple(self.source.read(n_pts=1)['data'][0]))
+        if self.initialized:
+            data = self.rx_sock.recvfrom(48)
+            self.tx_sock.sendto('c', ('10.0.0.12', 60001))
+            joint_angles = np.array(struct.unpack('>dddddd', data[0]))
+        else:
+            joint_angles = np.array(np.ones(6)*np.nan)
+            
+        self.tx_sock.sendto('s', ('10.0.0.12', 60001))
+        self.initialized = True
+
+        # joint_angles = np.array(tuple(self.source.read(n_pts=1)['data'][0]))
+        self.joint_angles = joint_angles
         return dict(joint_angles=joint_angles)
 
+    def get_endpoint_pos(self):
+        ### THIS IS A STUB FUNCTION UNTIL THE IK WORKS!
+        return np.zeros(3)
+
+    def stop(self):
+        self.rx_sock.close()
 
 
 class CursorPlant(Plant):
@@ -385,7 +412,10 @@ class RobotArmGen2D(Plant):
             self.link_groups[i].translate(0, 0, link_offsets[i])
 
         self.link_groups[0].translate(*self.base_loc, reset=True)
-        self.graphics_models = [self.link_groups[0]]
+        
+        self.cursor = Sphere(radius=self.link_radii[-1]/2, color=self.link_colors[-1])
+        # self.cursor.translate(*self.get_endpoint_pos(), reset=True)
+        self.graphics_models = [self.link_groups[0], self.cursor]        
 
     def _update_link_graphics(self):
         for i in range(0, self.num_joints):
@@ -403,6 +433,8 @@ class RobotArmGen2D(Plant):
 
             # Recompute any cached transformations after the change
             self.link_groups[i]._recache_xfm()
+
+        self.cursor.translate(*self.get_endpoint_pos(), reset=True)
 
     def get_endpoint_pos(self):
         '''
