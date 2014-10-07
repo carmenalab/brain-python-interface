@@ -965,7 +965,7 @@ class TaskEntryCollection(object):
 
     def proc_trials(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
                     trial_condition_fn=trial_condition_functions.default, data_comb_fn=default_data_comb_fn,
-                    verbose=True):
+                    verbose=True, **kwargs):
         '''
         Generic framework to perform a trial-level analysis on the entire dataset
 
@@ -1013,7 +1013,7 @@ class TaskEntryCollection(object):
                 ## Call a function on each trial    
                 for k in range(n_trials):
                     try:
-                        output = trial_proc_fn(te, trial_msgs[k])
+                        output = trial_proc_fn(te, trial_msgs[k], **kwargs)
                         trial_condition = trial_condition_fn(te, trial_msgs[k])
                         blockset_data[trial_condition].append(output)
                     except:
@@ -1032,7 +1032,7 @@ class TaskEntryCollection(object):
         return result
 
     def proc_blocks(self, block_filter_fn=trial_filter_functions.default, block_proc_fn=trial_proc_functions.default, 
-                    data_comb_fn=default_data_comb_fn, verbose=True):
+                    data_comb_fn=default_data_comb_fn, verbose=True, **kwargs):
         '''
         Generic framework to perform a block-level analysis on the entire dataset, e.g., average reach time across all targets
 
@@ -1069,7 +1069,7 @@ class TaskEntryCollection(object):
                     print ".", 
 
                 if block_filter_fn(te):
-                    blockset_data.append(block_proc_fn(te))
+                    blockset_data.append(block_proc_fn(te, **kwargs))
 
             blockset_data = data_comb_fn(blockset_data)
             result.append(blockset_data)
