@@ -48,7 +48,8 @@ class Task(models.Model):
 
     def params(self, feats=(), values=None):
         from riglib import experiment
-        from namelist import instance_to_model, plantlist
+        from namelist import instance_to_model
+        from tasks.plantlist import plantlist
         if values is None:
             values = dict()
         
