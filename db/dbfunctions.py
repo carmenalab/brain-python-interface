@@ -65,7 +65,6 @@ def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
 def default_data_comb_fn(x):
     return x
 
-
 def get_records_of_trained_decoders(task_entry):
     '''
     Returns unpickled decoder objects that were trained in a specified session.
@@ -98,7 +97,6 @@ def get_task_id(name):
     Returns the task ID for the specified task name.
     '''
     return models.Task.objects.get(name=name).pk
-
 
 def get_decoder_entry(entry):
     '''Returns the database entry for the decoder used in the session. Argument can be a task entry
@@ -284,135 +282,6 @@ def query_daterange(startdate, enddate=datetime.date.today()):
     '''
     return models.TaskEntry.objects.filter(date__gte=startdate).filter(date__lte=enddate)
     
-def get_hdf_file(entry):
-    '''
-    Returns the name of the hdf file associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    hdf = models.System.objects.get(name='hdf')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=hdf.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            return os.path.join(db.paths.pathdict[dbname], 'rawdata', hdf.name, q[0].path)
-        except:
-            return q[0].path
-
-def get_hdf(entry):
-    '''
-    Return hdf opened file
-    '''
-    entry = lookup_task_entries(entry)
-    hdf_filename = get_hdf_file(entry)
-    hdf = tables.openFile(hdf_filename)
-    return hdf
-
-def get_binned_spikes_file(entry):
-    ''' Return binned spike file if it exists'''
-    entry = lookup_task_entries(entry)
-    fname = db.paths.data_path+'binned_spikes/'+entry.name+'.npz'
-    print fname
-    if os.path.isfile(fname):
-        return np.load(fname)
-    else:
-        print 'Not found'
-        return None
-
-def get_plx_file(entry):
-    '''
-    Returns the name of the plx file associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    plexon = models.System.objects.get(name='plexon')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            return os.path.join(db.paths.data_path, plexon.name, q[0].path)
-        except:
-            return q[0].path
-        
-def get_plx2_file(entry):
-    '''
-    Returns the name of the plx2 file associated with the session.
-    '''
-    plexon = models.System.objects.get(name='plexon2')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            return os.path.join(db.paths.data_path, plexon.name, q[0].path)
-        except:
-            return q[0].path
-        
-def get_bmiparams_file(entry):
-    '''
-    Returns the name of the bmi parameter update history file associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    bmi_params = models.System.objects.get(name='bmi_params')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=bmi_params.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            return os.path.join(db.paths.data_path, bmi_params.name, q[0].path)
-        except:
-            return q[0].path
-
-def get_blackrock_files(entry):
-    '''
-    Returns a list containing the names of the blackrock files (there could be more
-    than one) associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    blackrock = models.System.objects.get(name='blackrock')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            import db.paths
-            return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
-        except:
-            return [datafile.path for datafile in q]
-
-def get_nev_file(entry):
-    '''
-    Returns the name of the nev file associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    blackrock = models.System.objects.get(name='blackrock')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
-    if len(q)==0:
-        return None
-    else:
-        try:
-            import db.paths
-            return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
-        except:
-            return q[0].path
-
-def get_nsx_files(entry):
-    '''
-    Returns a list containing the names of the nsx files (there could be more
-    than one) associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    blackrock = models.System.objects.get(name='blackrock')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).exclude(path__endswith='.nev')
-    if len(q)==0:
-        return None
-    else:
-        try:
-            import db.paths
-            return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
-        except:
-            return [datafile.path for datafile in q]
-
 def get_decoder_parent(decoder):
     '''
     decoder = database record of decoder object
@@ -470,11 +339,6 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
             pass
     return dec_list
 
-def get_code_version():
-    git_version_hash = os.popen('bmi3d_git_hash').readlines()
-    git_version_hash = git_version_hash[0].rstrip('\n')
-    return git_version_hash
-
 def get_task_entries_by_date(subj=None, date=datetime.date.today(), **kwargs):
     '''
     Get all the task entries for a particular date
@@ -513,24 +377,7 @@ def load_last_decoder():
     record = all_decoder_records[len(all_decoder_records)-1]
     return record.load()
 
-def get_decoders_trained_in_block(task_entry, dbname='default'):
-    '''
-    Returns unpickled decoder objects that were trained in a specified session.
-    '''
-    if not isinstance(task_entry, models.TaskEntry):
-        task_entry = models.TaskEntry.objects.using(dbname).get(id=task_entry)
-    records = models.Decoder.objects.filter(entry_id=task_entry.id)
-    decoder_objects = map(lambda x: x.load(), records)
-    if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
-    return decoder_objects
 
-def get_decoder_ids_trained_in_block(task_entry):
-    '''
-    Returns the database entries of decoders trained in a particular session.
-    '''
-    task_entry = lookup_task_entries(task_entry)
-    records = models.Decoder.objects.filter(entry_id=task_entry.id)
-    return records
 
 class TaskEntry(object):
     '''
@@ -584,18 +431,29 @@ class TaskEntry(object):
             except:
                 self.decoder_record = None
 
-    def get_decoders_trained_in_block(self):
+    def get_decoders_trained_in_block(self, return_type='record'):
         '''
-        Docstring
+        Retrieve decoders associated with this block. A block may have multiple decoders 
+        associated with it, e.g., a single decoder seeding block may be used to generate several seed decoders
 
         Parameters
         ----------
+        return_type: string
+            'record' means the Django database records are returned. 'object' means the un-pickled riglib.bmi.Decoder objects are returned
 
         Returns
         -------
+        list or object
+            If only one decoder is linked to this task entry, an object is returned (either a db record or a Decoder instance). If multiple decoders are linked, 
+            a list of objects is returned
         '''
         records = models.Decoder.objects.using(self.dbname).filter(entry_id=self.id)
-        decoder_objects = map(lambda x: x.load(), records)
+        if return_type == 'record':
+            decoder_objects = list(records)
+        elif return_type == 'object':
+            decoder_objects = map(lambda x: x.load(), records)
+        else:
+            raise ValueError("Unrecognized return_type!")
         if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
         return decoder_objects
 
@@ -652,7 +510,7 @@ class TaskEntry(object):
 
         '''
         if data_comb_fn == None: 
-            default_data_comb_fn = np.hstack
+            data_comb_fn = np.hstack
 
         te = self
         trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
@@ -756,13 +614,7 @@ class TaskEntry(object):
     @property
     def hdf(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Return a reference to the HDF file recorded during this TaskEntry
         '''
         try:
             return self.hdf_file
@@ -773,13 +625,7 @@ class TaskEntry(object):
     @property
     def plx(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Return a reference to the opened plx file recorded during this TaskEntry
         '''
         try:
             self._plx
@@ -791,26 +637,18 @@ class TaskEntry(object):
     @property
     def task(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Return database record of the task performed during this TaskEntry
         '''
         return self.record.task
 
     @property
     def decoder(self):
+        '''
+        Return a reference to the unpickled riglib.bmi.Decoder instance associated with this TaskEntry.
+        This function will error if there is no decoder actually associated with this TaskEntry
+        '''
         if not hasattr(self, '_decoder_obj'):
-            # entry = lookup_task_entries(entry)
-            # filename = get_decoder_name_full(entry)
-            # dec = pickle.load(open(filename, 'r'))
-            # dec.db_entry = get_decoder_entry(entry)
-            # dec.name = dec.db_entry.name
-
-            self._decoder_obj = self.decoder_record.load() #get_decoder(self.record)
+            self._decoder_obj = self.decoder_record.load()
         return self._decoder_obj
 
     @property
@@ -851,30 +689,38 @@ class TaskEntry(object):
         return get_length(self.record)
     
     @property
-    def plx_file(self):
+    def plx_filename(self):
         '''
-        Docstring
+        Return the name of the plx file associated with this TaskEntry
+        '''
+        return self.get_datafile('plexon', intermediate_path='')
+
+    def get_datafile(self, system_name, intermediate_path='rawdata'):
+        '''
+        Look up the file linked to this TaskEntry from a specific system
 
         Parameters
         ----------
+        system_name : string
+            Name of system (must match the database record name)
+        intermediate_path: string
+            specific directory structure for this system. Some systems have inconsistent directory structures
 
         Returns
         -------
+        filename of associated file 
         '''
-        return get_plx_file(self.record)
+        q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name=system_name)
+        dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
+        return os.path.join(dbconfig['data_path'], intermediate_path, q.system.name, q.path)        
+
 
     @property
     def plx2_file(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Returns the name of any files associated with the plexon2 system. Used briefly only in a rig where there were multiple recording systems used simultaneously.
         '''
-        return get_plx2_file(self.record)
+        return self.get_datafile('plexon2', intermediate_path='')
 
     @property
     def nev_file(self):
@@ -905,42 +751,18 @@ class TaskEntry(object):
     @property
     def name(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Return the 'name' of the TaskEntry used to set all the names of linked data files
         '''
         # TODO this needs to be hacked because the current way of determining a 
         # a filename depends on the number of things in the database, i.e. if 
         # after the fact a record is removed, the number might change. read from
         # the file instead
-        return str(os.path.basename(self.plx_file).rstrip('.plx'))
+        return str(os.path.basename(self.hdf_filename).rstrip('.hdf'))
 
     def __str__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         return self.record.__str__()
 
     def __repr__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         return self.record.__repr__()
 
     @property
@@ -1106,6 +928,23 @@ class TaskEntrySet(object):
 
         return blocks
 
+
+
+def parse_blocks(blocks, **kwargs):
+    '''
+    Parse out a hierarchical structure of block ids
+    '''
+    data = []
+    from analysis import performance
+    for block in blocks:
+        if np.iterable(block):
+            te = parse_blocks(block, **kwargs)
+        else:
+            te = performance._get_te(block, **kwargs)
+        data.append(te)
+    return data
+
+
 class TaskEntryCollection(object):
     '''
     Container for analyzing multiple task entries with an arbitrarily deep hierarchical structure
@@ -1120,14 +959,7 @@ class TaskEntryCollection(object):
         Returns
         -------
         '''
-        self.blocks = blocks
-        # if isinstance(blocks, int):
-        #     blocks = [blocks,]
-        
-        # self.blocks = HierarchicalList(blocks)
-
-        # from analysis import performance
-        # self.task_entry_set = performance._get_te_set(self.blocks.flat_ls)
+        self.blocks = parse_blocks(blocks, **kwargs)
         self.kwargs = kwargs
         self.name = name
 
@@ -1162,22 +994,19 @@ class TaskEntryCollection(object):
             trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
 
         if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_proc_fn)            
+            trial_condition_fn = getattr(trial_condition_functions, trial_proc_fn)
 
         result = []
         for blockset in self.blocks:
-            if isinstance(blockset, int):
+            if not np.iterable(blockset):
                 blockset = (blockset,)
             
-            from analysis import performance
             blockset_data = defaultdict(list)
-            for b in blockset:
+            for te in blockset:
                 if verbose:
-                    print ".", 
-                    # sys.stdout.write('.')
+                    print ".",
           
                 # Filter out the trials you want
-                te = performance._get_te(b, **self.kwargs)
                 trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
                 n_trials = len(trial_msgs)
         
@@ -1192,41 +1021,63 @@ class TaskEntryCollection(object):
                         import traceback
                         traceback.print_exc()
         
-            newdata = dict()
+            # Aggregate the data from the blockset, which may include multiple task entries
+            blockset_data_comb = dict()
             for key in blockset_data:
-                newdata[key] = data_comb_fn(blockset_data[key])
-            blockset_data = newdata
-            result.append(blockset_data)
+                blockset_data_comb[key] = data_comb_fn(blockset_data[key])
+            result.append(blockset_data_comb)
 
-        sys.stdout.write('\n')
+        if verbose:
+            sys.stdout.write('\n')
         return result
 
     def proc_blocks(self, block_filter_fn=trial_filter_functions.default, block_proc_fn=trial_proc_functions.default, 
                     data_comb_fn=default_data_comb_fn, verbose=True):
         '''
-        Docstring
+        Generic framework to perform a block-level analysis on the entire dataset, e.g., average reach time across all targets
+
+        Parameters
+        ----------
+        block_filter_fn: callable; call signature: block_filter_fn(task_entry)
+            Function must return True/False values to determine if a task entry is valid for the analysis
+        block_proc_fn: callable; call signature: trial_proc_fn(task_entry)
+            The main workhorse function 
+        data_comb_fn: callable; call signature: data_comb_fn(list)
+            Combine the list into the desired output structure
+
+        Returns
+        -------
+        result: list
+            The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
+            grouped by tuples are combined into a single result. 
         '''
+        # Look up functions by name, if strings are given instead of functions
+        if isinstance(block_filter_fn, str):
+            block_filter_fn = getattr(trial_filter_functions, block_filter_fn)
+
+        if isinstance(block_proc_fn, str):
+            block_proc_fn = getattr(block_proc_functions, block_proc_fn)
+
         result = []
         for blockset in self.blocks:
-            if isinstance(blockset, int):
+            if not np.iterable(blockset):
                 blockset = (blockset,)
             
-            from analysis import performance
             blockset_data = []
-            for b in blockset:
+            for te in blockset:
                 if verbose:
                     print ".", 
-          
-                te = performance._get_te(b)
+
                 if block_filter_fn(te):
                     blockset_data.append(block_proc_fn(te))
 
             blockset_data = data_comb_fn(blockset_data)
             result.append(blockset_data)
 
-        sys.stdout.write('\n')
+        if verbose:
+            sys.stdout.write('\n')
         return result                
-        
+
 ######################
 ## Filter functions
 ######################
@@ -1268,3 +1119,151 @@ def get_bmi_blocks(date, subj='C'):
     blocks = TaskEntrySet.get_blocks(filter_fns=[min_trials(50)], subj=subj, date=date, task__name__startswith='bmi') + TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='clda')
     blocks.sort(key=lambda x: x.date)
     return blocks
+
+#############################################################
+## Deprecated code
+#############################################################
+def deprecation_warning():
+    import warnings
+    warnings.warn("dbfunctions: this function is now deprecated and eventually will be removed. Use TaskEntry instead!!!!!!")
+
+def get_decoders_trained_in_block(task_entry, dbname='default'):
+    '''
+    Returns unpickled decoder objects that were trained in a specified session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(task_entry)
+    return te.get_decoders_trained_in_block(return_type='object')
+
+def get_decoder_ids_trained_in_block(task_entry):
+    '''
+    Returns the database entries of decoders trained in a particular session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(task_entry)
+    return te.get_decoders_trained_in_block(return_type='record')
+
+def get_hdf_file(entry):
+    '''
+    Returns the name of the hdf file associated with the session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(task_entry)
+    return te.hdf_filename
+
+def get_hdf(entry):
+    '''
+    Return hdf opened file
+    '''
+    deprecation_warning()
+    te = TaskEntry(task_entry)
+    return te.hdf
+
+def get_binned_spikes_file(entry):
+    ''' Return binned spike file if it exists'''
+    entry = lookup_task_entries(entry)
+    fname = db.paths.data_path+'binned_spikes/'+entry.name+'.npz'
+    print fname
+    if os.path.isfile(fname):
+        return np.load(fname)
+    else:
+        print 'Not found'
+        return None
+
+def get_plx_file(entry):
+    '''
+    Returns the name of the plx file associated with the session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(task_entry)
+    return te.plx_filename
+
+    entry = lookup_task_entries(entry)
+    plexon = models.System.objects.get(name='plexon')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
+    if len(q)==0:
+        return None
+    else:
+        try:
+            return os.path.join(db.paths.data_path, plexon.name, q[0].path)
+        except:
+            return q[0].path
+        
+def get_plx2_file(entry):
+    '''
+    Returns the name of the plx2 file associated with the session.
+    '''
+    plexon = models.System.objects.get(name='plexon2')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
+    if len(q)==0:
+        return None
+    else:
+        try:
+            return os.path.join(db.paths.data_path, plexon.name, q[0].path)
+        except:
+            return q[0].path
+        
+def get_bmiparams_file(entry):
+    '''
+    Returns the name of the bmi parameter update history file associated with the session.
+    '''
+    entry = lookup_task_entries(entry)
+    bmi_params = models.System.objects.get(name='bmi_params')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=bmi_params.id)
+    if len(q)==0:
+        return None
+    else:
+        try:
+            return os.path.join(db.paths.data_path, bmi_params.name, q[0].path)
+        except:
+            return q[0].path
+
+def get_blackrock_files(entry):
+    '''
+    Returns a list containing the names of the blackrock files (there could be more
+    than one) associated with the session.
+    '''
+    entry = lookup_task_entries(entry)
+    blackrock = models.System.objects.get(name='blackrock')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id)
+    if len(q)==0:
+        return None
+    else:
+        try:
+            import db.paths
+            return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
+        except:
+            return [datafile.path for datafile in q]
+
+def get_nev_file(entry):
+    '''
+    Returns the name of the nev file associated with the session.
+    '''
+    entry = lookup_task_entries(entry)
+    blackrock = models.System.objects.get(name='blackrock')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
+    if len(q)==0:
+        return None
+    else:
+        try:
+            import db.paths
+            return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
+        except:
+            return q[0].path
+
+def get_nsx_files(entry):
+    '''
+    Returns a list containing the names of the nsx files (there could be more
+    than one) associated with the session.
+    '''
+    entry = lookup_task_entries(entry)
+    blackrock = models.System.objects.get(name='blackrock')
+    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).exclude(path__endswith='.nev')
+    if len(q)==0:
+        return None
+    else:
+        try:
+            import db.paths
+            return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
+        except:
+            return [datafile.path for datafile in q]
