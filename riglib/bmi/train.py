@@ -1078,7 +1078,7 @@ def _train_tentacle_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, u
     -------
     '''
     print "using tentacletate space " , _ssm == tentacle_2D_state_space
-    return _train_KFDecoder_visual_feedback(units=units, binlen=binlen, tslice=tslice, 
+    return _train_KFDecoder_visual_feedback(extractor_cls, extractor_kwargs, units=units, binlen=binlen, tslice=tslice, 
                                             _ssm=_ssm, source=source, kin_var=kin_var, 
                                             shuffle=shuffle, **files)
 
