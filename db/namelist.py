@@ -35,7 +35,7 @@ features = dict(
 )
 
 import tasks
-from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback
+from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback, manualcontrolfreechoice
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
@@ -66,6 +66,7 @@ generators = dict(
     rehand_simple=generatorfunctions.rehand_simple,
     ismore_simple=generatorfunctions.ismore_simple,
     centerout_2D_discrete_multiring=generatorfunctions.centerout_2D_discrete_multiring,
+    block_probabilistic_reward=generatorfunctions.colored_targets_with_probabilistic_reward
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -134,6 +135,7 @@ tasks = dict(
     bmi_cursor_bias=tasks.BMICursorBias,
     joystick_ops=tasks.JoystickDrivenCursorOPS,
     joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
+    joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
