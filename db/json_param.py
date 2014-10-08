@@ -43,10 +43,8 @@ def norm_trait(trait, value):
     try:
         return trait.cast(value)
     except:
-        print trait
-        print value
-        f = open('/home/helene/code/bmi3d/log/trait_log', 'w')
-        f.write('%s, %s' % (str(ttype), str(value)))
+        f = open(os.path.expandvars('$BMI3D/log/trait_log'), 'w')
+        f.write('Error with type for trait %s, value %s' % (str(ttype), str(value)))
         f.close()
         import traceback
         traceback.print_exc()
