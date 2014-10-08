@@ -298,7 +298,7 @@ class TaskEntry(object):
             print key, report[key]
 
     def proc(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
-             trial_condition_fn=trial_condition_functions.default, data_comb_fn=None):
+             trial_condition_fn=trial_condition_functions.default, data_comb_fn=None, **kwargs):
         '''
         Generic trial-level data analysis function
 
@@ -320,6 +320,15 @@ class TaskEntry(object):
             grouped by tuples are combined into a single result. 
 
         '''
+        if isinstance(trial_filter_fn, str):
+            trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
+
+        if isinstance(trial_proc_fn, str):
+            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
+
+        if isinstance(trial_condition_fn, str):
+            trial_condition_fn = getattr(trial_condition_functions, trial_proc_fn)
+
         if data_comb_fn == None: 
             data_comb_fn = np.hstack
 
@@ -331,7 +340,7 @@ class TaskEntry(object):
         
         ## Call a function on each trial    
         for k in range(n_trials):
-            output = trial_proc_fn(te, trial_msgs[k])
+            output = trial_proc_fn(te, trial_msgs[k], **kwargs)
             trial_condition = trial_condition_fn(te, trial_msgs[k])
             blockset_data[trial_condition].append(output)
         
