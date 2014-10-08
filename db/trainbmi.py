@@ -32,7 +32,7 @@ def cache_plx(plxfile):
     plexfile.openFile(str(plxfile)) 
 
 @task()
-def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm):
+def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key):
     """Train BMI
 
     (see doc for cache_and_train for input argument info)
@@ -107,7 +107,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     files = te.datafiles
     training_method = namelist.bmi_algorithms[clsname]
     ssm = namelist.bmi_state_space_models[ssm]
-    decoder = training_method(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, ssm, units, update_rate=binlen, tslice=tslice)
+    decoder = training_method(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key)
             # train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)

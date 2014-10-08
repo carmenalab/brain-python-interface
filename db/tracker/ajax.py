@@ -181,6 +181,7 @@ def make_bmi(request, idx):
         binlen=1./update_rate,
         tslice=map(float, request.POST.getlist('tslice[]')),
         ssm=request.POST['ssm'],
+        pos_key=request.POST['pos_key'],
     )
     print kwargs
     trainbmi.cache_and_train(**kwargs)

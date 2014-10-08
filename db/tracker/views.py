@@ -38,6 +38,7 @@ def list(request):
         bmi_algorithms=namelist.bmi_algorithms,
         extractors=namelist.extractors,
         default_extractor=namelist.default_extractor,
+        pos_vars=namelist.bmi_training_pos_vars,
     )
     if display.task is not None:
         fields['running'] = display.task.saveid

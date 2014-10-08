@@ -67,6 +67,19 @@
                 </select>
             </td>
         </tr>
+        <!-- Select position variable -->
+        <tr>
+            <td>
+                <label for='pos_key'>Position variable</label>
+            </td>
+            <td>
+                <select id='pos_key'>
+                    {% for pos_key in pos_vars %}
+                        <option>{{ pos_key }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
         <!-- Slider for specifying the time range of the block to use for training the decoder-->
         <tr>
             <td id='tselect' colspan='2'>

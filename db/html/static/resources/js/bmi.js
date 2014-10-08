@@ -284,6 +284,8 @@ BMI.prototype.train = function() {
     data.bmiupdaterate = $("#bmiupdaterate").val();
     data.tslice = $("#tslider").slider("values");
     data.ssm = $("#ssm").val();
+    data.pos_key = $("#pos_key").val();
+
     data.csrfmiddlewaretoken = csrf.val();
 
     $.post("/make_bmi/"+this.idx, data, function(resp) {
