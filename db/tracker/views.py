@@ -33,7 +33,9 @@ def list(request):
         features=Feature.objects.filter(visible=True).order_by("name"), 
         generators=Generator.objects.filter(visible=True).order_by("name"),
         hostname=request.get_host(),
-        bmis=namelist.bmis,
+        bmi_update_rates=namelist.bmi_update_rates,
+        state_spaces=namelist.bmi_state_space_models,
+        bmi_algorithms=namelist.bmi_algorithms,
         extractors=namelist.extractors,
         default_extractor=namelist.default_extractor,
     )
