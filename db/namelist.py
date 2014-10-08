@@ -181,20 +181,20 @@ instance_to_model = SubclassDict( {
 } )
 
 
-bmis = dict(
-    kalman=bmi.train._train_KFDecoder_manual_control,
-    kalmanCursorEpochs = bmi.train._train_KFDecoder_cursor_epochs,
-    kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
-    kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
-    ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
-    ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
-    kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
-    kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
-    kalmanVF3d=bmi.train._train_KFDecoder_visual_feedback_3d,
-    kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
-    kalmanVFrehand=bmi.train._train_rehand_KFDecoder_visual_feedback,
-    kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
-)
+##bmis = dict(
+##    kalman=bmi.train._train_KFDecoder_manual_control,
+##    kalmanCursorEpochs = bmi.train._train_KFDecoder_cursor_epochs,
+##    kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
+##    kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
+##    ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
+##    ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
+##    kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
+##    kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
+##    kalmanVF3d=bmi.train._train_KFDecoder_visual_feedback_3d,
+##    kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
+##    kalmanVFrehand=bmi.train._train_rehand_KFDecoder_visual_feedback,
+##    kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
+##)
 
 bmi_algorithms = dict(
     KFDecoder=bmi.train.train_KFDecoder,

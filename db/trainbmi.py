@@ -114,7 +114,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     tf.flush()
     database.save_bmi(name, int(entry), tf.name)
 
-def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm):
+def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key):
     """Cache plexon file (if using plexon system) and train BMI.
 
     Parameters
@@ -145,13 +145,13 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
 
         if not plxfile.has_cache():
             cache = cache_plx.si(plxfile.get_path())
-            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm)
+            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
             chain(cache, train)()
         else:
-            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm)
+            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
     
     elif config.recording_sys['make'] == 'blackrock':
-        make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm)
+        make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
     
     else:
         raise Exception('Unknown recording_system!')

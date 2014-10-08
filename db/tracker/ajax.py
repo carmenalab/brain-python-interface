@@ -184,6 +184,7 @@ def make_bmi(request, idx):
         pos_key=request.POST['pos_key'],
     )
     print kwargs
+    print 'running cache and train'
     trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))
 

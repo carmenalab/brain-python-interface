@@ -238,7 +238,11 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
 
     print extractor_kwargs
 
+    # TODO this is a hack because somehow the 'units' are ending up in the kwargs...
+    if 'units' in extractor_kwargs:
+        extractor_kwargs.pop('units')
     neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, **extractor_kwargs)
+    extractor_kwargs['units'] = units
     return neural_features, units, extractor_kwargs
 
 def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task'):    
