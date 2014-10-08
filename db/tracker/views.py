@@ -15,7 +15,16 @@ from ajax import display
 
 def list(request):
     '''
-    Top-level view called when browser pointed at nucleus:8000/
+    Top-level view called when browser pointed at webroot
+
+    Parameters
+    ----------
+    request: HTTPRequest instance
+        No data needs to be extracted from this request
+
+    Returns 
+    -------
+    Django HTTPResponse instance
     '''
     fields = dict(
         entries=TaskEntry.objects.all().order_by("-date"), 
