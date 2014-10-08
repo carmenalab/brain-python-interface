@@ -97,184 +97,7 @@ def get_task_id(name):
     Returns the task ID for the specified task name.
     '''
     return models.Task.objects.get(name=name).pk
-
-def get_decoder_entry(entry):
-    '''Returns the database entry for the decoder used in the session. Argument can be a task entry
-    or the ID number of the decoder entry itself.
-    '''
-    if isinstance(entry, int):
-        return models.Decoder.objects.get(pk=entry)
-    else:
-        params = json.loads(entry.params)
-        if 'decoder' in params:
-            return models.Decoder.objects.get(pk=params['decoder'])
-        elif 'bmi' in params:
-            return models.Decoder.objects.get(pk=params['bmi'])
-        else:
-            return None
-
-def get_decoder_name(entry):
-    ''' 
-    Returns the filename of the decoder used in the session.
-    Takes TaskEntry object.
-    '''
-    entry = lookup_task_entries(entry)
-    try:
-        decid = json.loads(entry.params)['decoder']
-    except:
-        decid = json.loads(entry.params)['bmi']
-    return models.Decoder.objects.get(pk=decid).name
-
-def get_decoder_name_full(entry):
-    entry = lookup_task_entries(entry)
-    decoder_basename = get_decoder_name(entry)
-    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
-
-def get_decoder(entry):
-    entry = lookup_task_entries(entry)
-    filename = get_decoder_name_full(entry)
-    dec = pickle.load(open(filename, 'r'))
-    dec.db_entry = get_decoder_entry(entry)
-    dec.name = dec.db_entry.name
-    return dec
-
-def get_params(entry):
-    '''
-    Returns a dict of all task params for session.
-    Takes TaskEntry object.
-    '''
-    return json.loads(entry.params)
-
-def get_param(entry,paramname):
-    '''
-    Returns parameter value.
-    Takes TaskEntry object.
-    '''
-    return json.loads(entry.params)[paramname]
-
-def get_task_name(entry):
-    '''
-    Returns name of task used for session.
-    Takes TaskEntry object.
-    '''
-    return models.Task.objects.get(pk=entry.task_id).name
-    
-def get_date(entry):
-    '''
-    Returns date and time of session (as a datetime object).
-    Takes TaskEntry object.
-    '''
-    return entry.date
-    
-def get_notes(entry):
-    '''
-    Returns notes for session.
-    Takes TaskEntry object.
-    '''
-    return entry.notes
-    
-def get_subject(entry):
-    '''
-    Returns name of subject for session.
-    Takes TaskEntry object.
-    '''
-    return models.Subject.objects.get(pk=entry.subject_id).name
-    
-def get_length(entry):
-    '''
-    Returns length of session in seconds.
-    Takes TaskEntry object.
-    '''
-    try:
-        report = json.loads(entry.report)
-    except:
-        return 0.0
-    return report[-1][2]-report[0][2]
-    
-def get_success_rate(entry):
-    '''
-    Returns (# of trials rewarded)/(# of trials intiated).
-    Takes TaskEntry object.
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    total=0.0
-    rew=0.0
-    for s in report:
-        if s[0]=='reward':
-            rew+=1
-            total+=1
-        if s[0]=='hold_penalty' or s[0]=='timeout_penalty':
-            total+=1
-    return rew/total
-
-def get_completed_trials(entry):
-    '''
-    Returns # of trials rewarded
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    return len([s for s in report if s[0]=="reward"])
-
-def get_initiate_rate(entry):
-    '''
-    Returns average # of trials initated per minute.
-    Takes TaskEntry object.
-    '''
-    length = get_length(entry)
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    count=0.0
-    for s in report:
-        if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
-            count+=1
-    return count/(length/60.0)
-
-def get_reward_rate(entry):
-    '''
-    Returns average # of trials completed per minute.
-    Takes TaskEntry object.
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    count=0.0
-    rewardtimes = []
-    for s in report:
-        if s[0]=='reward':
-            count+=1
-            rewardtimes.append(s[2])
-    if len(rewardtimes)==0:
-        return 0
-    else:
-        length = rewardtimes[-1] - report[0][2]
-        return count/(length/60.0)
-    
-def session_summary(entry):
-    '''
-    Prints a summary of info about session.
-    Takes TaskEntry object.
-    '''
-    entry = lookup_task_entries(entry)
-    print "Subject: ", get_subject(entry)
-    print "Task: ", get_task_name(entry)
-    print "Date: ", str(get_date(entry))
-    hours = np.floor(get_length(entry)/3600)
-    mins = np.floor(get_length(entry)/60) - hours*60
-    secs = get_length(entry) - mins*60
-    print "Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs))
-    try:
-        print "Assist level: ", get_param(entry,'assist_level')
-    except:
-        print "Assist level: 0"
-    print "Completed trials: ", get_completed_trials(entry)
-    print "Success rate: ", get_success_rate(entry)*100, "%"
-    print "Reward rate: ", get_reward_rate(entry), "trials/minute"
-    print "Initiate rate: ", get_initiate_rate(entry), "trials/minute"
-    
+ 
 def query_daterange(startdate, enddate=datetime.date.today()):
     '''
     Returns QuerySet for task entries within date range (inclusive). startdate and enddate
@@ -431,6 +254,9 @@ class TaskEntry(object):
             except:
                 self.decoder_record = None
 
+        # Load the event log (report)
+        self.report = json.loads(self.record.report)
+
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
         Retrieve decoders associated with this block. A block may have multiple decoders 
@@ -456,21 +282,6 @@ class TaskEntry(object):
             raise ValueError("Unrecognized return_type!")
         if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
         return decoder_objects
-
-    @property
-    def decoder_filename(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        decoder_basename = self.decoder_record.path
-        dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-        return os.path.join(dbconfig['data_path'], 'decoders', decoder_basename)
 
     def summary_stats(self):
         '''
@@ -598,14 +409,6 @@ class TaskEntry(object):
     def hdf_filename(self):
         '''
         Get the task-generated HDF file linked to this TaskEntry
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        string
         '''
         q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
         dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
@@ -678,24 +481,15 @@ class TaskEntry(object):
     @property
     def length(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Return the length of the TaskEntry, in seconds. Only works for tasks which inherit from LogExperiment, as it uses the event log for determining timing.
         '''
-        return get_length(self.record)
-    
-    @property
-    def plx_filename(self):
-        '''
-        Return the name of the plx file associated with this TaskEntry
-        '''
-        return self.get_datafile('plexon', intermediate_path='')
+        try:
+            report = json.loads(self.record.report)
+        except:
+            return 0.0
+        return report[-1][2]-report[0][2]
 
-    def get_datafile(self, system_name, intermediate_path='rawdata'):
+    def get_datafile(self, system_name, intermediate_path='rawdata', **query_kwargs):
         '''
         Look up the file linked to this TaskEntry from a specific system
 
@@ -705,48 +499,69 @@ class TaskEntry(object):
             Name of system (must match the database record name)
         intermediate_path: string
             specific directory structure for this system. Some systems have inconsistent directory structures
+        **query_kwargs: keyword arguments
+            These are passed to the Django record 'filter' function
 
         Returns
         -------
         filename of associated file 
         '''
-        q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name=system_name)
+        file_records = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id, system__name=system_name, **query_kwargs)
         dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-        return os.path.join(dbconfig['data_path'], intermediate_path, q.system.name, q.path)        
-
+        file_names = [os.path.join(dbconfig['data_path'], intermediate_path, os.path.basename(q.system.path), q.path) for q in file_records]
+        if len(file_names) == 1:
+            return file_names[0]
+        else:
+            return list(file_names)
 
     @property
-    def plx2_file(self):
+    def plx_filename(self):
+        '''
+        Return the name of the plx file associated with this TaskEntry
+        '''
+        return self.get_datafile('plexon', intermediate_path='')
+
+    @property
+    def plx2_filename(self):
         '''
         Returns the name of any files associated with the plexon2 system. Used briefly only in a rig where there were multiple recording systems used simultaneously.
         '''
         return self.get_datafile('plexon2', intermediate_path='')
 
-    @property
-    def nev_file(self):
+    @property 
+    def bmiparams_filename(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Return the name of the npz file that was used to store CLDA parameters, if one exists
         '''
-        return get_nev_file(self.record)
+        return self.get_datafile('bmi_params', intermediate_path='rawdata')
+
+    @property 
+    def blackrock_filenames(self):
+        return self.get_datafile(system_name='blackrock', intermediate_path='')
 
     @property
-    def nsx_file(self):
+    def nev_filename(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Get any blackrock nev files associated with this TaskEntry
         '''
-        return get_nsx_files(self.record)
+        return self.get_datafile(system_name='blackrock', intermediate_path='', path__endswith='.nev')
+
+    @property
+    def nsx_filenames(self):
+        '''
+        Get any blackrock nsx files associated with this TaskEntry
+        '''
+        return self.get_datafile(system_name='blackrock', intermediate_path='', path__endswith='.nsx')
+
+    @property
+    def decoder_filename(self):
+        '''
+        Get filename of riglib.bmi.Decoder object associate with this TaskEntry. Only works for BMI tasks!
+        '''
+        return self.decoder_record.filename #get_datafile('bmi', intermediate_path='rawdata')
+        # decoder_basename = self.decoder_record.path
+        # dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
+        # return os.path.join(dbconfig['data_path'], 'decoders', decoder_basename)
 
     @property
     def name(self):
@@ -1159,6 +974,136 @@ def get_hdf(entry):
     te = TaskEntry(task_entry)
     return te.hdf
 
+def get_plx_file(entry):
+    '''
+    Returns the name of the plx file associated with the session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.plx_filename
+        
+def get_plx2_file(entry):
+    '''
+    Returns the name of the plx2 file associated with the session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.plx2_filename
+        
+def get_bmiparams_file(entry):
+    '''
+    Returns the name of the bmi parameter update history file associated with the session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.bmiparams_filename
+
+def get_blackrock_files(entry):
+    '''
+    Returns a list containing the names of the blackrock files (there could be more
+    than one) associated with the session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.blackrock_filenames
+
+def get_nev_file(entry):
+    '''
+    Returns the name of the nev file associated with the session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.nev_filename    
+
+def get_nsx_files(entry):
+    '''
+    Returns a list containing the names of the nsx files (there could be more
+    than one) associated with the session.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.nsx_filenames
+
+def get_decoder_name(entry):
+    ''' 
+    Returns the filename of the decoder used in the session.
+    Takes TaskEntry object.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.decoder_record.name
+
+def get_decoder_name_full(entry):
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.decoder_filename  
+
+def get_decoder(entry):
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.decoder
+
+def get_params(entry):
+    '''
+    Returns a dict of all task params for session.
+    Takes TaskEntry object.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.params
+
+def get_param(entry, paramname):
+    '''
+    Returns parameter value.
+    Takes TaskEntry object.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.params[paramname]
+
+def get_task_name(entry):
+    '''
+    Returns name of task used for session.
+    Takes TaskEntry object.
+    '''
+    return models.Task.objects.get(pk=entry.task_id).name
+    
+def get_date(entry):
+    '''
+    Returns date and time of session (as a datetime object).
+    Takes TaskEntry object.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.date    
+    
+def get_notes(entry):
+    '''
+    Returns notes for session.
+    Takes TaskEntry object.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.notes
+    
+def get_subject(entry):
+    '''
+    Returns name of subject for session.
+    Takes TaskEntry object.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.subject
+    
+def get_length(entry):
+    '''
+    Returns length of session in seconds.
+    Takes TaskEntry object.
+    '''
+    deprecation_warning()
+    te = TaskEntry(entry)
+    return te.length
+
 def get_binned_spikes_file(entry):
     ''' Return binned spike file if it exists'''
     entry = lookup_task_entries(entry)
@@ -1169,101 +1114,88 @@ def get_binned_spikes_file(entry):
     else:
         print 'Not found'
         return None
+    
+def get_success_rate(entry):
+    '''
+    Returns (# of trials rewarded)/(# of trials intiated).
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    total=0.0
+    rew=0.0
+    for s in report:
+        if s[0]=='reward':
+            rew+=1
+            total+=1
+        if s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            total+=1
+    return rew/total
 
-def get_plx_file(entry):
+def get_completed_trials(entry):
     '''
-    Returns the name of the plx file associated with the session.
+    Returns # of trials rewarded
     '''
-    deprecation_warning()
-    te = TaskEntry(task_entry)
-    return te.plx_filename
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    return len([s for s in report if s[0]=="reward"])
 
-    entry = lookup_task_entries(entry)
-    plexon = models.System.objects.get(name='plexon')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            return os.path.join(db.paths.data_path, plexon.name, q[0].path)
-        except:
-            return q[0].path
-        
-def get_plx2_file(entry):
+def get_initiate_rate(entry):
     '''
-    Returns the name of the plx2 file associated with the session.
+    Returns average # of trials initated per minute.
+    Takes TaskEntry object.
     '''
-    plexon = models.System.objects.get(name='plexon2')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=plexon.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            return os.path.join(db.paths.data_path, plexon.name, q[0].path)
-        except:
-            return q[0].path
-        
-def get_bmiparams_file(entry):
-    '''
-    Returns the name of the bmi parameter update history file associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    bmi_params = models.System.objects.get(name='bmi_params')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=bmi_params.id)
-    if len(q)==0:
-        return None
-    else:
-        try:
-            return os.path.join(db.paths.data_path, bmi_params.name, q[0].path)
-        except:
-            return q[0].path
+    length = get_length(entry)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    count=0.0
+    for s in report:
+        if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            count+=1
+    return count/(length/60.0)
 
-def get_blackrock_files(entry):
+def get_reward_rate(entry):
     '''
-    Returns a list containing the names of the blackrock files (there could be more
-    than one) associated with the session.
+    Returns average # of trials completed per minute.
+    Takes TaskEntry object.
     '''
-    entry = lookup_task_entries(entry)
-    blackrock = models.System.objects.get(name='blackrock')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id)
-    if len(q)==0:
-        return None
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    count=0.0
+    rewardtimes = []
+    for s in report:
+        if s[0]=='reward':
+            count+=1
+            rewardtimes.append(s[2])
+    if len(rewardtimes)==0:
+        return 0
     else:
-        try:
-            import db.paths
-            return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
-        except:
-            return [datafile.path for datafile in q]
-
-def get_nev_file(entry):
+        length = rewardtimes[-1] - report[0][2]
+        return count/(length/60.0)
+    
+def session_summary(entry):
     '''
-    Returns the name of the nev file associated with the session.
+    Prints a summary of info about session.
+    Takes TaskEntry object.
     '''
     entry = lookup_task_entries(entry)
-    blackrock = models.System.objects.get(name='blackrock')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
-    if len(q)==0:
-        return None
-    else:
-        try:
-            import db.paths
-            return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
-        except:
-            return q[0].path
-
-def get_nsx_files(entry):
-    '''
-    Returns a list containing the names of the nsx files (there could be more
-    than one) associated with the session.
-    '''
-    entry = lookup_task_entries(entry)
-    blackrock = models.System.objects.get(name='blackrock')
-    q = models.DataFile.objects.filter(entry_id=entry.id).filter(system_id=blackrock.id).exclude(path__endswith='.nev')
-    if len(q)==0:
-        return None
-    else:
-        try:
-            import db.paths
-            return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
-        except:
-            return [datafile.path for datafile in q]
+    print "Subject: ", get_subject(entry)
+    print "Task: ", get_task_name(entry)
+    print "Date: ", str(get_date(entry))
+    hours = np.floor(get_length(entry)/3600)
+    mins = np.floor(get_length(entry)/60) - hours*60
+    secs = get_length(entry) - mins*60
+    print "Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs))
+    try:
+        print "Assist level: ", get_param(entry,'assist_level')
+    except:
+        print "Assist level: 0"
+    print "Completed trials: ", get_completed_trials(entry)
+    print "Success rate: ", get_success_rate(entry)*100, "%"
+    print "Reward rate: ", get_reward_rate(entry), "trials/minute"
+    print "Initiate rate: ", get_initiate_rate(entry), "trials/minute"
+   
