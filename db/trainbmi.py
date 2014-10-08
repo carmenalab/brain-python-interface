@@ -19,8 +19,10 @@ from celery import task, chain
 from tracker import dbq
 
 import numpy as np
-from riglib.bmi import extractor
+from riglib.bmi import extractor, train
 from config import config 
+
+import dbfunctions as dbfn
 
 @task()
 def cache_plx(plxfile):
@@ -30,7 +32,7 @@ def cache_plx(plxfile):
     plexfile.openFile(str(plxfile)) 
 
 @task()
-def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice):
+def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm):
     """Train BMI
 
     (see doc for cache_and_train for input argument info)
@@ -101,15 +103,18 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             assert(len(files) == 1)
             inputdata[system_name] = files[0]  # just one file
 
-    training_method = namelist.bmis[clsname]
-    decoder = training_method(extractor_cls, extractor_kwargs, 
-                                units=units, binlen=binlen, tslice=tslice, **inputdata)
+    te = dbfn.TaskEntry(entry)
+    files = te.datafiles
+    training_method = namelist.bmi_algorithms[clsname]
+    ssm = namelist.bmi_state_space_models[ssm]
+    decoder = training_method(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, ssm, units, update_rate=binlen, tslice=tslice)
+            # train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()
     database.save_bmi(name, int(entry), tf.name)
 
-def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice):
+def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm):
     """Cache plexon file (if using plexon system) and train BMI.
 
     Parameters
@@ -140,13 +145,13 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
 
         if not plxfile.has_cache():
             cache = cache_plx.si(plxfile.get_path())
-            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm)
             chain(cache, train)()
         else:
-            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm)
     
     elif config.recording_sys['make'] == 'blackrock':
-        make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+        make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm)
     
     else:
         raise Exception('Unknown recording_system!')

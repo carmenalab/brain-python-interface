@@ -86,9 +86,60 @@ def train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=Non
     
     return decoder
 
-def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=None):
+####def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=None):
+####    '''
+####    Docstring
+####
+####    Parameters
+####    ----------
+####
+####    Returns
+####    -------
+####    '''
+####    binlen = update_rate
+####    n_features = neural_features.shape[0]  # number of neural features
+####
+####    # C should be trained on all of the stochastic state variables, excluding the offset terms
+####    C = np.zeros([n_features, _ssm.n_states])
+####    C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], neural_features)
+####
+####    mFR = np.mean(neural_features, axis=1)
+####    sdFR = np.std(neural_features, axis=1)
+####
+####    # Set state space model
+####    A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
+####
+####    # instantiate KFdecoder
+####    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=_ssm.is_stochastic)
+####    decoder = kfdecoder.KFDecoder(kf, units, _ssm, mFR=mFR, sdFR=sdFR, binlen=binlen, 
+####        tslice=tslice)
+####
+####    # Compute sufficient stats for C and Q matrices (used for RML CLDA)
+####    from clda import KFRML
+####    n_features, n_states = C.shape
+####    R = np.mat(np.zeros([n_states, n_states]))
+####    S = np.mat(np.zeros([n_features, n_states]))
+####    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], neural_features)
+####
+####    R[np.ix_(_ssm.drives_obs_inds, _ssm.drives_obs_inds)] = R_small
+####    S[:,_ssm.drives_obs_inds] = S_small
+####    
+####    decoder.kf.R = R
+####    decoder.kf.S = S
+####    decoder.kf.T = T
+####    decoder.kf.ESS = ESS
+####    
+####    # TODO: this line was commented out, but needs to be here because otherwise
+####    #       other state spaces won't work
+####    decoder.ssm = _ssm
+####
+####    decoder.n_features = n_features
+####
+####    return decoder
+
+def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor', vel_key=None):
     '''
-    Docstring
+    Get positions and velocity from 'task' table of HDF file
 
     Parameters
     ----------
@@ -96,46 +147,86 @@ def train_KFDecoder(_ssm, kin, neural_features, units, update_rate=0.1, tslice=N
     Returns
     -------
     '''
+    hdf = tables.openFile(files['hdf'])    
+    kin = hdf.root.task[:][pos_key]    
+
+    inds, = np.nonzero(tmask)
+    step_fl = binlen/(1./update_rate_hz)
+    if step_fl < 1: # more than one spike bin per kinematic obs
+        if vel_key is not None:
+            velocity = hdf.root.task[:][vel_key]
+        else:
+            velocity = np.diff(kin, axis=0) * update_rate_hz
+            velocity = np.vstack([np.zeros(kin.shape[1]), velocity])
+        kin = np.hstack([kin, velocity])
+
+        n_repeats = int((1./update_rate_hz)/binlen)
+        inds = np.sort(np.hstack([inds]*n_repeats))
+        kin = kin[inds]
+    else:
+        step = int(binlen/(1./update_rate_hz))
+        inds = inds[::step]
+        kin = kin[inds]
+
+        if vel_key is not None:
+            velocity = hdf.root.task[inds][vel_key]
+        else:
+            velocity = np.diff(kin, axis=0) * 1./binlen
+            velocity = np.vstack([np.zeros(kin.shape[1]), velocity])
+        kin = np.hstack([kin, velocity])
+
+    return kin  
+
+def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     binlen = update_rate
+
+    ## get kinematic data
+    tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
+    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key)
+
+    ## get neural features
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, extractor_kwargs, tslice=tslice, units=units, source=kin_source)
+
+    # Remove 1st kinematic sample and last neural features sample to align the 
+    # velocity with the neural features
+    kin = kin[1:].T
+    neural_features = neural_features[:-1].T
+
+    #### Train the actual KF decoder matrices ####
     n_features = neural_features.shape[0]  # number of neural features
 
     # C should be trained on all of the stochastic state variables, excluding the offset terms
-    C = np.zeros([n_features, _ssm.n_states])
-    C[:, _ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[_ssm.train_inds, :], neural_features)
+    C = np.zeros([n_features, ssm.n_states])
+    C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features)
 
     mFR = np.mean(neural_features, axis=1)
     sdFR = np.std(neural_features, axis=1)
 
     # Set state space model
-    A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
+    A, B, W = ssm.get_ssm_matrices(update_rate=update_rate)
 
     # instantiate KFdecoder
-    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=_ssm.is_stochastic)
-    decoder = kfdecoder.KFDecoder(kf, units, _ssm, mFR=mFR, sdFR=sdFR, binlen=binlen, 
-        tslice=tslice)
+    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
+    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=binlen, tslice=tslice)
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
     from clda import KFRML
     n_features, n_states = C.shape
     R = np.mat(np.zeros([n_states, n_states]))
     S = np.mat(np.zeros([n_features, n_states]))
-    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[_ssm.train_inds, :], neural_features)
+    R_small, S_small, T, ESS = KFRML.compute_suff_stats(kin[ssm.train_inds, :], neural_features)
 
-    R[np.ix_(_ssm.drives_obs_inds, _ssm.drives_obs_inds)] = R_small
-    S[:,_ssm.drives_obs_inds] = S_small
+    R[np.ix_(ssm.drives_obs_inds, ssm.drives_obs_inds)] = R_small
+    S[:,ssm.drives_obs_inds] = S_small
     
-    decoder.kf.R = R
-    decoder.kf.S = S
-    decoder.kf.T = T
-    decoder.kf.ESS = ESS
-    
-    # TODO: this line was commented out, but needs to be here because otherwise
-    #       other state spaces won't work
-    decoder.ssm = _ssm
-
+    decoder.filt.R = R
+    decoder.filt.S = S
+    decoder.filt.T = T
+    decoder.filt.ESS = ESS
     decoder.n_features = n_features
 
     return decoder
+
 
 ###################
 ## Helper functions
@@ -1708,4 +1799,263 @@ def shuffle_kf_decoder(decoder):
         #   (R, S, T, and ESS) as attributes of decoder.kf
         pass
     return decoder
+
+
+################################################################################
+## Functions to synchronize task-generated HDF files and neural recording files
+################################################################################
+def sys_eq(sys1, sys2):
+    '''
+    Determine if two system strings match. A separate function is required because sometimes
+    the NIDAQ card doesn't properly transmit the first character of the name of the system.
+
+    Parameters
+    ----------
+    sys1: string
+        Name of system from the neural file
+    sys2: string
+        Name of system to match
+
+    Returns
+    -------
+    Boolean indicating whether sys1 and sys2 match
+    '''
+    return sys1 in [sys2, sys2[1:]]
+
+def _get_tmask(files, tslice, sys_name='task'):
+    if 'plexon' in files:
+        fn = _get_tmask_plexon
+        fname = str(files['plexon'])
+    elif 'blackrock' in files:
+        fn = _get_tmask_blackrock
+        fname = [str(name) for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+
+    return fn(fname, tslice, sys_name=sys_name)
+
+def _get_tmask_plexon(plx, tslice, sys_name='task'):
+    '''
+    Find the rows of the plx file to use for training the decoder
+
+    Parameters
+    ----------
+    plx : plexfile instance
+        The plexon file to sync
+    tslice : list of length 2
+        Specify the start and end time to examine the file, in seconds
+    sys_name : string, optional
+        The "system" being synchronized. When the task is running, each data source 
+        (i.e., each HDF table) is allowed to be asynchronous and thus is independently 
+        synchronized with the neural recording system.
+
+    Returns
+    -------
+    tmask: np.ndarray of shape (N, ) of booleans
+        Specifies which entries of "rows" (see below) are within the time bounds
+    rows: np.ndarray of shape (N, ) of integers
+        The times at which rows of the specified HDF table were recieved in the neural recording box
+    '''
+    # Open plx file
+    from plexon import plexfile
+    if isinstance(plx, str) or isinstance(plx, unicode):
+        plx = plexfile.openFile(plx)
+
+    # Get the list of all the systems registered in the neural data file
+    events = plx.events[:].data
+    reg = parse.registrations(events)
+
+    # find the key for the specified system data
+    syskey = None
+    for key, system in reg.items():
+        if sys_eq(system[0], sys_name):
+            syskey = key
+            break
+
+    if syskey is None:
+        raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')
+
+    # get the corresponding hdf rows
+    rows = parse.rowbyte(events)[syskey][:,0]
+    
+    # Determine which rows are within the time bounds
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
+    return tmask, rows
+
+def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
+    ''' Find the rows of the nev file to use for training the decoder.'''
+
+    nev_hdf_fname = nev_fname + '.hdf'
+    if not os.path.isfile(nev_hdf_fname):
+        # convert .nev file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+    import h5py
+    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+    path = 'channel/digital00001/digital_set'
+    ts = nev_hdf.get(path).value['TimeStamp']
+    msgs = nev_hdf.get(path).value['Value']
+
+    # copied from riglib/nidaq/parse.py
+    msgtype_mask = 0b0000111<<8
+    auxdata_mask = 0b1111000<<8
+    rawdata_mask = 0b11111111
+    msgtype = np.right_shift(np.bitwise_and(msgs, msgtype_mask), 8).astype(np.uint8)
+    # auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
+    auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8+3).astype(np.uint8)
+    rawdata = np.bitwise_and(msgs, rawdata_mask)
+
+    # data is an N x 4 matrix that will be the argument to parse.registrations()
+    data = np.vstack([ts, msgtype, auxdata, rawdata]).T
+
+    # get system registrations
+    reg = parse.registrations(data)
+
+    syskey = None
+
+    for key, system in reg.items():
+        if sys_eq(system[0], sys_name):
+            syskey = key
+            break
+
+    if syskey is None:
+        raise Exception('No source registration saved in the file!')
+
+    # get the corresponding hdf rows
+    rows = parse.rowbyte(data)[syskey][:,0]
+
+    rows = rows / 30000.
+    
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
+
+    return tmask, rows
+    
+################################################################################
+## Feature extraction
+################################################################################
+def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task'):
+    '''
+    Extract the neural features used to train the decoder
+
+    Parameters
+    ----------
+    files: dict
+        keys of the dictionary are file-types (e.g., hdf, plexon, etc.), values are file names
+    binlen: float
+        Specifies the temporal resolution of the feature extraction
+    extractor_fn: callable
+        Function must have the call signature 
+        neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
+    extractor_kwargs: dictionary
+        Additional keyword arguments to the extractor_fn (specific to each feature extractor)
+
+    Returns
+    -------
+    neural_features: np.ndarrya of shape (n_features, n_timepoints)
+        Values of each feature to be used in training the decoder parameters
+    units: np.ndarray of shape (N, -1)
+        Specifies identty of each neural feature
+    extractor_kwargs: dictionary
+        Keyword arguments used to construct the feature extractor used online
+    '''
+    
+    hdf = tables.openFile(files['hdf'])
+
+    plx_fname = str(files['plexon']) 
+    from plexon import plexfile
+    try:
+        plx = plexfile.openFile(plx_fname)
+    except IOError:
+        raise Exception("Could not open .plx file: %s" % plx_fname)
+    
+    # Use all of the units if none are specified
+    if units == None:
+        units = np.array(plx.units).astype(np.int32)
+
+    tmask, rows = _get_tmask_plexon(plx, tslice, sys_name=source)
+    neurows = rows[tmask]
+
+    print extractor_kwargs
+
+    neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, **extractor_kwargs)
+    return neural_features, units, extractor_kwargs
+
+def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task'):    
+    nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+    nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]
+
+    if units == None:
+        raise Exception('"units" variable is None in preprocess_files!')
+
+    # Note: blackrock units are actually 0-based, but the units to be used for training
+    #       (which comes from web interface) are 1-based; to account for this, add 1
+    #       to unit numbers when reading from .nev file
+
+    # notes:
+    # tmask   --> logical vector of same length as rows that is True for rows inside the tslice
+    # rows    --> times (in units of s, measured on neural system) that correspond to each row of the task in hdf file
+    # kin     --> every 6th row of kinematics within the tslice boundaries
+    # neurows --> the rows inside the tslice
+
+    try:
+        #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])      
+        print 'not using _get_tmask_blackrock'
+        raise NotImplementedError
+    except NotImplementedError:
+        # need to create fake "rows" and "tmask" variables
+        
+        n_rows = hdf.root.task[:]['plant_pos'].shape[0]
+        first_ts = binlen
+        rows = np.linspace(first_ts, first_ts + (n_rows-1)*(1./strobe_rate), num=n_rows)
+        lower, upper = 0 < rows, rows < rows.max() + 1
+        l, u = tslice
+        if l is not None:
+            lower = l < rows
+        if u is not None:
+            upper = rows < u
+        tmask = np.logical_and(lower, upper)
+
+    # Note: kin_var doesn't need to be passed into get_ismore_kinematics because
+    # kinematics are saved as 'plant_pos' and 'plant_vel' regardless of
+    # whether the plant is armassist, rehand, or ismore (armassist+rehand)
+    kin = get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=strobe_rate)
+    neurows = rows[tmask]
+
+    extractor_fn_args = (nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs)
+    extractor_fn_kwargs = {'strobe_rate': strobe_rate}
+    neural_features, units, extractor_kwargs = extractor_fn(*extractor_fn_args, **extractor_fn_kwargs)
+    return neural_features, units, extractor_kwargs
+
+def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=None, tslice=None, source='task', strobe_rate=60):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    
+    hdf = tables.openFile(files['hdf'])
+
+    if 'plexon' in files:
+        neural_features, units, extractor_kwargs = _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tslice=tslice, units=units, source=source)
+    elif 'blackrock' in files:
+        neural_features, units, extractor_kwargs = _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=tslice, units=units, source=source, strobe_rate=strobe_rate)
+    else:
+        raise Exception('Could not find any plexon or blackrock files!')
+
+    return neural_features, units, extractor_kwargs
 
