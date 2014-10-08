@@ -41,11 +41,11 @@ class Debugging(object):
         super(Debugging, self)._cycle()
 
 from riglib.stereo_opengl.window import MatplotlibWindow
-feats = [features.SaveHDF, features.Autostart, MatplotlibWindow]
+feats = [features.SaveHDF, features.Autostart]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())
-params = dict(session_length=0, arm_visible=True, arm_class='cursor_14x14', 
+params = dict(session_length=0, plant_visible=True, plant_type='cursor_14x14', 
         rand_start=(0.,0.), max_tries=1)
 
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
