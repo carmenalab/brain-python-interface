@@ -847,7 +847,7 @@ class TaskEntryCollection(object):
         return result
 
     def proc_blocks(self, block_filter_fn=trial_filter_functions.default, block_proc_fn=trial_proc_functions.default, 
-                    data_comb_fn=default_data_comb_fn, verbose=True, **kwargs):
+                    data_comb_fn=default_data_comb_fn, verbose=True, return_type=list, **kwargs):
         '''
         Generic framework to perform a block-level analysis on the entire dataset, e.g., average reach time across all targets
 
@@ -891,7 +891,7 @@ class TaskEntryCollection(object):
 
         if verbose:
             sys.stdout.write('\n')
-        return result                
+        return return_type(result)
 
 ######################
 ## Filter functions
