@@ -155,7 +155,13 @@ def runtask(cmds, _cmds, websock, **kwargs):
         websock.send(dict(status="error", msg=err.read()))
         err.seek(0)
         print err.read()
+
+    # Redirect printing back to the shell
     sys.stdout = sys.__stdout__
+    try:
+        task
+    except:
+        raise Exception("Task was never initialized, cannot run cleanup function!")
     task.cleanup()
 
     # Summarize performance during task
