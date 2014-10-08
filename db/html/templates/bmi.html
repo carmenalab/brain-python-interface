@@ -18,7 +18,7 @@
             </td>
             <td>
                 <select id='bmiclass'>
-                    {% for name in bmis %}
+                    {% for name in bmi_algorithms %}
                     <option>{{ name }}</option>
                     {% endfor %}
                 </select>
@@ -31,10 +31,9 @@
             </td>
             <td>
                 <select id='bmiextractor'>
+                    <option selected>{{ default_extractor }}</option>
                     {% for name in extractors %}
-                        {% if name == default_extractor %}
-                            <option selected="selected">{{ name }}</option>
-                        {% else %}
+                        {% if not name == default_extractor %}
                             <option>{{ name }}</option>
                         {% endif %}
                     {% endfor %}
@@ -44,10 +43,28 @@
         <!-- Input box to specify the bin length/update rate of the decoder -->
         <tr>
             <td>
-                <label for='bmibinlen'>Bin length</label>
+                <label for='bmibinlen'>BMI update rate</label>
             </td>
             <td>
-                <input id='bmibinlen' />
+                <!-- <input id='bmibinlen' /> -->
+                <select id='bmibinlen'>
+                    {% for update_rate in bmi_update_rates %}
+                        <option>{{ update_rate }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        <!-- State space model -->
+        <tr>
+            <td>
+                <label for='ssm'>State space</label>
+            </td>
+            <td>
+                <select id='ssm'>
+                    {% for ssm in state_spaces %}
+                        <option>{{ ssm }}</option>
+                    {% endfor %}
+                </select>
             </td>
         </tr>
         <!-- Slider for specifying the time range of the block to use for training the decoder-->

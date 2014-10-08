@@ -163,6 +163,8 @@ def save_notes(request, idx):
 
 def make_bmi(request, idx):
     ## Check if the name of the decoder is already taken
+    print request.POST
+    raise Exception("Temporariliy broken!")
     collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
     if len(collide) > 0:
         return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
