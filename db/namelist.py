@@ -135,7 +135,7 @@ tasks = dict(
     bmi_cursor_bias=tasks.BMICursorBias,
     joystick_ops=tasks.JoystickDrivenCursorOPS,
     joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
-    joystick_freechoice=tasks.ManualControlFreeChoice,
+    joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
@@ -196,6 +196,20 @@ bmis = dict(
     kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
 )
 
+bmi_algorithms = dict(
+    KFDecoder=bmi.train.train_KFDecoder,
+    PPFDecoder=bmi.train.train_PPFDecoder,
+)
+
+bmi_state_space_models=dict(
+    Endpt2D=bmi.train.endpt_2D_state_space,
+    Endpt3D=bmi.train.endpt_3D_state_space,
+    Tentacle=bmi.train.tentacle_2D_state_space,
+    Armassist=bmi.train.armassist_state_space,
+    Rehand=bmi.train.rehand_state_space,
+    ISMORE=bmi.train.ismore_state_space,
+)
+
 extractors = dict(
     spikecounts = bmi.extractor.BinnedSpikeCountsExtractor,
     LFPpowerMTM = bmi.extractor.LFPMTMPowerExtractor,
@@ -205,4 +219,4 @@ extractors = dict(
 
 default_extractor = "spikecounts"
 
-
+bmi_update_rates = [10, 20, 30, 60, 120, 180]
