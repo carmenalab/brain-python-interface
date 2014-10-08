@@ -660,6 +660,11 @@ class Decoder(models.Model):
     def __unicode__(self):
         return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
+    @property 
+    def filename(self):
+        data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+        return os.path.join(data_path, 'decoders', self.path)        
+
     def load(self):
         data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
