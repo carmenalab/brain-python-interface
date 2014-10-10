@@ -9,13 +9,13 @@ def norm_vec(x, eps=1e-9):
     return x / (np.linalg.norm(x) + eps)
 
 
-trial_type = 'touch red'
+trial_type = 'touch 2'
 # trial_type = 'pinch grip green'
 
 traj_file1 = 'traj_reference.pkl'
 traj_file2 = 'traj_playback.pkl'
 
-plot_aim_lines = True
+plot_aim_lines = False
 armassist      = True
 rehand         = True
 
@@ -62,18 +62,18 @@ command_vel = traj2[trial_type]['task']['command_vel']
 # PLOTTING #
 ############
 
-# # plot command velocities
-# fig = plt.figure()
-# plt.title('command velocities')
-# grid = (4, 1)
-# for i in range(2):
-#     ax = plt.subplot2grid(grid, (i, 0))
-#     plt.plot(command_vel[:, i], color='blue')
-# ax = plt.subplot2grid(grid, (2, 0))
-# plt.plot(rad_to_deg * command_vel[:, 2], color='blue')
-# command_xy_speed = np.array([np.sqrt(np.sum(vel[0:2]**2)) for vel in command_vel])
-# ax = plt.subplot2grid(grid, (3, 0))
-# plt.plot(command_xy_speed, color='blue')
+# plot command velocities
+fig = plt.figure()
+plt.title('command velocities')
+grid = (4, 1)
+for i in range(2):
+    ax = plt.subplot2grid(grid, (i, 0))
+    plt.plot(command_vel[:, i], color='blue')
+ax = plt.subplot2grid(grid, (2, 0))
+plt.plot(rad_to_deg * command_vel[:, 2], color='blue')
+command_xy_speed = np.array([np.sqrt(np.sum(vel[0:2]**2)) for vel in command_vel])
+ax = plt.subplot2grid(grid, (3, 0))
+plt.plot(command_xy_speed, color='blue')
 
 
 if armassist:
@@ -98,6 +98,17 @@ if armassist:
     # plt.plot(rad_to_deg * aa1.ix['aa_ppsi', :], color='red')
     # plt.plot(rad_to_deg * aa2.ix['aa_ppsi', :], color='blue')
 
+    fig = plt.figure(20)
+    for idx, (plant_psi, aim_psi, cmd_vel_psi) in enumerate(zip(plant_pos[:,2], aim_pos[:,2], command_vel[:,2])):
+        plt.plot([idx], [rad_to_deg*plant_psi], 'D', color='blue', markersize=2.5)
+        plt.plot([idx], [rad_to_deg*aim_psi],   'D', color='green', markersize=2.5)
+        plt.plot([idx, idx], [rad_to_deg*plant_psi, rad_to_deg*aim_psi], color='black', markersize=2.5)
+        plt.plot([idx, idx],  \
+                 [rad_to_deg*plant_psi, rad_to_deg*(plant_psi + cmd_vel_psi)],  \
+                 color='red', markersize=2.5)
+    # plt.plot(rad_to_deg * plant_pos[:, 2], 'D', color='blue', markersize=2.5)
+    # plt.plot(rad_to_deg * aim_pos[:, 2], 'D', color='green', markersize=2.5)
+    # plt.plot(rad_to_deg * aim_pos[:, 2], 'D', color='green', markersize=2.5)
 
     fig = plt.figure()
     plt.title('ArmAssist trajectories (time-warped)')
@@ -110,43 +121,43 @@ if armassist:
         else:
             scale = 1
         plt.plot(scale * aa1.ix[state, aim_idx_aa.reshape(-1)], color='red')
-        plt.plot(scale * plant_pos[:, i], color='blue')
+        plt.plot(scale * plant_pos[:, i], 'D', color='blue', markersize=2.5)
 
 
-        # delta_pos = np.diff(aa1.ix[['aa_px', 'aa_py'], :])
-        # delta_psi = rad_to_deg * np.diff(aa1.ix['aa_ppsi', :])
-        # delta_ts  = us_to_s * np.diff(aa1.ix['ts', :])
-        # xy_vel_traj1  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos.T]) / delta_ts
-        # psi_vel_traj1 = delta_psi / delta_ts
-        # traj1_tvec = np.array(us_to_s * aa1.ix['ts', :])
-        # traj1_tvec -= traj1_tvec[0]
+    delta_pos = np.diff(aa1.ix[['aa_px', 'aa_py'], :])
+    delta_psi = rad_to_deg * np.diff(aa1.ix['aa_ppsi', :])
+    delta_ts  = us_to_s * np.diff(aa1.ix['ts', :])
+    xy_vel_traj1  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos.T]) / delta_ts
+    psi_vel_traj1 = delta_psi / delta_ts
+    traj1_tvec = np.array(us_to_s * aa1.ix['ts', :])
+    traj1_tvec -= traj1_tvec[0]
 
-        # delta_pos = np.diff(aa2.ix[['aa_px', 'aa_py'], :])
-        # delta_psi = rad_to_deg * np.diff(aa2.ix['aa_ppsi', :])
-        # delta_ts  = us_to_s * np.diff(aa2.ix['ts', :])
-        # xy_vel_traj2  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos.T]) / delta_ts
-        # psi_vel_traj2 = delta_psi / delta_ts
-        # traj2_tvec = np.array(us_to_s * aa2.ix['ts', :])
-        # traj2_tvec -= traj2_tvec[0]
+    delta_pos = np.diff(aa2.ix[['aa_px', 'aa_py'], :])
+    delta_psi = rad_to_deg * np.diff(aa2.ix['aa_ppsi', :])
+    delta_ts  = us_to_s * np.diff(aa2.ix['ts', :])
+    xy_vel_traj2  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos.T]) / delta_ts
+    psi_vel_traj2 = delta_psi / delta_ts
+    traj2_tvec = np.array(us_to_s * aa2.ix['ts', :])
+    traj2_tvec -= traj2_tvec[0]
 
 
-        # fig = plt.figure()
-        # grid = (3, 1)
-        # ax = plt.subplot2grid(grid, (0, 0))
-        # plt.plot(traj1_tvec[:-1], xy_vel_traj1, color='red')
-        # ax = plt.subplot2grid(grid, (1, 0))
-        # plt.plot(traj1_tvec[:-1], psi_vel_traj1, color='red')
-        # ax = plt.subplot2grid(grid, (2, 0))
-        # plt.plot(traj1_tvec, rad_to_deg * aa1.ix['aa_ppsi', :], color='red')
+    fig = plt.figure()
+    grid = (3, 1)
+    ax = plt.subplot2grid(grid, (0, 0))
+    plt.plot(traj1_tvec[:-1], xy_vel_traj1, color='red')
+    ax = plt.subplot2grid(grid, (1, 0))
+    plt.plot(traj1_tvec[:-1], psi_vel_traj1, color='red')
+    ax = plt.subplot2grid(grid, (2, 0))
+    plt.plot(traj1_tvec, rad_to_deg * aa1.ix['aa_ppsi', :], color='red')
 
-        # fig = plt.figure()
-        # grid = (3, 1)
-        # ax = plt.subplot2grid(grid, (0, 0))
-        # plt.plot(traj2_tvec[:-1], xy_vel_traj2, color='blue')
-        # ax = plt.subplot2grid(grid, (1, 0))
-        # plt.plot(traj2_tvec[:-1], psi_vel_traj2, color='blue')
-        # ax = plt.subplot2grid(grid, (2, 0))
-        # plt.plot(traj2_tvec, rad_to_deg * aa2.ix['aa_ppsi', :], color='blue')
+    fig = plt.figure()
+    grid = (3, 1)
+    ax = plt.subplot2grid(grid, (0, 0))
+    plt.plot(traj2_tvec[:-1], xy_vel_traj2, color='blue')
+    ax = plt.subplot2grid(grid, (1, 0))
+    plt.plot(traj2_tvec[:-1], psi_vel_traj2, color='blue')
+    ax = plt.subplot2grid(grid, (2, 0))
+    plt.plot(traj2_tvec, rad_to_deg * aa2.ix['aa_ppsi', :], color='blue')
 
 
 

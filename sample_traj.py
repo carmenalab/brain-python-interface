@@ -89,14 +89,12 @@ kin_epoched = mat['kin_epoched']
 
 # create a dictionary of trajectories, indexed by trial_type
 traj = dict()
+# for i, kin in enumerate(kin_epoched):
 for i, kin in enumerate(kin_epoched):
     df = preprocess_data(pd.DataFrame(kin.T, index=index))
 
     # assign an arbitrary trial_type name
-    if i % 2 == 0:
-        trial_type = 'touch red'
-    else:
-        trial_type = 'pinch grip green'
+    trial_type = 'touch %d' % (i % 4)
 
     # if we haven't already saved a trajectory for this trial_type
     if trial_type not in traj:
