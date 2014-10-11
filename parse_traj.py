@@ -7,8 +7,9 @@ import pickle
 from utils.constants import *
 
 
-# hdf_name = '/storage/rawdata/hdf/test20141001_24.hdf'
-hdf_name = '/storage/rawdata/hdf/test20141009_46.hdf'
+# hdf_name = '/storage/rawdata/hdf/test20141010_17.hdf'  # rh min/max only
+hdf_name = '/storage/rawdata/hdf/test20141010_26.hdf'
+# hdf_name = '/storage/rawdata/hdf/test20141010_24.hdf'
 pkl_name = 'traj_playback.pkl'
 
 

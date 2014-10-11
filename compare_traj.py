@@ -58,6 +58,26 @@ plant_pos   = traj2[trial_type]['task']['plant_pos']
 command_vel = traj2[trial_type]['task']['command_vel']
 
 
+### interpolation ###
+
+# from scipy.interpolate import interp1d
+
+# f = interp1d(aa1.ix['ts'], aa1.ix['aa_px'])
+
+# new_ts = np.linspace(aa1.ix['ts', 0], aa1.ix['ts', aa1.columns[-1]], 1000)
+
+# px = f(new_ts)
+
+# plt.figure()
+# plt.plot(aa1.ix['ts'], aa1.ix['aa_px'], 'D', color='blue', markersize=5)
+# plt.plot(new_ts, px, 'D', color='red', markersize=2.5)
+# plt.show()
+
+
+
+#####################
+
+
 ############
 # PLOTTING #
 ############
@@ -106,9 +126,6 @@ if armassist:
         plt.plot([idx, idx],  \
                  [rad_to_deg*plant_psi, rad_to_deg*(plant_psi + cmd_vel_psi)],  \
                  color='red', markersize=2.5)
-    # plt.plot(rad_to_deg * plant_pos[:, 2], 'D', color='blue', markersize=2.5)
-    # plt.plot(rad_to_deg * aim_pos[:, 2], 'D', color='green', markersize=2.5)
-    # plt.plot(rad_to_deg * aim_pos[:, 2], 'D', color='green', markersize=2.5)
 
     fig = plt.figure()
     plt.title('ArmAssist trajectories (time-warped)')
