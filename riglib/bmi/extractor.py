@@ -413,7 +413,7 @@ class LFPMTMPowerExtractor(object):
 
     feature_type = 'lfp_power'
 
-    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000):
+    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000, **kwargs):
         '''
         Docstring
         Constructor for LFPMTMPowerExtractor, which extracts LFP power using the multi-taper method
@@ -480,6 +480,79 @@ class LFPMTMPowerExtractor(object):
 
         return dict(lfp_power=lfp_power)
 
+    @classmethod
+    def extract_from_file(cls, files, neurows, binlen, units, strobe_rate=60.0, **extractor_kwargs):
+        '''
+        Compute binned spike count features
+
+        Parameters
+        ----------
+        plx: neural data file instance
+        neurows: np.ndarray of shape (T,)
+            Timestamps in the plexon time reference corresponding to bin boundaries
+        binlen: float
+            Length of time over which to sum spikes from the specified cells
+        units: np.ndarray of shape (N, 2)
+            List of units that the decoder will be trained on. The first column specifies the electrode number and the second specifies the unit on the electrode
+        extractor_kwargs: dict 
+            Any additional parameters to be passed to the feature extractor. This function is agnostic to the actual extractor utilized
+        strobe_rate: 60.0
+            The rate at which the task sends the sync pulse to the plx file
+
+        Returns
+        -------
+        '''
+        if 'plexon' in files:
+            from plexon import plexfile
+            plx = plexfile.openFile(str(files['plexon']))
+
+            # interpolate between the rows to 180 Hz
+            if binlen < 1./strobe_rate:
+                interp_rows = []
+                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+                for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
+                interp_rows = np.array(interp_rows)
+            else:
+                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+                interp_rows = neurows[::step]
+
+
+            # create extractor object
+            f_extractor = LFPMTMPowerExtractor(None, **extractor_kwargs)
+            extractor_kwargs = f_extractor.extractor_kwargs
+
+            win_len  = f_extractor.win_len
+            bands    = f_extractor.bands
+            channels = f_extractor.channels
+            fs       = f_extractor.fs
+            print 'bands:', bands
+
+            n_itrs = len(interp_rows)
+            n_chan = len(channels)
+            lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+            
+            # for i, t in enumerate(interp_rows):
+            #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+            #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+            lfp = plx.lfp[:].data[:, channels-1]
+            n_pts = int(win_len * fs)
+            for i, t in enumerate(interp_rows):
+                sample_num = int(t * fs)
+                cont_samples = lfp[sample_num-n_pts:sample_num, :]
+                lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+
+            # TODO -- discard any channel(s) for which the log power in any frequency 
+            #   bands was ever equal to -inf (i.e., power was equal to 0)
+            # or, perhaps just add a small epsilon inside the log to avoid this
+            # then, remember to do this:  extractor_kwargs['channels'] = channels
+            #   and reset the units variable
+
+            return lfp_power, units, extractor_kwargs
+
+        elif 'blackrock' in files:
+            raise NotImplementedError
 
 class EMGAmplitudeExtractor(object):
     '''
