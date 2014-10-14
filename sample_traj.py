@@ -3,11 +3,12 @@ import numpy as np
 import pandas as pd
 import tables
 import pickle
+from scipy.interpolate import interp1d
 
 from utils.constants import *
 
 
-pkl_name = 'traj_reference.pkl'
+pkl_name = 'traj_reference_interp.pkl'
 mat_name = '/home/lab/Desktop/Kinematic data ArmAssist/Epoched data/epoched_kin_data/NI_sess05_20140610/NI_B1S005R01.mat'
 
 
@@ -89,9 +90,11 @@ kin_epoched = mat['kin_epoched']
 
 # create a dictionary of trajectories, indexed by trial_type
 traj = dict()
-# for i, kin in enumerate(kin_epoched):
 for i, kin in enumerate(kin_epoched):
     df = preprocess_data(pd.DataFrame(kin.T, index=index))
+
+    ts_start = df.ix['ts', 0]
+    ts_end   = df.ix['ts', df.columns[-1]]
 
     # assign an arbitrary trial_type name
     trial_type = 'touch %d' % (i % 4)
@@ -99,9 +102,41 @@ for i, kin in enumerate(kin_epoched):
     # if we haven't already saved a trajectory for this trial_type
     if trial_type not in traj:
         traj[trial_type] = dict()
-        traj[trial_type]['ts_start']  = df.ix['ts', 0]
-        traj[trial_type]['ts_end']    = df.ix['ts', df.columns[-1]]
-        traj[trial_type]['armassist'] = df.ix[aa_fields, :]
-        traj[trial_type]['rehand']    = df.ix[rh_fields, :]
+        traj[trial_type]['ts_start']  = ts_start
+        traj[trial_type]['ts_end']    = ts_end
+
+        # NEW: finely-spaced vector of time-stamps onto which we will interpolate armassist and rehand data
+        ts_step = 5000  # microseconds
+        ts_vec = np.arange(ts_start, ts_end, ts_step)
+
+        df_final = pd.DataFrame(ts_vec, columns=['ts']).T
+        
+        for state in aa_pos_states + rh_pos_states + rh_vel_states:
+            ts_data    = df.ix['ts', :]
+            state_data = df.ix[state, :]
+            interp_fn = interp1d(ts_data, state_data)
+            df_tmp = pd.DataFrame(interp_fn(ts_vec), columns=[state]).T
+            df_final = pd.concat([df_final, df_tmp])
+        traj[trial_type]['traj'] = df_final
+
+        # a bit repetitive -- also save aa and rh separately with their own ts
+        df_aa = pd.DataFrame(ts_vec, columns=['ts']).T
+        for state in aa_pos_states:
+            ts_data    = df.ix['ts', :]
+            state_data = df.ix[state, :]
+            interp_fn = interp1d(ts_data, state_data)
+            df_tmp = pd.DataFrame(interp_fn(ts_vec), columns=[state]).T
+            df_aa  = pd.concat([df_aa, df_tmp])
+        traj[trial_type]['armassist'] = df_aa
+        
+        df_rh = pd.DataFrame(ts_vec.T, columns=['ts']).T
+        for state in rh_pos_states+rh_vel_states:
+            ts_data    = df.ix['ts', :]
+            state_data = df.ix[state, :]
+            interp_fn = interp1d(ts_data, state_data)
+            df_tmp = pd.DataFrame(interp_fn(ts_vec), columns=[state]).T
+            df_rh  = pd.concat([df_rh, df_tmp])
+        traj[trial_type]['rehand'] = df_rh
+        
 
 pickle.dump(traj, open(pkl_name, 'wb'))
