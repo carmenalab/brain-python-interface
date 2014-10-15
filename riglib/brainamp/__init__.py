@@ -5,12 +5,12 @@ import numpy as np
 import rda
 
 
-class EMG(object):
-    '''For use with a MultiChanDataSource in order to acquire streaming EMG
+class EMGEEGEOG(object):
+    '''For use with a MultiChanDataSource in order to acquire streaming EMG/EEG/EOG
     data from the BrainProducts BrainVision Recorder.
     '''
 
-    update_freq = 2500.
+    update_freq = 1000.
     dtype = np.dtype('float')
 
     def __init__(self, recorder_ip):

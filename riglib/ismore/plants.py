@@ -20,7 +20,7 @@ class ArmAssistPlant(object):
     with either the real or simulated ArmAssist.
     '''
 
-    def __init__(self, print_commands=True):
+    def __init__(self, print_commands=False):
         self.print_commands = print_commands
 
         self.source = source.DataSource(ismore.ArmAssistData, bufferlen=5, name='armassist')
@@ -94,7 +94,7 @@ class ReHandPlant(object):
     with either the real or simulated ReHand.
     '''
 
-    def __init__(self, print_commands=True):
+    def __init__(self, print_commands=False):
         self.print_commands = print_commands
 
         self.source = source.DataSource(ismore.ReHandData, bufferlen=5, name='rehand')
@@ -145,7 +145,7 @@ class IsMorePlant(object):
     with either the real or simulated ArmAssist+ReHand.
     '''
 
-    def __init__(self, print_commands=True):
+    def __init__(self, print_commands=False):
         self.aa_plant = ArmAssistPlant(print_commands=print_commands)
         self.rh_plant = ReHandPlant(print_commands=print_commands)
 

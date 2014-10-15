@@ -855,7 +855,8 @@ class BlackrockBMI(BlackrockData):
         -------
         '''
         print "init bmi"
-        self.blackrock_channels = self.decoder.units[:,0]
+        print "HARDCODING BLACKROCK_CHANNELS -- CHANGE THIS!!"
+        self.blackrock_channels = range(1, 41) #self.decoder.units[:,0]
         super(BlackrockBMI, self).init()
 
 
@@ -873,8 +874,7 @@ class BrainAmpData(traits.HasTraits):
         -------
         '''
         from riglib import brainamp, source
-
-        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
+        self.emgeegeogdata = source.MultiChanDataSource(brainamp.EMGEEGEOG, channels=channels)
 
         try:
             super(BrainAmpData, self).init()
