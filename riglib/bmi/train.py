@@ -411,6 +411,9 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     decoder.filt.ESS = ESS
     decoder.n_features = n_features
 
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
     return decoder
 
 def train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
