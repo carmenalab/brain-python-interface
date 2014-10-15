@@ -27,17 +27,24 @@ sec_per_min = 60
 """
 Define one class to send TTL pulse for one cycle of stimulation (StimulationPulse).  Define second class to implement this
 at a fixed rate.
+
+Left off at line 79.  Need to figure out how we re-trigger starting the stimulus pulse train again.
 """
 
-class StimulationPulse(traits.HasTraits):
-    '''
-    Class for a single stimulation pulse
-    '''
-    def __init__(self,*args, **kwargs)
 
 
 class TTLStimulation(StimulationPulse, traits.HasTraits):
     '''During the stimulation phase, send a timed TTL pulse to the Master-8 stimulator'''
+    
+    status = dict(
+        pulse = dict(pulse_end="interpulse_period", stop=None),
+        interpulse_period = dict(another_pulse="pulse", pulse_train_end="off", stop=None),
+        off= dict(next_pulse_train="pulse", stop=None)
+    )
+
+    pulse_count = 0  #initializing number of pulses that have occured
+    number_of_pulses = int(self.stimulation_period_length*self.stimulation_frequency)   # total pulses during a stimulation pulse train
+
     def __init__(self, *args, **kwargs):
         '''
         Constructor for TTLStimulation
@@ -56,6 +63,22 @@ class TTLStimulation(StimulationPulse, traits.HasTraits):
         import comedi
         self.com = comedi.comedi_open('/dev/comedi0')
         super(TTLStimulation, self).__init__(*args, **kwargs)
+
+    def init(self):
+        super(TTLStimulation, self).init()
+
+    def _test_pulse_end(self, ts):
+        #return true if time has been longer than the specified pulse duration
+        pulse_length = self.stimulation_pulse_length*1e-6
+        return ts>=pulse_length
+
+    def _test_another_pulse(self,ts):
+        return pulse_count < number_of_pulses
+
+    def _test_pulse_train_end(self,ts):
+        return pulse_count > number_of_pulses
+
+    def _test_next_pulse_train(self,ts):
 
     def _start_stimulation(self):
         '''
@@ -77,9 +100,6 @@ class TTLStimulation(StimulationPulse, traits.HasTraits):
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
         self.stimulation_start = self.get_time() - self.start_time
-
-    def _test_stimulation_end(self, ts):
-        return (ts - self.stimulation_start) > self.stimulation_time
 
     def _end_stimulation(self):
         '''
