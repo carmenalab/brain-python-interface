@@ -75,7 +75,7 @@ class SimCLDAControlMultiDispl2D(SaveHDF, Autostart, SimTime, WindowDispl2D, bmi
         
 class SimRML(SimCLDAControlMultiDispl2D):
     assist_level = (0., 0.)
-    arm_class = 'CursorPlant'
+    plant_type = 'cursor_14x14'
     def __init__(self, *args, **kwargs):
         super(SimRML, self).__init__(*args, **kwargs)
         self.batch_time = 0.1
