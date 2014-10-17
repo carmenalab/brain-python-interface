@@ -26,17 +26,28 @@ import time
 sec_per_min = 60
 
 class RewardSystem(traits.HasTraits):
-    '''Use the reward system during the reward phase'''
+    '''
+    Feature for the Crist solenoid reward system
+    '''
+    trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
     def __init__(self, *args, **kwargs):
         from riglib import reward
         super(RewardSystem, self).__init__(*args, **kwargs)
         self.reward = reward.open()
 
     def _start_reward(self):
+        self.reward_start = self.get_time()
         if self.reward is not None:
-            self.reward.reward(self.reward_time*1000.)
-            self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
+            self.reportstats['Reward #'] += 1
+            if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+                self.reward.reward(self.reward_time*1000.)
         super(RewardSystem, self)._start_reward()
+
+    def _test_reward_end(self, ts):
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            return ts > self.reward_time
+        else:
+            return True
 
 class TTLReward(traits.HasTraits):
     '''During the reward phase, send a timed TTL pulse to the reward system'''
@@ -131,7 +142,11 @@ class JuiceLogging(traits.HasTraits):
         time.sleep(1)
 
         ## Link the image to the database
-        database.save_data(fname, 'juice_log', saveid)
+        dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        if dbname == 'default':
+            database.save_data(fname, 'juice_log', saveid)
+        else:
+            database.save_data(fname, 'juice_log', saveid, dbname=dbname)
 
 
 class Autostart(traits.HasTraits):
@@ -362,13 +377,7 @@ class AdaptiveGenerator(object):
 
 class Joystick(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Code to use an analog joystick with signals digitized by the phidgets board
     '''
     def init(self):
         '''
@@ -384,8 +393,8 @@ class Joystick(object):
         System = phidgets.make(2, 1)
         self.joystick = source.DataSource(System)
         super(Joystick, self).init()
-        if isinstance(self, SaveHDF):
-            self.add_dtype('joystick_sensor_vals', 'f8', (2,))
+        # if isinstance(self, SaveHDF):
+            # self.add_dtype('joystick_sensor_vals', 'f8', (2,))
 
     def run(self):
         '''
@@ -582,7 +591,11 @@ class EyeData(traits.HasTraits):
         -------
         '''
         super(EyeData, self).cleanup(database, saveid, **kwargs)
-        database.save_data(self.eyefile, "eyetracker", saveid)
+        dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        if dbname == 'default':
+            database.save_data(self.eyefile, "eyetracker", saveid)
+        else:
+            database.save_data(self.eyefile, "eyetracker", saveid, dbname=dbname)
 
 class SimulatedEyeData(EyeData):
     '''Simulate an eyetracking system using a series of fixations, with saccades interpolated'''
@@ -950,14 +963,18 @@ class SaveHDF(SinkRegister):
         return hdfwriter.HDFWriter
 
     def run(self):
-        ''' Docstring '''
+        '''
+        Tell the process to start running. When it ends, stop the HDF sink
+        '''
         try:
             super(SaveHDF, self).run()
         finally:
             self.hdf.stop()
     
     def join(self):
-        ''' Docstring '''
+        '''
+        Re-join any spawned process for cleanup
+        '''
         self.hdf.join()
         super(SaveHDF, self).join()
 
@@ -988,6 +1005,7 @@ class SaveHDF(SinkRegister):
         -------
         '''
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
+        print "Beginning HDF file cleanup"
         print "#################%s"%self.h5file.name
         try:
             self.cleanup_hdf()
@@ -996,7 +1014,11 @@ class SaveHDF(SinkRegister):
             import traceback
             traceback.print_exc()
 
-        database.save_data(self.h5file.name, "hdf", saveid)
+        dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        if dbname == 'default':
+            database.save_data(self.h5file.name, "hdf", saveid)
+        else:
+            database.save_data(self.h5file.name, "hdf", saveid, dbname=dbname)
 
 ########################################################################################################
 # Plexon features
@@ -1145,8 +1167,12 @@ class RelayPlexon(SinkRegister):
         '''
         super(RelayPlexon, self).cleanup(database, saveid, **kwargs)
         time.sleep(2)
+        dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if self.plexfile is not None:
-            database.save_data(self.plexfile, "plexon", saveid, True, False)
+            if dbname == 'default':
+                database.save_data(self.plexfile, "plexon", saveid, True, False)
+            else:
+                database.save_data(self.plexfile, "plexon", saveid, True, False, dbname=dbname)
         
 class RelayPlexByte(RelayPlexon):
     '''
@@ -1318,6 +1344,14 @@ class RelayBlackrockByte(RelayBlackrock):
 ######################
 ## Simulation Features
 ######################
+class FakeHDF(object):
+    def __init__(self):
+        self.msgs = []
+
+    def sendMsg(self, msg):
+        self.msgs.append(msg)
+
+
 class SimHDF(object):
     '''
     An interface-compatbile HDF for simulations which do not require saving an
@@ -1326,41 +1360,49 @@ class SimHDF(object):
     def __init__(self, *args, **kwargs):
         '''
         Docstring
+        Constructor for SimHDF feature
 
         Parameters
         ----------
+        args, kwargs: None necessary
 
         Returns
         -------
+        SimHDF instance
         '''
-        super(SimHDF, self).__init__(*args, **kwargs)
         from collections import defaultdict
         self.data = defaultdict(list)
-        self.task_data = dict()
+        self.task_data_hist = []
+        self.msgs = []        
+        self.hdf = FakeHDF()
+
+        super(SimHDF, self).__init__(*args, **kwargs)
+
+    def init(self):
+        super(SimHDF, self).init()
+        self.dtype = np.dtype(self.dtype)
+        self.task_data = np.zeros((1,), dtype=self.dtype)
+
 
     def sendMsg(self, msg):
         '''
-        Docstring
+        Simulate the "message" table of the HDF file associated with each source
 
         Parameters
         ----------
+        msg: string
+            Message to store
 
         Returns
         -------
+        None
         '''
-        pass
+        self.msgs.append((msg, self.cycle_count))
 
-    def __setitem__(self, key, value):
-        '''
-        Docstring
+    def _cycle(self):
+        super(SimHDF, self)._cycle()
+        self.task_data_hist.append(self.task_data.copy())
 
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        self.data[key].append(value)
 
 class SimTime(object):
     ''' Docstring '''
@@ -1380,10 +1422,18 @@ class SimTime(object):
     def get_time(self):
         ''' Docstring '''
         try:
-            return self.cycle_count * 1./self.fps
+            return self.cycle_count * self.update_rate
         except:
             # loop_counter has not been initialized yet, return 0
             return 0
+
+    @property 
+    def update_rate(self):
+        '''
+        Attribute for update rate of task. Using @property in case any future modifications
+        decide to change fps on initialization
+        '''
+        return 1./60
 
 ########################################################################################################
 # Decoder/BMISystem add-ons
@@ -1461,36 +1511,48 @@ class NormFiringRates(traits.HasTraits):
         super(NormFiringRates, self).update_cursor()
 
 class LinearlyDecreasingAttribute(traits.HasTraits):
-    ''' Docstring '''
+    ''' 
+    Generic feature which linearly decreases the value of attributes used by the task
+    '''
+    attrs = []
+    attr_flags = dict()
     def __init__(self, *args, **kwargs):
         '''
-        Docstring
+        Constructor for LinearlyDecreasingAttribute
 
         Parameters
         ----------
+        *args, **kwargs: None necessary, these are for multiple inheritance compatibility
 
         Returns
         -------
+        LinearlyDecreasingAttribute instance
         '''
         assert isinstance(self, experiment.Experiment)
         super(LinearlyDecreasingAttribute, self).__init__(*args, **kwargs)
-        self.attr_start, self.attr_min = getattr(self, self.attr)
-        setattr(self, 'current_%s' % self.attr, self.attr_start)
-        self.assist_flag = True
 
     def init(self):
         '''
-        Docstring
+        Secondary init function after the object has been created and all the super __init__ functions have run.
+        Initialize the "current" value of all of the attributes and register the attributes with the HDF file
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         super(LinearlyDecreasingAttribute, self).init()
-        if isinstance(self, SaveHDF):
-            self.add_dtype(self.attr, 'f8', (1,))
+        for attr in self.attrs:
+            self.attr_start, self.attr_min = getattr(self, attr)
+            setattr(self, 'current_%s' % attr, self.attr_start)
+            self.attr_flags[attr] = True
+
+        if hasattr(self, 'add_dtype'):
+            for attr in self.attrs:
+                self.add_dtype(attr, 'f8', (1,))
 
     def _linear_change(self, start_val, end_val, decay_time):
         '''
@@ -1522,15 +1584,18 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         Returns
         -------
         '''
-        decay_time = float(getattr(self, '%s_time' % self.attr)) #self.assist_level_time
-        current_level = self._linear_change(self.attr_start, self.attr_min, decay_time)
-        setattr(self, 'current_%s' % self.attr, current_level) 
-        if self.assist_flag and getattr(self, 'current_%s' % self.attr) == self.attr_min:
-            print "%s at final value after %d successful trials" % (self.attr, self.calc_n_rewards())
-            self.assist_flag = False
+        for attr in self.attrs:
+            decay_time = float(getattr(self, '%s_time' % attr))
+            attr_start, attr_min = getattr(self, attr)
+            current_level = self._linear_change(attr_start, attr_min, decay_time)
+            setattr(self, 'current_%s' % attr, current_level)
+            flag = self.attr_flags[attr]
+            if flag and getattr(self, 'current_%s' % attr) == attr_min:
+                print "%s at final value after %d successful trials" % (attr, self.calc_state_occurrences('reward'))
+                self.attr_flags[attr] = False
 
-        if self.cycle_count % (self.fps * sec_per_min) == 0 and self.assist_flag:
-            print "%s: " % self.attr, getattr(self, 'current_%s' % self.attr)
+            if self.cycle_count % (1./self.update_rate * sec_per_min) == 0 and self.attr_flags[attr]:
+                print "%s: " % attr, getattr(self, 'current_%s' % attr)
 
     def _cycle(self):
         '''
@@ -1538,7 +1603,8 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         '''
         self.update_level()
         if hasattr(self, 'task_data'):
-            self.task_data[self.attr] = getattr(self, 'current_%s' % self.attr)
+            for attr in self.attrs:
+                self.task_data[attr] = getattr(self, 'current_%s' % attr)
 
         super(LinearlyDecreasingAttribute, self)._cycle()
 
@@ -1546,10 +1612,92 @@ class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
     ''' Docstring '''
     assist_level = traits.Tuple((0.0, 0.0), desc="Level of assist to apply to BMI output")
     assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")    
-    attr = 'assist_level'
+    # attr = 'assist_level'
+    def __init__(self, *args, **kwargs):
+        super(LinearlyDecreasingAssist, self).__init__(*args, **kwargs)
+        self.attrs.append('assist_level')
+    
 
 class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
     ''' Docstring '''
-    half_Life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
+    half_life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
     half_life_time = traits.Float(600, desc="Number of seconds to go from initial to final half life")
-    attr = 'half_life'
+    # attr = 'half_life'
+    def __init__(self, *args, **kwargs):
+        super(LinearlyDecreasingHalfLife, self).__init__(*args, **kwargs)
+        self.attrs.append('half_life')    
+
+
+########################################################################################################
+# Video Recording
+########################################################################################################
+import multiprocessing as mp 
+
+class MultiprocShellCommand(mp.Process):
+    def __init__(self, cmd, *args, **kwargs):
+        self.cmd = cmd
+        self.done = mp.Event()
+        super(MultiprocShellCommand, self).__init__(*args, **kwargs)
+
+    def run(self):
+        import subprocess
+        import os
+        os.popen(self.cmd)
+        self.done.set()
+
+    def is_done(self):
+        return self.done.is_set()
+
+
+
+class SingleChannelVideo(traits.HasTraits):
+    def __init__(self, *args, **kwargs):
+        super(SingleChannelVideo, self).__init__(*args, **kwargs)
+
+    def init(self):
+        '''
+        Spawn process to run ssh command to begin video recording
+        '''
+        self.video_basename = 'video_%s.avi' % time.strftime('%Y_%m_%d_%H_%M_%S')        
+        cmd = "ssh -tt video /home/lab/bin/recording_start.sh %s" % self.video_basename
+        
+        cmd_caller = MultiprocShellCommand(cmd)
+        cmd_caller.start()
+        self.cmd_caller = cmd_caller
+        print "started video recording"
+        print cmd
+        
+        super(SingleChannelVideo, self).init()
+
+    def cleanup(self, database, saveid, **kwargs):
+        '''
+        Stop video recording and link file to database
+
+        Parameters
+        ----------
+        database
+        saveid
+
+        Returns
+        -------
+        None
+        '''
+
+        print "executing command to stop video recording"
+        os.popen('ssh -tt video /home/lab/bin/recording_end.sh')
+
+        print "Checking if video recording is done"
+        if self.cmd_caller.done.is_set():
+            print "SSH command finished!"
+
+        time.sleep(0.5)
+        super(SingleChannelVideo, self).cleanup(database, saveid, **kwargs)
+
+        ## Get the video filename
+        video_fname = os.path.join('/storage/video/%s' % self.video_basename)
+
+        dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        if dbname == 'default':
+            database.save_data(video_fname, "video", saveid)
+        else:
+            database.save_data(video_fname, "video", saveid, dbname=dbname)

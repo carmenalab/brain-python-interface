@@ -20,19 +20,19 @@ from models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
 import cPickle
 import tempfile
 
-def save_log(idx, log):
-    entry = TaskEntry.objects.get(pk=idx)
+def save_log(idx, log, dbname='default'):
+    entry = TaskEntry.objects.using(dbname).get(pk=idx)
     entry.report = json.dumps(log)
     entry.save()
 
-def save_calibration(subject, system, name, params):
+def save_calibration(subject, system, name, params, dbname='default'):
     print subject, system
-    subj = Subject.objects.get(name=subject)
-    sys = System.objects.get(name=system)
-    Calibration(subject=subj, system=sys, name=name, params=params).save()
+    subj = Subject.objects.using(dbname).get(name=subject)
+    sys = System.objects.using(dbname).get(name=system)
+    Calibration(subject=subj, system=sys, name=name, params=params).save(using=dbname)
 
-def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None):
-    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png")
+def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None, dbname='default'):
+    suffix = dict(eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png", video="avi")
     if system in suffix:
         suff = suffix[system]
     else:  # blackrock system saves multiple files (.nev, .ns1, .ns2, etc.)
@@ -41,14 +41,14 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None)
         else:
             raise Exception('Must provide a custom suffix for system: ' + system)
 
-    sys = System.objects.get(name=system)
-    entry = TaskEntry.objects.get(pk=entry)
+    sys = System.objects.using(dbname).get(name=system)
+    entry = TaskEntry.objects.using(dbname).get(pk=entry)
 
     now = entry.date
     today = datetime.date(now.year, now.month, now.day)
     tomorrow = today + datetime.timedelta(days=1)
 
-    entries = TaskEntry.objects.filter(date__gte=today, date__lte=tomorrow)
+    entries = TaskEntry.objects.using(dbname).filter(date__gte=today, date__lte=tomorrow)
     enums = dict([(e, i) for i, e in enumerate(entries.order_by("date"))])
     num = enums[entry]
 
@@ -72,19 +72,19 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None)
     else:
         permfile = curfile
 
-    DataFile(local=local, path=permfile, system=sys, entry=entry).save()
+    DataFile(local=local, path=permfile, system=sys, entry=entry).save(using=dbname)
     print "Saved datafile for file=%s -> %s, system=%s, id=%d)..."%(curfile, permfile, system, entry.id)
 
-def save_bmi(name, entry, filename):
+def save_bmi(name, entry, filename, dbname='default'):
     '''
     Save BMI objects to database
     '''
-    entry = TaskEntry.objects.get(pk=entry)
+    entry = TaskEntry.objects.using(dbname).get(pk=entry)
     now = entry.date
     today = datetime.date(now.year, now.month, now.day)
     tomorrow = today + datetime.timedelta(days=1)
 
-    entries = TaskEntry.objects.filter(date__gte=today, date__lte=tomorrow)
+    entries = TaskEntry.objects.using(dbname).filter(date__gte=today, date__lte=tomorrow)
     enums = dict([(e, i) for i, e in enumerate(entries.order_by("date"))])
     num = enums[entry]
 
@@ -92,10 +92,10 @@ def save_bmi(name, entry, filename):
         subj=entry.subject.name[:4].lower(),
         time=entry.date.strftime('%Y%m%d'),
         num=num, name=name)
-    base = System.objects.get(name='bmi').path
+    base = System.objects.using(dbname).get(name='bmi').path
     shutil.copy2(filename, os.path.join(base, pklname))
 
-    Decoder(name=name,entry=entry,path=pklname).save()
+    Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
     print "Saved decoder to %s"%os.path.join(base, pklname)
 
 def entry_error(entry):

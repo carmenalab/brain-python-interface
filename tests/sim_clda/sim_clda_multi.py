@@ -4,15 +4,21 @@ Simulation of CLDA control task
 """
 ## Imports
 from __future__ import division
+from db import dbfunctions
+from db.tracker import dbq
+from db.tracker import models
+
 import os
 import numpy as np
 import multiprocessing as mp
 from scipy.io import loadmat, savemat
-from riglib.experiment.features import Autostart, SimHDF, SimTime
+from riglib.experiment.features import Autostart, SimHDF, SimTime, SaveHDF
 import riglib.bmi
 from riglib.bmi import train, kfdecoder, clda, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
 from riglib.stereo_opengl.window import WindowDispl2D
+
+
 
 reload(kfdecoder)
 reload(ppfdecoder)
@@ -52,19 +58,15 @@ class PointProcContinuous(object):
     def create_updater(self):
         self.updater = clda.PPFContinuousBayesianUpdater(self.decoder)
 
-class SimCLDAControlMultiDispl2D(Autostart, SimTime, WindowDispl2D, bmimultitasks.SimCLDAControlMulti):
+class SimCLDAControlMultiDispl2D(SaveHDF, Autostart, SimTime, WindowDispl2D, bmimultitasks.SimCLDAControlMulti):
     update_rate = 0.1
     starting_pos = (0., 0., 0.)
     rand_start = (0., 0.)
     def __init__(self, *args, **kwargs):
         self.target_radius = 1.8
-        bmimultitasks.SimCLDAControlMulti.__init__(self, *args, **kwargs)
+        super(SimCLDAControlMultiDispl2D, self).__init__(*args, **kwargs)
         self.batch_time = 10.
         self.half_life  = 20.0, 20.0
-
-        self.hdf = SimHDF()
-        self.task_data = SimHDF()
-        SimTime.__init__(self, *args, **kwargs)
 
     def create_updater(self):
         clda_input_queue = mp.Queue()
@@ -73,12 +75,12 @@ class SimCLDAControlMultiDispl2D(Autostart, SimTime, WindowDispl2D, bmimultitask
         
 class SimRML(SimCLDAControlMultiDispl2D):
     assist_level = (0., 0.)
+    plant_type = 'cursor_14x14'
     def __init__(self, *args, **kwargs):
         super(SimRML, self).__init__(*args, **kwargs)
         self.batch_time = 0.1
         self.half_life  = (20.0, 20.0)
         self.starting_pos = (0., 0., 0.)
-        self.assist_level = 1., 0.
         self.assist_time = 15.
 
     def create_updater(self):
@@ -135,11 +137,16 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
         return SimCLDAControlMultiDispl2D.get_time(self)
 
 
+
 if args.alg == 'RML':
-    gen = genfns.sim_target_seq_generator_multi(8, 1000)
+    te = models.TaskEntry()
+    sim_subj = models.Subject.objects.using('simulation').get(name='Simulation')
+    te.subject = sim_subj
+    te.task = models.Task.objects.using('simulation').get(name='clda_kf_cg_rml')
+    te.sequence_id = 0
+    te.save(using='simulation')
+    gen = genfns.sim_target_seq_generator_multi(8, 1)
     task = SimRML(gen)
-    #task = SimCLDAControlMultiDispl2D_PPF(gen)
-    # task = SimCLDAControlMultiDispl2D(gen)
 
 else:
     raise ValueError("Algorithm not recognized!")
@@ -149,3 +156,5 @@ self = task
 task.init()
 print 'task init called'
 task.run()
+
+task.cleanup(dbq, te.id, subject=sim_subj, dbname='simulation')

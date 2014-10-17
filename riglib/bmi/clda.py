@@ -23,9 +23,12 @@ from utils.angle_utils import *
 
 inv = np.linalg.inv
 
-from numpy.linalg import lapack_lite
-lapack_routine = lapack_lite.dgesv
-
+try:
+    from numpy.linalg import lapack_lite
+    lapack_routine = lapack_lite.dgesv
+except:
+    pass
+    
 def fast_inv(A):
     '''
     This method represents a way to speed up matrix inverse computations when 
@@ -793,9 +796,9 @@ class KFSmoothbatchSingleThread(object):
         mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
         
-        D = C.T * Q.I * C
+        D = C.T * np.linalg.pinv(Q) * C
         new_params = {'kf.C':C, 'kf.Q':Q, 
-            'kf.C_xpose_Q_inv_C':D, 'kf.C_xpose_Q_inv':C.T * Q.I,
+            'kf.C_xpose_Q_inv_C':D, 'kf.C_xpose_Q_inv':C.T * np.linalg.pinv(Q),
             'mFR':mFR, 'sdFR':sdFR}
         return new_params
 
@@ -825,7 +828,7 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
         new_params = super(KFOrthogonalPlantSmoothbatchSingleThread, self).calc(*args, **kwargs)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
 
-        D = (C.T * Q.I * C)
+        D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
             d = np.mean([D[3,3], D[5,5]])
             D[3:6, 3:6] = np.diag([d, d, d])
@@ -841,7 +844,7 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
 
         new_params['kf.C_xpose_Q_inv_C'] = D
-        new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
+        new_params['kf.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
         return new_params
 
 
@@ -1061,7 +1064,7 @@ class KFRML(object):
         mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
 
-        C_xpose_Q_inv   = C.T * Q.I
+        C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
         C_xpose_Q_inv_C = C_xpose_Q_inv * C
         
         new_params = {'kf.C':C, 'kf.Q':Q, 
@@ -1095,7 +1098,7 @@ class KFRML_IVC(KFRML):
         new_params = super(KFRML_IVC, self).calc(*args, **kwargs)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
 
-        D = (C.T * Q.I * C)
+        D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
             d = np.mean([D[3,3], D[5,5]])
             D[3:6, 3:6] = np.diag([d, d, d])
@@ -1111,7 +1114,7 @@ class KFRML_IVC(KFRML):
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
 
         new_params['kf.C_xpose_Q_inv_C'] = D
-        new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
+        new_params['kf.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
         return new_params
 
 
@@ -1150,7 +1153,7 @@ class KFRML_baseline(KFRML):
         C = decoder.filt.C
         C[:,-1] = mFR.reshape(-1,1)
 
-        C_xpose_Q_inv   = C.T * Q.I
+        C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
         C_xpose_Q_inv_C = C_xpose_Q_inv * C
         
         new_params = {'kf.C':C, 'kf.Q':Q, 
@@ -1169,7 +1172,7 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     hdf_fname : filename of HDF file
     data : list of dictionaries with the same keys and same dtypes for values
     '''
-    log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
+    log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_hdf_log'), 'w')
 
     compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
     if len(data) > 0:

@@ -253,7 +253,7 @@ class PlanarMultiLinkJointGoalCached(mp_calc.FuncProxy):
                     break
 
             if joint_pos == None:
-                raise ValueError("Unknown target position!")
+                raise ValueError("Unknown target position!: %s" % str(target_pos))
 
             target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
             
@@ -279,7 +279,7 @@ class PlanarMultiLinkJointGoalCached(mp_calc.FuncProxy):
         # print joint_pos
 
         if joint_pos == None:
-            raise ValueError("Unknown target position!")
+            raise ValueError("Unknown target position!: %s" % str(target_pos))
 
         target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
         

@@ -15,6 +15,7 @@ import collections
 from riglib import experiment
 import websocket
 
+from config import config
 from json_param import Parameters
 
 class Track(object):
@@ -51,6 +52,9 @@ class Track(object):
         self.proc.start()
         
     def __del__(self):
+        '''
+        Destructor for Track object. Not sure if this function ever gets called since Track is a singleton created upon import of the ajax library...
+        '''
         self.websock.stop()
 
     def pausetask(self):
@@ -74,7 +78,9 @@ class Track(object):
         return status
 
 def runtask(cmds, _cmds, websock, **kwargs):
-
+    '''
+    Target function to execute in the separate process to start the task
+    '''
     import time
     from riglib.experiment import report
 
@@ -142,19 +148,25 @@ def runtask(cmds, _cmds, websock, **kwargs):
         import traceback
         err = cStringIO.StringIO()
         traceback.print_exc(None, err)
-        with open('/tmp/exceptions', 'w') as fp:
+        with open(os.path.expandvars('$BMI3D/log/tasktrack_log'), 'w') as fp:
             err.seek(0)
             fp.write(err.read())
         err.seek(0)
         websock.send(dict(status="error", msg=err.read()))
         err.seek(0)
         print err.read()
+
+    # Redirect printing back to the shell
     sys.stdout = sys.__stdout__
+    try:
+        task
+    except:
+        raise Exception("Task was never initialized, cannot run cleanup function!")
     task.cleanup()
 
     # Summarize performance during task
     try:
-        from tasks import performance
+        from analysis import performance
         te = performance._get_te(task.saveid)
         print te.summary()
     except:
@@ -184,17 +196,17 @@ class Task(object):
         self.subj = subj
         self.params = Parameters(params)
 
-        # Send pulse to plexon box to start saving to file
+        # Send pulse to neural recording system to start saving to file
         if self.saveid is not None:
             try:
                 import comedi
                 self.com = comedi.comedi_open("/dev/comedi0")
 
-                import config
-                if config.recording_system == 'plexon':
+                
+                if config.recording_sys['make'] == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
                 
-                elif config.recording_system == 'blackrock':
+                elif config.recording_sys['make'] == 'blackrock':
                     # set strobe pin low
                     comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
@@ -207,7 +219,8 @@ class Task(object):
                     # set strobe pin low
                     comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
-                time.sleep(2)
+                # Wait a couple of seconds for the recording system to start up
+                time.sleep(3)
             except:
                 print "No comedi, cannot start"
         
@@ -253,11 +266,11 @@ class Task(object):
         
         if self.saveid is not None:
             try:
+                print "Stopping neural recording"
                 import comedi
-                import config
-                if config.recording_system == 'plexon':
+                if config.recording_sys['make'] == 'plexon':
                     comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
-                elif config.recording_system == 'blackrock':
+                elif config.recording_sys['make'] == 'blackrock':
                     # strobe pin should already be low
 
                     # set last data pin ("D15"; 16th pin) low
@@ -269,6 +282,7 @@ class Task(object):
                     # set strobe pin low
                     comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
             except:
+                print "error stopping neural recording system!"
                 pass
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
             self.task.cleanup(database, self.saveid, subject=self.subj)

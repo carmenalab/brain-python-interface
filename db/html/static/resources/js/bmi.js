@@ -12,7 +12,6 @@ function BMI(idx, info, notes) {
     }
 
     this.info = info;
-    //this.bmi_seed = info['is_seed'];
     this.neuralinfo = info['_neuralinfo'];
     delete info['_neuralinfo']
 
@@ -252,6 +251,8 @@ BMI.prototype._bindui = function() {
     $("#bmicancel").click(this.cancel.bind(this));
     $("#bmi").show();
 }
+
+// Destructor for the BMI sub-menu
 BMI.prototype.destroy = function() {
     if (this.neuralinfo !== null) {
         if (this.neuralinfo.is_seed) {
@@ -280,8 +281,11 @@ BMI.prototype.train = function() {
     data.bmiextractor = $("#bmiextractor").val();
     data.cells = $("#cellnames").val();
     data.channels = $("#channelnames").val();
-    data.binlen = $("#bmibinlen").val();
+    data.bmiupdaterate = $("#bmiupdaterate").val();
     data.tslice = $("#tslider").slider("values");
+    data.ssm = $("#ssm").val();
+    data.pos_key = $("#pos_key").val();
+
     data.csrfmiddlewaretoken = csrf.val();
 
     $.post("/make_bmi/"+this.idx, data, function(resp) {

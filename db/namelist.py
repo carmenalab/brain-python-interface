@@ -2,8 +2,9 @@
 Lookup table for features, generators and tasks for experiments
 '''
 
-
+import numpy as np
 from riglib import experiment, calibrations, bmi
+from riglib.stereo_opengl.window import MatplotlibWindow
 
 features = dict(
     autostart=experiment.features.Autostart, 
@@ -29,10 +30,12 @@ features = dict(
     norm_firingrates=experiment.features.NormFiringRates,
     ttl_reward=experiment.features.TTLReward,
     juice_log=experiment.features.JuiceLogging,
+    single_video=experiment.features.SingleChannelVideo,
+    exp_display=MatplotlibWindow,
 )
 
 import tasks
-from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback
+from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback, manualcontrolmultitasks
 generators = dict(
     adaptive=experiment.generate.AdaptiveTrials,
     endless=experiment.generate.endless,
@@ -64,6 +67,7 @@ generators = dict(
     ismore_simple=generatorfunctions.ismore_simple,
     ibmi_noninvasive=generatorfunctions.ibmi_noninvasive,
     centerout_2D_discrete_multiring=generatorfunctions.centerout_2D_discrete_multiring,
+    block_probabilistic_reward=generatorfunctions.colored_targets_with_probabilistic_reward
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -132,9 +136,12 @@ tasks = dict(
     bmi_cursor_bias=tasks.BMICursorBias,
     joystick_ops=tasks.JoystickDrivenCursorOPS,
     joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
+    joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
+    machine_control=bmimultitasks.TargetCaptureVisualFeedback,
+    passive_exo          = tasks.RecordEncoderData,
 
     ######## iBMI tasks
     ibmi_visual_feedback = ibmitasks.VisualFeedback,
@@ -145,11 +152,9 @@ tasks = dict(
     ibmi_playback_traj   = ibmitasks.PlaybackTrajectories,
 )
 
-arms = ['RobotArm2J2D', 'RobotArm2D', 'CursorPlant', 'RobotArmGen2D', 'Arm3D']
-
 ## BMI seed tasks
 # The below list shows which tasks can be used to train new Decoders
-bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi']
+bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi', 'machine_control']
 
 ibmi_seed_tasks = ['ibmi_visual_feedback', 'ibmi_manual_control']
 
@@ -179,19 +184,35 @@ instance_to_model = SubclassDict( {
 } )
 
 
-bmis = dict(
-    kalman=bmi.train._train_KFDecoder_manual_control,
-    kalmanCursorEpochs = bmi.train._train_KFDecoder_cursor_epochs,
-    kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
-    kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
-    ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
-    ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
-    kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
-    kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
-    kalmanVF3d=bmi.train._train_KFDecoder_visual_feedback_3d,
-    kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
-    kalmanVFrehand=bmi.train._train_rehand_KFDecoder_visual_feedback,
-    kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
+##bmis = dict(
+##    kalman=bmi.train._train_KFDecoder_manual_control,
+##    kalmanCursorEpochs = bmi.train._train_KFDecoder_cursor_epochs,
+##    kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
+##    kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
+##    ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
+##    ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
+##    kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
+##    kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
+##    kalmanVF3d=bmi.train._train_KFDecoder_visual_feedback_3d,
+##    kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
+##    kalmanVFrehand=bmi.train._train_rehand_KFDecoder_visual_feedback,
+##    kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
+##)
+
+bmi_algorithms = dict(
+    KFDecoder=bmi.train.train_KFDecoder,
+    PPFDecoder=bmi.train.train_PPFDecoder,
+)
+
+bmi_training_pos_vars = ['cursor', 'joint_angles']
+
+bmi_state_space_models=dict(
+    Endpt2D=bmi.train.endpt_2D_state_space,
+    Endpt3D=bmi.train.endpt_3D_state_space,
+    Tentacle=bmi.train.tentacle_2D_state_space,
+    Armassist=bmi.train.armassist_state_space,
+    Rehand=bmi.train.rehand_state_space,
+    ISMORE=bmi.train.ismore_state_space,
 )
 
 extractors = dict(
@@ -203,3 +224,4 @@ extractors = dict(
 
 default_extractor = "spikecounts"
 
+bmi_update_rates = [10, 20, 30, 60, 120, 180]

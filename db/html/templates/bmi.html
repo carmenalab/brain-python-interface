@@ -2,6 +2,7 @@
 <legend>BMI</legend>
     <div id='bmiwrap'>
     <table id='bmiinfo'>
+       <!-- Drop-down menu for BMIs trained using this block -->
         <tr>
             <td>
                 <label for='bminame'>Name</label>
@@ -10,42 +11,76 @@
                 <select id='bminame' />
             </td>
         </tr>
+        <!-- Drop-down menu of BMI training methods  -->
         <tr>
             <td>
-                <label for='bmiclass'>Class:</label>
+                <label for='bmiclass'>Decoding algorithm:</label>
             </td>
             <td>
                 <select id='bmiclass'>
-                    {% for name in bmis %}
+                    {% for name in bmi_algorithms %}
                     <option>{{ name }}</option>
                     {% endfor %}
                 </select>
             </td>
         </tr>
+        <!-- Drop-down menu of feature extractors  -->
         <tr>
             <td>
                 <label for='bmiextractor'>Feature Extractor:</label>
             </td>
             <td>
                 <select id='bmiextractor'>
+                    <option selected>{{ default_extractor }}</option>
                     {% for name in extractors %}
-                        {% if name == default_extractor %}
-                            <option selected="selected">{{ name }}</option>
-                        {% else %}
+                        {% if not name == default_extractor %}
                             <option>{{ name }}</option>
                         {% endif %}
                     {% endfor %}
                 </select>
             </td>
         </tr>
+        <!-- Input box to specify the bin length/update rate of the decoder -->
         <tr>
             <td>
-                <label for='bmibinlen'>Bin length</label>
+                <label for='bmiupdaterate'>BMI update rate</label>
             </td>
             <td>
-                <input id='bmibinlen' />
+                <!-- <input id='bmiupdaterate' /> -->
+                <select id='bmiupdaterate'>
+                    {% for update_rate in bmi_update_rates %}
+                        <option>{{ update_rate }}</option>
+                    {% endfor %}
+                </select>
             </td>
         </tr>
+        <!-- State space model -->
+        <tr>
+            <td>
+                <label for='ssm'>State space</label>
+            </td>
+            <td>
+                <select id='ssm'>
+                    {% for ssm in state_spaces %}
+                        <option>{{ ssm }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        <!-- Select position variable -->
+        <tr>
+            <td>
+                <label for='pos_key'>Position variable</label>
+            </td>
+            <td>
+                <select id='pos_key'>
+                    {% for pos_key in pos_vars %}
+                        <option>{{ pos_key }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        <!-- Slider for specifying the time range of the block to use for training the decoder-->
         <tr>
             <td id='tselect' colspan='2'>
                 <input id='tstart' />
@@ -53,6 +88,7 @@
                 <input id='tend' />
             </td>
         </tr>
+        <!-- Buttons for train/cancel. No idea what the cancel button would do... -->
         <tr>
             <td colspan='2'>
                 <input id='bmitrain' class='bmibtn' type='button' value='Train' />
@@ -67,6 +103,7 @@
             <th></th>
             <th>Selected</th>
         </tr>
+        <!-- Make boxes to list out the available spiking units. Only used for spike-count-based feature extractors -->
         <tr>
             <td>
                 <select id='available' multiple='multiple'></select>
@@ -82,6 +119,7 @@
                 </select>
             </td>
         </tr>
+        <!-- Text box of the selected spike units.  -->
         <tr>
             <td colspan='3'>Spike units:</td>
         </tr>
@@ -89,6 +127,7 @@
             <td colspan='3'><textarea id='cellnames'></textarea>
             </td>
         </tr>
+        <!-- Text box in which to specify the continuous channels to use -->
         <tr>
             <td colspan='3'>Continuous channels (LFP, EMG, etc.):</td>
         </tr>

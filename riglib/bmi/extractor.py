@@ -20,6 +20,10 @@ class FeatureExtractor(object):
     Parent of all feature extractors, used only for interfacing/type-checking
     '''
     pass
+    @classmethod
+    def extract_from_file(cls, *args, **kwargs):
+        raise NotImplementedError
+
 
 
 class BinnedSpikeCountsExtractor(FeatureExtractor):
@@ -60,9 +64,9 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         self.last_get_spike_counts_time = 0
 
     def get_spike_ts(self, *args, **kwargs):
-        '''Get the spike timestamps from the neural data source. 
-
-        This function has no type checking, i.e. it is assumed that the object was created with the proper source
+        '''
+        Get the spike timestamps from the neural data source. This function has no type checking, 
+        i.e., it is assumed that the Extractor object was created with the proper source
 
         Parameters
         ----------
@@ -109,6 +113,116 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         self.last_get_spike_counts_time = start_time
 
         return dict(spike_counts=counts, bin_edges=bin_edges)
+
+    @classmethod
+    def extract_from_file(cls, files, neurows, binlen, units, strobe_rate=60.0, **extractor_kwargs):
+        '''
+        Compute binned spike count features
+
+        Parameters
+        ----------
+        plx: neural data file instance
+        neurows: np.ndarray of shape (T,)
+            Timestamps in the plexon time reference corresponding to bin boundaries
+        binlen: float
+            Length of time over which to sum spikes from the specified cells
+        units: np.ndarray of shape (N, 2)
+            List of units that the decoder will be trained on. The first column specifies the electrode number and the second specifies the unit on the electrode
+        extractor_kwargs: dict 
+            Any additional parameters to be passed to the feature extractor. This function is agnostic to the actual extractor utilized
+        strobe_rate: 60.0
+            The rate at which the task sends the sync pulse to the plx file
+
+        Returns
+        -------
+        '''
+        if 'plexon' in files:
+            from plexon import plexfile
+            plx = plexfile.openFile(str(files['plexon']))
+            # interpolate between the rows to 180 Hz
+            if binlen < 1./strobe_rate:
+                interp_rows = []
+                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+                for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
+                interp_rows = np.array(interp_rows)
+            else:
+                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+                interp_rows = neurows[::step]
+
+            from plexon import psth
+            spike_bin_fn = psth.SpikeBin(units, binlen)
+            spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
+
+            # discard units that never fired at all
+            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+            units = units[unit_inds,:]
+            spike_counts = spike_counts[:, unit_inds]
+            extractor_kwargs['units'] = units
+
+            return spike_counts, units, extractor_kwargs
+
+        elif 'blackrock' in files:
+            nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+            nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]            
+            # interpolate between the rows to 180 Hz
+            if binlen < 1./strobe_rate:
+                interp_rows = []
+                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+                for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
+                interp_rows = np.array(interp_rows)
+            else:
+                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+                interp_rows = neurows[::step]
+
+            
+            nev_hdf_fname = nev_fname + '.hdf'
+            if not os.path.isfile(nev_hdf_fname):
+                # convert .nev file to hdf file using Blackrock's n2h5 utility
+                subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+            import h5py
+            nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+            n_bins = len(interp_rows)
+            n_units = units.shape[0]
+            spike_counts = np.zeros((n_bins, n_units))
+
+            for i in range(n_units):
+                chan = units[i, 0]
+
+                # 1-based numbering (comes from web interface)
+                unit = units[i, 1]  
+
+                chan_str = str(chan).zfill(5)
+                path = 'channel/channel%s/spike_set' % chan_str
+                ts = nev_hdf.get(path).value['TimeStamp']
+
+                # the units corresponding to each timestamp in ts
+                # 0-based numbering (comes from .nev file), so add 1
+                units_ts = nev_hdf.get(path).value['Unit'] + 1
+
+                # get the ts for this unit, in units of secs
+                fs = 30000.
+                ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
+
+                # insert value interp_rows[0]-step to beginning of interp_rows array
+                interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
+
+                # use ts to fill in the spike_counts that corresponds to unit i
+                spike_counts[:, i] = np.histogram(ts, interp_rows_)[0]
+
+
+            # discard units that never fired at all
+            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+            units = units[unit_inds,:]
+            spike_counts = spike_counts[:, unit_inds]
+            extractor_kwargs['units'] = units
+
+            return spike_counts, units, extractor_kwargs            
+
+
 
 class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
     '''
@@ -190,6 +304,7 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.n_subbins = n_subbins
         self.units = units
         self.last_get_spike_counts_time = 0
+        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
 
     def get_spike_ts(self, cursor_pos, target_pos):
         '''    Docstring    '''
@@ -298,7 +413,7 @@ class LFPMTMPowerExtractor(object):
 
     feature_type = 'lfp_power'
 
-    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000):
+    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000, **kwargs):
         '''
         Docstring
         Constructor for LFPMTMPowerExtractor, which extracts LFP power using the multi-taper method
@@ -365,6 +480,79 @@ class LFPMTMPowerExtractor(object):
 
         return dict(lfp_power=lfp_power)
 
+    @classmethod
+    def extract_from_file(cls, files, neurows, binlen, units, strobe_rate=60.0, **extractor_kwargs):
+        '''
+        Compute binned spike count features
+
+        Parameters
+        ----------
+        plx: neural data file instance
+        neurows: np.ndarray of shape (T,)
+            Timestamps in the plexon time reference corresponding to bin boundaries
+        binlen: float
+            Length of time over which to sum spikes from the specified cells
+        units: np.ndarray of shape (N, 2)
+            List of units that the decoder will be trained on. The first column specifies the electrode number and the second specifies the unit on the electrode
+        extractor_kwargs: dict 
+            Any additional parameters to be passed to the feature extractor. This function is agnostic to the actual extractor utilized
+        strobe_rate: 60.0
+            The rate at which the task sends the sync pulse to the plx file
+
+        Returns
+        -------
+        '''
+        if 'plexon' in files:
+            from plexon import plexfile
+            plx = plexfile.openFile(str(files['plexon']))
+
+            # interpolate between the rows to 180 Hz
+            if binlen < 1./strobe_rate:
+                interp_rows = []
+                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+                for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
+                interp_rows = np.array(interp_rows)
+            else:
+                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+                interp_rows = neurows[::step]
+
+
+            # create extractor object
+            f_extractor = LFPMTMPowerExtractor(None, **extractor_kwargs)
+            extractor_kwargs = f_extractor.extractor_kwargs
+
+            win_len  = f_extractor.win_len
+            bands    = f_extractor.bands
+            channels = f_extractor.channels
+            fs       = f_extractor.fs
+            print 'bands:', bands
+
+            n_itrs = len(interp_rows)
+            n_chan = len(channels)
+            lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+            
+            # for i, t in enumerate(interp_rows):
+            #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+            #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+            lfp = plx.lfp[:].data[:, channels-1]
+            n_pts = int(win_len * fs)
+            for i, t in enumerate(interp_rows):
+                sample_num = int(t * fs)
+                cont_samples = lfp[sample_num-n_pts:sample_num, :]
+                lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+
+            # TODO -- discard any channel(s) for which the log power in any frequency 
+            #   bands was ever equal to -inf (i.e., power was equal to 0)
+            # or, perhaps just add a small epsilon inside the log to avoid this
+            # then, remember to do this:  extractor_kwargs['channels'] = channels
+            #   and reset the units variable
+
+            return lfp_power, units, extractor_kwargs
+
+        elif 'blackrock' in files:
+            raise NotImplementedError
 
 class EMGAmplitudeExtractor(object):
     '''
@@ -409,3 +597,317 @@ class EMGAmplitudeExtractor(object):
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
         emg = self.extract_features(cont_samples)
         return emg, None
+
+
+
+
+
+
+
+def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+        
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    lfp = plx.lfp[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = lfp[sample_num-n_pts:sample_num, :]
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return lfp_power, units, extractor_kwargs
+
+
+def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+    print 'bands:', bands
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    lfp = plx.lfp[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = lfp[sample_num-n_pts:sample_num, :]
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return lfp_power, units, extractor_kwargs
+
+def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    Compute EMG features.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.EMGAmplitudeExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    emg = np.zeros((n_itrs, n_chan))
+    
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    emgraw = plx.analog[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = emgraw[sample_num-n_pts:sample_num, :]
+        emg[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+    return emg, units, extractor_kwargs
+
+
+##########################################################################
+################ extractor functions for Blackrock system ################
+##########################################################################
+
+def get_spike_counts_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs, strobe_rate=10.0):
+    '''Compute binned spike count features from a Blackrock data file.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    
+    nev_hdf_fname = nev_fname + '.hdf'
+    if not os.path.isfile(nev_hdf_fname):
+        # convert .nev file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+    import h5py
+    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+    n_bins = len(interp_rows)
+    n_units = units.shape[0]
+    spike_counts = np.zeros((n_bins, n_units))
+
+    for i in range(n_units):
+        chan = units[i, 0]
+
+        # 1-based numbering (comes from web interface)
+        unit = units[i, 1]  
+
+        chan_str = str(chan).zfill(5)
+        path = 'channel/channel%s/spike_set' % chan_str
+        ts = nev_hdf.get(path).value['TimeStamp']
+
+        # the units corresponding to each timestamp in ts
+        # 0-based numbering (comes from .nev file), so add 1
+        units_ts = nev_hdf.get(path).value['Unit'] + 1
+
+        # get the ts for this unit, in units of secs
+        fs = 30000.
+        ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
+
+        # insert value interp_rows[0]-step to beginning of interp_rows array
+        interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
+
+        # use ts to fill in the spike_counts that corresponds to unit i
+        spike_counts[:, i] = np.histogram(ts, interp_rows_)[0]
+
+
+    # discard units that never fired at all
+    unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+    units = units[unit_inds,:]
+    spike_counts = spike_counts[:, unit_inds]
+    extractor_kwargs['units'] = units
+
+    return spike_counts, units, extractor_kwargs
+
+
+def get_butter_bpf_lfp_power_blackrock(nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs, strobe_rate=10.0):
+    '''Compute lfp power features from a blackrock data file.
+    Corresponds to LFPButterBPFPowerExtractor.
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+    # TODO -- for now, use .ns3 file (2 kS/s)
+    for fname in nsx_fnames:
+        if '.ns3' in fname:
+            nsx_fname = fname
+    extractor_kwargs['fs'] = 2000
+
+    # default order of 5 seems to cause problems when fs > 1000
+    extractor_kwargs['filt_order'] = 3
+
+    
+    nsx_hdf_fname = nsx_fname + '.hdf'
+    if not os.path.isfile(nsx_hdf_fname):
+        # convert .nsx file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+    import h5py
+    nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+    # create extractor object
+    f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    n_pts = int(win_len * fs)
+
+    print '*' * 40
+    print 'WARNING: replacing LFP values from .ns3 file with random values!!'
+    print '*' * 40
+
+    # for i, t in enumerate(interp_rows):
+    #     sample_num = int(t * fs)
+    #     # cont_samples = np.zeros((n_chan, n_pts))
+
+    #     # for j, chan in enumerate(channels):
+    #     #     chan_str = str(chan).zfill(5)
+    #     #     path = 'channel/channel%s/continuous_set' % chan_str
+    #     #     cont_samples[j, :] = nsx_hdf.get(path).value[sample_num-n_pts:sample_num]
+    #     cont_samples = abs(np.random.randn(n_chan, n_pts))
+
+    #     feats = f_extractor.extract_features(cont_samples).T
+    #     print feats
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
+    
+    lfp_power = abs(np.random.randn(n_itrs, n_chan * len(bands)))
+
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+    
+    return lfp_power, units, extractor_kwargs

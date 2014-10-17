@@ -2,9 +2,8 @@
 riglib module imports
 '''
 import warnings
-
+from config import config
 from . import experiment
-from . import blackrock
 from . import bmi
 from . import brainamp
 from . import calibrations
@@ -19,7 +18,11 @@ try:
 except ImportError:
     warnings.warn('Phidgets import problem!')
 
-from . import plexon
+if config.recording_sys['make'] == 'blackrock':
+    from . import blackrock
+elif config.recording_sys['make'] == 'plexon':
+    from . import plexon
+
 from . import reward
 from . import stereo_opengl
 

@@ -19,15 +19,20 @@ from celery import task, chain
 from tracker import dbq
 
 import numpy as np
-from riglib.bmi import extractor
+from riglib.bmi import extractor, train
+from config import config 
+
+import dbfunctions as dbfn
 
 @task()
 def cache_plx(plxfile):
-    """Create cache for plexon file"""
-    plx = plexfile.openFile(str(plxfile)) 
+    """
+    Create cache for plexon file
+    """
+    plexfile.openFile(str(plxfile)) 
 
 @task()
-def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice):
+def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key):
     """Train BMI
 
     (see doc for cache_and_train for input argument info)
@@ -58,7 +63,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             #  units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
             units = np.hstack([channels.reshape(-1, 1), np.ones(channels.reshape(-1, 1).shape, dtype=np.int32)])
     else:
-        raise Exception('Unknown feature_type!')
+        raise Exception('Unknown extractor class!')
 
 
     # TODO -- hardcoding this here for now, but eventually the extractor kwargs
@@ -98,15 +103,18 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             assert(len(files) == 1)
             inputdata[system_name] = files[0]  # just one file
 
-    training_method = namelist.bmis[clsname]
-    decoder = training_method(extractor_cls, extractor_kwargs, 
-                                units=units, binlen=binlen, tslice=tslice, **inputdata)
+    te = dbfn.TaskEntry(entry)
+    files = te.datafiles
+    training_method = namelist.bmi_algorithms[clsname]
+    ssm = namelist.bmi_state_space_models[ssm]
+    decoder = training_method(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key)
+            # train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()
     database.save_bmi(name, int(entry), tf.name)
 
-def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice):
+def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key):
     """Cache plexon file (if using plexon system) and train BMI.
 
     Parameters
@@ -130,41 +138,24 @@ def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen
         Task time to use when training the decoder
     """
 
-    import config
-    if config.recording_system == 'plexon':
+    # import config
+    if config.recording_sys['make'] == 'plexon':
         plexon = models.System.objects.get(name='plexon')
         plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
 
         if not plxfile.has_cache():
             cache = cache_plx.si(plxfile.get_path())
-            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
             chain(cache, train)()
         else:
-            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
     
-    elif config.recording_system == 'blackrock':
-        make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice)
+    elif config.recording_sys['make'] == 'blackrock':
+        make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
     
     else:
         raise Exception('Unknown recording_system!')
 
-
-def open_decoder_from_record(decoder_record):
-    '''
-    Parameters
-    ----------    
-    decoder_record: tracker.models.Decoder instance
-        Database record of the decoder to be opened
-
-    Returns
-    -------
-    dec: riglib.bmi.Decoder instance
-        Decoder instance corresponding to the specified database record
-    '''
-    decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
-    decoder_name = decoder_record.name
-    dec = pickle.load(open(decoder_fname))
-    return dec
 
 def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     '''

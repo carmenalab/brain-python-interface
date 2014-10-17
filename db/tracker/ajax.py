@@ -18,6 +18,13 @@ import logging
 
 display = Track()
 
+# create the object representing the reward system. 
+try:
+    from riglib import reward
+    r = reward.Basic()
+except:
+    pass
+
 class encoder(json.JSONEncoder):
     '''
     Encoder for JSON data that defines how the data should be returned. 
@@ -32,7 +39,7 @@ class encoder(json.JSONEncoder):
 
 def _respond(data):
     '''
-    Generic HTTPResponse to wrap JSON data
+    Generic HTTPResponse to return JSON-formatted dictionary values
     '''
     return HttpResponse(json.dumps(data, cls=encoder), mimetype="application/json")
 
@@ -66,14 +73,17 @@ def start_experiment(request, save=True):
 
     try:
         data = json.loads(request.POST['data'])
+
         task =  Task.objects.get(pk=data['task'])
         Exp = task.get(feats=data['feats'].keys())
+
         entry = TaskEntry(subject_id=data['subject'], task=task)
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
         kwargs = dict(subj=entry.subject, task=task, feats=Feature.getall(data['feats'].keys()),
                       params=params.to_json())
 
+        # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(Exp, experiment.Sequence):
             seq = Sequence.from_json(data['sequence'])
             seq.task = task
@@ -87,20 +97,24 @@ def start_experiment(request, save=True):
         response = dict(status="testing", subj=entry.subject.name, 
                         task=entry.task.name)
 
-        # Save the task entry to database
         if save:
+            # Save the task entry to database
             entry.save()
+
+            # Link the features used to the task entry
             for feat in data['feats'].keys():
                 f = Feature.objects.get(pk=feat)
                 entry.feats.add(f.pk)
+
             response['date'] = entry.date.strftime("%h %d, %Y %I:%M %p")
             response['status'] = "running"
             response['idx'] = entry.id
+
+            # Give the entry ID to the runtask as a kwarg so that files can be linked after the task is done
             kwargs['saveid'] = entry.id
         
         # Start the task FSM and display
         display.runtask(**kwargs)
-        #logging.info('ajax.start_experiment: Started task with kwargs: %s\n' % str(kwargs))
 
         # Return the JSON response
         return _respond(response)
@@ -113,14 +127,16 @@ def start_experiment(request, save=True):
         err.seek(0)
         return _respond(dict(status="error", msg=err.read()))
 
-
-def stop_experiment(request):
+def rpc(fn):
+    '''
+    Generic remote procedure call function
+    '''
     #make sure that there exists an experiment to stop
     if display.status.value not in ["running", "testing"]:
         return _respond(dict(status="error", msg="No task to end!"))
     try:
         status = display.status.value
-        display.stoptask()
+        fn(display)
         return _respond(dict(status="pending", msg=status))
     except:
         import cStringIO
@@ -128,39 +144,16 @@ def stop_experiment(request):
         err = cStringIO.StringIO()
         traceback.print_exc(None, err)
         err.seek(0)
-        return _respond(dict(status="error", msg=err.read()))
+        return _respond(dict(status="error", msg=err.read()))    
+
+def stop_experiment(request):
+    return rpc(lambda display: display.stoptask())
 
 def enable_clda(request):
-    #make sure that there exists an experiment to stop
-    if display.status.value not in ["running", "testing"]:
-        return _respond(dict(status="error", msg="No task running!"))
-    try:
-        status = display.status.value
-        display.task.enable_clda()
-        return _respond(dict(status="pending", msg=status))
-    except:
-        import cStringIO
-        import traceback
-        err = cStringIO.StringIO()
-        traceback.print_exc(None, err)
-        err.seek(0)
-        return _respond(dict(status="error", msg=err.read()))
+    return rpc(lambda display: display.task.enable_clda())
 
 def disable_clda(request):
-    #make sure that there exists an experiment to stop
-    if display.status.value not in ["running", "testing"]:
-        return _respond(dict(status="error", msg="No task running!"))
-    try:
-        status = display.status.value
-        display.task.disable_clda()
-        return _respond(dict(status="pending", msg=status))
-    except:
-        import cStringIO
-        import traceback
-        err = cStringIO.StringIO()
-        traceback.print_exc(None, err)
-        err.seek(0)
-        return _respond(dict(status="error", msg=err.read()))        
+    return rpc(lambda display: display.task.disable_clda())
 
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)
@@ -169,9 +162,14 @@ def save_notes(request, idx):
     return _respond(dict(status="success"))
 
 def make_bmi(request, idx):
+    ## Check if the name of the decoder is already taken
+    print request.POST
     collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
     if len(collide) > 0:
         return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
+
+    update_rate = float(request.POST['bmiupdaterate'])
+    print update_rate
 
     kwargs = dict(
         entry=idx,
@@ -180,8 +178,21 @@ def make_bmi(request, idx):
         extractorname=request.POST['bmiextractor'],
         cells=request.POST['cells'],
         channels=request.POST['channels'],
-        binlen=float(request.POST['binlen']),
+        binlen=1./update_rate,
         tslice=map(float, request.POST.getlist('tslice[]')),
+        ssm=request.POST['ssm'],
+        pos_key=request.POST['pos_key'],
     )
+    print kwargs
+    print 'running cache and train'
     trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))
+
+def reward_drain(request, onoff):
+    if onoff == 'on':
+        r.drain(600)
+        print 'drain on'
+    else:
+        print 'drain off'
+        r.drain_off()
+    return HttpResponse('Turning reward %s' % onoff)

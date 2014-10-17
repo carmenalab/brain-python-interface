@@ -91,6 +91,7 @@ class GaussianState(object):
         else:
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
+
 class GaussianStateHMM(object):
     '''
     General hidden Markov model decoder where the state is represented as a Gaussian random vector
@@ -213,6 +214,7 @@ class Decoder(object):
 
         self.filt = filt
         self.filt._init_state()
+        self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
         self.binlen = binlen
@@ -255,7 +257,6 @@ class Decoder(object):
             self.set_call_rate(self.call_rate)
         else:
             self.set_call_rate(60.0)
-
 
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         '''
@@ -490,16 +491,8 @@ class Decoder(object):
         x = self.filt.state.mean
         
         # Run the filter
-        # self.filt(neural_obs, Bu=Bu)
-        filt_kwargs = dict() #dict(obs_is_control_independent=weighted_avg_lfc)        
-        
-        self.filt(neural_obs, Bu=Bu, x_target=x_target, **filt_kwargs)
-        # print self.filt.state.mean
+        self.filt(neural_obs, Bu=Bu, x_target=x_target)
 
-        # if assist_level > 0:
-        #     self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
-
-        # import pdb; pdb.set_trace()
         if assist_level > 0:
             if weighted_avg_lfc:
                 # calculates assist as:
@@ -660,13 +653,7 @@ class Decoder(object):
 
 class BMISystem(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    This class encapsulates all of the BMI decoding computations, including assist and CLDA
     '''
     def __init__(self, decoder, learner, updater):
         '''
@@ -850,6 +837,6 @@ class BMISystem(object):
 
 class BMI(object):
     '''
-    Legacy class. Ignore completely.
+    Legacy class, used only for unpickling super old Decoder objects. Ignore completely.
     '''
     pass

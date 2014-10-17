@@ -22,8 +22,8 @@ except ImportError:
     warnings.warn("experiment.py: Cannot import 'pygame'")
 
 
-min_per_hour = 60
-sec_per_min = 60
+min_per_hour = 60.
+sec_per_min = 60.
 
 class Experiment(traits.HasTraits, threading.Thread):
     '''
@@ -197,9 +197,21 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def run(self):
         '''
-        Generic method to run the finite state machine of the task
+        Generic method to run the finite state machine of the task. Code that needs to execute 
+        imediately before the task starts running in child classes should be of the form:
+
+        def run(self):
+            do stuff
+            try:
+                super(class_name, self).run()
+            finally:
+                clean up stuff
+
+        where the try block may or may not be necessary depending on what stuff you're doing before
+        the main loop executes. For example, if you're opening a UDP port, you may want to always
+        close the socket whether or not the main loop executes properly so that you don't loose the 
+        reference to the socket. 
         '''
-        
         self.screen_init()
         self.set_state(self.state)
         self.reportstats['State'] = self.state
@@ -220,7 +232,7 @@ class Experiment(traits.HasTraits, threading.Thread):
                             self.trigger_event(event)
                             break;
             except:
-                traceback.print_exc()
+                traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
                 self.state = None
 
     def _cycle(self):
@@ -270,9 +282,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         return str(nhours).zfill(2) + ':' + str(nmins).zfill(2) + ':' + str(nsecs).zfill(2)
 
     def update_report_stats(self):
-        '''Function to update any relevant report stats for the task. Values are saved in self.reportstats,
+        '''
+        Function to update any relevant report stats for the task. Values are saved in self.reportstats,
         an ordered dictionary. Keys are strings that will be displayed as the label for the stat in the web interface,
-        values can be numbers or strings. Called every time task state changes.'''
+        values can be numbers or strings. Called every time task state changes.
+        '''
         self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
 
     @classmethod
@@ -305,9 +319,27 @@ class Experiment(traits.HasTraits, threading.Thread):
         return offline_report
 
     def cleanup(self, database, saveid, **kwargs):
+        '''
+        Commands to execute at the end of a task.
+
+        Parameters
+        ----------
+        database : object
+            Needs to have the methods save_bmi, save_data, etc. For instance, the db.tracker.dbq module or an RPC representation of the database
+        saveid : int
+            TaskEntry database record id to link files/data to
+        kwargs : optional dict arguments
+            Optional arguments to dbq methods. kwargs cannot be used when database is an RPC object.
+
+        Returns
+        -------
+        None
+        '''
+        print "experimient.Experiment.cleanup executing"
         pass
     
     def end_task(self):
+        print "Ending task by function call"
         self.stop = True
 
     def add_dtype(self, name, dtype, shape):
@@ -324,6 +356,7 @@ class LogExperiment(Experiment):
     '''
     # List out state/trigger pairs to exclude from logging
     log_exclude = set()
+    trial_end_states = []
     def __init__(self, **kwargs):
         '''
         Constructor for LogExperiment
@@ -373,28 +406,82 @@ class LogExperiment(Experiment):
 
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Docstring
+        Commands to execute at the end of a task. 
+        Save the task event log to the database
 
         Parameters
         ----------
+        database : object
+            Needs to have the methods save_bmi, save_data, etc. For instance, the db.tracker.dbq module or an RPC representation of the database
+        saveid : int
+            TaskEntry database record id to link files/data to
+        kwargs : optional dict arguments
+            Optional arguments to dbq methods. kwargs cannot be used when database is an RPC object.
 
         Returns
         -------
+        None
         '''
+        print "experiment.LogExperiment.cleanup"
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
-        database.save_log(saveid, self.event_log)
+        dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        if dbname == 'default':
+            database.save_log(saveid, self.event_log)
+        else:
+            database.save_log(saveid, self.event_log, dbname=dbname)
+
+    def calc_state_occurrences(self, state_name):
+        times = np.array([state[1] for state in self.state_log if state[0] == state_name])
+        return len(times)
+
+    def calc_trial_num(self):
+        '''
+        Counts the number of trials which have finished.
+        '''
+        trialtimes = [state[1] for state in self.state_log if state[0] in self.trial_end_states]
+        return len(trialtimes)
+
+    def calc_events_per_min(self, event_name, window):
+        '''
+        Calculates the rate of event_name, per minute
+
+        Parameters
+        ----------
+        event_name: string
+            Name of state representing "event"
+        window: float
+            Number of seconds into the past to look to calculate the current event rate estimate.
+
+        Returns
+        -------
+        rate : float
+            Rate of specified event, per minute
+        '''
+        rewardtimes = np.array([state[1] for state in self.state_log if state[0]==event_name])
+        if (self.get_time() - self.task_start_time) < window:
+            divideby = (self.get_time() - self.task_start_time)/sec_per_min
+        else:
+            divideby = window/sec_per_min
+        return np.sum(rewardtimes >= (self.get_time() - window))/divideby
 
 class Sequence(LogExperiment):
-    ''' Docstring '''
+    '''
+    Task where the targets are presented by a Python generator
+    '''
     def __init__(self, gen, **kwargs):
         '''
-        Docstring
+        Constructor for Sequence
 
         Parameters
         ----------
+        gen : Python generator
+            Object with a 'next' attribute used in the special "wait" state to get the target sequence for the next trial.
+        kwargs: optonal keyword-arguments
+            Passed to the super constructor
 
         Returns
         -------
+        Sequence instance
         '''
         self.gen = gen
         assert hasattr(gen, "next"), "gen must be a generator"

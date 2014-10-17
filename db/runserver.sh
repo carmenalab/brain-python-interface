@@ -47,9 +47,19 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D status
 echo
 echo
 echo
-echo
-echo
-echo
+
+##### all the previous stuff logging info sent to file
+echo "Time at which runserver.sh was executed:" > $BMI3D/log/runserver_log
+date >> $BMI3D/log/runserver_log 
+
+# Print the most recent commit used at the time this script is executed
+echo "Hash of HEAD commit at time of execution" >> $BMI3D/log/runserver_log  
+git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD >> $BMI3D/log/runserver_log  
+
+# Print the status of the BMI3D code so that there's a visible record of which files have changed since the last commti
+echo "Working tree status at time of execution" >> $BMI3D/log/runserver_log   
+git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log   
+
     
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
