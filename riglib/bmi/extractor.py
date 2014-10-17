@@ -7,6 +7,7 @@ import time
 import sim_neurons
 from scipy.signal import butter, lfilter
 import math
+import os
 
 import nitime.algorithms as tsa
 
@@ -115,7 +116,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         return dict(spike_counts=counts, bin_edges=bin_edges)
 
     @classmethod
-    def extract_from_file(cls, files, neurows, binlen, units, strobe_rate=60.0, **extractor_kwargs):
+    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
         '''
         Compute binned spike count features
 
@@ -481,7 +482,7 @@ class LFPMTMPowerExtractor(object):
         return dict(lfp_power=lfp_power)
 
     @classmethod
-    def extract_from_file(cls, files, neurows, binlen, units, strobe_rate=60.0, **extractor_kwargs):
+    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
         '''
         Compute binned spike count features
 

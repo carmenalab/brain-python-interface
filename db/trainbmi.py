@@ -85,30 +85,24 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
 
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
+    # list of DataFile objects
     datafiles = models.DataFile.objects.filter(entry_id=entry)
- 
-    # this is sort of a hack, fix later
-    # old inputdata dict assumed there was only one datafile associated with 
-    # each system, but this is not always the case (e.g., Blackrock has both 
-    # nev and nsx files) -- in this case, set the corresponding dict value as
-    # a list of files
-    # inputdata = dict((d.system.name, d.get_path()) for d in datafiles)
-    inputdata = dict()
+    
+    # key: a string representing a system name (e.g., 'plexon', 'blackrock', 'task', 'hdf')
+    # value: a single filename, or a list of filenames if there are more than one for that system
+    files = dict()
     system_names = set(d.system.name for d in datafiles)
     for system_name in system_names:
-        files = [d.get_path() for d in datafiles if d.system.name == system_name]
+        filenames = [d.get_path() for d in datafiles if d.system.name == system_name]
         if system_name == 'blackrock':
-            inputdata[system_name] = files  # list of (one or more) files
+            files[system_name] = filenames  # list of (one or more) files
         else:
-            assert(len(files) == 1)
-            inputdata[system_name] = files[0]  # just one file
+            assert(len(filenames) == 1)
+            files[system_name] = filenames[0]  # just one file
 
-    te = dbfn.TaskEntry(entry)
-    files = te.datafiles
     training_method = namelist.bmi_algorithms[clsname]
     ssm = namelist.bmi_state_space_models[ssm]
     decoder = training_method(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key)
-            # train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()

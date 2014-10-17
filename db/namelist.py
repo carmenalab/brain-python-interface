@@ -204,7 +204,11 @@ bmi_algorithms = dict(
     PPFDecoder=bmi.train.train_PPFDecoder,
 )
 
-bmi_training_pos_vars = ['cursor', 'joint_angles']
+bmi_training_pos_vars = [
+    'cursor',
+    'joint_angles',
+    'plant_pos'  # used for ibmi tasks
+]
 
 bmi_state_space_models=dict(
     Endpt2D=bmi.train.endpt_2D_state_space,

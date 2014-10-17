@@ -72,13 +72,22 @@ def sys_eq(sys1, sys2):
     '''
     return sys1 in [sys2, sys2[1:]]
 
+
+FAKE_BLACKROCK_TMASK = True
+# FAKE_BLACKROCK_TMASK = False
+
 def _get_tmask(files, tslice, sys_name='task'):
     if 'plexon' in files:
         fn = _get_tmask_plexon
         fname = str(files['plexon'])
     elif 'blackrock' in files:
-        fn = _get_tmask_blackrock
-        fname = [str(name) for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+        if FAKE_BLACKROCK_TMASK:
+            fn = _get_tmask_blackrock_fake
+            fname = files['hdf']
+        else:
+            fn = _get_tmask_blackrock
+            fname = [str(name) for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+
 
     return fn(fname, tslice, sys_name=sys_name)
 
@@ -190,11 +199,33 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     tmask = np.logical_and(lower, upper)
 
     return tmask, rows
+
+def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
+    # need to create fake "rows" and "tmask" variables
+
+    print 'WARNING: Using _get_tmask_blackrock_fake function!!'
+    
+    binlen = 0.1
+    strobe_rate = 10
+    hdf = tables.openFile(hdf_fname)
+
+    n_rows = hdf.root.task[:]['plant_pos'].shape[0]
+    first_ts = binlen
+    rows = np.linspace(first_ts, first_ts + (n_rows-1)*(1./strobe_rate), num=n_rows)
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
+
+    return tmask, rows
     
 ################################################################################
 ## Feature extraction
 ################################################################################
-def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task'):
+def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=60.):
     '''
     Extract the neural features used to train the decoder
 
@@ -236,19 +267,11 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
     tmask, rows = _get_tmask_plexon(plx, tslice, sys_name=source)
     neurows = rows[tmask]
 
-    print extractor_kwargs
+    neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs)
 
-    # TODO this is a hack because somehow the 'units' are ending up in the kwargs...
-    if 'units' in extractor_kwargs:
-        extractor_kwargs.pop('units')
-    neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, **extractor_kwargs)
-    extractor_kwargs['units'] = units
     return neural_features, units, extractor_kwargs
 
-def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task'):    
-    nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
-    nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]
-
+def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):    
     if units == None:
         raise Exception('"units" variable is None in preprocess_files!')
 
@@ -262,33 +285,15 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
     # kin     --> every 6th row of kinematics within the tslice boundaries
     # neurows --> the rows inside the tslice
 
-    try:
-        #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])      
-        print 'not using _get_tmask_blackrock'
-        raise NotImplementedError
-    except NotImplementedError:
-        # need to create fake "rows" and "tmask" variables
-        
-        n_rows = hdf.root.task[:]['plant_pos'].shape[0]
-        first_ts = binlen
-        rows = np.linspace(first_ts, first_ts + (n_rows-1)*(1./strobe_rate), num=n_rows)
-        lower, upper = 0 < rows, rows < rows.max() + 1
-        l, u = tslice
-        if l is not None:
-            lower = l < rows
-        if u is not None:
-            upper = rows < u
-        tmask = np.logical_and(lower, upper)
-
-    # Note: kin_var doesn't need to be passed into get_ismore_kinematics because
-    # kinematics are saved as 'plant_pos' and 'plant_vel' regardless of
-    # whether the plant is armassist, rehand, or ismore (armassist+rehand)
-    kin = get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=strobe_rate)
+    if FAKE_BLACKROCK_TMASK:
+       tmask, rows = _get_tmask_blackrock_fake(files['hdf'], tslice)
+    else:
+        nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]]) 
     neurows = rows[tmask]
 
-    extractor_fn_args = (nev_fname, nsx_fnames, neurows, binlen, units, extractor_kwargs)
-    extractor_fn_kwargs = {'strobe_rate': strobe_rate}
-    neural_features, units, extractor_kwargs = extractor_fn(*extractor_fn_args, **extractor_fn_kwargs)
+    neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs, strobe_rate=strobe_rate)
+
     return neural_features, units, extractor_kwargs
 
 def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=None, tslice=None, source='task', strobe_rate=60):
@@ -305,11 +310,13 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
     hdf = tables.openFile(files['hdf'])
 
     if 'plexon' in files:
-        neural_features, units, extractor_kwargs = _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tslice=tslice, units=units, source=source)
+        fn = _get_neural_features_plx
     elif 'blackrock' in files:
-        neural_features, units, extractor_kwargs = _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=tslice, units=units, source=source, strobe_rate=strobe_rate)
+        fn = _get_neural_features_blackrock
     else:
         raise Exception('Could not find any plexon or blackrock files!')
+
+    neural_features, units, extractor_kwargs = fn(files, binlen, extractor_fn, extractor_kwargs, tslice=tslice, units=units, source=source, strobe_rate=strobe_rate)
 
     return neural_features, units, extractor_kwargs
 
@@ -326,6 +333,9 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
     Returns
     -------
     '''
+    if pos_key == 'plant_pos':  # used for ibmi tasks
+        vel_key == 'plant_vel'
+
     hdf = tables.openFile(files['hdf'])    
     kin = hdf.root.task[:][pos_key]    
 
@@ -355,9 +365,6 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
         kin = np.hstack([kin, velocity])
 
     return kin    
-
-def get_ismore_kinematics(hdf, binlen, tmask, update_rate_hz=10.):
-    return get_plant_pos_vel(dict(hdf=hdf), binlen, tmask, update_rate_hz=update_rate_hz)
 
 
 ################################################################################
