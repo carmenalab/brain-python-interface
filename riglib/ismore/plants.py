@@ -179,7 +179,7 @@ class IsMorePlant(object):
 ################################################        
 
 
-class ArmAssistPlantNoUDP(object):
+class ArmAssistPlantNonUDP(object):
     '''Similar methods as ArmAssistPlant, but: 
         1) doesn't send/receive anything over UDP, and 
         2) uses simulated ArmAssist (can't be used with real ArmAssist).
@@ -237,7 +237,7 @@ class ArmAssistPlantNoUDP(object):
         self.aa._set_wf(wf)
 
 
-class ReHandPlantNoUDP(object):
+class ReHandPlantNonUDP(object):
     '''Similar methods as ReHandPlant, but: 
         1) doesn't send/receive anything over UDP, and 
         2) uses simulated ReHand (can't be used with real ReHand).
@@ -286,7 +286,7 @@ class ReHandPlantNoUDP(object):
         self.rh._set_pos(pos)
 
 
-class IsMorePlantNoUDP(object):
+class IsMorePlantNonUDP(object):
     '''Similar methods as IsMorePlant, but: 
         1) doesn't send/receive anything over UDP, and 
         2) uses simulated ArmAssist+ReHand (can't be used with real devices).
@@ -294,8 +294,8 @@ class IsMorePlantNoUDP(object):
     '''
 
     def __init__(self):
-        self.aa_plant = ArmAssistPlantNoUDP()
-        self.rh_plant = ReHandPlantNoUDP()
+        self.aa_plant = ArmAssistPlantNonUDP()
+        self.rh_plant = ReHandPlantNonUDP()
 
     def init(self):
         pass
