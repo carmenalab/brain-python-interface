@@ -11,6 +11,7 @@ import pickle
 
 from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from utils.angle_utils import *
+from utils.constants import *
 
 class Assister(object):
     '''
@@ -479,7 +480,7 @@ class ArmAssistAssister(Assister):
             frac = 0.5 * dist_to_target / self.xy_cutoff
             assist_xy_vel = frac * self.xy_speed * dir_to_target
 
-        assist_xy_pos = xy_pos + assist_xy_vel*self.binlen
+        assist_xy_pos = xy_pos + assist_xy_vel/self.call_rate
 
         return assist_xy_pos, assist_xy_vel
 
