@@ -115,7 +115,16 @@ class Cone(TriMesh):
             tcoords=tcoord, normals=normals, **kwargs)
 
 
-## below code added by Sid, only for use with WindowDispl2D class (not Window)
+# below classes only for use with WindowDispl2D class (not Window)
+# objects of these classes live in the 2-dimensional xz-plane
+
+class Circle(object):
+    def __init__(self, center_pos, radius, color, visible=True):
+        self.center_pos = center_pos
+        self.radius     = radius
+        self.color      = color
+        self.visible    = visible
+
 class Sector(object):
     def __init__(self, center_pos, radius, ang_range, color, visible=True):
         self.center_pos = center_pos

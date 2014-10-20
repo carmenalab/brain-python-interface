@@ -397,9 +397,9 @@ class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
 
 class ArmAssistAssister(Assister):
     '''Simple assister that moves ArmAssist position towards the xy target 
-    at a constant speed, and towards the angular target at a constant
-    angular speed. When inside the target or close to the angular target,
-    these speeds are reduced.'''
+    at a constant speed, and towards the psi target at a constant angular 
+    speed. When within a certain xy distance or angular distance of the 
+    target, these speeds are reduced.'''
 
     def __init__(self, *args, **kwargs):
         '''
@@ -411,9 +411,11 @@ class ArmAssistAssister(Assister):
         Returns
         -------
         '''
-        self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        self.assist_speed = kwargs.pop('assist_speed', 2.)
-        self.target_radius = kwargs.pop('target_radius', 2.)
+        self.call_rate  = kwargs.pop('call_rate',  10)             # secs
+        self.xy_speed   = kwargs.pop('xy_speed',   2.)             # cm/s
+        self.xy_cutoff  = kwargs.pop('xy_cutoff',  2.)             # cm
+        self.psi_speed  = kwargs.pop('psi_speed',  5.*deg_to_rad)  # rad/s
+        self.psi_cutoff = kwargs.pop('psi_cutoff', 5.*deg_to_rad)  # rad
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         '''
@@ -432,7 +434,7 @@ class ArmAssistAssister(Assister):
 
             psi_pos = np.array(current_state[2, 0]).ravel()
             target_psi_pos = np.array(target_state[2, 0]).ravel()
-            assist_psi_pos, assist_psi_vel = self.angle_assist(psi_pos, target_psi_pos)
+            assist_psi_pos, assist_psi_vel = self.psi_assist(psi_pos, target_psi_pos)
 
             # if mode == 'hold':
             #     print 'task state is "hold", setting assist vels to 0'
@@ -466,25 +468,22 @@ class ArmAssistAssister(Assister):
         Returns
         -------
         '''
-        binlen        = self.decoder_binlen
-        speed         = self.assist_speed
-        target_radius = self.target_radius 
-
         diff_vec = target_xy_pos - xy_pos
         dist_to_target = np.linalg.norm(diff_vec)
         dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
 
-        if dist_to_target > target_radius:
-            assist_xy_vel = speed * dir_to_target
+        # if xy distance is below xy_cutoff (e.g., target radius), use smaller speed
+        if dist_to_target > self.xy_cutoff:
+            assist_xy_vel = self.xy_speed * dir_to_target
         else:
-            frac = 0.5 * dist_to_target/target_radius
-            assist_xy_vel = frac * speed * dir_to_target
+            frac = 0.5 * dist_to_target / self.xy_cutoff
+            assist_xy_vel = frac * self.xy_speed * dir_to_target
 
-        assist_xy_pos = xy_pos + binlen*assist_xy_vel
+        assist_xy_pos = xy_pos + assist_xy_vel*self.binlen
 
         return assist_xy_pos, assist_xy_vel
 
-    def angle_assist(self, ang_pos, target_ang_pos):
+    def psi_assist(self, psi_pos, target_psi_pos):
         '''
         Docstring
 
@@ -494,21 +493,17 @@ class ArmAssistAssister(Assister):
         Returns
         -------
         '''
-        binlen = self.decoder_binlen
-        angular_speed = 5*(np.pi/180)  # in rad/s (5 deg/s)
-        
-        # when angular difference is below cutoff_diff, use smaller angular speeds
-        cutoff_diff = 5*(np.pi/180)  # in rad (5 deg)
+        psi_diff = angle_subtract(target_psi_pos, psi_pos)
 
-        ang_diff = angle_subtract(target_ang_pos, ang_pos)
-        if abs(ang_diff) > cutoff_diff:
-            assist_ang_vel = np.sign(ang_diff) * angular_speed
+        # if angular distance is below psi_cutoff, use smaller speed
+        if abs(psi_diff) > self.psi_cutoff:
+            assist_psi_vel = np.sign(psi_diff) * self.psi_speed
         else:
-            assist_ang_vel = 0.5 * (ang_diff / cutoff_diff) * angular_speed
+            assist_psi_vel = 0.5 * (psi_diff / self.psi_cutoff) * self.psi_speed
 
-        assist_ang_pos = ang_pos + assist_ang_vel*binlen
+        assist_psi_pos = psi_pos + assist_psi_vel/self.call_rate
 
-        return assist_ang_pos, assist_ang_vel
+        return assist_psi_pos, assist_psi_vel
 
 
 class ReHandAssister(Assister):
@@ -526,9 +521,9 @@ class ReHandAssister(Assister):
         Returns
         -------
         '''
-        self.decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        self.assist_speed = kwargs.pop('assist_speed', 5.)
-        self.target_radius = kwargs.pop('target_radius', 2.)
+        self.call_rate  = kwargs.pop('call_rate' , 10)             # secs
+        self.ang_speed  = kwargs.pop('ang_speed',  5.*deg_to_rad)  # rad/s
+        self.ang_cutoff = kwargs.pop('ang_cutoff', 5.*deg_to_rad)  # rad
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         '''
@@ -578,26 +573,19 @@ class ReHandAssister(Assister):
         Returns
         -------
         '''
-        binlen = self.decoder_binlen
-        angular_speed = 5*(np.pi/180)  # in rad/s (5 deg/s)
-        
-        # when angular difference is below cutoff_diff, use smaller angular speeds
-        cutoff_diff = 5*(np.pi/180)  # in rad (5 deg)
-
         ang_diff = angle_subtract(target_ang_pos, ang_pos)
-        if abs(ang_diff) > cutoff_diff:
-            assist_ang_vel = np.sign(ang_diff) * angular_speed
+        if abs(ang_diff) > self.ang_cutoff:
+            assist_ang_vel = np.sign(ang_diff) * self.ang_speed
         else:
-            assist_ang_vel = 0.5 * (ang_diff / cutoff_diff) * angular_speed
+            assist_ang_vel = 0.5 * (ang_diff / self.ang_cutoff) * self.ang_speed
 
-        assist_ang_pos = ang_pos + assist_ang_vel*binlen
+        assist_ang_pos = ang_pos + assist_ang_vel/self.call_rate
 
         return assist_ang_pos, assist_ang_vel
 
 
 class IsMoreAssister(Assister):
-    '''Simple assister that combines an ArmAssistAssister and a 
-    ReHandAssister.'''
+    '''Combines an ArmAssistAssister and a ReHandAssister.'''
 
     def __init__(self, *args, **kwargs):
         '''
