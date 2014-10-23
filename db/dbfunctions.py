@@ -849,7 +849,11 @@ class TaskEntryCollection(object):
             blockset_data_comb = dict()
             for key in blockset_data:
                 blockset_data_comb[key] = data_comb_fn(blockset_data[key])
-            result.append(blockset_data_comb)
+            if len(blockset_data_comb.keys()) == 1:
+                key = blockset_data_comb.keys()[0]
+                result.append(blockset_data_comb[key])
+            else:
+                result.append(blockset_data_comb)
 
         if verbose:
             sys.stdout.write('\n')
