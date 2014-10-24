@@ -33,7 +33,7 @@ Left off at line 79.  Need to figure out how we re-trigger starting the stimulus
 
 
 
-class TTLStimulation(StimulationPulse, traits.HasTraits):
+class TTLStimulation(traits.HasTraits):
     '''During the stimulation phase, send a timed TTL pulse to the Master-8 stimulator'''
     
     status = dict(
