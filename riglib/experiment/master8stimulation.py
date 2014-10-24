@@ -39,7 +39,7 @@ class TTLStimulation(StimulationPulse, traits.HasTraits):
     status = dict(
         pulse = dict(pulse_end="interpulse_period", stop=None),
         interpulse_period = dict(another_pulse="pulse", pulse_train_end="off", stop=None),
-        off= dict(next_pulse_train="pulse", stop=None)
+        pulse_off= dict(next_pulse_train="pulse", stop=None)
     )
 
     pulse_count = 0  #initializing number of pulses that have occured
@@ -67,6 +67,8 @@ class TTLStimulation(StimulationPulse, traits.HasTraits):
     def init(self):
         super(TTLStimulation, self).init()
 
+    #### TEST FUNCTIONS ####
+
     def _test_pulse_end(self, ts):
         #return true if time has been longer than the specified pulse duration
         pulse_length = self.stimulation_pulse_length*1e-6
@@ -79,8 +81,11 @@ class TTLStimulation(StimulationPulse, traits.HasTraits):
         return pulse_count > number_of_pulses
 
     def _test_next_pulse_train(self,ts):
+        return self.enter_stimulation_state
 
-    def _start_stimulation(self):
+    #### STATE FUNCTIONS ####
+
+    def _start_pulse(self):
         '''
         At the start of the stimulation state, send TTL pulse
 
@@ -93,15 +98,15 @@ class TTLStimulation(StimulationPulse, traits.HasTraits):
         None
         '''
         import comedi
-        super(TTLStimulation, self)._start_stimulation()
+        super(TTLStimulation, self)._start_pulse()
         subdevice = 0
         write_mask = 0x800000
         val = 0x800000
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
-        self.stimulation_start = self.get_time() - self.start_time
+        #self.stimulation_start = self.get_time() - self.start_time
 
-    def _end_stimulation(self):
+    def _end_pulse(self):
         '''
         After the stimulation state has elapsed, make sure stimulation is off 
 
@@ -113,9 +118,31 @@ class TTLStimulation(StimulationPulse, traits.HasTraits):
         -------
         None
         '''
-        import comedi
+        pass
+
+    def _start_interpulse_period(self):
+        super(TTLStimulation, self)._start_interpulse_period()
+        subdevice = 0
+        write_mask = 0x800000
+        val = 0x800000
+        base_channel = 0
+        comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
+
+    def _end_interpulse_period(self):
+        super(TTLStimulation, self)._end_interpulse_period()
         subdevice = 0
         write_mask = 0x800000
         val = 0x000000
         base_channel = 0
-        comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
+        comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
+
+    def _start_pulse_off(self):
+        super(TTLStimulation, self)._start_pulse_off()
+        subdevice = 0
+        write_mask = 0x800000
+        val = 0x000000
+        base_channel = 0
+        comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
+
+    def _end_pulse_off(self):
+        pass
