@@ -496,8 +496,8 @@ class Decoder(object):
         if assist_level > 0:
             if weighted_avg_lfc:
                 # calculates assist as:
-                #   (1-assist)*(Ax + K(y-CAx)) + assist*(Ax + Bu)
-                # Note: the variable "Bu" here is really equal to assist_level*Bu
+                #   (1-assist)*(A*x + K*(y-C*A*x)) + assist*(A*x + B*u)
+                # Note: the variable "Bu" here is actually equal to assist_level*B*u
                 self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*self.filt.A*x + Bu
             else:
                 self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu

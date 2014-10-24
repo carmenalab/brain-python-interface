@@ -429,27 +429,23 @@ class ArmAssistAssister(Assister):
         -------
         '''
         if assist_level > 0:
-            xy_pos = np.array(current_state[0:2, 0]).ravel()
-            target_xy_pos = np.array(target_state[0:2, 0]).ravel()
-            assist_xy_pos, assist_xy_vel = self.xy_assist(xy_pos, target_xy_pos)
-
-            psi_pos = np.array(current_state[2, 0]).ravel()
-            target_psi_pos = np.array(target_state[2, 0]).ravel()
-            assist_psi_pos, assist_psi_vel = self.psi_assist(psi_pos, target_psi_pos)
+            xy_pos  = np.array(current_state[0:2, 0]).ravel()
+            psi_pos = np.array(current_state[  2, 0]).ravel()
+            target_xy_pos  = np.array(target_state[0:2, 0]).ravel()
+            target_psi_pos = np.array(target_state[  2, 0]).ravel()
+            assist_xy_pos, assist_xy_vel = self._xy_assist(xy_pos, target_xy_pos)
+            assist_psi_pos, assist_psi_vel = self._psi_assist(psi_pos, target_psi_pos)
 
             # if mode == 'hold':
             #     print 'task state is "hold", setting assist vels to 0'
             #     assist_xy_vel[:] = 0.
             #     assist_psi_vel[:] = 0.
 
-            # print 'assist_xy_vel:', assist_xy_vel
-
             Bu = assist_level * np.hstack([assist_xy_pos, 
                                            assist_psi_pos,
                                            assist_xy_vel,
                                            assist_psi_vel,
                                            1])
-
             Bu = np.mat(Bu.reshape(-1, 1))
 
             assist_weight = assist_level
@@ -459,7 +455,7 @@ class ArmAssistAssister(Assister):
 
         return Bu, assist_weight
 
-    def xy_assist(self, xy_pos, target_xy_pos):
+    def _xy_assist(self, xy_pos, target_xy_pos):
         '''
         Docstring
 
@@ -474,17 +470,17 @@ class ArmAssistAssister(Assister):
         dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
 
         # if xy distance is below xy_cutoff (e.g., target radius), use smaller speed
-        if dist_to_target > self.xy_cutoff:
-            assist_xy_vel = self.xy_speed * dir_to_target
-        else:
+        if dist_to_target < self.xy_cutoff:
             frac = 0.5 * dist_to_target / self.xy_cutoff
             assist_xy_vel = frac * self.xy_speed * dir_to_target
+        else:
+            assist_xy_vel = self.xy_speed * dir_to_target
 
         assist_xy_pos = xy_pos + assist_xy_vel/self.call_rate
 
         return assist_xy_pos, assist_xy_vel
 
-    def psi_assist(self, psi_pos, target_psi_pos):
+    def _psi_assist(self, psi_pos, target_psi_pos):
         '''
         Docstring
 
@@ -497,10 +493,10 @@ class ArmAssistAssister(Assister):
         psi_diff = angle_subtract(target_psi_pos, psi_pos)
 
         # if angular distance is below psi_cutoff, use smaller speed
-        if abs(psi_diff) > self.psi_cutoff:
-            assist_psi_vel = np.sign(psi_diff) * self.psi_speed
-        else:
+        if abs(psi_diff) < self.psi_cutoff:
             assist_psi_vel = 0.5 * (psi_diff / self.psi_cutoff) * self.psi_speed
+        else:
+            assist_psi_vel = np.sign(psi_diff) * self.psi_speed
 
         assist_psi_pos = psi_pos + assist_psi_vel/self.call_rate
 
@@ -543,7 +539,7 @@ class ReHandAssister(Assister):
             for i in range(4):
                 rh_i_pos = np.array(current_state[i, 0]).ravel()
                 target_rh_i_pos = np.array(target_state[i, 0]).ravel()
-                assist_rh_i_pos, assist_rh_i_vel = self.angle_assist(rh_i_pos, target_rh_i_pos)
+                assist_rh_i_pos, assist_rh_i_vel = self._angle_assist(rh_i_pos, target_rh_i_pos)
                 assist_rh_pos = np.vstack([assist_rh_pos, assist_rh_i_pos])
                 assist_rh_vel = np.vstack([assist_rh_vel, assist_rh_i_vel])
 
@@ -554,7 +550,6 @@ class ReHandAssister(Assister):
             Bu = assist_level * np.vstack([assist_rh_pos,
                                            assist_rh_vel,
                                            1])
-
             Bu = np.mat(Bu.reshape(-1, 1))
 
             assist_weight = assist_level
@@ -564,7 +559,7 @@ class ReHandAssister(Assister):
 
         return Bu, assist_weight
 
-    def angle_assist(self, ang_pos, target_ang_pos):
+    def _angle_assist(self, ang_pos, target_ang_pos):
         '''
         Docstring
 
@@ -633,7 +628,6 @@ class IsMoreAssister(Assister):
                             aa_Bu[3:6],
                             rh_Bu[4:8],
                             assist_level * 1])
-
             Bu = np.mat(Bu.reshape(-1, 1))
 
             assist_weight = assist_level
@@ -645,8 +639,10 @@ class IsMoreAssister(Assister):
 
 
 # LFC iBMI assisters
-# currently not inheriting from LinearFeedbackControllerAssist/SSMLFCAssister
-#   because of need for "special angle subtraction"
+# not inheriting from LinearFeedbackControllerAssist/SSMLFCAssister because:
+# - use of "special angle subtraction" when doing target_state - current_state
+# - meant to be used with 'weighted_avg_lfc'=True decoder kwarg, and thus 
+#   assist_weight is set to assist_level, not to 0
 
 class ArmAssistLFCAssister(Assister):
     '''
@@ -670,27 +666,109 @@ class ArmAssistLFCAssister(Assister):
         '''
         ssm = StateSpaceArmAssist()
         A, B, _ = ssm.get_ssm_matrices()
-        
         Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
-        self.Q = Q
-        
         R = 1e6 * np.mat(np.diag([1., 1., 1.]))
-        self.R = R
 
         self.A = A
         self.B = B
+        self.Q = Q
+        self.R = R
         self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-        '''Overriding to account for proper subtraction of angles.'''
-        B = self.B
-        F = self.F
+        '''TODO.'''
 
         diff = target_state - current_state
         diff[2] = angle_subtract(target_state[2], current_state[2])
 
-        Bu = assist_level * B*F*(diff)
-        # assist_weight = 0
+        Bu = assist_level * self.B*self.F*diff
+        assist_weight = assist_level
+
+        return Bu, assist_weight
+
+
+class ReHandLFCAssister(Assister):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        ssm = StateSpaceReHand()
+        A, B, _ = ssm.get_ssm_matrices()
+        Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
+        R = 1e6 * np.mat(np.diag([1., 1., 1., 1.]))
+        
+        self.A = A
+        self.B = B
+        self.Q = Q
+        self.R = R
+        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''TODO.'''
+
+        diff = target_state - current_state
+        for i in range(4):
+            diff[i] = angle_subtract(target_state[i], current_state[i])
+
+        Bu = assist_level * self.B*self.F*diff
+        assist_weight = assist_level
+
+        return Bu, assist_weight
+
+
+class IsMoreLFCAssister(Assister):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    def __init__(self, *args, **kwargs):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        ssm = StateSpaceIsMore()
+        A, B, _ = ssm.get_ssm_matrices()        
+        Q = np.mat(np.diag([1., 1., 7., 7., 7., 7., 7., 0, 0, 0, 0, 0, 0, 0, 0]))
+        R = 1e6 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
+
+        self.A = A
+        self.B = B
+        self.Q = Q
+        self.R = R
+        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+        '''TODO.'''
+        diff = target_state - current_state
+        for i in range(2, 7):
+            diff[i] = angle_subtract(target_state[i], current_state[i])
+
+        Bu = assist_level * self.B*self.F*diff
         assist_weight = assist_level
 
         return Bu, assist_weight
@@ -761,100 +839,3 @@ class ArmAssistLFCAssister(Assister):
 #         assist_weight = 0
 
 #         return Bu, assist_weight
-
-class ReHandLFCAssister(Assister):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        ssm = StateSpaceReHand()
-        A, B, _ = ssm.get_ssm_matrices()
-        
-        Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
-        self.Q = Q
-        
-        R = 1e6 * np.mat(np.diag([1., 1., 1., 1.]))
-        self.R = R
-
-        self.A = A
-        self.B = B
-        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-
-    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-        '''Overriding to account for proper subtraction of angles.'''
-        B = self.B
-        F = self.F
-
-        diff = target_state - current_state
-        for i in range(4):
-            diff[i] = angle_subtract(target_state[i], current_state[i])
-
-        Bu = assist_level * B*F*(diff)
-        # assist_weight = 0
-        assist_weight = assist_level
-
-        return Bu, assist_weight
-
-
-class IsMoreLFCAssister(Assister):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        ssm = StateSpaceIsMore()
-        A, B, _ = ssm.get_ssm_matrices()
-        
-        Q = np.mat(np.diag([1., 1., 7., 7., 7., 7., 7., 0, 0, 0, 0, 0, 0, 0, 0]))
-        self.Q = Q
-        
-        R = 1e6 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
-        self.R = R
-
-        self.A = A
-        self.B = B
-        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-
-    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-        '''Overriding to account for proper subtraction of angles.'''
-        B = self.B
-        F = self.F
-
-        diff = target_state - current_state
-        for i in range(2, 7):
-            diff[i] = angle_subtract(target_state[i], current_state[i])
-
-        Bu = assist_level * B*F*(diff)
-        # assist_weight = 0
-        assist_weight = assist_level
-
-        return Bu, assist_weight
