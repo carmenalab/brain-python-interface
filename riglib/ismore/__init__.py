@@ -20,19 +20,19 @@ class FeedbackData(object):
     def stop(self):
         self.client.stop()
 
-    def get(self):
-        d = self.data.next()
-        return np.array([(tuple(d.data), tuple(d.ts), d.ts_sent, d.ts_arrival, d.freq)], dtype=self.dtype)
+    # def get(self):
+    #     d = self.data.next()
+    #     return np.array([(tuple(d.data), tuple(d.ts), d.ts_sent, d.ts_arrival, d.freq)], dtype=self.dtype)
 
-    @staticmethod
-    def _get_dtype(state_names):
-        sub_dtype_data = np.dtype([(name, np.float64) for name in state_names])
-        sub_dtype_ts   = np.dtype([(name, np.int64)   for name in state_names])
-        return np.dtype([('data',       sub_dtype_data),
-                         ('ts',         sub_dtype_ts),
-                         ('ts_sent',    np.float64),
-                         ('ts_arrival', np.float64),
-                         ('freq',       np.float64)])
+    # @staticmethod
+    # def _get_dtype(state_names):
+    #     sub_dtype_data = np.dtype([(name, np.float64) for name in state_names])
+    #     sub_dtype_ts   = np.dtype([(name, np.int64)   for name in state_names])
+    #     return np.dtype([('data',       sub_dtype_data),
+    #                      ('ts',         sub_dtype_ts),
+    #                      ('ts_sent',    np.float64),
+    #                      ('ts_arrival', np.float64),
+    #                      ('freq',       np.float64)])
 
 
 class ArmAssistData(FeedbackData):
@@ -44,7 +44,24 @@ class ArmAssistData(FeedbackData):
     client_cls = udp_feedback_client.ArmAssistClient
 
     state_names = ['aa_px', 'aa_py', 'aa_ppsi']
-    dtype = FeedbackData._get_dtype(state_names)
+    sub_dtype_data     = np.dtype([(name, np.float64) for name in state_names])
+    sub_dtype_ts       = np.dtype([(name, np.int64)   for name in state_names])
+    sub_dtype_data_aux = np.dtype([(name, np.float64) for name in ['force', 'bar_angle']])
+    
+    dtype = np.dtype([('data',       sub_dtype_data),
+                      ('ts',         sub_dtype_ts),
+                      ('ts_arrival', np.int64),
+                      ('data_aux',   sub_dtype_data_aux),
+                      ('ts_aux',     np.int64)])
+
+    def get(self):
+        d = self.data.next()
+        return np.array([(tuple(d.data), 
+                          tuple(d.ts), 
+                          d.ts_arrival, 
+                          tuple(d.data_aux),
+                          d.ts_aux)], 
+                        dtype=self.dtype)
 
 
 class ReHandData(FeedbackData):
@@ -57,5 +74,24 @@ class ReHandData(FeedbackData):
 
     state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 
                    'rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
-    dtype = FeedbackData._get_dtype(state_names)
+    sub_dtype_data   = np.dtype([(name, np.float64) for name in state_names])
+    sub_dtype_ts     = np.dtype([(name, np.int64)   for name in state_names])
+    sub_dtype_torque = np.dtype([(name, np.float64) for name in ['thumb', 'index', 'fing3', 'prono']])
+    
+    dtype = np.dtype([('data',       sub_dtype_data),
+                      ('ts',         sub_dtype_ts),
+                      ('ts_arrival', np.int64),
+                      ('freq',       np.float64),
+                      ('torque',     sub_dtype_torque),
+                      ('ts_sent',    np.int64)])
+
+    def get(self):
+        d = self.data.next()
+        return np.array([(tuple(d.data), 
+                          tuple(d.ts), 
+                          d.ts_arrival, 
+                          d.freq,
+                          tuple(d.torque),
+                          d.ts_sent)], 
+                        dtype=self.dtype)
 

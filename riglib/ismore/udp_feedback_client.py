@@ -1,4 +1,7 @@
-'''Client-side code to receive feedback data from the ArmAssist and ReHand.'''
+'''Client-side code to receive feedback data from the ArmAssist and ReHand. 
+See ArmAssist and ReHand command guides for more details on protocol of what 
+data is sent over UDP.
+'''
 
 import sys
 import time
@@ -10,9 +13,13 @@ from collections import namedtuple
 from riglib.ismore import settings
 from utils.constants import *
 
-field_names = ['data', 'ts', 'ts_sent', 'ts_arrival', 'freq']
-ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
-ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
+
+common_fields = ['data', 'ts', 'ts_arrival']
+aa_fields = common_fields + ['data_aux', 'ts_aux']
+rh_fields = common_fields + ['freq', 'torque', 'ts_sent']
+
+ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", aa_fields)
+ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    rh_fields)
 
 
 class Client(object):
@@ -70,6 +77,8 @@ class ArmAssistClient(Client):
 
                 # Example feedback string:
                 # "Status ArmAssist freq px py ppsi ts force bar_angle ts_aux\r"
+                command = "Status ArmAssist ts px py ppsi ts_aux force bar_angle -1\r"
+
 
                 items = feedback.rstrip('\r').split(' ')
                 
@@ -77,30 +86,35 @@ class ArmAssistClient(Client):
                 dev_id = items[1]
                 assert cmd_id == 'Status'
                 assert dev_id == 'ArmAssist'
-
-                freq = float(items[2])
                 
-                # position data and corresponding timestamp
-                px   = float(items[3]) * mm_to_cm
-                py   = float(items[4]) * mm_to_cm
-                ppsi = float(items[5]) * deg_to_rad
-                ts   = int(items[6])
+                data_fields = items[2:]
+                assert len(data_fields) == 8
 
-                # auxiliary data and corresponding timestamp
-                force     = float(items[7])
-                bar_angle = float(items[8])
-                ts_aux    = int(items[9])
+                # position data
+                ts   = int(data_fields[0])                 # microseconds
+                px   = float(data_fields[1]) * mm_to_cm    # convert to cm
+                py   = float(data_fields[2]) * mm_to_cm    # convert to cm
+                ppsi = float(data_fields[3]) * deg_to_rad  # convert to cm
+                
+                # auxiliary data
+                ts_aux    = int(data_fields[4])    # microseconds
+                force     = float(data_fields[5])  # kg
+                bar_angle = float(data_fields[6])  # degrees
+                
+                # end sentinel value, always -1
+                end = int(data_fields[7])
+                assert end == -1
 
-                data = np.array([px, py, ppsi])
-                ts   = np.array([ts, ts, ts])
-
-                ts_sent = 0  # TODO -- fix
+                data     = np.array([px, py, ppsi])
+                ts       = np.array([ts, ts, ts])
+                data_aux = np.array([force, bar_angle])
+                ts_aux   = np.array([ts_aux, ts_aux])
 
                 yield ArmAssistFeedbackData(data=data,
                                             ts=ts,
-                                            ts_sent=ts_sent,
                                             ts_arrival=ts_arrival,
-                                            freq=freq)
+                                            data_aux=data_aux,
+                                            ts_aux=ts_aux)
 
             time.sleep(sleep_time)
 
@@ -110,6 +124,7 @@ class ReHandClient(Client):
     ReHand application.'''
 
     address = settings.rehand_udp_client
+    feedback_filename = 'rehand_feedback.txt'
 
     def get_feedback_data(self):
         '''Yield received feedback data.'''
@@ -129,40 +144,34 @@ class ReHandClient(Client):
 
                 items = feedback.rstrip('\r').split(' ')
                 
+                # feedback packet starts with "ReHand Status ...", as opposed 
+                #   to "Status ArmAssist" for ArmAssist feedback packets
                 dev_id = items[0]
                 cmd_id = items[1]
                 assert dev_id == 'ReHand'
                 assert cmd_id == 'Status'               
 
                 data_fields = items[2:]
+                assert len(data_fields) == 18
 
                 freq = float(data_fields[0])
 
-                vel    = [float(data_fields[i]) for i in [1, 5,  9, 13]]
-                pos    = [float(data_fields[i]) for i in [2, 6, 10, 14]]
-                torque = [float(data_fields[i]) for i in [3, 7, 11, 15]]
+                vel    = [float(data_fields[i]) for i in [1, 5,  9, 13]]  # deg/s
+                pos    = [float(data_fields[i]) for i in [2, 6, 10, 14]]  # deg
+                torque = [float(data_fields[i]) for i in [3, 7, 11, 15]]  
                 ts     = [  int(data_fields[i]) for i in [4, 8, 12, 16]]
 
                 ts_sent = int(data_fields[17])
 
-                # print "timestamps:"
-                # print "ts thumb  ", ts[0] 
-                # print "ts index  ", ts[1]
-                # print "ts fing3  ", ts[2]
-                # print "ts prono  ", ts[3]
-                # print "ts sent   ", ts_sent
-                # print "ts arrival", int(ts_arrival * 1e6)
-
-                data = np.array(pos + vel)
-                ts   = np.array(ts + ts)
-
                 # convert angular values from deg to rad (and deg/s to rad/s)
-                data *= deg_to_rad
+                data = np.array(pos + vel) * deg_to_rad
+                ts   = np.array(ts + ts)
 
                 yield ReHandFeedbackData(data=data, 
                                          ts=ts, 
-                                         ts_sent=ts_sent,
                                          ts_arrival=ts_arrival,
-                                         freq=freq)
+                                         freq=freq,
+                                         torque=torque,
+                                         ts_sent=ts_sent)
 
             time.sleep(sleep_time)
