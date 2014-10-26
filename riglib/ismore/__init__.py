@@ -47,12 +47,13 @@ class ArmAssistData(FeedbackData):
     sub_dtype_data     = np.dtype([(name, np.float64) for name in state_names])
     sub_dtype_ts       = np.dtype([(name, np.int64)   for name in state_names])
     sub_dtype_data_aux = np.dtype([(name, np.float64) for name in ['force', 'bar_angle']])
+    sub_dtype_ts_aux   = np.dtype([(name, np.int64)   for name in ['force', 'bar_angle']])
     
     dtype = np.dtype([('data',       sub_dtype_data),
                       ('ts',         sub_dtype_ts),
                       ('ts_arrival', np.int64),
                       ('data_aux',   sub_dtype_data_aux),
-                      ('ts_aux',     np.int64)])
+                      ('ts_aux',     sub_dtype_ts_aux)])
 
     def get(self):
         d = self.data.next()
@@ -60,7 +61,7 @@ class ArmAssistData(FeedbackData):
                           tuple(d.ts), 
                           d.ts_arrival, 
                           tuple(d.data_aux),
-                          d.ts_aux)], 
+                          tuple(d.ts_aux))], 
                         dtype=self.dtype)
 
 
