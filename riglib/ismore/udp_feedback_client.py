@@ -16,11 +16,14 @@ ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
 
 
 class Client(object):
-    '''Docstring.'''
+    '''Abstract base class, not meant to be instantiated.'''
 
     MAX_MSG_LEN = 300
 
-    # TODO -- rename this function to something else?
+    def __init__(self):
+        self._create_and_bind_socket()
+        # self.file_ = open(self.feedback_filename, 'w')
+
     def _create_and_bind_socket(self):
         '''Called in subclasses in their __init__() method.'''
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -47,11 +50,7 @@ class ArmAssistClient(Client):
     ArmAssist application.'''
 
     address = settings.armassist_udp_client
-
-    def __init__(self):
-        self._create_and_bind_socket()
-
-        # self.file_ = open('armassist_feedback.txt', 'w')
+    feedback_filename = 'armassist_feedback.txt'
 
     def get_feedback_data(self):
         '''Yield received feedback data.'''
@@ -63,10 +62,10 @@ class ArmAssistClient(Client):
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
-                ts_arrival = int(time.time() * 1e6)
+                ts_arrival = int(time.time() * 1e6)  # microseconds
+                
                 # print "feedback aa:", feedback
-                self.sock.sendto("ACK ArmAssist\r", settings.armassist_udp_server)
-
+                # self.sock.sendto("ACK ArmAssist\r", settings.armassist_udp_server)
                 # self.file_.write(feedback.rstrip('\r') + "\n")
 
                 # Example feedback string:
@@ -86,10 +85,6 @@ class ArmAssistClient(Client):
                 py   = float(items[4]) * mm_to_cm
                 ppsi = float(items[5]) * deg_to_rad
                 ts   = int(items[6])
-
-                # print "ArmAssist timestamps:"
-                # print "ts        ", ts
-                # print "ts arrival", ts_arrival
 
                 # auxiliary data and corresponding timestamp
                 force     = float(items[7])
@@ -116,11 +111,6 @@ class ReHandClient(Client):
 
     address = settings.rehand_udp_client
 
-    def __init__(self):
-        self._create_and_bind_socket()
-
-        # self.file_ = open('rehand_feedback.txt', 'w')
-
     def get_feedback_data(self):
         '''Yield received feedback data.'''
 
@@ -132,9 +122,9 @@ class ReHandClient(Client):
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 ts_arrival = int(time.time() * 1e6)  # microseconds
-                #print "feedback rh:", feedback
-                #self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
-
+                
+                # print "feedback rh:", feedback
+                # self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
                 # self.file_.write(feedback.rstrip('\r') + "\n")
 
                 items = feedback.rstrip('\r').split(' ')
@@ -147,9 +137,6 @@ class ReHandClient(Client):
                 data_fields = items[2:]
 
                 freq = float(data_fields[0])
-
-                # values = [float(s) for s in items[3:]]
-                # assert len(values) == 16
 
                 vel    = [float(data_fields[i]) for i in [1, 5,  9, 13]]
                 pos    = [float(data_fields[i]) for i in [2, 6, 10, 14]]

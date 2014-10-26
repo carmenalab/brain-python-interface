@@ -40,7 +40,7 @@ class ArmAssistData(FeedbackData):
     ArmAssist application.
     '''
 
-    update_freq = 25.  # TODO check
+    update_freq = 15.  # TODO check
     client_cls = udp_feedback_client.ArmAssistClient
 
     state_names = ['aa_px', 'aa_py', 'aa_ppsi']
@@ -52,7 +52,7 @@ class ReHandData(FeedbackData):
     ReHand application.
     '''
 
-    update_freq = 25.  # TODO check
+    update_freq = 200.  # TODO check
     client_cls = udp_feedback_client.ReHandClient
 
     state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 
