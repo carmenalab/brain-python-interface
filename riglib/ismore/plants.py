@@ -330,5 +330,5 @@ class IsMorePlantNonUDP(object):
         (cm, cm, rad) and ReHand's angles in units of (rad, rad, rad, rad).
         '''
         self.aa_plant.set_pos(pos[0:3])
-        self.aa_plant.set_pos(pos[3:7])
+        self.rh_plant.set_pos(pos[3:7])
 
