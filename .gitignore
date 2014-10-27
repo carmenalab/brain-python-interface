@@ -13,6 +13,8 @@ db/settings.py
 db/paths.py
 tests/map_test
 db/db.sql
+db/*.sql
+*.sql.*
 *.jpeg
 *.png
 log/*
