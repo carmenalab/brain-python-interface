@@ -60,16 +60,11 @@ class KinematicChain(object):
 
     def calc_full_joint_angles(self, joint_angles):
         '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
+        Override in child classes to perform static transforms on joint angle inputs. If some 
+        joints are always static (e.g., if the chain only operates in a plane)
+        this can avoid unclutter joint angle specifications.
         '''
-
-        return joint_angles
+        return self.rotation_convention * joint_angles
 
     def full_angles_to_subset(self, joint_angles):
         '''
@@ -81,7 +76,6 @@ class KinematicChain(object):
         Returns
         -------
         '''
-
         return joint_angles
 
     def plot(self, joint_angles):
@@ -401,7 +395,7 @@ class PlanarXZKinematicChain(KinematicChain):
         # There are really 3 angles per joint to allow 3D rotation at each joint
         joint_angles_full = np.zeros(self.n_links * 3)  
         joint_angles_full[1::3] = joint_angles
-        return joint_angles_full 
+        return self.rotation_convention * joint_angles_full 
 
     def full_angles_to_subset(self, joint_angles):
         '''
@@ -535,8 +529,8 @@ class PlanarXZKinematicChain(KinematicChain):
         J = np.zeros([2, len(l)])
         for m in range(N):
             for i in range(m, N):
-                J[0, m] += -l[i]*np.sin(sum(theta[:i+1]))
-                J[1, m] +=  l[i]*np.cos(sum(theta[:i+1]))
+                J[0, m] += -l[i]*np.sin(sum(self.rotation_convention*theta[:i+1]))
+                J[1, m] +=  l[i]*np.cos(sum(self.rotation_convention*theta[:i+1]))
         return J
 
     def config_change_nullspace_workspace(self, config1, config2):
