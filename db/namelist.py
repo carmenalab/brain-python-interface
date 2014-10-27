@@ -140,6 +140,7 @@ tasks = dict(
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
     machine_control=bmimultitasks.TargetCaptureVisualFeedback,
+    manual_control_multi_plusvar = tasks.manualcontrolmulti_COtasks.ManualControlMulti_plusvar,
 
     ######## iBMI tasks
     ibmi_visual_feedback = blackrocktasks.VisualFeedback,
