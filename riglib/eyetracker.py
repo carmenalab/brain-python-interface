@@ -82,26 +82,23 @@ class Simulate(object):
 
 class System(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    System representing the EyeLink eyetracker. Compatible with riglib.source.DataSource
     '''
     update_freq = 500
     dtype = np.dtype((np.float, (2,)))
 
     def __init__(self, address='10.0.0.2'):
         '''
-        Docstring
+        Constructor for the System representing the EyeLink eyetracker
 
         Parameters
         ----------
+        address: IP address string 
+            IP address of the EyeLink host machine
 
         Returns
         -------
+        System instance
         '''
         self.tracker = pylink.EyeLink(address)
         self.tracker.setOfflineMode()
