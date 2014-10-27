@@ -11,7 +11,7 @@ from utils.constants import *
 # INTERPOLATE_TRAJ = True  # use when parsing a reference trajectory
 INTERPOLATE_TRAJ = False   # use when parsing a playback trajectory
 
-hdf_name = '/storage/rawdata/hdf/test20141013_21.hdf'
+hdf_name = '/storage/rawdata/hdf/test20141027_04.hdf'
 pkl_name = 'traj_playback.pkl'
 
 

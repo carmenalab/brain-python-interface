@@ -4,12 +4,13 @@ import pandas as pd
 import tables
 import pickle
 from scipy.interpolate import interp1d
+import os
 
 from utils.constants import *
 
 
 pkl_name = 'traj_reference_interp.pkl'
-mat_name = '/home/lab/Desktop/Kinematic data ArmAssist/Epoched data/epoched_kin_data/NI_sess05_20140610/NI_B1S005R01.mat'
+mat_name = os.path.expandvars('$HOME/Desktop/Kinematic data ArmAssist/Epoched data/epoched_kin_data/NI_sess05_20140610/NI_B1S005R01.mat')
 
 
 index = [
