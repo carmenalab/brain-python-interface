@@ -19,7 +19,7 @@ plot_closest_idx_lines = False
 plot_xy_aim_lines      = False
 plot_psi_aim_lines     = False
 armassist              = True
-rehand                 = True
+rehand                 = False #True
 
 
 aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']

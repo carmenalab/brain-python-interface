@@ -8,16 +8,21 @@ from scipy.interpolate import interp1d
 
 from utils.constants import *
 
-# INTERPOLATE_TRAJ = True  # use when parsing a reference trajectory
-INTERPOLATE_TRAJ = False   # use when parsing a playback trajectory
+INTERPOLATE_TRAJ = True  # use when parsing a reference trajectory
+# INTERPOLATE_TRAJ = False  # use when parsing a playback trajectory
 
-hdf_name = '/storage/rawdata/hdf/test20141027_04.hdf'
-pkl_name = 'traj_playback.pkl'
+hdf_name = '/storage/rawdata/hdf/test20141027_07.hdf'
+
+if INTERPOLATE_TRAJ:
+    pkl_name = 'traj_reference_interp.pkl'
+else:
+    pkl_name = 'traj_playback.pkl'
 
 
 aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
 rh_pos_states = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
 rh_vel_states = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
+
 
 # load task, armassist, and rehand data from hdf file
 hdf = tables.openFile(hdf_name)
