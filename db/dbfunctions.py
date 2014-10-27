@@ -362,6 +362,35 @@ class TaskEntry(object):
         '''
         return '/storage/task_supplement/%d.mat' % self.record.id
 
+    def get_cached_attr(self, key, fn, clean=False):
+        '''
+        Generic method for saving the results of a computation to the supplementary_data_file associated with this block
+
+        Parameters
+        ----------
+        key : string
+            Variable name in cache file 
+        fn : callable
+            Function to execute (no arguments) to get the required data, if it is not present in the file
+        clean : bool, default=False
+            If true, force the recomputation of the data product even if it is already present in the cache file
+        '''
+        from scipy.io import savemat, loadmat
+        if hasattr(self, '_%s' % key):
+            return getattr(self, '_%s' % key)
+        if not os.path.exists(self.supplementary_data_file):
+            data = fn()
+            savemat(self.supplementary_data_file, dict(key=data))
+            setattr(self, '_%s' % key, data)
+            return getattr(self, '_%s' % key)
+        else:
+            supplementary_data = loadmat(self.supplementary_data_file)
+            if (not key in supplementary_data) or clean:
+                supplementary_data[key] = fn()
+                savemat(self.supplementary_data_file, supplementary_data)
+            setattr(self, '_%s' % key, supplementary_data[key])
+            return getattr(self, '_%s' % key)            
+
     def get_matching_state_transition_seq(self, seq):
         '''
         Docstring
@@ -428,11 +457,12 @@ class TaskEntry(object):
         '''
         Return a reference to the HDF file recorded during this TaskEntry
         '''
-        try:
-            return self.hdf_file
-        except:
-            self.hdf_file = tables.openFile(self.hdf_filename)
-            return self.hdf_file
+        if not hasattr(self, 'hdf_file'):
+            try:
+                self.hdf_file = tables.open_file(self.hdf_filename)
+            except:
+                self.hdf_file = tables.openFile(self.hdf_filename)
+        return self.hdf_file
 
     @property
     def plx(self):
@@ -756,7 +786,7 @@ class TaskEntrySet(object):
 
 def parse_blocks(blocks, **kwargs):
     '''
-    Parse out a hierarchical structure of block ids
+    Parse out a hierarchical structure of block ids. Used to construct TaskEntryCollection objects
     '''
     data = []
     from analysis import performance
@@ -775,14 +805,19 @@ class TaskEntryCollection(object):
     '''
     def __init__(self, blocks, name='', **kwargs):
         '''
-        Docstring
+        Constructor for TaskEntryCollection
 
         Parameters
         ----------
+        blocks: np.iterable
+            Some iterable object which contains TaskEntry ID numbers to look up in the database
+        name: string, optional, default=''
+            Name to give this collection 
 
         Returns
         -------
         '''
+        self.block_ids = blocks
         self.blocks = parse_blocks(blocks, **kwargs)
         self.kwargs = kwargs
         self.name = name
@@ -818,7 +853,7 @@ class TaskEntryCollection(object):
             trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
 
         if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_proc_fn)
+            trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
         result = []
         for blockset in self.blocks:
@@ -905,6 +940,15 @@ class TaskEntryCollection(object):
         if verbose:
             sys.stdout.write('\n')
         return return_type(result)
+
+    def __repr__(self):
+        if not self.name == '':
+            return str(self.block_ids)
+        else:
+            return "TaskEntryCollection: ", self.name
+
+    def __str__(self):
+        return self.__repr__()
 
 ######################
 ## Filter functions
