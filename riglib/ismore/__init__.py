@@ -52,6 +52,7 @@ class ArmAssistData(FeedbackData):
     dtype = np.dtype([('data',       sub_dtype_data),
                       ('ts',         sub_dtype_ts),
                       ('ts_arrival', np.int64),
+                      ('freq',       np.float64),
                       ('data_aux',   sub_dtype_data_aux),
                       ('ts_aux',     sub_dtype_ts_aux)])
 
@@ -59,7 +60,8 @@ class ArmAssistData(FeedbackData):
         d = self.data.next()
         return np.array([(tuple(d.data), 
                           tuple(d.ts), 
-                          d.ts_arrival, 
+                          d.ts_arrival,
+                          d.freq,
                           tuple(d.data_aux),
                           tuple(d.ts_aux))], 
                         dtype=self.dtype)

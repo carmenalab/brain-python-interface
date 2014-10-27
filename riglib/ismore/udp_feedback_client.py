@@ -14,9 +14,9 @@ from riglib.ismore import settings
 from utils.constants import *
 
 
-common_fields = ['data', 'ts', 'ts_arrival']
+common_fields = ['data', 'ts', 'ts_arrival', 'freq']
 aa_fields = common_fields + ['data_aux', 'ts_aux']
-rh_fields = common_fields + ['freq', 'torque', 'ts_sent']
+rh_fields = common_fields + ['torque', 'ts_sent']
 
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", aa_fields)
 ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    rh_fields)
@@ -90,20 +90,18 @@ class ArmAssistClient(Client):
                 data_fields = items[2:]
                 assert len(data_fields) == 8
 
+                freq = float(data_fields[0])
+
                 # position data
-                ts   = int(data_fields[0])                 # microseconds
                 px   = float(data_fields[1]) * mm_to_cm    # convert to cm
                 py   = float(data_fields[2]) * mm_to_cm    # convert to cm
                 ppsi = float(data_fields[3]) * deg_to_rad  # convert to cm
+                ts   = int(data_fields[4])                 # microseconds
                 
                 # auxiliary data
-                ts_aux    = int(data_fields[4])    # microseconds
                 force     = float(data_fields[5])  # kg
                 bar_angle = float(data_fields[6])  # degrees
-                
-                # end sentinel value, always -1
-                end = int(data_fields[7])
-                assert end == -1
+                ts_aux    = int(data_fields[7])    # microseconds
 
                 data     = np.array([px, py, ppsi])
                 ts       = np.array([ts, ts, ts])
@@ -113,6 +111,7 @@ class ArmAssistClient(Client):
                 yield ArmAssistFeedbackData(data=data,
                                             ts=ts,
                                             ts_arrival=ts_arrival,
+                                            freq=freq,
                                             data_aux=data_aux,
                                             ts_aux=ts_aux)
 
