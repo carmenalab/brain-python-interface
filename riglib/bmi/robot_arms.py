@@ -45,8 +45,13 @@ class KinematicChain(object):
         assert rotation_convention in [-1, 1]
         self.rotation_convention = rotation_convention
 
+        # Create the robot object. Override for child classes with different types of joints
+        self._init_serial_link()
+        self.robot.name = name
+
+    def _init_serial_link(self):
         links = []
-        for link_length in link_lengths:
+        for link_length in self.link_lengths:
             link1 = robot.Link(alpha=-pi/2)
             link2 = robot.Link(alpha=pi/2)
             link3 = robot.Link(d=-link_length)
@@ -55,8 +60,7 @@ class KinematicChain(object):
         # By convention, we start the arm in the XY-plane
         links[1].offset = -pi/2 
 
-        self.robot = robot.SerialLink(links)
-        self.robot.name = name
+        self.robot = robot.SerialLink(links)        
 
     def calc_full_joint_angles(self, joint_angles):
         '''
