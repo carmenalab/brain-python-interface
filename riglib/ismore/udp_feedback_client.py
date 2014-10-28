@@ -69,7 +69,7 @@ class ArmAssistClient(Client):
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
-                ts_arrival = int(time.time() * 1e6)  # microseconds
+                ts_arrival = time.time()  # secs
                 
                 # print "feedback aa:", feedback
                 # self.sock.sendto("ACK ArmAssist\r", settings.armassist_udp_server)
@@ -93,15 +93,15 @@ class ArmAssistClient(Client):
                 freq = float(data_fields[0])
 
                 # position data
-                px   = float(data_fields[1]) * mm_to_cm    # convert to cm
-                py   = float(data_fields[2]) * mm_to_cm    # convert to cm
-                ppsi = float(data_fields[3]) * deg_to_rad  # convert to cm
-                ts   = int(data_fields[4])                 # microseconds
+                px   = float(data_fields[1]) * mm_to_cm        # convert to cm
+                py   = float(data_fields[2]) * mm_to_cm        # convert to cm
+                ppsi = float(data_fields[3]) * deg_to_rad      # convert to rad
+                ts   = int(data_fields[4])   * us_to_s         # convert to sec
                 
                 # auxiliary data
-                force     = float(data_fields[5])  # kg
-                bar_angle = float(data_fields[6])  # degrees
-                ts_aux    = int(data_fields[7])    # microseconds
+                force     = float(data_fields[5])              # kg
+                bar_angle = float(data_fields[6]) * deg_to_rad # convert to rad
+                ts_aux    = int(data_fields[7])   * us_to_s    # convert to sec
 
                 data     = np.array([px, py, ppsi])
                 ts       = np.array([ts, ts, ts])
@@ -135,7 +135,7 @@ class ReHandClient(Client):
             
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
-                ts_arrival = int(time.time() * 1e6)  # microseconds
+                ts_arrival = time.time()  # secs
                 
                 # print "feedback rh:", feedback
                 # self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
@@ -153,18 +153,19 @@ class ReHandClient(Client):
                 data_fields = items[2:]
                 assert len(data_fields) == 18
 
-                freq = float(data_fields[0])
-
-                vel    = [float(data_fields[i]) for i in [1, 5,  9, 13]]  # deg/s
-                pos    = [float(data_fields[i]) for i in [2, 6, 10, 14]]  # deg
-                torque = [float(data_fields[i]) for i in [3, 7, 11, 15]]  
-                ts     = [  int(data_fields[i]) for i in [4, 8, 12, 16]]
-
+                freq    = float(data_fields[0])
+                vel     = [float(data_fields[i]) for i in [1, 5,  9, 13]]
+                pos     = [float(data_fields[i]) for i in [2, 6, 10, 14]]
+                torque  = [float(data_fields[i]) for i in [3, 7, 11, 15]]  
+                ts      = [  int(data_fields[i]) for i in [4, 8, 12, 16]]
                 ts_sent = int(data_fields[17])
 
                 # convert angular values from deg to rad (and deg/s to rad/s)
                 data = np.array(pos + vel) * deg_to_rad
-                ts   = np.array(ts + ts)
+                
+                # convert time values from microseconds to secs                
+                ts = np.array(ts + ts) * us_to_s
+                ts_sent = ts_sent * us_to_s
 
                 yield ReHandFeedbackData(data=data, 
                                          ts=ts, 

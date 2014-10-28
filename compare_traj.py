@@ -33,8 +33,11 @@ traj2 = pickle.load(open(traj_file2, 'rb'))
 if armassist:
     aa1 = traj1[trial_type]['armassist']
     aa2 = traj2[trial_type]['armassist']
-    aa1_len_t = us_to_s * (aa1.ix['ts', aa1.columns[-1]] - aa1.ix['ts', 0])
-    aa2_len_t = us_to_s * (aa2.ix['ts', aa2.columns[-1]] - aa2.ix['ts', 0])
+    # OLD -- all ts units now in seconds
+    #aa1_len_t = us_to_s * (aa1.ix['ts', aa1.columns[-1]] - aa1.ix['ts', 0])
+    #aa2_len_t = us_to_s * (aa2.ix['ts', aa2.columns[-1]] - aa2.ix['ts', 0])
+    aa1_len_t = aa1.ix['ts', aa1.columns[-1]] - aa1.ix['ts', 0]
+    aa2_len_t = aa2.ix['ts', aa2.columns[-1]] - aa2.ix['ts', 0]
     print "length of aa1:", aa1.shape[1]
     print "length of aa2:", aa2.shape[1]
     print "length of aa1 (secs):", aa1_len_t
@@ -43,8 +46,11 @@ if armassist:
 if rehand:
     rh1 = traj1[trial_type]['rehand']
     rh2 = traj2[trial_type]['rehand']
-    rh1_len_t = us_to_s * (rh1.ix['ts', rh1.columns[-1]] - rh1.ix['ts', 0])
-    rh2_len_t = us_to_s * (rh2.ix['ts', rh2.columns[-1]] - rh2.ix['ts', 0])
+    # OLD -- all ts units now in seconds
+    #rh1_len_t = us_to_s * (rh1.ix['ts', rh1.columns[-1]] - rh1.ix['ts', 0])
+    #rh2_len_t = us_to_s * (rh2.ix['ts', rh2.columns[-1]] - rh2.ix['ts', 0])
+    rh1_len_t = rh1.ix['ts', rh1.columns[-1]] - rh1.ix['ts', 0]
+    rh2_len_t = rh2.ix['ts', rh2.columns[-1]] - rh2.ix['ts', 0]
     print "length of rh1:", rh1.shape[1]
     print "length of rh2:", rh2.shape[1]
     print "length of rh1 (secs):", rh1_len_t
@@ -131,10 +137,14 @@ if armassist:
 
     delta_pos = np.diff(aa1.ix[['aa_px', 'aa_py'], :])
     delta_psi = rad_to_deg * np.diff(aa1.ix['aa_ppsi', :])
-    delta_ts  = us_to_s * np.diff(aa1.ix['ts', :])
+    # OLD -- all ts units now in seconds
+    #delta_ts  = us_to_s * np.diff(aa1.ix['ts', :])
+    delta_ts  = np.diff(aa1.ix['ts', :])
     xy_vel_traj1  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos.T]) / delta_ts
     psi_vel_traj1 = delta_psi / delta_ts
-    traj1_tvec = np.array(us_to_s * aa1.ix['ts', :])
+    # OLD -- all ts units now in seconds
+    #traj1_tvec = np.array(us_to_s * aa1.ix['ts', :])
+    traj1_tvec = np.array(aa1.ix['ts', :])
     traj1_tvec -= traj1_tvec[0]
 
     fig = plt.figure()
@@ -149,10 +159,14 @@ if armassist:
 
     delta_pos = np.diff(aa2.ix[['aa_px', 'aa_py'], :])
     delta_psi = rad_to_deg * np.diff(aa2.ix['aa_ppsi', :])
-    delta_ts  = us_to_s * np.diff(aa2.ix['ts', :])
+    # OLD -- all ts units now in seconds
+    #delta_ts  = us_to_s * np.diff(aa2.ix['ts', :])
+    delta_ts  = np.diff(aa2.ix['ts', :])
     xy_vel_traj2  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos.T]) / delta_ts
     psi_vel_traj2 = delta_psi / delta_ts
-    traj2_tvec = np.array(us_to_s * aa2.ix['ts', :])
+    # OLD -- all ts units now in seconds
+    #traj2_tvec = np.array(us_to_s * aa2.ix['ts', :])
+    traj2_tvec = np.array(aa2.ix['ts', :])
     traj2_tvec -= traj2_tvec[0]
 
     fig = plt.figure()
