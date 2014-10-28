@@ -6,6 +6,7 @@ import pickle
 from scipy.interpolate import interp1d
 import os
 
+from riglib.ismore import settings
 from utils.constants import *
 
 
@@ -45,6 +46,8 @@ aa_pos_states  = ['aa_px', 'aa_py', 'aa_ppsi']
 rh_pos_states  = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
 rh_vel_states  = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
 ang_pos_states = ['aa_ppsi', 'rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
+pos_states     = aa_pos_states + rh_pos_states
+
 
 # ArmAssist and ReHand trajectories are saved as separate pandas DataFrames with the following indexes
 aa_fields = ['ts'] + aa_pos_states
@@ -60,25 +63,19 @@ def preprocess_data(df):
     df.ix[aa_xy_states] *= mm_to_cm
     df.ix[ang_pos_states] *= deg_to_rad
     
-    # translate ArmAssist trajectories to start at a particular position
-    starting_pos = np.array([21., 15., 0.])
-    pos_offset = df.ix[aa_pos_states, 0] - starting_pos
-    df.ix['aa_px', :]   -= pos_offset[0]
-    df.ix['aa_py', :]   -= pos_offset[1]
-    df.ix['aa_ppsi', :] -= pos_offset[2]
-
-    # translate ReHand trajectories to start at a particular angular position
-    starting_pos = deg_to_rad * np.array([30., 30., 30., 20.])
-    pos_offset = df.ix[rh_pos_states, 0] - starting_pos
-    df.ix['rh_pthumb', :] -= pos_offset[0]
-    df.ix['rh_pindex', :] -= pos_offset[1]
-    df.ix['rh_pfing3', :] -= pos_offset[2]
-    df.ix['rh_pprono', :] -= pos_offset[3]
+    # translate ArmAssist and ReHand trajectories to start at a particular position
+    starting_pos = settings.starting_pos
+    pos_offset = df.ix[pos_states, 0] - starting_pos
+    for state in pos_states:
+        df.ix[state, :] -= pos_offset[state]
+    # TODO -- if df was time x states instead of states x time,
+    #   then you could simply do: "df -= pos_offset"
 
     # differentiate ReHand positions to get ReHand velocity data
     delta_pos = np.diff(df.ix[rh_pos_states, :])
     delta_ts  = np.diff(df.ix['ts', :])
-    vel = np.hstack([np.zeros((4, 1)), delta_pos / delta_ts])
+    vel = delta_pos / delta_ts
+    vel = np.hstack([np.zeros((4, 1)), vel])
     df_rh_vel = pd.DataFrame(vel, index=rh_vel_states)
     df = pd.concat([df, df_rh_vel])
 
