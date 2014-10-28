@@ -66,7 +66,8 @@ generators = dict(
     rehand_simple=generatorfunctions.rehand_simple,
     ismore_simple=generatorfunctions.ismore_simple,
     centerout_2D_discrete_multiring=generatorfunctions.centerout_2D_discrete_multiring,
-    block_probabilistic_reward=generatorfunctions.colored_targets_with_probabilistic_reward
+    block_probabilistic_reward=generatorfunctions.colored_targets_with_probabilistic_reward,
+    tentacle_multi_start_config=generatorfunctions.tentacle_multi_start_config
 )
 
 # from tasks.rds import RDS, RDS_half
