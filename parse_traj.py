@@ -78,8 +78,6 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
         # save armassist data
         if armassist_flag:
             if INTERPOLATE_TRAJ:
-                # OLD -- all ts units now in seconds
-                #idxs = [i for (i, x) in enumerate(armassist[:]) if ts_start <= us_to_s*x['ts_arrival'] <= ts_end]
                 idxs = [i for (i, x) in enumerate(armassist[:]) if ts_start <= x['ts_arrival'] <= ts_end]
                 if idxs[0] != 0:
                     idxs = [idxs[0]-1] + idxs
@@ -88,15 +86,11 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
 
                 # TODO -- make same fixes to rehand code below
                 # for each traj, position data and arrival_ts is being saved, 
-                #   but arrival_ts is being saved with label 'ts' -- need to fix this 
+                #   but arrival_ts is being saved with label 'ts' -- need to fix this / make this more clear 
 
                 # what to name the column?
                 df_aa = pd.DataFrame(ts_vec, columns=['ts']).T
                 for state in aa_pos_states:
-                    # BUG below -- use ts_arrival, not ts
-                    # ts_data    = us_to_s*armassist[idxs]['ts'][state]
-                    # OLD -- all ts units now in seconds
-                    #ts_data    = us_to_s*armassist[idxs]['ts_arrival']
                     ts_data    = armassist[idxs]['ts_arrival']
                     state_data = armassist[idxs]['data'][state]
                     interp_fn = interp1d(ts_data, state_data)
@@ -104,8 +98,6 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
                     df_aa  = pd.concat([df_aa, df_tmp])
                 traj[trial_type]['armassist'] = df_aa
             else:
-                # OLD -- all ts units now in seconds
-                #idxs = [i for (i, x) in enumerate(armassist[:]) if ts_start <= us_to_s*x['ts_arrival'] <= ts_end]
                 idxs = [i for (i, x) in enumerate(armassist[:]) if ts_start <= x['ts_arrival'] <= ts_end]
                 df_aa1 = pd.DataFrame(np.array(armassist[idxs]['data'].tolist()).T, index=aa_pos_states)
                 aa_px_ts = (np.array(armassist[idxs]['ts'].tolist()).T)[0:1, :]  # TODO -- use ts_arrival, not ts
@@ -115,8 +107,6 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
         # save rehand data
         if rehand_flag:
             if INTERPOLATE_TRAJ:
-                # OLD -- all ts units now in seconds
-                #idxs = [i for (i, x) in enumerate(rehand[:]) if ts_start <= us_to_s*x['ts_arrival'] <= ts_end]
                 idxs = [i for (i, x) in enumerate(rehand[:]) if ts_start <= x['ts_arrival'] <= ts_end]
                 if idxs[0] != 0:
                     idxs = [idxs[0]-1] + idxs
@@ -125,10 +115,6 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
 
                 df_rh = pd.DataFrame(ts_vec, columns=['ts']).T
                 for state in rh_pos_states+rh_vel_states:
-                    # BUG below -- use ts_arrival, not ts
-                    # ts_data    = us_to_s*rehand[idxs]['ts'][state]
-                    # OLD -- all ts units now in seconds
-                    #ts_data    = us_to_s*rehand[idxs]['ts_arrival'][state]
                     ts_data    = rehand[idxs]['ts_arrival'][state]
                     state_data = rehand[idxs]['data'][state]
                     interp_fn = interp1d(ts_data, state_data)
@@ -137,8 +123,6 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
 
                 traj[trial_type]['rehand'] = df_rh
             else:
-                # OLD -- all ts units now in seconds 
-                #idxs = [i for (i, x) in enumerate(rehand[:]) if ts_start <= us_to_s*x['ts_arrival'] <= ts_end]
                 idxs = [i for (i, x) in enumerate(rehand[:]) if ts_start <= x['ts_arrival'] <= ts_end]
                 df_rh1 = pd.DataFrame(np.array(rehand[idxs]['data'].tolist()).T, 
                                       index=rh_pos_states+rh_vel_states)

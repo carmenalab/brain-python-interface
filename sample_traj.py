@@ -55,9 +55,6 @@ def preprocess_data(df):
     # rename dataframe fields to match state space names used in Python code
     df = df.rename(field_mapping)
 
-    # OLD -- all ts units now in seconds
-    ## convert units to msec, cm, rad
-    #df.ix['ts'] *= ms_to_us
     # convert units to sec, cm, rad
     df.ix['ts'] *= ms_to_s
     df.ix[aa_xy_states] *= mm_to_cm
@@ -80,8 +77,6 @@ def preprocess_data(df):
 
     # differentiate ReHand positions to get ReHand velocity data
     delta_pos = np.diff(df.ix[rh_pos_states, :])
-    # OLD -- all ts units now in seconds
-    #delta_ts  = us_to_s * np.diff(df.ix['ts', :])
     delta_ts  = np.diff(df.ix['ts', :])
     vel = np.hstack([np.zeros((4, 1)), delta_pos / delta_ts])
     df_rh_vel = pd.DataFrame(vel, index=rh_vel_states)
