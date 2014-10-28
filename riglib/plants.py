@@ -20,6 +20,7 @@ from utils.constants import *
 from riglib.bmi import state_space_models as ssm
 from riglib.bmi import state_space_models
 from riglib import source
+import robot
 
 field_names = ['data', 'ts', 'ts_sent', 'ts_arrival', 'freq']
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
@@ -225,6 +226,35 @@ class AsynchronousPlant(Plant):
         self.source.stop()    
         super(AsynchronousPlant, self).stop()
 
+
+
+
+from riglib.bmi.robot_arms import KinematicChain
+
+class PassiveExoChain(KinematicChain):
+    def _init_serial_link(self):
+        pi = np.pi
+        
+        d = np.array([-2.4767, -4.2709, -11.1398, 130, 7.0377, 152]) 
+        # d4: length from the shoulder center to the elbow of the monkey; this is mechanically fix! unit is [mm]
+        # d6: length from the elbow to the wrist; this is flexible depending on the actual value; unit is [mm]
+        a = np.array([1.8654, -1.0149, 0.4966, -7.7437, -2.4387, 0])
+        alpha = np.array([(-90-1.1344)*pi/180, pi/2, -pi/2, pi/2, -pi/2, 0])
+        offsets = np.array([25.8054*pi/180, -95.1254*pi/180, 37.8311*pi/180, 11.9996*pi/180, -60.2*pi/180, 0.5283*pi/180])
+        
+        links = []
+        for k in range(6):
+            link = robot.Link(a=a[k], d=d[k], alpha=alpha[k], offset=offsets[k])
+            links.append(link)
+        
+        r = robot.SerialLink(links)
+        
+        r.tool[0:3, -1] = np.array([0, 0, 45.]).reshape(-1,1)
+        self.robot = r
+        self.link_lengths = a
+
+
+
 import struct
 class UpperArmPassiveExo(PassivePlant):
     hdf_attrs = [('joint_angles', 'f8', (6,))]
@@ -236,6 +266,7 @@ class UpperArmPassiveExo(PassivePlant):
         self.rx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.ssm = StateSpaceUpperArmPassiveExo()
         self.tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.kin_chain = PassiveExoChain()
 
     def start(self):
         self.rx_sock.bind(('10.0.0.1', 60000))
