@@ -36,8 +36,6 @@ class KinematicChain(object):
         base_loc: np.array of shape (3,), default=np.array([0, 0, 0])
             Location of the base of the kinematic chain in an "absolute" reference frame
         '''
-        
-
         self.n_links = len(link_lengths)
         self.link_lengths = link_lengths
         self.base_loc = base_loc
