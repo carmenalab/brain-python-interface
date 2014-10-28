@@ -887,7 +887,7 @@ class BrainAmpData(traits.HasTraits):
         -------
         '''
         from riglib import brainamp, source
-        self.emgeegeogdata = source.MultiChanDataSource(brainamp.EMGEEGEOG, channels=channels)
+        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
 
         try:
             super(BrainAmpData, self).init()

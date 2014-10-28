@@ -5,9 +5,9 @@ import numpy as np
 import rda
 
 
-class EMGEEGEOG(object):
+class EMG(object):
     '''For use with a MultiChanDataSource in order to acquire streaming EMG/EEG/EOG
-    data from the BrainProducts BrainVision Recorder.
+    data (not limited to just EEG) from the BrainProducts BrainVision Recorder.
     '''
 
     update_freq = 1000.

@@ -23,6 +23,7 @@ features = dict(
     motion_autoalign=experiment.features.MotionAutoAlign,
     bmi=experiment.features.PlexonBMI,
     blackrockbmi=experiment.features.BlackrockBMI,
+    brainampdata=experiment.features.BrainAmpData,
     saveHDF=experiment.features.SaveHDF,
     relay_plexon=experiment.features.RelayPlexon,
     relay_plexbyte=experiment.features.RelayPlexByte,
