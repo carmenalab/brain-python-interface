@@ -389,12 +389,13 @@ class Joystick(object):
         Returns
         -------
         '''
-        from riglib import source, phidgets
+        from riglib import source, phidgets, sink
+        self.sinks = sink.sinks
+
         System = phidgets.make(2, 1)
         self.joystick = source.DataSource(System)
         super(Joystick, self).init()
-        # if isinstance(self, SaveHDF):
-            # self.add_dtype('joystick_sensor_vals', 'f8', (2,))
+        self.sinks.register(self.joystick)
 
     def run(self):
         '''
@@ -496,9 +497,13 @@ class EyeData(traits.HasTraits):
         -------
         '''
         from riglib import source
+        from riglib import sink
+        self.sinks = sink.sinks
+
         src, ekw = self.eye_source
         f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata = source.DataSource(src, **ekw)
+        self.sinks.register(self.eyedata)
         f.write('instantiated source\n')
         super(EyeData, self).init()
         f.close()
@@ -693,18 +698,14 @@ class FixationStart(CalibratedEyeData):
 # Phasespace datasources
 ########################################################################################################
 class MotionData(traits.HasTraits):
-    '''Enable reading of raw motiontracker data from Phasespace system'''
+    '''
+    Enable reading of raw motiontracker data from Phasespace system
+    '''
     marker_count = traits.Int(8, desc="Number of markers to return")
 
     def init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Secondary init function after the object has been created and all the super __init__ functions have run. See riglib.experiment.Experiment.init
         '''
         from riglib import source
         src, mkw = self.motion_source
@@ -730,13 +731,7 @@ class MotionData(traits.HasTraits):
 
     def run(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Start the motiontracker source prior to starting the experiment's main thread/process, and handle any errors by stopping the source
         '''
         self.motiondata.start()
         try:
@@ -771,8 +766,9 @@ class MotionData(traits.HasTraits):
         super(MotionData, self)._start_None()
 
 class MotionSimulate(MotionData):
-    '''Simulate presence of raw motiontracking system using a randomized spatial function'''
-   
+    '''
+    Simulate presence of raw motiontracking system using a randomized spatial function
+    '''
     @property
     def motion_source(self):
         from riglib import motiontracker
@@ -920,34 +916,20 @@ class SinkRegister(object):
         from riglib import sink
         self.sinks = sink.sinks
 
-        # Run the rest of the .init() functions of the custom experiment class
-        # NOTE: this MUST happen before the rest of the code executes. Otherwise,
-        # the dtype used to determine the task data attributes to be stored
-        # to the HDF file will be incorrect/incomplete
         super(SinkRegister, self).init()
 
         # if isinstance(self, (MotionData, MotionSimulate)):
         #     self.sinks.register(self.motiondata)
-        if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
-            self.sinks.register(self.eyedata)
-        if isinstance(self, Joystick):
-            self.sinks.register(self.joystick)
-
-        # Register sink for task data
-        try:
-            self.dtype = np.dtype(self.dtype)
-            self.sinks.register("task", self.dtype)
-            self.task_data = np.zeros((1,), dtype=self.dtype)
-        except:
-            self.task_data = None
+        # if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
+        #     self.sinks.register(self.eyedata)
+        # if isinstance(self, Joystick):
+        #     self.sinks.register(self.joystick)
 
     def _cycle(self):
         ''' Docstring '''
         super(SinkRegister, self)._cycle()
-        if self.task_data is not None:
-            self.sinks.send("task", self.task_data)
         
-class SaveHDF(SinkRegister):
+class SaveHDF(object):
     '''
     Saves data from registered sources into tables in an HDF file
     '''
@@ -955,9 +937,23 @@ class SaveHDF(SinkRegister):
         ''' Docstring '''
         import tempfile
         from riglib import sink
+        self.sinks = sink.sinks
         self.h5file = tempfile.NamedTemporaryFile()
         self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
+
+        # Run the rest of the .init() functions of the custom experiment class
+        # NOTE: this MUST happen before the rest of the code executes. Otherwise,
+        # the dtype used to determine the task data attributes to be stored
+        # to the HDF file will be incorrect/incomplete
         super(SaveHDF, self).init()
+
+        # Register sink for task data
+        try:
+            self.dtype = np.dtype(self.dtype)
+            self.sinks.register("task", self.dtype)
+            self.task_data = np.zeros((1,), dtype=self.dtype)
+        except:
+            self.task_data = None        
 
     @property
     def hdf_class(self):
@@ -1022,6 +1018,11 @@ class SaveHDF(SinkRegister):
             database.save_data(self.h5file.name, "hdf", saveid)
         else:
             database.save_data(self.h5file.name, "hdf", saveid, dbname=dbname)
+
+    def _cycle(self):
+        super(SaveHDF, self)._cycle()
+        if self.task_data is not None:
+            self.sinks.send("task", self.task_data)
 
 ########################################################################################################
 # Plexon features
@@ -1099,7 +1100,7 @@ class SpikeSimulate(object):
     '''
     pass
 
-class RelayPlexon(SinkRegister):
+class RelayPlexon(object):
     '''
     Sends the full data from eyetracking and motiontracking systems directly into Plexon
     '''
@@ -1204,7 +1205,7 @@ class RelayPlexByte(RelayPlexon):
         return nidaq.SendRowByte
 
 
-class RelayBlackrock(SinkRegister):
+class RelayBlackrock(object):
     '''Sends full data directly into the Blackrock system.'''
     def init(self):
         '''
