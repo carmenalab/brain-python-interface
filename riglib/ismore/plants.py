@@ -74,14 +74,11 @@ class ArmAssistPlant(object):
 
     def get_vel(self):
         pos = self.source.read(n_pts=2)['data'][self.pos_state_names]
-        #OLD ts = self.source.read(n_pts=2)['ts'][self.pos_state_names]
         ts = self.source.read(n_pts=2)['ts']
 
         delta_pos = np.array(tuple(pos[1])) - np.array(tuple(pos[0]))
-        #OLD delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[0]))
         delta_ts  = ts[1] - ts[0]
-
-        #OLD vel = delta_pos / (delta_ts * ms_to_s)
+        
         vel = delta_pos / delta_ts
 
         if any(np.isnan(v) for v in vel):
