@@ -16,7 +16,7 @@ from utils.constants import *
 
 common_fields = ['data', 'ts', 'ts_arrival', 'freq']
 aa_fields = common_fields + ['data_aux', 'ts_aux']
-rh_fields = common_fields + ['torque', 'ts_sent']
+rh_fields = common_fields + ['torque']
 
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", aa_fields)
 ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    rh_fields)
@@ -104,9 +104,7 @@ class ArmAssistClient(Client):
                 ts_aux    = int(data_fields[7])   * us_to_s    # convert to sec
 
                 data     = np.array([px, py, ppsi])
-                ts       = np.array([ts, ts, ts])
                 data_aux = np.array([force, bar_angle])
-                ts_aux   = np.array([ts_aux, ts_aux])
 
                 yield ArmAssistFeedbackData(data=data,
                                             ts=ts,
@@ -156,22 +154,16 @@ class ReHandClient(Client):
                 freq    = float(data_fields[0])
                 vel     = [float(data_fields[i]) for i in [1, 5,  9, 13]]
                 pos     = [float(data_fields[i]) for i in [2, 6, 10, 14]]
-                torque  = [float(data_fields[i]) for i in [3, 7, 11, 15]]  
-                ts      = [  int(data_fields[i]) for i in [4, 8, 12, 16]]
-                ts_sent = int(data_fields[17])
+                torque  = [float(data_fields[i]) for i in [3, 7, 11, 15]]
+                ts = int(data_fields[4]) * us_to_s  # convert to secs
 
                 # convert angular values from deg to rad (and deg/s to rad/s)
                 data = np.array(pos + vel) * deg_to_rad
-                
-                # convert time values from microseconds to secs                
-                ts = np.array(ts + ts) * us_to_s
-                ts_sent = ts_sent * us_to_s
 
                 yield ReHandFeedbackData(data=data, 
-                                         ts=ts, 
+                                         ts=ts,
                                          ts_arrival=ts_arrival,
                                          freq=freq,
-                                         torque=torque,
-                                         ts_sent=ts_sent)
+                                         torque=torque)
 
             time.sleep(sleep_time)
