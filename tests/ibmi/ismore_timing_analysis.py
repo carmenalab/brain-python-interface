@@ -2,89 +2,122 @@ import sys
 import tables
 import numpy as np
 
+from utils.constants import *
+
+
 class Test:
 	pass
 
 tests = []
 
+# t = Test()
+# t.name = "armassist + rehand + blackrock"
+# t.hdf_file ='/storage/rawdata/hdf/test20140715_15.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()
+# t.name = "armassist + rehand + blackrock (repeat)"
+# t.hdf_file ='/storage/rawdata/hdf/test20140715_18.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()
+# t.name = "armassist + blackrock"
+# t.hdf_file ='/storage/rawdata/hdf/test20140715_25.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = False
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()
+# t.name = "rehand + blackrock"
+# t.hdf_file ='/storage/rawdata/hdf/test20140715_27.hdf'
+# t.analyze_aa = False
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()
+# t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
+# t.hdf_file ='/storage/rawdata/hdf/test20140715_30.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()  # saving freq
+# t.name = "armassist + rehand + blackrock (using 80ms for GetJointDataEnable)"
+# t.hdf_file ='/storage/rawdata/hdf/test20140715_34.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()  # saving freq now
+# t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
+# t.hdf_file ='/storage/rawdata/hdf/test20140715_36.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()  # saving freq now, and actual feedback strings
+# t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
+# t.hdf_file ='/storage/rawdata/hdf/test20140715_48.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()
+# t.name = "armassist + rehand + blackrock (using 100ms for GetJointDataEnable)"
+# t.hdf_file ='/storage/rawdata/hdf/test20140716_02.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()
+# t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable, switched USB ports/order for ArmAssist/ReHand)"
+# t.hdf_file ='/storage/rawdata/hdf/test20140716_04.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
+# t = Test()
+# t.name = "armassist + rehand + blackrock (using 100ms for GetJointDataEnable, switched USB ports/order for ArmAssist/ReHand)"
+# t.hdf_file ='/storage/rawdata/hdf/test20140716_05.hdf'
+# t.analyze_aa = True
+# t.analyze_rh = True
+# t.ts_unit = 'us'
+# tests.append(t)
+
 
 t = Test()
-t.name = "armassist + rehand + blackrock"
-t.hdf_file ='/storage/rawdata/hdf/test20140715_15.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
-
-t = Test()
-t.name = "armassist + rehand + blackrock (repeat)"
-t.hdf_file ='/storage/rawdata/hdf/test20140715_18.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
-
-t = Test()
-t.name = "armassist + blackrock"
-t.hdf_file ='/storage/rawdata/hdf/test20140715_25.hdf'
-t.analyze_aa = True
-t.analyze_rh = False
-tests.append(t)
-
-t = Test()
-t.name = "rehand + blackrock"
-t.hdf_file ='/storage/rawdata/hdf/test20140715_27.hdf'
+t.name = "rehand"
+t.hdf_file ='/storage/rawdata/hdf/test20141029_01.hdf'
 t.analyze_aa = False
 t.analyze_rh = True
+t.ts_unit = 's'
 tests.append(t)
 
-t = Test()
-t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
-t.hdf_file ='/storage/rawdata/hdf/test20140715_30.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
 
-t = Test()  # saving freq
-t.name = "armassist + rehand + blackrock (using 80ms for GetJointDataEnable)"
-t.hdf_file ='/storage/rawdata/hdf/test20140715_34.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
-
-t = Test()  # saving freq now
-t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
-t.hdf_file ='/storage/rawdata/hdf/test20140715_36.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
-
-t = Test()  # saving freq now, and actual feedback strings
-t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
-t.hdf_file ='/storage/rawdata/hdf/test20140715_48.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
-
-t = Test()
-t.name = "armassist + rehand + blackrock (using 100ms for GetJointDataEnable)"
-t.hdf_file ='/storage/rawdata/hdf/test20140716_02.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
-
-t = Test()
-t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable, switched USB ports/order for ArmAssist/ReHand)"
-t.hdf_file ='/storage/rawdata/hdf/test20140716_04.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
-
-t = Test()
-t.name = "armassist + rehand + blackrock (using 100ms for GetJointDataEnable, switched USB ports/order for ArmAssist/ReHand)"
-t.hdf_file ='/storage/rawdata/hdf/test20140716_05.hdf'
-t.analyze_aa = True
-t.analyze_rh = True
-tests.append(t)
-
+convert_to_s = {
+	'us': us_to_s,
+	'ms': ms_to_s,
+	's':  1.,
+}
+convert_to_ms = {
+	'us': us_to_ms,
+	'ms': 1.,
+	's':  s_to_ms,
+}
 
 
 def print_stats(values, units=""):
@@ -105,7 +138,7 @@ def analyze_test(test):
 		print "\nArmAssist stats:\n"
 		aa = hdf.root.armassist
 
-		mean_acq_freq = 1. / np.mean(np.diff(aa[:]['ts_arrival']) / 1000000.)
+		mean_acq_freq = 1. / np.mean(np.diff(aa[:]['ts_arrival']) * convert_to_s[t.ts_unit])
 		print "acquisition frequency, as measured by Python (mean): %.2f Hz" % mean_acq_freq 
 		print ""
 
@@ -117,7 +150,7 @@ def analyze_test(test):
 			pass		
 
 		print "time between feedback packet arrivals:"
-		values = np.diff(aa[:]['ts_arrival']) / 1000.
+		values = np.diff(aa[:]['ts_arrival']) * convert_to_s[t.ts_unit] 
 		print_stats(values, "ms")
 
 		print """NOTE: for some reason, the UNIX timestamps acquired within
@@ -128,7 +161,7 @@ def analyze_test(test):
 	             typically <100ms, so for now, we can assume that they are comparable
 	             to the corresponding values for the ReHand."""
 		print "ts_arrival - ts_sampled"
-		values = (aa[:]['ts_arrival'][0] - aa[:]['ts']['aa_px']) / 1000.
+		values = (aa[:]['ts_arrival'][0] - aa[:]['ts']['aa_px']) * convert_to_ms[t.ts_unit]
 		print_stats(values, "ms")
 
 
@@ -136,7 +169,7 @@ def analyze_test(test):
 		print "\nReHand stats:\n"
 		rh = hdf.root.rehand
 
-		mean_acq_freq = 1. / np.mean(np.diff(rh[:]['ts_arrival']) / 1000000.)
+		mean_acq_freq = 1. / np.mean(np.diff(rh[:]['ts_arrival']) * convert_to_s[t.ts_unit])
 		print "acquisition frequency, as measured by Python (mean): %.2f Hz" % mean_acq_freq 
 		print ""
 
@@ -148,28 +181,17 @@ def analyze_test(test):
 			pass
 
 		print "time between feedback packet arrivals:"
-		values = np.diff(rh[:]['ts_arrival']) / 1000.
+		values = np.diff(rh[:]['ts_arrival']) * convert_to_ms[t.ts_unit]
 		print_stats(values, "ms")
 
 		print "ts_arrival - ts_sent"
-		values = (rh[:]['ts_arrival'] - rh[:]['ts_sent']) / 1000.
+		values = (rh[:]['ts_arrival'] - rh[:]['ts_sent']) * convert_to_ms[t.ts_unit]
 		print_stats(values, "ms")
 
-		print "ts_sent - ts_thumb"
-		values = (rh[:]['ts_sent'] - rh[:]['ts']['rh_pthumb']) / 1000.
-		print_stats(values, "ms")
-
-		print "ts_sent - ts_index"
-		values = (rh[:]['ts_sent'] - rh[:]['ts']['rh_pindex']) / 1000.
-		print_stats(values, "ms")
-
-		print "ts_sent - ts_fing3"
-		values = (rh[:]['ts_sent'] - rh[:]['ts']['rh_pfing3']) / 1000.
-		print_stats(values, "ms")
-
-		print "ts_sent - ts_prono"
-		values = (rh[:]['ts_sent'] - rh[:]['ts']['rh_pprono']) / 1000.
-		print_stats(values, "ms")
+		for state in ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']:
+			print "ts_sent - timestamp for " + state
+			values = (rh[:]['ts_sent'] - rh[:]['ts'][state]) * convert_to_ms[t.ts_unit]
+			print_stats(values, "ms")
 
 	# max difference between sampling times
 
