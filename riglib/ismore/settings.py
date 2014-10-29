@@ -1,15 +1,23 @@
 import pandas as pd
 from utils.constants import *
 
-# send SetSpeed commands to these addresses
-armassist_udp_server = ('127.0.0.1', 5001)
-# rehand_udp_server    = ('127.0.0.1', 5000)
-rehand_udp_server    = ('192.168.137.6', 5000)
 
-# receive feedback data on these addresses
+REMOTE_REHAND_SERVER = True
+# REMOTE_REHAND_SERVER = False
+
+# send SetSpeed commands to udp_server addresses
+# receive feedback data on udp_client addresses
+
+armassist_udp_server = ('127.0.0.1', 5001)
 armassist_udp_client = ('127.0.0.1', 5002)
-# rehand_udp_client    = ('127.0.0.1', 5003)
-rehand_udp_client    = ('192.168.137.2', 5003)
+
+if REMOTE_REHAND_SERVER:
+	rehand_udp_server = ('192.168.137.6', 5000)
+	rehand_udp_client = ('192.168.137.2', 5003)
+else: 
+	rehand_udp_server = ('127.0.0.1', 5000)
+	rehand_udp_client = ('127.0.0.1', 5003)
+
 
 pos_states = [
     'aa_px',
