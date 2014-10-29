@@ -76,6 +76,6 @@ class ReHandData(FeedbackData):
                           d.ts, 
                           d.ts_arrival, 
                           d.freq,
-                          tuple(d.torque))]
+                          tuple(d.torque))],
                         dtype=self.dtype)
 

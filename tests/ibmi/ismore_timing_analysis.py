@@ -6,202 +6,64 @@ from utils.constants import *
 
 
 class Test:
-	pass
+    pass
 
 tests = []
 
-# t = Test()
-# t.name = "armassist + rehand + blackrock"
-# t.hdf_file ='/storage/rawdata/hdf/test20140715_15.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()
-# t.name = "armassist + rehand + blackrock (repeat)"
-# t.hdf_file ='/storage/rawdata/hdf/test20140715_18.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()
-# t.name = "armassist + blackrock"
-# t.hdf_file ='/storage/rawdata/hdf/test20140715_25.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = False
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()
-# t.name = "rehand + blackrock"
-# t.hdf_file ='/storage/rawdata/hdf/test20140715_27.hdf'
-# t.analyze_aa = False
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()
-# t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
-# t.hdf_file ='/storage/rawdata/hdf/test20140715_30.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()  # saving freq
-# t.name = "armassist + rehand + blackrock (using 80ms for GetJointDataEnable)"
-# t.hdf_file ='/storage/rawdata/hdf/test20140715_34.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()  # saving freq now
-# t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
-# t.hdf_file ='/storage/rawdata/hdf/test20140715_36.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()  # saving freq now, and actual feedback strings
-# t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable)"
-# t.hdf_file ='/storage/rawdata/hdf/test20140715_48.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()
-# t.name = "armassist + rehand + blackrock (using 100ms for GetJointDataEnable)"
-# t.hdf_file ='/storage/rawdata/hdf/test20140716_02.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()
-# t.name = "armassist + rehand + blackrock (using 65ms for GetJointDataEnable, switched USB ports/order for ArmAssist/ReHand)"
-# t.hdf_file ='/storage/rawdata/hdf/test20140716_04.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-# t = Test()
-# t.name = "armassist + rehand + blackrock (using 100ms for GetJointDataEnable, switched USB ports/order for ArmAssist/ReHand)"
-# t.hdf_file ='/storage/rawdata/hdf/test20140716_05.hdf'
-# t.analyze_aa = True
-# t.analyze_rh = True
-# t.ts_unit = 'us'
-# tests.append(t)
-
-
 t = Test()
-t.name = "rehand"
-t.hdf_file ='/storage/rawdata/hdf/test20141029_02.hdf'
-t.analyze_aa = False
-t.analyze_rh = True
-t.ts_unit = 's'
+t.name     = "sim app test"
+t.hdf_file ='/storage/rawdata/hdf/test20141029_07.hdf'
 tests.append(t)
 
 
-convert_to_s = {
-	'us': us_to_s,
-	'ms': ms_to_s,
-	's':  1.,
-}
-convert_to_ms = {
-	'us': us_to_ms,
-	'ms': 1.,
-	's':  s_to_ms,
-}
-
-
 def print_stats(values, units=""):
-	print "mean   %.2f %s" % (np.mean(values),   units)
-	print "std    %.2f %s" % (np.std(values),    units)
-	print "median %.2f %s" % (np.median(values), units)
-	print "max    %.2f %s" % (np.max(values),    units)
-	print "min    %.2f %s" % (np.min(values),    units)
-	print ""
+    print "mean   %.2f %s" % (np.mean(values),   units)
+    print "std    %.2f %s" % (np.std(values),    units)
+    print "median %.2f %s" % (np.median(values), units)
+    print "max    %.2f %s" % (np.max(values),    units)
+    print "min    %.2f %s" % (np.min(values),    units)
+    print ""
 
 def analyze_test(test):
-	hdf = tables.openFile(t.hdf_file)
-	length = hdf.root.task.shape[0] / 10.  # length of block in seconds
+    hdf = tables.openFile(t.hdf_file)
+    length = hdf.root.task.shape[0] / 10.  # length of block in seconds
 
-	print t.name + " (~%d minutes)" % round(length / 60.)
+    print t.name + " (~%d minutes)" % round(length / 60.)
 
-	if t.analyze_aa:
-		print "\nArmAssist stats:\n"
-		aa = hdf.root.armassist
+    if 'armassist' in hdf.root:
+        analyze_device("ArmAssist", hdf.root.armassist)
 
-		mean_acq_freq = 1. / np.mean(np.diff(aa[:]['ts_arrival']) * convert_to_s[t.ts_unit])
-		print "acquisition frequency, as measured by Python (mean): %.2f Hz" % mean_acq_freq 
-		print ""
-
-		try:
-			values = aa[:]['freq']
-			print "acquisition frequency, as reported by ArmAssist application"
-			print_stats(values, "Hz")
-		except:
-			pass		
-
-		print "time between feedback packet arrivals:"
-		values = np.diff(aa[:]['ts_arrival']) * convert_to_s[t.ts_unit] 
-		print_stats(values, "ms")
-
-		print """NOTE: for some reason, the UNIX timestamps acquired within
-	             the ArmAssist application still seem to have an offset
-	             compared to the timestamps acquired both in the ReHand application
-	             and Python...so the values aren't meaningful. However, from some
-	             earlier tests measuring the 'round-trip' time, these values were 
-	             typically <100ms, so for now, we can assume that they are comparable
-	             to the corresponding values for the ReHand."""
-		print "ts_arrival - ts_sampled"
-		values = (aa[:]['ts_arrival'][0] - aa[:]['ts']['aa_px']) * convert_to_ms[t.ts_unit]
-		print_stats(values, "ms")
+    if 'rehand' in hdf.root:
+        analyze_device("ReHand", hdf.root.rehand)
 
 
-	if t.analyze_rh:
-		print "\nReHand stats:\n"
-		rh = hdf.root.rehand
+def analyze_device(dev_name, dev_data):
+    print "\n" + dev_name + " stats:\n"
 
-		mean_acq_freq = 1. / np.mean(np.diff(rh[:]['ts_arrival']) * convert_to_s[t.ts_unit])
-		print "acquisition frequency, as measured by Python (mean): %.2f Hz" % mean_acq_freq 
-		print ""
+    mean_acq_freq = 1. / np.mean(np.diff(dev_data[:]['ts_arrival']))
+    print "mean acquisition frequency, as measured by Python: %.2f Hz" % mean_acq_freq 
+    print ""
 
-		try:
-			values = rh[:]['freq']
-			print "acquisition frequency, as reported by ReHand application"
-			print_stats(values, "Hz")
-		except:
-			pass
+    values = dev_data[:]['freq']
+    print "acquisition frequency, as reported by the " + dev_name + " application"
+    print_stats(values, "Hz")
 
-		print "time between feedback packet arrivals:"
-		values = np.diff(rh[:]['ts_arrival']) * convert_to_ms[t.ts_unit]
-		print_stats(values, "ms")
+    print "time between feedback packet arrivals:"
+    values = np.diff(dev_data[:]['ts_arrival']) * s_to_ms
+    print_stats(values, "ms")
 
-		print "ts_arrival - ts_sent"
-		values = (rh[:]['ts_arrival'] - rh[:]['ts_sent']) * convert_to_ms[t.ts_unit]
-		print_stats(values, "ms")
+    print "ts_arrival - ts (only meaningful if " + dev_name + " application ran locally)"
+    values = (dev_data[:]['ts_arrival'] - dev_data[:]['ts']) * s_to_us
+    print_stats(values, "us")
 
-		for state in ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']:
-			print "ts_sent - timestamp for " + state
-			values = (rh[:]['ts_sent'] - rh[:]['ts'][state]) * convert_to_ms[t.ts_unit]
-			print_stats(values, "ms")
-
-	# max difference between sampling times
 
 
 for i, t in enumerate(tests):
-	test_num = i + 1
+    test_num = i + 1
 
-	log_file = open("test%d.txt" % test_num, "w")
-	sys.stdout = log_file
-	
-	analyze_test(t)
+    log_file = open("test%d.txt" % test_num, "w")
+    sys.stdout = log_file
+    
+    analyze_test(t)
 
-	log_file.close()
+    log_file.close()
