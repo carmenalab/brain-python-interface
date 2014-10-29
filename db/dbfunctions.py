@@ -473,7 +473,7 @@ class TaskEntry(object):
             self._plx
         except:
             from plexon import plexfile
-            self._plx = plexfile.openFile(str(self.plx_file))
+            self._plx = plexfile.openFile(str(self.plx_filename))
         return self._plx
 
     @property
@@ -558,7 +558,7 @@ class TaskEntry(object):
         '''
         Return the name of the plx file associated with this TaskEntry
         '''
-        return self.get_datafile('plexon', intermediate_path='')
+        return self.get_datafile('plexon', intermediate_path='plexon')
 
     @property
     def plx2_filename(self):
