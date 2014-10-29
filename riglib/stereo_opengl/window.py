@@ -30,7 +30,7 @@ except:
     warnings.warn('riglib/stereo_opengl/window.py: not importing name pygame')
 
 # for WindowDispl2D only
-from riglib.stereo_opengl.primitives import Shape2D  # Circle, Sector, Line
+from riglib.stereo_opengl.primitives import Shape2D
 
 
 class Window(LogExperiment):
@@ -174,7 +174,7 @@ class WindowWithHeadsUp(Window):
         self.screen = pygame.display.set_mode(win_res, flags)
 
 import matplotlib.pyplot as plt
-import plotutil
+# import plotutil
 from pylab import Circle
 
 class MatplotlibWindow(object):
@@ -241,17 +241,18 @@ class Simple2DWindow(object):
 
         flags = pygame.NOFRAME
 
-        # win_res = (480, 270)
-        win_res = (1000, 560)
-
         
         if config.recording_sys['make'] == 'plexon':
             self.workspace_bottom_left = (-18., -12.)
             self.workspace_top_right   = (18., 12.)
+            win_res = (1000, 560)
         elif config.recording_sys['make'] == 'blackrock':
-            self.workspace_bottom_left = (-10., -10.)
-            #self.workspace_top_right   = ( 52.,  40.)
-            self.workspace_top_right = (95., 105.)
+            border = 10.  # TODO -- difference between this and self.display_border?
+            self.workspace_bottom_left = np.array([ 0. - border, 
+                                                    0. - border])
+            self.workspace_top_right   = np.array([85. + border, 
+                                                   95. + border])
+            win_res = (600, 600)
         else:
             raise Exception('Unknown recording_system!')
 
