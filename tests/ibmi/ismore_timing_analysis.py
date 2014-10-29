@@ -5,15 +5,17 @@ import numpy as np
 from utils.constants import *
 
 
-class Test:
+# define tests and append them to the list
+sessions = []
+
+# simple class to use as a struct
+class Session:
     pass
 
-tests = []
-
-t = Test()
-t.name     = "sim app test"
-t.hdf_file ='/storage/rawdata/hdf/test20141029_07.hdf'
-tests.append(t)
+s = Session()
+s.name     = "sim app test"
+s.hdf_file ='/storage/rawdata/hdf/test20141029_07.hdf'
+sessions.append(s)
 
 
 def print_stats(values, units=""):
@@ -24,31 +26,29 @@ def print_stats(values, units=""):
     print "min    %.2f %s" % (np.min(values),    units)
     print ""
 
-def analyze_test(test):
-    hdf = tables.openFile(t.hdf_file)
+def analyze_session(s):
+    hdf = tables.openFile(s.hdf_file)
     length = hdf.root.task.shape[0] / 10.  # length of block in seconds
 
-    print t.name + " (~%d minutes)" % round(length / 60.)
+    print s.name + " (~%d minutes)" % round(length / 60.)
 
     if 'armassist' in hdf.root:
-        analyze_device("ArmAssist", hdf.root.armassist)
+        analyze_feedback_source("ArmAssist", hdf.root.armassist)
 
     if 'rehand' in hdf.root:
-        analyze_device("ReHand", hdf.root.rehand)
+        analyze_feedback_source("ReHand", hdf.root.rehand)
 
-
-def analyze_device(dev_name, dev_data):
+def analyze_feedback_source(dev_name, dev_data):
     print "\n" + dev_name + " stats:\n"
 
     mean_acq_freq = 1. / np.mean(np.diff(dev_data[:]['ts_arrival']))
-    print "mean acquisition frequency, as measured by Python: %.2f Hz" % mean_acq_freq 
-    print ""
+    print "mean acquisition frequency, as measured by Python: %.2f Hz\n" % mean_acq_freq 
 
-    values = dev_data[:]['freq']
     print "acquisition frequency, as reported by the " + dev_name + " application"
+    values = dev_data[:]['freq']
     print_stats(values, "Hz")
 
-    print "time between feedback packet arrivals:"
+    print "time between feedback packet arrivals"
     values = np.diff(dev_data[:]['ts_arrival']) * s_to_ms
     print_stats(values, "ms")
 
@@ -57,13 +57,10 @@ def analyze_device(dev_name, dev_data):
     print_stats(values, "us")
 
 
+# iterate through sessions and analyze them 
+for i, s in enumerate(sessions):
+    with open("test%d.txt" % i, "w") as log_file:
+        sys.stdout = log_file
+        analyze_session(s)
 
-for i, t in enumerate(tests):
-    test_num = i + 1
-
-    log_file = open("test%d.txt" % test_num, "w")
-    sys.stdout = log_file
     
-    analyze_test(t)
-
-    log_file.close()
