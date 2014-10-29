@@ -2,8 +2,8 @@ import pandas as pd
 from utils.constants import *
 
 
-REMOTE_REHAND_SERVER = True
-# REMOTE_REHAND_SERVER = False
+# REMOTE_REHAND_SERVER = True
+REMOTE_REHAND_SERVER = False
 
 # send SetSpeed commands to udp_server addresses
 # receive feedback data on udp_client addresses
