@@ -709,6 +709,9 @@ class MotionData(traits.HasTraits):
         from riglib import source
         src, mkw = self.motion_source
         self.motiondata = source.DataSource(src, **mkw)
+        from riglib import sink
+        self.sinks = sink.sinks
+        self.sinks.register(self.motiondata)
         super(MotionData, self).init()
     
     @property
@@ -923,8 +926,8 @@ class SinkRegister(object):
         # to the HDF file will be incorrect/incomplete
         super(SinkRegister, self).init()
 
-        if isinstance(self, (MotionData, MotionSimulate)):
-            self.sinks.register(self.motiondata)
+        # if isinstance(self, (MotionData, MotionSimulate)):
+        #     self.sinks.register(self.motiondata)
         if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
             self.sinks.register(self.eyedata)
         if isinstance(self, Joystick):
