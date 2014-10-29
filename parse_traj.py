@@ -8,11 +8,14 @@ from scipy.interpolate import interp1d
 
 from utils.constants import *
 
-# INTERPOLATE_TRAJ = True  # use when parsing a reference trajectory
+#INTERPOLATE_TRAJ = True  # use when parsing a reference trajectory
 INTERPOLATE_TRAJ = False  # use when parsing a playback trajectory
 
 #hdf_name = '/storage/rawdata/hdf/test20141028_08.hdf'  # ref
-hdf_name = '/storage/rawdata/hdf/test20141028_09.hdf'  # playback
+#hdf_name = '/storage/rawdata/hdf/test20141028_09.hdf'  # playback
+
+#hdf_name = '/storage/rawdata/hdf/test20141028_11.hdf'  # ref
+hdf_name = '/storage/rawdata/hdf/test20141028_19.hdf'  # playback
 
 if INTERPOLATE_TRAJ:
     pkl_name = 'traj_reference_interp.pkl'
