@@ -194,9 +194,8 @@ class Connection(object):
                 #     print "*** Overflow with " + str(block - lastBlock) + " datablocks ***" 
                 # lastBlock = block
 
-            elif msgtype == RDA_MessageKeepAlive:
+            elif msgtype == self.RDA_MessageKeepAlive:
                 pass
+            
             else:
-                pass
-                # print 'message type 10000, skipping'
-                # raise Exception('Unrecognized RDA message type: ' + str(msgtype))
+                raise Exception('Unrecognized RDA message type: ' + str(msgtype))

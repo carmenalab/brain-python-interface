@@ -811,11 +811,13 @@ class MotionAutoAlign(MotionData):
 
 class BlackrockData(traits.HasTraits):
     '''Stream Blackrock neural data.'''
+
     blackrock_channels = None
 
     def init(self):
         '''
-        Docstring
+        Create a DataSource or MultiChanDataSource for the spike or LFP data
+        and register the source with the SinkManager singleton object.
 
         Parameters
         ----------
@@ -855,6 +857,7 @@ class BlackrockData(traits.HasTraits):
 
 class BlackrockBMI(BlackrockData):
     '''Filters neural data from the Blackrock system through a BMI.'''
+
     decoder = traits.Instance(bmi.Decoder)
 
     def init(self):
@@ -874,11 +877,12 @@ class BlackrockBMI(BlackrockData):
 
 
 class BrainAmpData(traits.HasTraits):
-    '''Stream BrainAmp neural data.'''
+    '''Stream BrainAmp EMG/EEG/EOG data.'''
 
     def init(self):
         '''
-        Docstring
+        Create a MultiChanDataSource for the EMG data and register the source
+        with the SinkManager singleton object.
 
         Parameters
         ----------
@@ -887,12 +891,12 @@ class BrainAmpData(traits.HasTraits):
         -------
         '''
         from riglib import brainamp, source
-        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
+        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels, send_data_to_sink_manager=True)
 
-        try:
-            super(BrainAmpData, self).init()
-        except:
-            print "BrainAmpData: running without a task"
+        from riglib import sink
+        sink.sinks.register(self.emgdata)
+
+        super(BrainAmpData, self).init()
 
     def run(self):
         self.emgdata.start()

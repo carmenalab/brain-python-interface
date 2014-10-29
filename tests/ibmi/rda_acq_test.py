@@ -10,7 +10,6 @@ n_chan = len(channels)
 
 
 class BrainAmpData(object):
-# class BrainAmpData(traits.HasTraits):
     '''Stream BrainAmp neural data.'''
 
     def init(self):
