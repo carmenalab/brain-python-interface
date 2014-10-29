@@ -101,7 +101,7 @@ tests = []
 
 t = Test()
 t.name = "rehand"
-t.hdf_file ='/storage/rawdata/hdf/test20141029_01.hdf'
+t.hdf_file ='/storage/rawdata/hdf/test20141029_02.hdf'
 t.analyze_aa = False
 t.analyze_rh = True
 t.ts_unit = 's'
