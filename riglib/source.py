@@ -24,8 +24,6 @@ class DataSource(mp.Process):
     '''
     def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, **kwargs):
         '''
-        Constructor for DataSource
-
         Parameters
         ----------
         source: class
@@ -294,8 +292,6 @@ class MultiChanDataSource(mp.Process):
     '''
     def __init__(self, source, bufferlen=5, send_data_to_sink_manager=False, **kwargs):
         '''
-        Constructor for MultiChanDataSource
-
         Parameters
         ----------
         source: class 
@@ -305,7 +301,7 @@ class MultiChanDataSource(mp.Process):
         kwargs: dict, optional, default = {}
             For the multi-channel data source, you MUST specify a 'channels' keyword argument
             Note that kwargs['channels'] does not need to a list of integers,
-            it can also be a list of strings (e.g., see feedback multi-chan data source for IsMore).
+            it can also be a list of strings.
         '''
 
         super(MultiChanDataSource, self).__init__()
