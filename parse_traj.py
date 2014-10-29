@@ -64,8 +64,10 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
         traj[trial_type] = dict()
 
         t_end    = task_msgs[idx+1]['time'] - 1
-        ts_start = task[t_start]['ts'][0]
-        ts_end   = task[t_end]['ts'][0]
+        #OLD ts_start = task[t_start]['ts'][0]
+        #OLD ts_end   = task[t_end]['ts'][0]
+        ts_start = task[t_start]['ts']
+        ts_end   = task[t_end]['ts']
         traj[trial_type]['ts_start'] = ts_start
         traj[trial_type]['ts_end']   = ts_end
 
@@ -103,8 +105,10 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
             else:
                 idxs = [i for (i, x) in enumerate(armassist[:]) if ts_start <= x['ts_arrival'] <= ts_end]
                 df_aa1 = pd.DataFrame(np.array(armassist[idxs]['data'].tolist()).T, index=aa_pos_states)
-                aa_px_ts = (np.array(armassist[idxs]['ts'].tolist()).T)[0:1, :]  # TODO -- use ts_arrival, not ts
-                df_aa2 = pd.DataFrame(aa_px_ts, index=['ts'])
+                #OLD aa_px_ts = (np.array(armassist[idxs]['ts'].tolist()).T)[0:1, :]  # TODO -- use ts_arrival, not ts
+                #OLD df_aa2 = pd.DataFrame(aa_px_ts, index=['ts'])
+                aa_ts = armassist[idxs]['ts']  # TODO -- use ts_arrival, not ts
+                df_aa2 = pd.DataFrame(aa_ts, index=['ts'])
                 traj[trial_type]['armassist'] = pd.concat([df_aa1, df_aa2])
 
         # save rehand data
@@ -129,7 +133,8 @@ for idx in trial_idxs[0:4]:  # ONLY LOOK AT FIRST 4 TRIALS FOR NOW
                 idxs = [i for (i, x) in enumerate(rehand[:]) if ts_start <= x['ts_arrival'] <= ts_end]
                 df_rh1 = pd.DataFrame(np.array(rehand[idxs]['data'].tolist()).T, 
                                       index=rh_pos_states+rh_vel_states)
-                rh_ts = (np.array(rehand[idxs]['ts'].tolist()).T)[0:1, :]  # TODO -- use ts_arrival, not ts
+                #OLD rh_ts = (np.array(rehand[idxs]['ts'].tolist()).T)[0:1, :]  # TODO -- use ts_arrival, not ts
+                rh_ts = rehand[idxs]['ts']  # TODO -- use ts_arrival, not ts
                 df_rh2 = pd.DataFrame(rh_ts, index=['ts'])
                 traj[trial_type]['rehand'] = pd.concat([df_rh1, df_rh2])
 
