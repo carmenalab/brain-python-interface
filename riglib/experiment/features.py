@@ -153,19 +153,6 @@ class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
     rand_start = traits.Tuple((0., 0.), desc="Start interval")
 
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        self.pause = False
-        super(Autostart, self).__init__(*args, **kwargs)
-
     def _start_wait(self):
         '''
         Docstring
