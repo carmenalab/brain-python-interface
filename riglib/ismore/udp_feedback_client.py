@@ -149,13 +149,13 @@ class ReHandClient(Client):
                 assert cmd_id == 'Status'               
 
                 data_fields = items[2:]
-                assert len(data_fields) == 18
+                assert len(data_fields) == 14
 
-                freq    = float(data_fields[0])
-                vel     = [float(data_fields[i]) for i in [1, 5,  9, 13]]
-                pos     = [float(data_fields[i]) for i in [2, 6, 10, 14]]
-                torque  = [float(data_fields[i]) for i in [3, 7, 11, 15]]
-                ts = int(data_fields[4]) * us_to_s  # convert to secs
+                freq   = float(data_fields[0])
+                vel    = [float(data_fields[i]) for i in [1, 4, 7, 10]]
+                pos    = [float(data_fields[i]) for i in [2, 5, 8, 11]]
+                torque = [float(data_fields[i]) for i in [3, 6, 9, 12]]
+                ts     = int(data_fields[13]) * us_to_s  # convert to secs
 
                 # convert angular values from deg to rad (and deg/s to rad/s)
                 data = np.array(pos + vel) * deg_to_rad
