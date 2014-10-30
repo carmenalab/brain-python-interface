@@ -8,8 +8,8 @@ from scipy.interpolate import interp1d
 from utils.constants import *
 
 
-#INTERPOLATE_TRAJ = True  # use when parsing a reference trajectory
-INTERPOLATE_TRAJ = False  # use when parsing a playback trajectory
+INTERPOLATE_TRAJ = True  # use when parsing a reference trajectory
+#INTERPOLATE_TRAJ = False  # use when parsing a playback trajectory
 
 if INTERPOLATE_TRAJ:
     pkl_name = 'traj_reference_interp.pkl'
@@ -19,8 +19,8 @@ else:
 #hdf_name = '/storage/rawdata/hdf/test20141028_08.hdf'  # ref
 #hdf_name = '/storage/rawdata/hdf/test20141028_09.hdf'  # playback
 
-#hdf_name = '/storage/rawdata/hdf/test20141028_11.hdf'  # ref
-hdf_name = '/storage/rawdata/hdf/test20141028_19.hdf'  # playback
+hdf_name = '/storage/rawdata/hdf/test20141028_11.hdf'  # ref
+#hdf_name = '/storage/rawdata/hdf/test20141028_19.hdf'  # playback
 
 aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
 rh_pos_states = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
@@ -106,7 +106,7 @@ for msg_idx in trial_start_msg_idxs:
                 df_aa2 = pd.DataFrame(armassist[idxs]['ts_arrival'], columns=['ts'])
                 df_aa  = pd.concat([df_aa1, df_aa2], axis=1)
 
-            traj[trial_type]['armassist'] = df_aa
+            traj[trial_type]['armassist'] = df_aa.T
 
         # save rehand data
         if rh_flag:
@@ -133,20 +133,20 @@ for msg_idx in trial_start_msg_idxs:
                 df_rh2 = pd.DataFrame(rehand[idxs]['ts_arrival'], columns=['ts'])
                 df_rh  = pd.concat([df_rh1, df_rh2], axis=1)
 
-            traj[trial_type]['rehand'] = df_rh
+            traj[trial_type]['rehand'] = df_rh.T
 
-
+        # also save armassist+rehand data into a single combined dataframe
         if INTERPOLATE_TRAJ:
-            # also form a single dataframe named traj
             df_traj = df_ts_interp.copy()
+
             if aa_flag:
                 for state in aa_pos_states:
-                    df_tmp = pd.DataFrame(df_aa.T[state], columns=[state]).T
-                    df_traj = pd.concat([df_traj, df_tmp])
+                    df_traj = pd.concat([df_traj, df_aa[state]], axis=1)
+            
             if rh_flag:
                 for state in rh_pos_states + rh_vel_states:
-                    df_tmp = pd.DataFrame(df_rh.T[state], columns=[state]).T
-                    df_traj = pd.concat([df_traj, df_rh[state]])
-            traj[trial_type]['traj'] = df_traj
+                    df_traj = pd.concat([df_traj, df_rh[state]], axis=1)
+            
+            traj[trial_type]['traj'] = df_traj.T
 
 pickle.dump(traj, open(pkl_name, 'wb'))
