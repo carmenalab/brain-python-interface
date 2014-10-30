@@ -5,7 +5,7 @@ import socket
 
 from riglib import ismore, blackrock, source
 from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
-from riglib.ismore import settings
+from riglib.ismore import settings, udp_feedback_client
 from utils.constants import *
 
 try:
@@ -28,7 +28,8 @@ class ArmAssistPlant(object):
     def __init__(self, print_commands=PRINT_COMMANDS):
         self.print_commands = print_commands
 
-        self.source = source.DataSource(ismore.ArmAssistData, bufferlen=5, name='armassist')
+        #self.source = source.DataSource(ismore.ArmAssistData, bufferlen=5, name='armassist')
+        self.source = source.DataSource(ismore.udp_feedback_client.ArmAssistData, bufferlen=5, name='armassist')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
         self.aa_addr = settings.armassist_udp_server
         
@@ -102,7 +103,8 @@ class ReHandPlant(object):
     def __init__(self, print_commands=PRINT_COMMANDS):
         self.print_commands = print_commands
 
-        self.source = source.DataSource(ismore.ReHandData, bufferlen=5, name='rehand')
+        #self.source = source.DataSource(ismore.ReHandData, bufferlen=5, name='rehand')
+        self.source = source.DataSource(ismore.udp_feedback_client.ReHandData, bufferlen=5, name='rehand')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
         self.rh_addr = settings.rehand_udp_server
 
