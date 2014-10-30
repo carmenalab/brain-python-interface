@@ -52,6 +52,7 @@ generators = dict(
     centerout_back=manualcontrol.rand_multi_sequence_2d_centeroutback,
     centerout_2step=manualcontrol.rand_multi_sequence_2d_centerout2step,
     centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
+    centerout_2D_discrete_rot=generatorfunctions.centerout_2D_discrete_rot,
     centerout_2D_discrete_randorder=generatorfunctions.centerout_2D_discrete_randorder,
     centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
     centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
