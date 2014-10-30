@@ -8,19 +8,25 @@ from scipy.interpolate import interp1d
 from utils.constants import *
 
 
-INTERPOLATE_TRAJ = True  # use when parsing a reference trajectory
-#INTERPOLATE_TRAJ = False  # use when parsing a playback trajectory
+# set INTERPOLATE_TRAJ = True  when parsing a reference trajectory
+# set INTERPOLATE_TRAJ = False when parsing a playback trajectory
+
+# hdf_name = '/storage/rawdata/hdf/test20141028_08.hdf'  # ref
+# hdf_name = '/storage/rawdata/hdf/test20141028_09.hdf'  # playback
+
+# hdf_name = '/storage/rawdata/hdf/test20141028_11.hdf'  # ref
+# INTERPOLATE_TRAJ = True
+# hdf_name = '/storage/rawdata/hdf/test20141028_19.hdf'  # playback
+# INTERPOLATE_TRAJ = False
+
+hdf_name = '/storage/rawdata/hdf/test20141030_06.hdf'  # playback
+INTERPOLATE_TRAJ = False
 
 if INTERPOLATE_TRAJ:
     pkl_name = 'traj_reference_interp.pkl'
 else:
     pkl_name = 'traj_playback.pkl'
 
-#hdf_name = '/storage/rawdata/hdf/test20141028_08.hdf'  # ref
-#hdf_name = '/storage/rawdata/hdf/test20141028_09.hdf'  # playback
-
-hdf_name = '/storage/rawdata/hdf/test20141028_11.hdf'  # ref
-#hdf_name = '/storage/rawdata/hdf/test20141028_19.hdf'  # playback
 
 aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
 rh_pos_states = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
@@ -68,8 +74,10 @@ for msg_idx in trial_start_msg_idxs:
         # actual start and end times of this trial 
         ts_start = task[idx_start]['ts']  # secs
         ts_end   = task[idx_end]['ts']    # secs
+
         traj[trial_type]['ts_start'] = ts_start
         traj[trial_type]['ts_end']   = ts_end
+
 
         # save task data
         idxs = [idx for idx in range(len(task[:])) if idx_start <= idx <= idx_end]
@@ -110,7 +118,7 @@ for msg_idx in trial_start_msg_idxs:
 
         # save rehand data
         if rh_flag:
-            idxs = [i for (i, rh_data) in enumerate(rehand[:]['ts_arrival']) if ts_start <= ts <= ts_end]
+            idxs = [i for (i, ts) in enumerate(rehand[:]['ts_arrival']) if ts_start <= ts <= ts_end]
                 
             if INTERPOLATE_TRAJ:
                 # add one more idx to the beginning and end, if possible

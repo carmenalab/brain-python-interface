@@ -14,7 +14,7 @@ pkl_name = 'traj_reference_interp.pkl'
 mat_name = os.path.expandvars('$HOME/Desktop/Kinematic data ArmAssist/Epoched data/epoched_kin_data/NI_sess05_20140610/NI_B1S005R01.mat')
 
 
-index = [
+columns = [
     'Time',
     'AbsPos_X(mm)',
     'AbsPos_Y(mm)',
@@ -56,28 +56,25 @@ rh_fields = ['ts'] + rh_pos_states + rh_vel_states
 
 def preprocess_data(df):
     # rename dataframe fields to match state space names used in Python code
-    df = df.rename(field_mapping)
+    df = df.rename(columns=field_mapping)
 
     # convert units to sec, cm, rad
-    df.ix['ts'] *= ms_to_s
-    df.ix[aa_xy_states] *= mm_to_cm
-    df.ix[ang_pos_states] *= deg_to_rad
+    df['ts'] *= ms_to_s
+    df[aa_xy_states] *= mm_to_cm
+    df[ang_pos_states] *= deg_to_rad
     
     # translate ArmAssist and ReHand trajectories to start at a particular position
     starting_pos = settings.starting_pos
-    pos_offset = df.ix[pos_states, 0] - starting_pos
-    for state in pos_states:
-        df.ix[state, :] -= pos_offset[state]
-    # TODO -- if df was time x states instead of states x time,
-    #   then you could simply do: "df -= pos_offset"
+    pos_offset = df.ix[0, pos_states] - starting_pos
+    df[pos_states] -= pos_offset
 
     # differentiate ReHand positions to get ReHand velocity data
-    delta_pos = np.diff(df.ix[rh_pos_states, :])
-    delta_ts  = np.diff(df.ix['ts', :])
+    delta_pos = np.diff(df[rh_pos_states], axis=0)
+    delta_ts  = np.diff(df['ts']).reshape(-1, 1)
     vel = delta_pos / delta_ts
-    vel = np.hstack([np.zeros((4, 1)), vel])
-    df_rh_vel = pd.DataFrame(vel, index=rh_vel_states)
-    df = pd.concat([df, df_rh_vel])
+    vel = np.vstack([np.zeros((1, 4)), vel])
+    df_rh_vel = pd.DataFrame(vel, columns=rh_vel_states)
+    df = pd.concat([df, df_rh_vel], axis=1)
 
     return df
 
@@ -89,10 +86,11 @@ kin_epoched = mat['kin_epoched']
 # create a dictionary of trajectories, indexed by trial_type
 traj = dict()
 for i, kin in enumerate(kin_epoched):
-    df = preprocess_data(pd.DataFrame(kin.T, index=index))
+    df = pd.DataFrame(kin, columns=columns)
+    df = preprocess_data(df)
 
-    ts_start = df.ix['ts', 0]
-    ts_end   = df.ix['ts', df.columns[-1]]
+    ts_start = df['ts'][0]
+    ts_end   = df['ts'][df.index[-1]]
 
     # assign an arbitrary trial_type name
     trial_type = 'touch %d' % (i % 4)
@@ -100,41 +98,42 @@ for i, kin in enumerate(kin_epoched):
     # if we haven't already saved a trajectory for this trial_type
     if trial_type not in traj:
         traj[trial_type] = dict()
-        traj[trial_type]['ts_start']  = ts_start
-        traj[trial_type]['ts_end']    = ts_end
+        traj[trial_type]['ts_start'] = ts_start
+        traj[trial_type]['ts_end']   = ts_end
 
-        # NEW: finely-spaced vector of time-stamps onto which we will interpolate armassist and rehand data
-        ts_step = 5e-3  # secs
-        ts_vec = np.arange(ts_start, ts_end, ts_step)
+        # finely-spaced vector of time-stamps onto which we will interpolate armassist and rehand data
+        ts_step = 5e-3  # seconds
+        ts_interp = np.arange(ts_start, ts_end, ts_step)
+        df_ts_interp = pd.DataFrame(ts_interp, columns=['ts'])
 
-        df_final = pd.DataFrame(ts_vec, columns=['ts']).T
-        
-        for state in aa_pos_states + rh_pos_states + rh_vel_states:
-            ts_data    = df.ix['ts', :]
-            state_data = df.ix[state, :]
-            interp_fn = interp1d(ts_data, state_data)
-            df_tmp = pd.DataFrame(interp_fn(ts_vec), columns=[state]).T
-            df_final = pd.concat([df_final, df_tmp])
-        traj[trial_type]['traj'] = df_final
-
-        # a bit repetitive -- also save aa and rh separately with their own ts
-        df_aa = pd.DataFrame(ts_vec, columns=['ts']).T
+        # comment
+        df_aa = df_ts_interp.copy()
         for state in aa_pos_states:
-            ts_data    = df.ix['ts', :]
-            state_data = df.ix[state, :]
-            interp_fn = interp1d(ts_data, state_data)
-            df_tmp = pd.DataFrame(interp_fn(ts_vec), columns=[state]).T
-            df_aa  = pd.concat([df_aa, df_tmp])
-        traj[trial_type]['armassist'] = df_aa
+            interp_fn = interp1d(df['ts'], df[state])
+            interp_state_data = interp_fn(ts_interp)
+            df_tmp = pd.DataFrame(interp_state_data, columns=[state])
+            df_aa  = pd.concat([df_aa, df_tmp], axis=1)
+
+        traj[trial_type]['armassist'] = df_aa.T
         
-        df_rh = pd.DataFrame(ts_vec.T, columns=['ts']).T
-        for state in rh_pos_states+rh_vel_states:
-            ts_data    = df.ix['ts', :]
-            state_data = df.ix[state, :]
-            interp_fn = interp1d(ts_data, state_data)
-            df_tmp = pd.DataFrame(interp_fn(ts_vec), columns=[state]).T
-            df_rh  = pd.concat([df_rh, df_tmp])
-        traj[trial_type]['rehand'] = df_rh
+        # comment
+        df_rh = df_ts_interp.copy()
+        for state in rh_pos_states + rh_vel_states:
+            interp_fn = interp1d(df['ts'], df[state])
+            interp_state_data = interp_fn(ts_interp)
+            df_tmp = pd.DataFrame(interp_state_data, columns=[state])
+            df_rh  = pd.concat([df_rh, df_tmp], axis=1)
+
+        traj[trial_type]['rehand'] = df_rh.T
+
+        # comment
+        df_traj = df_ts_interp.copy()
+        for state in aa_pos_states:
+            df_traj = pd.concat([df_traj, df_aa[state]], axis=1)
+        for state in rh_pos_states + rh_vel_states:
+            df_traj = pd.concat([df_traj, df_rh[state]], axis=1)
+        
+        traj[trial_type]['traj'] = df_traj.T
         
 
 pickle.dump(traj, open(pkl_name, 'wb'))
