@@ -92,7 +92,7 @@ class ArmAssistData(FeedbackData):
                       ('data_aux',   sub_dtype_data_aux),
                       ('ts_aux',     np.float64)])
 
-    def process_received_feedback(self, feedback):
+    def process_received_feedback(self, feedback, ts_arrival):
         '''Process feedback strings of the form:
             "Status ArmAssist freq px py ppsi ts force bar_angle ts_aux\r"
         '''
@@ -120,7 +120,7 @@ class ArmAssistData(FeedbackData):
         bar_angle = float(data_fields[6]) * deg_to_rad  # rad
         ts_aux    = int(data_fields[7])   * us_to_s     # sec
 
-        data     = (px, py, psi)
+        data     = (px, py, ppsi)
         data_aux = (force, bar_angle)
 
         return np.array([(data,
