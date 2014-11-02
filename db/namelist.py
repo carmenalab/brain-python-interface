@@ -138,6 +138,7 @@ tasks = dict(
     joystick_ops=tasks.JoystickDrivenCursorOPS,
     joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
     joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
+    joystick_freechoice_pilot = tasks.manualcontrolfreechoice.FreeChoicePilotTask,
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
