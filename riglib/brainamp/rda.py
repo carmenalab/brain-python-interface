@@ -63,7 +63,9 @@ class EMGData(object):
     '''
 
     update_freq = 2500.  # TODO -- check
-    dtype = np.dtype('float')
+    #dtype = np.dtype('float')
+    dtype = np.dtype([('data',       sub_dtype_data),
+                      ('ts_arrival', np.float64)])
 
     RDA_MessageStart     = 1      # 
     RDA_MessageData      = 2      # message type for 16-bit data
@@ -183,8 +185,11 @@ class EMGData(object):
                     
                     # yield EMGData(chan=chan, uV_value=uV_value, arrival_ts=arrival_ts)
                     # TODO -- check
-                    yield (chan, np.array([uV_value], dtype='float'))
-                    
+                    # yield (chan, np.array([uV_value], dtype='float'))
+                    yield np.array([(data,
+                                     ts_arrival)],
+                                   dtype=self.dtype)
+
                     chan_idx = (chan_idx + 1) % channelCount
 
 

@@ -879,7 +879,7 @@ class BrainAmpData(traits.HasTraits):
         '''
         from riglib import source
         from riglib.brainamp import rda
-        self.emgdata = source.MultiChanDataSource(brainamp.rda.EMGData, channels=channels, send_data_to_sink_manager=True)
+        self.emgdata = source.MultiChanDataSource(brainamp.rda.EMGData, name='emg', channels=channels, send_data_to_sink_manager=True)
 
         from riglib import sink
         sink.sinks.register(self.emgdata)

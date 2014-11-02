@@ -290,7 +290,7 @@ class MultiChanDataSource(mp.Process):
     '''
     Multi-channel version of 'DataSource'
     '''
-    def __init__(self, source, bufferlen=5, send_data_to_sink_manager=False, **kwargs):
+    def __init__(self, source, bufferlen=5, name=None, send_data_to_sink_manager=False, **kwargs):
         '''
         Parameters
         ----------
@@ -298,6 +298,9 @@ class MultiChanDataSource(mp.Process):
             lower-level class for interacting directly with the incoming data (e.g., plexnet)
         bufferlen: int
             Constrains the maximum amount of data history stored by the source
+        name: string, optional, default=None
+            Name of the sink, i.e., HDF table. If one is not provided, it will be inferred based
+            on the name of the source module
         kwargs: dict, optional, default = {}
             For the multi-channel data source, you MUST specify a 'channels' keyword argument
             Note that kwargs['channels'] does not need to a list of integers,
@@ -305,7 +308,10 @@ class MultiChanDataSource(mp.Process):
         '''
 
         super(MultiChanDataSource, self).__init__()
-        self.name = source.__module__.split('.')[-1]
+        if name is not None:
+            self.name = name
+        else:
+            self.name = source.__module__.split('.')[-1]
         self.filter = None
         self.source = source
         self.source_kwargs = kwargs
