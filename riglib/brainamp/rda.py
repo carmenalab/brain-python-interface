@@ -4,11 +4,7 @@ BrainVision Recorder.
 '''
 
 import time
-from collections import namedtuple
-
-EMGData = namedtuple("EMGData", ["chan", "uV_value", "arrival_ts"])
-
-
+import numpy as np
 from struct import *
 from socket import *
 
@@ -61,8 +57,13 @@ def GetProperties(rawdata):
 
 
 
-class Connection(object):
-    '''Docstring.'''
+class EMGData(object):
+    '''For use with a MultiChanDataSource in order to acquire streaming EMG/EEG/EOG
+    data (not limited to just EEG) from the BrainProducts BrainVision Recorder.
+    '''
+
+    update_freq = 2500.  # TODO -- check
+    dtype = np.dtype('float')
 
     RDA_MessageStart     = 1      # 
     RDA_MessageData      = 2      # message type for 16-bit data
@@ -70,7 +71,11 @@ class Connection(object):
     RDA_MessageData32    = 4      # message type for 32-bit data
     RDA_MessageKeepAlive = 10000  # packets of this message type can discarded
 
-    def __init__(self, recorder_ip, nbits=16):
+
+    # TODO -- added **kwargs argument to __init__ for now because MCDS is passing
+    #   in source_kwargs which contains 'channels' kwarg which is not needed/expected
+    #   need to fix this later
+    def __init__(self, recorder_ip='192.168.137.1', nbits=16, **kwargs):
         self.recorder_ip = recorder_ip
 
         if nbits == 16:
@@ -93,27 +98,16 @@ class Connection(object):
         # packet with msgtype == RDA_MessageStart
         # Connect to the Recorder host
         # self.sock.connect((self.recorder_ip, self.port))
-        
-        self._init = False
     
-    def connect(self):
-        '''Docstring.'''
-        
-        self._init = True
-    
-    def start_data(self):
+    def start(self):
         '''Start the buffering of data.'''
-        
-        if not self._init:
-            raise ValueError("Please connect to Recorder first.")
 
         self.streaming = True
+        self.data = self.get_data()
 
-    def stop_data(self):
+
+    def stop(self):
         '''Stop the buffering of data.'''
-        
-        if not self._init:
-            raise ValueError("Please connect to Recorder first.")
 
         self.streaming = False
 
@@ -128,8 +122,13 @@ class Connection(object):
     def __del__(self):
         self.disconnect()
 
+    # TODO -- add comment about how this will get called by the source
+    def get(self):
+        return self.data.next()
+
     def get_data(self):
         '''A generator which yields packets as they are received'''
+        
         assert self._init, "Please initialize the connection first"
         
         self.sock.connect((self.recorder_ip, self.port))
@@ -182,7 +181,9 @@ class Connection(object):
                     chan = channels[chan_idx]
                     uV_value = AD_value * resolutions[chan_idx]
                     
-                    yield EMGData(chan=chan, uV_value=uV_value, arrival_ts=arrival_ts)
+                    # yield EMGData(chan=chan, uV_value=uV_value, arrival_ts=arrival_ts)
+                    # TODO -- check
+                    yield (chan, np.array([uV_value], dtype='float'))
                     
                     chan_idx = (chan_idx + 1) % channelCount
 
