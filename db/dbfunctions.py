@@ -297,8 +297,7 @@ class TaskEntry(object):
         for key in report:
             print key, report[key]
 
-    def proc(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
-             trial_condition_fn=trial_condition_functions.default, data_comb_fn=None, **kwargs):
+    def proc(self, filt=None, proc=None, cond=None, comb=None, **kwargs):
         '''
         Generic trial-level data analysis function
 
@@ -320,6 +319,22 @@ class TaskEntry(object):
             grouped by tuples are combined into a single result. 
 
         '''
+        if filt == None and 'trial_filter_fn' in kwargs:
+            filt = kwargs.pop('trial_filter_fn')
+        if cond == None and 'trial_condition_fn' in kwargs:
+            cond = kwargs.pop('trial_condition_fn')
+        if proc == None and 'trial_proc_fn' in kwargs:
+            proc = kwargs.pop('trial_proc_fn')
+        if comb == None and 'data_comb_fn' in kwargs:
+            comb = kwargs.pop('data_comb_fn')
+
+
+        trial_filter_fn = filt
+        trial_condition_fn = cond
+        trial_proc_fn = proc
+        data_comb_fn = comb
+
+
         if isinstance(trial_filter_fn, str):
             trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
@@ -327,7 +342,7 @@ class TaskEntry(object):
             trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
 
         if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_proc_fn)
+            trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
         if data_comb_fn == None: 
             data_comb_fn = np.hstack
@@ -824,7 +839,7 @@ class TaskEntryCollection(object):
 
     def proc_trials(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
                     trial_condition_fn=trial_condition_functions.default, data_comb_fn=default_data_comb_fn,
-                    verbose=True, **kwargs):
+                    verbose=True, max_errors=10, **kwargs):
         '''
         Generic framework to perform a trial-level analysis on the entire dataset
 
@@ -838,6 +853,10 @@ class TaskEntryCollection(object):
             Determine what the trial *subtype* is (useful for separating out various types of catch trials)
         data_comb_fn: callable; call signature: data_comb_fn(list)
             Combine the list into the desired output structure
+        verbose: boolean, optional, default = True
+            Feedback print statements so that you know processing is happening
+        max_errors: int, optional, default = 10
+            Number of trials resulting in error before the processing quits. Below this threshold, errors are printed but the code continues on to the next trial.
 
         Returns
         -------
@@ -856,6 +875,7 @@ class TaskEntryCollection(object):
             trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
         result = []
+        error_count = 0
         for blockset in self.blocks:
             if not np.iterable(blockset):
                 blockset = (blockset,)
@@ -863,7 +883,7 @@ class TaskEntryCollection(object):
             blockset_data = defaultdict(list)
             for te in blockset:
                 if verbose:
-                    print ".",
+                    print "."
           
                 # Filter out the trials you want
                 trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
@@ -876,9 +896,12 @@ class TaskEntryCollection(object):
                         trial_condition = trial_condition_fn(te, trial_msgs[k])
                         blockset_data[trial_condition].append(output)
                     except:
+                        error_count += 1
                         print trial_msgs[k]
                         import traceback
                         traceback.print_exc()
+                        if error_count > max_errors:
+                            raise Exception
         
             # Aggregate the data from the blockset, which may include multiple task entries
             blockset_data_comb = dict()
