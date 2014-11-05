@@ -765,10 +765,8 @@ class BMISystem(object):
             if feature_type in ['lfp_power', 'emg_amplitude']:
                 # hack to make to make lfp decoding work
                 self.spike_counts = neural_obs_k
-                accumulate = False
             else:
                 self.spike_counts += neural_obs_k
-                accumulate = True
 
             if learn_flag and self.decoder.bmicount == 0:
                 self.learner(self.spike_counts.copy(), learner_state, target_state_k, 
@@ -780,24 +778,21 @@ class BMISystem(object):
             new_params = None # by default, no new parameters are available
 
             if self.learner.is_ready():
-                self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-                # if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
-                #     half_life = kwargs['half_life']
-                #     rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
-                # elif hasattr(self.updater, 'half_life'):
-                #     rho = self.updater.rho
-                # else:
-                #     rho = -1
-                args = (self.intended_kin, self.spike_counts_batch, self.decoder)
-                batch_size = self.intended_kin.shape[1]
-                kwargs['batch_time'] = batch_size * self.decoder.binlen
+                batch_data = self.learner.get_batch()
+                batch_data['decoder'] = self.decoder
+                # self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
+                # args = (self.intended_kin, self.spike_counts_batch, self.decoder)
+                batch_size = batch_data['intended_kin'].shape[1]
+                # batch_data['batch_time'] = batch_size * self.decoder.binlen
+                kwargs.update(batch_data)
 
                 if self.mp_updater:
+                    args = ()
                     self.clda_input_queue.put(args, kwargs)
                     # Disable learner until parameter update is received
                     self.learner.disable() 
                 else:
-                    new_params = self.updater.calc(*args, **kwargs)
+                    new_params = self.updater.calc(**kwargs)
                     if batch_size > 1: 
                         print "updating BMI"
 
@@ -816,8 +811,8 @@ class BMISystem(object):
             # Update the decoder if new parameters are available
             if new_params is not None:
                 self.decoder.update_params(new_params, **self.updater.update_kwargs)
-                new_params['intended_kin'] = self.intended_kin
-                new_params['spike_counts_batch'] = self.spike_counts_batch
+                new_params['intended_kin'] = batch_data['intended_kin']
+                new_params['spike_counts_batch'] = batch_data['spike_counts']
 
                 self.learner.enable()
                 update_flag = True
@@ -829,7 +824,9 @@ class BMISystem(object):
         return decoded_states, update_flag
 
     def __del__(self):
-        '''    Docstring    '''
+        '''
+        Destructor for BMISystem. Stops any spawned processes, if any.
+        '''
         # Stop updater if it's running in a separate process
         if self.mp_updater: 
             self.updater.stop()
