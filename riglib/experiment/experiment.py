@@ -68,7 +68,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.dtype = []
 
         self.cycle_count = 0
-        self.clock = pygame.time.Clock()        
+        self.clock = pygame.time.Clock()
+
+        self.pause = False      
 
     @classmethod
     def class_editable_traits(cls):

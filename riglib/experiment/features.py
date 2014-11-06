@@ -153,19 +153,6 @@ class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
     rand_start = traits.Tuple((0., 0.), desc="Start interval")
 
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        self.pause = False
-        super(Autostart, self).__init__(*args, **kwargs)
-
     def _start_wait(self):
         '''
         Docstring
@@ -1025,7 +1012,7 @@ class SaveHDF(object):
             self.sinks.send("task", self.task_data)
 
 ########################################################################################################
-# Plexon features
+# Neural data features
 ########################################################################################################
 class PlexonData(traits.HasTraits):
     '''Stream Plexon neural data'''
@@ -1363,7 +1350,6 @@ class SimHDF(object):
     '''
     def __init__(self, *args, **kwargs):
         '''
-        Docstring
         Constructor for SimHDF feature
 
         Parameters
@@ -1387,7 +1373,6 @@ class SimHDF(object):
         self.dtype = np.dtype(self.dtype)
         self.task_data = np.zeros((1,), dtype=self.dtype)
 
-
     def sendMsg(self, msg):
         '''
         Simulate the "message" table of the HDF file associated with each source
@@ -1401,7 +1386,7 @@ class SimHDF(object):
         -------
         None
         '''
-        self.msgs.append((msg, self.cycle_count))
+        self.msgs.append((msg, -1))
 
     def _cycle(self):
         super(SimHDF, self)._cycle()

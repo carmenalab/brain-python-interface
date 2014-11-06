@@ -297,7 +297,7 @@ class UpperArmPassiveExo(PassivePlant):
 
 class CursorPlant(Plant):
     hdf_attrs = [('cursor', 'f8', (3,))]
-    def __init__(self, endpt_bounds=None, cursor_radius=0.4, cursor_color=(.5, 0, .5, 1), starting_pos=np.array([0., 0., 0.]), **kwargs):
+    def __init__(self, endpt_bounds=None, cursor_radius=0.4, cursor_color=(.5, 0, .5, 1), starting_pos=np.array([0., 0., 0.]), vel_wall=True, **kwargs):
         self.endpt_bounds = endpt_bounds
         self.position = starting_pos
         self.starting_pos = starting_pos
@@ -306,6 +306,7 @@ class CursorPlant(Plant):
         from riglib.bmi import state_space_models
         self.ssm = state_space_models.StateSpaceEndptVel2D()
         self._pickle_init()
+        self.vel_wall = vel_wall
 
     def _pickle_init(self):
         self.cursor = Sphere(radius=self.cursor_radius, color=self.cursor_color)
@@ -336,24 +337,24 @@ class CursorPlant(Plant):
         if self.endpt_bounds is not None:
             if pos[0] < self.endpt_bounds[0]: 
                 pos[0] = self.endpt_bounds[0]
-                vel[0] = 0
+                if self.vel_wall: vel[0] = 0
             if pos[0] > self.endpt_bounds[1]: 
                 pos[0] = self.endpt_bounds[1]
-                vel[0] = 0
+                if self.vel_wall: vel[0] = 0
 
             if pos[1] < self.endpt_bounds[2]: 
                 pos[1] = self.endpt_bounds[2]
-                vel[1] = 0
+                if self.vel_wall: vel[1] = 0
             if pos[1] > self.endpt_bounds[3]: 
                 pos[1] = self.endpt_bounds[3]
-                vel[1] = 0
+                if self.vel_wall: vel[1] = 0
 
             if pos[2] < self.endpt_bounds[4]: 
                 pos[2] = self.endpt_bounds[4]
-                vel[2] = 0
+                if self.vel_wall: vel[2] = 0
             if pos[2] > self.endpt_bounds[5]: 
                 pos[2] = self.endpt_bounds[5]
-                vel[2] = 0
+                if self.vel_wall: vel[2] = 0
         
         decoder['q'] = pos
         decoder['qdot'] = vel
