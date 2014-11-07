@@ -6,7 +6,12 @@ from riglib.bmi import extractor
 
 
 #channels = [1, 2, 3, 4]
-channels = ['AbdPolLo', 'ExtDig', 'ExtCU']
+#channels = ['AbdPolLo', 'ExtDig', 'ExtCU']
+channels = ['O1', 'O2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'T7', 'T8', 
+            '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', 
+            '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', 
+            '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', 
+            '41', '42']
 n_chan = len(channels)
 
 
@@ -14,9 +19,11 @@ class BrainAmpData(object):
     '''Stream BrainAmp neural data.'''
 
     def init(self):
-        from riglib import brainamp, source
+        from riglib import source
+        from riglib.brainamp import rda
 
-        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
+        self.emgdata = source.MultiChanDataSource(rda.EMGData, channels=channels)
+
 
         try:
             super(BrainAmpData, self).init()
@@ -25,6 +32,7 @@ class BrainAmpData(object):
 
     def run(self):
         self.emgdata.start()
+
 
 
 
@@ -58,12 +66,17 @@ if __name__ == '__main__':
 
         new_data = self.emgdata.get_new(channels=channels)
         print new_data[0].shape
+        print new_data[0].dtype
 
-        for row in range(n_chan):
-            d = new_data[row]
-            idx = idxs[row]
-            data[row, idx:idx+len(d)] = d
-            idxs[row] += len(d)
+        for ts in new_data[0][:]['ts_arrival']:
+            print ts
+
+
+        # for row in range(n_chan):
+        #     d = new_data[row]
+        #     idx = idxs[row]
+        #     data[row, idx:idx+len(d)] = d
+        #     idxs[row] += len(d)
 
         t_elapsed = time.time() - t_start
         # print t_elapsed
