@@ -18,8 +18,8 @@ class stimulus_pulse(object):
 		comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
 
 	def init(self):
-        super(stimulus_pulse, self).init()
-        
+		super(stimulus_pulse, self).init()
+
 	def pulse(self,ts):
     	while ts < 0.2e-3:
     		val = 0x800000
