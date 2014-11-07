@@ -5,6 +5,9 @@ from utils.constants import *
 # REMOTE_REHAND_SERVER = True
 REMOTE_REHAND_SERVER = False
 
+# MAT_SIZE = [42, 30]  # smaller mat
+MAT_SIZE = [85, 95]  # larger mat
+
 # send SetSpeed commands to udp_server addresses
 # receive feedback data on udp_client addresses
 
@@ -30,9 +33,19 @@ pos_states = [
 ]
 
 starting_pos = pd.Series(0.0, pos_states)
-starting_pos['aa_px']     = 43.               # cm
-starting_pos['aa_py']     = 18.               # cm
-starting_pos['aa_ppsi']   =  0.               # rad
+
+if MAT_SIZE == [42, 30]:
+    starting_pos['aa_px']     = 21.               # cm
+    starting_pos['aa_py']     = 15.               # cm
+    starting_pos['aa_ppsi']   =  0.               # rad
+elif MAT_SIZE == [85, 95]:
+    starting_pos['aa_px']     = 43.               # cm
+    starting_pos['aa_py']     = 18.               # cm
+    starting_pos['aa_ppsi']   =  0.               # rad
+else:
+    raise Exception ('Unknown MAT_SIZE in riglib/ismore/settings.py!')
+
+
 starting_pos['rh_pthumb'] = 30. * deg_to_rad  # rad
 starting_pos['rh_pindex'] = 30. * deg_to_rad  # rad
 starting_pos['rh_pfing3'] = 30. * deg_to_rad  # rad
