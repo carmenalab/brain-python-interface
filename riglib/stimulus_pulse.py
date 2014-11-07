@@ -17,7 +17,10 @@ class stimulus_pulse(object):
 		base_channel = 0
 		comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
 
-    def pulse(self,ts):
+	def init(self):
+        super(stimulus_pulse, self).init()
+        
+	def pulse(self,ts):
     	while ts < 0.2e-3:
     		val = 0x800000
         	comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
