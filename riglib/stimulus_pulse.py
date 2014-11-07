@@ -6,9 +6,9 @@ import comedi
 
 
 class stimulus_pulse(object):
-	
+	com = comedi.comedi_open('/dev/comedi0')
 	def __init__(self):
-        self.com = comedi.comedi_open('/dev/comedi0')
+		#self.com = comedi.comedi_open('/dev/comedi0')
         super(TTLStimulation, self).__init__(*args, **kwargs)
         subdevice = 0
         write_mask = 0x800000
