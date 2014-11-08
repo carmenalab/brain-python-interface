@@ -5,8 +5,8 @@ from utils.constants import *
 # REMOTE_REHAND_SERVER = True
 REMOTE_REHAND_SERVER = False
 
-# MAT_SIZE = [42, 30]  # smaller mat
-MAT_SIZE = [85, 95]  # larger mat
+MAT_SIZE = [42, 30]  # smaller mat
+# MAT_SIZE = [85, 95]  # larger mat
 
 # send SetSpeed commands to udp_server addresses
 # receive feedback data on udp_client addresses
