@@ -19,7 +19,22 @@ from utils.constants import *
 # hdf_name = '/storage/rawdata/hdf/test20141028_19.hdf'  # playback
 # INTERPOLATE_TRAJ = False
 
-hdf_name = '/storage/rawdata/hdf/test20141030_06.hdf'  # playback
+# hdf_name = '/storage/rawdata/hdf/test20141030_06.hdf'  # playback
+
+# hdf_name = '/storage/rawdata/hdf/test20141110_13.hdf'  # ref
+# INTERPOLATE_TRAJ = True
+# hdf_name = '/storage/rawdata/hdf/test20141110_15.hdf'  # playback
+# INTERPOLATE_TRAJ = False
+
+
+# hdf_name = '/storage/rawdata/hdf/test20141110_17.hdf'  # ref
+# INTERPOLATE_TRAJ = True
+# hdf_name = '/storage/rawdata/hdf/test20141110_20.hdf'  # playback
+# INTERPOLATE_TRAJ = False
+
+hdf_name = '/storage/rawdata/hdf/test20141110_22.hdf'  # ref
+INTERPOLATE_TRAJ = True
+hdf_name = '/storage/rawdata/hdf/test20141110_23.hdf'  # playback
 INTERPOLATE_TRAJ = False
 
 if INTERPOLATE_TRAJ:

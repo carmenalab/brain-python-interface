@@ -9,13 +9,13 @@ def norm_vec(x, eps=1e-9):
     return x / (np.linalg.norm(x) + eps)
 
 
-trial_type = 'touch 0'
+trial_type = 'touch 2'
 
 traj_file_ref = 'traj_reference_interp.pkl'
 traj_file_pbk = 'traj_playback.pkl'
 
 plot_closest_idx_lines = False
-plot_xy_aim_lines      = True
+plot_xy_aim_lines      = False
 plot_psi_aim_lines     = False
 
 aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
