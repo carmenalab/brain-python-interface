@@ -9,198 +9,192 @@ def norm_vec(x, eps=1e-9):
     return x / (np.linalg.norm(x) + eps)
 
 
-trial_type = 'touch 0'
+trial_type = 'touch 2'
 
-traj_file1 = 'traj_reference_interp.pkl'
-traj_file2 = 'traj_playback.pkl'
+traj_file_ref = 'traj_reference_interp.pkl'
+traj_file_pbk = 'traj_playback.pkl'
 
 plot_closest_idx_lines = False
 plot_xy_aim_lines      = False
 plot_psi_aim_lines     = False
-armassist              = True
-rehand                 = False
-
 
 aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
 rh_pos_states = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
 rh_vel_states = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
 
 
-traj1 = pickle.load(open(traj_file1, 'rb'))
-traj2 = pickle.load(open(traj_file2, 'rb'))
+traj_ref = pickle.load(open(traj_file_ref, 'rb'))
+traj_pbk = pickle.load(open(traj_file_pbk, 'rb'))
 
-if armassist:
-    aa1 = traj1[trial_type]['armassist']
-    aa2 = traj2[trial_type]['armassist']
-
-    print "length of aa1:", aa1.shape[1]
-    print "length of aa2:", aa2.shape[1]
-    print "length of aa1 (secs):", aa1.ix['ts', aa1.columns[-1]] - aa1.ix['ts', 0]
-    print "length of aa2 (secs):", aa2.ix['ts', aa2.columns[-1]] - aa2.ix['ts', 0]
-
-if rehand:
-    rh1 = traj1[trial_type]['rehand']
-    rh2 = traj2[trial_type]['rehand']
-
-    print "length of rh1:", rh1.shape[1]
-    print "length of rh2:", rh2.shape[1]
-    print "length of rh1 (secs):", rh1.ix['ts', rh1.columns[-1]] - rh1.ix['ts', 0]
-    print "length of rh2 (secs):", rh2.ix['ts', rh2.columns[-1]] - rh2.ix['ts', 0]
+aa_flag = 'armassist' in traj_pbk[trial_type]
+rh_flag = 'rehand' in traj_pbk[trial_type]
 
 
-aim_pos     = traj2[trial_type]['task']['aim_pos']
-idx_aim     = traj2[trial_type]['task']['idx_aim']
-idx_aim_psi = traj2[trial_type]['task']['idx_aim_psi']
-plant_pos   = traj2[trial_type]['task']['plant_pos']
-command_vel = traj2[trial_type]['task']['command_vel']
+if aa_flag:
+    aa_ref = traj_ref[trial_type]['armassist'].T
+    aa_pbk = traj_pbk[trial_type]['armassist'].T
 
-idx_traj = traj2[trial_type]['task']['idx_traj']
+    print "length of aa_ref:", len(aa_ref)
+    print "length of aa_pbk:", len(aa_pbk)
+    print "length of aa_ref (secs):", aa_ref['ts'][aa_ref.index[-1]] - aa_ref['ts'][0]
+    print "length of aa_pbk (secs):", aa_pbk['ts'][aa_pbk.index[-1]] - aa_pbk['ts'][0]
 
+if rh_flag:
+    rh_ref = traj_ref[trial_type]['rehand'].T
+    rh_pbk = traj_pbk[trial_type]['rehand'].T
+
+    print "length of rh_ref:", len(rh_ref)
+    print "length of rh_pbk:", len(rh_pbk)
+    print "length of rh_ref (secs):", rh_ref['ts'][rh_ref.index[-1]] - rh_ref['ts'][0]
+    print "length of rh_pbk (secs):", rh_pbk['ts'][rh_pbk.index[-1]] - rh_pbk['ts'][0]
+
+task_pbk       = traj_pbk[trial_type]['task']
+aim_pos        = task_pbk['aim_pos']
+idx_aim        = task_pbk['idx_aim']
+idx_aim_psi    = task_pbk['idx_aim_psi']
+plant_pos      = task_pbk['plant_pos']
+command_vel    = task_pbk['command_vel']
+idx_traj       = task_pbk['idx_traj']
 
 ############
 # PLOTTING #
 ############
 
-# # plot command velocities
-# fig = plt.figure()
-# plt.title('command velocities')
-# grid = (4, 1)
-# for i in range(2):
-#     ax = plt.subplot2grid(grid, (i, 0))
-#     plt.plot(command_vel[:, i], color='blue')
-# ax = plt.subplot2grid(grid, (2, 0))
-# plt.plot(rad_to_deg * command_vel[:, 2], color='blue')
-# command_xy_speed = np.array([np.sqrt(np.sum(vel[0:2]**2)) for vel in command_vel])
-# ax = plt.subplot2grid(grid, (3, 0))
-# plt.plot(command_xy_speed, color='blue')
+task_tvec = task_pbk['ts'] - task_pbk['ts'][0]
 
+color_ref = 'red'
+color_pbk = 'blue'
 
-if armassist:
+tight_layout_kwargs = {
+    'pad':   0.5,
+    'w_pad': 0.5,
+    'h_pad': 0.5,
+}
+
+if aa_flag:
+    aa_tvec = aa_pbk['ts'] - aa_pbk['ts'][0]
 
     fig = plt.figure()
     plt.title('xy trajectories')
 
-    plt.plot(aa1.ix['aa_px', :], aa1.ix['aa_py', :], '-D', color='red', markersize=5)
-    plt.plot(aa2.ix['aa_px', :], aa2.ix['aa_py', :], '-D', color='blue', markersize=2.5)
+    plt.plot(aa_ref['aa_px'], aa_ref['aa_py'], '-D', color=color_ref,  markersize=5)
+    plt.plot(aa_pbk['aa_px'], aa_pbk['aa_py'], '-D', color=color_pbk, markersize=2.5)
 
+    # lines to indicate points closest to ref trajectory
     if plot_closest_idx_lines:
-        # plot lines to indicate points closest to ref trajectory
         for (idx, p_pos, c_vel) in zip(idx_traj, plant_pos, command_vel):
-            plt.plot([p_pos[0], aa1.ix['aa_px', idx]], [p_pos[1], aa1.ix['aa_py', idx]], color='gray')
+            plt.plot([p_pos[0], aa_ref['aa_px'][idx]], 
+                     [p_pos[1], aa_ref['aa_py'][idx]], 
+                     color='gray')
 
+    # lines to indicate xy aiming position
     if plot_xy_aim_lines:
-        # plot lines to indicate xy aiming position
         for (a_pos, p_pos, c_vel) in zip(aim_pos, plant_pos, command_vel):
-            plt.plot([p_pos[0], a_pos[0]], [p_pos[1], a_pos[1]], color='gray')
+            plt.plot([p_pos[0], a_pos[0]], 
+                     [p_pos[1], a_pos[1]], 
+                     color='green')
 
+    # lines to indicate psi aiming position
     if plot_psi_aim_lines:
-        # plot lines to indicate psi aiming position
         for (idx, p_pos, c_vel) in zip(idx_aim_psi, plant_pos, command_vel):
-            plt.plot([p_pos[0], aa1.ix['aa_px', idx]], [p_pos[1], aa1.ix['aa_py', idx]], color='gray')
+            plt.plot([p_pos[0], aa_ref['aa_px'][idx]], 
+                     [p_pos[1], aa_ref['aa_py'][idx]], 
+                     color='black')
 
     # plot first plant position in green
-    plt.plot(aa1.ix['aa_px', 0], aa1.ix['aa_py', 0], 'D', color='green', markersize=10)  
+    plt.plot(aa_ref['aa_px'][0], aa_ref['aa_py'][0], 'D', color='green', markersize=10)
+
+    plt.tight_layout(**tight_layout_kwargs)
 
 
     fig = plt.figure()
+    plt.title('psi playback analysis')
+    
+    time_warped_ref_psi_traj = np.array([aa_ref['aa_ppsi'][idx_traj[idx]] for idx in range(len(idx_traj))])
+    plt.plot(task_tvec, rad_to_deg * time_warped_ref_psi_traj, '-D', color=color_ref, markersize=2.5)
+    plt.plot(task_tvec, rad_to_deg * plant_pos[:,2],           '-D', color=color_pbk, markersize=2.5)
+
     for idx, (plant_psi, aim_psi, cmd_vel_psi) in enumerate(zip(plant_pos[:,2], aim_pos[:,2], command_vel[:,2])):
-        plt.plot([idx], [rad_to_deg*aa1.ix['aa_ppsi', idx_traj[idx]]], 'D', color='gray', markersize=2.5)
-        plt.plot([idx], [rad_to_deg*plant_psi], 'D', color='blue', markersize=2.5)
-        plt.plot([idx], [rad_to_deg*aim_psi],   'D', color='green', markersize=2.5)
-        plt.plot([idx, idx], [rad_to_deg*plant_psi, rad_to_deg*aim_psi], color='black', markersize=2.5)
-        plt.plot([idx, idx],  \
-                 [rad_to_deg*plant_psi, rad_to_deg*(plant_psi + cmd_vel_psi)],  \
-                 color='red', markersize=2.5)
+        # line showing which psi value the playback algorithm was aiming towards
+        plt.plot([task_tvec[idx], task_tvec[idx]], [rad_to_deg*plant_psi, rad_to_deg*aim_psi], color='green', markersize=2.5)
+        ## line showing command velocity
+        #plt.plot([task_tvec[idx], task_tvec[idx]], [rad_to_deg*plant_psi, rad_to_deg*(plant_psi + cmd_vel_psi)], color='gray',  markersize=2.5)
 
+
+    # compare playback trajectory vs. time-warped reference trajectory
     fig = plt.figure()
-    plt.title('ArmAssist trajectories (time-warped)')
     grid = (3, 1)
 
     for i, state in enumerate(aa_pos_states):
         ax = plt.subplot2grid(grid, (i, 0))
+        ax.set_title(state + ' trajectories (time-warped)')
         if state == 'aa_ppsi':
             scale = rad_to_deg    
         else:
             scale = 1
-        plt.plot(scale * aa1.ix[state, idx_traj.reshape(-1)], color='red')
-        plt.plot(scale * plant_pos[:, i], 'D', color='blue', markersize=2.5)
+        plt.plot(task_tvec, scale * aa_ref[state][idx_traj.reshape(-1)], color=color_ref)
+        plt.plot(task_tvec, scale * plant_pos[:, i], 'D', color=color_pbk, markersize=2.5)
 
+    plt.tight_layout(**tight_layout_kwargs)
 
-    delta_pos = np.diff(aa1.ix[['aa_px', 'aa_py'], :])
-    delta_psi = rad_to_deg * np.diff(aa1.ix['aa_ppsi', :])
-    delta_ts  = np.diff(aa1.ix['ts', :])
-    xy_vel_traj1  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos.T]) / delta_ts
-    psi_vel_traj1 = delta_psi / delta_ts
-    traj1_tvec = np.array(aa1.ix['ts', :])
-    traj1_tvec -= traj1_tvec[0]
+    # calculate and plot xy and psi velocity during reference and playback trajectories
+    for aa, color in zip([aa_ref, aa_pbk], [color_ref, color_pbk]):
+        fig = plt.figure()
+        grid = (2, 1)
 
+        delta_pos = np.diff(aa[['aa_px', 'aa_py']], axis=0)
+        delta_psi = rad_to_deg * np.diff(aa['aa_ppsi'])
+        delta_ts  = np.diff(aa['ts'])
+        xy_vel  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos]) / delta_ts
+        psi_vel = delta_psi / delta_ts
+        tvec = aa['ts'] - aa['ts'][0]
+
+        ax = plt.subplot2grid(grid, (0, 0))
+        ax.set_title('xy velocity')
+        plt.plot(tvec[:-1], xy_vel, color=color)
+        ax = plt.subplot2grid(grid, (1, 0))
+        ax.set_title('psi velocity')
+        plt.plot(tvec[:-1], psi_vel, color=color)
+
+        plt.tight_layout(**tight_layout_kwargs)
+
+    # plot playback command velocities as saved by task
     fig = plt.figure()
-    grid = (3, 1)
-    ax = plt.subplot2grid(grid, (0, 0))
-    plt.plot(traj1_tvec[:-1], xy_vel_traj1, color='red')
-    ax = plt.subplot2grid(grid, (1, 0))
-    plt.plot(traj1_tvec[:-1], psi_vel_traj1, color='red')
-    ax = plt.subplot2grid(grid, (2, 0))
-    plt.plot(traj1_tvec, rad_to_deg * aa1.ix['aa_ppsi', :], color='red')
-
-
-    delta_pos = np.diff(aa2.ix[['aa_px', 'aa_py'], :])
-    delta_psi = rad_to_deg * np.diff(aa2.ix['aa_ppsi', :])
-    delta_ts  = np.diff(aa2.ix['ts', :])
-    xy_vel_traj2  = np.array([np.sqrt(np.sum(x**2)) for x in delta_pos.T]) / delta_ts
-    psi_vel_traj2 = delta_psi / delta_ts
-    traj2_tvec = np.array(aa2.ix['ts', :])
-    traj2_tvec -= traj2_tvec[0]
-
-    fig = plt.figure()
-    grid = (3, 1)
-    ax = plt.subplot2grid(grid, (0, 0))
-    plt.plot(traj2_tvec[:-1], xy_vel_traj2, color='blue')
-    ax = plt.subplot2grid(grid, (1, 0))
-    plt.plot(traj2_tvec[:-1], psi_vel_traj2, color='blue')
-    ax = plt.subplot2grid(grid, (2, 0))
-    plt.plot(traj2_tvec, rad_to_deg * aa2.ix['aa_ppsi', :], color='blue')
-
-
-# fig = plt.figure()
-# plt.title('psi trajectories')
-# plt.plot(rad_to_deg * aa1.ix['aa_ppsi', :], color='red')
-# plt.plot(rad_to_deg * aa2.ix['aa_ppsi', :], color='blue')
-
-# fig = plt.figure()
-# plt.title('ReHand trajectories (not time-warped)')
-# grid = (4, 1)
-# for i, state in enumerate(rh_pos_states):
-#     ax = plt.subplot2grid(grid, (i, 0))
-#     plt.plot(rad_to_deg * rh1.ix[state, :], color='red')
-#     plt.plot(rad_to_deg * plant_pos[:, 3+i], color='blue')
-
-
-if rehand:
-
-    fig = plt.figure()
-    plt.title('ReHand trajectories (time-warped)')
     grid = (4, 1)
+    
+    ax = plt.subplot2grid(grid, (0, 0))
+    ax.set_title('command xy speed')
+    command_xy_speed = np.array([np.sqrt(np.sum(vel[0:2]**2)) for vel in command_vel])
+    plt.plot(command_xy_speed, color='blue')
+    
+    for i, state in enumerate(aa_pos_states):
+        ax = plt.subplot2grid(grid, (i+1, 0))
+        ax.set_title(state + ' command velocity')
+        if state == 'aa_ppsi':
+            scale = rad_to_deg    
+        else:
+            scale = 1
+        plt.plot(task_tvec, scale * command_vel[:, i], color=color_pbk)
 
-    if armassist:
+
+if rh_flag:
+    rh_tvec = rh_pbk['ts'] - rh_pbk['ts'][0]
+
+    if aa_flag:
         offset = 3
     else:
         offset = 0
+
+    # compare playback trajectory vs. time-warped reference trajectory
+    fig = plt.figure()
+    grid = (4, 1)
+
     for i, state in enumerate(rh_pos_states):
         ax = plt.subplot2grid(grid, (i, 0))
-        plt.plot(rad_to_deg * rh1.ix[state, idx_aim.reshape(-1)], color='red')
-        plt.plot(rad_to_deg * plant_pos[:, offset+i], color='blue')
+        ax.set_title(state + ' trajectories (time-warped)')
+        plt.plot(task_tvec, rad_to_deg * rh_ref[state][idx_traj.reshape(-1)], color=color_ref)
+        plt.plot(task_tvec, rad_to_deg * plant_pos[:, i+offset], color=color_pbk)
 
-
-# # plot rehand angles for reference trajectory
-# fig = plt.figure()
-# grid = (4, 1)
-
-# for i, state in enumerate(rh_pos_states):
-#     ax = plt.subplot2grid(grid, (i, 0))
-#     plt.plot(rad_to_deg * rh1.ix[state, :], color='red')
-
-
-
+    plt.tight_layout(**tight_layout_kwargs)
 
 plt.show()

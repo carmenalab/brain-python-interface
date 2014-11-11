@@ -3,7 +3,7 @@
 import numpy as np
 import socket
 
-from riglib import ismore, blackrock, source
+from riglib import source
 from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from riglib.ismore import settings, udp_feedback_client
 from utils.constants import *
@@ -28,14 +28,16 @@ class ArmAssistPlant(object):
     def __init__(self, print_commands=PRINT_COMMANDS):
         self.print_commands = print_commands
 
-        #self.source = source.DataSource(ismore.ArmAssistData, bufferlen=5, name='armassist')
-        self.source = source.DataSource(ismore.udp_feedback_client.ArmAssistData, bufferlen=5, name='armassist')
+        self.source = source.DataSource(udp_feedback_client.ArmAssistData, bufferlen=5, name='armassist')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
         self.aa_addr = settings.armassist_udp_server
         
         command = 'SetControlMode ArmAssist Global\n'
         self.sock.sendto(command, self.aa_addr)
         
+        #command = 'SetControlMode ArmAssist Disable\n'
+        #self.sock.sendto(command, self.aa_addr)
+
         ssm = StateSpaceArmAssist()
         self.pos_state_names = [s.name for s in ssm.states if s.order == 0]
         self.vel_state_names = [s.name for s in ssm.states if s.order == 1]
@@ -84,10 +86,10 @@ class ArmAssistPlant(object):
 
         if any(np.isnan(v) for v in vel):
             print "WARNING -- nans in vel:", vel
-            print "pos", pos
-            print "ts", ts
-            print "delta_pos", delta_pos
-            print "delta_ts", delta_ts
+            #print "pos", pos
+            #print "ts", ts
+            #print "delta_pos", delta_pos
+            #print "delta_ts", delta_ts
             for i in range(3):
                 if np.isnan(vel[i]):
                     vel[i] = 0
@@ -103,8 +105,7 @@ class ReHandPlant(object):
     def __init__(self, print_commands=PRINT_COMMANDS):
         self.print_commands = print_commands
 
-        #self.source = source.DataSource(ismore.ReHandData, bufferlen=5, name='rehand')
-        self.source = source.DataSource(ismore.udp_feedback_client.ReHandData, bufferlen=5, name='rehand')
+        self.source = source.DataSource(udp_feedback_client.ReHandData, bufferlen=5, name='rehand')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
         self.rh_addr = settings.rehand_udp_server
 

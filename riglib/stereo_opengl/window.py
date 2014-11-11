@@ -247,11 +247,14 @@ class Simple2DWindow(object):
             self.workspace_top_right   = (18., 12.)
             win_res = (1000, 560)
         elif config.recording_sys['make'] == 'blackrock':
+            from riglib.ismore import settings
+            MAT_SIZE = settings.MAT_SIZE
+
             border = 10.  # TODO -- difference between this and self.display_border?
             self.workspace_bottom_left = np.array([ 0. - border, 
                                                     0. - border])
-            self.workspace_top_right   = np.array([85. + border, 
-                                                   95. + border])
+            self.workspace_top_right   = np.array([MAT_SIZE[0] + border, 
+                                                   MAT_SIZE[1] + border])
             win_res = (600, 600)
         else:
             raise Exception('Unknown recording_system!')
