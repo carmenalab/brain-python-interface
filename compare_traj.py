@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 from utils.constants import *
 
+############ comment
 
 def norm_vec(x, eps=1e-9):
     return x / (np.linalg.norm(x) + eps)
