@@ -35,6 +35,9 @@ class ArmAssistPlant(object):
         command = 'SetControlMode ArmAssist Global\n'
         self.sock.sendto(command, self.aa_addr)
         
+        #command = 'SetControlMode ArmAssist Disable\n'
+        #self.sock.sendto(command, self.aa_addr)
+
         ssm = StateSpaceArmAssist()
         self.pos_state_names = [s.name for s in ssm.states if s.order == 0]
         self.vel_state_names = [s.name for s in ssm.states if s.order == 1]
@@ -83,10 +86,10 @@ class ArmAssistPlant(object):
 
         if any(np.isnan(v) for v in vel):
             print "WARNING -- nans in vel:", vel
-            print "pos", pos
-            print "ts", ts
-            print "delta_pos", delta_pos
-            print "delta_ts", delta_ts
+            #print "pos", pos
+            #print "ts", ts
+            #print "delta_pos", delta_pos
+            #print "delta_ts", delta_ts
             for i in range(3):
                 if np.isnan(vel[i]):
                     vel[i] = 0
