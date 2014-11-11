@@ -63,7 +63,6 @@ class EMGData(object):
     '''
 
     update_freq = 2500.  # TODO -- check
-    #dtype = np.dtype('float')
     dtype = np.dtype([('data',       np.float64),
                       ('ts_arrival', np.float64)])
 
@@ -177,9 +176,6 @@ class EMGData(object):
                     chan = channels[chan_idx]
                     uV_value = AD_value * resolutions[chan_idx]
                     
-                    # yield EMGData(chan=chan, uV_value=uV_value, arrival_ts=arrival_ts)
-                    # TODO -- check
-                    # yield (chan, np.array([uV_value], dtype='float'))
                     yield (chan, np.array([(uV_value, ts_arrival)], dtype=self.dtype))
 
                     chan_idx = (chan_idx + 1) % channelCount

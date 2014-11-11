@@ -29,9 +29,6 @@ class FeedbackData(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(self.address)
 
-        # TODO -- what is this used for?
-        self._init = True
-
         # self.file_ = open(self.feedback_filename, 'w')
 
     def start(self):
