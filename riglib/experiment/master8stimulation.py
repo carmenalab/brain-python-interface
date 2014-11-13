@@ -9,6 +9,7 @@ import traceback
 import numpy as np
 import fnmatch
 import os
+import comedi
 
 from riglib import calibrations, bmi
 
@@ -35,34 +36,22 @@ Left off at line 79.  Need to figure out how we re-trigger starting the stimulus
 
 class TTLStimulation(traits.HasTraits):
     '''During the stimulation phase, send a timed TTL pulse to the Master-8 stimulator'''
+    hold_time = float(1)
+    stimulation_pulse_length = float(0.2*1e6)
+    stimulation_frequency = float(3)
     
     status = dict(
         pulse = dict(pulse_end="interpulse_period", stop=None),
-        interpulse_period = dict(another_pulse="pulse", pulse_train_end="off", stop=None),
-        pulse_off= dict(next_pulse_train="pulse", stop=None)
+        interpulse_period = dict(another_pulse="pulse", pulse_train_end="pulse_off", stop=None),
+        pulse_off= dict(stop=None)
     )
 
+    com = comedi.comedi_open('/dev/comedi0')
     pulse_count = 0  #initializing number of pulses that have occured
-    number_of_pulses = int(self.stimulation_period_length*self.stimulation_frequency)   # total pulses during a stimulation pulse train
 
     def __init__(self, *args, **kwargs):
-        '''
-        Constructor for TTLStimulation
-
-        Parameters
-        ----------
-        pulse_device: string
-            Path to the NIDAQ device used to generate the solenoid pulse
-        args, kwargs: optional positional and keyword arguments to be passed to parent constructor
-            None necessary
-
-        Returns
-        -------
-        TTLStimulation instance
-        '''
-        import comedi
-        self.com = comedi.comedi_open('/dev/comedi0')
         super(TTLStimulation, self).__init__(*args, **kwargs)
+        number_of_pulses = int(self.hold_time*self.stimulation_frequency)   # total pulses during a stimulation pulse train, assumes hold_time is in s
 
     def init(self):
         super(TTLStimulation, self).init()
@@ -71,60 +60,45 @@ class TTLStimulation(traits.HasTraits):
 
     def _test_pulse_end(self, ts):
         #return true if time has been longer than the specified pulse duration
-        pulse_length = self.stimulation_pulse_length*1e-6
+        pulse_length = self.stimulation_pulse_length*1e-6    # assumes stimulation_pulse_length is in us
         return ts>=pulse_length
 
     def _test_another_pulse(self,ts):
-        return pulse_count < number_of_pulses
+        interpulse_time = (1/self.stimulationfrequency) - self.stimulation_pulse_length*1e-6    # period minus the duration of a pulse
+        return ts>=interpulse_time
 
     def _test_pulse_train_end(self,ts):
-        return pulse_count > number_of_pulses
+        return (self.pulse_count > number_of_pulses)     # end train if number of pulses is completed or if the animal ends holding early
 
-    def _test_next_pulse_train(self,ts):
-        return self.enter_stimulation_state
 
     #### STATE FUNCTIONS ####
 
     def _start_pulse(self):
         '''
         At the start of the stimulation state, send TTL pulse
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
         '''
-        import comedi
-        super(TTLStimulation, self)._start_pulse()
+
+        #super(TTLStimulation, self)._start_pulse()
         subdevice = 0
         write_mask = 0x800000
         val = 0x800000
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
+        self.pulse_count = self.pulse_count + 1
         #self.stimulation_start = self.get_time() - self.start_time
 
     def _end_pulse(self):
-        '''
-        After the stimulation state has elapsed, make sure stimulation is off 
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        '''
-        pass
+        subdevice = 0
+        write_mask = 0x800000
+        val = 0x000000
+        base_channel = 0
+        comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
 
     def _start_interpulse_period(self):
         super(TTLStimulation, self)._start_interpulse_period()
         subdevice = 0
         write_mask = 0x800000
-        val = 0x800000
+        val = 0x000000
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
 
@@ -136,13 +110,3 @@ class TTLStimulation(traits.HasTraits):
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
 
-    def _start_pulse_off(self):
-        super(TTLStimulation, self)._start_pulse_off()
-        subdevice = 0
-        write_mask = 0x800000
-        val = 0x000000
-        base_channel = 0
-        comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, val, base_channel)
-
-    def _end_pulse_off(self):
-        pass
