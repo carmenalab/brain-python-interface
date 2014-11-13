@@ -628,6 +628,16 @@ class TaskEntry(object):
         # the file instead
         return str(os.path.basename(self.hdf_filename).rstrip('.hdf'))
 
+    def trained_decoder_filenames(self):
+        decoder_records = self.get_decoders_trained_in_block()
+        filenames = []
+        if np.iterable(decoder_records):
+            for rec in decoder_records:
+                filenames.append(rec.filename)
+        else:
+            filenames.append(decoder_records.filename)
+        return filenames
+
     def __str__(self):
         return self.record.__str__()
 
@@ -839,7 +849,7 @@ class TaskEntryCollection(object):
 
     def proc_trials(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
                     trial_condition_fn=trial_condition_functions.default, data_comb_fn=default_data_comb_fn,
-                    verbose=True, max_errors=10, **kwargs):
+                    verbose=False, max_errors=10, **kwargs):
         '''
         Generic framework to perform a trial-level analysis on the entire dataset
 
