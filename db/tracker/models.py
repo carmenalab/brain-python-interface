@@ -383,7 +383,7 @@ class TaskEntry(models.Model):
         ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
         try:
             from db import dbfunctions
-            te = dbfunctions.TaskEntry(self.id)
+            te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
             rpt['Decoder name'] = te.decoder_record.name
         except AttributeError:
             pass
