@@ -220,15 +220,7 @@ mkdir /storage/blackrock
 
 cd $HOME/code
 
-if [ ! -d "$HOME/code/ibmi" ]; then
-    git clone https://github.com/carmenalab/ibmi.git $HOME/code/ibmi
-fi
-
-cp -r $HOME/code/ibmi/assist_params /storage/
-
-# add following line to end of .bashrc
-sed -i '$a export PYTHONPATH=$PYTHONPATH:$HOME/code/ibmi/sim/python' $HOME/.bashrc
-source $HOME/.bashrc
+# manual step needed -- copy "assist_params" folder to /storage/
 
 # clone CereLink git repo
 if [ ! -d "$HOME/code/CereLink" ]; then
