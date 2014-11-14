@@ -71,10 +71,6 @@ generators = dict(
     tentacle_multi_start_config=generatorfunctions.tentacle_multi_start_config
 )
 
-# from tasks.rds import RDS, RDS_half
-# from tasks.dots import Dots
-# from tasks.redgreen import RedGreen, EyeCal
-# from tasks.button import ButtonTask
 
 from tasks import blackrocktasks
 
@@ -137,8 +133,8 @@ tasks = dict(
     bmi_cursor_bias=tasks.BMICursorBias,
     joystick_ops=tasks.JoystickDrivenCursorOPS,
     joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
-    joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
-    joystick_freechoice_pilot = tasks.manualcontrolfreechoice.FreeChoicePilotTask,
+    # joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
+    # joystick_freechoice_pilot = tasks.manualcontrolfreechoice.FreeChoicePilotTask,
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
@@ -154,16 +150,7 @@ tasks = dict(
     passive_exo          = tasks.RecordEncoderData,
 )
 
-## BMI seed tasks
-# The below list shows which tasks can be used to train new Decoders
-bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi', 'machine_control']
-
-ibmi_seed_tasks = ['ibmi_visual_feedback', 'ibmi_manual_control']
-
-bmi_seed_tasks.extend(ibmi_seed_tasks)
-
 from tracker import models
-
 class SubclassDict(dict):
     '''
     A special dict that returns the associated Django database model 
@@ -185,21 +172,6 @@ instance_to_model = SubclassDict( {
     bmi.Decoder: models.Decoder,
 } )
 
-
-##bmis = dict(
-##    kalman=bmi.train._train_KFDecoder_manual_control,
-##    kalmanCursorEpochs = bmi.train._train_KFDecoder_cursor_epochs,
-##    kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
-##    kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
-##    ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
-##    ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
-##    kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
-##    kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
-##    kalmanVF3d=bmi.train._train_KFDecoder_visual_feedback_3d,
-##    kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
-##    kalmanVFrehand=bmi.train._train_rehand_KFDecoder_visual_feedback,
-##    kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
-##)
 
 bmi_algorithms = dict(
     KFDecoder=bmi.train.train_KFDecoder,
