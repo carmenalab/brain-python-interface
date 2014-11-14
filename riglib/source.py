@@ -14,8 +14,6 @@ import ctypes
 
 import numpy as np
 
-import sink
-
 class FuncProxy(object):
     '''
     Interface for calling functions in remote processes. Similar to tasktrack.FuncProxy.
@@ -48,6 +46,9 @@ class FuncProxy(object):
         self.event.set()
         return self.pipe.recv()
 
+
+# NOTE: this import MUST be after the defintion of FuncProxy
+import sink
 
 class DataSource(mp.Process):
     '''
