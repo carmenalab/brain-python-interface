@@ -1,9 +1,0 @@
-inst_addr = '192.168.137.128';
-inst_port = 51001;
-central_addr = '192.168.137.1';
-central_port = 51002;
-
-cbmex('open', 'inst-addr', inst_addr, ...
-              'inst-port', inst_port, ...
-              'central-addr', central_addr, ...
-              'central-port', central_port);
