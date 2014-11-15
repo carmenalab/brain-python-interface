@@ -222,6 +222,10 @@ cd $HOME/code
 
 # manual step needed -- copy "assist_params" folder to /storage/
 
+# add following line to end of .bashrc
+sed -i '$a export PYTHONPATH=$PYTHONPATH:$HOME/code/bmi3d/riglib/ismore/sim' $HOME/.bashrc
+source $HOME/.bashrc
+
 # clone CereLink git repo
 if [ ! -d "$HOME/code/CereLink" ]; then
     git clone https://github.com/sdangi/CereLink $HOME/code/CereLink

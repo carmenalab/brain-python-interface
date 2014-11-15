@@ -9,19 +9,11 @@ import socket
 import select
 
 from riglib.ismore import settings
-
+from utils.constants import *
 import pygame
 
 import armassist
 
-
-# CONSTANTS
-rad_to_deg = 180 / np.pi
-deg_to_rad = np.pi / 180
-m_to_mm = 1000.
-mm_to_m = 0.001
-mm_to_cm = 0.1
-cm_to_mm = 10.
 
 
 # move_automatically = True
@@ -55,7 +47,7 @@ aa_pic_tstep = 0.01
 KP = np.mat([[-10.,   0.,  0.],
              [  0., -20.,  0.],
              [  0.,   0., 20.]])  # P gain matrix
-TI = 0.1*np.identity(3)  # I gain matrix
+TI = 0.1*np.identity(3)           # I gain matrix
 
 aa = armassist.ArmAssist(aa_tstep, aa_pic_tstep, KP, TI)
 aa.daemon = True

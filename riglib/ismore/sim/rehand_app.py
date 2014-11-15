@@ -10,10 +10,8 @@ import socket
 import select
 
 from riglib.ismore import settings
+from utils.constants import *
 
-# CONSTANTS
-rad_to_deg = 180 / np.pi
-deg_to_rad = np.pi / 180
 
 MAX_MSG_LEN = 200  # characters
 feedback_freq = 20  # Hz
