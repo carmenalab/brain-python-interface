@@ -14,7 +14,8 @@ from utils.constants import *
 
 
 MAX_MSG_LEN = 200  # characters
-feedback_freq = 20  # Hz
+
+feedback_freq = 200  # Hz
 feedback_period = 1./feedback_freq  # secs
 
 

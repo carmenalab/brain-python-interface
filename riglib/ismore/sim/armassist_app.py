@@ -34,7 +34,9 @@ if keyboard_input_enabled:
 
 
 MAX_MSG_LEN = 200  # characters
-feedback_period = .050  # secs
+
+feedback_freq = 15  # Hz
+feedback_period = 1./feedback_freq  # secs
 
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
