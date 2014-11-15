@@ -24,13 +24,33 @@ class DataSource(mp.Process):
     '''
     def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, **kwargs):
         '''
-        Docstring
+        Constructor for DataSource
 
         Parameters
         ----------
+        source: class
+            Class to be instantiated as the "system" with changing data values. Requirements:
+                1) the class must have an attribute named 'dtype' which represents 
+                   the data type of the source data. The datatype *cannot* change!
+                2) the class must have an attribute named 'update_freq' which specifies 
+                   the frequency at which new data samples will be ready for retrieval.
+                3) 'start' method--no arguments
+                4) 'stop' method--no arguments
+                5) 'get' method--should return a single output argument
+        bufferlen: float
+            Number of seconds long to make the ringbuffer. Seconds are converted to number 
+            of samples based on the 'update_freq' attribute of the source
+        name: string, optional, default=None
+            Name of the sink, i.e., HDF table. If one is not provided, it will be inferred based
+            on the name of the source module
+        send_data_to_sink_manager: boolean, optional, default=True
+            Flag to indicate whether data should be saved to a sink (i.e., HDF file)
+        kwargs: optional keyword arguments
+            Passed to the source during object construction if any are specified
 
         Returns
         -------
+        DataSource instance
         '''
         super(DataSource, self).__init__()
         if name is not None:

@@ -91,6 +91,7 @@ class GaussianState(object):
         else:
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
+
 class GaussianStateHMM(object):
     '''
     General hidden Markov model decoder where the state is represented as a Gaussian random vector
@@ -213,6 +214,7 @@ class Decoder(object):
 
         self.filt = filt
         self.filt._init_state()
+        self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
         self.binlen = binlen
@@ -255,7 +257,6 @@ class Decoder(object):
             self.set_call_rate(self.call_rate)
         else:
             self.set_call_rate(60.0)
-
 
     def plot_pds(self, C, ax=None, plot_states=['hand_vx', 'hand_vz'], invert=False, **kwargs):
         '''
@@ -490,16 +491,8 @@ class Decoder(object):
         x = self.filt.state.mean
         
         # Run the filter
-        # self.filt(neural_obs, Bu=Bu)
-        filt_kwargs = dict() #dict(obs_is_control_independent=weighted_avg_lfc)        
-        
-        self.filt(neural_obs, Bu=Bu, x_target=x_target, **filt_kwargs)
-        # print self.filt.state.mean
+        self.filt(neural_obs, Bu=Bu, x_target=x_target)
 
-        # if assist_level > 0:
-        #     self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
-
-        # import pdb; pdb.set_trace()
         if assist_level > 0:
             if weighted_avg_lfc:
                 # calculates assist as:
@@ -660,13 +653,7 @@ class Decoder(object):
 
 class BMISystem(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    This class encapsulates all of the BMI decoding computations, including assist and CLDA
     '''
     def __init__(self, decoder, learner, updater):
         '''
@@ -778,10 +765,8 @@ class BMISystem(object):
             if feature_type in ['lfp_power', 'emg_amplitude']:
                 # hack to make to make lfp decoding work
                 self.spike_counts = neural_obs_k
-                accumulate = False
             else:
                 self.spike_counts += neural_obs_k
-                accumulate = True
 
             if learn_flag and self.decoder.bmicount == 0:
                 self.learner(self.spike_counts.copy(), learner_state, target_state_k, 
@@ -793,24 +778,21 @@ class BMISystem(object):
             new_params = None # by default, no new parameters are available
 
             if self.learner.is_ready():
-                self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-                # if 'half_life' in kwargs and hasattr(self.updater, 'half_life'):
-                #     half_life = kwargs['half_life']
-                #     rho = np.exp(np.log(0.5)/(half_life/self.updater.batch_time))
-                # elif hasattr(self.updater, 'half_life'):
-                #     rho = self.updater.rho
-                # else:
-                #     rho = -1
-                args = (self.intended_kin, self.spike_counts_batch, self.decoder)
-                batch_size = self.intended_kin.shape[1]
-                kwargs['batch_time'] = batch_size * self.decoder.binlen
+                batch_data = self.learner.get_batch()
+                batch_data['decoder'] = self.decoder
+                # self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
+                # args = (self.intended_kin, self.spike_counts_batch, self.decoder)
+                batch_size = batch_data['intended_kin'].shape[1]
+                # batch_data['batch_time'] = batch_size * self.decoder.binlen
+                kwargs.update(batch_data)
 
                 if self.mp_updater:
+                    args = ()
                     self.clda_input_queue.put(args, kwargs)
                     # Disable learner until parameter update is received
                     self.learner.disable() 
                 else:
-                    new_params = self.updater.calc(*args, **kwargs)
+                    new_params = self.updater.calc(**kwargs)
                     if batch_size > 1: 
                         print "updating BMI"
 
@@ -829,8 +811,8 @@ class BMISystem(object):
             # Update the decoder if new parameters are available
             if new_params is not None:
                 self.decoder.update_params(new_params, **self.updater.update_kwargs)
-                new_params['intended_kin'] = self.intended_kin
-                new_params['spike_counts_batch'] = self.spike_counts_batch
+                new_params['intended_kin'] = batch_data['intended_kin']
+                new_params['spike_counts_batch'] = batch_data['spike_counts']
 
                 self.learner.enable()
                 update_flag = True
@@ -842,7 +824,9 @@ class BMISystem(object):
         return decoded_states, update_flag
 
     def __del__(self):
-        '''    Docstring    '''
+        '''
+        Destructor for BMISystem. Stops any spawned processes, if any.
+        '''
         # Stop updater if it's running in a separate process
         if self.mp_updater: 
             self.updater.stop()
@@ -850,6 +834,6 @@ class BMISystem(object):
 
 class BMI(object):
     '''
-    Legacy class. Ignore completely.
+    Legacy class, used only for unpickling super old Decoder objects. Ignore completely.
     '''
     pass

@@ -23,9 +23,12 @@ from utils.angle_utils import *
 
 inv = np.linalg.inv
 
-from numpy.linalg import lapack_lite
-lapack_routine = lapack_lite.dgesv
-
+try:
+    from numpy.linalg import lapack_lite
+    lapack_routine = lapack_lite.dgesv
+except:
+    pass
+    
 def fast_inv(A):
     '''
     This method represents a way to speed up matrix inverse computations when 
@@ -126,8 +129,9 @@ class Learner(object):
         '''Reset the lists of saved intention estimates and corresponding neural data'''
         self.kindata = []
         self.neuraldata = []
+        self.obs_value = []
 
-    def __call__(self, spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=None):
+    def __call__(self, spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=None, **kwargs):
         """
         Calculate the intended kinematics and pair with the neural data
 
@@ -144,6 +148,7 @@ class Learner(object):
             self.reset()
 
         int_kin = self.calc_int_kin(decoder_state, target_state, decoder_output, task_state, state_order=state_order)
+        obs_value = self.calc_value(decoder_state, target_state, decoder_output, task_state, state_order=state_order, **kwargs)
         
         if self.passed_done_state and self.enabled:
             if task_state in ['hold', 'target']:
@@ -152,9 +157,17 @@ class Learner(object):
         if self.enabled and not self.passed_done_state and int_kin is not None:
             self.kindata.append(int_kin)
             self.neuraldata.append(spike_counts)
+            self.obs_value.append(obs_value)
 
             if task_state in self.done_states:
                 self.passed_done_state = True
+
+    def calc_value(self, *args, **kwargs):
+        '''
+        Calculate a "value", i.e. a usefulness, for a particular observation.
+
+        '''
+        return 1.
 
     def is_ready(self):
         '''
@@ -164,12 +177,14 @@ class Learner(object):
         return _is_ready
 
     def get_batch(self):
-        '''    Docstring    '''
+        '''
+        Returns all the data from the last 'batch' of obserations of intended kinematics and neural decoder inputs
+        '''
         kindata = np.hstack(self.kindata)
         neuraldata = np.hstack(self.neuraldata)
-        self.kindata = []
-        self.neuraldata = []
-        return kindata, neuraldata
+        self.reset()
+        return dict(intended_kin=kindata, spike_counts=neuraldata)
+        # return kindata, neuraldata
 
 class DumbLearner(Learner):
     '''
@@ -207,11 +222,11 @@ class DumbLearner(Learner):
         pass
 
     def is_ready(self):
-        '''    Docstring    '''
+        '''DumbLearner is never ready to tell you what it learnerd'''
         return False
 
     def get_batch(self):
-        '''    Docstring    '''
+        '''DumbLearner never has any 'batch' data to retrieve'''
         raise NotImplementedError
 
 class OFCLearner(Learner):
@@ -317,6 +332,103 @@ class OFCLearnerTentacle(OFCLearner):
         # F_dict['hold'] = F
         F_dict['.*'] = F
         super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
+
+class TentacleValueLearner(Learner):
+    _mean = 24.5
+    _mean_alpha = 0.99
+    def __init__(self, *args, **kwargs):
+        if 'kin_chain' not in kwargs:
+            raise ValueError("kin_chain object must specified for TentacleValueLearner!")
+        self.kin_chain = kwargs.pop('kin_chain')
+        super(TentacleValueLearner, self).__init__(*args, **kwargs)
+
+        dt = 0.1
+        use_tau_unNat = 2.7
+        tau = use_tau_unNat
+        tau_scale = 28*use_tau_unNat/1000
+        bin_num_ms = (dt/0.001)
+        w_r = 3*tau_scale**2/2*(bin_num_ms)**2*26.61
+
+        I = np.eye(3)
+        zero_col = np.zeros([3, 1])
+        zero_row = np.zeros([1, 3])
+        zero = np.zeros([1,1])
+        one = np.ones([1,1])
+        A = self.A = np.bmat([[I, dt*I, zero_col], 
+                     [0*I, 0*I, zero_col], 
+                     [zero_row, zero_row, one]])
+        B = self.B = np.bmat([[0*I], 
+                     [dt/1e-3 * I],
+                     [zero_row]])
+        Q = self.Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
+        R = self.R = np.mat(np.diag([w_r, w_r, w_r]))
+
+        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
+
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        '''
+        This method of intention estimation just uses the subject's output 
+        '''
+        return decoder_output
+
+    def calc_value(self, current_state, target_state, decoder_output, task_state, state_order=None, horizon=10, **kwargs):
+        '''
+        Determine the 'value' of a tentacle movement (4-link arm) 
+        '''
+        current_state = np.array(current_state).ravel()
+        target_state = np.array(target_state).ravel()
+        
+        joint_pos = current_state[:self.kin_chain.n_links]
+        endpt_pos = self.kin_chain.endpoint_pos(joint_pos)
+        J = self.kin_chain.jacobian(-joint_pos)
+        joint_vel = current_state[4:8] ### TODO remove hardcoding
+        endpt_vel = np.dot(J, joint_vel)
+        current_state_endpt = np.hstack([endpt_pos, endpt_vel[0], 0, endpt_vel[1], 1])
+
+        target_pos = self.kin_chain.endpoint_pos(target_state[:self.kin_chain.n_links])
+        target_vel = np.zeros(len(target_pos))
+        target_state_endpt = np.hstack([target_pos, target_vel, 1])
+
+
+        current_state = current_state_endpt
+        target_state = target_state_endpt
+        current_state = np.mat(current_state).reshape(-1,1)
+        target_state = np.mat(target_state).reshape(-1,1)
+
+        F = self.F
+        A = self.A 
+        B = self.B
+        Q = self.Q
+        R = self.R
+
+        cost = 0
+        for k in range(horizon):
+            u = F*(target_state - current_state)
+            m = current_state - target_state
+            cost += (m.T * Q * m + u.T*0*u)[0,0]
+            current_state = A*current_state + B*u
+        return cost
+
+    def postproc_value(self, values):
+        values = np.hstack([-np.inf, values])
+        value_diff = values[:-1] - values[1:]
+        value_diff[value_diff < 0] = 0
+        self._mean = self._mean_alpha*self._mean + (1-self._mean_alpha)*np.mean(value_diff[value_diff > 0])
+        value_diff /= self._mean
+        return value_diff
+
+    def get_batch(self):
+        '''
+        see Learner.get_batch for documentation
+        '''
+        kindata = np.hstack(self.kindata)
+        neuraldata = np.hstack(self.neuraldata)
+        obs_value = np.hstack(self.obs_value)
+        obs_value = self.postproc_value(obs_value)
+
+        self.reset()
+        return dict(intended_kin=kindata, spike_counts=neuraldata, value=obs_value)
+
 
 class CursorGoalLearner2(Learner):
     '''
@@ -793,9 +905,9 @@ class KFSmoothbatchSingleThread(object):
         mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
         
-        D = C.T * Q.I * C
+        D = C.T * np.linalg.pinv(Q) * C
         new_params = {'kf.C':C, 'kf.Q':Q, 
-            'kf.C_xpose_Q_inv_C':D, 'kf.C_xpose_Q_inv':C.T * Q.I,
+            'kf.C_xpose_Q_inv_C':D, 'kf.C_xpose_Q_inv':C.T * np.linalg.pinv(Q),
             'mFR':mFR, 'sdFR':sdFR}
         return new_params
 
@@ -825,7 +937,7 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
         new_params = super(KFOrthogonalPlantSmoothbatchSingleThread, self).calc(*args, **kwargs)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
 
-        D = (C.T * Q.I * C)
+        D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
             d = np.mean([D[3,3], D[5,5]])
             D[3:6, 3:6] = np.diag([d, d, d])
@@ -841,7 +953,7 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
 
         new_params['kf.C_xpose_Q_inv_C'] = D
-        new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
+        new_params['kf.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
         return new_params
 
 
@@ -971,7 +1083,10 @@ class PPFContinuousBayesianUpdater(object):
 
 
 class KFRML(object):
-    '''    Docstring    '''
+    '''
+    Calculate updates for KF parameters using the Recursive maximum likelihood (RML) method
+    See Dangi et al, 2014 for mathematical details.
+    '''
     update_kwargs = dict(steady_state=False)
     def __init__(self, work_queue, result_queue, batch_time, half_life):
         '''    Docstring    '''
@@ -1023,10 +1138,14 @@ class KFRML(object):
         self.T = decoder.filt.T
         self.ESS = decoder.filt.ESS
 
-    def calc(self, intended_kin, spike_counts, decoder, half_life=None, batch_time=None, **kwargs):
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
         '''    Docstring    '''
-        if batch_time is None:
-            batch_time = self.batch_time
+        if intended_kin == None or spike_counts == None or decoder == None:
+            raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
+
+        # Calculate the step size based on the half life and the number of samples to train from
+        batch_size = intended_kin.shape[1]
+        batch_time = batch_size * decoder.binlen            
 
         if half_life is not None:
             rho = np.exp(np.log(0.5)/(half_life/batch_time))
@@ -1039,29 +1158,28 @@ class KFRML(object):
 
         x = np.mat(intended_kin)
         y = np.mat(spike_counts)
-        n_samples = spike_counts.shape[1]
-        
-        # self.R = rho*self.R + (1-rho)*(x*x.T)
-        # self.S = rho*self.S + (1-rho)*(y*x.T)
-        # self.T = rho*self.T + (1-rho)*(y*y.T)
-        # self.iter_counter += 1
+        if values is not None:
+            n_samples = np.sum(values)
+            B = np.mat(np.diag(values))
+        else:
+            n_samples = spike_counts.shape[1]
+            B = np.mat(np.eye(n_samples))
 
-        self.R = rho*self.R + (x*x.T)
-        self.S = rho*self.S + (y*x.T)
-        self.T = rho*self.T + np.dot(y, y.T) #(y*y.T).T
+        self.R = rho*self.R + (x*B*x.T)
+        self.S = rho*self.S + (y*B*x.T)
+        self.T = rho*self.T + np.dot(y, B*y.T)
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
         R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
         C = self.S * R_inv
 
-        # Q = 1./(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
         Q = (1./self.ESS) * (self.T - self.S*C.T) 
 
         mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
 
-        C_xpose_Q_inv   = C.T * Q.I
+        C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
         C_xpose_Q_inv_C = C_xpose_Q_inv * C
         
         new_params = {'kf.C':C, 'kf.Q':Q, 
@@ -1095,7 +1213,7 @@ class KFRML_IVC(KFRML):
         new_params = super(KFRML_IVC, self).calc(*args, **kwargs)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
 
-        D = (C.T * Q.I * C)
+        D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
             d = np.mean([D[3,3], D[5,5]])
             D[3:6, 3:6] = np.diag([d, d, d])
@@ -1111,7 +1229,7 @@ class KFRML_IVC(KFRML):
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
 
         new_params['kf.C_xpose_Q_inv_C'] = D
-        new_params['kf.C_xpose_Q_inv'] = C.T * Q.I
+        new_params['kf.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
         return new_params
 
 
@@ -1150,7 +1268,7 @@ class KFRML_baseline(KFRML):
         C = decoder.filt.C
         C[:,-1] = mFR.reshape(-1,1)
 
-        C_xpose_Q_inv   = C.T * Q.I
+        C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
         C_xpose_Q_inv_C = C_xpose_Q_inv * C
         
         new_params = {'kf.C':C, 'kf.Q':Q, 
@@ -1169,7 +1287,7 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     hdf_fname : filename of HDF file
     data : list of dictionaries with the same keys and same dtypes for values
     '''
-    log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
+    log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_hdf_log'), 'w')
 
     compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
     if len(data) > 0:

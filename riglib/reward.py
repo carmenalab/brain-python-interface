@@ -11,7 +11,7 @@ import binascii
 import threading
 import cStringIO
 import traceback
-import config
+from config import config
 
 
 import serial
@@ -75,7 +75,7 @@ class Basic(object):
         -------
         '''
         self.port = serial.Serial(glob.glob("/dev/ttyUSB0")[0], baudrate=38400)
-        self.version = config.reward_system_version
+        self.version = int(config.reward_sys['version'])
         if self.version==1: self.set_beeper_volume(128)
         time.sleep(.5)
         self.reset()
@@ -195,11 +195,11 @@ class Basic(object):
         '''
         assert drain_time > 0
         assert drain_time < 9999
-        if self.version==0: #have to wait and manually tell it to turn off
+        if self.version == 0: #have to wait and manually tell it to turn off
             self._write("@CNSENN")
             time.sleep(drain_time)
             self._write("@CNSDNN")
-        elif self.version==1:
+        elif self.version == 1:
             self._write('@M1' + struct.pack('H', drain_time) + 'D' + struct.pack('xx'))
         else:
             raise Exception("Unrecognized reward system version!")

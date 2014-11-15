@@ -59,8 +59,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         attrs = self.__dict__.keys()
         if not 'C_xpose_Q_inv_C' in attrs:
             C, Q = self.C, self.Q 
-            self.C_xpose_Q_inv = C.T * Q.I
-            self.C_xpose_Q_inv_C = C.T * Q.I * C
+            self.C_xpose_Q_inv = C.T * np.linalg.pinv(Q)
+            self.C_xpose_Q_inv_C = C.T * np.linalg.pinv(Q) * C
 
         try:
             self.is_stochastic
@@ -633,7 +633,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.filt.Q = self.filt.Q[inds, :]
         self.filt.Q = self.filt.Q[:, inds]
 
-        self.filt.C_xpose_Q_inv = self.filt.C.T * self.filt.Q.I
+        self.filt.C_xpose_Q_inv = self.filt.C.T * np.linalg.pinv(self.filt.Q.I)
 
         # RML sufficient statistics (S and T, but not R and ESS)
         # shuffle rows of S, and rows+cols of T

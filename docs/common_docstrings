@@ -1,0 +1,31 @@
+init:
+Secondary init function after the object has been created and all the super __init__ functions have run.
+
+Parameters
+----------
+None
+
+Returns
+-------
+None
+
+
+
+
+
+cleanup:
+def cleanup(self, database, saveid, **kwargs):
+Commands to execute at the end of a task.
+
+Parameters
+----------
+database : object
+	Needs to have the methods save_bmi, save_data, etc. For instance, the db.tracker.dbq module or an RPC representation of the database
+saveid : int
+	TaskEntry database record id to link files/data to
+kwargs : optional dict arguments
+	Optional arguments to dbq methods. kwargs cannot be used when database is an RPC object.
+
+Returns
+-------
+None
