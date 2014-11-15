@@ -123,7 +123,7 @@ def get_decoder_name(entry):
         decid = json.loads(entry.params)['decoder']
     except:
         decid = json.loads(entry.params)['bmi']
-    return models.Decoder.objects.get(pk=decid).name
+    return models.Decoder.objects.get(pk=decid).path
 
 def get_decoder_name_full(entry):
     entry = lookup_task_entries(entry)

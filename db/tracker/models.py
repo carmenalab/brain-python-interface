@@ -660,7 +660,6 @@ class Decoder(models.Model):
     
     def load(self):
         decoder_fname = os.path.join(db.paths.data_path, 'decoders', self.path)
-        #print decoder_fname
         decoder_name = self.name
         dec = pickle.load(open(decoder_fname))
         dec.name = decoder_name
