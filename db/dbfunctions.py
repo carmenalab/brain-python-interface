@@ -2,6 +2,7 @@
 Interface between the Django database methods/models and data analysis code
 '''
 import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import sys
 import json
 import numpy as np
@@ -26,15 +27,19 @@ except:
 # Should use db.initdb.initialize_db() function to set the desired database
 # before this file is imported, but if it has not already been done, choose the
 # bmi3d rig database.
-try:
-    dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
-except:
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
 
-sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
+
+# try:
+#     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
+# except:
+#     
+#     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
+
+# sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
+# from tracker import models
+# dbname = eval(dbname_short+'.DATABASES[\'default\'][\'NAME\']')
+
 from tracker import models
-dbname = eval(dbname_short+'.DATABASES[\'default\'][\'NAME\']')
 
 def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
     '''

@@ -3,34 +3,35 @@ Lookup table for features, generators and tasks for experiments
 '''
 
 import numpy as np
-from riglib import experiment, calibrations, bmi
+from riglib import calibrations, bmi
 from riglib.stereo_opengl.window import MatplotlibWindow
+from riglib.experiment import features
 
 features = dict(
-    autostart=experiment.features.Autostart, 
-    adaptive_generator=experiment.features.AdaptiveGenerator,
-    button=experiment.features.Button, 
-    ignore_correctness=experiment.features.IgnoreCorrectness,
-    reward_system = experiment.features.RewardSystem,
-    eye_data=experiment.features.EyeData,
-    joystick=experiment.features.Joystick,
-    dual_joystick=experiment.features.DualJoystick,
-    calibrated_eye=experiment.features.CalibratedEyeData,
-    eye_simulate=experiment.features.SimulatedEyeData,
-    fixation_start=experiment.features.FixationStart,
-    motion_data=experiment.features.MotionData,
-    motion_simulate=experiment.features.MotionSimulate, 
-    motion_autoalign=experiment.features.MotionAutoAlign,
-    bmi=experiment.features.PlexonBMI,
-    blackrockbmi=experiment.features.BlackrockBMI,
-    saveHDF=experiment.features.SaveHDF,
-    relay_plexon=experiment.features.RelayPlexon,
-    relay_plexbyte=experiment.features.RelayPlexByte,
-    relay_blackrockbyte=experiment.features.RelayBlackrockByte,
-    norm_firingrates=experiment.features.NormFiringRates,
-    ttl_reward=experiment.features.TTLReward,
-    juice_log=experiment.features.JuiceLogging,
-    single_video=experiment.features.SingleChannelVideo,
+    autostart=features.Autostart, 
+    adaptive_generator=features.AdaptiveGenerator,
+    button=features.Button, 
+    ignore_correctness=features.IgnoreCorrectness,
+    reward_system = features.RewardSystem,
+    eye_data=features.EyeData,
+    joystick=features.Joystick,
+    dual_joystick=features.DualJoystick,
+    calibrated_eye=features.CalibratedEyeData,
+    eye_simulate=features.SimulatedEyeData,
+    fixation_start=features.FixationStart,
+    motion_data=features.MotionData,
+    motion_simulate=features.MotionSimulate, 
+    motion_autoalign=features.MotionAutoAlign,
+    bmi=features.PlexonBMI,
+    blackrockbmi=features.BlackrockBMI,
+    saveHDF=features.SaveHDF,
+    relay_plexon=features.RelayPlexon,
+    relay_plexbyte=features.RelayPlexByte,
+    relay_blackrockbyte=features.RelayBlackrockByte,
+    norm_firingrates=features.NormFiringRates,
+    ttl_reward=features.TTLReward,
+    juice_log=features.JuiceLogging,
+    single_video=features.SingleChannelVideo,
     exp_display=MatplotlibWindow,
 )
 
