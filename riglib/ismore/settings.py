@@ -5,9 +5,6 @@ from utils.constants import *
 REMOTE_REHAND_SERVER = True
 # REMOTE_REHAND_SERVER = False
 
-# REHAND_FEEDBACK_TEST = True
-REHAND_FEEDBACK_TEST = False
-
 # MAT_SIZE = [42, 30]  # smallest mat
 # MAT_SIZE = [71, 51]  # small mat
 MAT_SIZE = [85, 95]  # larger mat
@@ -26,10 +23,6 @@ if REMOTE_REHAND_SERVER:
 else: 
 	rehand_udp_server = ('127.0.0.1', 5000)
 	rehand_udp_client = ('127.0.0.1', 5003)
-
-if REHAND_FEEDBACK_TEST:
-    rehand_udp_server = ('192.168.137.2', 5004)
-    rehand_udp_client = ('192.168.137.2', 5003)
 
 pos_states = [
     'aa_px',
@@ -63,4 +56,3 @@ starting_pos['rh_pthumb'] = 30. * deg_to_rad  # rad
 starting_pos['rh_pindex'] = 30. * deg_to_rad  # rad
 starting_pos['rh_pfing3'] = 30. * deg_to_rad  # rad
 starting_pos['rh_pprono'] =  2. * deg_to_rad  # rad
-
