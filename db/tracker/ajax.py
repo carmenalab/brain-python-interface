@@ -120,6 +120,7 @@ def start_experiment(request, save=True):
         return _respond(response)
 
     except Exception as e:
+        # Generate an HTML response with the traceback of any exceptions thrown
         import cStringIO
         import traceback
         err = cStringIO.StringIO()
@@ -189,6 +190,9 @@ def make_bmi(request, idx):
     return _respond(dict(status="success"))
 
 def reward_drain(request, onoff):
+    '''
+    Start/stop the "drain" of a solenoid reward remotely
+    '''
     if onoff == 'on':
         r.drain(600)
         print 'drain on'

@@ -18,6 +18,8 @@ n_iter = len(te.hdf.root.task) #22283 - 1
         
 gen = genfns.sim_target_seq_generator_multi(8, 1000)
 task = cls(te, n_iter, gen)
+from tasks import plantlist
+task.plant = plantlist.cursor_14x14_no_vel_wall
 task.init()
         
 error = task.calc_recon_error(verbose=False)

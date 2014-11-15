@@ -468,7 +468,8 @@ class LogExperiment(Experiment):
 
 class Sequence(LogExperiment):
     '''
-    Task where the targets are presented by a Python generator
+    Task where the targets or other information relevant to the start of each trial
+    are presented by a Python generator
     '''
     def __init__(self, gen, **kwargs):
         '''
@@ -491,13 +492,8 @@ class Sequence(LogExperiment):
     
     def _start_wait(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        At the start of the wait state, the generator (self.gen) is querried for 
+        new information needed to start the trial. If the generator runs out, the task stops. 
         '''
         try:
             self.next_trial = self.gen.next()

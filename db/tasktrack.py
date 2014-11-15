@@ -229,9 +229,13 @@ class Task(object):
         Exp = experiment.make(base_class, feats=feats)
         self.params.trait_norm(Exp.class_traits())
         if issubclass(Exp, experiment.Sequence):
-            gen, gp = seq.get()
-            sequence = gen(Exp, **gp)
-            exp = Exp(sequence, **self.params.params)
+            gen_constructor, gen_params = seq.get()
+
+            # TODO Somehow, 'gen_constructor' magically ends up as the experiment.generate.runseq function, instead of anything in namelist.generators
+            gen = gen_constructor(Exp, **gen_params)
+
+            # 'gen' is now a true python generator, used by experiment.Sequence
+            exp = Exp(gen, **self.params.params)
         else:
             exp = Exp(**self.params.params)
         

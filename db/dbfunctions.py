@@ -297,8 +297,7 @@ class TaskEntry(object):
         for key in report:
             print key, report[key]
 
-    def proc(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
-             trial_condition_fn=trial_condition_functions.default, data_comb_fn=None, **kwargs):
+    def proc(self, filt=None, proc=None, cond=None, comb=None, **kwargs):
         '''
         Generic trial-level data analysis function
 
@@ -320,6 +319,22 @@ class TaskEntry(object):
             grouped by tuples are combined into a single result. 
 
         '''
+        if filt == None and 'trial_filter_fn' in kwargs:
+            filt = kwargs.pop('trial_filter_fn')
+        if cond == None and 'trial_condition_fn' in kwargs:
+            cond = kwargs.pop('trial_condition_fn')
+        if proc == None and 'trial_proc_fn' in kwargs:
+            proc = kwargs.pop('trial_proc_fn')
+        if comb == None and 'data_comb_fn' in kwargs:
+            comb = kwargs.pop('data_comb_fn')
+
+
+        trial_filter_fn = filt
+        trial_condition_fn = cond
+        trial_proc_fn = proc
+        data_comb_fn = comb
+
+
         if isinstance(trial_filter_fn, str):
             trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
@@ -327,7 +342,7 @@ class TaskEntry(object):
             trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
 
         if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_proc_fn)
+            trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
         if data_comb_fn == None: 
             data_comb_fn = np.hstack
@@ -361,6 +376,35 @@ class TaskEntry(object):
         -------
         '''
         return '/storage/task_supplement/%d.mat' % self.record.id
+
+    def get_cached_attr(self, key, fn, clean=False):
+        '''
+        Generic method for saving the results of a computation to the supplementary_data_file associated with this block
+
+        Parameters
+        ----------
+        key : string
+            Variable name in cache file 
+        fn : callable
+            Function to execute (no arguments) to get the required data, if it is not present in the file
+        clean : bool, default=False
+            If true, force the recomputation of the data product even if it is already present in the cache file
+        '''
+        from scipy.io import savemat, loadmat
+        if hasattr(self, '_%s' % key):
+            return getattr(self, '_%s' % key)
+        if not os.path.exists(self.supplementary_data_file):
+            data = fn()
+            savemat(self.supplementary_data_file, dict(key=data))
+            setattr(self, '_%s' % key, data)
+            return getattr(self, '_%s' % key)
+        else:
+            supplementary_data = loadmat(self.supplementary_data_file)
+            if (not key in supplementary_data) or clean:
+                supplementary_data[key] = fn()
+                savemat(self.supplementary_data_file, supplementary_data)
+            setattr(self, '_%s' % key, supplementary_data[key])
+            return getattr(self, '_%s' % key)            
 
     def get_matching_state_transition_seq(self, seq):
         '''
@@ -428,11 +472,12 @@ class TaskEntry(object):
         '''
         Return a reference to the HDF file recorded during this TaskEntry
         '''
-        try:
-            return self.hdf_file
-        except:
-            self.hdf_file = tables.openFile(self.hdf_filename)
-            return self.hdf_file
+        if not hasattr(self, 'hdf_file'):
+            try:
+                self.hdf_file = tables.open_file(self.hdf_filename)
+            except:
+                self.hdf_file = tables.openFile(self.hdf_filename)
+        return self.hdf_file
 
     @property
     def plx(self):
@@ -443,7 +488,7 @@ class TaskEntry(object):
             self._plx
         except:
             from plexon import plexfile
-            self._plx = plexfile.openFile(str(self.plx_file))
+            self._plx = plexfile.openFile(str(self.plx_filename))
         return self._plx
 
     @property
@@ -528,7 +573,7 @@ class TaskEntry(object):
         '''
         Return the name of the plx file associated with this TaskEntry
         '''
-        return self.get_datafile('plexon', intermediate_path='')
+        return self.get_datafile('plexon', intermediate_path='plexon')
 
     @property
     def plx2_filename(self):
@@ -582,6 +627,16 @@ class TaskEntry(object):
         # after the fact a record is removed, the number might change. read from
         # the file instead
         return str(os.path.basename(self.hdf_filename).rstrip('.hdf'))
+
+    def trained_decoder_filenames(self):
+        decoder_records = self.get_decoders_trained_in_block()
+        filenames = []
+        if np.iterable(decoder_records):
+            for rec in decoder_records:
+                filenames.append(rec.filename)
+        else:
+            filenames.append(decoder_records.filename)
+        return filenames
 
     def __str__(self):
         return self.record.__str__()
@@ -756,7 +811,7 @@ class TaskEntrySet(object):
 
 def parse_blocks(blocks, **kwargs):
     '''
-    Parse out a hierarchical structure of block ids
+    Parse out a hierarchical structure of block ids. Used to construct TaskEntryCollection objects
     '''
     data = []
     from analysis import performance
@@ -775,21 +830,26 @@ class TaskEntryCollection(object):
     '''
     def __init__(self, blocks, name='', **kwargs):
         '''
-        Docstring
+        Constructor for TaskEntryCollection
 
         Parameters
         ----------
+        blocks: np.iterable
+            Some iterable object which contains TaskEntry ID numbers to look up in the database
+        name: string, optional, default=''
+            Name to give this collection 
 
         Returns
         -------
         '''
+        self.block_ids = blocks
         self.blocks = parse_blocks(blocks, **kwargs)
         self.kwargs = kwargs
         self.name = name
 
     def proc_trials(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
                     trial_condition_fn=trial_condition_functions.default, data_comb_fn=default_data_comb_fn,
-                    verbose=True, **kwargs):
+                    verbose=False, max_errors=10, **kwargs):
         '''
         Generic framework to perform a trial-level analysis on the entire dataset
 
@@ -803,6 +863,10 @@ class TaskEntryCollection(object):
             Determine what the trial *subtype* is (useful for separating out various types of catch trials)
         data_comb_fn: callable; call signature: data_comb_fn(list)
             Combine the list into the desired output structure
+        verbose: boolean, optional, default = True
+            Feedback print statements so that you know processing is happening
+        max_errors: int, optional, default = 10
+            Number of trials resulting in error before the processing quits. Below this threshold, errors are printed but the code continues on to the next trial.
 
         Returns
         -------
@@ -818,9 +882,10 @@ class TaskEntryCollection(object):
             trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
 
         if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_proc_fn)
+            trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
         result = []
+        error_count = 0
         for blockset in self.blocks:
             if not np.iterable(blockset):
                 blockset = (blockset,)
@@ -828,7 +893,7 @@ class TaskEntryCollection(object):
             blockset_data = defaultdict(list)
             for te in blockset:
                 if verbose:
-                    print ".",
+                    print "."
           
                 # Filter out the trials you want
                 trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
@@ -841,9 +906,12 @@ class TaskEntryCollection(object):
                         trial_condition = trial_condition_fn(te, trial_msgs[k])
                         blockset_data[trial_condition].append(output)
                     except:
+                        error_count += 1
                         print trial_msgs[k]
                         import traceback
                         traceback.print_exc()
+                        if error_count > max_errors:
+                            raise Exception
         
             # Aggregate the data from the blockset, which may include multiple task entries
             blockset_data_comb = dict()
@@ -905,6 +973,15 @@ class TaskEntryCollection(object):
         if verbose:
             sys.stdout.write('\n')
         return return_type(result)
+
+    def __repr__(self):
+        if not self.name == '':
+            return str(self.block_ids)
+        else:
+            return "TaskEntryCollection: ", self.name
+
+    def __str__(self):
+        return self.__repr__()
 
 ######################
 ## Filter functions

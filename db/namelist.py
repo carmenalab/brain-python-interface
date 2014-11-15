@@ -53,6 +53,7 @@ generators = dict(
     centerout_back=manualcontrol.rand_multi_sequence_2d_centeroutback,
     centerout_2step=manualcontrol.rand_multi_sequence_2d_centerout2step,
     centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
+    centerout_2D_discrete_rot=generatorfunctions.centerout_2D_discrete_rot,
     centerout_2D_discrete_randorder=generatorfunctions.centerout_2D_discrete_randorder,
     centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
     centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
@@ -68,7 +69,8 @@ generators = dict(
     ismore_simple=generatorfunctions.ismore_simple,
     ibmi_noninvasive=generatorfunctions.ibmi_noninvasive,
     centerout_2D_discrete_multiring=generatorfunctions.centerout_2D_discrete_multiring,
-    block_probabilistic_reward=generatorfunctions.colored_targets_with_probabilistic_reward
+    block_probabilistic_reward=generatorfunctions.colored_targets_with_probabilistic_reward,
+    tentacle_multi_start_config=generatorfunctions.tentacle_multi_start_config
 )
 
 # from tasks.rds import RDS, RDS_half
@@ -138,11 +140,13 @@ tasks = dict(
     joystick_ops=tasks.JoystickDrivenCursorOPS,
     joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
     joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
+    joystick_freechoice_pilot = tasks.manualcontrolfreechoice.FreeChoicePilotTask,
     clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
     bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
     movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
     machine_control=bmimultitasks.TargetCaptureVisualFeedback,
-    passive_exo          = tasks.RecordEncoderData,
+    manual_control_multi_plusvar = tasks.manualcontrolmulti_COtasks.ManualControlMulti_plusvar,
+    clda_tentacle_rl = tasks.CLDATentacleRL,
 
     ######## iBMI tasks
     ibmi_visual_feedback = ibmitasks.VisualFeedback,

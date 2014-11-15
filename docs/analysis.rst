@@ -34,12 +34,74 @@ Note that dbfunctions.TaskEntry does not inherit from db.tracker.models.TaskEntr
 
 Instantiating a dbfunctions.TaskEntry object with a database ID number creates an object with basic attributes, e.g., names of linked HDF/plexon files. However, we will often want to perform analyses that are only meaningful for the particular task of a block. For this, we create task-specific child classes, one for each task. These are declared in the semi-misnamed analysis.performance module. 
 
-To get one of these task-specific TaskEntry classes, you can do::
+To get one of these task-specific TaskEntry classes, you can do
+
+.. code-block:: python
 
 	from bmi3d import analysis
 	te = analysis.get(id)
 
 
+Using multiple databases
+========================
+Django provides options for storing database data using sqlite3, postgres, or mysql. Experiment metadata is best stored using the sqlite3 form, as that ensures that the 
+metadata is stored in a file which can be moved easily to multiple machines. The more complex postgres and mysql are not necessary as only one "user" should ever write
+to the database at a time. Analysis purposes should only involve reading the databases. 
+
+Django also makes it possible to use multiple databases: https://docs.djangoproject.com/en/dev/topics/db/multi-db/.
+To use multiple databases with the dbfn.TaskEntry class, the file $BMI3D/db/settings.py must be told about the other database files. For example, 
+
+.. code-block:: python
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+            'NAME': os.path.join(cwd, "db.sql"),                      # Or path to database file if using sqlite3.
+            'USER': '',                      # Not used with sqlite3.
+            'PASSWORD': '',                  # Not used with sqlite3.
+            'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+            'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+        },
+        'bmi3d': {
+            'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+            'NAME': os.path.join(cwd, "db_bmi3d.sql"),                      # Or path to database file if using sqlite3.
+            'USER': '',                      # Not used with sqlite3.
+            'PASSWORD': '',                  # Not used with sqlite3.
+            'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+            'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+        },
+        'exorig': {
+            'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+            'NAME': os.path.join(cwd, "db_exorig.sql"),                      # Or path to database file if using sqlite3.
+            'USER': '',                      # Not used with sqlite3.
+            'PASSWORD': '',                  # Not used with sqlite3.
+            'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+            'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+        },
+        'simulation': {
+            'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+            'NAME': os.path.join(cwd, "db_simulation.sql"),                      # Or path to database file if using sqlite3.
+            'USER': '',                      # Not used with sqlite3.
+            'PASSWORD': '',                  # Not used with sqlite3.
+            'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+            'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+        }
+    }
+
+specifies three different databases which can be used (the 'default' database is the same as the 'bmi3d' database). Different databases of course
+must have unique names. Each name specifies a path to a .sql file (note that in each sub-dictionary, a different sqlite3 database is specified). 
+
+After settings.py is modified to include all of your database files, the package will need to be "reconfigured" to know about the new databases.
+Reconfiguration can be performed by running the script $BMI3D/make_config.py, which will (re)generate $BMI3D/config. 
+
+To continue using the dbfn.TaskEntry infrastructure, 
+
+.. code-block:: python
+
+    from bmi3d import analysis
+    te = analysis.get(id, dbname=DATABASE_NAME)
+
+where DATABASE_NAME is of one of the possible databases you listed in settings.py. If this keyword argument is not specified, dbfn.TaskEntry will use the 'default' database.
 
 basicanalysis
 =============
