@@ -34,121 +34,33 @@ features = dict(
     exp_display=MatplotlibWindow,
 )
 
-import tasks
-from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback, manualcontrolmultitasks
-generators = dict(
-    adaptive=experiment.generate.AdaptiveTrials,
-    endless=experiment.generate.endless,
-    redgreen_rand=redgreen.randcoords,
+## Build the list of generators
+try:
+    from tasklist import tasks
+except ImportError:
+    print 'create a file/module tasklists.py and create the task dictionaries inside it!'
+    tasks = dict()
 
-    #These are static generators
-    trialtypes=experiment.generate.sequence,
-    redgreen=redgreen.gencoords,
-    reach_target_2d=manualcontrol.rand_target_sequence_2d,
-    reach_target_3d=manualcontrol.rand_target_sequence_3d,
-    centerout_2d=manualcontrol.rand_target_sequence_2d_centerout,
-    nummap=sensorymapping.gen_taps,
-    centerout_partial=manualcontrol.rand_target_sequence_2d_partial_centerout,
-    centerout_back=manualcontrol.rand_multi_sequence_2d_centeroutback,
-    centerout_2step=manualcontrol.rand_multi_sequence_2d_centerout2step,
-    centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
-    centerout_2D_discrete_rot=generatorfunctions.centerout_2D_discrete_rot,
-    centerout_2D_discrete_randorder=generatorfunctions.centerout_2D_discrete_randorder,
-    centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
-    centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
-    centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
-    centerout_3D=generatorfunctions.centerout_3D,
-    outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
-    outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
-    centerout_2D_discrete_offset=generatorfunctions.centerout_2D_discrete_offset,
-    depth_trainer=generatorfunctions.depth_trainer,
-    centerout_3D_cube=generatorfunctions.centerout_3D_cube,
-    armassist_simple=generatorfunctions.armassist_simple,
-    rehand_simple=generatorfunctions.rehand_simple,
-    ismore_simple=generatorfunctions.ismore_simple,
-    centerout_2D_discrete_multiring=generatorfunctions.centerout_2D_discrete_multiring,
-    block_probabilistic_reward=generatorfunctions.colored_targets_with_probabilistic_reward,
-    tentacle_multi_start_config=generatorfunctions.tentacle_multi_start_config
-)
+from itertools import izip
 
+# Derive generator functions from the tasklist (all generatorfunctions should be staticmethods of a task)
+generator_names = []
+generator_functions = []
+for task in tasks:
+    task_cls = tasks[task]
+    generator_function_names = task_cls.sequence_generators
+    gen_fns = [getattr(task_cls, x) for x in generator_function_names]
+    for fn_name, fn in izip(generator_function_names, gen_fns):
+        if fn in generator_functions:
+            pass
+        else:
+            generator_names.append(fn_name)
+            generator_functions.append(fn)
 
-from tasks import blackrocktasks
+generators = dict()
+for fn_name, fn in izip(generator_names, generator_functions):
+    generators[fn_name] = fn
 
-tasks = dict(
-    dots=tasks.Dots,
-    rds=tasks.RDS,
-    rds_half=tasks.RDS_half,
-    redgreen=tasks.RedGreen,
-    button=tasks.ButtonTask,
-    eye_calibration=tasks.EyeCal,
-    manual_control=tasks.ManualControl,
-    bmi_control=tasks.BMIControl,
-    clda_control=tasks.CLDAControl,
-    manual_predict=tasks.ManualWithPredictions,
-    fixation_training=tasks.FixationTraining,
-    target_capture=tasks.TargetCapture,
-    movement_training=tasks.MovementTraining,
-    direction_training=tasks.TargetDirection,
-    test_boundary=tasks.TestBoundary,
-    free_map=tasks.FreeMap,
-    arm_position_training=tasks.ArmPositionTraining,
-    number_map=tasks.NumberMap,
-    joystick_control = tasks.JoystickControl,
-    manual_control_2 = tasks.ManualControl2,
-    visual_feedback = tasks.VisualFeedback,
-    visual_feedback_multi = tasks.VisualFeedbackMulti,
-    clda_auto_assist = tasks.CLDAAutoAssist,
-    clda_constrained_sskf = tasks.CLDAConstrainedSSKF,
-    sim_clda_control = tasks.SimCLDAControl,
-    sim_bmi_control = tasks.SimBMIControl,
-
-    ######### V2 tasks
-    clda_constrained_sskf_multi = tasks.CLDAConstrainedSSKFMulti,
-    manual_control_multi =tasks.ManualControlMulti,
-    joystick_multi=tasks.JoystickMulti,
-    joystick_leaky_vel=tasks.LeakyIntegratorVelocityJoystick,
-    joystick_move = tasks.JoystickMove,
-    joystick_multi_plus_move = tasks.JoystickMulti_plusMove,
-    joystick_multi_directed = tasks.JoystickMulti_Directed,
-    bmi_control_multi = tasks.BMIControlMulti,
-    bmi_manipulated_feedback = tasks.BMIControlManipulatedFB,
-    clda_ppf_manipulated_feedback = tasks.CLDAControlPPFContAdaptMFB,
-    clda_control_multi = tasks.CLDAControlMulti,
-    sim_clda_control_multi = tasks.SimCLDAControlMulti,
-    clda_rml_kf = tasks.CLDARMLKF,
-    clda_cont_ppf= tasks.CLDAControlPPFContAdapt,
-    test_graphics = tasks.TestGraphics,
-    clda_rml_kf_ofc = tasks.CLDARMLKFOFC,
-    clda_kf_cg_sb = tasks.CLDAControlKFCG,
-    clda_kf_cg_rml = tasks.CLDAControlKFCGRML, 
-    arm_plant = tasks.ArmPlant,
-    clda_kf_cg_joint_rml = tasks.CLDAControlKFCGJoint,
-    clda_kf_ofc_tentacle_rml = tasks.CLDAControlTentacle,
-    clda_kf_ofc_tentacle_rml_base = tasks.CLDAControlTentacleBaselineReestimate,
-    clda_kf_ofc_tentacle_rml_trial = tasks.CLDAControlTentacleTrialBased,
-    joystick_tentacle = tasks.JoystickTentacle,
-    bmi_baseline = tasks.BaselineControl,
-    bmi_joint_perturb = tasks.BMIJointPerturb,
-    bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
-    bmi_cursor_bias=tasks.BMICursorBias,
-    joystick_ops=tasks.JoystickDrivenCursorOPS,
-    joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
-    # joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
-    # joystick_freechoice_pilot = tasks.manualcontrolfreechoice.FreeChoicePilotTask,
-    clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
-    bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
-    movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
-    machine_control=bmimultitasks.TargetCaptureVisualFeedback,
-    manual_control_multi_plusvar = tasks.manualcontrolmulti_COtasks.ManualControlMulti_plusvar,
-    clda_tentacle_rl = tasks.CLDATentacleRL,
-
-    ######## iBMI tasks
-    ibmi_visual_feedback = blackrocktasks.VisualFeedback,
-    ibmi_manual_control  = blackrocktasks.ManualControl,
-    ibmi_bmi_control     = blackrocktasks.BMIControl,
-    ibmi_clda_control    = blackrocktasks.CLDAControl,
-    passive_exo          = tasks.RecordEncoderData,
-)
 
 from tracker import models
 class SubclassDict(dict):

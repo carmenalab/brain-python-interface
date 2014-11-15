@@ -41,6 +41,8 @@ class Experiment(traits.HasTraits, threading.Thread):
     ordered_traits = []
     hidden_traits = []
     fps = 60
+    sequence_generators = []
+    is_bmi_seed = False
 
     def __init__(self, **kwargs):
         '''
