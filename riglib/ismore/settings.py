@@ -2,8 +2,8 @@ import pandas as pd
 from utils.constants import *
 
 
-REMOTE_REHAND_SERVER = True
-# REMOTE_REHAND_SERVER = False
+# REMOTE_REHAND_SERVER = True
+REMOTE_REHAND_SERVER = False
 
 # MAT_SIZE = [42, 30]  # smallest mat
 # MAT_SIZE = [71, 51]  # small mat

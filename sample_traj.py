@@ -114,7 +114,7 @@ for i, kin in enumerate(kin_epoched):
             df_tmp = pd.DataFrame(interp_state_data, columns=[state])
             df_aa  = pd.concat([df_aa, df_tmp], axis=1)
 
-        traj[trial_type]['armassist'] = df_aa.T
+        traj[trial_type]['armassist'] = df_aa
         
         # comment
         df_rh = df_ts_interp.copy()
@@ -124,7 +124,7 @@ for i, kin in enumerate(kin_epoched):
             df_tmp = pd.DataFrame(interp_state_data, columns=[state])
             df_rh  = pd.concat([df_rh, df_tmp], axis=1)
 
-        traj[trial_type]['rehand'] = df_rh.T
+        traj[trial_type]['rehand'] = df_rh
 
         # comment
         df_traj = df_ts_interp.copy()
@@ -133,7 +133,7 @@ for i, kin in enumerate(kin_epoched):
         for state in rh_pos_states + rh_vel_states:
             df_traj = pd.concat([df_traj, df_rh[state]], axis=1)
         
-        traj[trial_type]['traj'] = df_traj.T
+        traj[trial_type]['traj'] = df_traj
         
 
 pickle.dump(traj, open(pkl_name, 'wb'))

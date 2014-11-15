@@ -37,6 +37,9 @@ INTERPOLATE_TRAJ = True
 hdf_name = '/storage/rawdata/hdf/test20141110_23.hdf'  # playback
 INTERPOLATE_TRAJ = False
 
+hdf_name = '/storage/rawdata/hdf/test20141115_14.hdf'  # playback
+INTERPOLATE_TRAJ = False
+
 if INTERPOLATE_TRAJ:
     pkl_name = 'traj_reference_interp.pkl'
 else:
@@ -129,7 +132,7 @@ for msg_idx in trial_start_msg_idxs:
                 df_aa2 = pd.DataFrame(armassist[idxs]['ts_arrival'], columns=['ts'])
                 df_aa  = pd.concat([df_aa1, df_aa2], axis=1)
 
-            traj[trial_type]['armassist'] = df_aa.T
+            traj[trial_type]['armassist'] = df_aa
 
         # save rehand data
         if rh_flag:
@@ -156,7 +159,7 @@ for msg_idx in trial_start_msg_idxs:
                 df_rh2 = pd.DataFrame(rehand[idxs]['ts_arrival'], columns=['ts'])
                 df_rh  = pd.concat([df_rh1, df_rh2], axis=1)
 
-            traj[trial_type]['rehand'] = df_rh.T
+            traj[trial_type]['rehand'] = df_rh
 
         # also save armassist+rehand data into a single combined dataframe
         if INTERPOLATE_TRAJ:
@@ -170,6 +173,6 @@ for msg_idx in trial_start_msg_idxs:
                 for state in rh_pos_states + rh_vel_states:
                     df_traj = pd.concat([df_traj, df_rh[state]], axis=1)
             
-            traj[trial_type]['traj'] = df_traj.T
+            traj[trial_type]['traj'] = df_traj
 
 pickle.dump(traj, open(pkl_name, 'wb'))

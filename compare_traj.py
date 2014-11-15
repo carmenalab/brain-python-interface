@@ -10,7 +10,7 @@ def norm_vec(x, eps=1e-9):
     return x / (np.linalg.norm(x) + eps)
 
 
-trial_type = 'touch 2'
+trial_type = 'touch 0'
 
 traj_file_ref = 'traj_reference_interp.pkl'
 traj_file_pbk = 'traj_playback.pkl'
@@ -32,8 +32,8 @@ rh_flag = 'rehand' in traj_pbk[trial_type]
 
 
 if aa_flag:
-    aa_ref = traj_ref[trial_type]['armassist'].T
-    aa_pbk = traj_pbk[trial_type]['armassist'].T
+    aa_ref = traj_ref[trial_type]['armassist']
+    aa_pbk = traj_pbk[trial_type]['armassist']
 
     print "length of aa_ref:", len(aa_ref)
     print "length of aa_pbk:", len(aa_pbk)
@@ -41,8 +41,8 @@ if aa_flag:
     print "length of aa_pbk (secs):", aa_pbk['ts'][aa_pbk.index[-1]] - aa_pbk['ts'][0]
 
 if rh_flag:
-    rh_ref = traj_ref[trial_type]['rehand'].T
-    rh_pbk = traj_pbk[trial_type]['rehand'].T
+    rh_ref = traj_ref[trial_type]['rehand']
+    rh_pbk = traj_pbk[trial_type]['rehand']
 
     print "length of rh_ref:", len(rh_ref)
     print "length of rh_pbk:", len(rh_pbk)
