@@ -102,7 +102,184 @@ def get_task_id(name):
     Returns the task ID for the specified task name.
     '''
     return models.Task.objects.get(name=name).pk
- 
+
+def get_decoder_entry(entry):
+    '''Returns the database entry for the decoder used in the session. Argument can be a task entry
+    or the ID number of the decoder entry itself.
+    '''
+    if isinstance(entry, int):
+        return models.Decoder.objects.get(pk=entry)
+    else:
+        params = json.loads(entry.params)
+        if 'decoder' in params:
+            return models.Decoder.objects.get(pk=params['decoder'])
+        elif 'bmi' in params:
+            return models.Decoder.objects.get(pk=params['bmi'])
+        else:
+            return None
+
+def get_decoder_name(entry):
+    ''' 
+    Returns the filename of the decoder used in the session.
+    Takes TaskEntry object.
+    '''
+    entry = lookup_task_entries(entry)
+    try:
+        decid = json.loads(entry.params)['decoder']
+    except:
+        decid = json.loads(entry.params)['bmi']
+    return models.Decoder.objects.get(pk=decid).path
+
+def get_decoder_name_full(entry):
+    entry = lookup_task_entries(entry)
+    decoder_basename = get_decoder_name(entry)
+    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
+
+def get_decoder(entry):
+    entry = lookup_task_entries(entry)
+    filename = get_decoder_name_full(entry)
+    dec = pickle.load(open(filename, 'r'))
+    dec.db_entry = get_decoder_entry(entry)
+    dec.name = dec.db_entry.name
+    return dec
+
+def get_params(entry):
+    '''
+    Returns a dict of all task params for session.
+    Takes TaskEntry object.
+    '''
+    return json.loads(entry.params)
+
+def get_param(entry,paramname):
+    '''
+    Returns parameter value.
+    Takes TaskEntry object.
+    '''
+    return json.loads(entry.params)[paramname]
+
+def get_task_name(entry):
+    '''
+    Returns name of task used for session.
+    Takes TaskEntry object.
+    '''
+    return models.Task.objects.get(pk=entry.task_id).name
+    
+def get_date(entry):
+    '''
+    Returns date and time of session (as a datetime object).
+    Takes TaskEntry object.
+    '''
+    return entry.date
+    
+def get_notes(entry):
+    '''
+    Returns notes for session.
+    Takes TaskEntry object.
+    '''
+    return entry.notes
+    
+def get_subject(entry):
+    '''
+    Returns name of subject for session.
+    Takes TaskEntry object.
+    '''
+    return models.Subject.objects.get(pk=entry.subject_id).name
+    
+def get_length(entry):
+    '''
+    Returns length of session in seconds.
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except:
+        return 0.0
+    return report[-1][2]-report[0][2]
+    
+def get_success_rate(entry):
+    '''
+    Returns (# of trials rewarded)/(# of trials intiated).
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    total=0.0
+    rew=0.0
+    for s in report:
+        if s[0]=='reward':
+            rew+=1
+            total+=1
+        if s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            total+=1
+    return rew/total
+
+def get_completed_trials(entry):
+    '''
+    Returns # of trials rewarded
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    return len([s for s in report if s[0]=="reward"])
+
+def get_initiate_rate(entry):
+    '''
+    Returns average # of trials initated per minute.
+    Takes TaskEntry object.
+    '''
+    length = get_length(entry)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    count=0.0
+    for s in report:
+        if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            count+=1
+    return count/(length/60.0)
+
+def get_reward_rate(entry):
+    '''
+    Returns average # of trials completed per minute.
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    count=0.0
+    rewardtimes = []
+    for s in report:
+        if s[0]=='reward':
+            count+=1
+            rewardtimes.append(s[2])
+    if len(rewardtimes)==0:
+        return 0
+    else:
+        length = rewardtimes[-1] - report[0][2]
+        return count/(length/60.0)
+    
+def session_summary(entry):
+    '''
+    Prints a summary of info about session.
+    Takes TaskEntry object.
+    '''
+    entry = lookup_task_entries(entry)
+    print "Subject: ", get_subject(entry)
+    print "Task: ", get_task_name(entry)
+    print "Date: ", str(get_date(entry))
+    hours = np.floor(get_length(entry)/3600)
+    mins = np.floor(get_length(entry)/60) - hours*60
+    secs = get_length(entry) - mins*60
+    print "Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs))
+    try:
+        print "Assist level: ", get_param(entry,'assist_level')
+    except:
+        print "Assist level: 0"
+    print "Completed trials: ", get_completed_trials(entry)
+    print "Success rate: ", get_success_rate(entry)*100, "%"
+    print "Reward rate: ", get_reward_rate(entry), "trials/minute"
+    print "Initiate rate: ", get_initiate_rate(entry), "trials/minute"
+    
 def query_daterange(startdate, enddate=datetime.date.today()):
     '''
     Returns QuerySet for task entries within date range (inclusive). startdate and enddate
