@@ -36,7 +36,10 @@ class Task(models.Model):
     def get(self, feats=()):
         from namelist import tasks
         from riglib import experiment
-        return experiment.make(tasks[self.name], Feature.getall(feats))
+        if self.name in tasks:
+            return experiment.make(tasks[self.name], Feature.getall(feats))
+        else:
+            return experiment.Experiment
 
     @staticmethod
     def populate():
