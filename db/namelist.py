@@ -24,6 +24,7 @@ features = dict(
     motion_autoalign=features.MotionAutoAlign,
     bmi=features.PlexonBMI,
     blackrockbmi=features.BlackrockBMI,
+    brainampdata=features.BrainAmpData,
     saveHDF=features.SaveHDF,
     relay_plexon=features.RelayPlexon,
     relay_plexbyte=features.RelayPlexByte,
