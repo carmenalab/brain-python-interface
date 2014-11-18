@@ -10,7 +10,7 @@ from riglib.ismore import settings
 from utils.constants import *
 
 
-pkl_name = 'traj_reference_interp.pkl'
+pkl_name = os.path.expandvars('$BMI3D/riglib/ismore/traj_reference_interp.pkl')
 mat_name = os.path.expandvars('$HOME/Desktop/Kinematic data ArmAssist/Epoched data/epoched_kin_data/NI_sess05_20140610/NI_B1S005R01.mat')
 
 
@@ -83,6 +83,8 @@ def preprocess_data(df):
 mat = sio.loadmat(mat_name, struct_as_record=False, squeeze_me=True)
 kin_epoched = mat['kin_epoched']
 
+colors = ['red', 'green', 'blue', 'yellow']
+
 # create a dictionary of trajectories, indexed by trial_type
 traj = dict()
 for i, kin in enumerate(kin_epoched):
@@ -93,7 +95,7 @@ for i, kin in enumerate(kin_epoched):
     ts_end   = df['ts'][df.index[-1]]
 
     # assign an arbitrary trial_type name
-    trial_type = 'touch %d' % (i % 4)
+    trial_type = 'touch %s' % colors[i % 4]
 
     # if we haven't already saved a trajectory for this trial_type
     if trial_type not in traj:

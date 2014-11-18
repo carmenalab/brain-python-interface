@@ -8,12 +8,8 @@ from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand,
 from riglib.ismore import settings, udp_feedback_client
 from utils.constants import *
 
-try:
-    import armassist
-    import rehand
-except:
-    import warnings
-    warnings.warn('clone the iBMI repo and put it on the path!')
+import armassist
+import rehand
 
 
 # PRINT_COMMANDS = True

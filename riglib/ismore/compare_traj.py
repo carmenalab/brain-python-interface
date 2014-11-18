@@ -1,19 +1,19 @@
+import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
 from utils.constants import *
 
-############ comment
 
 def norm_vec(x, eps=1e-9):
     return x / (np.linalg.norm(x) + eps)
 
 
-trial_type = 'touch 0'
+trial_type = 'touch red'
 
-traj_file_ref = 'traj_reference_interp.pkl'
-traj_file_pbk = 'traj_playback.pkl'
+traj_file_ref = os.path.expandvars('$BMI3D/riglib/ismore/traj_reference_interp.pkl')
+traj_file_pbk = os.path.expandvars('$BMI3D/riglib/ismore/traj_playback.pkl')
 
 plot_closest_idx_lines = False
 plot_xy_aim_lines      = False
