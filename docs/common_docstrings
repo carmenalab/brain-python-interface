@@ -10,6 +10,14 @@ Returns
 None
 
 
+init:
+Secondary init function. See riglib.experiment.Experiment.init()
+Prior to starting the task, this 'init' 
+
+run:
+Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+See riglib.experiment.Experiment.run(). This 'run' method
+
 
 
 

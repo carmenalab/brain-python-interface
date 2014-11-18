@@ -8,7 +8,7 @@ import traceback
 import multiprocessing as mp
 
 import source
-from . import FuncProxy
+from source import FuncProxy
 
 class DataSink(mp.Process):
     '''

@@ -36,7 +36,10 @@ class Task(models.Model):
     def get(self, feats=()):
         from namelist import tasks
         from riglib import experiment
-        return experiment.make(tasks[self.name], Feature.getall(feats))
+        if self.name in tasks:
+            return experiment.make(tasks[self.name], Feature.getall(feats))
+        else:
+            return experiment.Experiment
 
     @staticmethod
     def populate():
@@ -443,13 +446,12 @@ class TaskEntry(models.Model):
                 path, name = os.path.split(df.get_path())
                 name, ext = os.path.splitext(name)
 
-                from namelist import bmi_seed_tasks
                 #js['bmi'] = dict(_plxinfo=dict(
                 js['bmi'] = dict(_neuralinfo=dict(
                     length=plx.length, 
                     units=plx.units, 
                     name=name,
-                    is_seed=int(self.task.name in bmi_seed_tasks),
+                    is_seed=int(Exp.is_bmi_seed),
                     ))
             except MemoryError:
                 print "Memory error opening plexon file!"
@@ -534,12 +536,11 @@ class TaskEntry(models.Model):
                 # i.e., unit 0 on channel 3 will be "3a" on web interface
                 units = [(chan, unit+1) for chan, unit in units]
 
-                from namelist import bmi_seed_tasks
                 js['bmi'] = dict(_neuralinfo=dict(
                     length=length, 
                     units=units, 
                     name=name,
-                    is_seed=int(self.task.name in bmi_seed_tasks),
+                    is_seed=int(Exp.is_bmi_seed),
                     ))    
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print "No blackrock files found"
