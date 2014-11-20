@@ -369,7 +369,7 @@ class TentacleValueLearner(Learner):
         '''
         This method of intention estimation just uses the subject's output 
         '''
-        return decoder_output
+        return decoder_output.reshape(-1,1)
 
     def calc_value(self, current_state, target_state, decoder_output, task_state, state_order=None, horizon=10, **kwargs):
         '''
