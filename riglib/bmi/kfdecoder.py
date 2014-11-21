@@ -479,7 +479,9 @@ class PseudoPPF(KalmanFilter):
         pass
 
 class KFDecoder(bmi.BMI, bmi.Decoder):
-    ''' Docstring '''
+    '''
+    Wrapper for KalmanFilter specifically for the application of BMI decoding.
+    '''
     def __init__(self, *args, **kwargs):
         '''
         Docstring    
