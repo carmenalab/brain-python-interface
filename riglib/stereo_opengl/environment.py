@@ -1,10 +1,28 @@
+'''
+Various graphical "environmental" or "world" add-ins to graphical tasks. 
+'''
 from models import Group, GroupDispl2D
 from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere, Cylinder
 
 
 class Box(Group):
+    '''
+    Construct a 3D wireframe box in the world to add some depth cue references
+    '''
     def __init__(self, **kwargs):
+        '''
+        Constructor for Box 
+
+        Parameters
+        ----------
+        kwargs: optional keyword arguments
+            All passed to parent constructor
+
+        Returns
+        -------
+        Box instance
+        '''
         bcolor = (181/256., 116/256., 96/256., 1)
         sidelen = 16
         linerad=.1
