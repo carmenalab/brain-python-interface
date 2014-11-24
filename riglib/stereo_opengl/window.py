@@ -174,12 +174,13 @@ class WindowWithHeadsUp(Window):
         self.screen = pygame.display.set_mode(win_res, flags)
 
 import matplotlib.pyplot as plt
-import plotutil
 from pylab import Circle
 
 class MatplotlibWindow(object):
     background = (0, 0, 0, 1)
     def __init__(self, *args, **kwargs):
+        import plotutil
+        
         print 'constructor for MatplotlibWindow'
         self.fig = plt.figure(figsize=(3,2))
         print 1
