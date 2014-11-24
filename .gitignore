@@ -26,3 +26,4 @@ riglib/plexon/psth.py
 config
 db/build
 docs/_build/*
+riglib/ismore/traj_*.pkl
