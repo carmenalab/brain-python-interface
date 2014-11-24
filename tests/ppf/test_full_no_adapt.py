@@ -6,7 +6,7 @@ import time
 import cProfile
 from riglib.bmi import train, clda, bmi, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
-from riglib.experiment.features import SimHDF
+from features.simulation_features import SimHDF
 from riglib.bmi.train import unit_conv
 
 reload(clda)

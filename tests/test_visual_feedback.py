@@ -7,7 +7,9 @@ from db import dbfunctions
 from db.tracker import models
 
 from riglib import experiment
-from riglib.experiment import features
+from riglib.stereo_opengl.window import MatplotlibWindow
+from features.generator_features import Autostart
+from features.hdf_features import SaveHDF
 
 from tasks import generatorfunctions as genfns
 from analysis import performance
@@ -40,8 +42,8 @@ class Debugging(object):
         #print self.arm.get_endpoint_pos()
         super(Debugging, self)._cycle()
 
-from riglib.stereo_opengl.window import MatplotlibWindow
-feats = [features.SaveHDF, features.Autostart]
+
+feats = [SaveHDF, Autostart]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())

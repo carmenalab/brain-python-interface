@@ -4,34 +4,44 @@ Lookup table for features, generators and tasks for experiments
 
 import numpy as np
 from riglib import calibrations, bmi
+
 from riglib.stereo_opengl.window import MatplotlibWindow
-from riglib.experiment import features
+from features.generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness
+from features.peripheral_device_features import Button, Joystick, DualJoystick
+from features.reward_features import RewardSystem, TTLReward, JuiceLogging
+from features.eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart
+from features.phasespace_features import MotionData, MotionSimulate, MotionAutoAlign
+from features.plexon_features import PlexonBMI, RelayPlexon, RelayPlexByte
+from features.blackrock_features import BlackrockBMI, RelayBlackrockByte
+from features.hdf_features import SaveHDF
+from features.video_recording_features import SingleChannelVideo
+from features.bmi_task_features import NormFiringRates
 
 features = dict(
-    autostart=features.Autostart, 
-    adaptive_generator=features.AdaptiveGenerator,
-    button=features.Button, 
-    ignore_correctness=features.IgnoreCorrectness,
-    reward_system = features.RewardSystem,
-    eye_data=features.EyeData,
-    joystick=features.Joystick,
-    dual_joystick=features.DualJoystick,
-    calibrated_eye=features.CalibratedEyeData,
-    eye_simulate=features.SimulatedEyeData,
-    fixation_start=features.FixationStart,
-    motion_data=features.MotionData,
-    motion_simulate=features.MotionSimulate, 
-    motion_autoalign=features.MotionAutoAlign,
-    bmi=features.PlexonBMI,
-    blackrockbmi=features.BlackrockBMI,
-    saveHDF=features.SaveHDF,
-    relay_plexon=features.RelayPlexon,
-    relay_plexbyte=features.RelayPlexByte,
-    relay_blackrockbyte=features.RelayBlackrockByte,
-    norm_firingrates=features.NormFiringRates,
-    ttl_reward=features.TTLReward,
-    juice_log=features.JuiceLogging,
-    single_video=features.SingleChannelVideo,
+    autostart=Autostart, 
+    adaptive_generator=AdaptiveGenerator,
+    button=Button, 
+    ignore_correctness=IgnoreCorrectness,
+    reward_system=RewardSystem,
+    eye_data=EyeData,
+    joystick=Joystick,
+    dual_joystick=DualJoystick,
+    calibrated_eye=CalibratedEyeData,
+    eye_simulate=SimulatedEyeData,
+    fixation_start=FixationStart,
+    motion_data=MotionData,
+    motion_simulate=MotionSimulate,
+    motion_autoalign=MotionAutoAlign,
+    bmi=PlexonBMI,
+    blackrockbmi=BlackrockBMI,
+    saveHDF=SaveHDF,
+    relay_plexon=RelayPlexon,
+    relay_plexbyte=RelayPlexByte,
+    relay_blackrockbyte=RelayBlackrockByte,
+    norm_firingrates=NormFiringRates,
+    ttl_reward=TTLReward,
+    juice_log=JuiceLogging,
+    single_video=SingleChannelVideo,
     exp_display=MatplotlibWindow,
 )
 
@@ -39,7 +49,7 @@ features = dict(
 try:
     from tasklist import tasks
 except ImportError:
-    print 'create a file/module tasklists.py and create the task dictionaries inside it!'
+    print 'create a module "tasklist" and create the task dictionaries inside it!'
     tasks = dict()
 
 from itertools import izip
