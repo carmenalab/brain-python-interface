@@ -47,6 +47,9 @@ class SaveHDF(object):
             self.sinks.register("task", self.dtype)
             self.task_data = np.zeros((1,), dtype=self.dtype)
         except:
+            import traceback
+            traceback.print_exc()
+            print self.dtype
             self.task_data = None        
 
     @property
