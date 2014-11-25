@@ -54,13 +54,20 @@ def sequence(length, probs=2):
 
 def runseq(exp, seq=None, reps=1):
     '''
-    Docstring
+    Turns a sequence into a Python generator by iterating through the sequence and yielding each sequence element
 
     Parameters
     ----------
+    exp: Class object for task
+        Used only if the experiment has 'trial_types' instead of a target sequence list
+    seq: iterable
+        Target sequence yielded to the task during the 'wait' state
+    reps: int, optional, default=1
+        Number of times to repeat the sequence
 
     Returns
     -------
+    Generator object corresponding to sequence
     '''
     if hasattr(exp, "trial_types"):
         assert max(seq)+1 == len(exp.trial_types)
