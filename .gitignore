@@ -25,3 +25,5 @@ riglib/plexon/plexfile.py
 riglib/plexon/psth.py
 config
 docs/_build/*
+*tasklist.py
+*featurelist.py
