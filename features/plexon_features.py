@@ -13,6 +13,9 @@ import subprocess
 from riglib import bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
+from hdf_features import SaveHDF
+
+sec_per_min = 60
 
 class RelayPlexon(object):
     '''
