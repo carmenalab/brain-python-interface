@@ -34,23 +34,24 @@ from riglib.stereo_opengl.primitives import Shape2D
 
 
 class Window(LogExperiment):
+    '''
+    Generic stereo window 
+    '''
     status = dict(draw=dict(stop=None))
     state = "draw"
     stop = False
 
     window_size = (3840, 1080)
     background = (0,0,0,1)
-    # fps = 60  # TODO (already defined in Experiment class)
 
     #Screen parameters, all in centimeters -- adjust for monkey
     fov = np.degrees(np.arctan(14.65/(44.5+3)))*2
     screen_dist = 44.5+3
-    iod = 2.5
+    iod = 2.5     # intraocular distance
 
     show_environment = traits.Int(0)
 
     def __init__(self, **kwargs):
-        # self.window_size = (self.window_size[0]*2, self.window_size[1]) # Stereo window display
         super(Window, self).__init__(**kwargs)
 
         self.models = []
@@ -242,7 +243,6 @@ class Simple2DWindow(object):
 
         flags = pygame.NOFRAME
 
-        
         if config.recording_sys['make'] == 'plexon':
             self.workspace_bottom_left = (-18., -12.)
             self.workspace_top_right   = (18., 12.)

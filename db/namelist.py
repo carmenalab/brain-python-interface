@@ -4,43 +4,18 @@ Lookup table for features, generators and tasks for experiments
 
 import numpy as np
 from riglib import calibrations, bmi
-from riglib.stereo_opengl.window import MatplotlibWindow
-from riglib.experiment import features
 
-features = dict(
-    autostart=features.Autostart, 
-    adaptive_generator=features.AdaptiveGenerator,
-    button=features.Button, 
-    ignore_correctness=features.IgnoreCorrectness,
-    reward_system = features.RewardSystem,
-    eye_data=features.EyeData,
-    joystick=features.Joystick,
-    dual_joystick=features.DualJoystick,
-    calibrated_eye=features.CalibratedEyeData,
-    eye_simulate=features.SimulatedEyeData,
-    fixation_start=features.FixationStart,
-    motion_data=features.MotionData,
-    motion_simulate=features.MotionSimulate, 
-    motion_autoalign=features.MotionAutoAlign,
-    bmi=features.PlexonBMI,
-    blackrockbmi=features.BlackrockBMI,
-    brainampdata=features.BrainAmpData,
-    saveHDF=features.SaveHDF,
-    relay_plexon=features.RelayPlexon,
-    relay_plexbyte=features.RelayPlexByte,
-    relay_blackrockbyte=features.RelayBlackrockByte,
-    norm_firingrates=features.NormFiringRates,
-    ttl_reward=features.TTLReward,
-    juice_log=features.JuiceLogging,
-    single_video=features.SingleChannelVideo,
-    exp_display=MatplotlibWindow,
-)
+## Get the list of experiment features
+try:
+    from featurelist import features
+except:
+    features = dict()
 
-## Build the list of generators
+## Get the list of tasks
 try:
     from tasklist import tasks
 except ImportError:
-    print 'create a file/module tasklists.py and create the task dictionaries inside it!'
+    print 'create a module "tasklist" and create the task dictionaries inside it!'
     tasks = dict()
 
 from itertools import izip

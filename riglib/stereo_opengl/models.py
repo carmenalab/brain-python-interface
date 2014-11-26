@@ -87,10 +87,23 @@ class Model(object):
             yield self.shader, self.draw, None
 
     def draw(self, ctx, **kwargs):
+        '''
+        Parameters
+        ----------
+        ctx: ??????
+        kwargs: optional keyword arguments
+            Can specify 'color', 'specular_color', or 'shininess' of the object to draw (overriding the model's attributes)
+
+        Returns: None
+        '''
         glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, self._xfm.to_mat().astype(np.float32))
-        glUniform4f(ctx.uniforms.basecolor, *(self.color if "color" not in kwargs else kwargs['color']))
-        glUniform4f(ctx.uniforms.spec_color, *(self.spec_color if "specular_color" not in kwargs else kwargs['spec_color']))
-        glUniform1f(ctx.uniforms.shininess, self.shininess if "shininess" not in kwargs else kwargs['shininess'])
+        glUniform4f(ctx.uniforms.basecolor, *kwargs.pop('color', self.color))
+        glUniform4f(ctx.uniforms.spec_color, *kwargs.pop('specular_color', self.spec_color))
+        glUniform1f(ctx.uniforms.shininess, kwargs.pop('shininess', self.shininess))
+
+        # glUniform4f(ctx.uniforms.basecolor, *(self.color if "color" not in kwargs else kwargs['color']))
+        # glUniform4f(ctx.uniforms.spec_color, *(self.spec_color if "specular_color" not in kwargs else kwargs['spec_color']))
+        # glUniform1f(ctx.uniforms.shininess, self.shininess if "shininess" not in kwargs else kwargs['shininess'])        
 
     def attach(self):
         assert self.parent is not None
@@ -109,7 +122,12 @@ class Group(Model):
         self.models = []
         for model in models:
             self.add(model)
-
+    
+    def add(self, model):
+        self.models.append(model)
+        model.parent = self
+        model._recache_xfm()
+        
     def init(self):
         for model in self.models:
             model.init()
@@ -122,11 +140,6 @@ class Group(Model):
     def draw(self, ctx, **kwargs):
         for model in self.models:
             model.draw(ctx, **kwargs)
-    
-    def add(self, model):
-        self.models.append(model)
-        model.parent = self
-        model._recache_xfm()
     
     def __getitem__(self, idx):
         return self.models[idx]

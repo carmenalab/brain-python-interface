@@ -15,7 +15,6 @@ except ImportError:
 import experiment
 import generate
 import report
-import features
 from experiment import Experiment, LogExperiment, Sequence, TrialTypes
 import logging
 

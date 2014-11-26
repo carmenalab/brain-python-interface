@@ -27,3 +27,5 @@ config
 db/build
 docs/_build/*
 riglib/ismore/traj_*.pkl
+*tasklist.py
+*featurelist.py
