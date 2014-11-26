@@ -10,7 +10,7 @@ from riglib.bmi import extractor
 from riglib.experiment import traits
 
 
-class RelayBlackrock(SinkRegister):
+class RelayBlackrock(object):
     '''Sends full data directly into the Blackrock system.'''
 
     def init(self):
@@ -20,7 +20,7 @@ class RelayBlackrock(SinkRegister):
         '''
 
         from riglib import sink
-        self.nidaq = sink.sinks.start(self.ni_out)\
+        self.nidaq = sink.sinks.start(self.ni_out)
         super(RelayBlackrock, self).init()
 
     @property
@@ -141,13 +141,13 @@ class RelayBlackrockByte(RelayBlackrock):
         return nidaq.SendRowByte
 
 
-class BlackrockData(traits.HasTraits):
+class BlackrockData(object):
     '''Stream Blackrock neural data.'''
 
     blackrock_channels = None
 
     def init(self):
-         '''
+        '''
         Secondary init function. See riglib.experiment.Experiment.init()
         Prior to starting the task, this 'init' sets up DataSource objects for streaming from the Blackrock system.
         For LFP streaming, the data is stored as it is received.
@@ -181,7 +181,7 @@ class BlackrockData(traits.HasTraits):
             self.neurondata.stop()
 
 
-class BlackrockBMI(BlackrockData):
+class BlackrockBMI(BlackrockData, traits.HasTraits):
     '''
     Special case of BlackrockData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
     '''
