@@ -371,6 +371,16 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 ## Main training functions
 ################################################################################
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    KFDecoder instance
+    '''
     binlen = update_rate
 
     ## get kinematic data
@@ -423,9 +433,9 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
 
     return decoder
 
-def train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=None):
+
+def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
-    Train a Point-process filter decoder which predicts the endpoint velocity
     Docstring
 
     Parameters
@@ -433,27 +443,46 @@ def train_PPFDecoder(_ssm, kin, spike_counts, units, update_rate=0.1, tslice=Non
 
     Returns
     -------
+    KFDecoder instance
     '''
-    binlen = update_rate
-    n_features = spike_counts.shape[0]  # number of neural features
+    binlen = 1./180 #update_rate
 
-    # C should be trained on all of the stochastic state variables, excluding 
-    # the offset terms
-    C = np.zeros([n_features, _ssm.n_states])
-    C[:, _ssm.drives_obs_inds], pvals = ppfdecoder.PointProcessFilter.MLE_obs_model(kin[_ssm.train_inds, :], spike_counts)
-    
+    ## get kinematic data
+    tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
+    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key)
+
+    ## get neural features
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, extractor_kwargs, tslice=tslice, units=units, source=kin_source)
+
+    # Remove 1st kinematic sample and last neural features sample to align the 
+    # velocity with the neural features
+    kin = kin[1:].T
+    neural_features = neural_features[:-1].T
+
+    # squash any spike counts greater than 1 (doesn't work with PPF model)
+    neural_features[neural_features > 1] = 1
+
+    #### Train the  PPF decoder matrices ####
+    n_features = neural_features.shape[0]  # number of neural features
+
+    # C should be trained on all of the stochastic state variables, excluding the offset terms
+    C = np.zeros([n_features, ssm.n_states])
+    C[:, ssm.drives_obs_inds], pvals = ppfdecoder.PointProcessFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features)
+
     # Set state space model
-    A, B, W = _ssm.get_ssm_matrices(update_rate=update_rate)
+    A, B, W = ssm.get_ssm_matrices(update_rate=update_rate)
 
     # instantiate Decoder
-    ppf = ppfdecoder.PointProcessFilter(A, W, C, B=B, dt=update_rate, is_stochastic=_ssm.is_stochastic)
-    decoder = ppfdecoder.PPFDecoder(ppf, units, _ssm, binlen=binlen, tslice=tslice)
-
-    # decoder.ssm = _ssm
+    ppf = ppfdecoder.PointProcessFilter(A, W, C, B=B, dt=update_rate, is_stochastic=ssm.is_stochastic)
+    decoder = ppfdecoder.PPFDecoder(ppf, units, ssm, binlen=binlen, tslice=tslice)
 
     decoder.n_features = n_features
-    
+
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
     return decoder
+
 
 ###################
 ## Helper functions

@@ -457,14 +457,14 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
     def shuffle(self):
         '''
         Shuffle the neural model
-
-        Docstring    
         
         Parameters
         ----------
+        None
         
         Returns
         -------
+        None
 
         '''
         import random

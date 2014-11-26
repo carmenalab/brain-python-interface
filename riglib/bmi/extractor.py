@@ -8,6 +8,7 @@ import sim_neurons
 from scipy.signal import butter, lfilter
 import math
 import os
+from itertools import izip
 
 import nitime.algorithms as tsa
 
