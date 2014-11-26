@@ -40,7 +40,7 @@ INTERPOLATE_TRAJ = False
 hdf_name = '/storage/rawdata/hdf/test20141115_14.hdf'  # playback
 INTERPOLATE_TRAJ = False
 
-hdf_name = '/storage/rawdata/hdf/test20141118_05.hdf'  # playback
+hdf_name = '/storage/rawdata/hdf/test20141118_02.hdf'  # playback
 INTERPOLATE_TRAJ = False
 
 if INTERPOLATE_TRAJ:
