@@ -10,7 +10,6 @@ import time
 import cProfile
 from riglib.bmi import train, clda, bmi, ppfdecoder, extractor
 from tasks import bmimultitasks, generatorfunctions as genfns
-from riglib.experiment.features import SimHDF
 from riglib.bmi.train import unit_conv
 from itertools import izip
 from tasks import bmi_recon_tasks

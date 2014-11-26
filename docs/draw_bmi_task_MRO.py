@@ -16,7 +16,11 @@ os.environ['DISPLAY'] = ':0'
 task = models.Task.objects.get(name='bmi_control_multi')
 base_class = task.get()
 
-feats = [features.Autostart, features.SaveHDF, features.RelayPlexByte, features.PlexonBMI]
+from features.generator_features import Autostart
+from features.hdf_features import SaveHDF
+from features.plexon_features import PlexonBMI, RelayPlexByte
+
+feats = [Autostart, SaveHDF, RelayPlexByte, PlexonBMI]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())

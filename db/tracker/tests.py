@@ -17,7 +17,11 @@ class SimpleTest(TestCase):
 
 def test_make_params():
     from riglib import experiment
-    from riglib.experiment import features
+
+    from features.generator_features import Autostart
+    from features.phasespace_features import MotionSimulate
+    from features.hdf_features import SaveHDF
+
     from tasks import manualcontrol
 
     jsdesc = dict()

@@ -120,15 +120,20 @@ class Cone(TriMesh):
             tcoords=tcoord, normals=normals, **kwargs)
 
 
-# below classes only for use with WindowDispl2D class (not Window)
-# objects of these classes live in the 2-dimensional xz-plane
 
 class Shape2D(object):
+    '''Abstract base class for shapes that live in the 2-dimension xz-plane
+    and are intended only for use with the WindowDispl2D class (not Window).
+    '''
+
     def __init__(self, color, visible=True):
         self.color   = color
         self.visible = visible
 
     def draw(self, surface, pos2pix_fn):
+        '''Draw itself on the given pygame.Surface object using the given
+        position-to-pixel_position function.'''
+
         raise NotImplementedError  # implement in subclasses
 
 

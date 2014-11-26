@@ -1,5 +1,5 @@
 '''
-Namespace configuration for 'from riglib import stereo_opengl'. Currentl unused
+__init__ script for stereo_opengl module
 '''
 
 try:

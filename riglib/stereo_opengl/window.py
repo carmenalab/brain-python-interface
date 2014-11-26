@@ -34,23 +34,24 @@ from riglib.stereo_opengl.primitives import Shape2D
 
 
 class Window(LogExperiment):
+    '''
+    Generic stereo window 
+    '''
     status = dict(draw=dict(stop=None))
     state = "draw"
     stop = False
 
     window_size = (3840, 1080)
     background = (0,0,0,1)
-    # fps = 60  # TODO (already defined in Experiment class)
 
     #Screen parameters, all in centimeters -- adjust for monkey
     fov = np.degrees(np.arctan(14.65/(44.5+3)))*2
     screen_dist = 44.5+3
-    iod = 2.5
+    iod = 2.5     # intraocular distance
 
     show_environment = traits.Int(0)
 
     def __init__(self, **kwargs):
-        # self.window_size = (self.window_size[0]*2, self.window_size[1]) # Stereo window display
         super(Window, self).__init__(**kwargs)
 
         self.models = []
@@ -174,12 +175,13 @@ class WindowWithHeadsUp(Window):
         self.screen = pygame.display.set_mode(win_res, flags)
 
 import matplotlib.pyplot as plt
-# import plotutil
 from pylab import Circle
 
 class MatplotlibWindow(object):
     background = (0, 0, 0, 1)
     def __init__(self, *args, **kwargs):
+        import plotutil
+        
         print 'constructor for MatplotlibWindow'
         self.fig = plt.figure(figsize=(3,2))
         print 1
@@ -241,7 +243,6 @@ class Simple2DWindow(object):
 
         flags = pygame.NOFRAME
 
-        
         if config.recording_sys['make'] == 'plexon':
             self.workspace_bottom_left = (-18., -12.)
             self.workspace_top_right   = (18., 12.)
@@ -334,60 +335,15 @@ class Simple2DWindow(object):
                 #Draws cursor and targets on transparent surfaces
                 pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
                 i += 1
+            
             elif isinstance(model, Shape2D):
+                # model.draw() returns True if the object was drawn
+                #   (which happens if the object's .visible attr is True)
                 if model.draw(self.surf[str(np.min([i,1]))], self.pos2pix):
                     i += 1
+            
             else:
                 pass
-
-            # NOTE: code below is old and has been moved into the .draw()
-            # method of the classes Circle, Sector, and Line in primitives.py
-
-            # elif isinstance(model, Circle):
-            #     TODO -- implement
-            #     i += 1
-            # elif isinstance(model, Sector):
-            #     if model.visible:
-            #         # center_pos = model.center_pos[[0,2]]
-            #         color = tuple(map(lambda x: int(255*x), model.color[0:3]))
-                    
-            #         center_pos = model.center_pos
-            #         start_angle = model.ang_range[0]
-            #         stop_angle  = model.ang_range[1]
-            #         radius = model.radius
-
-            #         arc_angles = np.linspace(start_angle, stop_angle, 5)
-            #         sector_pts = list(center_pos + radius*np.c_[np.cos(arc_angles), np.sin(arc_angles)])
-            #         sector_pts.append(center_pos)
-            #         point_list = [self.pos2pix(pt) for pt in sector_pts]
-            #         pygame.draw.polygon(self.surf[str(np.min([i,1]))], color, point_list)
-            #         i += 1
-            # elif isinstance(model, Line):
-            #     start_pos = model.start_pos
-            #     angle = model.angle
-            #     length = model.length
-            #     width = model.width
-
-            #     origin = np.zeros([0, 0])
-
-            #     # plot line as thin rectangle
-            #     pts = np.array([[0, width/2], 
-            #                     [0, -width/2], 
-            #                     [length, -width/2], 
-            #                     [length, width/2]])
-
-            #     # rotate rectangle to correct orientation
-            #     rot_mat = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-            #     pts = np.dot(rot_mat, pts.T).T
-            #     pts = pts + np.array([start_pos[0], start_pos[1]])
-
-            #     color = tuple(map(lambda x: int(255*x), model.color[0:3]))
-
-            #     point_list = [self.pos2pix(pt) for pt in pts]
-            #     pygame.draw.polygon(self.surf[str(np.min([i,1]))], color, point_list, 0)
-            #     i += 1
-            # else:
-            #     pass
 
         #Renders the new surfaces
         self.screen.blit(self.surf['0'], (0,0))

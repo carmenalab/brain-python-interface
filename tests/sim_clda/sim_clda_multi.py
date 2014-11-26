@@ -12,7 +12,11 @@ import os
 import numpy as np
 import multiprocessing as mp
 from scipy.io import loadmat, savemat
-from riglib.experiment.features import Autostart, SimHDF, SimTime, SaveHDF
+
+from features.generator_features import Autostart
+from features.simulation_features import SimHDF, SimTime
+from features.hdf_features import SaveHDF
+
 import riglib.bmi
 from riglib.bmi import train, kfdecoder, clda, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
