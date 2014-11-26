@@ -93,6 +93,7 @@ sock.sendto(command, rh_addr)
 time.sleep(5)
 
 
+
 # 2) wait until ReHand is in READYFORDONNING state, then send GoDonning command
 while True:
     if get_status() == 'READYFORDONNING':
@@ -104,7 +105,6 @@ print 'ReHand is now in state: READYFORDONNING'
 command = 'GoDonning ReHand %f %f %f %f\r' % tuple(donning_position)
 sock.sendto(command, rh_addr)
 time.sleep(5)
-
 
 ######################################################################
 # with real patient, would want to pause here for the actual donning #
@@ -133,6 +133,7 @@ command = 'WatchDogEnable ReHand %d\r' % watchdog_timeout
 # sock.sendto(command, rh_addr)
 
 
+
 # 4) print out received feedback and estimated feedback rate in a loop
 
 t_start = time.time()
@@ -157,6 +158,10 @@ while True:
 #         time.sleep(1)
 
 # print 'ReHand is now in state: OPERATIONAL'
+
+
+
+
 
 
 # ## enable "watchdog" functionality
