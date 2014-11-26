@@ -6,7 +6,7 @@ import numpy as np
 from db import dbfunctions as dbfn
 from db.tracker import models
 from riglib.bmi import kfdecoder, ppfdecoder
-from riglib.bmi import train2 as train
+from riglib.bmi import train
 from riglib.bmi import extractor
 import unittest
 

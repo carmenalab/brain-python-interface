@@ -5,10 +5,8 @@ import time
 import itertools
 import numpy as np
 
-try:
-    from Phidgets.Devices.InterfaceKit import InterfaceKit
-except ImportError:
-    pass
+from Phidgets.Devices.InterfaceKit import InterfaceKit
+
 
 class System(object):
     '''
