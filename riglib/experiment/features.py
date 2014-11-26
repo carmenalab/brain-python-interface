@@ -1241,65 +1241,6 @@ class FakeHDF(object):
         self.msgs.append(msg)
 
 
-# class SimHDF(object):
-#     '''
-#     An interface-compatbile HDF for simulations which do not require saving an
-#     HDF file
-#     '''
-#     def __init__(self, *args, **kwargs):
-#         '''
-#         Docstring
-#         Constructor for SimHDF feature
-
-#         Parameters
-#         ----------
-#         args, kwargs: None necessary
-
-#         Returns
-#         -------
-#         SimHDF instance
-#         '''
-#         from collections import defaultdict
-#         self.data = defaultdict(list)
-#         self.task_data_hist = []
-#         self.msgs = []        
-#         self.hdf = FakeHDF()
-
-#         super(SimHDF, self).__init__(*args, **kwargs)
-
-#     def init(self):
-        # '''
-        # Secondary init function. See riglib.experiment.Experiment.init()
-        # Prior to starting the task, this 'init' creates a fake task data variable so that 
-        # code expecting SaveHDF runs smoothly.
-        # '''
-#         super(SimHDF, self).init()
-#         self.dtype = np.dtype(self.dtype)
-#         self.task_data = np.zeros((1,), dtype=self.dtype)
-
-
-#     def sendMsg(self, msg):
-#         '''
-#         Simulate the "message" table of the HDF file associated with each source
-
-#         Parameters
-#         ----------
-#         msg: string
-#             Message to store
-
-#         Returns
-#         -------
-#         None
-#         '''
-#         self.msgs.append((msg, self.cycle_count))
-
-#     def _cycle(self):
-#         super(SimHDF, self)._cycle()
-#         self.task_data_hist.append(self.task_data.copy())
-
-
-###########################################
-## copied/pasted old version from a9600a ##
 class SimHDF(object):
     '''
     An interface-compatbile HDF for simulations which do not require saving an
@@ -1307,42 +1248,50 @@ class SimHDF(object):
     '''
     def __init__(self, *args, **kwargs):
         '''
+        Docstring
         Constructor for SimHDF feature
 
         Parameters
         ----------
+        args, kwargs: None necessary
 
         Returns
         -------
+        SimHDF instance
         '''
-        super(SimHDF, self).__init__(*args, **kwargs)
         from collections import defaultdict
         self.data = defaultdict(list)
-        self.task_data = dict()
+        self.task_data_hist = []
+        self.msgs = []        
+        self.hdf = FakeHDF()
+
+        super(SimHDF, self).__init__(*args, **kwargs)
+
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' creates a fake task data variable so that 
+        code expecting SaveHDF runs smoothly.
+        '''
+        super(SimHDF, self).init()
+        self.dtype = np.dtype(self.dtype)
+        self.task_data = np.zeros((1,), dtype=self.dtype)
+
 
     def sendMsg(self, msg):
         '''
-        Docstring
+        Simulate the "message" table of the HDF file associated with each source
 
         Parameters
         ----------
+        msg: string
+            Message to store
 
         Returns
         -------
+        None
         '''
-        pass
-
-    def __setitem__(self, key, value):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        self.data[key].append(value)
+        self.msgs.append((msg, self.cycle_count))
 
     def _cycle(self):
         super(SimHDF, self)._cycle()
