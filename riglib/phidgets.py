@@ -33,7 +33,7 @@ class System(object):
 
         self.kit = InterfaceKit()
         self.kit.openPhidget()
-        self.kit.waitForAttach(1000)
+        self.kit.waitForAttach(2000)
     
     def start(self):
         '''
