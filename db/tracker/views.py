@@ -30,7 +30,7 @@ def list(request):
     '''
     td = datetime.timedelta(days=30)
     start_date = datetime.date.today() - td
-    entries = models.TaskEntry.objects.filter(date__gt=start_date).order_by('-date')
+    entries = TaskEntry.objects.filter(date__gt=start_date).order_by('-date')
 
     fields = dict(
         entries=entries, 
