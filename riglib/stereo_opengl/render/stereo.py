@@ -57,6 +57,40 @@ class MirrorDisplay(Renderer):
         glViewport(w, 0, w, h)
         super(MirrorDisplay, self).draw(root, p_matrix=self.projections[1], **kwargs)
 
+class DualMultisizeDisplay(Renderer):
+    def __init__(self, main_window_size, small_window_size, fov, near, far, focal_dist, iod, **kwargs):
+        w, h = main_window_size
+        w2, h2 = small_window_size
+        self.main_window_size = main_window_size
+        self.mini_window_size = mini_window_size
+
+        super(DualMultisizeDisplay, self).__init__((w+w2, h), fov, near, far, **kwargs)
+        main_projections = offaxis_frusta(main_window_size, fov, near, far, focal_dist, iod, flip=True)
+        mini_projections = offaxis_frusta(small_window_size, fov, near, far, focal_dist, iod, flip=True)
+        self.projections = (mini_projections[0], main_projections[0])
+
+    def draw(self, root, **kwargs):
+        '''
+        Draw the 'root' model.
+
+        Parameters
+        ----------
+        root: stereo_opengl.models.Model instance
+            Root "world" model. Draws all submodels of this model.
+        kwargs: optional keyword-arguments
+            Optional shaders and stuff to pass to the lower-level drawing functions
+        '''
+
+        # draw the portion of the screen with lower-left corner (0, 0), width 'w' and height 'h'
+        w2, h2 = self.small_window_size
+        glViewport(0, 0, w2, h2)
+        super(MirrorDisplay, self).draw(root, p_matrix=self.projections[0], **kwargs)
+
+        # draw the portion of the screen with lower-left corner (w, 0), width 'w' and height 'h'
+        w, h = self.main_window_size
+        glViewport(w2, 0, w, h)
+        super(MirrorDisplay, self).draw(root, p_matrix=self.projections[1], **kwargs)
+
 class Anaglyph(Renderer):
     '''
     From wikipedia: Anaglyph 3D is the name given to the stereoscopic 3D effect achieved by 
