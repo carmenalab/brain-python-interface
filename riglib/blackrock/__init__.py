@@ -45,7 +45,7 @@ class LFP(object):
     data from the Blackrock Neural Signal Processor (NSP).
     '''
     
-    update_freq = 2000  # TODO -- change back to 1000 
+    update_freq = 1000  # TODO -- correct?
     dtype = np.dtype('float')
 
     def __init__(self, channels):

@@ -72,7 +72,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.cycle_count = 0
         self.clock = pygame.time.Clock()
 
-        self.pause = False      
+        self.pause = False
 
     @classmethod
     def class_editable_traits(cls):

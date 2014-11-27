@@ -149,7 +149,7 @@ if args.alg == 'RML':
     te.task = models.Task.objects.using('simulation').get(name='clda_kf_cg_rml')
     te.sequence_id = 0
     te.save(using='simulation')
-    gen = genfns.sim_target_seq_generator_multi(8, 1)
+    gen = bmimultitasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 1)
     task = SimRML(gen)
 
 else:
