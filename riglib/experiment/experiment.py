@@ -41,6 +41,8 @@ class Experiment(traits.HasTraits, threading.Thread):
     ordered_traits = []
     hidden_traits = []
     fps = 60
+    sequence_generators = []
+    is_bmi_seed = False
 
     def __init__(self, **kwargs):
         '''
@@ -70,7 +72,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.cycle_count = 0
         self.clock = pygame.time.Clock()
 
-        self.pause = False      
+        self.pause = False
 
     @classmethod
     def class_editable_traits(cls):

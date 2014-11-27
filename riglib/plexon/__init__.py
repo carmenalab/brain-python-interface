@@ -16,7 +16,9 @@ PL_ExtEventType = 4
 PL_ADDataType   = 5
 
 class Spikes(object):
-    ''' Docstring '''
+    '''
+    Client for spike data streamed from plexon system, compatible with riglib.source.DataSource
+    '''
     update_freq = 40000
     dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32), ("arrival_ts", np.float64)])
 
@@ -26,9 +28,14 @@ class Spikes(object):
 
         Parameters
         ----------
+        addr: tuple of length 2
+            IP address and port to connect with over TCP/IP
+        channels: optional, default = None
+            list of channels (electrodes) from which to receive spike data
 
         Returns
         -------
+        Spikes instance
         '''
         self.conn = plexnet.Connection(*addr)
         self.conn.connect(256, waveforms=False, analog=False)
@@ -82,7 +89,9 @@ class Spikes(object):
 
 
 class LFP(object):
-    ''' Docstring '''
+    '''
+    Client for local field potential data streamed from plexon system, compatible with riglib.source.MultiChanDataSource
+    '''
     update_freq = 1000.
 
     gain_digiamp = 1000.
@@ -170,7 +179,9 @@ class LFP(object):
 
 # TODO -- copied from LFP class above -- needs to be modified
 class Aux(object):
-    ''' Docstring '''
+    '''
+    Client for auxiliary analog data streamed from plexon system, compatible with riglib.source.MultiChanDataSource
+    '''
     update_freq = 1000.
 
     gain_digiamp = 1.

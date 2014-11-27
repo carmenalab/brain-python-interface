@@ -423,8 +423,13 @@ class StateSpaceArmAssist(StateSpace):
         )
 
     def get_ssm_matrices(self, update_rate=0.1):
-        # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=3, vel_decay=0.95)
+        # for now, just use a fixed vel_decay for A and vel_var for W
+        #   regardless of the value of update_rate
+        vel_decay = 0.95
+        A = _gen_A(1, update_rate, 0, vel_decay, 1, ndim=3) 
+        vel_var = 7.
+        W = _gen_A(0,           0, 0,   vel_var, 0, ndim=3)  # there is no separate _gen_W function
+
 
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(3))
@@ -448,8 +453,12 @@ class StateSpaceReHand(StateSpace):
         )
 
     def get_ssm_matrices(self, update_rate=0.1):
-        # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=4, vel_decay=0.95)
+        # for now, just use a fixed vel_decay for A and vel_var for W
+        #   regardless of the value of update_rate
+        vel_decay = 0.95
+        A = _gen_A(1, update_rate, 0, vel_decay, 1, ndim=4) 
+        vel_var = 7.
+        W = _gen_A(0,           0, 0,   vel_var, 0, ndim=4)  # there is no separate _gen_W function
 
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(4))
@@ -485,8 +494,12 @@ class StateSpaceIsMore(StateSpace):
         )
 
     def get_ssm_matrices(self, update_rate=0.1):
-        # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate, ndim=7, vel_decay=0.95)
+        # for now, just use a fixed vel_decay for A and vel_var for W
+        #   regardless of the value of update_rate
+        vel_decay = 0.95
+        A = _gen_A(1, update_rate, 0, vel_decay, 1, ndim=7) 
+        vel_var = 7
+        W = _gen_A(0,           0, 0,   vel_var, 0, ndim=7)  # there is no separate _gen_W function
 
         # Control input matrix for SSM for control inputs
         I = np.mat(np.eye(7))

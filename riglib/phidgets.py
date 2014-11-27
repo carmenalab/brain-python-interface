@@ -7,6 +7,7 @@ import numpy as np
 
 from Phidgets.Devices.InterfaceKit import InterfaceKit
 
+
 class System(object):
     '''
     Docstring

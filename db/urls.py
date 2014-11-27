@@ -14,6 +14,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
 	(r'^$', 'tracker.views.list'),
+    (r'^all/$', 'tracker.views.listall'),
     (r'^ajax/task_info/(?P<idx>\d+)/', "tracker.ajax.task_info"),
     (r'^ajax/exp_info/(?P<idx>\d+)/', 'tracker.ajax.exp_info'),
     (r'^ajax/gen_info/(?P<idx>\d+)/', 'tracker.ajax.gen_info'),

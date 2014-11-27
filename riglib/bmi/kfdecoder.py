@@ -416,6 +416,63 @@ class KalmanFilter(bmi.GaussianStateHMM):
         return K_null
 
 
+class PCAKalmanFilter(KalmanFilter):
+    '''
+    A modified KalmanFilter where the Kalman gain is confined to produce outputs in a lower-dimensional linear subspace, i.e. some principal component space
+    '''
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, **kwargs):
+        '''
+        Estimate p(x_t | ..., y_{t-1}, y_t)
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+        '''
+        using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
+        pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
+
+        C, Q = self.C, self.Q
+        P = pred_state.cov
+
+        try:
+            M = self.M
+            pca_offset = self.pca_offset
+        except:
+            print "couldn't extract PCA parameters!"
+            M = 1
+            pca_offset = 0
+
+        K = self._calc_kalman_gain(P)
+        I = np.mat(np.eye(self.C.shape[1]))
+        D = self.C_xpose_Q_inv_C
+
+        KC = K*C
+        F = (I - KC)*self.A
+
+        post_state = pred_state
+        if obs_is_control_independent and using_control_input:
+            post_state.mean += -KC*self.A*st.mean + M*K*obs_t + pca_offset
+        else:
+            post_state.mean += -KC*pred_state.mean + M*K*obs_t + pca_offset
+
+        post_state.cov = (I - KC) * P 
+
+        return post_state
+
+    def __getstate__(self):
+        data = super(PCAKalmanFilter, self).__getstate__()
+        data['M'] = self.M
+        data['pca_offset'] = self.pca_offset
+        return data
+
+    def __setstate__(self, state):
+        super(PCAKalmanFilter, self).__setstate__(state)
+        self.M = state['M']
+        self.pca_offset = state['pca_offset']        
+
+
 class PseudoPPF(KalmanFilter):
     '''
     Docstring
@@ -479,7 +536,9 @@ class PseudoPPF(KalmanFilter):
         pass
 
 class KFDecoder(bmi.BMI, bmi.Decoder):
-    ''' Docstring '''
+    '''
+    Wrapper for KalmanFilter specifically for the application of BMI decoding.
+    '''
     def __init__(self, *args, **kwargs):
         '''
         Docstring    

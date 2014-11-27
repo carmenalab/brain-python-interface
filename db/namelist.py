@@ -3,167 +3,43 @@ Lookup table for features, generators and tasks for experiments
 '''
 
 import numpy as np
-from riglib import experiment, calibrations, bmi
-from riglib.stereo_opengl.window import MatplotlibWindow
+from riglib import calibrations, bmi
 
-features = dict(
-    autostart=experiment.features.Autostart, 
-    adaptive_generator=experiment.features.AdaptiveGenerator,
-    button=experiment.features.Button, 
-    ignore_correctness=experiment.features.IgnoreCorrectness,
-    reward_system = experiment.features.RewardSystem,
-    eye_data=experiment.features.EyeData,
-    joystick=experiment.features.Joystick,
-    dual_joystick=experiment.features.DualJoystick,
-    calibrated_eye=experiment.features.CalibratedEyeData,
-    eye_simulate=experiment.features.SimulatedEyeData,
-    fixation_start=experiment.features.FixationStart,
-    motion_data=experiment.features.MotionData,
-    motion_simulate=experiment.features.MotionSimulate, 
-    motion_autoalign=experiment.features.MotionAutoAlign,
-    bmi=experiment.features.PlexonBMI,
-    blackrockbmi=experiment.features.BlackrockBMI,
-    saveHDF=experiment.features.SaveHDF,
-    relay_plexon=experiment.features.RelayPlexon,
-    relay_plexbyte=experiment.features.RelayPlexByte,
-    relay_blackrockbyte=experiment.features.RelayBlackrockByte,
-    norm_firingrates=experiment.features.NormFiringRates,
-    ttl_reward=experiment.features.TTLReward,
-    juice_log=experiment.features.JuiceLogging,
-    single_video=experiment.features.SingleChannelVideo,
-    exp_display=MatplotlibWindow,
-)
+## Get the list of experiment features
+try:
+    from featurelist import features
+except:
+    features = dict()
 
-import tasks
-from tasks import generatorfunctions, redgreen, manualcontrol, sensorymapping, manualcontrolmultitasks, bmitasks, bmimultitasks, bmilowfeedback, manualcontrolmultitasks
-generators = dict(
-    adaptive=experiment.generate.AdaptiveTrials,
-    endless=experiment.generate.endless,
-    redgreen_rand=redgreen.randcoords,
+## Get the list of tasks
+try:
+    from tasklist import tasks
+except ImportError:
+    print 'create a module "tasklist" and create the task dictionaries inside it!'
+    tasks = dict()
 
-    #These are static generators
-    trialtypes=experiment.generate.sequence,
-    redgreen=redgreen.gencoords,
-    reach_target_2d=manualcontrol.rand_target_sequence_2d,
-    reach_target_3d=manualcontrol.rand_target_sequence_3d,
-    centerout_2d=manualcontrol.rand_target_sequence_2d_centerout,
-    nummap=sensorymapping.gen_taps,
-    centerout_partial=manualcontrol.rand_target_sequence_2d_partial_centerout,
-    centerout_back=manualcontrol.rand_multi_sequence_2d_centeroutback,
-    centerout_2step=manualcontrol.rand_multi_sequence_2d_centerout2step,
-    centerout_2D_discrete=generatorfunctions.centerout_2D_discrete,
-    centerout_2D_discrete_rot=generatorfunctions.centerout_2D_discrete_rot,
-    centerout_2D_discrete_randorder=generatorfunctions.centerout_2D_discrete_randorder,
-    centeroutback_2D_v2=generatorfunctions.centeroutback_2D,
-    centeroutback_2D_catch=generatorfunctions.centeroutback_2D_farcatch,
-    centeroutback_2D_catch_discrete=generatorfunctions.centeroutback_2D_farcatch_discrete,
-    centerout_3D=generatorfunctions.centerout_3D,
-    outcenterout_2D_discrete=generatorfunctions.outcenterout_2D_discrete,
-    outcenter_2D_discrete=generatorfunctions.outcenter_2D_discrete,
-    centerout_2D_discrete_offset=generatorfunctions.centerout_2D_discrete_offset,
-    depth_trainer=generatorfunctions.depth_trainer,
-    centerout_3D_cube=generatorfunctions.centerout_3D_cube,
-    armassist_simple=generatorfunctions.armassist_simple,
-    rehand_simple=generatorfunctions.rehand_simple,
-    ismore_simple=generatorfunctions.ismore_simple,
-    centerout_2D_discrete_multiring=generatorfunctions.centerout_2D_discrete_multiring,
-    block_probabilistic_reward=generatorfunctions.colored_targets_with_probabilistic_reward,
-    tentacle_multi_start_config=generatorfunctions.tentacle_multi_start_config
-)
+from itertools import izip
 
-# from tasks.rds import RDS, RDS_half
-# from tasks.dots import Dots
-# from tasks.redgreen import RedGreen, EyeCal
-# from tasks.button import ButtonTask
+# Derive generator functions from the tasklist (all generatorfunctions should be staticmethods of a task)
+generator_names = []
+generator_functions = []
+for task in tasks:
+    task_cls = tasks[task]
+    generator_function_names = task_cls.sequence_generators
+    gen_fns = [getattr(task_cls, x) for x in generator_function_names]
+    for fn_name, fn in izip(generator_function_names, gen_fns):
+        if fn in generator_functions:
+            pass
+        else:
+            generator_names.append(fn_name)
+            generator_functions.append(fn)
 
-from tasks import blackrocktasks
+generators = dict()
+for fn_name, fn in izip(generator_names, generator_functions):
+    generators[fn_name] = fn
 
-tasks = dict(
-    dots=tasks.Dots,
-    rds=tasks.RDS,
-    rds_half=tasks.RDS_half,
-    redgreen=tasks.RedGreen,
-    button=tasks.ButtonTask,
-    eye_calibration=tasks.EyeCal,
-    manual_control=tasks.ManualControl,
-    bmi_control=tasks.BMIControl,
-    clda_control=tasks.CLDAControl,
-    manual_predict=tasks.ManualWithPredictions,
-    fixation_training=tasks.FixationTraining,
-    target_capture=tasks.TargetCapture,
-    movement_training=tasks.MovementTraining,
-    direction_training=tasks.TargetDirection,
-    test_boundary=tasks.TestBoundary,
-    free_map=tasks.FreeMap,
-    arm_position_training=tasks.ArmPositionTraining,
-    number_map=tasks.NumberMap,
-    joystick_control = tasks.JoystickControl,
-    manual_control_2 = tasks.ManualControl2,
-    visual_feedback = tasks.VisualFeedback,
-    visual_feedback_multi = tasks.VisualFeedbackMulti,
-    clda_auto_assist = tasks.CLDAAutoAssist,
-    clda_constrained_sskf = tasks.CLDAConstrainedSSKF,
-    sim_clda_control = tasks.SimCLDAControl,
-    sim_bmi_control = tasks.SimBMIControl,
-
-    ######### V2 tasks
-    clda_constrained_sskf_multi = tasks.CLDAConstrainedSSKFMulti,
-    manual_control_multi =tasks.ManualControlMulti,
-    joystick_multi=tasks.JoystickMulti,
-    joystick_leaky_vel=tasks.LeakyIntegratorVelocityJoystick,
-    joystick_move = tasks.JoystickMove,
-    joystick_multi_plus_move = tasks.JoystickMulti_plusMove,
-    joystick_multi_directed = tasks.JoystickMulti_Directed,
-    bmi_control_multi = tasks.BMIControlMulti,
-    bmi_manipulated_feedback = tasks.BMIControlManipulatedFB,
-    clda_ppf_manipulated_feedback = tasks.CLDAControlPPFContAdaptMFB,
-    clda_control_multi = tasks.CLDAControlMulti,
-    sim_clda_control_multi = tasks.SimCLDAControlMulti,
-    clda_rml_kf = tasks.CLDARMLKF,
-    clda_cont_ppf= tasks.CLDAControlPPFContAdapt,
-    test_graphics = tasks.TestGraphics,
-    clda_rml_kf_ofc = tasks.CLDARMLKFOFC,
-    clda_kf_cg_sb = tasks.CLDAControlKFCG,
-    clda_kf_cg_rml = tasks.CLDAControlKFCGRML, 
-    arm_plant = tasks.ArmPlant,
-    clda_kf_cg_joint_rml = tasks.CLDAControlKFCGJoint,
-    clda_kf_ofc_tentacle_rml = tasks.CLDAControlTentacle,
-    clda_kf_ofc_tentacle_rml_base = tasks.CLDAControlTentacleBaselineReestimate,
-    clda_kf_ofc_tentacle_rml_trial = tasks.CLDAControlTentacleTrialBased,
-    joystick_tentacle = tasks.JoystickTentacle,
-    bmi_baseline = tasks.BaselineControl,
-    bmi_joint_perturb = tasks.BMIJointPerturb,
-    bmi_control_tentacle_attractor = tasks.BMIControlMultiTentacleAttractor,
-    bmi_cursor_bias=tasks.BMICursorBias,
-    joystick_ops=tasks.JoystickDrivenCursorOPS,
-    joystick_ops_bias=tasks.JoystickDrivenCursorOPSBiased,
-    joystick_freechoice=tasks.manualcontrolfreechoice.ManualControlFreeChoice,
-    joystick_freechoice_pilot = tasks.manualcontrolfreechoice.FreeChoicePilotTask,
-    clda_kf_cg_rml_ivc_trial=tasks.CLDAControlKFCGRMLIVCTRIAL,
-    bmi_cursor_bias_catch=bmimultitasks.BMICursorBiasCatch,
-    movement_training_multi=manualcontrolmultitasks.MovementTrainingMulti,
-    machine_control=bmimultitasks.TargetCaptureVisualFeedback,
-    manual_control_multi_plusvar = tasks.manualcontrolmulti_COtasks.ManualControlMulti_plusvar,
-    clda_tentacle_rl = tasks.CLDATentacleRL,
-
-    ######## iBMI tasks
-    ibmi_visual_feedback = blackrocktasks.VisualFeedback,
-    ibmi_manual_control  = blackrocktasks.ManualControl,
-    ibmi_bmi_control     = blackrocktasks.BMIControl,
-    ibmi_clda_control    = blackrocktasks.CLDAControl,
-    passive_exo          = tasks.RecordEncoderData,
-)
-
-## BMI seed tasks
-# The below list shows which tasks can be used to train new Decoders
-bmi_seed_tasks = ['visual_feedback_multi', 'manual_control_multi', 'joystick_multi', 'machine_control']
-
-ibmi_seed_tasks = ['ibmi_visual_feedback', 'ibmi_manual_control']
-
-bmi_seed_tasks.extend(ibmi_seed_tasks)
 
 from tracker import models
-
 class SubclassDict(dict):
     '''
     A special dict that returns the associated Django database model 
@@ -186,27 +62,16 @@ instance_to_model = SubclassDict( {
 } )
 
 
-##bmis = dict(
-##    kalman=bmi.train._train_KFDecoder_manual_control,
-##    kalmanCursorEpochs = bmi.train._train_KFDecoder_cursor_epochs,
-##    kalmanVF=bmi.train._train_KFDecoder_visual_feedback,
-##    kalmanVFshuf=bmi.train._train_KFDecoder_visual_feedback_shuffled,
-##    ppfVF=bmi.train._train_PPFDecoder_visual_feedback,
-##    ppfVFshuf=bmi.train._train_PPFDecoder_visual_feedback_shuffled,
-##    kalmanVFjoint=bmi.train._train_joint_KFDecoder_visual_feedback,
-##    kalmanVFtentacle=bmi.train._train_tentacle_KFDecoder_visual_feedback,
-##    kalmanVF3d=bmi.train._train_KFDecoder_visual_feedback_3d,
-##    kalmanVFarmassist=bmi.train._train_armassist_KFDecoder_visual_feedback,
-##    kalmanVFrehand=bmi.train._train_rehand_KFDecoder_visual_feedback,
-##    kalmanVFismore=bmi.train._train_ismore_KFDecoder_visual_feedback,
-##)
-
 bmi_algorithms = dict(
     KFDecoder=bmi.train.train_KFDecoder,
     PPFDecoder=bmi.train.train_PPFDecoder,
 )
 
-bmi_training_pos_vars = ['cursor', 'joint_angles']
+bmi_training_pos_vars = [
+    'cursor',
+    'joint_angles',
+    'plant_pos'  # used for ibmi tasks
+]
 
 bmi_state_space_models=dict(
     Endpt2D=bmi.train.endpt_2D_state_space,

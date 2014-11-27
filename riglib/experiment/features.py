@@ -368,13 +368,9 @@ class Joystick(object):
     '''
     def init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' instantiates a DataSource with 2 channels for the two analog 
+        inputs from the phidgets joystick. 
         '''
         from riglib import source, phidgets, sink
         self.sinks = sink.sinks
@@ -386,13 +382,8 @@ class Joystick(object):
 
     def run(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the joystick source and stops it after the FSM has finished running
         '''
         self.joystick.start()
         try:
@@ -415,22 +406,12 @@ class Joystick(object):
 
 class DualJoystick(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    A two-joystick interface, similar to Joystick
     '''
     def init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' creates a 4-channel DataSource, two channels for each joystick
         -------
         '''
         from riglib import source, phidgets
@@ -440,13 +421,8 @@ class DualJoystick(object):
 
     def run(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the dual_joystick source and stops it after the FSM has finished running
         '''
         self.dualjoystick.start()
         try:
@@ -471,17 +447,14 @@ class DualJoystick(object):
 # Eyetracker datasources
 ########################################################################################################
 class EyeData(traits.HasTraits):
-    '''Pulls data from the eyetracking system and make it available on self.eyedata'''
-
+    '''
+    Pulls data from the eyetracking system and make it available on self.eyedata
+    '''
     def init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets up the 'eyedata' DataSource and registers it with the 
+        SinkRegister so that the data gets saved to file as it is collected.
         '''
         from riglib import source
         from riglib import sink
@@ -511,13 +484,8 @@ class EyeData(traits.HasTraits):
 
     def run(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
         '''
         f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata.start()
@@ -692,7 +660,9 @@ class MotionData(traits.HasTraits):
 
     def init(self):
         '''
-        Secondary init function after the object has been created and all the super __init__ functions have run. See riglib.experiment.Experiment.init
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets up the DataSource for interacting with the 
+        motion tracker system and registers the source with the SinkRegister so that the data gets saved to file as it is collected.
         '''
         from riglib import source
         src, mkw = self.motion_source
@@ -718,7 +688,9 @@ class MotionData(traits.HasTraits):
 
     def run(self):
         '''
-        Start the motiontracker source prior to starting the experiment's main thread/process, and handle any errors by stopping the source
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the motiontracker source prior to starting the experiment's 
+        main thread/process, and handle any errors by stopping the source
         '''
         self.motiondata.start()
         try:
@@ -768,13 +740,8 @@ class MotionAutoAlign(MotionData):
     
     def init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' adds a filter onto the motiondata source. See MotionData for further details.
         '''
         super(MotionAutoAlign, self).init()
         self.motiondata.filter = self.autoalign
@@ -795,133 +762,20 @@ class MotionAutoAlign(MotionData):
         return cls, dict()
 
 
-class BlackrockData(traits.HasTraits):
-    '''Stream Blackrock neural data.'''
-    blackrock_channels = None
-
-    def init(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        from riglib import blackrock, source
-
-        if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
-            self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels, send_data_to_sink_manager=False)
-        elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
-            self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels, send_data_to_sink_manager=True)
-        else:
-            raise Exception("Unknown extractor class, unable to create data source object!")
-
-        from riglib import sink
-        sink.sinks.register(self.neurondata)
-
-        super(BlackrockData, self).init()
-
-    def run(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        self.neurondata.start()
-        try:
-            super(BlackrockData, self).run()
-        finally:
-            self.neurondata.stop()
-
-class BlackrockBMI(BlackrockData):
-    '''Filters neural data from the Blackrock system through a BMI.'''
-    decoder = traits.Instance(bmi.Decoder)
-
-    def init(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        print "init bmi"
-        self.blackrock_channels = self.decoder.units[:,0]
-        super(BlackrockBMI, self).init()
-
-
-class BrainAmpData(traits.HasTraits):
-    '''Stream BrainAmp neural data.'''
-
-    def init(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        from riglib import brainamp, source
-
-        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
-
-        try:
-            super(BrainAmpData, self).init()
-        except:
-            print "BrainAmpData: running without a task"
-
-    def run(self):
-        self.emgdata.start()
-
-
-
 #*******************************************************************************************************
 # Data Sinks
-#*******************************************************************************************************
-class SinkRegister(object):
-    '''Superclass for all features which contain data sinks -- registers the various sources'''
-    def init(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        from riglib import sink
-        self.sinks = sink.sinks
-
-        super(SinkRegister, self).init()
-
-        # if isinstance(self, (MotionData, MotionSimulate)):
-        #     self.sinks.register(self.motiondata)
-        # if isinstance(self, (EyeData, CalibratedEyeData, SimulatedEyeData)):
-        #     self.sinks.register(self.eyedata)
-        # if isinstance(self, Joystick):
-        #     self.sinks.register(self.joystick)
-
-    def _cycle(self):
-        ''' Docstring '''
-        super(SinkRegister, self)._cycle()
-        
+#*******************************************************************************************************        
 class SaveHDF(object):
     '''
     Saves data from registered sources into tables in an HDF file
     '''
     def init(self):
-        ''' Docstring '''
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' starts an HDFWriter sink and 
+        creates a data variable 'task_data' for the different parts of the task class to use as
+        transport to the HDF file
+        '''
         import tempfile
         from riglib import sink
         self.sinks = sink.sinks
@@ -950,7 +804,8 @@ class SaveHDF(object):
 
     def run(self):
         '''
-        Tell the process to start running. When it ends, stop the HDF sink
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method stops the HDF sink after the FSM has finished running        
         '''
         try:
             super(SaveHDF, self).run()
@@ -1011,99 +866,23 @@ class SaveHDF(object):
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)
 
-########################################################################################################
-# Neural data features
-########################################################################################################
-class PlexonData(traits.HasTraits):
-    '''Stream Plexon neural data'''
-    plexon_channels = None
-
-    def init(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        from riglib import plexon, source
-
-        if hasattr(self.decoder, 'extractor_cls'):
-            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
-                self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
-                self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
-            elif 'emg' in self.decoder.extractor_cls.feature_type:  # e.g., 'emg_amplitude'
-                self.neurondata = source.MultiChanDataSource(plexon.Aux, channels=self.plexon_channels)
-            else:
-                raise Exception("Unknown extractor class, unable to create data source object!")
-        else:
-            # if using an older decoder that doesn't have extractor_cls (and 
-            # extractor_kwargs) as attributes, then just create a DataSource 
-            # with plexon.Spikes by default
-            self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-
-        super(PlexonData, self).init()
-
-    def run(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        self.neurondata.start()
-        try:
-            super(PlexonData, self).run()
-        finally:
-            self.neurondata.stop()
-
-class PlexonBMI(PlexonData):
-    '''
-    Special case of PlexonData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
-    May not be available for all recording systems. 
-    '''
-    decoder = traits.Instance(bmi.Decoder)
-
-    def init(self):
-        print "init bmi"
-        self.plexon_channels = self.decoder.units[:,0]
-        super(PlexonBMI, self).init()
-
-class SpikeSimulate(object):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    pass
-
 class RelayPlexon(object):
     '''
     Sends the full data from eyetracking and motiontracking systems directly into Plexon
     '''
     def init(self):
-        ''' Docstring '''
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets up the NIDAQ card as a sink
+        '''
         from riglib import sink
-        print "self.ni_out()", self.ni_out()
         self.nidaq = sink.sinks.start(self.ni_out)
-        print "self.nidaq", self.nidaq
         super(RelayPlexon, self).init()
 
     @property
     def ni_out(self):
         ''' Docstring '''
         from riglib import nidaq
-        print 'nidaq.SendAll', nidaq.SendAll
         return nidaq.SendAll
 
     @property
@@ -1127,7 +906,10 @@ class RelayPlexon(object):
                  return files[0]
     
     def run(self):
-        ''' Docstring '''
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method stops the NIDAQ sink after the FSM has stopped running.
+        '''
         try:
             super(RelayPlexon, self).run()
         finally:
@@ -1171,13 +953,8 @@ class RelayPlexByte(RelayPlexon):
     '''
     def init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' ensures that this feature is only used if the SaveHDF feature is also enabled.
         '''
         if not isinstance(self, SaveHDF):
             raise ValueError("RelayPlexByte feature only available with SaveHDF")
@@ -1196,18 +973,11 @@ class RelayBlackrock(object):
     '''Sends full data directly into the Blackrock system.'''
     def init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' creates a sink for the NIDAQ card
         '''
         from riglib import sink
-        print "self.ni_out()", self.ni_out()
         self.nidaq = sink.sinks.start(self.ni_out)
-        print "self.nidaq", self.nidaq
         super(RelayBlackrock, self).init()
 
     @property
@@ -1222,7 +992,6 @@ class RelayBlackrock(object):
         -------
         '''
         from riglib import nidaq
-        print 'nidaq.SendAll', nidaq.SendAll
         return nidaq.SendAll
 
     @property    
@@ -1259,13 +1028,8 @@ class RelayBlackrock(object):
     
     def run(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method stops the NIDAQ sink after the FSM has finished running
         '''
         try:
             super(RelayBlackrock, self).run()
@@ -1306,13 +1070,8 @@ class RelayBlackrockByte(RelayBlackrock):
     '''Relays a single byte (0-255) as a row checksum for when a data packet arrives.'''
     def init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' checks that the experiment also uses the SaveHDF feature. 
         '''
         if not isinstance(self, SaveHDF):
             raise ValueError("RelayBlackrockByte feature only available with SaveHDF")
@@ -1332,6 +1091,145 @@ class RelayBlackrockByte(RelayBlackrock):
         from riglib import nidaq
         return nidaq.SendRowByte
 
+
+########################################################################################################
+# Neural data features
+########################################################################################################
+class PlexonData(traits.HasTraits):
+    '''Stream Plexon neural data'''
+    plexon_channels = None
+
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' creates an appropriate DataSource for either Spike, LFP, or auxiliary analog 
+        data (depends on the type of feature extractor used by the decoder).
+        '''
+        from riglib import plexon, source
+
+        if hasattr(self.decoder, 'extractor_cls'):
+            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+                self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+                self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
+            elif 'emg' in self.decoder.extractor_cls.feature_type:  # e.g., 'emg_amplitude'
+                self.neurondata = source.MultiChanDataSource(plexon.Aux, channels=self.plexon_channels)
+            else:
+                raise Exception("Unknown extractor class, unable to create data source object!")
+        else:
+            # if using an older decoder that doesn't have extractor_cls (and 
+            # extractor_kwargs) as attributes, then just create a DataSource 
+            # with plexon.Spikes by default 
+            # (or if there is no decoder at all in this task....)
+            self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
+
+        super(PlexonData, self).init()
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the 'neurondata' source before the FSM begins execution
+        and stops it after the FSM has completed. 
+        '''
+        self.neurondata.start()
+        try:
+            super(PlexonData, self).run()
+        finally:
+            self.neurondata.stop()
+
+class PlexonBMI(PlexonData):
+    '''
+    Special case of PlexonData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
+    May not be available for all recording systems. 
+    '''
+    decoder = traits.Instance(bmi.Decoder)
+
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets the channels to be the channels of the decoder
+        so that the PlexonData source only grabs the channels actually used by the decoder. 
+        '''
+        self.plexon_channels = self.decoder.units[:,0]
+        super(PlexonBMI, self).init()
+
+
+class BlackrockData(traits.HasTraits):
+    '''Stream Blackrock neural data.'''
+    blackrock_channels = None
+
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets up DataSource objects for streaming from the Blackrock system.
+        For LFP streaming, the data is stored as it is received.
+        '''
+        from riglib import blackrock, source
+
+        if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+            self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels, send_data_to_sink_manager=False)
+        elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+            self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels, send_data_to_sink_manager=True)
+        else:
+            raise Exception("Unknown extractor class, unable to create data source object!")
+
+        from riglib import sink
+        sink.sinks.register(self.neurondata)
+
+        super(BlackrockData, self).init()
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the 'neurondata' source before the FSM begins execution
+        and stops it after the FSM has completed. 
+        '''
+        self.neurondata.start()
+        try:
+            super(BlackrockData, self).run()
+        finally:
+            self.neurondata.stop()
+
+class BlackrockBMI(BlackrockData):
+    '''
+    Special case of BlackrockData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
+    '''
+    decoder = traits.Instance(bmi.Decoder)
+
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' decides which Blackrock channels to stream based on the channels in use by the decoder.
+        '''
+        self.blackrock_channels = self.decoder.units[:,0]
+        super(BlackrockBMI, self).init()
+
+
+class BrainAmpData(traits.HasTraits):
+    '''Stream BrainAmp neural data.'''
+
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets up a MultiChanDataSource to stream data from the BrainAmp system
+        '''
+        from riglib import brainamp, source
+
+        self.emgdata = source.MultiChanDataSource(brainamp.EMG, channels=channels)
+
+        try:
+            super(BrainAmpData, self).init()
+        except:
+            print "BrainAmpData: running without a task"
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the EMG data source
+        '''        
+        self.emgdata.start()
+
+
 ######################
 ## Simulation Features
 ######################
@@ -1350,6 +1248,7 @@ class SimHDF(object):
     '''
     def __init__(self, *args, **kwargs):
         '''
+        Docstring
         Constructor for SimHDF feature
 
         Parameters
@@ -1369,9 +1268,15 @@ class SimHDF(object):
         super(SimHDF, self).__init__(*args, **kwargs)
 
     def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' creates a fake task data variable so that 
+        code expecting SaveHDF runs smoothly.
+        '''
         super(SimHDF, self).init()
         self.dtype = np.dtype(self.dtype)
         self.task_data = np.zeros((1,), dtype=self.dtype)
+
 
     def sendMsg(self, msg):
         '''
@@ -1386,7 +1291,7 @@ class SimHDF(object):
         -------
         None
         '''
-        self.msgs.append((msg, -1))
+        self.msgs.append((msg, self.cycle_count))
 
     def _cycle(self):
         super(SimHDF, self)._cycle()
@@ -1394,7 +1299,9 @@ class SimHDF(object):
 
 
 class SimTime(object):
-    ''' Docstring '''
+    '''
+    An accelerator so that simulations can run faster than real time (the task doesn't try to 'sleep' between loop iterations)
+    '''
     def __init__(self, *args, **kwargs):
         '''
         Docstring
@@ -1524,14 +1431,6 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         '''
         Secondary init function after the object has been created and all the super __init__ functions have run.
         Initialize the "current" value of all of the attributes and register the attributes with the HDF file
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
         '''
         super(LinearlyDecreasingAttribute, self).init()
         for attr in self.attrs:
@@ -1629,7 +1528,10 @@ class MultiprocShellCommand(mp.Process):
         super(MultiprocShellCommand, self).__init__(*args, **kwargs)
 
     def run(self):
-        import subprocess
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method spawns a process to execute the command to begin recording on the remote machine.
+        '''
         import os
         os.popen(self.cmd)
         self.done.set()
@@ -1638,14 +1540,14 @@ class MultiprocShellCommand(mp.Process):
         return self.done.is_set()
 
 
-
 class SingleChannelVideo(traits.HasTraits):
     def __init__(self, *args, **kwargs):
         super(SingleChannelVideo, self).__init__(*args, **kwargs)
 
     def init(self):
         '''
-        Spawn process to run ssh command to begin video recording
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' spawns process to run ssh command to begin video recording
         '''
         self.video_basename = 'video_%s.avi' % time.strftime('%Y_%m_%d_%H_%M_%S')        
         cmd = "ssh -tt video /home/lab/bin/recording_start.sh %s" % self.video_basename

@@ -2,6 +2,7 @@
 Interface between the Django database methods/models and data analysis code
 '''
 import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import sys
 import json
 import numpy as np
@@ -26,15 +27,19 @@ except:
 # Should use db.initdb.initialize_db() function to set the desired database
 # before this file is imported, but if it has not already been done, choose the
 # bmi3d rig database.
-try:
-    dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
-except:
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
 
-sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
+
+# try:
+#     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
+# except:
+#     
+#     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
+
+# sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
+# from tracker import models
+# dbname = eval(dbname_short+'.DATABASES[\'default\'][\'NAME\']')
+
 from tracker import models
-dbname = eval(dbname_short+'.DATABASES[\'default\'][\'NAME\']')
 
 def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
     '''
@@ -97,7 +102,184 @@ def get_task_id(name):
     Returns the task ID for the specified task name.
     '''
     return models.Task.objects.get(name=name).pk
- 
+
+def get_decoder_entry(entry):
+    '''Returns the database entry for the decoder used in the session. Argument can be a task entry
+    or the ID number of the decoder entry itself.
+    '''
+    if isinstance(entry, int):
+        return models.Decoder.objects.get(pk=entry)
+    else:
+        params = json.loads(entry.params)
+        if 'decoder' in params:
+            return models.Decoder.objects.get(pk=params['decoder'])
+        elif 'bmi' in params:
+            return models.Decoder.objects.get(pk=params['bmi'])
+        else:
+            return None
+
+def get_decoder_name(entry):
+    ''' 
+    Returns the filename of the decoder used in the session.
+    Takes TaskEntry object.
+    '''
+    entry = lookup_task_entries(entry)
+    try:
+        decid = json.loads(entry.params)['decoder']
+    except:
+        decid = json.loads(entry.params)['bmi']
+    return models.Decoder.objects.get(pk=decid).path
+
+def get_decoder_name_full(entry):
+    entry = lookup_task_entries(entry)
+    decoder_basename = get_decoder_name(entry)
+    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
+
+def get_decoder(entry):
+    entry = lookup_task_entries(entry)
+    filename = get_decoder_name_full(entry)
+    dec = pickle.load(open(filename, 'r'))
+    dec.db_entry = get_decoder_entry(entry)
+    dec.name = dec.db_entry.name
+    return dec
+
+def get_params(entry):
+    '''
+    Returns a dict of all task params for session.
+    Takes TaskEntry object.
+    '''
+    return json.loads(entry.params)
+
+def get_param(entry,paramname):
+    '''
+    Returns parameter value.
+    Takes TaskEntry object.
+    '''
+    return json.loads(entry.params)[paramname]
+
+def get_task_name(entry):
+    '''
+    Returns name of task used for session.
+    Takes TaskEntry object.
+    '''
+    return models.Task.objects.get(pk=entry.task_id).name
+    
+def get_date(entry):
+    '''
+    Returns date and time of session (as a datetime object).
+    Takes TaskEntry object.
+    '''
+    return entry.date
+    
+def get_notes(entry):
+    '''
+    Returns notes for session.
+    Takes TaskEntry object.
+    '''
+    return entry.notes
+    
+def get_subject(entry):
+    '''
+    Returns name of subject for session.
+    Takes TaskEntry object.
+    '''
+    return models.Subject.objects.get(pk=entry.subject_id).name
+    
+def get_length(entry):
+    '''
+    Returns length of session in seconds.
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except:
+        return 0.0
+    return report[-1][2]-report[0][2]
+    
+def get_success_rate(entry):
+    '''
+    Returns (# of trials rewarded)/(# of trials intiated).
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    total=0.0
+    rew=0.0
+    for s in report:
+        if s[0]=='reward':
+            rew+=1
+            total+=1
+        if s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            total+=1
+    return rew/total
+
+def get_completed_trials(entry):
+    '''
+    Returns # of trials rewarded
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    return len([s for s in report if s[0]=="reward"])
+
+def get_initiate_rate(entry):
+    '''
+    Returns average # of trials initated per minute.
+    Takes TaskEntry object.
+    '''
+    length = get_length(entry)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    count=0.0
+    for s in report:
+        if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            count+=1
+    return count/(length/60.0)
+
+def get_reward_rate(entry):
+    '''
+    Returns average # of trials completed per minute.
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    count=0.0
+    rewardtimes = []
+    for s in report:
+        if s[0]=='reward':
+            count+=1
+            rewardtimes.append(s[2])
+    if len(rewardtimes)==0:
+        return 0
+    else:
+        length = rewardtimes[-1] - report[0][2]
+        return count/(length/60.0)
+    
+def session_summary(entry):
+    '''
+    Prints a summary of info about session.
+    Takes TaskEntry object.
+    '''
+    entry = lookup_task_entries(entry)
+    print "Subject: ", get_subject(entry)
+    print "Task: ", get_task_name(entry)
+    print "Date: ", str(get_date(entry))
+    hours = np.floor(get_length(entry)/3600)
+    mins = np.floor(get_length(entry)/60) - hours*60
+    secs = get_length(entry) - mins*60
+    print "Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs))
+    try:
+        print "Assist level: ", get_param(entry,'assist_level')
+    except:
+        print "Assist level: 0"
+    print "Completed trials: ", get_completed_trials(entry)
+    print "Success rate: ", get_success_rate(entry)*100, "%"
+    print "Reward rate: ", get_reward_rate(entry), "trials/minute"
+    print "Initiate rate: ", get_initiate_rate(entry), "trials/minute"
+    
 def query_daterange(startdate, enddate=datetime.date.today()):
     '''
     Returns QuerySet for task entries within date range (inclusive). startdate and enddate
@@ -303,14 +485,18 @@ class TaskEntry(object):
 
         Parameters
         ----------
-        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+        filt: callable; call signature: trial_filter_fn(trial_msgs)
             Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
-        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+        proc: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
             The main workhorse function 
-        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+        cond: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
             Determine what the trial *subtype* is (useful for separating out various types of catch trials)
-        data_comb_fn: callable; call signature: data_comb_fn(list)
+        comb: callable; call signature: data_comb_fn(list)
             Combine the list into the desired output structure
+        kwargs: optional keyword arguments
+            For 'legacy' compatibility, you can also specify 'trial_filter_fn' for 'filt', 'trial_proc_fn' for 'proc', 
+            'trial_condition_fn' for 'cond', and 'data_comb_fn' for comb. These are ignored if any newer equivalents are specified.
+            All other keyword arguments are passed to the 'proc' function. 
 
         Returns
         -------
@@ -319,14 +505,14 @@ class TaskEntry(object):
             grouped by tuples are combined into a single result. 
 
         '''
-        if filt == None and 'trial_filter_fn' in kwargs:
-            filt = kwargs.pop('trial_filter_fn')
-        if cond == None and 'trial_condition_fn' in kwargs:
-            cond = kwargs.pop('trial_condition_fn')
-        if proc == None and 'trial_proc_fn' in kwargs:
-            proc = kwargs.pop('trial_proc_fn')
-        if comb == None and 'data_comb_fn' in kwargs:
-            comb = kwargs.pop('data_comb_fn')
+        if filt == None:
+            filt = kwargs.pop('trial_filter_fn', trial_filter_functions.default)
+        if cond == None:
+            cond = kwargs.pop('trial_condition_fn', trial_condition_functions.default)
+        if proc == None:
+            proc = kwargs.pop('trial_proc_fn', trial_proc_functions.default)
+        if comb == None:
+            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
 
 
         trial_filter_fn = filt
@@ -344,8 +530,6 @@ class TaskEntry(object):
         if isinstance(trial_condition_fn, str):
             trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
-        if data_comb_fn == None: 
-            data_comb_fn = np.hstack
 
         te = self
         trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
@@ -628,6 +812,16 @@ class TaskEntry(object):
         # the file instead
         return str(os.path.basename(self.hdf_filename).rstrip('.hdf'))
 
+    def trained_decoder_filenames(self):
+        decoder_records = self.get_decoders_trained_in_block()
+        filenames = []
+        if np.iterable(decoder_records):
+            for rec in decoder_records:
+                filenames.append(rec.filename)
+        else:
+            filenames.append(decoder_records.filename)
+        return filenames
+
     def __str__(self):
         return self.record.__str__()
 
@@ -837,21 +1031,19 @@ class TaskEntryCollection(object):
         self.kwargs = kwargs
         self.name = name
 
-    def proc_trials(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
-                    trial_condition_fn=trial_condition_functions.default, data_comb_fn=default_data_comb_fn,
-                    verbose=True, max_errors=10, **kwargs):
+    def proc_trials(self, filt=None, proc=None, cond=None, comb=None, verbose=False, max_errors=10, **kwargs):
         '''
         Generic framework to perform a trial-level analysis on the entire dataset
 
         Parameters
         ----------
-        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+        filt: callable; call signature: trial_filter_fn(trial_msgs)
             Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
-        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+        proc: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
             The main workhorse function 
-        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+        cond: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
             Determine what the trial *subtype* is (useful for separating out various types of catch trials)
-        data_comb_fn: callable; call signature: data_comb_fn(list)
+        comb: callable; call signature: data_comb_fn(list)
             Combine the list into the desired output structure
         verbose: boolean, optional, default = True
             Feedback print statements so that you know processing is happening
@@ -865,6 +1057,22 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result. 
         '''
 
+        if filt == None:
+            filt = kwargs.pop('trial_filter_fn', trial_filter_functions.default)
+        if cond == None:
+            cond = kwargs.pop('trial_condition_fn', trial_condition_functions.default)
+        if proc == None:
+            proc = kwargs.pop('trial_proc_fn', trial_proc_functions.default)
+        if comb == None:
+            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
+
+
+        trial_filter_fn = filt
+        trial_condition_fn = cond
+        trial_proc_fn = proc
+        data_comb_fn = comb
+
+
         if isinstance(trial_filter_fn, str):
             trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
@@ -873,6 +1081,7 @@ class TaskEntryCollection(object):
 
         if isinstance(trial_condition_fn, str):
             trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
+
 
         result = []
         error_count = 0

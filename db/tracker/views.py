@@ -13,6 +13,8 @@ from models import TaskEntry, Task, Subject, Feature, Generator
 import namelist
 from ajax import display
 
+import datetime
+
 def list(request):
     '''
     Top-level view called when browser pointed at webroot
@@ -26,8 +28,45 @@ def list(request):
     -------
     Django HTTPResponse instance
     '''
+    td = datetime.timedelta(days=30)
+    start_date = datetime.date.today() - td
+    entries = models.TaskEntry.objects.filter(date__gt=start_date).order_by('-date')
+
     fields = dict(
-        entries=TaskEntry.objects.all().order_by("-date"), 
+        entries=entries, 
+        subjects=Subject.objects.all().order_by("name"), 
+        tasks=Task.objects.filter(visible=True).order_by("name"), 
+        features=Feature.objects.filter(visible=True).order_by("name"), 
+        generators=Generator.objects.filter(visible=True).order_by("name"),
+        hostname=request.get_host(),
+        bmi_update_rates=namelist.bmi_update_rates,
+        state_spaces=namelist.bmi_state_space_models,
+        bmi_algorithms=namelist.bmi_algorithms,
+        extractors=namelist.extractors,
+        default_extractor=namelist.default_extractor,
+        pos_vars=namelist.bmi_training_pos_vars,
+    )
+    if display.task is not None:
+        fields['running'] = display.task.saveid
+    return render_to_response('list.html', fields, RequestContext(request))
+
+def listall(request):
+    '''
+    Top-level view called when browser pointed at webroot
+
+    Parameters
+    ----------
+    request: HTTPRequest instance
+        No data needs to be extracted from this request
+
+    Returns 
+    -------
+    Django HTTPResponse instance
+    '''
+    entries = TaskEntry.objects.all().order_by("-date")
+
+    fields = dict(
+        entries=entries, 
         subjects=Subject.objects.all().order_by("name"), 
         tasks=Task.objects.filter(visible=True).order_by("name"), 
         features=Feature.objects.filter(visible=True).order_by("name"), 
