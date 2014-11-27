@@ -446,7 +446,6 @@ class TaskEntry(models.Model):
                 path, name = os.path.split(df.get_path())
                 name, ext = os.path.splitext(name)
 
-                #js['bmi'] = dict(_plxinfo=dict(
                 js['bmi'] = dict(_neuralinfo=dict(
                     length=plx.length, 
                     units=plx.units, 
