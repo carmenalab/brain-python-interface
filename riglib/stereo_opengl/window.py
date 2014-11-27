@@ -96,7 +96,9 @@ class Window(LogExperiment):
         self.set_eye((0,-self.screen_dist,0), (0,0))
     
     def _get_renderer(self):
-        return stereo.MirrorDisplay(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
+        near = 1
+        far = 1024
+        return stereo.MirrorDisplay(self.window_size, self.fov, near, far, self.screen_dist, self.iod)
     
     def set_eye(self, pos, vec, reset=True):
         '''Set the eye's position and direction. Camera starts at (0,0,0), pointing towards positive y'''
@@ -161,6 +163,13 @@ class Window(LogExperiment):
         super(Window, self)._cycle()
         self.event = self._get_event()
         
+
+class WindowWithExperimenterDisplay(Window):
+    def _get_renderer(self):
+        near = 1
+        far = 1024
+        return stereo.DualMultisizeDisplay(self.window_size, self.fov, near, far, self.screen_dist, self.iod)
+
 
 class WindowWithHeadsUp(Window):
     def screen_init(self):
