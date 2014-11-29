@@ -119,6 +119,22 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         return post_state
 
+    def set_state_cov(self, n_steps):
+        C, Q = self.C, self.Q
+        A, W = self.A, self.W
+        P = self.state.cov
+        for k in range(n_steps):
+            
+            P = A*P*A.T + W
+
+            K = self._calc_kalman_gain(P)
+            I = np.mat(np.eye(self.C.shape[1]))
+            D = self.C_xpose_Q_inv_C
+            KC = P*(I - D*P*(I + D*P).I)*D
+            P = (I - KC) * P 
+
+        return P
+
     def _calc_kalman_gain(self, P):
         '''
         Calculate Kalman gain using the 'alternate' definition
