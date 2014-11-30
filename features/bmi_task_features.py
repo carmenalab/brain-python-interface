@@ -120,15 +120,17 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         Secondary init function after the object has been created and all the super __init__ functions have run.
         Initialize the "current" value of all of the attributes and register the attributes with the HDF file
         '''
+
+        if hasattr(self, 'add_dtype'):
+            for attr in self.attrs:
+                self.add_dtype(attr, 'f8', (1,))
+        
         super(LinearlyDecreasingAttribute, self).init()
         for attr in self.attrs:
             self.attr_start, self.attr_min = getattr(self, attr)
             setattr(self, 'current_%s' % attr, self.attr_start)
             self.attr_flags[attr] = True
 
-        if hasattr(self, 'add_dtype'):
-            for attr in self.attrs:
-                self.add_dtype(attr, 'f8', (1,))
 
     def _linear_change(self, start_val, end_val, decay_time):
         '''
