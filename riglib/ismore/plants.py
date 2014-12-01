@@ -3,33 +3,37 @@
 import numpy as np
 import socket
 
-from riglib import ismore, blackrock, source
+from riglib import source
 from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
-from riglib.ismore import settings
+from riglib.ismore import settings, udp_feedback_client
 from utils.constants import *
 
-try:
-    import armassist
-    import rehand
-except:
-    import warnings
-    warnings.warn('clone the iBMI repo and put it on the path!')
+import armassist
+import rehand
+
+
+# PRINT_COMMANDS = True
+PRINT_COMMANDS = False
+
 
 class ArmAssistPlant(object):
     '''Sends velocity commands and receives feedback over UDP. Can be used
     with either the real or simulated ArmAssist.
     '''
 
-    def __init__(self, print_commands=True):
+    def __init__(self, print_commands=PRINT_COMMANDS):
         self.print_commands = print_commands
 
-        self.source = source.DataSource(ismore.ArmAssistData, bufferlen=5, name='armassist')
+        self.source = source.DataSource(udp_feedback_client.ArmAssistData, bufferlen=5, name='armassist')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
         self.aa_addr = settings.armassist_udp_server
         
         command = 'SetControlMode ArmAssist Global\n'
         self.sock.sendto(command, self.aa_addr)
         
+        #command = 'SetControlMode ArmAssist Disable\n'
+        #self.sock.sendto(command, self.aa_addr)
+
         ssm = StateSpaceArmAssist()
         self.pos_state_names = [s.name for s in ssm.states if s.order == 0]
         self.vel_state_names = [s.name for s in ssm.states if s.order == 1]
@@ -69,19 +73,19 @@ class ArmAssistPlant(object):
 
     def get_vel(self):
         pos = self.source.read(n_pts=2)['data'][self.pos_state_names]
-        ts = self.source.read(n_pts=2)['ts'][self.pos_state_names]
+        ts = self.source.read(n_pts=2)['ts']
 
         delta_pos = np.array(tuple(pos[1])) - np.array(tuple(pos[0]))
-        delta_ts  = np.array(tuple(ts[1])) - np.array(tuple(ts[0]))
-
-        vel = delta_pos / (delta_ts * ms_to_s)
+        delta_ts  = ts[1] - ts[0]
+        
+        vel = delta_pos / delta_ts
 
         if any(np.isnan(v) for v in vel):
             print "WARNING -- nans in vel:", vel
-            print "pos", pos
-            print "ts", ts
-            print "delta_pos", delta_pos
-            print "delta_ts", delta_ts
+            #print "pos", pos
+            #print "ts", ts
+            #print "delta_pos", delta_pos
+            #print "delta_ts", delta_ts
             for i in range(3):
                 if np.isnan(vel[i]):
                     vel[i] = 0
@@ -94,10 +98,10 @@ class ReHandPlant(object):
     with either the real or simulated ReHand.
     '''
 
-    def __init__(self, print_commands=True):
+    def __init__(self, print_commands=PRINT_COMMANDS):
         self.print_commands = print_commands
 
-        self.source = source.DataSource(ismore.ReHandData, bufferlen=5, name='rehand')
+        self.source = source.DataSource(udp_feedback_client.ReHandData, bufferlen=5, name='rehand')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
         self.rh_addr = settings.rehand_udp_server
 
@@ -145,7 +149,7 @@ class IsMorePlant(object):
     with either the real or simulated ArmAssist+ReHand.
     '''
 
-    def __init__(self, print_commands=True):
+    def __init__(self, print_commands=PRINT_COMMANDS):
         self.aa_plant = ArmAssistPlant(print_commands=print_commands)
         self.rh_plant = ReHandPlant(print_commands=print_commands)
 
@@ -179,7 +183,7 @@ class IsMorePlant(object):
 ################################################        
 
 
-class ArmAssistPlantNoUDP(object):
+class ArmAssistPlantNonUDP(object):
     '''Similar methods as ArmAssistPlant, but: 
         1) doesn't send/receive anything over UDP, and 
         2) uses simulated ArmAssist (can't be used with real ArmAssist).
@@ -237,7 +241,7 @@ class ArmAssistPlantNoUDP(object):
         self.aa._set_wf(wf)
 
 
-class ReHandPlantNoUDP(object):
+class ReHandPlantNonUDP(object):
     '''Similar methods as ReHandPlant, but: 
         1) doesn't send/receive anything over UDP, and 
         2) uses simulated ReHand (can't be used with real ReHand).
@@ -286,7 +290,7 @@ class ReHandPlantNoUDP(object):
         self.rh._set_pos(pos)
 
 
-class IsMorePlantNoUDP(object):
+class IsMorePlantNonUDP(object):
     '''Similar methods as IsMorePlant, but: 
         1) doesn't send/receive anything over UDP, and 
         2) uses simulated ArmAssist+ReHand (can't be used with real devices).
@@ -294,8 +298,8 @@ class IsMorePlantNoUDP(object):
     '''
 
     def __init__(self):
-        self.aa_plant = ArmAssistPlantNoUDP()
-        self.rh_plant = ReHandPlantNoUDP()
+        self.aa_plant = ArmAssistPlantNonUDP()
+        self.rh_plant = ReHandPlantNonUDP()
 
     def init(self):
         pass
@@ -330,5 +334,5 @@ class IsMorePlantNoUDP(object):
         (cm, cm, rad) and ReHand's angles in units of (rad, rad, rad, rad).
         '''
         self.aa_plant.set_pos(pos[0:3])
-        self.aa_plant.set_pos(pos[3:7])
+        self.rh_plant.set_pos(pos[3:7])
 

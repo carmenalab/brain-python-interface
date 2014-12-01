@@ -5,7 +5,9 @@ from db import dbfunctions
 from db.tracker import models
 
 from riglib import experiment
-from riglib.experiment import features
+from features.generator_features import Autostart
+from features.hdf_features import SaveHDF
+from features.plexon_features import PlexonBMI
 
 from tasks import generatorfunctions as genfns
 from analysis import performance
@@ -19,7 +21,7 @@ os.environ['DISPLAY'] = ':0'
 task = models.Task.objects.get(name='clda_kf_ofc_tentacle_rml_trial')
 base_class = task.get()
 
-feats = [features.SaveHDF, features.PlexonBMI, features.Autostart]
+feats = [SaveHDF, PlexonBMI, Autostart]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())

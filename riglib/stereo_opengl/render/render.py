@@ -56,6 +56,15 @@ class Renderer(object):
         self.fsquad_buf = vbuf, ebuf
     
     def _queue_render(self, root, shader=None):
+        '''
+
+        Parameters
+        ----------
+        root: stereo_opengl.models.Model instance
+            The root model from which to start drawing
+        shader: ???????, default=None
+            ????????
+        '''
         queue = dict((k, dict()) for k in self.programs.keys())
 
         for pname, drawfunc, tex in root.render_queue(shader=shader):

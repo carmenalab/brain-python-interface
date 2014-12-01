@@ -4,6 +4,11 @@ Basic OpenGL shapes constructed out of triangular meshes
 
 import numpy as np
 from numpy import pi
+try:
+    import pygame
+except:
+    import warnings
+    warnings.warn('riglib/stereo_opengl_primitives.py: not importing name pygame')
 
 from models import TriMesh
 
@@ -115,19 +120,83 @@ class Cone(TriMesh):
             tcoords=tcoord, normals=normals, **kwargs)
 
 
-## below code added by Sid, only for use with WindowDispl2D class (not Window)
-class Sector(object):
-    def __init__(self, center_pos, radius, ang_range, color, visible=True):
+
+class Shape2D(object):
+    '''Abstract base class for shapes that live in the 2-dimension xz-plane
+    and are intended only for use with the WindowDispl2D class (not Window).
+    '''
+
+    def __init__(self, color, visible=True):
+        self.color   = color
+        self.visible = visible
+
+    def draw(self, surface, pos2pix_fn):
+        '''Draw itself on the given pygame.Surface object using the given
+        position-to-pixel_position function.'''
+
+        raise NotImplementedError  # implement in subclasses
+
+
+class Circle(Shape2D):
+    def __init__(self, center_pos, radius, *args, **kwargs):
+        super(Circle, self).__init__(*args, **kwargs)
+        self.center_pos = center_pos
+        self.radius     = radius
+
+    def draw(self, surface, pos2pix_fn):
+        if self.visible:
+            color = tuple(map(lambda x: int(255*x), self.color[0:3]))
+
+            pix_pos    = pos2pix_fn(self.center_pos)
+            pix_radius = pos2pix_fn([self.radius, 0])[0] - pos2pix_fn([0, 0])[0]
+            pygame.draw.circle(surface, color, pix_pos, pix_radius)
+
+        return self.visible  # return True if object was drawn
+
+
+class Sector(Shape2D):
+    def __init__(self, center_pos, radius, ang_range, *args, **kwargs):
+        super(Sector, self).__init__(*args, **kwargs)
         self.center_pos = center_pos
         self.radius     = radius
         self.ang_range  = ang_range
-        self.color      = color
-        self.visible    = visible
 
-class Line(object):
-    def __init__(self, start_pos, length, angle, width, color):
+    def draw(self, surface, pos2pix_fn):
+        if self.visible:
+            color = tuple(map(lambda x: int(255*x), self.color[0:3]))
+            
+            arc_angles = np.linspace(self.ang_range[0], self.ang_range[1], 5)
+            pts = list(self.center_pos + self.radius*np.c_[np.cos(arc_angles), np.sin(arc_angles)])
+            pts.append(self.center_pos)
+            
+            point_list = map(pos2pix_fn, pts)
+            pygame.draw.polygon(surface, color, point_list)
+        
+        return self.visible  # return True if object was drawn
+
+
+class Line(Shape2D):
+    def __init__(self, start_pos, length, width, angle, *args, **kwargs):
+        super(Line, self).__init__(*args, **kwargs)
         self.start_pos = start_pos
         self.length    = length
+        self.width     = width  # draw a line as thin rectangle
         self.angle     = angle
-        self.width     = width
-        self.color     = color
+
+    def draw(self, surface, pos2pix_fn):
+        if self.visible:
+            color = tuple(map(lambda x: int(255*x), self.color[0:3]))
+
+            # create points and then rotate to correct orientation
+            pts = np.array([[          0,  self.width/2], 
+                            [          0, -self.width/2], 
+                            [self.length, -self.width/2], 
+                            [self.length,  self.width/2]])
+            rot_mat = np.array([[np.cos(self.angle), -np.sin(self.angle)], 
+                                [np.sin(self.angle),  np.cos(self.angle)]])
+            pts = np.dot(rot_mat, pts.T).T + self.start_pos
+            
+            point_list = map(pos2pix_fn, pts)
+            pygame.draw.polygon(surface, color, point_list)
+
+        return self.visible  # return True if object was drawn

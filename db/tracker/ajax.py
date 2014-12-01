@@ -163,14 +163,27 @@ def save_notes(request, idx):
     return _respond(dict(status="success"))
 
 def make_bmi(request, idx):
+    '''
+    AJAX handler for creating a new decoder.
+
+    Parameters
+    ----------
+    request: Django HttpRequest
+        POST data containing details for how to train the decoder (type, units, update rate, etc.)
+    idx: int
+        ID number of the models.TaskEntry record with the data used to train the Decoder.
+
+    Returns
+    -------
+    Django HttpResponse
+        Indicates 'success' if all commands initiated without error.
+    '''
     ## Check if the name of the decoder is already taken
-    print request.POST
     collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
     if len(collide) > 0:
         return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
 
     update_rate = float(request.POST['bmiupdaterate'])
-    print update_rate
 
     kwargs = dict(
         entry=idx,
@@ -184,8 +197,6 @@ def make_bmi(request, idx):
         ssm=request.POST['ssm'],
         pos_key=request.POST['pos_key'],
     )
-    print kwargs
-    print 'running cache and train'
     trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))
 

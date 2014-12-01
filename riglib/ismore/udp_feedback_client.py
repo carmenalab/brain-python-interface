@@ -1,4 +1,7 @@
-'''Client-side code to receive feedback data from the ArmAssist and ReHand.'''
+'''Client-side code to receive feedback data from the ArmAssist and ReHand. 
+See ArmAssist and ReHand command guides for more details on protocol of what 
+data is sent over UDP.
+'''
 
 import sys
 import time
@@ -10,172 +13,184 @@ from collections import namedtuple
 from riglib.ismore import settings
 from utils.constants import *
 
-field_names = ['data', 'ts', 'ts_sent', 'ts_arrival', 'freq']
-ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
-ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
 
+class FeedbackData(object):
+    '''Abstract base class, not meant to be instantiated.'''
 
-class Client(object):
-    '''Docstring.'''
+    MAX_MSG_LEN = 300
+    sleep_time = 0
 
-    MAX_MSG_LEN = 200
+    # must define these in subclasses
+    update_freq = None
+    address     = None
+    dtype       = None
 
-    # TODO -- rename this function to something else?
-    def _create_and_bind_socket(self):
-        '''Called in subclasses in their __init__() method.'''
+    def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(self.address)
 
-        self._init = True
-        
+        # self.file_ = open(self.feedback_filename, 'w')
+
     def start(self):
         self.listening = True
+        self.data = self.get_feedback_data()
 
     def stop(self):
         self.listening = False
         # self.file_.close()
-    
+
+    # TODO -- is this even necessary?
     def __del__(self):
         self.stop()
 
+    # TODO -- add comment about how this will get called by the source
+    def get(self):
+        return self.data.next()
+
     def get_feedback_data(self):
+        '''Yield received feedback data.'''
+
+        while self.listening:
+            r, _, _ = select.select([self.sock], [], [], 0)
+            
+            if r:  # if the list r is not empty
+                feedback = self.sock.recv(self.MAX_MSG_LEN)
+                ts_arrival = time.time()  # secs
+                
+                # print "feedback:", feedback
+                # self.file_.write(feedback.rstrip('\r') + "\n")
+
+                yield self.process_received_feedback(feedback, ts_arrival)
+
+            time.sleep(self.sleep_time)
+
+    def process_received_feedback(self, feedback, ts_arrival):
         raise NotImplementedError('Implement in subclasses!')
-
-
-class ArmAssistClient(Client):
-    '''Client code for receiving feedback data packets over UDP from the 
-    ArmAssist application.'''
-
-    address = settings.armassist_udp_client
-
-    def __init__(self):
-        self._create_and_bind_socket()
-
-        # self.file_ = open('armassist_feedback.txt', 'w')
-
-    def get_feedback_data(self):
-        '''Yield received feedback data.'''
-
-        sleep_time = 0
-
-        while self.listening:
-            r, _, _ = select.select([self.sock], [], [], 0)
             
-            if r:  # if the list r is not empty
-                feedback = self.sock.recv(self.MAX_MSG_LEN)
-                ts_arrival = int(time.time() * 1e6)
-                # print "feedback aa:", feedback
-                self.sock.sendto("ACK ArmAssist\r", settings.armassist_udp_server)
 
-                # self.file_.write(feedback.rstrip('\r') + "\n")
+class ArmAssistData(FeedbackData):
+    '''Client code for use with a DataSource in order to acquire feedback data over UDP from the 
+    ArmAssist application.
+    '''
 
-                # Example feedback string:
-                # "Status ArmAssist freq px py ppsi ts force bar_angle ts_aux\r"
+    update_freq = 15.
+    address     = settings.armassist_udp_client
+    #feedback_filename = 'armassist_feedback.txt'
 
-                items = feedback.rstrip('\r').split(' ')
+    state_names = ['aa_px', 'aa_py', 'aa_ppsi']
+
+    sub_dtype_data     = np.dtype([(name, np.float64) for name in state_names])
+    sub_dtype_data_aux = np.dtype([(name, np.float64) for name in ['force', 'bar_angle']])
+    
+    dtype = np.dtype([('data',       sub_dtype_data),
+                      ('ts',         np.float64),
+                      ('ts_arrival', np.float64),
+                      ('freq',       np.float64),
+                      ('data_aux',   sub_dtype_data_aux),
+                      ('ts_aux',     np.float64)])
+
+    def process_received_feedback(self, feedback, ts_arrival):
+        '''Process feedback strings of the form:
+            "Status ArmAssist freq px py ppsi ts force bar_angle ts_aux\r"
+        '''
+
+        items = feedback.rstrip('\r').split(' ')
+        
+        cmd_id      = items[0]
+        dev_id      = items[1]
+        data_fields = items[2:]
+        
+        assert cmd_id == 'Status'
+        assert dev_id == 'ArmAssist'
+        assert len(data_fields) == 8
+
+        freq = float(data_fields[0])                    # Hz
+
+        # position data
+        px   = float(data_fields[1]) * mm_to_cm         # cm
+        py   = float(data_fields[2]) * mm_to_cm         # cm
+        ppsi = float(data_fields[3]) * deg_to_rad       # rad
+        ts   = int(data_fields[4])   * us_to_s          # sec
+        
+        # auxiliary data
+        force     = float(data_fields[5])               # kg
+        bar_angle = float(data_fields[6]) * deg_to_rad  # rad
+        ts_aux    = int(data_fields[7])   * us_to_s     # sec
+
+        data     = (px, py, ppsi)
+        data_aux = (force, bar_angle)
+
+        return np.array([(data,
+                          ts,
+                          ts_arrival,
+                          freq,
+                          data_aux,
+                          ts_aux)],
+                        dtype=self.dtype)
+
+
+class ReHandData(FeedbackData):
+    '''Client code for use with a DataSource in order to acquire feedback data over UDP from the 
+    ReHand application.
+    '''
+
+    update_freq = 200.
+    address     = settings.rehand_udp_client
+    #feedback_filename = 'rehand_feedback.txt'
+
+    state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 
+                   'rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
+    sub_dtype_data   = np.dtype([(name, np.float64) for name in state_names])
+    sub_dtype_torque = np.dtype([(name, np.float64) for name in ['thumb', 'index', 'fing3', 'prono']])
+    
+    dtype = np.dtype([('data',       sub_dtype_data),
+                      ('ts',         np.float64),
+                      ('ts_arrival', np.float64),
+                      ('freq',       np.float64),
+                      ('torque',     sub_dtype_torque)])
+
+    def process_received_feedback(self, feedback, ts_arrival):
+        '''Process feedback strings of the form:
+            "ReHand Status freq vthumb pthumb tthumb ... tprono ts\r"
+        '''
+
+        items = feedback.rstrip('\r').split(' ')
                 
-                cmd_id = items[0]
-                dev_id = items[1]
-                assert cmd_id == 'Status'
-                assert dev_id == 'ArmAssist'
+        # feedback packet starts with "ReHand Status ...", as opposed 
+        #   to "Status ArmAssist ... " for ArmAssist feedback packets
+        dev_id      = items[0]
+        cmd_id      = items[1]
+        data_fields = items[2:]
 
-                freq = float(items[2])
-                
-                # position data and corresponding timestamp
-                px   = float(items[3]) * mm_to_cm
-                py   = float(items[4]) * mm_to_cm
-                ppsi = float(items[5]) * deg_to_rad
-                ts   = int(items[6])
+        assert dev_id == 'ReHand'
+        assert cmd_id == 'Status'
+        assert len(data_fields) == 14
 
-                # print "ArmAssist timestamps:"
-                # print "ts        ", ts
-                # print "ts arrival", ts_arrival
+        freq = float(data_fields[0])
 
-                # auxiliary data and corresponding timestamp
-                force     = float(items[7])
-                bar_angle = float(items[8])
-                ts_aux    = int(items[9])
+        # velocity, position, and torque for the 4 ReHand joints
+        vthumb = float(data_fields[1])  * deg_to_rad  # rad
+        pthumb = float(data_fields[2])  * deg_to_rad  # rad
+        tthumb = float(data_fields[3])                # mNm
+        vindex = float(data_fields[4])  * deg_to_rad  # rad
+        pindex = float(data_fields[5])  * deg_to_rad  # rad
+        tindex = float(data_fields[6])                # mNm
+        vfing3 = float(data_fields[7])  * deg_to_rad  # rad
+        pfing3 = float(data_fields[8])  * deg_to_rad  # rad
+        tfing3 = float(data_fields[9])                # mNm
+        vprono = float(data_fields[10]) * deg_to_rad  # rad
+        pprono = float(data_fields[11]) * deg_to_rad  # rad
+        tprono = float(data_fields[12])               # mNm
 
-                data = np.array([px, py, ppsi])
-                ts   = np.array([ts, ts, ts])
+        ts = int(data_fields[13]) * us_to_s           # secs
 
-                ts_sent = 0  # TODO -- fix
+        data   = (pthumb, pindex, pfing3, pprono,
+                  vthumb, vindex, vfing3, vprono)
+        torque = (tthumb, tindex, tfing3, tprono)
 
-                yield ArmAssistFeedbackData(data=data,
-                                            ts=ts,
-                                            ts_sent=ts_sent,
-                                            ts_arrival=ts_arrival,
-                                            freq=freq)
-
-            time.sleep(sleep_time)
-
-
-class ReHandClient(Client):
-    '''Client code for receiving feedback data packets over UDP from the 
-    ReHand application.'''
-
-    address = settings.rehand_udp_client
-
-    def __init__(self):
-        self._create_and_bind_socket()
-
-        # self.file_ = open('rehand_feedback.txt', 'w')
-
-    def get_feedback_data(self):
-        '''Yield received feedback data.'''
-
-        sleep_time = 0
-
-        while self.listening:
-            r, _, _ = select.select([self.sock], [], [], 0)
-            
-            if r:  # if the list r is not empty
-                feedback = self.sock.recv(self.MAX_MSG_LEN)
-                ts_arrival = int(time.time() * 1e6)  # microseconds
-                #print "feedback rh:", feedback
-                #self.sock.sendto("ACK ReHand\r", settings.rehand_udp_server)
-
-                # self.file_.write(feedback.rstrip('\r') + "\n")
-
-                items = feedback.rstrip('\r').split(' ')
-                
-                dev_id = items[0]
-                cmd_id = items[1]
-                assert dev_id == 'ReHand'
-                assert cmd_id == 'Status'               
-
-                data_fields = items[2:]
-
-                freq = float(data_fields[0])
-
-                # values = [float(s) for s in items[3:]]
-                # assert len(values) == 16
-
-                vel    = [float(data_fields[i]) for i in [1, 5,  9, 13]]
-                pos    = [float(data_fields[i]) for i in [2, 6, 10, 14]]
-                torque = [float(data_fields[i]) for i in [3, 7, 11, 15]]
-                ts     = [  int(data_fields[i]) for i in [4, 8, 12, 16]]
-
-                ts_sent = int(data_fields[17])
-
-                # print "timestamps:"
-                # print "ts thumb  ", ts[0] 
-                # print "ts index  ", ts[1]
-                # print "ts fing3  ", ts[2]
-                # print "ts prono  ", ts[3]
-                # print "ts sent   ", ts_sent
-                # print "ts arrival", int(ts_arrival * 1e6)
-
-                data = np.array(pos + vel)
-                ts   = np.array(ts + ts)
-
-                # convert angular values from deg to rad (and deg/s to rad/s)
-                data *= deg_to_rad
-
-                yield ReHandFeedbackData(data=data, 
-                                         ts=ts, 
-                                         ts_sent=ts_sent,
-                                         ts_arrival=ts_arrival,
-                                         freq=freq)
-
-            time.sleep(sleep_time)
+        return np.array([(data,
+                          ts, 
+                          ts_arrival, 
+                          freq,
+                          torque)],
+                        dtype=self.dtype)

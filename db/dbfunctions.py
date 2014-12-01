@@ -2,6 +2,7 @@
 Interface between the Django database methods/models and data analysis code
 '''
 import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import sys
 import json
 import numpy as np
@@ -26,15 +27,19 @@ except:
 # Should use db.initdb.initialize_db() function to set the desired database
 # before this file is imported, but if it has not already been done, choose the
 # bmi3d rig database.
-try:
-    dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
-except:
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
 
-sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
+
+# try:
+#     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
+# except:
+#     
+#     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
+
+# sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
+# from tracker import models
+# dbname = eval(dbname_short+'.DATABASES[\'default\'][\'NAME\']')
+
 from tracker import models
-dbname = eval(dbname_short+'.DATABASES[\'default\'][\'NAME\']')
 
 def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
     '''
@@ -480,14 +485,18 @@ class TaskEntry(object):
 
         Parameters
         ----------
-        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+        filt: callable; call signature: trial_filter_fn(trial_msgs)
             Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
-        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+        proc: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
             The main workhorse function 
-        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+        cond: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
             Determine what the trial *subtype* is (useful for separating out various types of catch trials)
-        data_comb_fn: callable; call signature: data_comb_fn(list)
+        comb: callable; call signature: data_comb_fn(list)
             Combine the list into the desired output structure
+        kwargs: optional keyword arguments
+            For 'legacy' compatibility, you can also specify 'trial_filter_fn' for 'filt', 'trial_proc_fn' for 'proc', 
+            'trial_condition_fn' for 'cond', and 'data_comb_fn' for comb. These are ignored if any newer equivalents are specified.
+            All other keyword arguments are passed to the 'proc' function. 
 
         Returns
         -------
@@ -496,14 +505,14 @@ class TaskEntry(object):
             grouped by tuples are combined into a single result. 
 
         '''
-        if filt == None and 'trial_filter_fn' in kwargs:
-            filt = kwargs.pop('trial_filter_fn')
-        if cond == None and 'trial_condition_fn' in kwargs:
-            cond = kwargs.pop('trial_condition_fn')
-        if proc == None and 'trial_proc_fn' in kwargs:
-            proc = kwargs.pop('trial_proc_fn')
-        if comb == None and 'data_comb_fn' in kwargs:
-            comb = kwargs.pop('data_comb_fn')
+        if filt == None:
+            filt = kwargs.pop('trial_filter_fn', trial_filter_functions.default)
+        if cond == None:
+            cond = kwargs.pop('trial_condition_fn', trial_condition_functions.default)
+        if proc == None:
+            proc = kwargs.pop('trial_proc_fn', trial_proc_functions.default)
+        if comb == None:
+            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
 
 
         trial_filter_fn = filt
@@ -521,8 +530,6 @@ class TaskEntry(object):
         if isinstance(trial_condition_fn, str):
             trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
-        if data_comb_fn == None: 
-            data_comb_fn = np.hstack
 
         te = self
         trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
@@ -1024,21 +1031,19 @@ class TaskEntryCollection(object):
         self.kwargs = kwargs
         self.name = name
 
-    def proc_trials(self, trial_filter_fn=trial_filter_functions.default, trial_proc_fn=trial_proc_functions.default, 
-                    trial_condition_fn=trial_condition_functions.default, data_comb_fn=default_data_comb_fn,
-                    verbose=False, max_errors=10, **kwargs):
+    def proc_trials(self, filt=None, proc=None, cond=None, comb=None, verbose=False, max_errors=10, **kwargs):
         '''
         Generic framework to perform a trial-level analysis on the entire dataset
 
         Parameters
         ----------
-        trial_filter_fn: callable; call signature: trial_filter_fn(trial_msgs)
+        filt: callable; call signature: trial_filter_fn(trial_msgs)
             Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
-        trial_proc_fn: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
+        proc: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
             The main workhorse function 
-        trial_condition_fn: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
+        cond: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
             Determine what the trial *subtype* is (useful for separating out various types of catch trials)
-        data_comb_fn: callable; call signature: data_comb_fn(list)
+        comb: callable; call signature: data_comb_fn(list)
             Combine the list into the desired output structure
         verbose: boolean, optional, default = True
             Feedback print statements so that you know processing is happening
@@ -1052,6 +1057,22 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result. 
         '''
 
+        if filt == None:
+            filt = kwargs.pop('trial_filter_fn', trial_filter_functions.default)
+        if cond == None:
+            cond = kwargs.pop('trial_condition_fn', trial_condition_functions.default)
+        if proc == None:
+            proc = kwargs.pop('trial_proc_fn', trial_proc_functions.default)
+        if comb == None:
+            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
+
+
+        trial_filter_fn = filt
+        trial_condition_fn = cond
+        trial_proc_fn = proc
+        data_comb_fn = comb
+
+
         if isinstance(trial_filter_fn, str):
             trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
@@ -1060,6 +1081,7 @@ class TaskEntryCollection(object):
 
         if isinstance(trial_condition_fn, str):
             trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
+
 
         result = []
         error_count = 0

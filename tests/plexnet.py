@@ -1,7 +1,6 @@
 import time
 import numpy as np
 from riglib.plexon import plexnet
-#from riglib.experiment.features import SpikeData
 import matplotlib.pyplot as plt
 from riglib.experiment import traits
 

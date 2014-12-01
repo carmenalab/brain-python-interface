@@ -18,10 +18,19 @@ def angle_inside_range(angle, start, end):
 
 def angle_subtract(angle1, angle2):
     '''Compute angle1 minus angle2 so that result is in range [-pi, pi).'''
+    
     result = angle1 - angle2
     while result < -np.pi:
         result += 2*np.pi
     while result >= np.pi:
         result -= 2*np.pi
+
+    return result
+
+def angle_subtract_vec(angle_vec1, angle_vec2):
+    result = np.zeros(angle_vec1.shape)
+
+    for i in range(len(result)):
+        result[i] = angle_subtract(angle_vec1[i], angle_vec2[i])
 
     return result

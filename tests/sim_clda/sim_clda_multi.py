@@ -12,7 +12,11 @@ import os
 import numpy as np
 import multiprocessing as mp
 from scipy.io import loadmat, savemat
-from riglib.experiment.features import Autostart, SimHDF, SimTime, SaveHDF
+
+from features.generator_features import Autostart
+from features.simulation_features import SimHDF, SimTime
+from features.hdf_features import SaveHDF
+
 import riglib.bmi
 from riglib.bmi import train, kfdecoder, clda, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
@@ -145,7 +149,7 @@ if args.alg == 'RML':
     te.task = models.Task.objects.using('simulation').get(name='clda_kf_cg_rml')
     te.sequence_id = 0
     te.save(using='simulation')
-    gen = genfns.sim_target_seq_generator_multi(8, 1)
+    gen = bmimultitasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 1)
     task = SimRML(gen)
 
 else:

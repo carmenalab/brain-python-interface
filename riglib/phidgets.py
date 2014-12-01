@@ -7,6 +7,7 @@ import numpy as np
 
 from Phidgets.Devices.InterfaceKit import InterfaceKit
 
+
 class System(object):
     '''
     Docstring
@@ -33,7 +34,7 @@ class System(object):
 
         self.kit = InterfaceKit()
         self.kit.openPhidget()
-        self.kit.waitForAttach(1000)
+        self.kit.waitForAttach(2000)
     
     def start(self):
         '''

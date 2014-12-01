@@ -41,6 +41,8 @@ class Experiment(traits.HasTraits, threading.Thread):
     ordered_traits = []
     hidden_traits = []
     fps = 60
+    sequence_generators = []
+    is_bmi_seed = False
 
     def __init__(self, **kwargs):
         '''
@@ -70,7 +72,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.cycle_count = 0
         self.clock = pygame.time.Clock()
 
-        self.pause = False      
+        self.pause = False
 
     @classmethod
     def class_editable_traits(cls):
@@ -117,6 +119,17 @@ class Experiment(traits.HasTraits, threading.Thread):
         # Timestamp for rough loop timing
         self.last_time = self.get_time()
         self.cycle_count = 0
+
+        # Register sink for task data
+        try:
+            self.dtype = np.dtype(self.dtype)
+            self.sinks.register("task", self.dtype)
+            self.task_data = np.zeros((1,), dtype=self.dtype)
+        except:
+            import traceback
+            traceback.print_exc()
+            print self.dtype
+            self.task_data = None        
 
     def screen_init(self):
         '''
@@ -244,6 +257,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.cycle_count += 1
         if self.fps > 0:
             self.clock.tick(self.fps)
+
+        # Send task data to any registered sinks
+        if self.task_data is not None:
+            self.sinks.send("task", self.task_data)        
 
     def iter_time(self):
         '''
