@@ -1230,7 +1230,7 @@ def get_hdf_file(entry):
     Returns the name of the hdf file associated with the session.
     '''
     deprecation_warning()
-    te = TaskEntry(task_entry)
+    te = TaskEntry(entry)
     return te.hdf_filename
 
 def get_hdf(entry):
@@ -1238,7 +1238,7 @@ def get_hdf(entry):
     Return hdf opened file
     '''
     deprecation_warning()
-    te = TaskEntry(task_entry)
+    te = TaskEntry(entry)
     return te.hdf
 
 def get_plx_file(entry):
