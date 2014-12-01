@@ -39,18 +39,7 @@ class SaveHDF(object):
         # NOTE: this MUST happen before the rest of the code executes. Otherwise,
         # the dtype used to determine the task data attributes to be stored
         # to the HDF file will be incorrect/incomplete
-        super(SaveHDF, self).init()
-
-        # Register sink for task data
-        try:
-            self.dtype = np.dtype(self.dtype)
-            self.sinks.register("task", self.dtype)
-            self.task_data = np.zeros((1,), dtype=self.dtype)
-        except:
-            import traceback
-            traceback.print_exc()
-            print self.dtype
-            self.task_data = None        
+        super(SaveHDF, self).init()    
 
     @property
     def hdf_class(self):
@@ -107,7 +96,7 @@ class SaveHDF(object):
         try:
             self.cleanup_hdf()
         except:
-            print "cleanup error!!!!!!!!!!!!!!!!!!!!"
+            print "\n\n\n\n\nError cleaning up HDF file!"
             import traceback
             traceback.print_exc()
 
@@ -119,5 +108,3 @@ class SaveHDF(object):
 
     def _cycle(self):
         super(SaveHDF, self)._cycle()
-        if self.task_data is not None:
-            self.sinks.send("task", self.task_data)
