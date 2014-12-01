@@ -111,7 +111,7 @@ class DataSink(mp.Process):
         self.stop()
 
 class SinkManager(object):
-    ''' Docstring '''
+    ''' Data Sink manager singleton to be used by features '''
     def __init__(self):
         '''
         Docstring
@@ -178,26 +178,25 @@ class SinkManager(object):
                 
     def send(self, system, data):
         '''
-        Docstring
+        Send data from the specified 'system' to all sinks which have been registered
 
         Parameters
         ----------
+        system: string 
+            Name of the system sending the data
+        data: np.array
+            Generic data to be handled by each sink. Can be a record array, e.g., for task data.
 
         Returns
         -------
+        None
         '''
         for s in self.sinks:
             s.send(system, data)
     
     def stop(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Run the 'stop' method of all the registered sinks
         '''
         for s in self.sinks:
             s.stop()
