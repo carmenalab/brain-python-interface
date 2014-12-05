@@ -521,6 +521,12 @@ class LFPMTMPowerExtractor(object):
         extractor_kwargs['win_len']  = self.win_len
         extractor_kwargs['NW']       = self.NW
         extractor_kwargs['fs']       = self.fs
+
+        if 'no_log' in kwargs.keys():
+            extractor_kwargs['no_log']       = True #remove log calculation
+        else: 
+            extractor_kwargs['no_log']       = False
+
         self.extractor_kwargs = extractor_kwargs
 
         self.n_pts = int(self.win_len * self.fs)
@@ -544,7 +550,10 @@ class LFPMTMPowerExtractor(object):
         n_chan = len(self.channels)
         lfp_power = np.zeros((n_chan * len(self.bands), 1))
         for idx, band in enumerate(self.bands):
-            lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
+            if self.extractor_kwargs['no_log']:
+                lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1).reshape(-1, 1)
+            else:
+                lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
 
         # n_chan = len(self.channels)     
         # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
