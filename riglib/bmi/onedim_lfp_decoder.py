@@ -1,3 +1,4 @@
+
 from riglib import bmi, plexon, source
 from riglib.bmi import extractor
 import numpy as np
@@ -13,11 +14,13 @@ class StateHolder(object):
     def __init__(self, x_array, A_array, *args, **kwargs):
         self.mean = np.dot(x_array, A_array)
 
-class SmoothFilter(StateHolder):
-    '''Moving Avergae Filter used in 1D LFP control:
-    x_{t} = a0*x_{t} + a1*x_{t-1} + a2*x_{t-2} + ...
 
-    Parameters
+class SmoothFilter(object):
+	'''Moving Avergae Filter used in 1D LFP control:
+	x_{t} = a0*x_{t} + a1*x_{t-1} + a2*x_{t-2} + ...
+
+	Parameters
+
     ----------
     A: np.array of shape (N, )
         Weights for previous states
@@ -132,7 +135,6 @@ def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=2):
     #decoder_output, update_flag = bmi_system(lfp_power, target_state, 'target', feature_type = feature_type)
         
     return decoder
-
 
 
 
