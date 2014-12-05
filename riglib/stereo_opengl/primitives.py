@@ -24,6 +24,58 @@ class Plane(TriMesh):
         super(Plane, self).__init__(pts, np.array(polys), 
                 tcoords=tcoords, normals=np.array(normals), **kwargs)
 
+class Cube(TriMesh):
+    def __init__(self, target_length=4, segments=36, **kwargs):
+        self.target_length = target_length/2
+
+        zvals = target_length * np.linspace(-1, 1, num=segments)
+        #circlevals = np.linspace(0, 2*pi, num=segments, endpoint=False)
+        vertices = np.zeros(((len(zvals)-2) * len(circlevals), 3))
+
+        for i, z in enumerate(zvals[1:-1]):
+            circlepoints = np.zeros((segments, 3))
+            circlepoints[:,2] = z
+            #r = np.sqrt(radius**2 - z**2)
+            circlepoints[:,0] = target_length*zvals 
+            circlepoints[:,1] = target_length*zvals 
+            vertices[segments*i:segments*(i+1),:] = circlepoints
+        
+        vertices = np.vstack([vertices,(0,0,target_length),(0,0,-target_length)])
+        rads = np.tile( np.array([np.sqrt(np.sum(np.square(vertices), axis = 1))]).T, (1, 3))
+        allpointinds = np.arange(len(vertices))
+        
+        ####
+        triangles = np.zeros((segments,3))
+        firstcirc = allpointinds[0:segments]
+        triangles[0,:] = (allpointinds[-2],firstcirc[0], firstcirc[-1])
+        for i in range(segments-1):
+            triangles[i+1,:] = (allpointinds[-2], firstcirc[i+1], firstcirc[i])
+        
+        triangles = list(triangles)
+        for i in range(segments-3):
+            points1 = allpointinds[i*segments:(i+1)*segments]
+            points2 = allpointinds[(i+1)*segments:(i+2)*segments]
+            for ind, p in enumerate(points1[:-1]):
+                t1 = (p, points1[ind+1], points2[ind+1])
+                t2 = (p, points2[ind+1], points2[ind])
+                triangles += [t1, t2]
+            triangles += [(points1[-1], points1[0], points2[0]), (points1[-1], points2[0], points2[-1])]
+        
+        bottom = np.zeros((segments,3))
+        lastcirc = allpointinds[-segments-2:-2]
+        bottom[0,:] = (allpointinds[-1], lastcirc[-1], lastcirc[0]) 
+        for i in range(segments-1):
+            bottom[i+1,:] = (allpointinds[-1], lastcirc[i], lastcirc[i+1])
+        triangles = np.vstack([triangles, bottom])
+        
+        normals = np.divide(vertices, rads)
+        hcoord = np.arctan2(normals[:,1], normals[:,0])
+        vcoord = np.arctan2(normals[:,2], np.sqrt(vertices[:,0]**2 + vertices[:,1]**2))
+        tcoord = np.array([(hcoord+pi) / (2*pi), (vcoord+pi/2) / pi]).T
+
+        super(Cube, self).__init__(vertices, np.array(triangles), 
+            tcoords=tcoord, normals=normals, **kwargs)
+
 class Cylinder(TriMesh):
     def __init__(self, height=1, radius=1, segments=36, **kwargs):
         theta = np.linspace(0, 2*np.pi, segments, endpoint=False)
