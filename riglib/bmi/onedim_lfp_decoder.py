@@ -45,9 +45,10 @@ class SmoothFilter(StateHolder):
 		self.state = StateHolder(self.X, self.A)
 
 	def __call__(self, obs, **kwargs):
-		self.state = self._mov_avg(self.state, obs, **kwargs)
+		self.state = self._mov_avg(obs, **kwargs)
 
 	def _mov_avg(self, obs):
+		print stop
 		self.X = np.hstack(( self.X[1:], obs ))
 		return DummyState(self.X, self.A)
 
@@ -68,25 +69,36 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
 		source = None
 		self.extractor_cls = extractor.LFPMTMPowerExtractor(source,self.units,bands=bands,**kw)
 		self.extractor_kwargs = self.extractor_cls.extractor_kwargs
+
+	def predict(self, neural_obs, **kwargs):
+		self.filt(neural_obs, **kwargs)
 	
 
 def test_1d_LFP_dec(extractor_cls, extractor_kwargs, units,control_method='fraction'):
 	kw = dict(control_method='fraction')
-	sf = SmoothFilter(n_steps,**kw)
+	sf = old.SmoothFilter(n_steps,**kw)
 	ssm = train.endpt_2D_state_space
-	decoder = One_Dim_LFP_Decoder(sf, units, ssm, binlen=0.1, n_subbins=1)
+	decoder = old.One_Dim_LFP_Decoder(sf, units, ssm, binlen=0.1, n_subbins=1)
 
-	extractor_cls = extractor_cls
-	extractor_kwargs = extractor_kwargs
+	extractor_cls = decoder.extractor_cls
+	extractor_kwargs = decoder.extractor_kwargs
 	
 	decoder.n_features = len(extractor_kwargs['bands'])*len(extractor_kwargs['channels'])
+
 	learner = clda.DumbLearner()
 
 	bmi_system = bmi.BMISystem(decoder, learner, None)
+
+	#Get neural observations
+	#Choose frequency band
+	#Average across channels: 
+
 	lfp_power = np.random.randn(decoder.n_features, 1)
+
 	feature_type=extractor_cls.feature_type
 	target_state = np.zeros([decoder.n_states, decoder.n_subbins])
  
+
 	decoder_output, update_flag = bmi_system(lfp_power, target_state, 'target', feature_type = feature_type)
         
 	return decoder_output
