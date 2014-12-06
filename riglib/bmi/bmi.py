@@ -450,6 +450,8 @@ class Decoder(object):
         self.call_rate = call_rate
         self.bmicount = 0
         self.bminum = int(self.binlen/(1./self.call_rate))
+        self.n_subbins = int(np.ceil(1./self.binlen /self.call_rate))
+        print "setting n_subbins to ", self.n_subbins
 
     def get_state(self, shape=-1):
         '''

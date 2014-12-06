@@ -63,9 +63,12 @@ class Window(LogExperiment):
         if self.show_environment:
             self.add_model(Box())
 
-    def screen_init(self):
+    def set_os_params(self):            
         os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
+
+    def screen_init(self):
+        self.set_os_params()
         pygame.init()
         
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
@@ -165,10 +168,20 @@ class Window(LogExperiment):
         
 
 class WindowWithExperimenterDisplay(Window):
+    window_size = (1920, 1080)
+
+    def set_os_params(self):
+        # NOTE: in Ubuntu Unity, setting the SDL_VIDEO_WINDOW_POS seems to be largely ignored.
+        # You can set which screen the window appears on if you have a dual display, but you cannot set the exact position
+        # Instead, you have to hard-code a render start location in the compiz-config settings manager
+        # http://askubuntu.com/questions/452995/how-to-adjust-window-placement-in-unity-ubuntu-14-04-based-on-overlapping-top-b
+        os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
+        os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment_with_mini"
+
     def _get_renderer(self):
         near = 1
         far = 1024
-        return stereo.DualMultisizeDisplay(self.window_size, self.fov, near, far, self.screen_dist, self.iod)
+        return stereo.DualMultisizeDisplay((1920,1080), (480,270), self.fov, near, far, self.screen_dist, self.iod)
 
 
 class WindowWithHeadsUp(Window):

@@ -1040,8 +1040,12 @@ class PPFContinuousBayesianUpdater(object):
         self.dt = decoder.filt.dt
         self.beta_est = np.array(decoder.filt.C) #[:,self.neuron_driving_state_inds])
 
-    def calc(self, int_kin_full, spike_obs_full, decoder, **kwargs):
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, **kwargs):
         '''    Docstring    '''
+        if intended_kin == None or spike_counts == None or decoder == None:
+            raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")        
+        int_kin_full = intended_kin
+        spike_obs_full = spike_counts
         n_samples = int_kin_full.shape[1]
 
         # Squash any observed spike counts which are greater than 1
