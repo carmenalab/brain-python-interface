@@ -27,18 +27,32 @@ class Plane(TriMesh):
 class Cube(TriMesh):
     def __init__(self, target_length=4, segments=36, **kwargs):
         self.target_length = target_length/2
+        self.seg_per_side = segments/4
+        zvals = self.target_length * np.linspace(-1, 1, num=segments)
+        linevals = self.target_length * np.linspace(-1, 1, num=segments/4, endpoint=False)
+        vertices = np.zeros(((len(zvals)) * len(linevals)* 4, 3))
 
-        zvals = target_length * np.linspace(-1, 1, num=segments)
-        #circlevals = np.linspace(0, 2*pi, num=segments, endpoint=False)
-        vertices = np.zeros(((len(zvals)-2) * len(circlevals), 3))
+        for i, z in enumerate(zvals):
+            squarepoints = np.zeros((segments, 3))
+            squarepoints[:,2] = z
 
-        for i, z in enumerate(zvals[1:-1]):
-            circlepoints = np.zeros((segments, 3))
-            circlepoints[:,2] = z
+            squarepoints[:self.seg_per_side,0] = linevals
+            squarepoints[:self.seg_per_side,1] = np.ones((len(linevals), ))
+
+            squarepoints[self.seg_per_side:2*self.seg_per_side,0] = np.ones((len(linevals), ))
+            squarepoints[self.seg_per_side:2*self.seg_per_side,1] = linevals
+
+            squarepoints[2*self.seg_per_side:3*self.seg_per_side,0] = linevals
+            squarepoints[2*self.seg_per_side:3*self.seg_per_side,1] = -1*np.ones((len(linevals), ))
+
+            squarepoints[3*self.seg_per_side:4*self.seg_per_side,0] = -1*np.ones((len(linevals), ))
+            squarepoints[3*self.seg_per_side:4*self.seg_per_side,1] = linevals
+
             #r = np.sqrt(radius**2 - z**2)
-            circlepoints[:,0] = target_length*zvals 
-            circlepoints[:,1] = target_length*zvals 
-            vertices[segments*i:segments*(i+1),:] = circlepoints
+            squarepoints[:,0] = self.target_length*squarepoints[:,0]
+            squarepoints[:,1] = self.target_length*squarepoints[:,0]
+
+            vertices[segments*i:segments*(i+1),:] = squarepoints
         
         vertices = np.vstack([vertices,(0,0,target_length),(0,0,-target_length)])
         rads = np.tile( np.array([np.sqrt(np.sum(np.square(vertices), axis = 1))]).T, (1, 3))
