@@ -80,6 +80,7 @@ bmi_state_space_models=dict(
     Armassist=bmi.train.armassist_state_space,
     Rehand=bmi.train.rehand_state_space,
     ISMORE=bmi.train.ismore_state_space,
+    Joint2L=bmi.train.joint_2D_state_space,
 )
 
 extractors = dict(

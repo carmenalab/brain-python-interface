@@ -22,6 +22,9 @@ from riglib.bmi import state_space_models
 from riglib import source
 import robot
 
+import struct
+from riglib.bmi.robot_arms import KinematicChain
+
 field_names = ['data', 'ts', 'ts_sent', 'ts_arrival', 'freq']
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
 ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
@@ -123,7 +126,6 @@ class Client(object):
     def get_feedback_data(self):
         raise NotImplementedError('Implement in subclasses!')
 
-import struct
 
 class UpperArmPassiveExoClient(Client):
     ##  socket to read from
@@ -229,7 +231,6 @@ class AsynchronousPlant(Plant):
 
 
 
-from riglib.bmi.robot_arms import KinematicChain
 
 class PassiveExoChain(KinematicChain):
     def _init_serial_link(self):
@@ -255,7 +256,7 @@ class PassiveExoChain(KinematicChain):
 
 
 
-import struct
+
 class UpperArmPassiveExo(PassivePlant):
     hdf_attrs = [('joint_angles', 'f8', (6,))]
     read_addr = ('10.0.0.1', 60000)
@@ -404,18 +405,22 @@ class RobotArmGen2D(Plant):
         self.curr_vecs[1:,0] = self.link_lengths[1:]
 
         # Instantiate the kinematic chain object
-        self.kin_chain = robot_arms.PlanarXZKinematicChain(link_lengths)
+        self.kin_chain = self.kin_chain_class(link_lengths)
         self.kin_chain.joint_limits = joint_limits
 
         self.base_loc = base_loc
         self._pickle_init()
 
         from riglib.bmi import state_space_models
-        self.ssm = state_space_models.StateSpaceFourLinkTentacle2D()
+        self.ssm = state_space_models.StateSpaceNLinkPlanarChain(n_links=self.num_joints)
 
         self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
 
         self.visible = True # arm is visible when initialized
+
+    @property 
+    def kin_chain_class(self):
+        return robot_arms.PlanarXZKinematicChain   
 
     def _pickle_init(self):
         '''
@@ -511,10 +516,9 @@ class RobotArmGen2D(Plant):
         '''
         Returns the joint angles of the arm in radians
         '''
-        
         return self.calc_joint_angles(self.curr_vecs)
         
-    def set_intrinsic_coordinates(self,theta):
+    def set_intrinsic_coordinates(self, theta):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
         '''
@@ -533,3 +537,44 @@ class RobotArmGen2D(Plant):
             self.graphics_models[0].attach()
         else:
             self.graphics_models[0].detach()
+
+class EndptControlled2LArm(RobotArmGen2D):
+    '''
+    2-link arm controlled in extrinsic coordinates (endpoint position)
+    '''
+    def __init__(self, *args, **kwargs):
+        super(EndptControlled2LArm, self).__init__(*args, **kwargs)
+        self.hdf_attrs = [('cursor', 'f8', (3,)), ('arm_visible','f8',(1,))]
+        self.ssm = state_space_models.StateSpaceEndptVel2D()
+
+    def get_intrinsic_coordinates(self):
+        return self.get_endpoint_pos()
+
+    def set_intrinsic_coordinates(self, pos, **kwargs):
+        if pos is not None:
+            # Run the inverse kinematics
+            theta = self.perform_ik(pos, **kwargs)
+
+            for i in range(self.num_joints):
+                if theta[i] is not None and ~np.isnan(theta[i]):
+                    self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
+                    
+            self._update_link_graphics()
+
+    def set_endpoint_pos(self, pos, **kwargs):
+        if pos is not None:
+            # Run the inverse kinematics
+            theta = self.perform_ik(pos, **kwargs)
+
+            for i in range(self.num_joints):
+                if theta[i] is not None and ~np.isnan(theta[i]):
+                    self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
+                    
+            self._update_link_graphics()
+
+    def get_data_to_save(self):
+        return dict(cursor=self.get_endpoint_pos(), arm_visible=self.visible)            
+
+    @property 
+    def kin_chain_class(self):
+        return robot_arms.PlanarXZKinematicChain2Link

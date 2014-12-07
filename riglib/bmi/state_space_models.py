@@ -670,6 +670,56 @@ class StateSpaceFourLinkTentacle2D(StateSpace):
         B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, ndim])])
         return A, B, W        
 
+class StateSpaceNLinkPlanarChain(StateSpace):
+    '''
+    State-space model for an N-link kinematic chain
+    '''
+    def __init__(self, n_links=2):
+        self.n_links = 2
+        pos_states = []
+        vel_states = []
+
+        for k in range(n_links):
+            pos_state_k = State('theta_%d' % k, stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0)
+            vel_state_k = State('omega_%d' % k, stochastic=True, drives_obs=True, order=1)
+            pos_states.append(pos_state_k)
+            vel_states.append(vel_state_k)
+
+        states = pos_states + vel_states + [offset_state]
+        super(StateSpaceNLinkPlanarChain, self).__init__(*states)
+
+    def get_ssm_matrices(self, update_rate=0.1):
+        '''
+        State space model from expert data
+
+        A = [I_N    \Delta I_N   0
+             0_N    a*I_N        0
+             0      0            1]
+
+        W = [0_N    0_N   0
+             0_N    a*I_N        0
+             0      0            1]
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        Delta_KINARM = 1./10
+        w = 0.01 #0.0007
+        #w = 0.3 # TODO come up with this value more systematically!
+        w_units_resc = w / 1 # velocity will always be in radians/sec
+        a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
+
+        ndim = self.n_links
+        A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
+        W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
+        
+        # Control input matrix for SSM for control inputs
+        I = np.mat(np.eye(ndim))
+        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, ndim])])
+        return A, B, W      
+
 
 if __name__ == '__main__':
     a_10hz = 0.8
