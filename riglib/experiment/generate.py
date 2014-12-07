@@ -52,6 +52,36 @@ def sequence(length, probs=2):
         probs = [1 / float(opts)] * opts
     return np.random.permutation([i for i, p in enumerate(probs) for _ in xrange(int(length*p))])
 
+def block_random(*args, **kwargs):
+    '''
+    A block randomizer. 
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    seq: list
+        Block-random sequence of items where the length of each block is the product of the length of each the parameters being varied
+    '''
+    n_blocks = kwargs.pop('nblocks')
+    inds = [np.arange(len(arg)) for arg in args]
+    from itertools import product, izip
+    items = []
+    for x in product(*inds):
+        item = [arg[i] for arg,i in izip(args, x)]
+        items.append(item)
+
+    n_items = len(items)
+    seq = []
+    for k in range(n_blocks):
+        inds = np.arange(n_items)
+        np.random.shuffle(inds)
+        for i in inds:
+            seq.append(items[i])
+
+    return seq
+
 def runseq(exp, seq=None, reps=1):
     '''
     Turns a sequence into a Python generator by iterating through the sequence and yielding each sequence element

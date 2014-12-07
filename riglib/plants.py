@@ -415,6 +415,8 @@ class RobotArmGen2D(Plant):
 
         self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
 
+        self.visible = True # arm is visible when initialized
+
     def _pickle_init(self):
         '''
         Create graphics models
@@ -523,4 +525,11 @@ class RobotArmGen2D(Plant):
         self._update_link_graphics()
 
     def get_data_to_save(self):
-        return dict(cursor=self.get_endpoint_pos(), joint_angles=self.get_intrinsic_coordinates())
+        return dict(cursor=self.get_endpoint_pos(), joint_angles=self.get_intrinsic_coordinates(), arm_visible=self.visible)
+
+    def set_visibility(self, visible):
+        self.visible = visible
+        if visible:
+            self.graphics_models[0].attach()
+        else:
+            self.graphics_models[0].detach()
