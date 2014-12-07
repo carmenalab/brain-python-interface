@@ -68,13 +68,17 @@ class RelayPlexon(object):
 
     def set_state(self, condition, **kwargs):
         '''
-        Docstring
+        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to 
+        plexon system and then proceed to the upstream set_state tasks.
 
         Parameters
         ----------
+        condition: string
+            Name of new state.
 
         Returns
         -------
+        None
         '''
         self.nidaq.sendMsg(condition)
         super(RelayPlexon, self).set_state(condition, **kwargs)
@@ -97,6 +101,17 @@ class RelayPlexon(object):
                 database.save_data(self.plexfile, "plexon", saveid, True, False)
             else:
                 database.save_data(self.plexfile, "plexon", saveid, True, False, dbname=dbname)
+
+    @classmethod 
+    def pre_init(cls):
+        import comedi
+        import config
+
+        com = comedi.comedi_open("/dev/comedi0")
+        comedi.comedi_dio_bitfield2(com, 0, 16, 0, 16)
+
+        super(RelayPlexon, cls).pre_init()
+
         
 class RelayPlexByte(RelayPlexon):
     '''
@@ -121,7 +136,9 @@ class RelayPlexByte(RelayPlexon):
 
 
 class PlexonData(traits.HasTraits):
-    '''Stream Plexon neural data'''
+    '''
+    Stream Plexon neural data
+    '''
     plexon_channels = None
 
     def init(self):
@@ -143,9 +160,8 @@ class PlexonData(traits.HasTraits):
                 raise Exception("Unknown extractor class, unable to create data source object!")
         else:
             # if using an older decoder that doesn't have extractor_cls (and 
-            # extractor_kwargs) as attributes, then just create a DataSource 
-            # with plexon.Spikes by default 
-            # (or if there is no decoder at all in this task....)
+            # extractor_kwargs) as attributes, or if there is no decoder in this task, 
+            # then just create a DataSource with plexon.Spikes by default 
             self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
 
         super(PlexonData, self).init()
