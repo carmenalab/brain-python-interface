@@ -1,4 +1,4 @@
-from riglib import bmi
+from riglib import bmi, plexon, source
 from riglib.bmi import extractor
 import numpy as np
 from riglib.bmi import clda
@@ -56,7 +56,6 @@ class SmoothFilter(StateHolder):
 class One_Dim_LFP_Decoder(bmi.Decoder):
 
     def __init__(self, *args, **kwargs):
-        
         bands = kinarm_bands
         control_method='fraction'
         no_log=True
@@ -66,10 +65,13 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
         if no_log:
             kw = dict(no_log=no_log)
 
+        units = args[1]
         #For now: 
-        source = None
+
+        #source = source.MultiChanDataSource(plexon.LFP, channels=units)
         self.extractor_cls = extractor.LFPMTMPowerExtractor(source,self.units,bands=bands,**kw)
         self.extractor_kwargs = self.extractor_cls.extractor_kwargs
+        self.n_features = len(self.extractor_kwargs['bands'])*len(self.extractor_kwargs['channels'])
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -87,25 +89,18 @@ def _init_decoder_for_sim(n_steps = 10):
     ssm = train.endpt_2D_state_space
     units = [[23, 1],[24,1],[25,1]]
     decoder = One_Dim_LFP_Decoder(sf, units, ssm, binlen=0.1, n_subbins=1)
-
-    extractor_cls = decoder.extractor_cls
-    extractor_kwargs = decoder.extractor_kwargs
-    decoder.n_features = len(extractor_kwargs['bands'])*len(extractor_kwargs['channels'])
-
     learner = clda.DumbLearner()
-    bmi_system = bmi.BMISystem(decoder, learner, None)
+    #bmi_system = bmi.BMISystem(decoder, learner, None)
 
     #Get neural observations
     #Choose frequency band
     #Average across channels: 
 
-    lfp_power = np.random.randn(decoder.n_features, 1)
+    #lfp_power = np.random.randn(decoder.n_features, 1)
 
-    feature_type=extractor_cls.feature_type
-    target_state = np.zeros([decoder.n_states, decoder.n_subbins])
- 
-
-    decoder_output, update_flag = bmi_system(lfp_power, target_state, 'target', feature_type = feature_type)
+    #feature_type=extractor_cls.feature_type
+    #target_state = np.zeros([decoder.n_states, decoder.n_subbins])
+    #decoder_output, update_flag = bmi_system(lfp_power, target_state, 'target', feature_type = feature_type)
         
     return decoder, learner, None
 
