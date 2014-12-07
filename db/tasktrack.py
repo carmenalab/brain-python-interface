@@ -181,9 +181,11 @@ class Task(object):
         '''
         Parameters
         ----------
-        subj : database record for subject
-        task : database record for task
-        feats : list 
+        subj: tracker.models.Subject instance
+            Database record for subject performing the task
+        task: tracker.models.Task instance
+            Database record for base task being run (without features)
+        feats: list 
             List of features to enable for the task
         params : user input on configurable task parameters
         saveid : int, optional, default=None

@@ -143,138 +143,17 @@ self.requeue()</dd>
 </div>
 </div>
 </div>
-<div class="section" id="example-cross-reference">
-<h2>Example cross reference:<a class="headerlink" href="#example-cross-reference" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="#riglib.plexon.plexnet.Connection" title="riglib.plexon.plexnet.Connection"><tt class="xref py py-class docutils literal"><span class="pre">riglib.plexon.plexnet.Connection</span></tt></a></p>
-<span class="target" id="module-riglib.plexon.plexnet"></span><p>Client-side code to configure and receive neural data from the Plexon PC over
-the network.</p>
-<dl class="class">
-<dt id="riglib.plexon.plexnet.Connection">
-<em class="property">class </em><tt class="descclassname">riglib.plexon.plexnet.</tt><tt class="descname">Connection</tt><big>(</big><em>addr</em>, <em>port</em><big>)</big><a class="headerlink" href="#riglib.plexon.plexnet.Connection" title="Permalink to this definition">¶</a></dt>
-<dd><p>Here&#8217;s a docstring</p>
-<p class="rubric">Methods</p>
-<dl class="method">
-<dt id="riglib.plexon.plexnet.Connection.connect">
-<tt class="descname">connect</tt><big>(</big><em>channels</em>, <em>waveforms=False</em>, <em>analog=True</em><big>)</big><a class="headerlink" href="#riglib.plexon.plexnet.Connection.connect" title="Permalink to this definition">¶</a></dt>
-<dd><p>Establish a connection with the plexnet remote server, then request and set parameters</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>channels</strong> : int</p>
-<blockquote>
-<div><p>Number of channels to initialize through the server</p>
-</div></blockquote>
-<p><strong>waveforms</strong> : bool, optional</p>
-<blockquote>
-<div><p>Request spike waveforms?</p>
-</div></blockquote>
-<p><strong>analog</strong> : bool, optional</p>
-<blockquote class="last">
-<div><p>Request analog data?</p>
-</div></blockquote>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="riglib.plexon.plexnet.Connection.disconnect">
-<tt class="descname">disconnect</tt><big>(</big><big>)</big><a class="headerlink" href="#riglib.plexon.plexnet.Connection.disconnect" title="Permalink to this definition">¶</a></dt>
-<dd><p>Disconnect from the plexnet remote server and close all network sockets</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="riglib.plexon.plexnet.Connection.get_data">
-<tt class="descname">get_data</tt><big>(</big><big>)</big><a class="headerlink" href="#riglib.plexon.plexnet.Connection.get_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>A generator which yields packets as they are received</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="riglib.plexon.plexnet.Connection.select_continuous">
-<tt class="descname">select_continuous</tt><big>(</big><em>channels=None</em><big>)</big><a class="headerlink" href="#riglib.plexon.plexnet.Connection.select_continuous" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets the channels from which to receive continuous data</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="riglib.plexon.plexnet.Connection.select_spikes">
-<tt class="descname">select_spikes</tt><big>(</big><em>channels=None</em>, <em>waveforms=True</em>, <em>unsorted=False</em><big>)</big><a class="headerlink" href="#riglib.plexon.plexnet.Connection.select_spikes" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets the channels from which to receive spikes. This function always requests sorted data</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>channels</strong> : array_like, optional</p>
-<blockquote>
-<div><p>A list of channels which you want to see spikes from</p>
-</div></blockquote>
-<p><strong>waveforms</strong> : bool, optional</p>
-<blockquote class="last">
-<div><p>Request spikes from all selected channels</p>
-</div></blockquote>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="riglib.plexon.plexnet.Connection.start_data">
-<tt class="descname">start_data</tt><big>(</big><big>)</big><a class="headerlink" href="#riglib.plexon.plexnet.Connection.start_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Start the data pump from plexnet remote</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="riglib.plexon.plexnet.Connection.stop_data">
-<tt class="descname">stop_data</tt><big>(</big><big>)</big><a class="headerlink" href="#riglib.plexon.plexnet.Connection.stop_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Stop the data pump from plexnet remote</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="class">
-<dt id="riglib.plexon.plexnet.WaveData">
-<em class="property">class </em><tt class="descclassname">riglib.plexon.plexnet.</tt><tt class="descname">WaveData</tt><a class="headerlink" href="#riglib.plexon.plexnet.WaveData" title="Permalink to this definition">¶</a></dt>
-<dd><p class="rubric">Methods</p>
-<dl class="attribute">
-<dt id="riglib.plexon.plexnet.WaveData.arrival_ts">
-<tt class="descname">arrival_ts</tt><a class="headerlink" href="#riglib.plexon.plexnet.WaveData.arrival_ts" title="Permalink to this definition">¶</a></dt>
-<dd><p>Alias for field number 5</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="riglib.plexon.plexnet.WaveData.chan">
-<tt class="descname">chan</tt><a class="headerlink" href="#riglib.plexon.plexnet.WaveData.chan" title="Permalink to this definition">¶</a></dt>
-<dd><p>Alias for field number 2</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="riglib.plexon.plexnet.WaveData.ts">
-<tt class="descname">ts</tt><a class="headerlink" href="#riglib.plexon.plexnet.WaveData.ts" title="Permalink to this definition">¶</a></dt>
-<dd><p>Alias for field number 1</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="riglib.plexon.plexnet.WaveData.type">
-<tt class="descname">type</tt><a class="headerlink" href="#riglib.plexon.plexnet.WaveData.type" title="Permalink to this definition">¶</a></dt>
-<dd><p>Alias for field number 0</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="riglib.plexon.plexnet.WaveData.unit">
-<tt class="descname">unit</tt><a class="headerlink" href="#riglib.plexon.plexnet.WaveData.unit" title="Permalink to this definition">¶</a></dt>
-<dd><p>Alias for field number 3</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="riglib.plexon.plexnet.WaveData.waveform">
-<tt class="descname">waveform</tt><a class="headerlink" href="#riglib.plexon.plexnet.WaveData.waveform" title="Permalink to this definition">¶</a></dt>
-<dd><p>Alias for field number 4</p>
-</dd></dl>
-
-</dd></dl>
-
+<div class="section" id="saving-task-data">
+<h2>Saving task data<a class="headerlink" href="#saving-task-data" title="Permalink to this headline">¶</a></h2>
+<p>Two types of data saving are currently supported:
+1) Saving a variable which could change on every clock tick of the FSM
+2) Saving a static variable</p>
+<p>Variables you wish to save every FSM iteration must be declared prior to starting the task. The base experiment class has an attribute &#8216;dtype&#8217;, and each new variable to save must be added to this list using the experiment.Experiment.add_dtype method.</p>
+<p>To actually save the variable (suppose your variable is named &#8216;data&#8217;), sometime during the execution of the &#8216;_cycle&#8217; method of your task, you must do</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_value</span>
+</pre></div>
+</div>
+<p>Important note: in child classes, you must do this <em>before</em> calling the &#8216;super&#8217; _cycle method to ensure that your data is saved properly. This is because the final _cycle in the method resolution order is the experiment.Experiment._cycle method, which will send your task_data to any registered sinks. So if you do not set the variable beforehand, it may appear as the data you have saved to file is off by one timestep.</p>
 <p><a class="reference internal" href="#tasks"><em>Creating tasks</em></a></p>
 </div>
 </div>
@@ -298,7 +177,7 @@ the network.</p>
 <li><a class="reference internal" href="#test"><em>_test_</em></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#example-cross-reference">Example cross reference:</a></li>
+<li><a class="reference internal" href="#saving-task-data">Saving task data</a></li>
 </ul>
 </li>
 </ul>
