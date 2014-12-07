@@ -238,7 +238,7 @@ class Decoder(object):
 
         self.set_call_rate(call_rate)
 
-        self._pickle_init()      
+        self._pickle_init()
 
     def _pickle_init(self):
         '''
@@ -361,10 +361,10 @@ class Decoder(object):
         if isinstance(idx, int):
             return self.filt.state.mean[idx, 0]
         elif idx == 'q':
-            pos_states = filter(gen_joint_coord_regex.match, self.states)
+            pos_states, = np.nonzero(self.ssm.state_order == 0)
             return np.array([self.__getitem__(k) for k in pos_states])
         elif idx == 'qdot':
-            vel_states = filter(lambda k: self.ssm.states[k].order == 1, range(len(self.states)))
+            vel_states, = np.nonzero(self.ssm.state_order == 1)
             return np.array([self.__getitem__(k) for k in vel_states])      
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
@@ -387,10 +387,10 @@ class Decoder(object):
         if isinstance(idx, int):
             self.filt.state.mean[idx, 0] = value
         elif idx == 'q':
-            pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]), range(len(self.states)))
+            pos_states, = np.nonzero(self.ssm.state_order == 0)
             self.filt.state.mean[pos_states, 0] = value
         elif idx == 'qdot':
-            vel_states = filter(lambda k: self.ssm.states[k].order == 1, range(len(self.states)))
+            vel_states, = np.nonzero(self.ssm.state_order == 1)
             self.filt.state.mean[vel_states, 0] = value
         elif idx == 'q_stoch':
             pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]) and self.states[k].stochastic, range(len(self.states)))
