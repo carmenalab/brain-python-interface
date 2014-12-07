@@ -68,10 +68,11 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
         units = args[1]
         #For now: 
 
+        self.extractor_cls = args[3]
+        self.extractor_kwargs = args[4]
         #source = source.MultiChanDataSource(plexon.LFP, channels=units)
-        self.extractor_cls = extractor.LFPMTMPowerExtractor(source,self.units,bands=bands,**kw)
-        self.extractor_kwargs = self.extractor_cls.extractor_kwargs
-        self.n_features = len(self.extractor_kwargs['bands'])*len(self.extractor_kwargs['channels'])
+        #self.extractor_cls = extractor.LFPMTMPowerExtractor(source,self.units,bands=bands,**kw)
+        #self.extractor_kwargs = self.extractor_cls.extractor_kwargs
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -102,7 +103,31 @@ def _init_decoder_for_sim(n_steps = 10):
     #target_state = np.zeros([decoder.n_states, decoder.n_subbins])
     #decoder_output, update_flag = bmi_system(lfp_power, target_state, 'target', feature_type = feature_type)
         
-    return decoder, learner, None
+    return decoder
+
+def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=2):
+    kw = dict(control_method='fraction')
+    sf = SmoothFilter(n_steps,**kw)
+
+    decoder = One_Dim_LFP_Decoder(sf, units, ssm, extractor_cls, extractor_kwargs, binlen=0.1)
+
+    #decoder.n_features = len(self.extractor_kwargs['bands'])*len(self.extractor_kwargs['channels'])
+
+
+    #learner = clda.DumbLearner()
+    #bmi_system = bmi.BMISystem(decoder, learner, None)
+
+    #Get neural observations
+    #Choose frequency band
+    #Average across channels: 
+
+    #lfp_power = np.random.randn(decoder.n_features, 1)
+
+    #feature_type=extractor_cls.feature_type
+    #target_state = np.zeros([decoder.n_states, decoder.n_subbins])
+    #decoder_output, update_flag = bmi_system(lfp_power, target_state, 'target', feature_type = feature_type)
+        
+    return decoder
 
 
 
