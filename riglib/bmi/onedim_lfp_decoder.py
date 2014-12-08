@@ -53,6 +53,10 @@ class SmoothFilter(StateHolder):
         self.X = np.hstack(( self.X[1:], obs ))
         return DummyState(self.X, self.A)
 
+    def _pickle_init(self):
+        pass
+
+
 class One_Dim_LFP_Decoder(bmi.Decoder):
 
     def __init__(self, *args, **kwargs):
@@ -60,7 +64,8 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
         control_method='fraction'
         no_log=True
         
-        super(One_Dim_LFP_Decoder, self).__init__(*args, **kwargs)
+        #Args: sf, units, ssm, extractor_cls, extractor_kwargs
+        super(One_Dim_LFP_Decoder, self).__init__(args[0], args[1], args[2])
         
         if no_log:
             kw = dict(no_log=no_log)
@@ -108,8 +113,7 @@ def _init_decoder_for_sim(n_steps = 10):
 def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=2):
     kw = dict(control_method='fraction')
     sf = SmoothFilter(n_steps,**kw)
-
-    decoder = One_Dim_LFP_Decoder(sf, units, ssm, extractor_cls, extractor_kwargs, binlen=0.1)
+    decoder = One_Dim_LFP_Decoder(sf, units, ssm, extractor_cls, extractor_kwargs)
 
     #decoder.n_features = len(self.extractor_kwargs['bands'])*len(self.extractor_kwargs['channels'])
 
