@@ -181,11 +181,11 @@ class Task(object):
         '''
         Parameters
         ----------
-        subj: tracker.models.Subject instance
+        subj : tracker.models.Subject instance
             Database record for subject performing the task
-        task: tracker.models.Task instance
+        task : tracker.models.Task instance
             Database record for base task being run (without features)
-        feats: list 
+        feats : list 
             List of features to enable for the task
         params : user input on configurable task parameters
         saveid : int, optional, default=None
@@ -198,37 +198,40 @@ class Task(object):
         self.subj = subj
         self.params = Parameters(params)
 
-        # Send pulse to neural recording system to start saving to file
-        if self.saveid is not None:
-            try:
-                import comedi
-                self.com = comedi.comedi_open("/dev/comedi0")
+        # # Send pulse to neural recording system to start saving to file
+        # if self.saveid is not None:
+        #     try:
+        #         import comedi
+        #         self.com = comedi.comedi_open("/dev/comedi0")
 
                 
-                if config.recording_sys['make'] == 'plexon':
-                    comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
+        #         if config.recording_sys['make'] == 'plexon':
+        #             comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
                 
-                elif config.recording_sys['make'] == 'blackrock':
-                    # set strobe pin low
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
+        #         elif config.recording_sys['make'] == 'blackrock':
+        #             # set strobe pin low
+        #             comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
-                    # set last data pin ("D15"; 16th pin) high
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 15)
+        #             # set last data pin ("D15"; 16th pin) high
+        #             comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 15)
 
-                    # set strobe pin high
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
+        #             # set strobe pin high
+        #             comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
 
-                    # set strobe pin low
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
+        #             # set strobe pin low
+        #             comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
 
-                # Wait a couple of seconds for the recording system to start up
-                time.sleep(3)
-            except:
-                print "No comedi, cannot start"
+        #         # Wait a couple of seconds for the recording system to start up
+        #         time.sleep(3)
+        #     except:
+        #        print "No comedi, cannot start"
         
         base_class = task.get()
 
         Exp = experiment.make(base_class, feats=feats)
+
+        Exp.pre_init(saveid=saveid)
+
         self.params.trait_norm(Exp.class_traits())
         if issubclass(Exp, experiment.Sequence):
             gen_constructor, gen_params = seq.get()
@@ -236,7 +239,7 @@ class Task(object):
             # TODO Somehow, 'gen_constructor' magically ends up as the experiment.generate.runseq function, instead of anything in namelist.generators
             gen = gen_constructor(Exp, **gen_params)
 
-            # 'gen' is now a true python generator, used by experiment.Sequence
+            # 'gen' is now a true python generator usable by experiment.Sequence
             exp = Exp(gen, **self.params.params)
         else:
             exp = Exp(**self.params.params)
@@ -271,25 +274,26 @@ class Task(object):
         print "Calling saveout/task cleanup code"
         
         if self.saveid is not None:
-            try:
-                print "Stopping neural recording"
-                import comedi
-                if config.recording_sys['make'] == 'plexon':
-                    comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
-                elif config.recording_sys['make'] == 'blackrock':
-                    # strobe pin should already be low
+            # try:
+            #     ### TODO move this code to the 'run' method of the Relay*byte features
+            #     print "Stopping neural recording"
+            #     import comedi
+            #     if config.recording_sys['make'] == 'plexon':
+            #         comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
+            #     elif config.recording_sys['make'] == 'blackrock':
+            #         # strobe pin should already be low
 
-                    # set last data pin ("D15"; 16th pin) low
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 15)
+            #         # set last data pin ("D15"; 16th pin) low
+            #         comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 15)
 
-                    # set strobe pin high
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
+            #         # set strobe pin high
+            #         comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
 
-                    # set strobe pin low
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
-            except:
-                print "error stopping neural recording system!"
-                pass
+            #         # set strobe pin low
+            #         comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
+            # except:
+            #     print "error stopping neural recording system!"
+            #     pass
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
             self.task.cleanup(database, self.saveid, subject=self.subj)
 

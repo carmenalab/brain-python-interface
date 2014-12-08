@@ -404,7 +404,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.stop = True
 
     @classmethod 
-    def pre_init(cls):
+    def pre_init(cls, **kwargs):
         '''
         Jobs to do before creating the task object go here (or this method should be overridden in child classes)
         '''
