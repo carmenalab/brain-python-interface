@@ -363,62 +363,44 @@ class CursorPlant(Plant):
     def get_data_to_save(self):
         return dict(cursor=self.position)
 
-# class onedimLFP_CursorPlant(CursorPlant):
-#     hdf_attrs = [('lfp_cursor', 'f8', (3,))]
-#     def __init__(self, *args,**kwargs):
-#         super(onedimLFP_CursorPlant, self).__init__(*args,**kwargs)
+class onedimLFP_CursorPlant(CursorPlant):
+    hdf_attrs = [('lfp_cursor', 'f8', (3,))]
 
-#     def _pickle_init(self):
-#         self.lfp_cursor = Cube(target_length=self.lfp_target_length, color=self.lfp_cursor_color)
-#         self.cursor.translate(*self.position, reset=True)
-#         self.graphics_models = [self.lfp_cursor]
-
-#     def draw(self):
-#         self.lfp_cursor.translate(*self.position, reset=True)
-
-#     def get_endpoint_pos(self):
-#         return self.position
-
-#     def set_endpoint_pos(self, pt, **kwargs):
-#         self.position = pt
-#         self.draw()
-
-#     def get_intrinsic_coordinates(self):
-#         return self.position
-
-#     def set_intrinsic_coordinates(self, pt):
-#         self.position = pt
-#         self.draw()
-
-#     def drive(self, decoder):
-#         pos = decoder.filt.get_mean()
-        
-#         if self.endpt_bounds is not None:
-#             if pos[0] < self.endpt_bounds[0]: 
-#                 pos[0] = self.endpt_bounds[0]
-#                 if self.vel_wall: vel[0] = 0
-#             if pos[0] > self.endpt_bounds[1]: 
-#                 pos[0] = self.endpt_bounds[1]
-#                 if self.vel_wall: vel[0] = 0
-
-#             if pos[1] < self.endpt_bounds[2]: 
-#                 pos[1] = self.endpt_bounds[2]
-#                 if self.vel_wall: vel[1] = 0
-#             if pos[1] > self.endpt_bounds[3]: 
-#                 pos[1] = self.endpt_bounds[3]
-#                 if self.vel_wall: vel[1] = 0
-
-#             if pos[2] < self.endpt_bounds[4]: 
-#                 pos[2] = self.endpt_bounds[4]
-#                 if self.vel_wall: vel[2] = 0
-#             if pos[2] > self.endpt_bounds[5]: 
-#                 pos[2] = self.endpt_bounds[5]
-#                 if self.vel_wall: vel[2] = 0
-        
-#         decoder.
-#         super(CursorPlant, self).drive(decoder)
+    def __init__(self, endpt_bounds, *args, **kwargs):
+        self.lfp_target_length = kwargs['lfp_target_length']
+        self.lfp_cursor_color = kwargs['lfp_target_length']
+        super(onedimLFP_CursorPlant, self).__init__(endpt_bounds, *args, **kwargs)
 
 
+    def _pickle_init(self):
+        self.cursor = Cube(target_length=self.lfp_target_length, color=self.lfp_cursor_color)
+        self.cursor.translate(*self.position, reset=True)
+        self.graphics_models = [self.cursor]
+
+    def drive(self, decoder):
+        pos = decoder.filt.get_mean()
+        pos = [pos, 0, 0]
+        if self.endpt_bounds is not None:
+            if pos[0] < self.endpt_bounds[0]: 
+                pos[0] = self.endpt_bounds[0]
+                if self.vel_wall: vel[0] = 0
+            if pos[0] > self.endpt_bounds[1]: 
+                pos[0] = self.endpt_bounds[1]
+                if self.vel_wall: vel[0] = 0
+
+            if pos[1] < self.endpt_bounds[2]: 
+                pos[1] = self.endpt_bounds[2]
+                if self.vel_wall: vel[1] = 0
+            if pos[1] > self.endpt_bounds[3]: 
+                pos[1] = self.endpt_bounds[3]
+                if self.vel_wall: vel[1] = 0
+
+            if pos[2] < self.endpt_bounds[4]: 
+                pos[2] = self.endpt_bounds[4]
+                if self.vel_wall: vel[2] = 0
+            if pos[2] > self.endpt_bounds[5]: 
+                pos[2] = self.endpt_bounds[5]
+                if self.vel_wall: vel[2] = 0
 
 class VirtualKinematicChain(Plant):
     def __init__(self, *args, **kwargs):
