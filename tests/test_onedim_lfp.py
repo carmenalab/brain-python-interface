@@ -25,7 +25,9 @@ os.environ['DISPLAY'] = ':0'
 
 save = True
 
-task = models.Task.objects.get(name='onedim_lfp')
+task = models.Task.objects.get(name='lfp_mod')
+#task = models.Task.objects.get(name='manual_control_multi')
+
 base_class = task.get()
 
 feats = [SaveHDF, Autostart, PlexonBMI]
@@ -38,16 +40,9 @@ params = dict(session_length=10, plant_visible=True, plant_type='cursor_14x14',
 gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)
 exp = Exp(gen, **params)
 
-kw = dict(control_method='fraction')
-n_steps = 10
-sf = old.SmoothFilter(n_steps,**kw)
-ssm = train.endpt_2D_state_space
-units = [[23, 1],[24,1],[25,1]]
-decoder = old.One_Dim_LFP_Decoder(exp.neurondata, sf, units, ssm, binlen=0.1, n_subbins=1)
-
+import pickle
+decoder = pickle.load(open('/storage/decoders/cart20141206_06_test_lfp1d2.pkl'))
 exp.decoder = decoder
-ex
-self.extractor = self.decoder.extractor_cls(exp.neurondata, **exp.decoder.extractor_kwargs)
 
 exp.init()
 exp.run()
