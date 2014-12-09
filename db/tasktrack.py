@@ -28,7 +28,7 @@ class Track(object):
         self.task = None
         self.proc = None
         self.websock = websocket.Server(self.notify)
-        self.cmds, self._cmds = mp.Pipe()
+        self.tracker_end_of_pipe, self.task_end_of_pipe = mp.Pipe()
 
     def notify(self, msg):
         if msg['status'] == "error" or msg['State'] == "stopped":
@@ -44,16 +44,17 @@ class Track(object):
         # create a proxy for interacting with attributes/functions of the task.
         # The task runs in a separate process and we cannot directly access python 
         # attributes of objects in other processes
-        self.task = ObjProxy(self.cmds)
+        self.task = ObjProxy(self.tracker_end_of_pipe)
 
         # Spawn the process
-        args = (self.cmds, self._cmds, self.websock)
+        args = (self.tracker_end_of_pipe, self.task_end_of_pipe, self.websock)
         self.proc = mp.Process(target=runtask, args=args, kwargs=kwargs)
         self.proc.start()
         
     def __del__(self):
         '''
-        Destructor for Track object. Not sure if this function ever gets called since Track is a singleton created upon import of the ajax library...
+        Destructor for Track object. Not sure if this function ever gets called 
+        since Track is a singleton created upon import of the ajax module...
         '''
         self.websock.stop()
 
@@ -77,7 +78,7 @@ class Track(object):
         self.task = None
         return status
 
-def runtask(cmds, _cmds, websock, **kwargs):
+def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
     Target function to execute in the separate process to start the task
     '''
@@ -94,7 +95,8 @@ def runtask(cmds, _cmds, websock, **kwargs):
     status = "running" if 'saveid' in kwargs else "testing"
 
     # Instantiate feature to transmit task transition updates to the web interface
-    # The class needs to be declared here rather than 
+    # In its current form, the class needs to be declared here inside this function 
+    # rather than in any more logical place to give it access to 'websock' and 'status'
     class NotifyFeat(object):
         def set_state(self, state, *args, **kwargs):
             self.reportstats['status'] = status
@@ -114,7 +116,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
                 err.seek(0)
                 websock.send(dict(status="error", msg=err.read()))
             finally:
-                cmds.send(None)
+                tracker_end_of_pipe.send(None)
 
     # Force all tasks to use the Notify feature defined above. Putting
     # NotifyFeat at the beginning puts it always at the beginning of the start 
@@ -123,26 +125,25 @@ def runtask(cmds, _cmds, websock, **kwargs):
 
     try:
         task = Task(**kwargs)
-        cmd = _cmds.recv()
+        cmd = task_end_of_pipe.recv()
         while cmd is not None and task.task.state is not None:
             try:
                 fn_name = cmd[0]
                 cmd_args = cmd[1]
                 cmd_kwargs = cmd[2]
                 ret = getattr(task, fn_name)(*cmd_args, **cmd_kwargs)
-                _cmds.send(ret)
-                cmd = _cmds.recv()
+                task_end_of_pipe.send(ret)
+                cmd = task_end_of_pipe.recv()
             except KeyboardInterrupt:
                 # Handle the KeyboardInterrupt separately. How the hell would
                 # a keyboard interrupt even get here?
                 cmd = None
             except Exception as e:
-                _cmds.send(e)
-                if _cmds.poll(60.):
-                    cmd = _cmds.recv()
+                task_end_of_pipe.send(e)
+                if task_end_of_pipe.poll(60.):
+                    cmd = task_end_of_pipe.recv()
                 else:
                     cmd = None
-
     except:
         import cStringIO
         import traceback
@@ -176,7 +177,11 @@ def runtask(cmds, _cmds, websock, **kwargs):
         print "====="
     print "*************************** EXITING TASK *****************************"
 
+
 class Task(object):
+    '''
+    Wrapper for Experiment classes launched from the web interface
+    '''
     def __init__(self, subj, task, feats, params, seq=None, saveid=None):
         '''
         Parameters
@@ -187,7 +192,8 @@ class Task(object):
             Database record for base task being run (without features)
         feats : list 
             List of features to enable for the task
-        params : user input on configurable task parameters
+        params : 
+            user input on configurable task parameters
         seq : models.Sequence instance
             Database record of 
         saveid : int, optional
@@ -209,7 +215,7 @@ class Task(object):
         if issubclass(Exp, experiment.Sequence):
             gen_constructor, gen_params = seq.get()
 
-            # TODO Somehow, 'gen_constructor' magically ends up as the experiment.generate.runseq function, instead of anything in namelist.generators
+            # Typically, 'gen_constructor' is the experiment.generate.runseq function (not an element of namelist.generators)
             gen = gen_constructor(Exp, **gen_params)
 
             # 'gen' is now a true python generator usable by experiment.Sequence
