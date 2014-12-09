@@ -81,6 +81,23 @@ class RelayBlackrock(object):
         finally:
             self.nidaq.stop()
 
+            # Remotely stop the recording on the blackrock box
+            import comedi
+            import config
+            import time
+            com = comedi.comedi_open("/dev/comedi0")
+            time.sleep(0.5)
+            # strobe pin should already be low
+
+            # set last data pin ("D15"; 16th pin) low
+            comedi.comedi_dio_bitfield2(com, 0, 1, 0, 15)
+
+            # set strobe pin high
+            comedi.comedi_dio_bitfield2(com, 0, 1, 1, 16)
+
+            # set strobe pin low
+            comedi.comedi_dio_bitfield2(com, 0, 1, 0, 16)
+
     def set_state(self, condition, **kwargs):
         '''
         Docstring
@@ -110,6 +127,29 @@ class RelayBlackrock(object):
             suffix = file_[-3:]  # e.g., 'nev', 'ns3', etc.
             # database.save_data(file_, "blackrock", saveid, True, False, custom_suffix=suffix)
             database.save_data(file_, "blackrock", saveid, False, False, suffix)
+
+    @classmethod 
+    def pre_init(cls, saveid=None):
+        if saveid is not None:
+            import comedi
+            import config
+            import time
+
+            com = comedi.comedi_open("/dev/comedi0")
+            # set strobe pin low
+            comedi.comedi_dio_bitfield2(com, 0, 1, 0, 16)
+
+            # set last data pin ("D15"; 16th pin) high
+            comedi.comedi_dio_bitfield2(com, 0, 1, 1, 15)
+
+            # set strobe pin high
+            comedi.comedi_dio_bitfield2(com, 0, 1, 1, 16)
+
+            # set strobe pin low
+            comedi.comedi_dio_bitfield2(com, 0, 1, 0, 16)
+
+            time.sleep(3)
+            super(RelayPlexon, cls).pre_init(saveid=saveid)
 
 
 class RelayBlackrockByte(RelayBlackrock):

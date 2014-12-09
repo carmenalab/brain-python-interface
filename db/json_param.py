@@ -1,5 +1,7 @@
-'''This module contains functions which help deal with parameter sets stored in the database
-as JSON blobs. It processes the values into reasonable dictionaries'''
+'''
+This module contains functions which convert parameter sets stored
+as JSON blobs into python dictionaries or vice versa.
+'''
 import __builtin__
 import ast
 import json
@@ -24,19 +26,25 @@ def param_objhook(obj):
 def norm_trait(trait, value):
     ttype = trait.trait_type.__class__.__name__
     if ttype == 'Instance':
+        # if the trait is an 'Instance' type and the value is a number, then the number gets interpreted as the primary key to a model in the database
         if isinstance(value, int):
-            #we got a primary key, lookup class name
             cname = namelist.instance_to_model[trait.trait_type.klass]
-            
-            value = cname.objects.get(pk=value).get()
+            record = cname.objects.get(pk=value)
+            value = record.get()
         #Otherwise, let's hope it's already an instance
     elif ttype == 'Bool':
-        if value == 'on':
-            value = True
-        elif value == 'off':
-            value = False
+        # Boolean values come back as 'on'/'off' instead of True/False
+        bool_values = ['off', 'on']
+        assert value in bool_values
+
+        value = bool_values.index(value)
+        value = bool(value)
+        # if value == 'on':
+        #     value = True
+        # elif value == 'off':
+        #     value = False
     elif ttype == 'Tuple':
-        #Let's make sure this works, for older batches of data
+        # Explicit cast to tuple for backwards compatibility reasons (should not be necessary for newer versions of the code/traits lib?)
         value = tuple(value)
         
     #use Cast to validate the value

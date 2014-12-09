@@ -64,7 +64,16 @@ class RelayPlexon(object):
         try:
             super(RelayPlexon, self).run()
         finally:
+            # Stop the NIDAQ sink
             self.nidaq.stop()
+
+            # Remotely stop the recording on the plexon box
+            import comedi
+            import config
+            import time
+            com = comedi.comedi_open("/dev/comedi0")
+            time.sleep(0.5)
+            comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)            
 
     def set_state(self, condition, **kwargs):
         '''
@@ -93,7 +102,17 @@ class RelayPlexon(object):
         Returns
         -------
         '''
+        # Stop recording
+        import comedi
+        import config
+        import time
+
+        com = comedi.comedi_open("/dev/comedi0")
+        comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
+
         super(RelayPlexon, self).cleanup(database, saveid, **kwargs)
+
+        # Sleep time so that the plx file has time to save cleanly
         time.sleep(2)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if self.plexfile is not None:
@@ -103,14 +122,21 @@ class RelayPlexon(object):
                 database.save_data(self.plexfile, "plexon", saveid, True, False, dbname=dbname)
 
     @classmethod 
-    def pre_init(cls):
-        import comedi
-        import config
+    def pre_init(cls, saveid=None):
+        if saveid is not None:
+            import comedi
+            import config
+            import time
 
-        com = comedi.comedi_open("/dev/comedi0")
-        comedi.comedi_dio_bitfield2(com, 0, 16, 0, 16)
+            com = comedi.comedi_open("/dev/comedi0")
+            # stop any recording
+            comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
+            time.sleep(0.1)
+            # start recording
+            comedi.comedi_dio_bitfield2(com, 0, 16, 0, 16)
 
-        super(RelayPlexon, cls).pre_init()
+            time.sleep(3)
+            super(RelayPlexon, cls).pre_init(saveid=saveid)
 
         
 class RelayPlexByte(RelayPlexon):

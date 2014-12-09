@@ -32,13 +32,13 @@ states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offs
 
 State = state_space_models.State
 StateSpaceEndptVel2D = state_space_models.StateSpaceEndptVel2D
-StateSpaceExoArm2D = state_space_models.StateSpaceExoArm2D
+# StateSpaceExoArm2D = state_space_models.StateSpaceExoArm2D
 StateSpaceFourLinkTentacle2D = state_space_models.StateSpaceFourLinkTentacle2D
 StateSpaceEndptVel = state_space_models.StateSpaceEndptVel
 
 endpt_3D_state_space = StateSpaceEndptVel()
 endpt_2D_state_space = StateSpaceEndptVel2D()
-joint_2D_state_space = StateSpaceExoArm2D()
+joint_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=2)
 tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
 
 StateSpaceArmAssist = state_space_models.StateSpaceArmAssist
@@ -76,6 +76,9 @@ def sys_eq(sys1, sys2):
 FAKE_BLACKROCK_TMASK = True
 # FAKE_BLACKROCK_TMASK = False
 
+########################################
+## Neural data synchronization functions
+########################################
 def _get_tmask(files, tslice, sys_name='task'):
     if 'plexon' in files:
         fn = _get_tmask_plexon
