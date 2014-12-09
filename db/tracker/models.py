@@ -73,8 +73,7 @@ class Task(models.Model):
                 insts = Model.objects.order_by("-date")#[:200]
                 varname['options'] = [(i.pk, i.name) for i in insts]
             if varname['type'] == "Enum":
-                if trait == 'plant_type':
-                    varname['options'] = plantlist.keys()
+                varname['options'] = getattr(Exp, trait + '_options')
             params[trait] = varname
             if trait == 'bmi':
                 params['decoder'] = varname
