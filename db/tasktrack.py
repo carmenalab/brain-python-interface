@@ -156,7 +156,7 @@ def runtask(cmds, _cmds, websock, **kwargs):
         err.seek(0)
         print err.read()
 
-    # Redirect printing back to the shell
+    # Redirect printing from the websocket back to the shell
     sys.stdout = sys.__stdout__
     try:
         task
@@ -188,7 +188,9 @@ class Task(object):
         feats : list 
             List of features to enable for the task
         params : user input on configurable task parameters
-        saveid : int, optional, default=None
+        seq : models.Sequence instance
+            Database record of 
+        saveid : int, optional
             ID number of db.tracker.models.TaskEntry associated with this task
             if None specified, then the data saved will not be linked to the
             database entry and will be lost after the program exits
@@ -197,37 +199,8 @@ class Task(object):
         self.taskname = task.name
         self.subj = subj
         self.params = Parameters(params)
-
-        # # Send pulse to neural recording system to start saving to file
-        # if self.saveid is not None:
-        #     try:
-        #         import comedi
-        #         self.com = comedi.comedi_open("/dev/comedi0")
-
-                
-        #         if config.recording_sys['make'] == 'plexon':
-        #             comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
-                
-        #         elif config.recording_sys['make'] == 'blackrock':
-        #             # set strobe pin low
-        #             comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
-
-        #             # set last data pin ("D15"; 16th pin) high
-        #             comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 15)
-
-        #             # set strobe pin high
-        #             comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
-
-        #             # set strobe pin low
-        #             comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
-
-        #         # Wait a couple of seconds for the recording system to start up
-        #         time.sleep(3)
-        #     except:
-        #        print "No comedi, cannot start"
         
         base_class = task.get()
-
         Exp = experiment.make(base_class, feats=feats)
 
         Exp.pre_init(saveid=saveid)
@@ -274,26 +247,6 @@ class Task(object):
         print "Calling saveout/task cleanup code"
         
         if self.saveid is not None:
-            # try:
-            #     ### TODO move this code to the 'run' method of the Relay*byte features
-            #     print "Stopping neural recording"
-            #     import comedi
-            #     if config.recording_sys['make'] == 'plexon':
-            #         comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
-            #     elif config.recording_sys['make'] == 'blackrock':
-            #         # strobe pin should already be low
-
-            #         # set last data pin ("D15"; 16th pin) low
-            #         comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 15)
-
-            #         # set strobe pin high
-            #         comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
-
-            #         # set strobe pin low
-            #         comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
-            # except:
-            #     print "error stopping neural recording system!"
-            #     pass
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
             self.task.cleanup(database, self.saveid, subject=self.subj)
 
