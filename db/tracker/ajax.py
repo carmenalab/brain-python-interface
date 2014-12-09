@@ -18,6 +18,8 @@ import logging
 
 display = Track()
 
+http_request_queue = []
+
 # create the object representing the reward system. 
 try:
     from riglib import reward
@@ -62,6 +64,13 @@ def gen_info(request, idx):
     gen = Generator.objects.get(pk=idx)
     return _respond(gen.to_json())
 
+def start_next_exp(request):
+    try:
+        req, save = http_request_queue.pop(0)
+        return start_experiment(req, save=save)
+    except IndexError:
+        return _respond(dict(status="error", msg="No experiments in queue!"))
+
 def start_experiment(request, save=True):
     '''
     Handles presses of the 'Start Experiment' and 'Test' buttons in the web 
@@ -69,8 +78,8 @@ def start_experiment(request, save=True):
     '''
     #make sure we don't have an already-running experiment
     if display.status.value != '':
-        return _respond(dict(status="error", msg="Already running task!"))
-
+        http_request_queue.append((request, save))
+        return _respond(dict(status="running", msg="Already running task, queuelen=%d!" % len(http_request_queue)))
     try:
         data = json.loads(request.POST['data'])
 
