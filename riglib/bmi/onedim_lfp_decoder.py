@@ -49,7 +49,7 @@ class SmoothFilter(object):
                 mn = np.mean(np.array(kwargs['pwr_mean']))
             self.X = np.zeros(( self.n_steps )) + mn
 
-        self.state = StateHolder(self.X, self.A, 0)
+        self.state = StateHolder(self.X, self.A, 0, 0)
 
     def __call__(self, obs, **kwargs):
         self.state = self._mov_avg(obs, **kwargs)
@@ -117,7 +117,6 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
         self.extractor_kwargs['no_log'] = no_log
         self.extractor_kwargs['no_mean'] = no_mean
 
-        
     def __getitem__(self, key):
         return getattr(self, key)
 
