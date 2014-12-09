@@ -42,6 +42,8 @@ exp = Exp(gen, **params)
 
 import pickle
 decoder = pickle.load(open('/storage/decoders/cart20141206_06_test_lfp1d2.pkl'))
+decoder = pickle.load(open('/storage/decoders/cart20141208_12_test_PK.pkl'))
+
 exp.decoder = decoder
 
 exp.init()

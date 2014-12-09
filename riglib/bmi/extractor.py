@@ -546,22 +546,26 @@ class LFPMTMPowerExtractor(object):
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
-        '''    Docstring    '''
+        '''    cont_samples is in channels x time   '''
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
-
-        # compute average power of each band of interest
-        n_chan = len(self.channels)
-        lfp_power = np.zeros((n_chan * len(self.bands), 1))
-        for idx, band in enumerate(self.bands):
-            if self.extractor_kwargs['no_log']:
-                lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1).reshape(-1, 1)
-            else:
-                lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
-
-        # n_chan = len(self.channels)     
-        # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
         
-        return lfp_power
+        if self.extractor_kwargs['no_mean']:
+            return psd_est
+
+        else:
+            # compute average power of each band of interest
+            n_chan = len(self.channels)
+            lfp_power = np.zeros((n_chan * len(self.bands), 1))
+            for idx, band in enumerate(self.bands):
+                if self.extractor_kwargs['no_log']:
+                    lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1).reshape(-1, 1)
+                else:
+                    lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
+
+            # n_chan = len(self.channels)     
+            # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
+            
+            return lfp_power
 
     def __call__(self, start_time, *args, **kwargs):
         '''    Docstring    '''
