@@ -25,8 +25,8 @@ class Plane(TriMesh):
                 tcoords=tcoords, normals=np.array(normals), **kwargs)
 
 class Cube(TriMesh):
-    def __init__(self, target_length=4, segments=36, **kwargs):
-        self.target_length = target_length/2
+    def __init__(self, target_rad=4, segments=36, **kwargs):
+        self.target_length = target_rad
         self.seg_per_side = segments/4
         zvals = self.target_length * np.linspace(-1, 1, num=segments)
         linevals = self.target_length * np.linspace(-1, 1, num=segments/4, endpoint=False)
@@ -54,7 +54,7 @@ class Cube(TriMesh):
 
             vertices[segments*i:segments*(i+1),:] = squarepoints
         
-        vertices = np.vstack([vertices,(0,0,target_length),(0,0,-target_length)])
+        vertices = np.vstack([vertices,(0,0,self.target_length),(0,0,-1*self.target_length)])
         rads = np.tile( np.array([np.sqrt(np.sum(np.square(vertices), axis = 1))]).T, (1, 3))
         allpointinds = np.arange(len(vertices))
         

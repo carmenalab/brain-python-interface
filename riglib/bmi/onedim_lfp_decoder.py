@@ -16,17 +16,16 @@ class StateHolder(object):
 
 
 class SmoothFilter(object):
-	'''Moving Avergae Filter used in 1D LFP control:
-	x_{t} = a0*x_{t} + a1*x_{t-1} + a2*x_{t-2} + ...
+    '''Moving Avergae Filter used in 1D LFP control:
+    x_{t} = a0*x_{t} + a1*x_{t-1} + a2*x_{t-2} + ...
 
-	Parameters
+    Parameters
 
     ----------
     A: np.array of shape (N, )
         Weights for previous states
     X: np. array of previous states (N, )
     '''
-    model_attrs = []
 
     def __init__(self, n_steps, **kwargs):
         self.n_steps = n_steps
@@ -51,8 +50,8 @@ class SmoothFilter(object):
     def __call__(self, obs, **kwargs):
         self.state = self._mov_avg(obs, **kwargs)
 
-    def _mov_avg(self, obs):
-        print stop
+    def _mov_avg(self, obs,**kwargs):
+        print obs.shape, self.X.shape
         self.X = np.hstack(( self.X[1:], obs ))
         return DummyState(self.X, self.A)
 
@@ -81,7 +80,7 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
         #source = source.MultiChanDataSource(plexon.LFP, channels=units)
         #self.extractor_cls = extractor.LFPMTMPowerExtractor(source,self.units,bands=bands,**kw)
         #self.extractor_kwargs = self.extractor_cls.extractor_kwargs
-
+        
     def __getitem__(self, key):
         return getattr(self, key)
 

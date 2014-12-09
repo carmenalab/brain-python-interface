@@ -536,6 +536,9 @@ class LFPMTMPowerExtractor(object):
         for band_idx, band in enumerate(bands):
             self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
 
+        extractor_kwargs['fft_inds']       = self.fft_inds
+        extractor_kwargs['fft_freqs']      = fft_freqs
+        
         self.epsilon = 1e-9
 
     def get_cont_samples(self, *args, **kwargs):

@@ -367,13 +367,13 @@ class onedimLFP_CursorPlant(CursorPlant):
     hdf_attrs = [('lfp_cursor', 'f8', (3,))]
 
     def __init__(self, endpt_bounds, *args, **kwargs):
-        self.lfp_target_length = kwargs['lfp_target_length']
-        self.lfp_cursor_color = kwargs['lfp_target_length']
+        self.lfp_target_rad = kwargs['lfp_target_rad']
+        self.lfp_cursor_color = kwargs['lfp_target_color']
         super(onedimLFP_CursorPlant, self).__init__(endpt_bounds, *args, **kwargs)
 
 
     def _pickle_init(self):
-        self.cursor = Cube(target_length=self.lfp_target_length, color=self.lfp_cursor_color)
+        self.cursor = Cube(target_rad=self.lfp_target_rad, color=self.lfp_cursor_color)
         self.cursor.translate(*self.position, reset=True)
         self.graphics_models = [self.cursor]
 
