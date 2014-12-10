@@ -739,7 +739,6 @@ class BMISystem(object):
             accumulate = False
         else:
             accumulate = True
-        print 'KWARGS:', kwargs.keys(), kwargs
 
         for k in range(n_obs):
             neural_obs_k = neural_obs[:,k].reshape(-1,1)

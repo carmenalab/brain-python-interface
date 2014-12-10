@@ -69,16 +69,9 @@ class SmoothFilter(object):
         c_idx = self.control_band_ind
 
         #As done in kinarm script, sum together frequencies within a band, then take the mean across channels
-        print 'self.fft_inds: ', self.fft_inds
-        print 'c_idx: ', c_idx
-        
-        print 'psd shape', psd_est.shape
-
         c_val = np.mean(np.sum(psd_est[:, self.fft_inds[c_idx]], axis=1))
 
         p_idx = self.totalpw_band_ind
-
-        print 'p_idx: ', p_idx
         p_val = np.mean(np.sum(psd_est[:, self.fft_inds[p_idx]], axis=1))
 
         if self.control_method == 'fraction':
@@ -137,7 +130,7 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
         kwargs['fft_inds'] = self.extractor_kwargs['fft_inds']
         kwargs['channels'] = self.extractor_kwargs['channels']
         kwargs['fft_freqs'] = self.extractor_kwargs['fft_freqs']
-        
+
         self.filt(neural_obs, **kwargs)
     
 def _init_decoder_for_sim(n_steps = 10):

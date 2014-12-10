@@ -546,11 +546,9 @@ class LFPMTMPowerExtractor(object):
 
     def extract_features(self, cont_samples):
         '''    cont_samples is in channels x time   '''
-        print 'cont_samples:', cont_samples.shape
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
         
         if (self.extractor_kwargs.has_key('no_mean')) and (self.extractor_kwargs['no_mean'] is True):
-            print 'returning PSD'
             return psd_est.reshape(psd_est.shape[0]*psd_est.shape[1], 1)
 
         else:
