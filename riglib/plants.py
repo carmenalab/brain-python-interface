@@ -373,7 +373,7 @@ class onedimLFP_CursorPlant(CursorPlant):
 
 
     def _pickle_init(self):
-        self.cursor = Cube(target_rad=self.lfp_target_rad, color=self.lfp_cursor_color)
+        self.cursor = Sphere(target_rad=self.lfp_target_rad, color=self.lfp_cursor_color)
         self.cursor.translate(*self.position, reset=True)
         self.graphics_models = [self.cursor]
 
