@@ -55,21 +55,30 @@ class SmoothFilter(object):
         self.state = self._mov_avg(obs, **kwargs)
 
     def _mov_avg(self, obs,**kwargs):
-        self.zboundaries = kwargs['zboundaries']
-
-        lfp_pos, powercap_flag = get_lfp_cursor(obs)
+        #self.zboundaries = kwargs['zboundaries']
+        self.fft_inds = kwargs['fft_inds']
+        obs = obs.reshape(len(kwargs['channels']), len(kwargs['fft_freqs']))
+        lfp_pos, powercap_flag = self.get_lfp_cursor(obs)
         
         self.X = np.hstack(( self.X[1:], lfp_pos))
         return StateHolder(self.X, self.A, powercap_flag, self.zboundaries)
 
-    def get_lfp_cursor(psd_est):
+    def get_lfp_cursor(self, psd_est):
         'Obs: channels x frequencies '
         # Control band: 
         c_idx = self.control_band_ind
+
         #As done in kinarm script, sum together frequencies within a band, then take the mean across channels
+        print 'self.fft_inds: ', self.fft_inds
+        print 'c_idx: ', c_idx
+        
+        print 'psd shape', psd_est.shape
+
         c_val = np.mean(np.sum(psd_est[:, self.fft_inds[c_idx]], axis=1))
 
         p_idx = self.totalpw_band_ind
+
+        print 'p_idx: ', p_idx
         p_val = np.mean(np.sum(psd_est[:, self.fft_inds[p_idx]], axis=1))
 
         if self.control_method == 'fraction':
@@ -77,7 +86,7 @@ class SmoothFilter(object):
         elif self.control_method == 'power':
             lfp_control = c_val
 
-        cursor_pos = lfp_to_cursor(lfp_control)
+        cursor_pos = self.lfp_to_cursor(lfp_control)
 
         if p_val <= self.powercap:
             powercap_flag = 0
@@ -86,7 +95,7 @@ class SmoothFilter(object):
 
         return cursor_pos, powercap_flag
 
-    def lfp_to_cursor(lfppos):
+    def lfp_to_cursor(self, lfppos):
         if self.control_method == 'fraction':
             dmn = lfppos - np.mean(self.frac_lims);
             cursor_pos = dmn * (self.zboundaries[1]-self.zboundaries[0]) / (self.frac_lims[1] - self.frac_lims[0])
@@ -124,7 +133,11 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
         setattr(self,key,value)
 
     def predict(self, neural_obs, **kwargs):
-        kwargs['zboundaries'] = self.zboundaries
+        #kwargs['zboundaries'] = self.filt.zboundaries
+        kwargs['fft_inds'] = self.extractor_kwargs['fft_inds']
+        kwargs['channels'] = self.extractor_kwargs['channels']
+        kwargs['fft_freqs'] = self.extractor_kwargs['fft_freqs']
+        
         self.filt(neural_obs, **kwargs)
     
 def _init_decoder_for_sim(n_steps = 10):

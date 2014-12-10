@@ -522,10 +522,9 @@ class LFPMTMPowerExtractor(object):
         extractor_kwargs['NW']       = self.NW
         extractor_kwargs['fs']       = self.fs
 
-        if 'no_log' in kwargs.keys():
-            extractor_kwargs['no_log']       = True #remove log calculation
-        else: 
-            extractor_kwargs['no_log']       = False
+   
+        extractor_kwargs['no_log']  = kwargs.has_key('no_log') and kwargs['no_log']==True #remove log calculation
+        extractor_kwargs['no_mean'] = kwargs.has_key('no_mean') and kwargs['no_mean']==True #r
 
         self.extractor_kwargs = extractor_kwargs
 
@@ -547,10 +546,12 @@ class LFPMTMPowerExtractor(object):
 
     def extract_features(self, cont_samples):
         '''    cont_samples is in channels x time   '''
+        print 'cont_samples:', cont_samples.shape
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
         
-        if self.extractor_kwargs['no_mean']:
-            return psd_est
+        if (self.extractor_kwargs.has_key('no_mean')) and (self.extractor_kwargs['no_mean'] is True):
+            print 'returning PSD'
+            return psd_est.reshape(psd_est.shape[0]*psd_est.shape[1], 1)
 
         else:
             # compute average power of each band of interest
@@ -570,7 +571,7 @@ class LFPMTMPowerExtractor(object):
     def __call__(self, start_time, *args, **kwargs):
         '''    Docstring    '''
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-        # cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
+        #cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
         lfp_power = self.extract_features(cont_samples)
 
         return dict(lfp_power=lfp_power)

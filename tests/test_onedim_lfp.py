@@ -49,3 +49,47 @@ exp.decoder = decoder
 exp.init()
 
 exp.run()
+
+
+
+def test_decoder():
+    def _get_band_ind(freq_pts, band, band_set):
+        band_ind = -1
+        for b, bd in enumerate(band_set):
+            if (bd[0]==band[0]) and (bd[1]==band[1]):
+                band_ind = b
+        if band_ind == -1:
+            band_ind = b+1
+            band_set.extend([band])
+
+        fft_ind = dict()
+        for band_idx, band in enumerate(band_set):
+            fft_ind[band_idx] = [freq_idx for freq_idx, freq in enumerate(freq_pts) if band[0] <= freq < band[1]]
+
+        return band_ind, band_set, fft_ind
+
+    ## Test decoder: 
+    lfp_control_band = [25, 40]
+    lfp_totalpw_band = [1, 100]
+
+    decoder = pickle.load(open('/storage/decoders/cart20141209_07_pk3.pkl'))
+
+    decoder.filt.control_band_ind, decoder.extractor_kwargs['bands'], decoder.extractor_kwargs['fft_inds'] = \
+        _get_band_ind(decoder.extractor_kwargs['fft_freqs'], lfp_control_band, decoder.extractor_kwargs['bands'])
+
+    decoder.filt.totalpw_band_ind, decoder.extractor_kwargs['bands'], decoder.extractor_kwargs['fft_inds'] = \
+        _get_band_ind(decoder.extractor_kwargs['fft_freqs'], lfp_totalpw_band, decoder.extractor_kwargs['bands'])
+
+    decoder.filt.frac_lims = [0, .35]
+    decoder.filt.powercap = 50
+    decoder.filt.zboundaries = (-12, 12)
+    decoder.extractor_kwargs['no_log'] = True
+    decoder.extractor_kwargs['no_mean'] = True
+
+
+    lfp = decoder.extractor_cls(None,**decoder.extractor_kwargs)
+    for i in range(100):
+        #lfp = np.random.random((45,1))
+        dat = lfp(i)
+        decoder.predict(dat['lfp_power'])
+
