@@ -121,7 +121,7 @@ var TaskInterface =  new function() {
 }
 
 //
-// TaskEntry class
+// TaskEntry constructor
 //
 function TaskEntry(idx, info){
     /* Constructor for TaskEntry class
