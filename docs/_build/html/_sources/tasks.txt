@@ -6,7 +6,7 @@ Creating tasks
 The definition of a task class contains a set of states and the rules for moving between those states, a set of parameters (both hard-coded and user-defined), state methods (which specify what happens during each state), and transition methods (which specify the conditions for changing states). Every task is a subclass of the :class:`Experiment` class.
 
 The state transition definition
-----------------------------
+-------------------------------
 
 A state can be thought of as a discrete part of the task which is triggered by some condition being met and ends when some other condition is met (i.e. waiting for fixation, or a target hold). The state transition definition describes the structure of the task. For each possible state it lists all the possible subsequent states and the events that trigger those transitions.
 
@@ -98,12 +98,22 @@ The full name of the method should always be the ``_start_`` prefix followed by 
     def _test_hold(self, ts):
         return ts>=self.origin_hold_time
 
-Example cross reference:
-------------------------
+Saving task data
+----------------
+Two types of data saving are currently supported:
+1) Saving a variable which could change on every clock tick of the FSM
+2) Saving a static variable
 
-:class:`riglib.plexon.plexnet.Connection`
+Variables you wish to save every FSM iteration must be declared prior to starting the task. The base experiment class has an attribute 'dtype', and each new variable to save must be added to this list using the experiment.Experiment.add_dtype method. 
 
-..  automodule:: riglib.plexon.plexnet
-    :members:
+To actually save the variable (suppose your variable is named 'data'), sometime during the execution of the '_cycle' method of your task, you must do 
+
+.. code-block:: python
+
+    self.task_data['data'] = data_value
+
+Important note: in child classes, you must do this *before* calling the 'super' _cycle method to ensure that your data is saved properly. This is because the final _cycle in the method resolution order is the experiment.Experiment._cycle method, which will send your task_data to any registered sinks. So if you do not set the variable beforehand, it may appear as the data you have saved to file is off by one timestep.
+
+
 
 :ref:`tasks`
