@@ -69,7 +69,7 @@ def start_experiment(request, save=True):
     '''
     #make sure we don't have an already-running experiment
     if display.status.value != '':
-        return _respond(dict(status="error", msg="Alreading running task!"))
+        return _respond(dict(status="error", msg="Already running task!"))
 
     try:
         data = json.loads(request.POST['data'])

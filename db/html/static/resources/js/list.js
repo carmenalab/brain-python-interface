@@ -135,10 +135,10 @@ function TaskEntry(idx, info){
 	$("#parameters").append(this.params.obj);
     $("#plots").empty()
 
-	if (idx) {
+	if (idx) { // the task entry which was clicked has an id (stored in the database)
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
 		this.tr = $("#"+idx);
-		this.status = this.tr.hasClass("running")?"running":"completed";
+		this.status = this.tr.hasClass("running") ? "running" : "completed";
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			this.notes = new Notes(this.idx);
 			this.update(expinfo);
@@ -147,6 +147,8 @@ function TaskEntry(idx, info){
 		}.bind(this));
 	} else {
 		this.idx = null;
+
+		// show the bar at the top left with drop-downs for subject and task
 		this.tr = $("#newentry").show();
 		this.status = "stopped";
 		this.report.activate();
