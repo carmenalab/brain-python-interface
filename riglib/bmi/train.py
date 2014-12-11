@@ -372,10 +372,33 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 ################################################################################
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
-    Docstring
+    Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
     Parameters
-    ----------
+    ---------- 
+    files : dict
+        Dictionary of files which contain training data. Keys are file tyes, values are file names.
+        Kinematic data is assumed to be stored in an 'hdf' file and neural data assumed to be in 'plx' or 'nev' files
+    extractor_cls : class
+        Class of feature extractor to instantiate
+    extractor_kwargs : dict 
+        Parameters to specify for feature extractor to instantiate it to specification
+    kin_extractor : callable
+        Function to extract kinematics from the HDF file.
+    ssm : state_space_models.StateSpace instance
+        State space model for the Decoder object being created.
+    units : np.iterable 
+        Spiking units are specified as tuples of (electrode channe, electrode unit)
+    update_rate : float, optional
+        Time in seconds between decoder updates. default=0.1
+    tslice : iterable of length 2, optional
+        Start and end times in seconds to specify the portion of the training data to use for ML estimation. By default, the whole dataset will be used
+    kin_source : string, optional
+        Table from the HDF file to grab kinematic data. Default is the 'task' table.
+    pos_key : string, optional
+        Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
+    vel_key : string
+        Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
 
     Returns
     -------
