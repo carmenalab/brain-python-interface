@@ -394,6 +394,13 @@ TaskEntry.prototype.stop = function() {
 	var csrf = {};
 	csrf['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value");
 	$.post("stop", csrf, TaskInterface.trigger.bind(this));
+
+	function f() {
+		$.post("next_exp/", {
+			'csrfmiddlewaretoken':$("#experiment input[name=csrfmiddlewaretoken]").attr("value")
+		});
+	}
+	setTimeout(f, 5000);
 }
 TaskEntry.prototype.run = function(save) {
 	var form = {};

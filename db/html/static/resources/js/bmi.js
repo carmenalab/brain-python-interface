@@ -11,6 +11,10 @@ function BMI(idx, info, notes) {
         this.cells = [];
     }
 
+    // Clear the 'Available' and 'Selected' cells fields of any stale options/selections
+    $('#cells').empty()
+    $('#available').empty()
+
     this.info = info;
     this.neuralinfo = info['_neuralinfo'];
     delete info['_neuralinfo']
@@ -244,6 +248,7 @@ BMI.prototype._bindui = function() {
     }.bind(this));
 
     $("#cellnames").blur(function(e) {
+        console.log($("#cellnames").val())
         this.parse($("#cellnames").val());
     }.bind(this));
 
