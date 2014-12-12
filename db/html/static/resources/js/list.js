@@ -125,6 +125,7 @@ var TaskInterface =  new function() {
 //
 function TaskEntry(idx, info){
     /* Constructor for TaskEntry class
+     * idx: string of format row\d\d\d where \d\d\d represents the string numbers of the database ID of the block
      */
 	$("#content").hide();
 	this.sequence = new Sequence();
@@ -145,16 +146,18 @@ function TaskEntry(idx, info){
 			this.disable();
 			$("#content").show("slide", "fast");
 		}.bind(this));
-	} else {
+	} else { // a "new" task entry is being created
 		this.idx = null;
 
 		// show the bar at the top left with drop-downs for subject and task
-		this.tr = $("#newentry").show();
+		this.tr = $("#newentry").show();  // declared in list.html
 		this.status = "stopped";
-		this.report.activate();
+		this.report.activate(); // start listening to the websocket... THIS NEEDS MODIFICATION
 		$("#tasks").change(this._task_query.bind(this));
 		$("#features input").change(this._task_query.bind(this));
+
 		if (info) {
+			// if the 'info' is provided, 
 			this.update(info);
 			this.enable();
 			$("#content").show("slide", "fast");
@@ -222,27 +225,6 @@ TaskEntry.prototype.update = function(info) {
 	var numfiles = 0;
 	this.filelist = document.createElement("ul");
 	
-	// original code
-	// for (var sys in info.datafiles) {
-	// 	var file = document.createElement("li");
-	// 	var link = document.createElement("a");
-	// 	link.href = "/static"+info.datafiles[sys];
-	// 	link.innerHTML = info.datafiles[sys];
-	// 	file.appendChild(link);
-	// 	if (sys == "sequence") {
-	// 		if (info.datafiles[sys]) {
-	// 			link.href = "sequence_for/"+this.idx;
-	// 			link.innerHTML = "Sequence";
-	// 			this.filelist.appendChild(file);
-	// 			numfiles++;
-	// 		}
-	// 	} else {
-	// 		this.filelist.appendChild(file);
-	// 		numfiles++;
-	// 	}
-	// }
-
-	// new code
 	// see TaskEntry.to_json in models.py
 	for (var sys in info.datafiles) {
 		if (sys == "sequence") {  // info.datafiles["sequence"] is a boolean
@@ -302,9 +284,9 @@ TaskEntry.prototype.update = function(info) {
 TaskEntry.plot_performance = function() {
 
 }
+/* Called when the 'Copy Parameters' button is pressed
+ */
 TaskEntry.copy = function() {
-    /* Called when the 'Copy Parameters' button is pressed?
-     */
 	var info = te.expinfo;
 	info.report = {};
 	info.datafiles = {};
