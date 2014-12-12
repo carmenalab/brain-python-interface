@@ -64,6 +64,14 @@ BMI.ptime = function(t) {
         return null;
     }
 }
+
+/**
+ * Move an item from one select field 'src' to another select field 'dst'
+ * @param {string} name The name of the item
+ * @param {object} src The associative array/object the item 'name' is currently in
+ * @param {object} dst The associative array/object the item 'name' should be in
+ * @param {string} dstname Name of the destination 'option' field
+*/
 BMI.swap = function(name, src, dst, dstname) {
     if (dst[name] === undefined) {
         var obj;
@@ -71,6 +79,7 @@ BMI.swap = function(name, src, dst, dstname) {
             obj = src[name].remove()
             delete src[name];
         } else {
+            // the option is not in the source menu, so make a new one
             obj = $("<option>"+name+"</option>");
         }
 

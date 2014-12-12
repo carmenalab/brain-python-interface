@@ -18,6 +18,9 @@
 	var te = null;
 	$(document).ready(function() {
 		$("table#main tr").each(function() {
+			// Register a click callback for each row of the 'main' table
+			// If you click on the very top row, the id is set to "newentry" so it knows to create a "blank" TaskEntry
+			// Otherwise, the row will have an 'id' of format 'row\d\d\d\d'
 			$(this).click(function() {
 				te = new TaskEntry(this.id == "newentry" ? null : this.id);
 			});

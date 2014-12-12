@@ -1,11 +1,11 @@
 //
 // TaskInterface class
 //
-var TaskInterface =  new function() {
+function TaskInterfaceConstructor() {
 	var state = "";
 	var lastentry = null;
 
-	this.trigger = function(info) {
+    this.trigger = function(info) {
 		if (this != lastentry) {
 			if (lastentry) {
 				$(window).unload(); //This stops testing runs, just in case
@@ -84,7 +84,7 @@ var TaskInterface =  new function() {
 			$("#testbtn").hide()
 			$("#copybtn").hide();
 			$("#bmi").hide();
-			this.report.activate();
+			// this.report.activate();
 		},
 		testing: function(info) {
 			$(window).unload(this.stop.bind(this));
@@ -95,7 +95,7 @@ var TaskInterface =  new function() {
 			$("#testbtn").hide()
 			$("#copybtn").hide()
 			$("#bmi").hide();
-			this.report.activate();
+			// this.report.activate();
 		},
 		error: function(info) {
 			$(window).unbind("unload");
@@ -119,6 +119,9 @@ var TaskInterface =  new function() {
 		}
 	};
 }
+
+
+var TaskInterface = new TaskInterfaceConstructor();
 
 //
 // TaskEntry constructor
@@ -152,7 +155,6 @@ function TaskEntry(idx, info){
 		// show the bar at the top left with drop-downs for subject and task
 		this.tr = $("#newentry").show();  // declared in list.html
 		this.status = "stopped";
-		this.report.activate(); // start listening to the websocket... THIS NEEDS MODIFICATION
 		$("#tasks").change(this._task_query.bind(this));
 		$("#features input").change(this._task_query.bind(this));
 
@@ -307,8 +309,10 @@ TaskEntry.prototype.destroy = function() {
 	this.sequence.destroy();
 
     // Free the parameters
-	$(this.params.obj).remove()
-	delete this.params
+    if (this.params) {
+		$(this.params.obj).remove()
+		delete this.params
+	}
 
     // Remove any designations that this TaskEntry is active/running/errored/etc.
 	this.tr.removeClass("rowactive active error");
@@ -385,6 +389,8 @@ TaskEntry.prototype.stop = function() {
 	setTimeout(f, 5000);
 }
 TaskEntry.prototype.run = function(save) {
+    // activate the report; start listening to the websocket and update the 'report' field when new data is received
+	this.report.activate();
 	var form = {};
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(this.get_data());
