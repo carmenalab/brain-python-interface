@@ -373,20 +373,20 @@ class onedimLFP_CursorPlant(CursorPlant):
 
 
     def _pickle_init(self):
-        self.cursor = Sphere(radius=self.lfp_cursor_rad, color=self.lfp_cursor_color)
+        self.cursor = Cube(side_len=self.lfp_cursor_rad, color=self.lfp_cursor_color)
         self.cursor.translate(*self.position, reset=True)
         self.graphics_models = [self.cursor]
 
     def drive(self, decoder):
         pos = decoder.filt.get_mean()
-        pos = [0, 0, pos]
+        pos = [-8, 0, pos]
         if self.endpt_bounds is not None:
             if pos[2] < self.endpt_bounds[4]: 
                 pos[2] = self.endpt_bounds[4]
-                if self.vel_wall: vel[2] = 0
+                
             if pos[2] > self.endpt_bounds[5]: 
                 pos[2] = self.endpt_bounds[5]
-                if self.vel_wall: vel[2] = 0
+               
             self.position = pos
             self.draw()
 

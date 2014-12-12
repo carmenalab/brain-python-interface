@@ -59,7 +59,7 @@ class SmoothFilter(object):
         self.fft_inds = kwargs['fft_inds']
         obs = obs.reshape(len(kwargs['channels']), len(kwargs['fft_freqs']))
         lfp_pos, powercap_flag = self.get_lfp_cursor(obs)
-        
+        #print 'X: ', self.X
         self.X = np.hstack(( self.X[1:], lfp_pos))
         return StateHolder(self.X, self.A, powercap_flag, self.zboundaries)
 
@@ -143,7 +143,8 @@ def _init_decoder_for_sim(n_steps = 10):
         
     return decoder
 
-def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=2):
+def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=5):
+    print 'N_STEPS: ', n_steps
     kw = dict(control_method='fraction')
     sf = SmoothFilter(n_steps,**kw)
     decoder = One_Dim_LFP_Decoder(sf, units, ssm, extractor_cls, extractor_kwargs)

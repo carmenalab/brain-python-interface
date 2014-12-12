@@ -25,73 +25,8 @@ class Plane(TriMesh):
                 tcoords=tcoords, normals=np.array(normals), **kwargs)
 
 class Cube(TriMesh):
-    def __init__(self, target_rad=4, segments=36, **kwargs):
-        self.target_length = target_rad
-        self.seg_per_side = segments/4
-        zvals = self.target_length * np.linspace(-1, 1, num=segments)
-        linevals = self.target_length * np.linspace(-1, 1, num=segments/4, endpoint=False)
-        vertices = np.zeros(((len(zvals)) * len(linevals)* 4, 3))
-
-        for i, z in enumerate(zvals):
-            squarepoints = np.zeros((segments, 3))
-            squarepoints[:,2] = z
-
-            squarepoints[:self.seg_per_side,0] = linevals
-            squarepoints[:self.seg_per_side,1] = np.ones((len(linevals), ))
-
-            squarepoints[self.seg_per_side:2*self.seg_per_side,0] = np.ones((len(linevals), ))
-            squarepoints[self.seg_per_side:2*self.seg_per_side,1] = linevals
-
-            squarepoints[2*self.seg_per_side:3*self.seg_per_side,0] = linevals
-            squarepoints[2*self.seg_per_side:3*self.seg_per_side,1] = -1*np.ones((len(linevals), ))
-
-            squarepoints[3*self.seg_per_side:4*self.seg_per_side,0] = -1*np.ones((len(linevals), ))
-            squarepoints[3*self.seg_per_side:4*self.seg_per_side,1] = linevals
-
-            #r = np.sqrt(radius**2 - z**2)
-            squarepoints[:,0] = self.target_length*squarepoints[:,0]
-            squarepoints[:,1] = self.target_length*squarepoints[:,0]
-
-            vertices[segments*i:segments*(i+1),:] = squarepoints
-        
-        vertices = np.vstack([vertices,(0,0,self.target_length),(0,0,-1*self.target_length)])
-        rads = np.tile( np.array([np.sqrt(np.sum(np.square(vertices), axis = 1))]).T, (1, 3))
-        allpointinds = np.arange(len(vertices))
-        
-        ####
-        triangles = np.zeros((segments,3))
-        firstcirc = allpointinds[0:segments]
-        triangles[0,:] = (allpointinds[-2],firstcirc[0], firstcirc[-1])
-        for i in range(segments-1):
-            triangles[i+1,:] = (allpointinds[-2], firstcirc[i+1], firstcirc[i])
-        
-        triangles = list(triangles)
-        for i in range(segments-3):
-            points1 = allpointinds[i*segments:(i+1)*segments]
-            points2 = allpointinds[(i+1)*segments:(i+2)*segments]
-            for ind, p in enumerate(points1[:-1]):
-                t1 = (p, points1[ind+1], points2[ind+1])
-                t2 = (p, points2[ind+1], points2[ind])
-                triangles += [t1, t2]
-            triangles += [(points1[-1], points1[0], points2[0]), (points1[-1], points2[0], points2[-1])]
-        
-        bottom = np.zeros((segments,3))
-        lastcirc = allpointinds[-segments-2:-2]
-        bottom[0,:] = (allpointinds[-1], lastcirc[-1], lastcirc[0]) 
-        for i in range(segments-1):
-            bottom[i+1,:] = (allpointinds[-1], lastcirc[i], lastcirc[i+1])
-        triangles = np.vstack([triangles, bottom])
-        
-        normals = np.divide(vertices, rads)
-        hcoord = np.arctan2(normals[:,1], normals[:,0])
-        vcoord = np.arctan2(normals[:,2], np.sqrt(vertices[:,0]**2 + vertices[:,1]**2))
-        tcoord = np.array([(hcoord+pi) / (2*pi), (vcoord+pi/2) / pi]).T
-
-        super(Cube, self).__init__(vertices, np.array(triangles), 
-            tcoords=tcoord, normals=normals, **kwargs)
-
-class Cube(TriMesh):
-    def __init__(self, height=1, width=1, segments=36, **kwargs):
+    def __init__(self, side_len=1 , segments=36, **kwargs):
+        side_len_half = side_len/2.
         side = np.linspace(-1, 1, segments/4, endpoint=True)
         
         unit1 = np.hstack(( side[:,np.newaxis], np.ones((len(side),1)), np.ones((len(side),1)) ))
@@ -101,7 +36,7 @@ class Cube(TriMesh):
 
         unit = np.vstack((unit1, unit2, unit3, unit4))
 
-        pts = np.vstack([unit*[width, width, 0], unit*[width,width,height]])
+        pts = np.vstack([unit*[side_len_half, side_len_half, 0], unit*[side_len_half,side_len_half,side_len]])
         normals = np.vstack([unit*[1,1,0], unit*[1,1,0]])
 
         polys = []
