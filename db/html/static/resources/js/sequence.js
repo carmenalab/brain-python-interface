@@ -73,8 +73,10 @@ Sequence.prototype.update = function(info) {
 Sequence.prototype.destroy = function() {
     for (var id in this.options)
         $(this.options[id]).remove()
-    $(this.params.obj).remove()
-    delete this.params
+    if (this.params) {
+        $(this.params.obj).remove()
+        delete this.params
+    }
     $("#seqlist").unbind("change", this._handle_chlist);
     $("#seqgen").unbind("change", this._handle_chgen);
     if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
