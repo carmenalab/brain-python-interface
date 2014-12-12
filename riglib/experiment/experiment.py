@@ -153,14 +153,25 @@ class Experiment(traits.HasTraits, threading.Thread):
         # declare their variables using the 'add_dtype' function BEFORE calling the 'super' method.
         try:
             self.dtype = np.dtype(self.dtype)
-            self.sinks.register("task", self.dtype)
             self.task_data = np.zeros((1,), dtype=self.dtype)
         except:
-            print "Error creating task_data record array"            
+            print "Error registering 'task' sink"
             import traceback
-            traceback.print_exc()
+            traceback.print_exc()            
             print self.dtype
             self.task_data = None
+
+        if not hasattr(self, 'sinks'):
+            from riglib import sink
+            self.sinks = sink.sinks
+
+        # Register the "task" source with the sinks
+        try:
+            self.sinks.register("task", self.dtype)
+        except:
+            import traceback
+            traceback.print_exc()            
+            raise Exception("Error registering task source")
 
     def add_dtype(self, name, dtype, shape):
         '''
