@@ -61,6 +61,9 @@ class Track(object):
         self.status.value = self.task.pause()
 
     def stoptask(self):
+        '''
+        Terminate the task gracefully by running riglib.experiment.Experiment.end_task
+        '''
         assert self.status.value in "testing,running"
         try:
             self.task.end_task()
@@ -97,11 +100,16 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     # In its current form, the class needs to be declared here inside this function 
     # rather than in any more logical place to give it access to 'websock' and 'status'
     class NotifyFeat(object):
+        def __init__(self, *args,  **kwargs):
+            super(NotifyFeat, self).__init__(*args, **kwargs)
+            self.websock = websock
+            self.tracker_end_of_pipe = tracker_end_of_pipe
+
         def set_state(self, state, *args, **kwargs):
             self.reportstats['status'] = status
             self.reportstats['State'] = state or 'stopped'
             
-            websock.send(self.reportstats)
+            self.websock.send(self.reportstats)
             super(NotifyFeat, self).set_state(state, *args, **kwargs)
 
         def run(self):
@@ -113,9 +121,9 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
                 err = cStringIO.StringIO()
                 traceback.print_exc(None, err)
                 err.seek(0)
-                websock.send(dict(status="error", msg=err.read()))
+                self.websock.send(dict(status="error", msg=err.read()))
             finally:
-                tracker_end_of_pipe.send(None)
+                self.tracker_end_of_pipe.send(None)
 
     # Force all tasks to use the Notify feature defined above. Putting
     # NotifyFeat at the beginning puts it always at the beginning of the start 
