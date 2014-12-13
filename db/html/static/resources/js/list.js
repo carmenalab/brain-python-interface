@@ -192,7 +192,7 @@ TaskEntry.prototype.new_row = function(info) {
 
 	this.tr = $(document.createElement("tr"));
 	this.tr.attr("id", "row"+info.idx);
-	this.tr.html("<td class='colDate'>"+info.date+" ("+info.idx")"+"</td>" + 
+	this.tr.html("<td class='colDate'>"+info.date+" ("+info.idx+")</td>" + 
 		"<td class='colSubj'>"+info.subj+"</td>" + 
 		"<td class='colTask'>"+info.task+"</td>");
 
