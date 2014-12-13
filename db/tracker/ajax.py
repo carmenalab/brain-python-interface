@@ -16,7 +16,7 @@ from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataF
 import trainbmi
 import logging
 
-display = Track()
+exp_tracker = Track()
 
 http_request_queue = []
 
@@ -42,10 +42,34 @@ class encoder(json.JSONEncoder):
 def _respond(data):
     '''
     Generic HTTPResponse to return JSON-formatted dictionary values
+
+    Parameters
+    ----------
+    data : dict
+        Keys and values can be just about anything
+
+    Returns
+    -------
+    HttpResponse
+        JSON-encoded version of the input dictionary
     '''
     return HttpResponse(json.dumps(data, cls=encoder), mimetype="application/json")
 
 def task_info(request, idx):
+    '''
+    Get information about the task
+
+    Parameters
+    ----------
+    request : Django HttpRequest
+
+    idx : int
+        Primary key used to look up the task from the database
+
+    Returns
+    -------
+    JSON-encoded dictionary
+    '''
     task = Task.objects.get(pk=idx)
     feats = [Feature.objects.get(name=name) for name, isset in request.GET.items() if isset == "true"]
     task_info = dict(params=task.params(feats=feats))
@@ -56,6 +80,21 @@ def task_info(request, idx):
     return _respond(task_info)
 
 def exp_info(request, idx):
+    '''
+    Get information about the task
+
+    Parameters
+    ----------
+    request : Django HttpRequest
+        POST request triggered by clicking on a task entry from the left side pane
+    idx : int
+        Primary key used to look up the TaskEntry from the database
+
+    Returns
+    -------
+    JSON-encoded dictionary 
+        Data containing features, parameters, and any report data from the TaskEntry
+    '''
     print idx
     entry = TaskEntry.objects.get(pk=idx)
     return _respond(entry.to_json())
@@ -77,7 +116,7 @@ def start_experiment(request, save=True):
     interface
     '''
     #make sure we don't have an already-running experiment
-    if display.status.value != '':
+    if exp_tracker.status.value != '':
         http_request_queue.append((request, save))
         return _respond(dict(status="running", msg="Already running task, queuelen=%d!" % len(http_request_queue)))
     try:
@@ -122,8 +161,8 @@ def start_experiment(request, save=True):
             # Give the entry ID to the runtask as a kwarg so that files can be linked after the task is done
             kwargs['saveid'] = entry.id
         
-        # Start the task FSM and display
-        display.runtask(**kwargs)
+        # Start the task FSM and exp_tracker
+        exp_tracker.runtask(**kwargs)
 
         # Return the JSON response
         return _respond(response)
@@ -140,30 +179,55 @@ def start_experiment(request, save=True):
 def rpc(fn):
     '''
     Generic remote procedure call function
+
+    Parameters
+    ----------
+    fn : callable
+        Function which takes a single argument, the exp_tracker object. Return values from this function are ignored.
+
+    Returns
+    -------
+    JSON-encoded dictionary 
     '''
     #make sure that there exists an experiment to stop
-    if display.status.value not in ["running", "testing"]:
+    if exp_tracker.status.value not in ["running", "testing"]:
         return _respond(dict(status="error", msg="No task to end!"))
     try:
-        status = display.status.value
-        fn(display)
+        status = exp_tracker.status.value
+        fn(exp_tracker)
         return _respond(dict(status="pending", msg=status))
-    except:
-        import cStringIO
-        import traceback
-        err = cStringIO.StringIO()
-        traceback.print_exc(None, err)
-        err.seek(0)
-        return _respond(dict(status="error", msg=err.read()))    
+    except Exception as e:
+        return _respond_err(e)
+
+def _respond_err(e):
+    '''
+    Default error response from server to webclient
+
+    Parameters
+    ----------
+    e : Exception
+        Error & traceback to convert to string format. 
+
+    Returns
+    -------
+    JSON-encoded dictionary
+        Sets status to "error" and provides the specific error message
+    '''
+    import cStringIO
+    import traceback
+    err = cStringIO.StringIO()
+    traceback.print_exc(None, err)
+    err.seek(0)
+    return _respond(dict(status="error", msg=err.read()))        
 
 def stop_experiment(request):
-    return rpc(lambda display: display.stoptask())
+    return rpc(lambda exp_tracker: exp_tracker.stoptask())
 
 def enable_clda(request):
-    return rpc(lambda display: display.task.enable_clda())
+    return rpc(lambda exp_tracker: exp_tracker.task.enable_clda())
 
 def disable_clda(request):
-    return rpc(lambda display: display.task.disable_clda())
+    return rpc(lambda exp_tracker: exp_tracker.task.disable_clda())
 
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)
