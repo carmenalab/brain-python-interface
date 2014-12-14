@@ -50,6 +50,8 @@ class SmoothFilter(object):
             self.X = np.zeros(( self.n_steps )) + mn
 
         self.state = StateHolder(self.X, self.A, 0, 0)
+        self.file = open("/home/helene/preeya/tot_pw.txt","w")
+        self.cnt = 0
 
     def __call__(self, obs, **kwargs):
         self.state = self._mov_avg(obs, **kwargs)
@@ -74,6 +76,8 @@ class SmoothFilter(object):
         p_idx = self.totalpw_band_ind
         p_val = np.mean(np.sum(psd_est[:, self.fft_inds[p_idx]], axis=1))
 
+         
+
         if self.control_method == 'fraction':
             lfp_control = c_val / float(p_val)
         elif self.control_method == 'power':
@@ -85,6 +89,13 @@ class SmoothFilter(object):
             powercap_flag = 0
         else:
             powercap_flag = 1
+
+        if self.cnt<1000:
+            s = "%.20f\n" % p_val
+            self.file.write(str(s))
+            self.cnt += 1
+        elif self.cnt == 1000:
+            self.file.close()
 
         return cursor_pos, powercap_flag
 
@@ -143,7 +154,7 @@ def _init_decoder_for_sim(n_steps = 10):
         
     return decoder
 
-def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=5):
+def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=3):
     print 'N_STEPS: ', n_steps
     kw = dict(control_method='fraction')
     sf = SmoothFilter(n_steps,**kw)
