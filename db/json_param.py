@@ -99,10 +99,6 @@ class Parameters(object):
         return cls.from_dict(processed)
 
     def to_json(self):
-        #Fucking retarded ass json implementation in python is retarded as SHIT
-        #It doesn't let you override the default encoders! I have to pre-decode 
-        #the goddamned object before I push it through json
-
         def encode(obj):
             if isinstance(obj, models.models.Model):
                 return dict(
@@ -128,13 +124,31 @@ class Parameters(object):
         return json.dumps(encode(self.params))
     
     def trait_norm(self, traits):
+        '''
+        Apply typecasting to parameters which correspond to experiment traits 
+
+        Parameters
+        ----------
+        traits : ????
+            The specified traits have casts applied
+
+        Returns
+        -------
+        None
+        '''
         params = self.params
         self.params = dict()
         for name, value in params.items():
-            self.params[name] = norm_trait(traits[name], value)
+            if name in traits:
+                self.params[name] = norm_trait(traits[name], value)
+            else:
+                self.params[name] = value
     
     def __contains__(self, attr):
         return attr in self.params
     
     def __getitem__(self, attr):
         return self.params[attr]
+
+    def __setitem__(self, attr, val):
+        self.params[attr] = val

@@ -80,12 +80,43 @@ class Track(object):
         self.task = None
         return status
 
+
+class NotifyFeat(object):
+    '''
+    Send task report and state data to display on the web inteface
+    '''
+    def __init__(self, *args,  **kwargs):
+        super(NotifyFeat, self).__init__(*args, **kwargs)
+        self.websock = kwargs.pop('websock')
+        self.tracker_end_of_pipe = kwargs.pop('tracker_end_of_pipe')
+        self.tracker_status = kwargs.pop('tracker_status')
+
+    def set_state(self, state, *args, **kwargs):
+        self.reportstats['status'] = self.tracker_status
+        self.reportstats['State'] = state or 'stopped'
+        
+        self.websock.send(self.reportstats)
+        super(NotifyFeat, self).set_state(state, *args, **kwargs)
+
+    def run(self):
+        try:
+            super(NotifyFeat, self).run()
+        except:
+            import cStringIO
+            import traceback
+            err = cStringIO.StringIO()
+            traceback.print_exc(None, err)
+            err.seek(0)
+            self.websock.send(dict(status="error", msg=err.read()))
+        finally:
+            self.tracker_end_of_pipe.send(None)
+
+
 def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
     Target function to execute in the separate process to start the task
     '''
     import time
-    from riglib.experiment import report
 
     # Rerout prints to stdout to the websocket
     sys.stdout = websock
@@ -96,41 +127,14 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
 
     status = "running" if 'saveid' in kwargs else "testing"
 
-    # Instantiate feature to transmit task transition updates to the web interface
-    # In its current form, the class needs to be declared here inside this function 
-    # rather than in any more logical place to give it access to 'websock' and 'status'
-    class NotifyFeat(object):
-        def __init__(self, *args,  **kwargs):
-            super(NotifyFeat, self).__init__(*args, **kwargs)
-            self.websock = websock
-            self.tracker_end_of_pipe = tracker_end_of_pipe
-
-        def set_state(self, state, *args, **kwargs):
-            self.reportstats['status'] = status
-            self.reportstats['State'] = state or 'stopped'
-            
-            self.websock.send(self.reportstats)
-            super(NotifyFeat, self).set_state(state, *args, **kwargs)
-
-        def run(self):
-            try:
-                super(NotifyFeat, self).run()
-            except:
-                import cStringIO
-                import traceback
-                err = cStringIO.StringIO()
-                traceback.print_exc(None, err)
-                err.seek(0)
-                self.websock.send(dict(status="error", msg=err.read()))
-            finally:
-                self.tracker_end_of_pipe.send(None)
-
-    # Force all tasks to use the Notify feature defined above. Putting
-    # NotifyFeat at the beginning puts it always at the beginning of the start 
-    # of the method resolution order, i.e. its methods get called first
+    # Force all tasks to use the Notify feature defined above. 
+    kwargs['params']['websock'] = websock
+    kwargs['params']['tracker_status'] = status
+    kwargs['params']['tracker_end_of_pipe'] = tracker_end_of_pipe
     kwargs['feats'].insert(0, NotifyFeat)
 
     try:
+        # Instantiate the task
         task = Task(**kwargs)
         cmd = task_end_of_pipe.recv()
         while cmd is not None and task.task.state is not None:
@@ -166,6 +170,8 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
 
     # Redirect printing from the websocket back to the shell
     sys.stdout = sys.__stdout__
+
+    # Initiate task cleanup
     try:
         task
     except:
@@ -199,7 +205,7 @@ class Task(object):
             Database record for base task being run (without features)
         feats : list 
             List of features to enable for the task
-        params : 
+        params : json_param.Parameters or string representation of JSON object
             user input on configurable task parameters
         seq : models.Sequence instance
             Database record of 
@@ -211,7 +217,10 @@ class Task(object):
         self.saveid = saveid
         self.taskname = task.name
         self.subj = subj
-        self.params = Parameters(params)
+        if isinstance(params, Parameters):
+            self.params = params
+        elif isinstance(params, (string, unicode)):
+            self.params = Parameters(params)
         
         base_class = task.get()
         Exp = experiment.make(base_class, feats=feats)

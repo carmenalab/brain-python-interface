@@ -129,7 +129,7 @@ def start_experiment(request, save=True):
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
         kwargs = dict(subj=entry.subject, task=task, feats=Feature.getall(data['feats'].keys()),
-                      params=params.to_json())
+                      params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(Exp, experiment.Sequence):
