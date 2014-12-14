@@ -205,10 +205,10 @@ class Task(object):
             Database record for base task being run (without features)
         feats : list 
             List of features to enable for the task
-        params : json_param.Parameters or string representation of JSON object
+        params : json_param.Parameters, or string representation of JSON object
             user input on configurable task parameters
         seq : models.Sequence instance
-            Database record of 
+            Database record of Sequence parameters/static target sequence
         saveid : int, optional
             ID number of db.tracker.models.TaskEntry associated with this task
             if None specified, then the data saved will not be linked to the
