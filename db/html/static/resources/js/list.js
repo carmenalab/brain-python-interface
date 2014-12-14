@@ -143,6 +143,8 @@ function TaskEntry(idx, info){
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
 		this.tr = $("#"+idx);
 		this.status = this.tr.hasClass("running") ? "running" : "completed";
+		if (this.status == 'running')
+			this.report.activate();
 		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			this.notes = new Notes(this.idx);
 			this.update(expinfo);
