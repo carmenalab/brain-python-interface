@@ -369,6 +369,7 @@ class onedimLFP_CursorPlant(CursorPlant):
     def __init__(self, endpt_bounds, *args, **kwargs):
         self.lfp_cursor_rad = kwargs['lfp_cursor_rad']
         self.lfp_cursor_color = kwargs['lfp_cursor_color']
+        args=[(), kwargs['lfp_cursor_color']]
         super(onedimLFP_CursorPlant, self).__init__(endpt_bounds, *args, **kwargs)
 
 
