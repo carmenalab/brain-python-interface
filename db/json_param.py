@@ -10,6 +10,7 @@ import numpy as np
 from tracker import models
 from riglib import calibrations
 import namelist
+import os
 
 def param_objhook(obj):
     if '__django_model__' in obj:
@@ -33,16 +34,22 @@ def norm_trait(trait, value):
             value = record.get()
         #Otherwise, let's hope it's already an instance
     elif ttype == 'Bool':
-        # Boolean values come back as 'on'/'off' instead of True/False
-        bool_values = ['off', 'on']
-        assert value in bool_values
+        # # Boolean values come back as 'on'/'off' instead of True/False
+        # bool_values = ['off', 'on']
+        # if not str(value) in bool_values:
+        #     f = open(os.path.expandvars('$BMI3D/log/trait_log'), 'w')
+        #     f.write('Error with type for trait %s, %s, value %s' % (str(trait), str(ttype), str(value)))
+        #     f.close()
+        #     import traceback
+        #     traceback.print_exc()
+        #     raise Exception
 
-        value = bool_values.index(value)
-        value = bool(value)
-        # if value == 'on':
-        #     value = True
-        # elif value == 'off':
-        #     value = False
+        # value = bool_values.index(value)
+        # value = bool(value)
+        if value == 'on':
+            value = True
+        elif value == 'off':
+            value = False
     elif ttype == 'Tuple':
         # Explicit cast to tuple for backwards compatibility reasons (should not be necessary for newer versions of the code/traits lib?)
         value = tuple(value)
@@ -52,7 +59,7 @@ def norm_trait(trait, value):
         return trait.cast(value)
     except:
         f = open(os.path.expandvars('$BMI3D/log/trait_log'), 'w')
-        f.write('Error with type for trait %s, value %s' % (str(ttype), str(value)))
+        f.write('Error with type for trait %s, %s, value %s' % (str(trait), str(ttype), str(value)))
         f.close()
         import traceback
         traceback.print_exc()
