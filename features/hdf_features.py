@@ -35,10 +35,6 @@ class SaveHDF(object):
         self.h5file = tempfile.NamedTemporaryFile()
         self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
 
-        # Run the rest of the .init() functions of the custom experiment class
-        # NOTE: this MUST happen before the rest of the code executes. Otherwise,
-        # the dtype used to determine the task data attributes to be stored
-        # to the HDF file will be incorrect/incomplete
         super(SaveHDF, self).init()    
 
     @property
