@@ -380,7 +380,7 @@ class onedimLFP_CursorPlant(CursorPlant):
 
     def drive(self, decoder):
         pos = decoder.filt.get_mean()
-        pos = [-8, 0, pos]
+        pos = [-8, -2.2, pos]
         if self.endpt_bounds is not None:
             if pos[2] < self.endpt_bounds[4]: 
                 pos[2] = self.endpt_bounds[4]
