@@ -373,6 +373,12 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 ################################################################################
 ## Main training functions
 ################################################################################
+def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+     ## get neural features
+    f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
+    import onedim_lfp_decoder as old
+    return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
+
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations

@@ -145,7 +145,7 @@ function TaskEntry(idx, info){
 		this.status = this.tr.hasClass("running") ? "running" : "completed";
 		if (this.status == 'running')
 			this.report.activate();
-		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
+		$.getJSON("/ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			this.notes = new Notes(this.idx);
 			this.update(expinfo);
 			this.disable();
@@ -415,7 +415,7 @@ TaskEntry.prototype.run = function(save) {
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(this.get_data());
 	this.report.pause();
-	var post_url = save ? "start" : "test";
+	var post_url = save ? "/start" : "/test";
 	$.post(post_url, form, function(info) {
 		TaskInterface.trigger.bind(this)(info);
 		this.report.update(info);

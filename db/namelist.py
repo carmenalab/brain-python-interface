@@ -65,6 +65,7 @@ instance_to_model = SubclassDict( {
 bmi_algorithms = dict(
     KFDecoder=bmi.train.train_KFDecoder,
     PPFDecoder=bmi.train.train_PPFDecoder,
+    OneDimLFPDecoder=bmi.train.create_onedimLFP,
 )
 
 bmi_training_pos_vars = [

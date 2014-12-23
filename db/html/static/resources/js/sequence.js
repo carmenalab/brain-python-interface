@@ -4,7 +4,7 @@ function Sequence() {
 
     var _this = this;
     this._handle_chgen = function() {
-        $.getJSON("ajax/gen_info/"+this.value+"/", {}, function(info) {
+        $.getJSON("/ajax/gen_info/"+this.value+"/", {}, function(info) {
             _this.params.update(info.params);
         });
     }
