@@ -32,20 +32,19 @@ There are four states in this task (*wait*, *trial*, *reward*, and *penalty*). E
 Parameters
 ----------
 
-Parameters that are set by the user when the task is run can be defined as `Traits <http://code.enthought.com/projects/traits/>`_ within the class definition for the task::
+Parameters which you want to be set by the experimenter at runtime can be defined as `Traits <http://code.enthought.com/projects/traits/>`_ within the task class definition::
 
-    #settable traits
+    # settable traits
     reward_time = traits.Float(.5, desc="Length of juice reward")
 
-The first argument is the default value for the trait and the second is a docstring that will show up when the mouse hovers over that parameter in the web interface. The name of the variable will be the text the user sees in the list of parameters (in this case ``reward_time``.
+The first argument is the default value for the trait and the second is a docstring that will show up when the mouse hovers over that parameter in the web interface. The name of the variable will be the text the user sees in the list of parameters (in this case ``reward_time``).
 
 Methods
 -------
 
 A task class' methods determine the behavior within each state and the criteria for triggering state transitions. There are five types of special methods:
 
-*__init__*
->>>>>>>>
+**__init__**
 
 Every task has an *__init__* method that contains actions to be performed once when the task is first run::
 
@@ -56,8 +55,7 @@ Every task has an *__init__* method that contains actions to be performed once w
 
 If no initialization steps are necessary for the task, the *__init__* method can be omitted (because it will automatically inherit the parent *__init__* method). This is true of the other special methods as well; however, if an *__init__* method is included, it MUST contain a call to the parent method, whereas the rest of the special methods may be written to replace the parent methods if desired.
 
-*_start_*
->>>>>>>>>
+**_start_**
 
 *_start_* methods specify actions to be performed once at the onset of a new state::
 
@@ -73,16 +71,14 @@ In the above example, every time the task enters the *wait* state, the origin ta
 
 The full name of the method should always be the ``_start_`` prefix followed by a state name that appears in the state transition definition, and the method should take ``self`` as its sole argument. (These two rules apply to *_while_* and *_end_* methods as well.)
 
-*_while_*
->>>>>>>>>
+**_while_**
 
 *_while_* methods specify actions to be repeated (usually once per frame) while the task is in a state. Here, the cursor position is being constantly updated during the *wait* state::
 
     def _while_wait(self):
         self.update_cursor()
 
-*_end_*
->>>>>>>
+**_end_**
 
 *_end_* methods specify actions to be performed once at the end of a state, just before the task transitions to the next state. In this example, the origin target changes color once a target hold is complete::
 
@@ -90,8 +86,7 @@ The full name of the method should always be the ``_start_`` prefix followed by 
         #change target color
         self.origin_target.color = (0,1,0,0.5)
 
-*_test_*
->>>>>>>>
+**_test_**
 
 *_test_* methods define the criteria for state transitions. They are called constantly in the background during corresponding states, and must always return a boolean value. When a *_test_* method returns ``True``, a transition to the state specified in the state transition definition is triggered. *_test_* methods must be named with the prefix ``_test_`` followed by one of the event names listed in the state transition definition, and they always have two arguments: ``self`` and ``ts``, which is a variable containing the elapsed time in seconds since the onset of the current state. The following *_test_* method returns ``True`` when the elapsed time in the current state (*origin_hold*) exceeds the constant value *origin_hold_time*::
 
