@@ -53,7 +53,7 @@ class Track(object):
     def __del__(self):
         '''
         Destructor for Track object. Not sure if this function ever gets called 
-        since Track is a singleton created upon import of the ajax module...
+        since Track is a singleton created upon import of the db.tracker.ajax module...
         '''
         self.websock.stop()
 
