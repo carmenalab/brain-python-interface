@@ -272,14 +272,17 @@ class UpperArmPassiveExo(PassivePlant):
         self.rx_sock.bind(('10.0.0.1', 60000))
         super(UpperArmPassiveExo, self).start()        
 
-    def get_data_to_save(self):
+    def get_joint_angles(self):
         if self.initialized:
             data = self.rx_sock.recvfrom(48)
             self.tx_sock.sendto('c', ('10.0.0.12', 60001))
             joint_angles = np.array(struct.unpack('>dddddd', data[0]))
         else:
             joint_angles = np.array(np.ones(6)*np.nan)
-            
+        return joint_angles
+
+    def get_data_to_save(self):
+        joint_angles = self.get_joint_angles()            
         self.tx_sock.sendto('s', ('10.0.0.12', 60001))
         self.initialized = True
 
@@ -288,8 +291,11 @@ class UpperArmPassiveExo(PassivePlant):
         return dict(joint_angles=joint_angles)
 
     def get_endpoint_pos(self):
-        ### THIS IS A STUB FUNCTION UNTIL THE IK WORKS!
-        return np.zeros(3)
+        '''
+        Get endpoint position using the model representation of the D-H parameters of the passive exo
+        '''
+        joint_angles = np.deg2rad(self.get_joint_angles())
+        return self.kin_chain.endpoint_pos(joint_angles)
 
     def stop(self):
         self.rx_sock.close()
