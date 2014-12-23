@@ -677,6 +677,141 @@ class EMGAmplitudeExtractor(object):
         emg = self.extract_features(cont_samples)
         return emg, None
 
+class WaveformClusterCountExtractor(FeatureExtractor):
+    feature_type = 'cluster_counts'
+    def __init__(self, source, gmm_model_params, n_subbins=1, units=[]):
+        self.feature_dtype = [('cluster_counts', 'f8', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+
+        self.source = source
+        self.gmm_model_params = gmm_model_params        
+        self.n_subbins = n_subbins
+        self.units = units
+        self.n_units = len(units)
+
+        extractor_kwargs = dict()
+        extractor_kwargs['n_subbins']        = self.n_subbins
+        extractor_kwargs['units']            = self.units
+        extractor_kwargs['gmm_model_params'] = gmm_model_params
+        self.extractor_kwargs = extractor_kwargs
+
+        self.last_get_spike_counts_time = 0        
+
+    def get_spike_data(self):
+        '''
+        Get the spike timestamps from the neural data source. This function has no type checking, 
+        i.e., it is assumed that the Extractor object was created with the proper source
+        '''
+        return self.source.get()
+
+    def get_bin_edges(self, ts):
+        '''
+        Determine the first and last spike timestamps to allow HDF files 
+        created by the BMI to be semi-synchronized with the neural data file
+        '''
+        if len(ts) == 0:
+            bin_edges = np.array([np.nan, np.nan])
+        else:
+            min_ind = np.argmin(ts['ts'])
+            max_ind = np.argmax(ts['ts'])
+            bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])
+
+    def __call__(self, start_time, *args, **kwargs):
+        '''    Docstring    '''
+        spike_data = self.get_spike_data()
+        if len(spike_data) == 0:
+            counts = np.zeros([len(self.units), self.n_subbins])
+        elif self.n_subbins > 1:
+            subbin_edges = np.linspace(self.last_get_spike_counts_time, start_time, self.n_subbins+1)
+
+            # Decrease the first subbin index to include any spikes that were
+            # delayed in getting to the task layer due to threading issues
+            # An acceptable delay is 1 sec or less. Realistically, most delays should be
+            # on the millisecond order
+            # subbin_edges[0] -= 1
+            # subbin_inds = np.digitize(spike_data['arrival_ts'], subbin_edges)
+            # counts = np.vstack([bin_spikes(ts[subbin_inds == k], self.units) for k in range(1, self.n_subbins+1)]).T
+            raise NotImplementedError
+        else:
+            # TODO pull the waveforms
+            waveforms = []
+
+            # TODO determine p(class) for each waveform against the model params
+            counts = np.zeros(self.n_units)
+            wf_class_probs = []
+            for wf in waveforms:
+                raise NotImplementedError
+            
+            # counts = bin_spikes(ts, self.units).reshape(-1, 1)
+
+        counts = np.array(counts, dtype=np.uint32)
+        bin_edges = self.get_bin_edges(ts)
+        self.last_get_spike_counts_time = start_time
+
+        return dict(spike_counts=counts, bin_edges=bin_edges)        
+
+    @classmethod
+    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):        
+        from sklearn.mixture import GMM
+        if 'plexon' in files:
+            from plexon import plexfile
+            plx = plexfile.openFile(str(files['plexon']))        
+        
+            channels = units[:,0]
+            channels = np.unique(channels)
+            np.sort(channels)
+
+            spike_chans = plx.spikes[:].data['chan']
+            spike_times = plx.spikes[:].data['ts']
+            waveforms = plx.spikes[:].waveforms
+
+            # construct the feature matrix (n_timepoints, n_units)
+            # interpolate between the rows to 180 Hz
+            if binlen < 1./strobe_rate:
+                interp_rows = []
+                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+                for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
+                interp_rows = np.array(interp_rows)
+            else:
+                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+                interp_rows = neurows[::step]
+
+            # digitize the spike timestamps into interp_rows
+            spike_bin_ind = np.digitize(spike_times, interp_rows)
+            spike_counts = np.zeros(len(interp_rows), n_units)
+
+            for ch in channels:
+                ch_waveforms = waveforms[spike_chans == ch]
+
+                # cluster the waveforms using a GMM
+                # TODO pick the number of components in an unsupervised way!
+                n_components = len(np.nonzero(units[:,0] == ch)[0])
+                gmm = GMM(n_components=n_components)
+                gmm.fit(ch_waveforms)
+
+                # store the cluster probabilities back in the same order that the waveforms were extracted
+                wf_probs = gmm.predict_proba(ch_waveforms)
+
+                ch_spike_bin_inds = spike_bin_ind[spike_chans == ch]
+                ch_inds, = np.nonzero(units[:,0] == ch)
+
+                # TODO don't assume the units are sorted!
+                for bin_ind, wf_prob in izip(ch_spike_bin_inds, wf_probs):
+                    spike_counts[bin_ind, ch_inds] += wf_prob
+
+
+            # discard units that never fired at all
+            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+            units = units[unit_inds,:]
+            spike_counts = spike_counts[:, unit_inds]
+            extractor_kwargs['units'] = units
+
+            return spike_counts, units, extractor_kwargs
+        else:
+            raise NotImplementedError('Not implemented for blackrock/TDT data yet!')
+
+
+
 
 
 
