@@ -96,6 +96,7 @@ class Model(object):
 
         Returns: None
         '''
+        
         glUniformMatrix4fv(ctx.uniforms.xfm, 1, GL_TRUE, self._xfm.to_mat().astype(np.float32))
         glUniform4f(ctx.uniforms.basecolor, *kwargs.pop('color', self.color))
         glUniform4f(ctx.uniforms.spec_color, *kwargs.pop('specular_color', self.spec_color))

@@ -521,6 +521,11 @@ class LFPMTMPowerExtractor(object):
         extractor_kwargs['win_len']  = self.win_len
         extractor_kwargs['NW']       = self.NW
         extractor_kwargs['fs']       = self.fs
+
+   
+        extractor_kwargs['no_log']  = kwargs.has_key('no_log') and kwargs['no_log']==True #remove log calculation
+        extractor_kwargs['no_mean'] = kwargs.has_key('no_mean') and kwargs['no_mean']==True #r
+
         self.extractor_kwargs = extractor_kwargs
 
         self.n_pts = int(self.win_len * self.fs)
@@ -530,6 +535,9 @@ class LFPMTMPowerExtractor(object):
         for band_idx, band in enumerate(bands):
             self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
 
+        extractor_kwargs['fft_inds']       = self.fft_inds
+        extractor_kwargs['fft_freqs']      = fft_freqs
+        
         self.epsilon = 1e-9
 
     def get_cont_samples(self, *args, **kwargs):
@@ -537,24 +545,31 @@ class LFPMTMPowerExtractor(object):
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
-        '''    Docstring    '''
+        '''    cont_samples is in channels x time   '''
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
-
-        # compute average power of each band of interest
-        n_chan = len(self.channels)
-        lfp_power = np.zeros((n_chan * len(self.bands), 1))
-        for idx, band in enumerate(self.bands):
-            lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
-
-        # n_chan = len(self.channels)     
-        # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
         
-        return lfp_power
+        if (self.extractor_kwargs.has_key('no_mean')) and (self.extractor_kwargs['no_mean'] is True):
+            return psd_est.reshape(psd_est.shape[0]*psd_est.shape[1], 1)
+
+        else:
+            # compute average power of each band of interest
+            n_chan = len(self.channels)
+            lfp_power = np.zeros((n_chan * len(self.bands), 1))
+            for idx, band in enumerate(self.bands):
+                if self.extractor_kwargs['no_log']:
+                    lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1).reshape(-1, 1)
+                else:
+                    lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
+
+            # n_chan = len(self.channels)     
+            # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
+            
+            return lfp_power
 
     def __call__(self, start_time, *args, **kwargs):
         '''    Docstring    '''
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-        # cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
+        #cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
         lfp_power = self.extract_features(cont_samples)
 
         return dict(lfp_power=lfp_power)

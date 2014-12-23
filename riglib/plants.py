@@ -3,7 +3,7 @@
 Representations of plants (control systems)
 '''
 import numpy as np
-from stereo_opengl.primitives import Cylinder, Sphere, Cone
+from stereo_opengl.primitives import Cylinder, Sphere, Cone, Cube
 from stereo_opengl.models import Group
 from riglib.bmi import robot_arms
 from riglib.stereo_opengl.xfm import Quaternion
@@ -65,7 +65,6 @@ class Plant(object):
         Stop any auxiliary processes used by the plant
         '''        
         pass
-
 
 class FeedbackData(object):
     '''Abstract parent class, not meant to be instantiated.'''
@@ -370,6 +369,39 @@ class CursorPlant(Plant):
     def get_data_to_save(self):
         return dict(cursor=self.position)
 
+class onedimLFP_CursorPlant(CursorPlant):
+    hdf_attrs = [('lfp_cursor', 'f8', (3,))]
+
+    def __init__(self, endpt_bounds, *args, **kwargs):
+        self.lfp_cursor_rad = kwargs['lfp_cursor_rad']
+        self.lfp_cursor_color = kwargs['lfp_cursor_color']
+        args=[(), kwargs['lfp_cursor_color']]
+        super(onedimLFP_CursorPlant, self).__init__(endpt_bounds, *args, **kwargs)
+
+
+    def _pickle_init(self):
+        self.cursor = Cube(side_len=self.lfp_cursor_rad, color=self.lfp_cursor_color)
+        self.cursor.translate(*self.position, reset=True)
+        self.graphics_models = [self.cursor]
+
+    def drive(self, decoder):
+        pos = decoder.filt.get_mean()
+        pos = [-8, -2.2, pos]
+        if self.endpt_bounds is not None:
+            if pos[2] < self.endpt_bounds[4]: 
+                pos[2] = self.endpt_bounds[4]
+                
+            if pos[2] > self.endpt_bounds[5]: 
+                pos[2] = self.endpt_bounds[5]
+               
+            self.position = pos
+            self.draw()
+
+    def turn_off(self):
+        self.cursor.detach()
+
+    def turn_on(self):
+        self.cursor.attach()
 
 class VirtualKinematicChain(Plant):
     def __init__(self, *args, **kwargs):
