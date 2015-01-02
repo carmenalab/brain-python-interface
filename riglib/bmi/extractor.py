@@ -65,6 +65,23 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
         self.last_get_spike_counts_time = 0
 
+    def set_n_subbins(self, n_subbins):
+        '''
+        Alter the # of subbins without changing the extractor kwargs of a decoder
+
+        Parameters
+        ----------
+        n_subbins : int 
+            Number of bins into which to divide the observed spike counts 
+
+        Returns
+        -------
+        None
+        '''
+        self.n_subbins = n_subbins
+        self.extractor_kwargs['n_subbins'] = n_subbins
+        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+
     def get_spike_ts(self, *args, **kwargs):
         '''
         Get the spike timestamps from the neural data source. This function has no type checking, 
@@ -240,6 +257,10 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.n_subbins = hdf_table[0][source].shape[1]
         self.last_get_spike_counts_time = 0
         self.cycle_rate = cycle_rate
+
+        n_units = hdf_table[0]['spike_counts'].shape[0]
+        self.feature_dtype = [('spike_counts', 'u4', (n_units, self.n_subbins)), 
+                              ('bin_edges', 'f8', 2)]
 
     def get_spike_ts(self):
         '''
