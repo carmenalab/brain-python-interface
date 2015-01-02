@@ -70,10 +70,13 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     #   should come from a file or from the web interface
     # for LFP extractors, only kwarg that needs to be set here is 'channels'
     #   other kwargs will default to values specified in the class's __init__ 
+
+    task_update_rate = 60 # NOTE may not be true for all tasks?!
+    
     extractor_kwargs = dict()
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
         extractor_kwargs['units'] = units
-        extractor_kwargs['n_subbins'] = 1  # TODO -- don't hardcode (not = 1 for PPF!)
+        extractor_kwargs['n_subbins'] = max(1, int((1./task_update_rate)/binlen))
     elif extractor_cls == extractor.LFPButterBPFPowerExtractor:
         extractor_kwargs['channels'] = channels
     elif extractor_cls == extractor.LFPMTMPowerExtractor:
