@@ -83,13 +83,7 @@ def normalize(vec):
 
 class Learner(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Classes for estimating the 'intention' of the BMI operator, inferring the intention from task goals.
     '''
     def __init__(self, batch_size, *args, **kwargs):
         '''
@@ -99,10 +93,10 @@ class Learner(object):
         ----------
         batch_size: int
             number of samples used to estimate each new decoder parameter setting
-        done_states: list of strings, default = []
-            states of the task which end a batch, regardless of the length of the batch 
-        reset_states: list of strings, default = []
-            states of the task which, if encountered, reset the batch regardless of its length
+        done_states: list of strings, optional
+            states of the task which end a batch, regardless of the length of the batch. default = []
+        reset_states: list of strings, optional
+            states of the task which, if encountered, reset the batch regardless of its length. default = []
 
         '''
         self.done_states = kwargs.pop('done_states', [])
@@ -135,13 +129,26 @@ class Learner(object):
         """
         Calculate the intended kinematics and pair with the neural data
 
-        Docstring
-
         Parameters
         ----------
+        spike_counts : np.mat of shape (K, 1)
+            Neural observations used to decode 'decoder_state'
+        decoder_state : np.mat of shape (N, 1)
+            State estimate output from the decoder.
+        target_state : np.mat of shape (N, 1)
+            For the current time, this is the optimal state for the Decoder as specified by the task
+        decoder_output : np.mat of shape (N, 1)
+            ... this seems like the same as decoder_state
+        task_state : string
+            Name of the task state; some learners (e.g., the cursorGoal learner) have different intention estimates depending on the phase of the task/trial
+        state_order : np.ndarray of shape (N,), optional
+            Order of each state in the decoder; see riglib.bmi.state_space_models.State
+        **kwargs: dict
+            Optional keyword arguments for the 'value' calculator
 
         Returns
         -------
+        None
         """
         if task_state in self.reset_states:
             print "resetting CLDA batch"
@@ -230,16 +237,31 @@ class DumbLearner(Learner):
         raise NotImplementedError
 
 class OFCLearner(Learner):
-    '''An intention estimator where the subject is assumed to operate like a muiti-modal LQR controller'''
+    '''
+    An intention estimator where the subject is assumed to operate like a muiti-modal LQR controller
+    '''
     def __init__(self, batch_size, A, B, F_dict, *args, **kwargs):
         '''
-        Docstring
+        Constructor for OFCLearner
 
         Parameters
         ----------
+        batch_size : int
+            size of batch of samples to pass to the Updater to estimate new decoder parameters
+        A : np.mat 
+            State transition matrix of the modeled discrete-time system
+        B : np.mat 
+            Control input matrix of the modeled discrete-time system
+        F_dict : dict
+            Keys match names of task states, values are feedback matrices (size n_inputs x n_states)
+        *args : additional comma-separated args
+            Passed to super constructor
+        **kwargs : additional keyword args
+            Passed to super constructor
 
         Returns
         -------
+        OFCLearner instance
         '''
         super(OFCLearner, self).__init__(batch_size, *args, **kwargs)
         self.B = B
@@ -247,7 +269,28 @@ class OFCLearner(Learner):
         self.A = A
 
     def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        '''    Docstring    '''
+        '''
+        Calculate intended kinematics as 
+            x_t^{int} = A*x_t + B*F(x^* - x_t)
+
+        Parameters
+        ----------
+        current_state : np.mat of shape (N, 1)
+            State estimate output from the decoder.
+        target_state : np.mat of shape (N, 1)
+            For the current time, this is the optimal state for the Decoder as specified by the task
+        decoder_output : np.mat of shape (N, 1)
+            ... this seems like the same as decoder_state
+        task_state : string
+            Name of the task state; some learners (e.g., the cursorGoal learner) have different intention estimates depending on the phase of the task/trial
+        state_order : np.ndarray of shape (N,), optional
+            Order of each state in the decoder; see riglib.bmi.state_space_models.State
+
+        Returns
+        -------
+        np.mat of shape (N, 1)
+            Estimate of intended next state for BMI
+        '''
         try:
             current_state = np.mat(current_state).reshape(-1,1)
             target_state = np.mat(target_state).reshape(-1,1)
@@ -299,9 +342,13 @@ class OFCLearner3DEndptPPF(OFCLearner):
         self.input_state_index = 0
 
 class RegexKeyDict(dict):
-    '''    Docstring    '''
+    '''
+    Dictionary where key matching applies regular expressions in addition to exact matches
+    '''
     def __getitem__(self, key):
-        '''    Docstring    '''
+        '''
+        Lookup key in dictionary by finding exactly one dict key which, by regex, matches the input argument 'key'
+        '''
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
@@ -312,7 +359,6 @@ class RegexKeyDict(dict):
             return super(RegexKeyDict, self).__getitem__(matching_keys[0])
 
     def __contains__(self, key):
-        '''    Docstring    '''
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
@@ -442,8 +488,8 @@ class CursorGoalLearner2(Learner):
         ----------
         int_speed_type: string, optional, default='dist_to_target'
             Specifies the method to use to estimate the intended speed of the target.
-                dist_to_target: scales based on remaining distance to the target position
-                decoded_speed: use the speed output provided by the decoder, i.e., the difference between the intention and the decoder output can be described by a pure vector rotation
+            * dist_to_target: scales based on remaining distance to the target position
+            * decoded_speed: use the speed output provided by the decoder, i.e., the difference between the intention and the decoder output can be described by a pure vector rotation
 
         Returns
         -------
@@ -1015,7 +1061,6 @@ class PPFContinuousBayesianUpdater(object):
     def __init__(self, decoder, units='cm', param_noise_scale=1.):
         '''    Docstring    '''
         self.n_units = decoder.filt.C.shape[0]
-        #self.param_noise_variances = param_noise_variances
         if units == 'm':
             vel_gain = 1e-4
         elif units == 'cm':
@@ -1026,10 +1071,6 @@ class PPFContinuousBayesianUpdater(object):
         param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
         self.W = np.tile(np.diag(param_noise_variances), [self.n_units, 1, 1])
 
-        #self.P_params_est_old = np.zeros([self.n_units, 3, 3])
-        #for j in range(self.n_units):
-        #    self.P_params_est_old[j,:,:] = self.W #Cov_params_init
-        #self.P_params_est_old = P_params_est_old
         self.P_params_est = self.W.copy()
 
         self.neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
@@ -1038,7 +1079,7 @@ class PPFContinuousBayesianUpdater(object):
         self.full_size = len(decoder.states)
 
         self.dt = decoder.filt.dt
-        self.beta_est = np.array(decoder.filt.C) #[:,self.neuron_driving_state_inds])
+        self.beta_est = np.array(decoder.filt.C)
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, **kwargs):
         '''    Docstring    '''
@@ -1055,7 +1096,6 @@ class PPFContinuousBayesianUpdater(object):
             int_kin = int_kin_full[:,k]
 
             beta_est = self.beta_est[:,self.neuron_driving_state_inds]
-            #P_params_est_old = self.P_params_est_old
             int_kin = np.asarray(int_kin).ravel()[self.neuron_driving_state_inds]
             Loglambda_predict = np.dot(int_kin, beta_est.T)
             rates = np.exp(Loglambda_predict)
@@ -1066,22 +1106,15 @@ class PPFContinuousBayesianUpdater(object):
 
             C_xpose_C = np.outer(int_kin, int_kin)
 
-            #P_params_est = np.zeros([self.n_units, 3, 3]) # TODO remove hardcoding of # of states
             self.P_params_est += self.W
             P_params_est_inv = fast_inv(self.P_params_est)
             L = np.dstack([rates[c] * C_xpose_C for c in range(self.n_units)]).transpose([2,0,1])
             self.P_params_est = fast_inv(P_params_est_inv + L)
 
-            ## for c in range(self.n_units):
-            ##     #P_pred = self.P_params_est[c] + self.W[c]
-            ##     self.P_params_est[c] = inv(inv(self.P_params_est[c]) + rates[c]*C_xpose_C)
-
             beta_est += (unpred_spikes * np.dot(int_kin, self.P_params_est).T).T
 
             # store beta_est
             self.beta_est[:,self.neuron_driving_state_inds] = beta_est
-
-            #self.P_params_est_old = P_params_est
 
         return {'filt.C': np.mat(self.beta_est.copy())}
 
@@ -1287,9 +1320,15 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     Save CLDA data generated during the experiment to the specified HDF file
 
     Parameters
-    ==========
-    hdf_fname : filename of HDF file
-    data : list of dictionaries with the same keys and same dtypes for values
+    ----------
+    hdf_fname : string
+        filename of HDF file
+    data : list
+        list of dictionaries with the same keys and same dtypes for values
+
+    Returns
+    -------
+    None
     '''
     log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_hdf_log'), 'w')
 
