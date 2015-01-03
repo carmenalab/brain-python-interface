@@ -1062,7 +1062,7 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
 
 
-class PPFContinuousBayesianUpdater(object):
+class PPFContinuousBayesianUpdater(Updater):
     '''
     Adapt the parameters of a PPFDecoder using an HMM to implement a gradient-descent type parameter update.
 
@@ -1228,14 +1228,45 @@ class KFRML(Updater):
         return (R, S, T, ESS)
 
     def init(self, decoder):
-        '''    Docstring    '''
+        '''
+        Retrieve sufficient statistics from the seed decoder.
+
+        Parameters
+        ----------
+        decoder : bmi.Decoder instance
+            The seed decoder before any adaptation runs.
+
+        Returns
+        -------
+        None
+        '''
         self.R = decoder.filt.R
         self.S = decoder.filt.S
         self.T = decoder.filt.T
         self.ESS = decoder.filt.ESS
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
-        '''    Docstring    '''
+        '''
+        Parameters
+        ----------
+        intended_kin : np.ndarray of shape (n_states, batch_size)
+            Batch of estimates of intended kinematics, from the learner
+        spike_counts : np.ndarray of shape (n_features, batch_size)
+            Batch of observations of decoder features, from the learner
+        decoder : bmi.Decoder instance
+            Reference to the Decoder instance
+        half_life : float, optional
+            Half-life to use to calculate the parameter change step size. If not specified, the half-life specified when the Updater was constructed is used.
+        values : np.ndarray, optional
+            Relative value of each sample of the batch. If not specified, each sample is assumed to have equal value.
+        kwargs : dict
+            Optional keyword arguments, ignored
+
+        Returns
+        -------
+        new_params : dict
+            New parameters to feed back to the Decoder in use by the task.
+        '''
         if intended_kin == None or spike_counts == None or decoder == None:
             raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
 
@@ -1289,8 +1320,87 @@ class PPFRML(KFRML):
     '''
     Extension of the RML method to the point-process observation model using a Gaussian approximation to the obs model
     '''
+    def init(self, decoder):
+        n_params_per_cell = decoder.ssm.drives_obs_inds
+        n_units = decoder.n_units
+        R_inv_cell = np.diag([0.00071857755796282436, 0.00071857755796282436, 0.018144994682778668])
+        from scipy.linalg import block_diag
+        self.R_inv = block_diag(*([R_inv_cell]*n_units))
+        self.S = decoder.filt.S
+
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
-        raise NotImplementedError
+        '''
+        Parameters
+        ----------
+        intended_kin : np.ndarray of shape (n_states, batch_size)
+            Batch of estimates of intended kinematics, from the learner
+        spike_counts : np.ndarray of shape (n_features, batch_size)
+            Batch of observations of decoder features, from the learner
+        decoder : bmi.Decoder instance
+            Reference to the Decoder instance
+        half_life : float, optional
+            Half-life to use to calculate the parameter change step size. If not specified, 
+            the half-life specified when the Updater was constructed is used.
+        values : np.ndarray, optional
+            Relative value of each sample of the batch. If not specified, each sample is assumed to have equal value.
+        kwargs : dict
+            Optional keyword arguments, ignored
+
+        Returns
+        -------
+        new_params : dict
+            New parameters to feed back to the Decoder in use by the task.
+        '''
+        if intended_kin == None or spike_counts == None or decoder == None:
+            raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
+
+        # Calculate the step size based on the half life and the number of samples to train from
+        batch_size = intended_kin.shape[1]
+        batch_time = batch_size * decoder.binlen            
+
+        if half_life is not None:
+            rho = np.exp(np.log(0.5)/(half_life/batch_time))
+        else:
+            rho = self.rho 
+
+        drives_neurons = decoder.drives_neurons
+
+        x = np.mat(intended_kin)
+        y = np.mat(spike_counts)
+        n_features = y.shape[0]
+
+        # if values is not None:
+        #     n_samples = np.sum(values)
+        #     B = np.mat(np.diag(values))
+        # else:
+        #     n_samples = spike_counts.shape[1]
+        #     B = np.mat(np.eye(n_samples))
+
+        for k in range(n_samples):
+            x_t = x[drives_neurons, k]
+            Loglambda_predict = decoder.C * x_t
+            exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
+            lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
+            Q_inv = np.mat(np.diag(lambda_predict*dt))
+
+            y_t = y[:,k]
+            # self.R = rho*self.R + np.kron(x_t*x_t.T, Q_inv)
+            self.S = rho*self.S + Q_inv*y_t*x_t.T
+
+        # self.R = rho*self.R + (x*B*x.T)
+        # self.S = rho*self.S + (y*B*x.T)
+
+        vec_C = np.dot(self.R_inv, self.S.T.flatten()) #np.linalg.lstsq(self.R, self.S)[0]
+        C = np.zeros_like(decoder.C)
+        C[:,drives_neurons] = vec_C.reshape(-1, n_features).T
+        # TODO these aren't necessary for the independent observations PPF, but maybe for the more complicated forms?
+        # self.T = rho*self.T + np.dot(y, B*y.T)
+        # self.ESS = rho*self.ESS + n_samples
+        
+        new_params = {'filt.C':C, 'filt.S':self.S} # 'kf.ESS':self.ESS, 'filt.T':self.T
+
+        return new_params
+
 
 class KFRML_IVC(KFRML):
     '''
