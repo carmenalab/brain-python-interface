@@ -531,6 +531,15 @@ def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     ppf = ppfdecoder.PointProcessFilter(A, W, C, B=B, dt=update_rate, is_stochastic=ssm.is_stochastic)
     decoder = ppfdecoder.PPFDecoder(ppf, units, ssm, binlen=binlen, tslice=tslice)
 
+    # Compute sufficient stats for C matrix (used for RML CLDA)
+    from clda import KFRML
+    n_features, n_states = C.shape
+    S = np.mat(np.zeros([n_features, n_states]))
+    S_small, = decoder.compute_suff_stats(kin[ssm.train_inds, :], neural_features)
+
+    S[:,ssm.drives_obs_inds] = S_small
+        
+    decoder.filt.S = S
     decoder.n_features = n_features
 
     decoder.extractor_cls = extractor_cls
