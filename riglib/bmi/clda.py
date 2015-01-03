@@ -861,6 +861,13 @@ class IsMoreOFCLearner(OFCLearner):
 ##############################################################################
 ## Updaters
 ##############################################################################
+class Updater(object):
+    '''
+    Classes for updating decoder parameters
+    '''
+    def init(self, decoder):
+        pass
+
 class CLDARecomputeParameters(mp.Process):
     '''    Docstring    '''
     update_kwargs = dict() 
@@ -1056,10 +1063,25 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
 
 
 class PPFContinuousBayesianUpdater(object):
-    '''    Docstring    '''
+    '''
+    Adapt the parameters of a PPFDecoder using an HMM to implement a gradient-descent type parameter update.
+
+    (currently only works for PPFs which do not also include the self-history or correlational elements)
+    '''
     update_kwargs = dict()
     def __init__(self, decoder, units='cm', param_noise_scale=1.):
-        '''    Docstring    '''
+        '''
+        Constructor for PPFContinuousBayesianUpdater
+
+        Parameters
+        ----------
+        decoder : bmi.ppfdecoder.PPFDecoder instance
+            Should have a 'filt' attribute which is a PointProcessFilter instance
+        units : string
+            Docstring
+        param_noise_scale : float
+            Multiplicative factor to increase the parameter "process noise". Higher values result in faster but less stable parameter convergence.
+        '''
         self.n_units = decoder.filt.C.shape[0]
         if units == 'm':
             vel_gain = 1e-4
@@ -1114,30 +1136,70 @@ class PPFContinuousBayesianUpdater(object):
             beta_est += (unpred_spikes * np.dot(int_kin, self.P_params_est).T).T
 
             # store beta_est
-            self.beta_est[:,self.neuron_driving_state_inds] = beta_est
+            self.beta_est[:, self.neuron_driving_state_inds] = beta_est
 
         return {'filt.C': np.mat(self.beta_est.copy())}
 
 
-class KFRML(object):
+class KFRML(Updater):
     '''
-    Calculate updates for KF parameters using the Recursive maximum likelihood (RML) method
-    See Dangi et al, 2014 for mathematical details.
+    Calculate updates for KF parameters using the recursive maximum likelihood (RML) method
+    See (Dangi et al, Neural Computation, 2014) for mathematical details.
     '''
     update_kwargs = dict(steady_state=False)
     def __init__(self, work_queue, result_queue, batch_time, half_life):
-        '''    Docstring    '''
-        # super(KFRML, self).__init__(work_queue, result_queue)
+        '''
+        Constructor for KFRML
+
+        Parameters
+        ----------
+        work_queue : None
+            Not used for this method!
+        result_queue : None
+            Not used for this method!
+        batch_time : float
+            Size of data batch to use for each update. Specify in seconds.
+        half_life : float 
+            Amount of time (in seconds) before parameters are half-overwritten by new data.
+
+        Returns
+        -------
+        KFRML instance
+
+        '''
         self.work_queue = None
         self.batch_time = batch_time
         self.result_queue = None        
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-        # self.iter_counter = 0
 
     @staticmethod
     def compute_suff_stats(hidden_state, obs, include_offset=True):
-        '''    Docstring    '''
+        '''
+        Calculate initial estimates of the parameter sufficient statistics used in the RML update rules
+
+        Parameters
+        ----------
+        hidden_state : np.ndarray of shape (n_states, n_samples)
+            Examples of the hidden state x_t taken from training seed data.  
+        obs : np.ndarray of shape (n_features, n_samples)
+            Multiple neural observations paired with each of the hidden state examples
+        include_offset : bool, optional
+            If true, a state of all 1's is added to the hidden_state to represent mean offsets. True by default
+
+        Returns
+        -------
+        R : np.ndarray of shape (n_states, n_states)
+            Proportional to covariance of the hidden state samples 
+        S : np.ndarray of shape (n_features, n_states)
+            Proportional to cross-covariance between 
+        T : np.ndarray of shape (n_features, n_features)
+            Proportional to covariance of the neural observations
+        ESS : float
+            Effective number of samples. In the initialization, this is just the 
+            dimension of the array passed in, but the parameter can become non-integer 
+            during the update procedure as old parameters are "forgotten".
+        '''
         assert hidden_state.shape[1] == obs.shape[1]
     
         if isinstance(hidden_state, np.ma.core.MaskedArray):
@@ -1158,17 +1220,14 @@ class KFRML(object):
             Y = np.mat(obs)
         X = np.mat(X, dtype=np.float64)
 
-        # R = (1./n_pts) * (X * X.T)
-        # S = (1./n_pts) * (Y * X.T)
-        # T = (1./n_pts) * (Y * Y.T)
         R = (X * X.T)
         S = (Y * X.T)
         T = (Y * Y.T)
-        ESS = n_pts  # "effective sample size" (number of points in batch)
+        ESS = n_pts
 
         return (R, S, T, ESS)
 
-    def init_suff_stats(self, decoder):
+    def init(self, decoder):
         '''    Docstring    '''
         self.R = decoder.filt.R
         self.S = decoder.filt.S
@@ -1225,6 +1284,13 @@ class KFRML(object):
 
         return new_params
 
+
+class PPFRML(KFRML):
+    '''
+    Extension of the RML method to the point-process observation model using a Gaussian approximation to the obs model
+    '''
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
+        raise NotImplementedError
 
 class KFRML_IVC(KFRML):
     '''
