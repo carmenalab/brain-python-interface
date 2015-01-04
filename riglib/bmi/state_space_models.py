@@ -104,16 +104,34 @@ def linear_kinarm_kf(update_rate=1./10, units_mult=0.01, ndim=3, vel_decay=0.8):
     
 
 class State(object):
-    ''' Docstring '''
+    '''
+    A 1D component of a state-space, e.g., vertical velocity
+    '''
     def __init__(self, name, stochastic=False, drives_obs=False, min_val=np.nan, max_val=np.nan, order=-1):
         '''
-        Docstring
+        Constructor for State
 
         Parameters
         ----------
+        name : string
+            Name of the state
+        stochastic : bool, optional
+            Specify whether the state is stochastic (estimated from observation) 
+            or deterministic (updated entirely by model). Default is 'deterministic'
+        drives_obs : bool, optional
+            Specify whether the state will be reflected in the observations if it is
+            used as a 'hidden' state. By default, the state and any observations will not be directly related
+        min_val : float, optional
+            Hard (nonlinear) constraint on the minimum value of the state. By default (np.nan), no constraint is applied.
+        max_val : float, optional
+            Hard (nonlinear) constraint on the maximum value of the state. By default (np.nan), no constraint is applied.
+        order : int
+            Specification of the 'order' that this state would contribute to a differential equation, 
+            e.g., constant states are order 0, position states are order 1, velocity states are order 2, etc.
 
         Returns
         -------
+        State instance
         '''
         assert not name == 'q', "'q' is a reserved keyword (symbol for generalized robot coordinates) and cannot be used as a state name"
         self.name = name
@@ -124,108 +142,64 @@ class State(object):
         self.order = order
 
     def __repr__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         return str(self.name) 
 
     def __eq__(self, other):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        State instances are equal if all their attributes (name, stochastic, etc.) are equal
         '''
         if not isinstance(other, State):
             return False
         else:
             return np.all([self.__dict__[x] == other.__dict__[x] or (np.isnan(self.__dict__[x]) and np.isnan(other.__dict__[x])) for x in self.__dict__])
-            # return self.__dict__
 
 class StateSpace(object):
-    ''' Docstring '''
+    '''
+    A collection of multiple 'State' instances forms a StateSpace
+    '''
     def __init__(self, *states):
         '''
-        Docstring
+        Constructor for StateSpace
 
         Parameters
         ----------
+        states : packed tuple
+            State instances specified in comma-separated arguments
 
         Returns
         -------
+        StateSpace instance
         '''
         self.states = list(states)
 
     def __repr__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         return 'State space: ' + str(self.state_names)
 
     @property
     def is_stochastic(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        An array of booleans specifying each state as stochastic
         '''
         return np.array([x.stochastic for x in self.states])
 
     @property
     def drives_obs(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        An array of booleans specifying each state as observation-driving
         '''
         return np.array([x.drives_obs for x in self.states])
 
     @property
     def state_names(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        A list of string names for each state
         '''
         return [x.name for x in self.states]
 
     @property
     def bounding_box(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        A tuple of min values and max values for each state
         '''
         min_bounds = np.array(filter(lambda x: x is not np.nan, [x.min_val for x in self.states]))
         max_bounds = np.array(filter(lambda x: x is not np.nan, [x.max_val for x in self.states]))
@@ -234,89 +208,49 @@ class StateSpace(object):
     @property
     def states_to_bound(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        A list of the names of all the states which have limits on the values they can take.
         '''
         return [x.name for x in filter(lambda x: x.min_val is not np.nan, self.states)]
 
     @property
     def n_states(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Number of states in the space
         '''
         return len(self.states)
 
     @property
     def train_inds(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        An array of 
         '''
         return filter(lambda k: self.states[k].stochastic, range(self.n_states))
 
     @property
     def drives_obs_inds(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        A list of the indices of the states which are related to observations when 
+        used as a hidden state-space. Used when seeding Decoders
         '''
         return filter(lambda k: self.states[k].drives_obs, range(self.n_states))
 
     @property 
     def state_order(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        An array listing the 'order' of each state (see State.__init__ for description of 'order')
         '''
         return np.array([x.order for x in self.states])
 
     def get_ssm_matrices(self, *args, **kwargs):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Returns the parameters of the composite state-space models for use in Decoders. 
+        Must be overridden in child classes as there is no way to specify this generically.
         '''
         raise NotImplementedError
 
     def __eq__(self, other):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        State spaces are equal if the all the states are equal and all the states are listed in the same order
         '''
         if not isinstance(other, StateSpace):
             return False
@@ -326,17 +260,10 @@ class StateSpace(object):
 offset_state = State('offset', stochastic=False, drives_obs=True, order=-1)
 
 class StateSpaceEndptVel(StateSpace):
-    ''' Docstring '''
+    '''
+    StateSpace with 3D velocity
+    '''
     def __init__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         super(StateSpaceEndptVel, self).__init__(
             State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
             State('hand_py', stochastic=False, drives_obs=False, min_val=-10, max_val=10, order=0),
@@ -349,13 +276,19 @@ class StateSpaceEndptVel(StateSpace):
 
     def get_ssm_matrices(self, update_rate=0.1):
         '''
-        Docstring
+        For the linear stochastic state-space model 
+            x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
+        this function specifies the matrices A, B and W
 
         Parameters
         ----------
+        update_rate : float, optional
+            Time between iterations of the discrete-time model. Default is 0.1 sec.
 
         Returns
         -------
+        tuple of 3 np.mat matrices
+            A, B and W as specified in the mathematical model above
         '''
         # State-space model set from expert data
         A, W = linear_kinarm_kf(update_rate=update_rate)
@@ -366,17 +299,10 @@ class StateSpaceEndptVel(StateSpace):
         return A, B, W
 
 class StateSpaceEndptVel2D(StateSpace):
-    ''' Docstring '''
+    '''
+    StateSpace with 2D velocity in the X-Z plane
+    '''
     def __init__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         super(StateSpaceEndptVel2D, self).__init__(
             State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
             State('hand_py', stochastic=False, drives_obs=False, order=0),
@@ -389,13 +315,19 @@ class StateSpaceEndptVel2D(StateSpace):
 
     def get_ssm_matrices(self, update_rate=0.1):
         '''
-        Docstring
+        For the linear stochastic state-space model 
+            x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
+        this function specifies the matrices A, B and W
 
         Parameters
         ----------
+        update_rate : float, optional
+            Time between iterations of the discrete-time model. Default is 0.1 sec.
 
         Returns
         -------
+        tuple of 3 np.mat matrices
+            A, B and W as specified in the mathematical model above
         '''
         # State-space model set from expert data
         A, W = linear_kinarm_kf(update_rate=update_rate)
@@ -404,8 +336,6 @@ class StateSpaceEndptVel2D(StateSpace):
         I = np.mat(np.eye(3))
         B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
         return A, B, W
-
-
 
 
 class StateSpaceArmAssist(StateSpace):
@@ -517,15 +447,6 @@ class StateSpaceExoArm(StateSpace):
         5) pronation/supination
     '''
     def __init__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         super(StateSpaceExoArm, self).__init__(
                 # position states
                 State('sh_pflex', stochastic=False, drives_obs=False, order=0),
@@ -544,15 +465,6 @@ class StateSpaceExoArm(StateSpace):
         )
 
     def get_ssm_matrices(self, update_rate=0.1):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         raise NotImplementedError("Still need to determine A for the full joint space. Need 3D reaching data from real primate")
 
 class StateSpaceExoArm2D(StateSpaceExoArm):

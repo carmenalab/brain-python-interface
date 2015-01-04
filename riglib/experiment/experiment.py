@@ -212,18 +212,23 @@ class Experiment(traits.HasTraits, threading.Thread):
             try:
                 if hasattr(self, "_while_%s"%self.state):
                     getattr(self, "_while_%s"%self.state)()
+
+                # Execute the commands which must run every loop, independent of the FSM state
+                # (e.g., running the BMI)
                 self._cycle()
                 
                 for event, state in self.status[self.state].items():
-                    test_fn_name = "_test_%s"%event
-                    if hasattr(self, test_fn_name):
-                        test_fn = getattr(self, "_test_%s"%event)
+                    event_test_fn_name = "_test_%s" % event
+                    if hasattr(self, event_test_fn_name):
+                        event_test_fn = getattr(self, event_test_fn_name)
                         time_since_state_started = self.get_time() - self.start_time
 
                         # If the test function evaluates to True, 
-                        if test_fn(time_since_state_started):
-                            if hasattr(self, "_end_%s"%self.state):
-                                getattr(self, "_end_%s"%self.state)()
+                        if event_test_fn(time_since_state_started):
+                            end_state_fn_name = "_end_%s" % self.state
+                            if hasattr(self, end_state_fn_name):
+                                end_state_fn = getattr(self, end_state_fn_name)
+                                end_state_fn()
 
                             # Execute the event. In the base class, this means changing the state to the next state
                             self.trigger_event(event)
