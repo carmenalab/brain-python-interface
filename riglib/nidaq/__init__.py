@@ -10,16 +10,21 @@ except:
     warnings.warn('Cannot import pcidio. Did you run its build script?')
 
 class SendAll(object):
-    ''' Docstring '''
+    '''
+    Interface for sending all the task-generated data through the NIDAQ interface card
+    '''
     def __init__(self, device="/dev/comedi0"):
         '''
-        Docstring
+        Constructor for SendAll
 
         Parameters
         ----------
+        device : string, optional
+            comedi device to open and use for data sending; only tested for NI PCI-6503
 
         Returns
         -------
+        SendAll instance
         '''
         self.systems = dict()
         if pcidio.init(device) != 0:
