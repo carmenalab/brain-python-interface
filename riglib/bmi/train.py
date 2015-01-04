@@ -39,7 +39,7 @@ StateSpaceEndptVel = state_space_models.StateSpaceEndptVel
 endpt_3D_state_space = StateSpaceEndptVel()
 endpt_2D_state_space = StateSpaceEndptVel2D()
 joint_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=2)
-tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
+tentacle_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=4) #StateSpaceFourLinkTentacle2D()
 
 StateSpaceArmAssist = state_space_models.StateSpaceArmAssist
 StateSpaceReHand    = state_space_models.StateSpaceReHand

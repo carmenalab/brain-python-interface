@@ -675,7 +675,7 @@ class StateSpaceNLinkPlanarChain(StateSpace):
     State-space model for an N-link kinematic chain
     '''
     def __init__(self, n_links=2):
-        self.n_links = 2
+        self.n_links = n_links
         pos_states = []
         vel_states = []
 
