@@ -183,6 +183,25 @@ class GaussianStateHMM(object):
         self.state = self._forward_infer(self.state, obs, **kwargs)
         return self.state.mean
 
+    def _pickle_init(self):
+        pass
+
+    def __setstate__(self, state):
+        """
+        Unpickle decoders by loading all the saved parameters and then running _pickle_init
+
+        Parameters
+        ----------
+        state : dict
+            Provided by the unpickling system
+
+        Returns
+        -------
+        None
+        """
+        self.__dict__ = state
+        self._pickle_init()
+
 
 class Decoder(object):
     '''
