@@ -137,7 +137,8 @@ class GaussianStateHMM(object):
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         ''' Docstring
-        Run the "predict" step of the Kalman filter/HMM inference algorithm
+        Run the "predict" step of the Kalman filter/HMM inference algorithm:
+            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
 
         Parameters
         ----------
@@ -166,12 +167,16 @@ class GaussianStateHMM(object):
             return A*state + self.state_noise
 
     def __eq__(self, other):
-        '''    Docstring    '''
+        '''
+        Determine equality of two GaussianStateHMM instances
+        '''
         import train
         return train.obj_eq(self, other, self.model_attrs)
 
     def __sub__(self, other):
-        '''    Docstring    '''
+        '''
+        Subtract the model attributes of two GaussianStateHMM instances. Used to determine approximate equality, i.e., equality modulo floating point error
+        '''
         import train
         return train.obj_diff(self, other, self.model_attrs)
 
