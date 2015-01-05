@@ -14,6 +14,9 @@ from riglib import bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
 from hdf_features import SaveHDF
+import sys
+import glob
+import datetime
 
 sec_per_min = 60
 
@@ -30,9 +33,21 @@ class RelayPlexon(object):
         self.nidaq = sink.sinks.start(self.ni_out)
         super(RelayPlexon, self).init()
 
+        # Find all the plexon files modified in the last day
+        file_pattern = "/storage/plexon/*.plx"
+        file_names = glob.glob(file_pattern)
+        start_time = datetime.datetime.today() - datetime.timedelta(days=1)
+        file_names = filter(lambda fname: datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time, file_names)
+
+        self.possible_filenames = file_names
+        self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
+
     @property
     def ni_out(self):
-        ''' Docstring '''
+        '''
+        Specify the output interface; can be overridden in child classes as long as 
+        this method returns a class which has the same instance methods (close, register, send, sendMsg, etc.)
+        '''
         from riglib import nidaq
         return nidaq.SendAll
 
@@ -43,18 +58,35 @@ class RelayPlexon(object):
         based on the time at which the task ended and the "last modified" time of the 
         plexon files located at /storage/plexon/
         '''
-        import os, sys, glob, time
-        if len(self.event_log) < 1:
-            return None
-        
-        start = self.event_log[-1][2]
-        files = "/storage/plexon/*.plx"
-        files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
-        
-        if len(files) > 0:
-            tdiff = os.stat(files[0]).st_mtime - start
-            if abs(tdiff) < sec_per_min:
-                 return files[0]
+        if hasattr(self, '_plexfile'):
+            return self._plexfile
+        else:
+            ## Ideally, the correct 'plexfile' will be the only file whose filesize has changed since the 'init' function ran..
+            filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
+            inds, = np.nonzero(filesizes - self.possible_filesizes)
+            if len(inds) == 1:
+                print "only one plx file changed since the start of the task."
+                self._plexfile = self.possible_filenames[inds[0]]
+                return self._plexfile
+
+            ## Otherwise, try to find a file whose last modified time is within 60 seconds of the task ending; this requires fairly accurate synchronization between the two machines
+            if len(self.event_log) < 1:
+                self._plexfile = None
+                return self._plexfile
+            
+            start = self.event_log[-1][2]
+            files = "/storage/plexon/*.plx"
+            files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
+            
+            if len(files) > 0:
+                tdiff = os.stat(files[0]).st_mtime - start
+                if abs(tdiff) < sec_per_min:
+                    self._plexfile = files[0]
+                    return self._plexfile
+
+            ## If both methods fail, return None; cleanup should warn the user that they'll have to link the plexon file manually
+            self._plexfile = None
+            return self._plexfile
     
     def run(self):
         '''
@@ -82,8 +114,10 @@ class RelayPlexon(object):
 
         Parameters
         ----------
-        condition: string
+        condition : string
             Name of new state.
+        **kwargs : dict 
+            Passed to 'super' set_state function
 
         Returns
         -------
@@ -94,13 +128,8 @@ class RelayPlexon(object):
 
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Function to run at 'cleanup' time, after the FSM has finished executing. See riglib.experiment.Experiment.cleanup
+        This 'cleanup' method remotely stops the plexon file recording and then links the file created to the database ID for the current TaskEntry
         '''
         # Stop recording
         import comedi
@@ -120,9 +149,14 @@ class RelayPlexon(object):
                 database.save_data(self.plexfile, "plexon", saveid, True, False)
             else:
                 database.save_data(self.plexfile, "plexon", saveid, True, False, dbname=dbname)
+        else:
+            print '\n\nPlexon file not found properly! It will have to be manually linked!\n\n'
 
     @classmethod 
     def pre_init(cls, saveid=None):
+        '''
+        Run prior to starting the task to remotely start recording from the plexon system
+        '''
         if saveid is not None:
             import comedi
             import config
@@ -146,7 +180,8 @@ class RelayPlexByte(RelayPlexon):
     def init(self):
         '''
         Secondary init function. See riglib.experiment.Experiment.init()
-        Prior to starting the task, this 'init' ensures that this feature is only used if the SaveHDF feature is also enabled.
+        Prior to starting the task, this 'init' ensures that this feature is
+        only used if the SaveHDF feature is also enabled.
         '''
         if not isinstance(self, SaveHDF):
             raise ValueError("RelayPlexByte feature only available with SaveHDF")
@@ -219,3 +254,10 @@ class PlexonBMI(PlexonData):
         '''
         self.plexon_channels = self.decoder.units[:,0]
         super(PlexonBMI, self).init()
+
+# from neural_sys_features import CorticalData, CorticalBMI
+# class PlexonData(CorticalData):
+#     @property 
+#     def sys_module(self):
+#         from riglib import plexon
+#         return plexon
