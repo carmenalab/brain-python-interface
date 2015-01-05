@@ -15,7 +15,6 @@ Contents:
     install
     tasks
     extensions
-    features
     display
     interface
     tracker
