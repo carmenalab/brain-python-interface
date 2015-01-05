@@ -83,13 +83,7 @@ def normalize(vec):
 
 class Learner(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Classes for estimating the 'intention' of the BMI operator, inferring the intention from task goals.
     '''
     def __init__(self, batch_size, *args, **kwargs):
         '''
@@ -99,10 +93,10 @@ class Learner(object):
         ----------
         batch_size: int
             number of samples used to estimate each new decoder parameter setting
-        done_states: list of strings, default = []
-            states of the task which end a batch, regardless of the length of the batch 
-        reset_states: list of strings, default = []
-            states of the task which, if encountered, reset the batch regardless of its length
+        done_states: list of strings, optional
+            states of the task which end a batch, regardless of the length of the batch. default = []
+        reset_states: list of strings, optional
+            states of the task which, if encountered, reset the batch regardless of its length. default = []
 
         '''
         self.done_states = kwargs.pop('done_states', [])
@@ -135,13 +129,26 @@ class Learner(object):
         """
         Calculate the intended kinematics and pair with the neural data
 
-        Docstring
-
         Parameters
         ----------
+        spike_counts : np.mat of shape (K, 1)
+            Neural observations used to decode 'decoder_state'
+        decoder_state : np.mat of shape (N, 1)
+            State estimate output from the decoder.
+        target_state : np.mat of shape (N, 1)
+            For the current time, this is the optimal state for the Decoder as specified by the task
+        decoder_output : np.mat of shape (N, 1)
+            ... this seems like the same as decoder_state
+        task_state : string
+            Name of the task state; some learners (e.g., the cursorGoal learner) have different intention estimates depending on the phase of the task/trial
+        state_order : np.ndarray of shape (N,), optional
+            Order of each state in the decoder; see riglib.bmi.state_space_models.State
+        **kwargs: dict
+            Optional keyword arguments for the 'value' calculator
 
         Returns
         -------
+        None
         """
         if task_state in self.reset_states:
             print "resetting CLDA batch"
@@ -230,16 +237,31 @@ class DumbLearner(Learner):
         raise NotImplementedError
 
 class OFCLearner(Learner):
-    '''An intention estimator where the subject is assumed to operate like a muiti-modal LQR controller'''
+    '''
+    An intention estimator where the subject is assumed to operate like a muiti-modal LQR controller
+    '''
     def __init__(self, batch_size, A, B, F_dict, *args, **kwargs):
         '''
-        Docstring
+        Constructor for OFCLearner
 
         Parameters
         ----------
+        batch_size : int
+            size of batch of samples to pass to the Updater to estimate new decoder parameters
+        A : np.mat 
+            State transition matrix of the modeled discrete-time system
+        B : np.mat 
+            Control input matrix of the modeled discrete-time system
+        F_dict : dict
+            Keys match names of task states, values are feedback matrices (size n_inputs x n_states)
+        *args : additional comma-separated args
+            Passed to super constructor
+        **kwargs : additional keyword args
+            Passed to super constructor
 
         Returns
         -------
+        OFCLearner instance
         '''
         super(OFCLearner, self).__init__(batch_size, *args, **kwargs)
         self.B = B
@@ -247,7 +269,28 @@ class OFCLearner(Learner):
         self.A = A
 
     def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        '''    Docstring    '''
+        '''
+        Calculate intended kinematics as 
+            x_t^{int} = A*x_t + B*F(x^* - x_t)
+
+        Parameters
+        ----------
+        current_state : np.mat of shape (N, 1)
+            State estimate output from the decoder.
+        target_state : np.mat of shape (N, 1)
+            For the current time, this is the optimal state for the Decoder as specified by the task
+        decoder_output : np.mat of shape (N, 1)
+            ... this seems like the same as decoder_state
+        task_state : string
+            Name of the task state; some learners (e.g., the cursorGoal learner) have different intention estimates depending on the phase of the task/trial
+        state_order : np.ndarray of shape (N,), optional
+            Order of each state in the decoder; see riglib.bmi.state_space_models.State
+
+        Returns
+        -------
+        np.mat of shape (N, 1)
+            Estimate of intended next state for BMI
+        '''
         try:
             current_state = np.mat(current_state).reshape(-1,1)
             target_state = np.mat(target_state).reshape(-1,1)
@@ -299,9 +342,13 @@ class OFCLearner3DEndptPPF(OFCLearner):
         self.input_state_index = 0
 
 class RegexKeyDict(dict):
-    '''    Docstring    '''
+    '''
+    Dictionary where key matching applies regular expressions in addition to exact matches
+    '''
     def __getitem__(self, key):
-        '''    Docstring    '''
+        '''
+        Lookup key in dictionary by finding exactly one dict key which, by regex, matches the input argument 'key'
+        '''
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
@@ -312,7 +359,6 @@ class RegexKeyDict(dict):
             return super(RegexKeyDict, self).__getitem__(matching_keys[0])
 
     def __contains__(self, key):
-        '''    Docstring    '''
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
@@ -442,8 +488,8 @@ class CursorGoalLearner2(Learner):
         ----------
         int_speed_type: string, optional, default='dist_to_target'
             Specifies the method to use to estimate the intended speed of the target.
-                dist_to_target: scales based on remaining distance to the target position
-                decoded_speed: use the speed output provided by the decoder, i.e., the difference between the intention and the decoder output can be described by a pure vector rotation
+            * dist_to_target: scales based on remaining distance to the target position
+            * decoded_speed: use the speed output provided by the decoder, i.e., the difference between the intention and the decoder output can be described by a pure vector rotation
 
         Returns
         -------
@@ -815,6 +861,13 @@ class IsMoreOFCLearner(OFCLearner):
 ##############################################################################
 ## Updaters
 ##############################################################################
+class Updater(object):
+    '''
+    Classes for updating decoder parameters
+    '''
+    def init(self, decoder):
+        pass
+
 class CLDARecomputeParameters(mp.Process):
     '''    Docstring    '''
     update_kwargs = dict() 
@@ -1009,13 +1062,27 @@ class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
 
 
-class PPFContinuousBayesianUpdater(object):
-    '''    Docstring    '''
+class PPFContinuousBayesianUpdater(Updater):
+    '''
+    Adapt the parameters of a PPFDecoder using an HMM to implement a gradient-descent type parameter update.
+
+    (currently only works for PPFs which do not also include the self-history or correlational elements)
+    '''
     update_kwargs = dict()
     def __init__(self, decoder, units='cm', param_noise_scale=1.):
-        '''    Docstring    '''
+        '''
+        Constructor for PPFContinuousBayesianUpdater
+
+        Parameters
+        ----------
+        decoder : bmi.ppfdecoder.PPFDecoder instance
+            Should have a 'filt' attribute which is a PointProcessFilter instance
+        units : string
+            Docstring
+        param_noise_scale : float
+            Multiplicative factor to increase the parameter "process noise". Higher values result in faster but less stable parameter convergence.
+        '''
         self.n_units = decoder.filt.C.shape[0]
-        #self.param_noise_variances = param_noise_variances
         if units == 'm':
             vel_gain = 1e-4
         elif units == 'cm':
@@ -1026,10 +1093,6 @@ class PPFContinuousBayesianUpdater(object):
         param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
         self.W = np.tile(np.diag(param_noise_variances), [self.n_units, 1, 1])
 
-        #self.P_params_est_old = np.zeros([self.n_units, 3, 3])
-        #for j in range(self.n_units):
-        #    self.P_params_est_old[j,:,:] = self.W #Cov_params_init
-        #self.P_params_est_old = P_params_est_old
         self.P_params_est = self.W.copy()
 
         self.neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
@@ -1038,7 +1101,7 @@ class PPFContinuousBayesianUpdater(object):
         self.full_size = len(decoder.states)
 
         self.dt = decoder.filt.dt
-        self.beta_est = np.array(decoder.filt.C) #[:,self.neuron_driving_state_inds])
+        self.beta_est = np.array(decoder.filt.C)
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, **kwargs):
         '''    Docstring    '''
@@ -1055,7 +1118,6 @@ class PPFContinuousBayesianUpdater(object):
             int_kin = int_kin_full[:,k]
 
             beta_est = self.beta_est[:,self.neuron_driving_state_inds]
-            #P_params_est_old = self.P_params_est_old
             int_kin = np.asarray(int_kin).ravel()[self.neuron_driving_state_inds]
             Loglambda_predict = np.dot(int_kin, beta_est.T)
             rates = np.exp(Loglambda_predict)
@@ -1066,45 +1128,78 @@ class PPFContinuousBayesianUpdater(object):
 
             C_xpose_C = np.outer(int_kin, int_kin)
 
-            #P_params_est = np.zeros([self.n_units, 3, 3]) # TODO remove hardcoding of # of states
             self.P_params_est += self.W
             P_params_est_inv = fast_inv(self.P_params_est)
             L = np.dstack([rates[c] * C_xpose_C for c in range(self.n_units)]).transpose([2,0,1])
             self.P_params_est = fast_inv(P_params_est_inv + L)
 
-            ## for c in range(self.n_units):
-            ##     #P_pred = self.P_params_est[c] + self.W[c]
-            ##     self.P_params_est[c] = inv(inv(self.P_params_est[c]) + rates[c]*C_xpose_C)
-
             beta_est += (unpred_spikes * np.dot(int_kin, self.P_params_est).T).T
 
             # store beta_est
-            self.beta_est[:,self.neuron_driving_state_inds] = beta_est
-
-            #self.P_params_est_old = P_params_est
+            self.beta_est[:, self.neuron_driving_state_inds] = beta_est
 
         return {'filt.C': np.mat(self.beta_est.copy())}
 
 
-class KFRML(object):
+class KFRML(Updater):
     '''
-    Calculate updates for KF parameters using the Recursive maximum likelihood (RML) method
-    See Dangi et al, 2014 for mathematical details.
+    Calculate updates for KF parameters using the recursive maximum likelihood (RML) method
+    See (Dangi et al, Neural Computation, 2014) for mathematical details.
     '''
     update_kwargs = dict(steady_state=False)
     def __init__(self, work_queue, result_queue, batch_time, half_life):
-        '''    Docstring    '''
-        # super(KFRML, self).__init__(work_queue, result_queue)
+        '''
+        Constructor for KFRML
+
+        Parameters
+        ----------
+        work_queue : None
+            Not used for this method!
+        result_queue : None
+            Not used for this method!
+        batch_time : float
+            Size of data batch to use for each update. Specify in seconds.
+        half_life : float 
+            Amount of time (in seconds) before parameters are half-overwritten by new data.
+
+        Returns
+        -------
+        KFRML instance
+
+        '''
         self.work_queue = None
         self.batch_time = batch_time
         self.result_queue = None        
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-        # self.iter_counter = 0
 
     @staticmethod
     def compute_suff_stats(hidden_state, obs, include_offset=True):
-        '''    Docstring    '''
+        '''
+        Calculate initial estimates of the parameter sufficient statistics used in the RML update rules
+
+        Parameters
+        ----------
+        hidden_state : np.ndarray of shape (n_states, n_samples)
+            Examples of the hidden state x_t taken from training seed data.  
+        obs : np.ndarray of shape (n_features, n_samples)
+            Multiple neural observations paired with each of the hidden state examples
+        include_offset : bool, optional
+            If true, a state of all 1's is added to the hidden_state to represent mean offsets. True by default
+
+        Returns
+        -------
+        R : np.ndarray of shape (n_states, n_states)
+            Proportional to covariance of the hidden state samples 
+        S : np.ndarray of shape (n_features, n_states)
+            Proportional to cross-covariance between 
+        T : np.ndarray of shape (n_features, n_features)
+            Proportional to covariance of the neural observations
+        ESS : float
+            Effective number of samples. In the initialization, this is just the 
+            dimension of the array passed in, but the parameter can become non-integer 
+            during the update procedure as old parameters are "forgotten".
+        '''
         assert hidden_state.shape[1] == obs.shape[1]
     
         if isinstance(hidden_state, np.ma.core.MaskedArray):
@@ -1125,25 +1220,53 @@ class KFRML(object):
             Y = np.mat(obs)
         X = np.mat(X, dtype=np.float64)
 
-        # R = (1./n_pts) * (X * X.T)
-        # S = (1./n_pts) * (Y * X.T)
-        # T = (1./n_pts) * (Y * Y.T)
         R = (X * X.T)
         S = (Y * X.T)
         T = (Y * Y.T)
-        ESS = n_pts  # "effective sample size" (number of points in batch)
+        ESS = n_pts
 
         return (R, S, T, ESS)
 
-    def init_suff_stats(self, decoder):
-        '''    Docstring    '''
+    def init(self, decoder):
+        '''
+        Retrieve sufficient statistics from the seed decoder.
+
+        Parameters
+        ----------
+        decoder : bmi.Decoder instance
+            The seed decoder before any adaptation runs.
+
+        Returns
+        -------
+        None
+        '''
         self.R = decoder.filt.R
         self.S = decoder.filt.S
         self.T = decoder.filt.T
         self.ESS = decoder.filt.ESS
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
-        '''    Docstring    '''
+        '''
+        Parameters
+        ----------
+        intended_kin : np.ndarray of shape (n_states, batch_size)
+            Batch of estimates of intended kinematics, from the learner
+        spike_counts : np.ndarray of shape (n_features, batch_size)
+            Batch of observations of decoder features, from the learner
+        decoder : bmi.Decoder instance
+            Reference to the Decoder instance
+        half_life : float, optional
+            Half-life to use to calculate the parameter change step size. If not specified, the half-life specified when the Updater was constructed is used.
+        values : np.ndarray, optional
+            Relative value of each sample of the batch. If not specified, each sample is assumed to have equal value.
+        kwargs : dict
+            Optional keyword arguments, ignored
+
+        Returns
+        -------
+        new_params : dict
+            New parameters to feed back to the Decoder in use by the task.
+        '''
         if intended_kin == None or spike_counts == None or decoder == None:
             raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
 
@@ -1189,6 +1312,92 @@ class KFRML(object):
         new_params = {'kf.C':C, 'kf.Q':Q, 
             'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
             'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS, 'filt.R':self.R, 'filt.S':self.S, 'filt.T':self.T}
+
+        return new_params
+
+
+class PPFRML(KFRML):
+    '''
+    Extension of the RML method to the point-process observation model using a Gaussian approximation to the obs model
+    '''
+    def init(self, decoder):
+        n_params_per_cell = decoder.ssm.drives_obs_inds
+        n_units = decoder.n_units
+        R_inv_cell = np.diag([0.00071857755796282436, 0.00071857755796282436, 0.018144994682778668])
+        from scipy.linalg import block_diag
+        self.R_inv = block_diag(*([R_inv_cell]*n_units))
+        self.S = decoder.filt.S
+
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
+        '''
+        Parameters
+        ----------
+        intended_kin : np.ndarray of shape (n_states, batch_size)
+            Batch of estimates of intended kinematics, from the learner
+        spike_counts : np.ndarray of shape (n_features, batch_size)
+            Batch of observations of decoder features, from the learner
+        decoder : bmi.Decoder instance
+            Reference to the Decoder instance
+        half_life : float, optional
+            Half-life to use to calculate the parameter change step size. If not specified, 
+            the half-life specified when the Updater was constructed is used.
+        values : np.ndarray, optional
+            Relative value of each sample of the batch. If not specified, each sample is assumed to have equal value.
+        kwargs : dict
+            Optional keyword arguments, ignored
+
+        Returns
+        -------
+        new_params : dict
+            New parameters to feed back to the Decoder in use by the task.
+        '''
+        if intended_kin == None or spike_counts == None or decoder == None:
+            raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
+
+        # Calculate the step size based on the half life and the number of samples to train from
+        batch_size = intended_kin.shape[1]
+        batch_time = batch_size * decoder.binlen            
+
+        if half_life is not None:
+            rho = np.exp(np.log(0.5)/(half_life/batch_time))
+        else:
+            rho = self.rho 
+
+        drives_neurons = decoder.drives_neurons
+
+        x = np.mat(intended_kin)
+        y = np.mat(spike_counts)
+        n_features = y.shape[0]
+
+        # if values is not None:
+        #     n_samples = np.sum(values)
+        #     B = np.mat(np.diag(values))
+        # else:
+        #     n_samples = spike_counts.shape[1]
+        #     B = np.mat(np.eye(n_samples))
+
+        for k in range(n_samples):
+            x_t = x[drives_neurons, k]
+            Loglambda_predict = decoder.C * x_t
+            exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
+            lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
+            Q_inv = np.mat(np.diag(lambda_predict*dt))
+
+            y_t = y[:,k]
+            # self.R = rho*self.R + np.kron(x_t*x_t.T, Q_inv)
+            self.S = rho*self.S + Q_inv*y_t*x_t.T
+
+        # self.R = rho*self.R + (x*B*x.T)
+        # self.S = rho*self.S + (y*B*x.T)
+
+        vec_C = np.dot(self.R_inv, self.S.T.flatten()) #np.linalg.lstsq(self.R, self.S)[0]
+        C = np.zeros_like(decoder.C)
+        C[:,drives_neurons] = vec_C.reshape(-1, n_features).T
+        # TODO these aren't necessary for the independent observations PPF, but maybe for the more complicated forms?
+        # self.T = rho*self.T + np.dot(y, B*y.T)
+        # self.ESS = rho*self.ESS + n_samples
+        
+        new_params = {'filt.C':C, 'filt.S':self.S} # 'kf.ESS':self.ESS, 'filt.T':self.T
 
         return new_params
 
@@ -1287,9 +1496,15 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     Save CLDA data generated during the experiment to the specified HDF file
 
     Parameters
-    ==========
-    hdf_fname : filename of HDF file
-    data : list of dictionaries with the same keys and same dtypes for values
+    ----------
+    hdf_fname : string
+        filename of HDF file
+    data : list
+        list of dictionaries with the same keys and same dtypes for values
+
+    Returns
+    -------
+    None
     '''
     log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_hdf_log'), 'w')
 

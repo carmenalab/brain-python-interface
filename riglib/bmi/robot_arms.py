@@ -121,8 +121,6 @@ class KinematicChain(object):
         Returns
         -------
         '''
-
-
         return joint_angles
 
     def inverse_kinematics(self, target_pos, q_start=None, method='pso', **kwargs):
@@ -135,16 +133,13 @@ class KinematicChain(object):
         Returns
         -------
         '''
-
-
         if q_start == None:
             q_start = self.random_sample()
         return self.inverse_kinematics_pso(target_pos, q_start, **kwargs)
         # ik_method = getattr(self, 'inverse_kinematics_%s' % method)
         # return ik_method(q_start, target_pos)
 
-    def inverse_kinematics_grad_descent(self, target_pos, starting_config, n_iter=1000, 
-                           verbose=False, eps=0.01, return_path=False):
+    def inverse_kinematics_grad_descent(self, target_pos, starting_config, n_iter=1000, verbose=False, eps=0.01, return_path=False):
         '''
         Default inverse kinematics method is RRT since for redundant 
         kinematic chains, an infinite number of inverse kinematics solutions 
@@ -488,7 +483,8 @@ class PlanarXZKinematicChain(KinematicChain):
         
         Returns
         -------
-        '''        
+        '''
+        target_pos = target_pos.copy()
         target_pos -= self.base_loc
         if not hasattr(self, 'proximal_chain') or not hasattr(self, 'distal_chain'):
             self.create_ik_subchains()

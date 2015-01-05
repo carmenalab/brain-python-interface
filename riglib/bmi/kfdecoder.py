@@ -20,13 +20,25 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
     def __init__(self, A=None, W=None, C=None, Q=None, is_stochastic=None):
         '''
-        Docstring    
+        Constructor for KalmanFilter    
 
         Parameters
         ----------
+        A : np.mat, optional
+            Model of state transition matrix
+        W : np.mat, optional
+            Model of process noise covariance
+        C : np.mat, optional
+            Model of conditional distribution between observations and hidden state
+        Q : np.mat, optional
+            Model of observation noise covariance
+        is_stochastic : np.array, optional
+            Array of booleans specifying for each state whether it is stochastic. 
+            If 'None' specified, all states are assumed to be stochastic
 
         Returns
         -------
+        KalmanFilter instance
         '''
         if A is None and W is None and C is None and Q is None:
             ## This condition should only be true in the unpickling phase
@@ -70,15 +82,19 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
     def _obs_prob(self, state):
         '''
-        Docstring    
+        Predict the observations based on the model parameters:
+            y_est = C*x_t + Q
 
         Parameters
         ----------
+        state : bmi.GaussianState instance
+            The model-predicted state
 
         Returns
         -------
+        bmi.GaussianState instance
+            the model-predicted observations
         '''
-
         return self.C * state + self.obs_noise
 
     def propagate_ssm(self):
@@ -202,15 +218,22 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
     def get_kalman_gain_seq(self, N=1000, tol=1e-10, verbose=False):
         '''
-        Docstring    
+        Calculate K_t for times {0, 1, ..., N}
 
         Parameters
         ----------
+        N : int, optional
+            Number of steps to calculate Kalman gain for, default = 1000
+        tol : float, optional
+            Tolerance on K matrix convergence, default = 1e-10
+        verbose : bool, optional
+            Print intermediate/debugging information if true, default=False
 
         Returns
         -------
+        list
+            [K_0, K_1, ..., K_{N-1}]
         '''
-
         A, W, H, Q = np.mat(self.kf.A), np.mat(self.kf.W), np.mat(self.kf.H), np.mat(self.kf.Q)
         P = np.mat( np.zeros(A.shape) )
         K = [None]*N
@@ -230,12 +253,20 @@ class KalmanFilter(bmi.GaussianStateHMM):
         return K, ss_idx
 
     def get_kf_system_mats(self, T):
-        """KF system matrices
+        """
+        KF system matrices
+
+        x_{t+1} = F_t*x_t + K_t*y_t 
+
         Parameters
         ----------
+        T : int 
+            Number of system iterations to calculate (F_t, K_t)
 
         Returns
         -------
+        tuple of lists
+            Each element of the tuple is (F_t, K_t) for a given 't'
 
         """
         F = [None]*T
@@ -762,6 +793,54 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     def conv_to_steady_state(self):
         import sskfdecoder
         self.filt = sskfdecoder.SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q) 
+
+    def subselect_units(self, units):
+        if isinstance(units[0], (str, unicode)):
+            # convert to array
+            raise NotImplementedError
+
+        inds_to_keep = []
+        units = map(tuple, units)
+        for k, unit in enumerate(self.units):
+            if tuple(unit) in units:
+                inds_to_keep.append(k)
+
+        A = self.filt.A
+        W = self.filt.W
+        C = self.filt.C
+        Q = self.filt.Q
+
+        C = C[inds_to_keep, :]
+        Q = Q[np.ix_(inds_to_keep, inds_to_keep)]
+        if isinstance(self.mFR, np.ndarray):
+            mFR = self.mFR[inds_to_keep]
+            sdFR = self.mFR[inds_to_keep]
+        else:
+            mFR = self.mFR
+            sdFR = self.sdFR
+
+        filt = KalmanFilter(A=A, W=W, C=C, Q=Q, is_stochastic=self.filt.is_stochastic)
+        C_xpose_Q_inv = C.T * Q.I
+        C_xpose_Q_inv_C = C.T * Q.I * C
+        filt.C_xpose_Q_inv = C_xpose_Q_inv
+        filt.C_xpose_Q_inv_C = C_xpose_Q_inv_C        
+
+        units = self.units[inds_to_keep]
+
+        filt.R = self.filt.R
+        filt.S = self.filt.S[inds_to_keep, :]
+        filt.T = self.filt.T[np.ix_(inds_to_keep, inds_to_keep)]
+        filt.ESS = self.filt.ESS
+
+        decoder = KFDecoder(filt, units, self.ssm, mFR=mFR, sdFR=sdFR, binlen=self.binlen, tslice=self.tslice)
+
+        decoder.n_features = self.n_features
+
+        decoder.extractor_cls = self.extractor_cls
+        decoder.extractor_kwargs = self.extractor_kwargs
+
+        return decoder
+
 
 def project_Q(C_v, Q_hat):
     """ 
