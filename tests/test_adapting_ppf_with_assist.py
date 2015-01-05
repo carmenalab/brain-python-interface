@@ -5,21 +5,19 @@ from tasks import generatorfunctions as genfns
 import numpy as np 
 
 from tasks import bmi_recon_tasks
+from tasks.bmimultitasks import SimBMIControlMulti
+
 reload(bmi_recon_tasks)
 reload(tasks)
     
 
-cls = tasks.ContCLDARecon
+cls = bmi_recon_tasks.ContCLDARecon
 idx = 2554
-#idx = 2306
 
-
-te = performance._get_te(idx)
-#n_iter = len(te.hdf.root.task)
+te = performance._get_te(idx, dbname='testing')
 n_iter = len(te.hdf.root.task)
-#n_iter = te.assist_off_ind + 2 #len(te.hdf.root.task) #22283 - 1
         
-gen = genfns.sim_target_seq_generator_multi(8, 1000)
+gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)
 task = cls(te, n_iter, gen)
 task.init()
         

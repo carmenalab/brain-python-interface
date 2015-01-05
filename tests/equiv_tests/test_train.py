@@ -17,11 +17,11 @@ reload(extractor)
 
 class TestDecoderTrain(unittest.TestCase):
     def test_kalman_vf(self):
-        te = dbfn.TaskEntry(2424)
+        te = dbfn.TaskEntry(2424, dbname='testing')
         dec_record = te.decoder_record
         dec = dec_record.load()
       
-        training_block = dbfn.TaskEntry(dec_record.entry_id)
+        training_block = dbfn.TaskEntry(dec_record.entry_id, dbname='testing')
         datafiles = models.DataFile.objects.filter(entry_id=training_block.id)
         files = dict((d.system.name, d.get_path()) for d in datafiles)
       
@@ -48,11 +48,11 @@ class TestDecoderTrain(unittest.TestCase):
         #self.assertTrue(dec.filt == dec_new.filt)
 
     def test_ppf_vf(self):
-        te = dbfn.TaskEntry(2425)
+        te = dbfn.TaskEntry(2425, dbname='testing')
         dec_record = te.decoder_record
         dec = dec_record.load()
         
-        training_block = dbfn.TaskEntry(dec_record.entry_id)
+        training_block = dbfn.TaskEntry(dec_record.entry_id, dbname='testing')
         datafiles = models.DataFile.objects.filter(entry_id=training_block.id)
         files = dict((d.system.name, d.get_path()) for d in datafiles)
         
