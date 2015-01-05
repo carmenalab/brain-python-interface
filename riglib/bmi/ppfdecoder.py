@@ -234,28 +234,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
 
         return post_state
 
-    def __setstate__(self, state):
-        """
-        Set the model parameters {A, W, C, Q} stored in the pickled
-        object
-
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        """
-        # TODO clean this up!
-        self.A = state['A']
-        self.W = state['W']
-        self.C = state['C']
-        self.B = state['B']
-        self.is_stochastic = state['is_stochastic']
-        self.dt = state['dt']
-        self._pickle_init()
-
     def __getstate__(self):
         '''
         Return model parameters to be pickled. Overrides the default __getstate__ so that things like the P matrix aren't pickled.
@@ -266,10 +244,10 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         
         Returns
         -------
-        None
+        dict
         '''
         return dict(A=self.A, W=self.W, C=self.C, dt=self.dt, B=self.B, 
-                    is_stochastic=self.is_stochastic)
+                    is_stochastic=self.is_stochastic, S=self.S)
 
     def tomlab(self, unit_scale=1.):
         '''
@@ -462,12 +440,13 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         X = np.mat(X, dtype=np.float64)
 
         C = self.filt.C
+        dt = self.filt.dt
 
         S = np.zeros([Y.shape[0], X.shape[0]])
         n_samples = X.shape[1]
         for k in range(n_samples):
-            x_t = X[drives_neurons, k]
-            Loglambda_predict = C * x_t
+            x_t = X[:, k]
+            Loglambda_predict = C[:,self.drives_neurons] * x_t
             exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
             lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
             Q_inv = np.mat(np.diag(lambda_predict*dt))
