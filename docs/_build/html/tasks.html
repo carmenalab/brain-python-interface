@@ -59,8 +59,8 @@
   <div class="section" id="creating-tasks">
 <span id="tasks"></span><h1>Creating tasks<a class="headerlink" href="#creating-tasks" title="Permalink to this headline">¶</a></h1>
 <p>The definition of a task class contains a set of states and the rules for moving between those states, a set of parameters (both hard-coded and user-defined), state methods (which specify what happens during each state), and transition methods (which specify the conditions for changing states). Every task is a subclass of the <tt class="xref py py-class docutils literal"><span class="pre">Experiment</span></tt> class.</p>
-<div class="section" id="the-state-transition-definition">
-<h2>The state transition definition<a class="headerlink" href="#the-state-transition-definition" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="defining-the-finite-state-machine-fsm">
+<h2>Defining the finite state machine (FSM)<a class="headerlink" href="#defining-the-finite-state-machine-fsm" title="Permalink to this headline">¶</a></h2>
 <p>A state can be thought of as a discrete part of the task which is triggered by some condition being met and ends when some other condition is met (i.e. waiting for fixation, or a target hold). The state transition definition describes the structure of the task. For each possible state it lists all the possible subsequent states and the events that trigger those transitions.</p>
 <p>For example, the parent class <tt class="xref py py-class docutils literal"><span class="pre">Experiment</span></tt> has the following structure, where ovals represent states and arrows represent transitions:</p>
 <img alt="_images/states.png" src="_images/states.png" />
@@ -79,20 +79,10 @@
 <p class="last">The key/value pair <tt class="docutils literal"><span class="pre">stop</span> <span class="pre">=</span> <span class="pre">None</span></tt> can be inserted into any state where you would like the server to be able to stop the task immediately. If a state&#8217;s dictionary does not contain this entry and a stop command is received, the task will continue until it reaches a state that does contain it. Make sure at least one state has an exit transition, otherwise you will not be able to stop execution of your task!</p>
 </div>
 </div>
-<div class="section" id="parameters">
-<h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline">¶</a></h2>
-<p>Parameters that are set by the user when the task is run can be defined as <a class="reference external" href="http://code.enthought.com/projects/traits/">Traits</a> within the class definition for the task:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="c">#settable traits</span>
-<span class="n">reward_time</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span><span class="o">.</span><span class="mi">5</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s">&quot;Length of juice reward&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>The first argument is the default value for the trait and the second is a docstring that will show up when the mouse hovers over that parameter in the web interface. The name of the variable will be the text the user sees in the list of parameters (in this case <tt class="docutils literal"><span class="pre">reward_time</span></tt>.</p>
-</div>
 <div class="section" id="methods">
 <h2>Methods<a class="headerlink" href="#methods" title="Permalink to this headline">¶</a></h2>
 <p>A task class&#8217; methods determine the behavior within each state and the criteria for triggering state transitions. There are five types of special methods:</p>
-<div class="section" id="init">
-<h3><em>__init__</em><a class="headerlink" href="#init" title="Permalink to this headline">¶</a></h3>
+<p><strong>__init__</strong></p>
 <p>Every task has an <em>__init__</em> method that contains actions to be performed once when the task is first run:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="c">#initialize and create fixation point object</span>
 <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -101,9 +91,7 @@
 </pre></div>
 </div>
 <p>If no initialization steps are necessary for the task, the <em>__init__</em> method can be omitted (because it will automatically inherit the parent <em>__init__</em> method). This is true of the other special methods as well; however, if an <em>__init__</em> method is included, it MUST contain a call to the parent method, whereas the rest of the special methods may be written to replace the parent methods if desired.</p>
-</div>
-<div class="section" id="start">
-<h3><em>_start_</em><a class="headerlink" href="#start" title="Permalink to this headline">¶</a></h3>
+<p><strong>_start_</strong></p>
 <p><em>_start_</em> methods specify actions to be performed once at the onset of a new state:</p>
 <dl class="docutils">
 <dt>def _start_wait(self):</dt>
@@ -116,32 +104,40 @@ self.requeue()</dd>
 </dl>
 <p>In the above example, every time the task enters the <em>wait</em> state, the origin target&#8217;s color changes and the target is hidden from the screen, in addition to whatever actions are already performed by the parent class&#8217; <em>_start_wait</em> method.</p>
 <p>The full name of the method should always be the <tt class="docutils literal"><span class="pre">_start_</span></tt> prefix followed by a state name that appears in the state transition definition, and the method should take <tt class="docutils literal"><span class="pre">self</span></tt> as its sole argument. (These two rules apply to <em>_while_</em> and <em>_end_</em> methods as well.)</p>
-</div>
-<div class="section" id="while">
-<h3><em>_while_</em><a class="headerlink" href="#while" title="Permalink to this headline">¶</a></h3>
+<p><strong>_while_</strong></p>
 <p><em>_while_</em> methods specify actions to be repeated (usually once per frame) while the task is in a state. Here, the cursor position is being constantly updated during the <em>wait</em> state:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">_while_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">update_cursor</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="end">
-<h3><em>_end_</em><a class="headerlink" href="#end" title="Permalink to this headline">¶</a></h3>
+<p><strong>_end_</strong></p>
 <p><em>_end_</em> methods specify actions to be performed once at the end of a state, just before the task transitions to the next state. In this example, the origin target changes color once a target hold is complete:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">_end_origin_hold</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="c">#change target color</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">origin_target</span><span class="o">.</span><span class="n">color</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.5</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="test">
-<h3><em>_test_</em><a class="headerlink" href="#test" title="Permalink to this headline">¶</a></h3>
+<p><strong>_test_</strong></p>
 <p><em>_test_</em> methods define the criteria for state transitions. They are called constantly in the background during corresponding states, and must always return a boolean value. When a <em>_test_</em> method returns <tt class="docutils literal"><span class="pre">True</span></tt>, a transition to the state specified in the state transition definition is triggered. <em>_test_</em> methods must be named with the prefix <tt class="docutils literal"><span class="pre">_test_</span></tt> followed by one of the event names listed in the state transition definition, and they always have two arguments: <tt class="docutils literal"><span class="pre">self</span></tt> and <tt class="docutils literal"><span class="pre">ts</span></tt>, which is a variable containing the elapsed time in seconds since the onset of the current state. The following <em>_test_</em> method returns <tt class="docutils literal"><span class="pre">True</span></tt> when the elapsed time in the current state (<em>origin_hold</em>) exceeds the constant value <em>origin_hold_time</em>:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">_test_hold</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">ts</span><span class="o">&gt;=</span><span class="bp">self</span><span class="o">.</span><span class="n">origin_hold_time</span>
 </pre></div>
 </div>
+<p><strong>_cycle</strong>
+TODO</p>
 </div>
+<div class="section" id="parameters-runtime-configuration">
+<h2>Parameters &amp; Runtime configuration<a class="headerlink" href="#parameters-runtime-configuration" title="Permalink to this headline">¶</a></h2>
+<p>Parameters which you want to be set by the experimenter at runtime can be defined as <a class="reference external" href="http://code.enthought.com/projects/traits/">Traits</a> within the task class definition:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># settable traits</span>
+<span class="n">reward_time</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span><span class="o">.</span><span class="mi">5</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s">&quot;Length of juice reward&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The first argument is the default value for the trait and the second is a docstring that will show up when the mouse hovers over that parameter in the web interface. The name of the variable will be the text the user sees in the list of parameters (in this case <tt class="docutils literal"><span class="pre">reward_time</span></tt>).</p>
+<p><strong>&#8220;Instance&#8221; traits</strong></p>
+<p>traits.Instance-type traits are used for selecting the Decoder. They are useful when the datatype of the thing you want to select is represented by some custom class and you want to be able to select directly from a list of objects. In the current implementation, the object type (e.g., riglib.bmi.Decoder) must correspond to a database model (e.g., models.Decoder). A drop-down list in the GUI is populated with recently created models.Decoder instances. This association is made through db.namelist.instance_to_model. When data from the GUI is submitted back to the server, the object corresponding to the database record is retreived (db.json_param.norm_trait).</p>
+<p><strong>&#8220;Enum&#8221; traits</strong></p>
+<p>Enum traits provide an alternative way to Instance traits to create a drop-down menu of options on the web interface. If you wish to add an Enum attribute ATTR to a task, you must also specify ATTR_options as a list of string options to select from. This is due to a deficiency in the way traits.Enum objects are created in the version of traits currently being used; there appears to be no way to extract the possible traits from the Enum object.</p>
 </div>
 <div class="section" id="saving-task-data">
 <h2>Saving task data<a class="headerlink" href="#saving-task-data" title="Permalink to this headline">¶</a></h2>
@@ -154,8 +150,12 @@ self.requeue()</dd>
 </pre></div>
 </div>
 <p>Important note: in child classes, you must do this <em>before</em> calling the &#8216;super&#8217; _cycle method to ensure that your data is saved properly. This is because the final _cycle in the method resolution order is the experiment.Experiment._cycle method, which will send your task_data to any registered sinks. So if you do not set the variable beforehand, it may appear as the data you have saved to file is off by one timestep.</p>
-<p><a class="reference internal" href="#tasks"><em>Creating tasks</em></a></p>
 </div>
+</div>
+<div class="section" id="extending-tasks-with-features">
+<h1>Extending tasks with &#8220;features&#8221;<a class="headerlink" href="#extending-tasks-with-features" title="Permalink to this headline">¶</a></h1>
+<p>Features are partial tasks which can be used to extend a &#8220;base&#8221; task using multiple inheritance.</p>
+<p><a class="reference internal" href="#tasks"><em>Creating tasks</em></a></p>
 </div>
 
 
@@ -167,19 +167,13 @@ self.requeue()</dd>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Creating tasks</a><ul>
-<li><a class="reference internal" href="#the-state-transition-definition">The state transition definition</a></li>
-<li><a class="reference internal" href="#parameters">Parameters</a></li>
-<li><a class="reference internal" href="#methods">Methods</a><ul>
-<li><a class="reference internal" href="#init"><em>__init__</em></a></li>
-<li><a class="reference internal" href="#start"><em>_start_</em></a></li>
-<li><a class="reference internal" href="#while"><em>_while_</em></a></li>
-<li><a class="reference internal" href="#end"><em>_end_</em></a></li>
-<li><a class="reference internal" href="#test"><em>_test_</em></a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#defining-the-finite-state-machine-fsm">Defining the finite state machine (FSM)</a></li>
+<li><a class="reference internal" href="#methods">Methods</a></li>
+<li><a class="reference internal" href="#parameters-runtime-configuration">Parameters &amp; Runtime configuration</a></li>
 <li><a class="reference internal" href="#saving-task-data">Saving task data</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#extending-tasks-with-features">Extending tasks with &#8220;features&#8221;</a></li>
 </ul>
 
   <h4>Previous topic</h4>

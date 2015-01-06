@@ -1069,7 +1069,7 @@ class PPFContinuousBayesianUpdater(Updater):
     (currently only works for PPFs which do not also include the self-history or correlational elements)
     '''
     update_kwargs = dict()
-    def __init__(self, decoder, units='cm', param_noise_scale=1.):
+    def __init__(self, decoder, units='cm', param_noise_scale=1., param_noise_variances=None):
         '''
         Constructor for PPFContinuousBayesianUpdater
 
@@ -1083,15 +1083,17 @@ class PPFContinuousBayesianUpdater(Updater):
             Multiplicative factor to increase the parameter "process noise". Higher values result in faster but less stable parameter convergence.
         '''
         self.n_units = decoder.filt.C.shape[0]
-        if units == 'm':
-            vel_gain = 1e-4
-        elif units == 'cm':
-            vel_gain = 1e-8
+        if param_noise_variances == None:
+            if units == 'm':
+                vel_gain = 1e-4
+            elif units == 'cm':
+                vel_gain = 1e-8
 
-        print "Updater param noise scale %g" % param_noise_scale
-        vel_gain *= param_noise_scale
-        param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
+            print "Updater param noise scale %g" % param_noise_scale
+            vel_gain *= param_noise_scale
+            param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
         self.W = np.tile(np.diag(param_noise_variances), [self.n_units, 1, 1])
+
 
         self.P_params_est = self.W.copy()
 
@@ -1367,7 +1369,7 @@ class PPFRML(KFRML):
 
         x = np.mat(intended_kin)
         y = np.mat(spike_counts)
-        n_features = y.shape[0]
+        n_features, n_samples = y.shape
 
         # if values is not None:
         #     n_samples = np.sum(values)
@@ -1376,22 +1378,27 @@ class PPFRML(KFRML):
         #     n_samples = spike_counts.shape[1]
         #     B = np.mat(np.eye(n_samples))
 
+        C = decoder.filt.C 
+        dt = decoder.filt.dt
+
         for k in range(n_samples):
             x_t = x[drives_neurons, k]
-            Loglambda_predict = decoder.C * x_t
+            Loglambda_predict = C[:,drives_neurons] * x_t
             exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
             lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
             Q_inv = np.mat(np.diag(lambda_predict*dt))
 
             y_t = y[:,k]
             # self.R = rho*self.R + np.kron(x_t*x_t.T, Q_inv)
-            self.S = rho*self.S + Q_inv*y_t*x_t.T
+            self.S[:,drives_neurons] = rho*self.S[:,drives_neurons] + Q_inv*y_t*x_t.T
 
         # self.R = rho*self.R + (x*B*x.T)
         # self.S = rho*self.S + (y*B*x.T)
 
-        vec_C = np.dot(self.R_inv, self.S.T.flatten()) #np.linalg.lstsq(self.R, self.S)[0]
-        C = np.zeros_like(decoder.C)
+        # print self.R_inv.shape
+        # print self.S[:,drives_neurons].T.flatten().shape
+        vec_C = np.dot(self.R_inv, self.S[:,drives_neurons].T.flatten().reshape(-1,1)) #np.linalg.lstsq(self.R, self.S)[0]
+        C = np.zeros_like(C)
         C[:,drives_neurons] = vec_C.reshape(-1, n_features).T
         # TODO these aren't necessary for the independent observations PPF, but maybe for the more complicated forms?
         # self.T = rho*self.T + np.dot(y, B*y.T)
