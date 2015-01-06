@@ -33,6 +33,8 @@ class SmoothFilter(object):
         self.n_steps = n_steps
         self.A = np.ones(( n_steps, ))/float(n_steps)
         self.control_method = 'fraction'
+        self.current_lfp_pos = 0
+        self.current_powercap_flag = -100
 
     def get_mean(self):
         return np.array(self.state.mean).ravel()
@@ -60,10 +62,10 @@ class SmoothFilter(object):
         #self.zboundaries = kwargs['zboundaries']
         self.fft_inds = kwargs['fft_inds']
         obs = obs.reshape(len(kwargs['channels']), len(kwargs['fft_freqs']))
-        lfp_pos, powercap_flag = self.get_lfp_cursor(obs)
-        #print 'X: ', self.X
-        self.X = np.hstack(( self.X[1:], lfp_pos))
-        return StateHolder(self.X, self.A, powercap_flag, self.zboundaries)
+        self.current_lfp_pos, self.current_powercap_flag = self.get_lfp_cursor(obs)
+        
+        self.X = np.hstack(( self.X[1:], self.current_lfp_pos))
+        return StateHolder(self.X, self.A, self.current_powercap_flag, self.zboundaries)
 
     def get_lfp_cursor(self, psd_est):
         'Obs: channels x frequencies '
@@ -75,8 +77,6 @@ class SmoothFilter(object):
 
         p_idx = self.totalpw_band_ind
         p_val = np.mean(np.sum(psd_est[:, self.fft_inds[p_idx]], axis=1))
-
-         
 
         if self.control_method == 'fraction':
             lfp_control = c_val / float(p_val)
