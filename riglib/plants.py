@@ -403,6 +403,9 @@ class onedimLFP_CursorPlant(CursorPlant):
     def turn_on(self):
         self.cursor.attach()
 
+    def get_data_to_save(self):
+        return dict(lfp_cursor=self.position)
+
 class VirtualKinematicChain(Plant):
     def __init__(self, *args, **kwargs):
         super(VirtualKinematicChain, self).__init__(*args, **kwargs)
