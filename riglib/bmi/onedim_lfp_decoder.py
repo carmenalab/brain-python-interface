@@ -154,7 +154,7 @@ def _init_decoder_for_sim(n_steps = 10):
         
     return decoder
 
-def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=3):
+def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=5):
     print 'N_STEPS: ', n_steps
     kw = dict(control_method='fraction')
     sf = SmoothFilter(n_steps,**kw)
