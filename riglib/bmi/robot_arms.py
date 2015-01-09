@@ -376,22 +376,44 @@ class PlanarXZKinematicChain(KinematicChain):
     '''
     Kinematic chain restricted to movement in the XZ-plane
     '''
+    def _init_serial_link(self):
+        base = robot.Link(alpha=pi/2, d=0, a=0)
+        links = [base]
+        for link_length in self.link_lengths:
+            link1 = robot.Link(alpha=0, d=0, a=link_length)
+            links.append(link1)
+
+            # link2 = robot.Link(alpha=pi/2)
+            # link3 = robot.Link(d=-link_length)
+            # links += [link1, link2, link3]
+        
+        # By convention, we start the arm in the XY-plane
+        # links[1].offset = -pi/2 
+
+        self.robot = robot.SerialLink(links)
+
     def calc_full_joint_angles(self, joint_angles):
         '''
         only some joints rotate in the planar kinematic chain
 
         Parameters
         ----------
+        joint_angles : np.ndarray of shape (self.n_links)
+            Joint angles without the angle for the base link, which is fixed at 0
         
         Returns
         -------
+        joint_angles_full : np.ndarray of shape (self.n_links+1)
+            Add on the 0 at the proximal end for the base link angle
         '''
         if not len(joint_angles) == self.n_links:
             raise ValueError("Incorrect number of joint angles specified!")
 
-        # There are really 3 angles per joint to allow 3D rotation at each joint
-        joint_angles_full = np.zeros(self.n_links * 3)  
-        joint_angles_full[1::3] = joint_angles
+        # # There are really 3 angles per joint to allow 3D rotation at each joint
+        # joint_angles_full = np.zeros(self.n_links * 3)  
+        # joint_angles_full[1::3] = joint_angles
+
+        joint_angles_full = np.hstack([0, joint_angles])
         return self.rotation_convention * joint_angles_full 
 
     def full_angles_to_subset(self, joint_angles):
@@ -404,8 +426,8 @@ class PlanarXZKinematicChain(KinematicChain):
         Returns
         -------
         '''
-
-        return joint_angles[1::3]
+        # return joint_angles[1::3]
+        return joint_angles[1:]
 
     def apply_joint_limits(self, joint_angles):
         '''
@@ -535,7 +557,7 @@ class PlanarXZKinematicChain(KinematicChain):
         '''
         For two configurations, determine how much joint displacement is in the "null" space and how much is in the "task" space
 
-                Docstring    
+        Docstring    
         
         Parameters
         ----------
@@ -609,4 +631,4 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
         el_pflex = np.arccos(cos_el_pflex)
 
         sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
-        return np.array([-sh_pabd, -el_pflex])
+        return np.array([sh_pabd, el_pflex])

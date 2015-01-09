@@ -40,8 +40,26 @@ class Plant(object):
         raise NotImplementedError
 
     def drive(self, decoder):
+        '''
+        Call this function to 'drive' the plant to the state specified by the decoder
+
+        Parameters
+        ----------
+        decoder : bmi.Decoder instance 
+            Decoder used to estimate the state of/control the plant 
+
+        Returns
+        -------
+        None
+        '''
+        # Instruct the plant to go to the decoder-specified intrinsic coordinates
+        # decoder['q'] is a special __getitem__ case. See riglib.bmi.Decoder.__getitem__/__setitem__
         self.set_intrinsic_coordinates(decoder['q'])
+
+        # Not all intrinsic coordinates will be achievable. So determine where the plant actually went
         intrinsic_coords = self.get_intrinsic_coordinates()
+
+        # Update the decoder state with the current state of the plant, after the last command
         if not np.any(np.isnan(intrinsic_coords)):
             decoder['q'] = self.get_intrinsic_coordinates()
 
@@ -443,7 +461,7 @@ class RobotArmGen2D(Plant):
         self.curr_vecs[1:,0] = self.link_lengths[1:]
 
         # Instantiate the kinematic chain object
-        self.kin_chain = self.kin_chain_class(link_lengths)
+        self.kin_chain = self.kin_chain_class(link_lengths, base_loc=base_loc)
         self.kin_chain.joint_limits = joint_limits
 
         self.base_loc = base_loc
@@ -455,6 +473,8 @@ class RobotArmGen2D(Plant):
         self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
 
         self.visible = True # arm is visible when initialized
+
+        self.joint_angles = np.zeros(self.num_joints)
 
     @property 
     def kin_chain_class(self):
@@ -491,8 +511,7 @@ class RobotArmGen2D(Plant):
         self.link_groups[0].translate(*self.base_loc, reset=True)
         
         self.cursor = Sphere(radius=self.link_radii[-1]/2, color=self.link_colors[-1])
-        # self.cursor.translate(*self.get_endpoint_pos(), reset=True)
-        self.graphics_models = [self.link_groups[0], self.cursor]        
+        self.graphics_models = [self.link_groups[0], self.cursor]
 
     def _update_link_graphics(self):
         for i in range(0, self.num_joints):
@@ -517,14 +536,15 @@ class RobotArmGen2D(Plant):
         '''
         Returns the current position of the non-anchored end of the arm.
         '''
-        relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
-        return self.perform_fk(relangs) + self.base_loc
+        return self.kin_chain.endpoint_pos(self.joint_angles)
+        # relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
+        # return self.perform_fk(relangs) + self.base_loc
 
-    def perform_fk(self, angs):
-        absvecs = np.zeros(self.curr_vecs.shape)
-        for i in range(self.num_joints):
-            absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs[:i+1])), 0, np.sin(np.sum(angs[:i+1]))])
-        return np.sum(absvecs,axis=0)
+    # def perform_fk(self, angs):
+    #     absvecs = np.zeros(self.curr_vecs.shape)
+    #     for i in range(self.num_joints):
+    #         absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs[:i+1])), 0, np.sin(np.sum(angs[:i+1]))])
+    #     return np.sum(absvecs,axis=0)
 
     def set_endpoint_pos(self, pos, **kwargs):
         '''
@@ -538,13 +558,13 @@ class RobotArmGen2D(Plant):
             self.set_intrinsic_coordinates(angles)
 
     def perform_ik(self, pos, **kwargs):
-        angles = self.kin_chain.inverse_kinematics(pos - self.base_loc, q_start=-self.get_intrinsic_coordinates(), verbose=False, eps=0.008, **kwargs)
-        # print self.kin_chain.endpoint_pos(angles)
+        angles = self.kin_chain.inverse_kinematics(pos, q_start=self.get_intrinsic_coordinates(), verbose=False, eps=0.008, **kwargs).ravel()
+        # # print self.kin_chain.endpoint_pos(angles)
 
-        # Negate the angles. The convention in the robotics library is 
-        # inverted, i.e. in the robotics library, positive is clockwise 
-        # rotation whereas here CCW rotation is positive. 
-        angles = -angles        
+        # # Negate the angles. The convention in the robotics library is 
+        # # inverted, i.e. in the robotics library, positive is clockwise 
+        # # rotation whereas here CCW rotation is positive. 
+        # angles = -angles        
         return angles
 
     def calc_joint_angles(self, vecs):
@@ -560,8 +580,9 @@ class RobotArmGen2D(Plant):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
         '''
-        for i in range(self.num_joints):
-            if theta[i] is not None and ~np.isnan(theta[i]):
+        if None not in theta and not np.any(np.isnan(theta)):
+            self.joint_angles = theta
+            for i in range(self.num_joints):
                 self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
                 
         self._update_link_graphics()
@@ -589,20 +610,25 @@ class EndptControlled2LArm(RobotArmGen2D):
         return self.get_endpoint_pos()
 
     def set_intrinsic_coordinates(self, pos, **kwargs):
-        if pos is not None:
-            # Run the inverse kinematics
-            theta = self.perform_ik(pos, **kwargs)
+        self.set_endpoint_pos(pos, **kwargs)
+        # print pos
+        # if pos is not None:
+        #     # Run the inverse kinematics
+        #     theta = self.perform_ik(pos, **kwargs)
 
-            for i in range(self.num_joints):
-                if theta[i] is not None and ~np.isnan(theta[i]):
-                    self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
+
+        #     for i in range(self.num_joints):
+        #         if theta[i] is not None and ~np.isnan(theta[i]):
+        #             self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
                     
-            self._update_link_graphics()
+        #     self._update_link_graphics()
 
     def set_endpoint_pos(self, pos, **kwargs):
         if pos is not None:
             # Run the inverse kinematics
             theta = self.perform_ik(pos, **kwargs)
+            self.joint_angles = theta
+            print 'joint angles', self.joint_angles
 
             for i in range(self.num_joints):
                 if theta[i] is not None and ~np.isnan(theta[i]):
