@@ -91,8 +91,7 @@
 <div class="section" id="methods">
 <h2>Methods<a class="headerlink" href="#methods" title="Permalink to this headline">¶</a></h2>
 <p>A task class&#8217; methods determine the behavior within each state and the criteria for triggering state transitions. There are five types of special methods:</p>
-<div class="section" id="init">
-<h3><em>__init__</em><a class="headerlink" href="#init" title="Permalink to this headline">¶</a></h3>
+<p><strong>__init__</strong></p>
 <p>Every task has an <em>__init__</em> method that contains actions to be performed once when the task is first run:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="c">#initialize and create fixation point object</span>
 <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -101,9 +100,7 @@
 </pre></div>
 </div>
 <p>If no initialization steps are necessary for the task, the <em>__init__</em> method can be omitted (because it will automatically inherit the parent <em>__init__</em> method). This is true of the other special methods as well; however, if an <em>__init__</em> method is included, it MUST contain a call to the parent method, whereas the rest of the special methods may be written to replace the parent methods if desired.</p>
-</div>
-<div class="section" id="start">
-<h3><em>_start_</em><a class="headerlink" href="#start" title="Permalink to this headline">¶</a></h3>
+<p><strong>_start_</strong></p>
 <p><em>_start_</em> methods specify actions to be performed once at the onset of a new state:</p>
 <dl class="docutils">
 <dt>def _start_wait(self):</dt>
@@ -116,31 +113,24 @@ self.requeue()</dd>
 </dl>
 <p>In the above example, every time the task enters the <em>wait</em> state, the origin target&#8217;s color changes and the target is hidden from the screen, in addition to whatever actions are already performed by the parent class&#8217; <em>_start_wait</em> method.</p>
 <p>The full name of the method should always be the <tt class="docutils literal"><span class="pre">_start_</span></tt> prefix followed by a state name that appears in the state transition definition, and the method should take <tt class="docutils literal"><span class="pre">self</span></tt> as its sole argument. (These two rules apply to <em>_while_</em> and <em>_end_</em> methods as well.)</p>
-</div>
-<div class="section" id="while">
-<h3><em>_while_</em><a class="headerlink" href="#while" title="Permalink to this headline">¶</a></h3>
+<p><strong>_while_</strong></p>
 <p><em>_while_</em> methods specify actions to be repeated (usually once per frame) while the task is in a state. Here, the cursor position is being constantly updated during the <em>wait</em> state:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">_while_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">update_cursor</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="end">
-<h3><em>_end_</em><a class="headerlink" href="#end" title="Permalink to this headline">¶</a></h3>
+<p><strong>_end_</strong></p>
 <p><em>_end_</em> methods specify actions to be performed once at the end of a state, just before the task transitions to the next state. In this example, the origin target changes color once a target hold is complete:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">_end_origin_hold</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="c">#change target color</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">origin_target</span><span class="o">.</span><span class="n">color</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.5</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="test">
-<h3><em>_test_</em><a class="headerlink" href="#test" title="Permalink to this headline">¶</a></h3>
+<p><strong>_test_</strong></p>
 <p><em>_test_</em> methods define the criteria for state transitions. They are called constantly in the background during corresponding states, and must always return a boolean value. When a <em>_test_</em> method returns <tt class="docutils literal"><span class="pre">True</span></tt>, a transition to the state specified in the state transition definition is triggered. <em>_test_</em> methods must be named with the prefix <tt class="docutils literal"><span class="pre">_test_</span></tt> followed by one of the event names listed in the state transition definition, and they always have two arguments: <tt class="docutils literal"><span class="pre">self</span></tt> and <tt class="docutils literal"><span class="pre">ts</span></tt>, which is a variable containing the elapsed time in seconds since the onset of the current state. The following <em>_test_</em> method returns <tt class="docutils literal"><span class="pre">True</span></tt> when the elapsed time in the current state (<em>origin_hold</em>) exceeds the constant value <em>origin_hold_time</em>:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">_test_hold</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">ts</span><span class="o">&gt;=</span><span class="bp">self</span><span class="o">.</span><span class="n">origin_hold_time</span>
 </pre></div>
-</div>
 </div>
 </div>
 <div class="section" id="saving-task-data">
@@ -169,14 +159,7 @@ self.requeue()</dd>
 <li><a class="reference internal" href="#">Creating tasks</a><ul>
 <li><a class="reference internal" href="#the-state-transition-definition">The state transition definition</a></li>
 <li><a class="reference internal" href="#parameters">Parameters</a></li>
-<li><a class="reference internal" href="#methods">Methods</a><ul>
-<li><a class="reference internal" href="#init"><em>__init__</em></a></li>
-<li><a class="reference internal" href="#start"><em>_start_</em></a></li>
-<li><a class="reference internal" href="#while"><em>_while_</em></a></li>
-<li><a class="reference internal" href="#end"><em>_end_</em></a></li>
-<li><a class="reference internal" href="#test"><em>_test_</em></a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#methods">Methods</a></li>
 <li><a class="reference internal" href="#saving-task-data">Saving task data</a></li>
 </ul>
 </li>
