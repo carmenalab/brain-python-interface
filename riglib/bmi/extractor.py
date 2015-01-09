@@ -80,7 +80,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         '''
         self.n_subbins = n_subbins
         self.extractor_kwargs['n_subbins'] = n_subbins
-        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+        self.feature_dtype = [('spike_counts', 'u4', (len(self.units), n_subbins)), ('bin_edges', 'f8', 2)]
 
     def get_spike_ts(self, *args, **kwargs):
         '''
