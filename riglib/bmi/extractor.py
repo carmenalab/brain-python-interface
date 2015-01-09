@@ -524,7 +524,7 @@ class LFPMTMPowerExtractor(object):
         Returns
         -------
         '''
-        self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
+        #self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
 
         self.source = source
         self.channels = channels
@@ -546,7 +546,6 @@ class LFPMTMPowerExtractor(object):
    
         extractor_kwargs['no_log']  = kwargs.has_key('no_log') and kwargs['no_log']==True #remove log calculation
         extractor_kwargs['no_mean'] = kwargs.has_key('no_mean') and kwargs['no_mean']==True #r
-
         self.extractor_kwargs = extractor_kwargs
 
         self.n_pts = int(self.win_len * self.fs)
@@ -560,6 +559,12 @@ class LFPMTMPowerExtractor(object):
         extractor_kwargs['fft_freqs']      = fft_freqs
         
         self.epsilon = 1e-9
+
+        if extractor_kwargs['no_mean']: #Used in lfp 1D control task
+            self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(fft_freqs), 1))
+        else: #Else: 
+            self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
+
 
     def get_cont_samples(self, *args, **kwargs):
         '''    Docstring    '''

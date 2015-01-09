@@ -446,8 +446,9 @@ class Decoder(object):
         if not hasattr(self, 'bmicount'):
             self.bmicount = 0
 
-        if not hasattr(self, 'n_features'):
-            self.n_features = len(self.units)
+        # if not hasattr(self, 'n_features'):
+        #     self.n_features = len(self.units)
+        self.n_features = len(self.units)            
 
         # self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
         self.spike_counts = np.zeros([self.n_features, self.n_subbins])
