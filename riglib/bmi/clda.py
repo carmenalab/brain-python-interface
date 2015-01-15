@@ -1149,7 +1149,7 @@ class KFRML(Updater):
     See (Dangi et al, Neural Computation, 2014) for mathematical details.
     '''
     update_kwargs = dict(steady_state=False)
-    def __init__(self, work_queue, result_queue, batch_time, half_life):
+    def __init__(self, work_queue, result_queue, batch_time, half_life, adapt_C_xpose_Q_inv_C=True):
         '''
         Constructor for KFRML
 
@@ -1163,6 +1163,9 @@ class KFRML(Updater):
             Size of data batch to use for each update. Specify in seconds.
         half_life : float 
             Amount of time (in seconds) before parameters are half-overwritten by new data.
+        adapt_C_xpose_Q_inv_C : bool
+            Flag specifying whether to update the decoder property C^T Q^{-1} C, which 
+            defines the feedback dynamics of the final closed-loop system if A and W are known
 
         Returns
         -------
@@ -1174,6 +1177,7 @@ class KFRML(Updater):
         self.result_queue = None        
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
+        self.adapt_C_xpose_Q_inv_C = adapt_C_xpose_Q_inv_C
 
     @staticmethod
     def compute_suff_stats(hidden_state, obs, include_offset=True):
@@ -1247,6 +1251,14 @@ class KFRML(Updater):
         self.T = decoder.filt.T
         self.ESS = decoder.filt.ESS
 
+        self.feature_inds = np.arange(decoder.n_features)
+
+        # By default, tuning parameters for all features will adapt
+        self.stable_inds = []
+        self.adapting_inds = self.feature_inds.copy()
+        self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
+        self.stable_inds_independent = False
+
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
         '''
         Parameters
@@ -1287,6 +1299,10 @@ class KFRML(Updater):
 
         x = np.mat(intended_kin)
         y = np.mat(spike_counts)
+
+        # limit y to the features which are permitted to adapt
+        y = y[self.adapting_inds, :]
+
         if values is not None:
             n_samples = np.sum(values)
             B = np.mat(np.diag(values))
@@ -1294,28 +1310,48 @@ class KFRML(Updater):
             n_samples = spike_counts.shape[1]
             B = np.mat(np.eye(n_samples))
 
-        self.R = rho*self.R + (x*B*x.T)
-        self.S = rho*self.S + (y*B*x.T)
-        self.T = rho*self.T + np.dot(y, B*y.T)
+        if self.adapt_C_xpose_Q_inv_C:
+            self.R = rho*self.R + (x*B*x.T)
+
+        self.S[self.adapting_inds,:] = rho*self.S[self.adapting_inds,:] + (y*B*x.T)
+        self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
         R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
         C = self.S * R_inv
 
-        Q = (1./self.ESS) * (self.T - self.S*C.T) 
+        Q = (1./self.ESS) * (self.T - self.S*C.T)
+        if hasattr(self, 'stable_inds_mesh'):
+            Q[self.stable_inds_mesh] = decoder.filt.Q[self.stable_inds_mesh]
+        if self.stable_inds_independent:
+            Q[np.ix_(self.stable_inds, self.adapting_inds)] = 0
+            Q[np.ix_(self.adapting_inds, self.stable_inds)] = 0
 
-        mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
-        sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
+        mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
+        sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
 
-        C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
-        C_xpose_Q_inv_C = C_xpose_Q_inv * C
-        
-        new_params = {'kf.C':C, 'kf.Q':Q, 
-            'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
-            'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS, 'filt.R':self.R, 'filt.S':self.S, 'filt.T':self.T}
+        C_xpose_Q_inv = C.T * np.linalg.pinv(Q)
+
+        new_params = {'filt.C':C, 'filt.Q':Q, 'filt.C_xpose_Q_inv':C_xpose_Q_inv,
+            'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS, 'filt.S':self.S, 'filt.T':self.T}
+
+        if self.adapt_C_xpose_Q_inv_C:
+            C_xpose_Q_inv_C = C_xpose_Q_inv * C
+            new_params['filt.C_xpose_Q_inv_C'] = C_xpose_Q_inv_C
+            new_params['filt.R'] = self.R
+        else:
+            new_params['filt.C_xpose_Q_inv_C'] = decoder.filt.C_xpose_Q_inv_C
+            new_params['filt.R'] = decoder.filt.R
 
         return new_params
+
+    def set_stable_inds(self, stable_inds, stable_inds_independent=False):
+        self.stable_inds = stable_inds
+        self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds))
+        self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
+        self.stable_inds_mesh = np.ix_(self.stable_inds, self.stable_inds)
+        self.stable_inds_independent = stable_inds_independent
 
 
 class PPFRML(KFRML):
@@ -1486,7 +1522,7 @@ class KFRML_baseline(KFRML):
         sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
 
         C = decoder.filt.C
-        C[:,-1] = mFR.reshape(-1,1)
+        C[:,-1] = C_new[:,-1]
 
         C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
         C_xpose_Q_inv_C = C_xpose_Q_inv * C

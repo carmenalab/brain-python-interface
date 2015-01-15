@@ -25,7 +25,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="top" title="BMI3D 1.0 documentation" href="index.html" />
-    <link rel="next" title="Experiment extensions" href="extensions.html" />
+    <link rel="next" title="Display technologies" href="display.html" />
     <link rel="prev" title="Installation" href="install.html" /> 
   </head>
   <body>
@@ -42,7 +42,7 @@
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="extensions.html" title="Experiment extensions"
+          <a href="display.html" title="Display technologies"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="install.html" title="Installation"
@@ -151,11 +151,23 @@ TODO</p>
 </div>
 <p>Important note: in child classes, you must do this <em>before</em> calling the &#8216;super&#8217; _cycle method to ensure that your data is saved properly. This is because the final _cycle in the method resolution order is the experiment.Experiment._cycle method, which will send your task_data to any registered sinks. So if you do not set the variable beforehand, it may appear as the data you have saved to file is off by one timestep.</p>
 </div>
+<div class="section" id="task-trials-and-logging">
+<h2>Task &#8220;trials&#8221; and logging<a class="headerlink" href="#task-trials-and-logging" title="Permalink to this headline">¶</a></h2>
+<p>The base experiment class is a barebones FSM implementation. Two useful extensions are the LogExperiment and the Sequence classes. The LogExperiment extends Experiment by keeping track of (i.e., logging) events and state transitions. This provides the ability to calculate stats about state occurrences (e.g., successes per minute) as well as save the log to the database during &#8220;cleanup&#8221; time.</p>
+<p>The Sequence class further extends LogExperiment by making the &#8220;wait&#8221; state a special state. The constructor for the Sequence class expects a generator to be provided at construction time. During the wait state, an element is pulled from the generator. This element can be anything (an array, an object, etc.). This provides a way to specify the goal of each trial (e.g., the direction in which to reach) in a somewhat generic way. Nearly every task, to date, inherits from Sequence and leverages this functionality.</p>
+<p>In order to properly utilize Sequence functionality, a generator must be provided. The typical procedure involves a generation of a list of trial goals, which are yielded by a generator one at a time. These generator functions are naturally specific to each task. A reaching task may require specification of where to place all the targets. A grasping task may also specify targets, but perhaps in a different coordinate system or with more information necessary (e.g., the type of object to present).</p>
+<p>Each task should specify the possible sequence generators in the class attribute &#8216;sequence_generators&#8217;, which must be specified for each task which inherits from Sequence. The list is empty by default and should be populated with the string names of functions to be used as sequence generators. Function names are assumed to be staticmethods of that same task class.</p>
 </div>
 <div class="section" id="extending-tasks-with-features">
-<h1>Extending tasks with &#8220;features&#8221;<a class="headerlink" href="#extending-tasks-with-features" title="Permalink to this headline">¶</a></h1>
-<p>Features are partial tasks which can be used to extend a &#8220;base&#8221; task using multiple inheritance.</p>
+<h2>Extending tasks with &#8220;features&#8221;<a class="headerlink" href="#extending-tasks-with-features" title="Permalink to this headline">¶</a></h2>
+<p>Features are partial tasks which can be used to extend a &#8220;base&#8221; task using multiple inheritance. This functionality can be used to extend behavior for a particular state of the task (e.g., deliver a juice reward during the &#8216;reward&#8217; state), create a &#8220;sink&#8221; to use for saving data to file (e.g., SaveHDF), etc.</p>
+<p>Features should be added to the features module at the top-level of the bmi3d code. If the feature should also be selectable at runtime from the web interface, it should also be imported and added to featurelist.py. The dictionary &#8216;features&#8217; contained within that file is used to populate the list of features selectable. Not every feature needs to be a selectable feature. Sometimes the functionality may be useful for factoring out common but requried code between different tasks.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">To keep cross-task code dependencies minimal, manage featurelist carefully. If you only populate it with features that you actively need, that will minimize interference from other features that you don&#8217;t need. Including a feature which you don&#8217;t actually need may cause unnecessary errors due to the import of code, even if you don&#8217;t actually use the features in question</p>
+</div>
 <p><a class="reference internal" href="#tasks"><em>Creating tasks</em></a></p>
+</div>
 </div>
 
 
@@ -171,17 +183,18 @@ TODO</p>
 <li><a class="reference internal" href="#methods">Methods</a></li>
 <li><a class="reference internal" href="#parameters-runtime-configuration">Parameters &amp; Runtime configuration</a></li>
 <li><a class="reference internal" href="#saving-task-data">Saving task data</a></li>
+<li><a class="reference internal" href="#task-trials-and-logging">Task &#8220;trials&#8221; and logging</a></li>
+<li><a class="reference internal" href="#extending-tasks-with-features">Extending tasks with &#8220;features&#8221;</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#extending-tasks-with-features">Extending tasks with &#8220;features&#8221;</a></li>
 </ul>
 
   <h4>Previous topic</h4>
   <p class="topless"><a href="install.html"
                         title="previous chapter">Installation</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="extensions.html"
-                        title="next chapter">Experiment extensions</a></p>
+  <p class="topless"><a href="display.html"
+                        title="next chapter">Display technologies</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/tasks.txt"
@@ -217,7 +230,7 @@ TODO</p>
           <a href="np-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="extensions.html" title="Experiment extensions"
+          <a href="display.html" title="Display technologies"
              >next</a> |</li>
         <li class="right" >
           <a href="install.html" title="Installation"

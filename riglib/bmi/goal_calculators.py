@@ -218,11 +218,11 @@ class PlanarMultiLinkJointGoal(mp_calc.FuncProxy):
         '''    Docstring    '''
         def fn(target_pos, **kwargs):
             '''    Docstring    '''
-            endpt_location = target_pos - shoulder_anchor
-            joint_pos = kin_chain.inverse_kinematics(endpt_location, **kwargs)
-            endpt_error = np.linalg.norm(kin_chain.endpoint_pos(joint_pos) - endpt_location)
+            # endpt_location = target_pos - shoulder_anchor
+            joint_pos = kin_chain.inverse_kinematics(target_pos, **kwargs)
+            endpt_error = np.linalg.norm(kin_chain.endpoint_pos(joint_pos) - target_pos)
 
-            joint_pos *= -1 # the convention of the kin chain is different from that of the decoder/graphics..
+            # joint_pos *= -1 # the convention of the kin chain is different from that of the decoder/graphics..
             target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
             
             return target_state, endpt_error
