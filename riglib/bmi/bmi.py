@@ -122,6 +122,19 @@ class GaussianStateHMM(object):
     def _init_state(self, init_state=None, init_cov=None):
         """
         Initialize the state of the filter with a mean and covariance (uncertainty)
+
+        Parameters
+        ----------
+        init_state : np.matrix, optional
+            Initial estimate of the unknown state. If unspecified, a vector of all 0's 
+            will be used (except for the offset state, if one exists).
+        init_cov : np.matrix, optional
+            Uncertainty about the initial state. If unspecified, it is assumed that there
+            is no uncertainty (a matrix of all 0's).
+        
+        Returns
+        -------
+        None
         """
         ## Initialize the BMI state, assuming 
         nS = self.A.shape[0] # number of state variables
@@ -130,14 +143,22 @@ class GaussianStateHMM(object):
             if self.include_offset: init_state[-1,0] = 1
         if init_cov == None:
             init_cov = np.mat( np.zeros([nS, nS]) )
-        self.init_cov = init_cov
         self.state = GaussianState(init_state, init_cov) 
+        self.init_noise_models()
+
+    def init_noise_models(self):
+        '''
+        Initialize the process and observation noise models. The state noise should be 
+        Gaussian (as implied by the name of this class). The observation noise may be 
+        non-Gaussian depending on the observation model.
+        '''
         self.state_noise = GaussianState(0.0, self.W)
         self.obs_noise = GaussianState(0.0, self.Q)
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         ''' Docstring
-        Run the "predict" step of the Kalman filter/HMM inference algorithm
+        Run the "predict" step of the Kalman filter/HMM inference algorithm:
+            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
 
         Parameters
         ----------
@@ -166,12 +187,16 @@ class GaussianStateHMM(object):
             return A*state + self.state_noise
 
     def __eq__(self, other):
-        '''    Docstring    '''
+        '''
+        Determine equality of two GaussianStateHMM instances
+        '''
         import train
         return train.obj_eq(self, other, self.model_attrs)
 
     def __sub__(self, other):
-        '''    Docstring    '''
+        '''
+        Subtract the model attributes of two GaussianStateHMM instances. Used to determine approximate equality, i.e., equality modulo floating point error
+        '''
         import train
         return train.obj_diff(self, other, self.model_attrs)
 
@@ -182,6 +207,25 @@ class GaussianStateHMM(object):
         """
         self.state = self._forward_infer(self.state, obs, **kwargs)
         return self.state.mean
+
+    def _pickle_init(self):
+        pass
+
+    def __setstate__(self, state):
+        """
+        Unpickle decoders by loading all the saved parameters and then running _pickle_init
+
+        Parameters
+        ----------
+        state : dict
+            Provided by the unpickling system
+
+        Returns
+        -------
+        None
+        """
+        self.__dict__ = state
+        self._pickle_init()
 
 
 class Decoder(object):
@@ -238,7 +282,7 @@ class Decoder(object):
 
         self.set_call_rate(call_rate)
 
-        self._pickle_init()      
+        self._pickle_init()
 
     def _pickle_init(self):
         '''
@@ -361,10 +405,10 @@ class Decoder(object):
         if isinstance(idx, int):
             return self.filt.state.mean[idx, 0]
         elif idx == 'q':
-            pos_states = filter(gen_joint_coord_regex.match, self.states)
+            pos_states, = np.nonzero(self.ssm.state_order == 0)
             return np.array([self.__getitem__(k) for k in pos_states])
         elif idx == 'qdot':
-            vel_states = filter(lambda k: self.ssm.states[k].order == 1, range(len(self.states)))
+            vel_states, = np.nonzero(self.ssm.state_order == 1)
             return np.array([self.__getitem__(k) for k in vel_states])      
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
@@ -387,10 +431,10 @@ class Decoder(object):
         if isinstance(idx, int):
             self.filt.state.mean[idx, 0] = value
         elif idx == 'q':
-            pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]), range(len(self.states)))
+            pos_states, = np.nonzero(self.ssm.state_order == 0)
             self.filt.state.mean[pos_states, 0] = value
         elif idx == 'qdot':
-            vel_states = filter(lambda k: self.ssm.states[k].order == 1, range(len(self.states)))
+            vel_states, = np.nonzero(self.ssm.state_order == 1)
             self.filt.state.mean[vel_states, 0] = value
         elif idx == 'q_stoch':
             pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]) and self.states[k].stochastic, range(len(self.states)))
@@ -422,8 +466,9 @@ class Decoder(object):
         if not hasattr(self, 'bmicount'):
             self.bmicount = 0
 
-        if not hasattr(self, 'n_features'):
-            self.n_features = len(self.units)
+        # if not hasattr(self, 'n_features'):
+        #     self.n_features = len(self.units)
+        self.n_features = len(self.units)            
 
         # self.spike_counts = np.zeros([len(state['units']), self.n_subbins])
         self.spike_counts = np.zeros([self.n_features, self.n_subbins])
@@ -446,10 +491,22 @@ class Decoder(object):
         return state
 
     def set_call_rate(self, call_rate):
-        '''    Docstring    '''
+        '''
+        Function for the higher-level task to set the frequency of function calls to __call__
+
+        Parameters
+        ----------
+        call_rate : float 
+            1./call_rate should be an integer multiple or divisor of the Decoder's 'binlen'
+
+        Returns
+        -------
+        None
+        '''
         self.call_rate = call_rate
         self.bmicount = 0
         self.bminum = int(self.binlen/(1./self.call_rate))
+        self.n_subbins = int(np.ceil(1./self.binlen /self.call_rate))
 
     def get_state(self, shape=-1):
         '''
@@ -559,15 +616,13 @@ class Decoder(object):
         PPFDecoder, the decoder runs at 180Hz but the screen can only be updated
         at 60Hz, so the observations have to be presented 3 at a time. Similarly 
         a KFDecoder might run at 10 Hz, and the Decoder would have to accumulate
-        the decoder's features. 
+        observations over 6 iterations. 
 
         Parameters
         ----------
         obs_t: np.array of shape (# features, # subbins)
             Neural observation vector. If the decoding_rate of the Decoder is
             greater than the control rate of the plant (e.g. 60 Hz )
-        call_rate: float, optional, default = 60 Hz
-            Rate in Hz at which the task will run the __call__ function.            
         kwargs: dictionary
             Algorithm-specific arguments to be given to the Decoder.predict method
         '''

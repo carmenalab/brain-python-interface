@@ -58,15 +58,15 @@ class MirrorDisplay(Renderer):
         super(MirrorDisplay, self).draw(root, p_matrix=self.projections[1], **kwargs)
 
 class DualMultisizeDisplay(Renderer):
-    def __init__(self, main_window_size, small_window_size, fov, near, far, focal_dist, iod, **kwargs):
+    def __init__(self, main_window_size, mini_window_size, fov, near, far, focal_dist, iod, **kwargs):
         w, h = main_window_size
-        w2, h2 = small_window_size
+        w2, h2 = mini_window_size
         self.main_window_size = main_window_size
         self.mini_window_size = mini_window_size
 
         super(DualMultisizeDisplay, self).__init__((w+w2, h), fov, near, far, **kwargs)
         main_projections = offaxis_frusta(main_window_size, fov, near, far, focal_dist, iod, flip=True)
-        mini_projections = offaxis_frusta(small_window_size, fov, near, far, focal_dist, iod, flip=True)
+        mini_projections = offaxis_frusta(mini_window_size, fov, near, far, focal_dist, iod, flip=True)
         self.projections = (mini_projections[0], main_projections[0])
 
     def draw(self, root, **kwargs):
@@ -82,14 +82,14 @@ class DualMultisizeDisplay(Renderer):
         '''
 
         # draw the portion of the screen with lower-left corner (0, 0), width 'w' and height 'h'
-        w2, h2 = self.small_window_size
+        w2, h2 = self.mini_window_size
         glViewport(0, 0, w2, h2)
-        super(MirrorDisplay, self).draw(root, p_matrix=self.projections[0], **kwargs)
+        super(DualMultisizeDisplay, self).draw(root, p_matrix=self.projections[0], **kwargs)
 
         # draw the portion of the screen with lower-left corner (w, 0), width 'w' and height 'h'
         w, h = self.main_window_size
         glViewport(w2, 0, w, h)
-        super(MirrorDisplay, self).draw(root, p_matrix=self.projections[1], **kwargs)
+        super(DualMultisizeDisplay, self).draw(root, p_matrix=self.projections[1], **kwargs)
 
 class Anaglyph(Renderer):
     '''

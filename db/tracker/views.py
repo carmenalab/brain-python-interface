@@ -11,7 +11,7 @@ from django.http import HttpResponse
 from models import TaskEntry, Task, Subject, Feature, Generator
 
 import namelist
-from ajax import display
+from ajax import exp_tracker
 
 import datetime
 
@@ -28,14 +28,18 @@ def list(request):
     -------
     Django HTTPResponse instance
     '''
-    td = datetime.timedelta(days=30)
+    td = datetime.timedelta(days=60)
     start_date = datetime.date.today() - td
     entries = TaskEntry.objects.filter(date__gt=start_date).order_by('-date')
+
+    tasks = Task.objects.filter(visible=True).order_by("name")
+    import tasklist
+    tasks = filter(lambda t: t.name in tasklist.tasks.keys(), tasks)
 
     fields = dict(
         entries=entries, 
         subjects=Subject.objects.all().order_by("name"), 
-        tasks=Task.objects.filter(visible=True).order_by("name"), 
+        tasks=tasks, 
         features=Feature.objects.filter(visible=True).order_by("name"), 
         generators=Generator.objects.filter(visible=True).order_by("name"),
         hostname=request.get_host(),
@@ -46,8 +50,8 @@ def list(request):
         default_extractor=namelist.default_extractor,
         pos_vars=namelist.bmi_training_pos_vars,
     )
-    if display.task is not None:
-        fields['running'] = display.task.saveid
+    if exp_tracker.task is not None:
+        fields['running'] = exp_tracker.task.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
 def listall(request):
@@ -79,8 +83,8 @@ def listall(request):
         default_extractor=namelist.default_extractor,
         pos_vars=namelist.bmi_training_pos_vars,
     )
-    if display.task is not None:
-        fields['running'] = display.task.saveid
+    if exp_tracker.task is not None:
+        fields['running'] = exp_tracker.task.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
 def get_sequence(request, idx):

@@ -24,6 +24,35 @@ class Plane(TriMesh):
         super(Plane, self).__init__(pts, np.array(polys), 
                 tcoords=tcoords, normals=np.array(normals), **kwargs)
 
+class Cube(TriMesh):
+    def __init__(self, side_len=1 , segments=36, **kwargs):
+        side_len_half = side_len/2.
+        side = np.linspace(-1, 1, segments/4, endpoint=True)
+        
+        unit1 = np.hstack(( side[:,np.newaxis], np.ones((len(side),1)), np.ones((len(side),1)) ))
+        unit2 = np.hstack(( np.ones((len(side),1)), side[::-1,np.newaxis], np.ones((len(side),1)) ))
+        unit3 = np.hstack(( side[::-1,np.newaxis], -1*np.ones((len(side),1)), np.ones((len(side),1)) ))
+        unit4 = np.hstack(( -1*np.ones((len(side),1)), side[:,np.newaxis], np.ones((len(side),1)) ))
+
+        unit = np.vstack((unit1, unit2, unit3, unit4))
+
+        pts = np.vstack([unit*[side_len_half, side_len_half, 0], unit*[side_len_half,side_len_half,side_len]])
+        normals = np.vstack([unit*[1,1,0], unit*[1,1,0]])
+
+        polys = []
+        for i in range(segments-1):
+            polys.append((i, i+1, i+segments))
+            polys.append((i+segments, i+1, i+1+segments))
+        polys.append((segments-1, 0, segments*2-1))
+        polys.append((segments*2-1, 0, segments))
+        
+        tcoord = np.array([np.arange(segments), np.ones(segments)]).T
+        n = 1./segments
+        tcoord = np.vstack([tcoord*[n,1], tcoord*[n,0]])
+
+        super(Cube, self).__init__(pts, np.array(polys), 
+            tcoords=tcoord, normals=normals, **kwargs)
+
 class Cylinder(TriMesh):
     def __init__(self, height=1, radius=1, segments=36, **kwargs):
         theta = np.linspace(0, 2*np.pi, segments, endpoint=False)

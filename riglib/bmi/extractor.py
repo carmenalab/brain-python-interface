@@ -65,6 +65,23 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
         self.last_get_spike_counts_time = 0
 
+    def set_n_subbins(self, n_subbins):
+        '''
+        Alter the # of subbins without changing the extractor kwargs of a decoder
+
+        Parameters
+        ----------
+        n_subbins : int 
+            Number of bins into which to divide the observed spike counts 
+
+        Returns
+        -------
+        None
+        '''
+        self.n_subbins = n_subbins
+        self.extractor_kwargs['n_subbins'] = n_subbins
+        self.feature_dtype = [('spike_counts', 'u4', (len(self.units), n_subbins)), ('bin_edges', 'f8', 2)]
+
     def get_spike_ts(self, *args, **kwargs):
         '''
         Get the spike timestamps from the neural data source. This function has no type checking, 
@@ -240,6 +257,10 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.n_subbins = hdf_table[0][source].shape[1]
         self.last_get_spike_counts_time = 0
         self.cycle_rate = cycle_rate
+
+        n_units = hdf_table[0]['spike_counts'].shape[0]
+        self.feature_dtype = [('spike_counts', 'u4', (n_units, self.n_subbins)), 
+                              ('bin_edges', 'f8', 2)]
 
     def get_spike_ts(self):
         '''
@@ -503,7 +524,7 @@ class LFPMTMPowerExtractor(object):
         Returns
         -------
         '''
-        self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
+        #self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
 
         self.source = source
         self.channels = channels
@@ -521,6 +542,10 @@ class LFPMTMPowerExtractor(object):
         extractor_kwargs['win_len']  = self.win_len
         extractor_kwargs['NW']       = self.NW
         extractor_kwargs['fs']       = self.fs
+
+   
+        extractor_kwargs['no_log']  = kwargs.has_key('no_log') and kwargs['no_log']==True #remove log calculation
+        extractor_kwargs['no_mean'] = kwargs.has_key('no_mean') and kwargs['no_mean']==True #r
         self.extractor_kwargs = extractor_kwargs
 
         self.n_pts = int(self.win_len * self.fs)
@@ -530,31 +555,47 @@ class LFPMTMPowerExtractor(object):
         for band_idx, band in enumerate(bands):
             self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
 
+        extractor_kwargs['fft_inds']       = self.fft_inds
+        extractor_kwargs['fft_freqs']      = fft_freqs
+        
         self.epsilon = 1e-9
+
+        if extractor_kwargs['no_mean']: #Used in lfp 1D control task
+            self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(fft_freqs), 1))
+        else: #Else: 
+            self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
+
 
     def get_cont_samples(self, *args, **kwargs):
         '''    Docstring    '''
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
-        '''    Docstring    '''
+        '''    cont_samples is in channels x time   '''
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
-
-        # compute average power of each band of interest
-        n_chan = len(self.channels)
-        lfp_power = np.zeros((n_chan * len(self.bands), 1))
-        for idx, band in enumerate(self.bands):
-            lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
-
-        # n_chan = len(self.channels)     
-        # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
         
-        return lfp_power
+        if (self.extractor_kwargs.has_key('no_mean')) and (self.extractor_kwargs['no_mean'] is True):
+            return psd_est.reshape(psd_est.shape[0]*psd_est.shape[1], 1)
+
+        else:
+            # compute average power of each band of interest
+            n_chan = len(self.channels)
+            lfp_power = np.zeros((n_chan * len(self.bands), 1))
+            for idx, band in enumerate(self.bands):
+                if self.extractor_kwargs['no_log']:
+                    lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1).reshape(-1, 1)
+                else:
+                    lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
+
+            # n_chan = len(self.channels)     
+            # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
+            
+            return lfp_power
 
     def __call__(self, start_time, *args, **kwargs):
         '''    Docstring    '''
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-        # cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
+        #cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
         lfp_power = self.extract_features(cont_samples)
 
         return dict(lfp_power=lfp_power)
@@ -676,6 +717,141 @@ class EMGAmplitudeExtractor(object):
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
         emg = self.extract_features(cont_samples)
         return emg, None
+
+class WaveformClusterCountExtractor(FeatureExtractor):
+    feature_type = 'cluster_counts'
+    def __init__(self, source, gmm_model_params, n_subbins=1, units=[]):
+        self.feature_dtype = [('cluster_counts', 'f8', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+
+        self.source = source
+        self.gmm_model_params = gmm_model_params        
+        self.n_subbins = n_subbins
+        self.units = units
+        self.n_units = len(units)
+
+        extractor_kwargs = dict()
+        extractor_kwargs['n_subbins']        = self.n_subbins
+        extractor_kwargs['units']            = self.units
+        extractor_kwargs['gmm_model_params'] = gmm_model_params
+        self.extractor_kwargs = extractor_kwargs
+
+        self.last_get_spike_counts_time = 0        
+
+    def get_spike_data(self):
+        '''
+        Get the spike timestamps from the neural data source. This function has no type checking, 
+        i.e., it is assumed that the Extractor object was created with the proper source
+        '''
+        return self.source.get()
+
+    def get_bin_edges(self, ts):
+        '''
+        Determine the first and last spike timestamps to allow HDF files 
+        created by the BMI to be semi-synchronized with the neural data file
+        '''
+        if len(ts) == 0:
+            bin_edges = np.array([np.nan, np.nan])
+        else:
+            min_ind = np.argmin(ts['ts'])
+            max_ind = np.argmax(ts['ts'])
+            bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])
+
+    def __call__(self, start_time, *args, **kwargs):
+        '''    Docstring    '''
+        spike_data = self.get_spike_data()
+        if len(spike_data) == 0:
+            counts = np.zeros([len(self.units), self.n_subbins])
+        elif self.n_subbins > 1:
+            subbin_edges = np.linspace(self.last_get_spike_counts_time, start_time, self.n_subbins+1)
+
+            # Decrease the first subbin index to include any spikes that were
+            # delayed in getting to the task layer due to threading issues
+            # An acceptable delay is 1 sec or less. Realistically, most delays should be
+            # on the millisecond order
+            # subbin_edges[0] -= 1
+            # subbin_inds = np.digitize(spike_data['arrival_ts'], subbin_edges)
+            # counts = np.vstack([bin_spikes(ts[subbin_inds == k], self.units) for k in range(1, self.n_subbins+1)]).T
+            raise NotImplementedError
+        else:
+            # TODO pull the waveforms
+            waveforms = []
+
+            # TODO determine p(class) for each waveform against the model params
+            counts = np.zeros(self.n_units)
+            wf_class_probs = []
+            for wf in waveforms:
+                raise NotImplementedError
+            
+            # counts = bin_spikes(ts, self.units).reshape(-1, 1)
+
+        counts = np.array(counts, dtype=np.uint32)
+        bin_edges = self.get_bin_edges(ts)
+        self.last_get_spike_counts_time = start_time
+
+        return dict(spike_counts=counts, bin_edges=bin_edges)        
+
+    @classmethod
+    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):        
+        from sklearn.mixture import GMM
+        if 'plexon' in files:
+            from plexon import plexfile
+            plx = plexfile.openFile(str(files['plexon']))        
+        
+            channels = units[:,0]
+            channels = np.unique(channels)
+            np.sort(channels)
+
+            spike_chans = plx.spikes[:].data['chan']
+            spike_times = plx.spikes[:].data['ts']
+            waveforms = plx.spikes[:].waveforms
+
+            # construct the feature matrix (n_timepoints, n_units)
+            # interpolate between the rows to 180 Hz
+            if binlen < 1./strobe_rate:
+                interp_rows = []
+                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+                for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
+                interp_rows = np.array(interp_rows)
+            else:
+                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+                interp_rows = neurows[::step]
+
+            # digitize the spike timestamps into interp_rows
+            spike_bin_ind = np.digitize(spike_times, interp_rows)
+            spike_counts = np.zeros(len(interp_rows), n_units)
+
+            for ch in channels:
+                ch_waveforms = waveforms[spike_chans == ch]
+
+                # cluster the waveforms using a GMM
+                # TODO pick the number of components in an unsupervised way!
+                n_components = len(np.nonzero(units[:,0] == ch)[0])
+                gmm = GMM(n_components=n_components)
+                gmm.fit(ch_waveforms)
+
+                # store the cluster probabilities back in the same order that the waveforms were extracted
+                wf_probs = gmm.predict_proba(ch_waveforms)
+
+                ch_spike_bin_inds = spike_bin_ind[spike_chans == ch]
+                ch_inds, = np.nonzero(units[:,0] == ch)
+
+                # TODO don't assume the units are sorted!
+                for bin_ind, wf_prob in izip(ch_spike_bin_inds, wf_probs):
+                    spike_counts[bin_ind, ch_inds] += wf_prob
+
+
+            # discard units that never fired at all
+            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+            units = units[unit_inds,:]
+            spike_counts = spike_counts[:, unit_inds]
+            extractor_kwargs['units'] = units
+
+            return spike_counts, units, extractor_kwargs
+        else:
+            raise NotImplementedError('Not implemented for blackrock/TDT data yet!')
+
+
 
 
 

@@ -35,14 +35,24 @@ class Experiment(traits.HasTraits, threading.Thread):
         reward = dict(post_reward="wait"),
         penalty = dict(post_penalty="wait"),
     )
+
+    # Set the initial state to 'wait'. The 'wait' state has special behavior for the Sequence class (see below)
     state = "wait"
+
+    # Flag to set in order to stop the FSM gracefully
     stop = False
-    exclude_parent_traits = []
-    ordered_traits = []
-    hidden_traits = []
-    fps = 60
-    sequence_generators = []
+
+    # Rate at which FSM is called. Set to 60 Hz by default to match the typical monitor update rate
+    fps = 60 # Hz
+
+    ## GUI/database-related attributes
+    # Flag to specify if you want to be able to create a BMI Decoder object from the web interface
     is_bmi_seed = False
+
+    # Trait GUI manipulation
+    exclude_parent_traits = [] # List of possible parent traits that you don't want to be set from the web interface
+    ordered_traits = [] # Traits in this list appear in order at the top of the web interface parameters
+    hidden_traits = []  # These traits are hidden on the web interface, and can be displayed by clicking the 'Show' radiobutton on the web interface
 
     def __init__(self, **kwargs):
         '''
@@ -66,7 +76,8 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
         self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
 
-        # Attribute for task entry dtype. See SaveHDF feature
+        # Attribute for task entry dtype, used to create a numpy record array which is updated every iteration of the FSM
+        # See http://docs.scipy.org/doc/numpy/user/basics.rec.html for details on how to create a record array dtype
         self.dtype = []
 
         self.cycle_count = 0
@@ -110,6 +121,23 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         return trait in cls.hidden_traits
 
+    def start(self):
+        '''
+        From the python docs on threading.Thread:
+            Once a thread object is created, its activity must be started by 
+            calling the thread's start() method. This invokes the run() method in a 
+            separate thread of control.
+
+        Prior to the thread's start method being called, the secondary init function (self.init) is executed.
+        After the threading.Thread.start is executed, the 'run' method is executed automatically in a separate thread.
+
+        Returns
+        -------
+        None
+        '''
+        self.init()
+        super(Experiment, self).start()
+
     def init(self):
         '''
         Initialization method to run *after* object construction (see self.start)
@@ -120,95 +148,45 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.last_time = self.get_time()
         self.cycle_count = 0
 
-        # Register sink for task data
+        # Create task_data record array
+        # NOTE: all data variables MUST be declared prior to this point. So child classes overriding the 'init' method must
+        # declare their variables using the 'add_dtype' function BEFORE calling the 'super' method.
         try:
             self.dtype = np.dtype(self.dtype)
-            self.sinks.register("task", self.dtype)
             self.task_data = np.zeros((1,), dtype=self.dtype)
         except:
+            print "Error registering 'task' sink"
             import traceback
-            traceback.print_exc()
+            traceback.print_exc()            
             print self.dtype
-            self.task_data = None        
+            self.task_data = None
+
+        if not hasattr(self, 'sinks'):
+            from riglib import sink
+            self.sinks = sink.sinks
+
+        # Register the "task" source with the sinks
+        try:
+            self.sinks.register("task", self.dtype)
+        except:
+            import traceback
+            traceback.print_exc()            
+            raise Exception("Error registering task source")
+
+    def add_dtype(self, name, dtype, shape):
+        '''
+        Add to the dtype of the task. The task's dtype attribute is used to determine 
+        which attributes to save to file. 
+        '''
+        self.dtype.append((name, dtype, shape))
 
     def screen_init(self):
         '''
-        This method is implemented by the window class, which is not used by all tasks. However, 
+        This method is implemented by the riglib.stereo_opengl.Window class, which is not used by all tasks. However, 
         since Experiment is the ancestor of all tasks, a stub function is here so that any children
         using the window can safely use 'super'. 
         '''
         pass
-
-    def trigger_event(self, event):
-        '''
-        Transition the task state, where the next state depends on the 
-        trigger event
-
-        Docstring
-
-        Parameters
-        ----------
-        event: string
-            Based on the current state, a particular event will trigger a particular state transition (Mealy machine)
-
-        Returns
-        -------
-        None
-        '''
-        self.set_state(self.status[self.state][event])
-
-    def get_time(self):
-        '''
-        Abstraction to get the current time. State transitions are based on wall clock time, not on iteration count, 
-        so to get simulations to run faster than real time, this function must be overwritten.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        float: The current time in seconds
-        '''
-        return time.time()
-
-    def set_state(self, condition):
-        '''
-        Change the state of the task
-
-        Parameters
-        ----------
-        condition: string
-            Name of new state to transition into. The state name must be a key in the 'status' dictionary attribute of the task
-
-        Returns
-        -------
-        None
-        '''
-        self.state = condition
-
-        # Record the time at which the new state is entered. Used for timed states, e.g., the reward state
-        self.start_time = self.get_time()
-        self.update_report_stats()
-        if hasattr(self, "_start_%s"%condition):
-            getattr(self, "_start_%s"%condition)()
-
-    def start(self):
-        '''
-        Begin the task. Since Experiment inherits from threading.Thread, this spawns a 
-        thread when the super constructor is called. Prior to the thread spawning, 
-        the secondary init function (self.init) is called
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        '''
-        self.init()
-        super(Experiment, self).start()
 
     def run(self):
         '''
@@ -222,8 +200,7 @@ class Experiment(traits.HasTraits, threading.Thread):
             finally:
                 clean up stuff
 
-        where the try block may or may not be necessary depending on what stuff you're doing before
-        the main loop executes. For example, if you're opening a UDP port, you may want to always
+        The try block may or may not be necessary. For example, if you're opening a UDP port, you may want to always
         close the socket whether or not the main loop executes properly so that you don't loose the 
         reference to the socket. 
         '''
@@ -235,20 +212,96 @@ class Experiment(traits.HasTraits, threading.Thread):
             try:
                 if hasattr(self, "_while_%s"%self.state):
                     getattr(self, "_while_%s"%self.state)()
+
+                # Execute the commands which must run every loop, independent of the FSM state
+                # (e.g., running the BMI)
                 self._cycle()
                 
                 for event, state in self.status[self.state].items():
-                    if hasattr(self, "_test_%s"%event):
-                        if getattr(self, "_test_%s"%event)(self.get_time() - self.start_time):
-                            if hasattr(self, "_end_%s"%self.state):
-                                getattr(self, "_end_%s"%self.state)()
+                    event_test_fn_name = "_test_%s" % event
+                    if hasattr(self, event_test_fn_name):
+                        event_test_fn = getattr(self, event_test_fn_name)
+                        time_since_state_started = self.get_time() - self.start_time
+
+                        # If the test function evaluates to True, 
+                        if event_test_fn(time_since_state_started):
+                            end_state_fn_name = "_end_%s" % self.state
+                            if hasattr(self, end_state_fn_name):
+                                end_state_fn = getattr(self, end_state_fn_name)
+                                end_state_fn()
 
                             # Execute the event. In the base class, this means changing the state to the next state
                             self.trigger_event(event)
-                            break;
+                            break
             except:
                 traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
                 self.state = None
+
+    def trigger_event(self, event):
+        '''
+        Transition the task state to a new state, where the next state depends on the current state as well as the trigger event
+
+        Parameters
+        ----------
+        event: string
+            Based on the current state, a particular event will trigger a particular state transition (Mealy machine)
+
+        Returns
+        -------
+        None
+        '''
+        fsm_edges = self.status[self.state]
+        next_state = fsm_edges[event]
+        self.set_state(next_state)
+
+    def set_state(self, condition):
+        '''
+        Change the state of the task
+
+        Parameters
+        ----------
+        condition: string
+            Name of new state. The state name must be a key in the 'status' dictionary attribute of the task
+
+        Returns
+        -------
+        None
+        '''
+        self.state = condition
+
+        # Record the time at which the new state is entered. Used for timed states, e.g., the reward state
+        self.start_time = self.get_time()
+
+        # Update the report for the GUI
+        self.update_report_stats()
+
+        state_start_fn_name = "_start_%s" % condition
+        if hasattr(self, state_start_fn_name):
+            state_start_fn = getattr(self, state_start_fn_name)
+            state_start_fn()
+
+    def get_time(self):
+        '''
+        Abstraction to get the current time. By default, state transitions are based on wall clock time, not on iteration count.
+        To get simulations to run faster than real time, this function must be overwritten.
+
+        Returns
+        -------
+        float: The current time in seconds
+        '''
+        return time.time()
+
+    def _start_STATENAME(self):
+        pass
+
+    def _while_STATENAME(self):
+        pass
+
+    def _test_FAKEEVENT(self):
+        pass
+
+    def _end_STATENAME(self):
+        pass
 
     def _cycle(self):
         '''
@@ -276,19 +329,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         FSM 'test' function. Returns the 'stop' attribute of the task
         '''
         return self.stop
-
-    def cleanup_hdf(self):
-        ''' 
-        Method for adding data to hdf file after hdf sink is closed by 
-        system at end of task. The HDF file is re-opened and any extra task 
-        data kept in RAM is written
-        '''
-        traits = self.class_editable_traits()
-        h5file = tables.openFile(self.h5file.name, mode='a')
-        for trait in traits:
-            if trait not in ['bmi', 'decoder']:#, 'arm_class', 'arm_visible']:
-                h5file.root.task.attrs[trait] = getattr(self, trait)
-        h5file.close()
 
     @classmethod
     def _time_to_string(cls, sec):
@@ -337,6 +377,9 @@ class Experiment(traits.HasTraits, threading.Thread):
             offline_report['Success rate'] = str(np.round(float(n_success_trials)/n_trials*100,decimals=2)) + '%'
         return offline_report
 
+    ################################
+    ## Cleanup/termination functions
+    ################################
     def cleanup(self, database, saveid, **kwargs):
         '''
         Commands to execute at the end of a task.
@@ -348,7 +391,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         saveid : int
             TaskEntry database record id to link files/data to
         kwargs : optional dict arguments
-            Optional arguments to dbq methods. kwargs cannot be used when database is an RPC object.
+            Optional arguments to dbq methods. kwargs cannot be used when 'database' is an RPC object.
 
         Returns
         -------
@@ -357,16 +400,33 @@ class Experiment(traits.HasTraits, threading.Thread):
         print "experimient.Experiment.cleanup executing"
         pass
     
+    def cleanup_hdf(self):
+        ''' 
+        Method for adding data to hdf file after hdf sink is closed by 
+        system at end of task. The HDF file is re-opened and any extra task 
+        data kept in RAM is written
+        '''
+        traits = self.class_editable_traits()
+        h5file = tables.openFile(self.h5file.name, mode='a')
+        for trait in traits:
+            if trait not in ['bmi', 'decoder']:#, 'arm_class', 'arm_visible']:
+                h5file.root.task.attrs[trait] = getattr(self, trait)
+        h5file.close()
+
     def end_task(self):
-        print "Ending task by function call"
+        '''
+        End the FSM gracefully on the next iteration by setting the task's "stop" flag.
+        '''
         self.stop = True
 
-    def add_dtype(self, name, dtype, shape):
+    @classmethod 
+    def pre_init(cls, **kwargs):
         '''
-        Add to the dtype of the task. The task's dtype attribute is used to determine 
-        which attributes to save to file. 
+        Jobs to do before creating the task object go here (or this method should be overridden in child classes)
         '''
-        self.dtype.append((name, dtype, shape))
+        print 'running experiment.Experiment.pre_init'
+        pass
+
 
 
 class LogExperiment(Experiment):
@@ -450,6 +510,18 @@ class LogExperiment(Experiment):
             database.save_log(saveid, self.event_log, dbname=dbname)
 
     def calc_state_occurrences(self, state_name):
+        '''
+        Calculate the number of times the task enters a particular state
+
+        Parameters
+        ----------
+        state_name: string
+            Name of state to track
+
+        Returns
+        -------
+        Counts of state occurrences 
+        '''
         times = np.array([state[1] for state in self.state_log if state[0] == state_name])
         return len(times)
 
@@ -488,6 +560,10 @@ class Sequence(LogExperiment):
     Task where the targets or other information relevant to the start of each trial
     are presented by a Python generator
     '''
+
+    # List of staticmethods of the class which can be used to create a sequence of targets for each trial
+    sequence_generators = []
+
     def __init__(self, gen, **kwargs):
         '''
         Constructor for Sequence

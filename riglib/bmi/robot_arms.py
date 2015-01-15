@@ -121,8 +121,6 @@ class KinematicChain(object):
         Returns
         -------
         '''
-
-
         return joint_angles
 
     def inverse_kinematics(self, target_pos, q_start=None, method='pso', **kwargs):
@@ -135,16 +133,13 @@ class KinematicChain(object):
         Returns
         -------
         '''
-
-
         if q_start == None:
             q_start = self.random_sample()
         return self.inverse_kinematics_pso(target_pos, q_start, **kwargs)
         # ik_method = getattr(self, 'inverse_kinematics_%s' % method)
         # return ik_method(q_start, target_pos)
 
-    def inverse_kinematics_grad_descent(self, target_pos, starting_config, n_iter=1000, 
-                           verbose=False, eps=0.01, return_path=False):
+    def inverse_kinematics_grad_descent(self, target_pos, starting_config, n_iter=1000, verbose=False, eps=0.01, return_path=False):
         '''
         Default inverse kinematics method is RRT since for redundant 
         kinematic chains, an infinite number of inverse kinematics solutions 
@@ -372,8 +367,8 @@ class KinematicChain(object):
         '''
 
         _, allt = self.forward_kinematics(joint_angles, return_allt=True)
-        pos = allt[0:3, -1]
-        pos = np.hstack([np.zeros([3,1]), pos])
+        pos = allt[0:3, -1,:]
+        # pos = np.hstack([np.zeros([3,1]), pos])
         return pos
 
 
@@ -381,22 +376,44 @@ class PlanarXZKinematicChain(KinematicChain):
     '''
     Kinematic chain restricted to movement in the XZ-plane
     '''
+    def _init_serial_link(self):
+        base = robot.Link(alpha=pi/2, d=0, a=0)
+        links = [base]
+        for link_length in self.link_lengths:
+            link1 = robot.Link(alpha=0, d=0, a=link_length)
+            links.append(link1)
+
+            # link2 = robot.Link(alpha=pi/2)
+            # link3 = robot.Link(d=-link_length)
+            # links += [link1, link2, link3]
+        
+        # By convention, we start the arm in the XY-plane
+        # links[1].offset = -pi/2 
+
+        self.robot = robot.SerialLink(links)
+
     def calc_full_joint_angles(self, joint_angles):
         '''
         only some joints rotate in the planar kinematic chain
 
         Parameters
         ----------
+        joint_angles : np.ndarray of shape (self.n_links)
+            Joint angles without the angle for the base link, which is fixed at 0
         
         Returns
         -------
+        joint_angles_full : np.ndarray of shape (self.n_links+1)
+            Add on the 0 at the proximal end for the base link angle
         '''
         if not len(joint_angles) == self.n_links:
             raise ValueError("Incorrect number of joint angles specified!")
 
-        # There are really 3 angles per joint to allow 3D rotation at each joint
-        joint_angles_full = np.zeros(self.n_links * 3)  
-        joint_angles_full[1::3] = joint_angles
+        # # There are really 3 angles per joint to allow 3D rotation at each joint
+        # joint_angles_full = np.zeros(self.n_links * 3)  
+        # joint_angles_full[1::3] = joint_angles
+
+        joint_angles_full = np.hstack([0, joint_angles])
         return self.rotation_convention * joint_angles_full 
 
     def full_angles_to_subset(self, joint_angles):
@@ -409,8 +426,8 @@ class PlanarXZKinematicChain(KinematicChain):
         Returns
         -------
         '''
-
-        return joint_angles[1::3]
+        # return joint_angles[1::3]
+        return joint_angles[1:]
 
     def apply_joint_limits(self, joint_angles):
         '''
@@ -459,7 +476,7 @@ class PlanarXZKinematicChain(KinematicChain):
         -------
         '''        
         pos_all_joints = super(PlanarXZKinematicChain, self).spatial_positions_of_joints(*args, **kwargs)
-        return (pos_all_joints[:,::3].T + self.base_loc).T
+        return pos_all_joints #(pos_all_joints[:,::3].T + self.base_loc).T
 
     def create_ik_subchains(self):
         '''
@@ -488,7 +505,8 @@ class PlanarXZKinematicChain(KinematicChain):
         
         Returns
         -------
-        '''        
+        '''
+        target_pos = target_pos.copy()
         target_pos -= self.base_loc
         if not hasattr(self, 'proximal_chain') or not hasattr(self, 'distal_chain'):
             self.create_ik_subchains()
@@ -526,20 +544,22 @@ class PlanarXZKinematicChain(KinematicChain):
         Returns
         -------
         '''        
-        l = self.link_lengths
-        N = len(theta)
-        J = np.zeros([2, len(l)])
-        for m in range(N):
-            for i in range(m, N):
-                J[0, m] += -l[i]*np.sin(sum(self.rotation_convention*theta[:i+1]))
-                J[1, m] +=  l[i]*np.cos(sum(self.rotation_convention*theta[:i+1]))
-        return J
+        # l = self.link_lengths
+        # N = len(theta)
+        # J = np.zeros([2, len(l)])
+        # for m in range(N):
+        #     for i in range(m, N):
+        #         J[0, m] += -l[i]*np.sin(sum(self.rotation_convention*theta[:i+1]))
+        #         J[1, m] +=  l[i]*np.cos(sum(self.rotation_convention*theta[:i+1]))
+        # return J
+        J = self.robot.jacob0(self.calc_full_joint_angles(theta))
+        return np.array(J[[0,2], 1:])
 
     def config_change_nullspace_workspace(self, config1, config2):
         '''
         For two configurations, determine how much joint displacement is in the "null" space and how much is in the "task" space
 
-                Docstring    
+        Docstring    
         
         Parameters
         ----------
@@ -613,4 +633,4 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
         el_pflex = np.arccos(cos_el_pflex)
 
         sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
-        return np.array([-sh_pabd, -el_pflex])
+        return np.array([sh_pabd, el_pflex])

@@ -108,6 +108,7 @@ class Basic(object):
         -------
         '''
         length /= .1
+        length = int(length)
         if self.version==0:
             self._write(struct.pack('<ccxHxx', '@', 'G', length))
         elif self.version==1:

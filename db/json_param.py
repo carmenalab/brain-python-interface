@@ -1,5 +1,7 @@
-'''This module contains functions which help deal with parameter sets stored in the database
-as JSON blobs. It processes the values into reasonable dictionaries'''
+'''
+This module contains functions which convert parameter sets stored
+as JSON blobs into python dictionaries or vice versa.
+'''
 import __builtin__
 import ast
 import json
@@ -8,6 +10,7 @@ import numpy as np
 from tracker import models
 from riglib import calibrations
 import namelist
+import os
 
 def param_objhook(obj):
     if '__django_model__' in obj:
@@ -24,19 +27,31 @@ def param_objhook(obj):
 def norm_trait(trait, value):
     ttype = trait.trait_type.__class__.__name__
     if ttype == 'Instance':
+        # if the trait is an 'Instance' type and the value is a number, then the number gets interpreted as the primary key to a model in the database
         if isinstance(value, int):
-            #we got a primary key, lookup class name
             cname = namelist.instance_to_model[trait.trait_type.klass]
-            
-            value = cname.objects.get(pk=value).get()
+            record = cname.objects.get(pk=value)
+            value = record.get()
         #Otherwise, let's hope it's already an instance
     elif ttype == 'Bool':
+        # # Boolean values come back as 'on'/'off' instead of True/False
+        # bool_values = ['off', 'on']
+        # if not str(value) in bool_values:
+        #     f = open(os.path.expandvars('$BMI3D/log/trait_log'), 'w')
+        #     f.write('Error with type for trait %s, %s, value %s' % (str(trait), str(ttype), str(value)))
+        #     f.close()
+        #     import traceback
+        #     traceback.print_exc()
+        #     raise Exception
+
+        # value = bool_values.index(value)
+        # value = bool(value)
         if value == 'on':
             value = True
         elif value == 'off':
             value = False
     elif ttype == 'Tuple':
-        #Let's make sure this works, for older batches of data
+        # Explicit cast to tuple for backwards compatibility reasons (should not be necessary for newer versions of the code/traits lib?)
         value = tuple(value)
         
     #use Cast to validate the value
@@ -44,7 +59,7 @@ def norm_trait(trait, value):
         return trait.cast(value)
     except:
         f = open(os.path.expandvars('$BMI3D/log/trait_log'), 'w')
-        f.write('Error with type for trait %s, value %s' % (str(ttype), str(value)))
+        f.write('Error with type for trait %s, %s, value %s' % (str(trait), str(ttype), str(value)))
         f.close()
         import traceback
         traceback.print_exc()
@@ -84,10 +99,6 @@ class Parameters(object):
         return cls.from_dict(processed)
 
     def to_json(self):
-        #Fucking retarded ass json implementation in python is retarded as SHIT
-        #It doesn't let you override the default encoders! I have to pre-decode 
-        #the goddamned object before I push it through json
-
         def encode(obj):
             if isinstance(obj, models.models.Model):
                 return dict(
@@ -113,13 +124,31 @@ class Parameters(object):
         return json.dumps(encode(self.params))
     
     def trait_norm(self, traits):
+        '''
+        Apply typecasting to parameters which correspond to experiment traits 
+
+        Parameters
+        ----------
+        traits : ????
+            The specified traits have casts applied
+
+        Returns
+        -------
+        None
+        '''
         params = self.params
         self.params = dict()
         for name, value in params.items():
-            self.params[name] = norm_trait(traits[name], value)
+            if name in traits:
+                self.params[name] = norm_trait(traits[name], value)
+            else:
+                self.params[name] = value
     
     def __contains__(self, attr):
         return attr in self.params
     
     def __getitem__(self, attr):
         return self.params[attr]
+
+    def __setitem__(self, attr, val):
+        self.params[attr] = val

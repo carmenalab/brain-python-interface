@@ -19,22 +19,38 @@ class PointProcessFilter(bmi.GaussianStateHMM):
     Low-level Point-process filter, agnostic to application
 
     Model: 
-       x_{t+1} = Ax_t + w_t; w_t ~ N(0, W)
+       x_{t+1} = Ax_t + Bu_t + w_t; w_t ~ N(0, W)
        log(y_t) = Cx_t
     """
     model_attrs = ['A', 'W', 'C']
 
     def __init__(self, A=None, W=None, C=None, dt=None, is_stochastic=None, B=0, F=0):
         '''
-        Docstring    
-        
+        Constructor for PointProcessFilter
+
         Parameters
         ----------
-        
+        A : np.mat
+            Model of state transition matrix
+        W : np.mat
+            Model of process noise covariance
+        C : np.mat
+            Model of conditional distribution between observations and hidden state
+            log(obs) = C * hidden_state
+        dt : float
+            Discrete-time sampling rate of the filter. Used to map spike counts to spike rates
+        B : np.ndarray, optional
+            Control input matrix
+        F : np.ndarray, optional
+            State-space feedback gain matrix to drive state back to equilibrium state.
+        is_stochastic : np.array, optional
+            Array of booleans specifying for each state whether it is stochastic. 
+            If 'None' specified, all states are assumed to be stochastic
+
         Returns
         -------
+        KalmanFilter instance
         '''
-
         if A is None and W is None and C is None and dt is None:
             ## This condition should only be true in the unpickling phase
             pass            
@@ -93,18 +109,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         self.state_noise = GaussianState(0.0, self.W)
         self.id = np.zeros([1, self.C.shape[0]])
 
-    def get_mean(self):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''        
-        return np.array(self.state.mean).ravel()
-
     def _check_valid(self, lambda_predict):
         '''
         Docstring    
@@ -115,7 +119,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         Returns
         -------
         '''
-
         if np.any((lambda_predict * self.spike_rate_dt) > 1): 
             raise ValueError("Cell exploded!")
 
@@ -129,7 +132,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         Returns
         -------
         '''
-
         Loglambda_predict = self.C * state.mean
         lambda_predict = np.exp(Loglambda_predict)/self.spike_rate_dt
 
@@ -160,7 +162,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         Returns
         -------
         '''
-
         A = self.A
         B = self.B
         F = self.F
@@ -233,59 +234,33 @@ class PointProcessFilter(bmi.GaussianStateHMM):
 
         return post_state
 
-    def __setstate__(self, state):
-        """
-        Set the model parameters {A, W, C, Q} stored in the pickled
-        object
-
-        Docstring    
+    def __getstate__(self):
+        '''
+        Return model parameters to be pickled. Overrides the default __getstate__ so that things like the P matrix aren't pickled.
         
         Parameters
         ----------
+        None
         
         Returns
         -------
-        """
-        # TODO clean this up!
-        self.A = state['A']
-        self.W = state['W']
-        self.C = state['C']
-        self.B = state['B']
-        self.is_stochastic = state['is_stochastic']
-        self.dt = state['dt']
-        self._pickle_init()
-
-    def __getstate__(self):
-        """
-        Return the model parameters {A, W, C} for pickling
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------        
-        """
+        dict
+        '''
         return dict(A=self.A, W=self.W, C=self.C, dt=self.dt, B=self.B, 
-                    is_stochastic=self.is_stochastic)
+                    is_stochastic=self.is_stochastic, S=self.S)
 
     def tomlab(self, unit_scale=1.):
         '''
-        convert the beta to the same format as MATLAB PPF decoders
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------        
+        Convert to the MATLAB beta matrix convention from the one used here (different state order, transposed)
         '''
         return np.array(np.hstack([self.C[:,-1], unit_scale*self.C[:,self.is_stochastic]])).T
 
     @classmethod
     def frommlab(self, beta_mat):
+        '''
+        Convert from the MATLAB beta matrix convention to the one used here (different state order, transposed)
+        '''
         return np.vstack([beta_mat[1:,:], beta_mat[0,:]]).T
-        
 
     @classmethod
     def MLE_obs_model(cls, hidden_state, obs, include_offset=True, drives_obs=None):
@@ -352,7 +327,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         Returns
         -------
         '''
-
         ### # initialize the F_assist matrices
         ### # TODO this needs to be its own function...
         ### tau_scale = (28.*28)/1000/3. * np.array([18., 12., 6, 3., 2.5, 1.5])
@@ -394,65 +368,11 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         Returns
         -------
         '''
-
         # The PPF model predicts that at most one spike can be observed in 
         # each bin; if more are observed, squash the counts
         obs_t = obs_t.copy()
         obs_t[obs_t > 1] = 1
         return super(PPFDecoder, self).__call__(obs_t, **kwargs)
-
-    def get_filter(self):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''
-
-        return self.filt 
-
-    # def predict(self, spike_counts, target=None, speed=0.05, assist_level=0, **kwargs):
-    #     """
-    #     Run decoder, assist, and bound any states
-        
-    #     Docstring    
-        
-    #     Parameters
-    #     ----------
-        
-    #     Returns
-    #     -------
-        
-
-
-    #     """
-    #     # Define target state, if specified
-    #     if target is not None:
-    #         target_state = np.hstack([target, np.zeros(3), 1])
-    #         target_state = np.mat(target_state).reshape(-1,1)
-    #     else:
-    #         target_state = None
-
-    #     assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
-    #     if assist_level_idx < self.prev_assist_level:
-    #         print "assist_level_idx decreasing to", assist_level_idx
-    #         self.prev_assist_level = assist_level_idx
-    #     self.filt.F = np.mat(self.F_assist[assist_level_idx])
-
-    #     # re-format as a 1D col vec
-    #     spike_counts = np.mat(spike_counts.reshape(-1,1))
-
-    #     # Run the filter
-    #     self.filt(spike_counts, target_state=target_state)
-
-    #     # Bound cursor, if any hard bounds for states are applied
-    #     self.bound_state()
-
-    #     state = self.filt.get_mean()
-    #     return state
 
     def shuffle(self):
         '''
@@ -465,7 +385,6 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         Returns
         -------
         None
-
         '''
         import random
         inds = range(self.filt.C.shape[0])
@@ -473,3 +392,71 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
 
         # shuffle rows of C
         self.filt.C = self.filt.C[inds, :]
+
+    def compute_suff_stats(self, hidden_state, obs, include_offset=True):
+        '''
+        Calculate initial estimates of the parameter sufficient statistics used in the RML update rules
+
+        Parameters
+        ----------
+        hidden_state : np.ndarray of shape (n_states, n_samples)
+            Examples of the hidden state x_t taken from training seed data.  
+        obs : np.ndarray of shape (n_features, n_samples)
+            Multiple neural observations paired with each of the hidden state examples
+        include_offset : bool, optional
+            If true, a state of all 1's is added to the hidden_state to represent mean offsets. True by default
+
+        Returns
+        -------
+        R : np.ndarray of shape (n_states, n_states)
+            Proportional to covariance of the hidden state samples 
+        S : np.ndarray of shape (n_features, n_states)
+            Proportional to cross-covariance between 
+        T : np.ndarray of shape (n_features, n_features)
+            Proportional to covariance of the neural observations
+        ESS : float
+            Effective number of samples. In the initialization, this is just the 
+            dimension of the array passed in, but the parameter can become non-integer 
+            during the update procedure as old parameters are "forgotten".
+        '''
+        assert hidden_state.shape[1] == obs.shape[1]
+    
+        if isinstance(hidden_state, np.ma.core.MaskedArray):
+            mask = ~hidden_state.mask[0,:] # NOTE THE INVERTER 
+            inds = np.nonzero([ mask[k]*mask[k+1] for k in range(len(mask)-1)])[0]
+    
+            X = np.mat(hidden_state[:,mask])
+            n_pts = len(np.nonzero(mask)[0])
+    
+            Y = np.mat(obs[:,mask])
+            if include_offset:
+                X = np.vstack([ X, np.ones([1,n_pts]) ])
+        else:
+            num_hidden_state, n_pts = hidden_state.shape
+            X = np.mat(hidden_state)
+            if include_offset:
+                X = np.vstack([ X, np.ones([1,n_pts]) ])
+            Y = np.mat(obs)
+        X = np.mat(X, dtype=np.float64)
+
+        C = self.filt.C
+        dt = self.filt.dt
+
+        S = np.zeros([Y.shape[0], X.shape[0]])
+        n_samples = X.shape[1]
+        for k in range(n_samples):
+            x_t = X[:, k]
+            Loglambda_predict = C[:,self.drives_neurons] * x_t
+            exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
+            lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
+            Q_inv = np.mat(np.diag(lambda_predict*dt))
+
+            y_t = Y[:,k]
+            S += Q_inv*y_t*x_t.T
+
+        # R = (X * X.T)
+        # S = (Y * X.T)
+        # T = (Y * Y.T)
+        # ESS = n_pts
+
+        return (S,)

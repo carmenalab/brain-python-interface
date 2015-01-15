@@ -65,6 +65,7 @@ instance_to_model = SubclassDict( {
 bmi_algorithms = dict(
     KFDecoder=bmi.train.train_KFDecoder,
     PPFDecoder=bmi.train.train_PPFDecoder,
+    OneDimLFPDecoder=bmi.train.create_onedimLFP,
 )
 
 bmi_training_pos_vars = [
@@ -80,6 +81,7 @@ bmi_state_space_models=dict(
     Armassist=bmi.train.armassist_state_space,
     Rehand=bmi.train.rehand_state_space,
     ISMORE=bmi.train.ismore_state_space,
+    Joint2L=bmi.train.joint_2D_state_space,
 )
 
 extractors = dict(

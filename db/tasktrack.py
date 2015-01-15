@@ -4,7 +4,6 @@ mechanisms for interacting withe the task running in another process, e.g.,
 calling functions to start/stop the task, enabling/disabling decoder adaptation, etc.
 '''
 
-
 import os
 import sys
 import time
@@ -28,7 +27,7 @@ class Track(object):
         self.task = None
         self.proc = None
         self.websock = websocket.Server(self.notify)
-        self.cmds, self._cmds = mp.Pipe()
+        self.tracker_end_of_pipe, self.task_end_of_pipe = mp.Pipe()
 
     def notify(self, msg):
         if msg['status'] == "error" or msg['State'] == "stopped":
@@ -44,16 +43,17 @@ class Track(object):
         # create a proxy for interacting with attributes/functions of the task.
         # The task runs in a separate process and we cannot directly access python 
         # attributes of objects in other processes
-        self.task = ObjProxy(self.cmds)
+        self.task = ObjProxy(self.tracker_end_of_pipe)
 
         # Spawn the process
-        args = (self.cmds, self._cmds, self.websock)
+        args = (self.tracker_end_of_pipe, self.task_end_of_pipe, self.websock)
         self.proc = mp.Process(target=runtask, args=args, kwargs=kwargs)
         self.proc.start()
         
     def __del__(self):
         '''
-        Destructor for Track object. Not sure if this function ever gets called since Track is a singleton created upon import of the ajax library...
+        Destructor for Track object. Not sure if this function ever gets called 
+        since Track is a singleton created upon import of the db.tracker.ajax module...
         '''
         self.websock.stop()
 
@@ -61,6 +61,9 @@ class Track(object):
         self.status.value = self.task.pause()
 
     def stoptask(self):
+        '''
+        Terminate the task gracefully by running riglib.experiment.Experiment.end_task
+        '''
         assert self.status.value in "testing,running"
         try:
             self.task.end_task()
@@ -77,12 +80,43 @@ class Track(object):
         self.task = None
         return status
 
-def runtask(cmds, _cmds, websock, **kwargs):
+
+class NotifyFeat(object):
+    '''
+    Send task report and state data to display on the web inteface
+    '''
+    def __init__(self, *args,  **kwargs):
+        super(NotifyFeat, self).__init__(*args, **kwargs)
+        self.websock = kwargs.pop('websock')
+        self.tracker_end_of_pipe = kwargs.pop('tracker_end_of_pipe')
+        self.tracker_status = kwargs.pop('tracker_status')
+
+    def set_state(self, state, *args, **kwargs):
+        self.reportstats['status'] = self.tracker_status
+        self.reportstats['State'] = state or 'stopped'
+        
+        self.websock.send(self.reportstats)
+        super(NotifyFeat, self).set_state(state, *args, **kwargs)
+
+    def run(self):
+        try:
+            super(NotifyFeat, self).run()
+        except:
+            import cStringIO
+            import traceback
+            err = cStringIO.StringIO()
+            traceback.print_exc(None, err)
+            err.seek(0)
+            self.websock.send(dict(status="error", msg=err.read()))
+        finally:
+            self.tracker_end_of_pipe.send(None)
+
+
+def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
     Target function to execute in the separate process to start the task
     '''
     import time
-    from riglib.experiment import report
 
     # Rerout prints to stdout to the websocket
     sys.stdout = websock
@@ -93,56 +127,34 @@ def runtask(cmds, _cmds, websock, **kwargs):
 
     status = "running" if 'saveid' in kwargs else "testing"
 
-    # Instantiate feature to transmit task transition updates to the web interface
-    # The class needs to be declared here rather than 
-    class NotifyFeat(object):
-        def set_state(self, state, *args, **kwargs):
-            self.reportstats['status'] = status
-            self.reportstats['State'] = state or 'stopped'
-            
-            websock.send(self.reportstats)
-            super(NotifyFeat, self).set_state(state, *args, **kwargs)
-
-        def run(self):
-            try:
-                super(NotifyFeat, self).run()
-            except:
-                import cStringIO
-                import traceback
-                err = cStringIO.StringIO()
-                traceback.print_exc(None, err)
-                err.seek(0)
-                websock.send(dict(status="error", msg=err.read()))
-            finally:
-                cmds.send(None)
-
-    # Force all tasks to use the Notify feature defined above. Putting
-    # NotifyFeat at the beginning puts it always at the beginning of the start 
-    # of the method resolution order, i.e. its methods get called first
+    # Force all tasks to use the Notify feature defined above. 
+    kwargs['params']['websock'] = websock
+    kwargs['params']['tracker_status'] = status
+    kwargs['params']['tracker_end_of_pipe'] = tracker_end_of_pipe
     kwargs['feats'].insert(0, NotifyFeat)
 
     try:
+        # Instantiate the task
         task = Task(**kwargs)
-        cmd = _cmds.recv()
+        cmd = task_end_of_pipe.recv()
         while cmd is not None and task.task.state is not None:
             try:
                 fn_name = cmd[0]
                 cmd_args = cmd[1]
                 cmd_kwargs = cmd[2]
                 ret = getattr(task, fn_name)(*cmd_args, **cmd_kwargs)
-                _cmds.send(ret)
-                cmd = _cmds.recv()
+                task_end_of_pipe.send(ret)
+                cmd = task_end_of_pipe.recv()
             except KeyboardInterrupt:
                 # Handle the KeyboardInterrupt separately. How the hell would
                 # a keyboard interrupt even get here?
                 cmd = None
             except Exception as e:
-                _cmds.send(e)
-                if _cmds.poll(60.):
-                    cmd = _cmds.recv()
+                task_end_of_pipe.send(e)
+                if task_end_of_pipe.poll(60.):
+                    cmd = task_end_of_pipe.recv()
                 else:
                     cmd = None
-
     except:
         import cStringIO
         import traceback
@@ -156,8 +168,10 @@ def runtask(cmds, _cmds, websock, **kwargs):
         err.seek(0)
         print err.read()
 
-    # Redirect printing back to the shell
+    # Redirect printing from the websocket back to the shell
     sys.stdout = sys.__stdout__
+
+    # Initiate task cleanup
     try:
         task
     except:
@@ -176,17 +190,26 @@ def runtask(cmds, _cmds, websock, **kwargs):
         print "====="
     print "*************************** EXITING TASK *****************************"
 
+
 class Task(object):
+    '''
+    Wrapper for Experiment classes launched from the web interface
+    '''
     def __init__(self, subj, task, feats, params, seq=None, saveid=None):
         '''
         Parameters
         ----------
-        subj : database record for subject
-        task : database record for task
+        subj : tracker.models.Subject instance
+            Database record for subject performing the task
+        task : tracker.models.Task instance
+            Database record for base task being run (without features)
         feats : list 
             List of features to enable for the task
-        params : user input on configurable task parameters
-        saveid : int, optional, default=None
+        params : json_param.Parameters, or string representation of JSON object
+            user input on configurable task parameters
+        seq : models.Sequence instance
+            Database record of Sequence parameters/static target sequence
+        saveid : int, optional
             ID number of db.tracker.models.TaskEntry associated with this task
             if None specified, then the data saved will not be linked to the
             database entry and will be lost after the program exits
@@ -194,47 +217,24 @@ class Task(object):
         self.saveid = saveid
         self.taskname = task.name
         self.subj = subj
-        self.params = Parameters(params)
-
-        # Send pulse to neural recording system to start saving to file
-        if self.saveid is not None:
-            try:
-                import comedi
-                self.com = comedi.comedi_open("/dev/comedi0")
-
-                
-                if config.recording_sys['make'] == 'plexon':
-                    comedi.comedi_dio_bitfield2(self.com, 0, 16, 0, 16)
-                
-                elif config.recording_sys['make'] == 'blackrock':
-                    # set strobe pin low
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
-
-                    # set last data pin ("D15"; 16th pin) high
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 15)
-
-                    # set strobe pin high
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
-
-                    # set strobe pin low
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
-
-                # Wait a couple of seconds for the recording system to start up
-                time.sleep(3)
-            except:
-                print "No comedi, cannot start"
+        if isinstance(params, Parameters):
+            self.params = params
+        elif isinstance(params, (string, unicode)):
+            self.params = Parameters(params)
         
         base_class = task.get()
-
         Exp = experiment.make(base_class, feats=feats)
+
+        Exp.pre_init(saveid=saveid)
+
         self.params.trait_norm(Exp.class_traits())
         if issubclass(Exp, experiment.Sequence):
             gen_constructor, gen_params = seq.get()
 
-            # TODO Somehow, 'gen_constructor' magically ends up as the experiment.generate.runseq function, instead of anything in namelist.generators
+            # Typically, 'gen_constructor' is the experiment.generate.runseq function (not an element of namelist.generators)
             gen = gen_constructor(Exp, **gen_params)
 
-            # 'gen' is now a true python generator, used by experiment.Sequence
+            # 'gen' is now a true python generator usable by experiment.Sequence
             exp = Exp(gen, **self.params.params)
         else:
             exp = Exp(**self.params.params)
@@ -269,25 +269,6 @@ class Task(object):
         print "Calling saveout/task cleanup code"
         
         if self.saveid is not None:
-            try:
-                print "Stopping neural recording"
-                import comedi
-                if config.recording_sys['make'] == 'plexon':
-                    comedi.comedi_dio_bitfield2(self.com, 0, 16, 16, 16)
-                elif config.recording_sys['make'] == 'blackrock':
-                    # strobe pin should already be low
-
-                    # set last data pin ("D15"; 16th pin) low
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 15)
-
-                    # set strobe pin high
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 1, 16)
-
-                    # set strobe pin low
-                    comedi.comedi_dio_bitfield2(self.com, 0, 1, 0, 16)
-            except:
-                print "error stopping neural recording system!"
-                pass
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
             self.task.cleanup(database, self.saveid, subject=self.subj)
 

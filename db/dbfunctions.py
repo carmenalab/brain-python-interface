@@ -844,7 +844,7 @@ class TaskEntry(object):
 
         Returns
         -------
-         # of rewards given during a block. This number could be different
+        # of rewards given during a block. This number could be different
         from the total number of trials if children of this class over-ride
         the n_trials calculator to exclude trials of a certain type, e.g. BMI
         trials in which the subject was assiste
@@ -867,17 +867,11 @@ class TaskEntry(object):
     @property 
     def datafiles(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Returns a dictionary where keys are system names and values are the location(s) of associated data files
         '''
-        datafiles = models.DataFile.objects.filter(entry_id=self.id)
-        datafiles = dict((str(d.system.name), d.get_path()) for d in datafiles)        
-        return datafiles
+        datafiles = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id)
+        files = dict((d.system.name, d.get_path()) for d in datafiles)    
+        return files
 
 class TaskEntrySet(object):
     def __init__(self, blocks, name=''):
@@ -1021,6 +1015,9 @@ class TaskEntryCollection(object):
         self.kwargs = kwargs
         self.name = name
 
+    def __len__(self):
+        return len(self.blocks)
+
     def proc_trials(self, filt=None, proc=None, cond=None, comb=None, verbose=False, max_errors=10, **kwargs):
         '''
         Generic framework to perform a trial-level analysis on the entire dataset
@@ -1119,7 +1116,8 @@ class TaskEntryCollection(object):
     def proc_blocks(self, block_filter_fn=trial_filter_functions.default, block_proc_fn=trial_proc_functions.default, 
                     data_comb_fn=default_data_comb_fn, verbose=True, return_type=list, **kwargs):
         '''
-        Generic framework to perform a block-level analysis on the entire dataset, e.g., average reach time across all targets
+        Generic framework to perform a block-level analysis on the entire dataset, 
+        e.g., percent of trials correct, which require analyses across trials
 
         Parameters
         ----------
@@ -1151,7 +1149,7 @@ class TaskEntryCollection(object):
             blockset_data = []
             for te in blockset:
                 if verbose:
-                    print ".", 
+                    print "."
 
                 if block_filter_fn(te):
                     blockset_data.append(block_proc_fn(te, **kwargs))

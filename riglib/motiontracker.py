@@ -184,7 +184,6 @@ class System(object):
         -------
         '''
         markers = []
-        
         n = owlGetMarkers(markers, self.marker_count)
         while n == 0:
             time.sleep(.001)

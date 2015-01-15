@@ -3,7 +3,7 @@
 Representations of plants (control systems)
 '''
 import numpy as np
-from stereo_opengl.primitives import Cylinder, Sphere, Cone
+from stereo_opengl.primitives import Cylinder, Sphere, Cone, Cube
 from stereo_opengl.models import Group
 from riglib.bmi import robot_arms
 from riglib.stereo_opengl.xfm import Quaternion
@@ -22,6 +22,9 @@ from riglib.bmi import state_space_models
 from riglib import source
 import robot
 
+import struct
+from riglib.bmi.robot_arms import KinematicChain
+
 field_names = ['data', 'ts', 'ts_sent', 'ts_arrival', 'freq']
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
 ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
@@ -37,8 +40,26 @@ class Plant(object):
         raise NotImplementedError
 
     def drive(self, decoder):
+        '''
+        Call this function to 'drive' the plant to the state specified by the decoder
+
+        Parameters
+        ----------
+        decoder : bmi.Decoder instance 
+            Decoder used to estimate the state of/control the plant 
+
+        Returns
+        -------
+        None
+        '''
+        # Instruct the plant to go to the decoder-specified intrinsic coordinates
+        # decoder['q'] is a special __getitem__ case. See riglib.bmi.Decoder.__getitem__/__setitem__
         self.set_intrinsic_coordinates(decoder['q'])
+
+        # Not all intrinsic coordinates will be achievable. So determine where the plant actually went
         intrinsic_coords = self.get_intrinsic_coordinates()
+
+        # Update the decoder state with the current state of the plant, after the last command
         if not np.any(np.isnan(intrinsic_coords)):
             decoder['q'] = self.get_intrinsic_coordinates()
 
@@ -62,7 +83,6 @@ class Plant(object):
         Stop any auxiliary processes used by the plant
         '''        
         pass
-
 
 class FeedbackData(object):
     '''Abstract parent class, not meant to be instantiated.'''
@@ -123,7 +143,6 @@ class Client(object):
     def get_feedback_data(self):
         raise NotImplementedError('Implement in subclasses!')
 
-import struct
 
 class UpperArmPassiveExoClient(Client):
     ##  socket to read from
@@ -229,7 +248,6 @@ class AsynchronousPlant(Plant):
 
 
 
-from riglib.bmi.robot_arms import KinematicChain
 
 class PassiveExoChain(KinematicChain):
     def _init_serial_link(self):
@@ -255,7 +273,7 @@ class PassiveExoChain(KinematicChain):
 
 
 
-import struct
+
 class UpperArmPassiveExo(PassivePlant):
     hdf_attrs = [('joint_angles', 'f8', (6,))]
     read_addr = ('10.0.0.1', 60000)
@@ -272,14 +290,17 @@ class UpperArmPassiveExo(PassivePlant):
         self.rx_sock.bind(('10.0.0.1', 60000))
         super(UpperArmPassiveExo, self).start()        
 
-    def get_data_to_save(self):
+    def get_joint_angles(self):
         if self.initialized:
             data = self.rx_sock.recvfrom(48)
             self.tx_sock.sendto('c', ('10.0.0.12', 60001))
             joint_angles = np.array(struct.unpack('>dddddd', data[0]))
         else:
             joint_angles = np.array(np.ones(6)*np.nan)
-            
+        return joint_angles
+
+    def get_data_to_save(self):
+        joint_angles = self.get_joint_angles()            
         self.tx_sock.sendto('s', ('10.0.0.12', 60001))
         self.initialized = True
 
@@ -288,8 +309,11 @@ class UpperArmPassiveExo(PassivePlant):
         return dict(joint_angles=joint_angles)
 
     def get_endpoint_pos(self):
-        ### THIS IS A STUB FUNCTION UNTIL THE IK WORKS!
-        return np.zeros(3)
+        '''
+        Get endpoint position using the model representation of the D-H parameters of the passive exo
+        '''
+        joint_angles = np.deg2rad(self.get_joint_angles())
+        return self.kin_chain.endpoint_pos(joint_angles)
 
     def stop(self):
         self.rx_sock.close()
@@ -363,6 +387,42 @@ class CursorPlant(Plant):
     def get_data_to_save(self):
         return dict(cursor=self.position)
 
+class onedimLFP_CursorPlant(CursorPlant):
+    hdf_attrs = [('lfp_cursor', 'f8', (3,))]
+
+    def __init__(self, endpt_bounds, *args, **kwargs):
+        self.lfp_cursor_rad = kwargs['lfp_cursor_rad']
+        self.lfp_cursor_color = kwargs['lfp_cursor_color']
+        args=[(), kwargs['lfp_cursor_color']]
+        super(onedimLFP_CursorPlant, self).__init__(endpt_bounds, *args, **kwargs)
+
+
+    def _pickle_init(self):
+        self.cursor = Cube(side_len=self.lfp_cursor_rad, color=self.lfp_cursor_color)
+        self.cursor.translate(*self.position, reset=True)
+        self.graphics_models = [self.cursor]
+
+    def drive(self, decoder):
+        pos = decoder.filt.get_mean()
+        pos = [-8, -2.2, pos]
+        if self.endpt_bounds is not None:
+            if pos[2] < self.endpt_bounds[4]: 
+                pos[2] = self.endpt_bounds[4]
+                
+            if pos[2] > self.endpt_bounds[5]: 
+                pos[2] = self.endpt_bounds[5]
+               
+            self.position = pos
+            self.draw()
+
+    def turn_off(self):
+        self.cursor.detach()
+
+    def turn_on(self):
+        self.cursor.attach()
+
+    def get_data_to_save(self):
+        return dict(lfp_cursor=self.position)
 
 class VirtualKinematicChain(Plant):
     def __init__(self, *args, **kwargs):
@@ -404,16 +464,24 @@ class RobotArmGen2D(Plant):
         self.curr_vecs[1:,0] = self.link_lengths[1:]
 
         # Instantiate the kinematic chain object
-        self.kin_chain = robot_arms.PlanarXZKinematicChain(link_lengths)
+        self.kin_chain = self.kin_chain_class(link_lengths, base_loc=base_loc)
         self.kin_chain.joint_limits = joint_limits
 
         self.base_loc = base_loc
         self._pickle_init()
 
         from riglib.bmi import state_space_models
-        self.ssm = state_space_models.StateSpaceFourLinkTentacle2D()
+        self.ssm = state_space_models.StateSpaceNLinkPlanarChain(n_links=self.num_joints)
 
         self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
+
+        self.visible = True # arm is visible when initialized
+
+        self.joint_angles = np.zeros(self.num_joints)
+
+    @property 
+    def kin_chain_class(self):
+        return robot_arms.PlanarXZKinematicChain   
 
     def _pickle_init(self):
         '''
@@ -446,8 +514,7 @@ class RobotArmGen2D(Plant):
         self.link_groups[0].translate(*self.base_loc, reset=True)
         
         self.cursor = Sphere(radius=self.link_radii[-1]/2, color=self.link_colors[-1])
-        # self.cursor.translate(*self.get_endpoint_pos(), reset=True)
-        self.graphics_models = [self.link_groups[0], self.cursor]        
+        self.graphics_models = [self.link_groups[0], self.cursor]
 
     def _update_link_graphics(self):
         for i in range(0, self.num_joints):
@@ -472,14 +539,15 @@ class RobotArmGen2D(Plant):
         '''
         Returns the current position of the non-anchored end of the arm.
         '''
-        relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
-        return self.perform_fk(relangs) + self.base_loc
+        return self.kin_chain.endpoint_pos(self.joint_angles)
+        # relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
+        # return self.perform_fk(relangs) + self.base_loc
 
-    def perform_fk(self, angs):
-        absvecs = np.zeros(self.curr_vecs.shape)
-        for i in range(self.num_joints):
-            absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs[:i+1])), 0, np.sin(np.sum(angs[:i+1]))])
-        return np.sum(absvecs,axis=0)
+    # def perform_fk(self, angs):
+    #     absvecs = np.zeros(self.curr_vecs.shape)
+    #     for i in range(self.num_joints):
+    #         absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs[:i+1])), 0, np.sin(np.sum(angs[:i+1]))])
+    #     return np.sum(absvecs,axis=0)
 
     def set_endpoint_pos(self, pos, **kwargs):
         '''
@@ -493,13 +561,13 @@ class RobotArmGen2D(Plant):
             self.set_intrinsic_coordinates(angles)
 
     def perform_ik(self, pos, **kwargs):
-        angles = self.kin_chain.inverse_kinematics(pos - self.base_loc, q_start=-self.get_intrinsic_coordinates(), verbose=False, eps=0.008, **kwargs)
-        # print self.kin_chain.endpoint_pos(angles)
+        angles = self.kin_chain.inverse_kinematics(pos, q_start=self.get_intrinsic_coordinates(), verbose=False, eps=0.008, **kwargs).ravel()
+        # # print self.kin_chain.endpoint_pos(angles)
 
-        # Negate the angles. The convention in the robotics library is 
-        # inverted, i.e. in the robotics library, positive is clockwise 
-        # rotation whereas here CCW rotation is positive. 
-        angles = -angles        
+        # # Negate the angles. The convention in the robotics library is 
+        # # inverted, i.e. in the robotics library, positive is clockwise 
+        # # rotation whereas here CCW rotation is positive. 
+        # angles = -angles        
         return angles
 
     def calc_joint_angles(self, vecs):
@@ -509,18 +577,70 @@ class RobotArmGen2D(Plant):
         '''
         Returns the joint angles of the arm in radians
         '''
-        
         return self.calc_joint_angles(self.curr_vecs)
         
-    def set_intrinsic_coordinates(self,theta):
+    def set_intrinsic_coordinates(self, theta):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
         '''
-        for i in range(self.num_joints):
-            if theta[i] is not None and ~np.isnan(theta[i]):
+        if None not in theta and not np.any(np.isnan(theta)):
+            self.joint_angles = theta
+            for i in range(self.num_joints):
                 self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
                 
         self._update_link_graphics()
 
     def get_data_to_save(self):
-        return dict(cursor=self.get_endpoint_pos(), joint_angles=self.get_intrinsic_coordinates())
+        return dict(cursor=self.get_endpoint_pos(), joint_angles=self.get_intrinsic_coordinates(), arm_visible=self.visible)
+
+    def set_visibility(self, visible):
+        self.visible = visible
+        if visible:
+            self.graphics_models[0].attach()
+        else:
+            self.graphics_models[0].detach()
+
+class EndptControlled2LArm(RobotArmGen2D):
+    '''
+    2-link arm controlled in extrinsic coordinates (endpoint position)
+    '''
+    def __init__(self, *args, **kwargs):
+        super(EndptControlled2LArm, self).__init__(*args, **kwargs)
+        self.hdf_attrs = [('cursor', 'f8', (3,)), ('arm_visible','f8',(1,))]
+        self.ssm = state_space_models.StateSpaceEndptVel2D()
+
+    def get_intrinsic_coordinates(self):
+        return self.get_endpoint_pos()
+
+    def set_intrinsic_coordinates(self, pos, **kwargs):
+        self.set_endpoint_pos(pos, **kwargs)
+        # print pos
+        # if pos is not None:
+        #     # Run the inverse kinematics
+        #     theta = self.perform_ik(pos, **kwargs)
+
+
+        #     for i in range(self.num_joints):
+        #         if theta[i] is not None and ~np.isnan(theta[i]):
+        #             self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
+                    
+        #     self._update_link_graphics()
+
+    def set_endpoint_pos(self, pos, **kwargs):
+        if pos is not None:
+            # Run the inverse kinematics
+            theta = self.perform_ik(pos, **kwargs)
+            self.joint_angles = theta
+
+            for i in range(self.num_joints):
+                if theta[i] is not None and ~np.isnan(theta[i]):
+                    self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
+                    
+            self._update_link_graphics()
+
+    def get_data_to_save(self):
+        return dict(cursor=self.get_endpoint_pos(), arm_visible=self.visible)            
+
+    @property 
+    def kin_chain_class(self):
+        return robot_arms.PlanarXZKinematicChain2Link

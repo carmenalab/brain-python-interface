@@ -32,14 +32,14 @@ states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offs
 
 State = state_space_models.State
 StateSpaceEndptVel2D = state_space_models.StateSpaceEndptVel2D
-StateSpaceExoArm2D = state_space_models.StateSpaceExoArm2D
+# StateSpaceExoArm2D = state_space_models.StateSpaceExoArm2D
 StateSpaceFourLinkTentacle2D = state_space_models.StateSpaceFourLinkTentacle2D
 StateSpaceEndptVel = state_space_models.StateSpaceEndptVel
 
 endpt_3D_state_space = StateSpaceEndptVel()
 endpt_2D_state_space = StateSpaceEndptVel2D()
-joint_2D_state_space = StateSpaceExoArm2D()
-tentacle_2D_state_space = StateSpaceFourLinkTentacle2D()
+joint_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=2)
+tentacle_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=4) #StateSpaceFourLinkTentacle2D()
 
 StateSpaceArmAssist = state_space_models.StateSpaceArmAssist
 StateSpaceReHand    = state_space_models.StateSpaceReHand
@@ -76,6 +76,9 @@ def sys_eq(sys1, sys2):
 FAKE_BLACKROCK_TMASK = True
 # FAKE_BLACKROCK_TMASK = False
 
+########################################
+## Neural data synchronization functions
+########################################
 def _get_tmask(files, tslice, sys_name='task'):
     if 'plexon' in files:
         fn = _get_tmask_plexon
@@ -87,7 +90,8 @@ def _get_tmask(files, tslice, sys_name='task'):
         else:
             fn = _get_tmask_blackrock
             fname = [str(name) for name in files['blackrock'] if '.nev' in name][0]  # only one of them
-
+    else:
+        raise Exception("Neural data file(s) not found!")
 
     return fn(fname, tslice, sys_name=sys_name)
 
@@ -370,12 +374,41 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 ################################################################################
 ## Main training functions
 ################################################################################
+def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+     ## get neural features
+    f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
+    import onedim_lfp_decoder as old
+    return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
+
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
-    Docstring
+    Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
     Parameters
-    ----------
+    ---------- 
+    files : dict
+        Dictionary of files which contain training data. Keys are file tyes, values are file names.
+        Kinematic data is assumed to be stored in an 'hdf' file and neural data assumed to be in 'plx' or 'nev' files
+    extractor_cls : class
+        Class of feature extractor to instantiate
+    extractor_kwargs : dict 
+        Parameters to specify for feature extractor to instantiate it to specification
+    kin_extractor : callable
+        Function to extract kinematics from the HDF file.
+    ssm : state_space_models.StateSpace instance
+        State space model for the Decoder object being created.
+    units : np.iterable 
+        Spiking units are specified as tuples of (electrode channe, electrode unit)
+    update_rate : float, optional
+        Time in seconds between decoder updates. default=0.1
+    tslice : iterable of length 2, optional
+        Start and end times in seconds to specify the portion of the training data to use for ML estimation. By default, the whole dataset will be used
+    kin_source : string, optional
+        Table from the HDF file to grab kinematic data. Default is the 'task' table.
+    pos_key : string, optional
+        Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
+    vel_key : string
+        Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
 
     Returns
     -------
@@ -436,14 +469,37 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
 
 def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
-    Docstring
+    Create a new PPFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
     Parameters
-    ----------
+    ---------- 
+    files : dict
+        Dictionary of files which contain training data. Keys are file tyes, values are file names.
+        Kinematic data is assumed to be stored in an 'hdf' file and neural data assumed to be in 'plx' or 'nev' files
+    extractor_cls : class
+        Class of feature extractor to instantiate
+    extractor_kwargs : dict 
+        Parameters to specify for feature extractor to instantiate it to specification
+    kin_extractor : callable
+        Function to extract kinematics from the HDF file.
+    ssm : state_space_models.StateSpace instance
+        State space model for the Decoder object being created.
+    units : np.iterable 
+        Spiking units are specified as tuples of (electrode channe, electrode unit)
+    update_rate : float, optional
+        Time in seconds between decoder updates. default=0.1
+    tslice : iterable of length 2, optional
+        Start and end times in seconds to specify the portion of the training data to use for ML estimation. By default, the whole dataset will be used
+    kin_source : string, optional
+        Table from the HDF file to grab kinematic data. Default is the 'task' table.
+    pos_key : string, optional
+        Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
+    vel_key : string
+        Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
 
     Returns
     -------
-    KFDecoder instance
+    PPFDecoder instance
     '''
     binlen = 1./180 #update_rate
 
@@ -476,6 +532,15 @@ def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     ppf = ppfdecoder.PointProcessFilter(A, W, C, B=B, dt=update_rate, is_stochastic=ssm.is_stochastic)
     decoder = ppfdecoder.PPFDecoder(ppf, units, ssm, binlen=binlen, tslice=tslice)
 
+    # Compute sufficient stats for C matrix (used for RML CLDA)
+    from clda import KFRML
+    n_features, n_states = C.shape
+    S = np.mat(np.zeros([n_features, n_states]))
+    S_small, = decoder.compute_suff_stats(kin[ssm.train_inds, :], neural_features)
+
+    S[:,ssm.drives_obs_inds] = S_small
+        
+    decoder.filt.S = S
     decoder.n_features = n_features
 
     decoder.extractor_cls = extractor_cls
@@ -512,13 +577,18 @@ def obj_eq(self, other, attrs=[]):
     '''
     Determine if two objects have mattching array attributes
 
-    Docstring
-
     Parameters
     ----------
+    other : object
+        If objects are not the same type, False is returned
+    attrs : list, optional
+        List of attributes to compare for equality. Only attributes that are common to both objects are used.
+        The attributes should be np.array or similar as np.array_equal is used to determine equality
 
     Returns
     -------
+    bool 
+        True value returned indicates equality between objects for the specified attributes
     '''
     if isinstance(other, type(self)):
         attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))

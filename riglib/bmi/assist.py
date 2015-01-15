@@ -222,7 +222,8 @@ class TentacleAssist(SSMLFCAssister):
         except KeyError:
             raise ValueError("kin_chain must be supplied for TentacleAssist")
         
-        A, B, W = ssm.get_ssm_matrices()
+        update_rate = kwargs.pop('update_rate', 0.1)
+        A, B, W = ssm.get_ssm_matrices(update_rate=update_rate)
         Q = np.mat(np.diag(np.hstack([kin_chain.link_lengths, np.zeros_like(kin_chain.link_lengths), 0])))
         R = 10000*np.mat(np.eye(B.shape[1]))
 

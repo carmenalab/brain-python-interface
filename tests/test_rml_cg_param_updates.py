@@ -21,7 +21,7 @@ te = performance._get_te(idx)
 
 ### TODO some CLDA blocks have a changing half life...
 updater = clda.KFRML(None, None, te.batch_time, te.half_life[0])
-updater.init_suff_stats(te.seed_decoder)
+updater.init(te.seed_decoder)
 
 param_hist = te.hdf.root.clda
 C_error = []
