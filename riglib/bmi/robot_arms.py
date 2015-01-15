@@ -367,8 +367,8 @@ class KinematicChain(object):
         '''
 
         _, allt = self.forward_kinematics(joint_angles, return_allt=True)
-        pos = allt[0:3, -1]
-        pos = np.hstack([np.zeros([3,1]), pos])
+        pos = allt[0:3, -1,:]
+        # pos = np.hstack([np.zeros([3,1]), pos])
         return pos
 
 
@@ -476,7 +476,7 @@ class PlanarXZKinematicChain(KinematicChain):
         -------
         '''        
         pos_all_joints = super(PlanarXZKinematicChain, self).spatial_positions_of_joints(*args, **kwargs)
-        return (pos_all_joints[:,::3].T + self.base_loc).T
+        return pos_all_joints #(pos_all_joints[:,::3].T + self.base_loc).T
 
     def create_ik_subchains(self):
         '''
