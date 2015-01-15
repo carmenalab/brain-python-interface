@@ -22,8 +22,8 @@ class TestDecoderTrain(unittest.TestCase):
         dec = dec_record.load()
       
         training_block = dbfn.TaskEntry(dec_record.entry_id, dbname='testing')
-        datafiles = models.DataFile.objects.filter(entry_id=training_block.id)
-        files = dict((d.system.name, d.get_path()) for d in datafiles)
+        files = training_block.datafiles
+        print files
       
         from riglib.bmi import extractor
         extractor_cls = extractor.BinnedSpikeCountsExtractor
@@ -53,8 +53,7 @@ class TestDecoderTrain(unittest.TestCase):
         dec = dec_record.load()
         
         training_block = dbfn.TaskEntry(dec_record.entry_id, dbname='testing')
-        datafiles = models.DataFile.objects.filter(entry_id=training_block.id)
-        files = dict((d.system.name, d.get_path()) for d in datafiles)
+        files = training_block.datafiles
         
         from riglib.bmi import extractor
         extractor_cls = extractor.BinnedSpikeCountsExtractor

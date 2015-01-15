@@ -854,7 +854,7 @@ class TaskEntry(object):
 
         Returns
         -------
-         # of rewards given during a block. This number could be different
+        # of rewards given during a block. This number could be different
         from the total number of trials if children of this class over-ride
         the n_trials calculator to exclude trials of a certain type, e.g. BMI
         trials in which the subject was assiste
@@ -877,17 +877,11 @@ class TaskEntry(object):
     @property 
     def datafiles(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Returns a dictionary where keys are system names and values are the location(s) of associated data files
         '''
-        datafiles = models.DataFile.objects.filter(entry_id=self.id)
-        datafiles = dict((str(d.system.name), d.get_path()) for d in datafiles)        
-        return datafiles
+        datafiles = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id)
+        files = dict((d.system.name, d.get_path()) for d in datafiles)    
+        return files
 
 class TaskEntrySet(object):
     def __init__(self, blocks, name=''):
