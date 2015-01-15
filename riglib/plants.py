@@ -631,7 +631,6 @@ class EndptControlled2LArm(RobotArmGen2D):
             # Run the inverse kinematics
             theta = self.perform_ik(pos, **kwargs)
             self.joint_angles = theta
-            print 'joint angles', self.joint_angles
 
             for i in range(self.num_joints):
                 if theta[i] is not None and ~np.isnan(theta[i]):
