@@ -7,10 +7,11 @@ def initialize_db(rigname='bmi3d'):
 	tracker import models". Once the import has already been called the database
 	cannot be changed without starting a new python session.'''
 
-	dbdict = {'bmi3d':'db.settings', 'exorig':'db.settings_exo'}
-	try:
-		dbname = dbdict[rigname]
-	except:
-		print "Unrecognized rig!"
+	# dbdict = {'bmi3d':'db.settings', 'exorig':'db.settings_exo'}
+	# try:
+	# 	dbname = dbdict[rigname]
+	# except:
+	# 	print "Unrecognized rig!"
 
-	os.environ['DJANGO_SETTINGS_MODULE'] = dbname
+	# os.environ['DJANGO_SETTINGS_MODULE'] = dbname
+	os.environ['DBNAME'] = rigname
