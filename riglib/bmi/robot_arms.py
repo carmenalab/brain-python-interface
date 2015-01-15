@@ -544,14 +544,16 @@ class PlanarXZKinematicChain(KinematicChain):
         Returns
         -------
         '''        
-        l = self.link_lengths
-        N = len(theta)
-        J = np.zeros([2, len(l)])
-        for m in range(N):
-            for i in range(m, N):
-                J[0, m] += -l[i]*np.sin(sum(self.rotation_convention*theta[:i+1]))
-                J[1, m] +=  l[i]*np.cos(sum(self.rotation_convention*theta[:i+1]))
-        return J
+        # l = self.link_lengths
+        # N = len(theta)
+        # J = np.zeros([2, len(l)])
+        # for m in range(N):
+        #     for i in range(m, N):
+        #         J[0, m] += -l[i]*np.sin(sum(self.rotation_convention*theta[:i+1]))
+        #         J[1, m] +=  l[i]*np.cos(sum(self.rotation_convention*theta[:i+1]))
+        # return J
+        J = self.robot.jacob0(self.calc_full_joint_angles(theta))
+        return np.array(J[[0,2], 1:])
 
     def config_change_nullspace_workspace(self, config1, config2):
         '''
