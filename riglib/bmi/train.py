@@ -90,7 +90,8 @@ def _get_tmask(files, tslice, sys_name='task'):
         else:
             fn = _get_tmask_blackrock
             fname = [str(name) for name in files['blackrock'] if '.nev' in name][0]  # only one of them
-
+    else:
+        raise Exception("Neural data file(s) not found!")
 
     return fn(fname, tslice, sys_name=sys_name)
 
