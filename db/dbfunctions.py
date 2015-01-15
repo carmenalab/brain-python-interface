@@ -1031,6 +1031,9 @@ class TaskEntryCollection(object):
         self.kwargs = kwargs
         self.name = name
 
+    def __len__(self):
+        return len(self.blocks)
+
     def proc_trials(self, filt=None, proc=None, cond=None, comb=None, verbose=False, max_errors=10, **kwargs):
         '''
         Generic framework to perform a trial-level analysis on the entire dataset
@@ -1129,7 +1132,8 @@ class TaskEntryCollection(object):
     def proc_blocks(self, block_filter_fn=trial_filter_functions.default, block_proc_fn=trial_proc_functions.default, 
                     data_comb_fn=default_data_comb_fn, verbose=True, return_type=list, **kwargs):
         '''
-        Generic framework to perform a block-level analysis on the entire dataset, e.g., average reach time across all targets
+        Generic framework to perform a block-level analysis on the entire dataset, 
+        e.g., percent of trials correct, which require analyses across trials
 
         Parameters
         ----------
@@ -1161,7 +1165,7 @@ class TaskEntryCollection(object):
             blockset_data = []
             for te in blockset:
                 if verbose:
-                    print ".", 
+                    print "."
 
                 if block_filter_fn(te):
                     blockset_data.append(block_proc_fn(te, **kwargs))

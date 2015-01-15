@@ -122,6 +122,19 @@ class GaussianStateHMM(object):
     def _init_state(self, init_state=None, init_cov=None):
         """
         Initialize the state of the filter with a mean and covariance (uncertainty)
+
+        Parameters
+        ----------
+        init_state : np.matrix, optional
+            Initial estimate of the unknown state. If unspecified, a vector of all 0's 
+            will be used (except for the offset state, if one exists).
+        init_cov : np.matrix, optional
+            Uncertainty about the initial state. If unspecified, it is assumed that there
+            is no uncertainty (a matrix of all 0's).
+        
+        Returns
+        -------
+        None
         """
         ## Initialize the BMI state, assuming 
         nS = self.A.shape[0] # number of state variables
@@ -130,8 +143,15 @@ class GaussianStateHMM(object):
             if self.include_offset: init_state[-1,0] = 1
         if init_cov == None:
             init_cov = np.mat( np.zeros([nS, nS]) )
-        self.init_cov = init_cov
         self.state = GaussianState(init_state, init_cov) 
+        self.init_noise_models()
+
+    def init_noise_models(self):
+        '''
+        Initialize the process and observation noise models. The state noise should be 
+        Gaussian (as implied by the name of this class). The observation noise may be 
+        non-Gaussian depending on the observation model.
+        '''
         self.state_noise = GaussianState(0.0, self.W)
         self.obs_noise = GaussianState(0.0, self.Q)
 
@@ -470,12 +490,22 @@ class Decoder(object):
         return state
 
     def set_call_rate(self, call_rate):
-        '''    Docstring    '''
+        '''
+        Function for the higher-level task to set the frequency of function calls to __call__
+
+        Parameters
+        ----------
+        call_rate : float 
+            1./call_rate should be an integer multiple or divisor of the Decoder's 'binlen'
+
+        Returns
+        -------
+        None
+        '''
         self.call_rate = call_rate
         self.bmicount = 0
         self.bminum = int(self.binlen/(1./self.call_rate))
         self.n_subbins = int(np.ceil(1./self.binlen /self.call_rate))
-        print "setting n_subbins to ", self.n_subbins
 
     def get_state(self, shape=-1):
         '''
@@ -585,15 +615,13 @@ class Decoder(object):
         PPFDecoder, the decoder runs at 180Hz but the screen can only be updated
         at 60Hz, so the observations have to be presented 3 at a time. Similarly 
         a KFDecoder might run at 10 Hz, and the Decoder would have to accumulate
-        the decoder's features. 
+        observations over 6 iterations. 
 
         Parameters
         ----------
         obs_t: np.array of shape (# features, # subbins)
             Neural observation vector. If the decoding_rate of the Decoder is
             greater than the control rate of the plant (e.g. 60 Hz )
-        call_rate: float, optional, default = 60 Hz
-            Rate in Hz at which the task will run the __call__ function.            
         kwargs: dictionary
             Algorithm-specific arguments to be given to the Decoder.predict method
         '''
