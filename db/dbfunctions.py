@@ -24,22 +24,10 @@ try:
 except:
     pass
 
-# Should use db.initdb.initialize_db() function to set the desired database
-# before this file is imported, but if it has not already been done, choose the
-# bmi3d rig database.
-
-
-# try:
-#     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
-# except:
-#     
-#     dbname_short = os.environ['DJANGO_SETTINGS_MODULE']
-
-# sys.path.append(os.path.expanduser("~/code/bmi3d/db/"))
-# from tracker import models
-# dbname = eval(dbname_short+'.DATABASES[\'default\'][\'NAME\']')
-
 from tracker import models
+
+# default DB, change this variable from python session to switch to other database
+db_name = 'default'
 
 def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
     '''
@@ -92,7 +80,7 @@ def lookup_task_entries(*task_entry):
         if isinstance(task_entry, models.TaskEntry):
             pass
         elif isinstance(task_entry, int):
-            task_entry = models.TaskEntry.objects.get(pk=task_entry) #get_task_entry(task_entry)
+            task_entry = models.TaskEntry.objects.using(db_name).get(pk=task_entry) #get_task_entry(task_entry)
         return task_entry
     else:
         return [lookup_task_entries(x) for x in task_entry]
@@ -101,20 +89,20 @@ def get_task_id(name):
     '''
     Returns the task ID for the specified task name.
     '''
-    return models.Task.objects.get(name=name).pk
+    return models.Task.objects.using(db_name).get(name=name).pk
 
 def get_decoder_entry(entry):
     '''Returns the database entry for the decoder used in the session. Argument can be a task entry
     or the ID number of the decoder entry itself.
     '''
     if isinstance(entry, int):
-        return models.Decoder.objects.get(pk=entry)
+        return models.Decoder.objects.using(db_name).get(pk=entry)
     else:
         params = json.loads(entry.params)
         if 'decoder' in params:
-            return models.Decoder.objects.get(pk=params['decoder'])
+            return models.Decoder.objects.using(db_name).get(pk=params['decoder'])
         elif 'bmi' in params:
-            return models.Decoder.objects.get(pk=params['bmi'])
+            return models.Decoder.objects.using(db_name).get(pk=params['bmi'])
         else:
             return None
 
@@ -128,7 +116,7 @@ def get_decoder_name(entry):
         decid = json.loads(entry.params)['decoder']
     except:
         decid = json.loads(entry.params)['bmi']
-    return models.Decoder.objects.get(pk=decid).path
+    return models.Decoder.objects.using(db_name).get(pk=decid).path
 
 def get_decoder_name_full(entry):
     entry = lookup_task_entries(entry)
@@ -162,7 +150,7 @@ def get_task_name(entry):
     Returns name of task used for session.
     Takes TaskEntry object.
     '''
-    return models.Task.objects.get(pk=entry.task_id).name
+    return models.Task.objects.using(db_name).get(pk=entry.task_id).name
     
 def get_date(entry):
     '''
@@ -183,7 +171,7 @@ def get_subject(entry):
     Returns name of subject for session.
     Takes TaskEntry object.
     '''
-    return models.Subject.objects.get(pk=entry.subject_id).name
+    return models.Subject.objects.using(db_name).get(pk=entry.subject_id).name
     
 def get_length(entry):
     '''
@@ -285,7 +273,7 @@ def query_daterange(startdate, enddate=datetime.date.today()):
     Returns QuerySet for task entries within date range (inclusive). startdate and enddate
     are date objects. End date is optional- today's date by default.
     '''
-    return models.TaskEntry.objects.filter(date__gte=startdate).filter(date__lte=enddate)
+    return models.TaskEntry.objects.using(db_name).filter(date__gte=startdate).filter(date__lte=enddate)
     
 def get_decoder_parent(decoder):
     '''
@@ -315,7 +303,7 @@ def search_by_decoder(decoder):
         decid = decoder
     else:
         decid = decoder.id
-    blocks = list(models.TaskEntry.objects.filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.filter(params__contains='"decoder": '+str(decid))) 
+    blocks = list(models.TaskEntry.objects.using(db_name).filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.using(db_name).filter(params__contains='"decoder": '+str(decid))) 
     return blocks
 
 def search_by_units(unitlist, decoderlist = None, exact=False):
@@ -329,7 +317,7 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
     if decoderlist is not None:
         all_decoders = decoderlist
     else:
-        all_decoders = models.Decoder.objects.all()
+        all_decoders = models.Decoder.objects.using(db_name).all()
     subset = set(tuple(unit) for unit in unitlist)
     dec_list = []
     for dec in all_decoders:
@@ -371,7 +359,7 @@ def get_task_entries_by_date(subj=None, date=datetime.date.today(), **kwargs):
     elif subj is not None:
         kwargs['subject__name'] = subj.name
 
-    return list(models.TaskEntry.objects.filter(**kwargs))
+    return list(models.TaskEntry.objects.using(db_name).filter(**kwargs))
 
 def load_last_decoder():
     '''
@@ -649,6 +637,8 @@ class TaskEntry(object):
         '''
         q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
         dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
+        # dbconfig = getattr(config, 'db_config_exorig')
+        # dbconfig = getattr(config, 'db_config_bmi3d')
         return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
 
     @property
@@ -1225,6 +1215,7 @@ def get_bmi_blocks(date, subj='C'):
 #############################################################
 ## Deprecated code
 #############################################################
+
 def deprecation_warning():
     import warnings
     warnings.warn("dbfunctions: this function is now deprecated and eventually will be removed. Use TaskEntry instead!!!!!!")
@@ -1234,7 +1225,7 @@ def get_decoders_trained_in_block(task_entry, dbname='default'):
     Returns unpickled decoder objects that were trained in a specified session.
     '''
     deprecation_warning()
-    te = TaskEntry(task_entry)
+    te = TaskEntry(task_entry, db_name)
     return te.get_decoders_trained_in_block(return_type='object')
 
 def get_decoder_ids_trained_in_block(task_entry):
@@ -1242,7 +1233,7 @@ def get_decoder_ids_trained_in_block(task_entry):
     Returns the database entries of decoders trained in a particular session.
     '''
     deprecation_warning()
-    te = TaskEntry(task_entry)
+    te = TaskEntry(task_entry, db_name)
     return te.get_decoders_trained_in_block(return_type='record')
 
 def get_hdf_file(entry):
@@ -1250,7 +1241,7 @@ def get_hdf_file(entry):
     Returns the name of the hdf file associated with the session.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.hdf_filename
 
 def get_hdf(entry):
@@ -1258,7 +1249,7 @@ def get_hdf(entry):
     Return hdf opened file
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.hdf
 
 def get_plx_file(entry):
@@ -1266,7 +1257,7 @@ def get_plx_file(entry):
     Returns the name of the plx file associated with the session.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.plx_filename
         
 def get_plx2_file(entry):
@@ -1274,7 +1265,7 @@ def get_plx2_file(entry):
     Returns the name of the plx2 file associated with the session.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.plx2_filename
         
 def get_bmiparams_file(entry):
@@ -1282,7 +1273,7 @@ def get_bmiparams_file(entry):
     Returns the name of the bmi parameter update history file associated with the session.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.bmiparams_filename
 
 def get_blackrock_files(entry):
@@ -1291,7 +1282,7 @@ def get_blackrock_files(entry):
     than one) associated with the session.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.blackrock_filenames
 
 def get_nev_file(entry):
@@ -1299,7 +1290,7 @@ def get_nev_file(entry):
     Returns the name of the nev file associated with the session.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.nev_filename    
 
 def get_nsx_files(entry):
@@ -1308,7 +1299,7 @@ def get_nsx_files(entry):
     than one) associated with the session.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.nsx_filenames
 
 def get_decoder_name(entry):
@@ -1317,17 +1308,17 @@ def get_decoder_name(entry):
     Takes TaskEntry object.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.decoder_record.name
 
 def get_decoder_name_full(entry):
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.decoder_filename  
 
 def get_decoder(entry):
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.decoder
 
 def get_params(entry):
@@ -1336,7 +1327,7 @@ def get_params(entry):
     Takes TaskEntry object.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.params
 
 def get_param(entry, paramname):
@@ -1345,7 +1336,7 @@ def get_param(entry, paramname):
     Takes TaskEntry object.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.params[paramname]
 
 def get_task_name(entry):
@@ -1353,7 +1344,7 @@ def get_task_name(entry):
     Returns name of task used for session.
     Takes TaskEntry object.
     '''
-    return models.Task.objects.get(pk=entry.task_id).name
+    return models.Task.objects.using(db_name).get(pk=entry.task_id).name
     
 def get_date(entry):
     '''
@@ -1361,7 +1352,7 @@ def get_date(entry):
     Takes TaskEntry object.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.date    
     
 def get_notes(entry):
@@ -1370,7 +1361,7 @@ def get_notes(entry):
     Takes TaskEntry object.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.notes
     
 def get_subject(entry):
@@ -1379,7 +1370,7 @@ def get_subject(entry):
     Takes TaskEntry object.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.subject
     
 def get_length(entry):
@@ -1388,7 +1379,7 @@ def get_length(entry):
     Takes TaskEntry object.
     '''
     deprecation_warning()
-    te = TaskEntry(entry)
+    te = TaskEntry(entry, db_name)
     return te.length
 
 def get_binned_spikes_file(entry):
