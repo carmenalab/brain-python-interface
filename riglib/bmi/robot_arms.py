@@ -612,6 +612,50 @@ class PlanarXZKinematicChain(KinematicChain):
             
         return task_displ, total_joint_displ
 
+    def detect_collision(self, theta, obstacle_pos):
+        '''
+        Detect a collision between the chain and a circular object
+        '''
+        spatial_joint_pos = self.spatial_positions_of_joints(theta).T + self.base_loc
+        plant_segments = [(x, y) for x, y in izip(spatial_joint_pos[:-1], spatial_joint_pos[1:])]
+        print plant_segments
+        dist_to_object = np.zeros(len(plant_segments))
+        for k, segment in enumerate(plant_segments):
+            dist_to_object[k] = point_to_line_segment_distance(obstacle_pos, segment)
+        return dist_to_object
+
+
+def point_to_line_segment_distance(point, segment):
+    '''
+    Determine the distance between a point and a line segment
+    '''
+    v, w = segment
+    l2 = np.sum(np.abs(v - w)**2)
+    if l2 == 0:
+        return np.linalg.norm(v - point)
+
+    t = np.dot(point - v, w - v)/l2
+    if t < 0:
+        return np.linalg.norm(point - v)
+    elif t > 1:
+        return np.linalg.norm(point - w)
+    else:
+        projection = v + t*(w-v)
+        return np.linalg.norm(projection - point)
+# float minimum_distance(vec2 v, vec2 w, vec2 p) {
+#   // Return minimum distance between line segment vw and point p
+#   const float l2 = length_squared(v, w);  // i.e. |w-v|^2 -  avoid a sqrt
+#   if (l2 == 0.0) return distance(p, v);   // v == w case
+#   // Consider the line extending the segment, parameterized as v + t (w - v).
+#   // We find projection of point p onto the line. 
+#   // It falls where t = [(p-v) . (w-v)] / |w-v|^2
+#   const float t = dot(p - v, w - v) / l2;
+#   if (t < 0.0) return distance(p, v);       // Beyond the 'v' end of the segment
+#   else if (t > 1.0) return distance(p, w);  // Beyond the 'w' end of the segment
+#   const vec2 projection = v + t * (w - v);  // Projection falls on the segment
+#   return distance(p, projection);
+# }
+
 
 class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
     ''' Docstring '''
