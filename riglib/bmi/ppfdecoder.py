@@ -6,7 +6,6 @@ import numpy as np
 
 import bmi
 from bmi import GaussianState
-import statsmodels.api as sm
 from scipy.io import loadmat
 import time
 import cmath
@@ -87,27 +86,12 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         if not hasattr(self, 'B'): self.B = 0
         if not hasattr(self, 'F'): self.F = 0
 
-    def _init_state(self, init_state=None, init_cov=None):
-        """
-        Initialize the state of the KF prior to running in real-time
-
-        Parameters
-        ----------
-        
-        Returns
-        -------
-
-        """
-        ## Initialize the BMI state, assuming 
-        nS = self.A.shape[0] # number of state variables
-        if init_state == None:
-            init_state = np.mat( np.zeros([nS, 1]) )
-            if self.include_offset: init_state[-1,0] = 1
-        if init_cov == None:
-            init_cov = np.mat( np.zeros([nS, nS]) )
-        self.state = GaussianState(init_state, init_cov) 
+    def init_noise_models(self):
+        '''
+        see bmi.GaussianStateHMM.init_noise_models for documentation
+        '''
         self.state_noise = GaussianState(0.0, self.W)
-        self.id = np.zeros([1, self.C.shape[0]])
+        self.id = np.zeros([1, self.C.shape[0]])        
 
     def _check_valid(self, lambda_predict):
         '''
@@ -204,10 +188,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         else:
             x_pred = A*x_prev + B*F*(target_state - x_prev)
             P_pred = (A-B*F) * P_prev * (A-B*F).T + W
-            if np.all(B*F == 0):
-                #import pdb; pdb.set_trace()
-                if not (np.array_equal(A*x_prev, A*x_prev + B*F*(target_state - x_prev)) and np.array_equal((A-B*F) * P_prev * (A-B*F).T + W, A*P_prev*A.T + W)):
-                    print 'wtf'
         P_pred = P_pred[mesh]
 
         Loglambda_predict = self.C * x_pred 
@@ -307,6 +287,7 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         n_states = X.shape[0]
         C = np.zeros([n_units, n_states])
         pvalues = np.zeros([n_units, n_states])
+        import statsmodels.api as sm
         glm_family = sm.families.Poisson()
         for k in range(n_units):
             model = sm.GLM(Y[k,:], X.T, family=glm_family)
@@ -319,13 +300,10 @@ class PointProcessFilter(bmi.GaussianStateHMM):
 class PPFDecoder(bmi.BMI, bmi.Decoder):
     def _pickle_init(self):
         '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
+        Commands to run after unpickling the Decoder, to finish up initialization of saved decoders. 
+        These methods are common to unpickling and construction (i.e., calls to __init__). This one
+
+        This _pickle_init retreives hard-coded assist data before calling the next _pickle_init in the MRO.
         '''
         ### # initialize the F_assist matrices
         ### # TODO this needs to be its own function...
@@ -360,16 +338,11 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
 
     def __call__(self, obs_t, **kwargs):
         '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
+        see bmi.Decoder.__call__ for docs
         '''
         # The PPF model predicts that at most one spike can be observed in 
         # each bin; if more are observed, squash the counts
+        # (make a copy of the observation matrix prior to squashing)
         obs_t = obs_t.copy()
         obs_t[obs_t > 1] = 1
         return super(PPFDecoder, self).__call__(obs_t, **kwargs)
