@@ -34,7 +34,7 @@ class SmoothFilter(object):
         self.A = np.ones(( n_steps, ))/float(n_steps)
         self.control_method = 'fraction'
         self.current_lfp_pos = 0
-        self.current_powercap_flag = -100
+        self.current_powercap_flag = 0
 
     def get_mean(self):
         return np.array(self.state.mean).ravel()
