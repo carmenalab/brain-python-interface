@@ -34,7 +34,7 @@ class SmoothFilter(object):
         self.A = np.ones(( n_steps, ))/float(n_steps)
         self.control_method = 'fraction'
         self.current_lfp_pos = 0
-        self.current_powercap_flag = -100
+        self.current_powercap_flag = 0
 
     def get_mean(self):
         return np.array(self.state.mean).ravel()
@@ -101,6 +101,7 @@ class SmoothFilter(object):
 
     def lfp_to_cursor(self, lfppos):
         if self.control_method == 'fraction':
+            #print 'SELF_FRAC LIMS', self.frac_lims
             dmn = lfppos - np.mean(self.frac_lims);
             cursor_pos = dmn * (self.zboundaries[1]-self.zboundaries[0]) / (self.frac_lims[1] - self.frac_lims[0])
             return cursor_pos

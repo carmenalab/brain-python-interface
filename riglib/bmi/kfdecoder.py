@@ -835,6 +835,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         decoder = KFDecoder(filt, units, self.ssm, mFR=mFR, sdFR=sdFR, binlen=self.binlen, tslice=self.tslice)
 
         decoder.n_features = units.shape[0]
+        decoder.units = units
 
         decoder.extractor_cls = self.extractor_cls
         decoder.extractor_kwargs = self.extractor_kwargs
