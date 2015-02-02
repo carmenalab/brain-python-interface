@@ -31,13 +31,27 @@ class SmoothFilter(object):
 
     def __init__(self, n_steps, **kwargs):
         self.n_steps = n_steps
-        self.A = np.ones(( n_steps, ))/float(n_steps)
+        self.A = np.ones(( self.n_steps, ))/float(self.n_steps)
         self.control_method = 'fraction'
         self.current_lfp_pos = 0
         self.current_powercap_flag = 0
 
     def get_mean(self):
         return np.array(self.state.mean).ravel()
+
+    def init_from_task(self,**kwargs):
+        if 'n_steps' in kwargs:
+            self.n_steps = kwargs['n_steps']
+            self.A = np.ones(( self.n_steps, ))/float(self.n_steps)
+
+        if 'powercap' in kwargs:
+            self.powercap = kwargs['powercap']
+
+        if 'zboundaries' in kwargs:
+            self.zboundaries = kwargs['zboundaries']
+
+        if 'lfp_frac_lims' in kwargs:
+            self.frac_lims = kwargs['lfp_frac_lims']
 
     def _init_state(self, init_state=None,**kwargs):
         if init_state is None:
@@ -52,7 +66,7 @@ class SmoothFilter(object):
             self.X = np.zeros(( self.n_steps )) + mn
 
         self.state = StateHolder(self.X, self.A, 0, 0)
-        self.file = open("/home/helene/preeya/tot_pw.txt","w")
+        
         self.cnt = 0
 
     def __call__(self, obs, **kwargs):
@@ -89,13 +103,6 @@ class SmoothFilter(object):
             powercap_flag = 0
         else:
             powercap_flag = 1
-
-        if self.cnt<1000:
-            s = "%.20f\n" % p_val
-            self.file.write(str(s))
-            self.cnt += 1
-        elif self.cnt == 1000:
-            self.file.close()
 
         return cursor_pos, powercap_flag
 
@@ -144,6 +151,34 @@ class One_Dim_LFP_Decoder(bmi.Decoder):
         kwargs['fft_freqs'] = self.extractor_kwargs['fft_freqs']
 
         self.filt(neural_obs, **kwargs)
+
+
+    def init_from_task(self,**kwargs):
+        if 'lfp_control_band' in kwargs:
+            self.filt.control_band_ind, self.extractor_kwargs['bands'], self.extractor_kwargs['fft_inds'] = \
+            self._get_band_ind(self.extractor_kwargs['fft_freqs'], kwargs['lfp_control_band'], self.extractor_kwargs['bands'])
+
+
+        if 'lfp_totalpw_band' in kwargs:
+            self.filt.totalpw_band_ind, self.extractor_kwargs['bands'], self.extractor_kwargs['fft_inds'] = \
+            self._get_band_ind(self.extractor_kwargs['fft_freqs'], kwargs['lfp_totalpw_band'], self.extractor_kwargs['bands'])
+
+
+    def _get_band_ind(self, freq_pts, band, band_set):
+        band_ind = -1
+        for b, bd in enumerate(band_set):
+            if (bd[0]==band[0]) and (bd[1]==band[1]):
+                band_ind = b
+        if band_ind == -1:
+            band_ind = b+1
+            band_set.extend([band])
+
+        fft_ind = dict()
+        for band_idx, band in enumerate(band_set):
+            fft_ind[band_idx] = [freq_idx for freq_idx, freq in enumerate(freq_pts) if band[0] <= freq < band[1]]
+
+        return band_ind, band_set, fft_ind
+
     
 def _init_decoder_for_sim(n_steps = 10):
     kw = dict(control_method='fraction')
@@ -155,8 +190,8 @@ def _init_decoder_for_sim(n_steps = 10):
         
     return decoder
 
-def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=5):
-    print 'N_STEPS: ', n_steps
+def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=10):
+    print 'Default value of N_STEPS: ', n_steps
     kw = dict(control_method='fraction')
     sf = SmoothFilter(n_steps,**kw)
     decoder = One_Dim_LFP_Decoder(sf, units, ssm, extractor_cls, extractor_kwargs)
