@@ -108,7 +108,6 @@ class SmoothFilter(object):
 
     def lfp_to_cursor(self, lfppos):
         if self.control_method == 'fraction':
-            #print 'SELF_FRAC LIMS', self.frac_lims
             dmn = lfppos - np.mean(self.frac_lims);
             cursor_pos = dmn * (self.zboundaries[1]-self.zboundaries[0]) / (self.frac_lims[1] - self.frac_lims[0])
             return cursor_pos
@@ -191,7 +190,6 @@ def _init_decoder_for_sim(n_steps = 10):
     return decoder
 
 def create_decoder(units, ssm, extractor_cls, extractor_kwargs, n_steps=10):
-    print 'Default value of N_STEPS: ', n_steps
     kw = dict(control_method='fraction')
     sf = SmoothFilter(n_steps,**kw)
     decoder = One_Dim_LFP_Decoder(sf, units, ssm, extractor_cls, extractor_kwargs)
