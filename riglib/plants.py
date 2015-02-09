@@ -445,7 +445,7 @@ arm_radius = 0.6
 pi = np.pi
 class RobotArmGen2D(Plant):
     def __init__(self, link_radii=arm_radius, joint_radii=arm_radius, link_lengths=[15,15,5,5], joint_colors=arm_color,
-        link_colors=arm_color, base_loc=np.array([2., 0., -15]), joint_limits=[(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)], **kwargs):
+        link_colors=arm_color, base_loc=np.array([2., 0., -15]), joint_limits=[(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)], stay_on_screen=False, **kwargs):
         '''
         Instantiate the graphics and the virtual arm for a planar kinematic chain
         '''
@@ -477,6 +477,7 @@ class RobotArmGen2D(Plant):
 
         self.visible = True # arm is visible when initialized
 
+        self.stay_on_screen = stay_on_screen
         self.joint_angles = np.zeros(self.num_joints)
 
     @property 
@@ -583,6 +584,11 @@ class RobotArmGen2D(Plant):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
         '''
+        new_endpt_pos = self.kin_chain.endpoint_pos(theta)
+        if self.stay_on_screen and (new_endpt_pos[0] > 25 or new_endpt_pos[0] < -25 or new_endpt_pos[-1] < -14 or new_endpt_pos[-1] > 14):
+            # ignore the command because it would push the endpoint off the screen 
+            return 
+
         if None not in theta and not np.any(np.isnan(theta)):
             self.joint_angles = theta
             for i in range(self.num_joints):

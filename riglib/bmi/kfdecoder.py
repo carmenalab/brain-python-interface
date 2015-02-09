@@ -519,6 +519,73 @@ class PCAKalmanFilter(KalmanFilter):
         self.M = state['M']
         self.pca_offset = state['pca_offset']        
 
+class MPCKalmanFilter(KalmanFilter):
+    '''
+    A modified Kalman filter where model predictive coding is used to try and predict the next observations.
+    '''
+    def _pickle_init(self):
+        super(MPCKalmanFilter, self)._pickle_init()
+        self.prev_obs = None
+        if not hasattr(self, 'Z'):
+            self.Z = np.linalg.pinv(self.Q)
+
+        if not hasattr(self, 'R'):
+            self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*500, 0])))
+            #self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*10000, 0])))
+
+    def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
+        ''' Docstring
+        Run the "predict" step of the Kalman filter/HMM inference algorithm:
+            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
+
+        Parameters
+        ----------
+        state: GaussianState instance
+            State estimate and estimator covariance of current state
+        u: np.mat 
+        
+
+        Returns
+        -------
+        GaussianState instance
+            Represents the mean and estimator covariance of the new state estimate
+        '''
+        A = self.A
+
+        if self.prev_obs is not None:
+            y_ref = self.prev_obs
+            R = self.R
+            Z = self.Z
+            D = self.C_xpose_Q_inv_C
+            alpha = A*state + Bu
+            v = np.linalg.pinv(R + D)*(self.C_xpose_Q_inv*y_ref - D*alpha.mean)
+        else:
+            v = np.zeros_like(state.mean)
+
+        if Bu is not None:
+            return A*state + Bu + self.state_noise + v
+        elif u is not None:
+            Bu = self.B * u
+            return A*state + Bu + self.state_noise
+        elif target_state is not None:
+            B = self.B
+            F = self.F
+            return (A - B*F)*state + B*F*target_state + self.state_noise
+        else:
+            return A*state + self.state_noise
+
+    def _forward_infer(self, st, obs_t, **kwargs):
+        res = super(MPCKalmanFilter, self)._forward_infer(st, obs_t, **kwargs)
+        self.prev_obs = obs_t        
+        return res
+
+    # def __getstate__(self):
+    #     data = super(MPCKalmanFilter, self).__getstate__()
+    #     data['Z'] = self.Z
+
+    # def __setstate__(self, state):
+    #     super(MPCKalmanFilter, self).__setstate__(state)
+    #     self.Z = data['Z']
 
 class PseudoPPF(KalmanFilter):
     '''
@@ -835,6 +902,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         decoder = KFDecoder(filt, units, self.ssm, mFR=mFR, sdFR=sdFR, binlen=self.binlen, tslice=self.tslice)
 
         decoder.n_features = units.shape[0]
+        decoder.units = units
 
         decoder.extractor_cls = self.extractor_cls
         decoder.extractor_kwargs = self.extractor_kwargs

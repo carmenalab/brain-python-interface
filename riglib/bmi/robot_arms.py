@@ -618,7 +618,6 @@ class PlanarXZKinematicChain(KinematicChain):
         '''
         spatial_joint_pos = self.spatial_positions_of_joints(theta).T + self.base_loc
         plant_segments = [(x, y) for x, y in izip(spatial_joint_pos[:-1], spatial_joint_pos[1:])]
-        print plant_segments
         dist_to_object = np.zeros(len(plant_segments))
         for k, segment in enumerate(plant_segments):
             dist_to_object[k] = point_to_line_segment_distance(obstacle_pos, segment)
