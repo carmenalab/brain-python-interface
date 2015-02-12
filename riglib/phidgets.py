@@ -73,10 +73,13 @@ class System(object):
         toc = time.time() - self.tic
         if 0 < toc < self.interval:
             time.sleep(self.interval - toc)
-        for i in range(self.n_sensors):
-            self.sensordat[i] = self.kit.getSensorValue(i) / 1000.
-        for i in range(self.n_inputs):
-            self.inputdat[i] = self.kit.getInputState(i)
+        try:
+            for i in range(self.n_sensors):
+                self.sensordat[i] = self.kit.getSensorValue(i) / 1000.
+            for i in range(self.n_inputs):
+                self.inputdat[i] = self.kit.getInputState(i)
+        except:
+            print 'sensor_error'
         self.data['sensors'] = self.sensordat
         self.data['inputs'] = self.inputdat
         self.tic = time.time()
