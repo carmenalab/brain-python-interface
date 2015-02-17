@@ -22,7 +22,7 @@ from analysis import performance
 import os
 os.environ['DISPLAY'] = ':0'
 
-save = True
+save = 0
 
 task = models.Task.objects.get(name='visual_feedback_multi')
 base_class = task.get()

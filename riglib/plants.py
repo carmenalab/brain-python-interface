@@ -354,6 +354,13 @@ class CursorPlant(Plant):
         self.position = pt
         self.draw()
 
+    def set_visibility(self, visible):
+        self.visible = visible
+        if visible:
+            self.graphics_models[0].attach()
+        else:
+            self.graphics_models[0].detach()
+
     def drive(self, decoder):
         pos = decoder['q'].copy()
         vel = decoder['qdot'].copy()
