@@ -123,7 +123,8 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
 
         if hasattr(self, 'add_dtype'):
             for attr in self.attrs:
-                self.add_dtype(attr, 'f8', (1,))
+                if attr not in self.dtype:
+                    self.add_dtype(attr, 'f8', (1,))
         
         super(LinearlyDecreasingAttribute, self).init()
         for attr in self.attrs:
@@ -193,7 +194,8 @@ class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
     # attr = 'assist_level'
     def __init__(self, *args, **kwargs):
         super(LinearlyDecreasingAssist, self).__init__(*args, **kwargs)
-        self.attrs.append('assist_level')
+        if 'assist_level' not in self.attrs:
+            self.attrs.append('assist_level')
     
 
 class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
@@ -203,5 +205,6 @@ class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
     # attr = 'half_life'
     def __init__(self, *args, **kwargs):
         super(LinearlyDecreasingHalfLife, self).__init__(*args, **kwargs)
-        self.attrs.append('half_life')    
+        if 'half_life' not in self.attrs:
+            self.attrs.append('half_life')    
 
