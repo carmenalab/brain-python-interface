@@ -428,6 +428,14 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
 
+    decoder = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
+
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
+    return decoder
+
+def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None):
     #### Train the actual KF decoder matrices ####
     n_features = neural_features.shape[0]  # number of neural features
 
@@ -443,7 +451,7 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
 
     # instantiate KFdecoder
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
-    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=binlen, tslice=tslice)
+    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=update_rate, tslice=tslice)
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
     from clda import KFRML
@@ -461,11 +469,10 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     decoder.filt.ESS = ESS
     decoder.n_features = n_features
 
-    decoder.extractor_cls = extractor_cls
-    decoder.extractor_kwargs = extractor_kwargs
+    # decoder.extractor_cls = extractor_cls
+    # decoder.extractor_kwargs = extractor_kwargs
 
     return decoder
-
 
 def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
