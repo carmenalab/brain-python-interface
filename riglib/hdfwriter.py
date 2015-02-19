@@ -74,13 +74,16 @@ class HDFWriter(object):
 
     def sendMsg(self, msg):
         '''
-        Docstring
+        Write a string to the *_msgs table for each system registered with the HDF sink
 
         Parameters
         ----------
+        msg : string
+            Message to link to the current row of the HDF table
 
         Returns
         -------
+        None
         '''
         for system in self.msgs.keys():
             row = self.msgs[system].row
