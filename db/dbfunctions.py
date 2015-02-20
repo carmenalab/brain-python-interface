@@ -332,7 +332,7 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
             pass
     return dec_list
 
-def get_task_entries_by_date(subj=None, date=datetime.date.today(), **kwargs):
+def get_task_entries_by_date(subj=None, date=datetime.date.today(), dbname='default', **kwargs):
     '''
     Get all the task entries for a particular date
 
@@ -359,7 +359,7 @@ def get_task_entries_by_date(subj=None, date=datetime.date.today(), **kwargs):
     elif subj is not None:
         kwargs['subject__name'] = subj.name
 
-    return list(models.TaskEntry.objects.using(db_name).filter(**kwargs))
+    return list(models.TaskEntry.objects.using(dbname).filter(**kwargs))
 
 def load_last_decoder():
     '''
@@ -390,7 +390,7 @@ class TaskEntry(object):
         if isinstance(task_entry_id, models.TaskEntry):
             self.record = task_entry_id
         else:
-            self.record = models.TaskEntry.objects.using(self.dbname).get(id=task_entry_id) #lookup_task_entries(task_entry_id)
+            self.record = models.TaskEntry.objects.using(self.dbname).get(id=task_entry_id)
         self.id = self.record.id
         self.params = self.record.params
         if (isinstance(self.params, str) or isinstance(self.params, unicode)) and len(self.params) > 0:
@@ -534,7 +534,12 @@ class TaskEntry(object):
         newdata = dict()
         for key in blockset_data:
             newdata[key] = data_comb_fn(blockset_data[key])
-        return newdata
+
+        if len(newdata.keys()) == 1:
+            key = newdata.keys()[0]
+            return newdata[key]
+        else:
+            return newdata
 
     @property 
     def supplementary_data_file(self):
@@ -872,6 +877,36 @@ class TaskEntry(object):
         datafiles = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id)
         files = dict((d.system.name, d.get_path()) for d in datafiles)    
         return files
+
+    def save_to_database(self, new_db):
+        current_db = self.record._state.db
+        if current_db == new_db:
+            print "new database and current database are the same!"
+            return
+
+        # save the subject
+        self.record.subject.save(using=new_db)
+
+        # save the task
+        self.record.task.save(using=new_db)        
+
+        # save the task entry record
+        self.record.save(using=new_db)
+
+        # save the records of the datafiles associated with the task entry
+        # A bit of circuswork is required to move the DataFiles because they have a foreign key for the system that correspomds to the datafile
+        datafiles = models.DataFile.objects.using(current_db).filter(entry_id=self.id)
+        for d in datafiles:
+            sys_name = d.system.name
+            d.save(using=new_db)
+            new_sys = models.System.objects.using(new_db).get(name=d.system.name)
+            d.system = new_sys
+            d.save()            
+
+        # save any decoder records used by this block
+        if not (self.decoder_record is None):
+            self.decoder_record.save(using=new_db)
+
 
 class TaskEntrySet(object):
     def __init__(self, blocks, name=''):
