@@ -347,7 +347,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         Returns
         -------        
         """
-        assert hidden_state.shape[1] == obs.shape[1]
+        assert hidden_state.shape[1] == obs.shape[1], "different numbers of time samples: %s vs %s" % (str(hidden_state.shape), str(obs.shape))
     
         if isinstance(hidden_state, np.ma.core.MaskedArray):
             mask = ~hidden_state.mask[0,:] # NOTE THE INVERTER 
