@@ -103,7 +103,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         self.state = self.A*self.state
 
-    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, **kwargs):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, obs_is_control_independent=True, **kwargs):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
         Parameters
@@ -113,8 +113,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         -------
 
         '''
-        using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
-        pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
+        using_control_input = (Bu is not None) or (u is not None) or (x_target is not None)
+        pred_state = self._ssm_pred(st, target_state=x_target, Bu=Bu, u=u)
 
         C, Q = self.C, self.Q
         P = pred_state.cov
@@ -194,12 +194,14 @@ class KalmanFilter(bmi.GaussianStateHMM):
         K_hist = []
 
         iter_idx = 0
+        last_P = None
         while np.linalg.norm(K-last_K) > tol and iter_idx < max_iter:
             P = A*P*A.T + W 
             last_K = K
             K = self._calc_kalman_gain(P)
             K_hist.append(K)
             KC = P*(I - D*P*(I + D*P).I)*D
+            last_P = P
             P -= KC*P;
             iter_idx += 1
         if verbose: print "Converged in %d iterations--error: %g" % (iter_idx, np.linalg.norm(K-last_K)) 
@@ -208,9 +210,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F = (np.mat(np.eye(n_state_vars, n_state_vars)) - KC) * A
     
         if return_P and return_Khist:
-            return dtype(F), dtype(K), dtype(P), K_hist
+            return dtype(F), dtype(K), dtype(last_P), K_hist
         elif return_P:
-            return dtype(F), dtype(K), dtype(P)
+            return dtype(F), dtype(K), dtype(last_P)
         elif return_Khist:
             return dtype(F), dtype(K), K_hist
         else:
