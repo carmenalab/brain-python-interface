@@ -17,6 +17,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
            y_t = Cx_t + q_t;   q_t ~ N(0, Q)
     """
     model_attrs = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C']
+    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS']
 
     def __init__(self, A=None, W=None, C=None, Q=None, is_stochastic=None):
         '''
@@ -282,57 +283,58 @@ class KalmanFilter(bmi.GaussianStateHMM):
         
         return F, K
 
-    def __setstate__(self, state):
-        """
-        Set the model parameters {A, W, C, Q} stored in the pickled
-        object
+    # def __setstate__(self, state):
+    #     """
+    #     Set the model parameters {A, W, C, Q} stored in the pickled
+    #     object
 
-        Parameters
-        ----------
+    #     Parameters
+    #     ----------
 
-        Returns
-        -------        
-        """
-        self.A = state['A']
-        self.W = state['W']
-        self.C = state['C']
-        self.Q = state['Q']
+    #     Returns
+    #     -------        
+    #     """
+    #     self.A = state['A']
+    #     self.W = state['W']
+    #     self.C = state['C']
+    #     self.Q = state['Q']
 
-        try:
-            self.C_xpose_Q_inv_C = state['C_xpose_Q_inv_C']
-            self.C_xpose_Q_inv = state['C_xpose_Q_inv']
+    #     try:
+    #         self.C_xpose_Q_inv_C = state['C_xpose_Q_inv_C']
+    #         self.C_xpose_Q_inv = state['C_xpose_Q_inv']
 
-            self.R = state['R']
-            self.S = state['S']
-            self.T = state['T']            
-            self.ESS = state['ESS']
-        except:
-            # handled by _pickle_init
-            pass
+    #         self.R = state['R']
+    #         self.S = state['S']
+    #         self.T = state['T']            
+    #         self.ESS = state['ESS']
+    #     except:
+    #         # handled by _pickle_init
+    #         pass
 
-        self._pickle_init()
+    #     self._pickle_init()
 
-    def __getstate__(self):
-        """
-        Return the model parameters {A, W, C, Q} for pickling
 
-        Parameters
-        ----------
+    # def __getstate__(self):
+    #     """
+    #     Return the model parameters {A, W, C, Q} for pickling
 
-        Returns
-        -------        
-        """
-        data = dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
-                    C_xpose_Q_inv=self.C_xpose_Q_inv, 
-                    C_xpose_Q_inv_C=self.C_xpose_Q_inv_C)
-        try:
-            data['R'] = self.R
-            data['S'] = self.S
-            data['T'] = self.T
-            data['ESS'] = self.ESS
-        except:
-            pass
-        return data
+    #     Parameters
+    #     ----------
+
+    #     Returns
+    #     -------        
+    #     """
+    #     data = dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
+    #                 C_xpose_Q_inv=self.C_xpose_Q_inv, 
+    #                 C_xpose_Q_inv_C=self.C_xpose_Q_inv_C)
+    #     try:
+    #         data['R'] = self.R
+    #         data['S'] = self.S
+    #         data['T'] = self.T
+    #         data['ESS'] = self.ESS
+    #     except:
+    #         pass
+    #     return data
 
     @classmethod
     def MLE_obs_model(self, hidden_state, obs, include_offset=True, 
@@ -534,6 +536,8 @@ class MPCKalmanFilter(KalmanFilter):
         if not hasattr(self, 'R'):
             self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*500, 0])))
             #self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*10000, 0])))
+        print self.R
+        self.R[-1,-1] += 1000
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         ''' Docstring
@@ -581,13 +585,78 @@ class MPCKalmanFilter(KalmanFilter):
         self.prev_obs = obs_t        
         return res
 
-    # def __getstate__(self):
-    #     data = super(MPCKalmanFilter, self).__getstate__()
-    #     data['Z'] = self.Z
+class OneStepAdaptiveMPCKalmanFilter(KalmanFilter):
+    '''
+    Use MPC with a horizon of 1 to predict 
+    '''
+    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'E00', 'E01']
+    def _pickle_init(self):
+        super(OneStepAdaptiveMPCKalmanFilter, self)._pickle_init()
 
-    # def __setstate__(self, state):
-    #     super(MPCKalmanFilter, self).__setstate__(state)
-    #     self.Z = data['Z']
+        self.prev_obs = None
+        if not hasattr(self, 'mpc_cost_step'):
+            mpc_cost_half_life = 1200.
+            batch_time = 0.1
+            self.mpc_cost_step = np.exp(np.log(0.5) / (mpc_cost_half_life/batch_time))
+            self.ESS = 1000
+
+    def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
+        ''' Docstring
+        Run the "predict" step of the Kalman filter/HMM inference algorithm:
+            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
+
+        Parameters
+        ----------
+        state: GaussianState instance
+            State estimate and estimator covariance of current state
+        u: np.mat 
+        
+
+        Returns
+        -------
+        GaussianState instance
+            Represents the mean and estimator covariance of the new state estimate
+        '''
+        A = self.A
+
+        if self.prev_obs is not None:
+            y_ref = self.prev_obs
+            G = self.C_xpose_Q_inv
+            D = self.C_xpose_Q_inv_C
+
+            # Solve for R
+            R = D * np.linalg.pinv(G*self.E01*G.T) * (G*self.E00*G.T) - D
+            R = 20*np.mat(np.diag(np.diag(R)))
+            R[-1,-1] = 10000
+            
+            alpha = A*state + Bu
+            v = np.linalg.pinv(R + D)*(self.C_xpose_Q_inv*y_ref - D*alpha.mean)
+        else:
+            v = np.zeros_like(state.mean)
+
+        if Bu is not None:
+            return A*state + Bu + self.state_noise + v
+        elif u is not None:
+            Bu = self.B * u
+            return A*state + Bu + self.state_noise
+        elif target_state is not None:
+            B = self.B
+            F = self.F
+            return (A - B*F)*state + B*F*target_state + self.state_noise
+        else:
+            return A*state + self.state_noise
+
+    def _forward_infer(self, st, obs_t, **kwargs):
+        res = super(OneStepAdaptiveMPCKalmanFilter, self)._forward_infer(st, obs_t, **kwargs)
+
+        # if not (self.prev_obs is None):
+        #     # Update the sufficient statistics for the R matrix
+        #     l = self.mpc_cost_step
+        #     self.E00 = l*self.E00 + (1-l)*(self.prev_obs - self.C*self.A*st.mean)*(self.prev_obs - self.C*self.A*st.mean).T
+        #     self.E01 = l*self.E01 + (1-l)*(self.prev_obs - self.C*self.A*st.mean)*(obs_t - self.C*self.A*st.mean).T
+
+        self.prev_obs = obs_t
+        return res    
 
 class PseudoPPF(KalmanFilter):
     '''

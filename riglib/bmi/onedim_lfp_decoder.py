@@ -96,7 +96,6 @@ class SmoothFilter(object):
             lfp_control = c_val / float(p_val)
         elif self.control_method == 'power':
             lfp_control = c_val
-
         cursor_pos = self.lfp_to_cursor(lfp_control)
 
         if p_val <= self.powercap:

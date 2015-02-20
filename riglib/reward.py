@@ -74,7 +74,7 @@ class Basic(object):
         Returns
         -------
         '''
-        self.port = serial.Serial(glob.glob("/dev/ttyUSB0")[0], baudrate=38400)
+        self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
         self.version = int(config.reward_sys['version'])
         if self.version==1: self.set_beeper_volume(128)
         time.sleep(.5)

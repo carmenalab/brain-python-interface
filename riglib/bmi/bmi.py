@@ -97,6 +97,9 @@ class GaussianStateHMM(object):
     General hidden Markov model decoder where the state is represented as a Gaussian random vector
     '''
     model_attrs = []
+
+    # List out the attributes to save at pickle time. Might not want this to be every attribute of the decoder (e.g., no point in saving the state of the BMI at pickle-time)
+    attrs_to_pickle = []
     def __init__(self, A, W):
         '''
         Constructor for GaussianStateHMM
@@ -227,6 +230,15 @@ class GaussianStateHMM(object):
         """
         self.__dict__ = state
         self._pickle_init()
+
+    def __getstate__(self):
+        data_to_pickle = dict()
+        for attr in self.attrs_to_pickle:
+            try:
+                data_to_pickle[attr] = getattr(self, attr)
+            except:
+                print "GaussianStateHMM: could not pickle attribute %s" % attr
+        return data_to_pickle
 
 
 class Decoder(object):
