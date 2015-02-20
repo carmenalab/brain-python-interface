@@ -158,7 +158,7 @@ class GaussianStateHMM(object):
         self.state_noise = GaussianState(0.0, self.W)
         self.obs_noise = GaussianState(0.0, self.Q)
 
-    def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
+    def _ssm_pred(self, state, u=None, Bu=None, target_state=None, F=None):
         ''' Docstring
         Run the "predict" step of the Kalman filter/HMM inference algorithm:
             x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
@@ -184,7 +184,8 @@ class GaussianStateHMM(object):
             return A*state + Bu + self.state_noise
         elif target_state is not None:
             B = self.B
-            F = self.F
+            if F == None:
+                F = self.F
             return (A - B*F)*state + B*F*target_state + self.state_noise
         else:
             return A*state + self.state_noise
@@ -527,7 +528,7 @@ class Decoder(object):
         '''
         return np.asarray(self.filt.state.mean).reshape(shape)
 
-    def predict(self, neural_obs, assist_level=0.0, Bu=None, x_target=None, **kwargs):
+    def predict(self, neural_obs, assist_level=0.0, Bu=None, x_target=None, F=None, weighted_avg_lfc=False, **kwargs):
         """
         Decode the spikes
 
@@ -556,20 +557,24 @@ class Decoder(object):
         # re-format as a column matrix
         neural_obs = np.mat(neural_obs.reshape(-1,1))
 
-        weighted_avg_lfc = kwargs.pop('weighted_avg_lfc', False)
+        # weighted_avg_lfc = kwargs.pop('weighted_avg_lfc', False)
         x = self.filt.state.mean
         
         # Run the filter
-        self.filt(neural_obs, Bu=Bu, x_target=x_target)
+        self.filt(neural_obs, Bu=Bu, x_target=x_target, F=F)
 
         if assist_level > 0:
-            if weighted_avg_lfc:
-                # calculates assist as:
-                #   (1-assist)*(A*x + K*(y-C*A*x)) + assist*(A*x + B*u)
-                # Note: the variable "Bu" here is actually equal to assist_level*B*u
-                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*self.filt.A*x + Bu
-            else:
-                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
+            # If a non-zero assist level is passed in, then it's interpreted as 
+            # if weighted_avg_lfc:
+            #     # calculates assist as:
+            #     #   (1-assist)*(A*x + K*(y-C*A*x)) + assist*(A*x + B*u)
+            #     # Note: the variable "Bu" here is actually equal to assist_level*B*u
+            #     self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*self.filt.A*x + Bu
+            # else:
+            #     self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
+
+            weighted_avg_lfc = int(weighted_avg_lfc)
+            self.filt.state.mean = (1-assist_level)*self.filt.state.mean + weighted_avg_lfc*assist_level*self.filt.A*x + (1-weighted_avg_lfc)*assist_level*Bu
 
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):

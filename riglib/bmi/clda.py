@@ -57,6 +57,9 @@ def fast_inv(A):
 
     return np.array([lapack_inverse(a) for a in A])
 
+def slow_inv(A):
+    return np.array([np.linalg.inv(a) for a in A])
+
 ##############################################################################
 ## Learners
 ##############################################################################
@@ -1131,9 +1134,16 @@ class PPFContinuousBayesianUpdater(Updater):
             C_xpose_C = np.outer(int_kin, int_kin)
 
             self.P_params_est += self.W
-            P_params_est_inv = fast_inv(self.P_params_est)
+            try:
+                P_params_est_inv = fast_inv(self.P_params_est)
+            except:
+                P_params_est_inv = slow_inv(self.P_params_est)
             L = np.dstack([rates[c] * C_xpose_C for c in range(self.n_units)]).transpose([2,0,1])
-            self.P_params_est = fast_inv(P_params_est_inv + L)
+
+            try:
+                self.P_params_est = fast_inv(P_params_est_inv + L)
+            except:
+                self.P_params_est = slow_inv(P_params_est_inv + L)
 
             beta_est += (unpred_spikes * np.dot(int_kin, self.P_params_est).T).T
 

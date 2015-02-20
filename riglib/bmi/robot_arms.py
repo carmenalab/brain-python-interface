@@ -351,7 +351,7 @@ class KinematicChain(object):
         '''
 
         _, allt = self.forward_kinematics(joint_angles, return_allt=True)
-        pos = allt[0:3, -1,:]
+        pos = (allt[0:3, -1,:].T + self.base_loc).T
         # pos = np.hstack([np.zeros([3,1]), pos])
         return pos
 

@@ -136,25 +136,25 @@ class PointProcessFilter(bmi.GaussianStateHMM):
             #print np.nonzero(invalid_inds.ravel()[0])
         return lambda_predict
     
-    def _ssm_pred(self, state, target_state=None):
-        '''
-        Docstring    
+    # def _ssm_pred(self, state, target_state=None):
+    #     '''
+    #     Docstring    
         
-        Parameters
-        ----------
+    #     Parameters
+    #     ----------
         
-        Returns
-        -------
-        '''
-        A = self.A
-        B = self.B
-        F = self.F
-        if target_state == None:
-            return A*state + self.state_noise
-        else:
-            return (A - B*F)*state + B*F*target_state + self.state_noise
+    #     Returns
+    #     -------
+    #     '''
+    #     A = self.A
+    #     B = self.B
+    #     F = self.F
+    #     if target_state == None:
+    #         return A*state + self.state_noise
+    #     else:
+    #         return (A - B*F)*state + B*F*target_state + self.state_noise
 
-    def _forward_infer(self, st, obs_t, x_target=None, **kwargs):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, F=None, obs_is_control_independent=False, **kwargs):
         '''
         Docstring    
         
@@ -164,6 +164,7 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         Returns
         -------
         '''
+        using_control_input = (Bu is not None) or (u is not None) or (x_target is not None)
         if x_target is not None:
             x_target = np.mat(x_target[:,0].reshape(-1,1))
         target_state = x_target
@@ -179,15 +180,17 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         W = self.W
         C = C[:,inds]
 
-        x_prev, P_prev = st.mean, st.cov
-        B = self.B
-        F = self.F
-        if target_state == None or np.any(np.isnan(target_state)):
-            x_pred = A*x_prev
-            P_pred = A*P_prev*A.T + W
-        else:
-            x_pred = A*x_prev + B*F*(target_state - x_prev)
-            P_pred = (A-B*F) * P_prev * (A-B*F).T + W
+        pred_state = self._ssm_pred(st, target_state=x_target, Bu=Bu, u=u, F=F)
+        # x_prev, P_prev = st.mean, st.cov
+        # B = self.B
+        # F = self.F
+        # if target_state == None or np.any(np.isnan(target_state)):
+        #     x_pred = A*x_prev
+        #     P_pred = A*P_prev*A.T + W
+        # else:
+        #     x_pred = A*x_prev + B*F*(target_state - x_prev)
+        #     P_pred = (A-B*F) * P_prev * (A-B*F).T + W
+        x_pred, P_pred = pred_state.mean, pred_state.cov
         P_pred = P_pred[mesh]
 
         Loglambda_predict = self.C * x_pred 

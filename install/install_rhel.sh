@@ -3,6 +3,9 @@
 CODE=$HOME/code
 BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 
+# numpy and numexpr needed to be removed and reinstalled
+# numpy=1.6.1
+# numexpr=2.4
 
 ####### Set up directories
 mkdir -p $CODE
@@ -21,6 +24,11 @@ fi
 
 # make log directory
 mkdir $BMI3D/log
+
+# Add the EPEL repo, where some of the required packages live
+cd /tmp
+wget https://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+sudo yum install epel-release-7-5.noarch.rpm
 
 ####### Reconfigure RHEL package manager: have to install erlang before rabbitmq
 '''
@@ -42,6 +50,7 @@ sudo yum update
 
 
 ####### Install RHEL dependencies
+sudo yum -y install libpng-devel lapack-devel
 sudo yum -y install python-pip hdf5-devel
 sudo yum -y install numpy
 sudo yum -y install scipy
@@ -70,6 +79,7 @@ sudo yum -y install dhcp
 sudo yum -y install curl
 
 
+
 ####### Install Python dependencies
 sudo pip install numexpr 
 sudo pip install cython 
@@ -86,6 +96,7 @@ sudo pip install sphinx
 sudo pip install numpydoc
 sudo pip install tornado
 sudo pip install tables==2.4.0
+sudo pip install pyserial
 
 
 ####### Download any src code

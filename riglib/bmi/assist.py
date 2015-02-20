@@ -92,8 +92,9 @@ class OFCEndpointAssister(Assister):
         ##F = np.mat(self.F_assist[assist_level_idx])    
         F = self.get_F(assist_level)
         Bu = self.B*F*(target_state - current_state)
-        print Bu
-        return Bu, 0
+        return dict(F=F, x_target=target_state)
+        # print Bu
+        # return Bu, 0
 
     def get_F(self, assist_level):
         '''
@@ -151,23 +152,13 @@ class LinearFeedbackControllerAssist(Assister):
         See docs for Assister.calc_assisted_BMI_state
         '''
         Bu = assist_level * self.lqr_controller(current_state, target_state)
-        assist_weight = 0
-        # assist_weight = assist_level
-        # B = self.B
-        # F = self.F
-        # Bu = assist_level * B*F*(target_state - current_state)
-        # assist_weight = assist_level
-        return Bu, assist_weight
+        # assist_weight = 0
+        # return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=0)
 
 class SSMLFCAssister(LinearFeedbackControllerAssist):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    An LFC assister where the state-space matrices (A, B) are specified based on 
     '''
     def __init__(self, ssm, Q, R, **kwargs):
         '''
@@ -266,7 +257,8 @@ class SimpleEndpointAssister(Assister):
             Bu = endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen, speed, target_radius, assist_level)
             assist_weight = assist_level 
 
-        return Bu, assist_weight
+        # return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=assist_weight)
 
 
 class Joint5DOFEndpointTargetAssister(SimpleEndpointAssister):
@@ -313,7 +305,8 @@ class Joint5DOFEndpointTargetAssister(SimpleEndpointAssister):
             Bu = assist_level * np.mat(Bu_joint).reshape(-1,1)
             assist_weight = assist_level
 
-        return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=assist_weight)
+        # return Bu, assist_weight
 
 
 def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5, target_radius=2., assist_level=0.):
@@ -453,8 +446,8 @@ class ArmAssistAssister(Assister):
         else:
             Bu = None
             assist_weight = 0.
-
-        return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=assist_weight)
+        # return Bu, assist_weight
 
     def _xy_assist(self, xy_pos, target_xy_pos):
         '''
@@ -557,8 +550,8 @@ class ReHandAssister(Assister):
         else:
             Bu = None
             assist_weight = 0.
-
-        return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=assist_weight)
+        # return Bu, assist_weight
 
     def _angle_assist(self, ang_pos, target_ang_pos):
         '''
@@ -635,8 +628,8 @@ class IsMoreAssister(Assister):
         else:
             Bu = None
             assist_weight = 0.
-
-        return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=assist_weight)
+        # return Bu, assist_weight
 
 
 # LFC iBMI assisters
@@ -684,8 +677,8 @@ class ArmAssistLFCAssister(Assister):
 
         Bu = assist_level * self.B*self.F*diff
         assist_weight = assist_level
-
-        return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=assist_weight)
+        # return Bu, assist_weight
 
 
 class ReHandLFCAssister(Assister):
@@ -728,8 +721,8 @@ class ReHandLFCAssister(Assister):
 
         Bu = assist_level * self.B*self.F*diff
         assist_weight = assist_level
-
-        return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=assist_weight)
+        # return Bu, assist_weight
 
 
 class IsMoreLFCAssister(Assister):
@@ -771,5 +764,5 @@ class IsMoreLFCAssister(Assister):
 
         Bu = assist_level * self.B*self.F*diff
         assist_weight = assist_level
-
-        return Bu, assist_weight
+        return dict(Bu=Bu, assist_level=assist_weight)
+        # return Bu, assist_weight
