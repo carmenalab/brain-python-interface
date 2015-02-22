@@ -522,6 +522,15 @@ def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
 
+    decoder = train_PPFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
+
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
+    return decoder
+
+def train_PPFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None):
+    binlen = 1./180 #update_rate
     # squash any spike counts greater than 1 (doesn't work with PPF model)
     neural_features[neural_features > 1] = 1
 
@@ -550,11 +559,7 @@ def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     decoder.filt.S = S
     decoder.n_features = n_features
 
-    decoder.extractor_cls = extractor_cls
-    decoder.extractor_kwargs = extractor_kwargs
-
     return decoder
-
 
 ###################
 ## Helper functions
