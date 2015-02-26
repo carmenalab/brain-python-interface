@@ -158,7 +158,7 @@ class LinearFeedbackControllerAssist(Assister):
 
 class SSMLFCAssister(LinearFeedbackControllerAssist):
     '''
-    An LFC assister where the state-space matrices (A, B) are specified based on 
+    An LFC assister where the state-space matrices (A, B) are specified from the Decoder's 'ssm' attribute
     '''
     def __init__(self, ssm, Q, R, **kwargs):
         '''
