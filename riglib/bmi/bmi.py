@@ -612,7 +612,6 @@ class Decoder(object):
         return np.vstack(output)
 
     def __str__(self):
-        '''    Docstring    '''
         if hasattr(self, 'db_entry'):
             return self.db_entry.name
         else:
@@ -634,14 +633,9 @@ class Decoder(object):
         '''
         return len(self.units)
 
-    def __call__(self, obs_t, accumulate=True, **kwargs):
+    def __call__(self, obs_t, **kwargs):
         '''
-        This function does "rate-matching" to match the decoding rate to the 
-        control rate of the plant. For instance, for cursor decoding using a 
-        PPFDecoder, the decoder runs at 180Hz but the screen can only be updated
-        at 60Hz, so the observations have to be presented 3 at a time. Similarly 
-        a KFDecoder might run at 10 Hz, and the Decoder would have to accumulate
-        observations over 6 iterations. 
+        Wrapper for the 'predict' method
 
         Parameters
         ----------
@@ -654,12 +648,6 @@ class Decoder(object):
 
         self.predict(obs_t, **kwargs)
         return self.filt.get_mean().reshape(-1,1)
-
-
-
-
-
-
 
     # def __call__(self, obs_t, accumulate=True, **kwargs):
     #     '''
@@ -706,8 +694,6 @@ class Decoder(object):
     #         else:
     #             self.bmicount += 1
     #         return self.filt.get_mean().reshape(-1,1)
-
-
 
     def save(self, filename=''):
         '''
@@ -792,11 +778,7 @@ class BMISystem(object):
             self.clda_input_queue = self.updater.work_queue
             self.clda_output_queue = self.updater.result_queue
             self.updater.start()
-        self.reset_spike_counts()
-
-    def reset_spike_counts(self):
-        '''    Docstring    '''
-        self.spike_counts = np.zeros([self.decoder.n_features, 1])
+        # self.reset_spike_counts()
 
     def __call__(self, neural_obs, target_state, task_state, *args, **kwargs):
         '''
@@ -869,25 +851,15 @@ class BMISystem(object):
 
                 # Determine whether the current state or previous state should be given to the learner
                 if self.learner.input_state_index == 0:
-                    learner_state = self.decoder.get_state() #decoded_states[:,k]
+                    learner_state = self.decoder.get_state()
                 elif self.learner.input_state_index == -1:
                     learner_state = prev_state
                 else:
                     print "Not implemented yet: %d" % self.learner.input_state_index
                     learner_state = prev_state
 
-                # self.spike_counts += spike_obs_k
-                # if feature_type in ['lfp_power', 'emg_amplitude']:
-                #     # hack to make to make lfp decoding work
-                #     self.spike_counts = neural_obs_k
-                # else:
-                #     self.spike_counts += neural_obs_k
-
-                if learn_flag and decode: #self.decoder.bmicount == 0:
+                if learn_flag:
                     self.learner(self.spike_counts.copy(), learner_state, target_state_k, self.decoder.get_state(), task_state, state_order=self.decoder.ssm.state_order)
-                    # self.reset_spike_counts()
-                # elif self.decoder.bmicount == 0:
-                    # self.reset_spike_counts()
 
             decoded_states[:,k] = self.decoder.get_state()        
 
