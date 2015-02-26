@@ -107,9 +107,9 @@ class OFCEndpointAssister(Assister):
         -------
         '''
         assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
-        if assist_level_idx < self.prev_assist_level:                        
-            print "assist_level_idx decreasing to", assist_level_idx         
-            self.prev_assist_level = assist_level_idx                        
+        # if assist_level_idx < self.prev_assist_level:                        
+        #     print "assist_level_idx decreasing to", assist_level_idx         
+        #     self.prev_assist_level = assist_level_idx                        
         F = np.mat(self.F_assist[assist_level_idx])    
         return F
 

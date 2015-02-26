@@ -652,33 +652,62 @@ class Decoder(object):
             Algorithm-specific arguments to be given to the Decoder.predict method
         '''
 
-        call_rate = self.call_rate
-        decoding_rate = 1./self.binlen
+        self.predict(obs_t, **kwargs)
+        return self.filt.get_mean().reshape(-1,1)
 
-        if decoding_rate >= call_rate:
-            # Infer the number of sub-bins from the size of the spike counts mat to decode
-            n_subbins = obs_t.shape[1]
 
-            outputs = []
-            for k in range(n_subbins):
-                outputs.append(self.predict(obs_t[:,k], **kwargs))
 
-            return np.vstack(outputs).T
-        elif decoding_rate < call_rate:
-            if accumulate:
-                self.spike_counts += obs_t.reshape(-1, 1)
-            else:
-                self.spike_counts = obs_t.reshape(-1, 1)
 
-            if self.bmicount == self.bminum - 1:
-                # Update using spike counts
-                self.bmicount = 0
-                self.predict(self.spike_counts, **kwargs)
-                # self.spike_counts = np.zeros([len(self.units), 1])
-                self.spike_counts = np.zeros([self.n_features, 1])
-            else:
-                self.bmicount += 1
-            return self.filt.get_mean().reshape(-1,1)
+
+
+
+    # def __call__(self, obs_t, accumulate=True, **kwargs):
+    #     '''
+    #     This function does "rate-matching" to match the decoding rate to the 
+    #     control rate of the plant. For instance, for cursor decoding using a 
+    #     PPFDecoder, the decoder runs at 180Hz but the screen can only be updated
+    #     at 60Hz, so the observations have to be presented 3 at a time. Similarly 
+    #     a KFDecoder might run at 10 Hz, and the Decoder would have to accumulate
+    #     observations over 6 iterations. 
+
+    #     Parameters
+    #     ----------
+    #     obs_t: np.array of shape (# features, # subbins)
+    #         Neural observation vector. If the decoding_rate of the Decoder is
+    #         greater than the control rate of the plant (e.g. 60 Hz )
+    #     kwargs: dictionary
+    #         Algorithm-specific arguments to be given to the Decoder.predict method
+    #     '''
+
+    #     call_rate = self.call_rate
+    #     decoding_rate = 1./self.binlen
+
+    #     if decoding_rate >= call_rate:
+    #         # Infer the number of sub-bins from the size of the spike counts mat to decode
+    #         n_subbins = obs_t.shape[1]
+
+    #         outputs = []
+    #         for k in range(n_subbins):
+    #             outputs.append(self.predict(obs_t[:,k], **kwargs))
+
+    #         return np.vstack(outputs).T
+    #     elif decoding_rate < call_rate:
+    #         if accumulate:
+    #             self.spike_counts += obs_t.reshape(-1, 1)
+    #         else:
+    #             self.spike_counts = obs_t.reshape(-1, 1)
+
+    #         if self.bmicount == self.bminum - 1:
+    #             # Update using spike counts
+    #             self.bmicount = 0
+    #             self.predict(self.spike_counts, **kwargs)
+    #             # self.spike_counts = np.zeros([len(self.units), 1])
+    #             self.spike_counts = np.zeros([self.n_features, 1])
+    #         else:
+    #             self.bmicount += 1
+    #         return self.filt.get_mean().reshape(-1,1)
+
+
 
     def save(self, filename=''):
         '''
@@ -813,12 +842,12 @@ class BMISystem(object):
         update_flag = False
         learn_flag = kwargs.pop('learn_flag', False)
 
-        # feature_type = kwargs.pop('feature_type')
+        feature_type = kwargs.pop('feature_type')
 
-        # if feature_type in ['lfp_power', 'emg_amplitude']:
-        #     accumulate = False
-        # else:
-        #     accumulate = True
+        if feature_type in ['lfp_power', 'emg_amplitude']:
+            accumulate = False
+        else:
+            accumulate = True
 
         for k in range(n_obs):
             neural_obs_k = neural_obs[:,k].reshape(-1,1)
@@ -829,38 +858,42 @@ class BMISystem(object):
             # the task_state should never contain NaN values. 
             if np.any(np.isnan(target_state_k)): task_state = 'no_target' 
 
-            ############# run the decoder
+            #################################
+            ## Decode the current observation
+            #################################
             self.spike_counts, decode = self.feature_accumulator(neural_obs_k)
 
-            prev_state = self.decoder.get_state()
-            self.decoder(neural_obs_k, accumulate=accumulate, **kwargs)
-            decoded_states[:,k] = self.decoder.get_state()
+            if decode:
+                prev_state = self.decoder.get_state()
+                self.decoder(self.spike_counts, **kwargs)
 
-            # Determine whether the current state or previous state should be given to the learner
-            if self.learner.input_state_index == 0:
-                learner_state = decoded_states[:,k]
-            elif self.learner.input_state_index == -1:
-                learner_state = prev_state
-            else:
-                print "Not implemented yet: %d" % self.learner.input_state_index
-                learner_state = prev_state
+                # Determine whether the current state or previous state should be given to the learner
+                if self.learner.input_state_index == 0:
+                    learner_state = self.decoder.get_state() #decoded_states[:,k]
+                elif self.learner.input_state_index == -1:
+                    learner_state = prev_state
+                else:
+                    print "Not implemented yet: %d" % self.learner.input_state_index
+                    learner_state = prev_state
 
-            # self.spike_counts += spike_obs_k
-            # if feature_type in ['lfp_power', 'emg_amplitude']:
-            #     # hack to make to make lfp decoding work
-            #     self.spike_counts = neural_obs_k
-            # else:
-            #     self.spike_counts += neural_obs_k
+                # self.spike_counts += spike_obs_k
+                # if feature_type in ['lfp_power', 'emg_amplitude']:
+                #     # hack to make to make lfp decoding work
+                #     self.spike_counts = neural_obs_k
+                # else:
+                #     self.spike_counts += neural_obs_k
 
-            if learn_flag and self.decoder.bmicount == 0:
-                self.learner(self.spike_counts.copy(), learner_state, target_state_k, decoded_states[:,k], task_state, state_order=self.decoder.ssm.state_order)
-                self.reset_spike_counts()
-            elif self.decoder.bmicount == 0:
-                self.reset_spike_counts()
-        
+                if learn_flag and decode: #self.decoder.bmicount == 0:
+                    self.learner(self.spike_counts.copy(), learner_state, target_state_k, self.decoder.get_state(), task_state, state_order=self.decoder.ssm.state_order)
+                    # self.reset_spike_counts()
+                # elif self.decoder.bmicount == 0:
+                    # self.reset_spike_counts()
 
-            ############# Update decoder parameters
+            decoded_states[:,k] = self.decoder.get_state()        
 
+            ############################
+            ## Update decoder parameters
+            ############################
             new_params = None # by default, no new parameters are available
 
             if self.learner.is_ready():
