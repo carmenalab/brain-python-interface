@@ -4,7 +4,10 @@ different rates. These modules provide rate-matching
 '''
 import numpy as np
 
-class RectWindowSpikeRateEstimator(object):
+class FeatureAccumulator(object):
+    pass
+
+class RectWindowSpikeRateEstimator(FeatureAccumulator):
     '''
     Estimate spike firing rates using a rectangular window
     '''
@@ -55,13 +58,15 @@ class RectWindowSpikeRateEstimator(object):
         self.count += 1
         self.est += features
         est = self.est
+        decode = False
         if self.count == self.count_max:
             est = self.est.copy()
             self.reset()
-        return est
+            decode = True
+        return est, decode
 
 
-class NullAccumulator(object):
+class NullAccumulator(FeatureAccumulator):
     '''
     A null accumulator to use in cases when no accumulation is desired.
     '''

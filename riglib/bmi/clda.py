@@ -1110,7 +1110,7 @@ class PPFContinuousBayesianUpdater(Updater):
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, **kwargs):
         '''    Docstring    '''
-        if intended_kin == None or spike_counts == None or decoder == None:
+        if (intended_kin is None) or (spike_counts is None) or (decoder is None):
             raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")        
         int_kin_full = intended_kin
         spike_obs_full = spike_counts

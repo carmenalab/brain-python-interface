@@ -534,10 +534,10 @@ class MPCKalmanFilter(KalmanFilter):
             self.Z = np.linalg.pinv(self.Q)
 
         if not hasattr(self, 'R'):
-            self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*500, 0])))
+            self.R = np.mat(np.diag(np.hstack([np.zeros(3), np.ones(3)*500, 0])))
             #self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*10000, 0])))
         print self.R
-        self.R[-1,-1] += 1000
+        # self.R[-1,-1] += 1000
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         ''' Docstring
@@ -563,11 +563,17 @@ class MPCKalmanFilter(KalmanFilter):
             R = self.R
             Z = self.Z
             D = self.C_xpose_Q_inv_C
-            alpha = A*state + Bu
+            D[-1,:] = 0
+            D[:,-1] = 0
+            alpha = A*state
+            if not Bu is None:
+                alpha += Bu
+            
             v = np.linalg.pinv(R + D)*(self.C_xpose_Q_inv*y_ref - D*alpha.mean)
         else:
             v = np.zeros_like(state.mean)
 
+        # print np.linalg.norm(v)
         if Bu is not None:
             return A*state + Bu + self.state_noise + v
         elif u is not None:

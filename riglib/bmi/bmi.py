@@ -13,8 +13,6 @@ import re
 import os
 import tables
 
-gen_joint_coord_regex = re.compile('.*?_p.*')
-
 
 class GaussianState(object):
     '''
@@ -84,7 +82,11 @@ class GaussianState(object):
         Gaussian RV addition: If X ~ N(mu1, sigma1) and Y ~ N(mu2, sigma2), then
         X + Y ~ N(mu1 + mu2, sigma1 + sigma2). If Y is a scalar, then X + Y ~ N(mu1 Y, sigma1)
         '''
-        if isinstance(other, GaussianState):
+        if isinstance(other, (int, float)) and (other == 0):
+            return GaussianState(self.mean, self.cov)
+        elif isinstance(other, (int, float)):
+            return GaussianState(self.mean + other, self.cov)
+        elif isinstance(other, GaussianState):
             return GaussianState(self.mean+other.mean, self.cov+other.cov)
         elif isinstance(other, np.matrix) and other.shape == self.mean.shape:
             return GaussianState(self.mean + other, self.cov)
@@ -161,13 +163,15 @@ class GaussianStateHMM(object):
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None, F=None):
         ''' Docstring
         Run the "predict" step of the Kalman filter/HMM inference algorithm:
-            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
+            x_{t+1|t} = N(Ax_{t|t} + Bu, AP_{t|t}A.T + W)
+            Bu = {Bu, self.B * u, B*F*(x_t - target_state)}
 
         Parameters
         ----------
         state: GaussianState instance
             State estimate and estimator covariance of current state
-        u: np.mat 
+        u: np.mat, optional, default=None
+            An assistive control input. Requires the filter to have an input matrix attribute, Bu
         
 
         Returns
@@ -177,18 +181,35 @@ class GaussianStateHMM(object):
         '''
         A = self.A
 
-        if Bu is not None:
-            return A*state + Bu + self.state_noise
-        elif u is not None:
-            Bu = self.B * u
-            return A*state + Bu + self.state_noise
-        elif target_state is not None:
+        if not (Bu is None):
+            c_t = Bu
+        elif not (u is None):
+            c_t = self.B * u
+        elif not (target_state is None):
             B = self.B
-            if F == None:
+            if F is None:
                 F = self.F
-            return (A - B*F)*state + B*F*target_state + self.state_noise
+            A = A - B*F
+            c_t = B*F*target_state
         else:
-            return A*state + self.state_noise
+            c_t = 0
+
+        return A * state + c_t + self.state_noise
+
+        # return (A - B*F)*state + B*F*target_state + self.state_noise
+
+        # if Bu is not None:
+        #     return A*state + Bu + self.state_noise
+        # elif u is not None:
+        #     Bu = self.B * u
+        #     return A*state + Bu + self.state_noise
+        # elif target_state is not None:
+        #     B = self.B
+        #     if F == None:
+        #         F = self.F
+        #     return (A - B*F)*state + B*F*target_state + self.state_noise
+        # else:
+        #     return A*state + self.state_noise
 
     def __eq__(self, other):
         '''
@@ -449,16 +470,13 @@ class Decoder(object):
         elif idx == 'qdot':
             vel_states, = np.nonzero(self.ssm.state_order == 1)
             self.filt.state.mean[vel_states, 0] = value
-        elif idx == 'q_stoch':
-            pos_states = filter(lambda k: gen_joint_coord_regex.match(self.states[k]) and self.states[k].stochastic, range(len(self.states)))
-            self.filt.state.mean[pos_states, 0] = value
         elif isinstance(idx, str) or isinstance(idx, unicode):
             idx = self.states.index(idx)
             self.filt.state.mean[idx, 0] = value
         elif np.iterable(idx):
             [self.__setitem__(k, val) for k, val in izip(idx, value)]
         else:
-            raise ValueError("KFDecoder: Improper index type: %" % type(idx))
+            raise ValueError("Decoder: Improper index type: %" % type(idx))
 
     def __setstate__(self, state):
         """
@@ -537,7 +555,7 @@ class Decoder(object):
         neural_obs: np.array of shape (N,) or (N, 1)
             One time-point worth of neural features to decode
         assist_level: float
-            Weight given to the assist term
+            Weight given to the assist term. This variable name may be a slight misnomer, a more appropriate term might be 'reweight_factor'
         Bu: np.mat of shape (N, 1)
             Assist vector to be added on to the Decoder state. Must be of the same dimension 
             as the state vector.
@@ -557,22 +575,12 @@ class Decoder(object):
         # re-format as a column matrix
         neural_obs = np.mat(neural_obs.reshape(-1,1))
 
-        # weighted_avg_lfc = kwargs.pop('weighted_avg_lfc', False)
         x = self.filt.state.mean
         
         # Run the filter
         self.filt(neural_obs, Bu=Bu, x_target=x_target, F=F)
 
         if assist_level > 0:
-            # If a non-zero assist level is passed in, then it's interpreted as 
-            # if weighted_avg_lfc:
-            #     # calculates assist as:
-            #     #   (1-assist)*(A*x + K*(y-C*A*x)) + assist*(A*x + B*u)
-            #     # Note: the variable "Bu" here is actually equal to assist_level*B*u
-            #     self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*self.filt.A*x + Bu
-            # else:
-            #     self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level*Bu
-
             weighted_avg_lfc = int(weighted_avg_lfc)
             self.filt.state.mean = (1-assist_level)*self.filt.state.mean + weighted_avg_lfc*assist_level*self.filt.A*x + (1-weighted_avg_lfc)*assist_level*Bu
 
@@ -727,23 +735,25 @@ class BMISystem(object):
     '''
     This class encapsulates all of the BMI decoding computations, including assist and CLDA
     '''
-    def __init__(self, decoder, learner, updater):
+    def __init__(self, decoder, learner, updater, feature_accumulator):
         '''
         Instantiate the BMISystem
         
         Parameters
         ----------
-        decoder: bmi.Decoder instance
+        decoder : bmi.Decoder instance
             The decoder maps spike counts into the "state" of the prosthesis
-        learner: clda.Learner instance
+        learner : clda.Learner instance
             The learner estimates the "intended" prosthesis state from task goals.
-        updater: clda.Updater instance
+        updater : clda.Updater instance
             The updater remaps the decoder parameters to better match sets of 
             observed spike counts and intended kinematics (from the learner)
+        feature_accumulator : accumulator.FeatureAccumulator instance
         '''
         self.decoder = decoder 
         self.learner = learner
         self.updater = updater
+        self.feature_accumulator = feature_accumulator
         self.param_hist = []
 
         # Establish inter-process communication mechanisms if the updater runs
@@ -762,7 +772,7 @@ class BMISystem(object):
     def __call__(self, neural_obs, target_state, task_state, *args, **kwargs):
         '''
         Main function for all BMI functions, including running the decoder, adapting the decoder 
-        and incorporating assist
+        and incorporating assistive control inputs
 
         Parameters
         ----------
@@ -803,12 +813,12 @@ class BMISystem(object):
         update_flag = False
         learn_flag = kwargs.pop('learn_flag', False)
 
-        feature_type = kwargs.pop('feature_type')
+        # feature_type = kwargs.pop('feature_type')
 
-        if feature_type in ['lfp_power', 'emg_amplitude']:
-            accumulate = False
-        else:
-            accumulate = True
+        # if feature_type in ['lfp_power', 'emg_amplitude']:
+        #     accumulate = False
+        # else:
+        #     accumulate = True
 
         for k in range(n_obs):
             neural_obs_k = neural_obs[:,k].reshape(-1,1)
@@ -819,7 +829,9 @@ class BMISystem(object):
             # the task_state should never contain NaN values. 
             if np.any(np.isnan(target_state_k)): task_state = 'no_target' 
 
-            # run the decoder
+            ############# run the decoder
+            self.spike_counts, decode = self.feature_accumulator(neural_obs_k)
+
             prev_state = self.decoder.get_state()
             self.decoder(neural_obs_k, accumulate=accumulate, **kwargs)
             decoded_states[:,k] = self.decoder.get_state()
@@ -834,28 +846,27 @@ class BMISystem(object):
                 learner_state = prev_state
 
             # self.spike_counts += spike_obs_k
-            if feature_type in ['lfp_power', 'emg_amplitude']:
-                # hack to make to make lfp decoding work
-                self.spike_counts = neural_obs_k
-            else:
-                self.spike_counts += neural_obs_k
+            # if feature_type in ['lfp_power', 'emg_amplitude']:
+            #     # hack to make to make lfp decoding work
+            #     self.spike_counts = neural_obs_k
+            # else:
+            #     self.spike_counts += neural_obs_k
 
             if learn_flag and self.decoder.bmicount == 0:
-                self.learner(self.spike_counts.copy(), learner_state, target_state_k, 
-                             decoded_states[:,k], task_state, state_order=self.decoder.ssm.state_order)
+                self.learner(self.spike_counts.copy(), learner_state, target_state_k, decoded_states[:,k], task_state, state_order=self.decoder.ssm.state_order)
                 self.reset_spike_counts()
             elif self.decoder.bmicount == 0:
                 self.reset_spike_counts()
         
+
+            ############# Update decoder parameters
+
             new_params = None # by default, no new parameters are available
 
             if self.learner.is_ready():
                 batch_data = self.learner.get_batch()
                 batch_data['decoder'] = self.decoder
-                # self.intended_kin, self.spike_counts_batch = self.learner.get_batch()
-                # args = (self.intended_kin, self.spike_counts_batch, self.decoder)
-                batch_size = batch_data['intended_kin'].shape[1]
-                # batch_data['batch_time'] = batch_size * self.decoder.binlen
+
                 kwargs.update(batch_data)
 
                 if self.mp_updater:
@@ -865,8 +876,6 @@ class BMISystem(object):
                     self.learner.disable() 
                 else:
                     new_params = self.updater.calc(**kwargs)
-                    if batch_size > 1: 
-                        print "updating BMI"
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available
@@ -892,7 +901,6 @@ class BMISystem(object):
             # Update parameter history
             self.param_hist.append(new_params)
 
-        # decoded_states = np.vstack(decoded_states).T
         return decoded_states, update_flag
 
     def __del__(self):
