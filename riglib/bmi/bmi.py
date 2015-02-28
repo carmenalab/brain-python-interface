@@ -321,7 +321,9 @@ class Decoder(object):
         # If the decoder doesn't have an 'ssm' attribute, then it's an old
         # decoder in which case the ssm is the 2D endpoint SSM
         if not hasattr(self, 'ssm'):
-            self.ssm = train.endpt_2D_state_space
+            import state_space_models
+            self.ssm = state_space_models.StateSpaceEndptVel2D()
+            # self.ssm = train.endpt_2D_state_space
 
         # Assign a default call rate of 60 Hz and initialize the bmicount/bminum attributes
         if hasattr(self, 'call_rate'):
@@ -946,7 +948,7 @@ class BMILoop(object):
         super(BMILoop, self).init()        
 
     def create_bmi_system(self):
-        self.bmi_system = riglib.bmi.BMISystem(self.decoder, self.learner,
+        self.bmi_system = BMISystem(self.decoder, self.learner,
             self.updater, self.feature_accumulator)
 
     def load_decoder(self):
@@ -976,14 +978,14 @@ class BMILoop(object):
         self.assister = None
 
     def create_feature_accumulator(self):
-        from riglib.bmi import accumulator
+        import accumulator
         feature_shape = [self.decoder.n_features, 1]
         feature_dtype = np.float64
         acc_len = int(self.decoder.binlen / self.update_rate)
         acc_len = max(1, acc_len)
 
         if self.extractor.feature_type in ['lfp_power', 'emg_amplitude']:
-            self.feature_accumulator = accumulator.NullAccumulator()
+            self.feature_accumulator = accumulator.NullAccumulator(acc_len)
         else:
             self.feature_accumulator = accumulator.RectWindowSpikeRateEstimator(acc_len, feature_shape, feature_dtype)
 
@@ -1018,6 +1020,7 @@ class BMILoop(object):
                 self.add_dtype(*x)
 
     def create_learner(self):
+        import clda
         self.learn_flag = False
         self.learner = clda.DumbLearner()
 
