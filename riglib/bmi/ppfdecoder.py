@@ -135,24 +135,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
             pass
             #print np.nonzero(invalid_inds.ravel()[0])
         return lambda_predict
-    
-    # def _ssm_pred(self, state, target_state=None):
-    #     '''
-    #     Docstring    
-        
-    #     Parameters
-    #     ----------
-        
-    #     Returns
-    #     -------
-    #     '''
-    #     A = self.A
-    #     B = self.B
-    #     F = self.F
-    #     if target_state == None:
-    #         return A*state + self.state_noise
-    #     else:
-    #         return (A - B*F)*state + B*F*target_state + self.state_noise
 
     def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, F=None, obs_is_control_independent=False, **kwargs):
         '''
@@ -181,15 +163,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         C = C[:,inds]
 
         pred_state = self._ssm_pred(st, target_state=x_target, Bu=Bu, u=u, F=F)
-        # x_prev, P_prev = st.mean, st.cov
-        # B = self.B
-        # F = self.F
-        # if target_state == None or np.any(np.isnan(target_state)):
-        #     x_pred = A*x_prev
-        #     P_pred = A*P_prev*A.T + W
-        # else:
-        #     x_pred = A*x_prev + B*F*(target_state - x_prev)
-        #     P_pred = (A-B*F) * P_prev * (A-B*F).T + W
         x_pred, P_pred = pred_state.mean, pred_state.cov
         P_pred = P_pred[mesh]
 
@@ -301,44 +274,6 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         return C, pvalues
 
 class PPFDecoder(bmi.BMI, bmi.Decoder):
-    def _pickle_init(self):
-        '''
-        Commands to run after unpickling the Decoder, to finish up initialization of saved decoders. 
-        These methods are common to unpickling and construction (i.e., calls to __init__). This one
-
-        This _pickle_init retreives hard-coded assist data before calling the next _pickle_init in the MRO.
-        '''
-        ### # initialize the F_assist matrices
-        ### # TODO this needs to be its own function...
-        ### tau_scale = (28.*28)/1000/3. * np.array([18., 12., 6, 3., 2.5, 1.5])
-        ### num_assist_levels = len(tau_scale)
-        ### 
-        ### w_x = 1;
-        ### w_v = 3*tau_scale**2/2;
-        ### w_r = 1e6*tau_scale**4;
-        ### 
-        ### I = np.eye(3)
-        ### self.filt.B = np.bmat([[0*I], 
-        ###               [self.filt.dt/1e-3 * I],
-        ###               [np.zeros([1, 3])]])
-
-        ### F = []
-        ### F.append(np.zeros([3, 7]))
-        ### for k in range(num_assist_levels):
-        ###     Q = np.mat(np.diag([w_x, w_x, w_x, w_v[k], w_v[k], w_v[k], 0]))
-        ###     R = np.mat(np.diag([w_r[k], w_r[k], w_r[k]]))
-
-        ###     F_k = np.array(feedback_controllers.LQRController.dlqr(self.filt.A, self.filt.B, Q, R, eps=1e-15))
-        ###     F.append(F_k)
-        ### 
-        ### self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
-        #if not hasattr(self, 'F_assist'):
-        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_ppf.pkl'))
-        self.n_assist_levels = len(self.F_assist)
-        self.prev_assist_level = self.n_assist_levels
-
-        super(PPFDecoder, self)._pickle_init()
-
     def __call__(self, obs_t, **kwargs):
         '''
         see bmi.Decoder.__call__ for docs
