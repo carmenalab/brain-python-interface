@@ -15,7 +15,7 @@ import pdb
 import state_space_models
 from itertools import izip
 
-import extractor
+import stat
 import os
 import subprocess
 
@@ -23,31 +23,6 @@ import subprocess
 ## Constants
 ############
 pi = np.pi 
-
-empty_bounding_box = [np.array([]), np.array([])]
-stoch_states_to_decode_2D_vel = ['hand_vx', 'hand_vz'] 
-states_3D_endpt = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offset']
-
-
-State = state_space_models.State
-StateSpaceEndptVel2D = state_space_models.StateSpaceEndptVel2D
-StateSpaceEndptVel = state_space_models.StateSpaceEndptVel
-
-endpt_3D_state_space = StateSpaceEndptVel()
-endpt_2D_state_space = StateSpaceEndptVel2D()
-joint_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=2)
-tentacle_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=4)
-
-StateSpaceArmAssist = state_space_models.StateSpaceArmAssist
-StateSpaceReHand    = state_space_models.StateSpaceReHand
-StateSpaceIsMore    = state_space_models.StateSpaceIsMore
-
-armassist_state_space = StateSpaceArmAssist()
-rehand_state_space = StateSpaceReHand()
-ismore_state_space = StateSpaceIsMore()
-
-from state_bounders import RectangularBounder, make_rect_bounder_from_ssm
 
 ################################################################################
 ## Functions to synchronize task-generated HDF files and neural recording files
