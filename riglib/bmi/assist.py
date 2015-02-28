@@ -9,7 +9,6 @@ from riglib.stereo_opengl import ik
 from riglib.bmi import feedback_controllers
 import pickle
 
-from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from utils.angle_utils import *
 from utils.constants import *
 
@@ -41,7 +40,7 @@ class Assister(object):
         Returns
         -------
         '''
-        pass  # implement in subclasses -- should return (Bu, assist_weight)
+        pass
 
     def __call__(self, *args, **kwargs):
         '''
@@ -79,17 +78,12 @@ class LinearFeedbackControllerAssist(Assister):
         LinearFeedbackControllerAssist instance
         '''
         self.lqr_controller = feedback_controllers.LQRController(A, B, Q, R)
-        # self.A = A
-        # self.B = B
-        # self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         '''
         See docs for Assister.calc_assisted_BMI_state
         '''
         Bu = assist_level * self.lqr_controller(current_state, target_state)
-        # assist_weight = 0
-        # return Bu, assist_weight
         return dict(Bu=Bu, assist_level=0)
 
 class SSMLFCAssister(LinearFeedbackControllerAssist):
@@ -115,7 +109,7 @@ class SSMLFCAssister(LinearFeedbackControllerAssist):
         TentacleAssist instance
 
         '''        
-        if ssm == None:
+        if ssm is None:
             raise ValueError("SSMLFCAssister requires a state space model!")
 
         A, B, W = ssm.get_ssm_matrices()
