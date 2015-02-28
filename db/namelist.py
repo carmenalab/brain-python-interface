@@ -4,6 +4,8 @@ Lookup table for features, generators and tasks for experiments
 
 import numpy as np
 from riglib import calibrations, bmi
+from riglib.bmi.bmi import BMI, Decoder
+from riglib.bmi import state_space_models
 
 ## Get the list of experiment features
 try:
@@ -57,8 +59,8 @@ class SubclassDict(dict):
 instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
     calibrations.AutoAlign:models.AutoAlignment,
-    bmi.BMI: models.Decoder,
-    bmi.Decoder: models.Decoder,
+    BMI: models.Decoder,
+    Decoder: models.Decoder,
 } )
 
 
@@ -74,14 +76,36 @@ bmi_training_pos_vars = [
     'plant_pos'  # used for ibmi tasks
 ]
 
+#################################
+##### State-space models for BMIs
+#################################
+joint_2D_state_space = bmi.state_space_models.StateSpaceNLinkPlanarChain(n_links=2, w=0.01)
+tentacle_2D_state_space = bmi.state_space_models.StateSpaceNLinkPlanarChain(n_links=4, w=0.01)
+
+from tasks.ismore_bmi_lib import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
+armassist_state_space = StateSpaceArmAssist()
+rehand_state_space = StateSpaceReHand()
+ismore_state_space = StateSpaceIsMore()
+
+## Velocity SSMs
+from riglib.bmi.state_space_models import offset_state, State
+endpt_2D_states = [State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
+                   State('hand_py', stochastic=False, drives_obs=False, order=0),
+                   State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+                   State('hand_vx', stochastic=True,  drives_obs=True, order=1),
+                   State('hand_vy', stochastic=False, drives_obs=False, order=1),
+                   State('hand_vz', stochastic=True,  drives_obs=True, order=1),
+                   offset_state]
+endpt_2D_state_space = state_space_models.LinearVelocityStateSpace(endpt_2D_states)
+
+
 bmi_state_space_models=dict(
-    Endpt2D=bmi.train.endpt_2D_state_space,
-    Endpt3D=bmi.train.endpt_3D_state_space,
-    Tentacle=bmi.train.tentacle_2D_state_space,
-    Armassist=bmi.train.armassist_state_space,
-    Rehand=bmi.train.rehand_state_space,
-    ISMORE=bmi.train.ismore_state_space,
-    Joint2L=bmi.train.joint_2D_state_space,
+    Endpt2D=endpt_2D_state_space,
+    Tentacle=tentacle_2D_state_space,
+    Armassist=armassist_state_space,
+    Rehand=rehand_state_space,
+    ISMORE=ismore_state_space,
+    Joint2L=joint_2D_state_space,
 )
 
 extractors = dict(
