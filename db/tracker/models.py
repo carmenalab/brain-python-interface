@@ -683,6 +683,22 @@ class AutoAlignment(models.Model):
     def get(self):
         return calibrations.AutoAlign(self.name)
 
+import importlib
+def decoder_unpickler(mod_name, kls_name):
+    if kls_name == 'StateSpaceFourLinkTentacle2D':
+        kls_name = 'StateSpaceNLinkPlanarChain'
+        mod_name = 'riglib.bmi.state_space_models'
+
+    if kls_name == 'StateSpaceEndptVel':
+        kls_name = 'LinearVelocityStateSpace'
+        mod_name = 'riglib.bmi.state_space_models'
+
+    if kls_name == 'State':
+        mod_name = 'riglib.bmi.state_space_models'
+    mod = importlib.import_module(mod_name)
+    return getattr(mod, kls_name)
+
+
 class Decoder(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=128)
@@ -700,15 +716,22 @@ class Decoder(models.Model):
     def load(self):
         data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
-        #print decoder_fname
-        decoder_name = self.name
-        dec = pickle.load(open(decoder_fname))
-        dec.name = decoder_name
+
+        # dec = pickle.load(open(decoder_fname))
+        import cPickle
+        fh = open(decoder_fname, 'r')
+        unpickler = cPickle.Unpickler(fh)
+        unpickler.find_global = decoder_unpickler
+        dec = unpickler.load() # object will now contain the new class path reference
+        fh.close()
+
+        dec.name = self.name
         return dec        
 
     def get(self):
-        sys = System.objects.get(name='bmi').path
-        return cPickle.load(open(os.path.join(sys, self.path)))
+        return self.load()
+        # sys = System.objects.get(name='bmi').path
+        # return cPickle.load(open(os.path.join(sys, self.path)))
 
     def to_json(self):
         dec = self.get()
