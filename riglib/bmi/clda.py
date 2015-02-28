@@ -15,11 +15,7 @@ import re
 import assist
 import os
 
-from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from utils.angle_utils import *
-
-
-
 
 inv = np.linalg.inv
 
