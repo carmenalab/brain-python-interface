@@ -5,6 +5,7 @@ different rates. These modules provide rate-matching
 import numpy as np
 
 class FeatureAccumulator(object):
+    '''Used only for type-checking'''
     pass
 
 class RectWindowSpikeRateEstimator(FeatureAccumulator):
@@ -17,11 +18,13 @@ class RectWindowSpikeRateEstimator(FeatureAccumulator):
 
         Parameters
         ----------
-        count_max: int 
+        count_max : int 
             Number of bins to accumulate in the window. This is somewhat specific
             to rectangular binning
-        feature_shape: np.array of shape (n_features, n_timepoints)
+        feature_shape : np.array of shape (n_features, n_timepoints)
             Shape of the extracted features passed to the Decoder on each call
+        feature_dtype : TODO
+            TODO
 
         Returns
         -------
@@ -70,21 +73,47 @@ class NullAccumulator(FeatureAccumulator):
     '''
     A null accumulator to use in cases when no accumulation is desired.
     '''
-    def __init__(*args, **kwargs):
+    def __init__(self, count_max):
         '''
         Constructor for NullAccumulator
 
         Parameters
         ----------
-        args: positional arguments
-            These are ignored (none are necessary)
-        kwargs: keyword arguments
-            These are ignored (none are necessary)
+        count_max: int 
+            Number of bins to accumulate in the window. This is somewhat specific
+            to rectangular binning
+
+        Returns
+        -------
+        NullAccumulator instance
         '''
-        pass
+        self.count_max = count_max
+        self.reset()
+
+    def reset(self):
+        '''
+        Reset the counter
+        '''
+        self.count = 0
 
     def __call__(self, features):
         '''
-        NullAccumulator's __call__ just passes back the features passed in since no accumulation occurs
+        Accumulate the current 'features' with the previous estimate
+
+        Parameters
+        ----------
+        features: np.ndarray of shape self.features_shape 
+            self.feature_shape is declared at object creation time
+
+        Returns
+        -------
+        est: np.ndarray of shape self.features_shape
+            Returns current estimate of features. This estimate may or may not be 
+            valid depending on when the estimate is checked
         '''
-        return features
+        self.count += 1
+        decode = False
+        if self.count == self.count_max:
+            self.reset()
+            decode = True
+        return features, decode
