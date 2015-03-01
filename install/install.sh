@@ -60,6 +60,7 @@ sudo apt-get -y install swig
 sudo apt-get -y install isc-dhcp-server
 # cURL: command line utility for url transfer
 sudo apt-get -y install curl
+sudo apt-get -y install sqlite3
 
 
 ####### Install Python dependencies
