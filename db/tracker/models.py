@@ -306,7 +306,6 @@ class Sequence(models.Model):
             seq.sequence = cPickle.dumps(seq_data)
         return seq
 
-
 class TaskEntry(models.Model):
     subject = models.ForeignKey(Subject)
     date = models.DateTimeField(auto_now_add=True)
@@ -317,6 +316,8 @@ class TaskEntry(models.Model):
     params = models.TextField()
     report = models.TextField()
     notes = models.TextField()
+    visible = models.BooleanField(blank=True, default=True)
+    backup = models.BooleanField(blank=True, default=False)
 
     def __unicode__(self):
         return "{date}: {subj} on {task} task, id={id}".format(
@@ -414,14 +415,16 @@ class TaskEntry(models.Model):
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)
+
+        try:
+            backup_root = config.backup_root['root']
+        except:
+            backup_root = '/None'
         
-        # a TaskEntry can have multiple datafiles associated with the blackrock system
-        # (unlike for the plexon case), so need to do this a bit differently
-        # js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
         js['datafiles'] = dict()
         system_names = set(d.system.name for d in datafiles)
         for name in system_names:
-            js['datafiles'][name] = [d.get_path() for d in datafiles if d.system.name == name]
+            js['datafiles'][name] = [d.get_path() + ' (backup available: %s)' % d.is_backed_up(backup_root) for d in datafiles if d.system.name == name]
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         
@@ -787,3 +790,12 @@ class DataFile(models.Model):
     def delete(self, **kwargs):
         self.remove()
         super(DataFile, self).delete(**kwargs)
+
+    def is_backed_up(self, backup_root):
+        '''
+        Return a boolean indicating whether a copy of the file is available on the backup
+        '''
+        fname = self.get_path()
+        rel_datafile = os.path.relpath(fname, '/storage')
+        backup_fname = os.path.join(backup_root, rel_datafile)
+        return os.path.exists(backup_fname)

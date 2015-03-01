@@ -254,10 +254,11 @@ TaskEntry.prototype.update = function(info) {
 			for (var i = 0; i < info.datafiles[sys].length; i++) {
 				datafile = info.datafiles[sys][i]
 				var file = document.createElement("li");
-				var link = document.createElement("a");
-				link.href = "/static"+datafile;
-				link.innerHTML = datafile;
-				file.appendChild(link);
+				// var link = document.createElement("a");
+				// link.href = "/static"+datafile;
+				// link.innerHTML = datafile;
+				// file.appendChild(datafile);
+				file.textContent = datafile;
 				this.filelist.appendChild(file);
 				numfiles++;
 			}
