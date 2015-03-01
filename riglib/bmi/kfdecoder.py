@@ -833,29 +833,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         F, K = self.kf.get_sskf()
         self.plot_pds(K.T, **kwargs)
 
-    def _pickle_init(self):
-        '''
-        Common functionality that must occur when instantiating a decoder or 
-        unpickling one. Also see Decoder._pickle_init
-        '''
-        # Define 'dt' for the KF object
-        self.filt.dt = self.binlen
-        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_kf.pkl'))
-        self.n_assist_levels = len(self.F_assist)
-        self.prev_assist_level = self.n_assist_levels
-
-        # Define 'B' matrix for KF object if it does not exist
-        if not hasattr(self.filt, 'B'):
-            I = np.mat(np.eye(3))
-            self.filt.B = np.mat(np.vstack([0*I, 1000*self.filt.dt*I, np.zeros([1,3])]))
-
-        if not hasattr(self.filt, 'F'):
-            self.filt.F = np.mat(np.zeros([self.filt.B.shape[0], len(self.states)]))
-
-        if not hasattr(self, 'ssm'):
-            self.ssm = train.endpt_2D_state_space
-
-
     def shuffle(self, shuffle_baselines=False):
         '''
         Shuffle the neural model
