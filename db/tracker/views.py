@@ -30,7 +30,7 @@ def list(request):
     '''
     td = datetime.timedelta(days=60)
     start_date = datetime.date.today() - td
-    entries = TaskEntry.objects.filter(date__gt=start_date).order_by('-date')
+    entries = TaskEntry.objects.filter(date__gt=start_date, visible=True).order_by('-date')
 
     tasks = Task.objects.filter(visible=True).order_by("name")
     import tasklist
