@@ -239,12 +239,13 @@ class PlexonData(traits.HasTraits):
         finally:
             self.neurondata.stop()
 
+from riglib.bmi.bmi import Decoder
 class PlexonBMI(PlexonData):
     '''
     Special case of PlexonData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
     May not be available for all recording systems. 
     '''
-    decoder = traits.Instance(bmi.Decoder)
+    decoder = traits.Instance(Decoder)
 
     def init(self):
         '''
