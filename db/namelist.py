@@ -14,11 +14,13 @@ except:
     features = dict()
 
 ## Get the list of tasks
-try:
-    from tasklist import tasks
-except ImportError:
-    print 'create a module "tasklist" and create the task dictionaries inside it!'
-    tasks = dict()
+# try:
+#     from tasklist import tasks
+# except ImportError:
+#     print 'create a module "tasklist" and create the task dictionaries inside it!'
+#     tasks = dict()
+
+from tasklist import tasks
 
 from itertools import izip
 

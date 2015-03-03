@@ -425,7 +425,10 @@ class TaskEntry(object):
                 self.decoder_record = None
 
         # Load the event log (report)
-        self.report = json.loads(self.record.report)
+        try:
+            self.report = json.loads(self.record.report)
+        except:
+            self.report = ''
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''

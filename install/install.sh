@@ -61,6 +61,8 @@ sudo apt-get -y install isc-dhcp-server
 # cURL: command line utility for url transfer
 sudo apt-get -y install curl
 sudo apt-get -y install sqlite3
+# Arduino IDE
+sudo apt-get install arduino arduino-core  
 
 
 ####### Install Python dependencies
