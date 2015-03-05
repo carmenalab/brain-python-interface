@@ -67,15 +67,20 @@ def resample_scalar_ssm(a, w, Delta_old=0.1, Delta_new=0.005):
     return a_delta_new, w_delta_new
 
 def _gen_A(t, s, m, n, off, ndim=3):
-    """utility function for generating block-diagonal matrices
+    """
+    Utility function for generating block-diagonal matrices
     used by the KF
-    Docstring
+    
+        [t*I, s*I, 0
+         m*I, n*I, 0
+         0,   0,   off]
 
     Parameters
     ----------
 
     Returns
     -------
+    np.mat of shape (N, N); N = 2*ndim + 1
     """
     A = np.zeros([2*ndim+1, 2*ndim+1])
     A_lower_dim = np.array([[t, s], [m, n]])

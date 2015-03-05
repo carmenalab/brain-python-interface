@@ -497,22 +497,6 @@ class Decoder(object):
 
         self._pickle_init()
 
-    def __getstate__(self):
-        """
-        Create dictionary describing state of the decoder instance, 
-        for pickling.
-
-        NOTE: this function was used originally to avoid pickling a 'bin_spikes',
-        which was a function added to the Decoder as an attribute rather than
-        being declared as a method. It should no longer be necessary. 
-        """
-        state = dict(cells=self.units)
-        exclude = set(['bin_spikes'])
-        for k, v in self.__dict__.items():
-            if k not in exclude:
-                state[k] = v
-        return state
-
     def set_call_rate(self, call_rate):
         '''
         Function for the higher-level task to set the frequency of function calls to __call__
