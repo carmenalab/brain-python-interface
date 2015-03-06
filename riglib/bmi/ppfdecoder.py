@@ -203,7 +203,7 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         dict
         '''
         return dict(A=self.A, W=self.W, C=self.C, dt=self.dt, B=self.B, 
-                    is_stochastic=self.is_stochastic, S=self.S)
+                    is_stochastic=self.is_stochastic)
 
     def tomlab(self, unit_scale=1.):
         '''
@@ -272,6 +272,88 @@ class PointProcessFilter(bmi.GaussianStateHMM):
             pvalues[k,:] = model_fit.pvalues
 
         return C, pvalues
+
+class OneStepMPCPointProcessFilter(PointProcessFilter):
+    '''
+    Use MPC with a horizon of 1 to predict 
+    '''
+    attrs_to_pickle = ['A', 'W', 'C']
+    def _pickle_init(self):
+        super(OneStepMPCPointProcessFilter, self)._pickle_init()
+
+        self.prev_obs = None
+        if not hasattr(self, 'mpc_cost_step'):
+            mpc_cost_half_life = 1200.
+            batch_time = 0.1
+            self.mpc_cost_step = np.exp(np.log(0.5) / (mpc_cost_half_life/batch_time))
+            self.ESS = 1000
+
+    def _ssm_pred(self, state, u=None, Bu=None, target_state=None, F=None):
+        ''' Docstring
+        Run the "predict" step of the Kalman filter/HMM inference algorithm:
+            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
+
+        Parameters
+        ----------
+        state: GaussianState instance
+            State estimate and estimator covariance of current state
+        u: np.mat 
+        
+
+        Returns
+        -------
+        GaussianState instance
+            Represents the mean and estimator covariance of the new state estimate
+        '''
+        A = self.A
+
+        dt = self.dt
+
+        Loglambda_predict = self.C * state.mean 
+        exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
+        lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
+
+        Q_inv = np.mat(np.diag(lambda_predict*dt))
+
+        if self.prev_obs is not None:
+            y_ref = self.prev_obs
+            G = self.C.T * Q_inv
+            D = G * self.C
+            D[:,-1] = 0
+            D[-1,:] = 0
+
+            # Solve for R
+            R = 200*D
+            
+            alpha = A*state
+            v = np.linalg.pinv(R + D)*(G*y_ref - D*alpha.mean)
+        else:
+            v = np.zeros_like(state.mean)
+
+        if Bu is not None:
+            return A*state + Bu + self.state_noise + v
+        elif u is not None:
+            Bu = self.B * u
+            return A*state + Bu + self.state_noise
+        elif target_state is not None:
+            B = self.B
+            F = self.F
+            return (A - B*F)*state + B*F*target_state + self.state_noise
+        else:
+            return A*state + self.state_noise
+
+    def _forward_infer(self, st, obs_t, **kwargs):
+        res = super(OneStepMPCPointProcessFilter, self)._forward_infer(st, obs_t, **kwargs)
+
+        # if not (self.prev_obs is None):
+        #     # Update the sufficient statistics for the R matrix
+        #     l = self.mpc_cost_step
+        #     self.E00 = l*self.E00 + (1-l)*(self.prev_obs - self.C*self.A*st.mean)*(self.prev_obs - self.C*self.A*st.mean).T
+        #     self.E01 = l*self.E01 + (1-l)*(self.prev_obs - self.C*self.A*st.mean)*(obs_t - self.C*self.A*st.mean).T
+
+        self.prev_obs = obs_t
+        return res    
+
 
 class PPFDecoder(bmi.BMI, bmi.Decoder):
     def __call__(self, obs_t, **kwargs):
