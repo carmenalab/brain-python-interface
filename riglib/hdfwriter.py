@@ -15,16 +15,21 @@ class MsgTable(tables.IsDescription):
     msg = tables.StringCol(256)
 
 class HDFWriter(object):
-    ''' Docstring '''
+    ''' 
+    Used by the SaveHDF sink (features.hdf_features.SaveHDF) to save data to an HDF file online (as opposed to batch-mode saving all at once) 
+    '''
     def __init__(self, filename):
         '''
-        Docstring
+        Constructor for HDFWriter
 
         Parameters
         ----------
+        filename : string
+            Name of file to use to send data
 
         Returns
         -------
+        HDFWriter instance
         '''
         print "Saving datafile to %s"%filename
         self.h5 = tables.openFile(filename, "w")
@@ -33,13 +38,20 @@ class HDFWriter(object):
     
     def register(self, name, dtype, include_msgs=True):
         '''
-        Docstring
+        Create a table in the HDF file corresponding to the specified source name and data type
 
         Parameters
         ----------
+        system : string
+            Name of the system being registered
+        dtype : np.dtype instance
+            Datatype of incoming data, for later decoding of the binary data during analysis
+        include_msgs : boolean, optional
+            Flag to indicated whether a table should be created for "msgs" from the current source (default True)
 
         Returns
         -------
+        None
         '''
         print "HDFWriter registered %r" % name
         if dtype.subdtype is not None:
@@ -57,15 +69,19 @@ class HDFWriter(object):
     
     def send(self, system, data):
         '''
-        Docstring
+        Add a new row to the HDF table for 'system' and fill it with the 'data' values
 
         Parameters
         ----------
+        system : string
+            Name of system where the data originated
+        data : object
+            Data to send. Must have a '.tostring()' attribute
 
         Returns
         -------
+        None
         '''
-
         if system in self.data:
             if len(data) != 1:
                 # this might not be necessary
@@ -106,69 +122,27 @@ class HDFWriter(object):
     
     def close(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Close the HDF file so that it saves properly after the process terminates
         '''
         self.h5.close()
         print "Closed hdf"
 
 class PlexRelayWriter(HDFWriter):
-    ''' Docstring '''
+    ''' This class appears to be unused as of Mar 7 2015 '''
     def __init__(self, filename, device="/dev/comedi0"):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         import nidaq
         self.ni = nidaq.SendRow(device)
         super(PlexRelayWriter, self).__init__(filename)
 
     def register(self, system, dtype):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.ni.register(system, dtype)
         super(PlexRelayWriter, self).register(system, dtype)
 
     def send(self, system, data):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         row = len(self.data[system])
         self.ni.send(system, row)
         super(PlexRelayWriter, self).send(system, data)
 
     def sendMsg(self, msg):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.ni.sendMsg(msg)
         super(PlexRelayWriter, self).sendMsg(msg)

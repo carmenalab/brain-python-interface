@@ -25,9 +25,7 @@ class SaveHDF(object):
     def init(self):
         '''
         Secondary init function. See riglib.experiment.Experiment.init()
-        Prior to starting the task, this 'init' starts an HDFWriter sink and 
-        creates a data variable 'task_data' for the different parts of the task class to use as
-        transport to the HDF file
+        Prior to starting the task, this 'init' starts an HDFWriter sink.
         '''
         import tempfile
         from riglib import sink
@@ -101,6 +99,3 @@ class SaveHDF(object):
             database.save_data(self.h5file.name, "hdf", saveid)
         else:
             database.save_data(self.h5file.name, "hdf", saveid, dbname=dbname)
-
-    def _cycle(self):
-        super(SaveHDF, self)._cycle()
