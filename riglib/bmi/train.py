@@ -99,15 +99,23 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
     events = plx.events[:].data
     reg = parse.registrations(events)
 
-    # find the key for the specified system data
-    syskey = None
-    for key, system in reg.items():
-        if sys_eq(system[0], sys_name):
-            syskey = key
-            break
+    if len(reg.keys()) > 0:
+        # find the key for the specified system data
+        syskey = None
+        for key, system in reg.items():
+            if sys_eq(system[0], sys_name):
+                syskey = key
+                break
 
-    if syskey is None:
-        raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')
+        if syskey is None:
+            raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')        
+    elif len(reg.keys()) == 0:
+        # try to find how many systems' rowbytes were in the HDF file
+        rowbyte_data = parse.rowbyte(events)
+        if len(rowbyte_data.keys()) == 1:
+            syskey = rowbyte_data.keys()[0]
+        else:
+            raise Exception("No systems registered and I don't know which sys to use to train!")
 
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
