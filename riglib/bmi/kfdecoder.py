@@ -591,20 +591,17 @@ class MPCKalmanFilter(KalmanFilter):
         self.prev_obs = obs_t        
         return res
 
-class OneStepAdaptiveMPCKalmanFilter(KalmanFilter):
+class OneStepMPCKalmanFilter(KalmanFilter):
     '''
     Use MPC with a horizon of 1 to predict 
     '''
-    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'E00', 'E01']
+    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'E00', 'E01', 'r_scale']
     def _pickle_init(self):
-        super(OneStepAdaptiveMPCKalmanFilter, self)._pickle_init()
+        super(OneStepMPCKalmanFilter, self)._pickle_init()
 
         self.prev_obs = None
-        if not hasattr(self, 'mpc_cost_step'):
-            mpc_cost_half_life = 1200.
-            batch_time = 0.1
-            self.mpc_cost_step = np.exp(np.log(0.5) / (mpc_cost_half_life/batch_time))
-            self.ESS = 1000
+        if not hasattr(self, 'r_scale'):
+            self.r_scale = 200
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         ''' Docstring
@@ -625,18 +622,18 @@ class OneStepAdaptiveMPCKalmanFilter(KalmanFilter):
         '''
         A = self.A
 
-        if self.prev_obs is not None:
+        if (self.prev_obs is not None) and (self.r_scale < np.inf):
             y_ref = self.prev_obs
             G = self.C_xpose_Q_inv
-            D = self.C_xpose_Q_inv_C
+            D = G * self.C
+            D[:,-1] = 0
+            D[-1,:] = 0
 
             # Solve for R
-            R = D * np.linalg.pinv(G*self.E01*G.T) * (G*self.E00*G.T) - D
-            R = 20*np.mat(np.diag(np.diag(R)))
-            R[-1,-1] = 10000
+            R = self.r_scale*D
             
-            alpha = A*state + Bu
-            v = np.linalg.pinv(R + D)*(self.C_xpose_Q_inv*y_ref - D*alpha.mean)
+            alpha = A*state
+            v = np.linalg.pinv(R + D)*(G*y_ref - D*alpha.mean)
         else:
             v = np.zeros_like(state.mean)
 
@@ -653,7 +650,7 @@ class OneStepAdaptiveMPCKalmanFilter(KalmanFilter):
             return A*state + self.state_noise
 
     def _forward_infer(self, st, obs_t, **kwargs):
-        res = super(OneStepAdaptiveMPCKalmanFilter, self)._forward_infer(st, obs_t, **kwargs)
+        res = super(OneStepMPCKalmanFilter, self)._forward_infer(st, obs_t, **kwargs)
 
         # if not (self.prev_obs is None):
         #     # Update the sufficient statistics for the R matrix
