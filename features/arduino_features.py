@@ -15,6 +15,7 @@ from hdf_features import SaveHDF
 import sys
 import glob
 import datetime
+import serial
 
 sec_per_min = 60
 
@@ -102,7 +103,7 @@ class PlexonSerialDIORowByte(object):
             super(PlexonSerialDIORowByte, self).run()
         finally:
             # Stop the NIDAQ sink
-            self.nidaq.stop()        
+            self.nidaq.stop()
 
     def set_state(self, condition, **kwargs):
         '''
@@ -136,6 +137,10 @@ class PlexonSerialDIORowByte(object):
         # com = comedi.comedi_open("/dev/comedi0")
         # comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
 
+        # port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=9600)
+        # port.write('p')
+        # port.close()
+
         super(PlexonSerialDIORowByte, self).cleanup(database, saveid, **kwargs)
 
         # Sleep time so that the plx file has time to save cleanly
@@ -155,9 +160,10 @@ class PlexonSerialDIORowByte(object):
         Run prior to starting the task to remotely start recording from the plexon system
         '''
         if saveid is not None:
-            port = serial.Serial('/dev/ttyACM0')
+            port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=9600)
+            # for k in range(5):
             port.write('r')
             port.close()
 
             time.sleep(3)
-            super(RelayPlexon, cls).pre_init(saveid=saveid)
+            super(PlexonSerialDIORowByte, cls).pre_init(saveid=saveid)
