@@ -2,7 +2,7 @@
 Generic data sink. Sinks run in separate processes and interact with the main process through code here
 '''
 
-
+import os
 import inspect
 import traceback
 import multiprocessing as mp
@@ -59,7 +59,7 @@ class DataSink(mp.Process):
                         ret = getattr(output, cmd)(*args, **kwargs)
                         
                 except Exception as e:
-                    traceback.print_exc(file=open('/home/helene/code/bmi3d/log/data_sink_log', 'a'))
+                    traceback.print_exc(file=open(os.path.expandvars('$BMI3D/log/data_sink_log'), 'a'))
                     ret = e
                 self._cmd_pipe.send(ret)
                 self.cmd_event.clear()
