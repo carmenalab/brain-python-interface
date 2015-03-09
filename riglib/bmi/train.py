@@ -108,11 +108,13 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
                 break
 
         if syskey is None:
+            print reg.items()
             raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')        
     elif len(reg.keys()) == 0:
         # try to find how many systems' rowbytes were in the HDF file
         rowbyte_data = parse.rowbyte(events)
         if len(rowbyte_data.keys()) == 1:
+            print "No systems registered, but only one system registered with rowbytes! Using it anyway instead of throwing an error"
             syskey = rowbyte_data.keys()[0]
         else:
             raise Exception("No systems registered and I don't know which sys to use to train!")
@@ -546,17 +548,22 @@ def train_PPFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsl
 ## Helper functions
 ###################
 def unit_conv(starting_unit, ending_unit):
-    ''' Convert between units, e.g. cm to m
+    ''' 
+    Convert between units, e.g. cm to m
     Lookup table for conversion factors between units; this function exists
     only to avoid hard-coded constants in most of the code
 
-    Docstring
-
     Parameters
     ----------
+    starting_unit : string
+        Name of current unit for the quantity, e.g., 'cm'
+    ending_unit : string
+        Name of desired unit for the quantity, e.g., 'm'
 
     Returns
     -------
+    float
+        Multiplicative scale factor to convert a scalar in the 'starting_unit' to the 'ending_unit'
     '''
 
     if starting_unit == ending_unit:
@@ -565,62 +572,24 @@ def unit_conv(starting_unit, ending_unit):
         return 0.01
     elif (starting_unit, ending_unit) == ('m', 'cm'):
         return 100
-
-def obj_eq(self, other, attrs=[]):
-    '''
-    Determine if two objects have mattching array attributes
-
-    Parameters
-    ----------
-    other : object
-        If objects are not the same type, False is returned
-    attrs : list, optional
-        List of attributes to compare for equality. Only attributes that are common to both objects are used.
-        The attributes should be np.array or similar as np.array_equal is used to determine equality
-
-    Returns
-    -------
-    bool 
-        True value returned indicates equality between objects for the specified attributes
-    '''
-    if isinstance(other, type(self)):
-        attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
-        equal = map(lambda attr: np.array_equal(getattr(self, attr), getattr(other, attr)), attrs_eq)
-        return np.all(equal)
     else:
-        return False
-    
-def obj_diff(self, other, attrs=[]):
-    '''
-    Calculate the difference of the two objects w.r.t the specified attributes
-
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    if isinstance(other, type(self)):
-        attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
-        diff = map(lambda attr: getattr(self, attr) - getattr(other, attr), attrs_eq)
-        return np.array(diff)
-    else:
-        return False
+        raise ValueError("Unrecognized starting/ending unit")
     
 def lookup_cells(cells):
-    ''' Convert string names of units to 'machine' format.
+    ''' 
+    Convert string names of units to 'machine' format.
     Take a list of neural units specified as a list of strings and convert 
     to the 2D array format used to specify neural units to train decoders
 
-    Docstring
-
     Parameters
     ----------
+    cells : string
+        String of cell names to parse, e.g., '1a, 2b'
 
     Returns
     -------
+    list of 2-tuples
+        Each element of the list is a tuple of (channel, unit), e.g., [(1, 1), (2, 2)]
     '''
     cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
     cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]

@@ -208,15 +208,65 @@ class GaussianStateHMM(object):
         '''
         Determine equality of two GaussianStateHMM instances
         '''
-        import train
-        return train.obj_eq(self, other, self.model_attrs)
+        # import train
+        return GaussianStateHMM.obj_eq(self, other, self.model_attrs)
 
     def __sub__(self, other):
         '''
         Subtract the model attributes of two GaussianStateHMM instances. Used to determine approximate equality, i.e., equality modulo floating point error
         '''
-        import train
-        return train.obj_diff(self, other, self.model_attrs)
+        # import train
+        return GaussianStateHMM.obj_diff(self, other, self.model_attrs)
+
+    @staticmethod
+    def obj_eq(self, other, attrs=[]):
+        '''
+        Determine if two objects have mattching array attributes
+
+        Parameters
+        ----------
+        other : object
+            If objects are not the same type, False is returned
+        attrs : list, optional
+            List of attributes to compare for equality. Only attributes that are common to both objects are used.
+            The attributes should be np.array or similar as np.array_equal is used to determine equality
+
+        Returns
+        -------
+        bool 
+            True value returned indicates equality between objects for the specified attributes
+        '''
+        if isinstance(other, type(self)):
+            attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
+            equal = map(lambda attr: np.array_equal(getattr(self, attr), getattr(other, attr)), attrs_eq)
+            return np.all(equal)
+        else:
+            return False
+    
+    @staticmethod
+    def obj_diff(self, other, attrs=[]):
+        '''
+        Calculate the difference of the two objects w.r.t the specified attributes
+
+        Parameters
+        ----------
+        other : object
+            If objects are not the same type, False is returned
+        attrs : list, optional
+            List of attributes to compare for equality. Only attributes that are common to both objects are used.
+            The attributes should be np.array or similar as np.array_equal is used to determine equality
+
+        Returns
+        -------
+        np.array
+            The difference between each of the specified 'attrs'
+        '''
+        if isinstance(other, type(self)):
+            attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
+            diff = map(lambda attr: getattr(self, attr) - getattr(other, attr), attrs_eq)
+            return np.array(diff)
+        else:
+            return False
 
     def __call__(self, obs, **kwargs):
         """
