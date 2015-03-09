@@ -16,13 +16,18 @@ class DataSink(mp.Process):
     '''
     def __init__(self, output, **kwargs):
         '''
-        Docstring
-
+        Constructor for DataSink
+    
         Parameters
         ----------
-
+        output : type
+            data sink class to be implemented in the remote process
+        kwargs : optional kwargs
+            kwargs to instantiate the data sink
+    
         Returns
         -------
+        DataSink instance
         '''
         super(DataSink, self).__init__()
         self.output = output
@@ -30,7 +35,7 @@ class DataSink(mp.Process):
         self.cmd_event = mp.Event()
         self.cmd_pipe, self._cmd_pipe = mp.Pipe()
         self.pipe, self._pipe = mp.Pipe()
-        self.status = mp.Value('b', 1)
+        self.status = mp.Value('b', 1) # mp boolean used for terminating the remote process
         self.methods = set(n for n in dir(output) if inspect.ismethod(getattr(output, n)))
     
     def run(self):
@@ -43,6 +48,7 @@ class DataSink(mp.Process):
         Returns
         -------
         '''
+        # instantiate the output interface
         output = self.output(**self.kwargs)
 
         while self.status.value > 0:
@@ -64,18 +70,23 @@ class DataSink(mp.Process):
                 self._cmd_pipe.send(ret)
                 self.cmd_event.clear()
         
+        # close the sink if the status bit has been set to 0
         output.close()
         print "ended datasink"
     
     def __getattr__(self, attr):
         '''
-        Docstring
-
+        Get the specified attribute of the sink in the other process
+    
         Parameters
         ----------
-
+        attr : string
+            Name of attribute 
+    
         Returns
         -------
+        object:
+            Value of specified named attribute
         '''
         if attr in self.methods:
             return FuncProxy(attr, self.cmd_pipe, self.cmd_event)
@@ -85,42 +96,54 @@ class DataSink(mp.Process):
     def send(self, system, data):
         '''
         Docstring
-
+    
         Parameters
         ----------
-
+        system : DATA_TYPE
+            ARG_DESCR
+        data : DATA_TYPE
+            ARG_DESCR
+    
         Returns
         -------
+        None
         '''
         if self.status.value > 0:
             self.pipe.send((system, data))
 
     def stop(self):
         '''
-        Docstring
+        Instruct the sink to stop gracefully by setting the 'status' boolean
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         self.status.value = 0
 
     def __del__(self):
+        '''
+        Stop the remote sink when the object is destructed
+        '''
         self.stop()
 
 class SinkManager(object):
     ''' Data Sink manager singleton to be used by features '''
     def __init__(self):
         '''
-        Docstring
+        Constructor for SinkManager
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         self.sinks = []
         self.sources = []
@@ -132,6 +155,10 @@ class SinkManager(object):
 
         Parameters
         ----------
+        output : DATA_TYPE
+            ARG_DESCR
+        kwargs : optional kwargs
+            ARG_DESCR
 
         Returns
         -------
