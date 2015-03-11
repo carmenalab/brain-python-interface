@@ -675,52 +675,6 @@ class Decoder(object):
         self.predict(obs_t, **kwargs)
         return self.filt.get_mean().reshape(-1,1)
 
-    # def __call__(self, obs_t, accumulate=True, **kwargs):
-    #     '''
-    #     This function does "rate-matching" to match the decoding rate to the 
-    #     control rate of the plant. For instance, for cursor decoding using a 
-    #     PPFDecoder, the decoder runs at 180Hz but the screen can only be updated
-    #     at 60Hz, so the observations have to be presented 3 at a time. Similarly 
-    #     a KFDecoder might run at 10 Hz, and the Decoder would have to accumulate
-    #     observations over 6 iterations. 
-
-    #     Parameters
-    #     ----------
-    #     obs_t: np.array of shape (# features, # subbins)
-    #         Neural observation vector. If the decoding_rate of the Decoder is
-    #         greater than the control rate of the plant (e.g. 60 Hz )
-    #     kwargs: dictionary
-    #         Algorithm-specific arguments to be given to the Decoder.predict method
-    #     '''
-
-    #     call_rate = self.call_rate
-    #     decoding_rate = 1./self.binlen
-
-    #     if decoding_rate >= call_rate:
-    #         # Infer the number of sub-bins from the size of the spike counts mat to decode
-    #         n_subbins = obs_t.shape[1]
-
-    #         outputs = []
-    #         for k in range(n_subbins):
-    #             outputs.append(self.predict(obs_t[:,k], **kwargs))
-
-    #         return np.vstack(outputs).T
-    #     elif decoding_rate < call_rate:
-    #         if accumulate:
-    #             self.spike_counts += obs_t.reshape(-1, 1)
-    #         else:
-    #             self.spike_counts = obs_t.reshape(-1, 1)
-
-    #         if self.bmicount == self.bminum - 1:
-    #             # Update using spike counts
-    #             self.bmicount = 0
-    #             self.predict(self.spike_counts, **kwargs)
-    #             # self.spike_counts = np.zeros([len(self.units), 1])
-    #             self.spike_counts = np.zeros([self.n_features, 1])
-    #         else:
-    #             self.bmicount += 1
-    #         return self.filt.get_mean().reshape(-1,1)
-
     def save(self, filename=''):
         '''
         Pickle the Decoder object to a file
@@ -804,7 +758,6 @@ class BMISystem(object):
             self.clda_input_queue = self.updater.work_queue
             self.clda_output_queue = self.updater.result_queue
             self.updater.start()
-        # self.reset_spike_counts()
 
     def __call__(self, neural_obs, target_state, task_state, *args, **kwargs):
         '''
@@ -945,13 +898,9 @@ class BMISystem(object):
 
 class BMILoop(object):
     '''
-    Container class/interface definition for BMI tasks
+    Container class/interface definition for BMI tasks. Intended to be used with multiple inheritance structure paired with riglib.experiment classes
     '''
     static_states = [] # states in which the decoder is not run
-
-    def __init__(self, *args, **kwargs):
-        super(BMILoop, self).__init__(*args, **kwargs)
-        self.learn_flag = False
 
     def init(self):
         '''
@@ -982,8 +931,7 @@ class BMILoop(object):
         super(BMILoop, self).init()        
 
     def create_bmi_system(self):
-        self.bmi_system = BMISystem(self.decoder, self.learner,
-            self.updater, self.feature_accumulator)
+        self.bmi_system = BMISystem(self.decoder, self.learner, self.updater, self.feature_accumulator)
 
     def load_decoder(self):
         '''
@@ -1012,6 +960,10 @@ class BMILoop(object):
         self.assister = None
 
     def create_feature_accumulator(self):
+        '''
+        Instantiate the feature accumulator used to implement rate matching between the Decoder and the task,
+        e.g. using a 10 Hz KFDecoder in a 60 Hz task
+        '''
         import accumulator
         feature_shape = [self.decoder.n_features, 1]
         feature_dtype = np.float64
@@ -1034,7 +986,8 @@ class BMILoop(object):
 
     def create_feature_extractor(self):
         '''
-        Create the feature extractor object
+        Create the feature extractor object. The feature extractor takes raw neural data from the streaming processor
+        (e.g., spike timestamps) and outputs a decodable observation vector (e.g., counts of spikes in last 100ms from each unit)
         '''
         if hasattr(self.decoder, 'extractor_cls') and hasattr(self.decoder, 'extractor_kwargs'):
             self.extractor = self.decoder.extractor_cls(self.neurondata, **self.decoder.extractor_kwargs)
@@ -1047,6 +1000,10 @@ class BMILoop(object):
         self._add_feature_extractor_dtype()
 
     def _add_feature_extractor_dtype(self):
+        '''
+        Helper function to add the datatype of the extractor output to be saved in the HDF file. Uses a separate function 
+        so that simulations can overwrite.
+        '''
         if isinstance(self.extractor.feature_dtype, tuple):
             self.add_dtype(*self.extractor.feature_dtype)
         else:
@@ -1054,11 +1011,19 @@ class BMILoop(object):
                 self.add_dtype(*x)
 
     def create_learner(self):
+        '''
+        The "learner" uses knowledge of the task goals to determine the "intended" 
+        action of the BMI subject and pairs this intention estimation with actual observations.
+        '''
         import clda
         self.learn_flag = False
         self.learner = clda.DumbLearner()
 
     def create_updater(self):
+        '''
+        The "updater" uses the output batches of data from the learner and an update rule to 
+        alter the decoder parameters to better match the intention estimates.
+        '''
         self.updater = None
 
     def call_decoder(self, neural_obs, target_state, **kwargs):
@@ -1089,6 +1054,19 @@ class BMILoop(object):
         return self.extractor(start_time)
 
     def move_plant(self, **kwargs):
+        '''
+        The main functions to retrieve raw observations from the neural data source and convert them to movement of the plant
+
+        Parameters
+        ----------
+        **kwargs : optional keyword arguments
+            optional arguments for the decoder, assist, CLDA, etc. fed to the BMISystem
+
+        Returns
+        -------
+        decoder_state : np.mat
+            (N, 1) vector representing the state decoded by the BMI
+        '''
         # Run the feature extractor
         feature_data = self.get_features()
 
@@ -1096,27 +1074,26 @@ class BMILoop(object):
         for key, val in feature_data.items():
             self.task_data[key] = val
 
+        # Determine the target_state and save to file
         if self.current_assist_level > 0 or self.learn_flag:
             target_state = self.get_target_BMI_state(self.decoder.states)
         else:
             target_state = np.ones([self.decoder.n_states, self.decoder.n_subbins]) * np.nan
-
         self.task_data['target_state'] = target_state            
 
+        # Determine the assistive control inputs to the Decoder
         if self.current_assist_level > 0:
             current_state = self.decoder.filt.state.mean
             assist_kwargs = self.assister(current_state, target_state, self.current_assist_level, mode=self.state)
-        else:
-            assist_kwargs = dict()
+            kwargs.update(assist_kwargs)
 
-        kwargs.update(assist_kwargs)
-
-        ## Run the decoder
+        # Run the decoder
         if self.state not in self.static_states:
             neural_features = feature_data[self.extractor.feature_type]
             self.task_data['internal_decoder_state'] = self.call_decoder(neural_features, target_state, feature_type=self.extractor.feature_type, **kwargs)
 
-        ## Drive the plant to the decoded state, if permitted by the constraints of the plant
+        # Drive the plant to the decoded state, if permitted by the constraints of the plant
+        # If not possible, plant.drive should also take care of setting the decoder's state as close as possible to physical reality
         self.plant.drive(self.decoder)
 
         self.task_data['decoder_state'] = decoder_state = self.decoder.get_state(shape=(-1,1))
@@ -1125,8 +1102,8 @@ class BMILoop(object):
     def get_target_BMI_state(self, *args):
         '''
         Run the goal calculator to determine what the target state of the task is.
-
-        OVERWRITE IN CHILD CLASSES!
+        Since this is not a real task, this function must be 
+        overridden in child classes if any of the assist/CLDA functionality is to be used.
         '''
         raise NotImplementedError
 

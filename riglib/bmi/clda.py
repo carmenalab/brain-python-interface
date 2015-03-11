@@ -149,8 +149,8 @@ class Learner(object):
 
     def calc_value(self, *args, **kwargs):
         '''
-        Calculate a "value", i.e. a usefulness, for a particular observation.
-
+        Calculate a "value", i.e. a usefulness, for a particular observation. 
+        Can override in child classe for RL-style updates, but a priori all observations are equally informative
         '''
         return 1.
 
@@ -297,6 +297,9 @@ class RegexKeyDict(dict):
             return super(RegexKeyDict, self).__getitem__(matching_keys[0])
 
     def __contains__(self, key):
+        '''
+        Determine if a key is in the dictionary using regular expression matching
+        '''
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
