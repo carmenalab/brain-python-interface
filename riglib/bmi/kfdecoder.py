@@ -10,7 +10,8 @@ import train
 import pickle
 
 class KalmanFilter(bmi.GaussianStateHMM):
-    """Low-level KF, agnostic to application
+    """
+    Low-level KF, agnostic to application
 
     Model: 
        x_{t+1} = Ax_t + w_t;   w_t ~ N(0, W)
@@ -107,8 +108,23 @@ class KalmanFilter(bmi.GaussianStateHMM):
     def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, obs_is_control_independent=True, **kwargs):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
+
         Parameters
         ----------
+        st : GaussianState
+            Current estimate (mean and cov) of hidden state
+        obs_t : GaussianState
+             ARG_DESCR
+        Bu : DATA_TYPE, optional, default=None
+             ARG_DESCR
+        u : DATA_TYPE, optional, default=None
+             ARG_DESCR
+        x_target : DATA_TYPE, optional, default=None
+             ARG_DESCR
+        obs_is_control_independent : bool, optional, default=True
+             ARG_DESCR
+        kwargs : optional kwargs
+            ARG_DESCR
 
         Returns
         -------
@@ -283,62 +299,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         
         return F, K
 
-    # def __setstate__(self, state):
-    #     """
-    #     Set the model parameters {A, W, C, Q} stored in the pickled
-    #     object
-
-    #     Parameters
-    #     ----------
-
-    #     Returns
-    #     -------        
-    #     """
-    #     self.A = state['A']
-    #     self.W = state['W']
-    #     self.C = state['C']
-    #     self.Q = state['Q']
-
-    #     try:
-    #         self.C_xpose_Q_inv_C = state['C_xpose_Q_inv_C']
-    #         self.C_xpose_Q_inv = state['C_xpose_Q_inv']
-
-    #         self.R = state['R']
-    #         self.S = state['S']
-    #         self.T = state['T']            
-    #         self.ESS = state['ESS']
-    #     except:
-    #         # handled by _pickle_init
-    #         pass
-
-    #     self._pickle_init()
-
-
-    # def __getstate__(self):
-    #     """
-    #     Return the model parameters {A, W, C, Q} for pickling
-
-    #     Parameters
-    #     ----------
-
-    #     Returns
-    #     -------        
-    #     """
-    #     data = dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
-    #                 C_xpose_Q_inv=self.C_xpose_Q_inv, 
-    #                 C_xpose_Q_inv_C=self.C_xpose_Q_inv_C)
-    #     try:
-    #         data['R'] = self.R
-    #         data['S'] = self.S
-    #         data['T'] = self.T
-    #         data['ESS'] = self.ESS
-    #     except:
-    #         pass
-    #     return data
-
     @classmethod
-    def MLE_obs_model(self, hidden_state, obs, include_offset=True, 
-                      drives_obs=None):
+    def MLE_obs_model(self, hidden_state, obs, include_offset=True, drives_obs=None):
         """
         Unconstrained ML estimator of {C, Q} given observations and
         the corresponding hidden states
@@ -373,9 +335,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
             X = X[drives_obs, :]
             
         # ML estimate of C and Q
-        
         C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
-        #C = Y*np.linalg.pinv(X)
         Q = np.cov(Y - C*X, bias=1)
         if not drives_obs == None:
             n_obs = C.shape[0]
@@ -404,18 +364,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
         A = np.linalg.lstsq(X1.T, X2.T)[0].T
         W = np.cov(X2 - np.dot(A, X1), bias=1)
         return A, W
-
-    def get_params(self):
-        '''
-        Docstring    
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        return self.A, self.W, self.C, self.Q
 
     def set_steady_state_pred_cov(self):
         '''
