@@ -316,8 +316,73 @@ class Updater(object):
     '''
     Classes for updating decoder parameters
     '''
+    def __init__(self, *args, **kwargs):
+        self._new_params = None
+
     def init(self, decoder):
         pass
+
+from riglib.mp_calc import MPCompute
+class Updater(object):
+    '''
+    Wrapper for MPCompute computations running in another process
+    '''
+    def __init__(self, fn, multiproc=False, verbose=False):
+        self.verbose = verbose
+        self.multiproc = multiproc
+        if self.multiproc:
+            # create the queues
+            self.work_queue = mp.Queue()
+            self.result_queue = mp.Queue()
+
+            # Instantiate the process
+            self.calculator = MPCompute(self.work_queue, self.result_queue, fn)
+
+            # spawn the process
+            self.calculator.start()
+        else:
+            self.fn = fn
+
+        self._result = None
+        self.waiting = False
+
+    def init(self, decoder):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        input_data = (args, kwargs)
+        if self.multiproc:
+            if self.verbose: print "queuing job"
+            self.work_queue.put(input_data)    
+            self.prev_input = input_data
+            self.waiting = True
+        else:
+            self._result = self.fn(*args, **kwargs)
+
+    def get_result(self):
+        if self.multiproc:
+            try:
+                output_data = self.result_queue.get_nowait()
+                self.prev_result = output_data
+                self.waiting = False
+                return output_data
+            except Queue.Empty:
+                return None
+            except:
+                import traceback
+                traceback.print_exc()
+        else:
+            res = self._result
+            self._result = None
+            return res
+
+    def __del__(self):
+        '''
+        Stop the child process if one was spawned
+        '''
+        if self.multiproc:
+            self.calculator.stop()
+
 
 class CLDARecomputeParameters(mp.Process):
     '''    Docstring    '''
@@ -372,13 +437,7 @@ class CLDARecomputeParameters(mp.Process):
 
 class KFSmoothbatchSingleThread(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Calculate KF Parameter updates using the SmoothBatch method. See [Orsborn et al, 2012] for mathematical details
     '''
     def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
         """
@@ -607,16 +666,12 @@ class KFRML(Updater):
     See (Dangi et al, Neural Computation, 2014) for mathematical details.
     '''
     update_kwargs = dict(steady_state=False)
-    def __init__(self, work_queue, result_queue, batch_time, half_life, adapt_C_xpose_Q_inv_C=True):
+    def __init__(self, batch_time, half_life, adapt_C_xpose_Q_inv_C=True):
         '''
         Constructor for KFRML
 
         Parameters
         ----------
-        work_queue : None
-            Not used for this method!
-        result_queue : None
-            Not used for this method!
         batch_time : float
             Size of data batch to use for each update. Specify in seconds.
         half_life : float 
@@ -628,14 +683,16 @@ class KFRML(Updater):
         Returns
         -------
         KFRML instance
-
         '''
-        self.work_queue = None
+        super(KFRML, self).__init__(self.calc, multiproc=False)
+        # self.work_queue = None
         self.batch_time = batch_time
-        self.result_queue = None        
+        # self.result_queue = None        
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         self.adapt_C_xpose_Q_inv_C = adapt_C_xpose_Q_inv_C
+
+        self._new_params = None
 
     @staticmethod
     def compute_suff_stats(hidden_state, obs, include_offset=True):
@@ -802,9 +859,13 @@ class KFRML(Updater):
             new_params['filt.C_xpose_Q_inv_C'] = decoder.filt.C_xpose_Q_inv_C
             new_params['filt.R'] = decoder.filt.R
 
+        self._new_params = new_params
         return new_params
 
     def set_stable_inds(self, stable_inds, stable_inds_independent=False):
+        '''
+        Docstring
+        '''
         self.stable_inds = stable_inds
         self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds))
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)

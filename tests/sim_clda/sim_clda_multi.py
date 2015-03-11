@@ -75,9 +75,9 @@ class SimCLDAControlMultiDispl2D(SaveHDF, Autostart, SimTime, WindowDispl2D, bmi
         self.half_life  = 20.0, 20.0
 
     def create_updater(self):
-        clda_input_queue = mp.Queue()
-        clda_output_queue = mp.Queue()
-        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue, self.batch_time, self.half_life[0])
+        # clda_input_queue = mp.Queue()
+        # clda_output_queue = mp.Queue()
+        self.updater = clda.KFOrthogonalPlantSmoothbatch(self.batch_time, self.half_life[0])
         
 class SimRML(SimCLDAControlMultiDispl2D):
     assist_level = (0., 0.)
@@ -90,7 +90,7 @@ class SimRML(SimCLDAControlMultiDispl2D):
         self.assist_time = 15.
 
     def create_updater(self):
-        self.updater = clda.KFRML(None, None, self.batch_time, self.half_life[0])
+        self.updater = clda.KFRML(self.batch_time, self.half_life[0])
 
     def load_decoder(self):
         ssm = train.endpt_2D_state_space
