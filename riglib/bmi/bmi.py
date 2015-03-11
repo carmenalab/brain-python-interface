@@ -853,25 +853,33 @@ class BMISystem(object):
 
                 kwargs.update(batch_data)
 
-                if self.mp_updater:
-                    args = ()
-                    self.clda_input_queue.put(args, kwargs)
-                    # Disable learner until parameter update is received
-                    self.learner.disable() 
-                else:
-                    new_params = self.updater.calc(**kwargs)
+                # new
+                self.updater(**kwargs)
+                self.learner.disable() 
+
+                #old 
+                # if self.mp_updater:
+                #     args = ()
+                #     self.clda_input_queue.put(args, kwargs)
+                #     # Disable learner until parameter update is received
+                #     self.learner.disable() 
+                # else:
+                #     new_params = self.updater.calc(**kwargs)
+
+            # new
+            new_params = self.updater.get_result()
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available
-            if self.mp_updater:
-                try:
-                    new_params = self.clda_output_queue.get_nowait()
-                except Queue.Empty:
-                    pass
-                except:
-                    f = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
-                    traceback.print_exc(file=f)
-                    f.close()
+            # if self.mp_updater:
+            #     try:
+            #         new_params = self.clda_output_queue.get_nowait()
+            #     except Queue.Empty:
+            #         pass
+            #     except:
+            #         f = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
+            #         traceback.print_exc(file=f)
+            #         f.close()
 
             # Update the decoder if new parameters are available
             if new_params is not None:
