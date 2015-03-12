@@ -312,16 +312,6 @@ class RegexKeyDict(dict):
 ##############################################################################
 ## Updaters
 ##############################################################################
-# class Updater(object):
-#     '''
-#     Classes for updating decoder parameters
-#     '''
-#     def __init__(self, *args, **kwargs):
-#         self._new_params = None
-
-#     def init(self, decoder):
-#         pass
-
 from riglib.mp_calc import MPCompute
 class Updater(object):
     '''
