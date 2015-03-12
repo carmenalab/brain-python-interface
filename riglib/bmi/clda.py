@@ -995,68 +995,6 @@ class KFRML_baseline(KFRML):
         return new_params
 
 
-# class PPFSmoothbatchSingleThread(object):
-#     '''    Docstring    '''
-#     pass
-
-# class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
-#     '''    Docstring    '''
-#     def __init__(self, default_gain=None):
-#         self.default_gain = default_gain
-
-# class CLDARecomputeParameters(mp.Process):
-#     '''    Docstring    '''
-#     update_kwargs = dict() 
-#     def __init__(self, work_queue, result_queue):
-#         ''' 
-#         Parameters
-#         ----------
-#         work_queue : mp.Queue
-#             Jobs start when an entry is found in work_queue
-#         result_queue : mp.Queues
-#             Results of job are placed back onto result_queue
-#         '''
-#         # run base constructor
-#         super(CLDARecomputeParameters, self).__init__()
-
-#         self.work_queue = work_queue
-#         self.result_queue = result_queue
-#         self.done = mp.Event()
-
-#     def _check_for_job(self):
-#         '''    Docstring    '''
-#         try:
-#             job = self.work_queue.get_nowait()
-#         except:
-#             job = None
-#         return job
-        
-#     def run(self):
-#         '''    Docstring    '''
-#         while not self.done.is_set():
-#             job = self._check_for_job()
-
-#             # unpack the data
-#             if not job == None:
-#                 new_params = self.calc(*job)
-#                 self.result_queue.put(new_params)
-
-#             # Pause to lower the process's effective priority
-#             time.sleep(0.5)
-
-#     def calc(self, *args, **kwargs):
-#         """
-#         Re-calculate parameters based on input arguments.  This
-#         method should be overwritten for any useful CLDA to occur!
-#         """
-#         return None
-
-#     def stop(self):
-#         '''    Docstring    '''
-#         self.done.set()
-
-# class KFSmoothbatchSingleThread(object):
-
 
 def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     '''
