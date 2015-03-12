@@ -386,6 +386,7 @@ class WindowDispl2D(Simple2DWindow, Window):
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 
 
+
 class FakeWindow(object):
     '''
     A dummy class to secretly avoid rendering graphics without 
@@ -400,7 +401,8 @@ class FakeWindow(object):
         super(FakeWindow, self).__init__(*args, **kwargs)
 
     def screen_init(self):
-        pass
+        self.world = Group(self.models)
+        # self.world.init()
 
     def draw_world(self):
         pass

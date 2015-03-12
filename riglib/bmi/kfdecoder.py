@@ -10,7 +10,8 @@ import train
 import pickle
 
 class KalmanFilter(bmi.GaussianStateHMM):
-    """Low-level KF, agnostic to application
+    """
+    Low-level KF, agnostic to application
 
     Model: 
        x_{t+1} = Ax_t + w_t;   w_t ~ N(0, W)
@@ -104,18 +105,33 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         self.state = self.A*self.state
 
-    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, **kwargs):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, obs_is_control_independent=True, **kwargs):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
+
         Parameters
         ----------
+        st : GaussianState
+            Current estimate (mean and cov) of hidden state
+        obs_t : GaussianState
+             ARG_DESCR
+        Bu : DATA_TYPE, optional, default=None
+             ARG_DESCR
+        u : DATA_TYPE, optional, default=None
+             ARG_DESCR
+        x_target : DATA_TYPE, optional, default=None
+             ARG_DESCR
+        obs_is_control_independent : bool, optional, default=True
+             ARG_DESCR
+        kwargs : optional kwargs
+            ARG_DESCR
 
         Returns
         -------
 
         '''
-        using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
-        pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
+        using_control_input = (Bu is not None) or (u is not None) or (x_target is not None)
+        pred_state = self._ssm_pred(st, target_state=x_target, Bu=Bu, u=u)
 
         C, Q = self.C, self.Q
         P = pred_state.cov
@@ -195,12 +211,14 @@ class KalmanFilter(bmi.GaussianStateHMM):
         K_hist = []
 
         iter_idx = 0
+        last_P = None
         while np.linalg.norm(K-last_K) > tol and iter_idx < max_iter:
             P = A*P*A.T + W 
             last_K = K
             K = self._calc_kalman_gain(P)
             K_hist.append(K)
             KC = P*(I - D*P*(I + D*P).I)*D
+            last_P = P
             P -= KC*P;
             iter_idx += 1
         if verbose: print "Converged in %d iterations--error: %g" % (iter_idx, np.linalg.norm(K-last_K)) 
@@ -209,9 +227,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F = (np.mat(np.eye(n_state_vars, n_state_vars)) - KC) * A
     
         if return_P and return_Khist:
-            return dtype(F), dtype(K), dtype(P), K_hist
+            return dtype(F), dtype(K), dtype(last_P), K_hist
         elif return_P:
-            return dtype(F), dtype(K), dtype(P)
+            return dtype(F), dtype(K), dtype(last_P)
         elif return_Khist:
             return dtype(F), dtype(K), K_hist
         else:
@@ -281,62 +299,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         
         return F, K
 
-    # def __setstate__(self, state):
-    #     """
-    #     Set the model parameters {A, W, C, Q} stored in the pickled
-    #     object
-
-    #     Parameters
-    #     ----------
-
-    #     Returns
-    #     -------        
-    #     """
-    #     self.A = state['A']
-    #     self.W = state['W']
-    #     self.C = state['C']
-    #     self.Q = state['Q']
-
-    #     try:
-    #         self.C_xpose_Q_inv_C = state['C_xpose_Q_inv_C']
-    #         self.C_xpose_Q_inv = state['C_xpose_Q_inv']
-
-    #         self.R = state['R']
-    #         self.S = state['S']
-    #         self.T = state['T']            
-    #         self.ESS = state['ESS']
-    #     except:
-    #         # handled by _pickle_init
-    #         pass
-
-    #     self._pickle_init()
-
-
-    # def __getstate__(self):
-    #     """
-    #     Return the model parameters {A, W, C, Q} for pickling
-
-    #     Parameters
-    #     ----------
-
-    #     Returns
-    #     -------        
-    #     """
-    #     data = dict(A=self.A, W=self.W, C=self.C, Q=self.Q, 
-    #                 C_xpose_Q_inv=self.C_xpose_Q_inv, 
-    #                 C_xpose_Q_inv_C=self.C_xpose_Q_inv_C)
-    #     try:
-    #         data['R'] = self.R
-    #         data['S'] = self.S
-    #         data['T'] = self.T
-    #         data['ESS'] = self.ESS
-    #     except:
-    #         pass
-    #     return data
-
     @classmethod
-    def MLE_obs_model(self, hidden_state, obs, include_offset=True, 
-                      drives_obs=None):
+    def MLE_obs_model(self, hidden_state, obs, include_offset=True, drives_obs=None):
         """
         Unconstrained ML estimator of {C, Q} given observations and
         the corresponding hidden states
@@ -347,7 +311,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         Returns
         -------        
         """
-        assert hidden_state.shape[1] == obs.shape[1]
+        assert hidden_state.shape[1] == obs.shape[1], "different numbers of time samples: %s vs %s" % (str(hidden_state.shape), str(obs.shape))
     
         if isinstance(hidden_state, np.ma.core.MaskedArray):
             mask = ~hidden_state.mask[0,:] # NOTE THE INVERTER 
@@ -371,9 +335,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
             X = X[drives_obs, :]
             
         # ML estimate of C and Q
-        
         C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
-        #C = Y*np.linalg.pinv(X)
         Q = np.cov(Y - C*X, bias=1)
         if not drives_obs == None:
             n_obs = C.shape[0]
@@ -402,18 +364,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
         A = np.linalg.lstsq(X1.T, X2.T)[0].T
         W = np.cov(X2 - np.dot(A, X1), bias=1)
         return A, W
-
-    def get_params(self):
-        '''
-        Docstring    
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        return self.A, self.W, self.C, self.Q
 
     def set_steady_state_pred_cov(self):
         '''
@@ -532,10 +482,10 @@ class MPCKalmanFilter(KalmanFilter):
             self.Z = np.linalg.pinv(self.Q)
 
         if not hasattr(self, 'R'):
-            self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*500, 0])))
+            self.R = np.mat(np.diag(np.hstack([np.zeros(3), np.ones(3)*500, 0])))
             #self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*10000, 0])))
         print self.R
-        self.R[-1,-1] += 1000
+        # self.R[-1,-1] += 1000
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         ''' Docstring
@@ -561,11 +511,17 @@ class MPCKalmanFilter(KalmanFilter):
             R = self.R
             Z = self.Z
             D = self.C_xpose_Q_inv_C
-            alpha = A*state + Bu
+            D[-1,:] = 0
+            D[:,-1] = 0
+            alpha = A*state
+            if not Bu is None:
+                alpha += Bu
+            
             v = np.linalg.pinv(R + D)*(self.C_xpose_Q_inv*y_ref - D*alpha.mean)
         else:
             v = np.zeros_like(state.mean)
 
+        # print np.linalg.norm(v)
         if Bu is not None:
             return A*state + Bu + self.state_noise + v
         elif u is not None:
@@ -583,20 +539,17 @@ class MPCKalmanFilter(KalmanFilter):
         self.prev_obs = obs_t        
         return res
 
-class OneStepAdaptiveMPCKalmanFilter(KalmanFilter):
+class OneStepMPCKalmanFilter(KalmanFilter):
     '''
     Use MPC with a horizon of 1 to predict 
     '''
-    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'E00', 'E01']
+    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'E00', 'E01', 'r_scale']
     def _pickle_init(self):
-        super(OneStepAdaptiveMPCKalmanFilter, self)._pickle_init()
+        super(OneStepMPCKalmanFilter, self)._pickle_init()
 
         self.prev_obs = None
-        if not hasattr(self, 'mpc_cost_step'):
-            mpc_cost_half_life = 1200.
-            batch_time = 0.1
-            self.mpc_cost_step = np.exp(np.log(0.5) / (mpc_cost_half_life/batch_time))
-            self.ESS = 1000
+        if not hasattr(self, 'r_scale'):
+            self.r_scale = 200
 
     def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
         ''' Docstring
@@ -617,18 +570,18 @@ class OneStepAdaptiveMPCKalmanFilter(KalmanFilter):
         '''
         A = self.A
 
-        if self.prev_obs is not None:
+        if (self.prev_obs is not None) and (self.r_scale < np.inf):
             y_ref = self.prev_obs
             G = self.C_xpose_Q_inv
-            D = self.C_xpose_Q_inv_C
+            D = G * self.C
+            D[:,-1] = 0
+            D[-1,:] = 0
 
             # Solve for R
-            R = D * np.linalg.pinv(G*self.E01*G.T) * (G*self.E00*G.T) - D
-            R = 20*np.mat(np.diag(np.diag(R)))
-            R[-1,-1] = 10000
+            R = self.r_scale*D
             
-            alpha = A*state + Bu
-            v = np.linalg.pinv(R + D)*(self.C_xpose_Q_inv*y_ref - D*alpha.mean)
+            alpha = A*state
+            v = np.linalg.pinv(R + D)*(G*y_ref - D*alpha.mean)
         else:
             v = np.zeros_like(state.mean)
 
@@ -636,16 +589,16 @@ class OneStepAdaptiveMPCKalmanFilter(KalmanFilter):
             return A*state + Bu + self.state_noise + v
         elif u is not None:
             Bu = self.B * u
-            return A*state + Bu + self.state_noise
+            return A*state + Bu + self.state_noise + v
         elif target_state is not None:
             B = self.B
             F = self.F
-            return (A - B*F)*state + B*F*target_state + self.state_noise
+            return (A - B*F)*state + B*F*target_state + self.state_noise + v
         else:
-            return A*state + self.state_noise
+            return A*state + self.state_noise + v
 
     def _forward_infer(self, st, obs_t, **kwargs):
-        res = super(OneStepAdaptiveMPCKalmanFilter, self)._forward_infer(st, obs_t, **kwargs)
+        res = super(OneStepMPCKalmanFilter, self)._forward_infer(st, obs_t, **kwargs)
 
         # if not (self.prev_obs is None):
         #     # Update the sufficient statistics for the R matrix
@@ -824,29 +777,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
         F, K = self.kf.get_sskf()
         self.plot_pds(K.T, **kwargs)
-
-    def _pickle_init(self):
-        '''
-        Common functionality that must occur when instantiating a decoder or 
-        unpickling one. Also see Decoder._pickle_init
-        '''
-        # Define 'dt' for the KF object
-        self.filt.dt = self.binlen
-        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_kf.pkl'))
-        self.n_assist_levels = len(self.F_assist)
-        self.prev_assist_level = self.n_assist_levels
-
-        # Define 'B' matrix for KF object if it does not exist
-        if not hasattr(self.filt, 'B'):
-            I = np.mat(np.eye(3))
-            self.filt.B = np.mat(np.vstack([0*I, 1000*self.filt.dt*I, np.zeros([1,3])]))
-
-        if not hasattr(self.filt, 'F'):
-            self.filt.F = np.mat(np.zeros([self.filt.B.shape[0], len(self.states)]))
-
-        if not hasattr(self, 'ssm'):
-            self.ssm = train.endpt_2D_state_space
-
 
     def shuffle(self, shuffle_baselines=False):
         '''

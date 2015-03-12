@@ -94,6 +94,7 @@ class LinearFeedbackController(object):
     '''
     def __init__(self, B=None, F=None):
         '''
+        Constructor for LinearFeedbackController
         Docstring
 
         Parameters
@@ -107,13 +108,7 @@ class LinearFeedbackController(object):
 
     def calc_F(self, *args, **kwargs):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Calculate the feedback gain matrix
         '''
         return self.F
 
@@ -128,6 +123,8 @@ class LinearFeedbackController(object):
 
         Returns
         -------
+        np.mat of shape (N, 1)
+            B*u where u_t = F(x^* - x_t)
         '''
         F = self.calc_F()
         Bu = self.B * F * (target_state - current_state)
@@ -136,13 +133,7 @@ class LinearFeedbackController(object):
 
 class MultiModalLFC(LinearFeedbackController):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    A linear feedback controller with different feedback gains in different "modes"
     '''
     def __init__(self, B=None, F=dict()):
         '''

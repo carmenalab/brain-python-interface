@@ -135,26 +135,8 @@ class PointProcessFilter(bmi.GaussianStateHMM):
             pass
             #print np.nonzero(invalid_inds.ravel()[0])
         return lambda_predict
-    
-    def _ssm_pred(self, state, target_state=None):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''
-        A = self.A
-        B = self.B
-        F = self.F
-        if target_state == None:
-            return A*state + self.state_noise
-        else:
-            return (A - B*F)*state + B*F*target_state + self.state_noise
 
-    def _forward_infer(self, st, obs_t, x_target=None, **kwargs):
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, F=None, obs_is_control_independent=False, **kwargs):
         '''
         Docstring    
         
@@ -164,6 +146,7 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         Returns
         -------
         '''
+        using_control_input = (Bu is not None) or (u is not None) or (x_target is not None)
         if x_target is not None:
             x_target = np.mat(x_target[:,0].reshape(-1,1))
         target_state = x_target
@@ -179,15 +162,8 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         W = self.W
         C = C[:,inds]
 
-        x_prev, P_prev = st.mean, st.cov
-        B = self.B
-        F = self.F
-        if target_state == None or np.any(np.isnan(target_state)):
-            x_pred = A*x_prev
-            P_pred = A*P_prev*A.T + W
-        else:
-            x_pred = A*x_prev + B*F*(target_state - x_prev)
-            P_pred = (A-B*F) * P_prev * (A-B*F).T + W
+        pred_state = self._ssm_pred(st, target_state=x_target, Bu=Bu, u=u, F=F)
+        x_pred, P_pred = pred_state.mean, pred_state.cov
         P_pred = P_pred[mesh]
 
         Loglambda_predict = self.C * x_pred 
@@ -227,7 +203,7 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         dict
         '''
         return dict(A=self.A, W=self.W, C=self.C, dt=self.dt, B=self.B, 
-                    is_stochastic=self.is_stochastic, S=self.S)
+                    is_stochastic=self.is_stochastic)
 
     def tomlab(self, unit_scale=1.):
         '''
@@ -297,45 +273,89 @@ class PointProcessFilter(bmi.GaussianStateHMM):
 
         return C, pvalues
 
-class PPFDecoder(bmi.BMI, bmi.Decoder):
+class OneStepMPCPointProcessFilter(PointProcessFilter):
+    '''
+    Use MPC with a horizon of 1 to predict 
+    '''
+    attrs_to_pickle = ['A', 'W', 'C']
     def _pickle_init(self):
+        super(OneStepMPCPointProcessFilter, self)._pickle_init()
+
+        self.prev_obs = None
+        if not hasattr(self, 'mpc_cost_step'):
+            mpc_cost_half_life = 1200.
+            batch_time = 0.1
+            self.mpc_cost_step = np.exp(np.log(0.5) / (mpc_cost_half_life/batch_time))
+            self.ESS = 1000
+
+    def _ssm_pred(self, state, u=None, Bu=None, target_state=None, F=None):
+        ''' Docstring
+        Run the "predict" step of the Kalman filter/HMM inference algorithm:
+            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
+
+        Parameters
+        ----------
+        state: GaussianState instance
+            State estimate and estimator covariance of current state
+        u: np.mat 
+        
+
+        Returns
+        -------
+        GaussianState instance
+            Represents the mean and estimator covariance of the new state estimate
         '''
-        Commands to run after unpickling the Decoder, to finish up initialization of saved decoders. 
-        These methods are common to unpickling and construction (i.e., calls to __init__). This one
+        A = self.A
 
-        This _pickle_init retreives hard-coded assist data before calling the next _pickle_init in the MRO.
-        '''
-        ### # initialize the F_assist matrices
-        ### # TODO this needs to be its own function...
-        ### tau_scale = (28.*28)/1000/3. * np.array([18., 12., 6, 3., 2.5, 1.5])
-        ### num_assist_levels = len(tau_scale)
-        ### 
-        ### w_x = 1;
-        ### w_v = 3*tau_scale**2/2;
-        ### w_r = 1e6*tau_scale**4;
-        ### 
-        ### I = np.eye(3)
-        ### self.filt.B = np.bmat([[0*I], 
-        ###               [self.filt.dt/1e-3 * I],
-        ###               [np.zeros([1, 3])]])
+        dt = self.dt
 
-        ### F = []
-        ### F.append(np.zeros([3, 7]))
-        ### for k in range(num_assist_levels):
-        ###     Q = np.mat(np.diag([w_x, w_x, w_x, w_v[k], w_v[k], w_v[k], 0]))
-        ###     R = np.mat(np.diag([w_r[k], w_r[k], w_r[k]]))
+        Loglambda_predict = self.C * state.mean 
+        exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
+        lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
 
-        ###     F_k = np.array(feedback_controllers.LQRController.dlqr(self.filt.A, self.filt.B, Q, R, eps=1e-15))
-        ###     F.append(F_k)
-        ### 
-        ### self.F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
-        #if not hasattr(self, 'F_assist'):
-        self.F_assist = pickle.load(open('/storage/assist_params/assist_20levels_ppf.pkl'))
-        self.n_assist_levels = len(self.F_assist)
-        self.prev_assist_level = self.n_assist_levels
+        Q_inv = np.mat(np.diag(lambda_predict*dt))
 
-        super(PPFDecoder, self)._pickle_init()
+        if self.prev_obs is not None:
+            y_ref = self.prev_obs
+            G = self.C.T * Q_inv
+            D = G * self.C
+            D[:,-1] = 0
+            D[-1,:] = 0
 
+            # Solve for R
+            R = 200*D
+            
+            alpha = A*state
+            v = np.linalg.pinv(R + D)*(G*y_ref - D*alpha.mean)
+        else:
+            v = np.zeros_like(state.mean)
+
+        if Bu is not None:
+            return A*state + Bu + self.state_noise + v
+        elif u is not None:
+            Bu = self.B * u
+            return A*state + Bu + self.state_noise
+        elif target_state is not None:
+            B = self.B
+            F = self.F
+            return (A - B*F)*state + B*F*target_state + self.state_noise
+        else:
+            return A*state + self.state_noise
+
+    def _forward_infer(self, st, obs_t, **kwargs):
+        res = super(OneStepMPCPointProcessFilter, self)._forward_infer(st, obs_t, **kwargs)
+
+        # if not (self.prev_obs is None):
+        #     # Update the sufficient statistics for the R matrix
+        #     l = self.mpc_cost_step
+        #     self.E00 = l*self.E00 + (1-l)*(self.prev_obs - self.C*self.A*st.mean)*(self.prev_obs - self.C*self.A*st.mean).T
+        #     self.E01 = l*self.E01 + (1-l)*(self.prev_obs - self.C*self.A*st.mean)*(obs_t - self.C*self.A*st.mean).T
+
+        self.prev_obs = obs_t
+        return res    
+
+
+class PPFDecoder(bmi.BMI, bmi.Decoder):
     def __call__(self, obs_t, **kwargs):
         '''
         see bmi.Decoder.__call__ for docs

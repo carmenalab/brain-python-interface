@@ -99,6 +99,27 @@ def exp_info(request, idx):
     entry = TaskEntry.objects.get(pk=idx)
     return _respond(entry.to_json())
 
+def hide_entry(request, idx):
+    '''
+    See documentation for exp_info
+    '''
+    print "hide_entry"
+    entry = TaskEntry.objects.get(pk=idx)
+    entry.visible = False
+    entry.backup = False
+    entry.save()
+    return _respond(dict())
+
+def backup_entry(request, idx):
+    '''
+    See documentation for exp_info
+    '''
+    entry = TaskEntry.objects.get(pk=idx)
+    entry.visible = True
+    entry.backup = True
+    entry.save()    
+    return _respond(dict())
+
 def gen_info(request, idx):
     gen = Generator.objects.get(pk=idx)
     return _respond(gen.to_json())

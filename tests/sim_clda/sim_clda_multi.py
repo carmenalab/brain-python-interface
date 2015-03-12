@@ -22,6 +22,7 @@ from riglib.bmi import train, kfdecoder, clda, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
 from riglib.stereo_opengl.window import WindowDispl2D
 
+import pickle
 
 
 reload(kfdecoder)
@@ -35,6 +36,7 @@ parser = argparse.ArgumentParser(description='Analyze neural control of a redund
 parser.add_argument('--clean', help='', action="store_true")
 parser.add_argument('--show', help='', action="store_true")
 parser.add_argument('--alg', help='', action="store")
+parser.add_argument('--save', help='', action="store_true")
 
 args = parser.parse_args()
 
@@ -73,9 +75,9 @@ class SimCLDAControlMultiDispl2D(SaveHDF, Autostart, SimTime, WindowDispl2D, bmi
         self.half_life  = 20.0, 20.0
 
     def create_updater(self):
-        clda_input_queue = mp.Queue()
-        clda_output_queue = mp.Queue()
-        self.updater = clda.KFOrthogonalPlantSmoothbatch(clda_input_queue, clda_output_queue, self.batch_time, self.half_life[0])
+        # clda_input_queue = mp.Queue()
+        # clda_output_queue = mp.Queue()
+        self.updater = clda.KFOrthogonalPlantSmoothbatch(self.batch_time, self.half_life[0])
         
 class SimRML(SimCLDAControlMultiDispl2D):
     assist_level = (0., 0.)
@@ -88,7 +90,7 @@ class SimRML(SimCLDAControlMultiDispl2D):
         self.assist_time = 15.
 
     def create_updater(self):
-        self.updater = clda.KFRML(None, None, self.batch_time, self.half_life[0])
+        self.updater = clda.KFRML(self.batch_time, self.half_life[0])
 
     def load_decoder(self):
         ssm = train.endpt_2D_state_space
@@ -109,19 +111,10 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
         self.learn_flag = True
 
     def load_decoder(self):
-        N = 10000
-        fname = '/Users/sgowda/code/bmi3d/tests/ppf/sample_spikes_and_kinematics_%d.mat' % N 
-        data = loadmat(fname)
+        decoder_fname = '/storage/decoders/grom20150102_14_BPPF01021655.pkl'
+        decoder = pickle.load(open(decoder_fname))
 
-        dt = 1./180
-        #states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-        #decoding_states = ['hand_vx', 'hand_vz', 'offset'] 
-
-        beta = data['beta']
-        beta = np.vstack([beta[1:, :], beta[0,:]]).T
-        #beta_dec = riglib.bmi.train.inflate(beta, decoding_states, states, axis=1)
-        #beta_dec[:,[3,5]] *= 1
-
+        beta = decoder.filt.C
         self.init_beta = beta.copy()
 
         inds = np.arange(beta.shape[0])
@@ -134,8 +127,14 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
 
     def _init_neural_encoder(self):
         from riglib.bmi import sim_neurons
-        sim_encoder_fname = os.path.join(os.getenv('HOME'), 'code/bmi3d/tests/ppf', 'sample_spikes_and_kinematics_10000.mat')
-        self.encoder = sim_neurons.load_ppf_encoder_2D_vel_tuning_clda_sim(sim_encoder_fname, dt=1./60) #CosEnc(fname=sim_encoder_fname, return_ts=True)
+        decoder_fname = '/storage/decoders/grom20150102_14_BPPF01021655.pkl'
+        decoder = pickle.load(open(decoder_fname))
+
+        beta = decoder.filt.C
+        dt = decoder.filt.dt 
+        self.encoder = sim_neurons.CLDASimPointProcessEnsemble(beta[:,[3,5,6]], dt)        
+        # sim_encoder_fname = os.path.join(os.getenv('HOME'), 'code/bmi3d/tests/ppf', 'sample_spikes_and_kinematics_10000.mat')
+        # self.encoder = sim_neurons.load_ppf_encoder_2D_vel_tuning_clda_sim(sim_encoder_fname, dt=1./60) #CosEnc(fname=sim_encoder_fname, return_ts=True)
     
     def get_time(self):
         return SimCLDAControlMultiDispl2D.get_time(self)
@@ -143,15 +142,18 @@ class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimC
 
 
 if args.alg == 'RML':
-    te = models.TaskEntry()
-    sim_subj = models.Subject.objects.using('simulation').get(name='Simulation')
-    te.subject = sim_subj
-    te.task = models.Task.objects.using('simulation').get(name='clda_kf_cg_rml')
-    te.sequence_id = 0
-    te.save(using='simulation')
+    if args.save:
+        te = models.TaskEntry()
+        sim_subj = models.Subject.objects.using('simulation').get(name='Simulation')
+        te.subject = sim_subj
+        te.task = models.Task.objects.using('simulation').get(name='clda_kf_cg_rml')
+        te.sequence_id = 0
+        te.save(using='simulation')
     gen = bmimultitasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 1)
     task = SimRML(gen)
-
+elif args.alg == 'PPF':
+    gen = bmimultitasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 1)
+    task = SimCLDAControlMultiDispl2D_PPF(gen)
 else:
     raise ValueError("Algorithm not recognized!")
 
@@ -161,4 +163,5 @@ task.init()
 print 'task init called'
 task.run()
 
-task.cleanup(dbq, te.id, subject=sim_subj, dbname='simulation')
+if args.save:
+    task.cleanup(dbq, te.id, subject=sim_subj, dbname='simulation')

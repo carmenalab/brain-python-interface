@@ -306,7 +306,6 @@ class Sequence(models.Model):
             seq.sequence = cPickle.dumps(seq_data)
         return seq
 
-
 class TaskEntry(models.Model):
     subject = models.ForeignKey(Subject)
     date = models.DateTimeField(auto_now_add=True)
@@ -317,6 +316,8 @@ class TaskEntry(models.Model):
     params = models.TextField()
     report = models.TextField()
     notes = models.TextField()
+    visible = models.BooleanField(blank=True, default=True)
+    backup = models.BooleanField(blank=True, default=False)
 
     def __unicode__(self):
         return "{date}: {subj} on {task} task, id={id}".format(
@@ -409,19 +410,31 @@ class TaskEntry(models.Model):
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=self.task_params)
 
+        # Supply sequence generators which are declared to be compatible with the selected task class
+        exp_generators = dict() 
+        for seqgen_name in Exp.sequence_generators:
+            try:
+                g = Generator.objects.get(name=seqgen_name)
+                exp_generators[g.id] = seqgen_name
+            except:
+                pass
+        js['generators'] = exp_generators
+
 
         ## Add data files to the web interface. To be removed (never ever used)
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)
+
+        try:
+            backup_root = config.backup_root['root']
+        except:
+            backup_root = '/None'
         
-        # a TaskEntry can have multiple datafiles associated with the blackrock system
-        # (unlike for the plexon case), so need to do this a bit differently
-        # js['datafiles'] = dict([(d.system.name, os.path.join(d.system.path,d.path)) for d in datafiles])
         js['datafiles'] = dict()
         system_names = set(d.system.name for d in datafiles)
         for name in system_names:
-            js['datafiles'][name] = [d.get_path() for d in datafiles if d.system.name == name]
+            js['datafiles'][name] = [d.get_path() + ' (backup available: %s)' % d.is_backed_up(backup_root) for d in datafiles if d.system.name == name]
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         
@@ -683,6 +696,22 @@ class AutoAlignment(models.Model):
     def get(self):
         return calibrations.AutoAlign(self.name)
 
+import importlib
+def decoder_unpickler(mod_name, kls_name):
+    if kls_name == 'StateSpaceFourLinkTentacle2D':
+        kls_name = 'StateSpaceNLinkPlanarChain'
+        mod_name = 'riglib.bmi.state_space_models'
+
+    if kls_name == 'StateSpaceEndptVel':
+        kls_name = 'LinearVelocityStateSpace'
+        mod_name = 'riglib.bmi.state_space_models'
+
+    if kls_name == 'State':
+        mod_name = 'riglib.bmi.state_space_models'
+    mod = importlib.import_module(mod_name)
+    return getattr(mod, kls_name)
+
+
 class Decoder(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=128)
@@ -700,15 +729,22 @@ class Decoder(models.Model):
     def load(self):
         data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
-        #print decoder_fname
-        decoder_name = self.name
-        dec = pickle.load(open(decoder_fname))
-        dec.name = decoder_name
+
+        # dec = pickle.load(open(decoder_fname))
+        import cPickle
+        fh = open(decoder_fname, 'r')
+        unpickler = cPickle.Unpickler(fh)
+        unpickler.find_global = decoder_unpickler
+        dec = unpickler.load() # object will now contain the new class path reference
+        fh.close()
+
+        dec.name = self.name
         return dec        
 
     def get(self):
-        sys = System.objects.get(name='bmi').path
-        return cPickle.load(open(os.path.join(sys, self.path)))
+        return self.load()
+        # sys = System.objects.get(name='bmi').path
+        # return cPickle.load(open(os.path.join(sys, self.path)))
 
     def to_json(self):
         dec = self.get()
@@ -764,3 +800,12 @@ class DataFile(models.Model):
     def delete(self, **kwargs):
         self.remove()
         super(DataFile, self).delete(**kwargs)
+
+    def is_backed_up(self, backup_root):
+        '''
+        Return a boolean indicating whether a copy of the file is available on the backup
+        '''
+        fname = self.get_path()
+        rel_datafile = os.path.relpath(fname, '/storage')
+        backup_fname = os.path.join(backup_root, rel_datafile)
+        return os.path.exists(backup_fname)

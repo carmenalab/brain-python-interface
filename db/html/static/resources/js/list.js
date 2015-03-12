@@ -207,6 +207,14 @@ TaskEntry.prototype.new_row = function(info) {
 /* Populate the 'exp_content' template with data from the 'info' object
  */ 
 TaskEntry.prototype.update = function(info) {
+	// populate the list of generators
+	$('#seqgen').empty();
+	$.each(info.generators, function(key, value) {   
+	     $('#seqgen')
+	          .append($('<option>', { value : key })
+	          .text(value)); 
+	});
+
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
 	this.report.update(info.report);
@@ -254,10 +262,11 @@ TaskEntry.prototype.update = function(info) {
 			for (var i = 0; i < info.datafiles[sys].length; i++) {
 				datafile = info.datafiles[sys][i]
 				var file = document.createElement("li");
-				var link = document.createElement("a");
-				link.href = "/static"+datafile;
-				link.innerHTML = datafile;
-				file.appendChild(link);
+				// var link = document.createElement("a");
+				// link.href = "/static"+datafile;
+				// link.innerHTML = datafile;
+				// file.appendChild(datafile);
+				file.textContent = datafile;
 				this.filelist.appendChild(file);
 				numfiles++;
 			}
