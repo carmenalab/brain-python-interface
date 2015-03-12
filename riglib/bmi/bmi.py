@@ -867,7 +867,8 @@ class BMISystem(object):
                 #     new_params = self.updater.calc(**kwargs)
 
             # new
-            new_params = self.updater.get_result()
+            if not (self.updater is None):
+                new_params = self.updater.get_result()
 
             # If the updater is running in a separate process, check if a new 
             # parameter update is available
