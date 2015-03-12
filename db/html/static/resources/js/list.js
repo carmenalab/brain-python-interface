@@ -207,6 +207,14 @@ TaskEntry.prototype.new_row = function(info) {
 /* Populate the 'exp_content' template with data from the 'info' object
  */ 
 TaskEntry.prototype.update = function(info) {
+	// populate the list of generators
+	$('#seqgen').empty();
+	$.each(info.generators, function(key, value) {   
+	     $('#seqgen')
+	          .append($('<option>', { value : key })
+	          .text(value)); 
+	});
+
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
 	this.report.update(info.report);

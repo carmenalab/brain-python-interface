@@ -410,6 +410,16 @@ class TaskEntry(models.Model):
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=self.task_params)
 
+        # Supply sequence generators which are declared to be compatible with the selected task class
+        exp_generators = dict() 
+        for seqgen_name in Exp.sequence_generators:
+            try:
+                g = Generator.objects.get(name=seqgen_name)
+                exp_generators[g.id] = seqgen_name
+            except:
+                pass
+        js['generators'] = exp_generators
+
 
         ## Add data files to the web interface. To be removed (never ever used)
         if issubclass(self.task.get(), experiment.Sequence):
