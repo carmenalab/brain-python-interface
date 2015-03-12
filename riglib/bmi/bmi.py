@@ -744,6 +744,12 @@ class BMISystem(object):
             The updater remaps the decoder parameters to better match sets of 
             observed spike counts and intended kinematics (from the learner)
         feature_accumulator : accumulator.FeatureAccumulator instance
+            Combines features across time if necesary to perform rate matching 
+            between the task rate and the decoder rate.
+
+        Returns
+        -------
+        BMISystem instance
         '''
         self.decoder = decoder 
         self.learner = learner
@@ -751,13 +757,13 @@ class BMISystem(object):
         self.feature_accumulator = feature_accumulator
         self.param_hist = []
 
-        # Establish inter-process communication mechanisms if the updater runs
-        # in a separate process
-        self.mp_updater = isinstance(updater, mp.Process)
-        if self.mp_updater:
-            self.clda_input_queue = self.updater.work_queue
-            self.clda_output_queue = self.updater.result_queue
-            self.updater.start()
+        # # Establish inter-process communication mechanisms if the updater runs
+        # # in a separate process
+        # self.mp_updater = isinstance(updater, mp.Process)
+        # if self.mp_updater:
+        #     self.clda_input_queue = self.updater.work_queue
+        #     self.clda_output_queue = self.updater.result_queue
+        #     self.updater.start()
 
     def __call__(self, neural_obs, target_state, task_state, *args, **kwargs):
         '''
@@ -803,12 +809,12 @@ class BMISystem(object):
         update_flag = False
         learn_flag = kwargs.pop('learn_flag', False)
 
-        feature_type = kwargs.pop('feature_type')
+        # feature_type = kwargs.pop('feature_type')
 
-        if feature_type in ['lfp_power', 'emg_amplitude']:
-            accumulate = False
-        else:
-            accumulate = True
+        # if feature_type in ['lfp_power', 'emg_amplitude']:
+        #     accumulate = False
+        # else:
+        #     accumulate = True
 
         for k in range(n_obs):
             neural_obs_k = neural_obs[:,k].reshape(-1,1)
@@ -822,11 +828,12 @@ class BMISystem(object):
             #################################
             ## Decode the current observation
             #################################
-            self.spike_counts, decode = self.feature_accumulator(neural_obs_k)
+            neural_obs, decode = self.feature_accumulator(neural_obs_k)
 
-            if decode:
+            if decode: # if a new decodable observation is available from the feature accumulator
                 prev_state = self.decoder.get_state()
-                self.decoder(self.spike_counts, **kwargs)
+                
+                self.decoder(neural_obs, **kwargs)
 
                 # Determine whether the current state or previous state should be given to the learner
                 if self.learner.input_state_index == 0:
@@ -838,52 +845,27 @@ class BMISystem(object):
                     learner_state = prev_state
 
                 if learn_flag:
-                    self.learner(self.spike_counts.copy(), learner_state, target_state_k, self.decoder.get_state(), task_state, state_order=self.decoder.ssm.state_order)
+                    self.learner(neural_obs.copy(), learner_state, target_state_k, self.decoder.get_state(), task_state, state_order=self.decoder.ssm.state_order)
 
             decoded_states[:,k] = self.decoder.get_state()        
 
             ############################
             ## Update decoder parameters
             ############################
-            new_params = None # by default, no new parameters are available
-
             if self.learner.is_ready():
                 batch_data = self.learner.get_batch()
                 batch_data['decoder'] = self.decoder
-
                 kwargs.update(batch_data)
 
-                # new
                 self.updater(**kwargs)
                 self.learner.disable() 
 
-                #old 
-                # if self.mp_updater:
-                #     args = ()
-                #     self.clda_input_queue.put(args, kwargs)
-                #     # Disable learner until parameter update is received
-                #     self.learner.disable() 
-                # else:
-                #     new_params = self.updater.calc(**kwargs)
-
-            # new
+            new_params = None # by default, no new parameters are available
             if not (self.updater is None):
                 new_params = self.updater.get_result()
 
-            # If the updater is running in a separate process, check if a new 
-            # parameter update is available
-            # if self.mp_updater:
-            #     try:
-            #         new_params = self.clda_output_queue.get_nowait()
-            #     except Queue.Empty:
-            #         pass
-            #     except:
-            #         f = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_log'), 'w')
-            #         traceback.print_exc(file=f)
-            #         f.close()
-
             # Update the decoder if new parameters are available
-            if new_params is not None:
+            if not (new_params is None):
                 self.decoder.update_params(new_params, **self.updater.update_kwargs)
                 new_params['intended_kin'] = batch_data['intended_kin']
                 new_params['spike_counts_batch'] = batch_data['spike_counts']
@@ -896,13 +878,13 @@ class BMISystem(object):
 
         return decoded_states, update_flag
 
-    def __del__(self):
-        '''
-        Destructor for BMISystem. Stops any spawned processes, if any.
-        '''
-        # Stop updater if it's running in a separate process
-        if self.mp_updater: 
-            self.updater.stop()
+    # def __del__(self):
+    #     '''
+    #     Destructor for BMISystem. Stops any spawned processes, if any.
+    #     '''
+    #     # Stop updater if it's running in a separate process
+    #     if self.mp_updater: 
+    #         self.updater.stop()
 
 
 class BMILoop(object):
