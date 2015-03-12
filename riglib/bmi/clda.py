@@ -379,7 +379,7 @@ class KFSmoothbatch(Updater):
     Calculate KF Parameter updates using the SmoothBatch method. See [Orsborn et al, 2012] for mathematical details
     '''
     update_kwargs = dict(steady_state=True)
-    def __init__(self, work_queue, result_queue, batch_time, half_life):
+    def __init__(self, batch_time, half_life):
         '''    Docstring    '''
         super(KFSmoothbatch, self).__init__(self.calc, multiproc=False)
         self.half_life = half_life
@@ -404,7 +404,7 @@ class KFSmoothbatch(Updater):
         C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(
             intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
 
-        if half_life is not None:
+        if not (half_life is None):
             rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
         else:
             rho = self.rho 

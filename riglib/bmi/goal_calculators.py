@@ -16,28 +16,49 @@ from riglib.bmi import state_space_models
 # maybe just make it an optional kwarg for the classes that really need it
 
 class GoalCalculator(object):
-    pass
+    def reset(self):
+        pass    
 
 class ZeroVelocityGoal(GoalCalculator):
     '''
     Assumes that the target state of the BMI is to move to the task-specified position with zero velocity
     '''
     def __init__(self, ssm):
-        '''    Docstring    '''
+        '''
+        Constructor for ZeroVelocityGoal
+    
+        Parameters
+        ----------
+        ssm : state_space_models.StateSpace instance
+            The state-space model of the Decoder that is being assisted/adapted. Currently unused
+    
+        Returns
+        -------
+        ZeroVelocityGoal instance
+        '''
         # assert ssm == train.endpt_2D_state_space
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
-        '''    Docstring    '''
+        '''
+        Docstring
+    
+        Parameters
+        ----------
+        target_pos : DATA_TYPE
+            ARG_DESCR
+        kwargs : optional kwargs
+            ARG_DESCR
+    
+        Returns
+        -------
+        
+        '''
         target_vel = np.zeros_like(target_pos)
         offset_val = 1
         error = 0
         target_state = np.hstack([target_pos, target_vel, 1])
         return (target_state, error), True
-
-    def reset(self):
-        '''    Docstring    '''
-        pass
 
 class PlanarMultiLinkJointGoal(GoalCalculator, mp_calc.FuncProxy):
     '''    Docstring    '''

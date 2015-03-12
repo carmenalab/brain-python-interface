@@ -609,68 +609,6 @@ class OneStepMPCKalmanFilter(KalmanFilter):
         self.prev_obs = obs_t
         return res    
 
-class PseudoPPF(KalmanFilter):
-    '''
-    Docstring
-    '''
-    def _forward_infer(self, st, obs_t, **kwargs):
-        '''
-        Docstring    
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''        
-        pred_state = self._ssm_pred(st)
-
-        C, Q = self.C, self.Q
-        pred_obs = C * pred_state.mean
-
-        P = pred_state.cov
-
-        K = self._calc_kalman_gain(P, **kwargs)
-        I = np.mat(np.eye(self.C.shape[1]))
-        D = C.T * Q_inv * C
-        KC = P*(I - D*P*(I + D*P).I)*D
-
-        post_state = pred_state
-        post_state.mean += -KC*pred_state.mean + K*obs_t
-        post_state.cov = (I - KC) * P 
-        return post_state
-
-    def _calc_kalman_gain(self, P, Q_inv):
-        '''
-        Calculate Kalman gain using the alternate definition
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        C = self.C
-        nX = P.shape[0]
-        I = np.mat(np.eye(nX))
-        
-        D = C.T * Q_inv * C
-        L = C.T * Q_inv
-        K = P * (I - D*P*(I + D*P).I) * L
-        return K
-        
-    def set_steady_state_pred_cov(self):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''
-
-        pass
-
 class KFDecoder(bmi.BMI, bmi.Decoder):
     '''
     Wrapper for KalmanFilter specifically for the application of BMI decoding.
