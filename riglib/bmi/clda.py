@@ -312,15 +312,15 @@ class RegexKeyDict(dict):
 ##############################################################################
 ## Updaters
 ##############################################################################
-class Updater(object):
-    '''
-    Classes for updating decoder parameters
-    '''
-    def __init__(self, *args, **kwargs):
-        self._new_params = None
+# class Updater(object):
+#     '''
+#     Classes for updating decoder parameters
+#     '''
+#     def __init__(self, *args, **kwargs):
+#         self._new_params = None
 
-    def init(self, decoder):
-        pass
+#     def init(self, decoder):
+#         pass
 
 from riglib.mp_calc import MPCompute
 class Updater(object):
@@ -384,62 +384,19 @@ class Updater(object):
             self.calculator.stop()
 
 
-class CLDARecomputeParameters(mp.Process):
-    '''    Docstring    '''
-    update_kwargs = dict() 
-    def __init__(self, work_queue, result_queue):
-        ''' 
-        Parameters
-        ----------
-        work_queue : mp.Queue
-            Jobs start when an entry is found in work_queue
-        result_queue : mp.Queues
-            Results of job are placed back onto result_queue
-        '''
-        # run base constructor
-        super(CLDARecomputeParameters, self).__init__()
-
-        self.work_queue = work_queue
-        self.result_queue = result_queue
-        self.done = mp.Event()
-
-    def _check_for_job(self):
-        '''    Docstring    '''
-        try:
-            job = self.work_queue.get_nowait()
-        except:
-            job = None
-        return job
-        
-    def run(self):
-        '''    Docstring    '''
-        while not self.done.is_set():
-            job = self._check_for_job()
-
-            # unpack the data
-            if not job == None:
-                new_params = self.calc(*job)
-                self.result_queue.put(new_params)
-
-            # Pause to lower the process's effective priority
-            time.sleep(0.5)
-
-    def calc(self, *args, **kwargs):
-        """
-        Re-calculate parameters based on input arguments.  This
-        method should be overwritten for any useful CLDA to occur!
-        """
-        return None
-
-    def stop(self):
-        '''    Docstring    '''
-        self.done.set()
-
-class KFSmoothbatchSingleThread(object):
+class KFSmoothbatch(Updater):
     '''
     Calculate KF Parameter updates using the SmoothBatch method. See [Orsborn et al, 2012] for mathematical details
     '''
-    def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
+    update_kwargs = dict(steady_state=True)
+    def __init__(self, work_queue, result_queue, batch_time, half_life):
+        '''    Docstring    '''
+        super(KFSmoothbatch, self).__init__(self.calc, multiproc=False)
+        self.half_life = half_life
+        self.batch_time = batch_time
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
+        
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
         """
         Smoothbatch calculations
 
@@ -474,21 +431,16 @@ class KFSmoothbatchSingleThread(object):
             'mFR':mFR, 'sdFR':sdFR}
         return new_params
 
-class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
-    '''    Docstring    '''
-    update_kwargs = dict(steady_state=True)
-    def __init__(self, work_queue, result_queue, batch_time, half_life):
-        '''    Docstring    '''
-        super(KFSmoothbatch, self).__init__(work_queue, result_queue)
-        self.half_life = half_life
-        self.batch_time = batch_time
-        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-        
-class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
-    '''    Docstring    '''
-    def __init__(self, default_gain=None):
-        self.default_gain = default_gain
 
+class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
+    '''    Docstring    '''
+    def __init__(self, *args, **kwargs):
+        '''    
+        Docstring    
+        '''
+        self.default_gain = kwargs.pop('default_gain', None)
+        suoer(KFOrthogonalPlantSmoothbatch, self).__init__(*args, **kwargs)
+        
     @classmethod
     def scalar_riccati_eq_soln(cls, a, w, n):
         '''    Docstring    '''
@@ -496,8 +448,7 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
 
     def calc(self, *args, **kwargs):
         '''    Docstring    '''
-        # args = (intended_kin, spike_counts, rho, decoder)
-        new_params = super(KFOrthogonalPlantSmoothbatchSingleThread, self).calc(*args, **kwargs)
+        new_params = super(KFOrthogonalPlantSmoothbatch, self).calc(*args, **kwargs)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
 
         D = (C.T * np.linalg.pinv(Q) * C)
@@ -510,7 +461,7 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
             W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
             D_diag = []
             for a, w, n in izip(A_diag, W_diag, self.default_gain):
-                d = KFOrthogonalPlantSmoothbatchSingleThread.scalar_riccati_eq_soln(a, w, n)
+                d = self.scalar_riccati_eq_soln(a, w, n)
                 D_diag.append(d)
 
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
@@ -520,16 +471,15 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
         return new_params
 
 
-class KFOrthogonalPlantSmoothbatch(KFOrthogonalPlantSmoothbatchSingleThread, KFSmoothbatch):
+class PPFSmoothbatch(Updater):
     '''    Docstring    '''
-    def __init__(self, *args, **kwargs):
+    def __init__(self, batch_time, half_life):
         '''    Docstring    '''
-        self.default_gain = kwargs.pop('default_gain', None)
-        KFSmoothbatch.__init__(self, *args, **kwargs)
-        
-class PPFSmoothbatchSingleThread(object):
-    '''    Docstring    '''
-    def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
+        super(PPFSmoothbatch, self).__init__(self.calc, multiproc=True)
+        self.half_life = half_life
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
+
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
         """
         Smoothbatch calculations
 
@@ -562,16 +512,6 @@ class PPFSmoothbatchSingleThread(object):
         new_params = {'filt.C':C}
         return new_params
 
-
-class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
-    '''    Docstring    '''
-    def __init__(self, work_queue, result_queue, batch_time, half_life):
-        '''    Docstring    '''
-        super(PPFSmoothbatch, self).__init__(work_queue, result_queue)
-        self.half_life = half_life
-        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-
-
 class PPFContinuousBayesianUpdater(Updater):
     '''
     Adapt the parameters of a PPFDecoder using an HMM to implement a gradient-descent type parameter update.
@@ -592,6 +532,8 @@ class PPFContinuousBayesianUpdater(Updater):
         param_noise_scale : float
             Multiplicative factor to increase the parameter "process noise". Higher values result in faster but less stable parameter convergence.
         '''
+        super(PPFContinuousBayesianUpdater, self).__init__(self.calc, multiproc=False)
+
         self.n_units = decoder.filt.C.shape[0]
         if param_noise_variances == None:
             if units == 'm':
@@ -1051,6 +993,69 @@ class KFRML_baseline(KFRML):
             'mFR':mFR, 'sdFR':sdFR}
 
         return new_params
+
+
+# class PPFSmoothbatchSingleThread(object):
+#     '''    Docstring    '''
+#     pass
+
+# class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
+#     '''    Docstring    '''
+#     def __init__(self, default_gain=None):
+#         self.default_gain = default_gain
+
+# class CLDARecomputeParameters(mp.Process):
+#     '''    Docstring    '''
+#     update_kwargs = dict() 
+#     def __init__(self, work_queue, result_queue):
+#         ''' 
+#         Parameters
+#         ----------
+#         work_queue : mp.Queue
+#             Jobs start when an entry is found in work_queue
+#         result_queue : mp.Queues
+#             Results of job are placed back onto result_queue
+#         '''
+#         # run base constructor
+#         super(CLDARecomputeParameters, self).__init__()
+
+#         self.work_queue = work_queue
+#         self.result_queue = result_queue
+#         self.done = mp.Event()
+
+#     def _check_for_job(self):
+#         '''    Docstring    '''
+#         try:
+#             job = self.work_queue.get_nowait()
+#         except:
+#             job = None
+#         return job
+        
+#     def run(self):
+#         '''    Docstring    '''
+#         while not self.done.is_set():
+#             job = self._check_for_job()
+
+#             # unpack the data
+#             if not job == None:
+#                 new_params = self.calc(*job)
+#                 self.result_queue.put(new_params)
+
+#             # Pause to lower the process's effective priority
+#             time.sleep(0.5)
+
+#     def calc(self, *args, **kwargs):
+#         """
+#         Re-calculate parameters based on input arguments.  This
+#         method should be overwritten for any useful CLDA to occur!
+#         """
+#         return None
+
+#     def stop(self):
+#         '''    Docstring    '''
+#         self.done.set()
+
+# class KFSmoothbatchSingleThread(object):
 
 
 def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
