@@ -14,7 +14,7 @@ reload(tasks)
 cls = bmi_recon_tasks.ContCLDARecon
 idx = 2554
 
-te = performance._get_te(idx, dbname='testing')
+te = performance.CLDAControlMultiTaskEntry(idx, dbname='testing')
 n_iter = len(te.hdf.root.task)
         
 gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)

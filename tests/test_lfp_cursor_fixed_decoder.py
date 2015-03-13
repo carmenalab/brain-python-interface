@@ -16,7 +16,7 @@ from riglib.bmi import goal_calculators
 
 idx = 849
 
-te = performance._get_te(idx, dbname='testing')
+te = performance.BMIControlMultiTaskEntry(idx, dbname='testing')
 n_iter = len(te.hdf.root.task)
         
 gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)
