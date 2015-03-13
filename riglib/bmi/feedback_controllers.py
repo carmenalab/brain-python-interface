@@ -95,13 +95,22 @@ class LinearFeedbackController(object):
     def __init__(self, B=None, F=None):
         '''
         Constructor for LinearFeedbackController
-        Docstring
+        
+        FC for a linear system
+            x_{t+1} = Ax_t + Bu_t
+        where the control input u_t is calculated using linear feedback
+            u_t = F(x_t - x^*)
 
         Parameters
         ----------
+        B : np.mat
+            Input matrix for the system
+        F : np.mat
+            static feedback gain matrix
 
         Returns
         -------
+        LinearFeedbackController instance
         '''
         self.B = B
         self.F = F 
@@ -137,25 +146,34 @@ class MultiModalLFC(LinearFeedbackController):
     '''
     def __init__(self, B=None, F=dict()):
         '''
-        Docstring
+        Constructor for MultiModalLFC
 
         Parameters
         ----------
+        B : np.mat
+            Input matrix for the system
+        F : dict
+            keys should be control 'modes', values should be np.mat static feedback gain matrices
 
         Returns
         -------
+        MultiModalLFC instance
         '''
         super(MultiModalLFC, self).__init__(B=B, F=F)
 
     def calc_F(self, mode, *args, **kwargs):
         '''
-        Docstring
+        Look up the feedback matrix F for the control 'mode' specified
 
         Parameters
         ----------
+        mode : hashable
+            The mode of control. Should be a key of self.F_dict when the object is instantiated.
 
         Returns
         -------
+        np.matrix
+            Linear feedback gain matrix
         '''
         return self.F[mode]
 
@@ -170,6 +188,8 @@ class MultiModalLFC(LinearFeedbackController):
 
         Returns
         -------
+        np.mat of shape (N, 1)
+            B*u where u_t = F(x^* - x_t)        
         '''
         F = self.calc_F(mode)
         Bu = self.B * F * (target_state - current_state)
