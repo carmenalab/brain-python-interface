@@ -1017,7 +1017,10 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
         dtype = []
         shapes = []
         for col_name in table_col_names:
-            shape = first_update[col_name].shape
+            if isinstance(first_update[col_name], float):
+                shape = (1,)
+            else:
+                shape = first_update[col_name].shape
             dtype.append((col_name.replace('.', '_'), 'f8', shape))
             shapes.append(shape)
     
