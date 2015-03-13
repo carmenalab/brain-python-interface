@@ -828,12 +828,12 @@ class BMISystem(object):
             #################################
             ## Decode the current observation
             #################################
-            neural_obs, decode = self.feature_accumulator(neural_obs_k)
+            decodable_obs, decode = self.feature_accumulator(neural_obs_k)
 
             if decode: # if a new decodable observation is available from the feature accumulator
                 prev_state = self.decoder.get_state()
                 
-                self.decoder(neural_obs, **kwargs)
+                self.decoder(decodable_obs, **kwargs)
 
                 # Determine whether the current state or previous state should be given to the learner
                 if self.learner.input_state_index == 0:
@@ -845,7 +845,7 @@ class BMISystem(object):
                     learner_state = prev_state
 
                 if learn_flag:
-                    self.learner(neural_obs.copy(), learner_state, target_state_k, self.decoder.get_state(), task_state, state_order=self.decoder.ssm.state_order)
+                    self.learner(decodable_obs.copy(), learner_state, target_state_k, self.decoder.get_state(), task_state, state_order=self.decoder.ssm.state_order)
 
             decoded_states[:,k] = self.decoder.get_state()        
 
