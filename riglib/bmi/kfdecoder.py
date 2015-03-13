@@ -790,7 +790,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         # change state space Model
         # TODO generalize this beyond endpoint
         import state_space_models
-        A, W = state_space_models.linear_kinarm_kf(update_rate=new_binlen)
+        A, W = self.ssm.get_ssm_matrices(update_rate=new_binlen)
         self.filt.A = A
         self.filt.W = W
 
