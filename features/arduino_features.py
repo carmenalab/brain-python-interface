@@ -162,6 +162,8 @@ class PlexonSerialDIORowByte(object):
         if saveid is not None:
             port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=9600)
             # for k in range(5):
+            port.write('p')
+            time.sleep(0.5)
             port.write('r')
             port.close()
 
