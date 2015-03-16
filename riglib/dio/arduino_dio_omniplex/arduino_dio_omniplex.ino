@@ -1,12 +1,12 @@
 int led = 13;
-int strobe  = 52;
-int rstart = 53;
+int strobe  = 48;
+int rstart = 49;
 int di0 = 36;
 char c;
 char d;
 int en = 0;
 char dio_data[2];
-int data_pins[] = {36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51};
+int data_pins[] = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47};
 
 int rstart_init = 0;
 
@@ -91,6 +91,6 @@ void handle_word() {
 //    digitalWrite(di0, HIGH);      
 
   digitalWrite(strobe, HIGH);
-  delay(5);
+  delay(0.5);
   digitalWrite(strobe, LOW);  
 }
