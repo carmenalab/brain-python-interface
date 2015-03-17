@@ -623,6 +623,29 @@ class PlanarXZKinematicChain(KinematicChain):
             dist_to_object[k] = point_to_line_segment_distance(obstacle_pos, segment)
         return dist_to_object
 
+    def plot_joint_pos(self, joint_pos, ax=None, flip=False, **kwargs):
+        if ax == None:
+            plt.figure()
+            ax = plt.subplot(111)
+
+        if isinstance(joint_pos, dict):
+            joint_pos = np.vstack(joint_pos.values())
+        elif isinstance(joint_pos, np.ndarray) and np.ndim(joint_pos) == 1:
+            joint_pos = joint_pos.reshape(1, -1)
+        elif isinstance(joint_pos, tuple):
+            joint_pos = np.array(joint_pos).reshape(1, -1)
+
+        for pos in joint_pos:
+            spatial_pos = self.spatial_positions_of_joints(pos).T
+
+            shoulder_anchor = np.array([2., 0., -15.])
+            spatial_pos = spatial_pos# + shoulder_anchor
+            if flip:
+                ax.plot(-spatial_pos[:,0], spatial_pos[:,2], **kwargs)
+            else:
+                ax.plot(spatial_pos[:,0], spatial_pos[:,2], **kwargs)
+        
+        return ax
 
 def point_to_line_segment_distance(point, segment):
     '''

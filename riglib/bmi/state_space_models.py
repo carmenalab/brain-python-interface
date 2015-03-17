@@ -88,25 +88,6 @@ def _gen_A(t, s, m, n, off, ndim=3):
     A[-1,-1] = off
     return np.mat(A)
 
-def linear_kinarm_kf(update_rate=1./10, units_mult=0.01, ndim=3, vel_decay=0.8):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    Delta_KINARM = 1./10
-    loop_update_ratio = update_rate/Delta_KINARM
-    w_in_meters = 0.0007
-    w_units_resc = w_in_meters / (units_mult ** 2)
-    a_resampled, w_resampled = resample_scalar_ssm(vel_decay, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
-    A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
-    W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
-    return A, W
-    
 
 class State(object):
     '''
@@ -373,44 +354,55 @@ class StateSpaceNLinkPlanarChain(LinearVelocityStateSpace):
         if not hasattr(self, 'w'):
             self.w = 0.01
 
-class StateSpaceEndptVel2D(StateSpace):
+class StateSpaceEndptVel2D(LinearVelocityStateSpace):
     '''
     StateSpace with 2D velocity in the X-Z plane
     '''
-    def __init__(self):
-        super(StateSpaceEndptVel2D, self).__init__(
+    def __init__(self, **kwargs):
+        states = [
             State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
             State('hand_py', stochastic=False, drives_obs=False, order=0),
             State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
             State('hand_vx', stochastic=True,  drives_obs=True, order=1),
             State('hand_vy', stochastic=False, drives_obs=False, order=1),
             State('hand_vz', stochastic=True,  drives_obs=True, order=1),
-            offset_state
-        )
+            offset_state]
+        super(StateSpaceEndptVel2D, self).__init__(states, **kwargs)
 
-    def get_ssm_matrices(self, update_rate=0.1):
-        '''
-        For the linear stochastic state-space model 
-            x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
-        this function specifies the matrices A, B and W
+    def __setstate__(self, state):
+        self.__dict__ = state
+        if not hasattr(self, 'Delta'):
+            self.Delta = 0.1
 
-        Parameters
-        ----------
-        update_rate : float, optional
-            Time between iterations of the discrete-time model. Default is 0.1 sec.
+        if not hasattr(self, 'vel_decay'):
+            self.vel_decay = 0.8
 
-        Returns
-        -------
-        tuple of 3 np.mat matrices
-            A, B and W as specified in the mathematical model above
-        '''
-        # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate)
+        if not hasattr(self, 'w'):
+            self.w = 7
 
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(3))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
-        return A, B, W
+    # def get_ssm_matrices_old(self, update_rate=0.1):
+    #     '''
+    #     For the linear stochastic state-space model 
+    #         x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
+    #     this function specifies the matrices A, B and W
+
+    #     Parameters
+    #     ----------
+    #     update_rate : float, optional
+    #         Time between iterations of the discrete-time model. Default is 0.1 sec.
+
+    #     Returns
+    #     -------
+    #     tuple of 3 np.mat matrices
+    #         A, B and W as specified in the mathematical model above
+    #     '''
+    #     # State-space model set from expert data
+    #     A, W = linear_kinarm_kf(update_rate=update_rate)
+
+    #     # Control input matrix for SSM for control inputs
+    #     I = np.mat(np.eye(3))
+    #     B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
+    #     return A, B, W
 
 if __name__ == '__main__':
     a_10hz = 0.8
