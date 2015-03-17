@@ -633,6 +633,14 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.zscore = False
         self.kf = self.filt
 
+    def _pickle_init(self):
+        super(KFDecoder, self)._pickle_init()
+        if not hasattr(self.filt, 'B'):
+            self.filt.B = np.mat(np.vstack([np.zeros([3,3]), np.eye(3)*1000*self.binlen, np.zeros(3)]))
+
+        if not hasattr(self.filt, 'F'):
+            self.filt.F = np.mat(np.zeros([3,7]))
+
     def init_zscore(self, mFR_curr, sdFR_curr):
         '''
         Docstring    
