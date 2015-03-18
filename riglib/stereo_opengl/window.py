@@ -16,7 +16,7 @@ from riglib.experiment import traits
 from render import stereo
 from models import Group, GroupDispl2D
 from xfm import Quaternion
-from riglib.stereo_opengl.primitives import Sphere
+from riglib.stereo_opengl.primitives import Sphere, Cube
 from riglib.stereo_opengl.environment import Box
 import time
 from config import config
@@ -184,78 +184,16 @@ class WindowWithExperimenterDisplay(Window):
         return stereo.DualMultisizeDisplay((1920,1080), (480,270), self.fov, near, far, self.screen_dist, self.iod)
 
 
-class WindowWithHeadsUp(Window):
-    def screen_init(self):
-        super(WindowWithHeadsUp, self).screen_init()
-        flags = pygame.NOFRAME
-
-        self.workspace_ll = np.array([-25., -14.])
-
-        win_res = (480, 270)
-        self.workspace_size = 50, 28. #win_res
-        self.size = np.array(win_res)
-        self.screen = pygame.display.set_mode(win_res, flags)
-
 import matplotlib.pyplot as plt
 from pylab import Circle
 
-class MatplotlibWindow(object):
-    background = (0, 0, 0, 1)
-    def __init__(self, *args, **kwargs):
-        import plotutil
-        
-        print 'constructor for MatplotlibWindow'
-        self.fig = plt.figure(figsize=(3,2))
-        print 1
-        axes = plotutil.subplots(1, 1, hold=True, aspect=1, left_offset=0.1)
-        print 2
-        self.ax = axes[0,0]
-        print 3
-        self.ax.set_xlim([-25, 25])
-        self.ax.set_ylim([-14, 14])
-        print 4
-
-        self.model_patches = dict()
-        print 5
-        super(MatplotlibWindow, self).__init__(*args, **kwargs)
-        print 6
-
-        self.mpl_background = (1, 1, 1, 1) # self.background
-        self.ax.set_axis_bgcolor(self.mpl_background)
-        print 7
-
-    def draw_world(self):
-        print 'matplotlib window, draw world'  
-        # TODO make sure cursor is on top
-        for model in self.model_patches:
-            if model not in self.world.models:
-                patch = self.model_patches[model]
-                patch.set_facecolor(self.mpl_background[:3])
-                patch.set_edgecolor(self.mpl_background[:3])
-
-        for model in self.world.models:
-            if isinstance(model, Sphere):
-                if model not in self.model_patches:
-                    self.model_patches[model] = Circle(np.zeros(2), radius=model.radius, color='white', alpha=0.5)
-                    self.ax.add_patch(self.model_patches[model])
-
-                patch = self.model_patches[model]
-                patch.set_facecolor(model.color[:3])
-                patch.set_edgecolor(model.color[:3])
-
-                pos = model.xfm.move[[0,2]]
-                patch.center = pos
-
-        plt.draw()
-        super(MatplotlibWindow, self).draw_world()
-
-class Simple2DWindow(object):
+class WindowDispl2D(Window):
     background = (1,1,1,1)
     def __init__(self, *args, **kwargs):
         self.models = []
         self.world = None
         self.event = None        
-        super(Simple2DWindow, self).__init__(*args, **kwargs)
+        super(WindowDispl2D, self).__init__(*args, **kwargs)
 
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
@@ -266,8 +204,8 @@ class Simple2DWindow(object):
         flags = pygame.NOFRAME
 
         if config.recording_sys['make'] == 'plexon':
-            self.workspace_bottom_left = (-18., -12.)
-            self.workspace_top_right   = (18., 12.)
+            self.workspace_bottom_left = (-25., -14.)
+            self.workspace_top_right   = (25., 14.)
             win_res = (1000, 560)
         elif config.recording_sys['make'] == 'blackrock':
             from riglib.ismore import settings
@@ -363,7 +301,25 @@ class Simple2DWindow(object):
                 #   (which happens if the object's .visible attr is True)
                 if model.draw(self.surf[str(np.min([i,1]))], self.pos2pix):
                     i += 1
-            
+            elif isinstance(model, Cube):
+                pos = model.xfm.move[[0,2]]
+                side_len = model.side_len
+
+                left = pos[0] - side_len/2
+                right = pos[0] + side_len/2
+                top = pos[1] + side_len/2
+                bottom = pos[1] - side_len/2
+
+                top_left = np.array([left, top])
+                bottom_right = np.array([right, bottom])
+                top_left_pix_pos = self.pos2pix(top_left)
+                bottom_right_pix_pos = self.pos2pix(bottom_right)
+
+                rect = pygame.Rect(top_left_pix_pos, bottom_right_pix_pos - top_left_pix_pos)
+                color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+
+                pygame.draw.rect(self.surf[str(np.min([i,1]))], color, rect)
+                i += 1
             else:
                 pass
 
@@ -379,11 +335,6 @@ class Simple2DWindow(object):
         '''
         
         pass
-
-class WindowDispl2D(Simple2DWindow, Window):
-    # TODO -- defining this __init__ is probably not necessary
-    def __init__(self, *args, **kwargs):
-        super(WindowDispl2D, self).__init__(*args, **kwargs)
 
 
 
