@@ -1098,6 +1098,19 @@ class BMILoop(object):
         '''
         raise NotImplementedError
 
+    def _cycle(self):
+        # save loop time to HDF file
+        self.task_data['loop_time'] = self.iter_time()
+        super(BMILoop, self)._cycle()
+
+    def enable_clda(self):
+        print "CLDA enabled"
+        self.learn_flag = True
+
+    def disable_clda(self):
+        print "CLDA disabled after %d successful trials" % self.calc_state_occurrences('reward')
+        self.learn_flag = False
+
 
 class BMI(object):
     '''
