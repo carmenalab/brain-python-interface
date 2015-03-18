@@ -334,13 +334,13 @@ class OneStepMPCPointProcessFilter(PointProcessFilter):
             return A*state + Bu + self.state_noise + v
         elif u is not None:
             Bu = self.B * u
-            return A*state + Bu + self.state_noise
+            return A*state + Bu + self.state_noise + v
         elif target_state is not None:
             B = self.B
             F = self.F
-            return (A - B*F)*state + B*F*target_state + self.state_noise
+            return (A - B*F)*state + B*F*target_state + self.state_noise  + v
         else:
-            return A*state + self.state_noise
+            return A*state + self.state_noise + v
 
     def _forward_infer(self, st, obs_t, **kwargs):
         res = super(OneStepMPCPointProcessFilter, self)._forward_infer(st, obs_t, **kwargs)
