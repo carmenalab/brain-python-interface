@@ -609,6 +609,51 @@ class OneStepMPCKalmanFilter(KalmanFilter):
         self.prev_obs = obs_t
         return res    
 
+
+class OneStepMPCKalmanFilterCovFb(OneStepMPCKalmanFilter):
+    def _ssm_pred(self, state, **kwargs):
+        ''' Docstring
+        Run the "predict" step of the Kalman filter/HMM inference algorithm:
+            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
+
+        Parameters
+        ----------
+        state: GaussianState instance
+            State estimate and estimator covariance of current state
+        u: np.mat 
+        
+
+        Returns
+        -------
+        GaussianState instance
+            Represents the mean and estimator covariance of the new state estimate
+        '''
+        A = self.A
+        from bmi import GaussianState
+        if (self.prev_obs is not None) and (self.r_scale < np.inf):
+            y_ref = self.prev_obs
+            G = self.C_xpose_Q_inv
+            D = G * self.C
+            D[:,-1] = 0
+            D[-1,:] = 0
+
+            # Solve for R
+            R = self.r_scale*D
+            
+            alpha = A*state
+            v = np.linalg.pinv(R + D)*(G*y_ref - D*alpha.mean)
+            I = np.mat(np.eye(D.shape[0]))
+            C = self.C
+            A = (I - G*C) * self.A
+            mean = A*state.mean + G*y_ref
+            cov = A*state.cov*A.T + self.W
+
+            return GaussianState(mean, cov)
+        else:
+            return A*state + self.state_noise
+            # v = np.zeros_like(state.mean)
+
+
 class KFDecoder(bmi.BMI, bmi.Decoder):
     '''
     Wrapper for KalmanFilter specifically for the application of BMI decoding.
