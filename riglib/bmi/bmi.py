@@ -760,15 +760,7 @@ class BMISystem(object):
         self.feature_accumulator = feature_accumulator
         self.param_hist = []
 
-        # # Establish inter-process communication mechanisms if the updater runs
-        # # in a separate process
-        # self.mp_updater = isinstance(updater, mp.Process)
-        # if self.mp_updater:
-        #     self.clda_input_queue = self.updater.work_queue
-        #     self.clda_output_queue = self.updater.result_queue
-        #     self.updater.start()
-
-    def __call__(self, neural_obs, target_state, task_state, *args, **kwargs):
+    def __call__(self, neural_obs, target_state, task_state, learn_flag=False, **kwargs):
         '''
         Main function for all BMI functions, including running the decoder, adapting the decoder 
         and incorporating assistive control inputs
@@ -784,10 +776,9 @@ class BMISystem(object):
         task_state : string
             State of the task. Used by CLDA so that assist is only applied during certain states,
             e.g. in some tasks, the target will be ambiguous during penalty states so CLDA should 
-            ignore data during those epochs. 
-        *args : tuple
-            addional unnamed arguments
-            This is mostly so that it won't complain if you make a mistake in calling the function
+            ignore data during those epochs.
+        learn_flag : bool, optional, default=True
+            Boolean specifying whether the decoder should update based on intention estimates
         **kwargs : dict
             Instance-specific arguments, e.g. RML/SmoothBatch require a 'half_life' parameter 
             that is not required of other CLDA methods. 
@@ -810,14 +801,6 @@ class BMISystem(object):
 
         decoded_states = np.zeros([self.decoder.n_states, n_obs])
         update_flag = False
-        learn_flag = kwargs.pop('learn_flag', False)
-
-        # feature_type = kwargs.pop('feature_type')
-
-        # if feature_type in ['lfp_power', 'emg_amplitude']:
-        #     accumulate = False
-        # else:
-        #     accumulate = True
 
         for k in range(n_obs):
             neural_obs_k = neural_obs[:,k].reshape(-1,1)
@@ -880,14 +863,6 @@ class BMISystem(object):
             self.param_hist.append(new_params)
 
         return decoded_states, update_flag
-
-    # def __del__(self):
-    #     '''
-    #     Destructor for BMISystem. Stops any spawned processes, if any.
-    #     '''
-    #     # Stop updater if it's running in a separate process
-    #     if self.mp_updater: 
-    #         self.updater.stop()
 
 
 class BMILoop(object):
