@@ -21,6 +21,7 @@ import riglib.bmi
 from riglib.bmi import train, kfdecoder, clda, ppfdecoder
 from tasks import bmimultitasks, generatorfunctions as genfns
 from riglib.stereo_opengl.window import WindowDispl2D
+from tasks import cursor_clda_tasks
 
 import pickle
 
@@ -64,7 +65,7 @@ class PointProcContinuous(object):
     def create_updater(self):
         self.updater = clda.PPFContinuousBayesianUpdater(self.decoder)
 
-class SimCLDAControlMultiDispl2D(SaveHDF, Autostart, SimTime, WindowDispl2D, bmimultitasks.SimCLDAControlMulti):
+class SimCLDAControlMultiDispl2D(SaveHDF, Autostart, SimTime, WindowDispl2D, cursor_clda_tasks.SimCLDAControlMulti):
     update_rate = 0.1
     starting_pos = (0., 0., 0.)
     rand_start = (0., 0.)
@@ -93,7 +94,8 @@ class SimRML(SimCLDAControlMultiDispl2D):
         self.updater = clda.KFRML(self.batch_time, self.half_life[0])
 
     def load_decoder(self):
-        ssm = train.endpt_2D_state_space
+        from db import namelist
+        ssm = namelist.endpt_2D_state_space
         self.decoder = train._train_KFDecoder_2D_sim(ssm, self.encoder.get_units())
 
     def _cycle(self):
@@ -101,7 +103,7 @@ class SimRML(SimCLDAControlMultiDispl2D):
 
 
  
-class SimCLDAControlMultiDispl2D_PPF(bmimultitasks.CLDAControlPPFContAdapt, SimCLDAControlMultiDispl2D):
+class SimCLDAControlMultiDispl2D_PPF(cursor_clda_tasks.CLDAControlPPFContAdapt, SimCLDAControlMultiDispl2D):
     def __init__(self, *args, **kwargs):
         super(SimCLDAControlMultiDispl2D_PPF, self).__init__(*args, **kwargs)
         self.batch_time = 1./10 #60.  # TODO 10 Hz running seems to be hardcoded somewhere
@@ -149,10 +151,10 @@ if args.alg == 'RML':
         te.task = models.Task.objects.using('simulation').get(name='clda_kf_cg_rml')
         te.sequence_id = 0
         te.save(using='simulation')
-    gen = bmimultitasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 1)
+    gen = cursor_clda_tasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 100)
     task = SimRML(gen)
 elif args.alg == 'PPF':
-    gen = bmimultitasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 1)
+    gen = cursor_clda_tasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 1)
     task = SimCLDAControlMultiDispl2D_PPF(gen)
 else:
     raise ValueError("Algorithm not recognized!")
