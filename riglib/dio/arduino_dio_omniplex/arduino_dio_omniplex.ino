@@ -32,7 +32,7 @@ void loop() {
     c = Serial.read();
   
     // Start recording
-    if ((c == 'r') && (en ==0)) {
+    if ((c == 'r') && (en == 0)) {
         if (rstart_init == 0) {
           pinMode(rstart, OUTPUT);        
           rstart_init = 1;

@@ -188,10 +188,12 @@ class LinearlyDecreasingAttribute(traits.HasTraits):
         super(LinearlyDecreasingAttribute, self)._cycle()
 
 class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
-    ''' Docstring '''
+    '''
+    Specific case of LinearlyDecreasingAttribute for a linearly decreasing assist parameter
+    '''
     assist_level = traits.Tuple((0.0, 0.0), desc="Level of assist to apply to BMI output")
-    assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")    
-    # attr = 'assist_level'
+    assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")
+
     def __init__(self, *args, **kwargs):
         super(LinearlyDecreasingAssist, self).__init__(*args, **kwargs)
         if 'assist_level' not in self.attrs:
@@ -199,10 +201,12 @@ class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
     
 
 class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
-    ''' Docstring '''
+    '''
+    Specific case of LinearlyDecreasingAttribute for a linearly decreasing CLDA half-life
+    '''
     half_life = traits.Tuple((450., 450.), desc="Initial and final half life for CLDA")
     half_life_time = traits.Float(600, desc="Number of seconds to go from initial to final half life")
-    # attr = 'half_life'
+    
     def __init__(self, *args, **kwargs):
         super(LinearlyDecreasingHalfLife, self).__init__(*args, **kwargs)
         if 'half_life' not in self.attrs:
