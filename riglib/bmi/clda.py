@@ -430,11 +430,6 @@ class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
         '''
         self.default_gain = kwargs.pop('default_gain', None)
         suoer(KFOrthogonalPlantSmoothbatch, self).__init__(*args, **kwargs)
-        
-    @classmethod
-    def scalar_riccati_eq_soln(cls, a, w, n):
-        '''    Docstring    '''
-        return (1-a*n)/w * (a-n)/n 
 
     def calc(self, *args, **kwargs):
         '''    Docstring    '''
@@ -898,16 +893,10 @@ class PPFRML(KFRML):
 
 class KFRML_IVC(KFRML):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    RML version where diagonality constraints are imposed on the steady state KF matrices
     '''
     default_gain = None
-    def calc(self, *args, **kwargs):
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
         '''
         Docstring
 
@@ -917,8 +906,8 @@ class KFRML_IVC(KFRML):
         Returns
         -------
         '''
-        new_params = super(KFRML_IVC, self).calc(*args, **kwargs)
-        C, Q, = new_params['kf.C'], new_params['kf.Q']
+        new_params = super(KFRML_IVC, self).calc(intended_kin=intended_kin, spike_counts=spike_counts, decoder=decoder, half_life=half_life, values=values, **kwargs)
+        C, Q, = new_params['filt.C'], new_params['filt.Q']
 
         D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
@@ -929,15 +918,20 @@ class KFRML_IVC(KFRML):
             A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
             W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
             D_diag = []
-            for a, w, n in izip(A_diag, W_diag, self.default_gain):
-                d = KFOrthogonalPlantSmoothbatchSingleThread.scalar_riccati_eq_soln(a, w, n)
+            for a, w, n in izip(A_diag, W_diag, [self.default_gain]*3):
+                d = self.scalar_riccati_eq_soln(a, w, n)
                 D_diag.append(d)
 
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
 
-        new_params['kf.C_xpose_Q_inv_C'] = D
-        new_params['kf.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
+        new_params['filt.C_xpose_Q_inv_C'] = D
+        new_params['filt.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
         return new_params
+
+    @classmethod
+    def scalar_riccati_eq_soln(cls, a, w, n):
+        '''    Docstring    '''
+        return (1-a*n)/w * (a-n)/n         
 
 
 class KFRML_baseline(KFRML):
