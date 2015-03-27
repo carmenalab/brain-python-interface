@@ -191,6 +191,7 @@ class Generator(models.Model):
             # The sequence/generator constructor can either be a callable or a class constructor... not aware of any uses of the class constructor
             try:
                 args = inspect.getargspec(generators[name]).args
+                print args
             except TypeError:
                 args = inspect.getargspec(generators[name].__init__).args
                 args.remove("self")
@@ -219,15 +220,18 @@ class Generator(models.Model):
             names, defaults = args.args, args.defaults
             names.remove("self")
 
-        if self.static:
-            defaults = (None,)+defaults
-        else:
-            #first argument is the experiment
-            names.remove("exp")
-        arginfo = zip(names, defaults)
+        # if self.static:
+        #     defaults = (None,)+defaults
+        # else:
+        #     #first argument is the experiment
+        #     names.remove("exp")
+        # arginfo = zip(names, defaults)
 
         params = dict()
-        for name, default in arginfo:
+        from itertools import izip
+        for name, default in izip(names, defaults):
+            if name == 'exp':
+                continue
             typename = "String"
 
             params[name] = dict(type=typename, default=default, desc='')
