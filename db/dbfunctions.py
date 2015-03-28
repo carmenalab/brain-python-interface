@@ -636,9 +636,12 @@ class TaskEntry(object):
         Get the task-generated HDF file linked to this TaskEntry
         '''
         q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
-        dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-        # dbconfig = getattr(config, 'db_config_exorig')
-        # dbconfig = getattr(config, 'db_config_bmi3d')
+        if db_name == 'exorig':
+            dbconfig = getattr(config, 'db_config_exorig')
+        elif db_name == 'bmi3d':
+            dbconfig = getattr(config, 'db_config_bmi3d')
+        else:
+            dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
         return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
 
     @property
