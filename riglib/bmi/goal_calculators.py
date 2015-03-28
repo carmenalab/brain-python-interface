@@ -15,221 +15,66 @@ from riglib.bmi import state_space_models
 # TODO -- does ssm really need to be passed as an argument into __init__?
 # maybe just make it an optional kwarg for the classes that really need it
 
-class EndpointControlGoal(object):
-    '''    Docstring    '''
+class GoalCalculator(object):
+    def reset(self):
+        pass    
+
+class ZeroVelocityGoal(GoalCalculator):
+    '''
+    Assumes that the target state of the BMI is to move to the task-specified position with zero velocity
+    '''
     def __init__(self, ssm):
-        '''    Docstring    '''
-        assert ssm == train.endpt_2D_state_space
+        '''
+        Constructor for ZeroVelocityGoal
+    
+        Parameters
+        ----------
+        ssm : state_space_models.StateSpace instance
+            The state-space model of the Decoder that is being assisted/adapted. Currently unused
+    
+        Returns
+        -------
+        ZeroVelocityGoal instance
+        '''
+        # assert ssm == train.endpt_2D_state_space
         self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
-        '''    Docstring    '''
-        target_vel = np.array([0, 0, 0])
+        '''
+        Docstring
+    
+        Parameters
+        ----------
+        target_pos : DATA_TYPE
+            ARG_DESCR
+        kwargs : optional kwargs
+            ARG_DESCR
+    
+        Returns
+        -------
+        
+        '''
+        target_vel = np.zeros_like(target_pos)
         offset_val = 1
         error = 0
         target_state = np.hstack([target_pos, target_vel, 1])
         return (target_state, error), True
 
-    def reset(self):
-        '''    Docstring    '''
-        pass
-
-class ArmAssistControlGoal(object):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, ssm):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        assert type(ssm) == state_space_models.StateSpaceArmAssist
-        self.ssm = ssm
-
-    def __call__(self, target_pos, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        target_vel = np.zeros(3)  # TODO -- may not always want zero velocity 
-        offset_val = 1
-        error = 0
-        target_state = np.hstack([target_pos, target_vel, 1])
-        return (target_state, error), True
-
-    def reset(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        pass
-
-class ReHandControlGoal(object):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, ssm):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        assert type(ssm) == state_space_models.StateSpaceReHand
-        self.ssm = ssm
-
-    def __call__(self, target_pos, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        target_vel = np.zeros(4)  # TODO -- may not always want zero velocity 
-        offset_val = 1
-        error = 0
-        target_state = np.hstack([target_pos, target_vel, 1])
-        return (target_state, error), True
-
-    def reset(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        pass
-
-class IsMoreControlGoal(object):
-    '''Full ArmAssist+ReHand.'''
-    def __init__(self, ssm):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        assert type(ssm) == state_space_models.StateSpaceIsMore
-        self.ssm = ssm
-
-    def __call__(self, target_pos, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        target_vel = np.zeros(7)  # TODO -- may not always want zero velocity 
-        offset_val = 1
-        error = 0
-        target_state = np.hstack([target_pos, target_vel, 1])
-        return (target_state, error), True
-
-    def reset(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        pass
-
-class TwoLinkJointGoal(object):
-    '''    Docstring    '''
-    def __init__(self, ssm, shoulder_anchor, link_lengths):
-        '''    Docstring    '''
-        assert ssm == train.joint_2D_state_space
-        self.ssm = ssm
-        self.shoulder_anchor = shoulder_anchor
-        self.link_lengths = link_lengths
-
-    def __call__(self, target_pos, **kwargs):
-        '''    Docstring    '''
-        endpt_location = target_pos - self.shoulder_anchor
-        joint_target_state = ik.inv_kin_2D(endpt_location, self.link_lengths[0], self.link_lengths[1])[0]
-
-        target_state = []
-        for state in self.ssm.state_names:
-            if state == 'offset': # offset state is always 1
-                target_state.append(1)
-            elif re.match('.*?_v.*?', state): # Velocity states are always 0
-                target_state.append(0) 
-            elif state in joint_target_state.dtype.names:
-                target_state.append(joint_target_state[state])
-            else:
-                raise ValueError('Unrecognized state: %s' % state)
-
-        target_state = np.array(target_state)
-        error = 0
-        return (target_state, error), True
-
-    def reset(self):
-        '''    Docstring    '''
-        pass        
-
-class PlanarMultiLinkJointGoal(mp_calc.FuncProxy):
+class PlanarMultiLinkJointGoal(GoalCalculator, mp_calc.FuncProxy):
     '''    Docstring    '''
     def __init__(self, ssm, shoulder_anchor, kin_chain, multiproc=False, init_resp=None):
         '''    Docstring    '''
         def fn(target_pos, **kwargs):
             '''    Docstring    '''
-            # endpt_location = target_pos - shoulder_anchor
             joint_pos = kin_chain.inverse_kinematics(target_pos, **kwargs)
             endpt_error = np.linalg.norm(kin_chain.endpoint_pos(joint_pos) - target_pos)
 
-            # joint_pos *= -1 # the convention of the kin chain is different from that of the decoder/graphics..
             target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])
             
             return target_state, endpt_error
         super(PlanarMultiLinkJointGoal, self).__init__(fn, multiproc=multiproc, waiting_resp='prev', init_resp=init_resp)
 
-
-class PlanarMultiLinkJointGoalCached(mp_calc.FuncProxy):
+class PlanarMultiLinkJointGoalCached(GoalCalculator, mp_calc.FuncProxy):
     '''    Docstring    '''
     def __init__(self, ssm, shoulder_anchor, kin_chain, multiproc=False, init_resp=None, **kwargs):
         '''    Docstring    '''

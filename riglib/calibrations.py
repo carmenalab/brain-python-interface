@@ -3,7 +3,6 @@ Calibration for the EyeLink eyetracker
 '''
 
 import numpy as np
-from scipy.interpolate import Rbf
 
 class Profile(object):
     '''
@@ -158,6 +157,7 @@ class ThinPlate(Profile):
         '''
         super(ThinPlate, self)._init()
         self.funcs = []
+        from scipy.interpolate import Rbf
         for a in self.actual.T:
             f = Rbf(*np.vstack([self.data.T, a]), function='thin_plate', smooth=self.smooth)
             self.funcs.append(f)

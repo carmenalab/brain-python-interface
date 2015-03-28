@@ -220,13 +220,13 @@ class BlackrockData(object):
         finally:
             self.neurondata.stop()
 
-
+from riglib.bmi.bmi import Decoder
 class BlackrockBMI(BlackrockData, traits.HasTraits):
     '''
     Special case of BlackrockData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
     '''
 
-    decoder = traits.Instance(bmi.Decoder)
+    decoder = traits.Instance(Decoder)
 
     def init(self):
         '''

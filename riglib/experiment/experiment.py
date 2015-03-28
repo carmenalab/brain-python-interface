@@ -371,6 +371,7 @@ class Experiment(traits.HasTraits, threading.Thread):
                 n_error_trials += 1
         offline_report['Total trials'] = n_trials
         offline_report['Total rewards'] = n_success_trials
+        offline_report['Rewards/min'] = np.round((n_success_trials/explength) * 60, decimals=2)
         if n_trials == 0:
             offline_report['Success rate'] = None
         else:
@@ -409,7 +410,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         traits = self.class_editable_traits()
         h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
-            if trait not in ['bmi', 'decoder']:#, 'arm_class', 'arm_visible']:
+            if trait not in ['bmi', 'decoder']:
                 h5file.root.task.attrs[trait] = getattr(self, trait)
         h5file.close()
 

@@ -67,15 +67,20 @@ def resample_scalar_ssm(a, w, Delta_old=0.1, Delta_new=0.005):
     return a_delta_new, w_delta_new
 
 def _gen_A(t, s, m, n, off, ndim=3):
-    """utility function for generating block-diagonal matrices
+    """
+    Utility function for generating block-diagonal matrices
     used by the KF
-    Docstring
+    
+        [t*I, s*I, 0
+         m*I, n*I, 0
+         0,   0,   off]
 
     Parameters
     ----------
 
     Returns
     -------
+    np.mat of shape (N, N); N = 2*ndim + 1
     """
     A = np.zeros([2*ndim+1, 2*ndim+1])
     A_lower_dim = np.array([[t, s], [m, n]])
@@ -83,25 +88,6 @@ def _gen_A(t, s, m, n, off, ndim=3):
     A[-1,-1] = off
     return np.mat(A)
 
-def linear_kinarm_kf(update_rate=1./10, units_mult=0.01, ndim=3, vel_decay=0.8):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    Delta_KINARM = 1./10
-    loop_update_ratio = update_rate/Delta_KINARM
-    w_in_meters = 0.0007
-    w_units_resc = w_in_meters / (units_mult ** 2)
-    a_resampled, w_resampled = resample_scalar_ssm(vel_decay, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
-    A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
-    W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
-    return A, W
-    
 
 class State(object):
     '''
@@ -257,336 +243,93 @@ class StateSpace(object):
         else:
             return self.states == other.states
 
+class LinearVelocityStateSpace(StateSpace):
+    def __init__(self, states, vel_decay=0.8, w=7, Delta=0.1):
+        self.states = states 
+        self.vel_decay = vel_decay
+        self.w = w
+        self.Delta = Delta
+
+        # check that there are an equal number of pos and vel states
+        assert len(np.nonzero(self.state_order == 0)[0]) == len(np.nonzero(self.state_order == 1)[0])
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        if not hasattr(self, 'Delta'):
+            self.Delta = 0.1
+
+        if not hasattr(self, 'vel_decay'):
+            self.vel_decay = 0.8
+
+        if not hasattr(self, 'w'):
+            self.w = 7
+
+    def get_ssm_matrices(self, update_rate=0.1):
+        '''
+        For the linear stochastic state-space model 
+            x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
+        this function specifies the matrices A, B and W
+
+        A = [I_N    \Delta I_N   0
+             0_N    a*I_N        0
+             0      0            1]
+
+        W = [0_N    0_N   0
+             0_N    w*I_N        0
+             0      0            0]
+
+        B = [0_N
+            1000\Delta I_N
+            0]
+
+        Parameters
+        ----------
+        update_rate : float, optional
+            Time between iterations of the discrete-time model. Default is 0.1 sec.
+
+        Returns
+        -------
+        tuple of 3 np.mat matrices
+            A, B and W as specified in the mathematical model above
+        '''
+        if not (update_rate is None):
+            a_resamp, w_resamp = resample_scalar_ssm(self.vel_decay, self.w, Delta_old=self.Delta, Delta_new=update_rate)
+            Delta = update_rate
+        else:
+            a_resamp = self.vel_decay
+            w_resamp = self.w
+            Delta = self.Delta
+
+        ndim = len(np.nonzero(self.state_order == 1)[0])
+        A = _gen_A(1, Delta, 0, a_resamp, 1, ndim=ndim)
+        W = _gen_A(0, 0, 0, w_resamp, 0, ndim=ndim)        
+
+        # Control input matrix for SSM for control inputs
+        I = np.mat(np.eye(ndim))
+        B = np.vstack([0*I, Delta*1000 * I, np.zeros([1, ndim])])
+
+        # account for offset state
+        has_offset = self.states[-1].order == -1
+        if not has_offset:
+            A = A[:-1, :-1]
+            W = W[:-1, :-1]
+            B = B[:-1, :]
+
+        return A, B, W
+
+    def __eq__(self, other):
+        states_equal = super(LinearVelocityStateSpace, self).__eq__(other)
+        A1, B1, W1 = self.get_ssm_matrices()
+        A2, B2, W2 = other.get_ssm_matrices()
+        return states_equal and np.array_equal(A1, A2) and np.array_equal(B1, B2) and np.array_equal(W1, W2)
+
 offset_state = State('offset', stochastic=False, drives_obs=True, order=-1)
 
-class StateSpaceEndptVel(StateSpace):
-    '''
-    StateSpace with 3D velocity
-    '''
-    def __init__(self):
-        super(StateSpaceEndptVel, self).__init__(
-            State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
-            State('hand_py', stochastic=False, drives_obs=False, min_val=-10, max_val=10, order=0),
-            State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
-            State('hand_vx', stochastic=True,  drives_obs=True, order=1),
-            State('hand_vy', stochastic=True, drives_obs=True, order=1),
-            State('hand_vz', stochastic=True,  drives_obs=True, order=1),
-            offset_state
-        )
-
-    def get_ssm_matrices(self, update_rate=0.1):
-        '''
-        For the linear stochastic state-space model 
-            x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
-        this function specifies the matrices A, B and W
-
-        Parameters
-        ----------
-        update_rate : float, optional
-            Time between iterations of the discrete-time model. Default is 0.1 sec.
-
-        Returns
-        -------
-        tuple of 3 np.mat matrices
-            A, B and W as specified in the mathematical model above
-        '''
-        # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate)
-
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(3))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
-        return A, B, W
-
-class StateSpaceEndptVel2D(StateSpace):
-    '''
-    StateSpace with 2D velocity in the X-Z plane
-    '''
-    def __init__(self):
-        super(StateSpaceEndptVel2D, self).__init__(
-            State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
-            State('hand_py', stochastic=False, drives_obs=False, order=0),
-            State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
-            State('hand_vx', stochastic=True,  drives_obs=True, order=1),
-            State('hand_vy', stochastic=False, drives_obs=False, order=1),
-            State('hand_vz', stochastic=True,  drives_obs=True, order=1),
-            offset_state
-        )
-
-    def get_ssm_matrices(self, update_rate=0.1):
-        '''
-        For the linear stochastic state-space model 
-            x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
-        this function specifies the matrices A, B and W
-
-        Parameters
-        ----------
-        update_rate : float, optional
-            Time between iterations of the discrete-time model. Default is 0.1 sec.
-
-        Returns
-        -------
-        tuple of 3 np.mat matrices
-            A, B and W as specified in the mathematical model above
-        '''
-        # State-space model set from expert data
-        A, W = linear_kinarm_kf(update_rate=update_rate)
-
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(3))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
-        return A, B, W
-
-
-class StateSpaceArmAssist(StateSpace):
-    def __init__(self):
-        max_vel = 2  # cm/s
-        max_ang_vel = 7.5 * deg_to_rad
-        super(StateSpaceArmAssist, self).__init__(
-            State('aa_px',   stochastic=False, drives_obs=False, order=0, min_val=0., max_val=42.),
-            State('aa_py',   stochastic=False, drives_obs=False, order=0, min_val=0., max_val=30.),
-            State('aa_ppsi', stochastic=False, drives_obs=False, order=0),
-            State('aa_vx',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
-            State('aa_vy',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
-            State('aa_vpsi', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            offset_state
-        )
-
-    def get_ssm_matrices(self, update_rate=0.1):
-        # for now, just use a fixed vel_decay for A and vel_var for W
-        #   regardless of the value of update_rate
-        vel_decay = 0.95
-        A = _gen_A(1, update_rate, 0, vel_decay, 1, ndim=3) 
-        vel_var = 7.
-        W = _gen_A(0,           0, 0,   vel_var, 0, ndim=3)  # there is no separate _gen_W function
-
-
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(3))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 3])])
-        return A, B, W
-
-
-class StateSpaceReHand(StateSpace):
-    def __init__(self):
-        max_ang_vel = 7.5 * deg_to_rad
-        super(StateSpaceReHand, self).__init__(
-            State('rh_pthumb', stochastic=False, drives_obs=False, order=0),
-            State('rh_pindex', stochastic=False, drives_obs=False, order=0),
-            State('rh_pfing3', stochastic=False, drives_obs=False, order=0),
-            State('rh_pprono', stochastic=False, drives_obs=False, order=0),
-            State('rh_vthumb', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            State('rh_vindex', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            State('rh_vfing3', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            State('rh_vprono', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            offset_state
-        )
-
-    def get_ssm_matrices(self, update_rate=0.1):
-        # for now, just use a fixed vel_decay for A and vel_var for W
-        #   regardless of the value of update_rate
-        vel_decay = 0.95
-        A = _gen_A(1, update_rate, 0, vel_decay, 1, ndim=4) 
-        vel_var = 7.
-        W = _gen_A(0,           0, 0,   vel_var, 0, ndim=4)  # there is no separate _gen_W function
-
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(4))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 4])])
-        return A, B, W
-
-
-class StateSpaceIsMore(StateSpace):
-    def __init__(self):
-        max_vel = 2  # cm/s
-        max_ang_vel = 7.5 * deg_to_rad
-        super(StateSpaceIsMore, self).__init__(
-            # position states
-            State('aa_px',     stochastic=False, drives_obs=False, order=0, min_val=0., max_val=42.),
-            State('aa_py',     stochastic=False, drives_obs=False, order=0, min_val=0., max_val=30.),
-            State('aa_ppsi',   stochastic=False, drives_obs=False, order=0),
-            State('rh_pthumb', stochastic=False, drives_obs=False, order=0),
-            State('rh_pindex', stochastic=False, drives_obs=False, order=0),
-            State('rh_pfing3', stochastic=False, drives_obs=False, order=0),
-            State('rh_pprono', stochastic=False, drives_obs=False, order=0),
-
-            # velocity states
-            State('aa_vx',     stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
-            State('aa_vy',     stochastic=True,  drives_obs=True,  order=1, min_val=-max_vel, max_val=max_vel),
-            State('aa_vpsi',   stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            State('rh_vthumb', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            State('rh_vindex', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            State('rh_vfing3', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-            State('rh_vprono', stochastic=True,  drives_obs=True,  order=1, min_val=-max_ang_vel, max_val=max_ang_vel),
-
-            # offset state
-            offset_state
-        )
-
-    def get_ssm_matrices(self, update_rate=0.1):
-        # for now, just use a fixed vel_decay for A and vel_var for W
-        #   regardless of the value of update_rate
-        vel_decay = 0.95
-        A = _gen_A(1, update_rate, 0, vel_decay, 1, ndim=7) 
-        vel_var = 7
-        W = _gen_A(0,           0, 0,   vel_var, 0, ndim=7)  # there is no separate _gen_W function
-
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(7))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, 7])])
-        return A, B, W
-
-
-class StateSpaceExoArm(StateSpace):
-    '''
-    State space representing the kinematics of the exoskeleton
-        1) shoulder flexion extension
-        2) shoulder abduction/adduction
-        3) elbow rotation
-        4) elbow flexion/extension
-        5) pronation/supination
-    '''
-    def __init__(self):
-        super(StateSpaceExoArm, self).__init__(
-                # position states
-                State('sh_pflex', stochastic=False, drives_obs=False, order=0),
-                State('sh_pabd', stochastic=False, drives_obs=False, order=0), 
-                State('sh_prot', stochastic=False, drives_obs=False, order=0), 
-                State('el_pflex', stochastic=False, drives_obs=False, order=0), 
-                State('el_psup', stochastic=False, drives_obs=False, order=0), 
-                # velocity states
-                State('sh_vflex', stochastic=True, drives_obs=True, order=1), 
-                State('sh_vabd', stochastic=True, drives_obs=True, order=1), 
-                State('sh_vrot', stochastic=True, drives_obs=True, order=1), 
-                State('el_vflex', stochastic=True, drives_obs=True, order=1), 
-                State('el_vsup', stochastic=True, drives_obs=True, order=1), 
-                # offset
-                offset_state,
-        )
-
-    def get_ssm_matrices(self, update_rate=0.1):
-        raise NotImplementedError("Still need to determine A for the full joint space. Need 3D reaching data from real primate")
-
-class StateSpaceExoArm2D(StateSpaceExoArm):
-    '''
-    Exo arm, but limited to the 2D x-z plane by allowing only 
-    should abduction/adduction and elbow flexion/extension
-    '''
-    def __init__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        super(StateSpaceExoArm, self).__init__(
-                # position states
-                State('sh_pflex', stochastic=False, drives_obs=False, min_val=0, max_val=0, order=0),
-                State('sh_pabd', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
-                State('sh_prot', stochastic=False, drives_obs=False, min_val=0, max_val=0, order=0),
-                State('el_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
-                State('el_psup', stochastic=False, drives_obs=False, min_val=0, max_val=0, order=0),
-                # velocity states
-                State('sh_vflex', stochastic=False, drives_obs=False, order=1),
-                State('sh_vabd', stochastic=True, drives_obs=True, order=1),
-                State('sh_vrot', stochastic=False, drives_obs=False, order=1),
-                State('el_vflex', stochastic=True, drives_obs=True, order=1),
-                State('el_vsup', stochastic=False, drives_obs=False, order=1),
-                # offset
-                offset_state,
-        )
-
-    def get_ssm_matrices(self, update_rate=0.1):
-        '''
-        State space model from expert data
-
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        Delta_KINARM = 1./10
-        w = 0.01 #0.0007
-        #w = 0.3 # TODO come up with this value more systematically!
-        w_units_resc = w / 1 # velocity will always be in radians/sec
-        a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
-
-        # TODO get the number of dimensions from the arm configuration (i.e. a method to return the order of each state
-        ndim = 5 # NOTE: This is the number of 1st order states, not the dimension of the state vector
-        A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
-        W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
-        
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(ndim))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, ndim])])
-        return A, B, W
-
-class StateSpaceFourLinkTentacle2D(StateSpace):
-    ''' Docstring '''
-    def __init__(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        super(StateSpaceFourLinkTentacle2D, self).__init__(
-                # position states
-                State('sh_pabd', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
-                State('el_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
-                State('wr_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
-                State('fi_pflex', stochastic=False, drives_obs=False, min_val=-pi, max_val=0, order=0),
-                # velocity states
-                State('sh_vabd', stochastic=True, drives_obs=True, order=1),
-                State('el_vflex', stochastic=True, drives_obs=True, order=1),
-                State('wr_vflex', stochastic=True, drives_obs=True, order=1),
-                State('fi_vflex', stochastic=True, drives_obs=True, order=1),
-                # offset
-                offset_state,
-        )
-
-    def get_ssm_matrices(self, update_rate=0.1):
-        '''
-        State space model from expert data
-
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        Delta_KINARM = 1./10
-        w = 0.01 #0.0007
-        #w = 0.3 # TODO come up with this value more systematically!
-        w_units_resc = w / 1 # velocity will always be in radians/sec
-        a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
-
-        # TODO get the number of dimensions from the arm configuration (i.e. a method to return the order of each state
-        ndim = 4 # NOTE: This is the number of 1st order states, not the dimension of the state vector
-        A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
-        W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
-        
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(ndim))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, ndim])])
-        return A, B, W        
-
-class StateSpaceNLinkPlanarChain(StateSpace):
+class StateSpaceNLinkPlanarChain(LinearVelocityStateSpace):
     '''
     State-space model for an N-link kinematic chain
     '''
-    def __init__(self, n_links=2):
+    def __init__(self, n_links=2, **kwargs):
         self.n_links = n_links
         pos_states = []
         vel_states = []
@@ -598,40 +341,68 @@ class StateSpaceNLinkPlanarChain(StateSpace):
             vel_states.append(vel_state_k)
 
         states = pos_states + vel_states + [offset_state]
-        super(StateSpaceNLinkPlanarChain, self).__init__(*states)
+        super(StateSpaceNLinkPlanarChain, self).__init__(states, **kwargs)
 
-    def get_ssm_matrices(self, update_rate=0.1):
-        '''
-        State space model from expert data
+    def __setstate__(self, state):
+        self.__dict__ = state
+        if not hasattr(self, 'Delta'):
+            self.Delta = 0.1
 
-        A = [I_N    \Delta I_N   0
-             0_N    a*I_N        0
-             0      0            1]
+        if not hasattr(self, 'vel_decay'):
+            self.vel_decay = 0.8
 
-        W = [0_N    0_N   0
-             0_N    a*I_N        0
-             0      0            1]
-        Parameters
-        ----------
+        if not hasattr(self, 'w'):
+            self.w = 0.01
 
-        Returns
-        -------
-        '''
-        Delta_KINARM = 1./10
-        w = 0.01 #0.0007
-        #w = 0.3 # TODO come up with this value more systematically!
-        w_units_resc = w / 1 # velocity will always be in radians/sec
-        a_resampled, w_resampled = resample_scalar_ssm(0.8, w_units_resc, Delta_old=Delta_KINARM, Delta_new=update_rate)
+class StateSpaceEndptVel2D(LinearVelocityStateSpace):
+    '''
+    StateSpace with 2D velocity in the X-Z plane
+    '''
+    def __init__(self, **kwargs):
+        states = [
+            State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
+            State('hand_py', stochastic=False, drives_obs=False, order=0),
+            State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+            State('hand_vx', stochastic=True,  drives_obs=True, order=1),
+            State('hand_vy', stochastic=False, drives_obs=False, order=1),
+            State('hand_vz', stochastic=True,  drives_obs=True, order=1),
+            offset_state]
+        super(StateSpaceEndptVel2D, self).__init__(states, **kwargs)
 
-        ndim = self.n_links
-        A = _gen_A(1, update_rate, 0, a_resampled, 1, ndim=ndim)
-        W = _gen_A(0, 0, 0, w_resampled, 0, ndim=ndim)
-        
-        # Control input matrix for SSM for control inputs
-        I = np.mat(np.eye(ndim))
-        B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1, ndim])])
-        return A, B, W      
+    def __setstate__(self, state):
+        self.__dict__ = state
+        if not hasattr(self, 'Delta'):
+            self.Delta = 0.1
 
+        if not hasattr(self, 'vel_decay'):
+            self.vel_decay = 0.8
+
+        if not hasattr(self, 'w'):
+            self.w = 7
+
+    # def get_ssm_matrices_old(self, update_rate=0.1):
+    #     '''
+    #     For the linear stochastic state-space model 
+    #         x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
+    #     this function specifies the matrices A, B and W
+
+    #     Parameters
+    #     ----------
+    #     update_rate : float, optional
+    #         Time between iterations of the discrete-time model. Default is 0.1 sec.
+
+    #     Returns
+    #     -------
+    #     tuple of 3 np.mat matrices
+    #         A, B and W as specified in the mathematical model above
+    #     '''
+    #     # State-space model set from expert data
+    #     A, W = linear_kinarm_kf(update_rate=update_rate)
+
+    #     # Control input matrix for SSM for control inputs
+    #     I = np.mat(np.eye(3))
+    #     B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
+    #     return A, B, W
 
 if __name__ == '__main__':
     a_10hz = 0.8

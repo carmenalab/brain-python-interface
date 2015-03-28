@@ -9,20 +9,26 @@ from tasks.bmimultitasks import SimBMIControlMulti
 reload(bmi_recon_tasks)
 reload(tasks)
 
-from tasks.bmi_recon_tasks import KFRMLCGRecon
+from tasks.bmi_recon_tasks import BMIReconstruction, LFPBMIReconstruction
 
-cls = KFRMLCGRecon
+from riglib.bmi import goal_calculators
 
-idx = 5275
 
-te = performance.CLDAControlMultiTaskEntry(idx, dbname='testing')
+idx = 849
+
+te = performance.BMIControlMultiTaskEntry(idx, dbname='testing')
 n_iter = len(te.hdf.root.task)
         
 gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)
 
-task = cls(te, n_iter, gen)
+cls = LFPBMIReconstruction
+self = task = cls(te, n_iter, gen)
 from tasks import plantlist
-task.plant = plantlist.cursor_14x14_no_vel_wall
+
+from riglib.plants import CursorPlant
+task.plant = CursorPlant(endpt_bounds=[-10,10,-10,10,-10,10], vel_wall=False)
+
+# task.plant = plantlist.cursor_14x14_no_vel_wall
 task.init()
         
 error = task.calc_recon_error(verbose=False)

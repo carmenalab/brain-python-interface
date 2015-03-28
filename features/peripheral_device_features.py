@@ -106,11 +106,18 @@ class Joystick(object):
         '''
         from riglib import source, phidgets, sink
         self.sinks = sink.sinks
+        #System = phidgets.make(2, 1)
+        #self.joystick = source.DataSource(System)
 
-        System = phidgets.make(2, 1)
-        self.joystick = source.DataSource(System)
+        self.register_num_channels()
         super(Joystick, self).init()
         self.sinks.register(self.joystick)
+
+    def register_num_channels(self):
+        from riglib import source, phidgets, sink
+        System = phidgets.make(2, 1)
+        self.joystick = source.DataSource(System)
+
 
     def run(self):
         '''
@@ -135,6 +142,16 @@ class Joystick(object):
         '''
         self.joystick.join()
         super(Joystick, self).join()
+
+class Joystick_plus_TouchSensor(Joystick):
+    '''
+    code to use touch sensor (attached to joystick in exorig) plus joystick
+    '''
+    def register_num_channels(self):
+        from riglib import source, phidgets, sink
+        System = phidgets.make(3, 1)
+        self.joystick = source.DataSource(System)
+
 
 class DualJoystick(object):
     '''

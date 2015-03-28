@@ -3,7 +3,6 @@ from db import json_param
 from db.tracker import models
 
 from riglib import experiment
-from riglib.stereo_opengl.window import MatplotlibWindow
 from features.generator_features import Autostart
 from features.hdf_features import SaveHDF
 from features.phasespace_features import MotionData

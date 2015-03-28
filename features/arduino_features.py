@@ -1,7 +1,5 @@
 '''
-Features for interacting with Plexon's Omniplex neural recording system
 '''
-
 import time
 import tempfile
 import random
@@ -17,13 +15,20 @@ from hdf_features import SaveHDF
 import sys
 import glob
 import datetime
+import serial
 
 sec_per_min = 60
 
-class RelayPlexon(object):
+class PlexonSerialDIORowByte(object):
     '''
     Sends the full data from eyetracking and motiontracking systems directly into Plexon
     '''
+    def __init__(self, *args, **kwargs):
+        super(PlexonSerialDIORowByte, self).__init__(*args, **kwargs)
+        self.file_ext = kwargs.pop('file_ext', '.plx')
+        self.data_root = kwargs.pop('data_root', '/storage/plexon/')
+        self.file_pattern = os.path.join(self.data_root, '*' + self.file_ext)
+
     def init(self):
         '''
         Secondary init function. See riglib.experiment.Experiment.init()
@@ -31,10 +36,10 @@ class RelayPlexon(object):
         '''
         from riglib import sink
         self.nidaq = sink.sinks.start(self.ni_out)
-        super(RelayPlexon, self).init()
+        super(PlexonSerialDIORowByte, self).init()
 
         # Find all the plexon files modified in the last day
-        file_pattern = "/storage/plexon/*.plx"
+        file_pattern = self.file_pattern
         file_names = glob.glob(file_pattern)
         start_time = datetime.datetime.today() - datetime.timedelta(days=1)
         file_names = filter(lambda fname: datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time, file_names)
@@ -48,8 +53,9 @@ class RelayPlexon(object):
         Specify the output interface; can be overridden in child classes as long as 
         this method returns a class which has the same instance methods (close, register, send, sendMsg, etc.)
         '''
-        from riglib import nidaq
-        return nidaq.SendAll
+        # TODO ni_out ---> iface
+        from riglib import serial_dio
+        return serial_dio.SendRowByte
 
     @property
     def plexfile(self):
@@ -94,18 +100,10 @@ class RelayPlexon(object):
         See riglib.experiment.Experiment.run(). This 'run' method stops the NIDAQ sink after the FSM has stopped running.
         '''
         try:
-            super(RelayPlexon, self).run()
+            super(PlexonSerialDIORowByte, self).run()
         finally:
             # Stop the NIDAQ sink
             self.nidaq.stop()
-
-            # Remotely stop the recording on the plexon box
-            import comedi
-            import config
-            import time
-            com = comedi.comedi_open("/dev/comedi0")
-            time.sleep(0.5)
-            comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)            
 
     def set_state(self, condition, **kwargs):
         '''
@@ -124,7 +122,7 @@ class RelayPlexon(object):
         None
         '''
         self.nidaq.sendMsg(condition)
-        super(RelayPlexon, self).set_state(condition, **kwargs)
+        super(PlexonSerialDIORowByte, self).set_state(condition, **kwargs)
 
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -132,14 +130,18 @@ class RelayPlexon(object):
         This 'cleanup' method remotely stops the plexon file recording and then links the file created to the database ID for the current TaskEntry
         '''
         # Stop recording
-        import comedi
+        # import comedi
         import config
         import time
 
-        com = comedi.comedi_open("/dev/comedi0")
-        comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
+        # com = comedi.comedi_open("/dev/comedi0")
+        # comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
 
-        super(RelayPlexon, self).cleanup(database, saveid, **kwargs)
+        # port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=9600)
+        # port.write('p')
+        # port.close()
+
+        super(PlexonSerialDIORowByte, self).cleanup(database, saveid, **kwargs)
 
         # Sleep time so that the plx file has time to save cleanly
         time.sleep(2)
@@ -158,107 +160,12 @@ class RelayPlexon(object):
         Run prior to starting the task to remotely start recording from the plexon system
         '''
         if saveid is not None:
-            import comedi
-            import config
-            import time
-
-            com = comedi.comedi_open("/dev/comedi0")
-            # stop any recording
-            comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
-            time.sleep(0.1)
-            # start recording
-            comedi.comedi_dio_bitfield2(com, 0, 16, 0, 16)
+            port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=9600)
+            # for k in range(5):
+            port.write('p')
+            time.sleep(0.5)
+            port.write('r')
+            port.close()
 
             time.sleep(3)
-            super(RelayPlexon, cls).pre_init(saveid=saveid)
-
-        
-class RelayPlexByte(RelayPlexon):
-    '''
-    Relays a single byte (0-255) to synchronize the rows of the HDF table(s) with the plexon recording clock.
-    '''
-    def init(self):
-        '''
-        Secondary init function. See riglib.experiment.Experiment.init()
-        Prior to starting the task, this 'init' ensures that this feature is
-        only used if the SaveHDF feature is also enabled.
-        '''
-        if not isinstance(self, SaveHDF):
-            raise ValueError("RelayPlexByte feature only available with SaveHDF")
-        super(RelayPlexByte, self).init()
-
-    @property
-    def ni_out(self):
-        '''
-        see documentation for RelayPlexon.ni_out 
-        '''
-        from riglib import nidaq
-        return nidaq.SendRowByte
-
-
-class PlexonData(traits.HasTraits):
-    '''
-    Stream Plexon neural data
-    '''
-    plexon_channels = None
-
-    def init(self):
-        '''
-        Secondary init function. See riglib.experiment.Experiment.init()
-        Prior to starting the task, this 'init' creates an appropriate DataSource for either Spike, LFP, or auxiliary analog 
-        data (depends on the type of feature extractor used by the decoder).
-        '''
-        from riglib import plexon, source
-
-        if hasattr(self.decoder, 'extractor_cls'):
-            if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
-                self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-            elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
-                self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
-            elif 'emg' in self.decoder.extractor_cls.feature_type:  # e.g., 'emg_amplitude'
-                self.neurondata = source.MultiChanDataSource(plexon.Aux, channels=self.plexon_channels)
-            else:
-                raise Exception("Unknown extractor class, unable to create data source object!")
-        else:
-            # if using an older decoder that doesn't have extractor_cls (and 
-            # extractor_kwargs) as attributes, or if there is no decoder in this task, 
-            # then just create a DataSource with plexon.Spikes by default 
-            self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-
-        super(PlexonData, self).init()
-
-    def run(self):
-        '''
-        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
-        See riglib.experiment.Experiment.run(). This 'run' method starts the 'neurondata' source before the FSM begins execution
-        and stops it after the FSM has completed. 
-        '''
-        self.neurondata.start()
-        try:
-            super(PlexonData, self).run()
-        finally:
-            self.neurondata.stop()
-
-from riglib.bmi.bmi import Decoder
-class PlexonBMI(PlexonData):
-    '''
-    Special case of PlexonData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
-    May not be available for all recording systems. 
-    '''
-    decoder = traits.Instance(Decoder)
-
-    def init(self):
-        '''
-        Secondary init function. See riglib.experiment.Experiment.init()
-        Prior to starting the task, this 'init' sets the channels to be the channels of the decoder
-        so that the PlexonData source only grabs the channels actually used by the decoder. 
-        '''
-        self.plexon_channels = self.decoder.units[:,0]
-        super(PlexonBMI, self).init()
-
-# from neural_sys_features import CorticalData, CorticalBMI
-# class PlexonData(CorticalData):
-#     @property 
-#     def sys_module(self):
-#         from riglib import plexon
-#         return plexon
+            super(PlexonSerialDIORowByte, cls).pre_init(saveid=saveid)

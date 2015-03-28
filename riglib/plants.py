@@ -327,8 +327,8 @@ class CursorPlant(Plant):
         self.starting_pos = starting_pos
         self.cursor_radius = cursor_radius
         self.cursor_color = cursor_color
-        from riglib.bmi import state_space_models
-        self.ssm = state_space_models.StateSpaceEndptVel2D()
+        # from riglib.bmi import state_space_models
+        # self.ssm = state_space_models.StateSpaceEndptVel2D()
         self._pickle_init()
         self.vel_wall = vel_wall
 
@@ -353,6 +353,13 @@ class CursorPlant(Plant):
     def set_intrinsic_coordinates(self, pt):
         self.position = pt
         self.draw()
+
+    def set_visibility(self, visible):
+        self.visible = visible
+        if visible:
+            self.graphics_models[0].attach()
+        else:
+            self.graphics_models[0].detach()
 
     def drive(self, decoder):
         pos = decoder['q'].copy()
@@ -445,7 +452,7 @@ arm_radius = 0.6
 pi = np.pi
 class RobotArmGen2D(Plant):
     def __init__(self, link_radii=arm_radius, joint_radii=arm_radius, link_lengths=[15,15,5,5], joint_colors=arm_color,
-        link_colors=arm_color, base_loc=np.array([2., 0., -15]), joint_limits=[(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)], **kwargs):
+        link_colors=arm_color, base_loc=np.array([2., 0., -15]), joint_limits=[(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)], stay_on_screen=False, **kwargs):
         '''
         Instantiate the graphics and the virtual arm for a planar kinematic chain
         '''
@@ -471,12 +478,13 @@ class RobotArmGen2D(Plant):
         self._pickle_init()
 
         from riglib.bmi import state_space_models
-        self.ssm = state_space_models.StateSpaceNLinkPlanarChain(n_links=self.num_joints)
+        # self.ssm = state_space_models.StateSpaceNLinkPlanarChain(n_links=self.num_joints)
 
         self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
 
         self.visible = True # arm is visible when initialized
 
+        self.stay_on_screen = stay_on_screen
         self.joint_angles = np.zeros(self.num_joints)
 
     @property 
@@ -540,14 +548,6 @@ class RobotArmGen2D(Plant):
         Returns the current position of the non-anchored end of the arm.
         '''
         return self.kin_chain.endpoint_pos(self.joint_angles)
-        # relangs = np.arctan2(self.curr_vecs[:,2], self.curr_vecs[:,0])
-        # return self.perform_fk(relangs) + self.base_loc
-
-    # def perform_fk(self, angs):
-    #     absvecs = np.zeros(self.curr_vecs.shape)
-    #     for i in range(self.num_joints):
-    #         absvecs[i] = self.link_lengths[i]*np.array([np.cos(np.sum(angs[:i+1])), 0, np.sin(np.sum(angs[:i+1]))])
-    #     return np.sum(absvecs,axis=0)
 
     def set_endpoint_pos(self, pos, **kwargs):
         '''
@@ -562,12 +562,6 @@ class RobotArmGen2D(Plant):
 
     def perform_ik(self, pos, **kwargs):
         angles = self.kin_chain.inverse_kinematics(pos, q_start=self.get_intrinsic_coordinates(), verbose=False, eps=0.008, **kwargs).ravel()
-        # # print self.kin_chain.endpoint_pos(angles)
-
-        # # Negate the angles. The convention in the robotics library is 
-        # # inverted, i.e. in the robotics library, positive is clockwise 
-        # # rotation whereas here CCW rotation is positive. 
-        # angles = -angles        
         return angles
 
     def calc_joint_angles(self, vecs):
@@ -583,7 +577,12 @@ class RobotArmGen2D(Plant):
         '''
         Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
         '''
-        if None not in theta and not np.any(np.isnan(theta)):
+        new_endpt_pos = self.kin_chain.endpoint_pos(theta)
+        if self.stay_on_screen and (new_endpt_pos[0] > 25 or new_endpt_pos[0] < -25 or new_endpt_pos[-1] < -14 or new_endpt_pos[-1] > 14):
+            # ignore the command because it would push the endpoint off the screen 
+            return 
+
+        if not np.any(np.isnan(theta)):
             self.joint_angles = theta
             for i in range(self.num_joints):
                 self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
@@ -607,24 +606,13 @@ class EndptControlled2LArm(RobotArmGen2D):
     def __init__(self, *args, **kwargs):
         super(EndptControlled2LArm, self).__init__(*args, **kwargs)
         self.hdf_attrs = [('cursor', 'f8', (3,)), ('arm_visible','f8',(1,))]
-        self.ssm = state_space_models.StateSpaceEndptVel2D()
+        # self.ssm = state_space_models.StateSpaceEndptVel2D()
 
     def get_intrinsic_coordinates(self):
         return self.get_endpoint_pos()
 
     def set_intrinsic_coordinates(self, pos, **kwargs):
         self.set_endpoint_pos(pos, **kwargs)
-        # print pos
-        # if pos is not None:
-        #     # Run the inverse kinematics
-        #     theta = self.perform_ik(pos, **kwargs)
-
-
-        #     for i in range(self.num_joints):
-        #         if theta[i] is not None and ~np.isnan(theta[i]):
-        #             self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
-                    
-        #     self._update_link_graphics()
 
     def set_endpoint_pos(self, pos, **kwargs):
         if pos is not None:

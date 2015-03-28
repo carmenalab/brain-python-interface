@@ -7,7 +7,7 @@ from db import dbfunctions as dbfn
 from db.tracker import models
 from riglib.bmi import kfdecoder, ppfdecoder
 from riglib.bmi import train
-from riglib.bmi import extractor
+from riglib.bmi import extractor, state_space_models
 import unittest
 
 reload(train)
@@ -30,7 +30,7 @@ class TestDecoderTrain(unittest.TestCase):
         extractor_kwargs = dict()
         extractor_kwargs['n_subbins'] = dec.n_subbins 
 
-        dec_new = train.train_KFDecoder(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, train.endpt_2D_state_space, dec.units, update_rate=dec.binlen, kin_source='task', pos_key='cursor', vel_key=None, tslice=dec.tslice)
+        dec_new = train.train_KFDecoder(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, dec.ssm, dec.units, update_rate=dec.binlen, kin_source='task', pos_key='cursor', vel_key=None, tslice=dec.tslice)
         for attr in dec.filt.model_attrs:
             old_attr = getattr(dec.filt, attr)
             new_attr = getattr(dec_new.filt, attr)
@@ -61,7 +61,7 @@ class TestDecoderTrain(unittest.TestCase):
         extractor_kwargs['units'] = dec.units
         extractor_kwargs['n_subbins'] = dec.n_subbins 
 
-        dec_new = train.train_PPFDecoder(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, train.endpt_2D_state_space, dec.units, update_rate=dec.binlen, kin_source='task', pos_key='cursor', vel_key=None, tslice=dec.tslice)        
+        dec_new = train.train_PPFDecoder(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, dec.ssm, dec.units, update_rate=dec.binlen, kin_source='task', pos_key='cursor', vel_key=None, tslice=dec.tslice)        
         for attr in dec.filt.model_attrs:
             old_attr = getattr(dec.filt, attr)
             new_attr = getattr(dec_new.filt, attr)

@@ -16,7 +16,7 @@ mkdir $CODE/src/
 
 sudo apt-get -y install git gitk
 if [ ! -d "$HOME/code/bmi3d" ]; then
-    git clone https://github.com/hgm110/bmi3d.git $HOME/code/bmi3d
+    git clone https://github.com/carmenalab/bmi3d.git $HOME/code/bmi3d
 fi
 
 # make log directory
@@ -60,6 +60,9 @@ sudo apt-get -y install swig
 sudo apt-get -y install isc-dhcp-server
 # cURL: command line utility for url transfer
 sudo apt-get -y install curl
+sudo apt-get -y install sqlite3
+# Arduino IDE
+sudo apt-get install arduino arduino-core  
 
 
 ####### Install Python dependencies

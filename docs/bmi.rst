@@ -20,9 +20,8 @@ This first step in the loop processes "raw" data from the neural recording syste
 Features must sometimes be combined across time. For instance, for spike BMIs, the BMI loop may run at 60 Hz to match the display rate, but the decoder may expect to get a new observation only at 10 Hz. Thus some rate matching must be applied (specifically in this case, 6 observations must be added together). This operation may be different across decoder types. For instance, for LFP decoders where the feature extractor always outputs a power estimate for the last 200ms, the proper operation is simply downsampling to match from the iteration rate of the task to the observation rate of the decoder.
 
 
-**Decoder**
+:doc:`decoder`
 This is the core workhorse of the system, inferring the intended plant state x_t from observations y_t (and possibly combined with shared control u_t)
-
 
 **Goal calculator**
 For assistive control and CLDA (see below), it may be necessary to specify the ``target_state`` $x_t^*$. The target state is specified entirely by the task, i.e., completely independently of the decoder.

@@ -8,7 +8,6 @@ from db import json_param
 from db.tracker import models
 
 from riglib import experiment
-from riglib.stereo_opengl.window import MatplotlibWindow
 from features.generator_features import Autostart
 from features.hdf_features import SaveHDF
 from riglib.experiment import generate
@@ -22,7 +21,7 @@ from analysis import performance
 import os
 os.environ['DISPLAY'] = ':0'
 
-save = True
+save = 0
 
 task = models.Task.objects.get(name='visual_feedback_multi')
 base_class = task.get()

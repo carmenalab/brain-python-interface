@@ -15,7 +15,7 @@ import pdb
 import state_space_models
 from itertools import izip
 
-import extractor
+import stat
 import os
 import subprocess
 
@@ -23,33 +23,6 @@ import subprocess
 ## Constants
 ############
 pi = np.pi 
-
-empty_bounding_box = [np.array([]), np.array([])]
-stoch_states_to_decode_2D_vel = ['hand_vx', 'hand_vz'] 
-states_3D_endpt = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-states_explaining_neural_activity_2D_vel_decoding = ['hand_vx', 'hand_vz', 'offset']
-
-
-State = state_space_models.State
-StateSpaceEndptVel2D = state_space_models.StateSpaceEndptVel2D
-# StateSpaceExoArm2D = state_space_models.StateSpaceExoArm2D
-StateSpaceFourLinkTentacle2D = state_space_models.StateSpaceFourLinkTentacle2D
-StateSpaceEndptVel = state_space_models.StateSpaceEndptVel
-
-endpt_3D_state_space = StateSpaceEndptVel()
-endpt_2D_state_space = StateSpaceEndptVel2D()
-joint_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=2)
-tentacle_2D_state_space = state_space_models.StateSpaceNLinkPlanarChain(n_links=4) #StateSpaceFourLinkTentacle2D()
-
-StateSpaceArmAssist = state_space_models.StateSpaceArmAssist
-StateSpaceReHand    = state_space_models.StateSpaceReHand
-StateSpaceIsMore    = state_space_models.StateSpaceIsMore
-
-armassist_state_space = StateSpaceArmAssist()
-rehand_state_space = StateSpaceReHand()
-ismore_state_space = StateSpaceIsMore()
-
-from state_bounders import RectangularBounder, make_rect_bounder_from_ssm
 
 ################################################################################
 ## Functions to synchronize task-generated HDF files and neural recording files
@@ -126,15 +99,25 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
     events = plx.events[:].data
     reg = parse.registrations(events)
 
-    # find the key for the specified system data
-    syskey = None
-    for key, system in reg.items():
-        if sys_eq(system[0], sys_name):
-            syskey = key
-            break
+    if len(reg.keys()) > 0:
+        # find the key for the specified system data
+        syskey = None
+        for key, system in reg.items():
+            if sys_eq(system[0], sys_name):
+                syskey = key
+                break
 
-    if syskey is None:
-        raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')
+        if syskey is None:
+            print reg.items()
+            raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')        
+    elif len(reg.keys()) == 0:
+        # try to find how many systems' rowbytes were in the HDF file
+        rowbyte_data = parse.rowbyte(events)
+        if len(rowbyte_data.keys()) == 1:
+            print "No systems registered, but only one system registered with rowbytes! Using it anyway instead of throwing an error"
+            syskey = rowbyte_data.keys()[0]
+        else:
+            raise Exception("No systems registered and I don't know which sys to use to train!")
 
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
@@ -428,6 +411,14 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
 
+    decoder = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
+
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
+    return decoder
+
+def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None):
     #### Train the actual KF decoder matrices ####
     n_features = neural_features.shape[0]  # number of neural features
 
@@ -443,7 +434,7 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
 
     # instantiate KFdecoder
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
-    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=binlen, tslice=tslice)
+    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=update_rate, tslice=tslice)
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
     from clda import KFRML
@@ -461,11 +452,10 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     decoder.filt.ESS = ESS
     decoder.n_features = n_features
 
-    decoder.extractor_cls = extractor_cls
-    decoder.extractor_kwargs = extractor_kwargs
+    # decoder.extractor_cls = extractor_cls
+    # decoder.extractor_kwargs = extractor_kwargs
 
     return decoder
-
 
 def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
@@ -515,6 +505,15 @@ def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
 
+    decoder = train_PPFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
+
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
+    return decoder
+
+def train_PPFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None):
+    binlen = 1./180 #update_rate
     # squash any spike counts greater than 1 (doesn't work with PPF model)
     neural_features[neural_features > 1] = 1
 
@@ -543,27 +542,28 @@ def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     decoder.filt.S = S
     decoder.n_features = n_features
 
-    decoder.extractor_cls = extractor_cls
-    decoder.extractor_kwargs = extractor_kwargs
-
     return decoder
-
 
 ###################
 ## Helper functions
 ###################
 def unit_conv(starting_unit, ending_unit):
-    ''' Convert between units, e.g. cm to m
+    ''' 
+    Convert between units, e.g. cm to m
     Lookup table for conversion factors between units; this function exists
     only to avoid hard-coded constants in most of the code
 
-    Docstring
-
     Parameters
     ----------
+    starting_unit : string
+        Name of current unit for the quantity, e.g., 'cm'
+    ending_unit : string
+        Name of desired unit for the quantity, e.g., 'm'
 
     Returns
     -------
+    float
+        Multiplicative scale factor to convert a scalar in the 'starting_unit' to the 'ending_unit'
     '''
 
     if starting_unit == ending_unit:
@@ -572,62 +572,24 @@ def unit_conv(starting_unit, ending_unit):
         return 0.01
     elif (starting_unit, ending_unit) == ('m', 'cm'):
         return 100
-
-def obj_eq(self, other, attrs=[]):
-    '''
-    Determine if two objects have mattching array attributes
-
-    Parameters
-    ----------
-    other : object
-        If objects are not the same type, False is returned
-    attrs : list, optional
-        List of attributes to compare for equality. Only attributes that are common to both objects are used.
-        The attributes should be np.array or similar as np.array_equal is used to determine equality
-
-    Returns
-    -------
-    bool 
-        True value returned indicates equality between objects for the specified attributes
-    '''
-    if isinstance(other, type(self)):
-        attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
-        equal = map(lambda attr: np.array_equal(getattr(self, attr), getattr(other, attr)), attrs_eq)
-        return np.all(equal)
     else:
-        return False
-    
-def obj_diff(self, other, attrs=[]):
-    '''
-    Calculate the difference of the two objects w.r.t the specified attributes
-
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    if isinstance(other, type(self)):
-        attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
-        diff = map(lambda attr: getattr(self, attr) - getattr(other, attr), attrs_eq)
-        return np.array(diff)
-    else:
-        return False
+        raise ValueError("Unrecognized starting/ending unit")
     
 def lookup_cells(cells):
-    ''' Convert string names of units to 'machine' format.
+    ''' 
+    Convert string names of units to 'machine' format.
     Take a list of neural units specified as a list of strings and convert 
     to the 2D array format used to specify neural units to train decoders
 
-    Docstring
-
     Parameters
     ----------
+    cells : string
+        String of cell names to parse, e.g., '1a, 2b'
 
     Returns
     -------
+    list of 2-tuples
+        Each element of the list is a tuple of (channel, unit), e.g., [(1, 1), (2, 2)]
     '''
     cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
     cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]

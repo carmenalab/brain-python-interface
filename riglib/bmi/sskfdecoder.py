@@ -67,8 +67,7 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
             init_state = np.mat( np.zeros([nS, 1]) )                           
             if self.include_offset: init_state[-1,0] = 1                       
         if init_cov == None:                                                   
-            init_cov = np.mat( np.zeros([nS, nS]) )                            
-        self.init_cov = init_cov                                               
+            init_cov = np.mat( np.zeros([nS, nS]) )
         self.state = bmi.GaussianState(init_state, init_cov)                       
 
     def _pickle_init(self):
@@ -96,7 +95,7 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
         return self.F, self.K
 
     def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, 
-                       obs_is_control_independent=True, bias_comp=False):
+                       obs_is_control_independent=True, bias_comp=False, **kwargs):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
         Docstring

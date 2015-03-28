@@ -22,7 +22,7 @@ ts_dtype_new = [('ts', float), ('chan', np.int32), ('unit', np.int32), ('arrival
 class CosEnc(object):
     ''' Docstring '''
     def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, 
-        unit_inds=None, fname='', return_ts=False, DT=0.1):
+        unit_inds=None, fname='', return_ts=False, DT=0.1, angles=None):
         """
         Create neurons cosine-tuned to random directions.
 
@@ -60,7 +60,7 @@ class CosEnc(object):
         else:
             self.n_neurons = n_neurons
             self.baselines = baselines
-            self.angles = 2 * np.pi * np.random.rand(n_neurons)
+            self.angles = np.linspace(0, 2 * np.pi, n_neurons)
             self.mod_depth = mod_depth
             self.pds = np.array([[np.cos(a), np.sin(a)] for a in self.angles])
             self.unit_inds = unit_inds
@@ -116,13 +116,7 @@ class CosEnc(object):
 
     def save(self):
         '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
+        Save the encoder parameters to a .mat file
         '''        
         savemat(self.fname, {'n_neurons':self.n_neurons, 'baselines':self.baselines,
             'angles':self.angles, 'pds':self.pds, 'mod_depth':self.mod_depth,
@@ -318,13 +312,18 @@ class PointProcess():
 
     def __call__(self, x_t):
         '''
-        Docstring    
+        Simulate whether the cell should fire at time t based on new stimulus x_t and previous stimuli (saved)
         
         Parameters
         ----------
+        x_t : np.ndarray of size (N,)
+            Current stimulus that the firing rate of the cell depends on.
+            N should match the 
         
         Returns
         -------
+        spiking_bin : bool
+            True or false depending on whether the cell has fired after the present stimulus.
         '''              
         self._push(x_t)
         if np.abs(self.resold) < self.eps:
@@ -409,7 +408,6 @@ class PointProcessEnsemble(object):
         point_process_units = []
         for k in range(self.n_neurons):
             point_proc = PointProcess(beta[k,:], dt, tau_samples=tau_samples[k])
-            #point_proc = PointProcess(beta[:,k], dt, tau_samples=tau_samples[k])
             point_proc._init_sampling(init_state)
             point_process_units.append(point_proc)
         self.point_process_units = point_process_units
@@ -428,7 +426,6 @@ class PointProcessEnsemble(object):
         Returns
         -------
         '''
-
         return self.units
 
     def __call__(self, x_t):
@@ -441,7 +438,6 @@ class PointProcessEnsemble(object):
         Returns
         -------
         '''
-
         x_t = np.hstack([x_t, 1])
         counts = np.array(map(lambda unit: unit(x_t), self.point_process_units)).astype(int)
         return counts
@@ -453,15 +449,8 @@ class CLDASimPointProcessEnsemble(PointProcessEnsemble):
     '''
     def __init__(self, *args, **kwargs):
         '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
+        see PointProcessEnsemble.__init__
         '''
-
         super(CLDASimPointProcessEnsemble, self).__init__(*args, **kwargs)
         self.call_count = -1
 
@@ -472,10 +461,11 @@ class CLDASimPointProcessEnsemble(PointProcessEnsemble):
 
         Parameters
         ----------
+        x_t : np.ndarray
+
         
         Returns
         -------
-
         '''
         ts_data = []
         for k in range(3):

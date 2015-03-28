@@ -15,11 +15,7 @@ import re
 import assist
 import os
 
-from state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from utils.angle_utils import *
-
-
-
 
 inv = np.linalg.inv
 
@@ -57,30 +53,12 @@ def fast_inv(A):
 
     return np.array([lapack_inverse(a) for a in A])
 
+def slow_inv(A):
+    return np.array([np.linalg.inv(a) for a in A])
+
 ##############################################################################
 ## Learners
 ##############################################################################
-def normalize(vec):
-    '''
-    Vector normalization. If the vector to be normalized is of norm 0, a vector of 0's is returned
-
-    Parameters
-    ----------
-    vec: np.ndarray of shape (N,) or (N, 1)
-        Vector to be normalized
-
-    Returns
-    -------
-    norm_vec: np.ndarray of shape matching 'vec'
-        Normalized version of vec
-    '''
-    norm_vec = vec / np.linalg.norm(vec)
-    
-    if np.any(np.isnan(norm_vec)):
-        norm_vec = np.zeros_like(vec)
-    
-    return norm_vec
-
 class Learner(object):
     '''
     Classes for estimating the 'intention' of the BMI operator, inferring the intention from task goals.
@@ -171,8 +149,8 @@ class Learner(object):
 
     def calc_value(self, *args, **kwargs):
         '''
-        Calculate a "value", i.e. a usefulness, for a particular observation.
-
+        Calculate a "value", i.e. a usefulness, for a particular observation. 
+        Can override in child classe for RL-style updates, but a priori all observations are equally informative
         '''
         return 1.
 
@@ -301,46 +279,6 @@ class OFCLearner(Learner):
         except KeyError:
             return None
 
-class OFCLearner3DEndptPPF(OFCLearner):
-    '''
-    Specific instance of the OFCLearner for a PPF-controlled cursor
-    '''
-    def __init__(self, batch_size, *args, **kwargs):
-        '''
-        TODO to generalize this better, should be able to store these objects
-        to file, just like a decoder, since the feedback matrices may change 
-        on different days...
-        '''
-        dt = kwargs.pop('dt', 1./180)
-        use_tau_unNat = kwargs.pop('tau', 2.7)
-        self.tau = use_tau_unNat
-        print "learner cost fn param: %g" % use_tau_unNat
-        tau_scale = 28*use_tau_unNat/1000
-        bin_num_ms = (dt/0.001)
-        w_r = 3*tau_scale**2/2*(bin_num_ms)**2*26.61
-        
-        I = np.eye(3)
-        zero_col = np.zeros([3, 1])
-        zero_row = np.zeros([1, 3])
-        zero = np.zeros([1,1])
-        one = np.ones([1,1])
-        A = np.bmat([[I, dt*I, zero_col], 
-                     [0*I, 0*I, zero_col], 
-                     [zero_row, zero_row, one]])
-        B = np.bmat([[0*I], 
-                     [dt/1e-3 * I],
-                     [zero_row]])
-        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
-        R = np.mat(np.diag([w_r, w_r, w_r]))
-        
-        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = dict(target=F, hold=F) 
-        super(OFCLearner3DEndptPPF, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
-
-        # Tell BMISystem that this learner wants the most recent output
-        # of the decoder rather than the second most recent, to matcn MATLAB
-        self.input_state_index = 0
-
 class RegexKeyDict(dict):
     '''
     Dictionary where key matching applies regular expressions in addition to exact matches
@@ -359,6 +297,9 @@ class RegexKeyDict(dict):
             return super(RegexKeyDict, self).__getitem__(matching_keys[0])
 
     def __contains__(self, key):
+        '''
+        Determine if a key is in the dictionary using regular expression matching
+        '''
         keys = self.keys()
         matching_keys = filter(lambda x: re.match(x, key), keys)
         if len(matching_keys) == 0:
@@ -368,568 +309,84 @@ class RegexKeyDict(dict):
         else:
             return True        
 
-class OFCLearnerTentacle(OFCLearner):
-    '''    Docstring    '''
-    def __init__(self, batch_size, A, B, Q, R, *args, **kwargs):
-        '''    Docstring    '''
-        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = RegexKeyDict()
-        # F_dict['target'] = F
-        # F_dict['hold'] = F
-        F_dict['.*'] = F
-        super(OFCLearnerTentacle, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
-
-class TentacleValueLearner(Learner):
-    _mean = 24.5
-    _mean_alpha = 0.99
-    def __init__(self, *args, **kwargs):
-        if 'kin_chain' not in kwargs:
-            raise ValueError("kin_chain object must specified for TentacleValueLearner!")
-        self.kin_chain = kwargs.pop('kin_chain')
-        super(TentacleValueLearner, self).__init__(*args, **kwargs)
-
-        dt = 0.1
-        use_tau_unNat = 2.7
-        tau = use_tau_unNat
-        tau_scale = 28*use_tau_unNat/1000
-        bin_num_ms = (dt/0.001)
-        w_r = 3*tau_scale**2/2*(bin_num_ms)**2*26.61
-
-        I = np.eye(3)
-        zero_col = np.zeros([3, 1])
-        zero_row = np.zeros([1, 3])
-        zero = np.zeros([1,1])
-        one = np.ones([1,1])
-        A = self.A = np.bmat([[I, dt*I, zero_col], 
-                     [0*I, 0*I, zero_col], 
-                     [zero_row, zero_row, one]])
-        B = self.B = np.bmat([[0*I], 
-                     [dt/1e-3 * I],
-                     [zero_row]])
-        Q = self.Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
-        R = self.R = np.mat(np.diag([w_r, w_r, w_r]))
-
-        self.F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-
-    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        '''
-        This method of intention estimation just uses the subject's output 
-        '''
-        return decoder_output.reshape(-1,1)
-
-    def calc_value(self, current_state, target_state, decoder_output, task_state, state_order=None, horizon=10, **kwargs):
-        '''
-        Determine the 'value' of a tentacle movement (4-link arm) 
-        '''
-        current_state = np.array(current_state).ravel()
-        target_state = np.array(target_state).ravel()
-        
-        joint_pos = current_state[:self.kin_chain.n_links]
-        endpt_pos = self.kin_chain.endpoint_pos(joint_pos)
-        J = self.kin_chain.jacobian(-joint_pos)
-        joint_vel = current_state[4:8] ### TODO remove hardcoding
-        endpt_vel = np.dot(J, joint_vel)
-        current_state_endpt = np.hstack([endpt_pos, endpt_vel[0], 0, endpt_vel[1], 1])
-
-        target_pos = self.kin_chain.endpoint_pos(target_state[:self.kin_chain.n_links])
-        target_vel = np.zeros(len(target_pos))
-        target_state_endpt = np.hstack([target_pos, target_vel, 1])
-
-
-        current_state = current_state_endpt
-        target_state = target_state_endpt
-        current_state = np.mat(current_state).reshape(-1,1)
-        target_state = np.mat(target_state).reshape(-1,1)
-
-        F = self.F
-        A = self.A 
-        B = self.B
-        Q = self.Q
-        R = self.R
-
-        cost = 0
-        for k in range(horizon):
-            u = F*(target_state - current_state)
-            m = current_state - target_state
-            cost += (m.T * Q * m + u.T*0*u)[0,0]
-            current_state = A*current_state + B*u
-        return cost
-
-    def postproc_value(self, values):
-        values = np.hstack([-np.inf, values])
-        value_diff = values[:-1] - values[1:]
-        value_diff[value_diff < 0] = 0
-        self._mean = self._mean_alpha*self._mean + (1-self._mean_alpha)*np.mean(value_diff[value_diff > 0])
-        value_diff /= self._mean
-        return value_diff
-
-    def get_batch(self):
-        '''
-        see Learner.get_batch for documentation
-        '''
-        kindata = np.hstack(self.kindata)
-        neuraldata = np.hstack(self.neuraldata)
-        obs_value = np.hstack(self.obs_value)
-        obs_value = self.postproc_value(obs_value)
-
-        self.reset()
-        return dict(intended_kin=kindata, spike_counts=neuraldata, value=obs_value)
-
-
-class CursorGoalLearner2(Learner):
-    '''
-    CLDA intention estimator based on CursorGoal/Refit-KF ("innovation 1" in Gilja*, Nuyujukian* et al, Nat Neurosci 2012)
-    '''
-    def __init__(self, *args, **kwargs):
-        '''
-        Constructor for CursorGoalLearner2
-
-        Parameters
-        ----------
-        int_speed_type: string, optional, default='dist_to_target'
-            Specifies the method to use to estimate the intended speed of the target.
-            * dist_to_target: scales based on remaining distance to the target position
-            * decoded_speed: use the speed output provided by the decoder, i.e., the difference between the intention and the decoder output can be described by a pure vector rotation
-
-        Returns
-        -------
-        CursorGoalLearner2 instance
-        '''
-        int_speed_type = kwargs.pop('int_speed_type', 'dist_to_target')
-        self.int_speed_type = int_speed_type
-        if not self.int_speed_type in ['dist_to_target', 'decoded_speed']:
-            raise ValueError("Unknown type of speed for cursor goal: %s" % self.int_speed_type)
-
-        super(CursorGoalLearner2, self).__init__(*args, **kwargs)
-
-        if self.int_speed_type == 'dist_to_target':
-            self.input_state_index = 0
-
-    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        """
-        Calculate the intended kinematics and pair with the neural data
-        """
-        if state_order is None:
-            raise ValueError("New cursor goal requires state order to be specified!")
-
-        # The intended direction (abstract space) from the current state of the decoder to the target state for the task
-        int_dir = target_state - decoder_state
-        vel_inds, = np.nonzero(state_order == 1)
-        pos_inds, = np.nonzero(state_order == 0)
-        
-        # Calculate intended speed
-        if task_state in ['hold', 'origin_hold', 'target_hold']:
-            speed = 0
-        #elif task_state in ['target', 'origin', 'terminus']:
-        else:
-            if self.int_speed_type == 'dist_to_target':
-                speed = np.linalg.norm(int_dir[pos_inds])
-            elif self.int_speed_type == 'decoded_speed':
-                speed = np.linalg.norm(decoder_output[vel_inds])
-        #else:
-        #    speed = np.nan
-
-        int_vel = speed*normalize(int_dir[pos_inds])
-        int_kin = np.hstack([decoder_output[pos_inds], int_vel, 1]).reshape(-1, 1)
-
-        if np.any(np.isnan(int_kin)):
-            int_kin = None
-
-        return int_kin
-
-    def __call__(self, spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        """
-        Calculate the intended kinematics and pair with the neural data
-        """
-        if state_order is None:
-            raise ValueError("CursorGoalLearner2.__call__ requires state order to be specified!")
-        super(CursorGoalLearner2, self).__call__(spike_counts, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
-    
-
-###################
-## iBMI learners ##
-###################
-
-# simple iBMI learners that just use an "assister" object
-
-class ArmAssistLearner(Learner):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        assist_speed   = kwargs.pop('assist_speed', 2.)
-        target_radius  = kwargs.pop('target_radius', 2.)
-        assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
-        self.assister = assist.ArmAssistAssister(**assister_kwargs)
-
-        super(ArmAssistLearner, self).__init__(*args, **kwargs)
-
-        self.input_state_index = -1
-
-    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        """Calculate/estimate the intended ArmAssist kinematics."""
-        current_state = decoder_state[:, None]  # assister expects shape to be (7, 1)
-        target_state  = target_state[:, None]   # assister expects shape to be (7, 1)
-        intended_state = self.assister(current_state, target_state, 1)[0]
-
-        return intended_state
-
-    def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        '''Calculate the intended kinematics and pair with the neural data.'''
-        super(ArmAssistLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
-
-
-class ReHandLearner(Learner):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        assist_speed   = kwargs.pop('assist_speed', 2.)
-        target_radius  = kwargs.pop('target_radius', 2.)
-        assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
-        self.assister = assist.ReHandAssister(**assister_kwargs)
-
-        super(ReHandLearner, self).__init__(*args, **kwargs)
-
-        self.input_state_index = -1
-
-    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        """Calculate/estimate the intended ReHand kinematics."""
-        current_state = decoder_state[:, None]  # assister expects shape to be (9, 1)
-        target_state  = target_state[:, None]   # assister expects shape to be (9, 1)
-        intended_state = self.assister(current_state, target_state, 1)[0]
-
-        return intended_state
-
-    def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        '''Calculate the intended kinematics and pair with the neural data.'''
-        super(ReHandLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
-
-
-class IsMoreLearner(Learner):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        decoder_binlen = kwargs.pop('decoder_binlen', 0.1)
-        assist_speed   = kwargs.pop('assist_speed', 2.)
-        target_radius  = kwargs.pop('target_radius', 2.)
-        assister_kwargs = dict(decoder_binlen=decoder_binlen, target_radius=target_radius, assist_speed=assist_speed)
-        self.assister = assist.IsMoreAssister(**assister_kwargs)
-
-        super(IsMoreLearner, self).__init__(*args, **kwargs)
-
-        self.input_state_index = -1
-
-    def calc_int_kin(self, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        """Calculate/estimate the intended ArmAssist+ReHand kinematics."""
-        current_state = decoder_state[:, None]  # assister expects shape to be (15, 1)
-        target_state  = target_state[:, None]   # assister expects shape to be (15, 1)
-        intended_state = self.assister(current_state, target_state, 1)[0]
-
-        return intended_state
-
-    def __call__(self, neural_features, decoder_state, target_state, decoder_output, task_state, state_order=None):
-        '''Calculate the intended kinematics and pair with the neural data.'''
-        super(IsMoreLearner, self).__call__(neural_features, decoder_state, target_state, decoder_output, task_state, state_order=state_order)
-
-
-# OFC iBMI learners
-
-class ArmAssistOFCLearner(OFCLearner):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, batch_size, *args, **kwargs):
-        '''Specific instance of the OFCLearner for the ArmAssist.'''
-        dt = kwargs.pop('dt', 0.1)
-
-        ssm = StateSpaceArmAssist()
-        A, B, _ = ssm.get_ssm_matrices()
-        
-        # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 1., 0, 0, 0, 0]))
-        self.Q = Q
-        
-        R = 1e7 * np.mat(np.diag([1., 1., 1.]))
-        self.R = R
-
-        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = RegexKeyDict()
-        F_dict['.*'] = F
-
-        super(ArmAssistOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
-
-        self.input_state_index = -1
-    
-    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        '''Overriding to account for proper subtraction of angles.'''
-        try:
-            current_state = np.mat(current_state).reshape(-1, 1)
-            target_state = np.mat(target_state).reshape(-1, 1)
-            F = self.F_dict[task_state]
-            A = self.A
-            B = self.B
-
-            diff = target_state - current_state
-            diff[2] = angle_subtract(target_state[2], current_state[2])
-
-            u = F*diff
-            state_cost = diff.T * self.Q * diff
-            ctrl_cost  = u.T * self.R * u
-
-            # print 'target_state:', target_state
-            # print 'state x cost:', diff[0]**2 * float(self.Q[0, 0])
-            # print 'state y cost:', diff[1]**2 * float(self.Q[1, 1])
-            # print 'state z cost:', diff[2]**2 * float(self.Q[2, 2])
-            # print 'u x cost:', u[0]**2 * float(self.R[0, 0])
-            # print 'u y cost:', u[1]**2 * float(self.R[1, 1])
-            # print 'u z cost:', u[2]**2 * float(self.R[2, 2])
-            # print 'state cost:', float(state_cost)
-            # print 'ctrl cost:', float(ctrl_cost)
-            # print '\n'
-
-            return A*current_state + B*F*(diff)        
-        except KeyError:
-            return None
-
-
-class ReHandOFCLearner(OFCLearner):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, batch_size, *args, **kwargs):
-        '''Specific instance of the OFCLearner for the ReHand.'''
-        dt = kwargs.pop('dt', 0.1)
-
-        ssm = StateSpaceReHand()
-        A, B, _ = ssm.get_ssm_matrices()
-        
-        # TODO -- velocity cost? not necessary?
-        Q = np.mat(np.diag([1., 1., 1., 1., 0, 0, 0, 0, 0]))
-        self.Q = Q
-        
-        R = 1e7 * np.mat(np.diag([1., 1., 1., 1.]))
-        self.R = R
-
-        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = RegexKeyDict()
-        F_dict['.*'] = F
-
-        super(ReHandOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
-
-        self.input_state_index = -1
-    
-    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        '''Overriding to account for proper subtraction of angles.'''
-        try:
-            current_state = np.mat(current_state).reshape(-1, 1)
-            target_state = np.mat(target_state).reshape(-1, 1)
-            F = self.F_dict[task_state]
-            A = self.A
-            B = self.B
-
-            diff = target_state - current_state
-            for i in range(4):
-                diff[i] = angle_subtract(target_state[i], current_state[i])
-
-            return A*current_state + B*F*(diff)        
-        except KeyError:
-            return None
-
-
-class IsMoreOFCLearner(OFCLearner):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def __init__(self, batch_size, *args, **kwargs):
-        '''Specific instance of the OFCLearner for full IsMore system
-        (ArmAssist + ReHand).'''
-        dt = kwargs.pop('dt', 0.1)
-
-        ssm = StateSpaceIsMore()
-        A, B, _ = ssm.get_ssm_matrices()
-        
-        # TODO -- velocity cost? not necessary?
-        Q = 1*np.mat(np.diag([1., 1., 1., 1., 1., 1., 1., 0, 0, 0, 0, 0, 0, 0, 0]))
-        self.Q = Q
-        
-        R = 1e7 * np.mat(np.diag([1., 1., 1., 1., 1., 1., 1.]))
-        self.R = R
-
-        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = RegexKeyDict()
-        F_dict['.*'] = F
-
-        super(IsMoreOFCLearner, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
-
-        self.input_state_index = -1
-    
-    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        '''Overriding to account for proper subtraction of angles.'''
-        try:
-            current_state = np.mat(current_state).reshape(-1, 1)
-            target_state = np.mat(target_state).reshape(-1, 1)
-            F = self.F_dict[task_state]
-            A = self.A
-            B = self.B
-
-            diff = target_state - current_state
-            for i in range(2, 7):
-                diff[i] = angle_subtract(target_state[i], current_state[i])
-
-            # print 'diff:'
-            # print diff
-            # print 'A*current_state'
-            # print A*current_state
-            BF = B*F
-            print 'c1:', BF[7,0]
-            print 'c2:', BF[7,7]
-            print 'B*F*diff'
-            print B*F*diff
-            return A*current_state + B*F*(diff)        
-        except KeyError:
-            return None
-
-
-
 ##############################################################################
 ## Updaters
 ##############################################################################
+from riglib.mp_calc import MPCompute
 class Updater(object):
     '''
-    Classes for updating decoder parameters
+    Wrapper for MPCompute computations running in another process
     '''
+    def __init__(self, fn, multiproc=False, verbose=False):
+        self.verbose = verbose
+        self.multiproc = multiproc
+        if self.multiproc:
+            # create the queues
+            self.work_queue = mp.Queue()
+            self.result_queue = mp.Queue()
+
+            # Instantiate the process
+            self.calculator = MPCompute(self.work_queue, self.result_queue, fn)
+
+            # spawn the process
+            self.calculator.start()
+        else:
+            self.fn = fn
+
+        self._result = None
+        self.waiting = False
+
     def init(self, decoder):
         pass
 
-class CLDARecomputeParameters(mp.Process):
-    '''    Docstring    '''
-    update_kwargs = dict() 
-    def __init__(self, work_queue, result_queue):
-        ''' 
-        Parameters
-        ----------
-        work_queue : mp.Queue
-            Jobs start when an entry is found in work_queue
-        result_queue : mp.Queues
-            Results of job are placed back onto result_queue
+    def __call__(self, *args, **kwargs):
+        input_data = (args, kwargs)
+        if self.multiproc:
+            if self.verbose: print "queuing job"
+            self.work_queue.put(input_data)    
+            self.prev_input = input_data
+            self.waiting = True
+        else:
+            self._result = self.fn(*args, **kwargs)
+
+    def get_result(self):
+        if self.multiproc:
+            try:
+                output_data = self.result_queue.get_nowait()
+                self.prev_result = output_data
+                self.waiting = False
+                return output_data
+            except Queue.Empty:
+                return None
+            except:
+                import traceback
+                traceback.print_exc()
+        else:
+            res = self._result
+            self._result = None
+            return res
+
+    def __del__(self):
         '''
-        # run base constructor
-        super(CLDARecomputeParameters, self).__init__()
+        Stop the child process if one was spawned
+        '''
+        if self.multiproc:
+            self.calculator.stop()
 
-        self.work_queue = work_queue
-        self.result_queue = result_queue
-        self.done = mp.Event()
 
-    def _check_for_job(self):
+class KFSmoothbatch(Updater):
+    '''
+    Calculate KF Parameter updates using the SmoothBatch method. See [Orsborn et al, 2012] for mathematical details
+    '''
+    update_kwargs = dict(steady_state=True)
+    def __init__(self, batch_time, half_life):
         '''    Docstring    '''
-        try:
-            job = self.work_queue.get_nowait()
-        except:
-            job = None
-        return job
+        super(KFSmoothbatch, self).__init__(self.calc, multiproc=False)
+        self.half_life = half_life
+        self.batch_time = batch_time
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         
-    def run(self):
-        '''    Docstring    '''
-        while not self.done.is_set():
-            job = self._check_for_job()
-
-            # unpack the data
-            if not job == None:
-                new_params = self.calc(*job)
-                self.result_queue.put(new_params)
-
-            # Pause to lower the process's effective priority
-            time.sleep(0.5)
-
-    def calc(self, *args, **kwargs):
-        """
-        Re-calculate parameters based on input arguments.  This
-        method should be overwritten for any useful CLDA to occur!
-        """
-        return None
-
-    def stop(self):
-        '''    Docstring    '''
-        self.done.set()
-
-class KFSmoothbatchSingleThread(object):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
         """
         Smoothbatch calculations
 
@@ -947,7 +404,7 @@ class KFSmoothbatchSingleThread(object):
         C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(
             intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
 
-        if half_life is not None:
+        if not (half_life is None):
             rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
         else:
             rho = self.rho 
@@ -964,30 +421,19 @@ class KFSmoothbatchSingleThread(object):
             'mFR':mFR, 'sdFR':sdFR}
         return new_params
 
-class KFSmoothbatch(KFSmoothbatchSingleThread, CLDARecomputeParameters):
-    '''    Docstring    '''
-    update_kwargs = dict(steady_state=True)
-    def __init__(self, work_queue, result_queue, batch_time, half_life):
-        '''    Docstring    '''
-        super(KFSmoothbatch, self).__init__(work_queue, result_queue)
-        self.half_life = half_life
-        self.batch_time = batch_time
-        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-        
-class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
-    '''    Docstring    '''
-    def __init__(self, default_gain=None):
-        self.default_gain = default_gain
 
-    @classmethod
-    def scalar_riccati_eq_soln(cls, a, w, n):
-        '''    Docstring    '''
-        return (1-a*n)/w * (a-n)/n 
+class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
+    '''    Docstring    '''
+    def __init__(self, *args, **kwargs):
+        '''    
+        Docstring    
+        '''
+        self.default_gain = kwargs.pop('default_gain', None)
+        suoer(KFOrthogonalPlantSmoothbatch, self).__init__(*args, **kwargs)
 
     def calc(self, *args, **kwargs):
         '''    Docstring    '''
-        # args = (intended_kin, spike_counts, rho, decoder)
-        new_params = super(KFOrthogonalPlantSmoothbatchSingleThread, self).calc(*args, **kwargs)
+        new_params = super(KFOrthogonalPlantSmoothbatch, self).calc(*args, **kwargs)
         C, Q, = new_params['kf.C'], new_params['kf.Q']
 
         D = (C.T * np.linalg.pinv(Q) * C)
@@ -1000,7 +446,7 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
             W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
             D_diag = []
             for a, w, n in izip(A_diag, W_diag, self.default_gain):
-                d = KFOrthogonalPlantSmoothbatchSingleThread.scalar_riccati_eq_soln(a, w, n)
+                d = self.scalar_riccati_eq_soln(a, w, n)
                 D_diag.append(d)
 
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
@@ -1010,16 +456,15 @@ class KFOrthogonalPlantSmoothbatchSingleThread(KFSmoothbatchSingleThread):
         return new_params
 
 
-class KFOrthogonalPlantSmoothbatch(KFOrthogonalPlantSmoothbatchSingleThread, KFSmoothbatch):
+class PPFSmoothbatch(Updater):
     '''    Docstring    '''
-    def __init__(self, *args, **kwargs):
+    def __init__(self, batch_time, half_life):
         '''    Docstring    '''
-        self.default_gain = kwargs.pop('default_gain', None)
-        KFSmoothbatch.__init__(self, *args, **kwargs)
-        
-class PPFSmoothbatchSingleThread(object):
-    '''    Docstring    '''
-    def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
+        super(PPFSmoothbatch, self).__init__(self.calc, multiproc=True)
+        self.half_life = half_life
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
+
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
         """
         Smoothbatch calculations
 
@@ -1052,16 +497,6 @@ class PPFSmoothbatchSingleThread(object):
         new_params = {'filt.C':C}
         return new_params
 
-
-class PPFSmoothbatch(PPFSmoothbatchSingleThread, CLDARecomputeParameters):
-    '''    Docstring    '''
-    def __init__(self, work_queue, result_queue, batch_time, half_life):
-        '''    Docstring    '''
-        super(PPFSmoothbatch, self).__init__(work_queue, result_queue)
-        self.half_life = half_life
-        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-
-
 class PPFContinuousBayesianUpdater(Updater):
     '''
     Adapt the parameters of a PPFDecoder using an HMM to implement a gradient-descent type parameter update.
@@ -1082,6 +517,8 @@ class PPFContinuousBayesianUpdater(Updater):
         param_noise_scale : float
             Multiplicative factor to increase the parameter "process noise". Higher values result in faster but less stable parameter convergence.
         '''
+        super(PPFContinuousBayesianUpdater, self).__init__(self.calc, multiproc=False)
+
         self.n_units = decoder.filt.C.shape[0]
         if param_noise_variances == None:
             if units == 'm':
@@ -1107,7 +544,7 @@ class PPFContinuousBayesianUpdater(Updater):
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, **kwargs):
         '''    Docstring    '''
-        if intended_kin == None or spike_counts == None or decoder == None:
+        if (intended_kin is None) or (spike_counts is None) or (decoder is None):
             raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")        
         int_kin_full = intended_kin
         spike_obs_full = spike_counts
@@ -1131,9 +568,16 @@ class PPFContinuousBayesianUpdater(Updater):
             C_xpose_C = np.outer(int_kin, int_kin)
 
             self.P_params_est += self.W
-            P_params_est_inv = fast_inv(self.P_params_est)
+            try:
+                P_params_est_inv = fast_inv(self.P_params_est)
+            except:
+                P_params_est_inv = slow_inv(self.P_params_est)
             L = np.dstack([rates[c] * C_xpose_C for c in range(self.n_units)]).transpose([2,0,1])
-            self.P_params_est = fast_inv(P_params_est_inv + L)
+
+            try:
+                self.P_params_est = fast_inv(P_params_est_inv + L)
+            except:
+                self.P_params_est = slow_inv(P_params_est_inv + L)
 
             beta_est += (unpred_spikes * np.dot(int_kin, self.P_params_est).T).T
 
@@ -1149,16 +593,12 @@ class KFRML(Updater):
     See (Dangi et al, Neural Computation, 2014) for mathematical details.
     '''
     update_kwargs = dict(steady_state=False)
-    def __init__(self, work_queue, result_queue, batch_time, half_life, adapt_C_xpose_Q_inv_C=True):
+    def __init__(self, batch_time, half_life, adapt_C_xpose_Q_inv_C=True):
         '''
         Constructor for KFRML
 
         Parameters
         ----------
-        work_queue : None
-            Not used for this method!
-        result_queue : None
-            Not used for this method!
         batch_time : float
             Size of data batch to use for each update. Specify in seconds.
         half_life : float 
@@ -1170,14 +610,16 @@ class KFRML(Updater):
         Returns
         -------
         KFRML instance
-
         '''
-        self.work_queue = None
+        super(KFRML, self).__init__(self.calc, multiproc=False)
+        # self.work_queue = None
         self.batch_time = batch_time
-        self.result_queue = None        
+        # self.result_queue = None        
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         self.adapt_C_xpose_Q_inv_C = adapt_C_xpose_Q_inv_C
+
+        self._new_params = None
 
     @staticmethod
     def compute_suff_stats(hidden_state, obs, include_offset=True):
@@ -1344,9 +786,13 @@ class KFRML(Updater):
             new_params['filt.C_xpose_Q_inv_C'] = decoder.filt.C_xpose_Q_inv_C
             new_params['filt.R'] = decoder.filt.R
 
+        self._new_params = new_params
         return new_params
 
     def set_stable_inds(self, stable_inds, stable_inds_independent=False):
+        '''
+        Docstring
+        '''
         self.stable_inds = stable_inds
         self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds))
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
@@ -1447,16 +893,10 @@ class PPFRML(KFRML):
 
 class KFRML_IVC(KFRML):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    RML version where diagonality constraints are imposed on the steady state KF matrices
     '''
     default_gain = None
-    def calc(self, *args, **kwargs):
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
         '''
         Docstring
 
@@ -1466,8 +906,8 @@ class KFRML_IVC(KFRML):
         Returns
         -------
         '''
-        new_params = super(KFRML_IVC, self).calc(*args, **kwargs)
-        C, Q, = new_params['kf.C'], new_params['kf.Q']
+        new_params = super(KFRML_IVC, self).calc(intended_kin=intended_kin, spike_counts=spike_counts, decoder=decoder, half_life=half_life, values=values, **kwargs)
+        C, Q, = new_params['filt.C'], new_params['filt.Q']
 
         D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
@@ -1478,15 +918,20 @@ class KFRML_IVC(KFRML):
             A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
             W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
             D_diag = []
-            for a, w, n in izip(A_diag, W_diag, self.default_gain):
-                d = KFOrthogonalPlantSmoothbatchSingleThread.scalar_riccati_eq_soln(a, w, n)
+            for a, w, n in izip(A_diag, W_diag, [self.default_gain]*3):
+                d = self.scalar_riccati_eq_soln(a, w, n)
                 D_diag.append(d)
 
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
 
-        new_params['kf.C_xpose_Q_inv_C'] = D
-        new_params['kf.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
+        new_params['filt.C_xpose_Q_inv_C'] = D
+        new_params['filt.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
         return new_params
+
+    @classmethod
+    def scalar_riccati_eq_soln(cls, a, w, n):
+        '''    Docstring    '''
+        return (1-a*n)/w * (a-n)/n         
 
 
 class KFRML_baseline(KFRML):
@@ -1534,6 +979,7 @@ class KFRML_baseline(KFRML):
         return new_params
 
 
+
 def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
     '''
     Save CLDA data generated during the experiment to the specified HDF file
@@ -1565,7 +1011,10 @@ def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
         dtype = []
         shapes = []
         for col_name in table_col_names:
-            shape = first_update[col_name].shape
+            if isinstance(first_update[col_name], float):
+                shape = (1,)
+            else:
+                shape = first_update[col_name].shape
             dtype.append((col_name.replace('.', '_'), 'f8', shape))
             shapes.append(shape)
     

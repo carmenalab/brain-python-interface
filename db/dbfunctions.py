@@ -332,7 +332,7 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
             pass
     return dec_list
 
-def get_task_entries_by_date(subj=None, date=datetime.date.today(), **kwargs):
+def get_task_entries_by_date(subj=None, date=datetime.date.today(), dbname='default', **kwargs):
     '''
     Get all the task entries for a particular date
 
@@ -359,7 +359,7 @@ def get_task_entries_by_date(subj=None, date=datetime.date.today(), **kwargs):
     elif subj is not None:
         kwargs['subject__name'] = subj.name
 
-    return list(models.TaskEntry.objects.using(db_name).filter(**kwargs))
+    return list(models.TaskEntry.objects.using(dbname).filter(**kwargs))
 
 def load_last_decoder():
     '''
@@ -390,7 +390,7 @@ class TaskEntry(object):
         if isinstance(task_entry_id, models.TaskEntry):
             self.record = task_entry_id
         else:
-            self.record = models.TaskEntry.objects.using(self.dbname).get(id=task_entry_id) #lookup_task_entries(task_entry_id)
+            self.record = models.TaskEntry.objects.using(self.dbname).get(id=task_entry_id)
         self.id = self.record.id
         self.params = self.record.params
         if (isinstance(self.params, str) or isinstance(self.params, unicode)) and len(self.params) > 0:
@@ -425,7 +425,10 @@ class TaskEntry(object):
                 self.decoder_record = None
 
         # Load the event log (report)
-        self.report = json.loads(self.record.report)
+        try:
+            self.report = json.loads(self.record.report)
+        except:
+            self.report = ''
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
@@ -534,7 +537,12 @@ class TaskEntry(object):
         newdata = dict()
         for key in blockset_data:
             newdata[key] = data_comb_fn(blockset_data[key])
-        return newdata
+
+        if len(newdata.keys()) == 1:
+            key = newdata.keys()[0]
+            return newdata[key]
+        else:
+            return newdata
 
     @property 
     def supplementary_data_file(self):
@@ -876,121 +884,64 @@ class TaskEntry(object):
         files = dict((d.system.name, d.get_path()) for d in datafiles)    
         return files
 
-class TaskEntrySet(object):
-    def __init__(self, blocks, name=''):
-        from analysis import performance
-        self.task_entries = map(performance._get_te, blocks)
-        self.name = name
+    def save_to_database(self, new_db):
+        '''
+        Save the current task entry (and associated records) to a different database
+        '''
+        current_db = self.record._state.db
+        if current_db == new_db:
+            print "new database and current database are the same!"
+            return
 
-    def map(self, fn):
-        return np.array(map(fn, self.task_entries))
+        # save the subject
+        self.record.subject.save(using=new_db)
 
-    def __getattr__(self, attr):
-        return self.map(lambda te: getattr(te, attr))
+        # save the task
+        self.record.task.save(using=new_db)        
 
-    def boxplot(self, attr, ax, plotattr=lambda x: '', xlabel=True):
-        ax.boxplot(getattr(self, attr))
-        if xlabel:
-            ticklabels = [te.plot_ticklabel + plotattr(te) for te in self.task_entries]
-            ax.set_xticklabels(ticklabels)
+        # save the task entry record
+        self.record.save(using=new_db)
 
-    def scatterplot(self, attr, ax, plotattr=lambda x: '', xlabel=True):
-        data = getattr(self, attr)
-        plotutil.set_axlim(ax, [0, len(data)])
-        plot_pts = np.arange(0., len(data)) + 0.5
-        ax.scatter(plot_pts, data)
-        ax.set_xticklabels(plot_pts)
-        ax.set_xticks(plot_pts)
+        # save the records of the datafiles associated with the task entry
+        # A bit of circuswork is required to move the DataFiles because they have a foreign key for the system that correspomds to the datafile
+        datafiles = models.DataFile.objects.using(current_db).filter(entry_id=self.id)
+        for d in datafiles:
+            sys_name = d.system.name
+            d.save(using=new_db)
+            new_sys = models.System.objects.using(new_db).get(name=d.system.name)
+            d.system = new_sys
+            d.save()            
 
-        if xlabel:
-            ticklabels = [te.plot_ticklabel + plotattr(te) for te in self.task_entries]
-            ax.set_xticklabels(ticklabels)
-        ax.set_xlim([0, len(data)])
+        # save any decoder records used by this block
+        if not (self.decoder_record is None):
+            self.decoder_record.save(using=new_db)
 
-    def histogram(self, fn, ax, bins, labels=None):
-        if labels == None:
-            labels = ['']*len(self.task_entries)
-        colors = plotutil.colors.values()
-        for k, te in enumerate(self.task_entries):
-            data = fn(te)
-            plotutil.histogram_line(ax, data, bins, color=colors[k], linewidth=2, label=labels[k])
-            
-    def init_plot(self, ax):
-        if ax == None:
-            plt.figure()
-            ax = plt.subplot(111)
-        return ax
-        
-    def plot_reach_time(self, ax=None, **kwargs):
-        ax = self.init_plot(ax)
-        self.boxplot('reach_time', ax, **kwargs)
-        plotutil.set_axlim(ax, [0, 4], [0, 1, 2, 3, 4], axis='y')
-        plotutil.ylabel(ax, 'Reach time (s)')
+    def get_state_inds(self, state_name):
+        '''
+        Determine the rows of the task table in which the task is in a particular state.
+        '''
+        task_msgs = self.hdf.root.task_msgs[:]
+        n_msgs = len(task_msgs)
+        msg_inds = np.array(filter(lambda k: task_msgs[k]['msg'] == state_name, range(n_msgs)))
 
-    def plot_ME(self, ax=None, **kwargs):
-        ax = self.init_plot(ax)
-        self.boxplot('ME', ax, **kwargs)
-        plotutil.set_axlim(ax, [0, 2.], axis='y')
-        plotutil.ylabel(ax, 'Movement\nerror (cm)')
-        
-    def plot_MV(self, ax=None, **kwargs):
-        ax = self.init_plot(ax)
-        self.boxplot('MV', ax, **kwargs)
-        plotutil.set_axlim(ax, [0, 1.], axis='y')
-        plotutil.ylabel(ax, 'Movement\nvariability (cm)')
-        
-    def plot_perc_correct(self, ax=None, **kwargs):
-        ax = self.init_plot(ax)
-        self.scatterplot('perc_correct', ax, **kwargs)
-        plotutil.set_axlim(ax, [0.6, 1.], labels=[0.6, 0.7, 0.8, 0.9, 1.0], axis='y')
-        plotutil.ylabel(ax, '% correct', offset=-0.06)
+        inds = np.zeros(len(self.hdf.root.task), dtype=bool)
+        for idx in msg_inds:
+            if task_msgs[idx+1]['msg'] == 'None':
+                break
+            for k in range(task_msgs[idx]['time'], task_msgs[idx+1]['time']+1):
+                inds[k] = 1
+        return inds
 
-    def plot_perf_summary(self, **kwargs):
-        plt.figure(figsize=(8,8), facecolor='w')
-        axes = plotutil.subplots(4, 1, return_flat=True, y=0.05)
-        self.plot_reach_time(axes[0], xlabel=False, **kwargs)
-        self.plot_ME(axes[1], xlabel=False, **kwargs)
-        self.plot_MV(axes[2], xlabel=False, **kwargs)
-        self.plot_perc_correct(axes[3], xlabel=True, **kwargs)
-        plt.suptitle(self.name)
-
-
-    @classmethod
-    def construct_from_queryset(cls, name='', filter_fns=[], **kwargs):
-        blocks = get_task_entries_by_date(**kwargs)
-        if name == '': name = str(kwargs)
-
-        # iteratively apply the filter functions
-        for fn in filter_fns:
-            blocks = filter(fn, blocks)
-
-        task_entry_set = TaskEntrySet(blocks, name=name)
-        return task_entry_set
-        
-    @classmethod
-    def get_blocks(cls, name='', filter_fns=[], **kwargs):
-        blocks = get_task_entries_by_date(**kwargs)
-        if name == '': name = str(kwargs)
-
-        # iteratively apply the filter functions
-        for fn in filter_fns:
-            blocks = filter(fn, blocks)
-
-        return blocks
-
-
-
-def parse_blocks(blocks, **kwargs):
+def parse_blocks(blocks, cls=TaskEntry, **kwargs):
     '''
     Parse out a hierarchical structure of block ids. Used to construct TaskEntryCollection objects
     '''
     data = []
-    from analysis import performance
     for block in blocks:
         if np.iterable(block):
-            te = parse_blocks(block, **kwargs)
+            te = parse_blocks(block, cls=cls, **kwargs)
         else:
-            te = performance._get_te(block, **kwargs)
+            te = cls(block, **kwargs)
         data.append(te)
     return data
 
@@ -999,22 +950,24 @@ class TaskEntryCollection(object):
     '''
     Container for analyzing multiple task entries with an arbitrarily deep hierarchical structure
     '''
-    def __init__(self, blocks, name='', **kwargs):
+    def __init__(self, blocks, name='', cls=TaskEntry, **kwargs):
         '''
         Constructor for TaskEntryCollection
 
         Parameters
         ----------
-        blocks: np.iterable
+        blocks : np.iterable
             Some iterable object which contains TaskEntry ID numbers to look up in the database
-        name: string, optional, default=''
+        name : string, optional, default=''
             Name to give this collection 
+        cls : type, optional, default=TaskEntry
+            class constructor to use for all the IDs. Uses the generic TaskEntry defined above by default
 
         Returns
         -------
         '''
         self.block_ids = blocks
-        self.blocks = parse_blocks(blocks, **kwargs)
+        self.blocks = parse_blocks(blocks, cls=cls, **kwargs)
         self.kwargs = kwargs
         self.name = name
 

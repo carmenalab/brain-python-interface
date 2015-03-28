@@ -53,6 +53,7 @@ class MPCompute(mp.Process):
     def run(self):
         '''
         Docstring
+        The main loop. Starts automatically when 
 
         Parameters
         ----------
@@ -60,9 +61,6 @@ class MPCompute(mp.Process):
         Returns
         -------
         '''
-        """
-        The main loop. Starts automatically when 
-        """
         while not self.done.is_set():
             job = self._check_for_job()
 
@@ -100,13 +98,7 @@ class MPCompute(mp.Process):
 
 class FuncProxy(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Wrapper for MPCompute computations running in another process
     '''
     def __init__(self, fn, multiproc=False, waiting_resp=None, init_resp=None, verbose=False):
         self.verbose = verbose
@@ -164,6 +156,7 @@ class FuncProxy(object):
             elif self.waiting_resp == 'prev':
                 return self.prev_result, False
         except:
+            import traceback
             traceback.print_exc()
 
     def input_same(self, stuff):
@@ -194,7 +187,6 @@ class FuncProxy(object):
             k2 = kwargs[key2]
             if key1 == 'q_start': 
                 continue
-        # for k1, k2 in izip(kwargs.values(), self.prev_input[1].values()):
             try:
                 kwargs_same = kwargs_same and np.all(k1 == k2)
             except:
@@ -239,14 +231,7 @@ class FuncProxy(object):
 
     def __del__(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Stop the child process if one was spawned
         '''
-        # Stop the child process if one was spawned
         if self.multiproc:
             self.calculator.stop()

@@ -32,11 +32,11 @@ uchar _send(char header, char* msg) {
     uint m, i = 0, flush;
 
     do {
-        // "Load" the data message
+        // "Load" the data message; implicity sets the omniplex Strobe pin to 0
         m = header << 8 | msg[i];
         comedi_dio_bitfield2(ni, 0, writemask, &m, 0);
 
-        // Flash the "Strobed" pin
+        // Turn on the Strobe pin
         flush = 2;
         comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
     } while (msg[i++] != '\0');

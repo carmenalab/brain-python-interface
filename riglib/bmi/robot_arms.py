@@ -241,22 +241,6 @@ class KinematicChain(object):
         pos_rel_to_base = np.array(t[0:3,-1]).ravel()
         return pos_rel_to_base + self.base_loc
 
-    def random_sample(self):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''
-
-        q_start = []
-        for lim_min, lim_max in self.joint_limits:
-            q_start.append(np.random.uniform(lim_min, lim_max))
-        return np.array(q_start)
-
     def ik_cost(self, q, q_start, target_pos, weight=100):
         '''
         Docstring    
@@ -367,7 +351,7 @@ class KinematicChain(object):
         '''
 
         _, allt = self.forward_kinematics(joint_angles, return_allt=True)
-        pos = allt[0:3, -1,:]
+        pos = (allt[0:3, -1,:].T + self.base_loc).T
         # pos = np.hstack([np.zeros([3,1]), pos])
         return pos
 
@@ -416,6 +400,28 @@ class PlanarXZKinematicChain(KinematicChain):
         joint_angles_full = np.hstack([0, joint_angles])
         return self.rotation_convention * joint_angles_full 
 
+    def random_sample(self):
+        '''
+        Sample the joint configuration space within the limits of each joint
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        '''
+        if hasattr(self, 'joint_limits'):
+            joint_limits = self.joint_limits
+        else:
+            joint_limits = [(-np.pi, np.pi)] * self.n_links
+
+        q_start = []
+        for lim_min, lim_max in joint_limits:
+            q_start.append(np.random.uniform(lim_min, lim_max))
+        return np.array(q_start)
+
     def full_angles_to_subset(self, joint_angles):
         '''
         Docstring    
@@ -455,14 +461,8 @@ class PlanarXZKinematicChain(KinematicChain):
     @property 
     def n_joints(self):
         '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''        
+        In a planar arm, the number of joints equals the number of links
+        '''
         return len(self.link_lengths)
 
     def spatial_positions_of_joints(self, *args, **kwargs):
@@ -534,26 +534,53 @@ class PlanarXZKinematicChain(KinematicChain):
         else:
             return self.proximal_chain.inverse_kinematics(target_pos).ravel()
 
-    def jacobian(self, theta):
+    def jacobian(self, theta, old=False):
         '''
-        Docstring    
+        Returns the first derivative of the forward kinematics function for x and z endpoint positions: 
+        [[dx/dtheta_1, ..., dx/dtheta_N]
+         [dz/dtheta_1, ..., dz/dtheta_N]]
         
         Parameters
         ----------
+        theta : np.ndarray of shape (N,)
+            Valid configuration for the arm (the jacobian calculations are specific to the configuration of the arm)
         
         Returns
         -------
-        '''        
-        # l = self.link_lengths
-        # N = len(theta)
-        # J = np.zeros([2, len(l)])
-        # for m in range(N):
-        #     for i in range(m, N):
-        #         J[0, m] += -l[i]*np.sin(sum(self.rotation_convention*theta[:i+1]))
-        #         J[1, m] +=  l[i]*np.cos(sum(self.rotation_convention*theta[:i+1]))
-        # return J
-        J = self.robot.jacob0(self.calc_full_joint_angles(theta))
-        return np.array(J[[0,2], 1:])
+        J : np.ndarray of shape (2, N)
+            Manipulator jacobian in the format above
+        '''   
+        if old: 
+            # Calculate jacobian based on hand calculation specific to this type of chain
+            l = self.link_lengths
+            N = len(theta)
+            J = np.zeros([2, len(l)])
+            for m in range(N):
+                for i in range(m, N):
+                    J[0, m] += -l[i]*np.sin(sum(self.rotation_convention*theta[:i+1]))
+                    J[1, m] +=  l[i]*np.cos(sum(self.rotation_convention*theta[:i+1]))
+            return J 
+        else:
+            # Use the robotics toolbox and the generic D-H convention jacobian
+            J = self.robot.jacob0(self.calc_full_joint_angles(theta))
+            return np.array(J[[0,2], 1:])
+
+    def endpoint_potent_null_split(self, q, vel, return_J=False):
+        '''
+        (Approximately) split joint velocities into an endpoint potent component, 
+        which moves the endpoint, and an endpoint null component which only causes self-motion
+        '''
+        J = self.jacobian(q)
+        J_pinv = np.linalg.pinv(J)
+        J_task = np.dot(J_pinv, J)
+        J_null = np.eye(self.n_joints) - J_task
+
+        vel_task = np.dot(J_task, vel)
+        vel_null = np.dot(J_null, vel)
+        if return_J:
+            return vel_task, vel_null, J, J_pinv
+        else:
+            return vel_task, vel_null
 
     def config_change_nullspace_workspace(self, config1, config2):
         '''
@@ -584,6 +611,60 @@ class PlanarXZKinematicChain(KinematicChain):
             total_joint_displ += np.linalg.norm(endpt1 - single_joint_displ_pos)
             
         return task_displ, total_joint_displ
+
+    def detect_collision(self, theta, obstacle_pos):
+        '''
+        Detect a collision between the chain and a circular object
+        '''
+        spatial_joint_pos = self.spatial_positions_of_joints(theta).T + self.base_loc
+        plant_segments = [(x, y) for x, y in izip(spatial_joint_pos[:-1], spatial_joint_pos[1:])]
+        dist_to_object = np.zeros(len(plant_segments))
+        for k, segment in enumerate(plant_segments):
+            dist_to_object[k] = point_to_line_segment_distance(obstacle_pos, segment)
+        return dist_to_object
+
+    def plot_joint_pos(self, joint_pos, ax=None, flip=False, **kwargs):
+        if ax == None:
+            plt.figure()
+            ax = plt.subplot(111)
+
+        if isinstance(joint_pos, dict):
+            joint_pos = np.vstack(joint_pos.values())
+        elif isinstance(joint_pos, np.ndarray) and np.ndim(joint_pos) == 1:
+            joint_pos = joint_pos.reshape(1, -1)
+        elif isinstance(joint_pos, tuple):
+            joint_pos = np.array(joint_pos).reshape(1, -1)
+
+        for pos in joint_pos:
+            spatial_pos = self.spatial_positions_of_joints(pos).T
+
+            shoulder_anchor = np.array([2., 0., -15.])
+            spatial_pos = spatial_pos# + shoulder_anchor
+            if flip:
+                ax.plot(-spatial_pos[:,0], spatial_pos[:,2], **kwargs)
+            else:
+                ax.plot(spatial_pos[:,0], spatial_pos[:,2], **kwargs)
+        
+        return ax
+
+def point_to_line_segment_distance(point, segment):
+    '''
+    Determine the distance between a point and a line segment. Used to determine collisions between robot arm links and virtual obstacles.
+    Adapted from http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
+    '''
+    v, w = segment
+    l2 = np.sum(np.abs(v - w)**2)
+    if l2 == 0:
+        return np.linalg.norm(v - point)
+
+    t = np.dot(point - v, w - v)/l2
+    if t < 0:
+        return np.linalg.norm(point - v)
+    elif t > 1:
+        return np.linalg.norm(point - w)
+    else:
+        projection = v + t*(w-v)
+        return np.linalg.norm(projection - point)
 
 
 class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
