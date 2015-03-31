@@ -168,6 +168,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         # Register the "task" source with the sinks
         try:
             self.sinks.register("task", self.dtype)
+
         except:
             import traceback
             traceback.print_exc()            
