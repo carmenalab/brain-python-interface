@@ -412,6 +412,7 @@ class onedimLFP_CursorPlant(CursorPlant):
     def drive(self, decoder):
         pos = decoder.filt.get_mean()
         pos = [-8, -2.2, pos]
+
         if self.endpt_bounds is not None:
             if pos[2] < self.endpt_bounds[4]: 
                 pos[2] = self.endpt_bounds[4]
@@ -430,6 +431,23 @@ class onedimLFP_CursorPlant(CursorPlant):
 
     def get_data_to_save(self):
         return dict(lfp_cursor=self.position)
+
+class onedimLFP_CursorPlant_inverted(onedimLFP_CursorPlant):
+    hdf_attrs = [('lfp_cursor', 'f8', (3,))]
+
+    def drive(self, decoder):
+        std_pos = decoder.filt.get_mean()
+        inv_pos = [-8, -2.2, -1.0*std_pos]
+
+        if self.endpt_bounds is not None:
+            if inv_pos[2] < self.endpt_bounds[4]: 
+                inv_pos[2] = self.endpt_bounds[4]
+                
+            if inv_pos[2] > self.endpt_bounds[5]: 
+                inv_pos[2] = self.endpt_bounds[5]
+               
+            self.position = inv_pos
+            self.draw()
 
 class VirtualKinematicChain(Plant):
     def __init__(self, *args, **kwargs):
