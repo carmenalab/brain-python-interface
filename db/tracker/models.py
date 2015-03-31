@@ -730,8 +730,11 @@ class Decoder(models.Model):
         data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         return os.path.join(data_path, 'decoders', self.path)        
 
-    def load(self):
-        data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+    def load(self,db_name=None):
+        if db_name is not None:
+            data_path = getattr(config, 'db_config_'+db_name)['data_path']
+        else:
+            data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
 
         # dec = pickle.load(open(decoder_fname))

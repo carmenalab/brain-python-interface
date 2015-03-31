@@ -644,9 +644,12 @@ class TaskEntry(object):
         Get the task-generated HDF file linked to this TaskEntry
         '''
         q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
-        dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-        # dbconfig = getattr(config, 'db_config_exorig')
-        # dbconfig = getattr(config, 'db_config_bmi3d')
+        if db_name == 'exorig':
+            dbconfig = getattr(config, 'db_config_exorig')
+        elif db_name == 'bmi3d':
+            dbconfig = getattr(config, 'db_config_bmi3d')
+        else:
+            dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
         return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
 
     @property
@@ -1066,8 +1069,7 @@ class TaskEntryCollection(object):
             sys.stdout.write('\n')
         return result
 
-    def proc_blocks(self, block_filter_fn=trial_filter_functions.default, block_proc_fn=trial_proc_functions.default, 
-                    data_comb_fn=default_data_comb_fn, verbose=True, return_type=list, **kwargs):
+    def proc_blocks(self, filt=None, proc=None, cond=None, comb=None, verbose=False, return_type=list, **kwargs):
         '''
         Generic framework to perform a block-level analysis on the entire dataset, 
         e.g., percent of trials correct, which require analyses across trials
@@ -1087,6 +1089,23 @@ class TaskEntryCollection(object):
             The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
             grouped by tuples are combined into a single result. 
         '''
+        if filt == None:
+            filt = kwargs.pop('block_filter_fn', trial_filter_functions.default)
+        if cond == None:
+            cond = kwargs.pop('block_condition_fn', trial_condition_functions.default)
+        if proc == None:
+            proc = kwargs.pop('block_proc_fn', trial_proc_functions.default)
+        if comb == None:
+            comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
+
+
+        block_filter_fn = filt
+        block_condition_fn = cond
+        block_proc_fn = proc
+        data_comb_fn = comb
+
+
+
         # Look up functions by name, if strings are given instead of functions
         if isinstance(block_filter_fn, str):
             block_filter_fn = getattr(trial_filter_functions, block_filter_fn)
@@ -1164,6 +1183,11 @@ def get_bmi_blocks(date, subj='C'):
     blocks = TaskEntrySet.get_blocks(filter_fns=[min_trials(50)], subj=subj, date=date, task__name__startswith='bmi') + TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='clda')
     blocks.sort(key=lambda x: x.date)
     return blocks
+
+def bmi_filt(te):                                         
+    bmi_feat = models.Feature.objects.using(te._state.db).get(name='bmi')
+    return bmi_feat in te.feats.all()
+
 
 #############################################################
 ## Deprecated code
