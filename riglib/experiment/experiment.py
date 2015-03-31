@@ -371,7 +371,10 @@ class Experiment(traits.HasTraits, threading.Thread):
                 n_error_trials += 1
         offline_report['Total trials'] = n_trials
         offline_report['Total rewards'] = n_success_trials
-        offline_report['Rewards/min'] = np.round((n_success_trials/explength) * 60, decimals=2)
+        try:
+            offline_report['Rewards/min'] = np.round((n_success_trials/explength) * 60, decimals=2)
+        except:
+            offline_report['Rewards/min'] = 0
         if n_trials == 0:
             offline_report['Success rate'] = None
         else:
