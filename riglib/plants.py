@@ -84,6 +84,10 @@ class Plant(object):
         '''        
         pass
 
+    def init_decoder(self, decoder):
+        decoder['q'] = self.get_intrinsic_coordinates()
+
+
 class FeedbackData(object):
     '''Abstract parent class, not meant to be instantiated.'''
 
@@ -361,10 +365,9 @@ class CursorPlant(Plant):
         else:
             self.graphics_models[0].detach()
 
-    def drive(self, decoder):
-        pos = decoder['q'].copy()
-        vel = decoder['qdot'].copy()
-        
+    def _bound(self, pos, vel):
+        pos = pos.copy()
+        vel = vel.copy()
         if self.endpt_bounds is not None:
             if pos[0] < self.endpt_bounds[0]: 
                 pos[0] = self.endpt_bounds[0]
@@ -386,6 +389,14 @@ class CursorPlant(Plant):
             if pos[2] > self.endpt_bounds[5]: 
                 pos[2] = self.endpt_bounds[5]
                 if self.vel_wall: vel[2] = 0
+        return pos, vel
+
+
+    def drive(self, decoder):
+        pos = decoder['q'].copy()
+        vel = decoder['qdot'].copy()
+
+        pos, vel = self._bound(pos, vel)
         
         decoder['q'] = pos
         decoder['qdot'] = vel
@@ -393,6 +404,32 @@ class CursorPlant(Plant):
 
     def get_data_to_save(self):
         return dict(cursor=self.position)
+
+class CursorPlantWithMass(CursorPlant):
+    Delta = 1./60 # call rate
+    hdf_attrs = [('cursor_pos', 'f8', (3,)), ('cursor_vel', 'f8', (3,))]
+    def __init__(self, *args, **kwargs):
+        super(CursorPlantWithMass, self).__init__(*args, **kwargs)
+        self.velocity = np.zeros(3)
+        self.acceleration = np.zeros(3)
+        self.mass = 1 # kg
+
+    def drive(self, decoder):
+        # decoder supplies 3-D force vector
+        force = decoder['force_x', 'force_y', 'force_z']
+
+        # run kinematics
+        acceleration = 1./self.mass * force
+        self.velocity += self.Delta * acceleration
+        self.position += self.Delta * self.velocity + 0.5*self.Delta**2 * acceleration
+
+        # bound position and velocity
+        self.position, self.velocity = self._bound(self.position, self.velocity)
+        # super(CursorPlantWithMass, self).drive(decoder)
+        self.draw()
+
+    def get_data_to_save(self):
+        return dict(cursor_pos=self.position, cursor_vel=self.velocity)
 
 class onedimLFP_CursorPlant(CursorPlant):
     hdf_attrs = [('lfp_cursor', 'f8', (3,))]
