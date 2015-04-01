@@ -2,7 +2,7 @@
 '''
 Django config file mostly auto-generated when a django project is created.
 See https://docs.djangoproject.com/en/dev/intro/tutorial01/ for an introduction
-on how to customize this file
+on how to customize this file test
 '''
 
 import os
