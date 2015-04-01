@@ -17,12 +17,12 @@ class Config:
 		self.display_start_pos = '%s,%s' % (self.window_start_x, self.window_start_y)
 
 		self.reward_system_version = int(dict(parser.items('reward_sys'))['version'])		
+		self.log_dir = os.path.expandvars('$BMI3D/log')
 
 	def __getattr__(self, attr):
 		if attr in self.parser.sections():
 			return dict(self.parser.items(attr))
 		else:
-
 			return super(Config, self).__getattr__(attr)
 
 config = Config()
