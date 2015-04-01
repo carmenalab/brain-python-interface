@@ -60,6 +60,16 @@ class ZeroVelocityGoal(GoalCalculator):
         target_state = np.hstack([target_pos, target_vel, 1])
         return (target_state, error), True
 
+class ZeroVelocityAccelGoal(ZeroVelocityGoal):
+    def __call__(self, target_pos, **kwargs):
+        target_vel = np.zeros_like(target_pos)
+        target_acc = np.zeros_like(target_pos)
+        offset_val = 1
+        error = 0
+        target_state = np.hstack([target_pos, target_vel, target_acc, 1])
+        return (target_state, error), True        
+
+
 class PlanarMultiLinkJointGoal(GoalCalculator, mp_calc.FuncProxy):
     '''    Docstring    '''
     def __init__(self, ssm, shoulder_anchor, kin_chain, multiproc=False, init_resp=None):
