@@ -276,7 +276,6 @@ def make_bmi(request, idx):
     collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
     if len(collide) > 0:
         return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
-
     update_rate = float(request.POST['bmiupdaterate'])
 
     kwargs = dict(
@@ -290,6 +289,7 @@ def make_bmi(request, idx):
         tslice=map(float, request.POST.getlist('tslice[]')),
         ssm=request.POST['ssm'],
         pos_key=request.POST['pos_key'],
+        kin_extractor=request.POST['kin_extractor'],
     )
     trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))

@@ -49,6 +49,7 @@ def list(request):
         extractors=namelist.extractors,
         default_extractor=namelist.default_extractor,
         pos_vars=namelist.bmi_training_pos_vars,
+        kin_extractors=namelist.kin_extractors,
     )
     if exp_tracker.task is not None:
         fields['running'] = exp_tracker.task.saveid

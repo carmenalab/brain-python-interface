@@ -299,6 +299,7 @@ BMI.prototype.train = function() {
     data.tslice = $("#tslider").slider("values");
     data.ssm = $("#ssm").val();
     data.pos_key = $("#pos_key").val();
+    data.kin_extractor = $("#kin_extractor").val();
 
     data.csrfmiddlewaretoken = csrf.val();
 

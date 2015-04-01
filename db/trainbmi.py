@@ -32,11 +32,37 @@ def cache_plx(plxfile):
     plexfile.openFile(str(plxfile)) 
 
 @task()
-def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key):
-    """Train BMI
-
-    (see doc for cache_and_train for input argument info)
+def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key, kin_extractor):
     """
+    Create a new Decoder object from training data and save a record to the database
+
+    Parameters
+    ----------
+    name : string
+        Name assigned to decoder object in the database
+    clsname : string
+        BMI algorithm name (passed to namelist lookup table 'bmis')
+    extractorname : string
+        feature extractor algorithm name (passed to namelist lookup table 'extractors')
+    entry : models.TaskEntry
+        Django record of training task
+    cells : string
+        Single string containing all the units to be in decoder, matching
+        format in global regex 'cellname' (used only for spike extractors)
+    channels : string
+        Single string containing all the channels to be in decoder; must be a
+        comma separated list of values with spaces (e.g., "1, 2, 3")
+        (used only for, e.g., LFP extractors)
+    binlen : float
+        Time of spike history to consider
+    tslice : slice
+        Task time to use when training the decoder
+    ssm : string
+        TODO
+    pos_key : string
+        TODO
+    """
+    print "make bmi"
     extractor_cls = namelist.extractors[extractorname]
     print 'Training with extractor class:', extractor_cls
 
@@ -64,12 +90,6 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             units = np.hstack([channels.reshape(-1, 1), np.ones(channels.reshape(-1, 1).shape, dtype=np.int32)])
     else:
         raise Exception('Unknown extractor class!')
-
-
-    # TODO -- hardcoding this here for now, but eventually the extractor kwargs
-    #   should come from a file or from the web interface
-    # for LFP extractors, only kwarg that needs to be set here is 'channels'
-    #   other kwargs will default to values specified in the class's __init__ 
 
     task_update_rate = 60 # NOTE may not be true for all tasks?!
     
@@ -105,50 +125,36 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
 
     training_method = namelist.bmi_algorithms[clsname]
     ssm = namelist.bmi_state_space_models[ssm]
-    decoder = training_method(files, extractor_cls, extractor_kwargs, train.get_plant_pos_vel, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key)
+    kin_extractor_fn = namelist.kin_extractors[kin_extractor]
+    decoder = training_method(files, extractor_cls, extractor_kwargs, kin_extractor_fn, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key)
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()
     database.save_bmi(name, int(entry), tf.name)
 
-def cache_and_train(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key):
-    """Cache plexon file (if using plexon system) and train BMI.
-
-    Parameters
-    ----------
-    clsname : string
-        BMI algorithm name (passed to namelist lookup table 'bmis')
-    extractorname : string
-        feature extractor algorithm name (passed to namelist lookup table 'extractors')
-    entry : models.TaskEntry
-        Django record of training task
-    cells : string
-        Single string containing all the units to be in decoder, matching
-        format in global regex 'cellname' (used only for spike extractors)
-    channels : string
-        Single string containing all the channels to be in decoder; must be a
-        comma separated list of values with spaces (e.g., "1, 2, 3")
-        (used only for, e.g., LFP extractors)
-    binlen : float
-        Time of spike history to consider
-    tslice : slice
-        Task time to use when training the decoder
+def cache_and_train(*args, **kwargs):
+    """
+    Cache plexon file (if using plexon system) and train BMI.
     """
 
     # import config
     if config.recording_sys['make'] == 'plexon':
-        plexon = models.System.objects.get(name='plexon')
-        plxfile = models.DataFile.objects.get(system=plexon, entry=entry)
+        print "cache and train"
+        entry = kwargs['entry']
+        print entry
+        plxfile = models.DataFile.objects.get(system__name='plexon', entry=entry)
+        print plxfile
 
         if not plxfile.has_cache():
             cache = cache_plx.si(plxfile.get_path())
-            train = make_bmi.si(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
+            train = make_bmi.si(*args, **kwargs)
             chain(cache, train)()
         else:
-            make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
+            print "calling"
+            make_bmi.delay(*args, **kwargs)
     
     elif config.recording_sys['make'] == 'blackrock':
-        make_bmi.delay(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key)
+        make_bmi.delay(*args, **kwargs)
     
     else:
         raise Exception('Unknown recording_system!')
