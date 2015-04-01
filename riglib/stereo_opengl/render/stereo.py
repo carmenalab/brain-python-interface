@@ -34,7 +34,8 @@ class MirrorDisplay(Renderer):
     def __init__(self, window_size, fov, near, far, focal_dist, iod, **kwargs):
         w, h = window_size
         super(MirrorDisplay, self).__init__((w/2,h), fov, near, far, **kwargs)
-        self.projections = offaxis_frusta((w/2, h), fov, near, far, focal_dist, iod, flip=True)
+        flip = kwargs.pop('flip', True)
+        self.projections = offaxis_frusta((w/2, h), fov, near, far, focal_dist, iod, flip=flip)
     
     def draw(self, root, **kwargs):
         '''
@@ -64,9 +65,11 @@ class DualMultisizeDisplay(Renderer):
         self.main_window_size = main_window_size
         self.mini_window_size = mini_window_size
 
+        flip = kwargs.pop('flip', True)
+
         super(DualMultisizeDisplay, self).__init__((w+w2, h), fov, near, far, **kwargs)
-        main_projections = offaxis_frusta(main_window_size, fov, near, far, focal_dist, iod, flip=True)
-        mini_projections = offaxis_frusta(mini_window_size, fov, near, far, focal_dist, iod, flip=True)
+        main_projections = offaxis_frusta(main_window_size, fov, near, far, focal_dist, iod, flip=flip)
+        mini_projections = offaxis_frusta(mini_window_size, fov, near, far, focal_dist, iod, flip=flip)
         self.projections = (mini_projections[0], main_projections[0])
 
     def draw(self, root, **kwargs):
