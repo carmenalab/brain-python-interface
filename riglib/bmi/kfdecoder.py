@@ -307,6 +307,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         Parameters
         ----------
+        include_offset : bool, optional, default=True
+            A row of all 1's is added as the last row of hidden_state if one is not already present
 
         Returns
         -------        
@@ -322,12 +324,14 @@ class KalmanFilter(bmi.GaussianStateHMM):
     
             Y = np.mat(obs[:,mask])
             if include_offset:
-                X = np.vstack([ X, np.ones([1,T]) ])
+                if not np.all(X[-1,:] == 1):
+                    X = np.vstack([ X, np.ones([1,T]) ])
         else:
             num_hidden_state, T = hidden_state.shape
             X = np.mat(hidden_state)
             if include_offset:
-                X = np.vstack([ X, np.ones([1,T]) ])
+                if not np.all(X[-1,:] == 1):
+                    X = np.vstack([ X, np.ones([1,T]) ])
             Y = np.mat(obs)
     
         n_states = X.shape[0]
