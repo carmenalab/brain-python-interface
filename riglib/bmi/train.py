@@ -310,6 +310,27 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
 ################################################################################
 ## Kinematic data retrieval
 ################################################################################
+def null_kin_extractor(files, binlen, tmask, update_rate_hz=60., pos_key='cursor', vel_key=None):
+    hdf = tables.openFile(files['hdf'])    
+    kin = np.squeeze(hdf.root.task[:][pos_key])
+
+    inds, = np.nonzero(tmask)
+    step_fl = binlen/(1./update_rate_hz)
+    if step_fl < 1: # more than one spike bin per kinematic obs
+        kin = np.hstack([kin, velocity])
+
+        n_repeats = int((1./update_rate_hz)/binlen)
+        inds = np.sort(np.hstack([inds]*n_repeats))
+        kin = kin[inds]
+    else:
+        step = int(binlen/(1./update_rate_hz))
+        inds = inds[::step]
+        kin = kin[inds]
+
+    print "kin.shape", kin.shape
+    return kin
+
+
 def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor', vel_key=None):
     '''
     Get positions and velocity from 'task' table of HDF file
@@ -324,7 +345,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
         vel_key == 'plant_vel'
 
     hdf = tables.openFile(files['hdf'])    
-    kin = hdf.root.task[:][pos_key]    
+    kin = hdf.root.task[:][pos_key]
 
     inds, = np.nonzero(tmask)
     step_fl = binlen/(1./update_rate_hz)
@@ -351,7 +372,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
             velocity = np.vstack([np.zeros(kin.shape[1]), velocity])
         kin = np.hstack([kin, velocity])
 
-    return kin    
+    return kin
 
 
 ################################################################################
