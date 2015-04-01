@@ -37,6 +37,8 @@ class GaussianState(object):
             if np.ndim(mean) == 1:
                 mean = mean.reshape(-1,1)
             self.mean = np.mat(mean)
+        else:
+            raise Exception(str(type(mean)))
 
         # Covariance
         assert cov.shape[0] == cov.shape[1] # Square matrix
@@ -91,6 +93,7 @@ class GaussianState(object):
         elif isinstance(other, np.matrix) and other.shape == self.mean.shape:
             return GaussianState(self.mean + other, self.cov)
         else:
+            # print other
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
 
 
@@ -1046,12 +1049,20 @@ class BMILoop(object):
             target_state = self.get_target_BMI_state(self.decoder.states)
         else:
             target_state = np.ones([self.decoder.n_states, self.decoder.n_subbins]) * np.nan
-        self.task_data['target_state'] = target_state            
+
+        try:
+            self.task_data['target_state'] = target_state            
+        except:
+            pass
 
         # Determine the assistive control inputs to the Decoder
         if self.current_assist_level > 0:
-            current_state = self.decoder.filt.state.mean
-            assist_kwargs = self.assister(current_state, target_state, self.current_assist_level, mode=self.state)
+            current_state = self.get_current_state()
+            if target_state.shape[1] > 1:
+                assist_kwargs = self.assister(current_state, target_state[:,0].reshape(-1,1), self.current_assist_level, mode=self.state)
+            else:
+                assist_kwargs = self.assister(current_state, target_state, self.current_assist_level, mode=self.state)
+            # print assist_kwargs
             kwargs.update(assist_kwargs)
 
         # Run the decoder
@@ -1066,6 +1077,12 @@ class BMILoop(object):
 
         self.task_data['decoder_state'] = decoder_state = self.decoder.get_state(shape=(-1,1))
         return decoder_state
+
+    def get_current_state(self):
+        '''
+        In most cases, the current state of the plant needed for calculating assistive control inputs will be stored in the decoder
+        '''
+        return self.decoder.filt.state.mean
 
     def get_target_BMI_state(self, *args):
         '''

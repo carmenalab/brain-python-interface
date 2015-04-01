@@ -80,6 +80,19 @@
                 </select>
             </td>
         </tr>
+        <!-- Select the function for extracting the kinematics from the HDF file -->
+        <tr>
+            <td>
+                <label for='kin_extractor'>Kinematic extractor</label>
+            </td>
+            <td>
+                <select id='kin_extractor'>
+                    {% for var in kin_extractors %}
+                        <option>{{ var }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>        
         <!-- Slider for specifying the time range of the block to use for training the decoder-->
         <tr>
             <td id='tselect' colspan='2'>

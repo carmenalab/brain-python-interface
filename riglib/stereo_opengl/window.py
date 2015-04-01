@@ -169,6 +169,7 @@ class Window(LogExperiment):
 
 class WindowWithExperimenterDisplay(Window):
     window_size = (1920, 1080)
+    _stereo_window_flip = False
 
     def set_os_params(self):
         # NOTE: in Ubuntu Unity, setting the SDL_VIDEO_WINDOW_POS seems to be largely ignored.
@@ -181,7 +182,7 @@ class WindowWithExperimenterDisplay(Window):
     def _get_renderer(self):
         near = 1
         far = 1024
-        return stereo.DualMultisizeDisplay((1920,1080), (480,270), self.fov, near, far, self.screen_dist, self.iod)
+        return stereo.DualMultisizeDisplay((1920,1080), (480,270), self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip)
 
 
 import matplotlib.pyplot as plt
