@@ -54,6 +54,9 @@ class Experiment(traits.HasTraits, threading.Thread):
     ordered_traits = [] # Traits in this list appear in order at the top of the web interface parameters
     hidden_traits = []  # These traits are hidden on the web interface, and can be displayed by clicking the 'Show' radiobutton on the web interface
 
+    # Runtime settable traits
+    session_length = traits.Float(0, desc="Time until task automatically stops. Length of 0 means no auto stop.")
+
     def __init__(self, **kwargs):
         '''
         Constructor for Experiment
@@ -328,8 +331,10 @@ class Experiment(traits.HasTraits, threading.Thread):
     def _test_stop(self, ts):
         ''' 
         FSM 'test' function. Returns the 'stop' attribute of the task
-        '''
-        return self.stop
+        '''        
+        if self.session_length > 0 and (self.get_time() - self.task_start_time) > self.session_length:
+            self.end_task()
+        return self.stop        
 
     @classmethod
     def _time_to_string(cls, sec):
