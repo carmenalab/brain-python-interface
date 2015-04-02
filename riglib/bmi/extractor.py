@@ -26,6 +26,15 @@ class FeatureExtractor(object):
     def extract_from_file(cls, *args, **kwargs):
         raise NotImplementedError
 
+class DummyExtractor(FeatureExtractor):
+    '''
+    An extractor which does nothing. Used for tasks which are only pretending to be BMI tasks, e.g., visual feedback tasks
+    '''
+    feature_type = 'obs'
+    feature_dtype = [('obs', 'f8', (1,))]
+
+    def __call__(self, *args, **kwargs):
+        return dict(obs=np.array([[np.nan]]))
 
 
 class BinnedSpikeCountsExtractor(FeatureExtractor):

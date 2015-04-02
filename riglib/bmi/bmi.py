@@ -959,6 +959,7 @@ class BMILoop(object):
         Create the feature extractor object. The feature extractor takes raw neural data from the streaming processor
         (e.g., spike timestamps) and outputs a decodable observation vector (e.g., counts of spikes in last 100ms from each unit)
         '''
+        import extractor
         if hasattr(self.decoder, 'extractor_cls') and hasattr(self.decoder, 'extractor_kwargs'):
             self.extractor = self.decoder.extractor_cls(self.neurondata, **self.decoder.extractor_kwargs)
         else:
@@ -974,10 +975,10 @@ class BMILoop(object):
         Helper function to add the datatype of the extractor output to be saved in the HDF file. Uses a separate function 
         so that simulations can overwrite.
         '''
-        if isinstance(self.extractor.feature_dtype, tuple):
+        if isinstance(self.extractor.feature_dtype, tuple): # Feature extractor only returns 1 type
             self.add_dtype(*self.extractor.feature_dtype)
         else:
-            for x in self.extractor.feature_dtype:
+            for x in self.extractor.feature_dtype: # Feature extractor returns multiple named fields
                 self.add_dtype(*x)
 
     def create_learner(self):
