@@ -916,7 +916,12 @@ class BMILoop(object):
         Initialize the state of the decoder to match the initial state of the plant
         '''
         self.decoder.filt._init_state()
-        self.decoder['q'] = self.plant.get_intrinsic_coordinates()
+        try:
+            self.decoder['q'] = self.plant.get_intrinsic_coordinates()
+        except:
+            print self.plant.get_intrinsic_coordinates()
+            print self.decoder['q']
+            raise Exception("Error initializing decoder state")
         self.init_decoder_mean = self.decoder.filt.state.mean
 
         self.decoder.set_call_rate(1./self.update_rate)
