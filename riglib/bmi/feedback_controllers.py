@@ -196,7 +196,21 @@ class MultiModalLFC(LinearFeedbackController):
         return Bu
 
 
-class LQRController(LinearFeedbackController):
+class FeedbackController(object):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def calc_next_state(self, current_state, target_state, mode=None):
+        raise NotImplementedError
+
+    def __call__(self, current_state, target_state, mode=None):
+        raise NotImplementedError
+
+    def get(self, current_state, target_state, mode=None):
+        raise NotImplementedError
+
+
+class LQRController(FeedbackController):
     '''Linear feedback controller with a quadratic cost function'''
     def __init__(self, A, B, Q, R, **kwargs):
         '''
@@ -228,6 +242,46 @@ class LQRController(LinearFeedbackController):
         self.Q = Q
         self.R = R
         self.F = self.dlqr(A, B, Q, R, **kwargs)
+
+    def calc_next_state(self, current_state, target_state, mode=None):
+        '''
+        Returns x_{t+1} = Ax_t + BF(x* - x_t)
+
+        Parameters
+        ----------
+        current_state : np.matrix
+            x_t 
+        target_state : np.matrix
+            x*
+        mode : object, default=None
+            Select the operational mode of the feedback controller. Ignored in this class
+
+        Returns
+        -------
+        np.matrix
+        '''
+        # explicitly cast current_state and target_state to column vectors
+        current_state = np.mat(current_state).reshape(-1,1)
+        target_state = np.mat(target_state).reshape(-1,1)        
+        ns = self.A * current_state + self.B * self.F * (target_state - current_state)
+        return ns
+
+    def get(self, current_state, target_state, mode=None):
+        return self.calc_next_state(current_state, target_state, mode=mode)
+
+    def __call__(self, current_state, target_state, mode=None):
+        '''
+        Parameters
+        ----------
+        (see self.calc_next_state for input argument descriptions)
+
+        Returns
+        -------
+        np.mat of shape (N, 1)
+            B*u where u_t = F(x^* - x_t)
+        '''
+        Bu = self.B * self.F * (target_state - current_state)
+        return Bu
 
     @staticmethod
     def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-10, dtype=np.mat):
@@ -291,3 +345,4 @@ class LQRController(LinearFeedbackController):
                 if np.linalg.norm(K - K_old) < eps:
                     break
             return dtype(K)
+

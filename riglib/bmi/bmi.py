@@ -575,7 +575,7 @@ class Decoder(object):
         '''
         return np.asarray(self.filt.state.mean).reshape(shape)
 
-    def predict(self, neural_obs, assist_level=0.0, Bu=None, x_target=None, F=None, weighted_avg_lfc=False, **kwargs):
+    def predict(self, neural_obs, assist_level=0.0, weighted_avg_lfc=False, **kwargs):
         """
         Decode the spikes
 
@@ -591,7 +591,7 @@ class Decoder(object):
         kwargs: dict
             Mostly for kwargs function call compatibility
         """
-        if assist_level > 0 and Bu == None:
+        if assist_level > 0 and 'x_assist' not in kwargs:
             raise ValueError("Assist cannot be used if the forcing term is not specified!")
 
         # re-normalize the variance of the spike observations, if nec
@@ -607,11 +607,12 @@ class Decoder(object):
         x = self.filt.state.mean
         
         # Run the filter
-        self.filt(neural_obs, Bu=Bu, x_target=x_target, F=F)
+        self.filt(neural_obs, **kwargs)
 
         if assist_level > 0:
             weighted_avg_lfc = int(weighted_avg_lfc)
-            self.filt.state.mean = (1-assist_level)*self.filt.state.mean + weighted_avg_lfc*assist_level*self.filt.A*x + (1-weighted_avg_lfc)*assist_level*Bu
+            x_assist = kwargs.pop('x_assist')
+            self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
 
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):
@@ -963,6 +964,7 @@ class BMILoop(object):
         Create the feature extractor object. The feature extractor takes raw neural data from the streaming processor
         (e.g., spike timestamps) and outputs a decodable observation vector (e.g., counts of spikes in last 100ms from each unit)
         '''
+        import extractor
         if hasattr(self.decoder, 'extractor_cls') and hasattr(self.decoder, 'extractor_kwargs'):
             self.extractor = self.decoder.extractor_cls(self.neurondata, **self.decoder.extractor_kwargs)
         else:
@@ -978,10 +980,10 @@ class BMILoop(object):
         Helper function to add the datatype of the extractor output to be saved in the HDF file. Uses a separate function 
         so that simulations can overwrite.
         '''
-        if isinstance(self.extractor.feature_dtype, tuple):
+        if isinstance(self.extractor.feature_dtype, tuple): # Feature extractor only returns 1 type
             self.add_dtype(*self.extractor.feature_dtype)
         else:
-            for x in self.extractor.feature_dtype:
+            for x in self.extractor.feature_dtype: # Feature extractor returns multiple named fields
                 self.add_dtype(*x)
 
     def create_learner(self):
@@ -1072,10 +1074,11 @@ class BMILoop(object):
         # Run the decoder
         if self.state not in self.static_states:
             neural_features = feature_data[self.extractor.feature_type]
-            self.task_data['internal_decoder_state'] = self.call_decoder(neural_features, target_state, feature_type=self.extractor.feature_type, **kwargs)
+            self.task_data['internal_decoder_state'] = self.call_decoder(neural_features, target_state, **kwargs)
 
         # Drive the plant to the decoded state, if permitted by the constraints of the plant
-        # If not possible, plant.drive should also take care of setting the decoder's state as close as possible to physical reality
+        # If not possible, plant.drive should also take care of setting the decoder's 
+        # state as close as possible to physical reality
         self.plant.drive(self.decoder)
 
         self.task_data['decoder_state'] = decoder_state = self.decoder.get_state(shape=(-1,1))

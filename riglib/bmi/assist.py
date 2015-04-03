@@ -48,51 +48,37 @@ class Assister(object):
         '''
         return self.calc_assisted_BMI_state(*args, **kwargs)
 
-class LinearFeedbackControllerAssist(Assister):
+class FeedbackControllerAssist(Assister):
     '''
     Assister where the machine control is an LQR controller, possibly with different 'modes' depending on the state of the task
     '''
-    def __init__(self, A, B, Q, R):
+    def __init__(self, fb_ctrl):
         '''
-        Constructor for LinearFeedbackControllerAssist
-
-        The system should evolve as
-        $$x_{t+1} = Ax_t + Bu_t + w_t; w_t ~ N(0, W)$$
-
-        with infinite horizon cost 
-        $$\sum{t=0}^{+\infty} (x_t - x_target)^T * Q * (x_t - x_target) + u_t^T * R * u_t$$
-
         Parameters
         ----------
-        A: np.ndarray of shape (n_states, n_states)
-            Model of the state transition matrix of the system to be controlled. 
-        B: np.ndarray of shape (n_states, n_controls)
-            Control input matrix of the system to be controlled. 
-        Q: np.ndarray of shape (n_states, n_states)
-            Quadratic cost on state
-        R: np.ndarray of shape (n_controls, n_controls)
-            Quadratic cost on control inputs
+        fb_ctrl : feedback_controllers.FeedbackController instance
+            TODO
 
         Returns
         -------
-        LinearFeedbackControllerAssist instance
+        FeedbackControllerAssist instance
         '''
-        self.lqr_controller = feedback_controllers.LQRController(A, B, Q, R)
+        self.fb_ctrl = fb_ctrl        
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         '''
         See docs for Assister.calc_assisted_BMI_state
         '''
-        Bu = assist_level * self.lqr_controller(current_state, target_state)
+        Bu = assist_level * self.fb_ctrl(current_state, target_state, mode=mode)
         return dict(Bu=Bu, assist_level=0)
 
-class SSMLFCAssister(LinearFeedbackControllerAssist):
+class SSMLFCAssister(FeedbackControllerAssist):
     '''
     An LFC assister where the state-space matrices (A, B) are specified from the Decoder's 'ssm' attribute
     '''
     def __init__(self, ssm, Q, R, **kwargs):
         '''
-        Constructor for TentacleAssist
+        Constructor for SSMLFCAssister
 
         Parameters
         ----------
@@ -106,11 +92,11 @@ class SSMLFCAssister(LinearFeedbackControllerAssist):
 
         Returns
         -------
-        TentacleAssist instance
+        SSMLFCAssister instance
 
         '''        
         if ssm is None:
             raise ValueError("SSMLFCAssister requires a state space model!")
 
         A, B, W = ssm.get_ssm_matrices()
-        super(SSMLFCAssister, self).__init__(A, B, Q, R)
+        self.lqr_controller = feedback_controllers.LQRController(A, B, Q, R)

@@ -40,8 +40,8 @@ void loop() {
         
         // positive edge for rstart
         digitalWrite(rstart, HIGH);
-        delay(200);
-        digitalWrite(rstart, LOW);
+        //delay(200);
+        //digitalWrite(rstart, LOW);
   
         en = 1;    
     }
@@ -54,8 +54,8 @@ void loop() {
         
         // turn on LED (debugging)      
         digitalWrite(led, HIGH);
-        delay(500);
-        digitalWrite(led, LOW);
+        //delay(500);
+        //digitalWrite(led, LOW);
     }
     
     // Digital data

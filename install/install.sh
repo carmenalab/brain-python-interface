@@ -63,7 +63,8 @@ sudo apt-get -y install curl
 sudo apt-get -y install sqlite3
 # Arduino IDE
 sudo apt-get install arduino arduino-core  
-
+# Serial lib
+sudo apt-get install setserial
 
 ####### Install Python dependencies
 sudo pip install numexpr 

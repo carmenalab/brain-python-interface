@@ -714,4 +714,5 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
         el_pflex = np.arccos(cos_el_pflex)
 
         sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
+        # import pdb    ; pdb.set_trace()
         return np.array([sh_pabd, el_pflex])

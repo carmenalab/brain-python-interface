@@ -299,6 +299,15 @@ Rsync
 
 
 
-
+Automatic testing
+-----------------
+(this section is still incomplete)
+Use the GUI to add a "testing" user
+As the testing user
+- clone the BMI3D repo
+- run make_config.py; make sure data paths are correct; other options don't matter
+- install the robitics toolbox and add to python path
+- make sure group ownership and file permissions allow the testing user to read data files
+- mkdir $BMI3D/test_output
 
 
