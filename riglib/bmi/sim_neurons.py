@@ -19,6 +19,38 @@ from scipy.integrate import trapz, simps
 ts_dtype = [('ts', float), ('chan', np.int32), ('unit', np.int32)]
 ts_dtype_new = [('ts', float), ('chan', np.int32), ('unit', np.int32), ('arrival_ts', np.float64)]
 
+class KalmanEncoder(object):
+    '''
+    Models a BMI user as someone who, given an intended state x,
+    generates a vector of neural features y according to the KF observation
+    model equation: y = Cx + q.
+    '''
+
+    def __init__(self, ssm, n_features):
+        self.ssm = ssm
+        self.n_features = n_features
+
+        drives_neurons = ssm.drives_obs
+        nX = ssm.n_states
+
+        C = np.random.standard_normal([n_features, nX])
+        C[:, ~drives_neurons] = 0
+        Q = np.identity(n_features)
+
+        self.C = C
+        self.Q = Q
+
+    def __call__(self, intended_state, **kwargs):
+        q = np.random.multivariate_normal(np.zeros(self.Q.shape[0]), self.Q).reshape(-1, 1)
+        neural_features = np.dot(self.C, intended_state.reshape(-1,1)) + q
+        return neural_features
+
+    def get_units(self):
+        '''
+        Return fake indices corresponding to the simulated units, e.g., (1, 1) represents sig001a in the plexon system
+        '''
+        return np.array([(k,1) for k in range(self.n_features)])
+
 class CosEnc(object):
     ''' Docstring '''
     def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, 
@@ -95,7 +127,7 @@ class CosEnc(object):
         else:
             baselines = self.baselines
         rates = self.mod_depth * np.dot(self.pds, user_input) + baselines
-        rates = np.array([max(r, 0) for r in rates])
+        rates[rates < 0] = 0 # Floor firing rates at 0 Hz
         counts = poisson(rates * self.DT)
 
         if self.return_ts:
