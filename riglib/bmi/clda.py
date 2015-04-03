@@ -214,6 +214,18 @@ class DumbLearner(Learner):
         '''DumbLearner never has any 'batch' data to retrieve'''
         raise NotImplementedError
 
+class FeedbackControllerLearner(Learner):
+    '''
+    An intention estimator where the subject is assumed to operate like a state feedback controller
+    '''
+    def __init__(self, batch_size, fb_ctrl, *args, **kwargs):
+        self.fb_ctrl = fb_ctrl
+        super(FeedbackControllerLearner, self).__init__(batch_size, *args, **kwargs)
+
+    def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        return self.fb_ctrl.calc_next_state(current_state, target_state, mode=task_state)
+
+
 class OFCLearner(Learner):
     '''
     An intention estimator where the subject is assumed to operate like a muiti-modal LQR controller
@@ -258,7 +270,7 @@ class OFCLearner(Learner):
         target_state : np.mat of shape (N, 1)
             For the current time, this is the optimal state for the Decoder as specified by the task
         decoder_output : np.mat of shape (N, 1)
-            ... this seems like the same as decoder_state
+            State estimate output from the decoder, after the current observations (may be one step removed from 'current_state')
         task_state : string
             Name of the task state; some learners (e.g., the cursorGoal learner) have different intention estimates depending on the phase of the task/trial
         state_order : np.ndarray of shape (N,), optional
