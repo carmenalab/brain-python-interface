@@ -65,7 +65,7 @@ class FeedbackControllerAssist(Assister):
         '''
         self.fb_ctrl = fb_ctrl
         self.style = style
-        assert self.style in ['additive', 'mixing']
+        assert self.style in ['additive', 'mixing', 'additive_cov']
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         '''
@@ -76,7 +76,10 @@ class FeedbackControllerAssist(Assister):
             return dict(Bu=Bu, assist_level=0)
         elif self.style == 'mixing':
             x_assist = self.fb_ctrl.calc_next_state(current_state, target_state, mode=mode)
-            return dict(x_assist=x_assist, assist_level=assist_level)            
+            return dict(x_assist=x_assist, assist_level=assist_level)
+        elif self.style == 'additive_cov':
+            F = self.get_F(assist_level)
+            return dict(F=F, x_target=target_state)            
 
 
 class SSMLFCAssister(FeedbackControllerAssist):

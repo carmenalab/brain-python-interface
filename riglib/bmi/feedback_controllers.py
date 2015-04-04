@@ -88,7 +88,22 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
         joint_pos, joint_vel = ik.inv_kin_2D(pos, self.link_lengths[0], self.link_lengths[1], vel)
         return joint_vel[0]['sh_vabd'], joint_vel[0]['el_vflex']
 
-class LinearFeedbackController(object):
+
+class FeedbackController(object):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def calc_next_state(self, current_state, target_state, mode=None):
+        raise NotImplementedError
+
+    def __call__(self, current_state, target_state, mode=None):
+        raise NotImplementedError
+
+    def get(self, current_state, target_state, mode=None):
+        raise NotImplementedError
+
+
+class LinearFeedbackController(FeedbackController):
     '''
     Generic linear state-feedback controller. Can be time-varying in general and not be related to a specific cost function
     '''
@@ -115,102 +130,45 @@ class LinearFeedbackController(object):
         self.B = B
         self.F = F 
 
-    def calc_F(self, *args, **kwargs):
+    def calc_next_state(self, current_state, target_state, mode=None):
         '''
-        Calculate the feedback gain matrix
-        '''
-        return self.F
+        Returns x_{t+1} = Ax_t + BF(x* - x_t)
 
-    def __call__(self, current_state, target_state):
+        Parameters
+        ----------
+        current_state : np.matrix
+            x_t 
+        target_state : np.matrix
+            x*
+        mode : object, default=None
+            Select the operational mode of the feedback controller. Ignored in this class
+
+        Returns
+        -------
+        np.matrix
+        '''
+        # explicitly cast current_state and target_state to column vectors
+        current_state = np.mat(current_state).reshape(-1,1)
+        target_state = np.mat(target_state).reshape(-1,1)        
+        ns = self.A * current_state + self.B * self.F * (target_state - current_state)
+        return ns
+
+    def __call__(self, current_state, target_state, mode=None):
         '''
         Parameters
         ----------
-        current_state: np.ndarray of shape (n_states, 1)
-            Vector representing the current state of the plant 
-        target_state: np.ndarray of shape (n_states, 1)
-            Vector representing the target state of the plant, i.e. the optimal state for the plant to be in
+        (see self.calc_next_state for input argument descriptions)
 
         Returns
         -------
         np.mat of shape (N, 1)
             B*u where u_t = F(x^* - x_t)
         '''
-        F = self.calc_F()
-        Bu = self.B * F * (target_state - current_state)
+        Bu = self.B * self.F * (target_state - current_state)
         return Bu
 
 
-class MultiModalLFC(LinearFeedbackController):
-    '''
-    A linear feedback controller with different feedback gains in different "modes"
-    '''
-    def __init__(self, B=None, F=dict()):
-        '''
-        Constructor for MultiModalLFC
-
-        Parameters
-        ----------
-        B : np.mat
-            Input matrix for the system
-        F : dict
-            keys should be control 'modes', values should be np.mat static feedback gain matrices
-
-        Returns
-        -------
-        MultiModalLFC instance
-        '''
-        super(MultiModalLFC, self).__init__(B=B, F=F)
-
-    def calc_F(self, mode, *args, **kwargs):
-        '''
-        Look up the feedback matrix F for the control 'mode' specified
-
-        Parameters
-        ----------
-        mode : hashable
-            The mode of control. Should be a key of self.F_dict when the object is instantiated.
-
-        Returns
-        -------
-        np.matrix
-            Linear feedback gain matrix
-        '''
-        return self.F[mode]
-
-    def __call__(self, current_state, target_state, mode):
-        '''
-        Parameters
-        ----------
-        current_state: np.ndarray of shape (n_states, 1)
-            Vector representing the current state of the plant 
-        target_state: np.ndarray of shape (n_states, 1)
-            Vector representing the target state of the plant, i.e. the optimal state for the plant to be in
-
-        Returns
-        -------
-        np.mat of shape (N, 1)
-            B*u where u_t = F(x^* - x_t)        
-        '''
-        F = self.calc_F(mode)
-        Bu = self.B * F * (target_state - current_state)
-        return Bu
-
-
-class FeedbackController(object):
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def calc_next_state(self, current_state, target_state, mode=None):
-        raise NotImplementedError
-
-    def __call__(self, current_state, target_state, mode=None):
-        raise NotImplementedError
-
-    def get(self, current_state, target_state, mode=None):
-        raise NotImplementedError
-
-
-class LQRController(FeedbackController):
+class LQRController(LinearFeedbackController):
     '''Linear feedback controller with a quadratic cost function'''
     def __init__(self, A, B, Q, R, **kwargs):
         '''
@@ -237,51 +195,12 @@ class LQRController(FeedbackController):
         -------
         LQRController instance
         '''
-        self.A = A
-        self.B = B
-        self.Q = Q
-        self.R = R
-        self.F = self.dlqr(A, B, Q, R, **kwargs)
-
-    def calc_next_state(self, current_state, target_state, mode=None):
-        '''
-        Returns x_{t+1} = Ax_t + BF(x* - x_t)
-
-        Parameters
-        ----------
-        current_state : np.matrix
-            x_t 
-        target_state : np.matrix
-            x*
-        mode : object, default=None
-            Select the operational mode of the feedback controller. Ignored in this class
-
-        Returns
-        -------
-        np.matrix
-        '''
-        # explicitly cast current_state and target_state to column vectors
-        current_state = np.mat(current_state).reshape(-1,1)
-        target_state = np.mat(target_state).reshape(-1,1)        
-        ns = self.A * current_state + self.B * self.F * (target_state - current_state)
-        return ns
-
-    def get(self, current_state, target_state, mode=None):
-        return self.calc_next_state(current_state, target_state, mode=mode)
-
-    def __call__(self, current_state, target_state, mode=None):
-        '''
-        Parameters
-        ----------
-        (see self.calc_next_state for input argument descriptions)
-
-        Returns
-        -------
-        np.mat of shape (N, 1)
-            B*u where u_t = F(x^* - x_t)
-        '''
-        Bu = self.B * self.F * (target_state - current_state)
-        return Bu
+        # self.A = A
+        # self.B = B
+        # self.Q = Q
+        # self.R = R
+        F = self.dlqr(A, B, Q, R, **kwargs)
+        super(LQRController, self).__init__(B=B, F=F, **kwargs)
 
     @staticmethod
     def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-10, dtype=np.mat):
@@ -345,4 +264,36 @@ class LQRController(FeedbackController):
                 if np.linalg.norm(K - K_old) < eps:
                     break
             return dtype(K)
+
+
+class MultiModalLFC(LinearFeedbackController):
+    '''
+    A linear feedback controller with different feedback gains in different "modes"
+    '''
+    def __init__(self, B=None, F_dict=dict()):
+        '''
+        Constructor for MultiModalLFC
+
+        Parameters
+        ----------
+        B : np.mat
+            Input matrix for the system
+        F : dict
+            keys should be control 'modes', values should be np.mat static feedback gain matrices
+
+        Returns
+        -------
+        MultiModalLFC instance
+        '''
+        self.B = B
+        self.F_dict = F_dict
+        self.F = None
+
+    def calc_next_state(self, current_state, target_state, mode=None):
+        self.F = self.F_dict[mode]
+        super(MultiModalLFC, self).calc_next_state(current_state, target_state, mode=mode)
+
+    def __call__(self, current_state, target_state, mode=None):
+        self.F = self.F_dict[mode]
+        super(MultiModalLFC, self).__call__(current_state, target_state, mode=mode)        
 

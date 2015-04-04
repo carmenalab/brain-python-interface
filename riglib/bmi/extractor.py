@@ -411,7 +411,7 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         '''
         current_state = self.task.decoder.get_state(shape=(-1,1))
         target_state = self.task.get_target_BMI_state()
-        ctrl = self.input_device.get(current_state, target_state)
+        ctrl = self.input_device.calc_next_state(current_state, target_state)
         ts_data = self.encoder(ctrl)
         return ts_data
         
