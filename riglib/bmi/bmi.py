@@ -12,6 +12,7 @@ import time
 import re
 import os
 import tables
+import datetime
 
 
 class GaussianState(object):
@@ -871,6 +872,7 @@ class BMILoop(object):
     Container class/interface definition for BMI tasks. Intended to be used with multiple inheritance structure paired with riglib.experiment classes
     '''
     static_states = [] # states in which the decoder is not run
+    decoder_sequence = ''
 
     def init(self):
         '''
@@ -1110,6 +1112,56 @@ class BMILoop(object):
     def disable_clda(self):
         print "CLDA disabled after %d successful trials" % self.calc_state_occurrences('reward')
         self.learn_flag = False
+
+    def cleanup_hdf(self):
+        '''
+        Re-open the HDF file and save any extra task data kept in RAM
+        '''
+        super(CLDAMouseSpeller, self).cleanup_hdf()
+        log_file = open(os.path.join(os.getenv("HOME"), 'code/bmi3d/log/clda_log'), 'w')
+        log_file.write(str(self.state) + '\n')
+        try:
+            if len(self.bmi_system.param_hist) > 0:
+                ignore_none = self.learner.batch_size > 1
+                log_file.write('Ignoring "None" values: %s\n' % str(ignore_none))
+                clda.write_clda_data_to_hdf_table(
+                    self.h5file.name, self.bmi_system.param_hist, 
+                    ignore_none=ignore_none)
+        except:
+            import traceback
+            traceback.print_exc(file=log_file)
+        log_file.close()
+
+    def cleanup(self, database, saveid, **kwargs):
+        super(CLDAMouseSpeller, self).cleanup(database, saveid, **kwargs)
+
+        # Open a log file in case of error b/c errors not visible to console
+        # at this point
+        f = open(os.path.join(os.getenv('HOME'), 'code/bmi3d/log/clda_cleanup_log'), 'w')
+        f.write('Opening log file\n')
+        
+        # save out the parameter history and new decoder unless task was stopped
+        # before 1st update
+        try:
+            f.write('# of paramter updates: %d\n' % len(self.bmi_system.param_hist))
+
+            if len(self.bmi_system.param_hist) > 0:
+                # create name for new decoder 
+                now = datetime.datetime.now()
+                decoder_name = self.decoder_sequence + now.strftime('%m%d%H%M')
+
+                # Pickle the decoder
+                decoder_tempfilename = self.decoder.save()
+
+                # Link the pickled decoder file to the associated task entry in the database
+                dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+                if dbname == 'default':
+                    database.save_bmi(decoder_name, saveid, decoder_tempfilename)
+                else:
+                    database.save_bmi(decoder_name, saveid, decoder_tempfilename, dbname=dbname)
+        except:
+            traceback.print_exc(file=f)
+        f.close()
 
 
 class BMI(object):

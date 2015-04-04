@@ -52,7 +52,7 @@ class FeedbackControllerAssist(Assister):
     '''
     Assister where the machine control is an LQR controller, possibly with different 'modes' depending on the state of the task
     '''
-    def __init__(self, fb_ctrl):
+    def __init__(self, fb_ctrl, style='additive'):
         '''
         Parameters
         ----------
@@ -63,14 +63,21 @@ class FeedbackControllerAssist(Assister):
         -------
         FeedbackControllerAssist instance
         '''
-        self.fb_ctrl = fb_ctrl        
+        self.fb_ctrl = fb_ctrl
+        self.style = style
+        assert self.style in ['additive', 'mixing']
 
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
         '''
         See docs for Assister.calc_assisted_BMI_state
         '''
-        Bu = assist_level * self.fb_ctrl(current_state, target_state, mode=mode)
-        return dict(Bu=Bu, assist_level=0)
+        if self.style == 'additive':
+            Bu = assist_level * self.fb_ctrl(current_state, target_state, mode=mode)
+            return dict(Bu=Bu, assist_level=0)
+        elif self.style == 'mixing':
+            x_assist = self.fb_ctrl.calc_next_state(current_state, target_state, mode=mode)
+            return dict(x_assist=x_assist, assist_level=assist_level)            
+
 
 class SSMLFCAssister(FeedbackControllerAssist):
     '''
