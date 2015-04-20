@@ -93,7 +93,7 @@ class State(object):
     '''
     A 1D component of a state-space, e.g., vertical velocity
     '''
-    def __init__(self, name, stochastic=False, drives_obs=False, min_val=np.nan, max_val=np.nan, order=-1):
+    def __init__(self, name, stochastic=False, drives_obs=False, min_val=np.nan, max_val=np.nan, order=-1, aux=False):
         '''
         Constructor for State
 
@@ -126,6 +126,7 @@ class State(object):
         self.min_val = min_val
         self.max_val = max_val
         self.order = order
+        self.aux = aux
 
     def __repr__(self):
         return str(self.name) 
@@ -380,29 +381,6 @@ class StateSpaceEndptVel2D(LinearVelocityStateSpace):
         if not hasattr(self, 'w'):
             self.w = 7
 
-    # def get_ssm_matrices_old(self, update_rate=0.1):
-    #     '''
-    #     For the linear stochastic state-space model 
-    #         x_{t+1} = Ax_{t} + Bu_t + w_t;   w_t ~ N(0, W),
-    #     this function specifies the matrices A, B and W
-
-    #     Parameters
-    #     ----------
-    #     update_rate : float, optional
-    #         Time between iterations of the discrete-time model. Default is 0.1 sec.
-
-    #     Returns
-    #     -------
-    #     tuple of 3 np.mat matrices
-    #         A, B and W as specified in the mathematical model above
-    #     '''
-    #     # State-space model set from expert data
-    #     A, W = linear_kinarm_kf(update_rate=update_rate)
-
-    #     # Control input matrix for SSM for control inputs
-    #     I = np.mat(np.eye(3))
-    #     B = np.vstack([0*I, update_rate*1000 * I, np.zeros([1,3])])
-    #     return A, B, W
 
 if __name__ == '__main__':
     a_10hz = 0.8

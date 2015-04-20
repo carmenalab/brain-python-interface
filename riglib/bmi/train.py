@@ -797,32 +797,31 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     units_mult_lut = dict(m=1., cm=0.01)
     units_mult = units_mult_lut[dist_units]
 
-    A, W = state_space_models.linear_kinarm_kf(update_rate=dt, units_mult=units_mult)
+    ssm = state_space_models.StateSpaceEndptVel2D()
+    A, _, W = ssm.get_ssm_matrices(update_rate=dt)
 
-    bounding_box = (np.array([-0.25, -0.14])/units_mult, np.array([0.25, 0.14])/units_mult)
-    neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
-    states_to_bound = ['hand_px', 'hand_pz']
-    states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-    drives_neurons = np.array([x in neuron_driving_states for x in states])
-    beta = inflate(beta, neuron_driving_states, states, axis=1)
+    # A, W = state_space_models.linear_kinarm_kf(update_rate=dt, units_mult=units_mult)
 
-    args = (bounding_box, states, drives_neurons, states_to_bound)
-    kwargs = dict(binlen=dt)
+    # bounding_box = (np.array([-0.25, -0.14])/units_mult, np.array([0.25, 0.14])/units_mult)
+    # neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
+    # states_to_bound = ['hand_px', 'hand_pz']
+    # states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    # drives_neurons = np.array([x in neuron_driving_states for x in states])
+    # beta = inflate(beta, neuron_driving_states, states, axis=1)
+
+    # args = (bounding_box, states, drives_neurons, states_to_bound)
+    # kwargs = dict(binlen=dt)
 
     # rescale beta for units
     beta[:,3:6] *= units_mult
     
     # Control input matrix for SSM for control inputs
     I = np.mat(np.eye(3))
-    B = np.vstack([I, dt*1000 * I, np.zeros([1,3])])
+    B = np.vstack([0*I, dt*1000 * I, np.zeros([1,3])])
 
     # instantiate Decoder
-    stochastic_states = ['hand_vx', 'hand_vz']
-    is_stochastic = np.array([x in stochastic_states for x in states])
-    ppf = ppfdecoder.PointProcessFilter(
-            A, W, beta, dt=dt, is_stochastic=is_stochastic, B=B)
-
-    dec = ppfdecoder.PPFDecoder(ppf, units, *args, **kwargs)
+    ppf = ppfdecoder.PointProcessFilter(A, W, beta, dt=dt, is_stochastic=ssm.is_stochastic, B=B)
+    dec = ppfdecoder.PPFDecoder(ppf, units, ssm, binlen=dt)
 
     # Force decoder to run at max 60 Hz
     dec.bminum = 0

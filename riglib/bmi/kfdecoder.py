@@ -174,9 +174,13 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         Parameters
         ----------
+        P : np.matrix
+            Prediciton covariance matrix, i.e., cov(x_{t+1} | y_1, \cdots, y_t)
 
         Returns
-        -------        
+        -------
+        K : np.matrix
+            Kalman gain matrix for the input next state prediciton covariance.        
         '''
         nX = P.shape[0]
         I = np.mat(np.eye(nX))

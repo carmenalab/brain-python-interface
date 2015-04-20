@@ -762,6 +762,9 @@ class BMISystem(object):
         self.feature_accumulator = feature_accumulator
         self.param_hist = []
 
+        if self.updater is not None:
+            self.updater.init(self.decoder)
+
     def __call__(self, neural_obs, target_state, task_state, learn_flag=False, **kwargs):
         '''
         Main function for all BMI functions, including running the decoder, adapting the decoder 
@@ -798,7 +801,7 @@ class BMISystem(object):
 
         # If the target is specified as a 1D position, tile to match 
         # the number of dimensions as the neural features
-        if np.ndim(target_state) == 1:
+        if np.ndim(target_state) == 1 or (target_state.shape[1] == 1 and n_obs > 1):
             target_state = np.tile(target_state, [n_obs, 1]).T
 
         decoded_states = np.zeros([self.decoder.n_states, n_obs])
@@ -1058,19 +1061,14 @@ class BMILoop(object):
         else:
             target_state = np.ones([self.decoder.n_states, self.decoder.n_subbins]) * np.nan
 
-        try:
-            self.task_data['target_state'] = target_state            
-        except:
-            pass
 
         # Determine the assistive control inputs to the Decoder
-        if self.current_assist_level > 0:
+        if self.current_assist_level > 0 or self.learn_flag:
             current_state = self.get_current_state()
             if target_state.shape[1] > 1:
                 assist_kwargs = self.assister(current_state, target_state[:,0].reshape(-1,1), self.current_assist_level, mode=self.state)
             else:
                 assist_kwargs = self.assister(current_state, target_state, self.current_assist_level, mode=self.state)
-            # print assist_kwargs
             kwargs.update(assist_kwargs)
 
         # Run the decoder

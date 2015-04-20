@@ -107,7 +107,7 @@ class LinearFeedbackController(FeedbackController):
     '''
     Generic linear state-feedback controller. Can be time-varying in general and not be related to a specific cost function
     '''
-    def __init__(self, B=None, F=None):
+    def __init__(self, A, B, F):
         '''
         Constructor for LinearFeedbackController
         
@@ -127,6 +127,7 @@ class LinearFeedbackController(FeedbackController):
         -------
         LinearFeedbackController instance
         '''
+        self.A = A
         self.B = B
         self.F = F 
 
@@ -149,8 +150,9 @@ class LinearFeedbackController(FeedbackController):
         '''
         # explicitly cast current_state and target_state to column vectors
         current_state = np.mat(current_state).reshape(-1,1)
-        target_state = np.mat(target_state).reshape(-1,1)        
+        target_state = np.mat(target_state).reshape(-1,1)
         ns = self.A * current_state + self.B * self.F * (target_state - current_state)
+        # print ns
         return ns
 
     def __call__(self, current_state, target_state, mode=None):
@@ -164,6 +166,9 @@ class LinearFeedbackController(FeedbackController):
         np.mat of shape (N, 1)
             B*u where u_t = F(x^* - x_t)
         '''
+        
+        current_state = np.mat(current_state).reshape(-1,1)
+        target_state = np.mat(target_state).reshape(-1,1)
         Bu = self.B * self.F * (target_state - current_state)
         return Bu
 
@@ -195,12 +200,12 @@ class LQRController(LinearFeedbackController):
         -------
         LQRController instance
         '''
-        # self.A = A
-        # self.B = B
-        # self.Q = Q
-        # self.R = R
+        self.A = np.mat(A)
+        self.B = np.mat(B)
+        self.Q = np.mat(Q)
+        self.R = np.mat(R)
         F = self.dlqr(A, B, Q, R, **kwargs)
-        super(LQRController, self).__init__(B=B, F=F, **kwargs)
+        super(LQRController, self).__init__(A, B, F, **kwargs)
 
     @staticmethod
     def dlqr(A, B, Q, R, Q_f=None, T=np.inf, max_iter=1000, eps=1e-10, dtype=np.mat):
@@ -270,7 +275,7 @@ class MultiModalLFC(LinearFeedbackController):
     '''
     A linear feedback controller with different feedback gains in different "modes"
     '''
-    def __init__(self, B=None, F_dict=dict()):
+    def __init__(self, A=None, B=None, F_dict=dict()):
         '''
         Constructor for MultiModalLFC
 
@@ -285,6 +290,7 @@ class MultiModalLFC(LinearFeedbackController):
         -------
         MultiModalLFC instance
         '''
+        self.A = A
         self.B = B
         self.F_dict = F_dict
         self.F = None

@@ -112,7 +112,7 @@ class Learner(object):
         spike_counts : np.mat of shape (K, 1)
             Neural observations used to decode 'decoder_state'
         decoder_state : np.mat of shape (N, 1)
-            State estimate output from the decoder.
+            State estimate output from the decoder
         target_state : np.mat of shape (N, 1)
             For the current time, this is the optimal state for the Decoder as specified by the task
         decoder_output : np.mat of shape (N, 1)
@@ -220,10 +220,23 @@ class FeedbackControllerLearner(Learner):
     '''
     def __init__(self, batch_size, fb_ctrl, *args, **kwargs):
         self.fb_ctrl = fb_ctrl
+        self.style = kwargs.pop('style', 'mixing')
         super(FeedbackControllerLearner, self).__init__(batch_size, *args, **kwargs)
 
     def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
-        return self.fb_ctrl.calc_next_state(current_state, target_state, mode=task_state)
+        try:
+            if self.style == 'additive':
+                output = self.fb_ctrl(current_state, target_state, mode=task_state)
+            elif self.style == 'mixing':
+                output = self.fb_ctrl.calc_next_state(current_state, target_state, mode=task_state)
+            # print np.array(output)[-4:].ravel()
+            # import pdb; pdb.set_trace()
+            return output
+        except:
+            # Key errors happen when the feedback controller doesn't have a policy for the current task state
+            return None
+            import traceback
+            traceback.print_exc()
 
 
 class OFCLearner(Learner):
@@ -814,7 +827,7 @@ class KFRML(Updater):
 
 class PPFRML(KFRML):
     '''
-    Extension of the RML method to the point-process observation model using a Gaussian approximation to the obs model
+    Extension of the RML method to the point-process observation model
     '''
     def init(self, decoder):
         n_params_per_cell = decoder.ssm.drives_obs_inds
