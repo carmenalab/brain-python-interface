@@ -741,9 +741,14 @@ class LFPMTMPowerExtractor(object):
             lfp = plx.lfp[:].data[:, channels-1]
             n_pts = int(win_len * fs)
             for i, t in enumerate(interp_rows):
-                sample_num = int(t * fs)
-                cont_samples = lfp[sample_num-n_pts:sample_num, :]
-                lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+                try:
+                    sample_num = int(t * fs)
+                    cont_samples = lfp[sample_num-n_pts:sample_num, :]
+                    lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+                except:
+                    print "Error with LFP decoder training"
+                    print i, t
+                    pass
 
 
             # TODO -- discard any channel(s) for which the log power in any frequency 
