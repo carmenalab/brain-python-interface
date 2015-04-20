@@ -861,8 +861,8 @@ class BMISystem(object):
                 self.learner.enable()
                 update_flag = True
 
-            # Update parameter history
-            self.param_hist.append(new_params)
+                # Update parameter history
+                self.param_hist.append(new_params)
 
         return decoded_states, update_flag
 
@@ -1117,11 +1117,13 @@ class BMILoop(object):
         '''
         Re-open the HDF file and save any extra task data kept in RAM
         '''
-        super(CLDAMouseSpeller, self).cleanup_hdf()
+        super(BMILoop, self).cleanup_hdf()
         log_file = open(os.path.join(os.getenv("HOME"), 'code/bmi3d/log/clda_log'), 'w')
         log_file.write(str(self.state) + '\n')
         try:
-            if len(self.bmi_system.param_hist) > 0:
+            import clda
+            if len(self.bmi_system.param_hist) > 0 and not self.updater is None:
+                log_file.write('n_updates: %g\n' % len(self.bmi_system.param_hist))
                 ignore_none = self.learner.batch_size > 1
                 log_file.write('Ignoring "None" values: %s\n' % str(ignore_none))
                 clda.write_clda_data_to_hdf_table(
@@ -1133,7 +1135,7 @@ class BMILoop(object):
         log_file.close()
 
     def cleanup(self, database, saveid, **kwargs):
-        super(CLDAMouseSpeller, self).cleanup(database, saveid, **kwargs)
+        super(BMILoop, self).cleanup(database, saveid, **kwargs)
 
         # Open a log file in case of error b/c errors not visible to console
         # at this point
@@ -1145,7 +1147,7 @@ class BMILoop(object):
         try:
             f.write('# of paramter updates: %d\n' % len(self.bmi_system.param_hist))
 
-            if len(self.bmi_system.param_hist) > 0:
+            if len(self.bmi_system.param_hist) > 0  and not self.updater is None:
                 # create name for new decoder 
                 now = datetime.datetime.now()
                 decoder_name = self.decoder_sequence + now.strftime('%m%d%H%M')
