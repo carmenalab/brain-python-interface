@@ -140,6 +140,8 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         bin_edges = self.get_bin_edges(ts)
         self.last_get_spike_counts_time = start_time
 
+        # import pdb; pdb.set_trace()
+
         return dict(spike_counts=counts, bin_edges=bin_edges)
 
     @classmethod
@@ -412,7 +414,9 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         current_state = self.task.decoder.get_state(shape=(-1,1))
         target_state = self.task.get_target_BMI_state()
         ctrl = self.input_device.calc_next_state(current_state, target_state)
+
         ts_data = self.encoder(ctrl)
+        # print "n sim spikes", len(ts_data)
         return ts_data
         
 

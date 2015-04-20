@@ -267,11 +267,16 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         glm_family = sm.families.Poisson()
         for k in range(n_units):
             model = sm.GLM(Y[k,:], X.T, family=glm_family)
-            model_fit = model.fit()
-            C[k,:] = model_fit.params
-            pvalues[k,:] = model_fit.pvalues
+            try:
+                model_fit = model.fit()
+                C[k,:] = model_fit.params
+                pvalues[k,:] = model_fit.pvalues                
+            except:
+                pvalues[k,:] = np.nan
 
         return C, pvalues
+
+
 
 class OneStepMPCPointProcessFilter(PointProcessFilter):
     '''
@@ -453,3 +458,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         # ESS = n_pts
 
         return (S,)
+
+    @property 
+    def n_features(self):
+        return self.filt.C.shape[0]

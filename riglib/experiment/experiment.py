@@ -574,7 +574,7 @@ class Sequence(LogExperiment):
     # List of staticmethods of the class which can be used to create a sequence of targets for each trial
     sequence_generators = []
 
-    def __init__(self, gen, **kwargs):
+    def __init__(self, gen, *args, **kwargs):
         '''
         Constructor for Sequence
 
@@ -591,7 +591,7 @@ class Sequence(LogExperiment):
         '''
         self.gen = gen
         assert hasattr(gen, "next"), "gen must be a generator"
-        super(Sequence, self).__init__(**kwargs)
+        super(Sequence, self).__init__(*args, **kwargs)
     
     def _start_wait(self):
         '''

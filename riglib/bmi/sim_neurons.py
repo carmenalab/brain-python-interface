@@ -126,6 +126,7 @@ class CosEnc(object):
             baselines = self.baselines.ravel()
         else:
             baselines = self.baselines
+        user_input = np.array(user_input)[[3,5], 0]
         rates = self.mod_depth * np.dot(self.pds, user_input) + baselines
         rates[rates < 0] = 0 # Floor firing rates at 0 Hz
         counts = poisson(rates * self.DT)
@@ -241,8 +242,10 @@ class CLDASimCosEncJoints(CosEncJoints):
         self.call_count += 1
         return ts_data
 
-class PointProcess():
-    ''' Docstring '''
+class PointProcess(object):
+    '''
+    Simulate a single point process
+    '''
     def __init__(self, beta, dt, tau_samples=[], K=0, eps=1e-3):
         '''
         Docstring    
@@ -252,7 +255,7 @@ class PointProcess():
         
         Returns
         -------
-        '''              
+        '''
         self.beta = beta.reshape(-1, 1)
         self.dt = dt
         self.tau_samples = tau_samples
@@ -306,6 +309,7 @@ class PointProcess():
         '''              
         # integrate rate
         loglambda = np.dot(self.X[self.last_spike_ind:self.j+1, :], self.beta) #log of lambda delta
+        # import pdb; pdb.set_trace()
         self.rate = np.ravel(np.exp(loglambda)/self.dt)
 
         if len(self.rate) > 2:
@@ -339,7 +343,7 @@ class PointProcess():
         
         Returns
         -------
-        '''              
+        '''
         self.X = np.vstack([self.X, x_t])
 
     def __call__(self, x_t):
@@ -416,21 +420,37 @@ class PointProcess():
 
 
 class PointProcessEnsemble(object):
-    ''' Docstring '''
+    '''
+    Simulate an ensemble of point processes
+    '''
     def __init__(self, beta, dt, init_state=None, tau_samples=None, eps=1e-3, 
                  hist_len=0, units=None):
         '''
-        Initialize a point process ensemble
+        Constructor for PointProcessEnsemble
         
         Docstring    
         
         Parameters
         ----------
+        beta : np.array of shape (n_units, n_covariates)
+            Each row of the matrix specifies the relationship between a single point process in the ensemble and the common "stimuli"
+        dt : float
+             Sampling interval to integrate piont process likelihood over
+        init_state : np.array, optional, default=[np.zeros(n_covariates-1), 1]
+             Initial state of the common stimuli
+        tau_samples : np.iterable, optional, default=None
+             ARG_DESCR
+        eps : DATA_TYPE, optional, default=0.001
+             ARG_DESCR
+        hist_len : DATA_TYPE, optional, default=0
+             ARG_DESCR
+        units : list of tuples, optional, default=None
+             Identifiers for each element of the ensemble. One is automatically generated if none is provided
         
         Returns
         -------
+        PointProcessEnsemble instance
         
-
         '''
         self.n_neurons, n_covariates = beta.shape
         if init_state == None:
@@ -438,11 +458,14 @@ class PointProcessEnsemble(object):
         if tau_samples == None:
             tau_samples = [[]]*self.n_neurons
         point_process_units = []
+
         for k in range(self.n_neurons):
             point_proc = PointProcess(beta[k,:], dt, tau_samples=tau_samples[k])
             point_proc._init_sampling(init_state)
             point_process_units.append(point_proc)
+
         self.point_process_units = point_process_units
+
         if units == None:
             self.units = np.vstack([(x, 1) for x in range(self.n_neurons)])
         else:
@@ -470,7 +493,9 @@ class PointProcessEnsemble(object):
         Returns
         -------
         '''
-        x_t = np.hstack([x_t, 1])
+        
+        # x_t = np.hstack([x_t, 1])
+        x_t = np.array(x_t).ravel()
         counts = np.array(map(lambda unit: unit(x_t), self.point_process_units)).astype(int)
         return counts
 

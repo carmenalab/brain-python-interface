@@ -342,6 +342,7 @@ class CursorPlant(Plant):
         self.graphics_models = [self.cursor]
 
     def draw(self):
+        # print 'cursor pos', self.position
         self.cursor.translate(*self.position, reset=True)
 
     def get_endpoint_pos(self):
@@ -404,32 +405,6 @@ class CursorPlant(Plant):
 
     def get_data_to_save(self):
         return dict(cursor=self.position)
-
-class CursorPlantWithMass(CursorPlant):
-    Delta = 1./60 # call rate
-    hdf_attrs = [('cursor_pos', 'f8', (3,)), ('cursor_vel', 'f8', (3,))]
-    def __init__(self, *args, **kwargs):
-        super(CursorPlantWithMass, self).__init__(*args, **kwargs)
-        self.velocity = np.zeros(3)
-        self.acceleration = np.zeros(3)
-        self.mass = 1 # kg
-
-    def drive(self, decoder):
-        # decoder supplies 3-D force vector
-        force = decoder['force_x', 'force_y', 'force_z']
-
-        # run kinematics
-        acceleration = 1./self.mass * force
-        self.velocity += self.Delta * acceleration
-        self.position += self.Delta * self.velocity + 0.5*self.Delta**2 * acceleration
-
-        # bound position and velocity
-        self.position, self.velocity = self._bound(self.position, self.velocity)
-        # super(CursorPlantWithMass, self).drive(decoder)
-        self.draw()
-
-    def get_data_to_save(self):
-        return dict(cursor_pos=self.position, cursor_vel=self.velocity)
 
 class onedimLFP_CursorPlant(CursorPlant):
     hdf_attrs = [('lfp_cursor', 'f8', (3,))]
@@ -580,7 +555,7 @@ class RobotArmGen2D(Plant):
         self.graphics_models = [self.link_groups[0], self.cursor]
 
     def _update_link_graphics(self):
-        for i in range(0, self.num_joints):
+        for i in xrange(self.num_joints):
             # Rotate each joint to the vector specified by the corresponding row in self.curr_vecs
             # Annoyingly, the baseline orientation of the first group is always different from the 
             # more distal attachments, so the rotations have to be found relative to the orientation 
