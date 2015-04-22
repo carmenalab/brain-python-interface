@@ -3,7 +3,7 @@
 Representations of plants (control systems)
 '''
 import numpy as np
-from stereo_opengl.primitives import Cylinder, Sphere, Cone, Cube
+from stereo_opengl.primitives import Cylinder, Sphere, Cone, Cube, Chain
 from stereo_opengl.models import Group
 from riglib.bmi import robot_arms
 from riglib.stereo_opengl.xfm import Quaternion
@@ -87,7 +87,6 @@ class Plant(object):
     def init_decoder(self, decoder):
         decoder['q'] = self.get_intrinsic_coordinates()
 
-
 class FeedbackData(object):
     '''Abstract parent class, not meant to be instantiated.'''
 
@@ -146,7 +145,6 @@ class Client(object):
 
     def get_feedback_data(self):
         raise NotImplementedError('Implement in subclasses!')
-
 
 class UpperArmPassiveExoClient(Client):
     ##  socket to read from
@@ -225,11 +223,9 @@ class UpperArmPassiveExoData(FeedbackData):
         d = self.data.next()
         return np.array([(tuple(d.data), d.ts_arrival)], dtype=self.dtype)        
 
-
 class PassivePlant(Plant):
     def drive(self, *args, **kwargs):
         raise NotImplementedError("Passive plant cannot be driven!")
-
 
 class AsynchronousPlant(Plant):
     def init(self):
@@ -248,10 +244,6 @@ class AsynchronousPlant(Plant):
     def stop(self):
         self.source.stop()    
         super(AsynchronousPlant, self).stop()
-
-
-
-
 
 class PassiveExoChain(KinematicChain):
     def _init_serial_link(self):
@@ -274,9 +266,6 @@ class PassiveExoChain(KinematicChain):
         r.tool[0:3, -1] = np.array([0, 0, 45.]).reshape(-1,1)
         self.robot = r
         self.link_lengths = a
-
-
-
 
 class UpperArmPassiveExo(PassivePlant):
     hdf_attrs = [('joint_angles', 'f8', (6,))]
@@ -321,7 +310,6 @@ class UpperArmPassiveExo(PassivePlant):
 
     def stop(self):
         self.rx_sock.close()
-
 
 class CursorPlant(Plant):
     hdf_attrs = [('cursor', 'f8', (3,))]
@@ -461,83 +449,6 @@ class onedimLFP_CursorPlant_inverted(onedimLFP_CursorPlant):
             self.position = inv_pos
             self.draw()
 
-class VirtualKinematicChain(Plant):
-    def __init__(self, *args, **kwargs):
-        super(VirtualKinematicChain, self).__init__(*args, **kwargs)
-
-
-def make_list(value, num_joints):
-    '''
-    Helper function to allow joint/link properties of the chain to be specified
-    as one value for all joints/links or as separate values for each
-    '''
-    if isinstance(value, list) and len(value) == num_joints:
-        return value
-    else:
-        return [value] * num_joints
-
-
-
-
-
-
-
-
-class Chain(Group):
-    def __init__(self, link_radii, joint_radii, link_lengths, joint_colors, link_colors):
-        self.num_joints = num_joints = len(link_lengths)
-
-        self.link_radii = make_list(link_radii, num_joints)
-        self.joint_radii = make_list(joint_radii, num_joints)
-        self.link_lengths = make_list(link_lengths, num_joints)
-        self.joint_colors = make_list(joint_colors, num_joints)
-        self.link_colors = make_list(link_colors, num_joints)        
-
-        self.links = []
-
-        # Create the link graphics
-        for i in range(self.num_joints):
-            joint = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
-
-            # The most distal link gets a tapered cylinder (for purely stylistic reasons)
-            if i < self.num_joints - 1:
-                link = Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i])
-            else:
-                link = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
-            link_i = Group((link, joint))
-            self.links.append(link_i)
-
-        link_offsets = [0] + self.link_lengths[:-1]
-        self.link_groups = [None]*self.num_joints
-        for i in range(self.num_joints)[::-1]:
-            if i == self.num_joints-1:
-                self.link_groups[i] = self.links[i]
-            else:
-                self.link_groups[i] = Group([self.links[i], self.link_groups[i+1]])
-
-            self.link_groups[i].translate(0, 0, link_offsets[i])
-
-    def _update_link_graphics(self, curr_vecs):
-        for i in xrange(self.num_joints):
-            # Rotate each joint to the vector specified by the corresponding row in self.curr_vecs
-            # Annoyingly, the baseline orientation of the first group is always different from the 
-            # more distal attachments, so the rotations have to be found relative to the orientation 
-            # established at instantiation time.
-            if i == 0:
-                baseline_orientation = (0, 0, 1)
-            else:
-                baseline_orientation = (1, 0, 0)
-
-            # Find the normalized quaternion that represents the desired joint rotation
-            self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs(baseline_orientation, curr_vecs[i]).norm()
-
-            # Recompute any cached transformations after the change
-            self.link_groups[i]._recache_xfm()
-
-        
-
-
-
 arm_color = (181/256., 116/256., 96/256., 1)
 arm_radius = 0.6
 pi = np.pi
@@ -549,12 +460,7 @@ class RobotArmGen2D(Plant):
         '''
         self.num_joints = num_joints = len(link_lengths)
 
-        # self.link_radii = make_list(link_radii, num_joints)
-        # self.joint_radii = make_list(joint_radii, num_joints)
-        # self.link_lengths = make_list(link_lengths, num_joints)
-        # self.joint_colors = make_list(joint_colors, num_joints)
-        # self.link_colors = make_list(link_colors, num_joints)
-
+        self.link_lengths = link_lengths
         self.curr_vecs = np.zeros([num_joints, 3]) #rows go from proximal to distal links
 
         # set initial vecs to correct orientations (arm starts out vertical)
@@ -567,10 +473,11 @@ class RobotArmGen2D(Plant):
 
         self.base_loc = base_loc
         
-        chain = Chain(link_radii, joint_radii, link_lengths, joint_colors, link_colors)
-        self.link_groups = chain.link_groups
-        self.cursor = Sphere(radius=self.link_radii[-1]/2, color=self.link_colors[-1])
-        self.graphics_models = [self.link_groups[0], self.cursor]
+        self.chain = Chain(link_radii, joint_radii, link_lengths, joint_colors, link_colors)
+        self.cursor = Sphere(radius=arm_radius/2, color=link_colors)
+        self.graphics_models = [self.chain.link_groups[0], self.cursor]
+
+        self.chain.translate(*self.base_loc, reset=True)
 
         from riglib.bmi import state_space_models
         # self.ssm = state_space_models.StateSpaceNLinkPlanarChain(n_links=self.num_joints)
@@ -584,38 +491,7 @@ class RobotArmGen2D(Plant):
 
     @property 
     def kin_chain_class(self):
-        return robot_arms.PlanarXZKinematicChain   
-
-    def _pickle_init(self):
-        '''
-        Create graphics models
-        '''
-        # Create links
-        # self.links = []
-
-        # for i in range(self.num_joints):
-        #     joint = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
-
-        #     # The most distal link gets a tapered cylinder (for purely stylistic reasons)
-        #     if i < self.num_joints - 1:
-        #         link = Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i])
-        #     else:
-        #         link = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
-        #     link_i = Group((link, joint))
-        #     self.links.append(link_i)
-
-        # link_offsets = [0] + self.link_lengths[:-1]
-        # self.link_groups = [None]*self.num_joints
-        # for i in range(self.num_joints)[::-1]:
-        #     if i == self.num_joints-1:
-        #         self.link_groups[i] = self.links[i]
-        #     else:
-        #         self.link_groups[i] = Group([self.links[i], self.link_groups[i+1]])
-
-        #     self.link_groups[i].translate(0, 0, link_offsets[i])
-
-        # self.link_groups[0].translate(*self.base_loc, reset=True)
-        pass
+        return robot_arms.PlanarXZKinematicChain
 
     def get_endpoint_pos(self):
         '''
@@ -699,7 +575,7 @@ class EndptControlled2LArm(RobotArmGen2D):
                 if theta[i] is not None and ~np.isnan(theta[i]):
                     self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
                     
-            self._update_link_graphics()
+            self.chain._update_link_graphics(self.curr_vecs)
 
     def get_data_to_save(self):
         return dict(cursor=self.get_endpoint_pos(), arm_visible=self.visible)            
