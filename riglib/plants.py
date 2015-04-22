@@ -477,57 +477,25 @@ def make_list(value, num_joints):
         return [value] * num_joints
 
 
-arm_color = (181/256., 116/256., 96/256., 1)
-arm_radius = 0.6
-pi = np.pi
-class RobotArmGen2D(Plant):
-    def __init__(self, link_radii=arm_radius, joint_radii=arm_radius, link_lengths=[15,15,5,5], joint_colors=arm_color,
-        link_colors=arm_color, base_loc=np.array([2., 0., -15]), joint_limits=[(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)], stay_on_screen=False, **kwargs):
-        '''
-        Instantiate the graphics and the virtual arm for a planar kinematic chain
-        '''
+
+
+
+
+
+
+class Chain(Group):
+    def __init__(self, link_radii, joint_radii, link_lengths, joint_colors, link_colors):
         self.num_joints = num_joints = len(link_lengths)
 
         self.link_radii = make_list(link_radii, num_joints)
         self.joint_radii = make_list(joint_radii, num_joints)
         self.link_lengths = make_list(link_lengths, num_joints)
         self.joint_colors = make_list(joint_colors, num_joints)
-        self.link_colors = make_list(link_colors, num_joints)
+        self.link_colors = make_list(link_colors, num_joints)        
 
-        self.curr_vecs = np.zeros([num_joints, 3]) #rows go from proximal to distal links
-
-        # set initial vecs to correct orientations (arm starts out vertical)
-        self.curr_vecs[0,2] = self.link_lengths[0]
-        self.curr_vecs[1:,0] = self.link_lengths[1:]
-
-        # Instantiate the kinematic chain object
-        self.kin_chain = self.kin_chain_class(link_lengths, base_loc=base_loc)
-        self.kin_chain.joint_limits = joint_limits
-
-        self.base_loc = base_loc
-        self._pickle_init()
-
-        from riglib.bmi import state_space_models
-        # self.ssm = state_space_models.StateSpaceNLinkPlanarChain(n_links=self.num_joints)
-
-        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
-
-        self.visible = True # arm is visible when initialized
-
-        self.stay_on_screen = stay_on_screen
-        self.joint_angles = np.zeros(self.num_joints)
-
-    @property 
-    def kin_chain_class(self):
-        return robot_arms.PlanarXZKinematicChain   
-
-    def _pickle_init(self):
-        '''
-        Create graphics models
-        '''
-        # Create links
         self.links = []
 
+        # Create the link graphics
         for i in range(self.num_joints):
             joint = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
 
@@ -549,12 +517,7 @@ class RobotArmGen2D(Plant):
 
             self.link_groups[i].translate(0, 0, link_offsets[i])
 
-        self.link_groups[0].translate(*self.base_loc, reset=True)
-        
-        self.cursor = Sphere(radius=self.link_radii[-1]/2, color=self.link_colors[-1])
-        self.graphics_models = [self.link_groups[0], self.cursor]
-
-    def _update_link_graphics(self):
+    def _update_link_graphics(self, curr_vecs):
         for i in xrange(self.num_joints):
             # Rotate each joint to the vector specified by the corresponding row in self.curr_vecs
             # Annoyingly, the baseline orientation of the first group is always different from the 
@@ -566,12 +529,93 @@ class RobotArmGen2D(Plant):
                 baseline_orientation = (1, 0, 0)
 
             # Find the normalized quaternion that represents the desired joint rotation
-            self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs(baseline_orientation, self.curr_vecs[i]).norm()
+            self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs(baseline_orientation, curr_vecs[i]).norm()
 
             # Recompute any cached transformations after the change
             self.link_groups[i]._recache_xfm()
 
-        self.cursor.translate(*self.get_endpoint_pos(), reset=True)
+        
+
+
+
+arm_color = (181/256., 116/256., 96/256., 1)
+arm_radius = 0.6
+pi = np.pi
+class RobotArmGen2D(Plant):
+    def __init__(self, link_radii=arm_radius, joint_radii=arm_radius, link_lengths=[15,15,5,5], joint_colors=arm_color,
+        link_colors=arm_color, base_loc=np.array([2., 0., -15]), joint_limits=[(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)], stay_on_screen=False, **kwargs):
+        '''
+        Instantiate the graphics and the virtual arm for a planar kinematic chain
+        '''
+        self.num_joints = num_joints = len(link_lengths)
+
+        # self.link_radii = make_list(link_radii, num_joints)
+        # self.joint_radii = make_list(joint_radii, num_joints)
+        # self.link_lengths = make_list(link_lengths, num_joints)
+        # self.joint_colors = make_list(joint_colors, num_joints)
+        # self.link_colors = make_list(link_colors, num_joints)
+
+        self.curr_vecs = np.zeros([num_joints, 3]) #rows go from proximal to distal links
+
+        # set initial vecs to correct orientations (arm starts out vertical)
+        self.curr_vecs[0,2] = self.link_lengths[0]
+        self.curr_vecs[1:,0] = self.link_lengths[1:]
+
+        # Instantiate the kinematic chain object
+        self.kin_chain = self.kin_chain_class(link_lengths, base_loc=base_loc)
+        self.kin_chain.joint_limits = joint_limits
+
+        self.base_loc = base_loc
+        
+        chain = Chain(link_radii, joint_radii, link_lengths, joint_colors, link_colors)
+        self.link_groups = chain.link_groups
+        self.cursor = Sphere(radius=self.link_radii[-1]/2, color=self.link_colors[-1])
+        self.graphics_models = [self.link_groups[0], self.cursor]
+
+        from riglib.bmi import state_space_models
+        # self.ssm = state_space_models.StateSpaceNLinkPlanarChain(n_links=self.num_joints)
+
+        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
+
+        self.visible = True # arm is visible when initialized
+
+        self.stay_on_screen = stay_on_screen
+        self.joint_angles = np.zeros(self.num_joints)
+
+    @property 
+    def kin_chain_class(self):
+        return robot_arms.PlanarXZKinematicChain   
+
+    def _pickle_init(self):
+        '''
+        Create graphics models
+        '''
+        # Create links
+        # self.links = []
+
+        # for i in range(self.num_joints):
+        #     joint = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
+
+        #     # The most distal link gets a tapered cylinder (for purely stylistic reasons)
+        #     if i < self.num_joints - 1:
+        #         link = Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i])
+        #     else:
+        #         link = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
+        #     link_i = Group((link, joint))
+        #     self.links.append(link_i)
+
+        # link_offsets = [0] + self.link_lengths[:-1]
+        # self.link_groups = [None]*self.num_joints
+        # for i in range(self.num_joints)[::-1]:
+        #     if i == self.num_joints-1:
+        #         self.link_groups[i] = self.links[i]
+        #     else:
+        #         self.link_groups[i] = Group([self.links[i], self.link_groups[i+1]])
+
+        #     self.link_groups[i].translate(0, 0, link_offsets[i])
+
+        # self.link_groups[0].translate(*self.base_loc, reset=True)
+        pass
 
     def get_endpoint_pos(self):
         '''
@@ -617,7 +661,8 @@ class RobotArmGen2D(Plant):
             for i in range(self.num_joints):
                 self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
                 
-        self._update_link_graphics()
+        self.chain._update_link_graphics(self.curr_vecs)
+        self.cursor.translate(*self.get_endpoint_pos(), reset=True)
 
     def get_data_to_save(self):
         return dict(cursor=self.get_endpoint_pos(), joint_angles=self.get_intrinsic_coordinates(), arm_visible=self.visible)
