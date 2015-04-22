@@ -201,6 +201,8 @@ class GaussianStateHMM(object):
             B = self.B
             if F is None:
                 F = self.F
+            # if not np.all(target_state[:-1,:] == 0):
+            #     import pdb; pdb.set_trace()
             A = A - B*F
             c_t = B*F*target_state
         else:
@@ -802,7 +804,8 @@ class BMISystem(object):
         # If the target is specified as a 1D position, tile to match 
         # the number of dimensions as the neural features
         if np.ndim(target_state) == 1 or (target_state.shape[1] == 1 and n_obs > 1):
-            target_state = np.tile(target_state, [n_obs, 1]).T
+            target_state = np.tile(target_state, [1, n_obs])
+
 
         decoded_states = np.zeros([self.decoder.n_states, n_obs])
         update_flag = False
@@ -1063,7 +1066,7 @@ class BMILoop(object):
 
 
         # Determine the assistive control inputs to the Decoder
-        if self.current_assist_level > 0 or self.learn_flag:
+        if self.current_assist_level > 0:
             current_state = self.get_current_state()
             if target_state.shape[1] > 1:
                 assist_kwargs = self.assister(current_state, target_state[:,0].reshape(-1,1), self.current_assist_level, mode=self.state)

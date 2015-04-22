@@ -146,6 +146,8 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         Returns
         -------
         '''
+        if np.any(obs_t > 1): 
+            raise Exception
         using_control_input = (Bu is not None) or (u is not None) or (x_target is not None)
         if x_target is not None:
             x_target = np.mat(x_target[:,0].reshape(-1,1))
@@ -162,6 +164,8 @@ class PointProcessFilter(bmi.GaussianStateHMM):
         W = self.W
         C = C[:,inds]
 
+
+        # print np.array(x_target).ravel()
         pred_state = self._ssm_pred(st, target_state=x_target, Bu=Bu, u=u, F=F)
         x_pred, P_pred = pred_state.mean, pred_state.cov
         P_pred = P_pred[mesh]
@@ -470,47 +474,31 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
             dimension of the array passed in, but the parameter can become non-integer 
             during the update procedure as old parameters are "forgotten".
         '''
-        assert hidden_state.shape[1] == obs.shape[1]
-    
-        if isinstance(hidden_state, np.ma.core.MaskedArray):
-            mask = ~hidden_state.mask[0,:] # NOTE THE INVERTER 
-            inds = np.nonzero([ mask[k]*mask[k+1] for k in range(len(mask)-1)])[0]
-    
-            X = np.mat(hidden_state[:,mask])
-            n_pts = len(np.nonzero(mask)[0])
-    
-            Y = np.mat(obs[:,mask])
-            if include_offset:
-                X = np.vstack([ X, np.ones([1,n_pts]) ])
-        else:
-            num_hidden_state, n_pts = hidden_state.shape
-            X = np.mat(hidden_state)
-            if include_offset:
-                X = np.vstack([ X, np.ones([1,n_pts]) ])
-            Y = np.mat(obs)
-        X = np.mat(X, dtype=np.float64)
+        n_obs = obs.shape[0]
+        nS = hidden_state.shape[0]
 
-        C = self.filt.C
-        dt = self.filt.dt
+        H = np.zeros([n_obs, nS, nS])
+        M = np.zeros([n_obs, nS])
+        S = np.zeros([n_obs, nS])
 
-        S = np.zeros([Y.shape[0], X.shape[0]])
-        n_samples = X.shape[1]
-        for k in range(n_samples):
-            x_t = X[:, k]
-            Loglambda_predict = C[:,self.drives_neurons] * x_t
-            exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
-            lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
-            Q_inv = np.mat(np.diag(lambda_predict*dt))
+        C = self.filt.C[:,self.drives_neurons]
 
-            y_t = Y[:,k]
-            S += Q_inv*y_t*x_t.T
+        X = np.array(hidden_state)
+        T = X.shape[1]
+        if include_offset:
+            if not np.all(X[-1,:] == 1):
+                X = np.vstack([ X, np.ones([1,T]) ])
 
-        # R = (X * X.T)
-        # S = (Y * X.T)
-        # T = (Y * Y.T)
-        # ESS = n_pts
+        for k in range(n_obs):
+            Mu = np.exp(np.dot(C[k,:], X)).ravel()
+            Y = obs[k,:]
+            H[k] = np.dot((np.tile(np.array(-Mu), [nS, 1]) * X), X.T)
+            M[k] = np.dot(Mu, X.T)
+            S[k] = np.dot(Y, X.T)
 
-        return (S,)
+        self.H = H
+        self.S = S
+        self.M = M
 
     @property 
     def n_features(self):
