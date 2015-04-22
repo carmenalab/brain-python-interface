@@ -75,7 +75,9 @@ bmi_algorithms = dict(
 bmi_training_pos_vars = [
     'cursor',
     'joint_angles',
-    'plant_pos'  # used for ibmi tasks
+    'plant_pos',  # used for ibmi tasks
+    'mouse_state',
+    'decoder_state',
 ]
 
 #################################
@@ -85,6 +87,7 @@ joint_2D_state_space = bmi.state_space_models.StateSpaceNLinkPlanarChain(n_links
 tentacle_2D_state_space = bmi.state_space_models.StateSpaceNLinkPlanarChain(n_links=4, w=0.01)
 
 from tasks.ismore_bmi_lib import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
+from tasks.point_mass_cursor import PointForceStateSpace
 armassist_state_space = StateSpaceArmAssist()
 rehand_state_space = StateSpaceReHand()
 ismore_state_space = StateSpaceIsMore()
@@ -100,6 +103,8 @@ endpt_2D_states = [State('hand_px', stochastic=False, drives_obs=False, min_val=
                    offset_state]
 endpt_2D_state_space = state_space_models.LinearVelocityStateSpace(endpt_2D_states)
 
+from tasks.speller_tasks import PointClickSSM
+mouse_ssm = PointClickSSM()
 
 bmi_state_space_models=dict(
     Endpt2D=endpt_2D_state_space,
@@ -108,6 +113,8 @@ bmi_state_space_models=dict(
     Rehand=rehand_state_space,
     ISMORE=ismore_state_space,
     Joint2L=joint_2D_state_space,
+    Mouse=mouse_ssm,
+    PointMass=PointForceStateSpace(),
 )
 
 extractors = dict(
@@ -115,6 +122,12 @@ extractors = dict(
     LFPpowerMTM = bmi.extractor.LFPMTMPowerExtractor,
     LFPpowerBPF = bmi.extractor.LFPButterBPFPowerExtractor,
     EMGAmplitude = bmi.extractor.EMGAmplitudeExtractor,
+)
+
+from riglib.bmi import train
+kin_extractors = dict(
+    pos_vel=train.get_plant_pos_vel,
+    null=train.null_kin_extractor,
 )
 
 default_extractor = "spikecounts"
