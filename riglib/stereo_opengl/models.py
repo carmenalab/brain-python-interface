@@ -47,7 +47,9 @@ class Model(object):
     
     def _recache_xfm(self):
         '''
-        For models with a parent, the transform of the current model must be cascaded with the parent model's transform 
+        For models with a parent, the transform of the current model must be cascaded with the parent model's transform.
+        NOTE: this only goes one level up the graphics tree, so the transform is 
+        always with respect to the parent's frame, not with respect to the world frame!
         '''
         if self.parent is not None:
             self._xfm = self.parent._xfm * self.xfm
