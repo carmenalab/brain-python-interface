@@ -589,6 +589,10 @@ class Sequence(LogExperiment):
         -------
         Sequence instance
         '''
+        if np.iterable(gen):
+            from generate import runseq
+            gen = runseq(self, seq=gen)
+
         self.gen = gen
         assert hasattr(gen, "next"), "gen must be a generator"
         super(Sequence, self).__init__(*args, **kwargs)
