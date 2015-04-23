@@ -800,18 +800,6 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     ssm = state_space_models.StateSpaceEndptVel2D()
     A, _, W = ssm.get_ssm_matrices(update_rate=dt)
 
-    # A, W = state_space_models.linear_kinarm_kf(update_rate=dt, units_mult=units_mult)
-
-    # bounding_box = (np.array([-0.25, -0.14])/units_mult, np.array([0.25, 0.14])/units_mult)
-    # neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
-    # states_to_bound = ['hand_px', 'hand_pz']
-    # states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-    # drives_neurons = np.array([x in neuron_driving_states for x in states])
-    # beta = inflate(beta, neuron_driving_states, states, axis=1)
-
-    # args = (bounding_box, states, drives_neurons, states_to_bound)
-    # kwargs = dict(binlen=dt)
-
     # rescale beta for units
     beta[:,3:6] *= units_mult
     
@@ -822,6 +810,12 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
     # instantiate Decoder
     ppf = ppfdecoder.PointProcessFilter(A, W, beta, dt=dt, is_stochastic=ssm.is_stochastic, B=B)
     dec = ppfdecoder.PPFDecoder(ppf, units, ssm, binlen=dt)
+
+    n_stoch_states = len(np.nonzero(ssm.drives_obs)[0])
+    n_units = len(units)
+    dec.H = np.dstack([np.eye(3)*100] * n_units).transpose(2, 0, 1)
+    dec.M = np.mat(np.ones([n_units, n_stoch_states])) * np.exp(-1.6)
+    dec.S = np.mat(np.ones([n_units, n_stoch_states])) * np.exp(-1.6)
 
     # Force decoder to run at max 60 Hz
     dec.bminum = 0
