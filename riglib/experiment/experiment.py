@@ -237,6 +237,8 @@ class Experiment(traits.HasTraits, threading.Thread):
                             # Execute the event. In the base class, this means changing the state to the next state
                             self.trigger_event(event)
                             break
+                    else:
+                        print "missing fn: ", event_test_fn_name
             except:
                 traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
                 self.state = None
@@ -331,7 +333,9 @@ class Experiment(traits.HasTraits, threading.Thread):
     def _test_stop(self, ts):
         ''' 
         FSM 'test' function. Returns the 'stop' attribute of the task
-        '''        
+        '''
+        # with open('/home/lab/code/bmi3d/log/exp_class_log', 'w') as f:
+        #     f.write('stuff')
         if self.session_length > 0 and (self.get_time() - self.task_start_time) > self.session_length:
             self.end_task()
         return self.stop        

@@ -150,6 +150,80 @@ class Cone(TriMesh):
             tcoords=tcoord, normals=normals, **kwargs)
 
 
+class Chain(object):
+    '''
+    An open chain of cylinders and cones, e.g. to simulate a stick-figure arm/robot
+    '''
+    def __init__(self, link_radii, joint_radii, link_lengths, joint_colors, link_colors):
+        from models import Group
+        from xfm import Quaternion
+        self.num_joints = num_joints = len(link_lengths)
+
+        self.link_radii = self.make_list(link_radii, num_joints)
+        self.joint_radii = self.make_list(joint_radii, num_joints)
+        self.link_lengths = self.make_list(link_lengths, num_joints)
+        self.joint_colors = self.make_list(joint_colors, num_joints)
+        self.link_colors = self.make_list(link_colors, num_joints)        
+
+        self.links = []
+
+        # Create the link graphics
+        for i in range(self.num_joints):
+            joint = Sphere(radius=self.joint_radii[i], color=self.joint_colors[i])
+
+            # The most distal link gets a tapered cylinder (for purely stylistic reasons)
+            if i < self.num_joints - 1:
+                link = Cylinder(radius=self.link_radii[i], height=self.link_lengths[i], color=self.link_colors[i])
+            else:
+                link = Cone(radius1=self.link_radii[-1], radius2=self.link_radii[-1]/2, height=self.link_lengths[-1], color=self.link_colors[-1])
+            link_i = Group((link, joint))
+            self.links.append(link_i)
+
+        link_offsets = [0] + self.link_lengths[:-1]
+        self.link_groups = [None]*self.num_joints
+        for i in range(self.num_joints)[::-1]:
+            if i == self.num_joints-1:
+                self.link_groups[i] = self.links[i]
+            else:
+                self.link_groups[i] = Group([self.links[i], self.link_groups[i+1]])
+
+            self.link_groups[i].translate(0, 0, link_offsets[i])
+
+    def _update_link_graphics(self, curr_vecs):
+        from models import Group
+        from xfm import Quaternion
+
+        for i in xrange(self.num_joints):
+            # Rotate each joint to the vector specified by the corresponding row in self.curr_vecs
+            # Annoyingly, the baseline orientation of the first group is always different from the 
+            # more distal attachments, so the rotations have to be found relative to the orientation 
+            # established at instantiation time.
+            if i == 0:
+                baseline_orientation = (0, 0, 1)
+            else:
+                baseline_orientation = (1, 0, 0)
+
+            # Find the normalized quaternion that represents the desired joint rotation
+            self.link_groups[i].xfm.rotate = Quaternion.rotate_vecs(baseline_orientation, curr_vecs[i]).norm()
+
+            # Recompute any cached transformations after the change
+            self.link_groups[i]._recache_xfm()
+
+    def translate(self, *args, **kwargs):
+        self.link_groups[0].translate(*args, **kwargs)
+
+    @staticmethod
+    def make_list(value, num_joints):
+        '''
+        Helper function to allow joint/link properties of the chain to be specified
+        as one value for all joints/links or as separate values for each
+        '''
+        if isinstance(value, list) and len(value) == num_joints:
+            return value
+        else:
+            return [value] * num_joints
+
+##### 2-D primitives #####
 
 class Shape2D(object):
     '''Abstract base class for shapes that live in the 2-dimension xz-plane
