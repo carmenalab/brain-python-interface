@@ -459,6 +459,8 @@ class PointProcessEnsemble(object):
             tau_samples = [[]]*self.n_neurons
         point_process_units = []
 
+        self.beta = beta
+
         for k in range(self.n_neurons):
             point_proc = PointProcess(beta[k,:], dt, tau_samples=tau_samples[k])
             point_proc._init_sampling(init_state)

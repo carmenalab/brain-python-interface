@@ -28,11 +28,14 @@ from riglib.bmi.feedback_controllers import LQRController
 import pickle
 
 
-reload(kfdecoder)
-reload(ppfdecoder)
+# reload(kfdecoder)
+# reload(ppfdecoder)
 reload(clda)
-reload(riglib.bmi)
-reload(riglib.bmi.train)
+# reload(riglib.bmi)
+# reload(riglib.bmi.train)
+from tasks import tentaclebmitasks
+reload(cursor_clda_tasks)
+reload(tentaclebmitasks)
 
 import argparse
 parser = argparse.ArgumentParser(description='Analyze neural control of a redundant kinematic chain')
@@ -89,13 +92,12 @@ class PointProcContinuous(object):
 
  
 
-from tasks.cursor_clda_tasks import OFCLearner3DEndptPPF
+# from tasks.cursor_clda_tasks import OFCLearner3DEndptPPF
 from riglib.experiment import traits
 from riglib.bmi import feedback_controllers
 
-# OFCLearner3DEndptPPF(1)
-class SimCLDAControlMultiDispl2D_PPF(SimTime, Autostart, WindowDispl2D, SimCosineTunedPointProc, SimPPFDecoderCursorShuffled, cursor_clda_tasks.CLDAControlPPFContAdapt2):
-# class SimCLDAControlMultiDispl2D_PPF(Autostart, WindowDispl2D, SimCosineTunedPointProc, SimPPFDecoderCursor, cursor_clda_tasks.CLDAControlPPFContAdapt2):
+
+class SimCLDAControlMultiDispl2D_PPF(SimTime, Autostart, WindowDispl2D, SimCosineTunedPointProc, SimPPFDecoderCursorShuffled, cursor_clda_tasks.CLDAControlPPFContAdapt):
     win_res = (250, 140)
     tau = traits.Float(2.7, desc="Magic parameter for speed of OFC.")
     param_noise_scale = traits.Float(1.0, desc="Stuff")
@@ -112,86 +114,18 @@ class SimCLDAControlMultiDispl2D_PPF(SimTime, Autostart, WindowDispl2D, SimCosin
 
         self.ssm = ssm
 
-
         super(SimCLDAControlMultiDispl2D_PPF, self).__init__(*args, **kwargs)
         self.batch_time = 1./10 #60.  # TODO 10 Hz running seems to be hardcoded somewhere
         self.assist_level = 0., 0.
-        self.assist_level_time = 60.
+        self.assist_level_time = 120.
         self.last_get_spike_counts_time = -1./60
         self.learn_flag = True
 
-    def get_features(self):
-        feats = super(SimCLDAControlMultiDispl2D_PPF, self).get_features()
-        # if np.any(feats['spike_counts']):
-        #     print "spikes!"
-        #     print feats
-        # print np.sum(feats['spike_counts'], axis=0)
-        return feats
-
-
-
-
-    def create_learner(self):
-        # self.learner = OFCLearner3DEndptPPF(1, dt=self.decoder.filt.dt, tau=self.tau)
-        self.learn_flag = True
-
-        kwargs = dict()
-        dt = kwargs.pop('dt', 1./180)
-        use_tau_unNat = self.tau
-        self.tau = use_tau_unNat
-        print "learner cost fn param: %g" % use_tau_unNat
-        tau_scale = 28*use_tau_unNat/1000
-        bin_num_ms = (dt/0.001)
-        w_r = 3*tau_scale**2/2*(bin_num_ms)**2*26.61
-        
-        I = np.eye(3)
-        zero_col = np.zeros([3, 1])
-        zero_row = np.zeros([1, 3])
-        zero = np.zeros([1,1])
-        one = np.ones([1,1])
-        A = np.bmat([[I, dt*I, zero_col], 
-                     [0*I, 0*I, zero_col], 
-                     [zero_row, zero_row, one]])
-        B = np.bmat([[0*I], 
-                     [dt/1e-3 * I],
-                     [zero_row]])
-        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
-        R = np.mat(np.diag([w_r, w_r, w_r]))
-        
-        F = feedback_controllers.LQRController.dlqr(A, B, Q, R)
-        F_dict = dict(target=F, hold=F) 
-
-        fb_ctrl = feedback_controllers.MultiModalLFC(A=A, B=B, F_dict=F_dict)
-
-        batch_size = 1
-
-        self.learner = clda.OFCLearner(batch_size, A, B, F_dict)
-        # super(OFCLearner3DEndptPPF, self).__init__(batch_size, A, B, F_dict, *args, **kwargs)
-
-        # Tell BMISystem that this learner wants the most recent output
-        # of the decoder rather than the second most recent, to match MATLAB
-        self.learner.input_state_index = 0
-
-
-
-
-
-
-        #self.decoder.filt.W[3:6, 3:6] = np.eye(3) * 0.37182884 #0.4110
-
-    # def _init_fb_controller(self):
-
-
-    # def init(self):
-    #     self._init_neural_encoder()
-    #     self._init_fb_controller()
-    #     # self.load_decoder()
-    #     self.wait_time = 0
-    #     self.pause = False
-    #     super(SimCLDAControlMultiDispl2D_PPF, self).init()
-    #     if self.updater is not None:
-    #         self.updater.init(self.decoder)     
-
+class SimCLDAControlMultiDispl2D_PPFRML(SimCLDAControlMultiDispl2D_PPF):
+    half_life = (10., 120.)
+    max_attempts = 1
+    def create_updater(self):
+        self.updater = clda.PPFRML()
 
 if args.alg == 'RML':
     if args.save:
@@ -206,6 +140,9 @@ if args.alg == 'RML':
 elif args.alg == 'PPF':
     gen = cursor_clda_tasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 100)
     task = SimCLDAControlMultiDispl2D_PPF(gen)
+elif args.alg == 'PPFRML':
+    gen = cursor_clda_tasks.SimCLDAControlMulti.sim_target_seq_generator_multi(8, 100)
+    task = SimCLDAControlMultiDispl2D_PPFRML(gen)
 else:
     raise ValueError("Algorithm not recognized!")
 
