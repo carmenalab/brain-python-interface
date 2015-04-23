@@ -154,7 +154,12 @@ class Window(LogExperiment):
         pass
     
     def _test_stop(self, ts):
-        return self.stop or self.event is not None and self.event[0] == 27
+        '''
+        Stop the task if the escape key is pressed, or if the super _test_stop instructs a stop
+        '''
+        super_stop = super(Window, self)._test_stop(ts)
+        from pygame import K_ESCAPE
+        return super_stop or self.event is not None and self.event[0] == K_ESCAPE
     
     def requeue(self):
         self.renderer._queue_render(self.world)
