@@ -294,13 +294,22 @@ class OFCLearner(Learner):
         np.mat of shape (N, 1)
             Estimate of intended next state for BMI
         '''
+        if 0:
+            print "OFCLearner" 
         try:
             current_state = np.mat(current_state).reshape(-1,1)
             target_state = np.mat(target_state).reshape(-1,1)
             F = self.F_dict[task_state]
             A = self.A
             B = self.B
-            return A*current_state + B*F*(target_state - current_state)        
+
+            if 0:
+                print "current_state"
+                print current_state
+                print "target_state"
+                print target_state
+
+            return A*current_state + B*F*(target_state - current_state)
         except KeyError:
             return None
 
@@ -569,8 +578,13 @@ class PPFContinuousBayesianUpdater(Updater):
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, **kwargs):
         '''    Docstring    '''
+
         if (intended_kin is None) or (spike_counts is None) or (decoder is None):
             raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")        
+
+        if 0:
+            print np.array(intended_kin).ravel()
+
         int_kin_full = intended_kin
         spike_obs_full = spike_counts
         n_samples = int_kin_full.shape[1]
@@ -825,95 +839,66 @@ class KFRML(Updater):
         self.stable_inds_independent = stable_inds_independent
 
 
-class PPFRML(KFRML):
+class PPFRML(Updater):
     '''
-    Extension of the RML method to the point-process observation model
     '''
+    update_kwargs = dict()
+    def __init__(self, *args, **kwargs):
+        super(PPFRML, self).__init__(self.calc, multiproc=False)
+
     def init(self, decoder):
-        n_params_per_cell = decoder.ssm.drives_obs_inds
-        n_units = decoder.n_units
-        R_inv_cell = np.diag([0.00071857755796282436, 0.00071857755796282436, 0.018144994682778668])
-        from scipy.linalg import block_diag
-        self.R_inv = block_diag(*([R_inv_cell]*n_units))
-        self.S = decoder.filt.S
-
-    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
-        '''
-        Parameters
-        ----------
-        intended_kin : np.ndarray of shape (n_states, batch_size)
-            Batch of estimates of intended kinematics, from the learner
-        spike_counts : np.ndarray of shape (n_features, batch_size)
-            Batch of observations of decoder features, from the learner
-        decoder : bmi.Decoder instance
-            Reference to the Decoder instance
-        half_life : float, optional
-            Half-life to use to calculate the parameter change step size. If not specified, 
-            the half-life specified when the Updater was constructed is used.
-        values : np.ndarray, optional
-            Relative value of each sample of the batch. If not specified, each sample is assumed to have equal value.
-        kwargs : dict
-            Optional keyword arguments, ignored
-
-        Returns
-        -------
-        new_params : dict
-            New parameters to feed back to the Decoder in use by the task.
-        '''
-        if intended_kin == None or spike_counts == None or decoder == None:
-            raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
-
-        # Calculate the step size based on the half life and the number of samples to train from
-        batch_size = intended_kin.shape[1]
-        batch_time = batch_size * decoder.binlen            
-
-        if half_life is not None:
-            rho = np.exp(np.log(0.5)/(half_life/batch_time))
-        else:
-            rho = self.rho 
-
-        drives_neurons = decoder.drives_neurons
-
-        x = np.mat(intended_kin)
-        y = np.mat(spike_counts)
-        n_features, n_samples = y.shape
-
-        # if values is not None:
-        #     n_samples = np.sum(values)
-        #     B = np.mat(np.diag(values))
-        # else:
-        #     n_samples = spike_counts.shape[1]
-        #     B = np.mat(np.eye(n_samples))
-
-        C = decoder.filt.C 
-        dt = decoder.filt.dt
-
-        for k in range(n_samples):
-            x_t = x[drives_neurons, k]
-            Loglambda_predict = C[:,drives_neurons] * x_t
-            exp = np.vectorize(lambda x: np.real(cmath.exp(x)))
-            lambda_predict = exp(np.array(Loglambda_predict).ravel())/dt
-            Q_inv = np.mat(np.diag(lambda_predict*dt))
-
-            y_t = y[:,k]
-            # self.R = rho*self.R + np.kron(x_t*x_t.T, Q_inv)
-            self.S[:,drives_neurons] = rho*self.S[:,drives_neurons] + Q_inv*y_t*x_t.T
-
-        # self.R = rho*self.R + (x*B*x.T)
-        # self.S = rho*self.S + (y*B*x.T)
-
-        # print self.R_inv.shape
-        # print self.S[:,drives_neurons].T.flatten().shape
-        vec_C = np.dot(self.R_inv, self.S[:,drives_neurons].T.flatten().reshape(-1,1)) #np.linalg.lstsq(self.R, self.S)[0]
-        C = np.zeros_like(C)
-        C[:,drives_neurons] = vec_C.reshape(-1, n_features).T
-        # TODO these aren't necessary for the independent observations PPF, but maybe for the more complicated forms?
-        # self.T = rho*self.T + np.dot(y, B*y.T)
-        # self.ESS = rho*self.ESS + n_samples
+        self.dt = decoder.filt.dt
+        self.C_est = decoder.filt.C
+        self.H = decoder.H
+        self.M = decoder.M
+        self.S = decoder.S
         
-        new_params = {'filt.C':C, 'filt.S':self.S} # 'kf.ESS':self.ESS, 'filt.T':self.T
+        self.neuron_driving_state_inds = np.nonzero(decoder.drives_neurons)[0]
+        self.neuron_driving_states = list(np.take(decoder.states, np.nonzero(decoder.drives_neurons)[0]))
+        self.n_states = len(decoder.states)
+        self.full_size = len(decoder.states)
+        
 
-        return new_params
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=120., **kwargs):
+        '''
+        # time iterative RLS
+        '''
+        if (intended_kin is None) or (spike_counts is None) or (decoder is None):
+            raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")        
+
+        batch_size = 1.
+        batch_time = batch_size * decoder.binlen    
+        rho = np.exp(np.log(0.5)/(half_life/batch_time))
+    
+        n_cells = self.C_est.shape[0]
+        n_obs = intended_kin.shape[1]
+        intended_kin = np.mat(intended_kin)
+        # print "updating"
+        # print intended_kin
+        # print spike_counts.T
+        spike_counts[spike_counts > 1] = 1
+        for k in range(n_cells):
+            for m in range(n_obs):
+                H = np.mat(self.H[k])
+                S = np.mat(self.S[k].reshape(-1,1))
+                M = np.mat(self.M[k].reshape(-1,1))
+                c = self.C_est[k, self.neuron_driving_state_inds].T
+
+                # print H
+                c_new = c - H.I * (S - M)
+                c = rho*c + (1-rho)*c_new
+                self.C_est[k, self.neuron_driving_state_inds] = c.T
+                
+                x_m = intended_kin[self.neuron_driving_state_inds, m] #X[k].T
+                mu_m = np.exp(c.T * x_m)[0,0]
+                y_m = spike_counts[k, m]
+
+
+                self.H[k] = rho*H + (1-rho)*(-mu_m * x_m * x_m.T)
+                self.M[k] = np.array(rho*M + (1-rho)*(mu_m * x_m)).ravel()
+                self.S[k] = np.array(rho*S + (1-rho)*(y_m*x_m)).ravel()
+
+        return {'filt.C': self.C_est}
 
 
 class KFRML_IVC(KFRML):
