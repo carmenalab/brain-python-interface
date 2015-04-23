@@ -34,6 +34,7 @@ class Model(object):
         self.shininess = shininess
         self.spec_color = specular_color
 
+        # The orientation of the object, in the world frame
         self._xfm = self.xfm
         self.allocated = False
     
@@ -151,22 +152,6 @@ class Group(Model):
         super(Group, self)._recache_xfm()
         for model in self.models:
             model._recache_xfm()
-    
-
-class GroupDispl2D(Group):
-    '''
-    A 'reimplementaiton' of the Group class to maintain the same graphics interface
-    during BMI simulations
-    ''' 
-    def add(self, model):
-        self.models.append(model)
-        model.parent = self
-
-    def init(self):
-        pass
-
-    def _recache_xfm(self):
-        pass
 
 
 builtins = dict([ (n[9:].lower(), getattr(glut, n)) 

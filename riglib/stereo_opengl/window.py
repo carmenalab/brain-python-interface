@@ -14,7 +14,7 @@ from riglib.experiment import LogExperiment
 from riglib.experiment import traits
 
 from render import stereo
-from models import Group, GroupDispl2D
+from models import Group
 from xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere, Cube, Chain
 from riglib.stereo_opengl.environment import Box
@@ -242,8 +242,9 @@ class WindowDispl2D(Window):
 
         self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
 
-        self.world = GroupDispl2D(self.models)
-        self.world.init()
+        self.world = Group(self.models)
+        # Dont 'init' self.world in this Window. Just allocates a bunch of OpenGL stuff which is not necessary (and may not work in some cases)
+        # self.world.init()
 
         #initialize surfaces for translucent markers
         TRANSPARENT = (255,0,255)
