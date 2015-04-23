@@ -34,6 +34,7 @@ class Model(object):
         self.shininess = shininess
         self.spec_color = specular_color
 
+        # The orientation of the object, in the world frame
         self._xfm = self.xfm
         self.allocated = False
     
@@ -47,7 +48,9 @@ class Model(object):
     
     def _recache_xfm(self):
         '''
-        For models with a parent, the transform of the current model must be cascaded with the parent model's transform 
+        For models with a parent, the transform of the current model must be cascaded with the parent model's transform.
+        NOTE: this only goes one level up the graphics tree, so the transform is 
+        always with respect to the parent's frame, not with respect to the world frame!
         '''
         if self.parent is not None:
             self._xfm = self.parent._xfm * self.xfm
@@ -149,22 +152,6 @@ class Group(Model):
         super(Group, self)._recache_xfm()
         for model in self.models:
             model._recache_xfm()
-    
-
-class GroupDispl2D(Group):
-    '''
-    A 'reimplementaiton' of the Group class to maintain the same graphics interface
-    during BMI simulations
-    ''' 
-    def add(self, model):
-        self.models.append(model)
-        model.parent = self
-
-    def init(self):
-        pass
-
-    def _recache_xfm(self):
-        pass
 
 
 builtins = dict([ (n[9:].lower(), getattr(glut, n)) 

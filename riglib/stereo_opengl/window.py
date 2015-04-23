@@ -14,9 +14,9 @@ from riglib.experiment import LogExperiment
 from riglib.experiment import traits
 
 from render import stereo
-from models import Group, GroupDispl2D
+from models import Group
 from xfm import Quaternion
-from riglib.stereo_opengl.primitives import Sphere, Cube
+from riglib.stereo_opengl.primitives import Sphere, Cube, Chain
 from riglib.stereo_opengl.environment import Box
 import time
 from config import config
@@ -41,7 +41,7 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    window_size = (3840, 1080)
+    window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
     background = (0,0,0,1)
 
     #Screen parameters, all in centimeters -- adjust for monkey
@@ -51,8 +51,8 @@ class Window(LogExperiment):
 
     show_environment = traits.Int(0)
 
-    def __init__(self, **kwargs):
-        super(Window, self).__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(Window, self).__init__(*args, **kwargs)
 
         self.models = []
         self.world = None
@@ -190,15 +190,12 @@ class WindowWithExperimenterDisplay(Window):
         return stereo.DualMultisizeDisplay((1920,1080), (480,270), self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip)
 
 
-import matplotlib.pyplot as plt
-from pylab import Circle
-
 class WindowDispl2D(Window):
     background = (1,1,1,1)
     def __init__(self, *args, **kwargs):
         self.models = []
         self.world = None
-        self.event = None        
+        self.event = None
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 
     def screen_init(self):
@@ -212,7 +209,6 @@ class WindowDispl2D(Window):
         if config.recording_sys['make'] == 'plexon':
             self.workspace_bottom_left = (-25., -14.)
             self.workspace_top_right   = (25., 14.)
-            win_res = (1000, 560)
         elif config.recording_sys['make'] == 'blackrock':
             from riglib.ismore import settings
             MAT_SIZE = settings.MAT_SIZE
@@ -222,7 +218,7 @@ class WindowDispl2D(Window):
                                                     0. - border])
             self.workspace_top_right   = np.array([MAT_SIZE[0] + border, 
                                                    MAT_SIZE[1] + border])
-            win_res = (600, 600)
+            
         else:
             raise Exception('Unknown recording_system!')
 
@@ -231,8 +227,8 @@ class WindowDispl2D(Window):
 
         self.display_border = 10
 
-        self.size = np.array(win_res, dtype=np.float64)
-        self.screen = pygame.display.set_mode(win_res, flags)
+        self.size = np.array(self.window_size, dtype=np.float64)
+        self.screen = pygame.display.set_mode(self.window_size, flags)
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
         self.screen_background.fill(self.background)
 
@@ -251,8 +247,9 @@ class WindowDispl2D(Window):
 
         self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
 
-        self.world = GroupDispl2D(self.models)
-        self.world.init()
+        self.world = Group(self.models)
+        # Dont 'init' self.world in this Window. Just allocates a bunch of OpenGL stuff which is not necessary (and may not work in some cases)
+        # self.world.init()
 
         #initialize surfaces for translucent markers
         TRANSPARENT = (255,0,255)
@@ -272,6 +269,8 @@ class WindowDispl2D(Window):
         self.surf_background = pygame.Surface(self.surf['0'].get_size()).convert()
         self.surf_background.fill(TRANSPARENT)
 
+        self.i = 0
+
     def pos2pix(self, kfpos):
         # re-specify the point in homogenous coordinates
         pt = np.hstack([kfpos, 1]).reshape(-1, 1)
@@ -282,6 +281,63 @@ class WindowDispl2D(Window):
         pix_pos = np.array(pix_coords[:2,0], dtype=int)
         return pix_pos
 
+    def get_surf(self):
+        return self.surf[str(np.min([self.i,1]))]
+
+    def draw_model(self, model):
+        '''
+        Draw a single Model on the current surface, or recurse if the model is a composite model (i.e., a Group)
+        '''
+        color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+        if isinstance(model, Sphere):
+            pos = model._xfm.move[[0,2]]
+            pix_pos = self.pos2pix(pos)
+            
+            rad = model.radius
+            pix_radius = self.pos2pix(np.array([model.radius, 0]))[0] - self.pos2pix([0,0])[0]
+
+            #Draws cursor and targets on transparent surfaces
+            pygame.draw.circle(self.get_surf(), color, pix_pos, pix_radius)
+        
+        elif isinstance(model, Shape2D):
+            # model.draw() returns True if the object was drawn
+            #   (which happens if the object's .visible attr is True)
+            if model.draw(self.get_surf(), self.pos2pix):
+                pass
+        elif isinstance(model, Cube):
+            pos = model.xfm.move[[0,2]]
+            side_len = model.side_len
+
+            left = pos[0] - side_len/2
+            right = pos[0] + side_len/2
+            top = pos[1] + side_len/2
+            bottom = pos[1] - side_len/2
+
+            top_left = np.array([left, top])
+            bottom_right = np.array([right, bottom])
+            top_left_pix_pos = self.pos2pix(top_left)
+            bottom_right_pix_pos = self.pos2pix(bottom_right)
+
+            rect = pygame.Rect(top_left_pix_pos, bottom_right_pix_pos - top_left_pix_pos)
+            color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+
+            pygame.draw.rect(self.get_surf(), color, rect)
+
+        elif isinstance(model, (Cylinder, Cone)):
+            vec_st = np.array([0., 0, 0, 1])
+            vec_end = np.array([0., 0, model.height, 1])
+
+            cyl_xform = model._xfm.to_mat()
+            cyl_start = np.dot(cyl_xform, vec_st)
+            cyl_end = np.dot(cyl_xform, vec_end)
+            pix_radius = self.pos2pix(np.array([model.radius, 0]))[0] - self.pos2pix([0,0])[0]
+
+            pygame.draw.line(self.get_surf(), color, self.pos2pix(cyl_start[[0,2]]), self.pos2pix(cyl_end[[0,2]]), pix_radius)        
+
+        elif isinstance(model, Group):
+            for mdl in model:
+                self.draw_model(mdl)
+
     @profile
     def draw_world(self):
         #Refreshes the screen with original background
@@ -289,45 +345,12 @@ class WindowDispl2D(Window):
         self.surf['0'].blit(self.surf_background,(0,0))
         self.surf['1'].blit(self.surf_background,(0,0))
         
-        i = 0
-        for model in self.world.models: #added 12-17-13 to make cursor appear on top of target
-            if isinstance(model, Sphere):
-                pos = model.xfm.move[[0,2]]
-                pix_pos = self.pos2pix(pos)
-                color = tuple(map(lambda x: int(255*x), model.color[0:3]))
-                rad = model.radius
-                pix_radius = self.pos2pix(np.array([model.radius, 0]))[0] - self.pos2pix([0,0])[0]
+        # surface index
+        self.i = 0
 
-                #Draws cursor and targets on transparent surfaces
-                pygame.draw.circle(self.surf[str(np.min([i,1]))], color, pix_pos, pix_radius)
-                i += 1
-            
-            elif isinstance(model, Shape2D):
-                # model.draw() returns True if the object was drawn
-                #   (which happens if the object's .visible attr is True)
-                if model.draw(self.surf[str(np.min([i,1]))], self.pos2pix):
-                    i += 1
-            elif isinstance(model, Cube):
-                pos = model.xfm.move[[0,2]]
-                side_len = model.side_len
-
-                left = pos[0] - side_len/2
-                right = pos[0] + side_len/2
-                top = pos[1] + side_len/2
-                bottom = pos[1] - side_len/2
-
-                top_left = np.array([left, top])
-                bottom_right = np.array([right, bottom])
-                top_left_pix_pos = self.pos2pix(top_left)
-                bottom_right_pix_pos = self.pos2pix(bottom_right)
-
-                rect = pygame.Rect(top_left_pix_pos, bottom_right_pix_pos - top_left_pix_pos)
-                color = tuple(map(lambda x: int(255*x), model.color[0:3]))
-
-                pygame.draw.rect(self.surf[str(np.min([i,1]))], color, rect)
-                i += 1
-            else:
-                pass
+        for model in self.world.models:
+            self.draw_model(model)
+            self.i += 1
 
         #Renders the new surfaces
         self.screen.blit(self.surf['0'], (0,0))
@@ -338,8 +361,7 @@ class WindowDispl2D(Window):
         '''
         Simulation 'requeue' does nothing because the simulation is lazy and
         inefficient and chooses to redraw the entire screen every loop
-        '''
-        
+        '''        
         pass
 
 

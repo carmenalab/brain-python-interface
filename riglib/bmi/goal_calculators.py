@@ -107,7 +107,7 @@ class PlanarMultiLinkJointGoalCached(GoalCalculator, mp_calc.FuncProxy):
                     joint_pos = possible_joint_pos[ind]
                     break
 
-            if joint_pos == None:
+            if joint_pos is None:
                 raise ValueError("Unknown target position!: %s" % str(target_pos))
 
             target_state = np.hstack([joint_pos, np.zeros_like(joint_pos), 1])

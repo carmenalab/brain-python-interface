@@ -56,6 +56,8 @@ class Cube(TriMesh):
 
 class Cylinder(TriMesh):
     def __init__(self, height=1, radius=1, segments=36, **kwargs):
+        self.height = height
+        self.radius = radius
         theta = np.linspace(0, 2*np.pi, segments, endpoint=False)
         unit = np.array([np.cos(theta), np.sin(theta), np.ones(segments)]).T
 
@@ -129,6 +131,10 @@ class Sphere(TriMesh):
 
 class Cone(TriMesh):
     def __init__(self, height=1, radius1=1, radius2=1, segments=36, **kwargs):
+        self.height = height
+        self.radius1 = radius1
+        self.radius2 = radius2
+        self.radius = radius1 # for pretending it's a cylinder..
         theta = np.linspace(0, 2*np.pi, segments, endpoint=False)
         unit = np.array([np.cos(theta), np.sin(theta), np.ones(segments)]).T
 

@@ -193,7 +193,7 @@ class SimCosineTunedPointProc(SimNeuralEnc):
 
         # 2) create a fake beta
         const = -1.6
-        alpha = 0.06
+        alpha = 0.10
         n_cells = 30
         angles = np.linspace(0, 2*np.pi, n_cells)
         beta = np.zeros([n_cells, 7])
@@ -329,6 +329,7 @@ class SimPPFDecoderCursorShuffled(object):
 
         inds = np.arange(self.beta_full.shape[0])
         np.random.shuffle(inds)
+        self.shuffling_inds = inds
         # beta_dec = beta[inds, :]
 
         # dt = decoder.filt.dt 
