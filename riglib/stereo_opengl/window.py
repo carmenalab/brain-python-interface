@@ -42,6 +42,7 @@ class Window(LogExperiment):
     stop = False
 
     window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
+    # window_size = (1920*2, 1080)
     background = (0,0,0,1)
 
     #Screen parameters, all in centimeters -- adjust for monkey
@@ -173,8 +174,12 @@ class Window(LogExperiment):
         
 
 class WindowWithExperimenterDisplay(Window):
-    window_size = (1920, 1080)
     _stereo_window_flip = False
+
+    def __init__(self, *args, **kwargs):
+        super(WindowWithExperimenterDisplay, self).__init__(*args, **kwargs)
+        # This class has a hard-coded window size
+        self.window_size = (1920 + 480, 1080)
 
     def set_os_params(self):
         # NOTE: in Ubuntu Unity, setting the SDL_VIDEO_WINDOW_POS seems to be largely ignored.
