@@ -100,11 +100,22 @@ endpt_2D_states = [State('hand_px', stochastic=False, drives_obs=False, min_val=
                    offset_state]
 endpt_2D_state_space = state_space_models.LinearVelocityStateSpace(endpt_2D_states)
 
+endpt_1D_states = [State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
+                   State('hand_py', stochastic=False, drives_obs=False, order=0),
+                   State('hand_pz', stochastic=False, drives_obs=False, order=0),
+                   State('hand_vx', stochastic=False,  drives_obs=False, order=1),
+                   State('hand_vy', stochastic=False, drives_obs=False, order=1),
+                   State('hand_vz', stochastic=True,  drives_obs=True, order=1),
+                   offset_state]
+endpt_1D_state_space = state_space_models.LinearVelocityStateSpace(endpt_2D_states)
+
+
 from tasks.speller_tasks import PointClickSSM
 mouse_ssm = PointClickSSM()
 
 bmi_state_space_models=dict(
     Endpt2D=endpt_2D_state_space,
+    Endpt1D=endpt_1D_state_space,
     Tentacle=tentacle_2D_state_space,
     Armassist=armassist_state_space,
     Rehand=rehand_state_space,
@@ -118,7 +129,8 @@ extractors = dict(
     spikecounts = bmi.extractor.BinnedSpikeCountsExtractor,
     LFPpowerMTM = bmi.extractor.LFPMTMPowerExtractor,
     LFPpowerBPF = bmi.extractor.LFPButterBPFPowerExtractor,
-    EMGAmplitude = bmi.extractor.EMGAmplitudeExtractor,
+    AIAmplitude = bmi.extractor.AIAmplitudeExtractor,
+    AIpowerMTM = bmi.extractor.AIMTMPowerExtractor,
 )
 
 from riglib.bmi import train
