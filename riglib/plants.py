@@ -64,7 +64,7 @@ class Plant(object):
             decoder['q'] = self.get_intrinsic_coordinates()
 
     def get_data_to_save(self):
-        raise NotImplementedError
+        return dict()
 
     def init(self):
         '''
