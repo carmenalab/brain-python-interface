@@ -302,3 +302,32 @@ class MultiModalLFC(LinearFeedbackController):
         self.F = self.F_dict[mode]
         super(MultiModalLFC, self).__call__(current_state, target_state, mode=mode)        
 
+
+class PIDController(FeedbackController):
+    def __init__(self, K_prop, K_deriv, K_int, state_order):
+        self.K_prop = K_prop
+        self.K_deriv = K_deriv
+        self.K_int = K_int
+
+        self.int_terms, = np.nonzero(state_order == -1)
+        self.prop_terms, = np.nonzero(state_order == 0)
+        self.deriv_terms, = np.nonzero(state_order == 1)
+
+    def __call__(self, current_state, target_state):
+        state_diff = target_state - current_state
+        cmd = 0
+        if len(self.prop_terms) > 0:
+            cmd += self.K_prop * state_diff[self.prop_terms] 
+
+        if len(self.deriv_terms) > 0:
+            cmd += self.K_deriv * state_diff[self.deriv_terms] 
+
+        if len(self.int_terms) > 0:
+            cmd += self.K_int * state_diff[self.int_terms]
+
+        return cmd
+
+    def calc_next_state(self, current_state, target_state, **kwargs):
+        '''
+        '''
+        return self.__call__(current_state, target_state)
