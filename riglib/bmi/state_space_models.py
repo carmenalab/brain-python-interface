@@ -176,6 +176,10 @@ class StateSpace(object):
         '''
         return np.array([x.drives_obs for x in self.states])
 
+    @property 
+    def is_aux_state(self):
+        return np.array([x.aux for x in self.states])
+
     @property
     def state_names(self):
         '''
@@ -310,7 +314,7 @@ class LinearVelocityStateSpace(StateSpace):
         B = np.vstack([0*I, Delta*1000 * I, np.zeros([1, ndim])])
 
         # account for offset state
-        has_offset = self.states[-1].order == -1
+        has_offset = np.isnan(self.states[-1].order)
         if not has_offset:
             A = A[:-1, :-1]
             W = W[:-1, :-1]
@@ -324,7 +328,7 @@ class LinearVelocityStateSpace(StateSpace):
         A2, B2, W2 = other.get_ssm_matrices()
         return states_equal and np.array_equal(A1, A2) and np.array_equal(B1, B2) and np.array_equal(W1, W2)
 
-offset_state = State('offset', stochastic=False, drives_obs=True, order=-1)
+offset_state = State('offset', stochastic=False, drives_obs=True, order=np.nan)
 
 class StateSpaceNLinkPlanarChain(LinearVelocityStateSpace):
     '''
