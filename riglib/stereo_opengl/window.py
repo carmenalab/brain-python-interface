@@ -327,7 +327,9 @@ class WindowDispl2D(Window):
             cyl_end = np.dot(cyl_xform, vec_end)
             pix_radius = self.pos2pix(np.array([model.radius, 0]))[0] - self.pos2pix([0,0])[0]
 
-            pygame.draw.line(self.get_surf(), color, self.pos2pix(cyl_start[[0,2]]), self.pos2pix(cyl_end[[0,2]]), pix_radius)        
+            pygame.draw.line(self.get_surf(), color, self.pos2pix(cyl_start[[0,2]]), self.pos2pix(cyl_end[[0,2]]), pix_radius)
+
+            # print cyl_start, cyl_end
 
         elif isinstance(model, Group):
             for mdl in model:
