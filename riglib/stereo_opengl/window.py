@@ -42,6 +42,7 @@ class Window(LogExperiment):
     stop = False
 
     window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
+    # window_size = (1920*2, 1080)
     background = (0,0,0,1)
 
     #Screen parameters, all in centimeters -- adjust for monkey
@@ -154,7 +155,12 @@ class Window(LogExperiment):
         pass
     
     def _test_stop(self, ts):
-        return self.stop or self.event is not None and self.event[0] == 27
+        '''
+        Stop the task if the escape key is pressed, or if the super _test_stop instructs a stop
+        '''
+        super_stop = super(Window, self)._test_stop(ts)
+        from pygame import K_ESCAPE
+        return super_stop or self.event is not None and self.event[0] == K_ESCAPE
     
     def requeue(self):
         self.renderer._queue_render(self.world)
@@ -168,8 +174,12 @@ class Window(LogExperiment):
         
 
 class WindowWithExperimenterDisplay(Window):
-    window_size = (1920, 1080)
     _stereo_window_flip = False
+
+    def __init__(self, *args, **kwargs):
+        super(WindowWithExperimenterDisplay, self).__init__(*args, **kwargs)
+        # This class has a hard-coded window size
+        self.window_size = (1920 + 480, 1080)
 
     def set_os_params(self):
         # NOTE: in Ubuntu Unity, setting the SDL_VIDEO_WINDOW_POS seems to be largely ignored.
