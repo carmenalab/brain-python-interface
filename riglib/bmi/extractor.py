@@ -36,7 +36,6 @@ class DummyExtractor(FeatureExtractor):
     def __call__(self, *args, **kwargs):
         return dict(obs=np.array([[np.nan]]))
 
-
 class BinnedSpikeCountsExtractor(FeatureExtractor):
     '''
     Bins spikes using rectangular windows.
@@ -118,6 +117,17 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
             max_ind = np.argmax(ts['ts'])
             bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])
 
+    @classmethod
+    def bin_spikes(cls, ts, units, max_units_per_channel=13):
+            '''
+            Count up the number of BMI spikes in a list of spike timestamps.
+            '''
+            unit_inds = units[:,0]*max_units_per_channel + units[:,1]
+            edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
+            spiking_unit_inds = ts['chan']*max_units_per_channel + ts['unit']
+            counts, _ = np.histogram(spiking_unit_inds, edges)
+            return counts[::2]
+
     def __call__(self, start_time, *args, **kwargs):
         '''    Docstring    '''
         ts = self.get_spike_ts(*args, **kwargs)
@@ -132,15 +142,13 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
             # on the millisecond order
             subbin_edges[0] -= 1
             subbin_inds = np.digitize(ts['arrival_ts'], subbin_edges)
-            counts = np.vstack([bin_spikes(ts[subbin_inds == k], self.units) for k in range(1, self.n_subbins+1)]).T
+            counts = np.vstack([self.bin_spikes(ts[subbin_inds == k], self.units) for k in range(1, self.n_subbins+1)]).T
         else:
-            counts = bin_spikes(ts, self.units).reshape(-1, 1)
+            counts = self.bin_spikes(ts, self.units).reshape(-1, 1)
 
         counts = np.array(counts, dtype=np.uint32)
         bin_edges = self.get_bin_edges(ts)
         self.last_get_spike_counts_time = start_time
-
-        # import pdb; pdb.set_trace()
 
         return dict(spike_counts=counts, bin_edges=bin_edges)
 
@@ -254,189 +262,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
 
 
-class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
-    '''
-    A "feature extractor" that replays spike counts from an HDF file
-    '''
-    feature_type = 'spike_counts'
-    def __init__(self, hdf_table, source='spike_counts', cycle_rate=60.0, units=[]):
-        '''    Docstring    '''
-        self.idx = 0
-        self.hdf_table = hdf_table
-        self.source = source
-        self.units = units
-        self.n_subbins = hdf_table[0][source].shape[1]
-        self.last_get_spike_counts_time = 0
-        self.cycle_rate = cycle_rate
 
-        n_units = hdf_table[0]['spike_counts'].shape[0]
-        self.feature_dtype = [('spike_counts', 'u4', (n_units, self.n_subbins)), 
-                              ('bin_edges', 'f8', 2)]
-
-    def get_spike_ts(self):
-        '''
-        Make up fake timestamps to go with the spike counts extracted from the HDF file
-        '''
-        # Get counts from HDF file
-        counts = self.hdf_table[self.idx][self.source]
-        n_subbins = counts.shape[1]
-
-        # Convert counts to timestamps between (self.idx*1./cycle_rate, (self.idx+1)*1./cycle_rate)
-        # NOTE: this code is mostly copied from riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
-        ts_data = []
-        cycle_rate = self.cycle_rate
-        for k in range(n_subbins):
-            fake_time = (self.idx - 1) * 1./cycle_rate + (k + 0.5)*1./cycle_rate*1./n_subbins
-            nonzero_units, = np.nonzero(counts[:,k])
-            for unit_ind in nonzero_units:
-                n_spikes = counts[unit_ind, k]
-                for m in range(n_spikes):
-                    ts = (fake_time, self.units[unit_ind, 0], self.units[unit_ind, 1], fake_time)
-                    ts_data.append(ts)
-
-        return np.array(ts_data, dtype=ts_dtype_new)
-
-    def get_bin_edges(self, ts):
-        '''
-        Get the first and last timestamp of spikes in the current "bin" as saved in the HDF file
-        '''
-        return self.hdf_table[self.idx]['bin_edges']
-
-    def __call__(self, *args, **kwargs):
-        '''    Docstring    '''
-        output = super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
-        if not np.array_equal(output['spike_counts'], self.hdf_table[self.idx][self.source]):
-            print "spike binning error: ", self.idx
-        self.idx += 1 
-        return output
-
-class ReplayLFPPowerExtractor(BinnedSpikeCountsExtractor):
-    '''
-    A "feature extractor" that replays LFP power estimates from an HDF file
-    '''
-    feature_type = 'lfp_power'
-    def __init__(self, hdf_table, source='lfp_power', cycle_rate=60.0, units=[]):
-        '''    Docstring    '''
-        self.idx = 0
-        self.hdf_table = hdf_table
-        self.source = source
-        self.units = units
-        self.n_subbins = hdf_table[0][source].shape[1]
-        self.last_get_spike_counts_time = 0
-        self.cycle_rate = cycle_rate
-
-        n_units = hdf_table[0][source].shape[0]
-        self.feature_dtype = [('lfp_power', 'f8', (n_units, self.n_subbins)), 
-                              ]
-
-    def get_spike_ts(self):
-        '''
-        Make up fake timestamps to go with the spike counts extracted from the HDF file
-        '''
-        # Get counts from HDF file
-        counts = self.hdf_table[self.idx][self.source]
-        n_subbins = counts.shape[1]
-
-        # Convert counts to timestamps between (self.idx*1./cycle_rate, (self.idx+1)*1./cycle_rate)
-        # NOTE: this code is mostly copied from riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
-        ts_data = []
-        cycle_rate = self.cycle_rate
-        for k in range(n_subbins):
-            fake_time = (self.idx - 1) * 1./cycle_rate + (k + 0.5)*1./cycle_rate*1./n_subbins
-            nonzero_units, = np.nonzero(counts[:,k])
-            for unit_ind in nonzero_units:
-                n_spikes = counts[unit_ind, k]
-                for m in range(n_spikes):
-                    ts = (fake_time, self.units[unit_ind, 0], self.units[unit_ind, 1], fake_time)
-                    ts_data.append(ts)
-
-        return np.array(ts_data, dtype=ts_dtype_new)
-
-    def get_bin_edges(self, ts):
-        '''
-        Get the first and last timestamp of spikes in the current "bin" as saved in the HDF file
-        '''
-        return self.hdf_table[self.idx]['bin_edges']
-
-    def __call__(self, *args, **kwargs):
-        '''    Docstring    '''
-        output = self.hdf_table[self.idx][self.source] #super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
-        # if not np.array_equal(output['spike_counts'], self.hdf_table[self.idx][self.source]):
-        #     print "spike binning error: ", self.idx
-        self.idx += 1 
-        return dict(lfp_power=output)
-
-class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
-    '''
-    Spike count features are generated by a population of synthetic neurons
-    '''
-    def __init__(self, input_device, encoder, n_subbins, units, task=None):
-        '''
-        Constructor for SimBinnedSpikeCountsExtractor
-
-        Parameters
-        ----------
-        input_device: object with a "get" method
-            Generate the "intended" control command, e.g. by feedback controller
-        encoder: callable with 1 argument
-            Maps the "control" input into the spike timestamps of a set of neurons
-        n_subbins:
-            Number of subbins to divide the spike counts into, e.g. 3 are necessary for the PPF
-        units: np.ndarray of shape (N, 2)
-            Each row of the array corresponds to (channel, unit)
-
-        Returns
-        -------
-        SimBinnedSpikeCountsExtractor instance
-        '''
-        self.input_device = input_device
-        self.encoder = encoder
-        self.n_subbins = n_subbins
-        self.units = units
-        self.last_get_spike_counts_time = 0
-        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
-        self.task = task
-
-    # def get_spike_ts(self):
-    #     '''
-    #     see BinnedSpikeCountsExtractor.get_spike_ts for docs
-    #     '''
-    #     cursor_pos = self.task.plant.get_endpoint_pos()
-    #     target_pos = self.task.target_location
-    #     ctrl    = self.input_device.get(target_pos, cursor_pos)
-    #     ts_data = self.encoder(ctrl)
-    #     return ts_data
-
-    def get_spike_ts(self):
-        '''
-        see BinnedSpikeCountsExtractor.get_spike_ts for docs
-        '''
-        current_state = self.task.decoder.get_state(shape=(-1,1))
-        target_state = self.task.get_target_BMI_state()
-        ctrl = self.input_device.calc_next_state(current_state, target_state)
-
-        ts_data = self.encoder(ctrl)
-        # print "n sim spikes", len(ts_data)
-        return ts_data
-        
-
-def bin_spikes(ts, units, max_units_per_channel=13):
-    '''
-    Count up the number of BMI spikes in a list of spike timestamps.
-    '''
-    unit_inds = units[:,0]*max_units_per_channel + units[:,1]
-    edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
-    spiking_unit_inds = ts['chan']*max_units_per_channel + ts['unit']
-    counts, _ = np.histogram(spiking_unit_inds, edges)
-    return counts[::2]
-
-class SimDirectObsExtractor(SimBinnedSpikeCountsExtractor):
-    '''
-    This extractor just passes back the observation vector generated by the encoder
-    '''
-    def __call__(self, start_time, *args, **kwargs):
-        y_t = self.get_spike_ts(*args, **kwargs)
-        return dict(spike_counts=y_t)
 
 # bands should be a list of tuples representing ranges
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
@@ -590,7 +416,6 @@ class LFPButterBPFPowerExtractor(object):
         #   and reset the units variable
         
         return lfp_power, units, extractor_kwargs
-
 
 class LFPMTMPowerExtractor(object):
     '''
@@ -945,12 +770,6 @@ class WaveformClusterCountExtractor(FeatureExtractor):
 
 
 
-
-
-
-
-
-
 def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''
     Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
@@ -1109,3 +928,172 @@ def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate
         emg[i, :] = f_extractor.extract_features(cont_samples.T).T
 
     return emg, units, extractor_kwargs
+
+
+#########################################################
+##### Reconstruction extractors, used in test cases #####
+#########################################################
+class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
+    '''
+    A "feature extractor" that replays spike counts from an HDF file
+    '''
+    feature_type = 'spike_counts'
+    def __init__(self, hdf_table, source='spike_counts', cycle_rate=60.0, units=[]):
+        '''    Docstring    '''
+        self.idx = 0
+        self.hdf_table = hdf_table
+        self.source = source
+        self.units = units
+        self.n_subbins = hdf_table[0][source].shape[1]
+        self.last_get_spike_counts_time = 0
+        self.cycle_rate = cycle_rate
+
+        n_units = hdf_table[0]['spike_counts'].shape[0]
+        self.feature_dtype = [('spike_counts', 'u4', (n_units, self.n_subbins)), 
+                              ('bin_edges', 'f8', 2)]
+
+    def get_spike_ts(self):
+        '''
+        Make up fake timestamps to go with the spike counts extracted from the HDF file
+        '''
+        # Get counts from HDF file
+        counts = self.hdf_table[self.idx][self.source]
+        n_subbins = counts.shape[1]
+
+        # Convert counts to timestamps between (self.idx*1./cycle_rate, (self.idx+1)*1./cycle_rate)
+        # NOTE: this code is mostly copied from riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
+        ts_data = []
+        cycle_rate = self.cycle_rate
+        for k in range(n_subbins):
+            fake_time = (self.idx - 1) * 1./cycle_rate + (k + 0.5)*1./cycle_rate*1./n_subbins
+            nonzero_units, = np.nonzero(counts[:,k])
+            for unit_ind in nonzero_units:
+                n_spikes = counts[unit_ind, k]
+                for m in range(n_spikes):
+                    ts = (fake_time, self.units[unit_ind, 0], self.units[unit_ind, 1], fake_time)
+                    ts_data.append(ts)
+
+        return np.array(ts_data, dtype=ts_dtype_new)
+
+    def get_bin_edges(self, ts):
+        '''
+        Get the first and last timestamp of spikes in the current "bin" as saved in the HDF file
+        '''
+        return self.hdf_table[self.idx]['bin_edges']
+
+    def __call__(self, *args, **kwargs):
+        '''    Docstring    '''
+        output = super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
+        if not np.array_equal(output['spike_counts'], self.hdf_table[self.idx][self.source]):
+            print "spike binning error: ", self.idx
+        self.idx += 1 
+        return output
+
+class ReplayLFPPowerExtractor(BinnedSpikeCountsExtractor):
+    '''
+    A "feature extractor" that replays LFP power estimates from an HDF file
+    '''
+    feature_type = 'lfp_power'
+    def __init__(self, hdf_table, source='lfp_power', cycle_rate=60.0, units=[]):
+        '''    Docstring    '''
+        self.idx = 0
+        self.hdf_table = hdf_table
+        self.source = source
+        self.units = units
+        self.n_subbins = hdf_table[0][source].shape[1]
+        self.last_get_spike_counts_time = 0
+        self.cycle_rate = cycle_rate
+
+        n_units = hdf_table[0][source].shape[0]
+        self.feature_dtype = [('lfp_power', 'f8', (n_units, self.n_subbins)), 
+                              ]
+
+    def get_spike_ts(self):
+        '''
+        Make up fake timestamps to go with the spike counts extracted from the HDF file
+        '''
+        # Get counts from HDF file
+        counts = self.hdf_table[self.idx][self.source]
+        n_subbins = counts.shape[1]
+
+        # Convert counts to timestamps between (self.idx*1./cycle_rate, (self.idx+1)*1./cycle_rate)
+        # NOTE: this code is mostly copied from riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
+        ts_data = []
+        cycle_rate = self.cycle_rate
+        for k in range(n_subbins):
+            fake_time = (self.idx - 1) * 1./cycle_rate + (k + 0.5)*1./cycle_rate*1./n_subbins
+            nonzero_units, = np.nonzero(counts[:,k])
+            for unit_ind in nonzero_units:
+                n_spikes = counts[unit_ind, k]
+                for m in range(n_spikes):
+                    ts = (fake_time, self.units[unit_ind, 0], self.units[unit_ind, 1], fake_time)
+                    ts_data.append(ts)
+
+        return np.array(ts_data, dtype=ts_dtype_new)
+
+    def get_bin_edges(self, ts):
+        '''
+        Get the first and last timestamp of spikes in the current "bin" as saved in the HDF file
+        '''
+        return self.hdf_table[self.idx]['bin_edges']
+
+    def __call__(self, *args, **kwargs):
+        '''    Docstring    '''
+        output = self.hdf_table[self.idx][self.source] #super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
+        # if not np.array_equal(output['spike_counts'], self.hdf_table[self.idx][self.source]):
+        #     print "spike binning error: ", self.idx
+        self.idx += 1 
+        return dict(lfp_power=output)
+
+#################################
+##### Simulation extractors #####
+#################################
+class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
+    '''
+    Spike count features are generated by a population of synthetic neurons
+    '''
+    def __init__(self, input_device, encoder, n_subbins, units, task=None):
+        '''
+        Constructor for SimBinnedSpikeCountsExtractor
+
+        Parameters
+        ----------
+        input_device: object with a "calc_next_state" method
+            Generate the "intended" next state, e.g., by feedback control policy
+        encoder: callable with 1 argument
+            Maps the "control" input into the spike timestamps of a set of neurons
+        n_subbins:
+            Number of subbins to divide the spike counts into, e.g. 3 are necessary for the PPF
+        units: np.ndarray of shape (N, 2)
+            Each row of the array corresponds to (channel, unit)
+
+        Returns
+        -------
+        SimBinnedSpikeCountsExtractor instance
+        '''
+        self.input_device = input_device
+        self.encoder = encoder
+        self.n_subbins = n_subbins
+        self.units = units
+        self.last_get_spike_counts_time = 0
+        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+        self.task = task
+
+    def get_spike_ts(self):
+        '''
+        see BinnedSpikeCountsExtractor.get_spike_ts for docs
+        '''
+        current_state = self.task.decoder.get_state(shape=(-1,1))
+        target_state = self.task.get_target_BMI_state()
+        ctrl = self.input_device.calc_next_state(current_state, target_state)
+
+        ts_data = self.encoder(ctrl)
+        return ts_data
+
+class SimDirectObsExtractor(SimBinnedSpikeCountsExtractor):
+    '''
+    This extractor just passes back the observation vector generated by the encoder
+    '''
+    def __call__(self, start_time, *args, **kwargs):
+        y_t = self.get_spike_ts(*args, **kwargs)
+        return dict(spike_counts=y_t)

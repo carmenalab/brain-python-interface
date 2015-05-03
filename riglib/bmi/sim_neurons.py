@@ -19,13 +19,15 @@ from scipy.integrate import trapz, simps
 ts_dtype = [('ts', float), ('chan', np.int32), ('unit', np.int32)]
 ts_dtype_new = [('ts', float), ('chan', np.int32), ('unit', np.int32), ('arrival_ts', np.float64)]
 
+############################
+##### Gaussian encoder #####
+############################
 class KalmanEncoder(object):
     '''
     Models a BMI user as someone who, given an intended state x,
     generates a vector of neural features y according to the KF observation
     model equation: y = Cx + q.
     '''
-
     def __init__(self, ssm, n_features):
         self.ssm = ssm
         self.n_features = n_features
@@ -51,83 +53,47 @@ class KalmanEncoder(object):
         '''
         return np.array([(k,1) for k in range(self.n_features)])
 
-class CosEnc(object):
-    ''' Docstring '''
-    def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, 
-        unit_inds=None, fname='', return_ts=False, DT=0.1, angles=None):
-        """
-        Create neurons cosine-tuned to random directions.
-
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-
-        """
-
+###########################
+##### Poisson encoder #####
+###########################
+class GenericCosEnc(object):
+    '''
+    Simulate neurons where the firing rate is a linear function of covariates and the rate parameter goes through a Poisson
+    '''
+    def __init__(self, C, ssm, return_ts=False, DT=0.1, call_ds_rate=6):
+        self.C = C
+        self.ssm = ssm
+        self.n_neurons = C.shape[0]
+        self.call_count = 0
+        self.call_ds_rate = call_ds_rate
         self.return_ts = return_ts
-        self.fname = fname
         self.DT = DT
-        if unit_inds == None:
-            unit_inds = np.arange(1, n_neurons+1)
-        if fname and os.path.exists(fname):
-            print "Reloading encoder from file: %s" % fname
-            data = loadmat(fname)
-            try:
-                self.n_neurons = data['n_neurons'][0,0]
-            except:
-                self.n_neurons = int(data['n_neurons'])
-            self.angles = data['angles'].reshape(-1)
-            self.baselines = data['baselines']
-            self.mod_depth = data['mod_depth']
-            self.unit_inds = data['unit_inds'].ravel()
-            if self.mod_depth.shape == (1,1):
-                self.mod_depth = self.mod_depth[0,0]
-            if self.baselines.shape == (1,1):
-                self.baselines = self.baselines[0,0]
-            self.pds = data['pds']
-        else:
-            self.n_neurons = n_neurons
-            self.baselines = baselines
-            self.angles = np.linspace(0, 2 * np.pi, n_neurons)
-            self.mod_depth = mod_depth
-            self.pds = np.array([[np.cos(a), np.sin(a)] for a in self.angles])
-            self.unit_inds = unit_inds
-            self.save()
+        self.unit_inds = np.arange(1, self.n_neurons+1)
 
     def get_units(self):
         '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
+        Retrieive the identities of the units in the encoder. Only used because units in real experiments have "names"
         '''
+        # Just pretend that each unit is the 'a' unit on a separate electrode
+        return np.array([(ind, 1) for ind in self.unit_inds])
 
-        return np.array([ (int(ind/4)+1, ind % 4) for ind in self.unit_inds ])
-
-    def __call__(self, user_input):
-        """ Encode two-dimensional user input into firing rates.
-        Docstring    
+    def gen_spikes(self, next_state):
+        """
+        Simulate the spikes    
         
         Parameters
         ----------
+        next_state : np.array of shape (N, 1)
+            The "next state" to be encoded by this population of neurons
         
         Returns
         -------
+        time stamps or counts
+            Either spike time stamps or a vector of unit spike counts is returned, depending on whether the 'return_ts' attribute is True
 
         """
-        if isinstance(self.baselines, np.ndarray):
-            baselines = self.baselines.ravel()
-        else:
-            baselines = self.baselines
-        user_input = np.array(user_input)[[3,5], 0]
-        rates = self.mod_depth * np.dot(self.pds, user_input) + baselines
+
+        rates = np.dot(self.C, next_state)
         rates[rates < 0] = 0 # Floor firing rates at 0 Hz
         counts = poisson(rates * self.DT)
 
@@ -147,101 +113,38 @@ class CosEnc(object):
         else:
             return counts
 
-    def save(self):
+    def __call__(self, next_state):
         '''
-        Save the encoder parameters to a .mat file
+        See CosEnc.__call__ for docs
         '''        
-        savemat(self.fname, {'n_neurons':self.n_neurons, 'baselines':self.baselines,
-            'angles':self.angles, 'pds':self.pds, 'mod_depth':self.mod_depth,
-            'unit_inds':self.unit_inds})
-
-class CLDASimCosEnc(CosEnc):
-    ''' Docstring '''    
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''        
-        super(CLDASimCosEnc, self).__init__(*args, **kwargs)
-        self.call_count = 0
-        self.call_ds_rate = 6
-
-    def __call__(self, user_input):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''        
-        if self.call_count % self.call_ds_rate == 0: # TODO this assumes the neurons cannot change faster than 10 Hz
-            ts_data = super(CLDASimCosEnc, self).__call__(user_input)
-        elif self.return_ts:
-            ts_data = np.array([])
+        if self.call_count % self.call_ds_rate == 0:
+            ts_data = self.gen_spikes(next_state)
         else:
-            ts_data = np.zeros(self.n_neurons)
+            if self.return_ts:
+                # return an empty list of time stamps
+                ts_data = np.array([])
+            else:
+                # return a vector of 0's
+                ts_data = np.zeros(self.n_neurons)
+
         self.call_count += 1
         return ts_data
 
+class CursorVelCosEnc(GenericCosEnc):
+    def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, **kwargs):
+        C = np.zeros([n_neurons, 7])
+        C[:,-1] = baselines
 
-class CosEncJoints(CosEnc):
-    ''' Docstring '''
-    def __init__(self, link_lengths, *args, **kwargs):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''        
-        mod_depth = kwargs.pop('mod_depth', 14/0.2)
-        kwargs['mod_depth'] = mod_depth/max(link_lengths)
-        super(CosEncJoints, self).__init__(*args, **kwargs)
+        angles = np.linspace(0, 2 * np.pi, n_neurons)
+        C[:,3] = mod_depth * np.cos(angles)
+        C[:,5] = mod_depth * np.sin(angles)
 
-# TODO the class below is completely redundant!
-class CLDASimCosEncJoints(CosEncJoints):
-    ''' Docstring '''
-    def __init__(self, *args, **kwargs):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''              
-        super(CLDASimCosEncJoints, self).__init__(*args, **kwargs)
-        self.call_count = 0
+        ssm = None
+        super(CLDASimCosEnc, self).__init__(C, ssm, *kwargs)
 
-    def __call__(self, user_input):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''              
-        if self.call_count % 6 == 0: # TODO this assumes the neurons cannot change faster than 10 Hz
-            ts_data = super(CLDASimCosEncJoints, self).__call__(user_input)
-        elif self.return_ts:
-            ts_data = np.array([])
-        else:
-            ts_data = np.zeros(self.n_neurons)
-        self.call_count += 1
-        return ts_data
-
+#################################
+##### Point-process encoder #####
+#################################
 class PointProcess(object):
     '''
     Simulate a single point process
@@ -418,7 +321,6 @@ class PointProcess(object):
 
         return spikes
 
-
 class PointProcessEnsemble(object):
     '''
     Simulate an ensemble of point processes
@@ -537,46 +439,3 @@ class CLDASimPointProcessEnsemble(PointProcessEnsemble):
 
         self.call_count += 1
         return np.array(ts_data, dtype=ts_dtype_new)
-        
-
-def load_ppf_encoder_2D_vel_tuning(fname, dt=0.005):
-    '''
-    Docstring    
-        
-    Parameters
-    ----------
-        
-    Returns
-    -------
-    '''
-
-    data = loadmat(fname)
-    beta = data['beta']
-    beta = np.vstack([beta[1:, :], beta[0,:]]).T
-    n_neurons = beta.shape[0]
-
-    init_state = np.array([0., 0, 1])
-
-    try:
-        tau_samples = [data['tau_samples'][0][k].ravel().tolist() for k in range(n_neurons)]
-    except:
-        tau_samples = []
-    encoder = PointProcessEnsemble(beta, dt, init_state=init_state, tau_samples=tau_samples)
-    return encoder
-
-def load_ppf_encoder_2D_vel_tuning_clda_sim(fname, dt=0.005):
-    '''
-    Docstring    
-        
-    Parameters
-    ----------
-        
-    Returns
-    -------
-    '''    
-    data = loadmat(fname)
-    beta = data['beta']
-    beta = np.vstack([beta[1:, :], beta[0,:]]).T
-    encoder = CLDASimPointProcessEnsemble(beta, dt)
-    return encoder
-
