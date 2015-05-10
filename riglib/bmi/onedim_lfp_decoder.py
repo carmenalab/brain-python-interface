@@ -11,27 +11,30 @@ for i in np.arange(0,100,10):
 kinarm_bands.extend([[25, 40],[40, 55], [65, 90], [2, 100]])
 
 class StateHolder(object):
-    def __init__(self, x_array, A_array, powercap_flag, zbound, *args, **kwargs):
+    def __init__(self, x_mat, A_mat, powercap_flag, zbound, *args, **kwargs):
         if powercap_flag:
             self.mean = zbound[0]
         else:
-            self.mean = np.dot(x_array, A_array)
+            #self.mean = np.dot(x_array, A_array)
+            self.mean = np.sum(np.multiply(x_mat, A_mat), axis=0)
 
 class SmoothFilter(object):
-    '''Moving Avergae Filter used in 1D LFP control:
+    '''Moving Avergae Filter used in 1D or 2D LFP control:
     x_{t} = a0*x_{t} + a1*x_{t-1} + a2*x_{t-2} + ...
 
     Parameters
 
     ----------
-    A: np.array of shape (N, )
+    A: np.array of shape (N, 3)
         Weights for previous states
-    X: np. array of previous states (N, )
+    X: np. array of previous states (N, 3)
     '''
 
     def __init__(self, n_steps, **kwargs):
         self.n_steps = n_steps
         self.A = np.ones(( self.n_steps, ))/float(self.n_steps)
+        self.A = np.tile(np.array([A]), [1,3])
+
         self.control_method = 'fraction'
         self.current_lfp_pos = 0
         self.current_powercap_flag = 0
@@ -43,6 +46,7 @@ class SmoothFilter(object):
         if 'n_steps' in kwargs:
             self.n_steps = kwargs['n_steps']
             self.A = np.ones(( self.n_steps, ))/float(self.n_steps)
+            self.A = np.tile(np.array([A]), [1,3])
 
         if 'powercap' in kwargs:
             self.powercap = kwargs['powercap']
@@ -53,9 +57,12 @@ class SmoothFilter(object):
         if 'lfp_frac_lims' in kwargs:
             self.frac_lims = kwargs['lfp_frac_lims']
 
+        if 'xlfp_frac_lims' in kwargs:
+            self.xfrac_lims = kwargs['xlfp_frac_lims']
+
     def _init_state(self, init_state=None,**kwargs):
         if init_state is None:
-            self.X = np.zeros(( self.n_steps, ))
+            self.X = np.zeros(( self.n_steps, 3))
 
         #Implemented later: 
         elif init_state is 'average':
@@ -63,7 +70,7 @@ class SmoothFilter(object):
                 mn = np.mean(np.array(kwargs['frac_lim']))
             elif self.control_method == 'power':
                 mn = np.mean(np.array(kwargs['pwr_mean']))
-            self.X = np.zeros(( self.n_steps )) + mn
+            self.X = np.zeros(( self.n_steps, 3 )) + mn
 
         self.state = StateHolder(self.X, self.A, 0, 0)
         
@@ -76,9 +83,10 @@ class SmoothFilter(object):
         #self.zboundaries = kwargs['zboundaries']
         self.fft_inds = kwargs['fft_inds']
         obs = obs.reshape(len(kwargs['channels']), len(kwargs['fft_freqs']))
+        
         self.current_lfp_pos, self.current_powercap_flag = self.get_lfp_cursor(obs)
         
-        self.X = np.hstack(( self.X[1:], self.current_lfp_pos))
+        self.X = np.vstack(( self.X[1:,:], self.current_lfp_pos ))
         return StateHolder(self.X, self.A, self.current_powercap_flag, self.zboundaries)
 
     def get_lfp_cursor(self, psd_est):
@@ -89,14 +97,20 @@ class SmoothFilter(object):
         #As done in kinarm script, sum together frequencies within a band, then take the mean across channels
         c_val = np.mean(np.sum(psd_est[:, self.fft_inds[c_idx]], axis=1))
 
+        xc_idx = self.x_control_band_ind
+        xc_val = np.mean(np.sum(psd_est[:, self.fft_inds[xc_idx]], axis=1))
+
         p_idx = self.totalpw_band_ind
         p_val = np.mean(np.sum(psd_est[:, self.fft_inds[p_idx]], axis=1))
 
         if self.control_method == 'fraction':
             lfp_control = c_val / float(p_val)
+            xlfp_control = xc_val/float(p_val)
+
         elif self.control_method == 'power':
             lfp_control = c_val
-        cursor_pos = self.lfp_to_cursor(lfp_control)
+
+        cursor_pos = self.lfp_to_cursor(lfp_control, xlfp_control)
 
         if p_val <= self.powercap:
             powercap_flag = 0
@@ -105,11 +119,16 @@ class SmoothFilter(object):
 
         return cursor_pos, powercap_flag
 
-    def lfp_to_cursor(self, lfppos):
+    def lfp_to_cursor(self, lfppos, xlfp_control):
         if self.control_method == 'fraction':
             dmn = lfppos - np.mean(self.frac_lims);
             cursor_pos = dmn * (self.zboundaries[1]-self.zboundaries[0]) / (self.frac_lims[1] - self.frac_lims[0])
-            return cursor_pos
+            
+            #Xcursor postion, keep within same Z axes
+            xdmn = xlfp_control - np.mean(self.xfrac_lims)
+            xcursor_pos = xdmn * (self.zboundaries[1]-self.zboundaries[0]) / (self.xfrac_lims[1] - self.xfrac_lims[0])
+
+            return np.array([cursor_pos, 0, xcursor_pos])
 
 
     def _pickle_init(self):
@@ -161,6 +180,9 @@ class One_Dim_LFP_Decoder(Decoder):
             self.filt.totalpw_band_ind, self.extractor_kwargs['bands'], self.extractor_kwargs['fft_inds'] = \
             self._get_band_ind(self.extractor_kwargs['fft_freqs'], kwargs['lfp_totalpw_band'], self.extractor_kwargs['bands'])
 
+        if 'xlfp_control_band' in kwargs:
+            self.filt.x_control_band_ind, self.extractor_kwargs['bands'], self.extractor_kwargs['fft_inds'] = \
+            self._get_band_ind(self.extractor_kwargs['fft_freqs'], kwargs['xlfp_totalpw_band'], self.extractor_kwargs['bands'])
 
     def _get_band_ind(self, freq_pts, band, band_set):
         band_ind = -1

@@ -449,6 +449,24 @@ class onedimLFP_CursorPlant_inverted(onedimLFP_CursorPlant):
             self.position = inv_pos
             self.draw()
 
+class twodimLFP_CursorPlant(onedimLFP_CursorPlant):
+    '''Same as 1d cursor but assumes decoder returns array '''
+    def drive(self, decoder):
+        #Pos = (Left-Right, 0, Up-Down)
+        pos = decoder.filt.get_mean()
+        pos = [pos[0], -2.2, pos[2]]
+
+        if self.endpt_bounds is not None:
+            if pos[2] < self.endpt_bounds[4]: 
+                pos[2] = self.endpt_bounds[4]
+                
+            if pos[2] > self.endpt_bounds[5]: 
+                pos[2] = self.endpt_bounds[5]
+               
+            self.position = pos
+            self.draw()
+
+
 arm_color = (181/256., 116/256., 96/256., 1)
 arm_radius = 0.6
 pi = np.pi
