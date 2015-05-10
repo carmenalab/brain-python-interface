@@ -79,7 +79,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         else:
             cells = np.unique(cells)
             units = np.array(cells).astype(np.int32)
-    elif ('lfp' in extractor_cls.feature_type) or ('emg' in extractor_cls.feature_type):  # e.g., 'lfp_power'
+    elif ('lfp' in extractor_cls.feature_type) or ('ai_' in extractor_cls.feature_type):  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
         channels = np.array(channels.split(', ')).astype(np.int32)  # convert str to list of numbers
         if len(channels) == 0:
@@ -101,10 +101,10 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         extractor_kwargs['channels'] = channels
     elif extractor_cls == extractor.LFPMTMPowerExtractor:
         extractor_kwargs['channels'] = channels
-    elif extractor_cls == extractor.EMGAmplitudeExtractor:
+    elif extractor_cls == extractor.AIMTMPowerExtractor:
         extractor_kwargs['channels'] = channels
     else:
-        raise Exception("Unknown extractor_cls!")
+        raise Exception("Unknown extractor_cls: %s" % extractor_cls)
 
     database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 

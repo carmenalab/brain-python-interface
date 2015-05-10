@@ -15,8 +15,6 @@ from riglib import calibrations, bmi
 
 from riglib.bmi import extractor
 
-from . import traits, experiment
-
 import os
 import subprocess
 
@@ -34,7 +32,7 @@ Left off at line 79.  Need to figure out how we re-trigger starting the stimulus
 
 
 
-class TTLStimulation(traits.HasTraits):
+class TTLStimulation(object):
     '''During the stimulation phase, send a timed TTL pulse to the Master-8 stimulator'''
     hold_time = float(1)
     stimulation_pulse_length = float(0.2*1e6)

@@ -238,7 +238,8 @@ class Experiment(traits.HasTraits, threading.Thread):
                             self.trigger_event(event)
                             break
                     else:
-                        print "missing fn: ", event_test_fn_name
+                        pass
+                        # print "missing fn: ", event_test_fn_name
             except:
                 traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
                 self.state = None
