@@ -6,10 +6,10 @@
 Welcome to BMI3D's documentation!
 =================================
 
-Contents:
+High-level descriptions:
 
 ..  toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
     about
     install
@@ -22,6 +22,13 @@ Contents:
     analysis
     bmi
     nidaq
+
+Low-level documentation:
+
+..  toctree::
+    :maxdepth: 1
+
+    api.rst
 
 
 Indices and tables
