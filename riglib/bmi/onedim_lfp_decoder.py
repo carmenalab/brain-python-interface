@@ -13,10 +13,12 @@ kinarm_bands.extend([[25, 40],[40, 55], [65, 90], [2, 100]])
 class StateHolder(object):
     def __init__(self, x_mat, A_mat, powercap_flag, zbound, *args, **kwargs):
         if powercap_flag:
-            self.mean = zbound[0]
+            pos_mean = np.sum((np.multiply(x_mat, A_mat)*0)+zbound[0], axis=0)
+            self.mean = np.squeeze(np.hstack((np.array([pos_mean]), np.zeros((1,4)))))
         else:
             #self.mean = np.dot(x_array, A_array)
-            self.mean = np.sum(np.multiply(x_mat, A_mat), axis=0)
+            pos_mean = np.sum(np.multiply(x_mat, A_mat), axis=0)
+            self.mean = np.squeeze(np.hstack((np.array([pos_mean]), np.zeros((1,4)))))
 
 class SmoothFilter(object):
     '''Moving Avergae Filter used in 1D or 2D LFP control:
@@ -32,8 +34,8 @@ class SmoothFilter(object):
 
     def __init__(self, n_steps, **kwargs):
         self.n_steps = n_steps
-        self.A = np.ones(( self.n_steps, ))/float(self.n_steps)
-        self.A = np.tile(np.array([A]), [1,3])
+        A = np.ones(( self.n_steps, ))/float(self.n_steps)
+        self.A = np.tile(np.array([A]).T, [1,3])
 
         self.control_method = 'fraction'
         self.current_lfp_pos = 0
@@ -45,8 +47,8 @@ class SmoothFilter(object):
     def init_from_task(self,**kwargs):
         if 'n_steps' in kwargs:
             self.n_steps = kwargs['n_steps']
-            self.A = np.ones(( self.n_steps, ))/float(self.n_steps)
-            self.A = np.tile(np.array([A]), [1,3])
+            A = np.ones(( self.n_steps, ))/float(self.n_steps)
+            self.A = np.tile(np.array([A]).T, [1,3])
 
         if 'powercap' in kwargs:
             self.powercap = kwargs['powercap']
@@ -112,7 +114,19 @@ class SmoothFilter(object):
 
         cursor_pos = self.lfp_to_cursor(lfp_control, xlfp_control)
 
-        if p_val <= self.powercap:
+        #if p_val <= self.powercap:
+        #write c_val, xc_val, p_val, to file:
+        if self.cnt < 3000:
+            self.files[0].write(str(c_val)+',')
+            self.files[1].write(str(p_val)+',')
+            self.files[2].write(str(xc_val)+',')
+            self.cnt += 1
+        elif self.cnt == 3000:
+            for f in self.files:
+                f.close()
+                
+        #Hack: make x axis control powercap value:
+        if xc_val <= self.powercap:
             powercap_flag = 0
         else:
             powercap_flag = 1
@@ -124,11 +138,11 @@ class SmoothFilter(object):
             dmn = lfppos - np.mean(self.frac_lims);
             cursor_pos = dmn * (self.zboundaries[1]-self.zboundaries[0]) / (self.frac_lims[1] - self.frac_lims[0])
             
-            #Xcursor postion, keep within same Z axes
+            #Xcursor postion, keep within (0, -16) boundaries: 
             xdmn = xlfp_control - np.mean(self.xfrac_lims)
-            xcursor_pos = xdmn * (self.zboundaries[1]-self.zboundaries[0]) / (self.xfrac_lims[1] - self.xfrac_lims[0])
-
-            return np.array([cursor_pos, 0, xcursor_pos])
+            xcursor_pos = xdmn * (0--16) / (self.xfrac_lims[1] - self.xfrac_lims[0])
+            xcursor_pos = xcursor_pos - 8; #nonzero offset
+            return np.array([xcursor_pos, 0, cursor_pos])
 
 
     def _pickle_init(self):
@@ -182,7 +196,12 @@ class One_Dim_LFP_Decoder(Decoder):
 
         if 'xlfp_control_band' in kwargs:
             self.filt.x_control_band_ind, self.extractor_kwargs['bands'], self.extractor_kwargs['fft_inds'] = \
-            self._get_band_ind(self.extractor_kwargs['fft_freqs'], kwargs['xlfp_totalpw_band'], self.extractor_kwargs['bands'])
+            self._get_band_ind(self.extractor_kwargs['fft_freqs'], kwargs['xlfp_control_band'], self.extractor_kwargs['bands'])
+
+        c_txt = open('/home/helene/Downloads/pk/txt_write/control.txt','w')
+        p_txt = open('/home/helene/Downloads/pk/txt_write/tot.txt','w')
+        xc_txt = open('/home/helene/Downloads/pk/txt_write/x_cont.txt','w')
+        self.filt.files = [c_txt, p_txt, xc_txt]
 
     def _get_band_ind(self, freq_pts, band, band_set):
         band_ind = -1

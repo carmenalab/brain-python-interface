@@ -455,6 +455,7 @@ class twodimLFP_CursorPlant(onedimLFP_CursorPlant):
         #Pos = (Left-Right, 0, Up-Down)
         pos = decoder.filt.get_mean()
         pos = [pos[0], -2.2, pos[2]]
+        #pos = [-8, -2.2, pos[2]]
 
         if self.endpt_bounds is not None:
             if pos[2] < self.endpt_bounds[4]: 
