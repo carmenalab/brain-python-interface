@@ -16,8 +16,8 @@ if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then
 fi
 
 # Check that a config file is in the correct place, $BMI3D/config
-if [ ! -e $BMI3D/config ]; then 
-    echo "ERROR: cannot find config file! Did you run $BMI3D/make_config.py?"
+if [ ! -e $BMI3D/config_files/config ]; then 
+    echo "ERROR: cannot find config file! Did you run $BMI3D/config_files/make_config.py?"
     exit 1
 fi
     

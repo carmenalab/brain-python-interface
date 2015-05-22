@@ -7,7 +7,7 @@ class Config(object):
     def __init__(self):
         parser = SafeConfigParser()
         self.parser = parser
-        self.parser.read(os.path.expandvars('$BMI3D/config'))
+        self.parser.read(os.path.expandvars('$BMI3D/config_files/config'))
 
         self.recording_system = dict(parser.items('recording_sys'))['make']
         self.data_path = dict(parser.items('db_config_default'))['data_path']

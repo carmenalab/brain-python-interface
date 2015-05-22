@@ -66,9 +66,10 @@ try:
     from bmilist import bmi_training_pos_vars
     from bmilist import bmi_state_space_models
     from bmilist import extractors
+    from bmilist import kin_extractors
     from bmilist import default_extractor
     from bmilist import bmi_update_rates
 except:
-    import "error importing BMI configuration variables"
+    print "error importing BMI configuration variables"
     import traceback
     traceback.print_exc()
