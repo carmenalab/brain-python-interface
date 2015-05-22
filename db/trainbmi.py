@@ -1,6 +1,9 @@
 '''
-Functions to train decoders and store into the database
+Functions to call appropriate constructor functions based on UI data and to link decoder objects in the database
 '''
+
+import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 
 import re
 import cPickle
