@@ -20,6 +20,9 @@ sec_per_min = 60
 
 
 class MultiprocShellCommand(mp.Process):
+    '''
+    Execute a blocking shell command in a separate process
+    '''
     def __init__(self, cmd, *args, **kwargs):
         self.cmd = cmd
         self.done = mp.Event()
@@ -27,8 +30,7 @@ class MultiprocShellCommand(mp.Process):
 
     def run(self):
         '''
-        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
-        See riglib.experiment.Experiment.run(). This 'run' method spawns a process to execute the command to begin recording on the remote machine.
+        Docstring
         '''
         import os
         os.popen(self.cmd)
@@ -48,7 +50,8 @@ class SingleChannelVideo(traits.HasTraits):
         Prior to starting the task, this 'init' spawns process to run ssh command to begin video recording
         '''
         self.video_basename = 'video_%s.avi' % time.strftime('%Y_%m_%d_%H_%M_%S')        
-        cmd = "ssh -tt video /home/lab/bin/recording_start.sh %s" % self.video_basename
+        self.device_name = '/dev/video1'
+        cmd = "ssh -tt video /home/lab/bin/recording_start.sh %s %s" % (self.device_name, self.video_basename)
         
         cmd_caller = MultiprocShellCommand(cmd)
         cmd_caller.start()
@@ -79,8 +82,9 @@ class SingleChannelVideo(traits.HasTraits):
         if self.cmd_caller.done.is_set():
             print "SSH command finished!"
 
-        time.sleep(0.5)
         super(SingleChannelVideo, self).cleanup(database, saveid, **kwargs)
+        print "sleeping so that video recording can wrap up"
+        time.sleep(5)        
 
         ## Get the video filename
         video_fname = os.path.join('/storage/video/%s' % self.video_basename)
