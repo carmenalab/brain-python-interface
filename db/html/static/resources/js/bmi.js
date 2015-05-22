@@ -1,3 +1,6 @@
+/*
+Runs the code for any button pushing on the BMI training sub-GUI
+*/
 var goodcells = /^\s*(?:good|bmi)?\s?(?:unit|cell)s?\s?[:-]\s*\n*(.*)$/gim;
 var cellnames = /(\d{1,3})\s?(\w{1})/gim;
 var parsecell = /(\d{1,3})\s?(\w{1})/;

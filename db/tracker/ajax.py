@@ -262,9 +262,9 @@ def make_bmi(request, idx):
 
     Parameters
     ----------
-    request: Django HttpRequest
+    request : Django HttpRequest
         POST data containing details for how to train the decoder (type, units, update rate, etc.)
-    idx: int
+    idx : int
         ID number of the models.TaskEntry record with the data used to train the Decoder.
 
     Returns

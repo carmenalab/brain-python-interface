@@ -46,7 +46,7 @@ Initializing a Decoder
 ----------------------
 There are at least two contexts in which one would need to "train" (as opposed to "re-train" or "adapt") a Decoder. The first is to create an entirely new set of Decoder parameters from a "seeding" session. For instance, it is common to create a new decoder based on the neural response to subjects watching cursor movements without any control over the cursor (i.e. a "visual feedback" task). A second case where one would want to create a new Decoder object might be to do a "batch" recalibration [Gilja2012]_. 
 
-Functions to train new decoder objects are in the module ``riglib.bmi.train``:
+Functions to train new decoder objects are in the module ``riglib.bmi.train``.
 
 
 When using the browser interface, several files are involved in the machinery of creating a new Decoder:
@@ -58,14 +58,13 @@ db/tracker/views.py
 db/html/templates/bmi.html
 	Handles the UI display of the BMI training sub-GUI. This only shows up for tasks which have the 'is_bmi_seed' class attribute as True
 db/html/static/resources/js/bmi.js
-	Runs the code for any button pushing on the BMI training sub-GUI
-db/tracker/ajax.py 
+	
+db/tracker/ajax.py
+	Handles the form submission from the BMI training sub-GUI
 db/trainbmi.py
+	..  automodule:: db.trainbmi
 riglib/bmi/train.py
-
-..  automodule:: riglib.bmi.train
-    :members: train_KFDecoder
-    :members: train_PPFDecoder
+	..  automodule:: riglib.bmi.train
 
 
 CLDA

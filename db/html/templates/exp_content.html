@@ -3,10 +3,13 @@
 	<div class="options">
 		<fieldset id="features">
 			<legend>Features</legend>
-			<ul>{% for f in features %}<li title="{{f.desc}}">
+			<ul>
+			{% for f in features %}
+				<li title="{{f.desc}}">
 				<input type="checkbox" name="{{f.name}}" id="feat_{{f.name}}" value="{{f.id}}">
 				<label for="{{f.name}}">{{f.name}}</label>
-			</li>{% endfor %}
+				</li>
+			{% endfor %}
 			</ul>
 		</fieldset>
 		<fieldset id="sequence">

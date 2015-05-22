@@ -36,6 +36,15 @@ def list(request):
     import tasklist
     tasks = filter(lambda t: t.name in tasklist.tasks.keys(), tasks)
 
+    epoch = datetime.datetime.utcfromtimestamp(0)
+    for entry in entries:
+        tdiff = entry.date - epoch
+        if tdiff.days % 2 == 0:
+            entry.bgcolor = '#E1EEf4'
+        else:
+            entry.bgcolor = '#FFFFFF'#'#dae5f4'
+
+
     fields = dict(
         entries=entries, 
         subjects=Subject.objects.all().order_by("name"), 
@@ -69,6 +78,15 @@ def listall(request):
     Django HTTPResponse instance
     '''
     entries = TaskEntry.objects.all().order_by("-date")
+
+    epoch = datetime.datetime.utcfromtimestamp(0)
+    for entry in entries:
+        tdiff = entry.date - epoch
+        if tdiff.days % 2 == 0:
+            entry.bgcolor = '#E1EEf4'
+        else:
+            entry.bgcolor = '#FFFFFF'#'#dae5f4'
+
 
     fields = dict(
         entries=entries, 

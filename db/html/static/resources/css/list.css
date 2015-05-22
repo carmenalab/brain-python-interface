@@ -13,8 +13,8 @@ table#main {
 }
 table#main td{
 	padding:0.5em;
-	border-bottom:1px solid;
-	border-color:inherit;
+	border-bottom:0px solid;
+	border-color:#b8d1f3;
 }
 table#main th {
 	padding:0.8em 0.5em;
@@ -25,18 +25,20 @@ table#main th {
 /* Make the cursor over the list appear like a pointer */
 table#main tr {
 	cursor:pointer;
+	/*background:;*/
 }
 
 table#main tbody>tr:hover {
 	background:#DDD;
+	/*bgcolor:#DDD;*/
 }
 table#main tr#newentry {
 	display:none;
 }
 th { text-align:left;}
-.colDate {	width:250px; }
-.colSubj {	width:60px;}
-.colTask {	width:60px;}
+/*.colDate {	width:100px; }
+.colTask {	width:60px;}*/
+
 .rowactive td { 
 	position:relative; 
 	z-index:10;
@@ -55,11 +57,11 @@ input[type="number"] {
 }
 
 div#leftpane { 
-	width:450px; 
+	width:600px; 
 	overflow:auto;
 }
 div#rightpane { 
-	left:450px; 
+	left:600px; 
 	width:1000px; 
 	height:100%;
 	position:fixed;
