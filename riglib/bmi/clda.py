@@ -229,14 +229,12 @@ class FeedbackControllerLearner(Learner):
                 output = self.fb_ctrl(current_state, target_state, mode=task_state)
             elif self.style == 'mixing':
                 output = self.fb_ctrl.calc_next_state(current_state, target_state, mode=task_state)
-            # print np.array(output)[-4:].ravel()
-            # import pdb; pdb.set_trace()
             return output
         except:
             # Key errors happen when the feedback controller doesn't have a policy for the current task state
-            return None
             import traceback
             traceback.print_exc()
+            return None
 
 
 class OFCLearner(Learner):

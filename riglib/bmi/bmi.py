@@ -1142,12 +1142,12 @@ class BMILoop(object):
         # at this point
         f = open(os.path.join(os.getenv('HOME'), 'code/bmi3d/log/clda_cleanup_log'), 'w')
         f.write('Opening log file\n')
+
+        f.write('# of paramter updates: %d\n' % len(self.bmi_system.param_hist))
         
         # save out the parameter history and new decoder unless task was stopped
         # before 1st update
         try:
-            f.write('# of paramter updates: %d\n' % len(self.bmi_system.param_hist))
-
             if len(self.bmi_system.param_hist) > 0  and not self.updater is None:
                 # create name for new decoder 
                 now = datetime.datetime.now()
