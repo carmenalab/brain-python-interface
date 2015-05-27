@@ -36,16 +36,15 @@ class TestDecoderTrain(unittest.TestCase):
             new_attr = getattr(dec_new.filt, attr)
             self.assertTrue(np.all((old_attr - new_attr) < 1e-10))
 
+        self.assertTrue(np.all(np.abs(dec_new.mFR - dec.mFR) < 1e-10))
+        self.assertTrue(np.all(np.abs(dec_new.sdFR - dec.sdFR) < 1e-10))
+
         self.assertTrue(np.array_equal(dec_new.units, dec.units))
         self.assertTrue(np.array_equal(dec_new.bounding_box[0], dec.bounding_box[0]))
         self.assertTrue(np.array_equal(dec_new.bounding_box[1], dec.bounding_box[1]))
         self.assertTrue(dec_new.states == dec.states)
         self.assertTrue(dec_new.states_to_bound == dec.states_to_bound)
-        self.assertTrue(np.array_equal(dec_new.mFR, dec.mFR))
-        self.assertTrue(np.array_equal(dec_new.sdFR, dec.sdFR))
         self.assertTrue(np.array_equal(dec_new.drives_neurons, dec.drives_neurons))
-
-        #self.assertTrue(dec.filt == dec_new.filt)
 
     def test_ppf_vf(self):
         te = dbfn.TaskEntry(2425, dbname='testing')
