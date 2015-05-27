@@ -15,7 +15,6 @@ import time, datetime
 from scipy.stats import nanmean
 import db
 from collections import defaultdict, OrderedDict
-from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
 from config import config
 
@@ -57,6 +56,15 @@ def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
 
 def default_data_comb_fn(x):
     return x
+
+def default_trial_filter_fn(te, trial_msgs):
+    return True
+
+def default_trial_proc_fn(te, trial_msgs): 
+    return 1
+
+def default_trial_condition_fn(te, trial_msgs):
+    return 0
 
 def get_records_of_trained_decoders(task_entry):
     '''
@@ -497,11 +505,11 @@ class TaskEntry(object):
 
         '''
         if filt == None:
-            filt = kwargs.pop('trial_filter_fn', trial_filter_functions.default)
+            filt = kwargs.pop('trial_filter_fn', default_trial_filter_fn)
         if cond == None:
-            cond = kwargs.pop('trial_condition_fn', trial_condition_functions.default)
+            cond = kwargs.pop('trial_condition_fn', default_trial_condition_fn)
         if proc == None:
-            proc = kwargs.pop('trial_proc_fn', trial_proc_functions.default)
+            proc = kwargs.pop('trial_proc_fn', default_trial_proc_fn)
         if comb == None:
             comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
 
@@ -511,7 +519,7 @@ class TaskEntry(object):
         trial_proc_fn = proc
         data_comb_fn = comb
 
-
+        from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
         if isinstance(trial_filter_fn, str):
             trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
@@ -1000,12 +1008,13 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result. 
         '''
 
+        from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
         if filt == None:
-            filt = kwargs.pop('trial_filter_fn', trial_filter_functions.default)
+            filt = kwargs.pop('trial_filter_fn', default_trial_filter_fn)
         if cond == None:
-            cond = kwargs.pop('trial_condition_fn', trial_condition_functions.default)
+            cond = kwargs.pop('trial_condition_fn', default_trial_condition_fn)
         if proc == None:
-            proc = kwargs.pop('trial_proc_fn', trial_proc_functions.default)
+            proc = kwargs.pop('trial_proc_fn', default_trial_proc_fn)
         if comb == None:
             comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
 
@@ -1090,21 +1099,20 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result. 
         '''
         if filt == None:
-            filt = kwargs.pop('block_filter_fn', trial_filter_functions.default)
+            filt = kwargs.pop('block_filter_fn', default_trial_filter_fn)
         if cond == None:
-            cond = kwargs.pop('block_condition_fn', trial_condition_functions.default)
+            cond = kwargs.pop('block_condition_fn', default_trial_condition_fn)
         if proc == None:
-            proc = kwargs.pop('block_proc_fn', trial_proc_functions.default)
+            proc = kwargs.pop('block_proc_fn', default_trial_proc_fn)
         if comb == None:
             comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
 
+        from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
         block_filter_fn = filt
         block_condition_fn = cond
         block_proc_fn = proc
         data_comb_fn = comb
-
-
 
         # Look up functions by name, if strings are given instead of functions
         if isinstance(block_filter_fn, str):
