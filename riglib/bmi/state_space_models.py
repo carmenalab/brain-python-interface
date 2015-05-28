@@ -127,6 +127,7 @@ class State(object):
         self.max_val = max_val
         self.order = order
         self.aux = aux
+        self._eq_comp_excl = []
 
     def __repr__(self):
         return str(self.name) 
@@ -138,7 +139,20 @@ class State(object):
         if not isinstance(other, State):
             return False
         else:
-            return np.all([self.__dict__[x] == other.__dict__[x] or (np.isnan(self.__dict__[x]) and np.isnan(other.__dict__[x])) for x in self.__dict__])
+            for x in self.__dict__:
+                if x in other.__dict__:
+                    if not (x == '_eq_comp_excl') and not (x in self._eq_comp_excl) and not (x in other._eq_comp_excl):
+                        if not (self.__dict__[x] == other.__dict__[x] or (np.isnan(self.__dict__[x]) and np.isnan(other.__dict__[x]))):
+                            print self, other, x
+                            import pdb; pdb.set_trace()
+                            return False
+            return True
+
+    def __setstate__(self, data):
+        self.__dict__ = data
+        if '_eq_comp_excl' not in self.__dict__:
+            self._eq_comp_excl = []
+
 
 class StateSpace(object):
     '''
@@ -314,7 +328,8 @@ class LinearVelocityStateSpace(StateSpace):
         B = np.vstack([0*I, Delta*1000 * I, np.zeros([1, ndim])])
 
         # account for offset state
-        has_offset = np.isnan(self.states[-1].order)
+        has_offset = self.states[-1] == offset_state
+        # has_offset = np.isnan(self.states[-1].order)
         if not has_offset:
             A = A[:-1, :-1]
             W = W[:-1, :-1]
@@ -326,9 +341,11 @@ class LinearVelocityStateSpace(StateSpace):
         states_equal = super(LinearVelocityStateSpace, self).__eq__(other)
         A1, B1, W1 = self.get_ssm_matrices()
         A2, B2, W2 = other.get_ssm_matrices()
+        # import pdb; pdb.set_trace()
         return states_equal and np.array_equal(A1, A2) and np.array_equal(B1, B2) and np.array_equal(W1, W2)
 
 offset_state = State('offset', stochastic=False, drives_obs=True, order=np.nan)
+offset_state._eq_comp_excl.append('order')
 
 class StateSpaceNLinkPlanarChain(LinearVelocityStateSpace):
     '''
