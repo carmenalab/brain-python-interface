@@ -11,7 +11,7 @@ n_iter = len(te.hdf.root.task)
 
 cls = bmi_recon_tasks.LFPBMIReconstruction
 gen = []
-task = cls(te, n_iter, gen)
+task = cls(te, n_iter)
 
 from riglib.plants import CursorPlant
 task.plant = CursorPlant(endpt_bounds=[-10,10,-10,10,-10,10], vel_wall=False)

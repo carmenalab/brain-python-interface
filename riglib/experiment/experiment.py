@@ -124,6 +124,14 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         return trait in cls.hidden_traits
 
+    @property 
+    def update_rate(self):
+        '''
+        Attribute for update rate of task. Using @property in case any future modifications
+        decide to change fps on initialization
+        '''
+        return 1./self.fps        
+
     def start(self):
         '''
         From the python docs on threading.Thread:
