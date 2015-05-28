@@ -1,18 +1,11 @@
 import unittest
-import tasks
-from analysis import performance
-from tasks import generatorfunctions as genfns
 import numpy as np 
-
+import plantlist
 from tasks import bmi_recon_tasks
-from tasks.bmimultitasks import SimBMIControlMulti
-reload(bmi_recon_tasks)
-reload(tasks)
-
-from tasks.bmi_recon_tasks import BMIReconstruction
+import dbfunctions as dbfn
 
 from riglib.bmi import goal_calculators
-class TentacleAttractorBMIRecon(BMIReconstruction):
+class TentacleAttractorBMIRecon(bmi_recon_tasks.BMIReconstruction):
     def get_target_BMI_state(self, *args):
         '''
         Run the goal calculator to determine what the target state of the task is
@@ -35,19 +28,18 @@ class TentacleAttractorBMIRecon(BMIReconstruction):
 
 
 idx = 2284
-
-te = performance.BMIControlMultiTaskEntry(idx, dbname='testing')
+te = dbfn.TaskEntry(idx, dbname='testing')
 n_iter = len(te.hdf.root.task)
         
-gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)
 
 cls = TentacleAttractorBMIRecon
-self = task = cls(te, n_iter, gen)
-from tasks import plantlist
+gen = []
+task = cls(te, n_iter, gen)
+
 task.plant = plantlist.chain_15_15_5_5
 task.init()
         
-error = task.calc_recon_error(verbose=False)
+error = task.calc_recon_error(verbose=False, n_iter_betw_fb=1000)
 abs_max_error = np.max(np.abs(error))
 
 print abs_max_error

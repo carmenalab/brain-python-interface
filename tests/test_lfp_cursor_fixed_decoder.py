@@ -1,37 +1,23 @@
 import unittest
-import tasks
-from analysis import performance
-from tasks import generatorfunctions as genfns
 import numpy as np 
-
+import plantlist
 from tasks import bmi_recon_tasks
-from tasks.bmimultitasks import SimBMIControlMulti
-reload(bmi_recon_tasks)
-reload(tasks)
-
-from tasks.bmi_recon_tasks import BMIReconstruction, LFPBMIReconstruction
-
-from riglib.bmi import goal_calculators
-
+import dbfunctions as dbfn
 
 idx = 849
-
-te = performance.BMIControlMultiTaskEntry(idx, dbname='testing')
+te = dbfn.TaskEntry(idx, dbname='testing')
 n_iter = len(te.hdf.root.task)
         
-gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)
 
-cls = LFPBMIReconstruction
-self = task = cls(te, n_iter, gen)
-from tasks import plantlist
+cls = bmi_recon_tasks.LFPBMIReconstruction
+gen = []
+task = cls(te, n_iter, gen)
 
 from riglib.plants import CursorPlant
 task.plant = CursorPlant(endpt_bounds=[-10,10,-10,10,-10,10], vel_wall=False)
-
-# task.plant = plantlist.cursor_14x14_no_vel_wall
 task.init()
         
-error = task.calc_recon_error(verbose=False)
+error = task.calc_recon_error(verbose=False, n_iter_betw_fb=1000)
 abs_max_error = np.max(np.abs(error))
 
 print abs_max_error

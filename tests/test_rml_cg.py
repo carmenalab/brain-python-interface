@@ -1,27 +1,18 @@
 import unittest
-import tasks
-from analysis import performance
-from tasks import generatorfunctions as genfns
 import numpy as np 
-
+import plantlist
 from tasks import bmi_recon_tasks
-from tasks.bmimultitasks import SimBMIControlMulti
-reload(bmi_recon_tasks)
-reload(tasks)
-
-from tasks.bmi_recon_tasks import KFRMLCGRecon
-
-cls = KFRMLCGRecon
+import dbfunctions as dbfn
 
 idx = 5275
-
-te = performance.CLDAControlMultiTaskEntry(idx, dbname='testing')
+te = dbfn.TaskEntry(idx, dbname='testing')
 n_iter = len(te.hdf.root.task)
         
-gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)
 
+cls = bmi_recon_tasks.KFRMLCGRecon
+gen = []
 task = cls(te, n_iter, gen)
-from tasks import plantlist
+
 task.plant = plantlist.cursor_14x14_no_vel_wall
 task.init()
         
