@@ -20,6 +20,10 @@ class PointProcessFilter(bmi.GaussianStateHMM):
     Model: 
        x_{t+1} = Ax_t + Bu_t + w_t; w_t ~ N(0, W)
        log(y_t) = Cx_t
+
+    See Shanechi et al., "Feedback-Controlled Parallel Point Process Filter for 
+    Estimation of Goal-Directed Movements From Neural Signals", IEEE TNSRE, 2013
+    for mathematical details.
     """
     model_attrs = ['A', 'W', 'C']
 
