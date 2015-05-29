@@ -519,7 +519,7 @@ class TaskEntry(object):
         trial_proc_fn = proc
         data_comb_fn = comb
 
-        from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        import trial_filter_functions, trial_proc_functions, trial_condition_functions
         if isinstance(trial_filter_fn, str):
             trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 

@@ -178,16 +178,6 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         raise Exception("Task was never initialized, cannot run cleanup function!")
     task.cleanup()
 
-    # Summarize performance during task
-    try:
-        from analysis import performance
-        te = performance._get_te(task.saveid)
-        print te.summary()
-    except:
-        print "=====traceback during performance calculations at end of block"
-        import traceback
-        traceback.print_exc()
-        print "====="
     print "*************************** EXITING TASK *****************************"
 
 
