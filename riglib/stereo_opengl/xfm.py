@@ -87,6 +87,14 @@ class Quaternion(object):
             [   2*b*d-2*a*c,            2*c*d+2*a*b,        a**2-b**2-c**2+d**2,    0],
             [   0,                      0,                          0,              1]])
 
+    @classmethod 
+    def from_mat(cls, M):
+        qw = np.sqrt(1 + M[0,0] + M[1,1] + M[2,2]) / 2
+        qx = (M[2,1] - M[1,2])/(4*qw)
+        qy = (M[0,2] - M[2,0])/(4*qw)
+        qz = (M[1,0] - M[0,1])/(4*qw)
+        return Quaternion(w=qw, x=qx, y=qy, z=qz)
+
     def rotate_to(self, vec):
         svec = self.vec / np.sqrt((self.vec**2).sum())
         nvec = nvec = vec2 / np.sqrt((vec2**2).sum())
