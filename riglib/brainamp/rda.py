@@ -7,6 +7,7 @@ import time
 import numpy as np
 from struct import *
 from socket import *
+import array
 
 
 # Helper function for receiving whole message
@@ -78,34 +79,27 @@ class EMGData(object):
     #   need to fix this later
     def __init__(self, recorder_ip='192.168.137.1', nbits=16, **kwargs):
         self.recorder_ip = recorder_ip
+        self.nbits = nbits
 
-        if nbits == 16:
+        if self.nbits == 16:
             self.port = 51234
             self.fmt = '<h'  # little-endian byte order, signed 16-bit integer
             self.step = 2    # bytes
-        elif nbits == 32:
+        elif self.nbits == 32:
             self.port = 51244
             self.fmt = '<f'  # little-endian byte order, 32-bit IEEE float
             self.step = 4    # bytes
         else:
             raise Exception('Invalid value for nbits -- must be either 16 or 32!')
 
-        self.nbits = nbits
-
         # Create a tcpip socket
         self.sock = socket(AF_INET, SOCK_STREAM)
         
-        # This needs to happen in get_data so that we don't miss the first
-        # packet with msgtype == RDA_MessageStart
-        # Connect to the Recorder host
-        # self.sock.connect((self.recorder_ip, self.port))
-    
     def start(self):
         '''Start the buffering of data.'''
 
         self.streaming = True
         self.data = self.get_data()
-
 
     def stop(self):
         '''Stop the buffering of data.'''
@@ -127,6 +121,7 @@ class EMGData(object):
         
         self.sock.connect((self.recorder_ip, self.port))
 
+
         chan_idx = 0
 
         while self.streaming:
@@ -138,7 +133,8 @@ class EMGData(object):
             (id1, id2, id3, id4, msgsize, msgtype) = unpack('<llllLL', rawhdr)
             
             # Get data part of message, which is of variable size
-            rawdata = RecvData(self.sock, msgsize - 24)
+            rawdata = RecvData(self.sock, msgsize - 24) 
+            
             ts_arrival = time.time()
 
             # Perform action dependend on the message type
@@ -154,6 +150,7 @@ class EMGData(object):
                 print "Sampling interval: " + str(samplingInterval)
                 print "Resolutions: " + str(resolutions)
                 print "Channel Names: " + str(channelNames)
+                print "Sampling Frequency: " + str(1000000/samplingInterval)
 
                 #channels = [int(name) for name in channelNames]
                 channels = channelNames
@@ -169,16 +166,27 @@ class EMGData(object):
                 # Extract numerical data
                 (block, points, markerCount) = unpack('<LLL', rawdata[:12])
 
-                # Extract eeg data
-                for i in range(points * channelCount):
-                    index = 12 + (self.step * i)
-                    AD_value = unpack(self.fmt, rawdata[index:index+self.step])[0]
-                    chan = channels[chan_idx]
-                    uV_value = AD_value * resolutions[chan_idx]
-                    
-                    yield (chan, np.array([(uV_value, ts_arrival)], dtype=self.dtype))
+                # Extract eeg/emg data
 
-                    chan_idx = (chan_idx + 1) % channelCount
+                # OLD, INEFFICIENT METHOD (yielding data points one at a time)
+                # for i in range(points * channelCount):
+                #     index = 12 + (self.step * i)
+                #     AD_value = unpack(self.fmt, rawdata[index:index+self.step])[0]
+                #     chan = channels[chan_idx]
+                #     uV_value = AD_value * resolutions[chan_idx]
+                #     yield (chan, np.array([(uV_value, ts_arrival)], dtype=self.dtype))
+                #     chan_idx = (chan_idx + 1) % channelCount
+
+                # MORE EFFICIENT -- yield all data points for a channel at once
+                data_ = array.array('h')
+                data_.fromstring(rawdata[12:])  # TODO -- make more general
+                data = np.zeros((channelCount, points), dtype=self.dtype)
+                data['data'] = np.array(data_).reshape((points, channelCount)).T
+                data['ts_arrival'] = ts_arrival
+                for chan_idx in range(channelCount):
+                    data[chan_idx, :]['data'] *= resolutions[chan_idx]
+                    chan = channels[chan_idx]
+                    yield (chan, data[chan_idx, :])
 
 
                 # disregard marker data for now

@@ -9,7 +9,7 @@ MAX_MSG_LEN = 200
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # input address of this application (address to receive from)
-sock.bind(settings.rehand_udp_client)
+sock.bind(settings.REHAND_UDP_CLIENT_ADDR)
 
 def recv_feedback():
     rlist, _, _ = select.select([sock], [], [], 1)

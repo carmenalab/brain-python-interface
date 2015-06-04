@@ -11,7 +11,6 @@ High-level descriptions:
 ..  toctree::
     :maxdepth: 1
 
-    about
     install
     tasks
     display

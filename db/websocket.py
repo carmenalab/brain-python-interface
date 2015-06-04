@@ -24,6 +24,9 @@ class ClientSocket(websocket.WebSocketHandler):
         print "WebSocket closed"
         sockets.remove(self)
 
+    def check_origin(self):
+        return True
+
 class Server(mp.Process):
     def __init__(self, notify=None):
         super(self.__class__, self).__init__()

@@ -311,6 +311,29 @@ class GaussianStateHMM(object):
         return data_to_pickle
 
 
+class MachineOnlyFilter(GaussianStateHMM):
+    '''
+    A degenerate case of the GaussianStateHMM where the inputs are driven only by the 
+    input control term and all observations are ignored. 
+    In other words, W = 0 and x_{t+1} = Ax_t + Bu_t 
+    '''
+    def __init__(self, *args, **kwargs):
+        super(MachineOnlyFilter, self).__init__(*args, **kwargs)
+        self.include_offset = True
+
+    def init_noise_models(self):
+        '''
+        see bmi.GaussianStateHMM.init_noise_models for documentation
+        '''
+        self.state_noise = GaussianState(0.0, self.W)
+
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, **kwargs):
+        if Bu is not None:
+            return self.A * st + Bu
+        else:
+            return self.A * st
+
+
 class Decoder(object):
     '''
     All BMI decoders should inherit from this class

@@ -9,8 +9,8 @@ from utils.constants import *
 MAX_MSG_LEN = 200
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-# input address of this application (address to receive from)
-sock.bind(settings.armassist_udp_client)
+# input address of this application (address on which to receive data)
+sock.bind(settings.ARMASSIST_UDP_CLIENT_ADDR)
 
 def recv_feedback():
     rlist, _, _ = select.select([sock], [], [], 1)

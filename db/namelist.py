@@ -70,6 +70,9 @@ try:
     from bmilist import kin_extractors
     from bmilist import default_extractor
     from bmilist import bmi_update_rates
+    from bmilist import endpt_2D_state_space
+    from bmilist import tentacle_2D_state_space
+    from bmilist import joint_2D_state_space
 except:
     print "error importing BMI configuration variables"
     import traceback
