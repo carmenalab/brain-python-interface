@@ -534,6 +534,10 @@ class PPFContinuousBayesianUpdater(Updater):
     Adapt the parameters of a PPFDecoder using an HMM to implement a gradient-descent type parameter update.
 
     (currently only works for PPFs which do not also include the self-history or correlational elements)
+
+    See Shanechi and Carmena, "Optimal feedback-controlled point process decoder for 
+    adaptation and assisted training in brain-machine interfaces", IEEE EMBC, 2014
+    for mathematical details
     '''
     update_kwargs = dict()
     def __init__(self, decoder, units='cm', param_noise_scale=1., param_noise_variances=None):

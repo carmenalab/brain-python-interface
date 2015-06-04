@@ -147,7 +147,7 @@ class CursorVelCosEnc(GenericCosEnc):
 #################################
 class PointProcess(object):
     '''
-    Simulate a single point process
+    Simulate a single point process. Implemented by Suraj Gowda and Maryam Shanechi.
     '''
     def __init__(self, beta, dt, tau_samples=[], K=0, eps=1e-3):
         '''
