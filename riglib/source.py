@@ -346,10 +346,11 @@ class MultiChanDataSource(mp.Process):
         self.bufferlen = bufferlen
         self.max_len = int(bufferlen * self.source.update_freq)
         
+        self.channels = kwargs['channels']
         self.chan_to_row = dict()
-        for row, chan in enumerate(kwargs['channels']):
+        for row, chan in enumerate(self.channels):
             self.chan_to_row[chan] = row
-        self.n_chan = len(kwargs['channels'])
+        self.n_chan = len(self.channels)
 
         dtype = self.source.dtype  # e.g., np.dtype('float') for LFP
         self.slice_size = dtype.itemsize
