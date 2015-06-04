@@ -2,6 +2,7 @@ import numpy as np
 
 def angle_inside_range(angle, start, end):
     '''Test whether angle in inside range [start, end).'''
+
     # ensure that end value is within the range [start, start + 2*pi)
     while end < start:
         end += 2*np.pi
@@ -34,3 +35,8 @@ def angle_subtract_vec(angle_vec1, angle_vec2):
         result[i] = angle_subtract(angle_vec1[i], angle_vec2[i])
 
     return result
+
+def l1_ang_dist(a, b):
+    '''Calculate the l1 distance between angular vectors a and b.'''
+
+    return sum(abs(angle_subtract(ai, bi)) for (ai, bi) in zip(a, b))
