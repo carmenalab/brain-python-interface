@@ -26,14 +26,15 @@ generator_names = []
 generator_functions = []
 for task in tasks:
     task_cls = tasks[task]
-    generator_function_names = task_cls.sequence_generators
-    gen_fns = [getattr(task_cls, x) for x in generator_function_names]
-    for fn_name, fn in izip(generator_function_names, gen_fns):
-        if fn in generator_functions:
-            pass
-        else:
-            generator_names.append(fn_name)
-            generator_functions.append(fn)
+    if hasattr(task_cls, 'sequence_generators'):
+        generator_function_names = task_cls.sequence_generators
+        gen_fns = [getattr(task_cls, x) for x in generator_function_names]
+        for fn_name, fn in izip(generator_function_names, gen_fns):
+            if fn in generator_functions:
+                pass
+            else:
+                generator_names.append(fn_name)
+                generator_functions.append(fn)
 
 generators = dict()
 for fn_name, fn in izip(generator_names, generator_functions):
