@@ -67,8 +67,8 @@ class DataSink(mp.Process):
                 except Exception as e:
                     traceback.print_exc(file=open(os.path.expandvars('$BMI3D/log/data_sink_log'), 'a'))
                     ret = e
-                self._cmd_pipe.send(ret)
                 self.cmd_event.clear()
+                self._cmd_pipe.send(ret)
         
         # close the sink if the status bit has been set to 0
         output.close()
