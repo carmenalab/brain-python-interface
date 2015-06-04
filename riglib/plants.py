@@ -36,9 +36,9 @@ class Plant(object):
     Generic interface for task-plant interaction
     '''
     hdf_attrs = []
-    def __init__(self):
-        raise NotImplementedError
-
+    def __init__(self, *args, **kwargs):
+        pass
+        
     def drive(self, decoder):
         '''
         Call this function to 'drive' the plant to the state specified by the decoder
