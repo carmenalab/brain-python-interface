@@ -20,7 +20,7 @@ feedback_period = 1./feedback_freq  # secs
 
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(settings.rehand_udp_server)
+sock.bind(settings.REHAND_UDP_SERVER_ADDR)
 
 
 # create and start ReHand object
@@ -52,6 +52,13 @@ while True:
         cmd_id = items[0]
         dev_id = items[1]
         data_fields = items[2:]
+
+        print 'cmd_id', cmd_id
+        print 'dev_id', dev_id
+        print 'equal to ReHand?', dev_id == 'ReHand'
+        print 'len(dev_id)', len(dev_id)
+        print command
+        print items
 
         assert dev_id == 'ReHand'
 
@@ -89,7 +96,7 @@ while True:
         print 'sending feedback:', feedback.rstrip('\r')
         print '\n'
 
-        sock.sendto(feedback, settings.rehand_udp_client)
+        sock.sendto(feedback, settings.REHAND_UDP_CLIENT_ADDR)
 
         if received_first_cmd:
             n_feedback_packets_sent += 1

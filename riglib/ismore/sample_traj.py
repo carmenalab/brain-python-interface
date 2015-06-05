@@ -83,7 +83,7 @@ def preprocess_data(df):
 mat = sio.loadmat(mat_name, struct_as_record=False, squeeze_me=True)
 kin_epoched = mat['kin_epoched']
 
-colors = ['red', 'green', 'blue', 'yellow']
+trial_types = ['Blue', 'Brown', 'Green', 'Red']
 
 # create a dictionary of trajectories, indexed by trial_type
 traj = dict()
@@ -95,7 +95,7 @@ for i, kin in enumerate(kin_epoched):
     ts_end   = df['ts'][df.index[-1]]
 
     # assign an arbitrary trial_type name
-    trial_type = 'touch %s' % colors[i % 4]
+    trial_type = trial_types[i % len(trial_types)]
 
     # if we haven't already saved a trajectory for this trial_type
     if trial_type not in traj:

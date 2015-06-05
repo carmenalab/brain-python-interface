@@ -35,12 +35,12 @@ if keyboard_input_enabled:
 
 MAX_MSG_LEN = 200  # characters
 
-feedback_freq = 15  # Hz
+feedback_freq = 25  # Hz
 feedback_period = 1./feedback_freq  # secs
 
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(settings.armassist_udp_server)
+sock.bind(settings.ARMASSIST_UDP_SERVER_ADDR)
 
 
 # create and start ArmAssist object (includes ArmAssist and its PIC)
@@ -182,7 +182,7 @@ while True:
         print 'sending feedback:', feedback.rstrip('\r')
         print '\n'
 
-        sock.sendto(feedback, settings.armassist_udp_client)
+        sock.sendto(feedback, settings.ARMASSIST_UDP_CLIENT_ADDR)
 
         if received_first_cmd:
             n_feedback_packets_sent += 1

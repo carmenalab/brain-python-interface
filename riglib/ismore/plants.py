@@ -1,40 +1,72 @@
-'''Docstring.'''
+'''See the shared Google Drive documentation for an inheritance diagram that
+shows the relationships between the classes defined in this file.
+'''
 
 import numpy as np
 import socket
+import time
 
 from riglib import source
-from riglib.bmi.state_space_models import StateSpaceArmAssist, StateSpaceReHand, StateSpaceIsMore
 from riglib.ismore import settings, udp_feedback_client
+from tasks import ismore_bmi_lib
 from utils.constants import *
 
 import armassist
 import rehand
 
 
-# PRINT_COMMANDS = True
-PRINT_COMMANDS = False
+class BasePlant(object):
+    def __init__(self):
+        raise NotImplementedError('Implement in subclasses!')
+
+    def init(self):
+        raise NotImplementedError('Implement in subclasses!')
+
+    def start(self):
+        raise NotImplementedError('Implement in subclasses!')
+
+    def stop(self):
+        raise NotImplementedError('Implement in subclasses!')
+
+    def last_data_ts_arrival(self):
+        raise NotImplementedError('Implement in subclasses!')
+
+    def send_vel(self, vel):
+        raise NotImplementedError('Implement in subclasses!')
+
+    def get_pos(self):
+        raise NotImplementedError('Implement in subclasses!')
+
+    def get_vel(self):
+        raise NotImplementedError('Implement in subclasses!')
+
+    def enable(self):
+        '''Disable the device's motor drivers.'''
+        raise NotImplementedError('Implement in subclasses!')
+
+    def disable(self):
+        '''Disable the device's motor drivers.'''
+        raise NotImplementedError('Implement in subclasses!')
+
+    def enable_watchdog(self, timeout_ms):
+        raise NotImplementedError('Implement in subclasses!')
 
 
-class ArmAssistPlant(object):
-    '''Sends velocity commands and receives feedback over UDP. Can be used
-    with either the real or simulated ArmAssist.
-    '''
+class BasePlantUDP(BasePlant):
+    '''Abstract base class.'''
 
-    def __init__(self, print_commands=PRINT_COMMANDS):
-        self.print_commands = print_commands
+    # define in subclasses!
+    ssm_cls           = None
+    addr              = None
+    feedback_data_cls = None
+    data_source_name  = None
+    n_dof             = None
 
-        self.source = source.DataSource(udp_feedback_client.ArmAssistData, bufferlen=5, name='armassist')
+    def __init__(self):
+        self.source = source.DataSource(self.feedback_data_cls, bufferlen=5, name=self.data_source_name)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
-        self.aa_addr = settings.armassist_udp_server
-        
-        command = 'SetControlMode ArmAssist Global\n'
-        self.sock.sendto(command, self.aa_addr)
-        
-        #command = 'SetControlMode ArmAssist Disable\n'
-        #self.sock.sendto(command, self.aa_addr)
 
-        ssm = StateSpaceArmAssist()
+        ssm = self.ssm_cls()
         self.pos_state_names = [s.name for s in ssm.states if s.order == 0]
         self.vel_state_names = [s.name for s in ssm.states if s.order == 1]
 
@@ -46,11 +78,29 @@ class ArmAssistPlant(object):
         # only start this DataSource after it has been registered with 
         # the SinkManager singleton (sink.sinks) in the call to init()
         self.source.start()
+        self.ts_start_data = time.time()
 
     def stop(self):
-        print "setting ArmAssist speeds to 0"
-        self.send_vel(np.zeros(3))
+        self.send_vel(np.zeros(self.n_dof))
         self.source.stop()
+
+    def last_data_ts_arrival(self):
+        return self.source.read(n_pts=1)['ts_arrival'][0]
+
+    def _send_command(self, command):
+        self.sock.sendto(command, self.addr)
+
+
+class ArmAssistPlantUDP(BasePlantUDP):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated ArmAssist.
+    '''
+
+    ssm_cls           = ismore_bmi_lib.StateSpaceArmAssist
+    addr              = settings.ARMASSIST_UDP_SERVER_ADDR
+    feedback_data_cls = udp_feedback_client.ArmAssistData
+    data_source_name  = 'armassist'
+    n_dof             = 3
 
     def send_vel(self, vel):
         vel = vel.copy()
@@ -63,10 +113,7 @@ class ArmAssistPlant(object):
         vel[1] *= cm_to_mm
         vel[2] *= rad_to_deg
 
-        command = 'SetSpeed ArmAssist %f %f %f\r' % tuple(vel)
-        self.sock.sendto(command, self.aa_addr)
-        if self.print_commands:
-            print 'sending command:', command
+        self._send_command('SetSpeed ArmAssist %f %f %f\r' % tuple(vel))
 
     def get_pos(self):
         return np.array(tuple(self.source.read(n_pts=1)['data'][self.pos_state_names][0]))     
@@ -80,48 +127,34 @@ class ArmAssistPlant(object):
         
         vel = delta_pos / delta_ts
 
-        if any(np.isnan(v) for v in vel):
-            print "WARNING -- nans in vel:", vel
-            #print "pos", pos
-            #print "ts", ts
-            #print "delta_pos", delta_pos
-            #print "delta_ts", delta_ts
+        if ts[0] != 0 and any(np.isnan(v) for v in vel):
+            print "WARNING -- delta_ts = 0 in AA vel calculation:", vel
             for i in range(3):
                 if np.isnan(vel[i]):
                     vel[i] = 0
 
         return vel
 
+    def enable(self):
+        self._send_command('SetControlMode ArmAssist Global\r')
 
-class ReHandPlant(object):
+    def disable(self):
+        self._send_command('SetControlMode ArmAssist Disable\r')
+
+    def enable_watchdog(self, timeout_ms):
+        print 'ArmAssist watchdog not enabled, doing nothing'
+
+
+class ReHandPlantUDP(BasePlantUDP):
     '''Sends velocity commands and receives feedback over UDP. Can be used
     with either the real or simulated ReHand.
     '''
 
-    def __init__(self, print_commands=PRINT_COMMANDS):
-        self.print_commands = print_commands
-
-        self.source = source.DataSource(udp_feedback_client.ReHandData, bufferlen=5, name='rehand')
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # used only for sending
-        self.rh_addr = settings.rehand_udp_server
-
-        ssm = StateSpaceReHand()
-        self.pos_state_names = [s.name for s in ssm.states if s.order == 0]
-        self.vel_state_names = [s.name for s in ssm.states if s.order == 1]
-
-    def init(self):
-        from riglib import sink
-        sink.sinks.register(self.source)
-
-    def start(self):
-        # only start this DataSource after it has been registered with 
-        # the SinkManager singleton (sink.sinks) in the call to init()
-        self.source.start()
-
-    def stop(self):
-        print "setting ReHand speeds to 0"
-        self.send_vel(np.zeros(4))
-        self.source.stop()
+    ssm_cls           = ismore_bmi_lib.StateSpaceReHand
+    addr              = settings.REHAND_UDP_SERVER_ADDR
+    feedback_data_cls = udp_feedback_client.ReHandData
+    data_source_name  = 'rehand'
+    n_dof             = 4
 
     def send_vel(self, vel):
         vel = vel.copy()
@@ -132,10 +165,7 @@ class ReHandPlant(object):
         # convert units to: [deg/s, deg/s, deg/s, deg/s]
         vel *= rad_to_deg
 
-        command = 'SetSpeed ReHand %f %f %f %f\r' % tuple(vel)
-        self.sock.sendto(command, self.rh_addr)
-        if self.print_commands:
-            print 'sending command:', command
+        self._send_command('SetSpeed ReHand %f %f %f %f\r' % tuple(vel))
 
     def get_pos(self):
         return np.array(tuple(self.source.read(n_pts=1)['data'][self.pos_state_names][0]))
@@ -143,75 +173,67 @@ class ReHandPlant(object):
     def get_vel(self):
         return np.array(tuple(self.source.read(n_pts=1)['data'][self.vel_state_names][0]))
 
+    def enable(self):
+        self._send_command('SystemEnable ReHand\r')
 
-class IsMorePlant(object):
-    '''Sends velocity commands and receives feedback over UDP. Can be used
-    with either the real or simulated ArmAssist+ReHand.
-    '''
+    def disable(self):
+        self._send_command('SystemDisable ReHand\r')
 
-    def __init__(self, print_commands=PRINT_COMMANDS):
-        self.aa_plant = ArmAssistPlant(print_commands=print_commands)
-        self.rh_plant = ReHandPlant(print_commands=print_commands)
-
-    def init(self):
-        self.aa_plant.init()
-        self.rh_plant.init()
-
-    def start(self):
-        self.aa_plant.start()
-        self.rh_plant.start()
-
-    def stop(self):
-        self.aa_plant.stop()
-        self.rh_plant.stop()
-
-    def send_vel(self, vel):
-        self.aa_plant.send_vel(vel[0:3])
-        self.rh_plant.send_vel(vel[3:7])
-
-    def get_pos(self):
-        aa_pos = self.aa_plant.get_pos()
-        rh_pos = self.rh_plant.get_pos()
-        return np.hstack([aa_pos, rh_pos])
-
-    def get_vel(self):
-        aa_vel = self.aa_plant.get_vel()
-        rh_vel = self.rh_plant.get_vel()
-        return np.hstack([aa_vel, rh_vel])
+    def enable_watchdog(self, timeout_ms):
+        self._send_command('WatchDogEnable ReHand %d\r' % timeout_ms)
 
 
 ################################################        
 
 
-class ArmAssistPlantNonUDP(object):
-    '''Similar methods as ArmAssistPlant, but: 
+class BasePlantNonUDP(BasePlant):
+    
+    def init(self):
+        pass
+
+    def stop(self):
+        pass
+
+    def enable(self):
+        pass
+
+    def last_data_ts_arrival(self):
+        # there's no delay when receiving feedback using the NonUDP classes, 
+        #   since nothing is being sent over UDP and feedback data can be 
+        #   requested at any time 
+        return time.time()
+
+    def disable(self):
+        pass
+
+    def enable_watchdog(self, timeout_ms):
+        pass
+
+
+class ArmAssistPlantNonUDP(BasePlantNonUDP):
+    '''Similar methods as ArmAssistPlantUDP, but: 
         1) doesn't send/receive anything over UDP, and 
         2) uses simulated ArmAssist (can't be used with real ArmAssist).
        Use this plant to simulate having (near) instantaneous feedback.
     '''
 
     def __init__(self):
-        # create and start ArmAssist object (includes ArmAssist and its PIC)
-        aa_tstep = 0.005
-        aa_pic_tstep = 0.01
+        # create ArmAssist process
+        aa_tstep = 0.005                  # how often the simulated ArmAssist moves itself
+        aa_pic_tstep = 0.01               # how often the simulated ArmAssist PI controller acts
         KP = np.mat([[-10.,   0.,  0.],
                      [  0., -20.,  0.],
                      [  0.,   0., 20.]])  # P gain matrix
-        TI = 0.1*np.identity(3)  # I gain matrix
+        TI = 0.1 * np.identity(3)         # I gain matrix
 
         self.aa = armassist.ArmAssist(aa_tstep, aa_pic_tstep, KP, TI)
         self.aa.daemon = True
-
-    def init(self):
-        pass
 
     def start(self):
         '''Start the ArmAssist simulation processes.'''
         
         self.aa.start()
-
-    def stop(self):
-        pass
+        self.ts_start_data = time.time()
 
     def send_vel(self, vel):
         vel = vel.copy()
@@ -241,8 +263,8 @@ class ArmAssistPlantNonUDP(object):
         self.aa._set_wf(wf)
 
 
-class ReHandPlantNonUDP(object):
-    '''Similar methods as ReHandPlant, but: 
+class ReHandPlantNonUDP(BasePlantNonUDP):
+    '''Similar methods as ReHandPlantUDP, but: 
         1) doesn't send/receive anything over UDP, and 
         2) uses simulated ReHand (can't be used with real ReHand).
        Use this plant to simulate having (near) instantaneous feedback.
@@ -253,16 +275,11 @@ class ReHandPlantNonUDP(object):
         self.rh = rehand.ReHand(tstep=0.005)
         self.rh.daemon = True
 
-    def init(self):
-        pass
-
     def start(self):
         '''Start the ReHand simulation process.'''
 
         self.rh.start()
-
-    def stop(self):
-        pass
+        self.ts_start_data = time.time()
 
     def send_vel(self, vel):
         vel = vel.copy()
@@ -290,33 +307,42 @@ class ReHandPlantNonUDP(object):
         self.rh._set_pos(pos)
 
 
-class IsMorePlantNonUDP(object):
-    '''Similar methods as IsMorePlant, but: 
-        1) doesn't send/receive anything over UDP, and 
-        2) uses simulated ArmAssist+ReHand (can't be used with real devices).
-       Use this plant to simulate having (near) instantaneous feedback.
-    '''
+################################################ 
+
+
+class BasePlantIsMore(BasePlant):
+
+    # define in subclasses!
+    aa_plant_cls = None
+    rh_plant_cls = None
 
     def __init__(self):
-        self.aa_plant = ArmAssistPlantNonUDP()
-        self.rh_plant = ReHandPlantNonUDP()
+        self.aa_plant = self.aa_plant_cls()
+        self.rh_plant = self.rh_plant_cls()
 
     def init(self):
-        pass
+        self.aa_plant.init()
+        self.rh_plant.init()
 
     def start(self):
-        '''Start the ArmAssist and ReHand simulation processes.'''
-
         self.aa_plant.start()
         self.rh_plant.start()
+        self.ts_start_data = time.time()
 
     def stop(self):
-        pass
+        self.aa_plant.stop()
+        self.rh_plant.stop()
+
+    def last_data_ts_arrival(self):
+        return {
+            'ArmAssist': self.aa_plant.last_data_ts_arrival(), 
+            'ReHand':    self.rh_plant.last_data_ts_arrival(),
+        }
 
     def send_vel(self, vel):
         self.aa_plant.send_vel(vel[0:3])
         self.rh_plant.send_vel(vel[3:7])
-        
+
     def get_pos(self):
         aa_pos = self.aa_plant.get_pos()
         rh_pos = self.rh_plant.get_pos()
@@ -327,6 +353,34 @@ class IsMorePlantNonUDP(object):
         rh_vel = self.rh_plant.get_vel()
         return np.hstack([aa_vel, rh_vel])
 
+    def enable(self):
+        self.aa_plant.enable()
+        self.rh_plant.enable()
+
+    def disable(self):
+        self.aa_plant.disable()
+        self.rh_plant.disable()
+
+
+class IsMorePlantUDP(BasePlantIsMore):
+    '''Sends velocity commands and receives feedback over UDP. Can be used
+    with either the real or simulated ArmAssist+ReHand.
+    '''
+
+    aa_plant_cls = ArmAssistPlantUDP
+    rh_plant_cls = ReHandPlantUDP
+
+
+class IsMorePlantNonUDP(BasePlantIsMore):
+    '''Similar methods as IsMorePlant, but: 
+        1) doesn't send/receive anything over UDP, and 
+        2) uses simulated ArmAssist+ReHand (can't be used with real devices).
+       Use this plant to simulate having (near) instantaneous feedback.
+    '''
+
+    aa_plant_cls = ArmAssistPlantNonUDP
+    rh_plant_cls = ReHandPlantNonUDP
+
     # a magic function that instantaneously moves the simulated ArmAssist to a 
     #   new position+orientation and sets the simulated ReHand's angles
     def set_pos(self, pos):
@@ -336,3 +390,15 @@ class IsMorePlantNonUDP(object):
         self.aa_plant.set_pos(pos[0:3])
         self.rh_plant.set_pos(pos[3:7])
 
+
+UDP_PLANT_CLS_DICT = {
+    'ArmAssist': ArmAssistPlantUDP,
+    'ReHand':    ReHandPlantUDP,
+    'IsMore':    IsMorePlantUDP,
+}
+
+NONUDP_PLANT_CLS_DICT = {
+    'ArmAssist': ArmAssistPlantNonUDP,
+    'ReHand':    ReHandPlantNonUDP,
+    'IsMore':    IsMorePlantNonUDP,
+}

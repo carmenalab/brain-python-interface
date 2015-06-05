@@ -1,16 +1,21 @@
+import argparse
 import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
+from riglib.ismore.common_state_lists import *
+from utils.util_fns import norm_vec
 from utils.constants import *
 
 
-def norm_vec(x, eps=1e-9):
-    return x / (np.linalg.norm(x) + eps)
-
-
-trial_type = 'touch red'
+# parse command line arguments
+parser = argparse.ArgumentParser(description='Plot a recorded reference \
+    trajectory from the saved reference .pkl file, and plot the corresponding \
+    playback trajectory from the saved playback .pkl file.')
+parser.add_argument('trial_type', help='E.g., Blue, Red, "Brown to Red", etc.')
+args = parser.parse_args()
+trial_type = args.trial_type
 
 traj_file_ref = os.path.expandvars('$BMI3D/riglib/ismore/traj_reference_interp.pkl')
 traj_file_pbk = os.path.expandvars('$BMI3D/riglib/ismore/traj_playback.pkl')
@@ -18,10 +23,6 @@ traj_file_pbk = os.path.expandvars('$BMI3D/riglib/ismore/traj_playback.pkl')
 plot_closest_idx_lines = False
 plot_xy_aim_lines      = False
 plot_psi_aim_lines     = False
-
-aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
-rh_pos_states = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
-rh_vel_states = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
 
 
 traj_ref = pickle.load(open(traj_file_ref, 'rb'))
@@ -34,7 +35,6 @@ rh_flag = 'rehand' in traj_pbk[trial_type]
 if aa_flag:
     aa_ref = traj_ref[trial_type]['armassist']
     aa_pbk = traj_pbk[trial_type]['armassist']
-
     print "length of aa_ref:", len(aa_ref)
     print "length of aa_pbk:", len(aa_pbk)
     print "length of aa_ref (secs):", aa_ref['ts'][aa_ref.index[-1]] - aa_ref['ts'][0]
@@ -43,7 +43,6 @@ if aa_flag:
 if rh_flag:
     rh_ref = traj_ref[trial_type]['rehand']
     rh_pbk = traj_pbk[trial_type]['rehand']
-
     print "length of rh_ref:", len(rh_ref)
     print "length of rh_pbk:", len(rh_pbk)
     print "length of rh_ref (secs):", rh_ref['ts'][rh_ref.index[-1]] - rh_ref['ts'][0]
@@ -111,7 +110,8 @@ if aa_flag:
     fig = plt.figure()
     plt.title('psi playback analysis')
     
-    time_warped_ref_psi_traj = np.array([aa_ref['aa_ppsi'][idx_traj[idx]] for idx in range(len(idx_traj))])
+    #time_warped_ref_psi_traj = np.array([aa_ref['aa_ppsi'][idx_traj[idx]] for idx in range(len(idx_traj))])
+    time_warped_ref_psi_traj = np.array(aa_ref['aa_ppsi'][idx_traj.reshape(-1)])
     plt.plot(task_tvec, rad_to_deg * time_warped_ref_psi_traj, '-D', color=color_ref, markersize=2.5)
     plt.plot(task_tvec, rad_to_deg * plant_pos[:,2],           '-D', color=color_pbk, markersize=2.5)
 

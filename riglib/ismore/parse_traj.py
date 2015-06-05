@@ -1,71 +1,40 @@
-import scipy.io as sio
-import numpy as np
-import pandas as pd
+import argparse
 import tables
-import pickle
+import pandas as pd
+import numpy as np
 from scipy.interpolate import interp1d
+import pickle
 
+from riglib.ismore.common_state_lists import *
 from utils.constants import *
 
 
-# set INTERPOLATE_TRAJ = True  when parsing a reference trajectory
-# set INTERPOLATE_TRAJ = False when parsing a playback trajectory
+# parse command line arguments
+parser = argparse.ArgumentParser(description='Parse ArmAssist and/or ReHand \
+    trajectories from a .hdf file (corresponding to a task for recording or \
+    playing back trajectories) and save them to a .pkl file. Interpolates \
+    trajectories from a "record" task, but not for a "playback" task.')
+parser.add_argument('hdf_name', help='.hdf file from which to parse trajectories.')
+args = parser.parse_args()
 
-# hdf_name = '/storage/rawdata/hdf/test20141028_08.hdf'  # ref
-# hdf_name = '/storage/rawdata/hdf/test20141028_09.hdf'  # playback
-
-# hdf_name = '/storage/rawdata/hdf/test20141028_11.hdf'  # ref
-# INTERPOLATE_TRAJ = True
-# hdf_name = '/storage/rawdata/hdf/test20141028_19.hdf'  # playback
-# INTERPOLATE_TRAJ = False
-
-# hdf_name = '/storage/rawdata/hdf/test20141030_06.hdf'  # playback
-
-# hdf_name = '/storage/rawdata/hdf/test20141110_13.hdf'  # ref
-# INTERPOLATE_TRAJ = True
-# hdf_name = '/storage/rawdata/hdf/test20141110_15.hdf'  # playback
-# INTERPOLATE_TRAJ = False
-
-
-# hdf_name = '/storage/rawdata/hdf/test20141110_17.hdf'  # ref
-# INTERPOLATE_TRAJ = True
-# hdf_name = '/storage/rawdata/hdf/test20141110_20.hdf'  # playback
-# INTERPOLATE_TRAJ = False
-
-hdf_name = '/storage/rawdata/hdf/test20141110_22.hdf'  # ref
-INTERPOLATE_TRAJ = True
-hdf_name = '/storage/rawdata/hdf/test20141110_23.hdf'  # playback
-INTERPOLATE_TRAJ = False
-
-hdf_name = '/storage/rawdata/hdf/test20141115_14.hdf'  # playback
-INTERPOLATE_TRAJ = False
-
-hdf_name = '/storage/rawdata/hdf/test20141118_02.hdf'  # playback
-INTERPOLATE_TRAJ = False
-
-if INTERPOLATE_TRAJ:
-    pkl_name = 'traj_reference_interp.pkl'
-else:
-    pkl_name = 'traj_playback.pkl'
-
-
-aa_pos_states = ['aa_px', 'aa_py', 'aa_ppsi']
-rh_pos_states = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono']
-rh_vel_states = ['rh_vthumb', 'rh_vindex', 'rh_vfing3', 'rh_vprono']
-
-
-# load task, armassist, and rehand data from hdf file
-hdf = tables.openFile(hdf_name)
-
-aa_flag = 'armassist' in hdf.root
-rh_flag = 'rehand' in hdf.root
-
+# load task, and armassist and/or rehand data from hdf file
+hdf = tables.openFile(args.hdf_name)
 task      = hdf.root.task
 task_msgs = hdf.root.task_msgs
+aa_flag = 'armassist' in hdf.root
+rh_flag = 'rehand' in hdf.root
 if aa_flag:
     armassist = hdf.root.armassist
 if rh_flag:
     rehand = hdf.root.rehand
+
+# determine type of task (record vs. playback)
+if 'command_vel' in hdf.root.task.colnames:  # was a playback trajectories task
+    INTERPOLATE_TRAJ = False
+    pkl_name = 'traj_playback.pkl'
+else:                                        # was a record trajectories task
+    INTERPOLATE_TRAJ = True                  
+    pkl_name = 'traj_reference_interp.pkl'
 
 
 # code below will create a dictionary of trajectories, indexed by trial_type
@@ -85,7 +54,7 @@ for msg_idx in trial_start_msg_idxs:
 
     # only save one trajectory for each trial type (the first one)
     if trial_type not in traj:
-        print 'adding trial type', trial_type
+        print 'adding trajectory for trial type', trial_type
         
         traj[trial_type] = dict()
 

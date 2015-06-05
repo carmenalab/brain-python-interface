@@ -8,7 +8,6 @@ import time
 import socket
 import select
 import numpy as np
-from collections import namedtuple
 
 from riglib.ismore import settings
 from utils.constants import *
@@ -27,6 +26,7 @@ class FeedbackData(object):
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(self.address)
 
         # self.file_ = open(self.feedback_filename, 'w')
@@ -37,6 +37,7 @@ class FeedbackData(object):
 
     def stop(self):
         self.listening = False
+        self.sock.close()
         # self.file_.close()
 
     # TODO -- is this even necessary?
@@ -50,6 +51,8 @@ class FeedbackData(object):
     def get_feedback_data(self):
         '''Yield received feedback data.'''
 
+        self.last_timestamp = -1
+
         while self.listening:
             r, _, _ = select.select([self.sock], [], [], 0)
             
@@ -60,7 +63,12 @@ class FeedbackData(object):
                 # print "feedback:", feedback
                 # self.file_.write(feedback.rstrip('\r') + "\n")
 
-                yield self.process_received_feedback(feedback, ts_arrival)
+                processed_feedback = self.process_received_feedback(feedback, ts_arrival)
+
+                if processed_feedback['ts'] != self.last_timestamp:
+                    yield processed_feedback
+
+                self.last_timestamp = processed_feedback['ts']
 
             time.sleep(self.sleep_time)
 
@@ -73,8 +81,8 @@ class ArmAssistData(FeedbackData):
     ArmAssist application.
     '''
 
-    update_freq = 15.
-    address     = settings.armassist_udp_client
+    update_freq = 25.
+    address     = settings.ARMASSIST_UDP_CLIENT_ADDR
     #feedback_filename = 'armassist_feedback.txt'
 
     state_names = ['aa_px', 'aa_py', 'aa_ppsi']
@@ -135,7 +143,7 @@ class ReHandData(FeedbackData):
     '''
 
     update_freq = 200.
-    address     = settings.rehand_udp_client
+    address     = settings.REHAND_UDP_CLIENT_ADDR
     #feedback_filename = 'rehand_feedback.txt'
 
     state_names = ['rh_pthumb', 'rh_pindex', 'rh_pfing3', 'rh_pprono', 
@@ -168,6 +176,19 @@ class ReHandData(FeedbackData):
 
         freq = float(data_fields[0])
 
+        #display data before being converted to radians
+        '''
+        print "thumb float:", float(data_fields[1])
+        print "thumb :", (data_fields[1])
+        print "index float:", float(data_fields[4])
+        print "index:", float(data_fields[4])
+        print "3fing float:", float(data_fields[7])
+        print "3fing :", float(data_fields[7])
+        print "prono float:", float(data_fields[10])
+        print "prono:", float(data_fields[10])
+
+        '''
+
         # velocity, position, and torque for the 4 ReHand joints
         vthumb = float(data_fields[1])  * deg_to_rad  # rad
         pthumb = float(data_fields[2])  * deg_to_rad  # rad
@@ -181,6 +202,8 @@ class ReHandData(FeedbackData):
         vprono = float(data_fields[10]) * deg_to_rad  # rad
         pprono = float(data_fields[11]) * deg_to_rad  # rad
         tprono = float(data_fields[12])               # mNm
+
+
 
         ts = int(data_fields[13]) * us_to_s           # secs
 
