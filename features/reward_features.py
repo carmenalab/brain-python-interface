@@ -11,6 +11,7 @@ import fnmatch
 import os
 import subprocess
 from riglib.experiment import traits
+import serial, glob
 
 ###### CONSTANTS
 sec_per_min = 60
@@ -139,5 +140,59 @@ class JuiceLogging(traits.HasTraits):
         else:
             database.save_data(fname, 'juice_log', saveid, dbname=dbname)
 
+class ArduinoReward(traits.HasTraits):
+    '''During the reward phase, send a timed TTL pulse via the Arduino microcontroller to the reward system'''
+    def __init__(self, *args, **kwargs):
+        '''
+        Constructor for TTLReward
+
+        Parameters
+        ----------
+        pulse_device: string
+            Path to the NIDAQ device used to generate the solenoid pulse
+        args, kwargs: optional positional and keyword arguments to be passed to parent constructor
+            None necessary
+
+        Returns
+        -------
+        TTLReward instance
+        '''
+        self.port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=115200)
+        #self.port.write('n')
+        super(ArduinoReward, self).__init__(*args, **kwargs)
+
+    def _start_reward(self):
+        '''
+        At the start of the reward state, turn on the solenoid
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        '''
+        super(ArduinoReward, self)._start_reward()
+        self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
+        self.port.write('j')
+        self.reward_start = self.get_time() - self.start_time
+
+    def _test_reward_end(self, ts):
+        return (ts - self.reward_start) > self.reward_time
+
+    def _end_reward(self):
+        '''
+        After the reward state has elapsed, turn off the solenoid
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        '''
+        self.port.write('n')
 
 
