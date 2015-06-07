@@ -620,6 +620,17 @@ class Sequence(LogExperiment):
         except StopIteration:
             self.end_task()
 
+        self._parse_next_trial()
+        
+    def _parse_next_trial(self):
+        '''
+        Interpret the data coming from the generator. If the generator yields a dictionary, then the keys of the dictionary automatically get set as attributes
+        '''
+        if isinstance(self.next_trial, dict):
+            for key in self.next_trial:
+                setattr(self, '_gen_%s' % key, self.next_trial[key])
+
+
 class TrialTypes(Sequence):
     ''' Docstring '''
     trial_types = []
