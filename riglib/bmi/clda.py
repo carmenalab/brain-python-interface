@@ -801,7 +801,7 @@ class KFRML(Updater):
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
-        R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
+        R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
         C = self.S * R_inv
 
         Q = (1./self.ESS) * (self.T - self.S*C.T)
