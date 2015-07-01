@@ -60,6 +60,9 @@ def default_data_comb_fn(x):
 def default_trial_filter_fn(te, trial_msgs):
     return True
 
+def default_block_filter_fn(te):
+    return True
+
 def default_trial_proc_fn(te, trial_msgs): 
     return 1
 
@@ -1099,7 +1102,7 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result. 
         '''
         if filt == None:
-            filt = kwargs.pop('block_filter_fn', default_trial_filter_fn)
+            filt = kwargs.pop('block_filter_fn', default_block_filter_fn)
         if cond == None:
             cond = kwargs.pop('block_condition_fn', default_trial_condition_fn)
         if proc == None:
@@ -1192,7 +1195,7 @@ def get_bmi_blocks(date, subj='C'):
     blocks.sort(key=lambda x: x.date)
     return blocks
 
-def bmi_filt(te):                                         
+def bmi_filt(te):
     bmi_feat = models.Feature.objects.using(te._state.db).get(name='bmi')
     return bmi_feat in te.feats.all()
 
