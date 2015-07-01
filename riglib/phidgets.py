@@ -6,11 +6,11 @@ import itertools
 import numpy as np
 
 from Phidgets.Devices.InterfaceKit import InterfaceKit
+from source import DataSourceSystem
 
-
-class System(object):
+class System(DataSourceSystem):
     '''
-    Docstring
+    Generic DataSourceSystem interface for the Phidgets board: http://www.phidgets.com/products.php?category=0&product_id=1018_2
     '''
     update_freq = 1000
 

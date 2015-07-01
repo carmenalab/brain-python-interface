@@ -52,7 +52,7 @@ class Task(models.Model):
     def params(self, feats=(), values=None):
         from riglib import experiment
         from namelist import instance_to_model
-        from tasks.plantlist import plantlist
+        import plantlist
         if values is None:
             values = dict()
         
@@ -416,12 +416,13 @@ class TaskEntry(models.Model):
 
         # Supply sequence generators which are declared to be compatible with the selected task class
         exp_generators = dict() 
-        for seqgen_name in Exp.sequence_generators:
-            try:
-                g = Generator.objects.get(name=seqgen_name)
-                exp_generators[g.id] = seqgen_name
-            except:
-                pass
+        if hasattr(Exp, 'sequence_generators'):
+            for seqgen_name in Exp.sequence_generators:
+                try:
+                    g = Generator.objects.get(name=seqgen_name)
+                    exp_generators[g.id] = seqgen_name
+                except:
+                    pass
         js['generators'] = exp_generators
 
 

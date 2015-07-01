@@ -1011,7 +1011,7 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result. 
         '''
 
-        from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        import trial_filter_functions, trial_proc_functions, trial_condition_functions
         if filt == None:
             filt = kwargs.pop('trial_filter_fn', default_trial_filter_fn)
         if cond == None:
@@ -1110,7 +1110,7 @@ class TaskEntryCollection(object):
         if comb == None:
             comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
 
-        from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
         block_filter_fn = filt
         block_condition_fn = cond

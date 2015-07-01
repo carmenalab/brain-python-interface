@@ -50,6 +50,30 @@ class FuncProxy(object):
 # NOTE: this import MUST be after the defintion of FuncProxy
 import sink
 
+class DataSourceSystem(object):
+    '''
+    Abstract base class for use with the generic DataSource infrastructure.
+    '''
+    dtype = np.dtype([])
+    update_freq = 1
+    def start(self):
+        '''
+        Initialization for the source
+        '''
+        pass
+
+    def stop(self):
+        '''
+        Code to run when the data source is to be stopped
+        '''
+        pass
+
+    def get(self):
+        '''
+        Retrieve the current data available from the source. 
+        '''
+        pass
+
 class DataSource(mp.Process):
     '''
     Generic single-channel data source
