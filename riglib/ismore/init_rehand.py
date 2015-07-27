@@ -1,6 +1,7 @@
 import socket
 import select
 import time
+from utils.constants import *
 
 from riglib.ismore import settings
 
@@ -14,25 +15,19 @@ REHAND_STATUS_LIST = [
     'OPERATIONAL'
 ]
 
-# all values in degrees
-donning_position = [  
-    30,  # thumb
-    30,  # index
-    30,  # fing3
-    85   # prono
-]
+#nerea
+sendSpeedCommand = False
+watchdog = False
 
-watchdog_timeout = 10000  # ms
-
+donning_position = np.array([int(p * rad_to_deg) for p in settings.donning_position.values])
 
 # will be used to both send and recv
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # input address of ReHand application (address to send to)
-rh_addr = settings.rehand_udp_server
+rh_addr = settings.REHAND_UDP_SERVER_ADDR
 
-sock.bind(settings.rehand_udp_client)
-print settings.rehand_udp_client
+sock.bind(settings.REHAND_UDP_CLIENT_ADDR)
 
 
 def get_status():
@@ -68,7 +63,6 @@ def get_status():
     else:
         return None
 
-
 def recv_feedback():
     rlist, _, _ = select.select([sock], [], [], 1)
     if rlist:  # if rlist is not empty
@@ -77,93 +71,126 @@ def recv_feedback():
     else:
         return None
 
+def confirm_state(STATE):
+    '''Repeatedly check ReHand state until it is in state STATE.'''
+    while True:
+        if get_status() == STATE:
+            break
+        else:
+            time.sleep(1)
+    print 'ReHand is now in state: ' + STATE
 
 
 ######## ACTUAL INITIALIZATION STEPS ########
 
-# 1) confirm that ReHand is in READYTOGOHOME state, then send GoHome command
-status = get_status() 
-print 'status', status
-if status != 'READYTOGOHOME':
+
+# 1) Confirm that ReHand is in READYTOGOHOME state, then send GoHome command 
+if get_status() != 'READYTOGOHOME':
     raise Exception('Make sure ReHand is in state READYTOGOHOME before running this script!')
 print 'ReHand is in state: READYTOGOHOME'
+
+raw_input("Please ensure a safe tilt angle of the forearm to avoid collisions between the hand module and the base cover and press Enter.")
 
 command = 'GoHome ReHand\r'
 sock.sendto(command, rh_addr)
 time.sleep(5)
 
 
-
-# 2) wait until ReHand is in READYFORDONNING state, then send GoDonning command
-while True:
-    if get_status() == 'READYFORDONNING':
-        break
-    else:
-        time.sleep(1)
-print 'ReHand is now in state: READYFORDONNING'
+# 2) Confirm that ReHand is in READYFORDONNING state, then send GoDonning command
+confirm_state('READYFORDONNING')
 
 command = 'GoDonning ReHand %f %f %f %f\r' % tuple(donning_position)
 sock.sendto(command, rh_addr)
 time.sleep(5)
 
-######################################################################
-# with real patient, would want to pause here for the actual donning #
-######################################################################
 
-
-# 3) wait until Rehand is in READY state, then send Go command
-while True:
-    if get_status() == 'READY':
-        break
-    else:
-        time.sleep(1)
-print 'ReHand is now in state: READY'
-
-command = 'SetMaxTorque ReHand 600 600 3000 2000\r'
-#sock.sendto(command, rh_addr)
-time.sleep(3)
+# 3) confirm that Rehand is in READY state, then send Go command
+confirm_state('READY')
 
 command = 'Go ReHand\r'
 sock.sendto(command, rh_addr)
+time.sleep(5)
+
+
 print 'ReHand must now be in state: OPERATIONAL'
+time.sleep(1)
+print 'About to test receiving feedback (kill this process before running IsMore controller)'
+time.sleep(1)
 
-
-# enable "watchdog" functionality
-command = 'WatchDogEnable ReHand %d\r' % watchdog_timeout
-# sock.sendto(command, rh_addr)
-
-
-
-# 4) print out received feedback and estimated feedback rate in a loop
-
+# 4) Check that we are receiving data from the hand and print it out
+#    For 5 seconds, print out received feedback and estimated feedback rate in a loop
 t_start = time.time()
 recv_packet_count = 0
-while True:
+
+while time.time() - t_start < 3:
     feedback = recv_feedback()
     if feedback is not None:
+        time.sleep(0.1)
         print feedback
 
         recv_packet_count += 1
         t_elapsed = time.time() - t_start
         print recv_packet_count / t_elapsed
 
-# # wait until ReHand is in OPERATIONAL state
+
+# 5) disable motors so that the hand/forearm of the user can be
+command = 'SystemDisable ReHand\r'
+sock.sendto(command, rh_addr)
+print "System disabled"
+
+# 6) Put the patient's hand inside the ReHand
+raw_input("Script is paused. Put the patient's hand inside the ReHand. Press Enter when finished to continue.")
+
+print 'About to test receiving feedback (kill this process before running IsMore controller)'
+time.sleep(1)
+
+# 7) Initialization complete --> check that we are receiving data from the hand again, before starting any task recording
+#    For 5 seconds, print out received feedback and estimated feedback rate in a loop
+t_start = time.time()
+recv_packet_count = 0
+
+while time.time() - t_start < 3:
+    feedback = recv_feedback()
+    if feedback is not None:
+        time.sleep(0.1)
+        print feedback
+
+        recv_packet_count += 1
+        t_elapsed = time.time() - t_start
+        print recv_packet_count / t_elapsed
+
+
+print 'Exiting init_rehand.py script.'
+
+
+# #when we get to the operational state we want to start sending speed commands constantly
 # while True:
-#     status = get_status()
-#     print status
-#     if status == 'OPERATIONAL':
-#     # if get_status() == 'OPERATIONAL':
+#     if get_status() == 'OPERATIONAL':
+#         sendSpeedCommand = True
 #         break
 #     else:
 #         time.sleep(1)
-
-# print 'ReHand is now in state: OPERATIONAL'
-
+# print 'ReHand is in OPERATIONAL state'
 
 
+# #changed position of this
+# if settings.REHAND_WATCHDOG_ENABLED:
+#     command = 'WatchDogEnable ReHand %d\r' % settings.WATCHDOG_TIMEOUT
+#     sock.sendto(command, rh_addr)
+#     print 'WatchDog enabled'
 
 
+# #we send speed commands constantly
+# while sendSpeedCommand == True:
+#     command = 'SetSpeed ReHand 2 0 0 0\r' 
+#     sock.sendto(command, rh_addr)
+#    # print 'SetSpeed ReHand 0 0 0 0'
+#     time.sleep(0.01)
+    
+#     #the watchdog is not enabled
+#     #if watchdog == False:
+#       #  command = 'WatchDogEnable ReHand %d\r' % settings.WATCHDOG_TIMEOUT
+#      #   sock.sendto(command, rh_addr)
+#      #   print 'WatchDog enabled'
+#      #   watchdog = True
 
-# ## enable "watchdog" functionality
-# #command = 'WatchDogEnable ArmAssist %d\r' % watchdog_timeout
-# #sock.sendto(command, rh_addr)
