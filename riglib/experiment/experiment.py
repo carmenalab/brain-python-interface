@@ -109,6 +109,16 @@ class Experiment(traits.HasTraits, threading.Thread):
         return editable_traits
 
     @classmethod
+    def parse_fsm(cls):
+        '''
+        Print out the FSM of the task in a semi-readable form
+        '''
+        for state in cls.status:
+            print 'When in state "%s"' % state 
+            for trigger_event, next_state in cls.status[state].items():
+                print '\tevent "%s" moves the task to state "%s"' % (trigger_event, next_state)
+
+    @classmethod
     def is_hidden(cls, trait):
         '''
         Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden 
