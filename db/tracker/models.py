@@ -459,16 +459,24 @@ class TaskEntry(models.Model):
                 plexon = System.objects.get(name='plexon')
                 df = DataFile.objects.get(entry=self.id, system=plexon)
 
-                plx = plexfile.openFile(str(df.get_path()), load=False)
-                path, name = os.path.split(df.get_path())
-                name, ext = os.path.splitext(name)
+                _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
+                if Exp.is_bmi_seed:
+                    plx = plexfile.openFile(str(df.get_path()), load=False)
+                    path, name = os.path.split(df.get_path())
+                    name, ext = os.path.splitext(name)
 
-                js['bmi'] = dict(_neuralinfo=dict(
-                    length=plx.length, 
-                    units=plx.units, 
-                    name=name,
-                    is_seed=int(Exp.is_bmi_seed),
-                    ))
+                    _neuralinfo['length'] = plx.length
+                    _neuralinfo['units'] = plx.units
+                    _neuralinfo['name'] = name
+
+                # js['bmi'] = dict(_neuralinfo=dict(
+                #     length=plx.length, 
+                #     units=plx.units, 
+                #     name=name,
+                #     is_seed=int(Exp.is_bmi_seed),
+                #     ))
+
+                js['bmi'] = dict(_neuralinfo=_neuralinfo)
             except MemoryError:
                 print "Memory error opening plexon file!"
                 js['bmi'] = dict(_neuralinfo=None)
