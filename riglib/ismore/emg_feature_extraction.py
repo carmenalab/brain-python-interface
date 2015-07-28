@@ -1,93 +1,112 @@
+'''
+Code for feature extraction methods/classes from EMG, to be used with a 
+decoder (similar to other types of feature extractors in riglib.bmi.extractor)
+'''
+
 from collections import OrderedDict
 from scipy.signal import butter, lfilter
 import numpy as np
 
 
 def extract_MAV(samples):
-    '''Calculate the mean absolute value (MAV) for multiple channels.
+    '''
+    Calculate the mean absolute value (MAV) for multiple channels.
 
     Parameters
     ----------
-        samples : units of uV, np.ndarray of shape (n_channels, n_time_points)
+    samples : np.ndarray of shape (n_channels, n_time_points)
+        Observed EMG voltages in microvolts
 
     Returns
     -------
-        np.ndarray of shape (n_channels, 1)
+    np.ndarray of shape (n_channels, 1)
     '''
 
     return np.mean(abs(samples), axis=1, keepdims=True)
 
 def extract_WAMP(samples, threshold=0):
-    '''Calculate the Willison amplitude (WAMP) for multiple channels.
+    '''
+    Calculate the Willison amplitude (WAMP) for multiple channels.
 
     Parameters
     ----------
-        samples : units of uV, np.ndarray of shape (n_channels, n_time_points)
-        threshold : threshold in uV below which WAMP isn't counted
+    samples : np.ndarray of shape (n_channels, n_time_points)
+        Observed EMG voltages in microvolts
+    threshold : np.float
+        threshold in uV below which WAMP isn't counted
 
     Returns
     -------
-        np.ndarray of shape (n_channels, 1)
+    np.ndarray of shape (n_channels, 1)
     '''
 
     condition = abs(np.diff(samples)) >= threshold
     return np.sum(condition, axis=1, keepdims=True)
 
 def extract_VAR(samples):
-    '''Calculate the variance (VAR) for multiple channels.
+    '''
+    Calculate the variance (VAR) for multiple channels.
 
     Parameters
     ----------
-        samples : units of uV, np.ndarray of shape (n_channels, n_time_points)
+    samples : np.ndarray of shape (n_channels, n_time_points)
+        Observed EMG voltages in microvolts
 
     Returns
     -------
-        np.ndarray of shape (n_channels, 1)
+    np.ndarray of shape (n_channels, 1)
     '''
 
     N = samples.shape[1]
     return (1./(N-1)) * np.sum(samples**2, axis=1, keepdims=True)
 
 def extract_WL(samples):
-    '''Calculate the waveform length (WL) for multiple channels.
+    '''
+    Calculate the waveform length (WL) for multiple channels.
 
     Parameters
     ----------
-        samples : units of uV, np.ndarray of shape (n_channels, n_time_points)
+    samples : np.ndarray of shape (n_channels, n_time_points)
+        Observed EMG voltages in microvolts
 
     Returns
     -------
-        np.ndarray of shape (n_channels, 1)
+    np.ndarray of shape (n_channels, 1)
     '''
 
     return np.sum(abs(np.diff(samples)), axis=1, keepdims=True)
 
 def extract_RMS(samples):
-    '''Calculate the root mean square (RMS) value for multiple channels.
+    '''
+    Calculate the root mean square (RMS) value for multiple channels.
 
     Parameters
     ----------
-        samples : units of uV, np.ndarray of shape (n_channels, n_time_points)
+    samples : np.ndarray of shape (n_channels, n_time_points)
+        Observed EMG voltages in microvolts
 
     Returns
     -------
-        np.ndarray of shape (n_channels, 1)
+    np.ndarray of shape (n_channels, 1)
     '''
 
     N = samples.shape[1]
     return np.sqrt((1./N) * np.sum(samples**2, axis=1, keepdims=True))
 
 def extract_ZC(samples, threshold=0):
-    '''Compute the number of zero crossings (ZC) for multiple channels.
+    '''
+    Compute the number of zero crossings (ZC) for multiple channels.
 
     Parameters
     ----------
-        samples : units of uV, np.ndarray of shape (n_channels, n_time_points)
-        threshold : threshold in uV below which zero crossings aren't counted
+    samples : np.ndarray of shape (n_channels, n_time_points)
+        Observed EMG voltages in microvolts
+    threshold : np.float
+        threshold in uV below which zero crossings aren't counted
 
     Returns
     -------
-        np.ndarray of shape (n_channels, 1)
+    np.ndarray of shape (n_channels, 1)
     '''
 
     zero_crossing = np.sign(samples[:, 1:] * samples[:, :-1]) == -1
@@ -97,16 +116,19 @@ def extract_ZC(samples, threshold=0):
     return np.sum(condition, axis=1, keepdims=True)
 
 def extract_SSC(samples, threshold=0):
-    '''Compute the number of slope-sign changes (SSC) for multiple channels.
+    '''
+    Compute the number of slope-sign changes (SSC) for multiple channels.
 
     Parameters
     ----------
-        samples : units of uV, np.ndarray of shape (n_channels, n_time_points)
-        threshold : threshold in uV below which SSCs aren't counted
+    samples : np.ndarray of shape (n_channels, n_time_points)
+        Observed EMG voltages in microvolts
+    threshold : np.float
+        threshold in uV below which SSCs aren't counted
 
     Returns
     -------
-        np.ndarray of shape (n_channels, 1)
+    np.ndarray of shape (n_channels, 1)
     '''
 
     diff = np.diff(samples)
@@ -125,15 +147,37 @@ FEATURE_FUNCTIONS_DICT = {
     'SSC':  extract_SSC,
 }
 
-
-class EMGMultiFeatureExtractor(object):
-    '''Docstring -- TODO.'''
+from riglib.bmi.extractor import FeatureExtractor
+class EMGMultiFeatureExtractor(FeatureExtractor):
+    '''
+    Extract many different types of EMG features from raw EMG voltages
+    '''
 
     feature_type = 'emg_multi_features'
 
-    def __init__(self, source=None, channels=[], feature_names=[], 
-                 feature_fn_kwargs={}, win_len=0.2, fs=1000):  
-        '''Docstring -- TODO.'''
+    def __init__(self, source=None, channels=[], feature_names=FEATURE_FUNCTIONS_DICT.keys(), feature_fn_kwargs={}, win_len=0.2, fs=1000):  
+        '''
+        Constructor for EMGMultiFeatureExtractor
+
+        Parameters
+        ----------
+        source : MultiChanDataSource instance, optional, default=None
+            DataSource interface to separate process responsible for collecting data from the EMG recording system
+        channels : iterable of strings, optional, default=[]
+            Names of channels from which to extract data
+        feature_names : iterable, optional, default=[]
+            Types of features to include in the extractor's output. See FEATURE_FUNCTIONS_DICT for available options
+        feature_fn_kwargs : dict, optional, default={}
+            Optional kwargs to pass to the individual feature extractors
+        win_len : float, optional, default=0.2
+            Length of time (in seconds) of raw EMG data to use for feature extraction
+        fs : float, optional, default=1000
+            Sampling rate for the EMG data
+
+        Returns
+        -------
+        EMGMultiFeatureExtractor instance
+        '''
 
         self.source            = source
         self.channels          = channels
@@ -167,19 +211,29 @@ class EMGMultiFeatureExtractor(object):
             self.notchf_coeffs.append(butter(2, [low, high], btype='bandstop'))
         
     def get_samples(self):
-        '''Get samples from this extractor's MultiChanDataSource.'''
+        '''
+        Get samples from this extractor's MultiChanDataSource.
 
+        Parameters
+        ----------
+        None 
+
+        Returns
+        -------
+        Voltage samples of shape (n_channels, n_time_points)
+        '''
         return self.source.get(self.n_win_pts, self.channels)['data']
 
     def extract_features(self, samples):
         '''
         Parameters
         ----------
-            samples: np.ndarray of shape (n_channels, n_time_points)
+        samples : np.ndarray of shape (n_channels, n_time_points)
+            Raw EMG voltages from which to extract features
 
         Returns
         -------
-            features: np.ndarray of shape (n_features, 1)
+        features : np.ndarray of shape (n_features, 1)
         '''
 
         # apply band-pass filter
@@ -203,9 +257,39 @@ class EMGMultiFeatureExtractor(object):
 
         return features.reshape(-1)
 
-    def __call__(self):  # TODO -- allow user to pass in new feature kwargs
-        '''Get samples from this extractor's data source and extract features.'''
-        
+    def __call__(self):
+        '''
+        Get samples from this extractor's data source and extract features.
+        '''
         samples  = self.get_samples()
         features = self.extract_features(samples)
-        return features
+        return dict(emg_multi_features=features)
+
+
+class ReplayEMGMultiFeatureExtractor(EMGMultiFeatureExtractor):
+    '''
+    Extract EMG features from EMG data stored in a file (instead of reading from the streaming input source)
+    '''
+    def __init__(self, hdf_table, cycle_rate=60., **kwargs):
+        '''
+        Parameters
+        ----------
+        hdf_table : HDF table
+            Data table to replay, e.g., hdf.root.brainamp
+        cycle_rate : float, optional, default=60.0
+            Rate at which the task FSM "cycles", i.e., the rate at which the task will ask for new observations
+        '''
+        if 'source' in kwargs:
+            raise ValueError("No 'source' to be used with this feature extractor!")
+        super(ReplayEMGMultiFeatureExtractor, self).__init__(source=None, **kwargs)
+        self.hdf_table = hdf_table
+        self.n_calls = 0
+        self.cycle_rate = cycle_rate
+
+    def get_samples(self):
+        self.n_calls += 1
+        table_idx = int(1./self.cycle_rate * self.n_calls * self.fs)
+        # import pdb; pdb.set_trace()
+        start_idx = max(table_idx - self.n_win_pts, 0)
+        samples = np.vstack([self.hdf_table[:table_idx][ch]['data'] for ch in self.channels])
+        return samples
