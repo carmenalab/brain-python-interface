@@ -3,7 +3,7 @@ import select
 import time
 from utils.constants import *
 
-from riglib.ismore import settings
+from ismore import settings
 
 MAX_MSG_LEN = 200
 

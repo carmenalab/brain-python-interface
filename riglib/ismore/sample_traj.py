@@ -6,7 +6,7 @@ import pickle
 from scipy.interpolate import interp1d
 import os
 
-from riglib.ismore import settings
+from ismore import settings
 from utils.constants import *
 
 

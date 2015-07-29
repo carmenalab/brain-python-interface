@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from riglib.ismore.common_state_lists import *
+from ismore.common_state_lists import *
 from utils.util_fns import norm_vec
 from utils.constants import *
 

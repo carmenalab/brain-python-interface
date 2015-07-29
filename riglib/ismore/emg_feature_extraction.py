@@ -270,7 +270,7 @@ class ReplayEMGMultiFeatureExtractor(EMGMultiFeatureExtractor):
     '''
     Extract EMG features from EMG data stored in a file (instead of reading from the streaming input source)
     '''
-    def __init__(self, hdf_table, cycle_rate=60., **kwargs):
+    def __init__(self, hdf_table=None, cycle_rate=60., **kwargs):
         '''
         Parameters
         ----------
@@ -279,8 +279,7 @@ class ReplayEMGMultiFeatureExtractor(EMGMultiFeatureExtractor):
         cycle_rate : float, optional, default=60.0
             Rate at which the task FSM "cycles", i.e., the rate at which the task will ask for new observations
         '''
-        if 'source' in kwargs:
-            raise ValueError("No 'source' to be used with this feature extractor!")
+        kwargs.pop('source', None)
         super(ReplayEMGMultiFeatureExtractor, self).__init__(source=None, **kwargs)
         self.hdf_table = hdf_table
         self.n_calls = 0
@@ -289,7 +288,14 @@ class ReplayEMGMultiFeatureExtractor(EMGMultiFeatureExtractor):
     def get_samples(self):
         self.n_calls += 1
         table_idx = int(1./self.cycle_rate * self.n_calls * self.fs)
+        table_idx = max(table_idx, 1)
         # import pdb; pdb.set_trace()
         start_idx = max(table_idx - self.n_win_pts, 0)
+        if 0:
+            print "self.channels"
+            print self.channels
+            for ch in self.channels:
+                print ch
+                print self.hdf_table[:table_idx][ch]['data']
         samples = np.vstack([self.hdf_table[:table_idx][ch]['data'] for ch in self.channels])
         return samples

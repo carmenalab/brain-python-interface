@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from riglib.ismore.common_state_lists import *
+from ismore.common_state_lists import *
 from utils.util_fns import norm_vec
 from utils.constants import *
 
@@ -57,6 +57,24 @@ if aa_flag:
     plt.title('psi (ArmAssist orientation) trajectory')
     plt.plot(rad_to_deg * aa_ref['aa_ppsi'], color=color_ref)
     plt.tight_layout(**tight_layout_kwargs)
+
+    #plot AA velocity in Y
+    end = len(aa_ref['aa_py'])
+    print 'end'
+    print end
+    delta_pos = np.array(aa_ref[1:end]['aa_py'] - aa_ref[0:end-1]['aa_py'] )
+    print 'delta pos'
+    print delta_pos
+
+    endtime = len(aa_ref['ts'] )
+    delta_ts  = aa_ref[1:endtime]['ts'] - aa_ref[0:endtime-1]['ts']
+    vel = delta_pos / delta_ts
+
+    fig = plt.figure()
+    plt.title('vel AA in Y')
+    plt.plot(vel, color=color_ref)
+    plt.tight_layout(**tight_layout_kwargs)
+
     
 
 if rh_flag:   

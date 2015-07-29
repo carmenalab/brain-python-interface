@@ -5,7 +5,7 @@ Features for acquiring data from the BrainAmp EMG recording system (model name?)
 import time
 
 from riglib.experiment import traits
-from riglib.ismore import settings
+from ismore import settings
 import numpy as np
 
 

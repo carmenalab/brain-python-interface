@@ -440,7 +440,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         data kept in RAM is written
         '''
         traits = self.class_editable_traits()
-        h5file = tables.openFile(self.h5file.name, mode='a')
+
+        if hasattr(tables, 'open_file'): # function name depends on version
+            h5file = tables.open_file(self.h5file.name, mode='a')        
+        else:
+            h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
             if trait not in ['bmi', 'decoder']:
                 h5file.root.task.attrs[trait] = getattr(self, trait)

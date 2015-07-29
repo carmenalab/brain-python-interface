@@ -195,6 +195,13 @@ class WindowDispl2D(Window):
         self.event = None
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 
+    def _set_workspace_size(self):
+        '''
+        By default, the workspace is 50x28 cm, centered around the origin (0,0)
+        '''
+        self.workspace_bottom_left = (-25., -14.)
+        self.workspace_top_right   = (25., 14.)
+
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
@@ -202,22 +209,7 @@ class WindowDispl2D(Window):
         self.clock = pygame.time.Clock()
 
         flags = pygame.NOFRAME
-
-        if config.recording_sys['make'] == 'plexon':
-            self.workspace_bottom_left = (-25., -14.)
-            self.workspace_top_right   = (25., 14.)
-        elif config.recording_sys['make'] == 'blackrock':
-            from riglib.ismore import settings
-            MAT_SIZE = settings.MAT_SIZE
-
-            border = 10.  # TODO -- difference between this and self.display_border?
-            self.workspace_bottom_left = np.array([ 0. - border, 
-                                                    0. - border])
-            self.workspace_top_right   = np.array([MAT_SIZE[0] + border, 
-                                                   MAT_SIZE[1] + border])
-            
-        else:
-            raise Exception('Unknown recording_system!')
+        self._set_workspace_size()
 
         self.workspace_x_len = self.workspace_top_right[0] - self.workspace_bottom_left[0]
         self.workspace_y_len = self.workspace_top_right[1] - self.workspace_bottom_left[1]

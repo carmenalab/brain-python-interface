@@ -8,8 +8,8 @@ import pickle
 import matplotlib.pyplot as plt
 import os
 
-from riglib.ismore import settings
-from riglib.ismore.safetygrid import SafetyGrid
+from ismore import settings
+from ismore.safetygrid import SafetyGrid
 
 
 

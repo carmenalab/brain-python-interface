@@ -8,7 +8,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 import pickle
 
-from riglib.ismore.common_state_lists import *
+from ismore.common_state_lists import *
 from utils.constants import *
 
 
@@ -97,8 +97,15 @@ for msg_idx in trial_start_msg_idxs:
                 for state in aa_pos_states:
                     ts_data    = armassist[idxs]['ts_arrival']
                     state_data = armassist[idxs]['data'][state]
-                    interp_fn = interp1d(ts_data, state_data)
-                    interp_state_data = interp_fn(ts_interp)
+
+                    # linear interpolation
+                    #interp_fn = interp1d(ts_data, state_data)
+                    #interp_state_data = interp_fn(ts_interp)
+                    # spline interpolation
+                    from scipy.interpolate import splrep, splev
+                    tck = splrep(ts_data, state_data, s=3)
+                    interp_state_data = splev(ts_interp, tck)
+
                     df_tmp = pd.DataFrame(interp_state_data, columns=[state])
                     df_aa  = pd.concat([df_aa, df_tmp], axis=1)
     
