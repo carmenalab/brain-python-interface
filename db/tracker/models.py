@@ -569,6 +569,10 @@ class TaskEntry(models.Model):
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print "No blackrock files found"
                 js['bmi'] = dict(_neuralinfo=None)
+            except:
+                import traceback
+                traceback.print_exc()
+                js['bmi'] = dict(_neuralinfo=None)
         else:
             raise Exception('Unrecognized recording_system!')
 
