@@ -63,16 +63,7 @@ instance_to_model = SubclassDict( {
 } )
 
 try:
-    from bmilist import bmi_algorithms
-    from bmilist import bmi_training_pos_vars
-    from bmilist import bmi_state_space_models
-    from bmilist import extractors
-    from bmilist import kin_extractors
-    from bmilist import default_extractor
-    from bmilist import bmi_update_rates
-    from bmilist import endpt_2D_state_space
-    from bmilist import tentacle_2D_state_space
-    from bmilist import joint_2D_state_space
+    from bmilist import *
 except:
     print "error importing BMI configuration variables"
     import traceback
