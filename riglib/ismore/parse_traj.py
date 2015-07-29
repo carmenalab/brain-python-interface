@@ -1,3 +1,6 @@
+'''
+Synchronize ArmAssist and ReHand recorded trajectories for playback
+'''
 import argparse
 import tables
 import pandas as pd
@@ -69,7 +72,7 @@ for msg_idx in trial_start_msg_idxs:
         traj[trial_type]['ts_end']   = ts_end
 
 
-        # save task data
+        # Store the selected rows of the task HDF table
         idxs = [idx for idx in range(len(task[:])) if idx_start <= idx <= idx_end]
         traj[trial_type]['task'] = task[idxs]
 
