@@ -2,7 +2,7 @@ import numpy as np
 import time
 import scipy.io as sio
 
-from riglib.ismore import brainamp_channel_lists
+from ismore import brainamp_channel_lists
 from riglib.brainamp.rda import *
 
 

@@ -9,7 +9,7 @@ import rehand
 import socket
 import select
 
-from riglib.ismore import settings
+from ismore import settings
 from utils.constants import *
 
 

@@ -3,7 +3,7 @@ import select
 import time
 import numpy as np
 
-from riglib.ismore import udp_feedback_client, settings
+from ismore import udp_feedback_client, settings
 from utils.constants import *
 
 MAX_MSG_LEN = 200

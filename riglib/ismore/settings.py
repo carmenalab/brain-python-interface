@@ -1,13 +1,13 @@
 import pandas as pd
 
-from riglib.ismore import brainamp_channel_lists
-from riglib.ismore.common_state_lists import *
+from ismore import brainamp_channel_lists
+from ismore.common_state_lists import *
 from utils.constants import *
 
 
 #PLANT_TYPE = 'ArmAssist'
-PLANT_TYPE = 'ReHand'
-#PLANT_TYPE = 'IsMore'
+#PLANT_TYPE = 'ReHand'
+PLANT_TYPE = 'IsMore'
 
 USE_NONUDP_PLANTS = False
 USE_LFC_ASSISTER  = False

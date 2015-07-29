@@ -6,10 +6,10 @@ import os
 import pickle
 
 
-from riglib.ismore import brainamp_channel_lists
-from riglib.ismore.emg_decoding import LinearEMGDecoder
-from riglib.ismore.emg_feature_extraction import EMGMultiFeatureExtractor
-from riglib.ismore.common_state_lists import *
+from ismore import brainamp_channel_lists
+from ismore.emg_decoding import LinearEMGDecoder
+from ismore.emg_feature_extraction import EMGMultiFeatureExtractor
+from ismore.common_state_lists import *
 from utils.constants import *
 
 
@@ -49,7 +49,7 @@ channels = brainamp_channel_lists.emg
 
 # Set 'plant_type' (type of plant for which to create a decoder)
 #   choices: 'ArmAssist', 'ReHand', or 'IsMore'
-plant_type = 'ArmAssist'
+plant_type = 'IsMore'
 
 # Set 'feature_names' to be a list containing the names of features to use
 #   (see emg_feature_extraction.py for options)

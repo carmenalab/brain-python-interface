@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.stats import pearsonr
 
-from riglib.ismore.common_state_lists import *
+from ismore.common_state_lists import *
 from tasks import ismore_bmi_lib
 
 

@@ -15,7 +15,6 @@ import select
 import numpy as np
 from collections import namedtuple
 
-from riglib.ismore import settings
 from utils.constants import *
 from riglib.bmi import state_space_models as ssm
 from riglib.bmi import state_space_models

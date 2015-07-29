@@ -7,7 +7,7 @@ import socket
 import time
 
 from riglib import source
-from riglib.ismore import settings, udp_feedback_client
+from ismore import settings, udp_feedback_client
 from tasks import ismore_bmi_lib
 from utils.constants import *
 

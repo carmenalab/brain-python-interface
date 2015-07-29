@@ -2,7 +2,7 @@ import socket
 import select
 import time
 
-from riglib.ismore import settings
+from ismore import settings
 
 
 MAX_MSG_LEN = 200

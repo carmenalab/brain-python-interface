@@ -9,7 +9,7 @@ import socket
 import select
 import numpy as np
 
-from riglib.ismore import settings
+from ismore import settings
 from utils.constants import *
 
 
