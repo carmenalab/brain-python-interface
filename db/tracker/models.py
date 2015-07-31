@@ -803,7 +803,23 @@ class DataFile(models.Model):
     def to_json(self):
         return dict(system=self.system.name, path=self.path)
 
+    def get(self):
+        '''
+        Open the datafile, if it's of a known type
+        '''
+        if self.system.name == 'hdf':
+            import tables
+            return tables.open_file(self.get_path())
+        elif self.path.[-4:] == '.pkl': # pickle file
+            import pickle
+            return pickle.load(open(self.get_path()))
+        else:
+            raise ValueError("models.DataFile does not know how to open this type of file: %s" % self.path)
+
     def get_path(self, check_archive=False):
+        '''
+        Get the full path to the file
+        '''
         if not check_archive and not self.archived:
             return os.path.join(self.system.path, self.path)
 
