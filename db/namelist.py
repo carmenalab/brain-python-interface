@@ -40,6 +40,9 @@ generators = dict()
 for fn_name, fn in izip(generator_names, generator_functions):
     generators[fn_name] = fn
 
+
+################################################################################
+################################################################################
 from tracker import models
 class SubclassDict(dict):
     '''
@@ -54,14 +57,26 @@ class SubclassDict(dict):
                 if issubclass(name, inst):
                     return model
         raise KeyError
-        
+
+from riglib.plants import RefTrajectories
 instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
     calibrations.AutoAlign:models.AutoAlignment,
     BMI: models.Decoder,
     Decoder: models.Decoder,
+    RefTrajectories: models.DataFile,
 } )
 
+instance_to_model_filter_kwargs = SubclassDict( {
+    calibrations.Profile:dict(),
+    calibrations.AutoAlign:dict(),
+    BMI:dict(),
+    Decoder:dict(),
+    RefTrajectories: dict(system__name='ref_trajectories')
+} )
+
+################################################################################
+################################################################################
 try:
     from bmilist import *
 except:

@@ -51,12 +51,15 @@ class Task(models.Model):
 
     def params(self, feats=(), values=None):
         from riglib import experiment
-        from namelist import instance_to_model
+        from namelist import instance_to_model, instance_to_model_filter_kwargs
         import plantlist
         if values is None:
             values = dict()
         
+        # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
         params = OrderedDict()
+
+        # Run the meta-class constructor to make the Task class (base task class + features )
         Exp = self.get(feats=feats)
         ctraits = Exp.class_traits()
 
@@ -66,16 +69,29 @@ class Task(models.Model):
             varname['default'] = _get_trait_default(ctraits[trait])
             varname['desc'] = ctraits[trait].desc
             varname['hidden'] = 'hidden' if Exp.is_hidden(trait) else 'visible'
+
             if trait in values:
                 varname['value'] = values[trait]
+
+            # if the trait is an instance (generic object), then it is assumed that 
+            # the object is associated with some database model
             if varname['type'] == "Instance":
                 Model = instance_to_model[ctraits[trait].trait_type.klass]
-                insts = Model.objects.order_by("-date")#[:200]
+                filter_kwargs = instance_to_model_filter_kwargs[ctraits[trait].trait_type.klass]
+
+                # look up database records which match the model type & filter parameters
+                insts = Model.objects.filter(**filter_kwargs).order_by("-date")
                 varname['options'] = [(i.pk, i.name) for i in insts]
+
+            # if the trait is an enumeration, look in the 'Exp' class for 
+            # the options because for some reason the trait itself can't 
+            # store the available options (at least at the time this was written..)
             if varname['type'] == "Enum":
                 varname['options'] = getattr(Exp, trait + '_options')
+
             params[trait] = varname
-            if trait == 'bmi':
+
+            if trait == 'bmi': # a hack for really old data, where the 'decoder' was mistakenly labeled 'bmi'
                 params['decoder'] = varname
 
         ordered_traits = Exp.ordered_traits
@@ -405,7 +421,7 @@ class TaskEntry(models.Model):
         '''
         from json_param import Parameters
 
-        # Run the metaclass constructor for the experiment used. If this can be avoided it would help to break some of the cross-package software dependencies,
+        # Run the metaclass constructor for the experiment used. If this can be avoided, it would help to break some of the cross-package software dependencies,
         # making it easier to analyze data without installing software for the entire rig
         Exp = self.task.get(self.feats.all())
 
@@ -426,9 +442,9 @@ class TaskEntry(models.Model):
         js['generators'] = exp_generators
 
 
-        ## Add data files to the web interface. To be removed (never ever used)
-        if issubclass(self.task.get(), experiment.Sequence):
-            js['sequence'] = {self.sequence.id:self.sequence.to_json()}
+        ## Add data files linked to this task entry to the web interface. 
+        ## Add the sequence (to be removed, never ever used)
+        js['sequence'] = {}
         datafiles = DataFile.objects.filter(entry=self.id)
 
         try:
@@ -452,7 +468,7 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             js['report'] = dict()
 
-        # import config
+
         if config.recording_sys['make'] == 'plexon':
             try:
                 from plexon import plexfile
@@ -468,13 +484,6 @@ class TaskEntry(models.Model):
                     _neuralinfo['length'] = plx.length
                     _neuralinfo['units'] = plx.units
                     _neuralinfo['name'] = name
-
-                # js['bmi'] = dict(_neuralinfo=dict(
-                #     length=plx.length, 
-                #     units=plx.units, 
-                #     name=name,
-                #     is_seed=int(Exp.is_bmi_seed),
-                #     ))
 
                 js['bmi'] = dict(_neuralinfo=_neuralinfo)
             except MemoryError:
@@ -743,7 +752,7 @@ class Decoder(models.Model):
         data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         return os.path.join(data_path, 'decoders', self.path)        
 
-    def load(self,db_name=None):
+    def load(self, db_name=None):
         if db_name is not None:
             data_path = getattr(config, 'db_config_'+db_name)['data_path']
         else:

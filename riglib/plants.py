@@ -29,6 +29,12 @@ ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
 ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
 PassiveExoFeedbackData = namedtuple("PassiveExoFeedbackData", ['data', 'ts_arrival'])
 
+class RefTrajectories(object):
+    '''
+    This class is a stub, for now
+    '''
+    pass
+
 
 class Plant(object):
     '''
