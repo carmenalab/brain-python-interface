@@ -9,7 +9,8 @@ import numpy as np
 
 dir_lut = dict(x={0:0, -1:0, 1:1}, 
     y={0:0, -1:0, 1:1}, 
-    z={0:1, -1:1, 1:0}) # convention flipped for z-stage
+    z={0:1, -1:1, 1:0},
+    ) # convention flipped for z-stage
 
 class Positioner(object):
     def __init__(self, dev='/dev/ttyACM1'):
@@ -17,13 +18,13 @@ class Positioner(object):
 
     def _parse_resp(self, resp):
         resp = resp.rstrip()
-        limits = map(int, resp[-4:])
+        limits = map(int, resp[-6:])
         return limits
 
     def poll_limit_switches(self, N=100):
-        for k in range(100):
+        while 1:
             time.sleep(0.1)
-            self.port.write(' ')
+            self.port.write('\n')
             raw_resp = self.port.readline()
             print "limit switches", self._parse_resp(raw_resp)
 
@@ -120,10 +121,11 @@ class Positioner(object):
             limits = self._parse_resp(self.port.readline())
         self.sleep_motors()
 
-    def go_to_origin(self):
+    def go_to_min(self, verbose=False):
         can_move = self.read_limit_switches()
         x_can_decrease = can_move[0]
         y_can_decrease = can_move[2]
+        z_can_decrease = can_move[4]
 
         dir_x = dir_lut['x'][-1]
         dir_y = dir_lut['y'][-1]
@@ -132,58 +134,24 @@ class Positioner(object):
         n_steps_sent_x = 0
         n_steps_sent_y = 0
         n_steps_sent_z = 0
-        if x_can_decrease or y_can_decrease:
+        if x_can_decrease or y_can_decrease or z_can_decrease:
             self.wake_motors()
 
         try:
             k = 0
-            while x_can_decrease or y_can_decrease:
+            while x_can_decrease or y_can_decrease or z_can_decrease:
                 step_x = int(x_can_decrease)
                 step_y = int(y_can_decrease)
-                print step_x, step_y
-                step_z = 0
+                step_z = int(z_can_decrease)
+                if verbose:
+                    print step_x, step_y, step_z
 
                 self.step_motors(step_x, step_y, step_z, dir_x, dir_y, dir_z)
                 can_move = self._parse_resp(self.port.readline())
 
                 x_can_decrease = can_move[0]
                 y_can_decrease = can_move[2]
-
-                n_steps_sent_x += step_x
-                n_steps_sent_y += step_y
-                n_steps_sent_z += step_z
-                k += 1
-        finally:
-            self.sleep_motors()
-
-    def go_to_max(self):
-        can_move = self.read_limit_switches()
-        x_can_increase = can_move[1]
-        y_can_increase = can_move[3]
-
-        dir_x = dir_lut['x'][1]
-        dir_y = dir_lut['y'][1]
-        dir_z = dir_lut['z'][1]
-
-        n_steps_sent_x = 0
-        n_steps_sent_y = 0
-        n_steps_sent_z = 0
-        if x_can_increase or y_can_increase:
-            self.wake_motors()
-
-        try:
-            k = 0
-            while x_can_increase or y_can_increase:
-                step_x = int(x_can_increase)
-                step_y = int(y_can_increase)
-                print step_x, step_y
-                step_z = 0
-
-                self.step_motors(step_x, step_y, step_z, dir_x, dir_y, dir_z)
-                can_move = self._parse_resp(self.port.readline())
-
-                x_can_increase = can_move[1]
-                y_can_increase = can_move[3]
+                z_can_decrease = can_move[4]
 
                 n_steps_sent_x += step_x
                 n_steps_sent_y += step_y
@@ -193,3 +161,69 @@ class Positioner(object):
             self.sleep_motors()
 
         return n_steps_sent_x, n_steps_sent_y, n_steps_sent_z
+
+    def go_to_max(self, verbose=False):
+        can_move = self.read_limit_switches()
+        x_can_increase = can_move[1]
+        y_can_increase = can_move[3]
+        z_can_increase = can_move[5]
+
+        dir_x = dir_lut['x'][1]
+        dir_y = dir_lut['y'][1]
+        dir_z = dir_lut['z'][1]
+
+        n_steps_sent_x = 0
+        n_steps_sent_y = 0
+        n_steps_sent_z = 0
+        if x_can_increase or y_can_increase or z_can_increase:
+            self.wake_motors()
+
+        try:
+            k = 0
+            while x_can_increase or y_can_increase or z_can_increase:
+                step_x = int(x_can_increase)
+                step_y = int(y_can_increase)
+                step_z = int(z_can_increase)
+                if verbose:
+                    print step_x, step_y, step_z
+
+                self.step_motors(step_x, step_y, step_z, dir_x, dir_y, dir_z)
+                can_move = self._parse_resp(self.port.readline())
+
+                x_can_increase = can_move[1]
+                y_can_increase = can_move[3]
+                z_can_increase = can_move[5]
+
+                n_steps_sent_x += step_x
+                n_steps_sent_y += step_y
+                n_steps_sent_z += step_z
+                k += 1
+        finally:
+            self.sleep_motors()
+
+        return n_steps_sent_x, n_steps_sent_y, n_steps_sent_z
+
+    def calibrate(self, n_runs):
+        '''
+        Repeatedly go from min to max and back so the number of steps can be counted
+        '''
+        n_steps_min_to_max = [None]*n_runs
+        n_steps_max_to_min = [None]*n_runs
+
+        self.go_to_min()
+        time.sleep(1)
+
+        for k in range(n_runs):
+            n_steps_min_to_max[k] = self.go_to_max()
+            time.sleep(2)
+            n_steps_max_to_min[k] = self.go_to_min()
+            print "min to max"
+            print n_steps_min_to_max
+            print "max to min"
+            print n_steps_max_to_min
+            time.sleep(2)
+            
+        return n_steps_min_to_max, n_steps_max_to_min
+
+
+

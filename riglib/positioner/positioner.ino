@@ -11,7 +11,7 @@ int max_limit_x = 10;
 int min_limit_y = 11;
 int max_limit_y = 12;
 int min_limit_z = 13;
-int max_limit_z = 13;
+int max_limit_z = A0; // using analog pin because UNO doesn't haven enough functioning digital pins!
 
 void setup() {
   Serial.begin(115200);
@@ -30,7 +30,7 @@ void setup() {
   pinMode(step_z, OUTPUT);
   pinMode(dir_z, OUTPUT);
   pinMode(min_limit_z, INPUT);
-  pinMode(max_limit_z, INPUT);
+//  pinMode(max_limit_z, INPUT);
 }
 
 int mask_step_x = 0x01; // 0b00000001
@@ -54,8 +54,10 @@ void loop() {
         int room_to_increase_x = digitalRead(max_limit_x);
         int room_to_decrease_y = digitalRead(min_limit_y);
         int room_to_increase_y = digitalRead(max_limit_y);
-        int room_to_decrease_z = 1; //digitalRead(min_limit_z);
-        int room_to_increase_z = 1; //digitalRead(max_limit_z);      
+        int room_to_decrease_z = digitalRead(min_limit_z);
+        
+        int room_to_increase_z_sensor_val = analogRead(max_limit_z);
+        int room_to_increase_z = (int) room_to_increase_z_sensor_val > 512;
               
         char cmd = inData[0];
         if (cmd == 'w') { // wake up motor
@@ -97,6 +99,8 @@ void loop() {
           Serial.print(room_to_increase_x, DEC);      
           Serial.print(room_to_decrease_y, DEC);
           Serial.print(room_to_increase_y, DEC);
+          Serial.print(room_to_decrease_z, DEC);
+          Serial.print(room_to_increase_z, DEC);          
           Serial.println();    
     
           inData = "";
