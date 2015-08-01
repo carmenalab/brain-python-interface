@@ -812,7 +812,7 @@ class DataFile(models.Model):
         if self.system.name == 'hdf':
             import tables
             return tables.open_file(self.get_path())
-        elif self.path.[-4:] == '.pkl': # pickle file
+        elif self.path[-4:] == '.pkl': # pickle file
             import pickle
             return pickle.load(open(self.get_path()))
         else:
