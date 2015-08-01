@@ -35,9 +35,11 @@ class Positioner(object):
 
     def wake_motors(self):
         self.port.write('w\n')
+        self.port.readline()
 
     def sleep_motors(self):
         self.port.write('s\n')
+        self.port.readline()
 
     def step_motors(self, step_x, step_y, step_z, dir_x, dir_y, dir_z):
         cmd_data = 0
@@ -202,6 +204,14 @@ class Positioner(object):
             self.sleep_motors()
 
         return n_steps_sent_x, n_steps_sent_y, n_steps_sent_z
+
+    def continuous_move(self, n_steps_x, n_steps_y, n_steps_z):
+        self.wake_motors()
+        msg = 'c' + struct.pack('>hhh', n_steps_x, n_steps_y, n_steps_z) + '\n'
+        self.port.write(msg)
+        print self.port.readline()
+        print self.port.readline()
+        self.sleep_motors()
 
     def calibrate(self, n_runs):
         '''
