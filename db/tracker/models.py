@@ -442,11 +442,13 @@ class TaskEntry(models.Model):
         js['generators'] = exp_generators
 
 
-        ## Add data files linked to this task entry to the web interface. 
-        ## Add the sequence (to be removed, never ever used)
-        js['sequence'] = {}
+        ## Add the sequence, used when the block gets copied
+        if issubclass(self.task.get(), experiment.Sequence):
+            js['sequence'] = {self.sequence.id:self.sequence.to_json()}
         datafiles = DataFile.objects.filter(entry=self.id)
 
+
+        ## Add data files linked to this task entry to the web interface. 
         try:
             backup_root = config.backup_root['root']
         except:
