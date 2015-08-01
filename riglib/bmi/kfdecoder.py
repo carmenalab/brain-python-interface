@@ -8,6 +8,7 @@ from scipy.io import loadmat
 import bmi
 import train
 import pickle
+import re
 
 class KalmanFilter(bmi.GaussianStateHMM):
     """
@@ -862,7 +863,18 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     def subselect_units(self, units):
         if isinstance(units[0], (str, unicode)):
             # convert to array
-            raise NotImplementedError
+            if isinstance(units, (str, unicode)):
+                units = units.split(', ')
+
+            units_lut = dict(a=1, b=2, c=3, d=4)
+            units_int = []
+            for u in units:
+                ch = int(re.match('(\d+)([a-d])', u).group(1))
+                unit_ind = re.match('(\d+)([a-d])', u).group(2)
+                # import pdb; pdb.set_trace()
+                units_int.append((ch, units_lut[unit_ind]))
+
+            units = units_int
 
         inds_to_keep = []
         units = map(tuple, units)
