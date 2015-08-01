@@ -15,7 +15,6 @@ import select
 import numpy as np
 from collections import namedtuple
 
-from riglib.ismore import settings
 from utils.constants import *
 from riglib.bmi import state_space_models as ssm
 from riglib.bmi import state_space_models
@@ -29,6 +28,12 @@ field_names = ['data', 'ts', 'ts_sent', 'ts_arrival', 'freq']
 ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
 ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
 PassiveExoFeedbackData = namedtuple("PassiveExoFeedbackData", ['data', 'ts_arrival'])
+
+class RefTrajectories(object):
+    '''
+    This class is a stub, for now
+    '''
+    pass
 
 
 class Plant(object):

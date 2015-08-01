@@ -246,6 +246,9 @@ class Shape2D(object):
 
         raise NotImplementedError  # implement in subclasses
 
+    def _recache_xfm(self):
+        pass
+
 
 class Circle(Shape2D):
     def __init__(self, center_pos, radius, *args, **kwargs):

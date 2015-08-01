@@ -111,6 +111,16 @@ class Experiment(traits.HasTraits, threading.Thread):
         return editable_traits
 
     @classmethod
+    def parse_fsm(cls):
+        '''
+        Print out the FSM of the task in a semi-readable form
+        '''
+        for state in cls.status:
+            print 'When in state "%s"' % state 
+            for trigger_event, next_state in cls.status[state].items():
+                print '\tevent "%s" moves the task to state "%s"' % (trigger_event, next_state)
+
+    @classmethod
     def is_hidden(cls, trait):
         '''
         Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden 
@@ -432,7 +442,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         data kept in RAM is written
         '''
         traits = self.class_editable_traits()
-        h5file = tables.openFile(self.h5file.name, mode='a')
+
+        if hasattr(tables, 'open_file'): # function name depends on version
+            h5file = tables.open_file(self.h5file.name, mode='a')        
+        else:
+            h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
             if trait not in ['bmi', 'decoder']:
                 h5file.root.task.attrs[trait] = getattr(self, trait)

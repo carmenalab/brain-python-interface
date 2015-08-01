@@ -30,3 +30,5 @@ riglib/ismore/traj_*.pkl
 *tasklist.py
 *featurelist.py
 *bmilist.py
+analysis
+tasks

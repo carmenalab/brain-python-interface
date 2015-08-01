@@ -14,7 +14,6 @@ import os
 
 import namelist
 from tracker import models
-from plexon import plexfile
 
 cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
@@ -32,6 +31,7 @@ def cache_plx(plxfile):
     """
     Create cache for plexon file
     """
+    from plexon import plexfile
     plexfile.openFile(str(plxfile)) 
 
 @task()
