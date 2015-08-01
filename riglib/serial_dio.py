@@ -50,8 +50,6 @@ class SendAll(object):
         -------
         None
         '''
-
-        # TODO
         # Save the index of the system being registered (arbitrary number corresponding to the order in which systems were registered)
         self.n_systems += 1
         self.systems[system] = self.n_systems

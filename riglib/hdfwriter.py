@@ -31,7 +31,7 @@ class HDFWriter(object):
         -------
         HDFWriter instance
         '''
-        print "Saving datafile to %s"%filename
+        print "HDFWriter: Saving datafile to %s"%filename
         self.h5 = tables.openFile(filename, "w")
         self.data = {}
         self.msgs = {}

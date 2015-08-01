@@ -262,6 +262,8 @@ class Task(object):
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
             self.task.cleanup(database, self.saveid, subject=self.subj)
 
+        self.task.terminate()
+
 class ObjProxy(object):
     def __init__(self, cmds):
         self.cmds = cmds

@@ -81,7 +81,11 @@ class Task(models.Model):
 
                 # look up database records which match the model type & filter parameters
                 insts = Model.objects.filter(**filter_kwargs).order_by("-date")
-                varname['options'] = [(i.pk, i.name) for i in insts]
+                try:
+                    varname['options'] = [(i.pk, i.name) for i in insts]
+                except:
+                    varname['options'] = [(i.pk, i.path) for i in insts]
+
 
             # if the trait is an enumeration, look in the 'Exp' class for 
             # the options because for some reason the trait itself can't 
