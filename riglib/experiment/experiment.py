@@ -448,7 +448,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         else:
             h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
-            if trait not in ['bmi', 'decoder']:
+            if trait not in ['bmi', 'decoder', 'ref_trajectories']:
                 h5file.root.task.attrs[trait] = getattr(self, trait)
         h5file.close()
 
