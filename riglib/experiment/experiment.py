@@ -88,6 +88,8 @@ class Experiment(traits.HasTraits, threading.Thread):
 
         self.pause = False
 
+        print "finished executing Experiment.__init__"
+
     @classmethod
     def class_editable_traits(cls):
         '''
@@ -450,6 +452,11 @@ class Experiment(traits.HasTraits, threading.Thread):
         print 'running experiment.Experiment.pre_init'
         pass
 
+    def terminate(self):
+        '''
+        Cleanup commands for tasks executed using the "test" button
+        '''
+        pass
 
 
 class LogExperiment(Experiment):
