@@ -359,7 +359,19 @@ class Experiment(traits.HasTraits, threading.Thread):
         #     f.write('stuff')
         if self.session_length > 0 and (self.get_time() - self.task_start_time) > self.session_length:
             self.end_task()
-        return self.stop        
+        return self.stop
+
+    def _test_time_expired(self, ts):
+        '''
+        Generic function to test if time has expired. For a state 'wait', the function looks up the 
+        variable 'wait_time' and uses that as a time.
+        '''
+        state_time_var_name = self.state + '_time'
+        try:
+            state_time = getattr(self, state_time_var_name)
+        except AttributeError:
+            raise AttributeError("Cannot find attribute %s; may not be able to use generic time_expired event for state %s"  % (state_time_var_name, self.state))
+        return ts > state_time
 
     @classmethod
     def _time_to_string(cls, sec):
@@ -645,7 +657,10 @@ class Sequence(LogExperiment):
         
     def _parse_next_trial(self):
         '''
-        Interpret the data coming from the generator. If the generator yields a dictionary, then the keys of the dictionary automatically get set as attributes
+        Interpret the data coming from the generator. If the generator yields a dictionary, 
+        then the keys of the dictionary automatically get set as attributes.
+
+        Over-ride or add additional code in child classes if different behavior is desired.
         '''
         if isinstance(self.next_trial, dict):
             for key in self.next_trial:
