@@ -371,6 +371,8 @@ class Experiment(traits.HasTraits, threading.Thread):
             state_time = getattr(self, state_time_var_name)
         except AttributeError:
             raise AttributeError("Cannot find attribute %s; may not be able to use generic time_expired event for state %s"  % (state_time_var_name, self.state))
+
+        assert isinstance(state_time, (float, int))
         return ts > state_time
 
     @classmethod
