@@ -741,6 +741,11 @@ class TaskEntry(object):
                 self.hdf_file = tables.openFile(self.hdf_filename, mode='r')
         return self.hdf_file
 
+    def close_hdf(self):
+        if hasattr(self, 'hdf_file'):
+            self.hdf_file.close()
+            delattr(self, 'hdf_file')
+
     @property
     def plx(self):
         '''
