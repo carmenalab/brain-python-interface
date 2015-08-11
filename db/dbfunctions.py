@@ -15,6 +15,7 @@ import time, datetime
 from scipy.stats import nanmean
 import db
 from collections import defaultdict, OrderedDict
+from itertools import izip
 
 from config import config
 
@@ -385,17 +386,28 @@ def load_last_decoder():
 
 class TaskEntry(object):
     '''
-    Wrapper class for the TaskEntry django class
+    Wrapper class for the TaskEntry django class so that object-oriented methods 
+    can be defined for TaskEntry blocks (e.g., for analysis methods for a particular experiment)
+    without needing to modfiy the database model.
     '''
     def __init__(self, task_entry_id, dbname='default', **kwargs):
         '''
-        Docstring
+        Constructor for TaskEntry
 
         Parameters
         ----------
+        task_entry_id : int
+            'id' number associated with the TaskEntry (database primary key)
+        dbname : string, optional, default='default'
+            Name of database (if multiple databases are available). Database must 
+            be declared in db/settings.py and paths must be configured using 
+            config_files/make_config.py
+        **kwargs : dict
+            For any additional parameters unused by child classes
 
         Returns
         -------
+        TaskEntry instance
         '''
         self.dbname = dbname
         if isinstance(task_entry_id, models.TaskEntry):
@@ -440,6 +452,60 @@ class TaskEntry(object):
             self.report = json.loads(self.record.report)
         except:
             self.report = ''
+
+        
+        # Parse out trial messages into separate trials
+        try:
+            task_msgs = self.hdf.root.task_msgs[:]
+            # Ignore the last message if it's the "None" transition used to stop the task
+            if task_msgs[-1]['msg'] == 'None':
+                task_msgs = task_msgs[:-1]
+
+            # ignore "update bmi" messages. These have been removed in later datasets
+            task_msgs = task_msgs[task_msgs['msg'] != 'update_bmi']
+
+            # Try to add the target index.. these are not present in every task type
+            try:
+                target_index = self.hdf.root.task[:]['target_index'].ravel()
+                task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8')])
+                task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
+                for k in range(len(task_msgs)):
+                    task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
+                    task_msgs_ext[k]['time'] = task_msgs[k]['time']    
+                    try:
+                        task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
+                    except:
+                        task_msgs_ext[k]['target_index'] = np.nan
+                    
+                self.task_msgs = task_msgs_ext  
+            except:
+                self.task_msgs = task_msgs
+
+            ## Split the task messages into separate trials
+            self.trial_msgs = []
+            try:
+                # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1
+                trial_start = np.logical_or(self.task_msgs['msg'] == 'wait', np.logical_and(self.task_msgs['msg'] == 'targ_transition', self.task_msgs['target_index'] == -1))
+                trial_start_inds, = np.nonzero(trial_start)
+                trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
+
+                for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+                    self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
+            except:
+                # For tasks where there is no target index in the trial structure..
+                trial_end = np.array([msg in self.trial_end_states for msg in self.task_msgs['msg']])
+                trial_end_inds, = np.nonzero(trial_end)
+                trial_start_inds = np.hstack([0, trial_end_inds[:-1]+1])
+                trial_end = np.zeros(len(self.task_msgs))
+
+                for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+                    self.trial_msgs.append(self.task_msgs[trial_st:trial_end+1])
+
+
+        except:
+            print "Couldn't process HDF file. Is it copied?"
+            import traceback
+            traceback.print_exc()
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
@@ -670,9 +736,9 @@ class TaskEntry(object):
         '''
         if not hasattr(self, 'hdf_file'):
             try:
-                self.hdf_file = tables.open_file(self.hdf_filename)
+                self.hdf_file = tables.open_file(self.hdf_filename, mode='r')
             except:
-                self.hdf_file = tables.openFile(self.hdf_filename)
+                self.hdf_file = tables.openFile(self.hdf_filename, mode='r')
         return self.hdf_file
 
     @property
