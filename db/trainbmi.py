@@ -26,6 +26,21 @@ from config import config
 
 import dbfunctions as dbfn
 
+import json
+
+from django.http import HttpResponse
+
+from riglib import experiment
+
+from json_param import Parameters
+from tasktrack import Track
+from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
+import trainbmi
+import logging
+
+
+
 @task()
 def cache_plx(plxfile):
     """
@@ -161,6 +176,44 @@ def cache_and_train(*args, **kwargs):
     
     else:
         raise Exception('Unknown recording_system!')
+
+def train_decoder_ajax_handler(request, idx):
+    '''
+    AJAX handler for creating a new decoder.
+
+    Parameters
+    ----------
+    request : Django HttpRequest
+        POST data containing details for how to train the decoder (type, units, update rate, etc.)
+    idx : int
+        ID number of the models.TaskEntry record with the data used to train the Decoder.
+
+    Returns
+    -------
+    Django HttpResponse
+        Indicates 'success' if all commands initiated without error.
+    '''
+    ## Check if the name of the decoder is already taken
+    collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
+    if len(collide) > 0:
+        return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
+    update_rate = float(request.POST['bmiupdaterate'])
+
+    kwargs = dict(
+        entry=idx,
+        name=request.POST['bminame'],
+        clsname=request.POST['bmiclass'],
+        extractorname=request.POST['bmiextractor'],
+        cells=request.POST['cells'],
+        channels=request.POST['channels'],
+        binlen=1./update_rate,
+        tslice=map(float, request.POST.getlist('tslice[]')),
+        ssm=request.POST['ssm'],
+        pos_key=request.POST['pos_key'],
+        kin_extractor=request.POST['kin_extractor'],
+    )
+    trainbmi.cache_and_train(**kwargs)
+    return _respond(dict(status="success"))
 
 
 def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
