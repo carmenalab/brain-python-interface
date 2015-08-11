@@ -746,6 +746,12 @@ class TaskEntry(object):
             self.hdf_file.close()
             delattr(self, 'hdf_file')
 
+    def close(self):
+        '''
+        Cleanup functions
+        '''
+        self.close_hdf()
+
     @property
     def plx(self):
         '''
