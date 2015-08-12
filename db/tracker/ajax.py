@@ -204,7 +204,8 @@ def rpc(fn):
     Parameters
     ----------
     fn : callable
-        Function which takes a single argument, the exp_tracker object. Return values from this function are ignored.
+        Function which takes a single argument, the exp_tracker object. 
+        Return values from this function are ignored.
 
     Returns
     -------
@@ -212,7 +213,7 @@ def rpc(fn):
     '''
     #make sure that there exists an experiment to stop
     if exp_tracker.status.value not in ["running", "testing"]:
-        return _respond(dict(status="error", msg="No task to end!"))
+        return _respond(dict(status="error", msg="No task to modify attributes"))
     try:
         status = exp_tracker.status.value
         fn(exp_tracker)
@@ -249,6 +250,12 @@ def enable_clda(request):
 
 def disable_clda(request):
     return rpc(lambda exp_tracker: exp_tracker.task.disable_clda())
+
+def set_task_attr(request, attr, value):
+    '''
+    Generic function to change a task attribute while the task is running.
+    '''
+    return rpc(lambda exp_tracker: exp_tracker.task.__setattr__(attr, value))
 
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)
