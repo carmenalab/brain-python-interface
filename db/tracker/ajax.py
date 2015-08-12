@@ -255,7 +255,7 @@ def set_task_attr(request, attr, value):
     '''
     Generic function to change a task attribute while the task is running.
     '''
-    return rpc(lambda exp_tracker: exp_tracker.task.__setattr__(attr, value))
+    return rpc(lambda exp_tracker: exp_tracker.task.remote_set_attr(attr, value))
 
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)
