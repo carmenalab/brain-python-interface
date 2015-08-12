@@ -34,7 +34,7 @@ from riglib import experiment
 
 from json_param import Parameters
 from tasktrack import Track
-from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+from tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
 import trainbmi
 import logging
