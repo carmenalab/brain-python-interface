@@ -66,7 +66,7 @@ def list(request):
 
 def listall(request):
     '''
-    Top-level view called when browser pointed at webroot
+    Top-level view called when browser pointed at WEBROOT/all
 
     Parameters
     ----------
@@ -108,7 +108,7 @@ def listall(request):
 
 def get_sequence(request, idx):
     '''
-    Pointing browser to nucleus:8000/sequence_for/(?P<idx>\d+)/ returns a pickled
+    Pointing browser to WEBROOT/sequence_for/(?P<idx>\d+)/ returns a pickled
     file with the 'sequence' used in the specified id
     '''
     import cPickle

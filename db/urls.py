@@ -12,6 +12,8 @@ from django.conf.urls import patterns, include, url
 from django.contrib import admin
 admin.autodiscover()
 
+import trainbmi
+
 urlpatterns = patterns('',
 	(r'^$', 'tracker.views.list'),
     (r'^all/$', 'tracker.views.listall'),
@@ -24,8 +26,9 @@ urlpatterns = patterns('',
     (r'^all/ajax/task_info/(?P<idx>\d+)/', "tracker.ajax.task_info"),
     (r'^all/ajax/exp_info/(?P<idx>\d+)/', 'tracker.ajax.exp_info'),
     (r'^all/ajax/gen_info/(?P<idx>\d+)/', 'tracker.ajax.gen_info'),
-    (r'^all/ajax/save_notes/(?P<idx>\d+)/', 'tracker.ajax.save_notes'),    
-    (r'^make_bmi/(?P<idx>\d+)/?', 'tracker.ajax.make_bmi'),
+    (r'^all/ajax/save_notes/(?P<idx>\d+)/', 'tracker.ajax.save_notes'),
+    (r'^make_bmi/(?P<idx>\d+)/?', trainbmi.train_decoder_ajax_handler), 
+    (r'^ajax/setattr/(?P<attr>.+)/(?P<value>.+)', 'tracker.ajax.set_task_attr'),
     (r'^start/?', 'tracker.ajax.start_experiment'),
     (r'^next_exp/?', 'tracker.ajax.start_next_exp'),
     (r'^test/?', 'tracker.ajax.start_experiment', dict(save=False)),

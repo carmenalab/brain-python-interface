@@ -204,7 +204,8 @@ def rpc(fn):
     Parameters
     ----------
     fn : callable
-        Function which takes a single argument, the exp_tracker object. Return values from this function are ignored.
+        Function which takes a single argument, the exp_tracker object. 
+        Return values from this function are ignored.
 
     Returns
     -------
@@ -212,7 +213,7 @@ def rpc(fn):
     '''
     #make sure that there exists an experiment to stop
     if exp_tracker.status.value not in ["running", "testing"]:
-        return _respond(dict(status="error", msg="No task to end!"))
+        return _respond(dict(status="error", msg="No task to modify attributes"))
     try:
         status = exp_tracker.status.value
         fn(exp_tracker)
@@ -250,48 +251,16 @@ def enable_clda(request):
 def disable_clda(request):
     return rpc(lambda exp_tracker: exp_tracker.task.disable_clda())
 
+def set_task_attr(request, attr, value):
+    '''
+    Generic function to change a task attribute while the task is running.
+    '''
+    return rpc(lambda exp_tracker: exp_tracker.task.__setattr__(attr, value))
+
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)
     te.notes = request.POST['notes']
     te.save()
-    return _respond(dict(status="success"))
-
-def make_bmi(request, idx):
-    '''
-    AJAX handler for creating a new decoder.
-
-    Parameters
-    ----------
-    request : Django HttpRequest
-        POST data containing details for how to train the decoder (type, units, update rate, etc.)
-    idx : int
-        ID number of the models.TaskEntry record with the data used to train the Decoder.
-
-    Returns
-    -------
-    Django HttpResponse
-        Indicates 'success' if all commands initiated without error.
-    '''
-    ## Check if the name of the decoder is already taken
-    collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
-    if len(collide) > 0:
-        return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
-    update_rate = float(request.POST['bmiupdaterate'])
-
-    kwargs = dict(
-        entry=idx,
-        name=request.POST['bminame'],
-        clsname=request.POST['bmiclass'],
-        extractorname=request.POST['bmiextractor'],
-        cells=request.POST['cells'],
-        channels=request.POST['channels'],
-        binlen=1./update_rate,
-        tslice=map(float, request.POST.getlist('tslice[]')),
-        ssm=request.POST['ssm'],
-        pos_key=request.POST['pos_key'],
-        kin_extractor=request.POST['kin_extractor'],
-    )
-    trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))
 
 def reward_drain(request, onoff):

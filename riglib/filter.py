@@ -2,8 +2,9 @@
 Generic class for implementing filters describable by rational z-transforms (ratio of polynomials)
 '''
 from scipy.signal import sigtools, lfilter
+import numpy as np
 
-def Filter(object):
+class Filter(object):
     def __init__(self, b=[], a=[1.]):
         '''
         Constructor for Filter
@@ -27,8 +28,6 @@ def Filter(object):
         self.b /= self.a[0]
         self.a /= self.a[0]
 
-        # self.x = np.zeros(len(b))
-        # self.y = np.zeros(len(a))
         self.zi = np.zeros(max(len(a), len(b))-1)
 
     def __call__(self, samples):
@@ -44,8 +43,6 @@ def Filter(object):
         -------
         np.ndarray
             Most recent N outputs of the filter
-
         '''
         filt_output, self.zi = lfilter(self.b, self.a, samples, zi=self.zi)
-        # self.y = np.hstack([self.y, filt_output])
         return filt_output
