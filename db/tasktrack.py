@@ -138,6 +138,9 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         task = Task(**kwargs)
         cmd = task_end_of_pipe.recv()
         while cmd is not None and task.task.state is not None:
+            print "command received"
+            with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
+                f.write('command received: %s, %s, %s\n' % cmd)
             try:
                 fn_name = cmd[0]
                 cmd_args = cmd[1]
@@ -253,6 +256,18 @@ class Task(object):
 
     def __getattr__(self, attr):
         return getattr(self, attr)
+
+    def set_task_attr(self, attr, value):
+        setattr(self.task, attr, value)
+
+    ##def __setattr__(self, attr, value):
+    ##    with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
+    ##        f.write("setting attribute\n")
+    ##    print "setting attribute"
+    ##    if hasattr(self.task, attr):
+    ##        setattr(self.task, attr, value)
+    ##    else:
+    ##        setattr(self, attr, value)
     
     def cleanup(self):
         self.task.join()
@@ -269,14 +284,24 @@ class ObjProxy(object):
         self.cmds = cmds
 
     def __getattr__(self, attr):
+        print "remotely getting attribute"
+        with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
+            f.write("remotely getting attribute\n")
         self.cmds.send(("__getattr__", [attr], {}))
         ret = self.cmds.recv()
         if isinstance(ret, Exception): 
             # Assume that the attribute can't be retreived b/c the name refers 
             # to a function
-            return FuncProxy(attr, self.cmds)
+            ret = FuncProxy(attr, self.cmds)
 
         return ret
+
+    def remote_set_attr(self, attr, value):
+        with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
+            f.write('trying to remotely set attribute\n')
+        ret = FuncProxy('set_task_attr', self.cmds)
+        ret(attr, value)
+
 
 class FuncProxy(object):
     def __init__(self, func, pipe):
@@ -284,5 +309,6 @@ class FuncProxy(object):
         self.cmd = func
 
     def __call__(self, *args, **kwargs):
+        print "remotely calling function"
         self.pipe.send((self.cmd, args, kwargs))
         return self.pipe.recv()

@@ -18,7 +18,7 @@ databases = settings.DATABASES.keys()
 for dbname in databases:
     stuff['db_config_%s' % dbname] = dict(data_path='/storage')
 
-config_filename = '$BMI3D/config'
+config_filename = '$BMI3D/config_files/config'
 config_fh = open(os.path.expandvars(config_filename), 'w')
 
 for system_name, system_opts in stuff.items():

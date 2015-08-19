@@ -247,7 +247,7 @@ class Generator(models.Model):
         #     names.remove("exp")
         # arginfo = zip(names, defaults)
 
-        params = dict()
+        params = OrderedDict()
         from itertools import izip
         for name, default in izip(names, defaults):
             if name == 'exp':
