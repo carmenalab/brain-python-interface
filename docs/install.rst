@@ -5,7 +5,7 @@ neurophysiology experiments.
 
 Downloading the software
 ------------------------
-The software should reside at the path $HOME/code/bmi3d, where $HOME is your home directory (this should be a variable already defined in your bash environment). If the bmi3d path does not already exist, create it by executing the commands
+The software should reside at the path $HOME/code/bmi3d, where $HOME is your home directory (this should be a variable already defined in your bash environment). If the bmi3d path does not already exist, create it by executing the commands::
 
     mkdir $HOME/code
     cd $HOME/code
