@@ -15,9 +15,12 @@ import numpy as np
 
 from riglib import calibrations, experiment
 from config import config
+import importlib
 
 def _get_trait_default(trait):
-    '''Function which tries to resolve traits' retarded default value system'''
+    '''
+    Function which tries to determine the default value for a trait in the class declaration
+    '''
     _, default = trait.default_value()
     if isinstance(default, tuple) and len(default) > 0:
         try:
@@ -52,7 +55,7 @@ class Task(models.Model):
     def params(self, feats=(), values=None):
         from riglib import experiment
         from namelist import instance_to_model, instance_to_model_filter_kwargs
-        import plantlist
+
         if values is None:
             values = dict()
         
@@ -129,11 +132,18 @@ class Feature(models.Model):
 
     @property
     def desc(self):
-        return self.get().__doc__
+        feature_cls = self.get()
+        if not feature_cls is None:
+            return feature_cls.__doc__
+        else:
+            return ''
     
     def get(self):
         from namelist import features
-        return features[self.name]
+        if self.name in features:
+            return features[self.name]
+        else:
+            return None
 
     @staticmethod
     def populate():
@@ -335,7 +345,7 @@ class TaskEntry(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     task = models.ForeignKey(Task)
     feats = models.ManyToManyField(Feature)
-    sequence = models.ForeignKey(Sequence)
+    sequence = models.ForeignKey(Sequence, blank=True)
 
     params = models.TextField()
     report = models.TextField()
@@ -439,7 +449,7 @@ class TaskEntry(models.Model):
         if hasattr(Exp, 'sequence_generators'):
             for seqgen_name in Exp.sequence_generators:
                 try:
-                    g = Generator.objects.get(name=seqgen_name)
+                    g = Generator.objects.using(self._state.db).get(name=seqgen_name)
                     exp_generators[g.id] = seqgen_name
                 except:
                     pass
@@ -449,7 +459,7 @@ class TaskEntry(models.Model):
         ## Add the sequence, used when the block gets copied
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
-        datafiles = DataFile.objects.filter(entry=self.id)
+        datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
 
 
         ## Add data files linked to this task entry to the web interface. 
@@ -477,9 +487,9 @@ class TaskEntry(models.Model):
 
         if config.recording_sys['make'] == 'plexon':
             try:
-                from plexon import plexfile
-                plexon = System.objects.get(name='plexon')
-                df = DataFile.objects.get(entry=self.id, system=plexon)
+                from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
+                plexon = System.objects.using(self._state.db).get(name='plexon')
+                df = DataFile.objects.using(self._state.db).get(entry=self.id, system=plexon)
 
                 _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
                 if Exp.is_bmi_seed:
@@ -505,70 +515,7 @@ class TaskEntry(models.Model):
                 path, name = os.path.split(nev_fname)
                 name, ext = os.path.splitext(name)
 
-                #### start -- TODO: eventually put this code in helper functions somewhere else
-                # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
-                # this code goes through the spike_set for each channel in order to:
-                #  1) determine the last timestamp in the file
-                #  2) create a list of units that had spikes in this file
-                nev_hdf_fname = nev_fname + '.hdf'
-
-                if not os.path.isfile(nev_hdf_fname):
-                    import subprocess
-                    subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
-                
-                import h5py
-                nev_hdf = h5py.File(nev_hdf_fname, 'r')
-
-                last_ts = 0
-                units = []
-
-                for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
-                    if 'spike_set' in nev_hdf.get('channel/' + key).keys():
-                        spike_set = nev_hdf.get('channel/' + key + '/spike_set')
-                        if spike_set is not None:
-                            tstamps = spike_set.value['TimeStamp']
-                            if len(tstamps) > 0:
-                                last_ts = max(last_ts, tstamps[-1])
-
-                            channel = int(key[-5:])
-                            for unit_num in np.sort(np.unique(spike_set.value['Unit'])):
-                                units.append((channel, int(unit_num)))
-
-                fs = 30000.
-                nev_length = last_ts / fs
-
-                nsx_fs = dict()
-                nsx_fs['.ns1'] = 500
-                nsx_fs['.ns2'] = 1000
-                nsx_fs['.ns3'] = 2000
-                nsx_fs['.ns4'] = 10000
-                nsx_fs['.ns5'] = 30000
-                nsx_fs['.ns6'] = 30000
-
-                NSP_channels = np.arange(128) + 1
-
-                nsx_lengths = []
-                for nsx_fname in self.nsx_files:
-
-                    nsx_hdf_fname = nsx_fname + '.hdf'
-                    if not os.path.isfile(nsx_hdf_fname):
-                        # convert .nsx file to hdf file using Blackrock's n2h5 utility
-                        subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
-
-                    nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
-
-                    for chan in NSP_channels:
-                        chan_str = str(chan).zfill(5)
-                        path = 'channel/channel%s/continuous_set' % chan_str
-                        if nsx_hdf.get(path) is not None:
-                            last_ts = len(nsx_hdf.get(path).value)
-                            fs = nsx_fs[nsx_fname[-4:]]
-                            nsx_lengths.append(last_ts / fs)
-                            
-                            break
-
-                length = max([nev_length] + nsx_lengths)
-                #### end
+                length, units = parse_blackrock_file(nev_fname)
 
                 # Blackrock units start from 0 (unlike plexon), so add 1
                 # for web interface purposes
@@ -577,7 +524,7 @@ class TaskEntry(models.Model):
 
                 js['bmi'] = dict(_neuralinfo=dict(
                     length=length, 
-                    units=units, 
+                    units=units,
                     name=name,
                     is_seed=int(Exp.is_bmi_seed),
                     ))    
@@ -588,11 +535,13 @@ class TaskEntry(models.Model):
                 import traceback
                 traceback.print_exc()
                 js['bmi'] = dict(_neuralinfo=None)
+        elif config.recording_sys['make'] == 'TDT':
+            raise NotImplementedError("This code does not yet know how to open TDT files!")
         else:
             raise Exception('Unrecognized recording_system!')
 
 
-        for dec in Decoder.objects.filter(entry=self.id):
+        for dec in Decoder.objects.using(self._state.db).filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
         
         # include paths to any plots associated with this task entry, if offline
@@ -603,19 +552,7 @@ class TaskEntry(models.Model):
             keyname = os.path.basename(fname).rstrip('.png')[len(str(self.id)):]
             plot_files[keyname] = os.path.join('/static', fname)
 
-        # if the juice log feature is checked, also include the snapshot of the juice if it exists
-        try:
-            juice_sys = System.objects.get(name='juice_log')
-            df = DataFile.objects.get(system=juice_sys, entry=self.id)
-            plot_files['juice'] = os.path.join(df.system.path, df.path)
-        except DataFile.DoesNotExist:
-            pass
-        except:
-            import traceback
-            traceback.print_exc()
-
         js['plot_files'] = plot_files
-
         return js
 
     @property
@@ -631,7 +568,6 @@ class TaskEntry(models.Model):
             import traceback
             traceback.print_exc()
             return 'noplxfile'
-
 
     @property
     def nev_file(self):
@@ -664,7 +600,6 @@ class TaskEntry(models.Model):
                 return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
             except:
                 return [datafile.path for datafile in q]
-
 
     @property
     def name(self):
@@ -728,7 +663,7 @@ class AutoAlignment(models.Model):
     def get(self):
         return calibrations.AutoAlign(self.name)
 
-import importlib
+
 def decoder_unpickler(mod_name, kls_name):
     if kls_name == 'StateSpaceFourLinkTentacle2D':
         kls_name = 'StateSpaceNLinkPlanarChain'
@@ -765,31 +700,101 @@ class Decoder(models.Model):
             data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
 
-        # dec = pickle.load(open(decoder_fname))
-        import cPickle
-        fh = open(decoder_fname, 'r')
-        unpickler = cPickle.Unpickler(fh)
-        unpickler.find_global = decoder_unpickler
-        dec = unpickler.load() # object will now contain the new class path reference
-        fh.close()
+        if os.path.exists(decoder_fname):
+            fh = open(decoder_fname, 'r')
+            unpickler = cPickle.Unpickler(fh)
+            unpickler.find_global = decoder_unpickler
+            dec = unpickler.load() # object will now contain the new class path reference
+            fh.close()
 
-        dec.name = self.name
-        return dec        
+            dec.name = self.name
+            return dec
+        else: # file not present!
+            return None
 
     def get(self):
         return self.load()
-        # sys = System.objects.get(name='bmi').path
-        # return cPickle.load(open(os.path.join(sys, self.path)))
 
     def to_json(self):
         dec = self.get()
-        return dict(
-            name=self.name,
-            cls=dec.__class__.__name__,
-            path=self.path, 
-            units=dec.units,
-            binlen=dec.binlen,
-            tslice=dec.tslice)
+        if dec is None:
+            return dict(name=self.name, path=self.path)
+        else:
+            return dict(
+                name=self.name,
+                cls=dec.__class__.__name__,
+                path=self.path, 
+                units=dec.units,
+                binlen=dec.binlen,
+                tslice=dec.tslice)
+
+def parse_blackrock_file(nev_fname):
+    '''
+    # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
+    # this code goes through the spike_set for each channel in order to:
+    #  1) determine the last timestamp in the file
+    #  2) create a list of units that had spikes in this file
+    '''
+    nev_hdf_fname = nev_fname + '.hdf'
+
+    if not os.path.isfile(nev_hdf_fname):
+        import subprocess
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+    
+    import h5py
+    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+    last_ts = 0
+    units = []
+
+    for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
+        if 'spike_set' in nev_hdf.get('channel/' + key).keys():
+            spike_set = nev_hdf.get('channel/' + key + '/spike_set')
+            if spike_set is not None:
+                tstamps = spike_set.value['TimeStamp']
+                if len(tstamps) > 0:
+                    last_ts = max(last_ts, tstamps[-1])
+
+                channel = int(key[-5:])
+                for unit_num in np.sort(np.unique(spike_set.value['Unit'])):
+                    units.append((channel, int(unit_num)))
+
+    fs = 30000.
+    nev_length = last_ts / fs
+
+    nsx_fs = dict()
+    nsx_fs['.ns1'] = 500
+    nsx_fs['.ns2'] = 1000
+    nsx_fs['.ns3'] = 2000
+    nsx_fs['.ns4'] = 10000
+    nsx_fs['.ns5'] = 30000
+    nsx_fs['.ns6'] = 30000
+
+    NSP_channels = np.arange(128) + 1
+
+    nsx_lengths = []
+    for nsx_fname in self.nsx_files:
+
+        nsx_hdf_fname = nsx_fname + '.hdf'
+        if not os.path.isfile(nsx_hdf_fname):
+            # convert .nsx file to hdf file using Blackrock's n2h5 utility
+            subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+        nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+        for chan in NSP_channels:
+            chan_str = str(chan).zfill(5)
+            path = 'channel/channel%s/continuous_set' % chan_str
+            if nsx_hdf.get(path) is not None:
+                last_ts = len(nsx_hdf.get(path).value)
+                fs = nsx_fs[nsx_fname[-4:]]
+                nsx_lengths.append(last_ts / fs)
+                
+                break
+
+    length = max([nev_length] + nsx_lengths)
+    return length, units, 
+
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)

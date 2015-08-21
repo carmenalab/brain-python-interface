@@ -9,8 +9,8 @@ import numpy as np
 
 dir_lut = dict(x={0:0, -1:0, 1:1}, 
     y={0:0, -1:0, 1:1}, 
-    z={0:1, -1:1, 1:0},
-    ) # convention flipped for z-stage
+    z={0:1, -1:1, 1:0}, # convention flipped for z-stage
+) 
 
 class Positioner(object):
     def __init__(self, dev='/dev/ttyACM1'):
@@ -209,9 +209,37 @@ class Positioner(object):
         self.wake_motors()
         msg = 'c' + struct.pack('>hhh', n_steps_x, n_steps_y, n_steps_z) + '\n'
         self.port.write(msg)
-        print self.port.readline()
-        print self.port.readline()
+        movement_data = self.port.readline()
+        limit_switch_data = self.port.readline()
+
+        m = re.match(".*?: (\d+), (\d+), (\d+)", ex)
+        n_steps_actuated = map(int, [m.group(x) for x in [1,2,3]])
         self.sleep_motors()
+
+        return n_steps_actuated
+
+    def start_continuous_move(self, n_steps_x, n_steps_y, n_steps_z):
+        '''
+        Same as 'continuous_move', but without blocking for a response/movement to finish before the function returns
+        '''
+        self.wake_motors()
+        msg = 'c' + struct.pack('>hhh', n_steps_x, n_steps_y, n_steps_z) + '\n'
+        self.port.write(msg)
+
+        self.motor_dir = np.array([np.sign(n_steps_x), np.sign(n_steps_y), np.sign(n_steps_z)])
+
+    def end_continuous_move(self):
+        '''
+        Cleanup part of 'continuous_move' after 'start_continuous_move' has been called
+        '''
+        movement_data = self.port.readline()
+        limit_switch_data = self.port.readline()
+
+        m = re.match(".*?: (\d+), (\d+), (\d+)", ex)
+        n_steps_actuated = map(int, [m.group(x) for x in [1,2,3]])
+        self.sleep_motors()
+
+        return n_steps_actuated
 
     def calibrate(self, n_runs):
         '''
@@ -234,6 +262,156 @@ class Positioner(object):
             time.sleep(2)
             
         return n_steps_min_to_max, n_steps_max_to_min
+
+    def data_available(self):
+        return self.port.inWaiting()
+
+from riglib.experiment import Experiment, FSMTable, StateTransitions
+class PositionerTaskController(Experiment):
+    '''
+    Interface between the positioner and the task interface. The positioner should run asynchronously
+    so that the task event loop does not have to wait for a serial port response from the microcontroller.
+    '''
+
+    status = FSMTable(
+        go_to_origin = StateTransitions(microcontroller_done='wait')
+        wait = StateTransitions(start_trial='move_target'),
+        move_target = StateTransitions(microcontroller_done='reach'),
+        reach = StateTransitions(time_expired='reward'),
+        reward = StateTransitions(time_expired='wait'),
+    )
+
+    sequence_generators = ['random_target']
+
+    @staticmethod
+    def random_target(length=100):
+        raise NotImplementedError
+
+    def __init__(self, *args, **kwargs, positioner_dev='/dev/ttyACM1', 
+        x_cm_per_rev=12, y_cm_per_rev=12, z_cm_per_rev=7.6, x_step_size=1./4, y_step_size=1./4, z_step_size=1./4):
+        '''
+        Constructor for PositionerTaskController
+
+        Parameters
+        ----------
+        # x_len : float
+        #     measured distance the positioner can travel in the x-dimension
+        # y_len : float
+        #     measured distance the positioner can travel in the y-dimension
+        # z_len : float
+        #     measured distance the positioner can travel in the z-dimension
+        dev : str, optional, default=/dev/ttyACM1
+            Serial port to use to communicate with Arduino controller
+        x_cm_per_rev : int, optional, default=12
+            Number of cm traveled for one full revolution of the stepper motors in the x-dimension
+        y_cm_per_rev : int, optional, default=12
+            Number of cm traveled for one full revolution of the stepper motors in the y-dimension
+        z_cm_per_rev : float, optional, default=7.6
+            Number of cm traveled for one full revolution of the stepper motors in the z-dimension
+        x_step_size : float, optional, default=0.25
+            Microstepping mode in the x-dimension
+        y_step_size : float, optional, default=0.25
+            Microstepping mode in the y-dimension
+        z_step_size : float, optional, default=0.25
+            Microstepping mode in the z-dimension
+    
+        Returns
+        -------
+        PositionerTaskController instance
+        '''
+        self.loc = np.ones(3) * np.nan # position of the target relative to origin is unknown until the origin limit switches are hit
+        self.pos_uctrl_iface = Positioner(dev=positioner_dev)
+        self.pos_uctrl_iface.sleep_motors()
+
+        self.steps_from_origin = np.ones(3) * np.nan # cumulative number of steps taken from the origin. Unknown until the origin limit switches are hit.
+        self.step_size = np.array([x_step_size, y_step_size, z_step_size], dtype=np.float64)
+        self.cm_per_rev = np.array([x_cm_per_rev, y_cm_per_rev, z_cm_per_rev], dtype=np.float64)
+
+        self.full_steps_per_rev = 200.
+
+        super(PositionerTaskController, self).__init__(self, )
+
+    ##### Helper functions #####
+    def _calc_steps_to_pos(self, target_pos):
+        displ_cm = target_pos - self.loc
+
+        # compute the number of steps needed to travel the desired displacement
+        displ_rev = displ_cm / self.cm_per_rev
+        displ_full_steps = displ_rev * full_steps_per_rev
+        displ_microsteps = displ_full_steps / self.step_size 
+        displ_microsteps = displ_microsteps.astype(int)
+        return displ_microsteps
+
+    def _integrate_steps(self, n_steps_actuated, signs):
+        steps_moved = n_steps_actuated * signs * step_size
+        self.steps_from_origin += steps_moved
+        self.loc += steps_moved / self.full_steps_per_rev * self.cm_per_rev
+
+    def _test_microcontroller_done(self, *args, **kwargs):
+        # check if any data has returned from the microcontroller interface
+        packet_rx = self.pos_uctrl_iface.data_available()
+
+        # remember to actually read the data out of the buffer in an '_end' function
+        return packet_rx
+
+    ##### State transition functions #####
+    def _start_go_to_origin(self):
+        self.pos_uctrl_iface.start_continuous_move(-10000, -10000, -10000)
+
+    def _end_go_to_origin(self):
+        steps_actuated = self.pos_uctrl_iface.end_continuous_move()
+
+        self.loc = np.zeros(3)
+        self.steps_from_origin = np.zeros(3)
+
+    def _start_move_target(self):
+        # calc number of steps from current pos to target pos
+        displ_microsteps = self._calc_steps_to_pos(self._gen_int_target_pos)
+
+        # send command to initiatem movement 
+        self.pos_uctrl_iface.start_continuous_move(*displ_microsteps)
+
+    def _end_move_target(self):
+        # send command to kill motors
+        steps_actuated = self.pos_uctrl_iface.end_continuous_move()
+
+
+    ### Old functions ###
+    def go_to_origin(self):
+        '''
+        Tap the origin limit switches so the absolute position of the target can be estimated. 
+        Run at initialization and/or periodically to correct for any accumulating errors.
+        '''
+        steps_moved = np.array(self.pos_uctrl_iface.continuous_move(-10000, -10000, 10000))
+        step_signs = np.array([-1, -1, 1], dtype=np.float64) * self.step_size
+
+        if not np.any(np.isnan(self.steps_from_origin)): # error accumulation correction
+            self.steps_from_origin += step_signs * steps_moved
+
+            # if no position errors were accumulated, then self.steps_from_origin should all be 0
+            acc_error = self.steps_from_origin
+            print "accumulated step errors"
+            print acc_error
+
+        self.loc = np.zeros(3)
+        self.steps_from_origin = np.zeros(3)
+
+    def go_to_position(self, target_pos):
+        if np.any(np.isnan(self.loc)):
+            raise Exception("System must be 'zeroed' before it can go to an absolute location!")
+
+        displ_cm = target_pos - self.loc
+
+        # compute the number of steps needed to travel the desired displacement
+        displ_rev = displ_cm / self.cm_per_rev
+        displ_full_steps = displ_rev * full_steps_per_rev
+        displ_microsteps = displ_full_steps / self.step_size
+
+        steps_moved = np.array(self.pos_uctrl_iface.continuous_move(*displ_microsteps))
+        steps_moved = steps_moved * np.sign(displ_microsteps) * self.step_size
+
+        self.steps_from_origin += steps_moved
+        self.loc += steps_moved / self.full_steps_per_rev * self.cm_per_rev
 
 
 from calib import *

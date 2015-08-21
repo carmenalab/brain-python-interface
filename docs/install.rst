@@ -3,19 +3,29 @@ Installation
 This document describes how to set up the BMI3D code for use in
 neurophysiology experiments. 
 
-System architecture
--------------------
+Downloading the software
+------------------------
+The software should reside at the path $HOME/code/bmi3d, where $HOME is your home directory (this should be a variable already defined in your bash environment). If the bmi3d path does not already exist, create it by executing the commands::
+
+    mkdir $HOME/code
+    cd $HOME/code
+    git clone https://github.com/carmenalab/brain-python-interface.git bmi3d
+
+This will also clone the core software in the repository and put it in the appropriately named folder
 
 
 Setting up the operating system
-------------
-The bmi3d software is written primarily in Python. However it has
-only been tested in operation in Ubuntu linux. We recommend specifically
-using Ubuntu 12.04 LTS with kernel version 3.2.*-*. The version of
+-------------------------------
+The bmi3d software is written primarily in Python. It has
+primarily been tested in operation in Ubuntu linux, though some testing has been
+done for CentOS 6. Ubuntu is substantially easier to set up, and these instructions 
+are geared toward an Ubuntu setup. 
+
+If you are using the NI6503 card to send digital data, we recommend specifically
+using Ubuntu 12.04 LTS with kernel version 3.2.x-x. The version of
 Ubuntu may not be very important, but the specific kernel version 
-is important because the card used to send digital data to the neural
-recording box uses a 3rd party driver that does not seem to work in 
-kernel version 3.11.*-*. 
+is important *if you are using the NI6503 card to send digital data*.
+If you are using an arduino microcontroller, you can skip this step. 
 
 The instructions below are intended for a clean install of Ubuntu. If 
 you do not do this on a clean installation, you must be careful with
