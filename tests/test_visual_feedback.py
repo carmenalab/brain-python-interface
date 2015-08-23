@@ -3,17 +3,14 @@ Test script to run the visual feedback task from the command line.
 After the task is finished running, a database record is created and saved and 
 the corresponding HDF file is linked.
 '''
-from db import dbfunctions
-from db import json_param
-from db.tracker import models
+from db import dbfunctions, json_param
+from db.tracker import models, dbq
 
 from riglib import experiment
 from features.generator_features import Autostart
 from features.hdf_features import SaveHDF
 from riglib.experiment import generate
 
-from tasks.manualcontrolmultitasks import ManualControlMulti
-from analysis import performance
 
 # Tell linux to use Display 0 (the monitor physically attached to the 
 # machine. Otherwise, if you are connected remotely, it will try to run 
@@ -21,63 +18,65 @@ from analysis import performance
 import os
 os.environ['DISPLAY'] = ':0'
 
-save = 0
-
-task = models.Task.objects.get(name='visual_feedback_multi')
-base_class = task.get()
-
-import matplotlib.pyplot as plt
-
-class Debugging(object):
-    def __init__(self, *args, **kwargs):
-        super(Debugging, self).__init__(*args, **kwargs)
-
-    def init(self):
-        super(Debugging, self).init()
-
-    def _start_reward(self, *args, **kwargs):
-        print "starting reward!"
-        super(Debugging, self)._start_reward(*args, **kwargs)
+def consolerun(base_class='', feats=[], exp_params=dict(), gen_fn=None, gen_params=dict()):
+    if isinstance(base_class, (str, unicode)):
+        # assume that it's the name of a task as stored in the database
+        base_class = models.Task.objects.get(name=base_class).get()
     
-    def _cycle(self):
-        #print self.arm.get_endpoint_pos()
-        super(Debugging, self)._cycle()
+    for k, feat in enumerate(feats):
+        # assume that the feature is input as the name of a feature already known to the database
+        if isinstance(feat, (str, unicode)):
+            feats[k] = models.Feature.objects.get(name=feat).get()
 
+    # Run the pseudo-metaclass constructor
+    Exp = experiment.make(base_class, feats=feats)
 
-feats = [SaveHDF, Autostart]
-Exp = experiment.make(base_class, feats=feats)
+    # create the sequence of targets
+    if gen_fn is None: gen_fn = Exp.default_seq_generator
+    targ_seq = gen_fn(**gen_params)
 
-#params.trait_norm(Exp.class_traits())
-params = dict(session_length=10, plant_visible=True, plant_type='cursor_14x14', 
-        rand_start=(0.,0.), max_tries=1)
+    # instantiate the experiment FSM
+    exp = Exp(targ_seq, **exp_params)
 
-targ_seq_params = dict(nblocks=1, ntargets=8, boundaries=(-18,18,-12,12), distance=10)
-targ_seq = ManualControlMulti.centerout_2D_discrete(**targ_seq_params)
+    # run!
+    exp.run_sync()
 
-# Save sequence to database
-gen_rec = models.Generator.objects.get(name='centerout_2D_discrete')
-seq_rec = models.Sequence(task=task, generator=gen_rec, name='center_out_testing', params=json_param.Parameters.from_dict(targ_seq_params).to_json())
+consolerun(base_class='machine_control', feats=['SaveHDF', 'Autostart'], 
+    exp_params=dict(session_length=10, plant_visible=True, plant_type='cursor_14x14', rand_start=(0.,0.), max_tries=1), 
+    gen_params=dict(nblocks=1)
+)
 
-# Turn target sequence into a generator
-gen = generate.runseq(Exp, seq=targ_seq)
-exp = Exp(gen, **params)
+# task = models.Task.objects.get(name='machine_control')
+# base_class = task.get()
 
-exp.init()
-exp.run()
+# feats = [SaveHDF, Autostart]
+# Exp = experiment.make(base_class, feats=feats)
 
+# params = 
+
+# # create the sequence of targets
+# targ_seq_params = dict(nblocks=1, ntargets=8, boundaries=(-18,18,-12,12), distance=10)
+# targ_seq = base_class.centerout_2D_discrete(**targ_seq_params)
+
+# exp = Exp(targ_seq, **params)
+
+# ## Run the task
+# exp.run_sync()
+
+save = 0
 if save:
+    # Save sequence to database
+    gen_rec = models.Generator.objects.get(name='centerout_2D_discrete')
+    seq_rec = models.Sequence(task=task, generator=gen_rec, name='center_out_testing', params=json_param.Parameters.from_dict(targ_seq_params).to_json())
+
     seq_rec.save()
 
-    from db import dbfunctions
-    from db.tracker import models
-    from db.tracker import dbq
-    from json_param import Parameters
-    params_obj = Parameters.from_dict(params)
+    params_obj = json_param.Parameters.from_dict(params)
     
     te = models.TaskEntry()
     subj = models.Subject.objects.get(name='Testing')
     te.subject = subj
-    te.task = models.Task.objects.get(name='visual_feedback_multi')
+    te.task = models.Task.objects.get(name='machine_control')
     te.params = params_obj.to_json()
 
     te.sequence_id = seq_rec.id
