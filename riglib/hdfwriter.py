@@ -16,7 +16,8 @@ class MsgTable(tables.IsDescription):
 
 class HDFWriter(object):
     ''' 
-    Used by the SaveHDF sink (features.hdf_features.SaveHDF) to save data to an HDF file online (as opposed to batch-mode saving all at once) 
+    Used by the SaveHDF feature (features.hdf_features.SaveHDF) to save data 
+    to an HDF file in "real-time", as the task is running
     '''
     def __init__(self, filename):
         '''

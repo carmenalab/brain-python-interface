@@ -1086,7 +1086,22 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
     '''
     feature_type = 'spike_counts'
     def __init__(self, hdf_table, source='spike_counts', cycle_rate=60.0, units=[]):
-        '''    Docstring    '''
+        '''
+        Parameters
+        ----------
+        hdf_table : HDF table
+            Data table to replay. Usually the 'task' table. 
+        source : string, optional, default=spike_counts
+            Column of the HDF table to replay
+        cycle_rate : float, optional, default=60.0
+            Rate at which the task FSM "cycles", i.e., the rate at which the task will ask for new observations
+        units : iterable, optional, default=[]
+            Names (channel, unit) of the units. If none specified, some fake names are created
+    
+        Returns
+        -------
+        ReplaySpikeCountsExtractor instance
+        '''
         self.idx = 0
         self.hdf_table = hdf_table
         self.source = source
@@ -1129,7 +1144,9 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         return self.hdf_table[self.idx]['bin_edges']
 
     def __call__(self, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        See BinnedSpikeCountsExtractor.__call__ for documentation
+        '''
         output = super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
         if not np.array_equal(output['spike_counts'], self.hdf_table[self.idx][self.source]):
             print "spike binning error: ", self.idx
@@ -1141,54 +1158,35 @@ class ReplayLFPPowerExtractor(BinnedSpikeCountsExtractor):
     A "feature extractor" that replays LFP power estimates from an HDF file
     '''
     feature_type = 'lfp_power'
-    def __init__(self, hdf_table, source='lfp_power', cycle_rate=60.0, units=[]):
-        '''    Docstring    '''
+    def __init__(self, hdf_table, source='lfp_power'):
+        '''    
+        Constructor for ReplayLFPPowerExtractor
+
+        Parameters
+        ----------
+        hdf_table : HDF table
+            Data table to replay. Usually the 'task' table. 
+        source : string, optional, default=spike_counts
+            Column of the HDF table to replay
+    
+        Returns
+        -------
+        ReplayLFPPowerExtractor instance
+        '''
         self.idx = 0
         self.hdf_table = hdf_table
         self.source = source
-        self.units = units
         self.n_subbins = hdf_table[0][source].shape[1]
         self.last_get_spike_counts_time = 0
-        self.cycle_rate = cycle_rate
 
         n_units = hdf_table[0][source].shape[0]
-        self.feature_dtype = [('lfp_power', 'f8', (n_units, self.n_subbins)), 
-                              ]
-
-    def get_spike_ts(self):
-        '''
-        Make up fake timestamps to go with the spike counts extracted from the HDF file
-        '''
-        # Get counts from HDF file
-        counts = self.hdf_table[self.idx][self.source]
-        n_subbins = counts.shape[1]
-
-        # Convert counts to timestamps between (self.idx*1./cycle_rate, (self.idx+1)*1./cycle_rate)
-        # NOTE: this code is mostly copied from riglib.bmi.sim_neurons.CLDASimPointProcessEnsemble
-        ts_data = []
-        cycle_rate = self.cycle_rate
-        for k in range(n_subbins):
-            fake_time = (self.idx - 1) * 1./cycle_rate + (k + 0.5)*1./cycle_rate*1./n_subbins
-            nonzero_units, = np.nonzero(counts[:,k])
-            for unit_ind in nonzero_units:
-                n_spikes = counts[unit_ind, k]
-                for m in range(n_spikes):
-                    ts = (fake_time, self.units[unit_ind, 0], self.units[unit_ind, 1], fake_time)
-                    ts_data.append(ts)
-
-        return np.array(ts_data, dtype=ts_dtype_new)
-
-    def get_bin_edges(self, ts):
-        '''
-        Get the first and last timestamp of spikes in the current "bin" as saved in the HDF file
-        '''
-        return self.hdf_table[self.idx]['bin_edges']
+        self.feature_dtype = [('lfp_power', 'f8', (n_units, self.n_subbins)), ]
 
     def __call__(self, *args, **kwargs):
-        '''    Docstring    '''
-        output = self.hdf_table[self.idx][self.source] #super(ReplaySpikeCountsExtractor, self).__call__(*args, **kwargs)
-        # if not np.array_equal(output['spike_counts'], self.hdf_table[self.idx][self.source]):
-        #     print "spike binning error: ", self.idx
+        '''    
+        See BinnedSpikeCountsExtractor.__call__ for documentation
+        '''
+        output = self.hdf_table[self.idx][self.source]
         self.idx += 1 
         return dict(lfp_power=output)
 
