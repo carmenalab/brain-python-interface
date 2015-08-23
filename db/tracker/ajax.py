@@ -55,7 +55,7 @@ def _respond(data):
     '''
     return HttpResponse(json.dumps(data, cls=encoder), mimetype="application/json")
 
-def task_info(request, idx):
+def task_info(request, idx, dbname='default'):
     '''
     Get information about the task
 
@@ -70,8 +70,8 @@ def task_info(request, idx):
     -------
     JSON-encoded dictionary
     '''
-    task = Task.objects.get(pk=idx)
-    feats = [Feature.objects.get(name=name) for name, isset in request.GET.items() if isset == "true"]
+    task = Task.objects.using(dbname).get(pk=idx)
+    feats = [Feature.objects.using(dbname).get(name=name) for name, isset in request.GET.items() if isset == "true"]
     task_info = dict(params=task.params(feats=feats))
 
     if issubclass(task.get(feats=feats), experiment.Sequence):
@@ -79,7 +79,7 @@ def task_info(request, idx):
 
     return _respond(task_info)
 
-def exp_info(request, idx):
+def exp_info(request, idx, dbname='default'):
     '''
     Get information about the task
 
@@ -95,8 +95,8 @@ def exp_info(request, idx):
     JSON-encoded dictionary 
         Data containing features, parameters, and any report data from the TaskEntry
     '''
-    print idx
-    entry = TaskEntry.objects.get(pk=idx)
+    print idx, dbname
+    entry = TaskEntry.objects.using(dbname).get(pk=idx)
     return _respond(entry.to_json())
 
 def hide_entry(request, idx):
