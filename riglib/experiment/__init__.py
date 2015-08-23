@@ -15,8 +15,7 @@ except ImportError:
 import experiment
 import generate
 import report
-from experiment import Experiment, LogExperiment, Sequence, TrialTypes
-import logging
+from experiment import Experiment, LogExperiment, Sequence, TrialTypes, FSMTable, StateTransitions
 
 try:
     from Pygame import Pygame
@@ -27,15 +26,21 @@ except:
 
 def make(exp_class, feats=()):
     '''
-    Docstring
+    Creates a class which inherits from a base experiment class as well as a set of optional features.
+    This function is a *metafunction* as it returns a custom class construction.
 
     Parameters
     ----------
+    exp_class : class
+        Base class containing the finite state machine of the task
+    feats : iterable of classes
+        Additional classes from which to also inherit
 
     Returns
     -------
+    class
+        New class which inherits from the base 'exp_class' and the selected 'feats'
     '''
-    logging.info('experiment.make: %s, %s\n' % (exp_class, feats))
     # construct the class list to define inheritance order for the custom task
     # inherit from the features first, then the base class
     clslist = tuple(feats) + (exp_class,)

@@ -11,6 +11,7 @@ import collections
 import re
 import os
 import tables
+import traceback
 
 import numpy as np
 from . import traits
@@ -25,6 +26,48 @@ except ImportError:
 min_per_hour = 60.
 sec_per_min = 60.
 
+class FSMTable(object):
+    def __init__(self, **kwargs):
+        self.states = dict()
+        for state_name, transitions in kwargs.items():
+            self.states[state_name] = transitions
+
+    def __getitem__(self, key):
+        return self.states[key]
+
+    def get_possible_state_transitions(self, current_state):
+        return self.states[current_state].items()
+
+    def _lookup_next_state(self, current_state, transition_event):
+        return self.states[current_state][transition_event]
+
+    @staticmethod
+    def construct_from_dict(status):
+        for state in status:
+            status[state] = StateTransitions(stoppable=False, **status[state])
+        return FSMTable(**status)
+
+
+class StateTransitions(object):
+    def __init__(self, stoppable=True, **kwargs):
+        self.state_transitions = dict()
+        for event, next_state in kwargs.items():
+            self.state_transitions[event] = next_state
+
+        if stoppable and not ('stop' in self.state_transitions):
+            self.state_transitions['stop'] = None
+
+    def __getitem__(self, key):
+        return self.state_transitions[key]
+
+    def __iter__(self):
+        transition_events = self.state_transitions.keys()
+        return transition_events.__iter__()
+
+    def items(self):
+        return self.state_transitions.items()
+
+
 class Experiment(traits.HasTraits, threading.Thread):
     '''
     Common ancestor of all task/experiment classes
@@ -36,6 +79,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         penalty = dict(post_penalty="wait"),
     )
 
+    # For analysis purposes, it's useful to declare which task states are "terminal" states and signify the end of a trial
+    trial_end_states = []
+
     # Set the initial state to 'wait'. The 'wait' state has special behavior for the Sequence class (see below)
     state = "wait"
 
@@ -44,6 +90,9 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     # Rate at which FSM is called. Set to 60 Hz by default to match the typical monitor update rate
     fps = 60 # Hz
+
+    # set this flag to true if certain things should only happen in debugging mode
+    debug = False
 
     ## GUI/database-related attributes
     # Flag to specify if you want to be able to create a BMI Decoder object from the web interface
@@ -57,38 +106,13 @@ class Experiment(traits.HasTraits, threading.Thread):
     # Runtime settable traits
     session_length = traits.Float(0, desc="Time until task automatically stops. Length of 0 means no auto stop.")
 
-    def __init__(self, **kwargs):
+    @property 
+    def update_rate(self):
         '''
-        Constructor for Experiment
-
-        Parameters
-        ----------
-        kwargs: dictionary
-            Keyword arguments to be passed to the traits.HasTraits parent.
-
-        Returns
-        -------
-        Experiment instance
+        Attribute for update rate of task. Using @property in case any future modifications
+        decide to change fps on initialization
         '''
-        traits.HasTraits.__init__(self, **kwargs)
-        threading.Thread.__init__(self)
-        self.task_start_time = self.get_time()
-        self.reportstats = collections.OrderedDict()
-        self.reportstats['State'] = None #State stat is automatically updated for all experiment classes
-        self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
-        self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
-        self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
-
-        # Attribute for task entry dtype, used to create a numpy record array which is updated every iteration of the FSM
-        # See http://docs.scipy.org/doc/numpy/user/basics.rec.html for details on how to create a record array dtype
-        self.dtype = []
-
-        self.cycle_count = 0
-        self.clock = pygame.time.Clock()
-
-        self.pause = False
-
-        print "finished executing Experiment.__init__"
+        return 1./self.fps        
 
     @classmethod
     def class_editable_traits(cls):
@@ -136,30 +160,53 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         return trait in cls.hidden_traits
 
-    @property 
-    def update_rate(self):
+    ####################################
+    ##### Initialization functions #####
+    ####################################
+    @classmethod 
+    def pre_init(cls, **kwargs):
         '''
-        Attribute for update rate of task. Using @property in case any future modifications
-        decide to change fps on initialization
+        Jobs to do before creating the task object go here (or this method should be overridden in child classes)
         '''
-        return 1./self.fps        
+        print 'running experiment.Experiment.pre_init'
+        pass
 
-    def start(self):
+    def __init__(self, **kwargs):
         '''
-        From the python docs on threading.Thread:
-            Once a thread object is created, its activity must be started by 
-            calling the thread's start() method. This invokes the run() method in a 
-            separate thread of control.
+        Constructor for Experiment
 
-        Prior to the thread's start method being called, the secondary init function (self.init) is executed.
-        After the threading.Thread.start is executed, the 'run' method is executed automatically in a separate thread.
+        Parameters
+        ----------
+        kwargs: dictionary
+            Keyword arguments to be passed to the traits.HasTraits parent.
 
         Returns
         -------
-        None
+        Experiment instance
         '''
-        self.init()
-        super(Experiment, self).start()
+        traits.HasTraits.__init__(self, **kwargs)
+        threading.Thread.__init__(self)
+        self.task_start_time = self.get_time()
+        self.reportstats = collections.OrderedDict()
+        self.reportstats['State'] = None #State stat is automatically updated for all experiment classes
+        self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
+        self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
+        self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
+
+        # If the FSM is set up in the old style (explicit dictionaries instead of wrapper data types), convert to the newer FSMTable
+        if isinstance(self.status, dict):
+            self.status = FSMTable.construct_from_dict(self.status)
+
+        # Attribute for task entry dtype, used to create a numpy record array which is updated every iteration of the FSM
+        # See http://docs.scipy.org/doc/numpy/user/basics.rec.html for details on how to create a record array dtype
+        self.dtype = []
+
+        self.cycle_count = 0
+        self.clock = pygame.time.Clock()
+
+        self.pause = False
+
+        print "finished executing Experiment.__init__"
 
     def init(self):
         '''
@@ -178,22 +225,19 @@ class Experiment(traits.HasTraits, threading.Thread):
             self.dtype = np.dtype(self.dtype)
             self.task_data = np.zeros((1,), dtype=self.dtype)
         except:
-            print "Error registering 'task' sink"
-            import traceback
+            print "Error creating the task_data record array"
             traceback.print_exc()            
             print self.dtype
             self.task_data = None
 
-        if not hasattr(self, 'sinks'):
+        # Register the "task" source with the sinks
+        if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
             from riglib import sink
             self.sinks = sink.sinks
 
-        # Register the "task" source with the sinks
         try:
             self.sinks.register("task", self.dtype)
-
         except:
-            import traceback
             traceback.print_exc()            
             raise Exception("Error registering task source")
 
@@ -212,6 +256,26 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         pass
 
+    ###############################
+    ##### Threading functions #####
+    ###############################
+    def start(self):
+        '''
+        From the python docs on threading.Thread:
+            Once a thread object is created, its activity must be started by 
+            calling the thread's start() method. This invokes the run() method in a 
+            separate thread of control.
+
+        Prior to the thread's start method being called, the secondary init function (self.init) is executed.
+        After the threading.Thread.start is executed, the 'run' method is executed automatically in a separate thread.
+
+        Returns
+        -------
+        None
+        '''
+        self.init()
+        super(Experiment, self).start()
+
     def run(self):
         '''
         Generic method to run the finite state machine of the task. Code that needs to execute 
@@ -228,41 +292,102 @@ class Experiment(traits.HasTraits, threading.Thread):
         close the socket whether or not the main loop executes properly so that you don't loose the 
         reference to the socket. 
         '''
+
+        ## Initialize the FSM before the loop
         self.screen_init()
         self.set_state(self.state)
         self.reportstats['State'] = self.state
         
+        # def _tick():
+        #     if hasattr(self, "_while_%s" % self.state):
+        #         getattr(self, "_while_%s" % self.state)()
+
+        #     # Execute the commands which must run every loop, independent of the FSM state
+        #     # (e.g., running the BMI)
+        #     self._cycle()
+            
+        #     for event, state in self.status.get_possible_state_transitions(self.state):
+        #         event_test_fn_name = "_test_%s" % event
+        #         if hasattr(self, event_test_fn_name):
+        #             event_test_fn = getattr(self, event_test_fn_name)
+        #             time_since_state_started = self.get_time() - self.start_time
+
+        #             # If the test function evaluates to True, 
+        #             if event_test_fn(time_since_state_started):
+        #                 end_state_fn_name = "_end_%s" % self.state
+        #                 if hasattr(self, end_state_fn_name):
+        #                     end_state_fn = getattr(self, end_state_fn_name)
+        #                     end_state_fn()
+
+        #                 # Execute the event. In the base class, this means changing the state to the next state
+        #                 self.trigger_event(event)
+        #                 break
+        #         else:
+        #             pass
+
         while self.state is not None:
-            try:
-                if hasattr(self, "_while_%s"%self.state):
-                    getattr(self, "_while_%s"%self.state)()
+            if self.debug: 
+                # allow ungraceful termination if in debugging mode so that pdb 
+                # can catch the exception in the appropriate place
+                self.fsm_tick()
+            else:
+                # in "production" mode (not debugging), try to capture & log errors gracefully
+                try:
+                    self.fsm_tick()
+                except:
+                    traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
+                    self.state = None
 
-                # Execute the commands which must run every loop, independent of the FSM state
-                # (e.g., running the BMI)
-                self._cycle()
-                
-                for event, state in self.status[self.state].items():
-                    event_test_fn_name = "_test_%s" % event
-                    if hasattr(self, event_test_fn_name):
-                        event_test_fn = getattr(self, event_test_fn_name)
-                        time_since_state_started = self.get_time() - self.start_time
+    ###########################################################
+    ##### Finite state machine (FSM) transition functions #####
+    ###########################################################
+    def fsm_tick(self):
+        # Execute commands
+        self.exec_state_specific_actions(self.state)
 
-                        # If the test function evaluates to True, 
-                        if event_test_fn(time_since_state_started):
-                            end_state_fn_name = "_end_%s" % self.state
-                            if hasattr(self, end_state_fn_name):
-                                end_state_fn = getattr(self, end_state_fn_name)
-                                end_state_fn()
+        # Execute the commands which must run every loop, independent of the FSM state
+        # (e.g., running the BMI)
+        self._cycle()
 
-                            # Execute the event. In the base class, this means changing the state to the next state
-                            self.trigger_event(event)
-                            break
-                    else:
-                        pass
-                        # print "missing fn: ", event_test_fn_name
-            except:
-                traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
-                self.state = None
+        current_state = self.state
+
+        # iterate over the possible events which could move the task out of the current state
+        for event in self.status[current_state]:
+            if self.test_state_transition_event(event): # if the event has occurred
+                # execute commands to end the current state
+                self.end_state(current_state)
+
+                # trigger the transition for the event
+                self.trigger_event(event)
+
+                # stop searching for transition events (transition events must be 
+                # mutually exclusive for this FSM to function properly)
+                break
+
+    def test_state_transition_event(self, event):
+        event_test_fn_name = "_test_%s" % event
+        if hasattr(self, event_test_fn_name):
+            event_test_fn = getattr(self, event_test_fn_name)
+            time_since_state_started = self.get_time() - self.start_time
+            return event_test_fn(time_since_state_started)
+        else:
+            return False
+
+    def end_state(self, state):
+        end_state_fn_name = "_end_%s" % state
+        if hasattr(self, end_state_fn_name):
+            end_state_fn = getattr(self, end_state_fn_name)
+            end_state_fn()
+
+    def start_state(self, state):
+        state_start_fn_name = "_start_%s" % state
+        if hasattr(self, state_start_fn_name):
+            state_start_fn = getattr(self, state_start_fn_name)
+            state_start_fn()
+
+    def exec_state_specific_actions(self, state):
+        if hasattr(self, "_while_%s" % state):
+            getattr(self, "_while_%s" % state)()
 
     def trigger_event(self, event):
         '''
@@ -302,10 +427,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         # Update the report for the GUI
         self.update_report_stats()
 
-        state_start_fn_name = "_start_%s" % condition
-        if hasattr(self, state_start_fn_name):
-            state_start_fn = getattr(self, state_start_fn_name)
-            state_start_fn()
+        self.start_state(condition)
 
     def get_time(self):
         '''
@@ -317,18 +439,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         float: The current time in seconds
         '''
         return time.time()
-
-    def _start_STATENAME(self):
-        pass
-
-    def _while_STATENAME(self):
-        pass
-
-    def _test_FAKEEVENT(self):
-        pass
-
-    def _end_STATENAME(self):
-        pass
 
     def _cycle(self):
         '''
@@ -351,12 +461,13 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.last_time = start_time
         return loop_time
 
+    ##############################
+    ##### FSM test functions #####
+    ##############################
     def _test_stop(self, ts):
         ''' 
         FSM 'test' function. Returns the 'stop' attribute of the task
         '''
-        # with open('/home/lab/code/bmi3d/log/exp_class_log', 'w') as f:
-        #     f.write('stuff')
         if self.session_length > 0 and (self.get_time() - self.task_start_time) > self.session_length:
             self.end_task()
         return self.stop
@@ -375,6 +486,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         assert isinstance(state_time, (float, int))
         return ts > state_time
 
+    ############################
+    ##### Report functions #####
+    ############################
     @classmethod
     def _time_to_string(cls, sec):
         '''
@@ -447,7 +561,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         None
         '''
         print "experimient.Experiment.cleanup executing"
-        pass
     
     def cleanup_hdf(self):
         ''' 
@@ -471,14 +584,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         End the FSM gracefully on the next iteration by setting the task's "stop" flag.
         '''
         self.stop = True
-
-    @classmethod 
-    def pre_init(cls, **kwargs):
-        '''
-        Jobs to do before creating the task object go here (or this method should be overridden in child classes)
-        '''
-        print 'running experiment.Experiment.pre_init'
-        pass
 
     def terminate(self):
         '''
@@ -506,7 +611,6 @@ class LogExperiment(Experiment):
         Returns
         -------
         LogExperiment instance
-
         '''
         self.state_log = []
         self.event_log = []
@@ -514,13 +618,8 @@ class LogExperiment(Experiment):
     
     def trigger_event(self, event):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        see riglib.Experiment.trigger_event for description.
+        Saves a history of state transitions before executing the event
         '''
         log = (self.state, event) not in self.log_exclude
         if log:  
@@ -529,13 +628,8 @@ class LogExperiment(Experiment):
 
     def set_state(self, condition, log=True):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        see riglib.Experiment.set_state for description.
+        Saves the sequence of entered states before executing the parent's 'set_state'
         '''
         if log:
             self.state_log.append((condition, self.get_time()))
@@ -546,18 +640,7 @@ class LogExperiment(Experiment):
         Commands to execute at the end of a task. 
         Save the task event log to the database
 
-        Parameters
-        ----------
-        database : object
-            Needs to have the methods save_bmi, save_data, etc. For instance, the db.tracker.dbq module or an RPC representation of the database
-        saveid : int
-            TaskEntry database record id to link files/data to
-        kwargs : optional dict arguments
-            Optional arguments to dbq methods. kwargs cannot be used when database is an RPC object.
-
-        Returns
-        -------
-        None
+        see riglib.Experiment.cleanup for argument descriptions
         '''
         print "experiment.LogExperiment.cleanup"
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
@@ -670,7 +753,9 @@ class Sequence(LogExperiment):
 
 
 class TrialTypes(Sequence):
-    ''' Docstring '''
+    '''
+    This module is deprecated, used by some older tasks (dots, rds)
+    '''
     trial_types = []
         
     status = dict(
@@ -680,15 +765,6 @@ class TrialTypes(Sequence):
     )
 
     def __init__(self, gen, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         super(TrialTypes, self).__init__(gen, **kwargs)
         assert len(self.trial_types) > 0
 
@@ -701,25 +777,7 @@ class TrialTypes(Sequence):
             #setattr(self, "_end_%s"%ttype, self._end_trial)
     
     def _start_picktrial(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.set_state(self.next_trial)
     
     def _start_incorrect(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.set_state("penalty")
