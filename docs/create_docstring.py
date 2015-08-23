@@ -1,5 +1,6 @@
 import string
 import inspect
+import re
 
 def parse_str(args_and_kwargs):
     args_and_kwargs = args_and_kwargs.split(',')
@@ -7,6 +8,12 @@ def parse_str(args_and_kwargs):
     args = filter(lambda x: not '=' in x, args_and_kwargs)
     kwargs = [kwarg.split('=') for kwarg in kwargs]
     return _parse(args, kwargs)
+
+def _parse_type(s):
+    s = str(s)
+    m = re.match("<type '(\w+)'>", s)
+    return m.group(1)
+
 
 def _parse(args, kwargs, varargs=None, keywords=None, offset=''):
     ds = '''
@@ -17,18 +24,18 @@ def _parse(args, kwargs, varargs=None, keywords=None, offset=''):
 '''
 
     # Not sure why this hack is necessary...
-    ds += ' '
+    # ds += ' '
     for arg in args:
         if arg == 'self':
             continue
-        ds += '''   %s : DATA_TYPE
+        ds += '''    %s : DATA_TYPE
         ARG_DESCR
 ''' % arg
 
     for arg, default in kwargs:
-        ds += '''   %s : DATA_TYPE, optional, default=%s
+        ds += '''    %s : %s, optional, default=%s
         ARG_DESCR
-''' % (arg, default)
+''' % (arg, _parse_type(type(default)), default)
 
 
     if not (keywords is None):
