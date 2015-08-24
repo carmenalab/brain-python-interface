@@ -32,7 +32,7 @@ def consolerun(base_class='', feats=[], exp_params=dict(), gen_fn=None, gen_para
     Exp = experiment.make(base_class, feats=feats)
 
     # create the sequence of targets
-    if gen_fn is None: gen_fn = Exp.default_seq_generator
+    if gen_fn is None: gen_fn = Exp.get_default_seq_generator()
     targ_seq = gen_fn(**gen_params)
 
     # instantiate the experiment FSM
@@ -41,7 +41,7 @@ def consolerun(base_class='', feats=[], exp_params=dict(), gen_fn=None, gen_para
     # run!
     exp.run_sync()
 
-consolerun(base_class='machine_control', feats=['SaveHDF', 'Autostart'], 
+consolerun(base_class='machine_control', feats=['saveHDF', 'autostart'], 
     exp_params=dict(session_length=10, plant_visible=True, plant_type='cursor_14x14', rand_start=(0.,0.), max_tries=1), 
     gen_params=dict(nblocks=1)
 )

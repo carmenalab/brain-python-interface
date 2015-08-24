@@ -197,17 +197,18 @@ void loop() {
           Serial.print(n_steps_commanded_z, DEC);          
           Serial.println();
                   
-        }        
-        // Respond with the status of the limit switches 
-        Serial.print("Limit switches read: ");
-        Serial.print(room_to_decrease_x, DEC);
-        Serial.print(room_to_increase_x, DEC);      
-        Serial.print(room_to_decrease_y, DEC);
-        Serial.print(room_to_increase_y, DEC);
-        Serial.print(room_to_decrease_z, DEC);
-        Serial.print(room_to_increase_z, DEC);          
-        Serial.println();    
-    
+        }
+        else if (cmd == '\n') {        
+          // Respond with the status of the limit switches 
+          Serial.print("Limit switches read: ");
+          Serial.print(room_to_decrease_x, DEC);
+          Serial.print(room_to_increase_x, DEC);      
+          Serial.print(room_to_decrease_y, DEC);
+          Serial.print(room_to_increase_y, DEC);
+          Serial.print(room_to_decrease_z, DEC);
+          Serial.print(room_to_increase_z, DEC);          
+          Serial.println();    
+        }
         //inData = "";
         indata_idx = 0;
       

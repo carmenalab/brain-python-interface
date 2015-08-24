@@ -6,6 +6,9 @@ import serial
 import time
 import struct
 import numpy as np
+import re
+from riglib.experiment import Experiment, Sequence#, FSMTable, StateTransitions
+import random
 
 dir_lut = dict(x={0:0, -1:0, 1:1}, 
     y={0:0, -1:0, 1:1}, 
@@ -35,11 +38,11 @@ class Positioner(object):
 
     def wake_motors(self):
         self.port.write('w\n')
-        self.port.readline()
+        # self.port.readline()
 
     def sleep_motors(self):
         self.port.write('s\n')
-        self.port.readline()
+        # self.port.readline()
 
     def step_motors(self, step_x, step_y, step_z, dir_x, dir_y, dir_z):
         cmd_data = 0
@@ -114,8 +117,6 @@ class Positioner(object):
         finally:
             self.sleep_motors()
 
-    
-    
     def move2(self):
         self.wake_motors()
         for k in range(200):
@@ -206,17 +207,8 @@ class Positioner(object):
         return n_steps_sent_x, n_steps_sent_y, n_steps_sent_z
 
     def continuous_move(self, n_steps_x, n_steps_y, n_steps_z):
-        self.wake_motors()
-        msg = 'c' + struct.pack('>hhh', n_steps_x, n_steps_y, n_steps_z) + '\n'
-        self.port.write(msg)
-        movement_data = self.port.readline()
-        limit_switch_data = self.port.readline()
-
-        m = re.match(".*?: (\d+), (\d+), (\d+)", ex)
-        n_steps_actuated = map(int, [m.group(x) for x in [1,2,3]])
-        self.sleep_motors()
-
-        return n_steps_actuated
+        self.start_continuous_move(n_steps_x, n_steps_y, n_steps_z)
+        return self.end_continuous_move()
 
     def start_continuous_move(self, n_steps_x, n_steps_y, n_steps_z):
         '''
@@ -228,16 +220,22 @@ class Positioner(object):
 
         self.motor_dir = np.array([np.sign(n_steps_x), np.sign(n_steps_y), np.sign(n_steps_z)])
 
-    def end_continuous_move(self):
+    def end_continuous_move(self, stiff=False):
         '''
         Cleanup part of 'continuous_move' after 'start_continuous_move' has been called
         '''
         movement_data = self.port.readline()
-        limit_switch_data = self.port.readline()
 
-        m = re.match(".*?: (\d+), (\d+), (\d+)", ex)
-        n_steps_actuated = map(int, [m.group(x) for x in [1,2,3]])
-        self.sleep_motors()
+        try:
+            m = re.match(".*?: (\d+), (\d+), (\d+)", movement_data)
+            n_steps_actuated = map(int, [m.group(x) for x in [1,2,3]])
+        except:
+            import traceback
+            traceback.print_exc()
+            print movement_data
+
+        if not stiff:
+            self.sleep_motors()
 
         return n_steps_actuated
 
@@ -266,8 +264,8 @@ class Positioner(object):
     def data_available(self):
         return self.port.inWaiting()
 
-from riglib.experiment import Experiment, FSMTable, StateTransitions
-class PositionerTaskController(Experiment):
+from features.generator_features import Autostart
+class PositionerTaskController(Autostart, Sequence):
     '''
     Interface between the positioner and the task interface. The positioner should run asynchronously
     so that the task event loop does not have to wait for a serial port response from the microcontroller.
@@ -276,19 +274,51 @@ class PositionerTaskController(Experiment):
     status = FSMTable(
         go_to_origin = StateTransitions(microcontroller_done='wait')
         wait = StateTransitions(start_trial='move_target'),
-        move_target = StateTransitions(microcontroller_done='reach'),
+        move_target = StateTransitions(microcontroller_done='reach', stoppable=False),
         reach = StateTransitions(time_expired='reward', new_target_set_remotely='move_target'),
         reward = StateTransitions(time_expired='wait'),
     )
+    # status = dict(
+    #     go_to_origin = dict(microcontroller_done='wait', stop=None),
+    #     wait = dict(start_trial='move_target', stop=None),
+    #     move_target = dict(microcontroller_done='reach'),
+    #     reach = dict(time_expired='reward', stop=None),
+    #     reward = dict(time_expired='wait'),
+    # )
 
-    sequence_generators = ['random_target']
+
+    state = 'go_to_origin'
+
+    sequence_generators = ['random_target_calibration']
+    reward_time = 1
+    reach_time = 1
 
     @staticmethod
-    def random_target(length=100):
-        raise NotImplementedError
+    def random_target_calibration(n_blocks=10, x_min=20, x_max=40, y_min=29, y_max=40, z_min=-25, z_max=0):
+        # constants selected approximately from one subject's ROM
+        targets = [
+            (x_min, y_min, z_min),
+            (x_max, y_min, z_min),
+            (x_min, y_max, z_min),
+            (x_min, y_min, z_max),
+            (x_max, y_max, z_min),
+            (x_max, y_min, z_max),
+            (x_min, y_max, z_max),
+            (x_max, y_max, z_max),
+        ]
 
-    def __init__(self, *args, **kwargs, positioner_dev='/dev/ttyACM1', 
-        x_cm_per_rev=12, y_cm_per_rev=12, z_cm_per_rev=7.6, x_step_size=1./4, y_step_size=1./4, z_step_size=1./4):
+        trial_target_ls = []
+        for k in range(n_blocks):
+            random.shuffle(targets)
+            for targ in targets:
+                trial_target_ls.append(dict(int_target_pos=targ))
+
+        # set the last target to be the origin since the purpose of this generator is to measure the drift in # of steps
+        trial_target_ls.append(dict(int_target_pos=np.zeros(3)))
+        return trial_target_ls
+
+
+    def __init__(self, *args, **kwargs):
         '''
         Constructor for PositionerTaskController
 
@@ -319,9 +349,19 @@ class PositionerTaskController(Experiment):
         -------
         PositionerTaskController instance
         '''
+
+        # TODO make these input arguments
+        positioner_dev = '/dev/ttyACM0'
+        x_cm_per_rev=12
+        y_cm_per_rev=12
+        z_cm_per_rev=7.6
+        x_step_size=1./4
+        y_step_size=1./4
+        z_step_size=1./4
+
         self.loc = np.ones(3) * np.nan # position of the target relative to origin is unknown until the origin limit switches are hit
         self.pos_uctrl_iface = Positioner(dev=positioner_dev)
-        self.pos_uctrl_iface.sleep_motors()
+        # self.pos_uctrl_iface.sleep_motors()
 
         self.steps_from_origin = np.ones(3) * np.nan # cumulative number of steps taken from the origin. Unknown until the origin limit switches are hit.
         self.step_size = np.array([x_step_size, y_step_size, z_step_size], dtype=np.float64)
@@ -332,6 +372,7 @@ class PositionerTaskController(Experiment):
         super(PositionerTaskController, self).__init__(self, *args, **kwargs)
 
     def init(self):
+        self.add_dtype('positioner_loc', np.float64, (3,))
         super(PositionerTaskController, self).init()
 
         # open an rx_socket for reading new commands 
@@ -350,29 +391,34 @@ class PositionerTaskController(Experiment):
 
         # compute the number of steps needed to travel the desired displacement
         displ_rev = displ_cm / self.cm_per_rev
-        displ_full_steps = displ_rev * full_steps_per_rev
+        displ_full_steps = displ_rev * self.full_steps_per_rev
         displ_microsteps = displ_full_steps / self.step_size 
         displ_microsteps = displ_microsteps.astype(int)
         return displ_microsteps
 
+    def _steps_to_cm(self, n_steps_actuated):
+        steps_moved = n_steps_actuated * self.step_size
+        self.steps_from_origin += steps_moved
+        return steps_moved / self.full_steps_per_rev * self.cm_per_rev        
+
     def _integrate_steps(self, n_steps_actuated, signs):
-        steps_moved = n_steps_actuated * signs * step_size
+        steps_moved = n_steps_actuated * signs * self.step_size
         self.steps_from_origin += steps_moved
         self.loc += steps_moved / self.full_steps_per_rev * self.cm_per_rev
 
     def _test_microcontroller_done(self, *args, **kwargs):
         # check if any data has returned from the microcontroller interface
-        packet_rx = self.pos_uctrl_iface.data_available()
+        bytes_avail = self.pos_uctrl_iface.data_available()
 
         # remember to actually read the data out of the buffer in an '_end' function
-        return packet_rx
+        return bytes_avail > 0
 
     def _test_new_target_set_remotely(self, *args, **kwargs):
         pass
 
     ##### State transition functions #####
     def _start_go_to_origin(self):
-        self.pos_uctrl_iface.start_continuous_move(-10000, -10000, -10000)
+        self.pos_uctrl_iface.start_continuous_move(-10000, -10000, 10000)
 
     def _end_go_to_origin(self):
         steps_actuated = self.pos_uctrl_iface.end_continuous_move()
@@ -381,6 +427,7 @@ class PositionerTaskController(Experiment):
         self.steps_from_origin = np.zeros(3)
 
     def _start_move_target(self):
+        print "at position", self.loc, "moving to position", self._gen_int_target_pos
         # calc number of steps from current pos to target pos
         displ_microsteps = self._calc_steps_to_pos(self._gen_int_target_pos)
 
@@ -390,6 +437,17 @@ class PositionerTaskController(Experiment):
     def _end_move_target(self):
         # send command to kill motors
         steps_actuated = self.pos_uctrl_iface.end_continuous_move()
+
+        self._integrate_steps(steps_actuated, self.pos_uctrl_iface.motor_dir)
+
+    def _cycle(self):
+        # print self.state
+        self.task_data['positioner_loc'] = self.loc
+        super(PositionerTaskController, self)._cycle()
+
+    def set_state(self, *args, **kwargs):
+        print args
+        super(PositionerTaskController, self).set_state(*args, **kwargs)
 
     ### Old functions ###
     def go_to_origin(self):
@@ -427,3 +485,15 @@ class PositionerTaskController(Experiment):
 
         self.steps_from_origin += steps_moved
         self.loc += steps_moved / self.full_steps_per_rev * self.cm_per_rev
+
+    def run(self):
+        '''
+        Tell the plant to stop (free the UDP socket) when the task ends. 
+        '''
+        try:
+            super(PositionerTaskController, self).run()
+        finally:
+            self.pos_uctrl_iface.sleep_motors()
+            
+
+from calib import *
