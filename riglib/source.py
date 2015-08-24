@@ -24,6 +24,12 @@ class FuncProxy(object):
 
         Parameters
         ----------
+        name : string
+            Name of remote function to call
+        pipe : mp.Pipe instance
+            multiprocessing pipe through which to send data (function name, arguments) and receive the result
+        event : mp.Event instance
+            A flag to set which is multiprocessing-compatible (visible to both the current and the remote processes)
 
         Returns
         -------
@@ -34,13 +40,16 @@ class FuncProxy(object):
 
     def __call__(self, *args, **kwargs):
         '''
-        Docstring
+        Return the result of the remote function call
 
         Parameters
         ----------
+        *args, **kwargs : positional arguments, keyword arguments
+            To be passed to the remote function associated when the object was created
 
         Returns
         -------
+        function result
         '''
         self.pipe.send((self.name, args, kwargs))
         self.event.set()
