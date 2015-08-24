@@ -43,9 +43,10 @@ class FSMTable(object):
 
     @staticmethod
     def construct_from_dict(status):
+        outward_transitions = dict()
         for state in status:
-            status[state] = StateTransitions(stoppable=False, **status[state])
-        return FSMTable(**status)
+            outward_transitions[state] = StateTransitions(stoppable=False, **status[state])
+        return FSMTable(**outward_transitions)
 
 
 class StateTransitions(object):
@@ -337,6 +338,10 @@ class Experiment(traits.HasTraits, threading.Thread):
                 except:
                     traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
                     self.state = None
+
+    def run_sync(self):
+        self.init()
+        self.run()
 
     ###########################################################
     ##### Finite state machine (FSM) transition functions #####
@@ -704,6 +709,10 @@ class Sequence(LogExperiment):
 
     # List of staticmethods of the class which can be used to create a sequence of targets for each trial
     sequence_generators = []
+
+    @classmethod 
+    def get_default_seq_generator(cls):
+        return getattr(cls, cls.sequence_generators[0])
 
     def __init__(self, gen, *args, **kwargs):
         '''
