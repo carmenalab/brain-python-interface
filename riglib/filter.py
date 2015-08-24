@@ -44,5 +44,9 @@ class Filter(object):
         np.ndarray
             Most recent N outputs of the filter
         '''
+        # promote scalars to arrays so the lfilter function doesn't complain
+        if isinstance(samples, (float, int)):
+            samples = np.array([samples])
+
         filt_output, self.zi = lfilter(self.b, self.a, samples, zi=self.zi)
         return filt_output
