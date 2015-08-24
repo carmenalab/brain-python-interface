@@ -414,20 +414,23 @@ class TaskEntry(models.Model):
     def offline_report(self):
         Exp = self.task.get(self.feats.all())
         task = self.task.get(self.feats.all())
-        report = json.loads(self.report)
-        rpt = Exp.offline_report(report)
+        if len(self.report) == 0:
+            return dict()
+        else:
+            report = json.loads(self.report)
+            rpt = Exp.offline_report(report)
 
-        ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
-        try:
-            from db import dbfunctions
-            te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
-            rpt['Decoder name'] = te.decoder_record.name
-        except AttributeError:
-            pass
-        except:
-            import traceback
-            traceback.print_exc()
-        return rpt
+            ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
+            try:
+                from db import dbfunctions
+                te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
+                rpt['Decoder name'] = te.decoder_record.name
+            except AttributeError:
+                pass
+            except:
+                import traceback
+                traceback.print_exc()
+            return rpt
 
     def to_json(self):
         '''
@@ -452,8 +455,9 @@ class TaskEntry(models.Model):
                     g = Generator.objects.using(self._state.db).get(name=seqgen_name)
                     exp_generators[g.id] = seqgen_name
                 except:
-                    pass
+                    print "missing generator %s" % seqgen_name
         js['generators'] = exp_generators
+        # import pdb; pdb.set_trace()
 
 
         ## Add the sequence, used when the block gets copied
@@ -477,7 +481,7 @@ class TaskEntry(models.Model):
         
         try:
             task = self.task.get(self.feats.all())
-            report = json.loads(self.report)
+            # report = json.loads(self.report)
             js['report'] = self.offline_report()
         except:
             import traceback
