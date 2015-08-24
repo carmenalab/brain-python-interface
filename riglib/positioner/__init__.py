@@ -277,7 +277,7 @@ class PositionerTaskController(Experiment):
         go_to_origin = StateTransitions(microcontroller_done='wait')
         wait = StateTransitions(start_trial='move_target'),
         move_target = StateTransitions(microcontroller_done='reach'),
-        reach = StateTransitions(time_expired='reward'),
+        reach = StateTransitions(time_expired='reward', new_target_set_remotely='move_target'),
         reward = StateTransitions(time_expired='wait'),
     )
 
@@ -329,7 +329,20 @@ class PositionerTaskController(Experiment):
 
         self.full_steps_per_rev = 200.
 
-        super(PositionerTaskController, self).__init__(self, )
+        super(PositionerTaskController, self).__init__(self, *args, **kwargs)
+
+    def init(self):
+        super(PositionerTaskController, self).init()
+
+        # open an rx_socket for reading new commands 
+        import socket
+        self.rx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.rx_sock.bind(('localhost', 60005))
+
+    def terminate(self):
+        # close the rx socket used for reading remote commands
+        super(PositionerTaskController, self).terminate()
+        self.rx_sock.close()
 
     ##### Helper functions #####
     def _calc_steps_to_pos(self, target_pos):
@@ -354,6 +367,9 @@ class PositionerTaskController(Experiment):
         # remember to actually read the data out of the buffer in an '_end' function
         return packet_rx
 
+    def _test_new_target_set_remotely(self, *args, **kwargs):
+        pass
+
     ##### State transition functions #####
     def _start_go_to_origin(self):
         self.pos_uctrl_iface.start_continuous_move(-10000, -10000, -10000)
@@ -374,7 +390,6 @@ class PositionerTaskController(Experiment):
     def _end_move_target(self):
         # send command to kill motors
         steps_actuated = self.pos_uctrl_iface.end_continuous_move()
-
 
     ### Old functions ###
     def go_to_origin(self):
