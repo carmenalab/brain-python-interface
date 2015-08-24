@@ -22,13 +22,14 @@ except ImportError:
     import warnings
     warnings.warn("experiment.py: Cannot import 'pygame'")
 
+from collections import OrderedDict
 
 min_per_hour = 60.
 sec_per_min = 60.
 
 class FSMTable(object):
     def __init__(self, **kwargs):
-        self.states = dict()
+        self.states = OrderedDict()
         for state_name, transitions in kwargs.items():
             self.states[state_name] = transitions
 
@@ -41,17 +42,21 @@ class FSMTable(object):
     def _lookup_next_state(self, current_state, transition_event):
         return self.states[current_state][transition_event]
 
+    def __iter__(self):
+        return self.states.keys().__iter__()
+
     @staticmethod
     def construct_from_dict(status):
-        outward_transitions = dict()
+        outward_transitions = OrderedDict()
         for state in status:
+            print state
             outward_transitions[state] = StateTransitions(stoppable=False, **status[state])
         return FSMTable(**outward_transitions)
 
 
 class StateTransitions(object):
     def __init__(self, stoppable=True, **kwargs):
-        self.state_transitions = dict()
+        self.state_transitions = OrderedDict()
         for event, next_state in kwargs.items():
             self.state_transitions[event] = next_state
 
@@ -146,6 +151,29 @@ class Experiment(traits.HasTraits, threading.Thread):
                 print '\tevent "%s" moves the task to state "%s"' % (trigger_event, next_state)
 
     @classmethod
+    def auto_gen_fsm_functions(cls):
+        '''
+        Parse the FSM to write all the _start, _end, _while, and _test functions
+        '''
+        events_to_test = []
+        for state in cls.status:
+            # make _start function 
+            print '''def _start_%s(self): pass''' % state
+
+            # make _while function
+            print '''def _while_%s(self): pass''' % state
+            # make _end function
+            print '''def _end_%s(self): pass''' % state
+            for event, _ in cls.status.get_possible_state_transitions(state):
+                events_to_test.append(event)
+
+        print "################## State trnasition test functions ##################"
+
+        for event in events_to_test:
+            if event == 'stop': continue
+            print '''def _test_%s(self, time_in_state): return False''' % event
+
+    @classmethod
     def is_hidden(cls, trait):
         '''
         Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden 
@@ -223,11 +251,14 @@ class Experiment(traits.HasTraits, threading.Thread):
         # NOTE: all data variables MUST be declared prior to this point. So child classes overriding the 'init' method must
         # declare their variables using the 'add_dtype' function BEFORE calling the 'super' method.
         try:
-            self.dtype = np.dtype(self.dtype)
-            self.task_data = np.zeros((1,), dtype=self.dtype)
+            if len(self.dtype) > 0:
+                self.dtype = np.dtype(self.dtype)
+                self.task_data = np.zeros((1,), dtype=self.dtype)
+            else:
+                self.task_data = None
         except:
             print "Error creating the task_data record array"
-            traceback.print_exc()            
+            traceback.print_exc()
             print self.dtype
             self.task_data = None
 
