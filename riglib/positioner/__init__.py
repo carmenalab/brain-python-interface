@@ -7,8 +7,11 @@ import time
 import struct
 import numpy as np
 import re
-from riglib.experiment import Experiment, Sequence#, FSMTable, StateTransitions
+from riglib.experiment import Experiment, Sequence, FSMTable, StateTransitions
 import random
+
+import socket
+import select
 
 dir_lut = dict(x={0:0, -1:0, 1:1}, 
     y={0:0, -1:0, 1:1}, 
@@ -264,15 +267,15 @@ class Positioner(object):
     def data_available(self):
         return self.port.inWaiting()
 
-from features.generator_features import Autostart
-class PositionerTaskController(Autostart, Sequence):
+# from features.generator_features import Autostart
+class PositionerTaskController(Sequence):
     '''
     Interface between the positioner and the task interface. The positioner should run asynchronously
     so that the task event loop does not have to wait for a serial port response from the microcontroller.
     '''
 
     status = FSMTable(
-        go_to_origin = StateTransitions(microcontroller_done='wait')
+        go_to_origin = StateTransitions(microcontroller_done='wait'),
         wait = StateTransitions(start_trial='move_target'),
         move_target = StateTransitions(microcontroller_done='reach', stoppable=False),
         reach = StateTransitions(time_expired='reward', new_target_set_remotely='move_target'),
@@ -316,7 +319,6 @@ class PositionerTaskController(Autostart, Sequence):
         # set the last target to be the origin since the purpose of this generator is to measure the drift in # of steps
         trial_target_ls.append(dict(int_target_pos=np.zeros(3)))
         return trial_target_ls
-
 
     def __init__(self, *args, **kwargs):
         '''
@@ -369,7 +371,7 @@ class PositionerTaskController(Autostart, Sequence):
 
         self.full_steps_per_rev = 200.
 
-        super(PositionerTaskController, self).__init__(self, *args, **kwargs)
+        super(PositionerTaskController, self).__init__(*args, **kwargs)
 
     def init(self):
         self.add_dtype('positioner_loc', np.float64, (3,))
@@ -408,16 +410,37 @@ class PositionerTaskController(Autostart, Sequence):
 
     def _test_microcontroller_done(self, *args, **kwargs):
         # check if any data has returned from the microcontroller interface
+        # print "starting to check for data"
         bytes_avail = self.pos_uctrl_iface.data_available()
+
+        # print bytes_avail
 
         # remember to actually read the data out of the buffer in an '_end' function
         return bytes_avail > 0
 
+    # def update_report_stats(self, *args, **kwargs):
+    #     super(PositionerTaskController, self).update_report_stats()
+    #     self.reportstats['resp_bytes'] = self.pos_uctrl_iface.data_available()
+
     def _test_new_target_set_remotely(self, *args, **kwargs):
-        pass
+        # print "checking for new target set"
+        socket_list = [self.rx_sock]
+        # Get the list sockets which are readable
+        read_sockets, write_sockets, error_sockets = select.select(socket_list , [], [], 0)
+        if self.rx_sock in read_sockets:
+            raw_data = self.rx_sock.recv(8*3)
+            import struct
+            new_pos = struct.unpack('ddd', raw_data)
+            print "received new position!"
+            print new_pos
+            self._gen_int_target_pos = new_pos
+            return True 
+        else:
+            return False
 
     ##### State transition functions #####
     def _start_go_to_origin(self):
+        print "_start_go_to_origin"
         self.pos_uctrl_iface.start_continuous_move(-10000, -10000, 10000)
 
     def _end_go_to_origin(self):
@@ -437,11 +460,12 @@ class PositionerTaskController(Autostart, Sequence):
     def _end_move_target(self):
         # send command to kill motors
         steps_actuated = self.pos_uctrl_iface.end_continuous_move()
-
         self._integrate_steps(steps_actuated, self.pos_uctrl_iface.motor_dir)
+        print "finished moving, as position", self.loc
 
     def _cycle(self):
         # print self.state
+        # print "_cycle"
         self.task_data['positioner_loc'] = self.loc
         super(PositionerTaskController, self)._cycle()
 
@@ -488,7 +512,7 @@ class PositionerTaskController(Autostart, Sequence):
 
     def run(self):
         '''
-        Tell the plant to stop (free the UDP socket) when the task ends. 
+        Tell the positioner motors to turn off when the task ends
         '''
         try:
             super(PositionerTaskController, self).run()
