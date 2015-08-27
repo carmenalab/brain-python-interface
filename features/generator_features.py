@@ -12,18 +12,32 @@ import os
 import subprocess
 from riglib.experiment import traits
 
-###### CONSTANTS
-sec_per_min = 60
+
+class Autostart(traits.HasTraits):
+    '''
+    Automatically begins the trial from the wait state, 
+    with a random interval drawn from `rand_start`
+    '''
+    rand_start = traits.Tuple((0., 0.), desc="Start interval")
+
+    def _start_wait(self):
+        '''
+        At the start of the 'wait' state, determine how long to wait before starting the trial
+        by drawing a sample from the rand_start interval
+        '''
+        s, e = self.rand_start
+        self.wait_time = random.random()*(e-s) + s
+        super(Autostart, self)._start_wait()
+        
+    def _test_start_trial(self, ts):
+        '''
+        Test if the required random wait time has passed
+        '''
+        return ts > self.wait_time and not self.pause
 
 class AdaptiveGenerator(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Deprecated--this class appears to be unused
     '''
     def __init__(self, *args, **kwargs):
         '''
@@ -66,7 +80,7 @@ class AdaptiveGenerator(object):
 
 
 class IgnoreCorrectness(object):
-    '''Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
+    '''Deprecated--Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
     def __init__(self, *args, **kwargs):
         '''
         Docstring
@@ -108,47 +122,3 @@ class IgnoreCorrectness(object):
         -------
         '''
         return False
-
-
-class Autostart(traits.HasTraits):
-    '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
-    rand_start = traits.Tuple((0., 0.), desc="Start interval")
-
-    def _start_wait(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        s, e = self.rand_start
-        self.wait_time = random.random()*(e-s) + s
-        super(Autostart, self)._start_wait()
-        
-    def _test_start_trial(self, ts):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        return ts > self.wait_time and not self.pause
-    
-    def _test_premature(self, ts):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        return self.event is not None
-
