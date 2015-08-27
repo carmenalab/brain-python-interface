@@ -7,50 +7,8 @@ import itertools
 
 import numpy as np
 
-from experiment import TrialTypes
+from experiment import TrialTypes, Sequence
 
-def endless(exp, probs=None):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    if probs is None:
-        while True:
-            yield random.choice(exp.trial_types)
-    else:
-        assert len(probs) == len(exp.trial_types)
-        probs = np.insert(np.cumsum(_fix_missing(probs)), 0, 0)
-        assert probs[-1] == 1, "Probabilities do not add up to 1!"
-        while True:
-            rand = random.random()
-            p = np.nonzero(rand < probs)[0].min()
-            yield exp.trial_types[p-1]
-
-def sequence(length, probs=2):
-    '''Generates a sequence of numbers with the given probabilities.
-    If probs is not a list, generate a uniformly distributed set of options.
-
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
-    '''
-    try:
-        opts = len(probs)
-        probs = _fix_missing(probs)
-    except TypeError:
-        opts = probs
-        probs = [1 / float(opts)] * opts
-    return np.random.permutation([i for i, p in enumerate(probs) for _ in xrange(int(length*p))])
 
 def block_random(*args, **kwargs):
     '''
@@ -105,9 +63,56 @@ def runseq(exp, seq=None, reps=1):
             for s in seq:
                 yield exp.trial_types[s]
     else:
+        print "runseq"
         for _ in range(reps):
             for s in seq:
                 yield s
+
+##################################################
+##### Old functions, for use with TrialTypes #####
+##################################################
+def endless(exp, probs=None):
+    '''
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    if probs is None:
+        while True:
+            yield random.choice(exp.trial_types)
+    else:
+        assert len(probs) == len(exp.trial_types)
+        probs = np.insert(np.cumsum(_fix_missing(probs)), 0, 0)
+        assert probs[-1] == 1, "Probabilities do not add up to 1!"
+        while True:
+            rand = random.random()
+            p = np.nonzero(rand < probs)[0].min()
+            yield exp.trial_types[p-1]
+
+def sequence(length, probs=2):
+    '''Generates a sequence of numbers with the given probabilities.
+    If probs is not a list, generate a uniformly distributed set of options.
+
+    Docstring
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    '''
+    try:
+        opts = len(probs)
+        probs = _fix_missing(probs)
+    except TypeError:
+        opts = probs
+        probs = [1 / float(opts)] * opts
+    return np.random.permutation([i for i, p in enumerate(probs) for _ in xrange(int(length*p))])
 
 def _fix_missing(probs):
     '''
