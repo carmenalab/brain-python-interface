@@ -330,33 +330,6 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.set_state(self.state)
         self.reportstats['State'] = self.state
         
-        # def _tick():
-        #     if hasattr(self, "_while_%s" % self.state):
-        #         getattr(self, "_while_%s" % self.state)()
-
-        #     # Execute the commands which must run every loop, independent of the FSM state
-        #     # (e.g., running the BMI)
-        #     self._cycle()
-            
-        #     for event, state in self.status.get_possible_state_transitions(self.state):
-        #         event_test_fn_name = "_test_%s" % event
-        #         if hasattr(self, event_test_fn_name):
-        #             event_test_fn = getattr(self, event_test_fn_name)
-        #             time_since_state_started = self.get_time() - self.start_time
-
-        #             # If the test function evaluates to True, 
-        #             if event_test_fn(time_since_state_started):
-        #                 end_state_fn_name = "_end_%s" % self.state
-        #                 if hasattr(self, end_state_fn_name):
-        #                     end_state_fn = getattr(self, end_state_fn_name)
-        #                     end_state_fn()
-
-        #                 # Execute the event. In the base class, this means changing the state to the next state
-        #                 self.trigger_event(event)
-        #                 break
-        #         else:
-        #             pass
-
         while self.state is not None:
             if self.debug: 
                 # allow ungraceful termination if in debugging mode so that pdb 
@@ -579,6 +552,15 @@ class Experiment(traits.HasTraits, threading.Thread):
     ################################
     ## Cleanup/termination functions
     ################################
+    def get_trait_values(self):
+        '''
+        Retrieve all the values of the 'trait' objects
+        '''
+        trait_values = dict()
+        for trait in self.class_editable_traits():
+            trait_values[trait] = getattr(self, trait)
+        return trait_values
+
     def cleanup(self, database, saveid, **kwargs):
         '''
         Commands to execute at the end of a task.
