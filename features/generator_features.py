@@ -113,6 +113,7 @@ class IgnoreCorrectness(object):
 class Autostart(traits.HasTraits):
     '''Automatically begins the trial from the wait state, with a random interval drawn from `rand_start`'''
     rand_start = traits.Tuple((0., 0.), desc="Start interval")
+    wait_time = 0
 
     def _start_wait(self):
         '''
