@@ -49,7 +49,6 @@ class FSMTable(object):
     def construct_from_dict(status):
         outward_transitions = OrderedDict()
         for state in status:
-            print state
             outward_transitions[state] = StateTransitions(stoppable=False, **status[state])
         return FSMTable(**outward_transitions)
 
@@ -480,6 +479,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         Code that needs to run every task loop iteration goes here
         '''
+        # print "Experiment._cycle"
         self.cycle_count += 1
         if self.fps > 0:
             self.clock.tick(self.fps)
@@ -765,7 +765,9 @@ class Sequence(LogExperiment):
             gen = runseq(self, seq=gen)
 
         self.gen = gen
-        assert hasattr(gen, "next"), "gen must be a generator"
+        if not hasattr(gen, "next"):
+            raise ValueError("Input argument to Sequence 'gen' must be of 'generator' type!")
+
         super(Sequence, self).__init__(*args, **kwargs)
     
     def _start_wait(self):
