@@ -19,8 +19,9 @@ dir_lut = dict(x={0:0, -1:0, 1:1},
 ) 
 
 class Positioner(object):
-    def __init__(self, dev='/dev/ttyACM1'):
+    def __init__(self, dev='/dev/arduino_positioner'):
         self.port = serial.Serial(dev, baudrate=115200)
+        self.port.flushInput()
 
     def _parse_resp(self, resp):
         resp = resp.rstrip()
@@ -298,18 +299,42 @@ class PositionerTaskController(Sequence):
 
     @staticmethod
     def random_target_calibration(n_blocks=10, x_min=20, x_max=40, y_min=29, y_max=40, z_min=-25, z_max=0):
-        # constants selected approximately from one subject's ROM
-        targets = [
-            (x_min, y_min, z_min),
-            (x_max, y_min, z_min),
-            (x_min, y_max, z_min),
-            (x_min, y_min, z_max),
-            (x_max, y_max, z_min),
-            (x_max, y_min, z_max),
-            (x_min, y_max, z_max),
-            (x_max, y_max, z_max),
-        ]
+    #     # constants selected approximately from one subject's ROM
+    #     targets = [
+    #         (x_min, y_min, z_min),
+    #         (x_max, y_min, z_min),
+    #         (x_min, y_max, z_min),
+    #         (x_min, y_min, z_max),
+    #         (x_max, y_max, z_min),
+    #         (x_max, y_min, z_max),
+    #         (x_min, y_max, z_max),
+    #         (x_max, y_max, z_max),
+    #     ]
 
+    #     trial_target_ls = []
+    #     for k in range(n_blocks):
+    #         random.shuffle(targets)
+    #         for targ in targets:
+    #             trial_target_ls.append(dict(int_target_pos=targ))
+
+    #     # set the last target to be the origin since the purpose of this generator is to measure the drift in # of steps
+    #     trial_target_ls.append(dict(int_target_pos=np.zeros(3)))
+    #     return trial_target_ls
+
+    # @staticmethod 
+    # def calibration_targets(nblocks=1):
+        targets = [
+            (50, 38, 0),
+            (50, 38, -25),
+            (40, 35, 0),
+            (40, 35, -25),            
+            (30, 29, 0),
+            (30, 29, -25),            
+            (20, 35, 0),
+            (20, 35, -25),
+            # (10, 38, 0), # reachable?
+            # (10, 38, -25), # reachable?
+        ]
         trial_target_ls = []
         for k in range(n_blocks):
             random.shuffle(targets)
@@ -318,7 +343,8 @@ class PositionerTaskController(Sequence):
 
         # set the last target to be the origin since the purpose of this generator is to measure the drift in # of steps
         trial_target_ls.append(dict(int_target_pos=np.zeros(3)))
-        return trial_target_ls
+        return trial_target_ls        
+
 
     def __init__(self, *args, **kwargs):
         '''
@@ -353,13 +379,16 @@ class PositionerTaskController(Sequence):
         '''
 
         # TODO make these input arguments
-        positioner_dev = '/dev/ttyACM0'
-        x_cm_per_rev=12
-        y_cm_per_rev=12
-        z_cm_per_rev=7.6
-        x_step_size=1./4
-        y_step_size=1./4
-        z_step_size=1./4
+        positioner_dev = '/dev/arduino_positioner'
+
+        # cm/rev based on measured data
+        x_cm_per_rev = 12.4
+        y_cm_per_rev = 12.4
+        z_cm_per_rev = 8.0 
+
+        x_step_size = 1./4
+        y_step_size = 1./4
+        z_step_size = 1./4
 
         self.loc = np.ones(3) * np.nan # position of the target relative to origin is unknown until the origin limit switches are hit
         self.pos_uctrl_iface = Positioner(dev=positioner_dev)
@@ -410,10 +439,10 @@ class PositionerTaskController(Sequence):
 
     def _test_microcontroller_done(self, *args, **kwargs):
         # check if any data has returned from the microcontroller interface
-        # print "starting to check for data"
+        # self.print_to_terminal("starting to check for data")
         bytes_avail = self.pos_uctrl_iface.data_available()
 
-        # print bytes_avail
+        # self.print_to_terminal(bytes_avail)
 
         # remember to actually read the data out of the buffer in an '_end' function
         return bytes_avail > 0
@@ -443,6 +472,9 @@ class PositionerTaskController(Sequence):
         print "_start_go_to_origin"
         self.pos_uctrl_iface.start_continuous_move(-10000, -10000, 10000)
 
+    def _start_reward(self):
+        pass
+
     def _end_go_to_origin(self):
         steps_actuated = self.pos_uctrl_iface.end_continuous_move()
 
@@ -465,7 +497,7 @@ class PositionerTaskController(Sequence):
 
     def _cycle(self):
         # print self.state
-        # print "_cycle"
+        # self.print_to_terminal("_cycle")
         self.task_data['positioner_loc'] = self.loc
         super(PositionerTaskController, self)._cycle()
 

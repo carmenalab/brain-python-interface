@@ -163,8 +163,7 @@ class PlexonSerialDIORowByte(object):
         Run prior to starting the task to remotely start recording from the plexon system
         '''
         if saveid is not None:
-            port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=9600)
-            # for k in range(5):
+            port = serial.Serial('/dev/arduino_neurosync', baudrate=9600)
             port.write('p')
             time.sleep(0.5)
             port.write('r')

@@ -482,6 +482,7 @@ class TaskEntry(object):
                 self.task_msgs = task_msgs
 
             ## Split the task messages into separate trials
+            self.trial_end_states = self.record.task.get().trial_end_states
             self.trial_msgs = []
             try:
                 # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1

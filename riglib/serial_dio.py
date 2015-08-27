@@ -23,7 +23,7 @@ class SendAll(object):
         SendAll instance
         '''
         self.systems = dict()
-        self.port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=9600)
+        self.port = serial.Serial('/dev/arduino_neurosync', baudrate=9600)
         self.n_systems = 0
         self.rowcount = defaultdict(int)
     

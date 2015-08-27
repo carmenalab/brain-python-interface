@@ -66,15 +66,17 @@ class Basic(object):
     response_message_length = 7
     def __init__(self):
         '''
-        Docstring
+        Constructor for basic reward system interface
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        Basic instance
         '''
-        self.port = serial.Serial(glob.glob("/dev/ttyUSB*")[0], baudrate=38400)
+        self.port = serial.Serial('/dev/crist_reward', baudrate=38400)
         self.version = int(config.reward_sys['version'])
         if self.version==1: self.set_beeper_volume(128)
         time.sleep(.5)
@@ -186,10 +188,10 @@ class Basic(object):
         '''
         Turns on the reward system drain for specified amount of time (in seconds)
 
-        Docstring
-
         Parameters
         ----------
+        drain_time : float 
+            Time to drain the system, in seconds.
 
         Returns
         -------
@@ -208,14 +210,6 @@ class Basic(object):
     def drain_off(self):
         '''
         Turns off drain if currently on
-
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
         '''
         if self.version==0:
             self._write("@CNSDNN")
