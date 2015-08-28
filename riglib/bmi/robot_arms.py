@@ -693,9 +693,13 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
         
         Parameters
         ----------
+        pos : np.ndarray of shape (3,)
+            Desired endpoint position where the coordinate system origin is the base of the arm. y coordinate must be 0
         
         Returns
-        -------        
+        -------
+        np.ndarray of shape (2,)
+            Joint angles which yield the endpoint position with the forward kinematics of this manipulator
         '''
         pos -= self.base_loc        
         l_upperarm, l_forearm = self.link_lengths 
@@ -714,5 +718,4 @@ class PlanarXZKinematicChain2Link(PlanarXZKinematicChain):
         el_pflex = np.arccos(cos_el_pflex)
 
         sh_pabd = np.arctan2(z, x) - np.arcsin(l_forearm * np.sin(np.pi - el_pflex) / L)
-        # import pdb    ; pdb.set_trace()
         return np.array([sh_pabd, el_pflex])

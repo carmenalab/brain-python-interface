@@ -137,6 +137,7 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     Target function to execute in the separate process to start the task
     '''
     print "*************************** STARTING TASK *****************************"
+    
     # Rerout prints to stdout to the websocket
     sys.stdout = websock    
 
@@ -160,16 +161,25 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         # Rerout prints to stdout to the websocket
         sys.stdout = websock
 
-        while cmd is not None and task.task.state is not None:
-            print "command received"
-            with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
-                f.write('command received: %s, %s, %s\n' % cmd)
+        while (cmd is not None) and (task.task.state is not None):
+            with open(log_filename, 'a') as f:
+                f.write('remote command received: %s, %s, %s\n' % cmd)
             try:
                 fn_name = cmd[0]
                 cmd_args = cmd[1]
                 cmd_kwargs = cmd[2]
-                ret = getattr(task, fn_name)(*cmd_args, **cmd_kwargs)
+
+                # look up the function by name
+                fn = getattr(task, fn_name)
+
+                # run the function and save the return value as a single object
+                # if an exception is thrown, the code will jump to the last 'except' case
+                ret = fn(*cmd_args, **cmd_kwargs)
+
+                # send the return value back to the remote process 
                 task_end_of_pipe.send(ret)
+
+                # hang and wait for the next command to come in
                 cmd = task_end_of_pipe.recv()
             except KeyboardInterrupt:
                 # Handle the KeyboardInterrupt separately. How the hell would
@@ -196,7 +206,10 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     try:
         task
     except:
-        print "\nERROR: Task was never initialized, cannot run cleanup function!\n"
+        print "\nERROR: Task was never initialized, cannot run cleanup function!"
+        print "see %s for error messages" % log_filename
+        print open(log_filename, 'rb').read()
+        print
     else:
         task.cleanup()
 
@@ -237,6 +250,7 @@ class Task(object):
         base_class = task.get()
         Exp = experiment.make(base_class, feats=feats)
 
+        # Run commands which must be executed before the experiment class can be instantiated (e.g., starting neural recording)
         Exp.pre_init(saveid=saveid)
 
         self.params.trait_norm(Exp.class_traits())
@@ -245,10 +259,6 @@ class Task(object):
 
             # Typically, 'gen_constructor' is the experiment.generate.runseq function (not an element of namelist.generators)
             gen = gen_constructor(Exp, **gen_params)
-            with open(log_filename, 'a') as f:
-                f.write(str(gen_constructor) + '\n')
-                f.write(str(gen_params) + '\n')
-                f.write(str(gen) + '\n')
 
             # 'gen' is now a true python generator usable by experiment.Sequence
             exp = Exp(gen, **self.params.params)
@@ -288,7 +298,10 @@ class Task(object):
         print "Calling saveout/task cleanup code"
         
         if self.saveid is not None:
+            # get object representing function calls to the remote database
+            # returns the result of tracker.dbq.rpc_handler
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+
             self.task.cleanup(database, self.saveid, subject=self.subj)
 
         self.task.terminate()
@@ -299,9 +312,9 @@ class ObjProxy(object):
         self.cmds = cmds
 
     def __getattr__(self, attr):
-        print "remotely getting attribute"
-        with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
+        with open(log_filename, 'a') as f:
             f.write("remotely getting attribute\n")
+
         self.cmds.send(("__getattr__", [attr], {}))
         ret = self.cmds.recv()
         if isinstance(ret, Exception): 
@@ -312,8 +325,8 @@ class ObjProxy(object):
         return ret
 
     def remote_set_attr(self, attr, value):
-        with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
-            f.write('trying to remotely set attribute\n')
+        with open(log_filename, 'a') as f:
+            f.write('trying to remotely set attribute %s to %s\n' % (attr, value))
         ret = FuncProxy('set_task_attr', self.cmds)
         ret(attr, value)
 
@@ -324,6 +337,5 @@ class FuncProxy(object):
         self.cmd = func
 
     def __call__(self, *args, **kwargs):
-        print "remotely calling function"
         self.pipe.send((self.cmd, args, kwargs))
         return self.pipe.recv()

@@ -119,14 +119,14 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
     @classmethod
     def bin_spikes(cls, ts, units, max_units_per_channel=13):
-            '''
-            Count up the number of BMI spikes in a list of spike timestamps.
-            '''
-            unit_inds = units[:,0]*max_units_per_channel + units[:,1]
-            edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
-            spiking_unit_inds = ts['chan']*max_units_per_channel + ts['unit']
-            counts, _ = np.histogram(spiking_unit_inds, edges)
-            return counts[::2]
+        '''
+        Count up the number of BMI spikes in a list of spike timestamps.
+        '''
+        unit_inds = units[:,0]*max_units_per_channel + units[:,1]
+        edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
+        spiking_unit_inds = ts['chan']*max_units_per_channel + ts['unit']
+        counts, _ = np.histogram(spiking_unit_inds, edges)
+        return counts[::2]
 
     def __call__(self, start_time, *args, **kwargs):
         '''    Docstring    '''

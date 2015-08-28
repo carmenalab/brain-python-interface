@@ -97,7 +97,7 @@ class Window(LogExperiment):
         self.world.init()
 
         #up vector is always (0,0,1), why would I ever need to roll the camera?!
-        self.set_eye((0,-self.screen_dist,0), (0,0))
+        self.set_eye((0, -self.screen_dist, 0), (0,0))
     
     def _get_renderer(self):
         near = 1
@@ -120,7 +120,7 @@ class Window(LogExperiment):
 
     def show_object(self, obj, show=False):
         '''
-        Show or hide an object
+        Show or hide an object. This function is an abstraction so that tasks don't need to know about attach/detach
         '''
         if show:
             obj.attach()
@@ -157,7 +157,6 @@ class Window(LogExperiment):
     def requeue(self):
         self.renderer._queue_render(self.world)
 
-    @profile
     def _cycle(self):
         self.requeue()
         self.draw_world()

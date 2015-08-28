@@ -578,7 +578,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         saveid : int
             TaskEntry database record id to link files/data to
         kwargs : optional dict arguments
-            Optional arguments to dbq methods. kwargs cannot be used when 'database' is an RPC object.
+            Optional arguments to dbq methods. NOTE: kwargs cannot be used when 'database' is an RPC object.
 
         Returns
         -------

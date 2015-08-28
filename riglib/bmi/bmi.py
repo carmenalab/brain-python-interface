@@ -1125,6 +1125,7 @@ class BMILoop(object):
         raise NotImplementedError
 
     def _cycle(self):
+        self.move_plant()
         # save loop time to HDF file
         self.task_data['loop_time'] = self.iter_time()
         super(BMILoop, self)._cycle()
