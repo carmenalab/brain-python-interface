@@ -27,6 +27,45 @@ try:
 except:
     pass
 
+def train_decoder_ajax_handler(request, idx):
+    '''
+    AJAX handler for creating a new decoder.
+
+    Parameters
+    ----------
+    request : Django HttpRequest
+        POST data containing details for how to train the decoder (type, units, update rate, etc.)
+    idx : int
+        ID number of the models.TaskEntry record with the data used to train the Decoder.
+
+    Returns
+    -------
+    Django HttpResponse
+        Indicates 'success' if all commands initiated without error.
+    '''
+    ## Check if the name of the decoder is already taken
+    collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
+    if len(collide) > 0:
+        return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
+    update_rate = float(request.POST['bmiupdaterate'])
+
+    kwargs = dict(
+        entry=idx,
+        name=request.POST['bminame'],
+        clsname=request.POST['bmiclass'],
+        extractorname=request.POST['bmiextractor'],
+        cells=request.POST['cells'],
+        channels=request.POST['channels'],
+        binlen=1./update_rate,
+        tslice=map(float, request.POST.getlist('tslice[]')),
+        ssm=request.POST['ssm'],
+        pos_key=request.POST['pos_key'],
+        kin_extractor=request.POST['kin_extractor'],
+    )
+    trainbmi.cache_and_train(**kwargs)
+    return _respond(dict(status="success"))
+
+
 class encoder(json.JSONEncoder):
     '''
     Encoder for JSON data that defines how the data should be returned. 
@@ -133,13 +172,15 @@ def start_next_exp(request):
 
 def start_experiment(request, save=True):
     '''
-    Handles presses of the 'Start Experiment' and 'Test' buttons in the web 
+    Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
     interface
     '''
     #make sure we don't have an already-running experiment
     if exp_tracker.status.value != '':
         http_request_queue.append((request, save))
         return _respond(dict(status="running", msg="Already running task, queuelen=%d!" % len(http_request_queue)))
+
+    # Try to start the task, and if there are any errors, send them to the browser interface
     try:
         data = json.loads(request.POST['data'])
 
