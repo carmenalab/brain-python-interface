@@ -457,7 +457,6 @@ class TaskEntry(models.Model):
                 except:
                     print "missing generator %s" % seqgen_name
         js['generators'] = exp_generators
-        # import pdb; pdb.set_trace()
 
 
         ## Add the sequence, used when the block gets copied
@@ -479,15 +478,8 @@ class TaskEntry(models.Model):
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         
-        try:
-            task = self.task.get(self.feats.all())
-            # report = json.loads(self.report)
-            js['report'] = self.offline_report()
-        except:
-            import traceback
-            traceback.print_exc()
-            js['report'] = dict()
-
+        # Parse the "report" data and put it into the JS response
+        js['report'] = self.offline_report()
 
         if config.recording_sys['make'] == 'plexon':
             try:
