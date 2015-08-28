@@ -17,6 +17,17 @@ import websocket
 from config import config
 from json_param import Parameters
 
+import cStringIO
+import traceback
+
+log_filename = os.path.expandvars('$BMI3D/log/tasktrack_log')
+def log_error(err, mode='a'):
+    traceback.print_exc(None, err)
+    with open(log_filename, mode) as fp:
+        err.seek(0)
+        fp.write(err.read())
+
+
 class Track(object):
     '''
     Tracker for task instantiation running in a separate process
@@ -37,6 +48,9 @@ class Track(object):
         '''
         Begin running of task
         '''
+        with open(log_filename, 'w') as f:
+            f.write("Running new task: \n")
+
         # initialize task status
         self.status.value = "testing" if 'saveid' in kwargs else "running"
 
@@ -111,15 +125,20 @@ class NotifyFeat(object):
         finally:
             self.tracker_end_of_pipe.send(None)
 
+    def print_to_terminal(self, *args):
+        sys.stdout = sys.__stdout__
+        print args
+        sys.stdout = self.websock
+
+
 
 def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
     Target function to execute in the separate process to start the task
     '''
-    import time
-
+    print "*************************** STARTING TASK *****************************"
     # Rerout prints to stdout to the websocket
-    sys.stdout = websock
+    sys.stdout = websock    
 
     # os.nice sets the 'niceness' of the task, i.e. how willing the process is
     # to share resources with other OS processes. Zero is neutral
@@ -137,6 +156,10 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         # Instantiate the task
         task = Task(**kwargs)
         cmd = task_end_of_pipe.recv()
+
+        # Rerout prints to stdout to the websocket
+        sys.stdout = websock
+
         while cmd is not None and task.task.state is not None:
             print "command received"
             with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
@@ -159,13 +182,8 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
                 else:
                     cmd = None
     except:
-        import cStringIO
-        import traceback
         err = cStringIO.StringIO()
-        traceback.print_exc(None, err)
-        with open(os.path.expandvars('$BMI3D/log/tasktrack_log'), 'w') as fp:
-            err.seek(0)
-            fp.write(err.read())
+        log_error(err, mode='a')
         err.seek(0)
         websock.send(dict(status="error", msg=err.read()))
         err.seek(0)
@@ -178,8 +196,9 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     try:
         task
     except:
-        raise Exception("Task was never initialized, cannot run cleanup function!")
-    task.cleanup()
+        print "\nERROR: Task was never initialized, cannot run cleanup function!\n"
+    else:
+        task.cleanup()
 
     print "*************************** EXITING TASK *****************************"
 
@@ -226,6 +245,10 @@ class Task(object):
 
             # Typically, 'gen_constructor' is the experiment.generate.runseq function (not an element of namelist.generators)
             gen = gen_constructor(Exp, **gen_params)
+            with open(log_filename, 'a') as f:
+                f.write(str(gen_constructor) + '\n')
+                f.write(str(gen_params) + '\n')
+                f.write(str(gen) + '\n')
 
             # 'gen' is now a true python generator usable by experiment.Sequence
             exp = Exp(gen, **self.params.params)
@@ -260,15 +283,6 @@ class Task(object):
     def set_task_attr(self, attr, value):
         setattr(self.task, attr, value)
 
-    ##def __setattr__(self, attr, value):
-    ##    with open(os.path.expandvars('$HOME/code/bmi3d/log/acceptreject'), 'a') as f:
-    ##        f.write("setting attribute\n")
-    ##    print "setting attribute"
-    ##    if hasattr(self.task, attr):
-    ##        setattr(self.task, attr, value)
-    ##    else:
-    ##        setattr(self, attr, value)
-    
     def cleanup(self):
         self.task.join()
         print "Calling saveout/task cleanup code"
@@ -278,6 +292,7 @@ class Task(object):
             self.task.cleanup(database, self.saveid, subject=self.subj)
 
         self.task.terminate()
+
 
 class ObjProxy(object):
     def __init__(self, cmds):

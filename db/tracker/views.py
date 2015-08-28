@@ -32,12 +32,12 @@ def list(request):
     start_date = datetime.date.today() - td
     entries = TaskEntry.objects.filter(date__gt=start_date, visible=True).order_by('-date')
 
-    tasks = Task.objects.filter(visible=True).order_by("name")
+    task_records = Task.objects.filter(visible=True).order_by("name")
     try:
         from tasklist import tasks
     except ImportError:
         tasks = dict()
-    tasks = filter(lambda t: t.name in tasks.keys(), tasks)
+    tasks = filter(lambda t: t.name in tasks.keys(), task_records)
 
     epoch = datetime.datetime.utcfromtimestamp(0)
     for entry in entries:
@@ -45,7 +45,7 @@ def list(request):
         if tdiff.days % 2 == 0:
             entry.bgcolor = '#E1EEf4'
         else:
-            entry.bgcolor = '#FFFFFF'#'#dae5f4'
+            entry.bgcolor = '#FFFFFF'
 
 
     fields = dict(
@@ -136,12 +136,6 @@ def listdb(request, dbname='default'):
             color_idx = (color_idx + 1) % 2
             last_tdiff = tdiff
         entry.bgcolor = colors[color_idx]
-
-        # if tdiff.days % 2 == 0:
-        #     entry.bgcolor = '#E1EEf4'
-        # else:
-        #     entry.bgcolor = '#FFFFFF'#'#dae5f4'
-
 
     fields = dict(
         entries=entries, 
