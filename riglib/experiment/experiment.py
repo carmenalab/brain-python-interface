@@ -576,6 +576,12 @@ class Experiment(traits.HasTraits, threading.Thread):
             offline_report['Success rate'] = str(np.round(float(n_success_trials)/n_trials*100,decimals=2)) + '%'
         return offline_report
 
+    def print_to_terminal(self, *args):
+        '''
+        Print to the terminal rather than the websocket if the websocket is being used by the 'Notify' feature (see db.tasktrack)
+        '''
+        print args
+
     ################################
     ## Cleanup/termination functions
     ################################
