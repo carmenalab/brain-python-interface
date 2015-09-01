@@ -56,7 +56,7 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
         dataname = "{subj}{time}_{num:02}_te{id}.{suff}".format(
             subj=entry.subject.name[:4].lower(),
             time=time.strftime('%Y%m%d'), num=num+1,
-            id=entry, suff=suff
+            id=entry.id, suff=suff
         )
         fullname = os.path.join(sys.path, dataname)
         permfile = dataname
