@@ -293,7 +293,7 @@ class PositionerTaskController(Sequence):
 
     state = 'go_to_origin'
 
-    sequence_generators = ['random_target_calibration']
+    sequence_generators = ['random_target_calibration', 'xy_sweep']
     reward_time = 1
     reach_time = 1
 
@@ -345,6 +345,37 @@ class PositionerTaskController(Sequence):
         trial_target_ls.append(dict(int_target_pos=np.zeros(3)))
         return trial_target_ls        
 
+    @staticmethod 
+    def xy_sweep(z_min=-25, z_max=0, zpts=5):
+        xy_target_locs = np.vstack([
+            [8.20564516129, 37.6302083333],
+            [9.61693548387, 34.1145833333],
+            [15.1209677419, 31.1848958333],
+            [15.5443548387, 34.5703125],
+            [18.2258064516, 36.5234375],
+            [23.4475806452, 34.7005208333],
+            [22.8830645161, 32.3567708333],
+            [23.0241935484, 29.1666666667],
+            [28.9516129032, 34.8307291667],
+            [28.9516129032, 32.2265625],
+            [29.2338709677, 30.1432291667],
+            [33.3266129032, 35.4166666667],
+            [33.8911290323, 33.1380208333],
+            [30.5040322581, 30.078125],
+            [20.4838709677, 28.1901041667],
+            [35.5846774194, 36.5885416667],
+            [39.2540322581, 33.5286458333],
+            [41.5120967742, 38.5416666667],
+            [47.439516129,  37.6953125],
+        ])
+
+        trial_target_ls = []
+        z_range = np.linspace(z_min, z_max, zpts)
+        for xy_targ in xy_target_locs:
+            for zpt in z_range:
+                trial_target_ls.append(dict(int_target_pos=np.hstack([xy_targ, zpt])))
+
+        return trial_target_ls
 
     def __init__(self, *args, **kwargs):
         '''
@@ -404,6 +435,7 @@ class PositionerTaskController(Sequence):
 
     def init(self):
         self.add_dtype('positioner_loc', np.float64, (3,))
+        self.add_dtype('positioner_steps_from_origin', np.float64, (3,))
         super(PositionerTaskController, self).init()
 
         # open an rx_socket for reading new commands 
@@ -499,6 +531,7 @@ class PositionerTaskController(Sequence):
         # print self.state
         # self.print_to_terminal("_cycle")
         self.task_data['positioner_loc'] = self.loc
+        self.task_data['positioner_steps_from_origin'] = self.steps_from_origin
         super(PositionerTaskController, self)._cycle()
 
     def set_state(self, *args, **kwargs):
