@@ -455,58 +455,59 @@ class TaskEntry(object):
 
         
         # Parse out trial messages into separate trials
-        try:
-            task_msgs = self.hdf.root.task_msgs[:]
-            # Ignore the last message if it's the "None" transition used to stop the task
-            if task_msgs[-1]['msg'] == 'None':
-                task_msgs = task_msgs[:-1]
-
-            # ignore "update bmi" messages. These have been removed in later datasets
-            task_msgs = task_msgs[task_msgs['msg'] != 'update_bmi']
-
-            # Try to add the target index.. these are not present in every task type
+        if os.path.exists(self.hdf_filename):
             try:
-                target_index = self.hdf.root.task[:]['target_index'].ravel()
-                task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8')])
-                task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
-                for k in range(len(task_msgs)):
-                    task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
-                    task_msgs_ext[k]['time'] = task_msgs[k]['time']    
-                    try:
-                        task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
-                    except:
-                        task_msgs_ext[k]['target_index'] = np.nan
-                    
-                self.task_msgs = task_msgs_ext  
+                task_msgs = self.hdf.root.task_msgs[:]
+                # Ignore the last message if it's the "None" transition used to stop the task
+                if task_msgs[-1]['msg'] == 'None':
+                    task_msgs = task_msgs[:-1]
+
+                # ignore "update bmi" messages. These have been removed in later datasets
+                task_msgs = task_msgs[task_msgs['msg'] != 'update_bmi']
+
+                # Try to add the target index.. these are not present in every task type
+                try:
+                    target_index = self.hdf.root.task[:]['target_index'].ravel()
+                    task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8')])
+                    task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
+                    for k in range(len(task_msgs)):
+                        task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
+                        task_msgs_ext[k]['time'] = task_msgs[k]['time']    
+                        try:
+                            task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
+                        except:
+                            task_msgs_ext[k]['target_index'] = np.nan
+                        
+                    self.task_msgs = task_msgs_ext  
+                except:
+                    self.task_msgs = task_msgs
+
+                ## Split the task messages into separate trials
+                self.trial_end_states = self.record.task.get().trial_end_states
+                self.trial_msgs = []
+                try:
+                    # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1
+                    trial_start = np.logical_or(self.task_msgs['msg'] == 'wait', np.logical_and(self.task_msgs['msg'] == 'targ_transition', self.task_msgs['target_index'] == -1))
+                    trial_start_inds, = np.nonzero(trial_start)
+                    trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
+
+                    for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+                        self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
+                except:
+                    # For tasks where there is no target index in the trial structure..
+                    trial_end = np.array([msg in self.trial_end_states for msg in self.task_msgs['msg']])
+                    trial_end_inds, = np.nonzero(trial_end)
+                    trial_start_inds = np.hstack([0, trial_end_inds[:-1]+1])
+                    trial_end = np.zeros(len(self.task_msgs))
+
+                    for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+                        self.trial_msgs.append(self.task_msgs[trial_st:trial_end+1])
+
+
             except:
-                self.task_msgs = task_msgs
-
-            ## Split the task messages into separate trials
-            self.trial_end_states = self.record.task.get().trial_end_states
-            self.trial_msgs = []
-            try:
-                # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1
-                trial_start = np.logical_or(self.task_msgs['msg'] == 'wait', np.logical_and(self.task_msgs['msg'] == 'targ_transition', self.task_msgs['target_index'] == -1))
-                trial_start_inds, = np.nonzero(trial_start)
-                trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
-
-                for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
-                    self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
-            except:
-                # For tasks where there is no target index in the trial structure..
-                trial_end = np.array([msg in self.trial_end_states for msg in self.task_msgs['msg']])
-                trial_end_inds, = np.nonzero(trial_end)
-                trial_start_inds = np.hstack([0, trial_end_inds[:-1]+1])
-                trial_end = np.zeros(len(self.task_msgs))
-
-                for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
-                    self.trial_msgs.append(self.task_msgs[trial_st:trial_end+1])
-
-
-        except:
-            print "Couldn't process HDF file. Is it copied?"
-            import traceback
-            traceback.print_exc()
+                print "Couldn't process HDF file!"
+                import traceback
+                traceback.print_exc()
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
@@ -721,14 +722,14 @@ class TaskEntry(object):
         '''
         Get the task-generated HDF file linked to this TaskEntry
         '''
-        q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
-        if db_name == 'exorig':
-            dbconfig = getattr(config, 'db_config_exorig')
-        elif db_name == 'bmi3d':
-            dbconfig = getattr(config, 'db_config_bmi3d')
-        else:
+        q = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id, system__name='hdf')
+        if len(q) == 0: 
+            # empty string for HDF filename if none is linked in the database
+            return ''
+        elif len(q) == 1:
+            q = q[0]
             dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-        return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
+            return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
 
     @property
     def hdf(self):
