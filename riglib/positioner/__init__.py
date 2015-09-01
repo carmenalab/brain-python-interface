@@ -298,7 +298,7 @@ class PositionerTaskController(Sequence):
     reach_time = 1
 
     @staticmethod
-    def random_target_calibration(n_blocks=10, x_min=20, x_max=40, y_min=29, y_max=40, z_min=-25, z_max=0):
+    def random_target_calibration(n_blocks=10):
     #     # constants selected approximately from one subject's ROM
     #     targets = [
     #         (x_min, y_min, z_min),
@@ -324,7 +324,7 @@ class PositionerTaskController(Sequence):
     # @staticmethod 
     # def calibration_targets(nblocks=1):
         targets = [
-            (50, 38, 0),
+            (45, 34, 0),
             (50, 38, -25),
             (40, 35, 0),
             (40, 35, -25),            
