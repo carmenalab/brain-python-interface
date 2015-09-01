@@ -134,9 +134,18 @@ def exp_info(request, idx, dbname='default'):
     JSON-encoded dictionary 
         Data containing features, parameters, and any report data from the TaskEntry
     '''
-    print idx, dbname
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
-    return _respond(entry.to_json())
+    try:
+        entry_data = entry.to_json()
+    except:
+        print "##### Error trying to access task entry data: id=%s, dbname=%s" % (idx, dbname)
+        import traceback
+        exception = traceback.format_exc()
+        exception.replace('\n', '\n    ')
+        print exception.rstrip()
+        print "#####"
+    else:
+        return _respond(entry_data)
 
 def hide_entry(request, idx):
     '''
