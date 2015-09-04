@@ -22,92 +22,91 @@ When the task is running in a process spawned by the webserver, normal object-or
 
 Let's look at stopping the task as an example. After a task is started, the web interface presents the experimenter with a "Stop Experiment" button which enables the task to stop gracefully (save all the data and link data files to the database cleanly). 
 
-	1) 	In the html file $BMI3D/db/templates/exp_content.html (contains the HTML used when you click on a block), the "Stop Experiment" button is created and given the id "#stopbtn"
+1) 	In the html file ``$BMI3D/db/templates/exp_content.html`` (contains the HTML used when you click on a block), the "Stop Experiment" button is created and given the id ``#stopbtn``
 
-	2) 	In the html file $BMI3D/db/templates/list.html (the main HTML file), the line 
+2) 	In the html file ``$BMI3D/db/templates/list.html`` (the main HTML file), the line 
 
-		.. code-block:: javascript
+	.. code-block:: javascript
+	
+		$("#stopbtn").click(function() { taskaction = "stop"; })
+
+	binds the "click" action of the object ``#stopbtn`` to a function which sets the variable taskaction to ``"stop"``
+
+3) 	[Javascript Magic. Since this is our JS, this actually should be filled in]
+
+4) 	In the javascript file ``$BMI3D/db/static/resources/js/list.js``, the function ``TaskEntry.prototype.stop`` is executed. The line 
+
+	.. code-block:: javascript 
+
+		$.post("stop", csrf, TaskInterface.trigger.bind(this));
+
+	sends a POST request to the URL localhost:8000/stop (the "localhost:8000/" of the URL is implicit, as the URL is sent to a relative path, not an absolute path. so actually the request is sent to ``CURRENT_URL+"/stop"``). This is the address and port number that the webserver is listening to.
+
+5) 	[Django Magic. Since Django is pretty well maintained, we'll assume that they're on top of their magic and omit the details here. Also we don't know those details.]
+
+6) 	The URL is cross-referenced with the list of known URLs in ``$BMI3D/db/urls.py``, stored in the variable ``urlpatterns``. ``urlpatterns`` is an iterable of 2-tuples, where the first element of each tuple is the matching address (specified as a regular expression) and the second element is the appropriate function to call in response to the URL. Our stop request will match with the line 
+
+	.. code-block:: python
+
+		(r'^stop/?', 'tracker.ajax.stop_experiment'),
+
+7) The URL lookup directs the URL handler to execute the function ``tracker.ajax.stop_experiment``, located in the file ``$BMI3D/db/tracker/ajax.py``. At the top of ``ajax.py``, an object called ``exp_tracker`` is instantiated. This is the singleton instantiation of the ``Track`` class defined in ``$BMI3D/db/tasktrack.py``. The function ``tracker.ajax.stop_experiment`` instructs the exp_tracker to call the function ``Track.stoptask`` defined in ``$BMI3D/db/tasktrack.py``
+
+	``tracker.ajax.stop_experiment`` makes use of the higher-order function ``rpc``. The acronym RPC is short for remote procedure call. (The number of remaining steps would indicate that the procedure is being called *very* remotely). ``rpc`` takes as input a function and executes that function on the ``exp_tracker`` object. In this case, the input function to ``rpc`` is a function which takes an object and calls it's ``end_task`` method. 
+
+8) 	Track.stoptask executes the command
+
+	.. code-block:: python	
+
+		self.task.end_task()
+
+	``exp_tracker``'s attribute ``task`` is, somewhat confusingly, is not related to ``riglib.experiment.Experiment`` or any of its descendants. (And therefore, should eventually be renamed to something less confusing). Instead, ``task`` is an instance of the ``ObjProxy`` class defined in ``$BMI3D/db/tasktrack.py``, which is not a task at all but rather a proxy for interacting with the real task object. Remember, the real task object is running in another process and cannot be directly accessed. 
+
+9) 	``ObjProxy`` tries to remotely look up the attribute ``end_task`` of the remotely running task. So it sends some data through the pipe to the remote process
+
+	.. code-block:: python		
 		
-			$("#stopbtn").click(function() { taskaction = "stop"; })
+		self.cmds.send(("__getattr__", [attr], {}))
 
-		binds the "click" action of the #stopbtn to a function which sets the variable taskaction to the string "stop"
+	and waits for a response. 
 
-	3) 	[Javascript Magic. Since this is our JS, this actually should be filled in]
+10) The ``runtask`` function is listening on the other end of the pipe and tries to look up the attribute ``end_task`` in the line. Since ``end_task`` is a method declared in the class and not an attribute, this throws an Exception back through the pipe. This is a somewhat confusing result. Consider the following block of code:
 
-	4) 	In the javascript file $BMI3D/db/static/resources/js/list.js, the function TaskEntry.prototype.stop is executed. The line 
+	.. code-block:: python
 
-		.. code-block:: javascript 
+		In [2]: class test(object):
+		   ...:     def b(self):
+		   ...:         pass
+		   ...:     
 
-			$.post("stop", csrf, TaskInterface.trigger.bind(this));
+		In [3]: ob = test()
 
-		sends a POST request to the URL localhost:8000/stop (the "localhost:8000/" of the URL is implicit, as the URL is sent to a relative path, not an absolute path. so actually the request is sent to CURRENT_URL+"/stop"). This is the address and port number that the webserver is listening to.
+		In [5]: getattr(ob, 'b')
+		Out[5]: <bound method test.b of <__main__.test object at 0x10b2fb290>>
 
-	5) 	[Django Magic. Since Django is pretty well maintained, we'll assume that they're on top of their magic and omit the details here. Also we don't know those details.]
+		In [6]: ob.__getattr__('b')
+		---------------------------------------------------------------------------
+		AttributeError                            Traceback (most recent call last)
+		<ipython-input-6-f30a43e210fa> in <module>()
+		----> 1 ob.__getattr__('b')
 
-	6) 	The URL is cross-referenced with the list of known URLs in $BMI3D/db/urls.py, stored in the variable 'urlpatterns'. 'urlpatterns' is an iterable of 2-tuples, where the first element of each tuple is the matching address (specified as a regular expression) and the second element is the appropriate function to call in response to the URL. Our stop request will match with the line 
+		AttributeError: 'test' object has no attribute '__getattr__'
+	
+	In the snippet above, the built-in function ``getattr`` has a different behavior from ``ob.__getattr__``. So sometimes Python treats functions as objects, but declared functions are not attributes of a class. (You can, however, have attributes which are functions..)
 
-		.. code-block:: python
+11) When ``ObjProxy`` receives an Exception, it assumes that the exception was due to a function lookup. So it creates a ``FuncProxy`` object. This ``FuncProxy`` object is functionally equivalent to ``self.task.end_task`` from (8)
 
-			(r'^stop/?', 'tracker.ajax.stop_experiment'),
+12) Now that the function ``self.task.end_task`` has been looked up, the command ``self.task.end_task()`` is executed. ``FuncProxy`` sends through the same pipe the object ``('end_task', [], dict())``, instructing ``runtask`` to call ``Task.end_task`` instance method with no arguments. 
 
-	7) The URL lookup directs the URL handler to execute the function tracker.ajax.stop_experiment, located in the file $BMI3D/db/tracker/ajax.py. At the top of ajax.py, an object called exp_tracker is instantiated. This is the singleton instantiation of the Track class defined in $BMI3D/db/tasktrack.py. The function tracker.ajax.stop_experiment instructs the exp_tracker to call the function Track.stoptask defined in $BMI3D/db/tasktrack.py
+13) Finally, we execute what appears to be the same line of code as (8)
 
-		tracker.ajax.stop_experiment makes use of the higher-order function 'rpc'. The acronym RPC is short for remote procedure call. (The number of remaining steps would indicate that the procedure is being called *very* remotely). rpc takes a function and executes that function on the exp_tracker object. In this case, the input function to rpc is a function which takes an object and calls it's 'end_task' method. 
+	.. code-block:: python
 
-	8) 	Track.stoptask executes the command
+		self.task.end_task()
 
-		.. code-block:: python	
+	but on a different object. This time, ``self.task`` attribute is an instance of ``riglib.experiment.Experiment``
 
-			self.task.end_task()
-
-		exp_tracker's attribute 'task' is, somewhat confusingly, is not related to riglib.experiment.Experiment or any of its descendants. (And therefore, should eventually be renamed to something less confusing). Instead, 'task' is an instance of the ObjProxy class defined in $BMI3D/db/tasktrack.py, which is not a task at all but rather a proxy for interacting with the real task object. Remember, the real task object is running in another process and cannot be directly accessed. 
-
-	9) 	ObjProxy tries to remotely look up the attribute 'end_task' of the remotely running task. So it sends some data through the pipe to the remote process through the command
-
-		.. code-block:: python		
-			
-			self.cmds.send(("__getattr__", [attr], {}))
-
-		and waits for a response. 
-
-	10) The 'runtask' function is listening on the other end of the pipe and tries to look up the attribute 'end_task' in the line. Since 'end_task' is a method declared in the class and not an attribute, this throws an Exception back through the pipe. This is a somewhat confusing result. Consider the following block of code:
-
-		.. code-block:: python
-
-			In [2]: class test(object):
-			   ...:     a = 1
-			   ...:     def b(self):
-			   ...:         pass
-			   ...:     
-
-			In [3]: ob = test()
-
-			In [5]: getattr(ob, 'b')
-			Out[5]: <bound method test.b of <__main__.test object at 0x10b2fb290>>
-
-			In [6]: ob.__getattr__('b')
-			---------------------------------------------------------------------------
-			AttributeError                            Traceback (most recent call last)
-			<ipython-input-6-f30a43e210fa> in <module>()
-			----> 1 ob.__getattr__('b')
-
-			AttributeError: 'test' object has no attribute '__getattr__'
-
-	In the snippet above, the built-in function 'getattr' has a different behavior from ob.__getattr__. So sometimes Python treats functions as objects (like in the case of the celery application above), but sometimes it doesn't. 
-
-	11) When ObjProxy receives an Exception, it assumes that the exception was due to a function lookup. So it creates a FuncProxy object. This FuncProxy object is functionally equivalent to 'self.task.end_task' from (8)
-
-	12) Now that the function self.task.end_task has been looked up, the command 'self.task.end_task()' is executed. FuncProxy sends through the same pipe the object ('end_task', [], dict()), instructing 'runtask' to call Task.end_task instance method with no arguments. 
-
-	13) Finally, we execute what appears to be the same line of code as (8)
-
-		.. code-block:: python
-
-			self.task.end_task()
-
-		but on a different object. This time, 'self.task' attribute is an instance of riglib.experiment.Experiment
-
-	14) riglib.experiment.Experiment.end_task sets a boolean flag which instructs the event loop to gracefully exit. 
+14) ``riglib.experiment.Experiment.end_task`` sets a boolean flag which instructs the event loop to gracefully exit. 
 
 Linking files back to the database
 ----------------------------------
