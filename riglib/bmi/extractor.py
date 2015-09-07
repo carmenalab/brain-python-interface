@@ -474,7 +474,7 @@ class LFPMTMPowerExtractor(object):
 
         if extractor_kwargs['no_mean']: #Used in lfp 1D control task
             self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(fft_freqs), 1))
-        else: #Else: 
+        else:
             self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
 
 
@@ -483,7 +483,19 @@ class LFPMTMPowerExtractor(object):
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
-        '''    cont_samples is in channels x time   '''
+        '''
+        Extract spectral features from a block of time series samples
+
+        Parameters
+        ----------
+        cont_samples : np.ndarray of shape (n_channels, n_samples)
+            Raw voltage time series (one per channel) from which to extract spectral features 
+
+        Returns
+        -------
+        lfp_power : np.ndarray of shape (n_channels * n_features, 1)
+            Multi-band power estimates for each channel, for each band specified when the feature extractor was instantiated.
+        '''
         psd_est = tsa.multi_taper_psd(cont_samples, Fs=self.fs, NW=self.NW, jackknife=False, low_bias=True, NFFT=self.nfft)[1]
         
         if (self.extractor_kwargs.has_key('no_mean')) and (self.extractor_kwargs['no_mean'] is True):
@@ -495,19 +507,15 @@ class LFPMTMPowerExtractor(object):
             lfp_power = np.zeros((n_chan * len(self.bands), 1))
             for idx, band in enumerate(self.bands):
                 if self.extractor_kwargs['no_log']:
-                    lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1).reshape(-1, 1)
+                    lfp_power[idx*n_chan : (idx+1)*n_chan, 0] = np.mean(psd_est[:, self.fft_inds[idx]], axis=1)
                 else:
-                    lfp_power[idx*n_chan:(idx+1)*n_chan] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1).reshape(-1, 1)
-
-            # n_chan = len(self.channels)     
-            # lfp_power = np.random.randn(n_chan * len(self.bands), 1)
+                    lfp_power[idx*n_chan : (idx+1)*n_chan, 0] = np.mean(np.log10(psd_est[:, self.fft_inds[idx]] + self.epsilon), axis=1)
             
             return lfp_power
 
     def __call__(self, start_time, *args, **kwargs):
         '''    Docstring    '''
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-        #cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
         lfp_power = self.extract_features(cont_samples)
 
         return dict(lfp_power=lfp_power)

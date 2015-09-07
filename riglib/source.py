@@ -61,7 +61,14 @@ import sink
 
 class DataSourceSystem(object):
     '''
-    Abstract base class for use with the generic DataSource infrastructure.
+    Abstract base class for use with the generic DataSource infrastructure. Requirements:
+        1) the class must have an attribute named 'dtype' which represents 
+           the data type of the source data. The datatype *cannot* change!
+        2) the class must have an attribute named 'update_freq' which specifies 
+           the frequency at which new data samples will be ready for retrieval.
+        3) 'start' method--no arguments
+        4) 'stop' method--no arguments
+        5) 'get' method--should return a single output argument
     '''
     dtype = np.dtype([])
     update_freq = 1
@@ -91,15 +98,8 @@ class DataSource(mp.Process):
         '''
         Parameters
         ----------
-        source: class
-            Class to be instantiated as the "system" with changing data values. Requirements:
-                1) the class must have an attribute named 'dtype' which represents 
-                   the data type of the source data. The datatype *cannot* change!
-                2) the class must have an attribute named 'update_freq' which specifies 
-                   the frequency at which new data samples will be ready for retrieval.
-                3) 'start' method--no arguments
-                4) 'stop' method--no arguments
-                5) 'get' method--should return a single output argument
+        source: class compatible with DataSourceSystem
+            Class to be instantiated as the "system" with changing data values. 
         bufferlen: float
             Number of seconds long to make the ringbuffer. Seconds are converted to number 
             of samples based on the 'update_freq' attribute of the source
@@ -146,13 +146,17 @@ class DataSource(mp.Process):
 
     def start(self, *args, **kwargs):
         '''
-        Docstring
+        From Python's docs on the multiprocessing module:
+            Start the process's activity.
+            This must be called at most once per process object. It arranges for the object's run() method to be invoked in a separate process.
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         self.sinks = sink.sinks
         super(DataSource, self).start(*args, **kwargs)

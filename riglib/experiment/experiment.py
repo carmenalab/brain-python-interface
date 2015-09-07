@@ -194,19 +194,21 @@ class Experiment(traits.HasTraits, threading.Thread):
     @classmethod 
     def pre_init(cls, **kwargs):
         '''
-        Jobs to do before creating the task object go here (or this method should be overridden in child classes)
+        Jobs to do before creating the task object go here (or this method should be overridden in child classes).
+        Examples might include sending a trigger to start a recording device (e.g., neural system), since you might want
+        recording to be guaranteed to start before any task event loop activity occurs. 
         '''
         print 'running experiment.Experiment.pre_init'
         pass
 
     def __init__(self, **kwargs):
         '''
-        Constructor for Experiment
+        Constructor for Experiment. This is the standard python object constructor
 
         Parameters
         ----------
-        kwargs: dictionary
-            Keyword arguments to be passed to the traits.HasTraits parent.
+        kwargs: optional keyword-arguments
+            Any user-specified parameters for experiment traits, to be passed to the traits.HasTraits parent. 
 
         Returns
         -------
@@ -238,9 +240,13 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def init(self):
         '''
-        Initialization method to run *after* object construction (see self.start)
-        Over-ride in base class if there's anything to do just before the
-        experiment starts running
+        Initialization method to run *after* object construction (see self.start). 
+        This may be necessary in some cases where features are used with multiple inheritance to extend tasks 
+        (this is the standard way of creating custom base experiment + features classes through the browser interface). 
+        With multiple inheritance, it's difficult/annoying to make guarantees about the order of operations for 
+        each of the individual __init__ functions from each of the parents. Instead, this function runs after all the 
+        __init__ functions have finished running if any subsequent initialization is necessary before the main event loop 
+        can execute properly. Examples include initialization of the decoder state/parameters. 
         '''
         # Timestamp for rough loop timing
         self.last_time = self.get_time()
@@ -350,11 +356,14 @@ class Experiment(traits.HasTraits, threading.Thread):
     ##### Finite state machine (FSM) transition functions #####
     ###########################################################
     def fsm_tick(self):
+        '''
+        Execute the commands corresponding to a single tick of the event loop
+        '''
         # Execute commands
         self.exec_state_specific_actions(self.state)
 
         # Execute the commands which must run every loop, independent of the FSM state
-        # (e.g., running the BMI)
+        # (e.g., running the BMI decoder)
         self._cycle()
 
         current_state = self.state
@@ -553,7 +562,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         Print to the terminal rather than the websocket if the websocket is being used by the 'Notify' feature (see db.tasktrack)
         '''
-        print args
+        if len(args) == 1:
+            print args[0]
+        else:
+            print args
 
     ################################
     ## Cleanup/termination functions
@@ -763,6 +775,7 @@ class Sequence(LogExperiment):
         At the start of the wait state, the generator (self.gen) is querried for 
         new information needed to start the trial. If the generator runs out, the task stops. 
         '''
+        print "_start_wait"
         try:
             self.next_trial = self.gen.next()
         except StopIteration:

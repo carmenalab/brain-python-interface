@@ -46,6 +46,9 @@ class Task(models.Model):
 
     @staticmethod
     def populate():
+        '''
+        Automatically create a new database record for any tasks added to db/namelist.py
+        '''
         from namelist import tasks
         real = set(tasks.keys())
         db = set(task.name for task in Task.objects.all())
@@ -53,7 +56,6 @@ class Task(models.Model):
             Task(name=name).save()
 
     def params(self, feats=(), values=None):
-        from riglib import experiment
         from namelist import instance_to_model, instance_to_model_filter_kwargs
 
         if values is None:
@@ -66,50 +68,59 @@ class Task(models.Model):
         Exp = self.get(feats=feats)
         ctraits = Exp.class_traits()
 
-        def add_trait(trait):
-            varname = dict()
-            varname['type'] = ctraits[trait].trait_type.__class__.__name__
-            varname['default'] = _get_trait_default(ctraits[trait])
-            varname['desc'] = ctraits[trait].desc
-            varname['hidden'] = 'hidden' if Exp.is_hidden(trait) else 'visible'
+        def add_trait(trait_name):
+            trait_params = dict()
+            trait_params['type'] = ctraits[trait_name].trait_type.__class__.__name__
+            trait_params['default'] = _get_trait_default(ctraits[trait_name])
+            trait_params['desc'] = ctraits[trait_name].desc
+            trait_params['hidden'] = 'hidden' if Exp.is_hidden(trait_name) else 'visible'
 
-            if trait in values:
-                varname['value'] = values[trait]
+            if trait_name in values:
+                trait_params['value'] = values[trait_name]
 
             # if the trait is an instance (generic object), then it is assumed that 
             # the object is associated with some database model
-            if varname['type'] == "Instance":
-                Model = instance_to_model[ctraits[trait].trait_type.klass]
-                filter_kwargs = instance_to_model_filter_kwargs[ctraits[trait].trait_type.klass]
+            if trait_params['type'] == "Instance":
+                Model = instance_to_model[ctraits[trait_name].trait_type.klass]
+                filter_kwargs = instance_to_model_filter_kwargs[ctraits[trait_name].trait_type.klass]
 
                 # look up database records which match the model type & filter parameters
                 insts = Model.objects.filter(**filter_kwargs).order_by("-date")
-                try:
-                    varname['options'] = [(i.pk, i.name) for i in insts]
-                except:
-                    varname['options'] = [(i.pk, i.path) for i in insts]
+                trait_params['options'] = [(i.pk, i.path) for i in insts]
 
 
             # if the trait is an enumeration, look in the 'Exp' class for 
             # the options because for some reason the trait itself can't 
             # store the available options (at least at the time this was written..)
-            if varname['type'] == "Enum":
-                varname['options'] = getattr(Exp, trait + '_options')
+            elif trait_params['type'] == "Enum":
+                trait_params['options'] = getattr(Exp, trait_name + '_options')
 
-            params[trait] = varname
+            elif trait_params['type'] == "OptionsList":
+                trait_params['options'] = ctraits[trait_name].bmi3d_input_options
 
-            if trait == 'bmi': # a hack for really old data, where the 'decoder' was mistakenly labeled 'bmi'
-                params['decoder'] = varname
+            elif trait_params['type'] == "DataFile":
+                # look up database records which match the model type & filter parameters
+                filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
+                insts = DataFile.objects.filter(**filter_kwargs).order_by("-date")
+                trait_params['options'] = [(i.pk, i.path) for i in insts]                
 
+            params[trait_name] = trait_params
+
+            if trait_name == 'bmi': # a hack for really old data, where the 'decoder' was mistakenly labeled 'bmi'
+                params['decoder'] = trait_params
+
+        # add all the traits that are explicitly instructed to appear at the top of the menu
         ordered_traits = Exp.ordered_traits
         for trait in ordered_traits:
             if trait in Exp.class_editable_traits():
                 add_trait(trait)
 
+        # add all the remaining non-hidden traits
         for trait in Exp.class_editable_traits():
             if trait not in params and not Exp.is_hidden(trait):
                 add_trait(trait)
 
+        # add any hidden traits
         for trait in Exp.class_editable_traits():
             if trait not in params:
                 add_trait(trait)
@@ -187,6 +198,32 @@ class System(models.Model):
                 System.objects.get(name=name)
             except ObjectDoesNotExist:
                 System(name=name, path="/storage/rawdata/%s"%name).save()
+
+    @staticmethod 
+    def make_new_sys(name):
+        try:
+            new_sys_rec = System.objects.get(name=name)
+        except ObjectDoesNotExist:
+            data_dir = "/storage/rawdata/%s" % name
+            new_sys_rec = System(name=name, path=data_dir)
+            new_sys_rec.save()
+            os.popen('mkdir -p %s' % data_dir)
+
+        return new_sys_rec
+
+    def save_to_file(self, obj, filename, obj_name=None, entry_id=-1):
+        full_filename = os.path.join(self.path, filename)
+        pickle.dump(obj, open(full_filename, 'w'))
+
+        if obj_name is None:
+            obj_name = filename.rstrip('.pkl')
+
+        df = DataFile()
+        df.path = filename 
+        df.system = self 
+        df.entry_id = entry_id
+        df.save()
+
 
 class Subject(models.Model):
     name = models.CharField(max_length=128)
@@ -801,7 +838,10 @@ class DataFile(models.Model):
     entry = models.ForeignKey(TaskEntry)
 
     def __unicode__(self):
-        return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
+        if self.entry_id > 0:
+            return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
+        else:
+            return "datafile '{name}' for System {sys_name}".format(name=self.path, sys_name=self.system.name)
 
     def to_json(self):
         return dict(system=self.system.name, path=self.path)
