@@ -25,6 +25,22 @@ def param_objhook(obj):
     return obj
 
 def norm_trait(trait, value):
+    '''
+    Take user input and convert to the type of the trait. 
+    For example, a user might select a decoder's name/id but the ID needs to be mapped 
+    to an object for type checking when the experiment is constructed)
+
+    Parameters
+    ----------
+    trait : trait object
+        trait object declared for the runtime-configurable field.
+    value : object
+        Value of trait set from user input, to be type-checked
+
+    Returns
+    -------
+    typecast value of trait
+    '''
     ttype = trait.trait_type.__class__.__name__
     if ttype == 'Instance':
         # if the trait is an 'Instance' type and the value is a number, then the number gets interpreted as the primary key to a model in the database
@@ -32,7 +48,12 @@ def norm_trait(trait, value):
             cname = namelist.instance_to_model[trait.trait_type.klass]
             record = cname.objects.get(pk=value)
             value = record.get()
-        #Otherwise, let's hope it's already an instance
+        # Otherwise, let's hope it's already an instance
+    elif ttype == 'DataFile':
+        # Similar to Instance traits, except we always know to use models.DataFile as the database table to look up the primary key
+        if isinstance(value, int):
+            record = models.DataFile.objects.get(pk=value)
+            value = record.get()
     elif ttype == 'Bool':
         # # Boolean values come back as 'on'/'off' instead of True/False
         # bool_values = ['off', 'on']
@@ -129,8 +150,8 @@ class Parameters(object):
 
         Parameters
         ----------
-        traits : ????
-            The specified traits have casts applied
+        traits : dict
+            keys are the names of each trait for the Experiment class, values are the trait objects
 
         Returns
         -------

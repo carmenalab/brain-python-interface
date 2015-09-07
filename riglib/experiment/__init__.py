@@ -7,11 +7,7 @@ has methods of the base task as well as all the selected features.
 '''
 import numpy as np
 
-try:
-    import traits.api as traits
-except ImportError:
-    import enthought.traits.api as traits
-
+import traits
 import experiment
 import generate
 import report
