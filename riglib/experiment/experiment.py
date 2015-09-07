@@ -194,19 +194,21 @@ class Experiment(traits.HasTraits, threading.Thread):
     @classmethod 
     def pre_init(cls, **kwargs):
         '''
-        Jobs to do before creating the task object go here (or this method should be overridden in child classes)
+        Jobs to do before creating the task object go here (or this method should be overridden in child classes).
+        Examples might include sending a trigger to start a recording device (e.g., neural system), since you might want
+        recording to be guaranteed to start before any task event loop activity occurs. 
         '''
         print 'running experiment.Experiment.pre_init'
         pass
 
     def __init__(self, **kwargs):
         '''
-        Constructor for Experiment
+        Constructor for Experiment. This is the standard python object constructor
 
         Parameters
         ----------
-        kwargs: dictionary
-            Keyword arguments to be passed to the traits.HasTraits parent.
+        kwargs: optional keyword-arguments
+            Any user-specified parameters for experiment traits, to be passed to the traits.HasTraits parent. 
 
         Returns
         -------
@@ -238,9 +240,13 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     def init(self):
         '''
-        Initialization method to run *after* object construction (see self.start)
-        Over-ride in base class if there's anything to do just before the
-        experiment starts running
+        Initialization method to run *after* object construction (see self.start). 
+        This may be necessary in some cases where features are used with multiple inheritance to extend tasks 
+        (this is the standard way of creating custom base experiment + features classes through the browser interface). 
+        With multiple inheritance, it's difficult/annoying to make guarantees about the order of operations for 
+        each of the individual __init__ functions from each of the parents. Instead, this function runs after all the 
+        __init__ functions have finished running if any subsequent initialization is necessary before the main event loop 
+        can execute properly. Examples include initialization of the decoder state/parameters. 
         '''
         # Timestamp for rough loop timing
         self.last_time = self.get_time()
