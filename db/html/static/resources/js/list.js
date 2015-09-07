@@ -403,7 +403,7 @@ TaskEntry.prototype.test = function() {
 	return this.run(false); 
 }
 
-/* Callback for the start experiment button
+/* Callback for the "Stop Experiment" button
  */
 TaskEntry.prototype.stop = function() {
 	var csrf = {};

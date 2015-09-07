@@ -356,11 +356,14 @@ class Experiment(traits.HasTraits, threading.Thread):
     ##### Finite state machine (FSM) transition functions #####
     ###########################################################
     def fsm_tick(self):
+        '''
+        Execute the commands corresponding to a single tick of the event loop
+        '''
         # Execute commands
         self.exec_state_specific_actions(self.state)
 
         # Execute the commands which must run every loop, independent of the FSM state
-        # (e.g., running the BMI)
+        # (e.g., running the BMI decoder)
         self._cycle()
 
         current_state = self.state
