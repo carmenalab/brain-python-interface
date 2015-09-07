@@ -95,6 +95,9 @@ class Task(models.Model):
             elif trait_params['type'] == "Enum":
                 trait_params['options'] = getattr(Exp, trait_name + '_options')
 
+            elif trait_params['type'] == "OptionsList":
+                trait_params['options'] = ctraits[trait_name].bmi3d_input_options
+
             elif trait_params['type'] == "DataFile":
                 # look up database records which match the model type & filter parameters
                 filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
@@ -202,7 +205,7 @@ class System(models.Model):
             new_sys_rec = System.objects.get(name=name)
         except ObjectDoesNotExist:
             data_dir = "/storage/rawdata/%s" % name
-            new_sys_rec = System(name=name, path=)
+            new_sys_rec = System(name=name, path=data_dir)
             new_sys_rec.save()
             os.popen('mkdir -p %s' % data_dir)
 
@@ -835,7 +838,10 @@ class DataFile(models.Model):
     entry = models.ForeignKey(TaskEntry)
 
     def __unicode__(self):
-        return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
+        if self.entry_id > 0:
+            return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
+        else:
+            return "datafile '{name}' for System {sys_name}".format(name=self.path, sys_name=self.system.name)
 
     def to_json(self):
         return dict(system=self.system.name, path=self.path)

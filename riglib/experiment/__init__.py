@@ -7,7 +7,30 @@ has methods of the base task as well as all the selected features.
 '''
 import numpy as np
 
-import traits
+try:
+    import traits.api as traits
+except ImportError:
+    import enthought.traits.api as traits
+
+class DataFile(traits.Instance):
+    def __init__(self, *args, **kwargs):
+        if 'bmi3d_query_kwargs' in kwargs:
+            self.bmi3d_query_kwargs = kwargs['bmi3d_query_kwargs']
+
+        super(DataFile, self).__init__(*args, **kwargs)
+
+class OptionsList(traits.Enum):
+    def __init__(self, *args, **kwargs):
+        if 'bmi3d_input_options' in kwargs:
+            self.bmi3d_input_options = kwargs['bmi3d_input_options']
+
+        super(OptionsList, self).__init__(*args, **kwargs)
+
+traits.DataFile = DataFile
+traits.OptionsList = OptionsList
+
+
+
 import experiment
 import generate
 import report

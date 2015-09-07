@@ -559,7 +559,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         Print to the terminal rather than the websocket if the websocket is being used by the 'Notify' feature (see db.tasktrack)
         '''
-        print args
+        if len(args) == 1:
+            print args[0]
+        else:
+            print args
 
     ################################
     ## Cleanup/termination functions
@@ -769,6 +772,7 @@ class Sequence(LogExperiment):
         At the start of the wait state, the generator (self.gen) is querried for 
         new information needed to start the trial. If the generator runs out, the task stops. 
         '''
+        print "_start_wait"
         try:
             self.next_trial = self.gen.next()
         except StopIteration:
