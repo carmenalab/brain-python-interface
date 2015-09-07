@@ -153,8 +153,8 @@ void loop() {
             int room_to_move_x = ((n_steps_x >= 0) && room_to_increase_x) || ((n_steps_x < 0 ) && room_to_decrease_x);
             if (x_going && (n_steps_commanded_x  < n_steps_to_travel_x) && room_to_move_x ) {
               digitalWrite(step_x, HIGH);
-              delay(10);
-              digitalWrite(step_x, LOW); 
+              //delay(10);
+              //digitalWrite(step_x, LOW); 
               n_steps_commanded_x += 1;              
             } else {
               x_going = 0;
@@ -164,8 +164,8 @@ void loop() {
             int room_to_move_y = ((n_steps_y >= 0) && room_to_increase_y) || ((n_steps_y < 0 ) && room_to_decrease_y);
             if (y_going && (n_steps_commanded_y < n_steps_to_travel_y) && room_to_move_y ) {
               digitalWrite(step_y, HIGH);
-              delay(10);
-              digitalWrite(step_y, LOW);
+              //delay(10);
+              //digitalWrite(step_y, LOW);
               n_steps_commanded_y += 1;              
             } else {
               y_going = 0;
@@ -175,15 +175,15 @@ void loop() {
             int room_to_move_z = ((n_steps_z >= 0) && room_to_increase_z) || ((n_steps_z < 0 ) && room_to_decrease_z);
             if (z_going && (n_steps_commanded_z < n_steps_to_travel_z) && room_to_move_z ) {
               digitalWrite(step_z, HIGH);
-              delay(10);
-              digitalWrite(step_z, LOW); 
+              //delay(10);
+              //digitalWrite(step_z, LOW); 
               n_steps_commanded_z += 1;
             } else {
               z_going = 0;
             }
 
             // Turn off step
-            
+            delay(10);
             digitalWrite(step_x, LOW); 
             digitalWrite(step_y, LOW);     
             digitalWrite(step_z, LOW);  
