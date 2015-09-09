@@ -59,12 +59,14 @@ class SubclassDict(dict):
         raise KeyError
 
 from riglib.plants import RefTrajectories
+from ismore.emg_decoding import LinearEMGDecoder
 instance_to_model = SubclassDict( {
     calibrations.Profile:models.Calibration,
     calibrations.AutoAlign:models.AutoAlignment,
     BMI: models.Decoder,
     Decoder: models.Decoder,
     RefTrajectories: models.DataFile,
+    LinearEMGDecoder: models.Decoder,
 } )
 
 instance_to_model_filter_kwargs = SubclassDict( {
@@ -72,7 +74,8 @@ instance_to_model_filter_kwargs = SubclassDict( {
     calibrations.AutoAlign:dict(),
     BMI:dict(),
     Decoder:dict(),
-    RefTrajectories: dict(system__name='ref_trajectories')
+    RefTrajectories: dict(system__name='ref_trajectories'),
+    LinearEMGDecoder: dict(name__startswith='emg_decoder')
 } )
 
 ################################################################################
