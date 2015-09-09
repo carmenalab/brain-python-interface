@@ -190,6 +190,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
                 else:
                     cmd = None
     except:
+        task_wrapper = None
         err = cStringIO.StringIO()
         log_error(err, mode='a')
         err.seek(0)
@@ -201,15 +202,14 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     sys.stdout = sys.__stdout__
 
     # Initiate task cleanup
-    try:
-        task
-    except:
+    if task_wrapper is None:
         print "\nERROR: Task was never initialized, cannot run cleanup function!"
         print "see %s for error messages" % log_filename
         print open(log_filename, 'rb').read()
         print
+        
     else:
-        task.cleanup()
+        task_wrapper.cleanup()
 
     print "*************************** EXITING TASK *****************************"
 
