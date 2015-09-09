@@ -108,5 +108,14 @@ Let's look at stopping the task as an example. After a task is started, the web 
 
 #. ``riglib.experiment.Experiment.end_task`` sets a boolean flag which instructs the event loop to gracefully exit. 
 
+
 Linking files back to the database
 ----------------------------------
+When tasks started from the browswer interface are to be saved, database records of files must be created and linked back to TaskEntry objects. However, since the task runs in a process outside the webserver, it is unsafe for the remote process to directly write to the database, as this may result in multiple processes writing to the same database at the same time and may corrupt the database. 
+
+To allow remote access to the database, ``db/tasktrack.py`` uses the ``xmlrpclib`` library::
+
+	database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+	self.task.cleanup(database, self.saveid, subject=self.subj)
+
+``database`` is an object with access to the methods of ``db/tracker/dbq.py``, which contains the code which would be used to record various types of files in the database. 

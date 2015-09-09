@@ -35,7 +35,7 @@ class Track(object):
     def __init__(self):
         # shared memory to store the status of the task in a char array
         self.status = mp.Array('c', 256)
-        self.task = None
+        self.task_proxy = None
         self.proc = None
         self.websock = websocket.Server(self.notify)
         self.tracker_end_of_pipe, self.task_end_of_pipe = mp.Pipe()
@@ -57,11 +57,11 @@ class Track(object):
         # create a proxy for interacting with attributes/functions of the task.
         # The task runs in a separate process and we cannot directly access python 
         # attributes of objects in other processes
-        self.task = ObjProxy(self.tracker_end_of_pipe)
+        self.task_proxy = ObjProxy(self.tracker_end_of_pipe)
 
         # Spawn the process
         args = (self.tracker_end_of_pipe, self.task_end_of_pipe, self.websock)
-        self.proc = mp.Process(target=runtask, args=args, kwargs=kwargs)
+        self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
         self.proc.start()
         
     def __del__(self):
@@ -72,7 +72,7 @@ class Track(object):
         self.websock.stop()
 
     def pausetask(self):
-        self.status.value = self.task.pause()
+        self.status.value = self.task_proxy.pause()
 
     def stoptask(self):
         '''
@@ -80,10 +80,8 @@ class Track(object):
         '''
         assert self.status.value in "testing,running"
         try:
-            self.task.end_task()
+            self.task_proxy.end_task()
         except Exception as e:
-            import cStringIO
-            import traceback
             err = cStringIO.StringIO()
             traceback.print_exc(None, err)
             err.seek(0)
@@ -91,7 +89,7 @@ class Track(object):
 
         status = self.status.value
         self.status.value = ""
-        self.task = None
+        self.task_proxy = None
         return status
 
 
@@ -132,9 +130,9 @@ class NotifyFeat(object):
 
 
 
-def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
+def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
-    Target function to execute in the separate process to start the task
+    Target function to execute in the spawned process to start the task
     '''
     print "*************************** STARTING TASK *****************************"
     
@@ -155,13 +153,13 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
 
     try:
         # Instantiate the task
-        task = Task(**kwargs)
+        task_wrapper = Task(**kwargs)
         cmd = task_end_of_pipe.recv()
 
         # Rerout prints to stdout to the websocket
         sys.stdout = websock
 
-        while (cmd is not None) and (task.task.state is not None):
+        while (cmd is not None) and (task_wrapper.task.state is not None):
             with open(log_filename, 'a') as f:
                 f.write('remote command received: %s, %s, %s\n' % cmd)
             try:
@@ -170,7 +168,7 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
                 cmd_kwargs = cmd[2]
 
                 # look up the function by name
-                fn = getattr(task, fn_name)
+                fn = getattr(task_wrapper, fn_name)
 
                 # run the function and save the return value as a single object
                 # if an exception is thrown, the code will jump to the last 'except' case
