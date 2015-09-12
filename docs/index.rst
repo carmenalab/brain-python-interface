@@ -15,11 +15,16 @@ High-level descriptions:
     tasks
     database
     tracker
-    data
-    comments
     analysis
+    data
     bmi
     nidaq
+
+General coding guidelines
+..  toctree::
+    :maxdepth: 1
+
+    comments
 
 Low-level documentation:
 

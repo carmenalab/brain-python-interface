@@ -2,6 +2,7 @@
 
 Reading saved data
 ==================
+[[This document is pretty out of date]]
 
 Plexon files
 ------------
