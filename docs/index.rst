@@ -13,8 +13,7 @@ High-level descriptions:
 
     install
     tasks
-    display
-    interface
+    database
     tracker
     data
     comments
