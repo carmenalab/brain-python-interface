@@ -6,11 +6,15 @@ Brain-machine interface (BMI) code
 The BMI code is split between the ``tasks`` module and the ``bmi`` module. The ``bmi`` module contains the "low-level" components of the BMI, including the decoding algorithm, the assist methods, the adaptive filtering techinques for parameter fitting, etc. The ``tasks`` module integrates these components to enable the BMI subject to perform a target-capture task.
 
 
-System architecture
--------------------
+Architecure of BMILoop
+----------------------
+``BMILoop`` is the top-level interface for just running a BMI prosthesis, without any particular task structure. (Or alternatively, you might call this an unstructured task). It's comprised of many smaller components, including machinery to adapt the decoder in closed-loop (CLDA), assistive shared control, and the interaction with the device itself.
 
 ..	image:: bmi_loop.png
 
+In our BMI architecture, we enforce a separation between the "decoder" and the "plant". This distinction is vacuous for a virtual plant (e.g., a cursor on a screen) where the state of the plant is purely software controlled. However, the distinction is important for a physically actuated plant. Not every position commanded by a linear decoder can be physically achieved by a robot (or is safe to the subject), and movement between two different position states will require some actuation delay. Thus, modularity for different robotic control/guidance methods was prioritized, with the expense of a slightly more complex than necessary interface for virtual "plants". 
+
+The major sub-components of the BMILoop are:
 
 **Feature extractor**
 This first step in the loop processes "raw" data from the neural recording system (e.g., spikes, field potentials). Features extracted are typically simple features (number of event counts for spikes, bands in a set of frequency bands for LFP). Feature extractor classes are located in ``riglib.bmi.extractor``. The extractor class and configuration parameters are stored in the Decoder object as decoders are seeded/calibrated for a particular type of feature extractor (``extractor_cls`` and ``extractor_kwargs`` attributes)
@@ -41,6 +45,13 @@ From task goals or otherwise, estimate the instantaneous *intended* next state $
 The updater implements an update rule to combine update the decoder parameters $\theta$ using an update rule on the old parameters and the batch produced by the learner. 
 
 
+Plant interface
+---------------
+A unified plant interface is, at present, lacking. Most plants used in the software to date inherit from the module ``riglib.plants``, including the cursor, planar kinematic chains, and active upper-arm exoskeleton. A separate interface currently exists (not in this repository) for an exo where sensor feedback is streamed continuously rather than being polled on demand. The two cases are different since if sensor feedback is continuously streamed, a separate asynchronous process is required to collect and save the data, similar to the streamed neural data. 
+
+.. autoclass:: riglib.plants.Plant
+	:members: drive
+
 
 Initializing a Decoder
 ----------------------
@@ -70,8 +81,8 @@ riglib/bmi/train.py
 CLDA
 ----
 
-Learner
--------
+**Learner**
+
 The Learner is an object which estimates the "intention" of the subject performing the task. 
 
 .. autoclass:: riglib.bmi.clda.Learner
