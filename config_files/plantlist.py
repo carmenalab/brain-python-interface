@@ -17,6 +17,10 @@ chain_15_15_5_5 = plants.RobotArmGen2D(link_lengths=[15, 15, 5, 5], base_loc=sho
 init_joint_pos = np.array([ 0.47515737,  1.1369006 ,  1.57079633,  0.29316668])
 chain_15_15_5_5.set_intrinsic_coordinates(init_joint_pos)
 
+tentacle2 = plants.RobotArmGen2D(link_lengths=[10, 10, 10, 10], base_loc=shoulder_anchor, **chain_kwargs)
+init_joint_pos = np.array([ 0.47515737,  1.1369006 ,  1.57079633,  0.29316668])
+tentacle2.set_intrinsic_coordinates(init_joint_pos)
+
 chain_15_15_5_5_on_screen = plants.RobotArmGen2D(link_lengths=[15, 15, 5, 5], base_loc=shoulder_anchor, stay_on_screen=True, **chain_kwargs)
 chain_15_15_5_5_on_screen.set_intrinsic_coordinates(init_joint_pos)
 
@@ -30,8 +34,6 @@ init_pos = np.array([pi/2, pi/2])
 init_pos = np.array([ 0.38118002,  2.08145271])
 chain_20_20.set_intrinsic_coordinates(init_pos)
 
-passive_exo = plants.UpperArmPassiveExo()
-
 cursor_onedimLFP = plants.onedimLFP_CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14), lfp_cursor_rad=1.5, lfp_cursor_color=(248/256., 220/256., 0/256., 1))
 cursor_2dimLFP = plants.twodimLFP_CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14), lfp_cursor_rad=1.5, lfp_cursor_color=(248/256., 220/256., 0/256., 1))
 
@@ -43,10 +45,10 @@ plantlist = dict(
 	cursor_25x14=cursor_25x14, 
 	chain_15_15_5_5=chain_15_15_5_5, 
 	chain_15_15_5_5_on_screen=chain_15_15_5_5_on_screen, 
-	passive_exo=passive_exo, 
 	chain_20_20=chain_20_20, 
 	chain_20_20_endpt=chain_20_20_endpt, 
 	cursor_onedimLFP=cursor_onedimLFP, 
     cursor_2dimLFP=cursor_2dimLFP,
-    inv_cursor_onedimLFP=inv_cursor_onedimLFP)
+    inv_cursor_onedimLFP=inv_cursor_onedimLFP,
+    tentacle2=tentacle2)
 

@@ -201,7 +201,7 @@ class TaskWrapper(object):
             database entry and will be lost after the program exits
         '''
         self.saveid = saveid
-        self.taskname = task.name
+        self.taskname = task_rec.name
         self.subj = subj
         if isinstance(params, Parameters):
             self.params = params
