@@ -1,5 +1,93 @@
-NIDAQ hardware interface
-========================
+Synchronizing neural and task data
+==================================
+The general strategy of synchronizing data stored in HDF tables with neural data is to send a parallel port "pulse" from the linux machine to the neural recording system. 
+
+Communication protocol for Plexon digital data input
+----------------------------------------------------
+
+Plexon Mode 2 (strobed word) digital input supports 15 bit messages. 
+This is the communication protocol that will be used::
+
+	| 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	                                   |                data                   |
+	                    |   msg_type   |
+	|       aux         |
+
+* data -> 8 bit data word
+* msg_type -> { 0: data packet, 1: message, 2: register, 3: register shape, 4: row, 5: rowbyte }
+* aux -> depends on what the msg_type is:
+    - data packet: 4 bit indicator for data source
+    - message: nothing
+    - register: 4 bit indicator for currently spelled system
+    - register shape: 4 bit indicator for current spelled system
+
+**System registration**
+
+When a new system is registered, the string name of the system is sent
+character by character, with each character associated with their sub-
+sequent 4-bit code, all terminated with null. For example, a motion 
+system gets registered, 7 packets are sent::
+
+    0000 010 bin(ord('m'))
+    0000 010 bin(ord('o'))
+    0000 010 bin(ord('t'))
+    0000 010 bin(ord('i'))
+    0000 010 bin(ord('o'))
+    0000 010 bin(ord('n'))
+    0000 010 \x00
+
+If now an "eye" system gets registered, 4 more packets are sent::
+
+    0001 010 bin(ord('e'))
+    0001 010 bin(ord('y'))
+    0001 010 bin(ord('e'))
+    0001 010 \x00
+
+After the system name is registered, the shape definition is sent.
+The data shape will be encoded as a sequence of unsigned short 
+(np.uint16) values. For example, if the shape will be (8, 3) for 
+motion::
+
+    0000 011 0
+    0000 011 3
+    0000 011 0
+    0000 011 8
+
+**Messages**
+
+Messages from the system are sent character by character, with a null
+terminator. If 'test' is sent as the message, 5 packets::
+
+    0000 001 bin(ord('t'))
+    0000 001 bin(ord('e'))
+    0000 001 bin(ord('s'))
+    0000 001 bin(ord('t'))
+    0000 001 \x00
+
+**Data packets**
+
+All data will be sent as double (np.float). Sending an eye data at (.1, .2) 
+looks like this::
+
+    0001 000 63     0001 000 201    0001 000 153    0001 000 153
+    0001 000 153    0001 000 153    0001 000 153    0001 000 154
+    0001 000 63     0001 000 185    0001 000 153    0001 000 153
+    0001 000 153    0001 000 153    0001 000 153    0001 000 154
+
+
+Harware implementation
+----------------------
+This communication scheme has been implemented in two software-controlled hardware devices, a NI PCI 6503 card and an Arduino MEGA. To run the 
+
+NI 6503
+"""""""
+.. note:: The NIDAQ card is functionally deprecated because the Arduino solution is cheaper and works with any linux kernel version.
+
+Software control of this card uses the ``comedi`` open-source library (used for controlling NI devices from linux). We have been unable to make it work in certain newer kernel versions. The last known working kernel version with the ``comedi`` library was '3.2.0-60'. See the installation instructions for directions on how to change the ubuntu kernel version. The low-level software controller is implemented in ``riglib.nidaq.SendRowByte``. In actual use for the task, a feature is also required (see below).
+
+
+**Plexon**
+To use the NIDAQ card, use the feature ``features.plexon_features.RelayPlexByte``
 
 ============        =======        ====================     =========   =========   ==================      =======     ============
 DIO function        DIO pin        DIO color                NIDAQ pin   NIDAQ pin   DIO color               DIO pin     DIO function
@@ -33,8 +121,8 @@ Data Bit 0          1              brown                    47          48      
 
 
 
-NIDAQ hardware interface for Blackrock system
-=============================================
+**Blackrock**
+To use the NIDAQ card, use the feature ``features.blackrock_features.RelayBlackrockByte``
 
 =====================    ========    ==========    ===========================    ============    ================================
 NSP digital input pin    DB37 pin    wire color    NI 6503 connector block pin    NI 6503 card    pin # (from comedi's pt of view)
@@ -57,3 +145,71 @@ D13                      15          green         21                           
 D14                      16          yellow        19                             PB6             15
 D15                      17          orange        17                             PB7             16
 digital ground           GND         black         50
+=====================    ========    ==========    ===========================    ============    ================================
+
+
+
+Arduino
+"""""""
+The low-level software controller is implemented in ``riglib.serial_dio.SendRowByte``.
+
+**Plexon**
+
+To use the arduino sync device, include the feature class ``features.arduino_features.PlexonSerialDIORowByte``
+
+This implementation uses a DB26 break-out board, so presumably the wire colors are the same (standardized), but the numbered exposed ports from the breakout board were used instead. At least one of the ground pins (see NI wiring table above) is grounded. 
+
+============        =======        ====================
+DIO function        DIO pin        Arduino MEGA pin         
+============        =======        ====================
+RSTART              24             49
+Strobe              22             48
+Data Bit 15         16             47
+Data Bit 14         15             46
+Data Bit 13         14             45
+Data Bit 12         13             44
+Data Bit 11         12             43
+Data Bit 10         11             42
+Data Bit 9          10             41
+Data Bit 8          9              40
+Data Bit 7          8              39
+Data Bit 6          7              38
+Data Bit 5          6              37
+Data Bit 4          5              36
+Data Bit 3          4              35
+Data Bit 2          3              34
+Data Bit 1          2              33
+Data Bit 0          1              32
+============        =======        ====================
+
+
+**Blackrock**
+
+[This scheme is to be implemented and tested]
+
+=====================    ========    ===========    
+NSP digital input pin    DB37 pin    Arduino pin
+=====================    ========    ===========   
+DS (digital strobe)      1           48        
+D0                       2           47        
+D1                       3           46        
+D2                       4           45        
+D3                       5           44        
+D4                       6           43        
+D5                       7           42        
+D6                       8           41        
+D7                       9           40        
+D8                       10          39        
+D9                       11          38        
+D10                      12          37        
+D11                      13          36        
+D12                      14          35        
+D13                      15          34        
+D14                      16          33        
+D15                      17          32                
+=====================    ========    ===========   
+Digital ground should be connected to Arduino's ground.
+
+**TDT**
+
+To use the arduino sync device, include the feature class ``features.arduino_features.TDTSerialDIORowByte``
