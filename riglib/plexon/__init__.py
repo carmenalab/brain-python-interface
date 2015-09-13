@@ -15,7 +15,9 @@ PL_SingleWFType = 1
 PL_ExtEventType = 4
 PL_ADDataType   = 5
 
-class Spikes(object):
+from riglib.source import DataSourceSystem
+
+class Spikes(DataSourceSystem):
     '''
     Client for spike data streamed from plexon system, compatible with riglib.source.DataSource
     '''
@@ -24,12 +26,12 @@ class Spikes(object):
 
     def __init__(self, addr=("10.0.0.13", 6000), channels=None):
         '''
-        Docstring
+        Constructor for plexon.Spikes
 
         Parameters
         ----------
         addr: tuple of length 2
-            IP address and port to connect with over TCP/IP
+            (IP address, UDP port)
         channels: optional, default = None
             list of channels (electrodes) from which to receive spike data
 
@@ -47,39 +49,24 @@ class Spikes(object):
 
     def start(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Connect to the plexon server and start receiving data
         '''
         self.conn.start_data()
+
+        # self.data is a generator (the result of self.conn.get_data() is a 'yield'). 
+        # Calling 'self.data.next()' in the 'get' function pulls a new spike timestamp
         self.data = self.conn.get_data()
 
     def stop(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Disconnect from the plexon server
         '''
         self.conn.stop_data()
         self.conn.disconnect()
 
     def get(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Return a single spike timestamp/waveform. Must be polled continuously for additional spike data. The polling is automatically taken care of by riglib.source.DataSource
         '''
         d = self.data.next()
         while d.type != PL_SingleWFType:
@@ -107,18 +94,23 @@ class LFP(object):
 
     def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=512):
         '''
-        Docstring
+        Constructor for plexon.LFP
 
         Parameters
         ----------
+        addr : tuple of length 2
+            (IP address, UDP port)
+        channels : optional, default = None
+            list of channels (electrodes) from which to receive spike data
+        chan_offset : int, optional, default=512
+            Indexing offset from the first LFP channel to the indexing system used by the OPX system
 
         Returns
         -------
+        plexon.LFP instance
         '''
         self.conn = plexnet.Connection(*addr)
         self.conn.connect(256, waveforms=False, analog=True)
-        # self.conn = plexnet_softserver_oldfiles.Connection(*addr)
-        # self.conn.connect(192, waveforms=False, analog=True)
 
         # for OPX system, field potential (FP) channels are numbered 513-768
         self.chan_offset = chan_offset
@@ -130,39 +122,21 @@ class LFP(object):
 
     def start(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Connect to the plexon server and start receiving data
         '''
         self.conn.start_data()
         self.data = self.conn.get_data()
 
     def stop(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Disconnect from the plexon server
         '''
         self.conn.stop_data()
-        # self.conn.disconnect()  # TODO -- Connection.__del__ calls disconnect too, only call this once?
+        self.conn.disconnect()
 
     def get(self):
         '''
         Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
         '''
         d = self.data.next()
         while d.type != PL_ADDataType:
@@ -177,7 +151,7 @@ class LFP(object):
 
         return (d.chan-self.chan_offset, waveform)
 
-# TODO -- copied from LFP class above -- needs to be modified
+
 class Aux(object):
     '''
     Client for auxiliary analog data streamed from plexon system, compatible with riglib.source.MultiChanDataSource
@@ -192,13 +166,20 @@ class Aux(object):
 
     def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=768):
         '''
-        Docstring
+        Constructor for plexon.Aux
 
         Parameters
         ----------
+        addr : tuple of length 2
+            (IP address, UDP port)
+        channels : optional, default = None
+            list of channels (electrodes) from which to receive spike data
+        chan_offset : int, optional, default=768
+            Indexing offset from the first Aux channel to the indexing system used by the OPX system
 
         Returns
         -------
+        plexon.Aux instance
         '''
         self.conn = plexnet.Connection(*addr)
         self.conn.connect(256, waveforms=False, analog=True)
@@ -213,40 +194,13 @@ class Aux(object):
             print "Cannot run select_continuous method"
 
     def start(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.conn.start_data()
         self.data = self.conn.get_data()
 
     def stop(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.conn.stop_data()
 
     def get(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         d = self.data.next()
         while d.type != PL_ADDataType:
             d = self.data.next()
@@ -262,32 +216,14 @@ class Aux(object):
 
 
 class SimSpikes(object):
-    ''' Docstring '''
+    ''' DEPRECATED: this class is unused '''
     update_freq = 65536
     dtype = np.dtype([("ts", np.float), ("chan", np.int), ("unit", np.int)])
 
     def __init__(self, afr=10, channels=600):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.rates = np.random.gamma(afr, size=channels)
 
     def start(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.wait_time = np.random.exponential(1/self.rates)
         
     def stop(self):
@@ -297,15 +233,6 @@ class SimSpikes(object):
         self.start()
 
     def get(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         am = self.wait_time.argmin()
         time.sleep(self.wait_time[am])
         self.wait_time -= self.wait_time[am]
@@ -313,30 +240,12 @@ class SimSpikes(object):
         return np.array([(time.time()*1e6, am, 0)], dtype=self.dtype)
 
 class PSTHfilter(object):
-    ''' Docstring '''
+    ''' DEPRECATED: this class is unused '''
     def __init__(self, length, cells=None):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.length = length
         self.cells = cells
 
     def __call__(self, raw):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         if len(raw) < 1:
             return None
 
@@ -349,15 +258,7 @@ class PSTHfilter(object):
         return counts
 
 def test_filter(update_rate=60.):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
+    ''' DEPRECATED: this function is unused '''
     from riglib import source
     ds = source.DataSource(SimSpikes, channels=100)
     ds.start()
