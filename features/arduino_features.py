@@ -17,6 +17,9 @@ import glob
 import datetime
 import serial
 
+import config
+import time
+
 sec_per_min = 60
 
 class PlexonSerialDIORowByte(object):
@@ -131,22 +134,9 @@ class PlexonSerialDIORowByte(object):
         Function to run at 'cleanup' time, after the FSM has finished executing. See riglib.experiment.Experiment.cleanup
         This 'cleanup' method remotely stops the plexon file recording and then links the file created to the database ID for the current TaskEntry
         '''
-        # Stop recording
-        # import comedi
-        import config
-        import time
-
-        # com = comedi.comedi_open("/dev/comedi0")
-        # comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
-
-        # port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=9600)
-        # port.write('p')
-        # port.close()
-
         super(PlexonSerialDIORowByte, self).cleanup(database, saveid, **kwargs)
 
-        # Sleep time so that the plx file has time to save cleanly
-        
+        # Sleep time so that the plx file has time to save cleanly        
         time.sleep(2)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if self.plexfile is not None:
