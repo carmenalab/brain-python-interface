@@ -87,10 +87,6 @@ class SendRowByte(object):
         # stored in the HDF table anyway with a row number, 
         # and every row number is automatically synced.
         pass
-<<<<<<< HEAD
-
-=======
->>>>>>> bcecfef8ac04fe88773451e4f511e9353085bca8
 
     def send(self, system, data):
         '''
