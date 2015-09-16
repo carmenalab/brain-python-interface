@@ -181,44 +181,44 @@ class RelayBlackrockByte(RelayBlackrock):
         return nidaq.SendRowByte
 
 
-class BlackrockData(object):
-    '''Stream Blackrock neural data.'''
+# class BlackrockData(object):
+#     '''Stream Blackrock neural data.'''
 
-    blackrock_channels = None
+#     blackrock_channels = None
 
-    def init(self):
-        '''
-        Secondary init function. See riglib.experiment.Experiment.init()
-        Prior to starting the task, this 'init' sets up DataSource objects for streaming from the Blackrock system.
-        For LFP streaming, the data is stored as it is received.
-        '''
+#     def init(self):
+#         '''
+#         Secondary init function. See riglib.experiment.Experiment.init()
+#         Prior to starting the task, this 'init' sets up DataSource objects for streaming from the Blackrock system.
+#         For LFP streaming, the data is stored as it is received.
+#         '''
 
-        from riglib import blackrock, source
+#         from riglib import blackrock, source
 
-        if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
-            self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels, send_data_to_sink_manager=False)
-        elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
-            self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels, send_data_to_sink_manager=True)
-        else:
-            raise Exception("Unknown extractor class, unable to create data source object!")
+#         if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+#             self.neurondata = source.DataSource(blackrock.Spikes, channels=self.blackrock_channels, send_data_to_sink_manager=False)
+#         elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
+#             self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=self.blackrock_channels, send_data_to_sink_manager=True)
+#         else:
+#             raise Exception("Unknown extractor class, unable to create data source object!")
 
-        from riglib import sink
-        sink.sinks.register(self.neurondata)
+#         from riglib import sink
+#         sink.sinks.register(self.neurondata)
 
-        super(BlackrockData, self).init()
+#         super(BlackrockData, self).init()
 
-    def run(self):
-        '''
-        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
-        See riglib.experiment.Experiment.run(). This 'run' method starts the 'neurondata' source before the FSM begins execution
-        and stops it after the FSM has completed. 
-        '''
+#     def run(self):
+#         '''
+#         Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+#         See riglib.experiment.Experiment.run(). This 'run' method starts the 'neurondata' source before the FSM begins execution
+#         and stops it after the FSM has completed. 
+#         '''
 
-        self.neurondata.start()
-        try:
-            super(BlackrockData, self).run()
-        finally:
-            self.neurondata.stop()
+#         self.neurondata.start()
+#         try:
+#             super(BlackrockData, self).run()
+#         finally:
+#             self.neurondata.stop()
 
 from riglib.bmi.bmi import Decoder
 class BlackrockBMI(BlackrockData, traits.HasTraits):
@@ -233,7 +233,6 @@ class BlackrockBMI(BlackrockData, traits.HasTraits):
         Secondary init function. See riglib.experiment.Experiment.init()
         Prior to starting the task, this 'init' decides which Blackrock channels to stream based on the channels in use by the decoder.
         '''
-
         print "HARDCODING BLACKROCK_CHANNELS -- CHANGE THIS!!"
         self.blackrock_channels = range(1, 41) #self.decoder.units[:,0]
         super(BlackrockBMI, self).init()

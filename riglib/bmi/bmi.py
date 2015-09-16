@@ -787,8 +787,10 @@ class BMISystem(object):
         self.feature_accumulator = feature_accumulator
         self.param_hist = []
 
-        if self.updater is not None:
+        self.has_updater = not (self.updater is None)
+        if self.has_updater:
             self.updater.init(self.decoder)
+
 
     def __call__(self, neural_obs, target_state, task_state, learn_flag=False, **kwargs):
         '''
@@ -878,7 +880,7 @@ class BMISystem(object):
                 self.learner.disable() 
 
             new_params = None # by default, no new parameters are available
-            if not (self.updater is None):
+            if self.has_updater:
                 new_params = self.updater.get_result()
 
             # Update the decoder if new parameters are available
@@ -890,7 +892,7 @@ class BMISystem(object):
                 self.learner.enable()
                 update_flag = True
 
-                # Update parameter history
+                # Save new parameters to parameter history
                 self.param_hist.append(new_params)
 
         return decoded_states, update_flag
@@ -1039,7 +1041,7 @@ class BMILoop(object):
 
         Parameters
         ----------
-        neural_obs : np.array of shape (n_features, n_subbins)
+        neural_obs : object, typically np.array of shape (n_features, n_subbins)
             n_features is the number of neural features the decoder is expecting to decode from.
             n_subbins is the number of simultaneous observations which will be decoded (typically 1)
         target_state : np.array of shape (n_states, 1)
@@ -1092,10 +1094,12 @@ class BMILoop(object):
         # Determine the assistive control inputs to the Decoder
         if current_assist_level > 0:
             current_state = self.get_current_state()
+
             if target_state.shape[1] > 1:
                 assist_kwargs = self.assister(current_state, target_state[:,0].reshape(-1,1), current_assist_level, mode=self.state)
             else:
                 assist_kwargs = self.assister(current_state, target_state, current_assist_level, mode=self.state)
+
             kwargs.update(assist_kwargs)
 
         # Run the decoder

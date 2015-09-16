@@ -196,7 +196,7 @@ class WindowDispl2D(Window):
         self.workspace_top_right   = (25., 14.)
 
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
+        os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         self.clock = pygame.time.Clock()
