@@ -1084,19 +1084,22 @@ class BMILoop(object):
             self.task_data[key] = val
 
         # Determine the target_state and save to file
-        if self.current_assist_level > 0 or self.learn_flag:
+        current_assist_level = self.get_current_assist_level()
+        if current_assist_level > 0 or self.learn_flag:
             target_state = self.get_target_BMI_state(self.decoder.states)
         else:
             target_state = np.ones([self.decoder.n_states, self.decoder.n_subbins]) * np.nan
 
 
         # Determine the assistive control inputs to the Decoder
-        if self.current_assist_level > 0:
+        if current_assist_level > 0:
             current_state = self.get_current_state()
-            if target_state.shape[1] > 1: target_state = target_state[:,0].reshape(-1,1)
-                # assist_kwargs = self.assister(current_state, target_state[:,0].reshape(-1,1), self.current_assist_level, mode=self.state)
-            # else:
-            assist_kwargs = self.assister(current_state, target_state, self.current_assist_level, mode=self.state)
+
+            if target_state.shape[1] > 1:
+                assist_kwargs = self.assister(current_state, target_state[:,0].reshape(-1,1), current_assist_level, mode=self.state)
+            else:
+                assist_kwargs = self.assister(current_state, target_state, current_assist_level, mode=self.state)
+
             kwargs.update(assist_kwargs)
 
         # Run the decoder
@@ -1111,6 +1114,9 @@ class BMILoop(object):
 
         self.task_data['decoder_state'] = decoder_state = self.decoder.get_state(shape=(-1,1))
         return decoder_state
+
+    def get_current_assist_level(self):
+        return self.current_assist_level
 
     def get_current_state(self):
         '''

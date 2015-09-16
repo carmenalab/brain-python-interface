@@ -2,16 +2,27 @@
 DIO using a serial port + microcontroller instead of the NIDAQ card
 '''
 import serial
-import glob
 from collections import defaultdict
+import struct
+from numpy import binary_repr
 
-class SendAll(object):
+
+def construct_word(aux, msg_type, data, n_bits_data=8, n_bits_msg_type=3):
+    word = (aux << (n_bits_data + n_bits_msg_type)) | (msg_type << n_bits_data) | data
+    return word
+
+
+class SendRowByte(object):
+    '''
+    Send only an 8-bit data word corresponding to the 8 lower 
+    bits of the current row number of the HDF table
+    '''
     '''
     Interface for sending all the task-generated data through the NIDAQ interface card
     '''
     def __init__(self, device=None):
         '''
-        Constructor for SendAll
+        Constructor for SendRowByte
 
         Parameters
         ----------
@@ -55,7 +66,7 @@ class SendAll(object):
         self.systems[system] = self.n_systems
 
         if self.n_systems > 1:
-        	raise Exception("This currently only works for one system!")
+            raise Exception("This currently only works for one system!")
 
         print "Arduino register %s" % system, self.systems[system]
 
@@ -72,30 +83,32 @@ class SendAll(object):
         -------
         None
         '''
+        # there's no point in sending a message, since every message is 
+        # stored in the HDF table anyway with a row number, 
+        # and every row number is automatically synced.
         pass
+<<<<<<< HEAD
 
+=======
+>>>>>>> bcecfef8ac04fe88773451e4f511e9353085bca8
 
-import struct
-from numpy import binary_repr
-def construct_word(aux, msg_type, data, n_bits_data=8, n_bits_msg_type=3):
-    word = (aux << (n_bits_data + n_bits_msg_type)) | (msg_type << n_bits_data) | data
-    return word
-
-class SendRowByte(SendAll):
-    '''
-    Send only an 8-bit data word corresponding to the 8 lower bits of the current row number of the HDF table
-    '''
     def send(self, system, data):
         '''
-        Docstring
+        Send the row number for a data word to the neural system
 
         Parameters
         ----------
+        system : string 
+            Name of system 
+        data : object
+            This is unused. Only used in the parent's version where the actual data, and not just the HDF row number, is sent.
 
         Returns
         -------
+        None
         '''
         if not (system in self.systems):
+            # if the system is not registered, do nothing
             return
 
         current_sys_rowcount = self.rowcount[system]
@@ -110,12 +123,3 @@ class SendRowByte(SendAll):
             print binary_repr(word, 16)
         word_str = 'd' + struct.pack('<H', word)
         self.port.write(word_str)
-        
-
-# extern uchar sendRowByte(uchar idx) {
-#     uint flush = 2, msg = (idx << 3 | SEND_ROWBYTE) << 8 | (255 & rowcount[idx]);
-#     comedi_dio_bitfield2(ni, 0, writemask, &msg, 0);
-#     comedi_dio_bitfield2(ni, 0, 2, &flush, 16);
-#     rowcount[idx]++;
-#     return 0;
-# }            

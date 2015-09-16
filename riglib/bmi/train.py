@@ -7,7 +7,7 @@ import sys
 
 import numpy as np
 from scipy.io import loadmat
-from riglib.nidaq import parse
+from riglib.dio import parse
 
 import tables
 import kfdecoder, ppfdecoder
@@ -147,14 +147,10 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     ts = nev_hdf.get(path).value['TimeStamp']
     msgs = nev_hdf.get(path).value['Value']
 
-    # copied from riglib/nidaq/parse.py
-    msgtype_mask = 0b0000111<<8
-    auxdata_mask = 0b1111000<<8
-    rawdata_mask = 0b11111111
-    msgtype = np.right_shift(np.bitwise_and(msgs, msgtype_mask), 8).astype(np.uint8)
+    msgtype = np.right_shift(np.bitwise_and(msgs, parse.msgtype_mask), 8).astype(np.uint8)
     # auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
-    auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8+3).astype(np.uint8)
-    rawdata = np.bitwise_and(msgs, rawdata_mask)
+    auxdata = np.right_shift(np.bitwise_and(msgs, parse.auxdata_mask), 8+3).astype(np.uint8)
+    rawdata = np.bitwise_and(msgs, parse.rawdata_mask)
 
     # data is an N x 4 matrix that will be the argument to parse.registrations()
     data = np.vstack([ts, msgtype, auxdata, rawdata]).T

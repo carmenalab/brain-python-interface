@@ -764,6 +764,10 @@ class TaskEntry(object):
         except:
             from plexon import plexfile
             self._plx = plexfile.openFile(str(self.plx_filename))
+
+            # parse out events
+            from riglib.dio import parse
+            self.strobe_data = parse.parse_data(self._plx.events[:].data)
         return self._plx
 
     @property

@@ -34,7 +34,7 @@ class RelayBlackrock(object):
         Returns
         -------
         '''
-        from riglib import nidaq
+        from riglib.dio import nidaq
         print 'nidaq.SendAll', nidaq.SendAll
         return nidaq.SendAll
 

@@ -4,8 +4,8 @@ Parse digital data from neural recording system into task data/messages/synchron
 
 import numpy as np
 
-msgtype_mask = 0b0000111<<8
-auxdata_mask = 0b1111000<<8
+msgtype_mask = 0b0000111 << 8
+auxdata_mask = 0b1111000 << 8
 rawdata_mask = 0b11111111
 
 MSG_TYPE_DATA = 0
@@ -15,15 +15,43 @@ MSG_TYPE_REGISTER_SHAPE = 3
 MSG_TYPE_ROW = 4
 MSG_TYPE_ROWBYTE = 5
 
+def parse_data(strobe_data):
+    '''
+    Parse out 'strobe' digital data into header/registrations + actual data
+    '''
+    reg_parsed_data = registrations(strobe_data)
+    msg_parsed_data = messages(strobe_data)
+    rowbyte_parsed_data = rowbyte(strobe_data)
+
+    data = dict(messages=msg_parsed_data)
+    for key in rowbyte_parsed_data:
+        if key in reg_parsed_data:
+            sys_name = reg_parsed_data[key][0]
+            try:
+                sys_dtype = np.dtype(eval(reg_parsed_data[key][1]))
+            except:
+                sys_dtype = reg_parsed_data[key][1]
+            data[sys_name] = dict(row_ts=rowbyte_parsed_data[key])
+        else:
+            data[key] = dict(row_ts=rowbyte_parsed_data[key])
+
+    return data
+
 def _split(data, flip=False):
     '''
-    Docstring
+    Helper function to take the 16-bit integer saved in the neural data file 
+    and map it back to the three fields of the message type (see docs on 
+    communication protocol for details)
 
     Parameters
     ----------
+    data : np.ndarray 
+        Integer data and timestamps as stored in the neural data file when messages were sent during experiment
 
     Returns
     -------
+    np.ndarray
+        Raw message data split into the fields (type, aux, "payload")
     '''
     # If the data is a 1D array, extract the timestamps and the raw event codes
     if len(data.shape) < 2:
@@ -107,13 +135,18 @@ def rowbyte(data, **kwargs):
 
 def messages(data, **kwargs):
     '''
-    Docstring
+    Parse out any string messages sent byte-by-byte to the neural recording system
 
     Parameters
     ----------
+    data : np.ndarray 
+        Integer data and timestamps as stored in the neural data file when messages were sent during experiment
+        OR, the result of the _split function
 
     Returns
     -------
+    record array
+        fields of 'time' and 'state' (message)
     '''
     if data.ndim < 2 or data.shape[1] != 4:
         data = _split(data, **kwargs)
@@ -129,3 +162,4 @@ def messages(data, **kwargs):
         msgs.append((times[s], names[s:e].tostring()))
 
     return np.array(msgs, dtype=[('time', np.float), ('state', 'S256')])
+

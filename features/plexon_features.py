@@ -48,7 +48,7 @@ class RelayPlexon(object):
         Specify the output interface; can be overridden in child classes as long as 
         this method returns a class which has the same instance methods (close, register, send, sendMsg, etc.)
         '''
-        from riglib import nidaq
+        from riglib.dio import nidaq
         return nidaq.SendAll
 
     @property
@@ -256,9 +256,11 @@ class RelayPlexByte(RelayPlexon):
 #         self.plexon_channels = self.decoder.units[:,0]
 #         super(PlexonBMI, self).init()
 
+
 from neural_sys_features import CorticalData, CorticalBMI
 class PlexonBMI(CorticalBMI):
     @property 
     def sys_module(self):
         from riglib import plexon
         return plexon
+
