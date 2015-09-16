@@ -61,7 +61,7 @@ class SendAll(object):
 
     def sendMsg(self, msg):
         '''
-        Send a string mesasge to the recording system, e.g., as related to the task_msgs HDF table
+        Do nothing. Messages are stored with row numbers in the HDF table, so no need to also send the message over to the recording system.
 
         Parameters
         ----------
@@ -73,8 +73,7 @@ class SendAll(object):
         None
         '''
         pass
-        # TODO
-        # pcidio.sendMsg(str(msg))
+
 
 import struct
 from numpy import binary_repr
