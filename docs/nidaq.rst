@@ -1,6 +1,6 @@
 Synchronizing neural and task data
 ==================================
-The general strategy of synchronizing data stored in HDF tables with neural data is to send a parallel port "pulse" from the linux machine to the neural recording system. 
+The general strategy of synchronizing data stored in HDF tables with neural data is to send synchronization data from the linux machine to the neural recording system via a hardware digital output device. 
 
 Communication protocol for Plexon digital data input
 ----------------------------------------------------
@@ -151,11 +151,11 @@ digital ground           GND         black         50
 
 Arduino
 """""""
-The low-level software controller is implemented in ``riglib.serial_dio.SendRowByte``.
+The low-level PC software controller is implemented in ``riglib.serial_dio.SendRowByte``.
 
 **Plexon**
 
-To use the arduino sync device, include the feature class ``features.arduino_features.PlexonSerialDIORowByte``
+To use the arduino sync device, include the feature class ``features.arduino_features.PlexonSerialDIORowByte``. The Arduino code used to program the microcontroller is located in ``$BMI3D/riglib/dio/arduino_dio_omniplex/arduino_dio_omniplex.ino``
 
 This implementation uses a DB26 break-out board, so presumably the wire colors are the same (standardized), but the numbered exposed ports from the breakout board were used instead. At least one of the ground pins (see NI wiring table above) is grounded. 
 
@@ -212,4 +212,4 @@ Digital ground should be connected to Arduino's ground.
 
 **TDT**
 
-To use the arduino sync device, include the feature class ``features.arduino_features.TDTSerialDIORowByte``
+To use the arduino sync device, include the feature class ``features.arduino_features.TDTSerialDIORowByte``. The Arduino code used to program the microcontroller is located in ``$BMI3D/riglib/dio/arduino_dio_tdt/arduino_dio_tdt.ino``
