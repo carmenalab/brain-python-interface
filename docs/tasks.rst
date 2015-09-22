@@ -197,14 +197,32 @@ Similar to the higher than normal complexity of instantiating a task object, the
 
 Task "trials" and logging
 -------------------------
-The base experiment class is a barebones FSM implementation. Two useful extensions are the LogExperiment and the Sequence classes. The LogExperiment extends Experiment by keeping track of (i.e., logging) events and state transitions. This provides the ability to calculate stats about state occurrences (e.g., successes per minute) as well as save the log to the database during "cleanup" time. 
+The base experiment class is a barebones FSM implementation. Two useful extensions are the ``LogExperiment`` and the ``Sequence`` classes. The LogExperiment extends Experiment by keeping track of (i.e., logging) events and state transitions. This provides the ability to calculate stats about state occurrences (e.g., successes per minute) as well as save the log to the database during "cleanup" time. 
 
-The Sequence class further extends LogExperiment by making the "wait" state a special state. The constructor for the Sequence class expects a generator to be provided at construction time. During the wait state, an element is pulled from the generator. This element can be anything (an array, an object, etc.). This provides a way to specify the goal of each trial (e.g., the direction in which to reach) in a somewhat generic way. Nearly every task, to date, inherits from Sequence and leverages this functionality.
+The ``Sequence`` class further extends ``LogExperiment`` by making the "wait" state a special state. The constructor for the Sequence class expects a generator to be provided at construction time. During the wait state, an element is pulled from the generator. This element can be anything (an array, an object, etc.). This provides a way to specify the goal of each trial (e.g., the direction in which to reach) in a somewhat generic way. Nearly every task, to date, inherits from Sequence and leverages this functionality.
 
-In order to properly utilize Sequence functionality, a generator must be provided. The typical procedure involves a generation of a list of trial goals, which are yielded by a generator one at a time. These generator functions are naturally specific to each task. A reaching task may require specification of where to place all the targets. A grasping task may also specify targets, but perhaps in a different coordinate system or with more information necessary (e.g., the type of object to present). 
+In order to properly utilize ``Sequence`` functionality, a generator must be provided. The typical procedure involves a generation of a list of trial goals, which are yielded by a generator one at a time. These generator functions are naturally specific to each task. A reaching task may require specification of where to place all the targets. A grasping task may also specify targets, but perhaps in a different coordinate system or with more information necessary (e.g., the type of object to present). 
 
-Each task should specify the possible sequence generators in the class attribute 'sequence_generators', which must be specified for each task which inherits from Sequence. The list is empty by default and should be populated with the string names of functions to be used as sequence generators. Function names are assumed to be staticmethods of that same task class. 
+Each task should specify the possible sequence generators in the class attribute ``sequence_generators``, which must be specified for each task which inherits from Sequence. The list is empty by default and should be populated with the string names of functions to be used as sequence generators. Function names are assumed to be static methods of that same task class. An example::
 
+    from riglib.experiment import Sequence
+    class NewSequenceTask(Sequence):
+        sequence_generators = ['seq1', 'seq2']
+
+        @staticmethod
+        def seq1(length=10):
+            return [1]*length
+
+        @staticmethod
+        def seq2(length=10):
+            return [2]*length
+
+        # seq3 will not show up on the web interface because it is not in the list 'sequence_generators'!
+        @staticmethod
+        def seq3(length=10):
+            return [3]*length        
+
+The built-in python `decorator <http://simeonfranklin.com/blog/2012/jul/1/python-decorators-in-12-steps/>`_ ``@staticmethod`` will make the declared method a static method of the task.
 
 Extending tasks with "features"
 -------------------------------
