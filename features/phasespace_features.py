@@ -34,7 +34,7 @@ class MotionData(traits.HasTraits):
         motion tracker system and registers the source with the SinkRegister so that the data gets saved to file as it is collected.
         '''
         from riglib import source
-        src, mkw = self.motion_source
+        src, mkw = self.source_class
         self.motiondata = source.DataSource(src, **mkw)
         from riglib import sink
         self.sinks = sink.sinks
@@ -42,15 +42,9 @@ class MotionData(traits.HasTraits):
         super(MotionData, self).init()
     
     @property
-    def motion_source(self):
+    def source_class(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Specify the source class as a function in case future descendant classes want to use a different type of source
         '''
         from riglib import motiontracker
         return motiontracker.make(self.marker_count), dict()
@@ -69,39 +63,32 @@ class MotionData(traits.HasTraits):
     
     def join(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        See riglib.experiment.Experiment.join(). Re-join the 'motiondata' source process before cleaning up the experiment thread
         '''
         self.motiondata.join()
         super(MotionData, self).join()
     
     def _start_None(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Code to run before the 'None' state starts (i.e., the task stops)
         '''
         self.motiondata.stop()
         super(MotionData, self)._start_None()
+
 
 class MotionSimulate(MotionData):
     '''
     Simulate presence of raw motiontracking system using a randomized spatial function
     '''
     @property
-    def motion_source(self):
+    def source_class(self):
+        '''
+        Specify the source class as a function in case future descendant classes want to use a different type of source
+        '''        
         from riglib import motiontracker
         cls = motiontracker.make(self.marker_count, cls=motiontracker.Simulate)
         return cls, dict(radius=(100,100,50), offset=(-150,0,0))
+
 
 class MotionAutoAlign(MotionData):
     '''Creates an auto-aligning motion tracker, for use with the 6-point alignment system'''
@@ -116,15 +103,9 @@ class MotionAutoAlign(MotionData):
         self.motiondata.filter = self.autoalign
 
     @property
-    def motion_source(self):
+    def source_class(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Specify the source class as a function in case future descendant classes want to use a different type of source
         '''
         from riglib import motiontracker
         cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)

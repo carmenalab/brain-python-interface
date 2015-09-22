@@ -791,7 +791,6 @@ class BMISystem(object):
         if self.has_updater:
             self.updater.init(self.decoder)
 
-
     def __call__(self, neural_obs, target_state, task_state, learn_flag=False, **kwargs):
         '''
         Main function for all BMI functions, including running the decoder, adapting the decoder 
@@ -1159,13 +1158,79 @@ class BMILoop(object):
                 log_file.write('n_updates: %g\n' % len(self.bmi_system.param_hist))
                 ignore_none = self.learner.batch_size > 1
                 log_file.write('Ignoring "None" values: %s\n' % str(ignore_none))
-                clda.write_clda_data_to_hdf_table(
+                
+                self.write_clda_data_to_hdf_table(
                     self.h5file.name, self.bmi_system.param_hist, 
                     ignore_none=ignore_none)
         except:
             import traceback
             traceback.print_exc(file=log_file)
         log_file.close()
+
+    @staticmethod
+    def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
+        '''
+        Save CLDA data generated during the experiment to the specified HDF file
+
+        Parameters
+        ----------
+        hdf_fname : string
+            filename of HDF file
+        data : list
+            list of dictionaries with the same keys and same dtypes for values
+
+        Returns
+        -------
+        None
+        '''
+        log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_hdf_log'), 'w')
+
+        compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
+        if len(data) > 0:
+            # Find the first parameter update dictionary
+            k = 0
+            first_update = data[k]
+            while first_update is None:
+                k += 1
+                first_update = data[k]
+        
+            table_col_names = first_update.keys()
+            print table_col_names
+            dtype = []
+            shapes = []
+            for col_name in table_col_names:
+                if isinstance(first_update[col_name], float):
+                    shape = (1,)
+                else:
+                    shape = first_update[col_name].shape
+                dtype.append((col_name.replace('.', '_'), 'f8', shape))
+                shapes.append(shape)
+        
+            log_file.write(str(dtype))
+            # Create the HDF table with the datatype above
+            dtype = np.dtype(dtype) 
+        
+            h5file = tables.openFile(hdf_fname, mode='a')
+            arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
+
+            null_update = np.zeros((1,), dtype=dtype)
+            for col_name in table_col_names:
+                null_update[col_name.replace('.', '_')] *= np.nan
+        
+            for k, param_update in enumerate(data):
+                log_file.write('%d, %s\n' % (k, str(ignore_none)))
+                if param_update == None:
+                    if ignore_none:
+                        continue
+                    else:
+                        data_row = null_update
+                else:
+                    data_row = np.zeros((1,), dtype=dtype)
+                    for col_name in table_col_names:
+                        data_row[col_name.replace('.', '_')] = np.asarray(param_update[col_name])
+        
+                arr.append(data_row)
+            h5file.close()
 
     def cleanup(self, database, saveid, **kwargs):
         super(BMILoop, self).cleanup(database, saveid, **kwargs)
@@ -1204,3 +1269,4 @@ class BMI(object):
     Legacy class, used only for unpickling super old Decoder objects. Ignore completely.
     '''
     pass
+

@@ -9,6 +9,9 @@ import numpy as np
 
 
 class FeedbackController(object):
+    '''
+    Abstract class for feedback controllers, only used for type-checking & interface standardization
+    '''
     def __init__(self, *args, **kwargs):
         pass
 
@@ -57,9 +60,9 @@ class LinearFeedbackController(FeedbackController):
         Parameters
         ----------
         current_state : np.matrix
-            x_t 
+            Current state of the system, x_t 
         target_state : np.matrix
-            x*
+            State that you're trying to steer the system toward, x*
         mode : object, default=None
             Select the operational mode of the feedback controller. Ignored in this class
 
@@ -75,6 +78,8 @@ class LinearFeedbackController(FeedbackController):
 
     def __call__(self, current_state, target_state, mode=None):
         '''
+        Calculate the control input u_t = BF(x* - x_t)
+
         Parameters
         ----------
         (see self.calc_next_state for input argument descriptions)
@@ -92,7 +97,7 @@ class LinearFeedbackController(FeedbackController):
 
 
 class LQRController(LinearFeedbackController):
-    '''Linear feedback controller with a quadratic cost function'''
+    '''Linear feedback controller where control gains are set by optimizing a quadratic cost function'''
     def __init__(self, A, B, Q, R, **kwargs):
         '''
         Constructor for LQRController
@@ -138,8 +143,6 @@ class LQRController(LinearFeedbackController):
 
         The cost function can be either finite or infinite horizion, where finite horizion is assumed if 
         a final const is specified
-
-        Docstring
 
         Parameters
         ----------
@@ -214,16 +217,43 @@ class MultiModalLFC(LinearFeedbackController):
         self.F = None
 
     def calc_next_state(self, current_state, target_state, mode=None):
+        '''
+        See LinearFeedbackController.calc_next_state for docs
+        '''
         self.F = self.F_dict[mode]
         super(MultiModalLFC, self).calc_next_state(current_state, target_state, mode=mode)
 
     def __call__(self, current_state, target_state, mode=None):
+        '''
+        See LinearFeedbackController.__call__ for docs
+        '''        
         self.F = self.F_dict[mode]
         super(MultiModalLFC, self).__call__(current_state, target_state, mode=mode)        
 
 
 class PIDController(FeedbackController):
+    '''
+    Linear feedback controller where gains are set directly instead of through a cost function
+    '''
     def __init__(self, K_prop, K_deriv, K_int, state_order):
+        '''
+        Constructor for PIDController
+
+        Parameters
+        ----------
+        K_prop : float 
+            Gain on proportional error
+        K_deriv : float 
+            Gain on derivative error 
+        K_int : float
+            Gain on integrated error
+        state_order : np.ndarray of shape (N, 1)
+            Specify whether each element of the state vector is a proportional, derivative, or integral state
+
+        Returns
+        -------
+        PIDController instance
+        '''
         self.K_prop = K_prop
         self.K_deriv = K_deriv
         self.K_int = K_int
@@ -233,6 +263,21 @@ class PIDController(FeedbackController):
         self.deriv_terms, = np.nonzero(state_order == 1)
 
     def __call__(self, current_state, target_state):
+        '''
+        Determine the PID controller output to be added onto the current state
+
+        Parameters
+        ----------
+        current_state : np.matrix
+            Current state of the system, x_t 
+        target_state : np.matrix
+            State that you're trying to steer the system toward, x*
+
+        Returns
+        -------
+        cmd : np.ndarray of shape (K, 1)
+            K is the number of states in the proportional term. 
+        '''        
         state_diff = target_state - current_state
         cmd = 0
         if len(self.prop_terms) > 0:
@@ -248,6 +293,7 @@ class PIDController(FeedbackController):
 
     def calc_next_state(self, current_state, target_state, **kwargs):
         '''
+        see self.__call__
         '''
         return self.__call__(current_state, target_state)
 
@@ -278,7 +324,6 @@ class CenterOutCursorGoal(object):
         self.gain = gain
 
     def get(self, cur_target, cur_pos, keys_pressed=None):
-        '''    Docstring    '''
         # Make sure y-dimension is 0
         assert cur_pos[1] == 0
         assert cur_target[1] == 0
@@ -319,8 +364,6 @@ class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
 
     def get(self, cur_target, cur_pos, keys_pressed=None):
         '''
-        Docstring 
-
         cur_target and cur_pos should be specified in workspace coordinates
         '''
         vx, vz = super(CenterOutCursorGoalJointSpace2D, self).get(cur_target, cur_pos, keys_pressed)

@@ -93,7 +93,15 @@ The first argument is the default value for the trait and the second is a docstr
 
         The keyword argument ``bmi3d_query_kwargs`` contains any Django filter criteria you'd like to apply to filter out irrelevant options. In this case, the datafiles presented to the user in the browser will only be associated with the system 'misc'
 
+**Making a new type of trait**
+[This section is still incomplete]
 
+These things need consideration if you're making a new type of trait
+
+    riglib.experiment.__init__
+    db.tracker.models.Task.to_json()
+    parse_traits.js
+    db.json_param.norm_trait # if necessary
 
 Instantiating tasks
 -------------------

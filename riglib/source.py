@@ -181,7 +181,7 @@ class DataSource(mp.Process):
         streaming = True
         size = self.slice_size
         while self.status.value > 0:
-            if self.cmd_event.is_set():
+            if self.cmd_event.is_set(): # if a command has been sent from the main task
                 cmd, args, kwargs = self._pipe.recv()
                 self.lock.acquire()
                 try:
@@ -195,6 +195,7 @@ class DataSource(mp.Process):
                 self.lock.release()
                 self._pipe.send(ret)
                 self.cmd_event.clear()
+
             if self.stream.is_set():
                 self.stream.clear()
                 streaming = not streaming
@@ -203,6 +204,7 @@ class DataSource(mp.Process):
                     system.start()
                 else:
                     system.stop()
+
             if streaming:
                 data = system.get()
                 if self.send_data_to_sink_manager:
@@ -218,6 +220,8 @@ class DataSource(mp.Process):
                         print e
             else:
                 time.sleep(.001)
+
+        # stop the system once self.status.value has been set to a negative number
         system.stop()
 
     def get(self, all=False, **kwargs):
@@ -309,25 +313,13 @@ class DataSource(mp.Process):
 
     def stop(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Set self.status.value to negative so that the while loop in self.run() terminates
         '''
         self.status.value = -1
     
     def __del__(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Destructor
         '''
         self.stop()
 
@@ -342,12 +334,15 @@ class DataSource(mp.Process):
         -------
         '''
         if attr in self.methods:
+            # if the attribute requested is an instance method of the 'source', return a proxy to the remote source's method
             return FuncProxy(attr, self.pipe, self.cmd_event)
         elif not attr.beginsWith("__"):
+            # try to look up the attribute remotely
             print "getting attribute %s"%attr
             self.pipe.send(("getattr", (attr,), {}))
             self.cmd_event.set()
             return self.pipe.recv()
+        # TODO stylistically, this last statement should be what happens if an "else:" is hit
         raise AttributeError(attr)
 
 

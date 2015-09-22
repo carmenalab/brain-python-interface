@@ -18,12 +18,15 @@ from hdf_features import SaveHDF
 
 
 class CorticalData(object):
+    '''
+    Feature for streaming data from Omniplex/Neuroport recording systems
+    '''
     cortical_channels = None
     register_with_sink_manager = False
     send_data_to_sink_manager = False
 
     def init(self):
-        sys_module = self.sys_module
+        sys_module = self.sys_module # e.g., riglib.plexon, riglib.blackrock
 
         kwargs = dict(send_data_to_sink_manager=self.send_data_to_sink_manager, channels=self.cortical_channels)
 
@@ -50,6 +53,7 @@ class CorticalData(object):
         finally:
             self.neurondata.stop()
 
+
 class CorticalBMI(CorticalData, traits.HasTraits):
     '''
     Special case of CorticalData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
@@ -64,4 +68,4 @@ class CorticalBMI(CorticalData, traits.HasTraits):
         so that the PlexonData source only grabs the channels actually used by the decoder. 
         '''
         self.cortical_channels = self.decoder.units[:,0]
-        super(PlexonBMI, self).init()
+        super(CorticalBMI, self).init()

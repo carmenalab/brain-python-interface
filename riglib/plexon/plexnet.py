@@ -22,7 +22,11 @@ WaveData = namedtuple("WaveData", ["type", "ts", "chan", "unit", "waveform", "ar
 chan_names = re.compile(r'^(\w{2,4})(\d{2,3})(\w)?')
 
 class Connection(object):
-    '''Here's a docstring'''
+    '''
+    A wrapper around a UDP socket which sends the Omniplex PC commands and 
+    receives data. Must run in a separte process (e.g., through `riglib.source`) 
+    if you want to use it as part of a task (e.g., BMI control)
+    '''
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_CONNECT_CLIENT = (10000)
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_DISCONNECT_CLIENT = (10999)
     PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF = (10100)
@@ -51,12 +55,11 @@ class Connection(object):
         self._init = False
     
     def _recv(self):
-        '''Receives a single PACKETSIZE chunk from the socket'''
+        '''
+        Receives a single PACKETSIZE chunk from the socket
+        '''
         d = ''
-        # print 'len(d)', len(d)
-        # print 'PACKETSIZE', PACKETSIZE
         while len(d) < PACKETSIZE:
-            # print 'calling self.sock.recv'
             d += self.sock.recv(PACKETSIZE - len(d))
         return d
     
@@ -68,9 +71,13 @@ class Connection(object):
         channels : int
             Number of channels to initialize through the server
         waveforms : bool, optional
-            Request spike waveforms?
+            Set to true if you want to stream spike waveforms (not available for MAP system?)
         analog : bool, optional
-            Request analog data?
+            Set to true if you want to receive data from the analog channels
+
+        Returns
+        -------
+        None            
         '''
 
         packet = array.array('i', '\x00'*PACKETSIZE)
@@ -117,7 +124,8 @@ class Connection(object):
 
         
     def select_spikes(self, channels=None, waveforms=True, unsorted=False):
-        '''Sets the channels from which to receive spikes. This function always requests sorted data
+        '''
+        Sets the channels from which to receive spikes. This function always requests sorted data
 
         Parameters
         ----------
@@ -125,6 +133,10 @@ class Connection(object):
             A list of channels which you want to see spikes from
         waveforms : bool, optional
             Request spikes from all selected channels
+
+        Returns
+        -------
+        None
         '''
         if not self._init:
             raise ValueError("Please initialize the connection first")
@@ -152,7 +164,18 @@ class Connection(object):
         self.sock.sendall(raw)
 
     def select_continuous(self, channels=None):
-        '''Sets the channels from which to receive continuous data'''
+        '''
+        Sets the channels from which to receive continuous neural data (e.g., LFP)
+
+        Parameters
+        ----------
+        channels : array_like, optional
+            A list of channels which you want to see spikes from
+
+        Returns
+        -------
+        None        
+        '''
         if not self._init:
             raise ValueError("Please initialize the connection first")
         if not self.supports_cont:
@@ -208,10 +231,6 @@ class Connection(object):
             raw += header.tostring()
             raw += payload.tostring()
 
-            # print 'len of subpacket:', len(header.tostring() + payload.tostring())
-            # print 'header:', header
-            # print 'payload:', payload
-
         self.sock.sendall(raw)
 
     def start_data(self):
@@ -245,16 +264,17 @@ class Connection(object):
         self.disconnect()
 
     def get_data(self):
-        '''A generator which yields packets as they are received'''
-        # print 'running get_data'
+        '''
+        A generator which yields packets as they are received
+        '''
+        
         assert self._init, "Please initialize the connection first"
         hnames = 'type,Uts,ts,chan,unit,nwave,nword'.split(',')
         invalid = set([0, -1])
-        # print 'entering while loop'
+        
         while self.streaming:
-            # print 'calling self._recv()'
             packet = self._recv()
-            # print 'received packet'
+            
             arrival_ts = time.time()
             ibuf = struct.unpack('4i', packet[:16])
             if ibuf[0] == 1:
@@ -281,7 +301,7 @@ class Connection(object):
                             chan = header['chan'] + 1
                         
                         ts = long(header['Uts']) << 32 | long(header['ts'])
-                        # print wavedat
+
                         yield WaveData(type=header['type'], chan=chan,
                             unit=header['unit'], ts=ts, waveform=wavedat, 
                             arrival_ts=arrival_ts)

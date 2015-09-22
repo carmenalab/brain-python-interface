@@ -1,8 +1,6 @@
 '''
-Base code for 'bmi' feature (both spikes and fields) when using the plexon system
+Base code for 'bmi' feature (both spikes and field potentials) when using the plexon system
 '''
-
-
 from __future__ import division
 import time
 import numpy as np
