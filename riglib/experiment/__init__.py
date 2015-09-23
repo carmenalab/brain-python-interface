@@ -12,12 +12,24 @@ try:
 except ImportError:
     import enthought.traits.api as traits
 
-class DataFile(traits.Instance):
+class InstanceFromDB(traits.Instance):
     def __init__(self, *args, **kwargs):
-        if 'bmi3d_query_kwargs' in kwargs:
-            self.bmi3d_query_kwargs = kwargs['bmi3d_query_kwargs']
+        if 'bmi3d_db_model' in kwargs:
+            self.bmi3d_db_model = kwargs['bmi3d_db_model']
+        else:
+            raise ValueError("If using trait 'InstanceFromDB', must specify bmi3d_db_model!")
 
+        # save the arguments for the database
+        self.bmi3d_query_kwargs = kwargs.pop('bmi3d_query_kwargs', dict())
+
+    super(Instance2, self).__init__(*args, **kwargs)
+
+
+class DataFile(InstanceFromDB):
+    def __init__(self, *args, **kwargs):
+        kwargs['bmi3d_db_model'] = 'DataFile'
         super(DataFile, self).__init__(*args, **kwargs)
+
 
 class OptionsList(traits.Enum):
     def __init__(self, *args, **kwargs):
@@ -26,6 +38,8 @@ class OptionsList(traits.Enum):
 
         super(OptionsList, self).__init__(*args, **kwargs)
 
+
+traits.InstanceFromDB = InstanceFromDB
 traits.DataFile = DataFile
 traits.OptionsList = OptionsList
 
