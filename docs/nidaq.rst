@@ -187,6 +187,10 @@ Data Bit 0          1              32
 
 [This scheme is to be implemented and tested]
 
+From the Cerebus/NeuroPort manual (http://www.blackrockmicro.com/blackrockmicro/userfiles/file/Cerebus%20Manual.pdf) the port pinout is as follows:
+
+..  image:: blackrock_db37_port.png
+
 =====================    ========    ===========    
 NSP digital input pin    DB37 pin    Arduino pin
 =====================    ========    ===========   

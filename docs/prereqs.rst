@@ -56,3 +56,26 @@ Here's a simple python example that doesn't work::
 Database integration with Django
 --------------------------------
 The ability of this library to do automatic data logging and file linking is a great feature of this library (and arguably, makes its complexity worthwhile). We recommend that you go through the introductory Django tutorial (https://docs.djangoproject.com/en/dev/intro/tutorial01/), which shows you how to build a simple Django application fairly similar to what we do during the experiment logging (though with a less complicated user interface).
+
+
+Helpful python hints
+====================
+Some clues on the more tricky/magical aspects of the code
+
+* ``getattr``
+    If you have an object ``obj`` with attribute ``param``, the two lines below are equivalent::
+        
+        In [3]: class TestClass(object):
+           ...:     def __init__(self):
+           ...:         self.param = 'value'
+           ...:         
+
+        In [4]: obj = TestClass()
+
+        In [5]: obj.param
+        Out[5]: 'value'
+
+        In [6]: getattr(obj, 'param')
+        Out[6]: 'value'
+
+    The second one allows you to get an attribute of an object by specifying a string name. This can be useful in selecting which attribute of the object you want on the fly.  
