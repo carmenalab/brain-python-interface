@@ -745,7 +745,7 @@ class Sequence(LogExperiment):
     def get_default_seq_generator(cls):
         return getattr(cls, cls.sequence_generators[0])
 
-    def __init__(self, gen, *args, **kwargs):
+    def __init__(self, gen=None, *args, **kwargs):
         '''
         Constructor for Sequence
 
@@ -760,6 +760,9 @@ class Sequence(LogExperiment):
         -------
         Sequence instance
         '''
+        if gen is None:
+            raise ValueError("Experiment classes which inherit from Sequence must specify a target generator!")
+
         if np.iterable(gen):
             from generate import runseq
             gen = runseq(self, seq=gen)
