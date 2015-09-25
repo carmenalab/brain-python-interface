@@ -56,7 +56,7 @@ class Task(models.Model):
             Task(name=name).save()
 
     def params(self, feats=(), values=None):
-        from namelist import instance_to_model, instance_to_model_filter_kwargs
+        #from namelist import instance_to_model, instance_to_model_filter_kwargs
 
         if values is None:
             values = dict()
@@ -90,9 +90,10 @@ class Task(models.Model):
 
             if trait_params['type'] == "InstanceFromDB":
                 # look up the model name in the trait
-                mdl_name = ctraits[trait_name].bmi3d_db_name
+                mdl_name = ctraits[trait_name].bmi3d_db_model
                 # get the database Model class from 'db.tracker.models'
-                Model = getattr(models, mdl_name)
+                #Model = getattr(models, mdl_name)
+                Model = globals()[mdl_name]
                 filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
 
                 # look up database records which match the model type & filter parameters

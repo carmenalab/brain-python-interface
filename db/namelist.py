@@ -6,12 +6,19 @@ import numpy as np
 from riglib import calibrations, bmi
 from riglib.bmi.bmi import BMI, Decoder
 from riglib.bmi import state_space_models
+import imp
 
 ## Get the list of experiment features
 try:
+    imp.find_module("featurelist")
+except ImportError:
+    print "Error importing featurelist!"
+    import traceback
+    traceback.print_exc()
+    raise Exception("Error importing featurelist!\n\n")
+    #features = dict()
+else:
     from featurelist import features
-except:
-    features = dict()
 
 ## Get the list of tasks
 try:

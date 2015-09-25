@@ -20,9 +20,13 @@ class InstanceFromDB(traits.Instance):
             raise ValueError("If using trait 'InstanceFromDB', must specify bmi3d_db_model!")
 
         # save the arguments for the database
-        self.bmi3d_query_kwargs = kwargs.pop('bmi3d_query_kwargs', dict())
+        #self.bmi3d_query_kwargs = kwargs.pop('bmi3d_query_kwargs', dict())
+        if 'bmi3d_query_kwargs' in kwargs:
+            self.bmi3d_query_kwargs = kwargs['bmi3d_query_kwargs']
+        else:
+            self.bmi3d_query_kwargs = dict()
 
-    super(Instance2, self).__init__(*args, **kwargs)
+        super(InstanceFromDB, self).__init__(*args, **kwargs)
 
 
 class DataFile(InstanceFromDB):
@@ -35,8 +39,11 @@ class OptionsList(traits.Enum):
     def __init__(self, *args, **kwargs):
         if 'bmi3d_input_options' in kwargs:
             self.bmi3d_input_options = kwargs['bmi3d_input_options']
+        else:
+            raise Exception
 
         super(OptionsList, self).__init__(*args, **kwargs)
+        #setattr(self, 'bmi3d_input_options', bmi3d_input_options)
 
 
 traits.InstanceFromDB = InstanceFromDB
