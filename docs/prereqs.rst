@@ -33,6 +33,25 @@ In experiments with many peripheral devices, data must be acquired and logged as
 
 This is a decent introduction to multiprocessing: https://pymotw.com/2/multiprocessing/basics.html
 
+Here's a simple python example that doesn't work::
+
+    # Test case for CLDARecomputeParameters, to show non-blocking properties
+    # of the recomputation
+    work_queue = mp.Queue()
+    result_queue = mp.Queue()
+
+    work_queue.put((None, None, None))
+
+    clda_worker = CLDARecomputeParameters(work_queue, result_queue)
+    clda_worker.start()
+
+    while 1:
+        try:
+            result = result_queue.get_nowait()
+            break
+        except:
+            print 'stuff'
+        time.sleep(0.1)
 
 Database integration with Django
 --------------------------------

@@ -627,6 +627,12 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         pass
 
+    def join(self):
+        '''
+        Code to run before re-joining the experiment thread (see db.tasktrack.TaskWrapper.cleanup)
+        '''
+        super(Experiment, self).join()
+
 
 class LogExperiment(Experiment):
     '''

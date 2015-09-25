@@ -112,13 +112,7 @@ class JuiceLogging(traits.HasTraits):
     '''
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        See riglib.experiment.Experiment.cleanup for docs on task cleanup.
         '''
         super(JuiceLogging, self).cleanup(database, saveid, **kwargs)
 
@@ -139,6 +133,7 @@ class JuiceLogging(traits.HasTraits):
             database.save_data(fname, 'juice_log', saveid)
         else:
             database.save_data(fname, 'juice_log', saveid, dbname=dbname)
+
 
 class ArduinoReward(traits.HasTraits):
     '''During the reward phase, send a timed TTL pulse via the Arduino microcontroller to the reward system'''

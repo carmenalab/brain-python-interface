@@ -13,18 +13,16 @@ from itertools import izip
 import nitime.algorithms as tsa
 
 
-ts_dtype_new = sim_neurons.ts_dtype_new
-
-# object that gets the data that it needs (e.g., spikes, LFP, etc.) from the neural data source and 
-# extracts features from it
 class FeatureExtractor(object):
     '''
-    Parent of all feature extractors, used only for interfacing/type-checking
+    Parent of all feature extractors, used only for interfacing/type-checking.
+    Feature extractors are objects tha gets the data that it needs (e.g., spike timestamps, LFP voltages, etc.) 
+    from the neural data source object and extracts features from it
     '''
-    pass
     @classmethod
     def extract_from_file(cls, *args, **kwargs):
         raise NotImplementedError
+
 
 class DummyExtractor(FeatureExtractor):
     '''
@@ -36,9 +34,11 @@ class DummyExtractor(FeatureExtractor):
     def __call__(self, *args, **kwargs):
         return dict(obs=np.array([[np.nan]]))
 
+
 class BinnedSpikeCountsExtractor(FeatureExtractor):
     '''
-    Bins spikes using rectangular windows.
+    Extracts spike counts from spike timestamps separated into rectangular window. 
+    This extractor is (currently) the main type of feature extractor in intracortical BMIs
     '''
     feature_type = 'spike_counts'
 
@@ -101,7 +101,8 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
         Returns
         -------
-        Spike timestamps of type ??????
+        numpy record array
+            Spike timestamps in the format of riglib.plexon.Spikes.dtype
         '''
         return self.source.get()
 
@@ -109,6 +110,17 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         '''
         Determine the first and last spike timestamps to allow HDF files 
         created by the BMI to be semi-synchronized with the neural data file
+
+        Parameters
+        ----------
+        ts : numpy record array
+            Must have field 'ts' of spike timestamps in seconds
+
+        Returns
+        -------
+        np.ndarray of shape (2,)
+            The smallest and largest timestamps corresponding to the current feature; 
+            useful for rough synchronization of the BMI event loop with the neural recording system.
         '''
         if len(ts) == 0:
             bin_edges = np.array([np.nan, np.nan])
@@ -121,15 +133,48 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
     def bin_spikes(cls, ts, units, max_units_per_channel=13):
         '''
         Count up the number of BMI spikes in a list of spike timestamps.
+
+        Parameters
+        ----------
+        ts : numpy record array
+            Must have field 'ts' of spike timestamps in seconds
+        units : np.ndarray of shape (N, 2)
+            Each row corresponds to the channel index (typically the electrode number) and 
+            the unit index (an index to differentiate the possibly many units on the same electrode). These are 
+            the units used in the BMI.
+        max_units_per_channel : int, optional, default=13
+            This int is used to map from a (channel, unit) index to a single 'unit_ind' 
+            for faster binning of spike timestamps. Just set to a large number.
+
+        Returns
+        -------
+        np.ndarray of shape (N, 1)
+            Column vector of counts of spike events for each of the N units.
         '''
         unit_inds = units[:,0]*max_units_per_channel + units[:,1]
         edges = np.sort(np.hstack([unit_inds - 0.5, unit_inds + 0.5]))
+
         spiking_unit_inds = ts['chan']*max_units_per_channel + ts['unit']
         counts, _ = np.histogram(spiking_unit_inds, edges)
         return counts[::2]
 
     def __call__(self, start_time, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        Main function to retreive new spike data and bin the counts
+
+        Parameters
+        ----------
+        start_time : float 
+            Absolute time from the task event loop. This is used only to subdivide 
+            the spike timestamps into multiple bins, if desired (if the 'n_subbins' attribute is > 1)
+        *args, **kwargs : optional positional/keyword arguments
+            These are passed to the source, or ignored (not needed for this extractor).
+
+        Returns
+        -------
+        dict
+            Extracted features to be saved in the task. 
+        '''
         ts = self.get_spike_ts(*args, **kwargs)
         if len(ts) == 0:
             counts = np.zeros([len(self.units), self.n_subbins])
@@ -159,7 +204,8 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
         Parameters
         ----------
-        plx: neural data file instance
+        files : dict
+            Data files used to train the decoder. Should contain exactly one type of neural data file (e.g., Plexon, Blackrock, TDT)
         neurows: np.ndarray of shape (T,)
             Timestamps in the plexon time reference corresponding to bin boundaries
         binlen: float
@@ -173,6 +219,15 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
         Returns
         -------
+        spike_counts : np.ndarray of shape (N, T)
+            Spike counts binned over the length of the datafile.
+        units : np.ndarray of shape (N, 2)
+            Each row corresponds to the channel index (typically the electrode number) and 
+            the unit index (an index to differentiate the possibly many units on the same electrode). These are 
+            the units used in the BMI.
+        extractor_kwargs : dict
+            Parameters used to instantiate the feature extractor, to be stored 
+            along with the trained decoder so that the exact same feature extractor can be re-created at runtime.
         '''
         if 'plexon' in files:
             from plexon import plexfile
@@ -258,10 +313,9 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
             spike_counts = spike_counts[:, unit_inds]
             extractor_kwargs['units'] = units
 
-            return spike_counts, units, extractor_kwargs            
-
-
-
+            return spike_counts, units, extractor_kwargs       
+        elif 'tdt' in files:
+            raise NotImplementedError     
 
 
 # bands should be a list of tuples representing ranges
@@ -273,149 +327,6 @@ default_bands = []
 for freq in range(start, end, step):
     default_bands.append((freq, freq+step))
 
-class LFPButterBPFPowerExtractor(object):
-    '''
-    Computes log power of the LFP in different frequency bands (for each 
-    channel) in time-domain using Butterworth band-pass filters.
-    '''
-
-    feature_type = 'lfp_power'
-
-    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, filt_order=5, fs=1000):
-        '''    Docstring    '''
-        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
-
-        self.source = source
-        self.channels = channels
-        self.bands = bands
-        self.win_len = win_len  # secs
-        self.filt_order = filt_order
-        if source is not None:
-            self.fs = source.source.update_freq
-        else:
-            self.fs = fs
-
-        extractor_kwargs = dict()
-        extractor_kwargs['channels']   = self.channels
-        extractor_kwargs['bands']      = self.bands
-        extractor_kwargs['win_len']    = self.win_len
-        extractor_kwargs['filt_order'] = self.filt_order
-        extractor_kwargs['fs']         = self.fs
-        self.extractor_kwargs = extractor_kwargs
-
-        self.n_pts = int(self.win_len * self.fs)
-        self.filt_coeffs = dict()
-        for band in bands:
-            nyq = 0.5 * self.fs
-            low = band[0] / nyq
-            high = band[1] / nyq
-            self.filt_coeffs[band] = butter(self.filt_order, [low, high], btype='band')  # returns (b, a)
-
-        self.epsilon = 1e-9
-
-        self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
-
-    def get_cont_samples(self, *args, **kwargs):
-        '''    Docstring    '''
-        return self.source.get(self.n_pts, self.channels)
-
-    def extract_features(self, cont_samples):
-        '''    Docstring    '''
-        n_chan = len(self.channels)
-        
-        lfp_power = np.zeros((n_chan * len(self.bands), 1))
-        for i, band in enumerate(self.bands):
-            b, a = self.filt_coeffs[band]
-            y = lfilter(b, a, cont_samples)
-            lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1) + self.epsilon).reshape(-1, 1)
-
-        return lfp_power
-
-    def __call__(self, start_time, *args, **kwargs):
-        '''    Docstring    '''
-        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-        lfp_power = self.extract_features(cont_samples)
-
-        self.last_get_lfp_power_time = start_time
-        
-        return dict(lfp_power=lfp_power)
-
-    @classmethod
-    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-        '''Compute lfp power features from a blackrock data file.'''
-
-        nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]
-
-        # interpolate between the rows to 180 Hz
-        if binlen < 1./strobe_rate:
-            interp_rows = []
-            neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
-            for r1, r2 in izip(neurows[:-1], neurows[1:]):
-                interp_rows += list(np.linspace(r1, r2, 4)[1:])
-            interp_rows = np.array(interp_rows)
-        else:
-            step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-            interp_rows = neurows[::step]
-
-        # TODO -- for now, use .ns3 file (2 kS/s)
-        for fname in nsx_fnames:
-            if '.ns3' in fname:
-                nsx_fname = fname
-        extractor_kwargs['fs'] = 2000
-
-        # default order of 5 seems to cause problems when fs > 1000
-        extractor_kwargs['filt_order'] = 3
-
-        
-        nsx_hdf_fname = nsx_fname + '.hdf'
-        if not os.path.isfile(nsx_hdf_fname):
-            # convert .nsx file to hdf file using Blackrock's n2h5 utility
-            subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
-
-        import h5py
-        nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
-
-        # create extractor object
-        f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
-        extractor_kwargs = f_extractor.extractor_kwargs
-
-        win_len  = f_extractor.win_len
-        bands    = f_extractor.bands
-        channels = f_extractor.channels
-        fs       = f_extractor.fs
-
-        n_itrs = len(interp_rows)
-        n_chan = len(channels)
-        lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
-        n_pts = int(win_len * fs)
-
-        # for i, t in enumerate(interp_rows):
-        #     sample_num = int(t * fs)
-        #     # cont_samples = np.zeros((n_chan, n_pts))
-
-        #     # for j, chan in enumerate(channels):
-        #     #     chan_str = str(chan).zfill(5)
-        #     #     path = 'channel/channel%s/continuous_set' % chan_str
-        #     #     cont_samples[j, :] = nsx_hdf.get(path).value[sample_num-n_pts:sample_num]
-        #     cont_samples = abs(np.random.randn(n_chan, n_pts))
-
-        #     feats = f_extractor.extract_features(cont_samples).T
-        #     print feats
-        #     lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
-        
-        print '*' * 40
-        print 'WARNING: replacing LFP values from .ns3 file with random values!!'
-        print '*' * 40
-
-        lfp_power = abs(np.random.randn(n_itrs, n_chan * len(bands)))
-
-        # TODO -- discard any channel(s) for which the log power in any frequency 
-        #   bands was ever equal to -inf (i.e., power was equal to 0)
-        # or, perhaps just add a small epsilon inside the log to avoid this
-        # then, remember to do this:  extractor_kwargs['channels'] = channels
-        #   and reset the units variable
-        
-        return lfp_power, units, extractor_kwargs
 
 class LFPMTMPowerExtractor(object):
     '''
@@ -427,14 +338,20 @@ class LFPMTMPowerExtractor(object):
 
     def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000, **kwargs):
         '''
-        Docstring
         Constructor for LFPMTMPowerExtractor, which extracts LFP power using the multi-taper method
 
         Parameters
         ----------
+        source : riglib.source.Source object
+            Object which yields new data when its 'get' method is called
+        channels : list 
+            LFP electrode indices to use for feature extraction
+        bands : list of tuples
+            Each tuple defines a frequency band of interest as (start frequency, end frequency) 
 
         Returns
         -------
+        LFPMTMPowerExtractor instance
         '''
         #self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
 
@@ -477,9 +394,19 @@ class LFPMTMPowerExtractor(object):
         else:
             self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
 
-
     def get_cont_samples(self, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        Retreives the last n_pts number of samples for each LPF channel from the neural data 'source'
+
+        Parameters
+        ----------
+        *args, **kwargs : optional arguments
+            Ignored for this extractor (not necessary)
+
+        Returns
+        -------
+        np.ndarray of shape ???
+        '''
         return self.source.get(self.n_pts, self.channels)
 
     def extract_features(self, cont_samples):
@@ -514,7 +441,20 @@ class LFPMTMPowerExtractor(object):
             return lfp_power
 
     def __call__(self, start_time, *args, **kwargs):
-        '''    Docstring    '''
+        '''
+        Parameters
+        ----------
+        start_time : float 
+            Absolute time from the task event loop. This is unused by LFP extractors in their current implementation
+            and only passed in to ensure that function signatures are the same across extractors.
+        *args, **kwargs : optional positional/keyword arguments
+            These are passed to the source, or ignored (not needed for this extractor).
+
+        Returns
+        -------
+        dict
+            Extracted features to be saved in the task.         
+        '''
         cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
         lfp_power = self.extract_features(cont_samples)
 
@@ -527,7 +467,8 @@ class LFPMTMPowerExtractor(object):
 
         Parameters
         ----------
-        plx: neural data file instance
+        files : dict
+            Data files used to train the decoder. Should contain exactly one type of neural data file (e.g., Plexon, Blackrock, TDT)
         neurows: np.ndarray of shape (T,)
             Timestamps in the plexon time reference corresponding to bin boundaries
         binlen: float
@@ -541,6 +482,13 @@ class LFPMTMPowerExtractor(object):
 
         Returns
         -------
+        spike_counts : np.ndarray of shape (N, T)
+            Spike counts binned over the length of the datafile.
+        units : 
+            Not used by this type of extractor, just passed back from the input argument to make the outputs consistent with spike count extractors
+        extractor_kwargs : dict
+            Parameters used to instantiate the feature extractor, to be stored 
+            along with the trained decoder so that the exact same feature extractor can be re-created at runtime.
         '''
         if 'plexon' in files:
             from plexon import plexfile
@@ -598,491 +546,6 @@ class LFPMTMPowerExtractor(object):
 
         elif 'blackrock' in files:
             raise NotImplementedError
-
-class AIMTMPowerExtractor(LFPMTMPowerExtractor):
-    ''' Multitaper extractor for Plexon analog input channels'''
-
-    feature_type = 'ai_power'
-
-    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000, **kwargs):
-        '''
-        Docstring
-        Constructor for LFPMTMPowerExtractor, which extracts LFP power using the multi-taper method
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        #self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
-
-        self.source = source
-        self.channels = channels
-        self.bands = bands
-        self.win_len = win_len
-        self.NW = NW
-        if source is not None:
-            self.fs = source.source.update_freq
-        else:
-            self.fs = fs
-
-        extractor_kwargs = dict()
-        extractor_kwargs['channels'] = self.channels
-        extractor_kwargs['bands']    = self.bands
-        extractor_kwargs['win_len']  = self.win_len
-        extractor_kwargs['NW']       = self.NW
-        extractor_kwargs['fs']       = self.fs
-
-   
-        extractor_kwargs['no_log']  = kwargs.has_key('no_log') and kwargs['no_log']==True #remove log calculation
-        extractor_kwargs['no_mean'] = kwargs.has_key('no_mean') and kwargs['no_mean']==True #r
-        self.extractor_kwargs = extractor_kwargs
-
-        self.n_pts = int(self.win_len * self.fs)
-        self.nfft = 2**int(np.ceil(np.log2(self.n_pts)))  # nextpow2(self.n_pts)
-        fft_freqs = np.arange(0., fs, float(fs)/self.nfft)[:self.nfft/2 + 1]
-        self.fft_inds = dict()
-        for band_idx, band in enumerate(bands):
-            self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
-
-        extractor_kwargs['fft_inds']       = self.fft_inds
-        extractor_kwargs['fft_freqs']      = fft_freqs
-        
-        self.epsilon = 1e-9
-
-        if extractor_kwargs['no_mean']: #Used in lfp 1D control task
-            self.feature_dtype = ('ai_power', 'f8', (len(channels)*len(fft_freqs), 1))
-        else: #Else: 
-            self.feature_dtype = ('ai_power', 'f8', (len(channels)*len(bands), 1))
-
-    def __call__(self, start_time, *args, **kwargs):
-        '''    Docstring    '''
-        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-        #cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
-        lfp_power = self.extract_features(cont_samples)
-
-        return dict(ai_power=lfp_power)
-
-
-
-    @classmethod
-    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-        '''
-        Compute binned spike count features
-
-        Parameters
-        ----------
-        plx: neural data file instance
-        neurows: np.ndarray of shape (T,)
-            Timestamps in the plexon time reference corresponding to bin boundaries
-        binlen: float
-            Length of time over which to sum spikes from the specified cells
-        units: np.ndarray of shape (N, 2)
-            List of units that the decoder will be trained on. The first column specifies the electrode number and the second specifies the unit on the electrode
-        extractor_kwargs: dict 
-            Any additional parameters to be passed to the feature extractor. This function is agnostic to the actual extractor utilized
-        strobe_rate: 60.0
-            The rate at which the task sends the sync pulse to the plx file
-
-        Returns
-        -------
-        '''
-        if 'plexon' in files:
-            from plexon import plexfile
-            plx = plexfile.openFile(str(files['plexon']))
-
-            # interpolate between the rows to 180 Hz
-            if binlen < 1./strobe_rate:
-                interp_rows = []
-                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
-                for r1, r2 in izip(neurows[:-1], neurows[1:]):
-                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
-                interp_rows = np.array(interp_rows)
-            else:
-                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-                interp_rows = neurows[::step]
-
-
-            # create extractor object
-            f_extractor = AIMTMPowerExtractor(None, **extractor_kwargs)
-            extractor_kwargs = f_extractor.extractor_kwargs
-
-            win_len  = f_extractor.win_len
-            bands    = f_extractor.bands
-            channels = f_extractor.channels
-            fs       = f_extractor.fs
-            print 'bands:', bands
-
-            n_itrs = len(interp_rows)
-            n_chan = len(channels)
-            lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
-            
-            # for i, t in enumerate(interp_rows):
-            #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-            #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-            lfp = plx.lfp[:].data[:, channels-1]
-            n_pts = int(win_len * fs)
-            for i, t in enumerate(interp_rows):
-                try:
-                    sample_num = int(t * fs)
-                    cont_samples = lfp[sample_num-n_pts:sample_num, :]
-                    lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-                except:
-                    print "Error with LFP decoder training"
-                    print i, t
-                    pass
-
-
-            # TODO -- discard any channel(s) for which the log power in any frequency 
-            #   bands was ever equal to -inf (i.e., power was equal to 0)
-            # or, perhaps just add a small epsilon inside the log to avoid this
-            # then, remember to do this:  extractor_kwargs['channels'] = channels
-            #   and reset the units variable
-
-            return lfp_power, units, extractor_kwargs
-
-        elif 'blackrock' in files:
-            raise NotImplementedError
-
-
-class AIAmplitudeExtractor(object):
-    '''
-    Computes the analog input channel amplitude. Out of date...
-    '''
-
-    feature_type = 'ai_amplitude'
-
-    def __init__(self, source, channels=[], win_len=0.1, fs=1000):
-        '''    Docstring    '''
-        self.feature_dtype = ('emg_amplitude', 'u4', (len(channels), 1))
-
-        self.source = source
-        self.channels = channels
-        self.win_len = win_len
-        if source is not None:
-            self.fs = source.source.update_freq
-        else:
-            self.fs = fs
-
-        extractor_kwargs = dict()
-        extractor_kwargs['channels'] = self.channels
-        extractor_kwargs['fs']       = self.fs
-        extractor_kwargs['win_len']  = self.win_len
-        self.extractor_kwargs = extractor_kwargs
-
-        self.n_pts = int(self.win_len * self.fs)
-
-    def get_cont_samples(self, *args, **kwargs):
-        '''    Docstring    '''
-        return self.source.get(self.n_pts, self.channels)
-
-    def extract_features(self, cont_samples):
-        '''    Docstring    '''
-        n_chan = len(self.channels)
-        emg_amplitude = np.mean(cont_samples,axis=1)
-        emg_amplitude = emg_amplitude[:,None]
-        return emg_amplitude
-
-    def __call__(self, start_time, *args, **kwargs):
-        '''    Docstring    '''
-        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
-        emg = self.extract_features(cont_samples)
-        return emg, None
-
-class WaveformClusterCountExtractor(FeatureExtractor):
-    feature_type = 'cluster_counts'
-    def __init__(self, source, gmm_model_params, n_subbins=1, units=[]):
-        self.feature_dtype = [('cluster_counts', 'f8', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
-
-        self.source = source
-        self.gmm_model_params = gmm_model_params        
-        self.n_subbins = n_subbins
-        self.units = units
-        self.n_units = len(units)
-
-        extractor_kwargs = dict()
-        extractor_kwargs['n_subbins']        = self.n_subbins
-        extractor_kwargs['units']            = self.units
-        extractor_kwargs['gmm_model_params'] = gmm_model_params
-        self.extractor_kwargs = extractor_kwargs
-
-        self.last_get_spike_counts_time = 0        
-
-    def get_spike_data(self):
-        '''
-        Get the spike timestamps from the neural data source. This function has no type checking, 
-        i.e., it is assumed that the Extractor object was created with the proper source
-        '''
-        return self.source.get()
-
-    def get_bin_edges(self, ts):
-        '''
-        Determine the first and last spike timestamps to allow HDF files 
-        created by the BMI to be semi-synchronized with the neural data file
-        '''
-        if len(ts) == 0:
-            bin_edges = np.array([np.nan, np.nan])
-        else:
-            min_ind = np.argmin(ts['ts'])
-            max_ind = np.argmax(ts['ts'])
-            bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])
-
-    def __call__(self, start_time, *args, **kwargs):
-        '''    Docstring    '''
-        spike_data = self.get_spike_data()
-        if len(spike_data) == 0:
-            counts = np.zeros([len(self.units), self.n_subbins])
-        elif self.n_subbins > 1:
-            subbin_edges = np.linspace(self.last_get_spike_counts_time, start_time, self.n_subbins+1)
-
-            # Decrease the first subbin index to include any spikes that were
-            # delayed in getting to the task layer due to threading issues
-            # An acceptable delay is 1 sec or less. Realistically, most delays should be
-            # on the millisecond order
-            # subbin_edges[0] -= 1
-            # subbin_inds = np.digitize(spike_data['arrival_ts'], subbin_edges)
-            # counts = np.vstack([bin_spikes(ts[subbin_inds == k], self.units) for k in range(1, self.n_subbins+1)]).T
-            raise NotImplementedError
-        else:
-            # TODO pull the waveforms
-            waveforms = []
-
-            # TODO determine p(class) for each waveform against the model params
-            counts = np.zeros(self.n_units)
-            wf_class_probs = []
-            for wf in waveforms:
-                raise NotImplementedError
-            
-            # counts = bin_spikes(ts, self.units).reshape(-1, 1)
-
-        counts = np.array(counts, dtype=np.uint32)
-        bin_edges = self.get_bin_edges(ts)
-        self.last_get_spike_counts_time = start_time
-
-        return dict(spike_counts=counts, bin_edges=bin_edges)        
-
-    @classmethod
-    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):        
-        from sklearn.mixture import GMM
-        if 'plexon' in files:
-            from plexon import plexfile
-            plx = plexfile.openFile(str(files['plexon']))        
-        
-            channels = units[:,0]
-            channels = np.unique(channels)
-            np.sort(channels)
-
-            spike_chans = plx.spikes[:].data['chan']
-            spike_times = plx.spikes[:].data['ts']
-            waveforms = plx.spikes[:].waveforms
-
-            # construct the feature matrix (n_timepoints, n_units)
-            # interpolate between the rows to 180 Hz
-            if binlen < 1./strobe_rate:
-                interp_rows = []
-                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
-                for r1, r2 in izip(neurows[:-1], neurows[1:]):
-                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
-                interp_rows = np.array(interp_rows)
-            else:
-                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-                interp_rows = neurows[::step]
-
-            # digitize the spike timestamps into interp_rows
-            spike_bin_ind = np.digitize(spike_times, interp_rows)
-            spike_counts = np.zeros(len(interp_rows), n_units)
-
-            for ch in channels:
-                ch_waveforms = waveforms[spike_chans == ch]
-
-                # cluster the waveforms using a GMM
-                # TODO pick the number of components in an unsupervised way!
-                n_components = len(np.nonzero(units[:,0] == ch)[0])
-                gmm = GMM(n_components=n_components)
-                gmm.fit(ch_waveforms)
-
-                # store the cluster probabilities back in the same order that the waveforms were extracted
-                wf_probs = gmm.predict_proba(ch_waveforms)
-
-                ch_spike_bin_inds = spike_bin_ind[spike_chans == ch]
-                ch_inds, = np.nonzero(units[:,0] == ch)
-
-                # TODO don't assume the units are sorted!
-                for bin_ind, wf_prob in izip(ch_spike_bin_inds, wf_probs):
-                    spike_counts[bin_ind, ch_inds] += wf_prob
-
-
-            # discard units that never fired at all
-            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
-            units = units[unit_inds,:]
-            spike_counts = spike_counts[:, unit_inds]
-            extractor_kwargs['units'] = units
-
-            return spike_counts, units, extractor_kwargs
-        else:
-            raise NotImplementedError('Not implemented for blackrock/TDT data yet!')
-
-
-
-def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-    '''
-    Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    
-    # interpolate between the rows to 180 Hz
-    if binlen < 1./strobe_rate:
-        interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
-        for r1, r2 in izip(neurows[:-1], neurows[1:]):
-            interp_rows += list(np.linspace(r1, r2, 4)[1:])
-        interp_rows = np.array(interp_rows)
-    else:
-        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-        interp_rows = neurows[::step]
-
-
-    # create extractor object
-    f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
-    extractor_kwargs = f_extractor.extractor_kwargs
-
-    win_len  = f_extractor.win_len
-    bands    = f_extractor.bands
-    channels = f_extractor.channels
-    fs       = f_extractor.fs
-        
-    n_itrs = len(interp_rows)
-    n_chan = len(channels)
-    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
-    # for i, t in enumerate(interp_rows):
-    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-    lfp = plx.lfp[:].data[:, channels-1]
-    n_pts = int(win_len * fs)
-    for i, t in enumerate(interp_rows):
-        sample_num = int(t * fs)
-        cont_samples = lfp[sample_num-n_pts:sample_num, :]
-        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-    
-    # TODO -- discard any channel(s) for which the log power in any frequency 
-    #   bands was ever equal to -inf (i.e., power was equal to 0)
-    # or, perhaps just add a small epsilon inside the log to avoid this
-    # then, remember to do this:  extractor_kwargs['channels'] = channels
-    #   and reset the units variable
-
-    return lfp_power, units, extractor_kwargs
-
-
-def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-    '''
-    Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
-
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    
-    # interpolate between the rows to 180 Hz
-    if binlen < 1./strobe_rate:
-        interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
-        for r1, r2 in izip(neurows[:-1], neurows[1:]):
-            interp_rows += list(np.linspace(r1, r2, 4)[1:])
-        interp_rows = np.array(interp_rows)
-    else:
-        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-        interp_rows = neurows[::step]
-
-
-    # create extractor object
-    f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
-    extractor_kwargs = f_extractor.extractor_kwargs
-
-    win_len  = f_extractor.win_len
-    bands    = f_extractor.bands
-    channels = f_extractor.channels
-    fs       = f_extractor.fs
-    print 'bands:', bands
-
-    n_itrs = len(interp_rows)
-    n_chan = len(channels)
-    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
-    
-    # for i, t in enumerate(interp_rows):
-    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-    lfp = plx.lfp[:].data[:, channels-1]
-    n_pts = int(win_len * fs)
-    for i, t in enumerate(interp_rows):
-        sample_num = int(t * fs)
-        cont_samples = lfp[sample_num-n_pts:sample_num, :]
-        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-
-
-    # TODO -- discard any channel(s) for which the log power in any frequency 
-    #   bands was ever equal to -inf (i.e., power was equal to 0)
-    # or, perhaps just add a small epsilon inside the log to avoid this
-    # then, remember to do this:  extractor_kwargs['channels'] = channels
-    #   and reset the units variable
-
-    return lfp_power, units, extractor_kwargs
-
-def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
-    '''
-    Compute EMG features.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-
-    # interpolate between the rows to 180 Hz
-    if binlen < 1./strobe_rate:
-        interp_rows = []
-        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
-        for r1, r2 in izip(neurows[:-1], neurows[1:]):
-            interp_rows += list(np.linspace(r1, r2, 4)[1:])
-        interp_rows = np.array(interp_rows)
-    else:
-        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
-        interp_rows = neurows[::step]
-
-
-    # create extractor object
-    f_extractor = extractor.EMGAmplitudeExtractor(None, **extractor_kwargs)
-    extractor_kwargs = f_extractor.extractor_kwargs
-
-    win_len  = f_extractor.win_len
-    channels = f_extractor.channels
-    fs       = f_extractor.fs
-
-    n_itrs = len(interp_rows)
-    n_chan = len(channels)
-    emg = np.zeros((n_itrs, n_chan))
-    
-    # for i, t in enumerate(interp_rows):
-    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
-    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-    emgraw = plx.analog[:].data[:, channels-1]
-    n_pts = int(win_len * fs)
-    for i, t in enumerate(interp_rows):
-        sample_num = int(t * fs)
-        cont_samples = emgraw[sample_num-n_pts:sample_num, :]
-        emg[i, :] = f_extractor.extract_features(cont_samples.T).T
-
-    return emg, units, extractor_kwargs
 
 
 #########################################################
@@ -1143,6 +606,7 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
                     ts = (fake_time, self.units[unit_ind, 0], self.units[unit_ind, 1], fake_time)
                     ts_data.append(ts)
 
+        ts_dtype_new = sim_neurons.ts_dtype_new
         return np.array(ts_data, dtype=ts_dtype_new)
 
     def get_bin_edges(self, ts):
@@ -1250,3 +714,604 @@ class SimDirectObsExtractor(SimBinnedSpikeCountsExtractor):
     def __call__(self, start_time, *args, **kwargs):
         y_t = self.get_spike_ts(*args, **kwargs)
         return dict(spike_counts=y_t)
+
+
+
+#############################################
+##### Feature extractors in development #####
+#############################################
+class LFPButterBPFPowerExtractor(object):
+    '''
+    Computes log power of the LFP in different frequency bands (for each 
+    channel) in time-domain using Butterworth band-pass filters.
+    '''
+
+    feature_type = 'lfp_power'
+
+    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, filt_order=5, fs=1000):
+        self.feature_dtype = ('lfp_power', 'u4', (len(channels)*len(bands), 1))
+
+        self.source = source
+        self.channels = channels
+        self.bands = bands
+        self.win_len = win_len  # secs
+        self.filt_order = filt_order
+        if source is not None:
+            self.fs = source.source.update_freq
+        else:
+            self.fs = fs
+
+        extractor_kwargs = dict()
+        extractor_kwargs['channels']   = self.channels
+        extractor_kwargs['bands']      = self.bands
+        extractor_kwargs['win_len']    = self.win_len
+        extractor_kwargs['filt_order'] = self.filt_order
+        extractor_kwargs['fs']         = self.fs
+        self.extractor_kwargs = extractor_kwargs
+
+        self.n_pts = int(self.win_len * self.fs)
+        self.filt_coeffs = dict()
+        for band in bands:
+            nyq = 0.5 * self.fs
+            low = band[0] / nyq
+            high = band[1] / nyq
+            self.filt_coeffs[band] = butter(self.filt_order, [low, high], btype='band')  # returns (b, a)
+
+        self.epsilon = 1e-9
+
+        self.last_get_lfp_power_time = 0  # TODO -- is this variable necessary for LFP?
+
+    def get_cont_samples(self, *args, **kwargs):
+        return self.source.get(self.n_pts, self.channels)
+
+    def extract_features(self, cont_samples):
+        n_chan = len(self.channels)
+        
+        lfp_power = np.zeros((n_chan * len(self.bands), 1))
+        for i, band in enumerate(self.bands):
+            b, a = self.filt_coeffs[band]
+            y = lfilter(b, a, cont_samples)
+            lfp_power[i*n_chan:(i+1)*n_chan] = np.log((1. / self.n_pts) * np.sum(y**2, axis=1) + self.epsilon).reshape(-1, 1)
+
+        return lfp_power
+
+    def __call__(self, start_time, *args, **kwargs):
+        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
+        lfp_power = self.extract_features(cont_samples)
+
+        self.last_get_lfp_power_time = start_time
+        
+        return dict(lfp_power=lfp_power)
+
+    @classmethod
+    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+        '''Compute lfp power features from a blackrock data file.'''
+
+        nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]
+
+        # interpolate between the rows to 180 Hz
+        if binlen < 1./strobe_rate:
+            interp_rows = []
+            neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+            for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                interp_rows += list(np.linspace(r1, r2, 4)[1:])
+            interp_rows = np.array(interp_rows)
+        else:
+            step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+            interp_rows = neurows[::step]
+
+        # TODO -- for now, use .ns3 file (2 kS/s)
+        for fname in nsx_fnames:
+            if '.ns3' in fname:
+                nsx_fname = fname
+        extractor_kwargs['fs'] = 2000
+
+        # default order of 5 seems to cause problems when fs > 1000
+        extractor_kwargs['filt_order'] = 3
+
+        
+        nsx_hdf_fname = nsx_fname + '.hdf'
+        if not os.path.isfile(nsx_hdf_fname):
+            # convert .nsx file to hdf file using Blackrock's n2h5 utility
+            subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+        import h5py
+        nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+        # create extractor object
+        f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+        extractor_kwargs = f_extractor.extractor_kwargs
+
+        win_len  = f_extractor.win_len
+        bands    = f_extractor.bands
+        channels = f_extractor.channels
+        fs       = f_extractor.fs
+
+        n_itrs = len(interp_rows)
+        n_chan = len(channels)
+        lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+        n_pts = int(win_len * fs)
+
+        # for i, t in enumerate(interp_rows):
+        #     sample_num = int(t * fs)
+        #     # cont_samples = np.zeros((n_chan, n_pts))
+
+        #     # for j, chan in enumerate(channels):
+        #     #     chan_str = str(chan).zfill(5)
+        #     #     path = 'channel/channel%s/continuous_set' % chan_str
+        #     #     cont_samples[j, :] = nsx_hdf.get(path).value[sample_num-n_pts:sample_num]
+        #     cont_samples = abs(np.random.randn(n_chan, n_pts))
+
+        #     feats = f_extractor.extract_features(cont_samples).T
+        #     print feats
+        #     lfp_power[i, :] = f_extractor.extract_features(cont_samples).T
+        
+        print '*' * 40
+        print 'WARNING: replacing LFP values from .ns3 file with random values!!'
+        print '*' * 40
+
+        lfp_power = abs(np.random.randn(n_itrs, n_chan * len(bands)))
+
+        # TODO -- discard any channel(s) for which the log power in any frequency 
+        #   bands was ever equal to -inf (i.e., power was equal to 0)
+        # or, perhaps just add a small epsilon inside the log to avoid this
+        # then, remember to do this:  extractor_kwargs['channels'] = channels
+        #   and reset the units variable
+        
+        return lfp_power, units, extractor_kwargs
+
+
+class AIMTMPowerExtractor(LFPMTMPowerExtractor):
+    ''' Multitaper extractor for Plexon analog input channels'''
+
+    feature_type = 'ai_power'
+
+    def __init__(self, source, channels=[], bands=default_bands, win_len=0.2, NW=3, fs=1000, **kwargs):
+        #self.feature_dtype = ('lfp_power', 'f8', (len(channels)*len(bands), 1))
+
+        self.source = source
+        self.channels = channels
+        self.bands = bands
+        self.win_len = win_len
+        self.NW = NW
+        if source is not None:
+            self.fs = source.source.update_freq
+        else:
+            self.fs = fs
+
+        extractor_kwargs = dict()
+        extractor_kwargs['channels'] = self.channels
+        extractor_kwargs['bands']    = self.bands
+        extractor_kwargs['win_len']  = self.win_len
+        extractor_kwargs['NW']       = self.NW
+        extractor_kwargs['fs']       = self.fs
+
+   
+        extractor_kwargs['no_log']  = kwargs.has_key('no_log') and kwargs['no_log']==True #remove log calculation
+        extractor_kwargs['no_mean'] = kwargs.has_key('no_mean') and kwargs['no_mean']==True #r
+        self.extractor_kwargs = extractor_kwargs
+
+        self.n_pts = int(self.win_len * self.fs)
+        self.nfft = 2**int(np.ceil(np.log2(self.n_pts)))  # nextpow2(self.n_pts)
+        fft_freqs = np.arange(0., fs, float(fs)/self.nfft)[:self.nfft/2 + 1]
+        self.fft_inds = dict()
+        for band_idx, band in enumerate(bands):
+            self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
+
+        extractor_kwargs['fft_inds']       = self.fft_inds
+        extractor_kwargs['fft_freqs']      = fft_freqs
+        
+        self.epsilon = 1e-9
+
+        if extractor_kwargs['no_mean']: #Used in lfp 1D control task
+            self.feature_dtype = ('ai_power', 'f8', (len(channels)*len(fft_freqs), 1))
+        else: #Else: 
+            self.feature_dtype = ('ai_power', 'f8', (len(channels)*len(bands), 1))
+
+    def __call__(self, start_time, *args, **kwargs):
+        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
+        #cont_samples = np.random.randn(len(self.channels), self.n_pts)  # change back!
+        lfp_power = self.extract_features(cont_samples)
+
+        return dict(ai_power=lfp_power)
+
+
+
+    @classmethod
+    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+        '''
+        Compute binned spike count features
+
+        Parameters
+        ----------
+        plx: neural data file instance
+        neurows: np.ndarray of shape (T,)
+            Timestamps in the plexon time reference corresponding to bin boundaries
+        binlen: float
+            Length of time over which to sum spikes from the specified cells
+        units: np.ndarray of shape (N, 2)
+            List of units that the decoder will be trained on. The first column specifies the electrode number and the second specifies the unit on the electrode
+        extractor_kwargs: dict 
+            Any additional parameters to be passed to the feature extractor. This function is agnostic to the actual extractor utilized
+        strobe_rate: 60.0
+            The rate at which the task sends the sync pulse to the plx file
+
+        Returns
+        -------
+        '''
+        if 'plexon' in files:
+            from plexon import plexfile
+            plx = plexfile.openFile(str(files['plexon']))
+
+            # interpolate between the rows to 180 Hz
+            if binlen < 1./strobe_rate:
+                interp_rows = []
+                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+                for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
+                interp_rows = np.array(interp_rows)
+            else:
+                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+                interp_rows = neurows[::step]
+
+
+            # create extractor object
+            f_extractor = AIMTMPowerExtractor(None, **extractor_kwargs)
+            extractor_kwargs = f_extractor.extractor_kwargs
+
+            win_len  = f_extractor.win_len
+            bands    = f_extractor.bands
+            channels = f_extractor.channels
+            fs       = f_extractor.fs
+            print 'bands:', bands
+
+            n_itrs = len(interp_rows)
+            n_chan = len(channels)
+            lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+            
+            # for i, t in enumerate(interp_rows):
+            #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+            #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+            lfp = plx.lfp[:].data[:, channels-1]
+            n_pts = int(win_len * fs)
+            for i, t in enumerate(interp_rows):
+                try:
+                    sample_num = int(t * fs)
+                    cont_samples = lfp[sample_num-n_pts:sample_num, :]
+                    lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+                except:
+                    print "Error with LFP decoder training"
+                    print i, t
+                    pass
+
+
+            # TODO -- discard any channel(s) for which the log power in any frequency 
+            #   bands was ever equal to -inf (i.e., power was equal to 0)
+            # or, perhaps just add a small epsilon inside the log to avoid this
+            # then, remember to do this:  extractor_kwargs['channels'] = channels
+            #   and reset the units variable
+
+            return lfp_power, units, extractor_kwargs
+
+        elif 'blackrock' in files:
+            raise NotImplementedError
+
+
+class AIAmplitudeExtractor(object):
+    '''
+    Computes the analog input channel amplitude. Out of date...
+    '''
+
+    feature_type = 'ai_amplitude'
+
+    def __init__(self, source, channels=[], win_len=0.1, fs=1000):
+        self.feature_dtype = ('emg_amplitude', 'u4', (len(channels), 1))
+
+        self.source = source
+        self.channels = channels
+        self.win_len = win_len
+        if source is not None:
+            self.fs = source.source.update_freq
+        else:
+            self.fs = fs
+
+        extractor_kwargs = dict()
+        extractor_kwargs['channels'] = self.channels
+        extractor_kwargs['fs']       = self.fs
+        extractor_kwargs['win_len']  = self.win_len
+        self.extractor_kwargs = extractor_kwargs
+
+        self.n_pts = int(self.win_len * self.fs)
+
+    def get_cont_samples(self, *args, **kwargs):
+        return self.source.get(self.n_pts, self.channels)
+
+    def extract_features(self, cont_samples):
+        n_chan = len(self.channels)
+        emg_amplitude = np.mean(cont_samples,axis=1)
+        emg_amplitude = emg_amplitude[:,None]
+        return emg_amplitude
+
+    def __call__(self, start_time, *args, **kwargs):
+        cont_samples = self.get_cont_samples(*args, **kwargs)  # dims of channels x time
+        emg = self.extract_features(cont_samples)
+        return emg, None
+
+class WaveformClusterCountExtractor(FeatureExtractor):
+    feature_type = 'cluster_counts'
+    def __init__(self, source, gmm_model_params, n_subbins=1, units=[]):
+        self.feature_dtype = [('cluster_counts', 'f8', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+
+        self.source = source
+        self.gmm_model_params = gmm_model_params        
+        self.n_subbins = n_subbins
+        self.units = units
+        self.n_units = len(units)
+
+        extractor_kwargs = dict()
+        extractor_kwargs['n_subbins']        = self.n_subbins
+        extractor_kwargs['units']            = self.units
+        extractor_kwargs['gmm_model_params'] = gmm_model_params
+        self.extractor_kwargs = extractor_kwargs
+
+        self.last_get_spike_counts_time = 0        
+
+    def get_spike_data(self):
+        '''
+        Get the spike timestamps from the neural data source. This function has no type checking, 
+        i.e., it is assumed that the Extractor object was created with the proper source
+        '''
+        return self.source.get()
+
+    def get_bin_edges(self, ts):
+        '''
+        Determine the first and last spike timestamps to allow HDF files 
+        created by the BMI to be semi-synchronized with the neural data file
+        '''
+        if len(ts) == 0:
+            bin_edges = np.array([np.nan, np.nan])
+        else:
+            min_ind = np.argmin(ts['ts'])
+            max_ind = np.argmax(ts['ts'])
+            bin_edges = np.array([ts[min_ind]['ts'], ts[max_ind]['ts']])
+
+    def __call__(self, start_time, *args, **kwargs):
+
+        spike_data = self.get_spike_data()
+        if len(spike_data) == 0:
+            counts = np.zeros([len(self.units), self.n_subbins])
+        elif self.n_subbins > 1:
+            subbin_edges = np.linspace(self.last_get_spike_counts_time, start_time, self.n_subbins+1)
+
+            # Decrease the first subbin index to include any spikes that were
+            # delayed in getting to the task layer due to threading issues
+            # An acceptable delay is 1 sec or less. Realistically, most delays should be
+            # on the millisecond order
+            # subbin_edges[0] -= 1
+            # subbin_inds = np.digitize(spike_data['arrival_ts'], subbin_edges)
+            # counts = np.vstack([bin_spikes(ts[subbin_inds == k], self.units) for k in range(1, self.n_subbins+1)]).T
+            raise NotImplementedError
+        else:
+            # TODO pull the waveforms
+            waveforms = []
+
+            # TODO determine p(class) for each waveform against the model params
+            counts = np.zeros(self.n_units)
+            wf_class_probs = []
+            for wf in waveforms:
+                raise NotImplementedError
+            
+            # counts = bin_spikes(ts, self.units).reshape(-1, 1)
+
+        counts = np.array(counts, dtype=np.uint32)
+        bin_edges = self.get_bin_edges(ts)
+        self.last_get_spike_counts_time = start_time
+
+        return dict(spike_counts=counts, bin_edges=bin_edges)        
+
+    @classmethod
+    def extract_from_file(cls, files, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):        
+        from sklearn.mixture import GMM
+        if 'plexon' in files:
+            from plexon import plexfile
+            plx = plexfile.openFile(str(files['plexon']))        
+        
+            channels = units[:,0]
+            channels = np.unique(channels)
+            np.sort(channels)
+
+            spike_chans = plx.spikes[:].data['chan']
+            spike_times = plx.spikes[:].data['ts']
+            waveforms = plx.spikes[:].waveforms
+
+            # construct the feature matrix (n_timepoints, n_units)
+            # interpolate between the rows to 180 Hz
+            if binlen < 1./strobe_rate:
+                interp_rows = []
+                neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+                for r1, r2 in izip(neurows[:-1], neurows[1:]):
+                    interp_rows += list(np.linspace(r1, r2, 4)[1:])
+                interp_rows = np.array(interp_rows)
+            else:
+                step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+                interp_rows = neurows[::step]
+
+            # digitize the spike timestamps into interp_rows
+            spike_bin_ind = np.digitize(spike_times, interp_rows)
+            spike_counts = np.zeros(len(interp_rows), n_units)
+
+            for ch in channels:
+                ch_waveforms = waveforms[spike_chans == ch]
+
+                # cluster the waveforms using a GMM
+                # TODO pick the number of components in an unsupervised way!
+                n_components = len(np.nonzero(units[:,0] == ch)[0])
+                gmm = GMM(n_components=n_components)
+                gmm.fit(ch_waveforms)
+
+                # store the cluster probabilities back in the same order that the waveforms were extracted
+                wf_probs = gmm.predict_proba(ch_waveforms)
+
+                ch_spike_bin_inds = spike_bin_ind[spike_chans == ch]
+                ch_inds, = np.nonzero(units[:,0] == ch)
+
+                # TODO don't assume the units are sorted!
+                for bin_ind, wf_prob in izip(ch_spike_bin_inds, wf_probs):
+                    spike_counts[bin_ind, ch_inds] += wf_prob
+
+
+            # discard units that never fired at all
+            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+            units = units[unit_inds,:]
+            spike_counts = spike_counts[:, unit_inds]
+            extractor_kwargs['units'] = units
+
+            return spike_counts, units, extractor_kwargs
+        else:
+            raise NotImplementedError('Not implemented for blackrock/TDT data yet!')
+
+
+
+def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    Compute lfp power features -- corresponds to LFPButterBPFPowerExtractor.
+
+
+    '''
+    
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+        
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    lfp = plx.lfp[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = lfp[sample_num-n_pts:sample_num, :]
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return lfp_power, units, extractor_kwargs
+
+
+def get_mtm_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    Compute lfp power features -- corresponds to LFPMTMPowerExtractor.
+
+
+    '''
+    
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    bands    = f_extractor.bands
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+    print 'bands:', bands
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    lfp_power = np.zeros((n_itrs, n_chan * len(bands)))
+    
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    lfp = plx.lfp[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = lfp[sample_num-n_pts:sample_num, :]
+        lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+
+    # TODO -- discard any channel(s) for which the log power in any frequency 
+    #   bands was ever equal to -inf (i.e., power was equal to 0)
+    # or, perhaps just add a small epsilon inside the log to avoid this
+    # then, remember to do this:  extractor_kwargs['channels'] = channels
+    #   and reset the units variable
+
+    return lfp_power, units, extractor_kwargs
+
+def get_emg_amplitude(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
+    '''
+    Compute EMG features.
+
+    '''
+
+    # interpolate between the rows to 180 Hz
+    if binlen < 1./strobe_rate:
+        interp_rows = []
+        neurows = np.hstack([neurows[0] - 1./strobe_rate, neurows])
+        for r1, r2 in izip(neurows[:-1], neurows[1:]):
+            interp_rows += list(np.linspace(r1, r2, 4)[1:])
+        interp_rows = np.array(interp_rows)
+    else:
+        step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
+        interp_rows = neurows[::step]
+
+
+    # create extractor object
+    f_extractor = extractor.EMGAmplitudeExtractor(None, **extractor_kwargs)
+    extractor_kwargs = f_extractor.extractor_kwargs
+
+    win_len  = f_extractor.win_len
+    channels = f_extractor.channels
+    fs       = f_extractor.fs
+
+    n_itrs = len(interp_rows)
+    n_chan = len(channels)
+    emg = np.zeros((n_itrs, n_chan))
+    
+    # for i, t in enumerate(interp_rows):
+    #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
+    #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+    emgraw = plx.analog[:].data[:, channels-1]
+    n_pts = int(win_len * fs)
+    for i, t in enumerate(interp_rows):
+        sample_num = int(t * fs)
+        cont_samples = emgraw[sample_num-n_pts:sample_num, :]
+        emg[i, :] = f_extractor.extract_features(cont_samples.T).T
+
+    return emg, units, extractor_kwargs

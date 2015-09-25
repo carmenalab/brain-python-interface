@@ -6,12 +6,19 @@ import numpy as np
 from riglib import calibrations, bmi
 from riglib.bmi.bmi import BMI, Decoder
 from riglib.bmi import state_space_models
+import imp
 
 ## Get the list of experiment features
 try:
+    imp.find_module("featurelist")
+except ImportError:
+    print "Error importing featurelist!"
+    import traceback
+    traceback.print_exc()
+    raise Exception("Error importing featurelist!\n\n")
+    #features = dict()
+else:
     from featurelist import features
-except:
-    features = dict()
 
 ## Get the list of tasks
 try:
@@ -58,25 +65,25 @@ class SubclassDict(dict):
                     return model
         raise KeyError
 
-from riglib.plants import RefTrajectories
-from ismore.emg_decoding import LinearEMGDecoder
-instance_to_model = SubclassDict( {
-    calibrations.Profile:models.Calibration,
-    calibrations.AutoAlign:models.AutoAlignment,
-    BMI: models.Decoder,
-    Decoder: models.Decoder,
-    RefTrajectories: models.DataFile,
-    LinearEMGDecoder: models.Decoder,
-} )
+# from riglib.plants import RefTrajectories
+# from ismore.emg_decoding import LinearEMGDecoder
+# instance_to_model = SubclassDict( {
+#     calibrations.Profile:models.Calibration,
+#     calibrations.AutoAlign:models.AutoAlignment,
+#     BMI: models.Decoder,
+#     Decoder: models.Decoder,
+#     RefTrajectories: models.DataFile,
+#     LinearEMGDecoder: models.Decoder,
+# } )
 
-instance_to_model_filter_kwargs = SubclassDict( {
-    calibrations.Profile:dict(),
-    calibrations.AutoAlign:dict(),
-    BMI:dict(),
-    Decoder:dict(),
-    RefTrajectories: dict(system__name='ref_trajectories'),
-    LinearEMGDecoder: dict(name__startswith='emg_decoder')
-} )
+# instance_to_model_filter_kwargs = SubclassDict( {
+#     calibrations.Profile:dict(),
+#     calibrations.AutoAlign:dict(),
+#     BMI:dict(),
+#     Decoder:dict(),
+#     RefTrajectories: dict(system__name='ref_trajectories'),
+#     LinearEMGDecoder: dict(name__startswith='emg_decoder')
+# } )
 
 ################################################################################
 ################################################################################
