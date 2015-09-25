@@ -15,6 +15,7 @@ from riglib import bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
 from hdf_features import SaveHDF
+from riglib.bmi.bmi import Decoder
 
 
 class CorticalData(object):
@@ -59,7 +60,7 @@ class CorticalBMI(CorticalData, traits.HasTraits):
     Special case of CorticalData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
     May not be available for all recording systems. 
     '''
-    decoder = traits.Instance(bmi.Decoder)
+    decoder = traits.InstanceFromDB(Decoder, bmi3d_db_model='Decoder', bmi3d_query_kwargs=dict())
 
     def init(self):
         '''
