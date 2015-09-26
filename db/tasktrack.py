@@ -248,6 +248,10 @@ class TaskWrapper(object):
         return self.task.state
 
     def __getattr__(self, attr):
+        # This function is only defined because __getattr__ is not defined 
+        # for children of 'object' by default, but the TaskObjProxy always calles '__getattr__'
+        # when trying to remotely retreive an attribute. Might be avoidable if TaskObjProxy were
+        # to use '__getattribute__' instead
         return getattr(self, attr)
 
     def set_task_attr(self, attr, value):

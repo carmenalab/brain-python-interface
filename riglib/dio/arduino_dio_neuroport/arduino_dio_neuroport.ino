@@ -1,19 +1,17 @@
 int led = 13;
-int strobe  = 48;
+int strobe = 49; // no dedicated rstart pin for Blackrock
 int rstart = 49;
 int di0 = 36;
 char c;
 char d;
 int en = 0;
 char dio_data[2];
-int data_pins[] = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47};
+int data_pins[] = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 48};
 
 int rstart_init = 0;
 
 void setup () {
   Serial.begin(9600);
-
-  pinMode(strobe, OUTPUT);
 
   // initialize the output pins
   for (int k = 0; k < (sizeof(data_pins)/sizeof(int)); k += 1) {
@@ -34,25 +32,38 @@ void loop() {
     // Start recording
     if ((c == 'r') && (en == 0)) {
         if (rstart_init == 0) {
-          pinMode(rstart, OUTPUT);        
+          pinMode(strobe, OUTPUT);        
           rstart_init = 1;
         }
         
         // positive edge for rstart
+        digitalWrite(data_pins[15], HIGH);
+        delay(10);
         digitalWrite(rstart, HIGH);
         delay(200);
         digitalWrite(rstart, LOW);
   
         en = 1;    
+        
+        // turn on LED (debugging)
+        digitalWrite(led, HIGH);
+        delay(500);
+        digitalWrite(led, LOW);        
     }
     
     // Stop recording
     else if ((c == 'p') && (en == 1)) {
+        // positive edge for rstart
+        digitalWrite(data_pins[15], LOW);
+        delay(10);
         digitalWrite(rstart, HIGH);
+        delay(200);
+        digitalWrite(rstart, LOW);
+        
         en = 0;
         c = ' ';
         
-        // turn on LED (debugging)      
+        // turn on LED (debugging)
         digitalWrite(led, HIGH);
         delay(500);
         digitalWrite(led, LOW);
