@@ -25,9 +25,80 @@ from riglib.bmi.robot_arms import KinematicChain
 
 class RefTrajectories(dict):
     '''
-    This class is a stub, for now
+    Generic class to hold trajectories to be replayed by a plant. 
+    For now, this class is just a dictionary that has had its type changed
     '''
     pass
+
+
+from riglib.source import DataSourceSystem
+class FeedbackData(DataSourceSystem):
+    '''
+    Generic class for parsing UDP feedback data from a plant. Meant to be used with 
+    riglib.source.DataSource to grab and log data asynchronously. 
+
+    See DataSourceSystem for notes on the source interface
+    '''
+
+    MAX_MSG_LEN = 300
+    sleep_time = 0
+
+    # must define these in subclasses
+    update_freq = None
+    address     = None
+    dtype       = None
+
+    def __init__(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(self.address)
+
+        # self.file_ = open(self.feedback_filename, 'w')
+
+    def start(self):
+        self.listening = True
+        self.data = self.get_feedback_data()
+
+    def stop(self):
+        self.listening = False
+        self.sock.close()
+        # self.file_.close()
+
+    def __del__(self):
+        # The stop commands for the socket should be issued before this object is garbage-collected, but just in case...
+        self.stop()
+
+    def get(self):
+        return self.data.next()
+
+    def get_feedback_data(self):
+        '''Yield received feedback data.'''
+
+        self.last_timestamp = -1
+
+        while self.listening:
+            r, _, _ = select.select([self.sock], [], [], 0)
+            
+            if r:  # if the list r is not empty
+                feedback = self.sock.recv(self.MAX_MSG_LEN)
+                ts_arrival = time.time()  # secs
+                
+                # print "feedback:", feedback
+                # self.file_.write(feedback.rstrip('\r') + "\n")
+
+                processed_feedback = self.process_received_feedback(feedback, ts_arrival)
+
+                if processed_feedback['ts'] != self.last_timestamp:
+                    yield processed_feedback
+
+                self.last_timestamp = processed_feedback['ts']
+
+            time.sleep(self.sleep_time)
+
+    def process_received_feedback(self, feedback, ts_arrival):
+        raise NotImplementedError('Implement in subclasses!')
+            
+
 
 
 class Plant(object):
