@@ -58,7 +58,7 @@ class ZeroVelocityGoal(GoalCalculator):
         offset_val = 1
         error = 0
         target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
-        return target_state
+        return (target_state, error), True
 
 class ZeroVelocityAccelGoal(ZeroVelocityGoal):
     '''
