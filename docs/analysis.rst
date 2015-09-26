@@ -78,7 +78,14 @@ When analyzing data from multiple rigs, you often want to use multiple databases
 specifies three different databases which can be used. Different databases of course
 must have unique names. Each name specifies a path to a .sql file (note that in each sub-dictionary, a different sqlite3 database is specified). 
 
-After settings.py is modified to include all of your database files, the package will need to be "reconfigured" to know about the new databases. Reconfiguration can be performed by running the script ``$BMI3D/make_config.py``, which will (re)generate ``$BMI3D/config``. 
+The file ``settings.py`` is version-controlled, so that each new clone of the repository has the standard configuration. However, local machine-specific changes should not be pushed upstream, so that everyone can happily maintain their own settings.py file without worrying about their configurations getting overwritten by other people's changes. So, after you've finished modifying settings.py, execute the shell commands::
+
+    cd $BMI3D
+    git update-index --skip-worktree db/settings.py
+
+The ``skip-worktree`` directive indicates to git to ignore local changes to the file. You can find more information at http://stackoverflow.com/questions/13630849/git-difference-between-assume-unchanged-and-skip-worktree
+
+The package will now need to be "reconfigured" to know about the new databases. Reconfiguration can be performed by running the script ``$BMI3D/make_config.py``, which will (re)generate ``$BMI3D/config``. 
 
 To continue using the ``dbfn.TaskEntry`` setup::
 
