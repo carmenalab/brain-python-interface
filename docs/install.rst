@@ -339,3 +339,17 @@ As the testing user
 - mkdir $BMI3D/test_output
 
 
+Configuring ipython
+-------------------
+For quick analyses from the command line, it can be useful to have ipython pre-loaded with some commonly used modules. For complete instructions on how to set this up, see https://ipython.org/ipython-doc/dev/config/intro.html. You can make a default ipython profile by executing the shell command::
+
+    ipython profile create
+
+Then edit the newly create configuration file to look something like 
+
+c.InteractiveShellApp.exec_lines = [
+    "from db import dbfunctions as dbfn",
+    "from db.tracker import models",
+    "import numpy as np",
+    "import matplotlib.pyplot as plt",
+]
