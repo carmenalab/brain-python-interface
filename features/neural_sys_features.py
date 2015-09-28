@@ -31,7 +31,10 @@ class CorticalData(object):
 
         kwargs = dict(send_data_to_sink_manager=self.send_data_to_sink_manager, channels=self.cortical_channels)
 
-        if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+        if hasattr(self, "_neural_src_type") and hasattr(self, "_neural_src_kwargs") and hasattr(self, "_neural_src_system_type"):
+            # for testing only!
+            self.neurondata = self._neural_src_type(self._neural_src_system_type, **self._neural_src_kwargs)
+        elif 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
             self.neurondata = source.DataSource(sys_module.Spikes, **kwargs)
         elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
             self.neurondata = source.MultiChanDataSource(sys_module.LFP, **kwargs)
