@@ -77,8 +77,9 @@ class SaveHDF(object):
         '''
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
         print "Beginning HDF file cleanup"
-        print "#################%s"%self.h5file.name
+        print "\tHDF data currently saved to temp file: %s" % self.h5file.name
         try:
+            print "\tRunning self.cleanup_hdf()"
             self.cleanup_hdf()
         except:
             print "\n\n\n\n\nError cleaning up HDF file!"

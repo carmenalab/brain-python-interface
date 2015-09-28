@@ -6,6 +6,7 @@ for a basic introduction
 '''
 
 import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import json
 import cPickle, pickle
 import inspect
