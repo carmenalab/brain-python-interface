@@ -223,19 +223,32 @@ class BlackrockData(object):
         finally:
             self.neurondata.stop()
 
-from riglib.bmi.bmi import Decoder
-class BlackrockBMI(BlackrockData, traits.HasTraits):
-    '''
-    Special case of BlackrockData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
-    '''
+from neural_sys_features import CorticalData, CorticalBMI
+from riglib import blackrock
+class BlackrockData(CorticalData):
+    @property 
+    def sys_module(self):
+        return blackrock
 
-    decoder = traits.Instance(Decoder)
+class BlackrockBMI(CorticalBMI):
+    @property 
+    def sys_module(self):
+        return blackrock    
 
-    def init(self):
-        '''
-        Secondary init function. See riglib.experiment.Experiment.init()
-        Prior to starting the task, this 'init' decides which Blackrock channels to stream based on the channels in use by the decoder.
-        '''
-        print "HARDCODING BLACKROCK_CHANNELS -- CHANGE THIS!!"
-        self.blackrock_channels = range(1, 41) #self.decoder.units[:,0]
-        super(BlackrockBMI, self).init()
+
+# from riglib.bmi.bmi import Decoder
+# class BlackrockBMI(BlackrockData, traits.HasTraits):
+#     '''
+#     Special case of BlackrockData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
+#     '''
+
+#     decoder = traits.Instance(Decoder)
+
+#     def init(self):
+#         '''
+#         Secondary init function. See riglib.experiment.Experiment.init()
+#         Prior to starting the task, this 'init' decides which Blackrock channels to stream based on the channels in use by the decoder.
+#         '''
+#         print "HARDCODING BLACKROCK_CHANNELS -- CHANGE THIS!!"
+#         self.blackrock_channels = range(1, 41) #self.decoder.units[:,0]
+#         super(BlackrockBMI, self).init()

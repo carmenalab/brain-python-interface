@@ -1,4 +1,6 @@
 '''
+Classes here which inherit from django.db.models.Model define the structure of the database
+
 Django database modules. See https://docs.djangoproject.com/en/dev/intro/tutorial01/
 for a basic introduction
 '''
