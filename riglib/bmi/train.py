@@ -279,6 +279,9 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
 
     return neural_features, units, extractor_kwargs
 
+def _get_neural_features_tdt(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
+    raise NotImplementedError
+
 def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=None, tslice=None, source='task', strobe_rate=60):
     '''
     Docstring
@@ -296,8 +299,10 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
         fn = _get_neural_features_plx
     elif 'blackrock' in files:
         fn = _get_neural_features_blackrock
+    elif 'tdt' in files:
+        fn = _get_neural_features_tdt
     else:
-        raise Exception('Could not find any plexon or blackrock files!')
+        raise Exception('Could not find any recognized neural data files!')
 
     neural_features, units, extractor_kwargs = fn(files, binlen, extractor_fn, extractor_kwargs, tslice=tslice, units=units, source=source, strobe_rate=strobe_rate)
 
@@ -375,7 +380,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 ## Main training functions
 ################################################################################
 def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
-     ## get neural features
+    ## get neural features
     import extractor
     f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
     import onedim_lfp_decoder as old

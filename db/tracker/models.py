@@ -759,6 +759,7 @@ class Decoder(models.Model):
             dec.name = self.name
             return dec
         else: # file not present!
+            print "Decoder file could not be found! %s" % decoder_fname
             return None
 
     def get(self):

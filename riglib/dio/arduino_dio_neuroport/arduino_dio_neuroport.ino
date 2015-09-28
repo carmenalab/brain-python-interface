@@ -96,10 +96,7 @@ void handle_word() {
       }
     }  
 
-//  if (d0 & 00000001) 
-//    digitalWrite(di0, LOW);
-//  else
-//    digitalWrite(di0, HIGH);      
+  digitalWrite(data_pins[15], HIGH);
 
   digitalWrite(strobe, HIGH);
   delay(0.5);
