@@ -325,12 +325,24 @@ Rsync
 
 
 
+Configuration files
+-------------------
+config : rig-specific configurations, e.g., data paths, neural recording system. 
+tasklist : List of tasks which can be started through the web interface
+featurelist : list of features which can be selected through the web interface
+bmilist : 
+    type of decoding algorithm, plant type, signal source (spike counts, lfp)
+    BMI menu only shows up for task classes which are marked as bmi, with the task class attribute is_bmi_seed
+
+
+
+
 
 
 Automatic testing
 -----------------
-(this section is still incomplete)
-Use the GUI to add a "testing" user
+[(]this section is still incomplete]
+Use the Ubuntu GUI to add a "testing" user
 As the testing user
 - clone the BMI3D repo
 - run make_config.py; make sure data paths are correct; other options don't matter
