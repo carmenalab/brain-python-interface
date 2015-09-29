@@ -73,7 +73,7 @@ class Spikes(DataSourceSystem):
         return np.array([(d.ts / self.update_freq, d.chan, d.unit, d.arrival_ts)], dtype=self.dtype)
 
 
-class LFP(object):
+class LFP(DataSourceSystem):
     '''
     Client for local field potential data streamed from plexon system, compatible with riglib.source.MultiChanDataSource
     '''
@@ -134,7 +134,7 @@ class LFP(object):
 
     def get(self):
         '''
-        Docstring
+        Get a new LFP sample/block of LFP samples from the 
         '''
         d = self.data.next()
         while d.type != PL_ADDataType:
@@ -150,7 +150,7 @@ class LFP(object):
         return (d.chan-self.chan_offset, waveform)
 
 
-class Aux(object):
+class Aux(DataSourceSystem):
     '''
     Client for auxiliary analog data streamed from plexon system, compatible with riglib.source.MultiChanDataSource
     '''
