@@ -122,9 +122,9 @@ class SimTime(object):
 class SimNeuralEnc(object):
     def __init__(self, *args, **kwargs):
         if not hasattr(self, 'fb_ctrl'):
-            self.fb_ctrl = kwargs.pop('fb_ctrl')
+            self.fb_ctrl = kwargs.pop('fb_ctrl', None)
         if not hasattr(self, 'ssm'):
-            self.ssm = kwargs.pop('ssm')
+            self.ssm = kwargs.pop('ssm', None)
         super(SimNeuralEnc, self).__init__(*args, **kwargs)
 
     def init(self):

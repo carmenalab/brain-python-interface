@@ -72,9 +72,16 @@ def norm_trait(trait, value):
     elif ttype == 'InstanceFromDB':
         if isinstance(value, int):
             # look up the model name in the trait
-            mdl_name = ctraits[trait_name].bmi3d_db_name
+            mdl_name = trait.bmi3d_db_model
             # get the database Model class from 'db.tracker.models'
+            with open(os.path.expandvars("$BMI3D/log/json_param_log"), "w") as f:
+                f.write(str(trait) + "\n")
+                f.write(str(mdl_name) + "\n")
+
             Model = getattr(models, mdl_name)
+            record = Model.objects.get(pk=value)
+            value = record.get()
+        # Otherwise, let's hope it's already an instance            
     elif ttype == 'DataFile':
         # Similar to Instance traits, except we always know to use models.DataFile as the database table to look up the primary key
         if isinstance(value, int):
