@@ -30,11 +30,36 @@ class SerialDIORowByte(object):
     Sends the full data from eyetracking and motiontracking systems directly into Plexon
     '''
     def __init__(self, *args, **kwargs):
+        '''
+        Constructor for SerialDIORowByte
+
+        Parameters
+        ----------
+        None 
+
+        Returns
+        -------
+        SerialDIORowByte instance
+        '''
         super(SerialDIORowByte, self).__init__(*args, **kwargs)
-        #self.data_root = kwargs.pop('data_root', self.storage_root)
-        #self.file_pattern = os.path.join(self.data_root, '*' + self.file_ext)
+
+        self.checked_for_file_changes = False
+        self.task_start_time = time.time()
+        self.possible_filesizes = []
+        self.possible_filenames = []
 
     def filter_files(self, file_names, start_time=datetime.datetime.today() - datetime.timedelta(days=1)):
+        '''
+        Filter a list of filenames to find the ones which were timestamped after a particular start_time
+
+        Parameters
+        ----------
+        file_names : iterable
+            Each element should be a string of a filename which exists 
+        start_time : datetime.datetime object, optional, default = 1 day ago
+            Cutoff time for the file timestamp. The file needs 
+            to be modified after this time in order to pass the filter.
+        '''
         return filter(lambda fname: datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time, file_names)
 
     def init(self):
@@ -76,26 +101,41 @@ class SerialDIORowByte(object):
         self.nidaq.sendMsg(condition)
         super(SerialDIORowByte, self).set_state(condition, **kwargs)
 
+    def _cycle(self):
+        if not self.checked_for_file_changes and (time.time() - self.task_start_time > 10):
+            filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
+            inds, = np.nonzero(filesizes - self.possible_filesizes)
+            if len(inds) == 0:
+                print "\n\n\nFile recording did not start? no files have changed size!\n"
+            else:
+                print "%d neural files have changed since the start of the block" % len(inds)
+            self.checked_for_file_changes = True
+        super(SerialDIORowByte, self)._cycle()
+
     def cleanup(self, database, saveid, **kwargs):
         '''
         Function to run at 'cleanup' time, after the FSM has finished executing. See riglib.experiment.Experiment.cleanup
         This 'cleanup' method remotely stops the plexon file recording and then links the file created to the database ID for the current TaskEntry
         '''
+
+        # write the 'stop' command to the port just to be more sure that neural recording has finished.
         port = serial.Serial('/dev/arduino_neurosync', baudrate=9600)
         port.write("p")
         super(SerialDIORowByte, self).cleanup(database, saveid, **kwargs)
 
-        # Sleep time so that the plx file has time to save cleanly        
+        # Sleep time so that the neural recording system has time to save cleanly        
         time.sleep(5)
 
+        print "Beginning neural data file cleanup"
+        # specify which database to save to. If you're running from the web interface, this will always pick the 'default' database
         if "dbname" in kwargs:
             dbq_kwargs = dict(dbname=kwargs["dbname"])
         else:
             dbq_kwargs = dict()
 
-        
-        if self.data_files is None:
-            print "\n\nData files not found properly! They will have be manually linked using dbq.save_data!\n\n"
+        # Call the appropriate functions in the dbq module to actually link the files
+        if self.data_files is None or len(self.data_files) == 0:
+            print "\tData files not found properly!\n\tThey will have be manually linked using dbq.save_data!\n\n"
         elif isinstance(self.data_files, str):
             database.save_data(self.data_files, self.db_sys_name, saveid, True, False, **dbq_kwargs)
         elif np.iterable(self.data_files):
@@ -128,9 +168,10 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
         Find all the plx files created in the last 24 h before calling the parents init method
         """
         # Find all the plexon files modified in the last day
-        file_pattern = self.storage_root + ".plx"
+        file_pattern = self.storage_root + "*.plx"
         self.possible_filenames = self.filter_files(glob.glob(file_pattern))
-        self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])        
+        self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
+
         super(PlexonSerialDIORowByte, self).init()
 
     @property
@@ -147,7 +188,7 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
             filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
             inds, = np.nonzero(filesizes - self.possible_filesizes)
             if len(inds) == 1:
-                print "only one plx file changed since the start of the task."
+                print "\tonly one plx file changed since the start of the task."
                 self._data_files = self.possible_filenames[inds[0]]
                 return self._data_files
 
@@ -163,6 +204,7 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
             if len(files) > 0:
                 tdiff = os.stat(files[0]).st_mtime - start
                 if abs(tdiff) < sec_per_min:
+                    print "\tfound plexon file by finding a file with a timestamp within one minute of the last thing in the event log"
                     self._data_files = files[0]
                     return self._data_files
 
@@ -207,7 +249,6 @@ class BlackrockSerialDIORowByte(SerialDIORowByte):
                 print
 
         return self._data_files
-
 
 
 class TDTSerialDIORowByte(SerialDIORowByte):
