@@ -20,7 +20,6 @@ from riglib import calibrations, experiment
 from config import config
 import importlib
 import subprocess    
-import h5py
 import traceback
 
 def _get_trait_default(trait):
@@ -790,6 +789,7 @@ def parse_blackrock_file(nev_fname, nsx_files):
     if not os.path.isfile(nev_hdf_fname):
         subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
 
+    import h5py
     nev_hdf = h5py.File(nev_hdf_fname, 'r')
 
     last_ts = 0
