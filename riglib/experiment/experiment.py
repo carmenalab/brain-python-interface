@@ -692,6 +692,9 @@ class LogExperiment(Experiment):
         else:
             database.save_log(saveid, self.event_log, dbname=dbname)
 
+    ##########################################################
+    ##### Functions to calculate statistics from the log #####
+    ##########################################################
     def calc_state_occurrences(self, state_name):
         '''
         Calculate the number of times the task enters a particular state
@@ -738,6 +741,7 @@ class LogExperiment(Experiment):
             divideby = window/sec_per_min
         return np.sum(rewardtimes >= (self.get_time() - window))/divideby
 
+
 class Sequence(LogExperiment):
     '''
     Task where the targets or other information relevant to the start of each trial
@@ -749,6 +753,9 @@ class Sequence(LogExperiment):
 
     @classmethod 
     def get_default_seq_generator(cls):
+        '''
+        Define a default sequence generator as the first one listed in the 'sequence_generators' attribute
+        '''
         return getattr(cls, cls.sequence_generators[0])
 
     def __init__(self, gen=None, *args, **kwargs):
