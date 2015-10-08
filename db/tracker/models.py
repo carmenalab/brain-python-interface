@@ -4,6 +4,7 @@ for a basic introduction
 '''
 
 import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import json
 import cPickle, pickle
 import inspect
@@ -56,7 +57,7 @@ class Task(models.Model):
             Task(name=name).save()
 
     def params(self, feats=(), values=None):
-        from namelist import instance_to_model, instance_to_model_filter_kwargs
+        #from namelist import instance_to_model, instance_to_model_filter_kwargs
 
         if values is None:
             values = dict()
@@ -80,20 +81,34 @@ class Task(models.Model):
 
             # if the trait is an instance (generic object), then it is assumed that 
             # the object is associated with some database model
-            if trait_params['type'] == "Instance":
-                Model = instance_to_model[ctraits[trait_name].trait_type.klass]
-                filter_kwargs = instance_to_model_filter_kwargs[ctraits[trait_name].trait_type.klass]
+            # if trait_params['type'] == "Instance":
+            #     Model = instance_to_model[ctraits[trait_name].trait_type.klass]
+            #     filter_kwargs = instance_to_model_filter_kwargs[ctraits[trait_name].trait_type.klass]
+
+            #     # look up database records which match the model type & filter parameters
+            #     insts = Model.objects.filter(**filter_kwargs).order_by("-date")
+            #     trait_params['options'] = [(i.pk, i.path) for i in insts]
+
+            if trait_params['type'] == "InstanceFromDB":
+                # look up the model name in the trait
+                mdl_name = ctraits[trait_name].bmi3d_db_model
+                # get the database Model class from 'db.tracker.models'
+                #Model = getattr(models, mdl_name)
+                Model = globals()[mdl_name]
+                filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
 
                 # look up database records which match the model type & filter parameters
                 insts = Model.objects.filter(**filter_kwargs).order_by("-date")
                 trait_params['options'] = [(i.pk, i.path) for i in insts]
 
+            elif trait_params['type'] == 'Instance':
+                raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
 
             # if the trait is an enumeration, look in the 'Exp' class for 
             # the options because for some reason the trait itself can't 
             # store the available options (at least at the time this was written..)
             elif trait_params['type'] == "Enum":
-                trait_params['options'] = getattr(Exp, trait_name + '_options')
+                raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
 
             elif trait_params['type'] == "OptionsList":
                 trait_params['options'] = ctraits[trait_name].bmi3d_input_options
@@ -864,12 +879,24 @@ class DataFile(models.Model):
         Get the full path to the file
         '''
         if not check_archive and not self.archived:
+            text_file = open("path.txt", "w")
+            text_file.write("path: %s" % os.path.join(self.system.path, self.path))
+            text_file.close()
             return os.path.join(self.system.path, self.path)
-
+        text_file2 = open("self.archive.txt", "w")
+        text_file2.write("self.archive: %s" % self.archive)
+        text_file2.close()
+        
         paths = self.system.archive.split()
+        text_file2 = open("paths.txt", "w")
+        text_file2.write("paths: %s" % paths)
+        text_file2.close()
         for path in paths:
             fname = os.path.join(path, self.path)
             if os.path.isfile(fname):
+                text_file3 = open("fname.txt", "w")
+                text_file3.write("fname: %s" % fname)
+                text_file3.close()
                 return fname
 
         raise IOError('File has been lost! '+fname)
