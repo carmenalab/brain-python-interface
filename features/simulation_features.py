@@ -122,9 +122,9 @@ class SimTime(object):
 class SimNeuralEnc(object):
     def __init__(self, *args, **kwargs):
         if not hasattr(self, 'fb_ctrl'):
-            self.fb_ctrl = kwargs.pop('fb_ctrl')
+            self.fb_ctrl = kwargs.pop('fb_ctrl', None)
         if not hasattr(self, 'ssm'):
-            self.ssm = kwargs.pop('ssm')
+            self.ssm = kwargs.pop('ssm', None)
         super(SimNeuralEnc, self).__init__(*args, **kwargs)
 
     def init(self):
@@ -168,8 +168,8 @@ class SimKalmanEnc(SimNeuralEnc):
 class SimCosineTunedEnc(SimNeuralEnc):
     def _init_neural_encoder(self):
         ## Simulation neural encoder
-        from riglib.bmi.sim_neurons import CLDASimCosEnc
-        self.encoder = CLDASimCosEnc(return_ts=True)    
+        from riglib.bmi.sim_neurons import GenericCosEnc#CLDASimCosEnc
+        self.encoder = GenericCosEnc(return_ts=True)    
         
     def create_feature_extractor(self):
         '''

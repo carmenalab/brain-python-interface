@@ -35,7 +35,7 @@ class Track(object):
     def __init__(self):
         # shared memory to store the status of the task in a char array
         self.status = mp.Array('c', 256)
-        self.task = None
+        self.task_proxy = None
         self.proc = None
         self.websock = websocket.Server(self.notify)
         self.tracker_end_of_pipe, self.task_end_of_pipe = mp.Pipe()
@@ -57,11 +57,11 @@ class Track(object):
         # create a proxy for interacting with attributes/functions of the task.
         # The task runs in a separate process and we cannot directly access python 
         # attributes of objects in other processes
-        self.task = ObjProxy(self.tracker_end_of_pipe)
+        self.task_proxy = TaskObjProxy(self.tracker_end_of_pipe)
 
         # Spawn the process
         args = (self.tracker_end_of_pipe, self.task_end_of_pipe, self.websock)
-        self.proc = mp.Process(target=runtask, args=args, kwargs=kwargs)
+        self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
         self.proc.start()
         
     def __del__(self):
@@ -72,7 +72,7 @@ class Track(object):
         self.websock.stop()
 
     def pausetask(self):
-        self.status.value = self.task.pause()
+        self.status.value = self.task_proxy.pause()
 
     def stoptask(self):
         '''
@@ -80,10 +80,8 @@ class Track(object):
         '''
         assert self.status.value in "testing,running"
         try:
-            self.task.end_task()
+            self.task_proxy.end_task()
         except Exception as e:
-            import cStringIO
-            import traceback
             err = cStringIO.StringIO()
             traceback.print_exc(None, err)
             err.seek(0)
@@ -91,50 +89,13 @@ class Track(object):
 
         status = self.status.value
         self.status.value = ""
-        self.task = None
+        self.task_proxy = None
         return status
 
 
-class NotifyFeat(object):
+def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
-    Send task report and state data to display on the web inteface
-    '''
-    def __init__(self, *args,  **kwargs):
-        super(NotifyFeat, self).__init__(*args, **kwargs)
-        self.websock = kwargs.pop('websock')
-        self.tracker_end_of_pipe = kwargs.pop('tracker_end_of_pipe')
-        self.tracker_status = kwargs.pop('tracker_status')
-
-    def set_state(self, state, *args, **kwargs):
-        self.reportstats['status'] = self.tracker_status
-        self.reportstats['State'] = state or 'stopped'
-        
-        self.websock.send(self.reportstats)
-        super(NotifyFeat, self).set_state(state, *args, **kwargs)
-
-    def run(self):
-        try:
-            super(NotifyFeat, self).run()
-        except:
-            import cStringIO
-            import traceback
-            err = cStringIO.StringIO()
-            traceback.print_exc(None, err)
-            err.seek(0)
-            self.websock.send(dict(status="error", msg=err.read()))
-        finally:
-            self.tracker_end_of_pipe.send(None)
-
-    def print_to_terminal(self, *args):
-        sys.stdout = sys.__stdout__
-        print args
-        sys.stdout = self.websock
-
-
-
-def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
-    '''
-    Target function to execute in the separate process to start the task
+    Target function to execute in the spawned process to start the task
     '''
     print "*************************** STARTING TASK *****************************"
     
@@ -151,17 +112,17 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     kwargs['params']['websock'] = websock
     kwargs['params']['tracker_status'] = status
     kwargs['params']['tracker_end_of_pipe'] = tracker_end_of_pipe
-    kwargs['feats'].insert(0, NotifyFeat)
+    kwargs['feats'].insert(0, websocket.NotifyFeat)
 
     try:
         # Instantiate the task
-        task = Task(**kwargs)
+        task_wrapper = TaskWrapper(**kwargs)
         cmd = task_end_of_pipe.recv()
 
         # Rerout prints to stdout to the websocket
         sys.stdout = websock
 
-        while (cmd is not None) and (task.task.state is not None):
+        while (cmd is not None) and (task_wrapper.task.state is not None):
             with open(log_filename, 'a') as f:
                 f.write('remote command received: %s, %s, %s\n' % cmd)
             try:
@@ -170,7 +131,7 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
                 cmd_kwargs = cmd[2]
 
                 # look up the function by name
-                fn = getattr(task, fn_name)
+                fn = getattr(task_wrapper, fn_name)
 
                 # run the function and save the return value as a single object
                 # if an exception is thrown, the code will jump to the last 'except' case
@@ -192,6 +153,7 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
                 else:
                     cmd = None
     except:
+        task_wrapper = None
         err = cStringIO.StringIO()
         log_error(err, mode='a')
         err.seek(0)
@@ -203,30 +165,29 @@ def runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     sys.stdout = sys.__stdout__
 
     # Initiate task cleanup
-    try:
-        task
-    except:
+    if task_wrapper is None:
         print "\nERROR: Task was never initialized, cannot run cleanup function!"
         print "see %s for error messages" % log_filename
         print open(log_filename, 'rb').read()
         print
+        
     else:
-        task.cleanup()
+        task_wrapper.cleanup()
 
     print "*************************** EXITING TASK *****************************"
 
 
-class Task(object):
+class TaskWrapper(object):
     '''
     Wrapper for Experiment classes launched from the web interface
     '''
-    def __init__(self, subj, task, feats, params, seq=None, saveid=None):
+    def __init__(self, subj, task_rec, feats, params, seq=None, saveid=None):
         '''
         Parameters
         ----------
         subj : tracker.models.Subject instance
             Database record for subject performing the task
-        task : tracker.models.Task instance
+        task_rec : tracker.models.Task instance
             Database record for base task being run (without features)
         feats : list 
             List of features to enable for the task
@@ -240,33 +201,32 @@ class Task(object):
             database entry and will be lost after the program exits
         '''
         self.saveid = saveid
-        self.taskname = task.name
+        self.taskname = task_rec.name
         self.subj = subj
         if isinstance(params, Parameters):
             self.params = params
         elif isinstance(params, (string, unicode)):
             self.params = Parameters(params)
         
-        base_class = task.get()
-        Exp = experiment.make(base_class, feats=feats)
+        base_class = task_rec.get()
+        Task = experiment.make(base_class, feats=feats)
 
         # Run commands which must be executed before the experiment class can be instantiated (e.g., starting neural recording)
-        Exp.pre_init(saveid=saveid)
+        Task.pre_init(saveid=saveid)
 
-        self.params.trait_norm(Exp.class_traits())
-        if issubclass(Exp, experiment.Sequence):
+        self.params.trait_norm(Task.class_traits())
+        if issubclass(Task, experiment.Sequence):
             gen_constructor, gen_params = seq.get()
 
             # Typically, 'gen_constructor' is the experiment.generate.runseq function (not an element of namelist.generators)
-            gen = gen_constructor(Exp, **gen_params)
+            gen = gen_constructor(Task, **gen_params)
 
             # 'gen' is now a true python generator usable by experiment.Sequence
-            exp = Exp(gen, **self.params.params)
+            self.task = Task(gen, **self.params.params)
         else:
-            exp = Exp(**self.params.params)
+            self.task = Task(**self.params.params)
         
-        exp.start()
-        self.task = exp
+        self.task.start()
 
     def report(self):
         return experiment.report(self.task)
@@ -288,6 +248,10 @@ class Task(object):
         return self.task.state
 
     def __getattr__(self, attr):
+        # This function is only defined because __getattr__ is not defined 
+        # for children of 'object' by default, but the TaskObjProxy always calles '__getattr__'
+        # when trying to remotely retreive an attribute. Might be avoidable if TaskObjProxy were
+        # to use '__getattribute__' instead
         return getattr(self, attr)
 
     def set_task_attr(self, attr, value):
@@ -307,7 +271,7 @@ class Task(object):
         self.task.terminate()
 
 
-class ObjProxy(object):
+class TaskObjProxy(object):
     def __init__(self, cmds):
         self.cmds = cmds
 
@@ -320,18 +284,18 @@ class ObjProxy(object):
         if isinstance(ret, Exception): 
             # Assume that the attribute can't be retreived b/c the name refers 
             # to a function
-            ret = FuncProxy(attr, self.cmds)
+            ret = TaskFuncProxy(attr, self.cmds)
 
         return ret
 
     def remote_set_attr(self, attr, value):
         with open(log_filename, 'a') as f:
             f.write('trying to remotely set attribute %s to %s\n' % (attr, value))
-        ret = FuncProxy('set_task_attr', self.cmds)
+        ret = TaskFuncProxy('set_task_attr', self.cmds)
         ret(attr, value)
 
 
-class FuncProxy(object):
+class TaskFuncProxy(object):
     def __init__(self, func, pipe):
         self.pipe = pipe
         self.cmd = func

@@ -199,7 +199,7 @@ def start_experiment(request, save=True):
         entry = TaskEntry(subject_id=data['subject'], task=task)
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
-        kwargs = dict(subj=entry.subject, task=task, feats=Feature.getall(data['feats'].keys()),
+        kwargs = dict(subj=entry.subject, task_rec=task, feats=Feature.getall(data['feats'].keys()),
                       params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
@@ -269,6 +269,8 @@ def rpc(fn):
         fn(exp_tracker)
         return _respond(dict(status="pending", msg=status))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return _respond_err(e)
 
 def _respond_err(e):
@@ -296,16 +298,16 @@ def stop_experiment(request):
     return rpc(lambda exp_tracker: exp_tracker.stoptask())
 
 def enable_clda(request):
-    return rpc(lambda exp_tracker: exp_tracker.task.enable_clda())
+    return rpc(lambda exp_tracker: exp_tracker.task_proxy.enable_clda())
 
 def disable_clda(request):
-    return rpc(lambda exp_tracker: exp_tracker.task.disable_clda())
+    return rpc(lambda exp_tracker: exp_tracker.task_proxy.disable_clda())
 
 def set_task_attr(request, attr, value):
     '''
     Generic function to change a task attribute while the task is running.
     '''
-    return rpc(lambda exp_tracker: exp_tracker.task.remote_set_attr(attr, value))
+    return rpc(lambda exp_tracker: exp_tracker.task_proxy.remote_set_attr(attr, value))
 
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)

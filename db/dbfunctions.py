@@ -423,10 +423,11 @@ class TaskEntry(object):
             for key, value in self.params.items():
                 try:
                     setattr(self, key, value)
-                except AttributeError:
+                except AttributeError: # if the object already has an attribute of the same name ...
                     setattr(self, key + '_param', value)
                 except:
-                    pass
+                    import traceback
+                    traceback.print_exc()
 
         self.date = self.record.date
 
@@ -764,6 +765,10 @@ class TaskEntry(object):
         except:
             from plexon import plexfile
             self._plx = plexfile.openFile(str(self.plx_filename))
+
+            # parse out events
+            from riglib.dio import parse
+            self.strobe_data = parse.parse_data(self._plx.events[:].data)
         return self._plx
 
     @property

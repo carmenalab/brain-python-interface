@@ -627,6 +627,12 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         pass
 
+    def join(self):
+        '''
+        Code to run before re-joining the experiment thread (see db.tasktrack.TaskWrapper.cleanup)
+        '''
+        super(Experiment, self).join()
+
 
 class LogExperiment(Experiment):
     '''
@@ -686,6 +692,9 @@ class LogExperiment(Experiment):
         else:
             database.save_log(saveid, self.event_log, dbname=dbname)
 
+    ##########################################################
+    ##### Functions to calculate statistics from the log #####
+    ##########################################################
     def calc_state_occurrences(self, state_name):
         '''
         Calculate the number of times the task enters a particular state
@@ -732,6 +741,7 @@ class LogExperiment(Experiment):
             divideby = window/sec_per_min
         return np.sum(rewardtimes >= (self.get_time() - window))/divideby
 
+
 class Sequence(LogExperiment):
     '''
     Task where the targets or other information relevant to the start of each trial
@@ -743,9 +753,12 @@ class Sequence(LogExperiment):
 
     @classmethod 
     def get_default_seq_generator(cls):
+        '''
+        Define a default sequence generator as the first one listed in the 'sequence_generators' attribute
+        '''
         return getattr(cls, cls.sequence_generators[0])
 
-    def __init__(self, gen, *args, **kwargs):
+    def __init__(self, gen=None, *args, **kwargs):
         '''
         Constructor for Sequence
 
@@ -760,6 +773,9 @@ class Sequence(LogExperiment):
         -------
         Sequence instance
         '''
+        if gen is None:
+            raise ValueError("Experiment classes which inherit from Sequence must specify a target generator!")
+
         if np.iterable(gen):
             from generate import runseq
             gen = runseq(self, seq=gen)
@@ -775,7 +791,9 @@ class Sequence(LogExperiment):
         At the start of the wait state, the generator (self.gen) is querried for 
         new information needed to start the trial. If the generator runs out, the task stops. 
         '''
-        print "_start_wait"
+        if self.debug:
+            print "_start_wait"
+
         try:
             self.next_trial = self.gen.next()
         except StopIteration:

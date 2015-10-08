@@ -45,6 +45,7 @@ class Positioner(object):
         # self.port.readline()
 
     def sleep_motors(self):
+        print "sleep motors"
         self.port.write('s\n')
         # self.port.readline()
 
@@ -346,7 +347,7 @@ class PositionerTaskController(Sequence):
         return trial_target_ls        
 
     @staticmethod 
-    def xy_sweep(z_min=-25, z_max=0, zpts=5):
+    def xy_sweep(z_min=-25, z_max=0, zpts=6):
         xy_target_locs = np.vstack([
             [8.20564516129, 37.6302083333],
             [9.61693548387, 34.1145833333],
@@ -371,8 +372,8 @@ class PositionerTaskController(Sequence):
 
         trial_target_ls = []
         z_range = np.linspace(z_min, z_max, zpts)
-        for xy_targ in xy_target_locs:
-            for zpt in z_range:
+        for zpt in z_range:
+            for xy_targ in xy_target_locs:
                 trial_target_ls.append(dict(int_target_pos=np.hstack([xy_targ, zpt])))
 
         return trial_target_ls
@@ -508,13 +509,12 @@ class PositionerTaskController(Sequence):
         pass
 
     def _end_go_to_origin(self):
-        steps_actuated = self.pos_uctrl_iface.end_continuous_move()
+        steps_actuated = self.pos_uctrl_iface.end_continuous_move(stiff=True)
 
         self.loc = np.zeros(3)
         self.steps_from_origin = np.zeros(3)
 
     def _start_move_target(self):
-        print "at position", self.loc, "moving to position", self._gen_int_target_pos
         # calc number of steps from current pos to target pos
         displ_microsteps = self._calc_steps_to_pos(self._gen_int_target_pos)
 
@@ -525,18 +525,11 @@ class PositionerTaskController(Sequence):
         # send command to kill motors
         steps_actuated = self.pos_uctrl_iface.end_continuous_move()
         self._integrate_steps(steps_actuated, self.pos_uctrl_iface.motor_dir)
-        print "finished moving, as position", self.loc
 
     def _cycle(self):
-        # print self.state
-        # self.print_to_terminal("_cycle")
         self.task_data['positioner_loc'] = self.loc
         self.task_data['positioner_steps_from_origin'] = self.steps_from_origin
         super(PositionerTaskController, self)._cycle()
-
-    def set_state(self, *args, **kwargs):
-        print args
-        super(PositionerTaskController, self).set_state(*args, **kwargs)
 
     ### Old functions ###
     def go_to_origin(self):

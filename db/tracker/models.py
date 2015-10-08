@@ -1,4 +1,6 @@
 '''
+Classes here which inherit from django.db.models.Model define the structure of the database
+
 Django database modules. See https://docs.djangoproject.com/en/dev/intro/tutorial01/
 for a basic introduction
 '''
@@ -17,6 +19,8 @@ import numpy as np
 from riglib import calibrations, experiment
 from config import config
 import importlib
+import subprocess    
+import traceback
 
 def _get_trait_default(trait):
     '''
@@ -559,11 +563,7 @@ class TaskEntry(models.Model):
         
         elif config.recording_sys['make'] == 'blackrock':
             try:
-                nev_fname = self.nev_file
-                path, name = os.path.split(nev_fname)
-                name, ext = os.path.splitext(name)
-
-                length, units = parse_blackrock_file(nev_fname)
+                length, units = parse_blackrock_file(self.nev_file, self.nsx_files)
 
                 # Blackrock units start from 0 (unlike plexon), so add 1
                 # for web interface purposes
@@ -622,32 +622,32 @@ class TaskEntry(models.Model):
         '''
         Return the name of the nev file associated with the session.
         '''
-        blackrock = System.objects.get(name='blackrock')
-        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
-        if len(q)==0:
-            return 'nonevfile'
-        else:
-            try:
-                import db.paths
-                return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
-            except:
-                return q[0].path
+        try:
+            df = DataFile.objects.get(system__name="blackrock", path__endswith=".nev", entry=self.id)
+            return df.get_path()
+        except:
+            import traceback
+            traceback.print_exc()
+            return 'no_nev_file'
 
     @property
     def nsx_files(self):
         '''Return a list containing the names of the nsx files (there could be more
         than one) associated with the session.
+    
+        nsx files extensions are .ns1, .ns2, ..., .ns6
         '''
-        blackrock = System.objects.get(name='blackrock')
-        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).exclude(path__endswith='.nev')
-        if len(q)==0:
+        try:
+            dfs = []
+            for k in range(1, 7):
+                df_k = DataFile.objects.filter(system__name="blackrock", path__endswith=".ns%d" % k, entry=self.id)
+                dfs += list(df_k)
+
+            return [df.get_path() for df in dfs]
+        except:
+            import traceback
+            traceback.print_exc()
             return []
-        else:
-            try:
-                import db.paths
-                return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
-            except:
-                return [datafile.path for datafile in q]
 
     @property
     def name(self):
@@ -758,6 +758,7 @@ class Decoder(models.Model):
             dec.name = self.name
             return dec
         else: # file not present!
+            print "Decoder file could not be found! %s" % decoder_fname
             return None
 
     def get(self):
@@ -776,7 +777,7 @@ class Decoder(models.Model):
                 binlen=dec.binlen,
                 tslice=dec.tslice)
 
-def parse_blackrock_file(nev_fname):
+def parse_blackrock_file(nev_fname, nsx_files):
     '''
     # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
     # this code goes through the spike_set for each channel in order to:
@@ -786,9 +787,8 @@ def parse_blackrock_file(nev_fname):
     nev_hdf_fname = nev_fname + '.hdf'
 
     if not os.path.isfile(nev_hdf_fname):
-        import subprocess
         subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
-    
+
     import h5py
     nev_hdf = h5py.File(nev_hdf_fname, 'r')
 
@@ -821,7 +821,7 @@ def parse_blackrock_file(nev_fname):
     NSP_channels = np.arange(128) + 1
 
     nsx_lengths = []
-    for nsx_fname in self.nsx_files:
+    for nsx_fname in nsx_files:
 
         nsx_hdf_fname = nsx_fname + '.hdf'
         if not os.path.isfile(nsx_hdf_fname):

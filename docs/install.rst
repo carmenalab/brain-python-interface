@@ -203,7 +203,7 @@ The third entry specifies how to mount the data directory of the neural recordin
 
 
 Network configuration
----------------------
+=====================
 In our setup, the main PC (named 'arc') has two network cards. One faces the outside internet (interface eth0) and the other is used for communicating with other devices through a local switch (interface eth1). Other devices might include the neural recording PC, an eyetracker, a motiontracker, etc. In order for all these devices to talk to each other, they must all have a unique IP on the local subnet assigned by a DHCP server running on the main computer, arc. 
 
 DHCP
@@ -266,6 +266,28 @@ At this point, you should be able to get external internet on the Windows PC. Yo
 NOTE: every time you add a new machine to the dchp config file, it seems that you must re-run the NAT setup script. Otherwise the new machine will get an
 IP address from DHCP but will not be able to reach the outside internet. 
 
+
+Setting up a gateway machine
+----------------------------
+You may not want to allow direct SSH to your rig machine and instead force ssh traffic through a gateway machine. This is a great idea for security, since if your rig machine is compromised, you'll may have to redo many of the steps above (and you might lose data!). But making a gateway means that copying files over to your analysis machine is annoying, since you basically have to execute twice as many ``scp`` commands. A nice alternative is an SSH tunnel that you can create on your analysis machine. If 'portal' is the gateway and 'nucleus' is the rig machine, then on you analysis machine you can execute the commands
+
+.. code :: bash
+
+    kill `ps aux | grep 8000 | grep ssh | tr -s ' ' | cut -d ' ' -f 2`
+    kill `ps aux | grep 22 | grep ssh | tr -s ' ' | cut -d ' ' -f 2`
+    ssh -f -N -L 43002:nucleus:8000 portal
+    ssh -f -N -L 43001:nucleus:22 portal
+
+This forwards port 8000 (for Django) to local port 43002 and port 22 (for ssh) to local port 43001. Then in your local ssh config file (~/.ssh/config), 
+
+    Host nucleus_tunnel 
+        HostName localhost
+        Port 43001 
+        User helene
+
+Then any subsequent ssh/scp commands can use 'nucleus_tunnel' in place of 'nucleus' and just work as if they were on the same local network as 'nucleus'. Similarly, you can remotely view the web interface by pointing your browser to localhost:43002
+
+
 Running the Django server for the first time
 --------------------------------------------
 First, for some reason the matplotlib configuration file directory appears to be owned by root when making these instructions. The Django software needs matplotlib for some reason, so we change ownership of the directorh $HOME/.matplotlib back to the user, which is what it should be anyway::
@@ -297,13 +319,21 @@ Testing the NIDAQ interface
 The NIDAQ card uses the 'comedi' device driver for linux, written in C. There is a wrapper for the library, pycomedi. Unfortunately we don't seem to have properly configured things, so initializing the device doesn't seem to work form python. Instead, the C version of the code must be used for initializing the device, after which the IO lanes can be read/written from python. 
 
 
-Celery
-------
-This still doesn't work in newer versions of Django/Celery! But it's okay since it's very rarely used and is only a convenience, i.e. not required.
-
 
 Rsync
 -----
+
+
+
+Configuration files
+-------------------
+config : rig-specific configurations, e.g., data paths, neural recording system. 
+tasklist : List of tasks which can be started through the web interface
+featurelist : list of features which can be selected through the web interface
+bmilist : 
+    type of decoding algorithm, plant type, signal source (spike counts, lfp)
+    BMI menu only shows up for task classes which are marked as bmi, with the task class attribute is_bmi_seed
+
 
 
 
@@ -311,8 +341,8 @@ Rsync
 
 Automatic testing
 -----------------
-(this section is still incomplete)
-Use the GUI to add a "testing" user
+[(]this section is still incomplete]
+Use the Ubuntu GUI to add a "testing" user
 As the testing user
 - clone the BMI3D repo
 - run make_config.py; make sure data paths are correct; other options don't matter
@@ -321,3 +351,17 @@ As the testing user
 - mkdir $BMI3D/test_output
 
 
+Configuring ipython
+-------------------
+For quick analyses from the command line, it can be useful to have ipython pre-loaded with some commonly used modules. For complete instructions on how to set this up, see https://ipython.org/ipython-doc/dev/config/intro.html. You can make a default ipython profile by executing the shell command::
+
+    ipython profile create
+
+Then edit the newly create configuration file to look something like 
+
+c.InteractiveShellApp.exec_lines = [
+    "from db import dbfunctions as dbfn",
+    "from db.tracker import models",
+    "import numpy as np",
+    "import matplotlib.pyplot as plt",
+]

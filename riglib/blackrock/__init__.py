@@ -1,15 +1,18 @@
-'''Docstring.'''
+'''
+Extensions of the generic riglib.source.DataSourceSystem for getting Spikes/LFP data from the Blackrock NeuroPort system
+'''
 
 import numpy as np
 
 from config import config
 if config.recording_sys['make'] == 'blackrock':
     import cerelink
-    
+from riglib.source import DataSourceSystem
 
 
-class Spikes(object):
-    '''For use with a DataSource in order to acquire streaming spike data from 
+class Spikes(DataSourceSystem):
+    '''
+    For use with a DataSource in order to acquire streaming spike data from 
     the Blackrock Neural Signal Processor (NSP).
     '''
 
@@ -40,12 +43,13 @@ class Spikes(object):
                         dtype=self.dtype)
 
 
-class LFP(object):
-    '''For use with a MultiChanDataSource in order to acquire streaming LFP 
+class LFP(DataSourceSystem):
+    '''
+    For use with a MultiChanDataSource in order to acquire streaming LFP 
     data from the Blackrock Neural Signal Processor (NSP).
     '''
     
-    update_freq = 1000  # TODO -- correct?
+    update_freq = 1000
     dtype = np.dtype('float')
 
     def __init__(self, channels):
@@ -62,4 +66,4 @@ class LFP(object):
 
     def get(self):
         d = self.data.next()
-        return (d.chan, d.samples)  # TODO -- document the units (mV?)
+        return (d.chan, d.samples)

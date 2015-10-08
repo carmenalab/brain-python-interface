@@ -47,7 +47,7 @@ class HDFWriter(object):
             Name of the system being registered
         dtype : np.dtype instance
             Datatype of incoming data, for later decoding of the binary data during analysis
-        include_msgs : boolean, optional
+        include_msgs : boolean, optional, default=True
             Flag to indicated whether a table should be created for "msgs" from the current source (default True)
 
         Returns
@@ -110,13 +110,21 @@ class HDFWriter(object):
 
     def sendAttr(self, system, attr, value):
         '''
-        Docstring
+        While the HDF writer process is running, set an attribute of the table
+        (not sure that this has ever been tested..)
 
         Parameters
         ----------
+        system : string
+            Name of the table where the attribute should be set
+        attr : string 
+            Name of the attribute
+        value : object
+            Value of the attribute to set
 
         Returns
         -------
+        None
         '''
         if system in self.data:
             self.data[system].attrs[attr] = value
@@ -128,8 +136,9 @@ class HDFWriter(object):
         self.h5.close()
         print "Closed hdf"
 
+
 class PlexRelayWriter(HDFWriter):
-    ''' This class appears to be unused as of Mar 7 2015 '''
+    '''Deprecated: This class appears to be unused as of Mar 7 2015 '''
     def __init__(self, filename, device="/dev/comedi0"):
         import nidaq
         self.ni = nidaq.SendRow(device)

@@ -40,57 +40,22 @@ class AdaptiveGenerator(object):
     Deprecated--this class appears to be unused
     '''
     def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         super(AdaptiveGenerator, self).__init__(*args, **kwargs)
         assert hasattr(self.gen, "correct"), "Must use adaptive generator!"
 
     def _start_reward(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.gen.correct()
         super(AdaptiveGenerator, self)._start_reward()
     
     def _start_incorrect(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         self.gen.incorrect()
         super(AdaptiveGenerator, self)._start_incorrect()
 
 
 class IgnoreCorrectness(object):
-    '''Deprecated--Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
+    '''Deprecated--this class appears to be unused and not compatible with Sequences
+    Allows any response to be correct, not just the one defined. Overrides for trialtypes'''
     def __init__(self, *args, **kwargs):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         super(IgnoreCorrectness, self).__init__(*args, **kwargs)
         if hasattr(self, "trial_types"):
             for ttype in self.trial_types:
@@ -100,25 +65,7 @@ class IgnoreCorrectness(object):
                 self.status[ttype]["incorrect"] = "penalty"
 
     def _test_correct(self, ts):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         return self.event is not None
 
     def _test_incorrect(self, ts):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
         return False

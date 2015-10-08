@@ -26,13 +26,15 @@ class SaveHDF(object):
         from riglib import sink
         self.sinks = sink.sinks
         self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
+        self.hdf = sink.sinks.start(self.sink_class, filename=self.h5file.name)
 
         super(SaveHDF, self).init()    
 
     @property
-    def hdf_class(self):
-        ''' Docstring '''
+    def sink_class(self):
+        '''
+        Specify the sink class as a function in case future descendant classes want to use a different type of sink
+        '''
         from riglib import hdfwriter
         return hdfwriter.HDFWriter
 
@@ -75,8 +77,9 @@ class SaveHDF(object):
         '''
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
         print "Beginning HDF file cleanup"
-        print "#################%s"%self.h5file.name
+        print "\tHDF data currently saved to temp file: %s" % self.h5file.name
         try:
+            print "\tRunning self.cleanup_hdf()"
             self.cleanup_hdf()
         except:
             print "\n\n\n\n\nError cleaning up HDF file!"

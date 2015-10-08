@@ -63,8 +63,8 @@ def list(request):
         pos_vars=namelist.bmi_training_pos_vars,
         kin_extractors=namelist.kin_extractors,
     )
-    if exp_tracker.task is not None:
-        fields['running'] = exp_tracker.task.saveid
+    if exp_tracker.task_proxy is not None:
+        fields['running'] = exp_tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
 def listall(request):
@@ -105,8 +105,8 @@ def listall(request):
         default_extractor=namelist.default_extractor,
         pos_vars=namelist.bmi_training_pos_vars,
     )
-    if exp_tracker.task is not None:
-        fields['running'] = exp_tracker.task.saveid
+    if exp_tracker.task_proxy is not None:
+        fields['running'] = exp_tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
 def listdb(request, dbname='default'):
@@ -151,8 +151,8 @@ def listdb(request, dbname='default'):
         default_extractor=namelist.default_extractor,
         pos_vars=namelist.bmi_training_pos_vars,
     )
-    if exp_tracker.task is not None:
-        fields['running'] = exp_tracker.task.saveid
+    if exp_tracker.task_proxy is not None:
+        fields['running'] = exp_tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
 

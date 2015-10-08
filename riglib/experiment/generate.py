@@ -12,7 +12,7 @@ from experiment import TrialTypes, Sequence
 
 def block_random(*args, **kwargs):
     '''
-    A block randomizer. 
+    A generic block randomizer. 
 
     Parameters
     ----------
@@ -73,13 +73,7 @@ def runseq(exp, seq=None, reps=1):
 ##################################################
 def endless(exp, probs=None):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Deprecated
     '''
     if probs is None:
         while True:
@@ -94,17 +88,8 @@ def endless(exp, probs=None):
             yield exp.trial_types[p-1]
 
 def sequence(length, probs=2):
-    '''Generates a sequence of numbers with the given probabilities.
-    If probs is not a list, generate a uniformly distributed set of options.
-
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
+    '''
+    Deprecated
     '''
     try:
         opts = len(probs)
@@ -116,16 +101,7 @@ def sequence(length, probs=2):
 
 def _fix_missing(probs):
     '''
-    Takes a probability list with possibly None entries, and fills it up
-
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
+    Deprecated
     '''
     total, n = map(sum, zip(*((i, 1) for i in probs if i is not None)))
     if n < len(probs):
@@ -135,13 +111,7 @@ def _fix_missing(probs):
 
 class AdaptiveTrials(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Deprecated
     '''
     def __init__(self, exp, blocklen=8):
         assert issubclass(exp, TrialTypes)

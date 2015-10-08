@@ -15,19 +15,26 @@ from riglib import bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
 from hdf_features import SaveHDF
+from riglib.bmi.bmi import Decoder 
 
 
 class CorticalData(object):
+    '''
+    Feature for streaming data from Omniplex/Neuroport recording systems
+    '''
     cortical_channels = None
     register_with_sink_manager = False
     send_data_to_sink_manager = False
 
     def init(self):
-        sys_module = self.sys_module
+        sys_module = self.sys_module # e.g., riglib.plexon, riglib.blackrock
 
         kwargs = dict(send_data_to_sink_manager=self.send_data_to_sink_manager, channels=self.cortical_channels)
 
-        if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
+        if hasattr(self, "_neural_src_type") and hasattr(self, "_neural_src_kwargs") and hasattr(self, "_neural_src_system_type"):
+            # for testing only!
+            self.neurondata = self._neural_src_type(self._neural_src_system_type, **self._neural_src_kwargs)
+        elif 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
             self.neurondata = source.DataSource(sys_module.Spikes, **kwargs)
         elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
             self.neurondata = source.MultiChanDataSource(sys_module.LFP, **kwargs)
@@ -50,12 +57,13 @@ class CorticalData(object):
         finally:
             self.neurondata.stop()
 
+
 class CorticalBMI(CorticalData, traits.HasTraits):
     '''
     Special case of CorticalData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
     May not be available for all recording systems. 
     '''
-    decoder = traits.Instance(bmi.Decoder)
+    decoder = traits.InstanceFromDB(Decoder, bmi3d_db_model='Decoder', bmi3d_query_kwargs=dict())
 
     def init(self):
         '''
@@ -64,4 +72,4 @@ class CorticalBMI(CorticalData, traits.HasTraits):
         so that the PlexonData source only grabs the channels actually used by the decoder. 
         '''
         self.cortical_channels = self.decoder.units[:,0]
-        super(PlexonBMI, self).init()
+        super(CorticalBMI, self).init()
