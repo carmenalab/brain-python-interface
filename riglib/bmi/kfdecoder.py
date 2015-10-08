@@ -376,13 +376,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
     def set_steady_state_pred_cov(self):
         '''
-        Docstring    
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Calculate the steady-state prediction covariance and set the current state prediction covariance to the steady-state value
         '''
 
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
@@ -669,13 +663,15 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
     '''
     def __init__(self, *args, **kwargs):
         '''
-        Docstring    
+        Constructor for KFDecoder   
         
         Parameters
         ----------
+        *args, **kwargs : see riglib.bmi.bmi.Decoder for arguments
         
         Returns
         -------
+        KFDecoder instance
         '''
 
         super(KFDecoder, self).__init__(*args, **kwargs)
@@ -697,16 +693,21 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
     def init_zscore(self, mFR_curr, sdFR_curr):
         '''
-        Docstring    
+        Initialize parameters for zcoring observations, if that feature is enabled in the decoder object
         
         Parameters
         ----------
+        mFR_curr : np.array of shape (N,)
+            Current mean estimates (as opposed to potentially old estimates already stored in the decoder)
+        sdFR_curr : np.array of shape (N,)
+            Current standard deviation estimates (as opposed to potentially old estimates already stored in the decoder)
         
         Returns
         -------
+        None
         '''
 
-        # if interfacing with Kinarm system, may mean and sd will be shape nx1
+        # if interfacing with Kinarm system, may mean and sd will be shape (n, 1)
         self.zeromeanunits, = np.nonzero(mFR_curr == 0) #find any units with a mean FR of zero for this session
         sdFR_curr[self.zeromeanunits] = np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
         mFR_curr[self.zeromeanunits] = np.nan
@@ -715,30 +716,10 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.mFR_curr = mFR_curr
         self.zscore = True
 
-    def predict_ssm(self):
-        '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        '''
-
-        self.kf.propagate_ssm()
-
     def update_params(self, new_params, steady_state=True):
         '''
-        Docstring    
-        
-        Parameters
-        ----------
-        
-        Returns
-        -------
+        Update the decoder parameters if new parameters are available (e.g., by CLDA). See Decoder.update_params
         '''
-
         super(KFDecoder, self).update_params(new_params)
 
         # set the KF to the new steady state
@@ -747,17 +728,16 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
     def __setstate__(self, state):
         """
-        Set decoder state after un-pickling
-        
-        Docstring    
+        Set decoder state after un-pickling. See Decoder.__setstate__, which runs the _pickle_init function at some point during the un-pickling process
         
         Parameters
         ----------
+        state : dict
+            Variables to set as attributes of the unpickled object.
         
         Returns
         -------
-        
-
+        None
         """
         if 'kf' in state and 'filt' not in state:
             state['filt'] = state['kf']
@@ -766,13 +746,16 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
     def plot_K(self, **kwargs):
         '''
-        Docstring    
+        Plot the Kalman gain weights
         
         Parameters
         ----------
+        **kwargs : optional kwargs
+            These are passed to the plot function (e.g., which rows to plot)
         
         Returns
         -------
+        None
         '''
 
         F, K = self.kf.get_sskf()
@@ -782,14 +765,14 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         '''
         Shuffle the neural model
         
-        Docstring    
-        
         Parameters
         ----------
+        shuffle_baselines : bool, optional, default = False
+            If true, shuffle the estimates of the baseline firing rates in addition to the state-dependent neural tuning parameters.
         
         Returns
         -------
-        
+        None (shuffling is done on the current decoder object)        
 
         '''
         # generate random permutation
@@ -857,10 +840,25 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.filt.W = W
 
     def conv_to_steady_state(self):
+        '''
+        Create an SSKFDecoder object based on KalmanFilter parameters in this KFDecoder object
+        '''
         import sskfdecoder
         self.filt = sskfdecoder.SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q) 
 
     def subselect_units(self, units):
+        '''
+        Prune units from the KFDecoder, e.g., due to loss of recordings for a particular cell
+
+        Parameters
+        units : string or np.ndarray of shape (N,2)
+            The units which should be KEPT in the decoder
+
+        Returns 
+        -------
+        KFDecoder 
+            New KFDecoder object using only a subset of the cells of the original KFDecoder
+        '''
         if isinstance(units[0], (str, unicode)):
             # convert to array
             if isinstance(units, (str, unicode)):
@@ -924,15 +922,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
 def project_Q(C_v, Q_hat):
     """ 
-    Constrain Q such that the first two columns of the H matrix
-    are independent and have identical gain in the steady-state KF
-        
-    Parameters
-    ----------
-        
-    Returns
-    -------
-
+    Deprecated! See clda.KFRML_IVC
     """
     print "projecting!"
     from scipy.optimize import fmin_bfgs, fmin_ncg

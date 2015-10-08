@@ -1,5 +1,5 @@
 '''
-Code for interacting with the Crist reward system(s)
+Code for interacting with the Crist reward system(s). Consult the Crist manual for the command protocol
 '''
 
 
@@ -26,37 +26,20 @@ except:
 
 def _xsum(msg):
     '''
-    Docstring
+    Compute the checksums for the messages which must be sent as part of the packet
 
     Parameters
     ----------
+    msg : string
+        Message to be sent over the serial port
 
     Returns
     -------
+    char
+        The 8-bit checksum of the entire message
     '''
     chrval = map(lambda x: int(''.join(x), 16), zip(*[iter(binascii.b2a_hex(msg))]*2))
     return chr(sum(chrval) % 256)
-
-class _parse_num(object):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    types = {1:'<B', 2:'<H', 4:'<I'}
-    def __init__(self, length=2, mult=1, unit=""):
-        self.t = self.types[length]
-        self.m = mult
-        self.u = unit
-    def __getitem__(self, msg):
-        if len(msg) == 3:
-            msg += "\x00"
-        i, = struct.unpack(self.t, msg)
-        return i*self.m
 
 class Basic(object):
     '''
@@ -84,13 +67,17 @@ class Basic(object):
 
     def _write(self, msg):
         '''
-        Docstring
+        Send an arbitrary message over the serial port
 
         Parameters
         ----------
+        msg : string
+            Message to be sent over the serial port        
 
         Returns
         -------
+        msg_out : string
+            Response from crist system after sending command
         '''
         fmsg = msg+_xsum(msg)
         self.port.flushOutput()
@@ -101,13 +88,16 @@ class Basic(object):
 
     def reward(self, length):
         '''
-        Docstring
+        Open the solenoid for some length of time
 
         Parameters
         ----------
+        length : float
+            Duration of time the solenoid should be open, in seconds. NOTE: in some versions of the system, there appears to be max of ~5s
 
         Returns
         -------
+        None
         '''
         length /= .1
         length = int(length)
@@ -121,29 +111,25 @@ class Basic(object):
     
     def setup_touch_sensor(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Send the serial command to initialize the Crist touch sensor
         '''
         if self.version==1: #arc system
             cmd = ['@', 'C', '1' ,'O','%c' % 0b10000000, '%c' % 1, '%c' % 0, 'E']
             stuff = ''.join(cmd)
             self._write(stuff)
 
-
     def sensor_reward(self, length):
         '''
-        Docstring
+        Set the duration of the reward if the subject touches the touch sensor
 
         Parameters
         ----------
+        length : float
+            Duration of time the solenoid should be open, in seconds. NOTE: in some versions of the system, there appears to be max of ~5s
 
         Returns
         -------
+        None
         '''
         if self.version==1:
             cmd = ['@', 'S',  '%c' % 0x02, '%c' % 0x02, '%c' %10, '%c' %0, '%c' %0]
@@ -152,13 +138,17 @@ class Basic(object):
 
     def set_beeper_volume(self, volume):
         '''
-        Docstring
+        Send a command to set the sound level of the audio beep paired with the solenoid opening
 
         Parameters
         ----------
+        volume : int in range [0, 255]
+            255 is max possible volume
 
         Returns
         -------
+        string 
+            Response message from system
         '''
         if not (volume >= 0 and volume <= 255):
             raise ValueError("Invalid beeper volume: %g" % volume)
@@ -166,13 +156,7 @@ class Basic(object):
 
     def reset(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Send the system reset command
         '''
         if self.version==0:
             self._write("@CPSNNN")
@@ -195,6 +179,7 @@ class Basic(object):
 
         Returns
         -------
+        None
         '''
         assert drain_time > 0
         assert drain_time < 9999
@@ -217,6 +202,22 @@ class Basic(object):
             self._write('@M1' + struct.pack('H', 0) + 'A' + struct.pack('xx'))
         else:
             raise Exception("Unrecognized reward system version!")
+
+
+##########################################
+##### Code below this line is unused #####
+##########################################
+class _parse_num(object):
+    types = {1:'<B', 2:'<H', 4:'<I'}
+    def __init__(self, length=2, mult=1, unit=""):
+        self.t = self.types[length]
+        self.m = mult
+        self.u = unit
+    def __getitem__(self, msg):
+        if len(msg) == 3:
+            msg += "\x00"
+        i, = struct.unpack(self.t, msg)
+        return i*self.m
 
 class System(traits.HasTraits, threading.Thread):
     '''

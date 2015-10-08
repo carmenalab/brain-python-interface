@@ -194,23 +194,24 @@ From the Cerebus/NeuroPort manual (http://www.blackrockmicro.com/blackrockmicro/
 =====================    ========    ===========    
 NSP digital input pin    DB37 pin    Arduino pin
 =====================    ========    ===========   
-DS (digital strobe)      1           48        
-D0                       2           47        
-D1                       3           46        
-D2                       4           45        
-D3                       5           44        
-D4                       6           43        
-D5                       7           42        
-D6                       8           41        
-D7                       9           40        
-D8                       10          39        
-D9                       11          38        
-D10                      12          37        
-D11                      13          36        
-D12                      14          35        
-D13                      15          34        
-D14                      16          33        
-D15                      17          32                
+DS (digital strobe)      1           49        
+D0                       2           32        
+D1                       3           33        
+D2                       4           34        
+D3                       5           35        
+D4                       6           36        
+D5                       7           37        
+D6                       8           38        
+D7                       9           39        
+D8                       10          40        
+D9                       11          41        
+D10                      12          42        
+D11                      13          43        
+D12                      14          44        
+D13                      15          45        
+D14                      16          46        
+D15                      17          47
+GND                      20          GND                
 =====================    ========    ===========   
 Digital ground should be connected to Arduino's ground.
 
