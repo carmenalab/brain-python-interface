@@ -10,14 +10,14 @@ if [ -z "$BMI3D" ]
 fi
 
 # Make sure that the server is not already running in a different program
-if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then 
+if [ `ps aux | grep "manage.py runserver" | grep python2.7 | wc -l` -gt 0 ]; then 
     echo "ERROR: runserver seems to have already been executed by a different program!"
     exit 1
 fi
 
 # Check that a config file is in the correct place, $BMI3D/config
 if [ ! -e $BMI3D/config_files/config ]; then 
-    echo "ERROR: cannot find config file! Did you run $BMI3D/config_files/make_config.py?"
+    echo "ERROR: cannot find config file! Did you run $BMI3D/make_config.py?"
     exit 1
 fi
     
@@ -67,11 +67,12 @@ MANAGER=$BMI3D/db/manage.py
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)
-python $MANAGER runserver 0.0.0.0:8000 --noreload &
+# Note: use either python or python2.7 below as needed
+python2.7 $MANAGER runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
-python $MANAGER celery worker &
+python2.7 $MANAGER celery worker &
 CELERY=$!
-python $MANAGER celery flower --address=0.0.0.0 &
+python2.7 $MANAGER celery flower --address=0.0.0.0 &
 FLOWER=$!
 
 # Define what happens when you hit control-C
@@ -79,8 +80,8 @@ function ctrl_c() {
 	kill -9 $DJANGO
 	kill $CELERY
 	kill $FLOWER
-    kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
-	# kill -9 `ps -C 'python manage.py' -o pid --no-headers`
+    kill -9 `ps aux | grep python2.7 | grep manage.py | tr -s " " | cut -d " " -f 2`
+	# kill -9 `ps -C 'python2.7 manage.py' -o pid --no-headers`
 }
 
 # Run until the PID stored in $DJANGO is dead
