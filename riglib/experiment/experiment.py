@@ -283,7 +283,12 @@ class Experiment(traits.HasTraits, threading.Thread):
         Add to the dtype of the task. The task's dtype attribute is used to determine 
         which attributes to save to file. 
         '''
-        self.dtype.append((name, dtype, shape))
+        new_field = (name, dtype, shape)
+        existing_field_names = [x[0] for x in self.dtype]
+        if name in existing_field_names:
+            raise Exception("Duplicate add_dtype functionc call for task data field: %s" % name)
+        else:
+            self.dtype.append(new_field)
 
     def screen_init(self):
         '''
