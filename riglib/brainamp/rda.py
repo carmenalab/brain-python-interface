@@ -8,6 +8,12 @@ import numpy as np
 from struct import *
 from socket import *
 import array
+from scipy.signal import butter, lfilter
+import numpy as np
+import matplotlib.pyplot as plt
+#import math
+from riglib.filter import Filter
+from ismore import settings, brainamp_channel_lists
 
 
 # Helper function for receiving whole message
@@ -94,6 +100,26 @@ class EMGData(object):
 
         # Create a tcpip socket
         self.sock = socket(AF_INET, SOCK_STREAM)
+
+        self.fs = 1000
+        # calculate coefficients for a 4th-order Butterworth BPF from 10-450 Hz
+        band  = [10, 450]  # Hz
+        nyq   = 0.5 * self.fs
+        low   = band[0] / nyq
+        high  = band[1] / nyq
+        self.bpf_coeffs = butter(4, [low, high], btype='band')
+        # self.band_pass_filter = Filter(self.bpf_coeffs[0], self.bpf_coeffs[1])
+
+        # calculate coefficients for multiple 2nd-order notch filers
+        self.notchf_coeffs = []
+        for freq in [50, 150, 250, 350]:
+            band  = [freq - 1, freq + 1]  # Hz
+            nyq   = 0.5 * self.fs
+            low   = band[0] / nyq
+            high  = band[1] / nyq
+            self.notchf_coeffs.append(butter(2, [low, high], btype='bandstop'))
+
+
         
     def start(self):
         '''Start the buffering of data.'''
@@ -124,6 +150,8 @@ class EMGData(object):
 
         chan_idx = 0
 
+        self.filter_data = False
+
         while self.streaming:
 
             # Get message header as raw array of chars
@@ -136,15 +164,31 @@ class EMGData(object):
             rawdata = RecvData(self.sock, msgsize - 24) 
             
             ts_arrival = time.time()
+       
 
             # Perform action dependend on the message type
             if msgtype == self.RDA_MessageStart:
                 # Start message, extract eeg properties and display them
                 (channelCount, samplingInterval, resolutions, channelNames) = GetProperties(rawdata)
                 
+                if channelNames != settings.BRAINAMP_CHANNELS:
+                    self.filter_data = True
+                    channelNames = settings.BRAINAMP_CHANNELS 
+                    channelCount_filt = channelCount + (len(settings.BRAINAMP_CHANNELS)-len(resolutions))
+                    resolutions_filt = [resolutions[0]]*(len(settings.BRAINAMP_CHANNELS)-len(resolutions))
+                    resolutions = resolutions + resolutions_filt
+                    
+                
                 # reset block counter
                 lastBlock = -1
-
+                
+                
+                # channels_filt_all = list()
+                # for i in range(len(channelNames)):
+                #     channels_filt = [channelNames[i] + "_filt" ]
+                #     channels_filt_all.append(channels_filt)
+                    
+                
                 print "Start"
                 print "Number of channels: " + str(channelCount)
                 print "Sampling interval: " + str(samplingInterval)
@@ -154,6 +198,12 @@ class EMGData(object):
 
                 #channels = [int(name) for name in channelNames]
                 channels = channelNames
+                #print type(channels)
+                
+                #channels = [int(name) for name in channels_filt_all]#andrea
+
+                #print type(channels)
+
 
             elif msgtype == self.RDA_MessageStop:
                 
@@ -177,16 +227,61 @@ class EMGData(object):
                 #     yield (chan, np.array([(uV_value, ts_arrival)], dtype=self.dtype))
                 #     chan_idx = (chan_idx + 1) % channelCount
 
+
+
+                self.notch_filters = []
+                for b, a in self.notchf_coeffs:
+                    self.notch_filters.append(Filter(b=b, a=a))
+
+                
+                self.channel_filterbank = [None]*channelCount
+                for k in range(channelCount):
+                    filts = [Filter(self.bpf_coeffs[0], self.bpf_coeffs[1])]
+                    for b, a in self.notchf_coeffs:
+                        filts.append(Filter(b=b, a=a))
+                    self.channel_filterbank[k] = filts
+
                 # MORE EFFICIENT -- yield all data points for a channel at once
+                # data_ = array.array('h')
+                # data_.fromstring(rawdata[12:])  # TODO -- make more general
+                # data = np.zeros((channelCount, points), dtype=self.dtype)
+                # data['data'] = np.array(data_).reshape((points, channelCount)).T
+                # data['ts_arrival'] = ts_arrival
+                # for chan_idx in range(channelCount):
+                #     data[chan_idx, :]['data'] *= resolutions[chan_idx]
+                #     chan = channels[chan_idx]
+                #     yield (chan, data[chan_idx, :])
+
+                # Filter the data as the packages arrive - andrea
                 data_ = array.array('h')
                 data_.fromstring(rawdata[12:])  # TODO -- make more general
                 data = np.zeros((channelCount, points), dtype=self.dtype)
-                data['data'] = np.array(data_).reshape((points, channelCount)).T
                 data['ts_arrival'] = ts_arrival
-                for chan_idx in range(channelCount):
-                    data[chan_idx, :]['data'] *= resolutions[chan_idx]
-                    chan = channels[chan_idx]
-                    yield (chan, data[chan_idx, :])
+                data['data'] = np.array(data_).reshape((points, channelCount)).T
+                
+                if self.filter_data:
+                    datafilt = np.zeros((channelCount_filt, points), dtype=self.dtype)
+                    datafilt['ts_arrival'] = ts_arrival
+                    filtered_data = np.zeros((channelCount, points))#, dtype=self.dtype)
+                    if  channelNames == brainamp_channel_lists.emg14_filt: #Apply filters for emg
+                        for k in range(channelCount):
+                            for filt in self.channel_filterbank[k]:
+                                filtered_data[k] =  filt(data['data'][k])
+                    else:
+                        pass #apply filters for eeg. To be implemented      
+                
+                    datafilt['data'] = np.vstack([data['data'], filtered_data])
+                    #datafilt['data'] = np.vstack([data['data'], filtered_data['data']])
+
+                    for chan_idx in range(channelCount_filt):
+                        datafilt[chan_idx, :]['data'] *= resolutions[chan_idx]
+                        chan = channels[chan_idx]
+                        yield (chan, datafilt[chan_idx, :])
+                else:
+                    for chan_idx in range(channelCount):
+                        data[chan_idx, :]['data'] *= resolutions[chan_idx]
+                        chan = channels[chan_idx]
+                        yield (chan, data[chan_idx, :])
 
 
                 # disregard marker data for now
