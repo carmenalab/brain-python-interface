@@ -152,6 +152,18 @@ class EMGData(object):
 
         self.filter_data = False
 
+        self.notch_filters = []
+        for b, a in self.notchf_coeffs:
+            self.notch_filters.append(Filter(b=b, a=a))
+
+        channelCount = 14
+        self.channel_filterbank = [None]*channelCount
+        for k in range(channelCount):
+            filts = [Filter(self.bpf_coeffs[0], self.bpf_coeffs[1])]
+            for b, a in self.notchf_coeffs:
+                filts.append(Filter(b=b, a=a))
+            self.channel_filterbank[k] = filts
+
         while self.streaming:
 
             # Get message header as raw array of chars
@@ -229,17 +241,7 @@ class EMGData(object):
 
 
 
-                self.notch_filters = []
-                for b, a in self.notchf_coeffs:
-                    self.notch_filters.append(Filter(b=b, a=a))
-
                 
-                self.channel_filterbank = [None]*channelCount
-                for k in range(channelCount):
-                    filts = [Filter(self.bpf_coeffs[0], self.bpf_coeffs[1])]
-                    for b, a in self.notchf_coeffs:
-                        filts.append(Filter(b=b, a=a))
-                    self.channel_filterbank[k] = filts
 
                 # MORE EFFICIENT -- yield all data points for a channel at once
                 # data_ = array.array('h')
@@ -262,17 +264,21 @@ class EMGData(object):
                 if self.filter_data:
                     datafilt = np.zeros((channelCount_filt, points), dtype=self.dtype)
                     datafilt['ts_arrival'] = ts_arrival
-                    filtered_data = np.zeros((channelCount, points))#, dtype=self.dtype)
+                    filtered_data = data['data'].copy()
                     if  channelNames == brainamp_channel_lists.emg14_filt: #Apply filters for emg
                         for k in range(channelCount):
                             for filt in self.channel_filterbank[k]:
-                                filtered_data[k] =  filt(data['data'][k])
+                                filtered_data[k] =  filt(filtered_data[k])
+                                
                     else:
                         pass #apply filters for eeg. To be implemented      
                 
                     datafilt['data'] = np.vstack([data['data'], filtered_data])
-                    #datafilt['data'] = np.vstack([data['data'], filtered_data['data']])
-
+                    
+                    # from scipy.io import savemat
+                    # import os
+                    # savemat(os.path.expandvars('$HOME/code/ismore/emg_rda_filt.mat'), dict(emg_filt = filtered_data, datafilt = datafilt['data'], filterbank = self.channel_filterbank))
+                    
                     for chan_idx in range(channelCount_filt):
                         datafilt[chan_idx, :]['data'] *= resolutions[chan_idx]
                         chan = channels[chan_idx]
