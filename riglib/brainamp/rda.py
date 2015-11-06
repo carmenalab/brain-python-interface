@@ -119,7 +119,8 @@ class EMGData(object):
             high  = band[1] / nyq
             self.notchf_coeffs.append(butter(2, [low, high], btype='bandstop'))
 
-
+        if 'brainamp_channels' in kwargs:
+            self.channels = kwargs['brainamp_channels']
         
     def start(self):
         '''Start the buffering of data.'''
@@ -150,19 +151,25 @@ class EMGData(object):
 
         chan_idx = 0
 
-        self.filter_data = False
+        
 
         self.notch_filters = []
         for b, a in self.notchf_coeffs:
             self.notch_filters.append(Filter(b=b, a=a))
 
-        channelCount = 14
-        self.channel_filterbank = [None]*channelCount
+        channelCount = len(settings.BRAINAMP_CHANNELS)
+        self.channel_filterbank_emg = [None]*channelCount
         for k in range(channelCount):
             filts = [Filter(self.bpf_coeffs[0], self.bpf_coeffs[1])]
             for b, a in self.notchf_coeffs:
                 filts.append(Filter(b=b, a=a))
-            self.channel_filterbank[k] = filts
+            self.channel_filterbank_emg[k] = filts
+
+        self.channel_filterbank_eeg = [None]*channelCount
+        for k in range(channelCount):
+            filts = [Filter(self.bpf_coeffs[0], self.bpf_coeffs[1])]
+            filts.append(Filter(b=self.notchf_coeffs[0], a=self.notchf_coeffs[1]))
+            self.channel_filterbank_eeg[k] = filts
 
         while self.streaming:
 
@@ -183,13 +190,22 @@ class EMGData(object):
                 # Start message, extract eeg properties and display them
                 (channelCount, samplingInterval, resolutions, channelNames) = GetProperties(rawdata)
                 
-                if channelNames != settings.BRAINAMP_CHANNELS:
-                    self.filter_data = True
-                    channelNames = settings.BRAINAMP_CHANNELS 
-                    channelCount_filt = channelCount + (len(settings.BRAINAMP_CHANNELS)-len(resolutions))
-                    resolutions_filt = [resolutions[0]]*(len(settings.BRAINAMP_CHANNELS)-len(resolutions))
-                    resolutions = resolutions + resolutions_filt
-                    
+                # if channelNames != self.channels: #settings.BRAINAMP_CHANNELS
+                #     print 'ERROR: Selected channels do not match the streamed channel names. Double check!'
+
+                # else:
+                #     #channelNames_filt = list()
+                #     for i in range(channelCount):
+                #         channelNames.append(channelNames[i] + "_filt")
+                #     channelCount_filt = channelCount*2 
+                #     resolutions_filt = [resolutions[0]]*(len(channelNames))
+                #     resolutions = resolutions + resolutions_filt
+
+                channels = self.channels
+                
+                channelCount_filt = channelCount*2 
+                resolutions_filt = [resolutions[0]]*(len(channelNames))
+                resolutions = resolutions + resolutions_filt   
                 
                 # reset block counter
                 lastBlock = -1
@@ -202,14 +218,17 @@ class EMGData(object):
                     
                 
                 print "Start"
-                print "Number of channels: " + str(channelCount)
+                print "Number of channels: " + str(channelCount_filt)
                 print "Sampling interval: " + str(samplingInterval)
                 print "Resolutions: " + str(resolutions)
                 print "Channel Names: " + str(channelNames)
                 print "Sampling Frequency: " + str(1000000/samplingInterval)
 
                 #channels = [int(name) for name in channelNames]
-                channels = channelNames
+                #channels = channelNames
+
+                
+
                 #print type(channels)
                 
                 #channels = [int(name) for name in channels_filt_all]#andrea
@@ -261,34 +280,32 @@ class EMGData(object):
                 data['ts_arrival'] = ts_arrival
                 data['data'] = np.array(data_).reshape((points, channelCount)).T
                 
-                if self.filter_data:
-                    datafilt = np.zeros((channelCount_filt, points), dtype=self.dtype)
-                    datafilt['ts_arrival'] = ts_arrival
-                    filtered_data = data['data'].copy()
-                    if  channelNames == brainamp_channel_lists.emg14_filt: #Apply filters for emg
-                        for k in range(channelCount):
-                            for filt in self.channel_filterbank[k]:
-                                filtered_data[k] =  filt(filtered_data[k])
+                
+                datafilt = np.zeros((channelCount_filt, points), dtype=self.dtype)
+                datafilt['ts_arrival'] = ts_arrival
+                filtered_data = np.zeros((channelCount, points), dtype=self.dtype)
+                filtered_data['data'] = data['data'].copy()
+
+
+                for k in range(channelCount):
+                    if  channels[k] in brainamp_channel_lists.emg14_raw: #Apply filters for emg
+                        for filt in self.channel_filterbank_emg[k]:
+                            filtered_data[k]['data'] =  filt(filtered_data[k]['data'] )
                                 
                     else:
                         pass #apply filters for eeg. To be implemented      
                 
-                    datafilt['data'] = np.vstack([data['data'], filtered_data])
+                datafilt['data'] = np.vstack([data['data'], filtered_data['data']])
                     
                     # from scipy.io import savemat
                     # import os
                     # savemat(os.path.expandvars('$HOME/code/ismore/emg_rda_filt.mat'), dict(emg_filt = filtered_data, datafilt = datafilt['data'], filterbank = self.channel_filterbank))
                     
-                    for chan_idx in range(channelCount_filt):
-                        datafilt[chan_idx, :]['data'] *= resolutions[chan_idx]
-                        chan = channels[chan_idx]
-                        yield (chan, datafilt[chan_idx, :])
-                else:
-                    for chan_idx in range(channelCount):
-                        data[chan_idx, :]['data'] *= resolutions[chan_idx]
-                        chan = channels[chan_idx]
-                        yield (chan, data[chan_idx, :])
-
+                for chan_idx in range(channelCount_filt):
+                    datafilt[chan_idx, :]['data'] *= resolutions[chan_idx]
+                    chan = channels[chan_idx]
+                    yield (chan, datafilt[chan_idx, :])
+             
 
                 # disregard marker data for now
 
