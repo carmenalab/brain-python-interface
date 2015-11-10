@@ -3,12 +3,10 @@
 Brain-machine interface (BMI) code
 ==================================
 
-The BMI code is split between the ``tasks`` module and the ``bmi`` module. The ``bmi`` module contains the "low-level" components of the BMI, including the decoding algorithm, the assist methods, the adaptive filtering techinques for parameter fitting, etc. The ``tasks`` module integrates these components to enable the BMI subject to perform a target-capture task.
-
 
 Architecure of BMILoop
 ----------------------
-``BMILoop`` is the top-level interface for just running a BMI prosthesis, without any particular task structure. (Or alternatively, you might call this an unstructured task). It's comprised of many smaller components, including machinery to adapt the decoder in closed-loop (CLDA), assistive shared control, and the interaction with the device itself.
+``BMILoop`` is the top-level interface for just running a BMI prosthesis, without any particular task structure. (Alternatively, you might oxymoronically call this an "unstructured task" if you are a neuroscientist). It's comprised of many smaller components, including machinery to adapt the decoder in closed-loop (CLDA), assistive shared control, and the interaction with the device itself.
 
 ..	image:: bmi_loop.png
 

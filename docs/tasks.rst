@@ -181,7 +181,7 @@ To actually save the variable (suppose your variable is named 'data'), sometime 
 
     self.task_data['data'] = data_value
 
-Important note: in child classes, you must do this *before* calling the ``super`` _cycle method to ensure that your data is saved properly. This is because the final _cycle in the method resolution order is the experiment.Experiment._cycle method, which will send your task_data to any registered sinks. So if you do not set the variable beforehand, it may appear as the data you have saved to file is off by one timestep.
+Important note: in child classes, you must do this *before* calling the ``super`` _cycle method to ensure that your data is saved properly. This is because the final ``_cycle`` in the method resolution order is the ``experiment.Experiment._cycle`` method, which will send your task_data to any registered sinks. So if you do not set the variable beforehand, it may appear as the data you have saved to file is off by one timestep.
 
 
 Cleaning up tasks
@@ -193,40 +193,75 @@ Similar to the higher than normal complexity of instantiating a task object, the
 .. automethod:: riglib.experiment.Experiment.cleanup_hdf
 
 
+Logging
+-------
+The :class:`LogExperiment` extends :class:`Experiment` by keeping track of (i.e., logging) events and state transitions. This provides the ability to calculate stats about state occurrences (e.g., successes per minute) as well as save the log to the database during "cleanup" time. 
 
 
-Task "trials" and logging
--------------------------
-The base experiment class is a barebones FSM implementation. Two useful extensions are the ``LogExperiment`` and the ``Sequence`` classes. The LogExperiment extends Experiment by keeping track of (i.e., logging) events and state transitions. This provides the ability to calculate stats about state occurrences (e.g., successes per minute) as well as save the log to the database during "cleanup" time. 
+Tasks with goals
+----------------
+The base experiment class is a barebones FSM implementation. Typical tasks will have multiple trials, with a goal (possibly different goals across trials). The :class:`Sequence` is our abstract implementation of this typical extension. 
 
-The ``Sequence`` class further extends ``LogExperiment`` by making the "wait" state a special state. The constructor for the Sequence class expects a generator to be provided at construction time. During the wait state, an element is pulled from the generator. This element can be anything (an array, an object, etc.). This provides a way to specify the goal of each trial (e.g., the direction in which to reach) in a somewhat generic way. Nearly every task, to date, inherits from Sequence and leverages this functionality.
+    1) All classes which inherit from Sequence must have a "wait" state. The wait can be short (i.e., one tick of the event loop), it just needs to be named "wait" so that the actions associated with starting a new trial & creating a new target are linked to this "wait" state. 
 
-In order to properly utilize ``Sequence`` functionality, a generator must be provided. The typical procedure involves a generation of a list of trial goals, which are yielded by a generator one at a time. These generator functions are naturally specific to each task. A reaching task may require specification of where to place all the targets. A grasping task may also specify targets, but perhaps in a different coordinate system or with more information necessary (e.g., the type of object to present). 
+    2) Define a sequence generator, which will define the sequence of trial types. The typical function structure is::
 
-Each task should specify the possible sequence generators in the class attribute ``sequence_generators``, which must be specified for each task which inherits from Sequence. The list is empty by default and should be populated with the string names of functions to be used as sequence generators. Function names are assumed to be static methods of that same task class. An example::
+        def target_sequence(length=10):
+            targets = []
+            for k in range(length):
+                ## create a new target
+                new_target = np.random.uniform(3)
+                targets.append(new_target)
+            return targets
 
-    from riglib.experiment import Sequence
-    class NewSequenceTask(Sequence):
-        sequence_generators = ['seq1', 'seq2']
+        Each element of the list defines the relevant goal parameters for a single trial. 
 
-        @staticmethod
-        def seq1(length=10):
-            return [1]*length
+    3) "Declare" the sequence generator. 
+        Each task should specify the possible sequence generators in the class attribute ``sequence_generators``, which must be specified for each task which inherits from Sequence. The list is empty by default and should be populated with the string names of functions to be used as sequence generators. Function names are assumed to be static methods of that same task class. An example::
 
-        @staticmethod
-        def seq2(length=10):
-            return [2]*length
+        from riglib.experiment import Sequence
+        class NewSequenceTask(Sequence):
+            sequence_generators = ['seq1', 'seq2']
 
-        # seq3 will not show up on the web interface because it is not in the list 'sequence_generators'!
-        @staticmethod
-        def seq3(length=10):
-            return [3]*length        
+            @staticmethod
+            def seq1(length=10):
+                targets = []
+                for k in range(length):
+                    targets.append(1)
 
-The built-in python `decorator <http://simeonfranklin.com/blog/2012/jul/1/python-decorators-in-12-steps/>`_ ``@staticmethod`` will make the declared method a static method of the task.
+                return targets
+
+            @staticmethod
+            def seq2(length=10):
+                targets = []
+                for k in range(length):
+                    targets.append(2)
+
+                return targets
+
+            # seq3 will not show up on the web interface because it is not in the list 'sequence_generators'!
+            @staticmethod
+            def seq3(length=10):
+                targets = []
+                for k in range(length):
+                    targets.append(3)
+
+                return targets
+
+        The built-in python `decorator <http://simeonfranklin.com/blog/2012/jul/1/python-decorators-in-12-steps/>`_ ``@staticmethod`` will make the declared method a static method of the task.
+
+    4) Parse the output of the sequence generator. During the task, the ``_start_wait`` function will be called at the start of the "wait" state (see riglib.experiment.Sequence._start_wait). This _start_wait function 
+
+The :class:`Sequence` class further extends :class:`LogExperiment` by making the "wait" state a special state. The constructor for the :class:`Sequence` class expects a generator to be provided at construction time. During the wait state, an element is pulled from the generator. This element can be anything (an array, an object, etc.). This provides a way to specify the goal of each trial (e.g., the direction in which to reach) in a somewhat generic way. Nearly every task, to date, inherits from :class:`Sequence` and leverages this functionality.
+
+In order to properly utilize :class:`Sequence` functionality, a generator must be provided. The typical procedure involves a generation of a list of trial goals, which are yielded by a generator one at a time. These generator functions are naturally specific to each task. A reaching task may require specification of where to place all the targets. A grasping task may also specify targets, but perhaps in a different coordinate system or with more information necessary (e.g., the type of object to present). 
+
+
+
 
 Extending tasks with "features"
 -------------------------------
-Features are partial tasks which can be used to extend a "base" task using multiple inheritance. This functionality can be used to extend behavior for a particular state of the task (e.g., deliver a juice reward during the 'reward' state), create a "sink" to use for saving data to file (e.g., ``SaveHDF``), etc. 
+Features are partial tasks which can be used to extend a "base" task using multiple inheritance. This functionality can be used to extend behavior for a particular state of the task (e.g., deliver a juice reward during the 'reward' state), create a "sink" to use for saving data to file (e.g., :class:`SaveHDF`), etc. 
 
 Features should be added to the features module at the top-level of the bmi3d code. If the feature should also be selectable at runtime from the web interface, it should also be imported and added to featurelist.py. The dictionary 'features' contained within that file is used to populate the list of features selectable. Not every feature needs to be a selectable feature. Sometimes the functionality may be useful for factoring out common but requried code between different tasks. 
 
@@ -234,4 +269,3 @@ Features should be added to the features module at the top-level of the bmi3d co
     
     To keep cross-task code dependencies minimal, manage ``featurelist.py`` carefully. If you only populate it with features that you actively need, that will minimize interference from other features that you don't need. Including a feature which you don't actually need may cause unnecessary errors due to the import of code, even if you don't actually use the features in question
 
-:ref:`tasks`

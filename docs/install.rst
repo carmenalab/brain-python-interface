@@ -14,61 +14,6 @@ The software should reside at the path $HOME/code/bmi3d, where $HOME is your hom
 This will also clone the core software in the repository and put it in the appropriately named folder
 
 
-Setting up the operating system
--------------------------------
-The bmi3d software is written primarily in Python. It has
-primarily been tested in operation in Ubuntu linux, though some testing has been
-done for CentOS 6. Ubuntu is substantially easier to set up, and these instructions 
-are geared toward an Ubuntu setup. 
-
-If you are using the NI6503 card to send digital data, we recommend specifically
-using Ubuntu 12.04 LTS with kernel version 3.2.x-x. The version of
-Ubuntu may not be very important, but the specific kernel version 
-is important *if you are using the NI6503 card to send digital data*.
-If you are using an arduino microcontroller, you can skip this step. 
-
-The instructions below are intended for a clean install of Ubuntu. If 
-you do not do this on a clean installation, you must be careful with
-the instructions below, which actually remove later versions of the kernel.
-Although multiple versions of the kernel can coexist on the same system
-if you use a bootloader such as grub, we have chosen to keep only
-one version so as to avoid the possiblity in a deployment environment
-of accidentally rebooting the machine and using the wrong version.
-
-When installing Ubuntu, either create the installer with the correct
-kernel version (not sure exactly how to do this, but of course at some
-point the default installer was the version of the kernel we want) OR
-install any later version of the kernel and downgrade the image. Rough 
-instructions are below downgrade the kernel image::
-
-    sudo apt-get install linux-headers-3.2.0-60-generic
-    sudo apt-get install linux-image-3.2.0-60-generic
-    sudo apt-get remove --purge linux-image-3.11.0-*    
-    sudo apt-get remove --purge linux-headers-3.11.0-*
-    sudo apt-get install grub
-    
-    # Update the bootloader; a bootloader may not be strictly necessary..
-    sudo grub-mkconfig -o /boot/grub/grub.cfg
-    sudo update-grub
-
-These can also be found in the script $BMI3D/install/ubuntu_kernel_mod.sh.
-Of course if you install with a kernel version other than 3.11.0, make
-the appropriate replacement. You may have to run the purge commands more than
-once if apt-get decides to install another kernel version automatically when
-you remove the one you installed. 
-
-After checking in /boot/grub/grub.cfg that only kernel version 3.2.0-60 appears
-in the bootloader menu, restart the machine so that the kernel changes take
-effect. 
-
-Graphics
---------
-After downgrading the kernel on arc, the graphics are all messed up. The second monitor isn't detected and there's a weird border around the first screen. It seems like this has something to do with the kernel version change (i.e., the driver was kernel-version specific). So we do a::
-
-    sudo apt-get install nvidia-331
-
-where at the time of this writing, "331" was the latest stable version of the library available in the standard Ubuntu repository. At some point during the installation says it's "Building initial module for 3.2.0-60-generic". After installing, we reboot again. After reboot, the second monitor has things displayed on it again and everything looks normal!
-
 Library dependencies
 --------------------
 Many of the commands to execute below are available in the file $BMI3D/install/install.sh. It's highly recommended that you read through the instructions rather than blindly executing the script as every BMI rig will have its own slight differences
@@ -189,7 +134,7 @@ At this point, reboot so that changes can take effect (ssh server running, hardw
 
 Managing fstab
 --------------
-Entries in the fstab (file system table) detail information when you give the command 'mount $MOUNTPOINT', so that you don't have to specify all the permissions, etc. explicitly every time you issue the mount command. We add 3 entries to fstab::
+Entries in the fstab (file system table) detail information when you give the command ``mount $MOUNTPOINT``, so that you don't have to specify all the permissions, etc. explicitly every time you issue the mount command. We add 3 entries to fstab::
 
     /dev/sdb1 /storage        ext4    defaults 0       0
     //project.eecs.berkeley.edu/carmena /backup cifs noauto,username=sgowda,domain=EECS,sec=ntlmssp,uid=localuser,dir_mode=0777,file_mode=0777 0 0
@@ -200,6 +145,17 @@ The first specifies '/storage' as the mount-point for a second hard drive (/dev/
 The second specifies how to mount the offsite backup. In this case, the protocol is CIFS. 
 
 The third entry specifies how to mount the data directory of the neural recording PC (in our case, this is a Windows PC provided by plexon). You may wish to also assign a different IP address to the neural recording PC. This line also will not work until you set up DHCP in the next step
+
+rsync & crontab
+---------------
+rsync is a unix command-line utility which can synchronize two folders (including remote folders). This funcitonality is similar to how cloud storage services (like Dropbox) operate, but for a single user. An example rsync command::
+
+    rsync -rlt --partial /home/lab/code/bmi3d/db/db.sql /backup/exorig/db_exorig.sql
+    rsync -rlt --exclude=plexonlocal --exclude=video --partial /storage/ /backup/exorig/
+
+These two commands force ``/backup/exorig/db_exorig.sql`` to match the ``db.sql`` which is modified by the rig, and also to synchronize ``/storage`` with ``/backup``, where in our earlier modified ``/etc/fstab``, ``/backup`` is an off-site storage directory which we network mounted. 
+
+You can used the ``crontab`` utility to automatically run rsync commands at a certain time of the day, to make the synchronization automatic without human intervention. 
 
 
 Network configuration
@@ -288,6 +244,79 @@ This forwards port 8000 (for Django) to local port 43002 and port 22 (for ssh) t
 Then any subsequent ssh/scp commands can use 'nucleus_tunnel' in place of 'nucleus' and just work as if they were on the same local network as 'nucleus'. Similarly, you can remotely view the web interface by pointing your browser to localhost:43002
 
 
+
+
+Peripheral devices
+==================
+
+Testing the NIDAQ interface
+---------------------------
+.. note :: the NIDAQ card is deprecated!
+
+The NIDAQ card uses the 'comedi' device driver for linux, written in C. There is a wrapper for the library, pycomedi. Unfortunately we don't seem to have properly configured things, so initializing the device doesn't seem to work form python. Instead, the C version of the code must be used for initializing the device, after which the IO lanes can be read/written from python. 
+
+
+**Setting up the operating system**
+
+.. note :: This step is only if you are using the NI PCI 6503 card. If not, skip it! Or if you need a particular kernel version for a different reason, you should be able to adapt these instructions
+
+The bmi3d software is written primarily in Python. It has
+primarily been tested in operation in Ubuntu linux, though some testing has been
+done for CentOS 6. Ubuntu is substantially easier to set up, and these instructions 
+are geared toward an Ubuntu setup. 
+
+If you are using the NI6503 card to send digital data, we recommend specifically
+using Ubuntu 12.04 LTS with kernel version 3.2.x-x. The version of
+Ubuntu may not be very important, but the specific kernel version 
+is important *if you are using the NI6503 card to send digital data*.
+If you are using an arduino microcontroller, you can skip this step. 
+
+The instructions below are intended for a clean install of Ubuntu. If 
+you do not do this on a clean installation, you must be careful with
+the instructions below, which actually remove later versions of the kernel.
+Although multiple versions of the kernel can coexist on the same system
+if you use a bootloader such as grub, we have chosen to keep only
+one version so as to avoid the possiblity in a deployment environment
+of accidentally rebooting the machine and using the wrong version.
+
+When installing Ubuntu, either create the installer with the correct
+kernel version (not sure exactly how to do this, but of course at some
+point the default installer was the version of the kernel we want) OR
+install any later version of the kernel and downgrade the image. Rough 
+instructions are below downgrade the kernel image::
+
+    sudo apt-get install linux-headers-3.2.0-60-generic
+    sudo apt-get install linux-image-3.2.0-60-generic
+    sudo apt-get remove --purge linux-image-3.11.0-*    
+    sudo apt-get remove --purge linux-headers-3.11.0-*
+    sudo apt-get install grub
+    
+    # Update the bootloader; a bootloader may not be strictly necessary..
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+    sudo update-grub
+
+These can also be found in the script $BMI3D/install/ubuntu_kernel_mod.sh.
+Of course if you install with a kernel version other than 3.11.0, make
+the appropriate replacement. You may have to run the purge commands more than
+once if apt-get decides to install another kernel version automatically when
+you remove the one you installed. 
+
+After checking in /boot/grub/grub.cfg that only kernel version 3.2.0-60 appears
+in the bootloader menu, restart the machine so that the kernel changes take
+effect. 
+
+
+Renaming serial ports
+---------------------
+Certain peripheral devices make use of serial ports. Linux assigns somewhat random names to serial ports, which can change based on the order in which they're plugged in. This makes it annoying to write the name of the serial port in the code. 
+
+These instructions help automatically rename serial ports: http://hintshop.ludvig.co.nz/show/persistent-names-usb-serial-devices/
+
+
+Running the first tasks
+=======================
+
+
 Running the Django server for the first time
 --------------------------------------------
 First, for some reason the matplotlib configuration file directory appears to be owned by root when making these instructions. The Django software needs matplotlib for some reason, so we change ownership of the directorh $HOME/.matplotlib back to the user, which is what it should be anyway::
@@ -314,14 +343,10 @@ Running a simple task
 From the browser, start the visual_feedback_multi task. Make sure to check the 'autostart' and 'saveHDF' features (otherwise the task will not run), select the 'centerout_2D_discerete' generator from the Sequence menu, and select 'CursorPlant' in the arm_class. 
 
 
-Testing the NIDAQ interface
----------------------------
-The NIDAQ card uses the 'comedi' device driver for linux, written in C. There is a wrapper for the library, pycomedi. Unfortunately we don't seem to have properly configured things, so initializing the device doesn't seem to work form python. Instead, the C version of the code must be used for initializing the device, after which the IO lanes can be read/written from python. 
 
 
 
-Rsync
------
+
 
 
 
@@ -365,3 +390,15 @@ c.InteractiveShellApp.exec_lines = [
     "import numpy as np",
     "import matplotlib.pyplot as plt",
 ]
+
+
+
+Graphics
+--------
+.. note :: This step is only needed if (1) you have an nvidia graphics card and (2) the 3-D stereo graphics do not render properly. If they do render okay, then don't change the driver!
+
+After downgrading the kernel on arc, the graphics are all messed up. The second monitor isn't detected and there's a weird border around the first screen. It seems like this has something to do with the kernel version change (i.e., the driver was kernel-version specific). So we do a::
+
+    sudo apt-get install nvidia-331
+
+where at the time of this writing, "331" was the latest stable version of the library available in the standard Ubuntu repository. At some point during the installation says it's "Building initial module for 3.2.0-60-generic". After installing, we reboot again. After reboot, the second monitor has things displayed on it again and everything looks normal!
