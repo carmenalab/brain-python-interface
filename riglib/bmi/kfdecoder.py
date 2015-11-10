@@ -100,12 +100,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
         '''
         return self.C * state + self.obs_noise
 
-    def propagate_ssm(self):
-        '''
-        Run only SSM (no 'update' step)
-        '''
-        self.state = self.A*self.state
-
     def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, F=None, obs_is_control_independent=True, **kwargs):
         '''
         Estimate p(x_t | ..., y_{t-1}, y_t)
@@ -114,7 +108,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         ----------
         st : GaussianState
             Current estimate (mean and cov) of hidden state
-        obs_t : GaussianState
+        obs_t : np.mat of shape (N, 1)
              ARG_DESCR
         Bu : DATA_TYPE, optional, default=None
              ARG_DESCR
@@ -129,6 +123,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         Returns
         -------
+        GaussianState
+            New state estimate incorporating the most recent observation
 
         '''
         using_control_input = (Bu is not None) or (u is not None) or (x_target is not None)
@@ -424,13 +420,7 @@ class PCAKalmanFilter(KalmanFilter):
     '''
     def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, **kwargs):
         '''
-        Estimate p(x_t | ..., y_{t-1}, y_t)
-        Parameters
-        ----------
-
-        Returns
-        -------
-
+        See KalmanFilter._forward_infer for docs
         '''
         using_control_input = (Bu is not None) or (u is not None) or (target_state is not None)
         pred_state = self._ssm_pred(st, target_state=target_state, Bu=Bu, u=u)
@@ -464,197 +454,21 @@ class PCAKalmanFilter(KalmanFilter):
         return post_state
 
     def __getstate__(self):
+        '''
+        See KalmanFilter.__getstate__ for docs
+        '''
         data = super(PCAKalmanFilter, self).__getstate__()
         data['M'] = self.M
         data['pca_offset'] = self.pca_offset
         return data
 
     def __setstate__(self, state):
+        '''
+        See KalmanFilter.__setstate__ for docs
+        '''
         super(PCAKalmanFilter, self).__setstate__(state)
         self.M = state['M']
         self.pca_offset = state['pca_offset']        
-
-class MPCKalmanFilter(KalmanFilter):
-    '''
-    A modified Kalman filter where model predictive coding is used to try and predict the next observations.
-    '''
-    def _pickle_init(self):
-        super(MPCKalmanFilter, self)._pickle_init()
-        self.prev_obs = None
-        if not hasattr(self, 'Z'):
-            self.Z = np.linalg.pinv(self.Q)
-
-        if not hasattr(self, 'R'):
-            self.R = np.mat(np.diag(np.hstack([np.zeros(3), np.ones(3)*500, 0])))
-            #self.R = np.mat(np.diag(np.hstack([np.zeros(4), np.ones(4)*10000, 0])))
-        print self.R
-        # self.R[-1,-1] += 1000
-
-    def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
-        ''' Docstring
-        Run the "predict" step of the Kalman filter/HMM inference algorithm:
-            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
-
-        Parameters
-        ----------
-        state: GaussianState instance
-            State estimate and estimator covariance of current state
-        u: np.mat 
-        
-
-        Returns
-        -------
-        GaussianState instance
-            Represents the mean and estimator covariance of the new state estimate
-        '''
-        A = self.A
-
-        if self.prev_obs is not None:
-            y_ref = self.prev_obs
-            R = self.R
-            Z = self.Z
-            D = self.C_xpose_Q_inv_C
-            D[-1,:] = 0
-            D[:,-1] = 0
-            alpha = A*state
-            if not Bu is None:
-                alpha += Bu
-            
-            v = np.linalg.pinv(R + D)*(self.C_xpose_Q_inv*y_ref - D*alpha.mean)
-        else:
-            v = np.zeros_like(state.mean)
-
-        # print np.linalg.norm(v)
-        if Bu is not None:
-            return A*state + Bu + self.state_noise + v
-        elif u is not None:
-            Bu = self.B * u
-            return A*state + Bu + self.state_noise
-        elif target_state is not None:
-            B = self.B
-            F = self.F
-            return (A - B*F)*state + B*F*target_state + self.state_noise
-        else:
-            return A*state + self.state_noise
-
-    def _forward_infer(self, st, obs_t, **kwargs):
-        res = super(MPCKalmanFilter, self)._forward_infer(st, obs_t, **kwargs)
-        self.prev_obs = obs_t        
-        return res
-
-class OneStepMPCKalmanFilter(KalmanFilter):
-    '''
-    Use MPC with a horizon of 1 to predict 
-    '''
-    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv', 'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'E00', 'E01', 'r_scale']
-    def _pickle_init(self):
-        super(OneStepMPCKalmanFilter, self)._pickle_init()
-
-        self.prev_obs = None
-        if not hasattr(self, 'r_scale'):
-            self.r_scale = 200
-
-    def _ssm_pred(self, state, u=None, Bu=None, target_state=None):
-        ''' Docstring
-        Run the "predict" step of the Kalman filter/HMM inference algorithm:
-            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
-
-        Parameters
-        ----------
-        state: GaussianState instance
-            State estimate and estimator covariance of current state
-        u: np.mat 
-        
-
-        Returns
-        -------
-        GaussianState instance
-            Represents the mean and estimator covariance of the new state estimate
-        '''
-        A = self.A
-
-        if (self.prev_obs is not None) and (self.r_scale < np.inf):
-            y_ref = self.prev_obs
-            G = self.C_xpose_Q_inv
-            D = G * self.C
-            D[:,-1] = 0
-            D[-1,:] = 0
-
-            # Solve for R
-            R = self.r_scale*D
-            
-            alpha = A*state
-            v = np.linalg.pinv(R + D)*(G*y_ref - D*alpha.mean)
-        else:
-            v = np.zeros_like(state.mean)
-
-        if Bu is not None:
-            return A*state + Bu + self.state_noise + v
-        elif u is not None:
-            Bu = self.B * u
-            return A*state + Bu + self.state_noise + v
-        elif target_state is not None:
-            B = self.B
-            F = self.F
-            return (A - B*F)*state + B*F*target_state + self.state_noise + v
-        else:
-            return A*state + self.state_noise + v
-
-    def _forward_infer(self, st, obs_t, **kwargs):
-        res = super(OneStepMPCKalmanFilter, self)._forward_infer(st, obs_t, **kwargs)
-
-        # if not (self.prev_obs is None):
-        #     # Update the sufficient statistics for the R matrix
-        #     l = self.mpc_cost_step
-        #     self.E00 = l*self.E00 + (1-l)*(self.prev_obs - self.C*self.A*st.mean)*(self.prev_obs - self.C*self.A*st.mean).T
-        #     self.E01 = l*self.E01 + (1-l)*(self.prev_obs - self.C*self.A*st.mean)*(obs_t - self.C*self.A*st.mean).T
-
-        self.prev_obs = obs_t
-        return res    
-
-
-class OneStepMPCKalmanFilterCovFb(OneStepMPCKalmanFilter):
-    def _ssm_pred(self, state, **kwargs):
-        ''' Docstring
-        Run the "predict" step of the Kalman filter/HMM inference algorithm:
-            x_{t+1|t} = N(Ax_{t|t}, AP_{t|t}A.T + W)
-
-        Parameters
-        ----------
-        state: GaussianState instance
-            State estimate and estimator covariance of current state
-        u: np.mat 
-        
-
-        Returns
-        -------
-        GaussianState instance
-            Represents the mean and estimator covariance of the new state estimate
-        '''
-        A = self.A
-        from bmi import GaussianState
-        if (self.prev_obs is not None) and (self.r_scale < np.inf):
-            y_ref = self.prev_obs
-            G = self.C_xpose_Q_inv
-            D = G * self.C
-            D[:,-1] = 0
-            D[-1,:] = 0
-
-            # Solve for R
-            R = self.r_scale*D
-            
-            alpha = A*state
-            v = np.linalg.pinv(R + D)*(G*y_ref - D*alpha.mean)
-            I = np.mat(np.eye(D.shape[0]))
-            C = self.C
-            A = (I - G*C) * self.A
-            mean = A*state.mean + G*y_ref
-            cov = A*state.cov*A.T + self.W
-
-            return GaussianState(mean, cov)
-        else:
-            return A*state + self.state_noise
-            # v = np.zeros_like(state.mean)
 
 
 class KFDecoder(bmi.BMI, bmi.Decoder):

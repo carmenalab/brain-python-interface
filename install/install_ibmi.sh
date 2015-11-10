@@ -172,8 +172,8 @@ if [ ! -f "/usr/lib/libhdf5.so" ]; then
     tar zxvf hdf5-1.8.13.tar.gz
     cd hdf5-1.8.13
     ./configure --prefix=/usr
-    sudo make
-    sudo make check
+    make
+    make check
     sudo make install
     sudo make check-install
 fi
