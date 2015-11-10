@@ -1,5 +1,5 @@
 '''
-HTML rendering 'view' functions for Django web interface
+HTML rendering 'view' functions for Django web interface. Retreive data from database to put into HTML format.
 '''
 
 import json
@@ -60,7 +60,9 @@ def list(request):
         bmi_algorithms=namelist.bmi_algorithms,
         extractors=namelist.extractors,
         default_extractor=namelist.default_extractor,
-        pos_vars=namelist.bmi_training_pos_vars,
+        # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
+        pos_vars=namelist.bmi_training_pos_vars, 
+        # post-processing methods on the selected kinematic variable
         kin_extractors=namelist.kin_extractors,
     )
     if exp_tracker.task_proxy is not None:

@@ -1,5 +1,6 @@
 '''
 Methods for remotely interacting with the sqlite3 database using remote procedure call (RPC)
+For example, linking HDF file to a particular task entry.
 '''
 
 import os
