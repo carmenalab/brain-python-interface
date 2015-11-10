@@ -3,6 +3,7 @@
 <head>
 <title>Task Entries</title>
 
+
 <link rel="stylesheet" type="text/css" href="{{STATIC_PREFIX}}resources/css/list.css" />
 <link rel="stylesheet" type="text/css" href="{{STATIC_PREFIX}}resources/css/bmi.css" />
 <link rel='stylesheet' type='text/css' href="{{STATIC_PREFIX}}resources/css/jquery-ui.css" />
@@ -38,8 +39,11 @@
 	})
 </script>
 </head>
+
 <body>
-	<div id='leftpane' style="direction:rtl;">
+	<div id='leftpane' style="direction">
+		{{ n_blocks }} saved task entry records shown below
+        <hr>
 		<table id='main' style="direction:ltr;">
 			<thead>
 			<tr><th class='colDate'>Date</th><th class='colSubj'>Who</th><th class='colTask'>Task</th></tr>
