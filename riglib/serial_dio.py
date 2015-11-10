@@ -5,6 +5,7 @@ import serial
 from collections import defaultdict
 import struct
 from numpy import binary_repr
+from dio.parse import MSG_TYPE_ROWBYTE, MSG_TYPE_REGISTER
 
 
 def construct_word(aux, msg_type, data, n_bits_data=8, n_bits_msg_type=3):
@@ -69,6 +70,12 @@ class SendRowByte(object):
             raise Exception("This currently only works for one system!")
 
         print "Arduino register %s" % system, self.systems[system]
+        for sys_name_chr in system:
+            reg_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, ord(sys_name_chr))
+            self._send_data_word_to_serial_port(reg_word)
+
+        null_term_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, 0) # data payload is 0 for null terminator
+        self._send_data_word_to_serial_port(null_term_word)
 
     def sendMsg(self, msg):
         '''
@@ -110,11 +117,16 @@ class SendRowByte(object):
         current_sys_rowcount = self.rowcount[system]
         self.rowcount[system] += 1
 
-        # construct the data packet        
-        msg_type = 5
-        word = construct_word(self.systems[system], msg_type, current_sys_rowcount % 256)
+        # construct the data packet
+        word = construct_word(self.systems[system], MSG_TYPE_ROWBYTE, current_sys_rowcount % 256)
+        self._send_data_word_to_serial_port(word)
         
-        verbose = 0
+        # if verbose:
+        #     print binary_repr(word, 16)
+        # word_str = 'd' + struct.pack('<H', word)
+        # self.port.write(word_str)
+
+    def _send_data_word_to_serial_port(self, word, verbose=False):
         if verbose:
             print binary_repr(word, 16)
         word_str = 'd' + struct.pack('<H', word)
