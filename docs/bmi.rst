@@ -14,8 +14,8 @@ In our BMI architecture, we enforce a separation between the "decoder" and the "
 
 The major sub-components of the BMILoop are:
 
-**Feature extractor**
-This first step in the loop processes "raw" data from the neural recording system (e.g., spikes, field potentials). Features extracted are typically simple features (number of event counts for spikes, bands in a set of frequency bands for LFP). Feature extractor classes are located in ``riglib.bmi.extractor``. The extractor class and configuration parameters are stored in the Decoder object as decoders are seeded/calibrated for a particular type of feature extractor (``extractor_cls`` and ``extractor_kwargs`` attributes)
+:doc:`extractor`
+This first step in the loop processes "raw" data from the neural recording system (e.g., spikes, field potentials). Features extracted are typically simple features (number of event counts for spikes, bands in a set of frequency bands for LFP). Feature extractor classes are located in ``riglib.bmi.extractor``. The extractor class and configuration parameters are stored in the Decoder object as decoders are seeded/calibrated for a particular type of feature extractor (``extractor_cls`` and ``extractor_kwargs`` attributes).
 
 **Feature accumulator**
 (Note: the formalism for this module is still in progress!)
