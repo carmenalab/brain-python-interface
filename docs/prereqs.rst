@@ -202,4 +202,38 @@ Some clues on the more tricky/magical aspects of the code
 
 
 * @property decorator
+
 * keyword arguments
+
+    Keyword arguments in python are arguments which can be indexed by name. (Standard function call arguments are, by contrast, positional arguments). An example::
+
+        In [2]: def fn(a=1, b=2):
+           ...:         print a, b
+           ...:     
+
+        In [3]: fn()
+        1 2
+
+        In [4]: fn(a=3)
+        3 2
+
+        In [5]: fn(b=4)
+        1 4
+
+        In [6]: fn(b=3, a=6)
+        6 3
+
+    Keyword arguments let you specify function arguments in an order-independent manner, so you don't have to remember the exact order of arguments all the time. In addition, they let you supply default values for arguments so not every function call needs to explicitly list out all the arguments, to avoid repetition. Sometimes it's useful for a function to not specify an exhaustive list of keyword arguments it expects. For example::
+
+        In [7]: def fn2(a=1, b=2, **kwargs):
+           ...:     print a, b
+           ...:     print kwargs
+           ...:     
+
+        In [8]: fn2(a=1, b=2, c=3)
+        1 2
+        {'c': 3}
+
+    We gave an extra keyword argument ``c`` which was not used by the function. As shown by the output of the function call, this gets packed into a dictionary ``kwargs``. 
+
+    This can be useful if you want to just pass all the extra keyword arguments to another function, without needing to explicitly name them in the top-level function. 
