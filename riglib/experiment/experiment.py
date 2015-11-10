@@ -90,6 +90,9 @@ class Experiment(traits.HasTraits, threading.Thread):
     # Set the initial state to 'wait'. The 'wait' state has special behavior for the Sequence class (see below)
     state = "wait"
 
+    # Flag to indicate that the task object has not been constructed or initialized
+    _task_init_complete = False
+
     # Flag to set in order to stop the FSM gracefully
     stop = False
 
@@ -277,6 +280,8 @@ class Experiment(traits.HasTraits, threading.Thread):
         except:
             traceback.print_exc()            
             raise Exception("Error registering task source")
+
+        self._task_init_complete = True
 
     def add_dtype(self, name, dtype, shape):
         '''

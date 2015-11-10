@@ -71,14 +71,14 @@ python $MANAGER runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
 python $MANAGER celery worker &
 CELERY=$!
-python $MANAGER celery flower --address=0.0.0.0 &
-FLOWER=$!
+#python $MANAGER celery flower --address=0.0.0.0 &
+#FLOWER=$!
 
 # Define what happens when you hit control-C
 function ctrl_c() {
 	kill -9 $DJANGO
 	kill $CELERY
-	kill $FLOWER
+	#kill $FLOWER
     kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
 	# kill -9 `ps -C 'python manage.py' -o pid --no-headers`
 }
@@ -86,4 +86,4 @@ function ctrl_c() {
 # Run until the PID stored in $DJANGO is dead
 wait $DJANGO
 kill $CELERY
-kill $FLOWER
+#kill $FLOWER
