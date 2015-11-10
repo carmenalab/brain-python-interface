@@ -20,9 +20,9 @@ class BrainAmpData(traits.HasTraits):
         from riglib import source
         from riglib.brainamp import rda
 
-        self.brainamp_channels = settings.BRAINAMP_CHANNELS
+        #self.brainamp_channels = settings.BRAINAMP_CHANNELS
         self.brainamp_source = source.MultiChanDataSource(rda.EMGData, 
-            name='brainamp', channels=self.brainamp_channels, send_data_to_sink_manager=True)
+            name='brainamp', channels=self.brainamp_channels, brainamp_channels=self.brainamp_channels, send_data_to_sink_manager=True)
 
         from riglib import sink
         sink.sinks.register(self.brainamp_source)

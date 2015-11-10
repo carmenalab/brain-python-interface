@@ -879,12 +879,24 @@ class DataFile(models.Model):
         Get the full path to the file
         '''
         if not check_archive and not self.archived:
+            text_file = open("path.txt", "w")
+            text_file.write("path: %s" % os.path.join(self.system.path, self.path))
+            text_file.close()
             return os.path.join(self.system.path, self.path)
-
+        text_file2 = open("self.archive.txt", "w")
+        text_file2.write("self.archive: %s" % self.archive)
+        text_file2.close()
+        
         paths = self.system.archive.split()
+        text_file2 = open("paths.txt", "w")
+        text_file2.write("paths: %s" % paths)
+        text_file2.close()
         for path in paths:
             fname = os.path.join(path, self.path)
             if os.path.isfile(fname):
+                text_file3 = open("fname.txt", "w")
+                text_file3.write("fname: %s" % fname)
+                text_file3.close()
                 return fname
 
         raise IOError('File has been lost! '+fname)
