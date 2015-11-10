@@ -237,7 +237,7 @@ class DataSource(mp.Process):
             Datatype of record array is the dtype of the DataSourceSystem
         '''
         if self.status.value <= 0:
-            raise Exception('Error starting datasource ' + self.name)
+            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
             
         self.lock.acquire()
         i = (self.idx.value % self.max_len) * self.slice_size
@@ -270,7 +270,7 @@ class DataSource(mp.Process):
         Read the last n_pts out of the buffer? Not sure how this is different from .get, and it doesn't appear to be used in any existing code....
         '''
         if self.status.value <= 0:
-            raise Exception('Error starting datasource ' + self.name)
+            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
             
         self.lock.acquire()
         idx = self.idx.value % self.max_len 
@@ -553,7 +553,7 @@ class MultiChanDataSource(mp.Process):
             Datatype of each record array is the dtype of the DataSourceSystem
         '''
         if self.status.value <= 0:
-            raise Exception('Error starting datasource ' + self.name)
+            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
 
         self.lock.acquire()
         
@@ -601,7 +601,7 @@ class MultiChanDataSource(mp.Process):
             Datatype of each record array is the dtype of the DataSourceSystem        
         '''
         if self.status.value <= 0:
-            raise Exception('Error starting datasource ' + self.name)
+            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
 
         self.lock.acquire()
         
