@@ -272,7 +272,8 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
        tmask, rows = _get_tmask_blackrock_fake(files['hdf'], tslice)
     else:
         nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
-        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]]) 
+        #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]]) 
+        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, sys_name=source) 
     neurows = rows[tmask]
 
     neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs, strobe_rate=strobe_rate)
@@ -343,7 +344,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
     -------
     '''
     if pos_key == 'plant_pos':  # used for ibmi tasks
-        vel_key == 'plant_vel'
+        vel_key = 'plant_vel'
 
     hdf = tables.openFile(files['hdf'])    
     kin = hdf.root.task[:][pos_key]

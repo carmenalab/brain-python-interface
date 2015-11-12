@@ -92,10 +92,13 @@ def registrations(data):
     idx = msgtype == MSG_TYPE_REGISTER #data[:,1] == MSG_TYPE_REGISTER 
     shape_idx = msgtype == MSG_TYPE_REGISTER_SHAPE #data[:,1] == MSG_TYPE_REGISTER_SHAPE 
 
-    regsysid = auxdata[idx] #data[idx][:,2]
-    regshapeid = auxdata[shape_idx] #data[shape_idx][:,2]
+    regsysid = auxdata[idx] #data[idx][:,2] #should have more than
+    #one value for more than one registration
 
+
+    regshapeid = auxdata[shape_idx] #data[shape_idx][:,2]
     names = rawdata[idx] #data[idx][:,3].astype(np.uint8)
+    
     dtype_data = rawdata[shape_idx]
 
     systems = dict()
