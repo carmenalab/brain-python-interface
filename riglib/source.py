@@ -14,6 +14,7 @@ import ctypes
 
 import numpy as np
 
+
 class FuncProxy(object):
     '''
     Interface for calling functions in remote processes. Similar to tasktrack.FuncProxy.
@@ -354,7 +355,7 @@ class MultiChanDataSource(mp.Process):
         name: string, optional, default=None
             Name of the sink, i.e., HDF table. If one is not provided, it will be inferred based
             on the name of the source module
-        send_data_to_sink_manager: boolean, optional, default=True
+        send_data_to_sink_manager: boolean, optional, default=False
             Flag to indicate whether data should be saved to a sink (e.g., HDF file)            
         kwargs: dict, optional, default = {}
             For the multi-channel data source, you MUST specify a 'channels' keyword argument
@@ -374,6 +375,7 @@ class MultiChanDataSource(mp.Process):
         self.max_len = int(bufferlen * self.source.update_freq)
         
         self.channels = kwargs['channels']
+        
         self.chan_to_row = dict()
         for row, chan in enumerate(self.channels):
             self.chan_to_row[chan] = row
@@ -399,6 +401,7 @@ class MultiChanDataSource(mp.Process):
             self.send_to_sinks_dtype = np.dtype([('chan'+str(chan), dtype) for chan in kwargs['channels']])
             self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros/Falses by default
+
 
     def start(self, *args, **kwargs):
         '''
@@ -555,8 +558,8 @@ class MultiChanDataSource(mp.Process):
         if self.status.value <= 0:
             raise Exception('Error starting datasource ' + self.name)
 
-        self.lock.acquire()
-        
+        self.lock.acquire()   
+   
         # these channels must be a subset of the channels passed into __init__
         n_chan = len(channels)
         data = np.zeros((n_chan, n_pts), dtype=self.source.dtype)

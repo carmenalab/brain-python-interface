@@ -293,7 +293,9 @@ class EMGData(object):
                             filtered_data[k]['data'] =  filt(filtered_data[k]['data'] )
                                 
                     else:
-                        pass #apply filters for eeg. To be implemented      
+                        for filt in self.channel_filterbank_eeg[k]:
+                            filtered_data[k]['data'] =  filt(filtered_data[k]['data'] )
+                        #apply filters for eeg. To be implemented      
                 
                 datafilt['data'] = np.vstack([data['data'], filtered_data['data']])
                     
