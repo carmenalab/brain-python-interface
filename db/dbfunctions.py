@@ -429,6 +429,9 @@ class TaskEntry(object):
                     import traceback
                     traceback.print_exc()
 
+                if isinstance(value, list):
+                    self.params[key] = tuple(value)
+
         self.date = self.record.date
 
         ## Extract a date month-day-year date for determining if other blocks were on the same day

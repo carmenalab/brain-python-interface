@@ -17,9 +17,14 @@ import trainbmi
 urlpatterns = patterns('',
 	(r'^$', 'tracker.views.list'),
     (r'^all/$', 'tracker.views.listall'),
-    (r'^listdb/(?P<dbname>.+?)/ajax/exp_info/(?P<idx>\d+)/', 'tracker.ajax.exp_info'),    
-    (r'^listdb/(?P<dbname>.+?)/ajax/task_info/(?P<idx>\d+)/', 'tracker.ajax.task_info'),    
+    (r'^listdb/(?P<dbname>.+?)/.*?/ajax/exp_info/(?P<idx>\d+)/', 'tracker.ajax.exp_info'),    
+    (r'^listdb/(?P<dbname>.+?)/.*?/ajax/task_info/(?P<idx>\d+)/', 'tracker.ajax.task_info'),    
+    
+    
+    (r'^listdb/(?P<dbname>.+?)/(?P<subject>.+?)/(?P<task>.+?)$', 'tracker.views.listdb'),
+    (r'^listdb/(?P<dbname>.+?)/(?P<subject>.+?)$', 'tracker.views.listdb'),
     (r'^listdb/(?P<dbname>.+?)/$', 'tracker.views.listdb'),
+
     (r'^ajax/task_info/(?P<idx>\d+)/', "tracker.ajax.task_info"),
     (r'^ajax/exp_info/(?P<idx>\d+)/', 'tracker.ajax.exp_info'),
     (r'^ajax/hide_entry/(?P<idx>\d+)/', 'tracker.ajax.hide_entry'),    

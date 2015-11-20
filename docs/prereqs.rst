@@ -33,25 +33,56 @@ In experiments with many peripheral devices, data must be acquired and logged as
 
 This is a decent introduction to multiprocessing: https://pymotw.com/2/multiprocessing/basics.html
 
-Here's a simple python example that doesn't work::
+Here's a simple python example::
 
-    # Test case for CLDARecomputeParameters, to show non-blocking properties
-    # of the recomputation
-    work_queue = mp.Queue()
-    result_queue = mp.Queue()
+    import multiprocessing as mp
+    import time
 
-    work_queue.put((None, None, None))
+    #### Version 1: single-threaded
+    def target_fn():
+        time.sleep(2) # simulate thinkin
+        print "TARGET FUNCTION: done computing answer"
+        return "answer"
 
-    clda_worker = CLDARecomputeParameters(work_queue, result_queue)
-    clda_worker.start()
-
-    while 1:
-        try:
-            result = result_queue.get_nowait()
-            break
-        except:
-            print 'stuff'
+    t_start = time.time()
+    print "Single-process version"
+    target_fn()
+    for k in range(30):
+        print "fake event loop, index %d, time since start of loop: %g" % (k, time.time() - t_start)
         time.sleep(0.1)
+
+    print "\n\n\n\n\n\n"
+
+    #### Version 2: multi-threaded
+    t_start = time.time()
+    print "Multi-process version"
+    proc = mp.Process(target=target_fn)
+    proc.start()
+    for k in range(30):
+        print "fake event loop, index %d, time since start of loop: %g" % (k, time.time() - t_start)
+        time.sleep(0.1)
+
+
+    print "\n\n\n\n\n\n"
+
+    #### Version 3: multi-threaded, alternate implementation
+    class TargetClass(mp.Process):
+        def run(self):
+            target_fn()
+
+    t_start = time.time()
+    print "Multi-process version"
+    p = TargetClass()
+    p.start()
+    for k in range(30):
+        print "fake event loop, index %d, time since start of loop: %g" % (k, time.time() - t_start)
+        time.sleep(0.1)
+
+In the first single-threaded example, note that the whole loop is stalled until ``target_fn`` finishes running. In the multi-process version, the event loop runs at roughly the time one expects and ``target_fn`` emits its answer once it's done, without stalling any of the other things that might be happening in the event loop.
+
+The third version is actually the same as the second. It just looks a bit more object-oriented, but as you can tell from the output, it accomplishes the same functionality. 
+
+NOTE: similar functionality can be accompished with threads.
 
 Database integration with Django
 --------------------------------
@@ -62,7 +93,7 @@ Helpful python hints
 ====================
 Some clues on the more tricky/magical aspects of the code
 
-* ``getattr``
+* ``getattr`` and ``setattr``
     If you have an object ``obj`` with attribute ``param``, the two lines below are equivalent::
         
         In [3]: class TestClass(object):
@@ -79,3 +110,130 @@ Some clues on the more tricky/magical aspects of the code
         Out[6]: 'value'
 
     The second one allows you to get an attribute of an object by specifying a string name. This can be useful in selecting which attribute of the object you want on the fly.  
+
+* Making python modules
+
+    Putting a ``__init__.py`` into a folder makes a module. Why is it sometimes necessary to make modules? Consider the following example::
+
+        In [1]: pwd
+        Out[1]: u'/Users/sgowda/code/bmi3d'
+
+        In [2]: ls docs
+        ...
+        create_docstring.py             
+        ...
+
+        In [3]: from docs import create_docstring
+        ---------------------------------------------------------------------------
+        ImportError                               Traceback (most recent call last)
+        <ipython-input-3-01a5608ea874> in <module>()
+        ----> 1 from docs import create_docstring
+
+        ImportError: No module named docs
+
+    We tried to import the python file ``create_docstring.py``, which ``ipython`` can clearly see, but the import doesn't work! Putting an empty ``__init__.py`` in the docs directory tells python to treat the directory as a module and allows us to import a sub-module from inside the module. 
+
+* Variable unpacking
+
+    In the great "MATLAB vs Python" debate, one point clearly in the python column is its ability to deal with variable unpacking:
+
+        In [1]: a, b, c = (1, 2, 3)
+
+        In [2]: a
+        Out[2]: 1
+
+        In [3]: b
+        Out[3]: 2
+
+        In [4]: c
+        Out[4]: 3
+
+    This works in a variety of cases. For example, you can simultaneously iterate over two variables::
+
+        In [5]: data = [(1, 10), (2, 20), (3, 30), (4, 40)]
+
+        In [6]: for x, y in data:
+           ...:     print x + y
+           ...:     
+        11
+        22
+        33
+        44
+
+    This also works for multiple output arguments from a function::
+
+        In [7]: def fn():
+           ...:     return 1, 3, 4
+           ...: 
+
+        In [8]: resp = fn()
+
+        In [9]: resp
+        Out[9]: (1, 3, 4)
+
+        In [10]: a, b, c = fn()
+
+        In [11]: a
+        Out[11]: 1
+
+        In [12]: b
+        Out[12]: 3
+
+        In [13]: c
+        Out[13]: 4    
+
+    One odd corner case to keep in mind is what happens when you return one argument but you try to return multiple arguments::
+
+        In [14]: def fn2():
+           ....:     return (1,)
+           ....: 
+
+        In [15]: resp = fn2()
+
+        In [16]: resp
+        Out[16]: (1,)
+
+        In [17]: a, = fn2() # note the comma!
+
+        In [18]: a
+        Out[18]: 1
+
+    Unlike in MATLAB, a length-1 object is NOT automatically demoted to a scalar in python
+
+
+* @property decorator
+
+* keyword arguments
+
+    Keyword arguments in python are arguments which can be indexed by name. (Standard function call arguments are, by contrast, positional arguments). An example::
+
+        In [2]: def fn(a=1, b=2):
+           ...:         print a, b
+           ...:     
+
+        In [3]: fn()
+        1 2
+
+        In [4]: fn(a=3)
+        3 2
+
+        In [5]: fn(b=4)
+        1 4
+
+        In [6]: fn(b=3, a=6)
+        6 3
+
+    Keyword arguments let you specify function arguments in an order-independent manner, so you don't have to remember the exact order of arguments all the time. In addition, they let you supply default values for arguments so not every function call needs to explicitly list out all the arguments, to avoid repetition. Sometimes it's useful for a function to not specify an exhaustive list of keyword arguments it expects. For example::
+
+        In [7]: def fn2(a=1, b=2, **kwargs):
+           ...:     print a, b
+           ...:     print kwargs
+           ...:     
+
+        In [8]: fn2(a=1, b=2, c=3)
+        1 2
+        {'c': 3}
+
+    We gave an extra keyword argument ``c`` which was not used by the function. As shown by the output of the function call, this gets packed into a dictionary ``kwargs``. 
+
+    This can be useful if you want to just pass all the extra keyword arguments to another function, without needing to explicitly name them in the top-level function. 

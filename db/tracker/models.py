@@ -766,16 +766,25 @@ class Decoder(models.Model):
 
     def to_json(self):
         dec = self.get()
-        if dec is None:
-            return dict(name=self.name, path=self.path)
-        else:
-            return dict(
-                name=self.name,
-                cls=dec.__class__.__name__,
-                path=self.path, 
-                units=dec.units,
-                binlen=dec.binlen,
-                tslice=dec.tslice)
+        decoder_data = dict(name=self.name, path=self.path)
+        if not (dec is None):
+            decoder_data['cls'] = dec.__class__.__name__,
+            if hasattr(dec, 'units'):
+                decoder_data['units'] = dec.units
+            else:
+                decoder_data['units'] = []
+
+            if hasattr(dec, 'binlen'):
+                decoder_data['binlen'] = dec.binlen
+            else:
+                decoder_data['binlen'] = 0
+
+            if hasattr(dec, 'tslice'):
+                decoder_data['tslice'] = dec.tslice
+            else:
+                decoder_data['tslice'] = []
+
+        return decoder_data
 
 def parse_blackrock_file(nev_fname, nsx_files):
     '''

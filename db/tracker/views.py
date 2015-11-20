@@ -1,5 +1,5 @@
 '''
-HTML rendering 'view' functions for Django web interface
+HTML rendering 'view' functions for Django web interface. Retreive data from database to put into HTML format.
 '''
 
 import json
@@ -60,8 +60,11 @@ def list(request):
         bmi_algorithms=namelist.bmi_algorithms,
         extractors=namelist.extractors,
         default_extractor=namelist.default_extractor,
-        pos_vars=namelist.bmi_training_pos_vars,
+        # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
+        pos_vars=namelist.bmi_training_pos_vars, 
+        # post-processing methods on the selected kinematic variable
         kin_extractors=namelist.kin_extractors,
+        n_blocks=len(entries),
     )
     if exp_tracker.task_proxy is not None:
         fields['running'] = exp_tracker.task_proxy.saveid
@@ -104,12 +107,13 @@ def listall(request):
         extractors=namelist.extractors,
         default_extractor=namelist.default_extractor,
         pos_vars=namelist.bmi_training_pos_vars,
+        n_blocks=len(entries),
     )
     if exp_tracker.task_proxy is not None:
         fields['running'] = exp_tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
-def listdb(request, dbname='default'):
+def listdb(request, dbname='default', subject=None, task=None):
     '''
     Top-level view called when browser pointed at WEBROOT/dbname/DBNAME, 
     to list the task entries in a particular database
@@ -123,19 +127,16 @@ def listdb(request, dbname='default'):
     -------
     Django HTTPResponse instance
     '''
-    entries = TaskEntry.objects.using(dbname).filter(visible=True).order_by("-date")
+    filter_kwargs = dict(visible=True)
+    if not (subject is None) and isinstance(subject, (str, unicode)):
+        filter_kwargs['subject__name'] = subject
+    if not (task is None) and isinstance(task, (str, unicode)):
+        filter_kwargs['task__name'] = task
 
-    epoch = datetime.datetime.utcfromtimestamp(0)
-    # dates = [entry.date - epoch for entry in entries]
-    last_tdiff = entries[0].date - epoch
-    colors = ['#E1EEf4', '#FFFFFF']
-    color_idx = 0
-    for entry in entries:
-        tdiff = entry.date - epoch
-        if not (tdiff.days == last_tdiff.days):
-            color_idx = (color_idx + 1) % 2
-            last_tdiff = tdiff
-        entry.bgcolor = colors[color_idx]
+    print filter_kwargs
+
+    entries = TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
+    _color_entries(entries)
 
     fields = dict(
         entries=entries, 
@@ -150,11 +151,25 @@ def listdb(request, dbname='default'):
         extractors=namelist.extractors,
         default_extractor=namelist.default_extractor,
         pos_vars=namelist.bmi_training_pos_vars,
+        n_blocks=len(entries),
     )
     if exp_tracker.task_proxy is not None:
         fields['running'] = exp_tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
+
+def _color_entries(entries):
+    epoch = datetime.datetime.utcfromtimestamp(0)
+    
+    last_tdiff = entries[0].date - epoch
+    colors = ['#E1EEf4', '#FFFFFF']
+    color_idx = 0
+    for entry in entries:
+        tdiff = entry.date - epoch
+        if not (tdiff.days == last_tdiff.days):
+            color_idx = (color_idx + 1) % 2
+            last_tdiff = tdiff
+        entry.bgcolor = colors[color_idx]
 
 
 def get_sequence(request, idx):

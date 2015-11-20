@@ -9,7 +9,7 @@ Welcome to BMI3D's documentation!
 Setting up the rig:
 
 ..  toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
     install
 
