@@ -42,7 +42,14 @@ class BrainAmpData(traits.HasTraits):
         finally:
             self.brainamp_source.stop()
 
-    
+    def _start_wait(self):
+        while 1:
+            last_ts_arrival = self.last_brainamp_data_ts_arrival()
+            if not last_ts_arrival == 0:
+                break
+            time.sleep(0.005)
+
+        super(BrainAmpData, self)._start_wait()
             
     def _cycle(self):
         if settings.VERIFY_BRAINAMP_DATA_ARRIVAL:
