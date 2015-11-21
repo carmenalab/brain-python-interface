@@ -391,6 +391,7 @@ class MultiChanDataSource(mp.Process):
         self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1)
         self.stream = mp.Event()
+        self.data_has_arrived = mp.Value('b', 0)
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
 
@@ -497,6 +498,9 @@ class MultiChanDataSource(mp.Process):
                             self.idxs[row] = idx
 
                         self.lock.release()
+
+                        # Set the flag indicating that data has arrived from the source
+                        self.data_has_arrived.value = 1
                     except Exception as e:
                         print e
 
@@ -635,6 +639,11 @@ class MultiChanDataSource(mp.Process):
         Used to toggle the 'streaming' variable in the remote "run" process 
         '''
         self.stream.set()
+
+    def check_if_data_has_arrived(self):
+        '''
+        '''
+        return self.data_has_arrived.value
 
     def stop(self):
         '''
