@@ -11,7 +11,6 @@ import binascii
 import threading
 import cStringIO
 import traceback
-from config import config
 
 
 import serial
@@ -60,6 +59,7 @@ class Basic(object):
         Basic instance
         '''
         self.port = serial.Serial('/dev/crist_reward', baudrate=38400)
+        from config import config
         self.version = int(config.reward_sys['version'])
         if self.version==1: self.set_beeper_volume(128)
         time.sleep(.5)
