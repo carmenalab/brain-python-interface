@@ -157,7 +157,7 @@ class EMGData(object):
         for b, a in self.notchf_coeffs:
             self.notch_filters.append(Filter(b=b, a=a))
 
-        channelCount = len(settings.BRAINAMP_CHANNELS)
+        channelCount = len(self.channels)/2
         self.channel_filterbank_emg = [None]*channelCount
         for k in range(channelCount):
             filts = [Filter(self.bpf_coeffs[0], self.bpf_coeffs[1])]
@@ -293,9 +293,11 @@ class EMGData(object):
                             filtered_data[k]['data'] =  filt(filtered_data[k]['data'] )
                                 
                     else:
-                        for filt in self.channel_filterbank_eeg[k]:
-                            filtered_data[k]['data'] =  filt(filtered_data[k]['data'] )
+                        # for filt in self.channel_filterbank_eeg[k]:
+                        #     print self.channel_filterbank_eeg[k]
+                        #     filtered_data[k]['data'] =  filt(filtered_data[k]['data'] )
                         #apply filters for eeg. To be implemented      
+                        pass
                 
                 datafilt['data'] = np.vstack([data['data'], filtered_data['data']])
                     
