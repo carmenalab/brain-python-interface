@@ -53,13 +53,13 @@ class KalmanFilter(bmi.GaussianStateHMM):
             self.Q = np.mat(Q)
 
             if is_stochastic == None:
-                n_states = A.shape[0]
+                n_states = self.A.shape[0]
                 self.is_stochastic = np.ones(n_states, dtype=bool)
             else:
                 self.is_stochastic = is_stochastic
             
-            self.state_noise = bmi.GaussianState(0.0, W)
-            self.obs_noise = bmi.GaussianState(0.0, Q)
+            self.state_noise = bmi.GaussianState(0.0, self.W)
+            self.obs_noise = bmi.GaussianState(0.0, self.Q)
             self._pickle_init()
 
     def _pickle_init(self):
