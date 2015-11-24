@@ -198,7 +198,8 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
                 return self._data_files
             
             start = self.event_log[-1][2]
-            files = "/storage/plexon/*.plx"
+            #files = "/storage/plexon/*.plx"
+            files = "/storage/plexon/test*.plx" #Only use files that have not yet been renamed
             files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
             
             if len(files) > 0:
