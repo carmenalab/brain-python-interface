@@ -58,8 +58,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
             else:
                 self.is_stochastic = is_stochastic
             
-            self.state_noise = bmi.GaussianState(0.0, W)
-            self.obs_noise = bmi.GaussianState(0.0, Q)
+            self.state_noise = bmi.GaussianState(0.0, self.W)
+            self.obs_noise = bmi.GaussianState(0.0, self.Q)
             self._pickle_init()
 
     def _pickle_init(self):

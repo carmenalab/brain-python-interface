@@ -46,8 +46,8 @@ def sys_eq(sys1, sys2):
     return sys1 in [sys2, sys2[1:]]
 
 
-FAKE_BLACKROCK_TMASK = True
-# FAKE_BLACKROCK_TMASK = False
+#FAKE_BLACKROCK_TMASK = True
+FAKE_BLACKROCK_TMASK = False
 
 ########################################
 ## Neural data synchronization functions
@@ -157,13 +157,12 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
 
     # get system registrations
     reg = parse.registrations(data)
-
     syskey = None
 
     for key, system in reg.items():
-        if sys_eq(system[0], sys_name):
-            syskey = key
-            break
+            if sys_eq(system[0], sys_name):
+                syskey = key
+                break
 
     if syskey is None:
         raise Exception('No source registration saved in the file!')
@@ -174,7 +173,12 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     rows = rows / 30000.
     
     lower, upper = 0 < rows, rows < rows.max() + 1
-    l, u = tslice
+    if tslice is None:
+        l = None;
+        u = None;
+    else:
+        l, u = tslice
+
     if l is not None:
         lower = l < rows
     if u is not None:
@@ -272,7 +276,7 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
        tmask, rows = _get_tmask_blackrock_fake(files['hdf'], tslice)
     else:
         nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
-        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]]) 
+        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, sys_name=source) 
     neurows = rows[tmask]
 
     neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs, strobe_rate=strobe_rate)
@@ -343,7 +347,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
     -------
     '''
     if pos_key == 'plant_pos':  # used for ibmi tasks
-        vel_key == 'plant_vel'
+        vel_key = 'plant_vel'
 
     hdf = tables.openFile(files['hdf'])    
     kin = hdf.root.task[:][pos_key]
@@ -420,6 +424,12 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     -------
     KFDecoder instance
     '''
+    import sys
+    print files
+    # sys.stdout.write(files)
+    # sys.stdout.write(extractor_cls)
+    # sys.stdout.write(extractor_kwargs.keys())
+    # sys.stdout.write(units)
     binlen = update_rate
 
     ## get kinematic data
@@ -447,7 +457,10 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
 
     # C should be trained on all of the stochastic state variables, excluding the offset terms
     C = np.zeros([n_features, ssm.n_states])
+    print 'KIN', kin.shape, 'SSM: ', ssm.train_inds, 'NF: ', neural_features
     C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features)
+
+
 
     mFR = np.mean(neural_features, axis=1)
     sdFR = np.std(neural_features, axis=1)

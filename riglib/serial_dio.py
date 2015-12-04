@@ -66,10 +66,11 @@ class SendRowByte(object):
         self.n_systems += 1
         self.systems[system] = self.n_systems
 
-        if self.n_systems > 1:
-            raise Exception("This currently only works for one system!")
-
-        print "Arduino register %s" % system, self.systems[system]
+        # if self.n_systems > 1:
+        #     raise Exception("This currently only works for one system!")
+        
+        #print "System Register: %s" % system, self.systems[system]
+        #print "Arduino register %s" % system, self.systems[system]
         for sys_name_chr in system:
             reg_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, ord(sys_name_chr))
             self._send_data_word_to_serial_port(reg_word)
@@ -110,6 +111,7 @@ class SendRowByte(object):
         -------
         None
         '''
+        
         if not (system in self.systems):
             # if the system is not registered, do nothing
             return
@@ -127,6 +129,7 @@ class SendRowByte(object):
         # self.port.write(word_str)
 
     def _send_data_word_to_serial_port(self, word, verbose=False):
+        #self.port.write(word)
         if verbose:
             print binary_repr(word, 16)
         word_str = 'd' + struct.pack('<H', word)
