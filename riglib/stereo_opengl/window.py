@@ -322,7 +322,6 @@ class WindowDispl2D(Window):
             for mdl in model:
                 self.draw_model(mdl)
 
-    @profile
     def draw_world(self):
         #Refreshes the screen with original background
         self.screen.blit(self.screen_background, (0, 0))
@@ -350,7 +349,7 @@ class WindowDispl2D(Window):
 
 
 
-class FakeWindow(object):
+class FakeWindow(Window):
     '''
     A dummy class to secretly avoid rendering graphics without 
     the graphics-based tasks knowing about it. Used e.g. for simulation 
@@ -366,7 +365,7 @@ class FakeWindow(object):
     def screen_init(self):
         self.world = Group(self.models)
         # self.world.init()
-
+        
     def draw_world(self):
         pass
 
