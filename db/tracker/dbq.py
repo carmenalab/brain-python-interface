@@ -94,6 +94,19 @@ def save_bmi(name, entry, filename, dbname='default'):
         time=entry.date.strftime('%Y%m%d'),
         num=num, name=name)
     base = System.objects.using(dbname).get(name='bmi').path
+
+    #Make sure decoder name doesn't exist already:
+    #Make sure new decoder name doesn't already exist: 
+    import os.path
+    dec_ix = 0
+
+    while os.path.isfile(os.path.join(base, pklname)): 
+        pklname = "{subj}{time}_{num:02}_{name}_{ix}.pkl".format(
+        subj=entry.subject.name[:4].lower(),
+        time=entry.date.strftime('%Y%m%d'),
+        num=num, name=name,ix=dec_ix)
+        dec_ix += 1
+
     shutil.copy2(filename, os.path.join(base, pklname))
 
     Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
