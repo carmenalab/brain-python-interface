@@ -140,11 +140,11 @@ Entries in the fstab (file system table) detail information when you give the co
     //project.eecs.berkeley.edu/carmena /backup cifs noauto,username=sgowda,domain=EECS,sec=ntlmssp,uid=localuser,dir_mode=0777,file_mode=0777 0 0
     //10.0.0.13/PlexonData /storage/plexon  smbfs   user=arc,pass=c@rmena,uid=1000,gid=1000 0 0
 
-The first specifies '/storage' as the mount-point for a second hard drive (/dev/sdb1 is the first partition on hard drive 'b'). In our system, we run the operating system off a small solid-state drive (/dev/sda) and store data on a larger regular hard drive (/dev/sdb). 
+The first specifies ``/storage`` as the mount-point for a second hard drive (``/dev/sdb1`` is the first partition on hard drive 'b'). In our system, we run the operating system off a small solid-state drive ``/dev/sda`` and store data on a larger regular hard drive ``/dev/sdb``. 
 
 The second specifies how to mount the offsite backup. In this case, the protocol is CIFS. 
 
-The third entry specifies how to mount the data directory of the neural recording PC (in our case, this is a Windows PC provided by plexon). You may wish to also assign a different IP address to the neural recording PC. This line also will not work until you set up DHCP in the next step
+The third entry specifies how to mount the data directory of the neural recording PC (in our case, this is a Windows PC provided by plexon). You may wish to also assign a different IP address to the neural recording PC. This line also will not work until you set up DHCP below (or some alternate way of assigning IP addresses to machines on the BMI subnet).
 
 rsync & crontab
 ---------------
@@ -153,9 +153,14 @@ rsync is a unix command-line utility which can synchronize two folders (includin
     rsync -rlt --partial /home/lab/code/bmi3d/db/db.sql /backup/exorig/db_exorig.sql
     rsync -rlt --exclude=plexonlocal --exclude=video --partial /storage/ /backup/exorig/
 
-These two commands force ``/backup/exorig/db_exorig.sql`` to match the ``db.sql`` which is modified by the rig, and also to synchronize ``/storage`` with ``/backup``, where in our earlier modified ``/etc/fstab``, ``/backup`` is an off-site storage directory which we network mounted. 
+The first command forces ``/backup/exorig/db_exorig.sql`` to match the ``db.sql`` which is modified by the rig. To back up the actual data files, you can first create a list of the files to be backed up using the script ``$BMI3D/db/compile_backup_list.py``. That script will populate the file $HOME/files_to_backup with a list of files to be backed up. Then you can tell rsync to back up only those files using the command::
+
+    rsync -tv --partial --files-from=/home/lab/files_to_backup  /storage /backup/exorig
 
 You can used the ``crontab`` utility to automatically run rsync commands at a certain time of the day, to make the synchronization automatic without human intervention. 
+
+.. note :: 
+    When programs are run by the crontab utility, they may be run with a different PATH than the one that you're used to when you're regularly logged in and performing bash commands. So if you need to use an external binary/script, make sure to use the full path to the program (and when in doubt, just use full paths!). 
 
 
 Network configuration
