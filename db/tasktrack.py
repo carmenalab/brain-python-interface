@@ -170,6 +170,9 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         print "see %s for error messages" % log_filename
         print open(log_filename, 'rb').read()
         print
+        from tracker import dbq
+        dbq.hide_task_entry(kwargs['saveid'])
+        print 'hiding task entry!'
         
     else:
         task_wrapper.cleanup()
@@ -225,7 +228,6 @@ class TaskWrapper(object):
             self.task = Task(gen, **self.params.params)
         else:
             self.task = Task(**self.params.params)
-        
         self.task.start()
 
     def report(self):
@@ -258,6 +260,7 @@ class TaskWrapper(object):
         setattr(self.task, attr, value)
 
     def cleanup(self):
+
         self.task.join()
         print "Calling saveout/task cleanup code"
         
@@ -267,6 +270,13 @@ class TaskWrapper(object):
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
             self.task.cleanup(database, self.saveid, subject=self.subj)
+            
+            if not self.task._task_init_complete:
+                from tracker import dbq
+                dbq.hide_task_entry(self.saveid)
+                print 'hiding task entry!'
+            else:
+                print 'not hiding task entry!'
 
         self.task.terminate()
 
