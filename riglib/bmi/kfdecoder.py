@@ -9,8 +9,7 @@ import bmi
 import train
 import pickle
 import re
-from db import trainbmi
-from db.tracker.models import Decoder
+
 
 class KalmanFilter(bmi.GaussianStateHMM):
     """
@@ -675,15 +674,15 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             if isinstance(units, (str, unicode)):
                 units = units.split(', ')
 
-            units_lut = dict(a=1, b=2, c=3, d=4)
-            units_int = []
-            for u in units:
-                ch = int(re.match('(\d+)([a-d])', u).group(1))
-                unit_ind = re.match('(\d+)([a-d])', u).group(2)
-                # import pdb; pdb.set_trace()
-                units_int.append((ch, units_lut[unit_ind]))
+                units_lut = dict(a=1, b=2, c=3, d=4)
+                units_int = []
+                for u in units:
+                    ch = int(re.match('(\d+)([a-d])', u).group(1))
+                    unit_ind = re.match('(\d+)([a-d])', u).group(2)
+                    # import pdb; pdb.set_trace()
+                    units_int.append((ch, units_lut[unit_ind]))
 
-            units = units_int
+                units = units_int
 
         if mode == 'to_int':
             return units
@@ -714,21 +713,21 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         new_units = self._proc_units(units, 'to_int')
         
         units = np.vstack((units_curr, new_units))
-
-        C = np.vstack(( self.filt.C, np.random.rand((len(new_units), self.ssm.n_states))))
+        C = np.vstack(( self.filt.C, np.random.rand(len(new_units), self.ssm.n_states)))
         Q = np.eye( len(units), len(units) )
-        Q[np.ix_(np.arange(len(units_curr)), np.arange(units_curr))] = self.filt.Q
-        
+        Q[np.ix_(np.arange(len(units_curr)), np.arange(len(units_curr)))] = self.filt.Q
+        Q_inv = np.linalg.inv(Q)
+
         if isinstance(self.mFR, np.ndarray):
             mFR = np.hstack(( self.mFR, np.zeros((len(new_units))) ))
-            sdFR = np.hstack(( self.sdFR[inds_to_keep], np.zeros((len(new_units))) ))
+            sdFR = np.hstack(( self.sdFR, np.zeros((len(new_units))) ))
         else:
             mFR = self.mFR
             sdFR = self.sdFR
 
         filt = KalmanFilter(A=self.filt.A, W=self.filt.W, C=C, Q=Q, is_stochastic=self.filt.is_stochastic)
-        C_xpose_Q_inv = C.T * Q.I
-        C_xpose_Q_inv_C = C.T * Q.I * C
+        C_xpose_Q_inv = C.T * Q_inv
+        C_xpose_Q_inv_C = C.T * Q_inv * C
         filt.C_xpose_Q_inv = C_xpose_Q_inv
         filt.C_xpose_Q_inv_C = C_xpose_Q_inv_C        
 
@@ -776,7 +775,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self._save_new_dec(dec_new, '_subset')
         
 
-    def _save_new_dec(dec_obj, suffix):
+    def _save_new_dec(self, dec_obj, suffix):
         try:
             te_id = self.te_id
         except:
@@ -785,17 +784,22 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             te_ix_end = dec_nm.find('_',te_ix)
             te_id = int(dec_nm[te_ix+2:te_ix_end])
 
-        dec_obj = Decoder.objects.filter(entry=te_id)
-        trainbmi.save_new_decoder_from_existing(dec_new, dec_obj[0], suffix=suffix)
+        from db.tracker.models import Decoder
+        from db import trainbmi
+
+        old_dec_obj = Decoder.objects.filter(entry=te_id)
+        trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj[0], suffix=suffix)
 
     def _return_proc_units_decoder(self, inds_to_keep):
         A = self.filt.A
         W = self.filt.W
         C = self.filt.C
         Q = self.filt.Q
-
+        print 'INDS: ', inds_to_keep
         C = C[inds_to_keep, :]
         Q = Q[np.ix_(inds_to_keep, inds_to_keep)]
+        Q_inv = np.linalg.inv(Q)
+
         if isinstance(self.mFR, np.ndarray):
             mFR = self.mFR[inds_to_keep]
             sdFR = self.mFR[inds_to_keep]
@@ -804,8 +808,8 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             sdFR = self.sdFR
 
         filt = KalmanFilter(A=A, W=W, C=C, Q=Q, is_stochastic=self.filt.is_stochastic)
-        C_xpose_Q_inv = C.T * Q.I
-        C_xpose_Q_inv_C = C.T * Q.I * C
+        C_xpose_Q_inv = C.T * Q_inv
+        C_xpose_Q_inv_C = C.T * Q_inv * C
         filt.C_xpose_Q_inv = C_xpose_Q_inv
         filt.C_xpose_Q_inv_C = C_xpose_Q_inv_C        
 
