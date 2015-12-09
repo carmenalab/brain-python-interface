@@ -148,7 +148,9 @@ class SerialDIORowByte(object):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
+        print 'PRE INIT', saveid
         if saveid is not None:
+            print 'PRE INIT', saveid
             port = serial.Serial('/dev/arduino_neurosync')
             port.write('p')
             time.sleep(0.5)
