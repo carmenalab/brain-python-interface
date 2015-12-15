@@ -9,8 +9,8 @@ import bmi
 import train
 import pickle
 import re
-from db import trainbmi
-from db.tracker.models import Decoder
+#from db import trainbmi
+#from db.tracker.models import Decoder
 
 class KalmanFilter(bmi.GaussianStateHMM):
     """
