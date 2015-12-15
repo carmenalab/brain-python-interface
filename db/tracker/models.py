@@ -43,6 +43,7 @@ class Task(models.Model):
     
     def get(self, feats=()):
         from namelist import tasks
+        if len(tasks)==0: print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
         from riglib import experiment
         if self.name in tasks:
             return experiment.make(tasks[self.name], Feature.getall(feats))
@@ -143,7 +144,6 @@ class Task(models.Model):
         for trait in Exp.class_editable_traits():
             if trait not in params:
                 add_trait(trait)
-
         return params
 
     def sequences(self):
@@ -496,12 +496,16 @@ class TaskEntry(models.Model):
 
         # Run the metaclass constructor for the experiment used. If this can be avoided, it would help to break some of the cross-package software dependencies,
         # making it easier to analyze data without installing software for the entire rig
-        Exp = self.task.get(self.feats.all())
 
+        Exp = self.task.get(self.feats.all())        
         state = 'completed' if self.pk is not None else "new"
+
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=self.task_params)
+
+        if len(js['params'])!=len(self.task_params):
+            print 'param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params)
 
         # Supply sequence generators which are declared to be compatible with the selected task class
         exp_generators = dict() 
@@ -514,12 +518,11 @@ class TaskEntry(models.Model):
                     print "missing generator %s" % seqgen_name
         js['generators'] = exp_generators
 
-
         ## Add the sequence, used when the block gets copied
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
-        datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
 
+        datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
 
         ## Add data files linked to this task entry to the web interface. 
         try:
@@ -591,7 +594,7 @@ class TaskEntry(models.Model):
 
         for dec in Decoder.objects.using(self._state.db).filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
-        
+
         # include paths to any plots associated with this task entry, if offline
         files = os.popen('find /storage/plots/ -name %s*.png' % self.id)
         plot_files = dict()

@@ -149,7 +149,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     ssm = namelist.bmi_state_space_models[ssm]
     kin_extractor_fn = namelist.kin_extractors[kin_extractor]
     decoder = training_method(files, extractor_cls, extractor_kwargs, kin_extractor_fn, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key)
-
+    decoder.te_id = entry.id
 
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
