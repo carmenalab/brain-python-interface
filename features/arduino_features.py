@@ -148,7 +148,9 @@ class SerialDIORowByte(object):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
+        print 'PRE INIT', saveid
         if saveid is not None:
+            print 'PRE INIT', saveid
             port = serial.Serial('/dev/arduino_neurosync')
             port.write('p')
             time.sleep(0.5)
@@ -198,7 +200,8 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
                 return self._data_files
             
             start = self.event_log[-1][2]
-            files = "/storage/plexon/*.plx"
+            #files = "/storage/plexon/*.plx"
+            files = "/storage/plexon/test*.plx" #Only use files that have not yet been renamed
             files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
             
             if len(files) > 0:

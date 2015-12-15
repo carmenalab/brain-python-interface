@@ -81,6 +81,32 @@ class SimHDF(object):
         self.task_data_hist.append(self.task_data.copy())
 
 
+class SimClock(object):
+    def __init__(self, *args, **kwargs):
+        super(SimClock, self).__init__(*args, **kwargs)
+
+    def tick(self, *args, **kwargs):
+        pass
+
+class SimClockTick(object):
+    '''
+    Summary: A simulation pygame.clock to use in simulations that inherit from experiment.Experiment, to overwrite
+    the pygame.clock.tick in the ._cycle function ( self.clock.tick(self.fps) )
+    '''
+    def __init__(self, *args, **kwargs):
+        '''
+        Summary: Constructor for SimClock
+        Input param: *args:
+        Input param: **kwargs:
+        Output param: 
+        '''
+        super(SimClockTick, self).__init__(*args, **kwargs)
+
+    def init(self, *args, **kwargs):
+        self.clock = SimClock()
+        super(SimClockTick, self).init(*args, **kwargs)
+
+
 class SimTime(object):
     '''
     An accelerator so that simulations can run faster than real time (the task doesn't try to 'sleep' between loop iterations)
@@ -132,6 +158,20 @@ class SimNeuralEnc(object):
         self.wait_time = 0
         self.pause = False
         super(SimNeuralEnc, self).init()
+
+    def change_enc_ssm(self, new_ssm):
+        self.encoder_old = self.encoder
+        C_old = self.encoder_old.C.copy()
+        Q = self.encoder_old.Q.copy()
+        old_ssm = np.array(self.encoder_old.ssm.state_names).copy()
+
+        old_to_new_map = np.squeeze(np.array([np.nonzero(np.array(new_ssm.state_names)==st)[0] for st in old_ssm]))
+
+        self.ssm = new_ssm
+        self._init_neural_encoder()
+
+        self.encoder.C[:,old_to_new_map] =  C_old
+        self.encoder.Q = Q
 
     def _init_neural_encoder(self):
         raise NotImplementedError
@@ -223,7 +263,58 @@ class SimCosineTunedPointProc(SimNeuralEnc):
 ##### Simulation Decoders
 #############################
 
-class SimKFDecoderSup(object):
+
+class SimKFDecoder(object):
+    '''
+    General class for all SimDFDecoder classes
+    '''
+    def __init__(self, *args, **kwargs):
+        super(SimKFDecoder, self).__init__(*args, **kwargs)
+
+    def change_dec_ssm(self):
+        decoder_old = self.decoder_old
+        ssm_old = decoder_old.ssm
+        
+        #Map new stuff
+        old_to_new_map = np.squeeze(np.array([np.nonzero(np.array(self.ssm.state_names)==st)[0] for st in ssm_old.state_names]))
+
+        #Update C: 
+        C = self.decoder.kf.C.copy()
+        C[:,old_to_new_map] = decoder_old.filt.C
+
+        #Keep current dtype format: 
+        dtype_new = self.dtype[:]
+       
+        #New KF: 
+        kf = kfdecoder.KalmanFilter(self.decoder.kf.A, self.decoder.kf.W, C, self.decoder.kf.Q, is_stochastic=self.ssm.is_stochastic)
+        #New decoder: 
+        self.decoder = kfdecoder.KFDecoder(kf, self.decoder.units, self.ssm, mFR=self.decoder.mFR, sdFR=self.decoder.sdFR, binlen=self.decoder.binlen, tslice=self.decoder.tslice)
+
+        #Replace dtype as it was before running KF functions
+        self.dtype = dtype_new
+
+        # Compute sufficient stats for C and Q matrices (used for RML CLDA)
+        n_features, n_states = C.shape
+        R = np.mat(np.zeros([n_states, n_states]))
+        S = np.mat(np.zeros([n_features, n_states]))
+        R_small, S_small, T, ESS = clda.KFRML.compute_suff_stats(self.init_kin_features[self.ssm.train_inds, :], self.init_neural_features)
+
+        R[np.ix_(self.ssm.drives_obs_inds, self.ssm.drives_obs_inds)] = R_small
+        S[:,self.ssm.drives_obs_inds] = S_small
+
+        self.decoder.filt.R = R
+        self.decoder.filt.S = S
+        self.decoder.filt.T = T
+        self.decoder.filt.ESS = ESS
+        self.decoder.n_features = n_features
+
+
+    def load_decoder(self):
+        ''' Overwritten in child classes '''
+        pass
+
+
+class SimKFDecoderSup(SimKFDecoder):
     '''
     Construct a KFDecoder based on encoder output in response to states simulated according to the state space model's process noise
     '''
@@ -253,9 +344,15 @@ class SimKFDecoderSup(object):
 
         self.decoder = train.train_KFDecoder_abstract(ssm, kin, spike_counts, units, 0.1)
         self.encoder.call_ds_rate = 6
+
+        self.init_neural_features = spike_counts
+        self.init_kin_features = kin
+
         super(SimKFDecoderSup, self).load_decoder()
 
-class SimKFDecoderShuffled(object):
+
+
+class SimKFDecoderShuffled(SimKFDecoder):
     '''
     Construct a KFDecoder based on encoder output in response to states simulated according to the state space model's process noise
     '''
@@ -287,11 +384,14 @@ class SimKFDecoderShuffled(object):
 
         kin = state_samples.T
 
+        self.init_neural_features = spike_counts
+        self.init_kin_features = kin
+
         self.decoder = train.train_KFDecoder_abstract(ssm, kin, spike_counts, units, 0.1)
         self.encoder.call_ds_rate = 6
         super(SimKFDecoderShuffled, self).load_decoder()
 
-class SimKFDecoderRandom(object):
+class SimKFDecoderRandom(SimKFDecoder):
     def load_decoder(self):
         '''
         Create a 'seed' decoder for the simulation which is simply randomly initialized
@@ -336,8 +436,3 @@ class SimPPFDecoderCursorShuffled(object):
         # self._init_neural_encoder()
 
         self.decoder = train._train_PPFDecoder_sim_known_beta(self.beta_full[inds], self.encoder.units, dt=1./180)
-
-
-
-
-

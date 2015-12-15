@@ -708,6 +708,10 @@ class LogExperiment(Experiment):
         else:
             database.save_log(saveid, self.event_log, dbname=dbname)
 
+        #added to hide task entry if task did not initialize correctly
+        # if (self._task_init_complete == False):
+        #     database.hide_task_entry(saveid, dbname=dbname)
+
     ##########################################################
     ##### Functions to calculate statistics from the log #####
     ##########################################################
