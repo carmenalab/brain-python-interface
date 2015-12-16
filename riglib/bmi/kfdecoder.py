@@ -790,8 +790,8 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             te_ix_end = dec_nm.find('_',te_ix)
             te_id = int(dec_nm[te_ix+2:te_ix_end])
 
-        from db.tracker.models import Decoder
-        from db import trainbmi
+        #from db.tracker.models import Decoder
+        #from db import trainbmi
 
         old_dec_obj = Decoder.objects.filter(entry=te_id)
         trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj[0], suffix=suffix)
