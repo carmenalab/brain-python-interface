@@ -847,7 +847,6 @@ class BMISystem(object):
             ## Decode the current observation
             #################################
             decodable_obs, decode = self.feature_accumulator(neural_obs_k)
-
             if decode: # if a new decodable observation is available from the feature accumulator
                 prev_state = self.decoder.get_state()
                 
@@ -893,7 +892,6 @@ class BMISystem(object):
 
                 # Save new parameters to parameter history
                 self.param_hist.append(new_params)
-
         return decoded_states, update_flag
 
 
@@ -976,7 +974,6 @@ class BMILoop(object):
         feature_dtype = np.float64
         acc_len = int(self.decoder.binlen / self.update_rate)
         acc_len = max(1, acc_len)
-
         if self.extractor.feature_type in ['lfp_power', 'emg_amplitude']:
             self.feature_accumulator = accumulator.NullAccumulator(acc_len)
         else:
@@ -1051,7 +1048,9 @@ class BMILoop(object):
         '''
         # Get the decoder output
         decoder_output, update_flag = self.bmi_system(neural_obs, target_state, self.state, learn_flag=self.learn_flag, **kwargs)
+
         self.task_data['update_bmi'] = int(update_flag)
+
         return decoder_output
 
     def get_features(self):
@@ -1110,6 +1109,10 @@ class BMILoop(object):
         # If not possible, plant.drive should also take care of setting the decoder's 
         # state as close as possible to physical reality
         self.plant.drive(self.decoder)
+        try:
+            self.dec_cnt += 1
+        except:
+            self.dec_cnt = 0
 
         self.task_data['decoder_state'] = decoder_state = self.decoder.get_state(shape=(-1,1))
         return decoder_state

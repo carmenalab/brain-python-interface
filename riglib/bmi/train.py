@@ -276,6 +276,9 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
        tmask, rows = _get_tmask_blackrock_fake(files['hdf'], tslice)
     else:
         nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+
+        #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]]) 
+
         tmask, rows = _get_tmask_blackrock(nev_fname, tslice, sys_name=source) 
     neurows = rows[tmask]
 

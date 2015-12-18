@@ -10,6 +10,7 @@ import train
 import pickle
 import re
 
+
 class KalmanFilter(bmi.GaussianStateHMM):
     """
     Low-level KF, agnostic to application
@@ -53,7 +54,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
             self.Q = np.mat(Q)
 
             if is_stochastic == None:
-                n_states = A.shape[0]
+                n_states = self.A.shape[0]
                 self.is_stochastic = np.ones(n_states, dtype=bool)
             else:
                 self.is_stochastic = is_stochastic
@@ -660,19 +661,14 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         import sskfdecoder
         self.filt = sskfdecoder.SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q) 
 
-    def subselect_units(self, units):
+    def _proc_units(self, units, mode):
         '''
-        Prune units from the KFDecoder, e.g., due to loss of recordings for a particular cell
-
-        Parameters
-        units : string or np.ndarray of shape (N,2)
-            The units which should be KEPT in the decoder
-
-        Returns 
-        -------
-        KFDecoder 
-            New KFDecoder object using only a subset of the cells of the original KFDecoder
+        Parse list of units indices to keep from string or np.ndarray of shape (N, 2)
+        Inputs: 
+            units -- 
+            mode -- can be 'keep' or 'remove' or 'to_int'. Tells function what to do with the units
         '''
+
         if isinstance(units[0], (str, unicode)):
             # convert to array
             if isinstance(units, (str, unicode)):
@@ -687,20 +683,129 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
                 units_int.append((ch, units_lut[unit_ind]))
 
             units = units_int
+        
+        if mode == 'to_int':
+            return units
 
         inds_to_keep = []
-        units = map(tuple, units)
-        for k, unit in enumerate(self.units):
-            if tuple(unit) in units:
-                inds_to_keep.append(k)
+        new_units = map(tuple, units)
+        for k, old_unit in enumerate(self.units):
+            if mode == 'keep':
+                if tuple(old_unit) in new_units:
+                    inds_to_keep.append(k)
+            elif mode == 'remove':
+                if tuple(old_unit) not in new_units:
+                    inds_to_keep.append(k)
+        return inds_to_keep
 
+    def add_units(self, units):
+        '''
+        Add units to KFDecoder, e.g. to account for appearance of new cells 
+        on a particular day, will need to do CLDA to fit new deocder weight
+        
+        Parameters: 
+        units: string or np.ndarray of shape (N, 2) of units to REMOVE from current decoder
+        '''
+        units_curr = self.units
+        new_units = self._proc_units(units, 'to_int')
+
+        keep_ix = []
+        for r, r_un in enumerate(new_units):
+            if len(np.nonzero(np.all(r_un==units_curr, axis=1))[0]) > 0: 
+                print 'not adding unit ', r_un, ' -- already in decoder'
+            else:
+                keep_ix.append(r)
+
+        new_units = np.array(new_units)[keep_ix, :]
+        units = np.vstack((units_curr, new_units))
+
+        C = np.vstack(( self.filt.C, np.random.rand(len(new_units), self.ssm.n_states)))
+        Q = np.eye( len(units), len(units) )
+        Q[np.ix_(np.arange(len(units_curr)), np.arange(len(units_curr)))] = self.filt.Q
+        Q_inv = np.linalg.inv(Q)
+
+        if isinstance(self.mFR, np.ndarray):
+            mFR = np.hstack(( self.mFR, np.zeros((len(new_units))) ))
+            sdFR = np.hstack(( self.sdFR, np.zeros((len(new_units))) ))
+        else:
+            mFR = self.mFR
+            sdFR = self.sdFR
+
+        filt = KalmanFilter(A=self.filt.A, W=self.filt.W, C=C, Q=Q, is_stochastic=self.filt.is_stochastic)
+        C_xpose_Q_inv = C.T * Q_inv
+        C_xpose_Q_inv_C = C.T * Q_inv * C
+        filt.C_xpose_Q_inv = C_xpose_Q_inv
+        filt.C_xpose_Q_inv_C = C_xpose_Q_inv_C        
+
+        filt.R = self.filt.R
+        filt.S = np.vstack(( self.filt.S, np.random.rand(len(new_units), self.filt.S.shape[1])))
+        filt.T = Q.copy()
+        filt.T[np.ix_(np.arange(len(units_curr)), np.arange(len(units_curr)))] = self.filt.T
+        filt.ESS = self.filt.ESS
+
+        decoder = KFDecoder(filt, units, self.ssm, mFR=mFR, sdFR=sdFR, binlen=self.binlen, tslice=self.tslice)
+        decoder.n_features = units.shape[0]
+        decoder.units = units
+        decoder.extractor_cls = self.extractor_cls
+        decoder.extractor_kwargs = self.extractor_kwargs
+        decoder.extractor_kwargs['units'] = units
+        self._save_new_dec(decoder, '_add')
+
+    def remove_units(self, units):
+        '''
+        Remove units to KFDecoder, e.g. to account for disappearance of new cells on a particular day
+        
+        Parameters: 
+        units: string or np.ndarray of shape (N, 2) of units to REMOVE from current decoder
+        '''
+        inds_to_keep = self._proc_units(units, 'remove')
+        dec_new = self._return_proc_units_decoder(inds_to_keep)
+        self._save_new_dec(dec_new, '_rm')
+
+    def subselect_units(self, units):
+        '''
+        Prune units from the KFDecoder, e.g., due to loss of recordings for a particular cell
+
+        Parameters
+        units : string or np.ndarray of shape (N,2)
+            The units which should be KEPT in the decoder
+
+        Returns 
+        -------
+        KFDecoder 
+            New KFDecoder object using only a subset of the cells of the original KFDecoder
+        '''
+        # Parse units into list of indices to keep
+        inds_to_keep = self._proc_units(units, 'keep')
+        dec_new = self._return_proc_units_decoder(inds_to_keep)
+        self._save_new_dec(dec_new, '_subset')
+        
+
+    def _save_new_dec(self, dec_obj, suffix):
+        try:
+            te_id = self.te_id
+        except:
+            dec_nm = self.name
+            te_ix = dec_nm.find('te')
+            te_ix_end = dec_nm.find('_',te_ix)
+            te_id = int(dec_nm[te_ix+2:te_ix_end])
+
+        #from db.tracker.models import Decoder
+        #from db import trainbmi
+
+        old_dec_obj = Decoder.objects.filter(entry=te_id)
+        trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj[0], suffix=suffix)
+
+    def _return_proc_units_decoder(self, inds_to_keep):
         A = self.filt.A
         W = self.filt.W
         C = self.filt.C
         Q = self.filt.Q
-
+        print 'INDS: ', inds_to_keep
         C = C[inds_to_keep, :]
         Q = Q[np.ix_(inds_to_keep, inds_to_keep)]
+        Q_inv = np.linalg.inv(Q)
+
         if isinstance(self.mFR, np.ndarray):
             mFR = self.mFR[inds_to_keep]
             sdFR = self.mFR[inds_to_keep]
@@ -709,8 +814,8 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
             sdFR = self.sdFR
 
         filt = KalmanFilter(A=A, W=W, C=C, Q=Q, is_stochastic=self.filt.is_stochastic)
-        C_xpose_Q_inv = C.T * Q.I
-        C_xpose_Q_inv_C = C.T * Q.I * C
+        C_xpose_Q_inv = C.T * Q_inv
+        C_xpose_Q_inv_C = C.T * Q_inv * C
         filt.C_xpose_Q_inv = C_xpose_Q_inv
         filt.C_xpose_Q_inv_C = C_xpose_Q_inv_C        
 
@@ -725,7 +830,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
         decoder.n_features = units.shape[0]
         decoder.units = units
-
         decoder.extractor_cls = self.extractor_cls
         decoder.extractor_kwargs = self.extractor_kwargs
 

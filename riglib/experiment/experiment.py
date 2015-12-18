@@ -239,6 +239,12 @@ class Experiment(traits.HasTraits, threading.Thread):
 
         self.pause = False
 
+
+        ## Figure out which traits to not save to the HDF file
+        ## Large/complex python objects cannot be saved as HDF file attributes
+        ctraits = self.class_traits()
+        self.object_trait_names = filter(lambda ctr: ctraits[ctr].trait_type.__class__.__name__ in ['Instance', 'InstanceFromDB', 'DataFile'], ctraits.keys())
+
         print "finished executing Experiment.__init__"
 
     def init(self):
@@ -621,7 +627,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         else:
             h5file = tables.openFile(self.h5file.name, mode='a')
         for trait in traits:
-            if trait not in ['bmi', 'decoder', 'ref_trajectories']:
+            if (trait not in self.object_trait_names): # don't save traits which are complicated python objects to the HDF file    # and (trait not in ['bmi', 'decoder', 'ref_trajectories']):
                 h5file.root.task.attrs[trait] = getattr(self, trait)
         h5file.close()
 
@@ -701,6 +707,10 @@ class LogExperiment(Experiment):
             database.save_log(saveid, self.event_log)
         else:
             database.save_log(saveid, self.event_log, dbname=dbname)
+
+        #added to hide task entry if task did not initialize correctly
+        # if (self._task_init_complete == False):
+        #     database.hide_task_entry(saveid, dbname=dbname)
 
     ##########################################################
     ##### Functions to calculate statistics from the log #####

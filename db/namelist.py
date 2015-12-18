@@ -24,6 +24,7 @@ else:
 try:
     from tasklist import tasks
 except ImportError:
+    print 'Import Error in db.namelist: from tasklist import tasks -- likely error in a single task preventing import'
     tasks = dict()
 
 from itertools import izip

@@ -66,11 +66,18 @@ class SendRowByte(object):
         self.n_systems += 1
         self.systems[system] = self.n_systems
 
+
         # if self.n_systems > 1:
         #     raise Exception("This currently only works for one system!")
         
         #print "System Register: %s" % system, self.systems[system]
         #print "Arduino register %s" % system, self.systems[system]
+
+        #if self.n_systems > 1:
+        #    raise Exception("This currently only works for one system!")
+
+        print "Arduino register %s" % system, self.systems[system]
+
         for sys_name_chr in system:
             reg_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, ord(sys_name_chr))
             self._send_data_word_to_serial_port(reg_word)
