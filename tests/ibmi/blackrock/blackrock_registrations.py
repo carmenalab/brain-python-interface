@@ -1,7 +1,8 @@
 import os
 import numpy as np
-from riglib.nidaq import parse
+from riglib.dio import parse
 import subprocess
+import matplotlib.pyplot as plt
 
 def sys_eq(sys1, sys2):
     '''
@@ -15,67 +16,86 @@ def sys_eq(sys1, sys2):
     '''
     return sys1 in [sys2, sys2[1:]]
 
+def load_file(nev_fname,):
+
+    # nev_fname = '/storage/blackrock/20140707-171012/20140707-171012-002.nev'
+    # nev_fname = 'test20151222_65_te1276.nev'
+
+    nev_hdf_fname = nev_fname + '.hdf'
+    
+    if not os.path.isfile(nev_hdf_fname):
+        # convert .nev file to hdf file using Blackrock's n2h5 utility
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+    import tables
+    nev_hdf = tables.openFile(nev_hdf_fname)
+    hdf_fname = nev_fname[:-4]+'.hdf'
+    hdf = tables.openFile(hdf_fname)
+
+    return nev_hdf, hdf
+
+def parse_nev_hdf(nev_hdf):
+
+    ts = nev_hdf.root.channel.digital00001.digital_set[:]['TimeStamp']
+    msgs = nev_hdf.root.channel.digital00001.digital_set[:]['Value']
+
+    # copied from riglib/dio/parse.py
+    msgtype_mask = parse.msgtype_mask 
+    auxdata_mask = parse.auxdata_mask 
+    rawdata_mask = parse.rawdata_mask
+
+    msgtype = np.right_shift(np.bitwise_and(msgs, msgtype_mask), 8).astype(np.uint8)
+    # auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
+    auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 11).astype(np.uint8)
+    rawdata = np.bitwise_and(msgs, rawdata_mask)
+
+    # data is an N x 4 matrix that will be the argument to parse.registrations()
+    data = np.vstack([ts, msgtype, auxdata, rawdata]).T
+
+    # get system registrations
+    reg = parse.registrations(data)
+
+    return data, reg
+
+def compare_hdfs(data, reg, hdf):
+    system_list = [system[0] for k,system in reg.items()]
+
+    f, ax = plt.subplots(nrows = len(system_list))
+    if len(system_list)==1:
+        ax = [ax]
+
+    for i_s, sys_name in enumerate(system_list):
+        syskey = None
+        for key, system in reg.items():
+            
+            #match each system in the nev_hdf to a table in the normal hdf:
+            if sys_eq(system[0], sys_name):
+                syskey = key
+                break
+
+        if syskey is None:
+            raise Exception('No source registration saved in the file!')
+
+        rows = parse.rowbyte(data)[syskey][:,0]
+        timestamps = rows / 30000.
+        
+        print sys_name, 'rows in nev_hdf: ', len(timestamps), 'rows in hdf: ', len(hdf.get_node('/'+sys_name))
+
+        tab = hdf.get_node('/'+sys_name)
+        if sys_name == 'brainamp':
+            ts = np.squeeze(tab[:]['chan1']['ts_arrival'])
+        else:
+            ts = np.squeeze(tab[:]['ts'])
 
 
-nev_fname = '/storage/blackrock/20140707-171012/20140707-171012-002.nev'
-tslice = [3, 13]
-sys_name = 'task'
+        # ax[i_s].plot(np.diff(timestamps), label='.nev')
+        # ax[i_s].plot(np.diff(ts), label='.hdf')
+        ax[i_s].plot(timestamps-timestamps[0], label='.nev')
+        ax[i_s].plot(ts-ts[0], label='.hdf')
 
-nev_hdf_fname = nev_fname + '.hdf'
-if not os.path.isfile(nev_hdf_fname):
-    # convert .nev file to hdf file using Blackrock's n2h5 utility
-    subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+        ax[i_s].set_title(sys_name)
+        ax[i_s].legend()
+    plt.tight_layout()
 
-import h5py
-nev_hdf = h5py.File(nev_hdf_fname, 'r')
 
-path = 'channel/digital00001/digital_set'
-ts = nev_hdf.get(path).value['TimeStamp']
-msgs = nev_hdf.get(path).value['Value']
 
-# copied from riglib/nidaq/parse.py
-msgtype_mask = 0b0000111<<8
-auxdata_mask = 0b1111000<<8
-rawdata_mask = 0b11111111
-msgtype = np.right_shift(np.bitwise_and(msgs, msgtype_mask), 8).astype(np.uint8)
-# auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
-auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 11).astype(np.uint8)
-rawdata = np.bitwise_and(msgs, rawdata_mask)
-
-# data is an N x 4 matrix that will be the argument to parse.registrations()
-data = np.vstack([ts, msgtype, auxdata, rawdata]).T
-
-# print 'data', data
-
-# get system registrations
-reg = parse.registrations(data)
-
-# import pprint
-# pprint.pprint(reg.items())
-# print 'reg.items', reg.items()
-# print 'len(reg.items())', len(reg.items())
-
-syskey = None
-
-for key, system in reg.items():
-    if sys_eq(system[0], sys_name):
-        syskey = key
-        break
-
-if syskey is None:
-    raise Exception('No source registration saved in the file!')
-
-# print 'parse.rowbyte(data)', parse.rowbyte(data)
-
-# get the corresponding hdf rows
-rows = parse.rowbyte(data)[syskey][:,0]
-
-timestamps = rows / 30000.
-
-lower, upper = 0 < timestamps, timestamps < timestamps.max() + 1
-l, u = tslice
-if l is not None:
-    lower = l < timestamps
-if u is not None:
-    upper = timestamps < u
-tmask = np.logical_and(lower, upper)
