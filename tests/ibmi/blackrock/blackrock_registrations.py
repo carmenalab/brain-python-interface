@@ -88,13 +88,14 @@ def compare_hdfs(data, reg, hdf):
             ts = np.squeeze(tab[:]['ts'])
 
 
-        # ax[i_s].plot(np.diff(timestamps), label='.nev')
-        # ax[i_s].plot(np.diff(ts), label='.hdf')
-        ax[i_s].plot(timestamps-timestamps[0], label='.nev')
-        ax[i_s].plot(ts-ts[0], label='.hdf')
+        ax[i_s].plot(np.diff(timestamps), label='.nev')
+        ax[i_s].plot(np.diff(ts), label='.hdf')
+        #ax[i_s].plot(timestamps-timestamps[0], label='.nev')
+        #ax[i_s].plot(ts-ts[0], label='.hdf')
 
         ax[i_s].set_title(sys_name)
         ax[i_s].legend()
+        
     plt.tight_layout()
 
 
