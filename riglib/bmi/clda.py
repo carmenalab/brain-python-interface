@@ -650,7 +650,7 @@ class KFRML(Updater):
             self.state_adapting_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if sn in self.state_adapting_names])
             self.state_stable_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if i not in self.state_adapting_inds])
             
-            print self.state_adapting_inds
+            print self.state_adapting_inds, decoder.ssm, decoder.adapting_state_inds
         else:
             self.state_adapting_inds = np.arange(decoder.n_states)
         
@@ -694,10 +694,6 @@ class KFRML(Updater):
         #update driver of neurons
         drives_neurons = decoder.drives_neurons
 
-        #make sure only update states 
-        drives_neurons[self.state_stable_inds] = False
-
-
         mFR_old        = decoder.mFR
         sdFR_old       = decoder.sdFR
 
@@ -720,21 +716,31 @@ class KFRML(Updater):
         if self.adapt_C_xpose_Q_inv_C:
             self.R[self.state_adapting_inds_mesh] = rho*self.R[self.state_adapting_inds_mesh] + (x*B*x.T)
 
+        if np.any(np.isnan(self.R)):
+            print 'np.nan in self.R in riglib/bmi/clda.py!'
+
         self.S[self.neur_by_state_adapting_inds_mesh] = rho*self.S[self.neur_by_state_adapting_inds_mesh] + (y*B*x.T)
         self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
-        R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+        try:
+            R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+        except:
+            print self.R
+            print 'Error with pinv in riglib/bmi/clda.py'
+
         C = self.S * R_inv
 
         Q = (1./self.ESS) * (self.T - self.S*C.T)
         if hasattr(self, 'stable_inds_mesh'):
             Q[self.stable_inds_mesh] = decoder.filt.Q[self.stable_inds_mesh]
+
         if self.stable_inds_independent:
             Q[np.ix_(self.stable_inds, self.adapting_inds)] = 0
             Q[np.ix_(self.adapting_inds, self.stable_inds)] = 0
 
+        #mFR and sdFR are exempt from the 'adapting_inds'
         mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
 
