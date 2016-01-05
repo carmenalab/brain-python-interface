@@ -527,7 +527,8 @@ class MultiChanDataSource(mp.Process):
                                     self.wrap_flags[row] = False
 
                             # send the data to the sink manager, one column at a time
-                            for idx in idxs_to_send:
+                            #for idx in idxs_to_send: #old
+                            if idx == idxs_to_send[0]: # only send 1 column of data per iteration
                                 data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
                                 self.sinks.send(self.name, data)
 
