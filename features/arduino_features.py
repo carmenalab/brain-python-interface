@@ -24,7 +24,7 @@ import time
 from riglib import serial_dio
 
 sec_per_min = 60
-baudrate = 9600 #115200 #9600
+baudrate = 115200 #9600
 
 class SerialDIORowByte(object):
     '''
@@ -158,7 +158,6 @@ class SerialDIORowByte(object):
 
             port.close()
             super(SerialDIORowByte, cls).pre_init(saveid=saveid)
-
 
 class PlexonSerialDIORowByte(SerialDIORowByte):
     db_sys_name = "plexon"
