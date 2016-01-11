@@ -873,7 +873,6 @@ class BMISystem(object):
                 batch_data = self.learner.get_batch()
                 batch_data['decoder'] = self.decoder
                 kwargs.update(batch_data)
-
                 self.updater(**kwargs)
                 self.learner.disable() 
 
@@ -911,6 +910,11 @@ class BMILoop(object):
         # Initialize the decoder
         self.load_decoder()
         self.init_decoder_state()
+
+        if hasattr(self.decoder, 'adapting_state_inds'):
+            print 'HAS adapting state inds'
+        else:
+            print "NO adapting state inds"
 
         # Declare data attributes to be stored in the sinks every iteration of the FSM
         self.add_dtype('loop_time', 'f8', (1,))
@@ -1074,6 +1078,7 @@ class BMILoop(object):
         decoder_state : np.mat
             (N, 1) vector representing the state decoded by the BMI
         '''
+
         # Run the feature extractor
         feature_data = self.get_features()
 

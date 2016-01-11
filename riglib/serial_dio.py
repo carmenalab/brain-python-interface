@@ -6,12 +6,13 @@ from collections import defaultdict
 import struct
 from numpy import binary_repr
 from dio.parse import MSG_TYPE_ROWBYTE, MSG_TYPE_REGISTER
-
+import time
 
 def construct_word(aux, msg_type, data, n_bits_data=8, n_bits_msg_type=3):
     word = (aux << (n_bits_data + n_bits_msg_type)) | (msg_type << n_bits_data) | data
     return word
 
+baudrate = 115200
 
 class SendRowByte(object):
     '''
@@ -35,10 +36,10 @@ class SendRowByte(object):
         SendAll instance
         '''
         self.systems = dict()
-        self.port = serial.Serial('/dev/arduino_neurosync', baudrate=9600)
+        self.port = serial.Serial('/dev/arduino_neurosync', baudrate=baudrate)
         self.n_systems = 0
         self.rowcount = defaultdict(int)
-    
+
     def close(self):
         '''
         Release access to the Arduino serial port

@@ -14,6 +14,7 @@ import tables
 import re
 import assist
 import os
+import scipy
 
 from utils.angle_utils import *
 
@@ -624,13 +625,37 @@ class KFRML(Updater):
         self.T = decoder.filt.T
         self.ESS = decoder.filt.ESS
 
+
+        #Neural indices that will be adapted / stable are defined here:
         self.feature_inds = np.arange(decoder.n_features)
 
-        # By default, tuning parameters for all features will adapt
+        # Units that you want to stay stable
         self.stable_inds = []
-        self.adapting_inds = self.feature_inds.copy()
+
+        # By default, tuning parameters for all features will adapt
+        if hasattr(decoder, 'adapting_neural_inds'):
+            self.adapting_inds = decoder.adapting_neural_inds
+        else:
+            self.adapting_inds = self.feature_inds.copy()
+
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
+
+        #Are stable units independent from other units ? If yes Q[stable_unit, other_units] = 0
         self.stable_inds_independent = False
+
+
+        #State space indices that will be adapted: 
+        if scipy.logical_and(hasattr(decoder, 'adapting_state_inds'), hasattr(decoder, 'ssm')):
+            self.state_adapting_names = decoder.adapting_state_inds.state_names
+            self.state_adapting_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if sn in self.state_adapting_names])
+            self.state_stable_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if i not in self.state_adapting_inds])
+            
+            print self.state_adapting_inds, decoder.ssm, decoder.adapting_state_inds
+        else:
+            self.state_adapting_inds = np.arange(decoder.n_states)
+        
+        self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
+        self.neur_by_state_adapting_inds_mesh = np.ix_(self.adapting_inds, self.state_adapting_inds)
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
         '''
@@ -666,12 +691,17 @@ class KFRML(Updater):
         else:
             rho = self.rho 
 
+        #update driver of neurons
         drives_neurons = decoder.drives_neurons
+
         mFR_old        = decoder.mFR
         sdFR_old       = decoder.sdFR
 
         x = np.mat(intended_kin)
         y = np.mat(spike_counts)
+
+        #limit x to the indices that can adapt:
+        x = x[self.state_adapting_inds,:]
 
         # limit y to the features which are permitted to adapt
         y = y[self.adapting_inds, :]
@@ -684,23 +714,33 @@ class KFRML(Updater):
             B = np.mat(np.eye(n_samples))
 
         if self.adapt_C_xpose_Q_inv_C:
-            self.R = rho*self.R + (x*B*x.T)
+            self.R[self.state_adapting_inds_mesh] = rho*self.R[self.state_adapting_inds_mesh] + (x*B*x.T)
 
-        self.S[self.adapting_inds,:] = rho*self.S[self.adapting_inds,:] + (y*B*x.T)
+        if np.any(np.isnan(self.R)):
+            print 'np.nan in self.R in riglib/bmi/clda.py!'
+
+        self.S[self.neur_by_state_adapting_inds_mesh] = rho*self.S[self.neur_by_state_adapting_inds_mesh] + (y*B*x.T)
         self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
-        R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+        try:
+            R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+        except:
+            print self.R
+            print 'Error with pinv in riglib/bmi/clda.py'
+
         C = self.S * R_inv
 
         Q = (1./self.ESS) * (self.T - self.S*C.T)
         if hasattr(self, 'stable_inds_mesh'):
             Q[self.stable_inds_mesh] = decoder.filt.Q[self.stable_inds_mesh]
+
         if self.stable_inds_independent:
             Q[np.ix_(self.stable_inds, self.adapting_inds)] = 0
             Q[np.ix_(self.adapting_inds, self.stable_inds)] = 0
 
+        #mFR and sdFR are exempt from the 'adapting_inds'
         mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
 

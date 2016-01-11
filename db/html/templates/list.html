@@ -27,56 +27,77 @@
 				te = new TaskEntry(this.id == "newentry" ? null : this.id);
 			});
 		});
+
 		var taskaction = "run";
-		$("#copybtn").click(TaskEntry.copy);
-		$("#hidebtn").click(function() {$.get("/ajax/hide_entry/"+te.idx)});
+
+		$("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
+
+		$("#hidebtn").click(
+			function() {
+				console.log("Hiding task entry " + te.idx);
+				$.get("/ajax/hide_entry/"+te.idx);
+				$("row" + te.idx).slideToggle("slow");
+			}
+		);
 		$("#backupbtn").click(function() {$.get("/ajax/backup_entry/"+te.idx)});		
 		$("#experiment").submit(function() { return te[taskaction](); })
 		$("#startbtn").click(function() { taskaction = "start"; })
 		$("#testbtn").click(function() { taskaction = "test"; })
 		$("#stopbtn").click(function() { taskaction = "stop"; })
 		$("#pausebtn").click(function() { taskaction = "pause"; })
+
+		$("#toggle_table").click(
+			function() {
+				$('#leftpane').slideToggle("fast");
+			}
+		);
 	})
 </script>
 </head>
 
 <body>
-	<div id='leftpane' style="direction">
-		{{ n_blocks }} saved task entry records shown below
-        <hr>
-		<table id='main' style="direction:ltr;">
-			<thead>
-			<tr><th class='colDate'>Date</th><th class='colSubj'>Who</th><th class='colTask'>Task</th></tr>
-			</thead>
-			<tbody>
-				<tr id='newentry' class='rowactive'>
-					<td class='colDate'>Now</td>
-					<td class='colSubj'>
-						<select id='subjects'>
-							{% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>
-							{% endfor %}
-						</select>
-					</td>
-					<td class='colTask'>
-						<select id='tasks'>
-							{% for t in tasks %}<option value='{{t.id}}'>{{ t.name }}</option>
-							{% endfor %}
-						</select>
-					</td>
-				</tr>
-			{% for e in entries %}
-				<tr id='row{{e.id}}' bgcolor={{e.bgcolor}} {% if e.id == running %} class='running' {% endif %}>
-				<td class='colDate' >{{e.date}} ({{e.id}})</td>
-				<td class='colSubj' >{{e.subject.name}}</td>
-				<td class='colTask' >{{e.task.name}}</td></tr>
-			{% endfor %}
-			</tbody>
-		</table>
-	</div>
-	<div id="rightpane" style="direction:ltr;">
-		<div id='content' class="active">
-			{% include "exp_content.html" %}
+	<input id="toggle_table" type="submit" value="Toggle table">
+	<br>
+	<div id="main_box">
+		<div id='leftpane'>
+			{{ n_blocks }} saved task entry records shown below
+	        <hr>
+			<table id='main' style="direction:ltr;">
+				<thead>
+				<tr><th class='colDate'>Date</th><th class='colSubj'>Who</th><th class='colTask'>Task</th></tr>
+				</thead>
+				<tbody>
+					<tr id='newentry' class='rowactive'>
+						<td class='colDate'>Now</td>
+						<td class='colSubj'>
+							<select id='subjects'>
+								{% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>
+								{% endfor %}
+							</select>
+						</td>
+						<td class='colTask'>
+							<select id='tasks'>
+								{% for t in tasks %}<option value='{{t.id}}'>{{ t.name }}</option>
+								{% endfor %}
+							</select>
+						</td>
+					</tr>
+				{% for e in entries %}
+					<tr id='row{{e.id}}' bgcolor={{e.bgcolor}} {% if e.id == running %} class='running' {% endif %}>
+					<td class='colDate' >{{e.date}} ({{e.id}})</td>
+					<td class='colSubj' >{{e.subject.name}}</td>
+					<td class='colTask' >{{e.task.name}}</td></tr>
+				{% endfor %}
+				</tbody>
+			</table>
 		</div>
-	</div>
+
+
+		<div id="rightpane">
+			<div id='content' class="active">
+				{% include "exp_content.html" %}
+			</div>
+		</div>
+	</div> <!--main_box-->
 </body>
 </html>

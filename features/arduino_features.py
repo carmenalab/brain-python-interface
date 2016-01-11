@@ -24,6 +24,7 @@ import time
 from riglib import serial_dio
 
 sec_per_min = 60
+baudrate = 115200 #9600
 
 class SerialDIORowByte(object):
     '''
@@ -119,7 +120,7 @@ class SerialDIORowByte(object):
         '''
 
         # write the 'stop' command to the port just to be more sure that neural recording has finished.
-        port = serial.Serial('/dev/arduino_neurosync', baudrate=9600)
+        port = serial.Serial('/dev/arduino_neurosync', baudrate=baudrate)
         port.write("p")
         super(SerialDIORowByte, self).cleanup(database, saveid, **kwargs)
 
@@ -148,10 +149,8 @@ class SerialDIORowByte(object):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
-        print 'PRE INIT', saveid
         if saveid is not None:
-            print 'PRE INIT', saveid
-            port = serial.Serial('/dev/arduino_neurosync')
+            port = serial.Serial('/dev/arduino_neurosync',baudrate=baudrate)
             port.write('p')
             time.sleep(0.5)
             port.write('r')
@@ -159,7 +158,6 @@ class SerialDIORowByte(object):
 
             port.close()
             super(SerialDIORowByte, cls).pre_init(saveid=saveid)
-
 
 class PlexonSerialDIORowByte(SerialDIORowByte):
     db_sys_name = "plexon"
