@@ -318,10 +318,10 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 class FABinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
     # setup FA model, 
     # yield features in dict with 'all', 'shared', 'private'
-    feature_type = 'all' #['all', 'shared', 'private']
+    feature_type = 'all_spikes' #['all', 'shared', 'private']
 
     def __init__(self, source, n_subbins=1, units=[], **kwargs):
-        super(FABinnedSpikeCountsExtractor, self).__init__(self, source, n_subbins=n_subbins, units=units)
+        super(FABinnedSpikeCountsExtractor, self).__init__(source, n_subbins=n_subbins, units=units)
         
         self.feature_dtype = [('all', 'f8', (len(units), n_subbins)), 
                             ('shared', 'f8', (len(units), n_subbins)), 
@@ -336,7 +336,7 @@ class FABinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
 
     def __call__(self, start_time, *args, **kwargs):
         binned_spike_dict = super(FABinnedSpikeCountsExtractor, self).__call__(self, start_time, *args, **kwargs)
-        fa_output = decomp_input(binned_spike_dict['spike_counts'])
+        fa_output = self.decomp_input(binned_spike_dict['spike_counts'])
         return fa_output
 
     def decomp_input(self, binned_spikes):
