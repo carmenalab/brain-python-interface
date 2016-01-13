@@ -333,6 +333,10 @@ class FABinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.shar_var_scalar = kwargs['fa_shar_var_sc']
         self.priv_var_scalar = kwargs['fa_priv_var_sc']
         self.fa_scale_output = kwargs['fa_scale_output']
+        if 'downscale_factor' in kwargs:
+            self.downscale_factor = kwargs['downscale_factor']
+        else:
+            self.downscale_factor = 1.
 
     def __call__(self, start_time, *args, **kwargs):
         binned_spike_dict = super(FABinnedSpikeCountsExtractor, self).__call__(self, start_time, *args, **kwargs)
@@ -351,8 +355,8 @@ class FABinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
             private = self.mu + np.multiply(self.priv_var_scalar, private)
 
         else:
-            shared = shared + self.mu
-            private = private + self.mu
+            shared = shared #+ self.mu
+            private = private #+ self.mu
 
         return dict(all=binned_spikes, private = private, shared = shared)
 
