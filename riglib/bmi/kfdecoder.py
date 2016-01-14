@@ -778,7 +778,8 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         # Parse units into list of indices to keep
         inds_to_keep = self._proc_units(units, 'keep')
         dec_new = self._return_proc_units_decoder(inds_to_keep)
-        self._save_new_dec(dec_new, '_subset')
+        return dec_new
+        #self._save_new_dec(dec_new, '_subset')
         
 
     def _save_new_dec(self, dec_obj, suffix):

@@ -34,7 +34,6 @@ class DummyExtractor(FeatureExtractor):
     def __call__(self, *args, **kwargs):
         return dict(obs=np.array([[np.nan]]))
 
-
 class BinnedSpikeCountsExtractor(FeatureExtractor):
     '''
     Extracts spike counts from spike timestamps separated into rectangular window. 
@@ -70,7 +69,6 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         extractor_kwargs['n_subbins'] = self.n_subbins
         extractor_kwargs['units']     = self.units
         self.extractor_kwargs = extractor_kwargs
-
         self.last_get_spike_counts_time = 0
 
     def set_n_subbins(self, n_subbins):
@@ -317,6 +315,62 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         elif 'tdt' in files:
             raise NotImplementedError     
 
+class FABinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
+    # setup FA model, 
+    # yield features in dict with 'all', 'shared', 'private'
+    feature_type = 'all_spikes' #['all', 'shared', 'private']
+
+    def __init__(self, source, n_subbins=1, units=[], **kwargs):
+        super(FABinnedSpikeCountsExtractor, self).__init__(source, n_subbins=n_subbins, units=units)
+        
+        self.feature_dtype = [('all', 'f8', (len(units), n_subbins)), 
+                            ('shared', 'f8', (len(units), n_subbins)), 
+                            ('private', 'f8', (len(units), n_subbins)), 
+                            ('bin_edges', 'f8', 2)]
+
+        self.mu = kwargs['fa_mu']
+        self.sharL = kwargs['fa_sharL']
+        self.shar_var_scalar = kwargs['fa_shar_var_sc']
+        self.priv_var_scalar = kwargs['fa_priv_var_sc']
+        self.fa_scale_output = kwargs['fa_scale_output']
+        if 'downscale_factor' in kwargs:
+            self.downscale_factor = kwargs['downscale_factor']
+        else:
+            self.downscale_factor = 1.
+
+    def __call__(self, start_time, *args, **kwargs):
+        binned_spike_dict = super(FABinnedSpikeCountsExtractor, self).__call__(self, start_time, *args, **kwargs)
+        fa_output = self.decomp_input(binned_spike_dict['spike_counts'])
+        return fa_output
+
+    def decomp_input(self, binned_spikes):
+        ''' Assume binned_spikes is N x 1, where N = number of units '''
+
+        demean_spikes = binned_spikes - self.mu
+        shared = (self.sharL*demean_spikes)
+        private = demean_spikes - shared
+
+        if self.fa_scale_output:
+            shared = self.mu + np.multiply(self.shar_var_scalar, shared)
+            private = self.mu + np.multiply(self.priv_var_scalar, private)
+
+        else:
+            shared = shared #+ self.mu
+            private = private #+ self.mu
+
+        return dict(all=binned_spikes, private = private, shared = shared)
+
+
+
+
+
+
+
+
+
+
+
+
 
 # bands should be a list of tuples representing ranges
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
@@ -326,7 +380,6 @@ step  = 10
 default_bands = []
 for freq in range(start, end, step):
     default_bands.append((freq, freq+step))
-
 
 class LFPMTMPowerExtractor(object):
     '''

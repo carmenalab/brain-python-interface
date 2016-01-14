@@ -1108,7 +1108,17 @@ class BMILoop(object):
         # Run the decoder
         if self.state not in self.static_states:
             neural_features = feature_data[self.extractor.feature_type]
-            self.task_data['internal_decoder_state'] = self.call_decoder(neural_features, target_state, **kwargs)
+
+            tmp = self.call_decoder(neural_features, target_state, **kwargs)
+
+            if hasattr(self.extractor, 'downscale_factor') and self.extractor.feature_type in ['private', 'shared']:
+                vel_ix = np.nonzero(self.decoder.ssm.state_order==1)[0]
+                tmp[vel_ix] /= float(self.extractor.downscale_factor)
+
+                tmp2 = self.decoder.filt.state.mean[vel_ix, 0].copy() / float(self.extractor.downscale_factor)
+                self.decoder.filt.state.mean[vel_ix] = tmp2
+
+            self.task_data['internal_decoder_state'] = tmp
 
         # Drive the plant to the decoded state, if permitted by the constraints of the plant
         # If not possible, plant.drive should also take care of setting the decoder's 
