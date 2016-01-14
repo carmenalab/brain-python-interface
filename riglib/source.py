@@ -526,10 +526,15 @@ class MultiChanDataSource(mp.Process):
                                 for row in range(self.n_chan):
                                     self.wrap_flags[row] = False
 
-                            # send the data to the sink manager, one column at a time
-                            for idx in idxs_to_send:
-                                data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
-                                self.sinks.send(self.name, data)
+                            # Old way to send data to the sink manager, one column at a time
+                            # for idx in idxs_to_send:
+                            #     data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
+                            #     self.sinks.send(self.name, data)
+
+                            # New way to send data (in blocks) (update 1/12/2016)
+                            ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
+                            data = np.array(self.data[ix_], dtype=self.send_to_sinks_dtype)
+                            self.sinks.send(self.name, data)
 
                             self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)
 
