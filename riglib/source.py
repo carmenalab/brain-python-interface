@@ -388,6 +388,8 @@ class MultiChanDataSource(mp.Process):
         rawarray = shm.RawArray('c', self.n_chan * self.max_len * self.slice_size)
         self.data = np.frombuffer(rawarray, dtype).reshape((self.n_chan, self.max_len))
         
+        #self.fo2 = open('/storage/rawdata/test_rda_get.txt','w')
+        #self.fo3 = open('/storage/rawdata/test_rda_run.txt','w')
         self.lock = mp.Lock()
         self.pipe, self._pipe = mp.Pipe()
         self.cmd_event = mp.Event()
@@ -465,8 +467,13 @@ class MultiChanDataSource(mp.Process):
                 #   chan is the the channel number
                 #   data is a numpy array with a dtype (or subdtype) of
                 #   self.source.dtype
-                chan, data = system.get()
+                #print 'before get'
+                
 
+                chan, data = system.get()
+                #self.fo3.write(str(data[0][0]) + ' ' + str(time.time()) + ' \n')
+
+                #print 'after get'
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -584,7 +591,8 @@ class MultiChanDataSource(mp.Process):
                     data[chan_num, :n_pts-idx] = self.data[row, -(n_pts-idx):]
                     data[chan_num, n_pts-idx:] = self.data[row, :idx]
                 self.last_read_idxs[row] = idx
-
+        #print (data['data'])
+        #self.fo2.write(str(data[0,0]['data']) + ' ' + str(len(data[0,:]['data'])) + ' ' + str(time.time()) + ' \n')
         self.lock.release()
 
         if self.filter is not None:
@@ -653,6 +661,8 @@ class MultiChanDataSource(mp.Process):
         Set self.status.value to negative so that the while loop in self.run() terminates
         '''
         self.status.value = -1
+        # self.fo2.close()
+        # self.fo3.close()
     
     def __del__(self):
         '''
