@@ -373,21 +373,22 @@ class MultiChanDataSource(mp.Process):
         self.source_kwargs = kwargs
         self.bufferlen = bufferlen
         self.max_len = int(bufferlen * self.source.update_freq)
-        
         self.channels = kwargs['channels']
-        
         self.chan_to_row = dict()
         for row, chan in enumerate(self.channels):
             self.chan_to_row[chan] = row
+        
         self.n_chan = len(self.channels)
-
         dtype = self.source.dtype  # e.g., np.dtype('float') for LFP
         self.slice_size = dtype.itemsize
         self.idxs = shm.RawArray('l', self.n_chan)
         self.last_read_idxs = np.zeros(self.n_chan)
         rawarray = shm.RawArray('c', self.n_chan * self.max_len * self.slice_size)
+
+
         self.data = np.frombuffer(rawarray, dtype).reshape((self.n_chan, self.max_len))
         
+
         #self.fo2 = open('/storage/rawdata/test_rda_get.txt','w')
         #self.fo3 = open('/storage/rawdata/test_rda_run.txt','w')
         self.lock = mp.Lock()
@@ -520,7 +521,6 @@ class MultiChanDataSource(mp.Process):
                         # check if there is at least one column of data that
                         # has not yet been sent to the sink manager
                         if all(self.next_send_idx.value < idx + int(flag)*self.max_len for (idx, flag) in zip(self.idxs, self.wrap_flags)):
-
                             start_idx = self.next_send_idx.value
                             if not all(self.wrap_flags):
 
@@ -537,13 +537,31 @@ class MultiChanDataSource(mp.Process):
                                     self.wrap_flags[row] = False
 
                             # Old way to send data to the sink manager, one column at a time
-                            # for idx in idxs_to_send:
-                            #     data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
-                            #     self.sinks.send(self.name, data)
+                            # print "idxs_to_send"
+                            # print idxs_to_send
+                            for idx in idxs_to_send:
+                                data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
+                                # print "data shape"
+                                # print data.shape
+                                self.sinks.send(self.name, data)
 
-                            # New way to send data (in blocks) (update 1/12/2016)
-                            ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
-                            data = np.array(self.data[ix_], dtype=self.send_to_sinks_dtype)
+                            # # New way to send data (in blocks) (update 1/12/2016)
+                            # ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
+
+                            # data = np.array([tuple(self.data[:, idx]) for idx in idxs_to_send], dtype=self.send_to_sinks_dtype)
+                           
+                            #data2 = self.data[indexCh,:]
+                            #print "data2"
+                            #print data2.shape
+                            #data = np.array([tuple(data2[:, idx]) for idx in idxs_to_send], dtype=self.send_to_sinks_dtype)
+                           
+
+                            #print "indx to send"
+                            #print idxs_to_send
+
+                            #print "data shape"
+                            #print data.shape
+
                             self.sinks.send(self.name, data)
 
                             self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)
