@@ -33,8 +33,11 @@ Parameters.prototype.update = function(desc) {
         "Tuple": this.add_tuple,
         "Array": this.add_array,
         "Instance": this.add_instance,
+        "InstanceFromDB": this.add_instance,
+        "DataFile": this.add_instance,
         "String":this.add_string,
         "Enum":this.add_enum,
+        "OptionsList":this.add_enum,
         "Bool":this.add_bool,
     }
 

@@ -27,6 +27,45 @@ try:
 except:
     pass
 
+def train_decoder_ajax_handler(request, idx):
+    '''
+    AJAX handler for creating a new decoder.
+
+    Parameters
+    ----------
+    request : Django HttpRequest
+        POST data containing details for how to train the decoder (type, units, update rate, etc.)
+    idx : int
+        ID number of the models.TaskEntry record with the data used to train the Decoder.
+
+    Returns
+    -------
+    Django HttpResponse
+        Indicates 'success' if all commands initiated without error.
+    '''
+    ## Check if the name of the decoder is already taken
+    collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
+    if len(collide) > 0:
+        return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
+    update_rate = float(request.POST['bmiupdaterate'])
+
+    kwargs = dict(
+        entry=idx,
+        name=request.POST['bminame'],
+        clsname=request.POST['bmiclass'],
+        extractorname=request.POST['bmiextractor'],
+        cells=request.POST['cells'],
+        channels=request.POST['channels'],
+        binlen=1./update_rate,
+        tslice=map(float, request.POST.getlist('tslice[]')),
+        ssm=request.POST['ssm'],
+        pos_key=request.POST['pos_key'],
+        kin_extractor=request.POST['kin_extractor'],
+    )
+    trainbmi.cache_and_train(**kwargs)
+    return _respond(dict(status="success"))
+
+
 class encoder(json.JSONEncoder):
     '''
     Encoder for JSON data that defines how the data should be returned. 
@@ -55,7 +94,7 @@ def _respond(data):
     '''
     return HttpResponse(json.dumps(data, cls=encoder), mimetype="application/json")
 
-def task_info(request, idx):
+def task_info(request, idx, dbname='default'):
     '''
     Get information about the task
 
@@ -70,8 +109,8 @@ def task_info(request, idx):
     -------
     JSON-encoded dictionary
     '''
-    task = Task.objects.get(pk=idx)
-    feats = [Feature.objects.get(name=name) for name, isset in request.GET.items() if isset == "true"]
+    task = Task.objects.using(dbname).get(pk=idx)
+    feats = [Feature.objects.using(dbname).get(name=name) for name, isset in request.GET.items() if isset == "true"]
     task_info = dict(params=task.params(feats=feats))
 
     if issubclass(task.get(feats=feats), experiment.Sequence):
@@ -79,7 +118,7 @@ def task_info(request, idx):
 
     return _respond(task_info)
 
-def exp_info(request, idx):
+def exp_info(request, idx, dbname='default'):
     '''
     Get information about the task
 
@@ -95,9 +134,18 @@ def exp_info(request, idx):
     JSON-encoded dictionary 
         Data containing features, parameters, and any report data from the TaskEntry
     '''
-    print idx
-    entry = TaskEntry.objects.get(pk=idx)
-    return _respond(entry.to_json())
+    entry = TaskEntry.objects.using(dbname).get(pk=idx)
+    try:
+        entry_data = entry.to_json()
+    except:
+        print "##### Error trying to access task entry data: id=%s, dbname=%s" % (idx, dbname)
+        import traceback
+        exception = traceback.format_exc()
+        exception.replace('\n', '\n    ')
+        print exception.rstrip()
+        print "#####"
+    else:
+        return _respond(entry_data)
 
 def hide_entry(request, idx):
     '''
@@ -133,13 +181,15 @@ def start_next_exp(request):
 
 def start_experiment(request, save=True):
     '''
-    Handles presses of the 'Start Experiment' and 'Test' buttons in the web 
+    Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
     interface
     '''
     #make sure we don't have an already-running experiment
     if exp_tracker.status.value != '':
         http_request_queue.append((request, save))
         return _respond(dict(status="running", msg="Already running task, queuelen=%d!" % len(http_request_queue)))
+
+    # Try to start the task, and if there are any errors, send them to the browser interface
     try:
         data = json.loads(request.POST['data'])
 
@@ -149,7 +199,7 @@ def start_experiment(request, save=True):
         entry = TaskEntry(subject_id=data['subject'], task=task)
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
-        kwargs = dict(subj=entry.subject, task=task, feats=Feature.getall(data['feats'].keys()),
+        kwargs = dict(subj=entry.subject, task_rec=task, feats=Feature.getall(data['feats'].keys()),
                       params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
@@ -204,7 +254,8 @@ def rpc(fn):
     Parameters
     ----------
     fn : callable
-        Function which takes a single argument, the exp_tracker object. Return values from this function are ignored.
+        Function which takes a single argument, the exp_tracker object. 
+        Return values from this function are ignored.
 
     Returns
     -------
@@ -212,12 +263,14 @@ def rpc(fn):
     '''
     #make sure that there exists an experiment to stop
     if exp_tracker.status.value not in ["running", "testing"]:
-        return _respond(dict(status="error", msg="No task to end!"))
+        return _respond(dict(status="error", msg="No task to modify attributes"))
     try:
         status = exp_tracker.status.value
         fn(exp_tracker)
         return _respond(dict(status="pending", msg=status))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return _respond_err(e)
 
 def _respond_err(e):
@@ -245,53 +298,21 @@ def stop_experiment(request):
     return rpc(lambda exp_tracker: exp_tracker.stoptask())
 
 def enable_clda(request):
-    return rpc(lambda exp_tracker: exp_tracker.task.enable_clda())
+    return rpc(lambda exp_tracker: exp_tracker.task_proxy.enable_clda())
 
 def disable_clda(request):
-    return rpc(lambda exp_tracker: exp_tracker.task.disable_clda())
+    return rpc(lambda exp_tracker: exp_tracker.task_proxy.disable_clda())
+
+def set_task_attr(request, attr, value):
+    '''
+    Generic function to change a task attribute while the task is running.
+    '''
+    return rpc(lambda exp_tracker: exp_tracker.task_proxy.remote_set_attr(attr, value))
 
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)
     te.notes = request.POST['notes']
     te.save()
-    return _respond(dict(status="success"))
-
-def make_bmi(request, idx):
-    '''
-    AJAX handler for creating a new decoder.
-
-    Parameters
-    ----------
-    request : Django HttpRequest
-        POST data containing details for how to train the decoder (type, units, update rate, etc.)
-    idx : int
-        ID number of the models.TaskEntry record with the data used to train the Decoder.
-
-    Returns
-    -------
-    Django HttpResponse
-        Indicates 'success' if all commands initiated without error.
-    '''
-    ## Check if the name of the decoder is already taken
-    collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
-    if len(collide) > 0:
-        return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
-    update_rate = float(request.POST['bmiupdaterate'])
-
-    kwargs = dict(
-        entry=idx,
-        name=request.POST['bminame'],
-        clsname=request.POST['bmiclass'],
-        extractorname=request.POST['bmiextractor'],
-        cells=request.POST['cells'],
-        channels=request.POST['channels'],
-        binlen=1./update_rate,
-        tslice=map(float, request.POST.getlist('tslice[]')),
-        ssm=request.POST['ssm'],
-        pos_key=request.POST['pos_key'],
-        kin_extractor=request.POST['kin_extractor'],
-    )
-    trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))
 
 def reward_drain(request, onoff):

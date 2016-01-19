@@ -24,10 +24,31 @@ class ClientSocket(websocket.WebSocketHandler):
         print "WebSocket closed"
         sockets.remove(self)
 
-    def check_origin(self, *args, **kwargs):
+    def check_origin(self, origin):
+        '''
+        Returns a boolean indicating whether the requesting URL is one that the 
+        handler will respond to. For this websocket, everyone with access gets a response since 
+        we're running the server locally (or over ssh tunnels) and not over the regular internet.
+
+        Parameters
+        ----------
+        origin : string?
+            The URL from which the request originated
+
+        Returns
+        -------
+        boolean
+            Returns True if the request originates from a valid URL
+
+        See websocket.WebSocketHandler.check_origin for additional documentation
+        '''
         return True
 
+
 class Server(mp.Process):
+    '''
+    Spawn a process to deal with the websocket asynchronously, without halting other webserver operations. 
+    '''
     def __init__(self, notify=None):
         super(self.__class__, self).__init__()
         self._pipe, self.pipe = os.pipe()
@@ -37,40 +58,49 @@ class Server(mp.Process):
         self.start()
 
     def run(self):
+        '''
+        Main function to run in the process. See mp.Process.run() for additional documentation.
+        '''
         print "Running websocket service"
         application = tornado.web.Application([
             (r"/connect", ClientSocket),
         ])
 
         application.listen(8001)
-        self.ioloop = tornado.ioloop.IOLoop.instance()
+        self.ioloop = tornado.ioloop.IOLoop.instance() # docs say it's better to use '.current()' instead of '.instance()'?
         self.ioloop.add_handler(self._pipe, self._send, self.ioloop.READ)
         self.ioloop.add_handler(self._outp, self._stdout, self.ioloop.READ)
         self.ioloop.start()
 
-    def _stdout(self, fd, event):
-        nbytes, = struct.unpack('I', os.read(fd, 4))
-        msg = os.read(fd, nbytes)
-        for sock in sockets:
-            sock.write_message(msg)
-
-    def _send(self, fd, event):
-        nbytes, = struct.unpack('I', os.read(fd, 4))
-        msg = os.read(fd, nbytes)
-        if msg == "stop":
-            self.ioloop.stop()
-        else:
-            for sock in sockets:
-                sock.write_message(msg)
-    
     def send(self, msg):
+        # notify the task tracker that data is being sent to the web interface
         if self.notify is not None:
             self.notify(msg)
+
+        # force the message to string, if necessary (e.g., NotifyFeat.set_state sends a dict)
         if not isinstance(msg, (str, unicode)):
             msg = json.dumps(msg)
 
+        # Write to 'self.pipe'. The write apparently triggers the function self._stdout to run 
         os.write(self.pipe, struct.pack('I', len(msg))+msg)
 
+    def _stdout(self, fd, event):
+        '''
+        Handler for self._pipe; Read the data from the input pipe and propagate the data to all the listening sockets
+        '''
+        nbytes, = struct.unpack('I', os.read(fd, 4))
+        msg = os.read(fd, nbytes)
+
+        # write the message to all the sockets--could be multiple websockets open if multiple people are observing the same experiment
+        for sock in sockets:
+            # each 'sock' is assumed to be an instance of the ClientSocket above
+            sock.write_message(msg)
+
+    def stop(self):
+        print "Stopping websocket service"
+        self.send("stop")
+
+    ##### Currently unused functions below this line #####
     def write(self, data):
         '''Used for stdout hooking'''
         self.outqueue += data
@@ -81,9 +111,53 @@ class Server(mp.Process):
         os.write(self.outp, struct.pack('I', len(msg))+msg)
         self.outqueue = ""
 
-    def stop(self):
-        print "Stopping websocket service"
-        self.send("stop")
+    def _send(self, fd, event):
+        nbytes, = struct.unpack('I', os.read(fd, 4))
+        msg = os.read(fd, nbytes)
+        if msg == "stop":
+            self.ioloop.stop()
+        else:
+            for sock in sockets:
+                sock.write_message(msg)
+    
+
+class NotifyFeat(object):
+    '''
+    Send task report and state data to display on the web inteface
+    '''
+    def __init__(self, *args,  **kwargs):
+        super(NotifyFeat, self).__init__(*args, **kwargs)
+        self.websock = kwargs.pop('websock')
+        self.tracker_end_of_pipe = kwargs.pop('tracker_end_of_pipe')
+        self.tracker_status = kwargs.pop('tracker_status')
+
+    def set_state(self, state, *args, **kwargs):
+        self.reportstats['status'] = self.tracker_status
+        self.reportstats['State'] = state or 'stopped'
+        
+        # Call 'Server.send' above
+        self.websock.send(self.reportstats)
+        super(NotifyFeat, self).set_state(state, *args, **kwargs)
+
+    def run(self):
+        try:
+            super(NotifyFeat, self).run()
+        except:
+            import cStringIO
+            import traceback
+            err = cStringIO.StringIO()
+            traceback.print_exc(None, err)
+            err.seek(0)
+            self.websock.send(dict(status="error", msg=err.read()))
+        finally:
+            self.tracker_end_of_pipe.send(None)
+
+    def print_to_terminal(self, *args):
+        sys.stdout = sys.__stdout__
+        super(NotifyFeat, self).print_to_terminal(*args)
+        sys.stdout = self.websock
+
+
 
 def test():
     serv = Server()

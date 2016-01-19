@@ -11,20 +11,18 @@ class MPCompute(mp.Process):
     """
     def __init__(self, work_queue, result_queue, fn):
         '''
-        Docstring
+        Constructor for MPCompute
 
         Parameters
         ----------
+        work_queue : mp.Queue
+            Jobs start when an entry is found in work_queue
+        result_queue : mp.Queue
+            Results of job are placed back onto result_queue
 
         Returns
         -------
-
-
-        __init__
-
-        work_queue, result_queue are mp.Queues
-        Jobs start when an entry is found in work_queue
-        Results of job are placed back onto result_queue
+        MPCompute instance
         '''
         # run base constructor
         super(MPCompute, self).__init__()
@@ -36,13 +34,7 @@ class MPCompute(mp.Process):
 
     def _check_for_job(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Non-blocking check to see if data is present in the input queue
         '''
         try:
             job = self.work_queue.get_nowait()
@@ -52,20 +44,22 @@ class MPCompute(mp.Process):
         
     def run(self):
         '''
-        Docstring
-        The main loop. Starts automatically when 
+        The main loop. Starts automatically when the process is spawned. See mp.Process.run for additional docs.
+        Every 0.5 seconds, check for new computation to carry out
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         while not self.done.is_set():
             job = self._check_for_job()
 
             # unpack the data
-            if not job == None:
+            if not (job is None):
                 new_params = self.calc(*job[0], **job[1])
                 self.result_queue.put(new_params)
 
@@ -74,27 +68,16 @@ class MPCompute(mp.Process):
 
     def calc(self, *args, **kwargs):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Run the actual calculation function
         '''
         return self.fn(*args, **kwargs)
 
     def stop(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Set the flag to stop the 'while' loop in the 'run' method gracefully
         '''
         self.done.set()
+
 
 class FuncProxy(object):
     '''

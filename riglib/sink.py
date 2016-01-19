@@ -40,13 +40,15 @@ class DataSink(mp.Process):
     
     def run(self):
         '''
-        Docstring
+        Run the sink system in a remote process
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         # instantiate the output interface
         output = self.output(**self.kwargs)
@@ -76,7 +78,7 @@ class DataSink(mp.Process):
     
     def __getattr__(self, attr):
         '''
-        Get the specified attribute of the sink in the other process
+        Get the specified attribute of the sink in the remote process
     
         Parameters
         ----------
@@ -95,14 +97,14 @@ class DataSink(mp.Process):
 
     def send(self, system, data):
         '''
-        Docstring
+        Send data to the sink system running in the remote process
     
         Parameters
         ----------
-        system : DATA_TYPE
-            ARG_DESCR
-        data : DATA_TYPE
-            ARG_DESCR
+        system : string
+            Name of system (source) from which the data originated 
+        data : object
+            Arbitrary data. The remote sink should know how to handle the data
     
         Returns
         -------
@@ -130,6 +132,7 @@ class DataSink(mp.Process):
         Stop the remote sink when the object is destructed
         '''
         self.stop()
+
 
 class SinkManager(object):
     ''' Data Sink manager singleton to be used by features '''
@@ -176,13 +179,18 @@ class SinkManager(object):
 
     def register(self, system, dtype=None):
         '''
-        Docstring
+        Register a system with all the known sinks
 
         Parameters
         ----------
+        system : source.DataSource, source.MultiChanDataSource, or string 
+            System to register with all the sinks 
+        dtype : None (deprecated)
+            Even if specified, this is overwritten in the 'else:' condition below
 
         Returns
         -------
+        None
         '''
         if isinstance(system, source.DataSource):
             name = system.name
@@ -192,7 +200,8 @@ class SinkManager(object):
             dtype = system.send_to_sinks_dtype
         elif isinstance(system, str):
             name = system
-        else:
+        else: 
+            # assume that the system is a class
             name = system.__module__.split(".")[1]
             dtype = system.dtype
 
@@ -230,13 +239,8 @@ class SinkManager(object):
 
     def __iter__(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Returns a python iterator to allow looping over all the 
+        registered sinks, e.g., to send them all the same data
         '''
         for s in self.sinks:
             yield s

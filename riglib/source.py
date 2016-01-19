@@ -20,13 +20,20 @@ class FuncProxy(object):
     '''
     def __init__(self, name, pipe, event):
         '''
-        Docstring
+        Constructor for FuncProxy
 
         Parameters
         ----------
+        name : string
+            Name of remote function to call
+        pipe : mp.Pipe instance
+            multiprocessing pipe through which to send data (function name, arguments) and receive the result
+        event : mp.Event instance
+            A flag to set which is multiprocessing-compatible (visible to both the current and the remote processes)
 
         Returns
         -------
+        FuncProxy instance
         '''
         self.pipe = pipe
         self.name = name
@@ -34,13 +41,16 @@ class FuncProxy(object):
 
     def __call__(self, *args, **kwargs):
         '''
-        Docstring
+        Return the result of the remote function call
 
         Parameters
         ----------
+        *args, **kwargs : positional arguments, keyword arguments
+            To be passed to the remote function associated when the object was created
 
         Returns
         -------
+        function result
         '''
         self.pipe.send((self.name, args, kwargs))
         self.event.set()
@@ -50,6 +60,37 @@ class FuncProxy(object):
 # NOTE: this import MUST be after the defintion of FuncProxy
 import sink
 
+class DataSourceSystem(object):
+    '''
+    Abstract base class for use with the generic DataSource infrastructure. Requirements:
+        1) the class must have an attribute named 'dtype' which represents 
+           the data type of the source data. The datatype *cannot* change!
+        2) the class must have an attribute named 'update_freq' which specifies 
+           the frequency at which new data samples will be ready for retrieval.
+        3) 'start' method--no arguments
+        4) 'stop' method--no arguments
+        5) 'get' method--should return a single output argument
+    '''
+    dtype = np.dtype([])
+    update_freq = 1
+    def start(self):
+        '''
+        Initialization for the source
+        '''
+        pass
+
+    def stop(self):
+        '''
+        Code to run when the data source is to be stopped
+        '''
+        pass
+
+    def get(self):
+        '''
+        Retrieve the current data available from the source. 
+        '''
+        pass
+
 class DataSource(mp.Process):
     '''
     Generic single-channel data source
@@ -58,15 +99,8 @@ class DataSource(mp.Process):
         '''
         Parameters
         ----------
-        source: class
-            Class to be instantiated as the "system" with changing data values. Requirements:
-                1) the class must have an attribute named 'dtype' which represents 
-                   the data type of the source data. The datatype *cannot* change!
-                2) the class must have an attribute named 'update_freq' which specifies 
-                   the frequency at which new data samples will be ready for retrieval.
-                3) 'start' method--no arguments
-                4) 'stop' method--no arguments
-                5) 'get' method--should return a single output argument
+        source: class compatible with DataSourceSystem
+            Class to be instantiated as the "system" with changing data values. 
         bufferlen: float
             Number of seconds long to make the ringbuffer. Seconds are converted to number 
             of samples based on the 'update_freq' attribute of the source
@@ -74,7 +108,7 @@ class DataSource(mp.Process):
             Name of the sink, i.e., HDF table. If one is not provided, it will be inferred based
             on the name of the source module
         send_data_to_sink_manager: boolean, optional, default=True
-            Flag to indicate whether data should be saved to a sink (i.e., HDF file)
+            Flag to indicate whether data should be saved to a sink (e.g., HDF file)
         kwargs: optional keyword arguments
             Passed to the source during object construction if any are specified
 
@@ -113,26 +147,24 @@ class DataSource(mp.Process):
 
     def start(self, *args, **kwargs):
         '''
-        Docstring
+        From Python's docs on the multiprocessing module:
+            Start the process's activity.
+            This must be called at most once per process object. It arranges for the object's run() method to be invoked in a separate process.
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         self.sinks = sink.sinks
         super(DataSource, self).start(*args, **kwargs)
 
     def run(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
         '''
         try:
             system = self.source(**self.source_kwargs)
@@ -144,7 +176,7 @@ class DataSource(mp.Process):
         streaming = True
         size = self.slice_size
         while self.status.value > 0:
-            if self.cmd_event.is_set():
+            if self.cmd_event.is_set(): # if a command has been sent from the main task
                 cmd, args, kwargs = self._pipe.recv()
                 self.lock.acquire()
                 try:
@@ -158,6 +190,7 @@ class DataSource(mp.Process):
                 self.lock.release()
                 self._pipe.send(ret)
                 self.cmd_event.clear()
+
             if self.stream.is_set():
                 self.stream.clear()
                 streaming = not streaming
@@ -166,6 +199,7 @@ class DataSource(mp.Process):
                     system.start()
                 else:
                     system.stop()
+
             if streaming:
                 data = system.get()
                 if self.send_data_to_sink_manager:
@@ -181,20 +215,29 @@ class DataSource(mp.Process):
                         print e
             else:
                 time.sleep(.001)
+
+        # stop the system once self.status.value has been set to a negative number
         system.stop()
 
     def get(self, all=False, **kwargs):
         '''
-        Docstring
+        Retreive data from the remote process
 
         Parameters
         ----------
+        all : boolean, optional, default=False
+            If true, returns all the data currently available. Since a finite buffer is used, 
+            this is NOT the same as all the data observed. (see 'bufferlen' in __init__ for buffer size)
+        kwargs : optional kwargs 
+            To be passed to self.filter, if it is listed
 
         Returns
         -------
+        np.recarray 
+            Datatype of record array is the dtype of the DataSourceSystem
         '''
         if self.status.value <= 0:
-            raise Exception('Error starting datasource ' + self.name)
+            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
             
         self.lock.acquire()
         i = (self.idx.value % self.max_len) * self.slice_size
@@ -222,19 +265,12 @@ class DataSource(mp.Process):
             return self.filter(data, **kwargs)
         return data
 
-    # TODO -- change name, add documentation
     def read(self, n_pts=1, **kwargs):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Read the last n_pts out of the buffer? Not sure how this is different from .get, and it doesn't appear to be used in any existing code....
         '''
         if self.status.value <= 0:
-            raise Exception('Error starting datasource ' + self.name)
+            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
             
         self.lock.acquire()
         idx = self.idx.value % self.max_len 
@@ -260,57 +296,46 @@ class DataSource(mp.Process):
 
     def pause(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Used to toggle the 'streaming' variable in the remote "run" process 
         '''
         self.stream.set()
 
     def stop(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Set self.status.value to negative so that the while loop in self.run() terminates
         '''
         self.status.value = -1
     
     def __del__(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Make sure the remote process stops if the Source object is destroyed
         '''
         self.stop()
 
     def __getattr__(self, attr):
         '''
-        Docstring
+        Try to retreive attributes from the remote DataSourceSystem if the are not found in the proximal Source object
 
         Parameters
         ----------
+        attr : string 
+            Name of attribute to retreive
 
         Returns
         -------
+        object
+            The arbitrary value associated with the named attribute, if it exists.
         '''
         if attr in self.methods:
+            # if the attribute requested is an instance method of the 'source', return a proxy to the remote source's method
             return FuncProxy(attr, self.pipe, self.cmd_event)
         elif not attr.beginsWith("__"):
-            print "getting attribute %s"%attr
+            # try to look up the attribute remotely
+            print "getting attribute %s" % attr
             self.pipe.send(("getattr", (attr,), {}))
             self.cmd_event.set()
             return self.pipe.recv()
+        # TODO stylistically, this last statement should be what happens if an "else:" is hit
         raise AttributeError(attr)
 
 
@@ -329,6 +354,8 @@ class MultiChanDataSource(mp.Process):
         name: string, optional, default=None
             Name of the sink, i.e., HDF table. If one is not provided, it will be inferred based
             on the name of the source module
+        send_data_to_sink_manager: boolean, optional, default=True
+            Flag to indicate whether data should be saved to a sink (e.g., HDF file)            
         kwargs: dict, optional, default = {}
             For the multi-channel data source, you MUST specify a 'channels' keyword argument
             Note that kwargs['channels'] does not need to a list of integers,
@@ -364,6 +391,7 @@ class MultiChanDataSource(mp.Process):
         self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1)
         self.stream = mp.Event()
+        self.data_has_arrived = mp.Value('b', 0)
 
         self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
 
@@ -375,26 +403,24 @@ class MultiChanDataSource(mp.Process):
 
     def start(self, *args, **kwargs):
         '''
-        Docstring
+        From Python's docs on the multiprocessing module:
+            Start the process's activity.
+            This must be called at most once per process object. It arranges for the object's run() method to be invoked in a separate process.
 
         Parameters
         ----------
+        None
 
         Returns
         -------
+        None
         '''
         self.sinks = sink.sinks
         super(MultiChanDataSource, self).start(*args, **kwargs)
 
     def run(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
         '''
         print "Starting datasource %r" % self.source
         try:
@@ -472,6 +498,9 @@ class MultiChanDataSource(mp.Process):
                             self.idxs[row] = idx
 
                         self.lock.release()
+
+                        # Set the flag indicating that data has arrived from the source
+                        self.data_has_arrived.value = 1
                     except Exception as e:
                         print e
 
@@ -497,10 +526,15 @@ class MultiChanDataSource(mp.Process):
                                 for row in range(self.n_chan):
                                     self.wrap_flags[row] = False
 
-                            # send the data to the sink manager, one column at a time
-                            for idx in idxs_to_send:
-                                data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
-                                self.sinks.send(self.name, data)
+                            # Old way to send data to the sink manager, one column at a time
+                            # for idx in idxs_to_send:
+                            #     data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
+                            #     self.sinks.send(self.name, data)
+
+                            # New way to send data (in blocks) (update 1/12/2016)
+                            ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
+                            data = np.array(self.data[ix_], dtype=self.send_to_sinks_dtype)
+                            self.sinks.send(self.name, data)
 
                             self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)
 
@@ -515,16 +549,20 @@ class MultiChanDataSource(mp.Process):
         '''
         Return the most recent n_pts of data from the specified channels.
 
-        Docstring
-
         Parameters
         ----------
+        n_pts : int
+            Number of data points to read
+        channels : iterable
+            Channels from which to read
 
         Returns
         -------
+        list of np.recarray objects
+            Datatype of each record array is the dtype of the DataSourceSystem
         '''
         if self.status.value <= 0:
-            raise Exception('Error starting datasource ' + self.name)
+            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
 
         self.lock.acquire()
         
@@ -558,16 +596,21 @@ class MultiChanDataSource(mp.Process):
     def get_new(self, channels, **kwargs):
         '''
         Return the new (unread) data from the specified channels.
-        Docstring
 
         Parameters
         ----------
+        channels : iterable
+            Channels from which to read        
+        kwargs : optional kwargs 
+            To be passed to self.filter, if it is listed
 
         Returns
         -------
+        list of np.recarray objects
+            Datatype of each record array is the dtype of the DataSourceSystem        
         '''
         if self.status.value <= 0:
-            raise Exception('Error starting datasource ' + self.name)
+            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
 
         self.lock.acquire()
         
@@ -598,49 +641,40 @@ class MultiChanDataSource(mp.Process):
 
     def pause(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Used to toggle the 'streaming' variable in the remote "run" process 
         '''
         self.stream.set()
 
+    def check_if_data_has_arrived(self):
+        '''
+        '''
+        return self.data_has_arrived.value
+
     def stop(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Set self.status.value to negative so that the while loop in self.run() terminates
         '''
         self.status.value = -1
     
     def __del__(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Make sure the remote process stops if the Source object is destroyed
         '''
         self.stop()
 
     def __getattr__(self, attr):
         '''
-        Docstring
+        Try to retreive attributes from the remote DataSourceSystem if the are not found in the proximal Source object
 
         Parameters
         ----------
+        attr : string 
+            Name of attribute to retreive
 
         Returns
         -------
+        object
+            The arbitrary value associated with the named attribute, if it exists.
         '''
         if attr in self.methods:
             return FuncProxy(attr, self.pipe, self.cmd_event)
@@ -651,9 +685,3 @@ class MultiChanDataSource(mp.Process):
             return self.pipe.recv()
         raise AttributeError(attr)
 
-
-if __name__ == "__main__":
-    from riglib import motiontracker
-    sim = DataSource(motiontracker.make_simulate(8))
-    sim.start()
-    #sim.get()

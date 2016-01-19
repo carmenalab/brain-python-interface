@@ -787,7 +787,8 @@ class BMISystem(object):
         self.feature_accumulator = feature_accumulator
         self.param_hist = []
 
-        if self.updater is not None:
+        self.has_updater = not (self.updater is None)
+        if self.has_updater:
             self.updater.init(self.decoder)
 
     def __call__(self, neural_obs, target_state, task_state, learn_flag=False, **kwargs):
@@ -846,7 +847,6 @@ class BMISystem(object):
             ## Decode the current observation
             #################################
             decodable_obs, decode = self.feature_accumulator(neural_obs_k)
-
             if decode: # if a new decodable observation is available from the feature accumulator
                 prev_state = self.decoder.get_state()
                 
@@ -873,12 +873,11 @@ class BMISystem(object):
                 batch_data = self.learner.get_batch()
                 batch_data['decoder'] = self.decoder
                 kwargs.update(batch_data)
-
                 self.updater(**kwargs)
                 self.learner.disable() 
 
             new_params = None # by default, no new parameters are available
-            if not (self.updater is None):
+            if self.has_updater:
                 new_params = self.updater.get_result()
 
             # Update the decoder if new parameters are available
@@ -890,9 +889,8 @@ class BMISystem(object):
                 self.learner.enable()
                 update_flag = True
 
-                # Update parameter history
+                # Save new parameters to parameter history
                 self.param_hist.append(new_params)
-
         return decoded_states, update_flag
 
 
@@ -912,6 +910,11 @@ class BMILoop(object):
         # Initialize the decoder
         self.load_decoder()
         self.init_decoder_state()
+
+        if hasattr(self.decoder, 'adapting_state_inds'):
+            print 'HAS adapting state inds'
+        else:
+            print "NO adapting state inds"
 
         # Declare data attributes to be stored in the sinks every iteration of the FSM
         self.add_dtype('loop_time', 'f8', (1,))
@@ -975,7 +978,6 @@ class BMILoop(object):
         feature_dtype = np.float64
         acc_len = int(self.decoder.binlen / self.update_rate)
         acc_len = max(1, acc_len)
-
         if self.extractor.feature_type in ['lfp_power', 'emg_amplitude']:
             self.feature_accumulator = accumulator.NullAccumulator(acc_len)
         else:
@@ -1039,7 +1041,7 @@ class BMILoop(object):
 
         Parameters
         ----------
-        neural_obs : np.array of shape (n_features, n_subbins)
+        neural_obs : object, typically np.array of shape (n_features, n_subbins)
             n_features is the number of neural features the decoder is expecting to decode from.
             n_subbins is the number of simultaneous observations which will be decoded (typically 1)
         target_state : np.array of shape (n_states, 1)
@@ -1050,7 +1052,9 @@ class BMILoop(object):
         '''
         # Get the decoder output
         decoder_output, update_flag = self.bmi_system(neural_obs, target_state, self.state, learn_flag=self.learn_flag, **kwargs)
+
         self.task_data['update_bmi'] = int(update_flag)
+
         return decoder_output
 
     def get_features(self):
@@ -1074,6 +1078,7 @@ class BMILoop(object):
         decoder_state : np.mat
             (N, 1) vector representing the state decoded by the BMI
         '''
+
         # Run the feature extractor
         feature_data = self.get_features()
 
@@ -1082,33 +1087,53 @@ class BMILoop(object):
             self.task_data[key] = val
 
         # Determine the target_state and save to file
-        if self.current_assist_level > 0 or self.learn_flag:
+        current_assist_level = self.get_current_assist_level()
+        if current_assist_level > 0 or self.learn_flag:
             target_state = self.get_target_BMI_state(self.decoder.states)
         else:
             target_state = np.ones([self.decoder.n_states, self.decoder.n_subbins]) * np.nan
 
 
         # Determine the assistive control inputs to the Decoder
-        if self.current_assist_level > 0:
+        if current_assist_level > 0:
             current_state = self.get_current_state()
+
             if target_state.shape[1] > 1:
-                assist_kwargs = self.assister(current_state, target_state[:,0].reshape(-1,1), self.current_assist_level, mode=self.state)
+                assist_kwargs = self.assister(current_state, target_state[:,0].reshape(-1,1), current_assist_level, mode=self.state)
             else:
-                assist_kwargs = self.assister(current_state, target_state, self.current_assist_level, mode=self.state)
+                assist_kwargs = self.assister(current_state, target_state, current_assist_level, mode=self.state)
+
             kwargs.update(assist_kwargs)
 
         # Run the decoder
         if self.state not in self.static_states:
             neural_features = feature_data[self.extractor.feature_type]
-            self.task_data['internal_decoder_state'] = self.call_decoder(neural_features, target_state, **kwargs)
+
+            tmp = self.call_decoder(neural_features, target_state, **kwargs)
+
+            if hasattr(self.extractor, 'downscale_factor') and self.extractor.feature_type in ['private', 'shared']:
+                vel_ix = np.nonzero(self.decoder.ssm.state_order==1)[0]
+                tmp[vel_ix] /= float(self.extractor.downscale_factor)
+
+                tmp2 = self.decoder.filt.state.mean[vel_ix, 0].copy() / float(self.extractor.downscale_factor)
+                self.decoder.filt.state.mean[vel_ix] = tmp2
+
+            self.task_data['internal_decoder_state'] = tmp
 
         # Drive the plant to the decoded state, if permitted by the constraints of the plant
         # If not possible, plant.drive should also take care of setting the decoder's 
         # state as close as possible to physical reality
         self.plant.drive(self.decoder)
+        try:
+            self.dec_cnt += 1
+        except:
+            self.dec_cnt = 0
 
         self.task_data['decoder_state'] = decoder_state = self.decoder.get_state(shape=(-1,1))
         return decoder_state
+
+    def get_current_assist_level(self):
+        return self.current_assist_level
 
     def get_current_state(self):
         '''
@@ -1125,6 +1150,8 @@ class BMILoop(object):
         raise NotImplementedError
 
     def _cycle(self):
+        self.move_plant()
+
         # save loop time to HDF file
         self.task_data['loop_time'] = self.iter_time()
         super(BMILoop, self)._cycle()
@@ -1150,13 +1177,79 @@ class BMILoop(object):
                 log_file.write('n_updates: %g\n' % len(self.bmi_system.param_hist))
                 ignore_none = self.learner.batch_size > 1
                 log_file.write('Ignoring "None" values: %s\n' % str(ignore_none))
-                clda.write_clda_data_to_hdf_table(
+                
+                self.write_clda_data_to_hdf_table(
                     self.h5file.name, self.bmi_system.param_hist, 
                     ignore_none=ignore_none)
         except:
             import traceback
             traceback.print_exc(file=log_file)
         log_file.close()
+
+    @staticmethod
+    def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
+        '''
+        Save CLDA data generated during the experiment to the specified HDF file
+
+        Parameters
+        ----------
+        hdf_fname : string
+            filename of HDF file
+        data : list
+            list of dictionaries with the same keys and same dtypes for values
+
+        Returns
+        -------
+        None
+        '''
+        log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_hdf_log'), 'w')
+
+        compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
+        if len(data) > 0:
+            # Find the first parameter update dictionary
+            k = 0
+            first_update = data[k]
+            while first_update is None:
+                k += 1
+                first_update = data[k]
+        
+            table_col_names = first_update.keys()
+            print table_col_names
+            dtype = []
+            shapes = []
+            for col_name in table_col_names:
+                if isinstance(first_update[col_name], float):
+                    shape = (1,)
+                else:
+                    shape = first_update[col_name].shape
+                dtype.append((col_name.replace('.', '_'), 'f8', shape))
+                shapes.append(shape)
+        
+            log_file.write(str(dtype))
+            # Create the HDF table with the datatype above
+            dtype = np.dtype(dtype) 
+        
+            h5file = tables.openFile(hdf_fname, mode='a')
+            arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
+
+            null_update = np.zeros((1,), dtype=dtype)
+            for col_name in table_col_names:
+                null_update[col_name.replace('.', '_')] *= np.nan
+        
+            for k, param_update in enumerate(data):
+                log_file.write('%d, %s\n' % (k, str(ignore_none)))
+                if param_update == None:
+                    if ignore_none:
+                        continue
+                    else:
+                        data_row = null_update
+                else:
+                    data_row = np.zeros((1,), dtype=dtype)
+                    for col_name in table_col_names:
+                        data_row[col_name.replace('.', '_')] = np.asarray(param_update[col_name])
+        
+                arr.append(data_row)
+            h5file.close()
 
     def cleanup(self, database, saveid, **kwargs):
         super(BMILoop, self).cleanup(database, saveid, **kwargs)
@@ -1195,3 +1288,4 @@ class BMI(object):
     Legacy class, used only for unpickling super old Decoder objects. Ignore completely.
     '''
     pass
+

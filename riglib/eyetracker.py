@@ -13,13 +13,7 @@ except ImportError:
 
 class Simulate(object):
     '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
+    Feature (task add-on) to simulate the eyetracker.
     '''
     update_freq = 500
     dtype = np.dtype((np.float, (2,)))

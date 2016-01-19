@@ -1,7 +1,6 @@
 '''
 HDF-saving features
 '''
-
 import time
 import tempfile
 import random
@@ -14,9 +13,6 @@ from riglib import calibrations, bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
 
-###### CONSTANTS
-sec_per_min = 60
-
 
 class SaveHDF(object):
     '''
@@ -27,17 +23,18 @@ class SaveHDF(object):
         Secondary init function. See riglib.experiment.Experiment.init()
         Prior to starting the task, this 'init' starts an HDFWriter sink.
         '''
-        import tempfile
         from riglib import sink
         self.sinks = sink.sinks
         self.h5file = tempfile.NamedTemporaryFile()
-        self.hdf = sink.sinks.start(self.hdf_class, filename=self.h5file.name)
+        self.hdf = sink.sinks.start(self.sink_class, filename=self.h5file.name)
 
         super(SaveHDF, self).init()    
 
     @property
-    def hdf_class(self):
-        ''' Docstring '''
+    def sink_class(self):
+        '''
+        Specify the sink class as a function in case future descendant classes want to use a different type of sink
+        '''
         from riglib import hdfwriter
         return hdfwriter.HDFWriter
 
@@ -76,18 +73,13 @@ class SaveHDF(object):
 
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        See LogExperiment.cleanup for documentation
         '''
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
         print "Beginning HDF file cleanup"
-        print "#################%s"%self.h5file.name
+        print "\tHDF data currently saved to temp file: %s" % self.h5file.name
         try:
+            print "\tRunning self.cleanup_hdf()"
             self.cleanup_hdf()
         except:
             print "\n\n\n\n\nError cleaning up HDF file!"

@@ -1,9 +1,12 @@
 '''
+Classes here which inherit from django.db.models.Model define the structure of the database
+
 Django database modules. See https://docs.djangoproject.com/en/dev/intro/tutorial01/
 for a basic introduction
 '''
 
 import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import json
 import cPickle, pickle
 import inspect
@@ -15,9 +18,14 @@ import numpy as np
 
 from riglib import calibrations, experiment
 from config import config
+import importlib
+import subprocess    
+import traceback
 
 def _get_trait_default(trait):
-    '''Function which tries to resolve traits' retarded default value system'''
+    '''
+    Function which tries to determine the default value for a trait in the class declaration
+    '''
     _, default = trait.default_value()
     if isinstance(default, tuple) and len(default) > 0:
         try:
@@ -35,6 +43,7 @@ class Task(models.Model):
     
     def get(self, feats=()):
         from namelist import tasks
+        if len(tasks)==0: print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
         from riglib import experiment
         if self.name in tasks:
             return experiment.make(tasks[self.name], Feature.getall(feats))
@@ -43,6 +52,9 @@ class Task(models.Model):
 
     @staticmethod
     def populate():
+        '''
+        Automatically create a new database record for any tasks added to db/namelist.py
+        '''
         from namelist import tasks
         real = set(tasks.keys())
         db = set(task.name for task in Task.objects.all())
@@ -50,47 +62,88 @@ class Task(models.Model):
             Task(name=name).save()
 
     def params(self, feats=(), values=None):
-        from riglib import experiment
-        from namelist import instance_to_model
-        import plantlist
+        #from namelist import instance_to_model, instance_to_model_filter_kwargs
+
         if values is None:
             values = dict()
         
+        # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
         params = OrderedDict()
+
+        # Run the meta-class constructor to make the Task class (base task class + features )
         Exp = self.get(feats=feats)
         ctraits = Exp.class_traits()
 
-        def add_trait(trait):
-            varname = dict()
-            varname['type'] = ctraits[trait].trait_type.__class__.__name__
-            varname['default'] = _get_trait_default(ctraits[trait])
-            varname['desc'] = ctraits[trait].desc
-            varname['hidden'] = 'hidden' if Exp.is_hidden(trait) else 'visible'
-            if trait in values:
-                varname['value'] = values[trait]
-            if varname['type'] == "Instance":
-                Model = instance_to_model[ctraits[trait].trait_type.klass]
-                insts = Model.objects.order_by("-date")#[:200]
-                varname['options'] = [(i.pk, i.name) for i in insts]
-            if varname['type'] == "Enum":
-                varname['options'] = getattr(Exp, trait + '_options')
-            params[trait] = varname
-            if trait == 'bmi':
-                params['decoder'] = varname
+        def add_trait(trait_name):
+            trait_params = dict()
+            trait_params['type'] = ctraits[trait_name].trait_type.__class__.__name__
+            trait_params['default'] = _get_trait_default(ctraits[trait_name])
+            trait_params['desc'] = ctraits[trait_name].desc
+            trait_params['hidden'] = 'hidden' if Exp.is_hidden(trait_name) else 'visible'
 
+            if trait_name in values:
+                trait_params['value'] = values[trait_name]
+
+            # if the trait is an instance (generic object), then it is assumed that 
+            # the object is associated with some database model
+            # if trait_params['type'] == "Instance":
+            #     Model = instance_to_model[ctraits[trait_name].trait_type.klass]
+            #     filter_kwargs = instance_to_model_filter_kwargs[ctraits[trait_name].trait_type.klass]
+
+            #     # look up database records which match the model type & filter parameters
+            #     insts = Model.objects.filter(**filter_kwargs).order_by("-date")
+            #     trait_params['options'] = [(i.pk, i.path) for i in insts]
+
+            if trait_params['type'] == "InstanceFromDB":
+                # look up the model name in the trait
+                mdl_name = ctraits[trait_name].bmi3d_db_model
+                # get the database Model class from 'db.tracker.models'
+                #Model = getattr(models, mdl_name)
+                Model = globals()[mdl_name]
+                filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
+
+                # look up database records which match the model type & filter parameters
+                insts = Model.objects.filter(**filter_kwargs).order_by("-date")
+                trait_params['options'] = [(i.pk, i.path) for i in insts]
+
+            elif trait_params['type'] == 'Instance':
+                raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
+
+            # if the trait is an enumeration, look in the 'Exp' class for 
+            # the options because for some reason the trait itself can't 
+            # store the available options (at least at the time this was written..)
+            elif trait_params['type'] == "Enum":
+                raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
+
+            elif trait_params['type'] == "OptionsList":
+                trait_params['options'] = ctraits[trait_name].bmi3d_input_options
+
+            elif trait_params['type'] == "DataFile":
+                # look up database records which match the model type & filter parameters
+                filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
+                insts = DataFile.objects.filter(**filter_kwargs).order_by("-date")
+                trait_params['options'] = [(i.pk, i.path) for i in insts]                
+
+            params[trait_name] = trait_params
+
+            if trait_name == 'bmi': # a hack for really old data, where the 'decoder' was mistakenly labeled 'bmi'
+                params['decoder'] = trait_params
+
+        # add all the traits that are explicitly instructed to appear at the top of the menu
         ordered_traits = Exp.ordered_traits
         for trait in ordered_traits:
             if trait in Exp.class_editable_traits():
                 add_trait(trait)
 
+        # add all the remaining non-hidden traits
         for trait in Exp.class_editable_traits():
             if trait not in params and not Exp.is_hidden(trait):
                 add_trait(trait)
 
+        # add any hidden traits
         for trait in Exp.class_editable_traits():
             if trait not in params:
                 add_trait(trait)
-
         return params
 
     def sequences(self):
@@ -109,11 +162,18 @@ class Feature(models.Model):
 
     @property
     def desc(self):
-        return self.get().__doc__
+        feature_cls = self.get()
+        if not feature_cls is None:
+            return feature_cls.__doc__
+        else:
+            return ''
     
     def get(self):
         from namelist import features
-        return features[self.name]
+        if self.name in features:
+            return features[self.name]
+        else:
+            return None
 
     @staticmethod
     def populate():
@@ -157,6 +217,32 @@ class System(models.Model):
                 System.objects.get(name=name)
             except ObjectDoesNotExist:
                 System(name=name, path="/storage/rawdata/%s"%name).save()
+
+    @staticmethod 
+    def make_new_sys(name):
+        try:
+            new_sys_rec = System.objects.get(name=name)
+        except ObjectDoesNotExist:
+            data_dir = "/storage/rawdata/%s" % name
+            new_sys_rec = System(name=name, path=data_dir)
+            new_sys_rec.save()
+            os.popen('mkdir -p %s' % data_dir)
+
+        return new_sys_rec
+
+    def save_to_file(self, obj, filename, obj_name=None, entry_id=-1):
+        full_filename = os.path.join(self.path, filename)
+        pickle.dump(obj, open(full_filename, 'w'))
+
+        if obj_name is None:
+            obj_name = filename.rstrip('.pkl')
+
+        df = DataFile()
+        df.path = filename 
+        df.system = self 
+        df.entry_id = entry_id
+        df.save()
+
 
 class Subject(models.Model):
     name = models.CharField(max_length=128)
@@ -227,7 +313,7 @@ class Generator(models.Model):
         #     names.remove("exp")
         # arginfo = zip(names, defaults)
 
-        params = dict()
+        params = OrderedDict()
         from itertools import izip
         for name, default in izip(names, defaults):
             if name == 'exp':
@@ -315,7 +401,7 @@ class TaskEntry(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     task = models.ForeignKey(Task)
     feats = models.ManyToManyField(Feature)
-    sequence = models.ForeignKey(Sequence)
+    sequence = models.ForeignKey(Sequence, blank=True)
 
     params = models.TextField()
     report = models.TextField()
@@ -384,20 +470,23 @@ class TaskEntry(models.Model):
     def offline_report(self):
         Exp = self.task.get(self.feats.all())
         task = self.task.get(self.feats.all())
-        report = json.loads(self.report)
-        rpt = Exp.offline_report(report)
+        if len(self.report) == 0:
+            return dict()
+        else:
+            report = json.loads(self.report)
+            rpt = Exp.offline_report(report)
 
-        ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
-        try:
-            from db import dbfunctions
-            te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
-            rpt['Decoder name'] = te.decoder_record.name
-        except AttributeError:
-            pass
-        except:
-            import traceback
-            traceback.print_exc()
-        return rpt
+            ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
+            try:
+                from db import dbfunctions
+                te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
+                rpt['Decoder name'] = te.decoder_record.name
+            except AttributeError:
+                pass
+            except:
+                import traceback
+                traceback.print_exc()
+            return rpt
 
     def to_json(self):
         '''
@@ -405,32 +494,37 @@ class TaskEntry(models.Model):
         '''
         from json_param import Parameters
 
-        # Run the metaclass constructor for the experiment used. If this can be avoided it would help to break some of the cross-package software dependencies,
+        # Run the metaclass constructor for the experiment used. If this can be avoided, it would help to break some of the cross-package software dependencies,
         # making it easier to analyze data without installing software for the entire rig
-        Exp = self.task.get(self.feats.all())
 
+        Exp = self.task.get(self.feats.all())        
         state = 'completed' if self.pk is not None else "new"
+
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=self.task_params)
+
+        if len(js['params'])!=len(self.task_params):
+            print 'param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params)
 
         # Supply sequence generators which are declared to be compatible with the selected task class
         exp_generators = dict() 
         if hasattr(Exp, 'sequence_generators'):
             for seqgen_name in Exp.sequence_generators:
                 try:
-                    g = Generator.objects.get(name=seqgen_name)
+                    g = Generator.objects.using(self._state.db).get(name=seqgen_name)
                     exp_generators[g.id] = seqgen_name
                 except:
-                    pass
+                    print "missing generator %s" % seqgen_name
         js['generators'] = exp_generators
 
-
-        ## Add data files to the web interface. To be removed (never ever used)
+        ## Add the sequence, used when the block gets copied
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
-        datafiles = DataFile.objects.filter(entry=self.id)
 
+        datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
+
+        ## Add data files linked to this task entry to the web interface. 
         try:
             backup_root = config.backup_root['root']
         except:
@@ -443,32 +537,26 @@ class TaskEntry(models.Model):
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
         
-        try:
-            task = self.task.get(self.feats.all())
-            report = json.loads(self.report)
-            js['report'] = self.offline_report()
-        except:
-            import traceback
-            traceback.print_exc()
-            js['report'] = dict()
+        # Parse the "report" data and put it into the JS response
+        js['report'] = self.offline_report()
 
-        # import config
         if config.recording_sys['make'] == 'plexon':
             try:
-                from plexon import plexfile
-                plexon = System.objects.get(name='plexon')
-                df = DataFile.objects.get(entry=self.id, system=plexon)
+                from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
+                plexon = System.objects.using(self._state.db).get(name='plexon')
+                df = DataFile.objects.using(self._state.db).get(entry=self.id, system=plexon)
 
-                plx = plexfile.openFile(str(df.get_path()), load=False)
-                path, name = os.path.split(df.get_path())
-                name, ext = os.path.splitext(name)
+                _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
+                if Exp.is_bmi_seed:
+                    plx = plexfile.openFile(str(df.get_path()), load=False)
+                    path, name = os.path.split(df.get_path())
+                    name, ext = os.path.splitext(name)
 
-                js['bmi'] = dict(_neuralinfo=dict(
-                    length=plx.length, 
-                    units=plx.units, 
-                    name=name,
-                    is_seed=int(Exp.is_bmi_seed),
-                    ))
+                    _neuralinfo['length'] = plx.length
+                    _neuralinfo['units'] = plx.units
+                    _neuralinfo['name'] = name
+
+                js['bmi'] = dict(_neuralinfo=_neuralinfo)
             except MemoryError:
                 print "Memory error opening plexon file!"
                 js['bmi'] = dict(_neuralinfo=None)
@@ -478,74 +566,7 @@ class TaskEntry(models.Model):
         
         elif config.recording_sys['make'] == 'blackrock':
             try:
-                nev_fname = self.nev_file
-                path, name = os.path.split(nev_fname)
-                name, ext = os.path.splitext(name)
-
-                #### start -- TODO: eventually put this code in helper functions somewhere else
-                # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
-                # this code goes through the spike_set for each channel in order to:
-                #  1) determine the last timestamp in the file
-                #  2) create a list of units that had spikes in this file
-                nev_hdf_fname = nev_fname + '.hdf'
-
-                if not os.path.isfile(nev_hdf_fname):
-                    import subprocess
-                    subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
-                
-                import h5py
-                nev_hdf = h5py.File(nev_hdf_fname, 'r')
-
-                last_ts = 0
-                units = []
-
-                for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
-                    if 'spike_set' in nev_hdf.get('channel/' + key).keys():
-                        spike_set = nev_hdf.get('channel/' + key + '/spike_set')
-                        if spike_set is not None:
-                            tstamps = spike_set.value['TimeStamp']
-                            if len(tstamps) > 0:
-                                last_ts = max(last_ts, tstamps[-1])
-
-                            channel = int(key[-5:])
-                            for unit_num in np.sort(np.unique(spike_set.value['Unit'])):
-                                units.append((channel, int(unit_num)))
-
-                fs = 30000.
-                nev_length = last_ts / fs
-
-                nsx_fs = dict()
-                nsx_fs['.ns1'] = 500
-                nsx_fs['.ns2'] = 1000
-                nsx_fs['.ns3'] = 2000
-                nsx_fs['.ns4'] = 10000
-                nsx_fs['.ns5'] = 30000
-                nsx_fs['.ns6'] = 30000
-
-                NSP_channels = np.arange(128) + 1
-
-                nsx_lengths = []
-                for nsx_fname in self.nsx_files:
-
-                    nsx_hdf_fname = nsx_fname + '.hdf'
-                    if not os.path.isfile(nsx_hdf_fname):
-                        # convert .nsx file to hdf file using Blackrock's n2h5 utility
-                        subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
-
-                    nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
-
-                    for chan in NSP_channels:
-                        chan_str = str(chan).zfill(5)
-                        path = 'channel/channel%s/continuous_set' % chan_str
-                        if nsx_hdf.get(path) is not None:
-                            last_ts = len(nsx_hdf.get(path).value)
-                            fs = nsx_fs[nsx_fname[-4:]]
-                            nsx_lengths.append(last_ts / fs)
-                            
-                            break
-
-                length = max([nev_length] + nsx_lengths)
-                #### end
+                length, units = parse_blackrock_file(self.nev_file, self.nsx_files)
 
                 # Blackrock units start from 0 (unlike plexon), so add 1
                 # for web interface purposes
@@ -554,20 +575,26 @@ class TaskEntry(models.Model):
 
                 js['bmi'] = dict(_neuralinfo=dict(
                     length=length, 
-                    units=units, 
+                    units=units,
                     name=name,
                     is_seed=int(Exp.is_bmi_seed),
                     ))    
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print "No blackrock files found"
                 js['bmi'] = dict(_neuralinfo=None)
+            except:
+                import traceback
+                traceback.print_exc()
+                js['bmi'] = dict(_neuralinfo=None)
+        elif config.recording_sys['make'] == 'TDT':
+            raise NotImplementedError("This code does not yet know how to open TDT files!")
         else:
             raise Exception('Unrecognized recording_system!')
 
 
-        for dec in Decoder.objects.filter(entry=self.id):
+        for dec in Decoder.objects.using(self._state.db).filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
-        
+
         # include paths to any plots associated with this task entry, if offline
         files = os.popen('find /storage/plots/ -name %s*.png' % self.id)
         plot_files = dict()
@@ -576,19 +603,7 @@ class TaskEntry(models.Model):
             keyname = os.path.basename(fname).rstrip('.png')[len(str(self.id)):]
             plot_files[keyname] = os.path.join('/static', fname)
 
-        # if the juice log feature is checked, also include the snapshot of the juice if it exists
-        try:
-            juice_sys = System.objects.get(name='juice_log')
-            df = DataFile.objects.get(system=juice_sys, entry=self.id)
-            plot_files['juice'] = os.path.join(df.system.path, df.path)
-        except DataFile.DoesNotExist:
-            pass
-        except:
-            import traceback
-            traceback.print_exc()
-
         js['plot_files'] = plot_files
-
         return js
 
     @property
@@ -605,39 +620,37 @@ class TaskEntry(models.Model):
             traceback.print_exc()
             return 'noplxfile'
 
-
     @property
     def nev_file(self):
         '''
         Return the name of the nev file associated with the session.
         '''
-        blackrock = System.objects.get(name='blackrock')
-        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).filter(path__endswith='.nev')
-        if len(q)==0:
-            return 'nonevfile'
-        else:
-            try:
-                import db.paths
-                return os.path.join(db.paths.data_path, blackrock.name, q[0].path)
-            except:
-                return q[0].path
+        try:
+            df = DataFile.objects.get(system__name="blackrock", path__endswith=".nev", entry=self.id)
+            return df.get_path()
+        except:
+            import traceback
+            traceback.print_exc()
+            return 'no_nev_file'
 
     @property
     def nsx_files(self):
         '''Return a list containing the names of the nsx files (there could be more
         than one) associated with the session.
+    
+        nsx files extensions are .ns1, .ns2, ..., .ns6
         '''
-        blackrock = System.objects.get(name='blackrock')
-        q = DataFile.objects.filter(entry_id=self.id).filter(system_id=blackrock.id).exclude(path__endswith='.nev')
-        if len(q)==0:
-            return []
-        else:
-            try:
-                import db.paths
-                return [os.path.join(db.paths.data_path, blackrock.name, datafile.path) for datafile in q]
-            except:
-                return [datafile.path for datafile in q]
+        try:
+            dfs = []
+            for k in range(1, 7):
+                df_k = DataFile.objects.filter(system__name="blackrock", path__endswith=".ns%d" % k, entry=self.id)
+                dfs += list(df_k)
 
+            return [df.get_path() for df in dfs]
+        except:
+            import traceback
+            traceback.print_exc()
+            return []
 
     @property
     def name(self):
@@ -701,7 +714,7 @@ class AutoAlignment(models.Model):
     def get(self):
         return calibrations.AutoAlign(self.name)
 
-import importlib
+
 def decoder_unpickler(mod_name, kls_name):
     if kls_name == 'StateSpaceFourLinkTentacle2D':
         kls_name = 'StateSpaceNLinkPlanarChain'
@@ -731,38 +744,117 @@ class Decoder(models.Model):
         data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         return os.path.join(data_path, 'decoders', self.path)        
 
-    def load(self,db_name=None):
+    def load(self, db_name=None):
         if db_name is not None:
             data_path = getattr(config, 'db_config_'+db_name)['data_path']
         else:
             data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
 
-        # dec = pickle.load(open(decoder_fname))
-        import cPickle
-        fh = open(decoder_fname, 'r')
-        unpickler = cPickle.Unpickler(fh)
-        unpickler.find_global = decoder_unpickler
-        dec = unpickler.load() # object will now contain the new class path reference
-        fh.close()
+        if os.path.exists(decoder_fname):
+            fh = open(decoder_fname, 'r')
+            unpickler = cPickle.Unpickler(fh)
+            unpickler.find_global = decoder_unpickler
+            dec = unpickler.load() # object will now contain the new class path reference
+            fh.close()
 
-        dec.name = self.name
-        return dec        
+            dec.name = self.name
+            return dec
+        else: # file not present!
+            print "Decoder file could not be found! %s" % decoder_fname
+            return None
 
     def get(self):
         return self.load()
-        # sys = System.objects.get(name='bmi').path
-        # return cPickle.load(open(os.path.join(sys, self.path)))
 
     def to_json(self):
         dec = self.get()
-        return dict(
-            name=self.name,
-            cls=dec.__class__.__name__,
-            path=self.path, 
-            units=dec.units,
-            binlen=dec.binlen,
-            tslice=dec.tslice)
+        decoder_data = dict(name=self.name, path=self.path)
+        if not (dec is None):
+            decoder_data['cls'] = dec.__class__.__name__,
+            if hasattr(dec, 'units'):
+                decoder_data['units'] = dec.units
+            else:
+                decoder_data['units'] = []
+
+            if hasattr(dec, 'binlen'):
+                decoder_data['binlen'] = dec.binlen
+            else:
+                decoder_data['binlen'] = 0
+
+            if hasattr(dec, 'tslice'):
+                decoder_data['tslice'] = dec.tslice
+            else:
+                decoder_data['tslice'] = []
+
+        return decoder_data
+
+def parse_blackrock_file(nev_fname, nsx_files):
+    '''
+    # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
+    # this code goes through the spike_set for each channel in order to:
+    #  1) determine the last timestamp in the file
+    #  2) create a list of units that had spikes in this file
+    '''
+    nev_hdf_fname = nev_fname + '.hdf'
+
+    if not os.path.isfile(nev_hdf_fname):
+        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+
+    import h5py
+    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+
+    last_ts = 0
+    units = []
+
+    for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
+        if 'spike_set' in nev_hdf.get('channel/' + key).keys():
+            spike_set = nev_hdf.get('channel/' + key + '/spike_set')
+            if spike_set is not None:
+                tstamps = spike_set.value['TimeStamp']
+                if len(tstamps) > 0:
+                    last_ts = max(last_ts, tstamps[-1])
+
+                channel = int(key[-5:])
+                for unit_num in np.sort(np.unique(spike_set.value['Unit'])):
+                    units.append((channel, int(unit_num)))
+
+    fs = 30000.
+    nev_length = last_ts / fs
+
+    nsx_fs = dict()
+    nsx_fs['.ns1'] = 500
+    nsx_fs['.ns2'] = 1000
+    nsx_fs['.ns3'] = 2000
+    nsx_fs['.ns4'] = 10000
+    nsx_fs['.ns5'] = 30000
+    nsx_fs['.ns6'] = 30000
+
+    NSP_channels = np.arange(128) + 1
+
+    nsx_lengths = []
+    for nsx_fname in nsx_files:
+
+        nsx_hdf_fname = nsx_fname + '.hdf'
+        if not os.path.isfile(nsx_hdf_fname):
+            # convert .nsx file to hdf file using Blackrock's n2h5 utility
+            subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+        nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+        for chan in NSP_channels:
+            chan_str = str(chan).zfill(5)
+            path = 'channel/channel%s/continuous_set' % chan_str
+            if nsx_hdf.get(path) is not None:
+                last_ts = len(nsx_hdf.get(path).value)
+                fs = nsx_fs[nsx_fname[-4:]]
+                nsx_lengths.append(last_ts / fs)
+                
+                break
+
+    length = max([nev_length] + nsx_lengths)
+    return length, units, 
+
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)
@@ -773,19 +865,50 @@ class DataFile(models.Model):
     entry = models.ForeignKey(TaskEntry)
 
     def __unicode__(self):
-        return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
+        if self.entry_id > 0:
+            return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
+        else:
+            return "datafile '{name}' for System {sys_name}".format(name=self.path, sys_name=self.system.name)
 
     def to_json(self):
         return dict(system=self.system.name, path=self.path)
 
-    def get_path(self, check_archive=False):
-        if not check_archive and not self.archived:
-            return os.path.join(self.system.path, self.path)
+    def get(self):
+        '''
+        Open the datafile, if it's of a known type
+        '''
+        if self.system.name == 'hdf':
+            import tables
+            return tables.open_file(self.get_path())
+        elif self.path[-4:] == '.pkl': # pickle file
+            import pickle
+            return pickle.load(open(self.get_path()))
+        else:
+            raise ValueError("models.DataFile does not know how to open this type of file: %s" % self.path)
 
+    def get_path(self, check_archive=False):
+        '''
+        Get the full path to the file
+        '''
+        if not check_archive and not self.archived:
+            text_file = open("path.txt", "w")
+            text_file.write("path: %s" % os.path.join(self.system.path, self.path))
+            text_file.close()
+            return os.path.join(self.system.path, self.path)
+        text_file2 = open("self.archive.txt", "w")
+        text_file2.write("self.archive: %s" % self.archive)
+        text_file2.close()
+        
         paths = self.system.archive.split()
+        text_file2 = open("paths.txt", "w")
+        text_file2.write("paths: %s" % paths)
+        text_file2.close()
         for path in paths:
             fname = os.path.join(path, self.path)
             if os.path.isfile(fname):
+                text_file3 = open("fname.txt", "w")
+                text_file3.write("fname: %s" % fname)
+                text_file3.close()
                 return fname
 
         raise IOError('File has been lost! '+fname)

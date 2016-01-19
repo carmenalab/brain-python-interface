@@ -50,7 +50,7 @@ class SingleChannelVideo(traits.HasTraits):
         Prior to starting the task, this 'init' spawns process to run ssh command to begin video recording
         '''
         self.video_basename = 'video_%s.avi' % time.strftime('%Y_%m_%d_%H_%M_%S')        
-        self.device_name = '/dev/video1'
+        self.device_name = '/dev/video0'
         cmd = "ssh -tt video /home/lab/bin/recording_start.sh %s %s" % (self.device_name, self.video_basename)
         
         cmd_caller = MultiprocShellCommand(cmd)

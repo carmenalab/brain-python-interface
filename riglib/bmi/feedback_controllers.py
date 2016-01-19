@@ -7,89 +7,11 @@ functions.
 '''
 import numpy as np
 
-class CenterOutCursorGoal(object):
-    '''
-    Cursor controller which moves the cursor toward the target at a constant speed
-    '''
-    def __init__(self, angular_noise_var=0, gain=0.15):
-        '''
-        Constructor for CenterOutCursorGoal
-
-        Parameters
-        ----------
-        angular_noise_var: float, optional, default=0
-            Angular noise is added onto the control direction as a clipped Gaussian distribution with this variance
-        gain: float, optional, default=0.15
-            Speed at which to move the cursor, in m/s
-
-        Returns
-        -------
-        CenterOutCursorGoal instance
-        '''
-        self.angular_noise_var = angular_noise_var
-        self.gain = gain
-
-    def get(self, cur_target, cur_pos, keys_pressed=None):
-        '''    Docstring    '''
-        # Make sure y-dimension is 0
-        assert cur_pos[1] == 0
-        assert cur_target[1] == 0
-
-        dir_to_targ = cur_target - cur_pos
-
-        if self.angular_noise_var > 0:
-            angular_noise_rad = np.random.normal(0, self.angular_noise_var)
-            while abs(angular_noise_rad) > np.pi:
-                angular_noise_rad = np.random.normal(0, self.angular_noise_var)
-        else:
-            angular_noise_rad = 0
-        angle = np.arctan2(dir_to_targ[2], dir_to_targ[0])
-        sum_angle = angle + angular_noise_rad
-        return self.gain*np.array([np.cos(sum_angle), np.sin(sum_angle)])
-
-
-class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
-    '''2-link arm controller which moves the endpoint toward a target position at a constant speed'''
-    def __init__(self, link_lengths, shoulder_anchor, *args, **kwargs):
-        '''
-        Constructor for CenterOutCursorGoalJointSpace2D
-
-        Parameters
-        ----------
-        link_lengths: 
-        shoulder_anchor: 
-        args, kwargs: positional and keyword arguments for parent constructor (CenterOutCursorGoal)
-
-
-        Returns
-        -------
-        '''
-        self.link_lengths = link_lengths
-        self.shoulder_anchor = shoulder_anchor
-        super(CenterOutCursorGoalJointSpace2D, self).__init__(*args, **kwargs)
-
-
-    def get(self, cur_target, cur_pos, keys_pressed=None):
-        '''
-        Docstring 
-
-        cur_target and cur_pos should be specified in workspace coordinates
-        '''
-        vx, vz = super(CenterOutCursorGoalJointSpace2D, self).get(cur_target, cur_pos, keys_pressed)
-        vy = 0
-
-        px, py, pz = cur_pos
-
-        pos = np.array([px, py, pz]) - self.shoulder_anchor
-        vel = np.array([vx, vy, vz])
-
-        # Convert to joint velocities
-        from riglib.stereo_opengl import ik
-        joint_pos, joint_vel = ik.inv_kin_2D(pos, self.link_lengths[0], self.link_lengths[1], vel)
-        return joint_vel[0]['sh_vabd'], joint_vel[0]['el_vflex']
-
 
 class FeedbackController(object):
+    '''
+    Abstract class for feedback controllers, only used for type-checking & interface standardization
+    '''
     def __init__(self, *args, **kwargs):
         pass
 
@@ -138,9 +60,9 @@ class LinearFeedbackController(FeedbackController):
         Parameters
         ----------
         current_state : np.matrix
-            x_t 
+            Current state of the system, x_t 
         target_state : np.matrix
-            x*
+            State that you're trying to steer the system toward, x*
         mode : object, default=None
             Select the operational mode of the feedback controller. Ignored in this class
 
@@ -156,6 +78,8 @@ class LinearFeedbackController(FeedbackController):
 
     def __call__(self, current_state, target_state, mode=None):
         '''
+        Calculate the control input u_t = BF(x* - x_t)
+
         Parameters
         ----------
         (see self.calc_next_state for input argument descriptions)
@@ -173,7 +97,7 @@ class LinearFeedbackController(FeedbackController):
 
 
 class LQRController(LinearFeedbackController):
-    '''Linear feedback controller with a quadratic cost function'''
+    '''Linear feedback controller where control gains are set by optimizing a quadratic cost function'''
     def __init__(self, A, B, Q, R, **kwargs):
         '''
         Constructor for LQRController
@@ -219,8 +143,6 @@ class LQRController(LinearFeedbackController):
 
         The cost function can be either finite or infinite horizion, where finite horizion is assumed if 
         a final const is specified
-
-        Docstring
 
         Parameters
         ----------
@@ -295,16 +217,43 @@ class MultiModalLFC(LinearFeedbackController):
         self.F = None
 
     def calc_next_state(self, current_state, target_state, mode=None):
+        '''
+        See LinearFeedbackController.calc_next_state for docs
+        '''
         self.F = self.F_dict[mode]
         super(MultiModalLFC, self).calc_next_state(current_state, target_state, mode=mode)
 
     def __call__(self, current_state, target_state, mode=None):
+        '''
+        See LinearFeedbackController.__call__ for docs
+        '''        
         self.F = self.F_dict[mode]
         super(MultiModalLFC, self).__call__(current_state, target_state, mode=mode)        
 
 
 class PIDController(FeedbackController):
+    '''
+    Linear feedback controller where gains are set directly instead of through a cost function
+    '''
     def __init__(self, K_prop, K_deriv, K_int, state_order):
+        '''
+        Constructor for PIDController
+
+        Parameters
+        ----------
+        K_prop : float 
+            Gain on proportional error
+        K_deriv : float 
+            Gain on derivative error 
+        K_int : float
+            Gain on integrated error
+        state_order : np.ndarray of shape (N, 1)
+            Specify whether each element of the state vector is a proportional, derivative, or integral state
+
+        Returns
+        -------
+        PIDController instance
+        '''
         self.K_prop = K_prop
         self.K_deriv = K_deriv
         self.K_int = K_int
@@ -314,6 +263,21 @@ class PIDController(FeedbackController):
         self.deriv_terms, = np.nonzero(state_order == 1)
 
     def __call__(self, current_state, target_state):
+        '''
+        Determine the PID controller output to be added onto the current state
+
+        Parameters
+        ----------
+        current_state : np.matrix
+            Current state of the system, x_t 
+        target_state : np.matrix
+            State that you're trying to steer the system toward, x*
+
+        Returns
+        -------
+        cmd : np.ndarray of shape (K, 1)
+            K is the number of states in the proportional term. 
+        '''        
         state_diff = target_state - current_state
         cmd = 0
         if len(self.prop_terms) > 0:
@@ -329,5 +293,89 @@ class PIDController(FeedbackController):
 
     def calc_next_state(self, current_state, target_state, **kwargs):
         '''
+        see self.__call__
         '''
         return self.__call__(current_state, target_state)
+
+
+######################################################################
+##### Deprecated task/plant-specific controllers for simulations #####
+######################################################################
+class CenterOutCursorGoal(object):
+    '''
+    Cursor controller which moves the cursor toward the target at a constant speed
+    '''
+    def __init__(self, angular_noise_var=0, gain=0.15):
+        '''
+        Constructor for CenterOutCursorGoal
+
+        Parameters
+        ----------
+        angular_noise_var: float, optional, default=0
+            Angular noise is added onto the control direction as a clipped Gaussian distribution with this variance
+        gain: float, optional, default=0.15
+            Speed at which to move the cursor, in m/s
+
+        Returns
+        -------
+        CenterOutCursorGoal instance
+        '''
+        self.angular_noise_var = angular_noise_var
+        self.gain = gain
+
+    def get(self, cur_target, cur_pos, keys_pressed=None):
+        # Make sure y-dimension is 0
+        assert cur_pos[1] == 0
+        assert cur_target[1] == 0
+
+        dir_to_targ = cur_target - cur_pos
+
+        if self.angular_noise_var > 0:
+            angular_noise_rad = np.random.normal(0, self.angular_noise_var)
+            while abs(angular_noise_rad) > np.pi:
+                angular_noise_rad = np.random.normal(0, self.angular_noise_var)
+        else:
+            angular_noise_rad = 0
+        angle = np.arctan2(dir_to_targ[2], dir_to_targ[0])
+        sum_angle = angle + angular_noise_rad
+        return self.gain*np.array([np.cos(sum_angle), np.sin(sum_angle)])
+
+
+class CenterOutCursorGoalJointSpace2D(CenterOutCursorGoal):
+    '''2-link arm controller which moves the endpoint toward a target position at a constant speed'''
+    def __init__(self, link_lengths, shoulder_anchor, *args, **kwargs):
+        '''
+        Constructor for CenterOutCursorGoalJointSpace2D
+
+        Parameters
+        ----------
+        link_lengths: 
+        shoulder_anchor: 
+        args, kwargs: positional and keyword arguments for parent constructor (CenterOutCursorGoal)
+
+
+        Returns
+        -------
+        '''
+        self.link_lengths = link_lengths
+        self.shoulder_anchor = shoulder_anchor
+        super(CenterOutCursorGoalJointSpace2D, self).__init__(*args, **kwargs)
+
+
+    def get(self, cur_target, cur_pos, keys_pressed=None):
+        '''
+        cur_target and cur_pos should be specified in workspace coordinates
+        '''
+        vx, vz = super(CenterOutCursorGoalJointSpace2D, self).get(cur_target, cur_pos, keys_pressed)
+        vy = 0
+
+        px, py, pz = cur_pos
+
+        pos = np.array([px, py, pz]) - self.shoulder_anchor
+        vel = np.array([vx, vy, vz])
+
+        # Convert to joint velocities
+        from riglib.stereo_opengl import ik
+        joint_pos, joint_vel = ik.inv_kin_2D(pos, self.link_lengths[0], self.link_lengths[1], vel)
+        return joint_vel[0]['sh_vabd'], joint_vel[0]['el_vflex']
+

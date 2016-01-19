@@ -6,13 +6,7 @@ Blackrock Neural Signal Processor (NSP) (or nPlay).
 import sys
 import time
 from collections import namedtuple
-
-try:
-    from cerebus import cbpy
-except:
-    import warnings
-    warnings.warn('cbpy not imported!')
-
+from cerebus import cbpy
 
 SpikeEventData = namedtuple("SpikeEventData",
                             ["chan", "unit", "ts", "arrival_ts"])
@@ -20,8 +14,12 @@ ContinuousData = namedtuple("ContinuousData",
                             ["chan", "samples", "arrival_ts"])
 
 class Connection(object):
-    '''Here's a docstring'''
-
+    '''
+    A wrapper around a UDP socket which sends the Blackrock NeuroPort system commands and 
+    receives data. Must run in a separte process (e.g., through `riglib.source`) 
+    if you want to use it as part of a task (e.g., BMI control)
+    '''
+    debug = False
     def __init__(self):
         self.parameters = dict()
         self.parameters['inst-addr']   = '192.168.137.128'
@@ -41,9 +39,9 @@ class Connection(object):
 
         self._init = False
 
-        # only for debugging
-        # self.nsamp_recv = 0
-        # self.nsamp_last_print = 0
+        if self.debug:
+            self.nsamp_recv = 0
+            self.nsamp_last_print = 0
     
     def connect(self):
         '''Open the interface to the NSP (or nPlay).'''
@@ -153,14 +151,14 @@ class Connection(object):
 
             for list_ in trial:
 
-                # only for debugging
-                # chan = list_[0]
-                # samples = list_[1]
-                # if chan == 8:
-                #     self.nsamp_recv += len(samples)
-                #     if self.nsamp_recv > self.nsamp_last_print + 2000:
-                #         print "cerelink.py: # received =", self.nsamp_recv
-                #         self.nsamp_last_print = self.nsamp_recv
+                if self.debug:
+                    chan = list_[0]
+                    samples = list_[1]
+                    if chan == 8:
+                        self.nsamp_recv += len(samples)
+                        if self.nsamp_recv > self.nsamp_last_print + 2000:
+                            print "cerelink.py: # received =", self.nsamp_recv
+                            self.nsamp_last_print = self.nsamp_recv
 
                 yield ContinuousData(chan=list_[0],
                                      samples=list_[1],

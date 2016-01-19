@@ -14,6 +14,7 @@ import tables
 import re
 import assist
 import os
+import scipy
 
 from utils.angle_utils import *
 
@@ -224,6 +225,28 @@ class FeedbackControllerLearner(Learner):
         super(FeedbackControllerLearner, self).__init__(batch_size, *args, **kwargs)
 
     def calc_int_kin(self, current_state, target_state, decoder_output, task_state, state_order=None):
+        """
+        Used by __call__ to figure out the next state vector to pair to the neural activity in the batch.
+
+        Parameters
+        ----------
+        [same OFCLearner.calc_int_kin]
+        current_state : np.mat of shape (N, 1)
+            State estimate output from the decoder.
+        target_state : np.mat of shape (N, 1)
+            For the current time, this is the optimal state for the Decoder as specified by the task
+        decoder_output : np.mat of shape (N, 1)
+            State estimate output from the decoder, after the current observations (may be one step removed from 'current_state')
+        task_state : string
+            Name of the task state; some learners (e.g., the cursorGoal learner) have different intention estimates depending on the phase of the task/trial
+        state_order : np.ndarray of shape (N,), optional
+            Order of each state in the decoder; see riglib.bmi.state_space_models.State
+
+        Returns
+        -------
+        np.mat of shape (N, 1)
+            Optimal next state to pair to neural activity
+        """        
         try:
             if self.style == 'additive':
                 output = self.fb_ctrl(current_state, target_state, mode=task_state)
@@ -276,6 +299,7 @@ class OFCLearner(Learner):
 
         Parameters
         ----------
+        [same FeedbackControllerLearner.calc_int_kin]
         current_state : np.mat of shape (N, 1)
             State estimate output from the decoder.
         target_state : np.mat of shape (N, 1)
@@ -292,20 +316,12 @@ class OFCLearner(Learner):
         np.mat of shape (N, 1)
             Estimate of intended next state for BMI
         '''
-        if 0:
-            print "OFCLearner" 
         try:
             current_state = np.mat(current_state).reshape(-1,1)
             target_state = np.mat(target_state).reshape(-1,1)
             F = self.F_dict[task_state]
             A = self.A
             B = self.B
-
-            if 0:
-                print "current_state"
-                print current_state
-                print "target_state"
-                print target_state
 
             return A*current_state + B*F*(target_state - current_state)
         except KeyError:
@@ -405,129 +421,6 @@ class Updater(object):
         if self.multiproc:
             self.calculator.stop()
 
-
-class KFSmoothbatch(Updater):
-    '''
-    Calculate KF Parameter updates using the SmoothBatch method. See [Orsborn et al, 2012] for mathematical details
-    '''
-    update_kwargs = dict(steady_state=True)
-    def __init__(self, batch_time, half_life):
-        '''    Docstring    '''
-        super(KFSmoothbatch, self).__init__(self.calc, multiproc=False)
-        self.half_life = half_life
-        self.batch_time = batch_time
-        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-        
-    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
-        """
-        Smoothbatch calculations
-
-        Run least-squares on (intended_kinematics, spike_counts) to 
-        determine the C_hat and Q_hat of new batch. Then combine with 
-        old parameters using step-size rho
-        """
-        print "calculating new SB parameters"
-        C_old          = decoder.kf.C
-        Q_old          = decoder.kf.Q
-        drives_neurons = decoder.drives_neurons
-        mFR_old        = decoder.mFR
-        sdFR_old       = decoder.sdFR
-
-        C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(
-            intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
-
-        if not (half_life is None):
-            rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
-        else:
-            rho = self.rho 
-
-        C = (1-rho)*C_hat + rho*C_old
-        Q = (1-rho)*Q_hat + rho*Q_old
-
-        mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
-        sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
-        
-        D = C.T * np.linalg.pinv(Q) * C
-        new_params = {'kf.C':C, 'kf.Q':Q, 
-            'kf.C_xpose_Q_inv_C':D, 'kf.C_xpose_Q_inv':C.T * np.linalg.pinv(Q),
-            'mFR':mFR, 'sdFR':sdFR}
-        return new_params
-
-
-class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
-    '''    Docstring    '''
-    def __init__(self, *args, **kwargs):
-        '''    
-        Docstring    
-        '''
-        self.default_gain = kwargs.pop('default_gain', None)
-        suoer(KFOrthogonalPlantSmoothbatch, self).__init__(*args, **kwargs)
-
-    def calc(self, *args, **kwargs):
-        '''    Docstring    '''
-        new_params = super(KFOrthogonalPlantSmoothbatch, self).calc(*args, **kwargs)
-        C, Q, = new_params['kf.C'], new_params['kf.Q']
-
-        D = (C.T * np.linalg.pinv(Q) * C)
-        if self.default_gain == None:
-            d = np.mean([D[3,3], D[5,5]])
-            D[3:6, 3:6] = np.diag([d, d, d])
-        else:
-            # calculate the gain from the riccati equation solution
-            A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
-            W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
-            D_diag = []
-            for a, w, n in izip(A_diag, W_diag, self.default_gain):
-                d = self.scalar_riccati_eq_soln(a, w, n)
-                D_diag.append(d)
-
-            D[3:6, 3:6] = np.mat(np.diag(D_diag))
-
-        new_params['kf.C_xpose_Q_inv_C'] = D
-        new_params['kf.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
-        return new_params
-
-
-class PPFSmoothbatch(Updater):
-    '''    Docstring    '''
-    def __init__(self, batch_time, half_life):
-        '''    Docstring    '''
-        super(PPFSmoothbatch, self).__init__(self.calc, multiproc=True)
-        self.half_life = half_life
-        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
-
-    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
-        """
-        Smoothbatch calculations
-
-        Run least-squares on (intended_kinematics, spike_counts) to 
-        determine the C_hat and Q_hat of new batch. Then combine with 
-        old parameters using step-size rho
-        """
-
-        if half_life is not None:
-            rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
-        else:
-            rho = self.rho 
-
-        C_old = decoder.filt.C
-        drives_neurons = decoder.drives_neurons
-        states = decoder.states
-        decoding_states = np.take(states, np.nonzero(drives_neurons)).ravel().tolist() #['hand_vx', 'hand_vz', 'offset'] 
-
-        C_hat, pvalues = ppfdecoder.PointProcessFilter.MLE_obs_model(
-            intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
-        C_hat = train.inflate(C_hat, decoding_states, states, axis=1)
-        pvalues = train.inflate(pvalues, decoding_states, states, axis=1)
-        pvalues[pvalues[:,:-1] == 0] = np.inf
-
-        mesh = np.nonzero(pvalues < 0.1)
-        C = np.array(C_old.copy())
-        C[mesh] = (1-rho)*C_hat[mesh] + rho*np.array(C_old)[mesh]
-        C = np.mat(C)
-
-        new_params = {'filt.C':C}
-        return new_params
 
 class PPFContinuousBayesianUpdater(Updater):
     '''
@@ -653,9 +546,7 @@ class KFRML(Updater):
         KFRML instance
         '''
         super(KFRML, self).__init__(self.calc, multiproc=False)
-        # self.work_queue = None
         self.batch_time = batch_time
-        # self.result_queue = None        
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         self.adapt_C_xpose_Q_inv_C = adapt_C_xpose_Q_inv_C
@@ -734,13 +625,37 @@ class KFRML(Updater):
         self.T = decoder.filt.T
         self.ESS = decoder.filt.ESS
 
+
+        #Neural indices that will be adapted / stable are defined here:
         self.feature_inds = np.arange(decoder.n_features)
 
-        # By default, tuning parameters for all features will adapt
+        # Units that you want to stay stable
         self.stable_inds = []
-        self.adapting_inds = self.feature_inds.copy()
+
+        # By default, tuning parameters for all features will adapt
+        if hasattr(decoder, 'adapting_neural_inds'):
+            self.adapting_inds = decoder.adapting_neural_inds
+        else:
+            self.adapting_inds = self.feature_inds.copy()
+
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
+
+        #Are stable units independent from other units ? If yes Q[stable_unit, other_units] = 0
         self.stable_inds_independent = False
+
+
+        #State space indices that will be adapted: 
+        if scipy.logical_and(hasattr(decoder, 'adapting_state_inds'), hasattr(decoder, 'ssm')):
+            self.state_adapting_names = decoder.adapting_state_inds.state_names
+            self.state_adapting_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if sn in self.state_adapting_names])
+            self.state_stable_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if i not in self.state_adapting_inds])
+            
+            print self.state_adapting_inds, decoder.ssm, decoder.adapting_state_inds
+        else:
+            self.state_adapting_inds = np.arange(decoder.n_states)
+        
+        self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
+        self.neur_by_state_adapting_inds_mesh = np.ix_(self.adapting_inds, self.state_adapting_inds)
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
         '''
@@ -776,12 +691,17 @@ class KFRML(Updater):
         else:
             rho = self.rho 
 
+        #update driver of neurons
         drives_neurons = decoder.drives_neurons
+
         mFR_old        = decoder.mFR
         sdFR_old       = decoder.sdFR
 
         x = np.mat(intended_kin)
         y = np.mat(spike_counts)
+
+        #limit x to the indices that can adapt:
+        x = x[self.state_adapting_inds,:]
 
         # limit y to the features which are permitted to adapt
         y = y[self.adapting_inds, :]
@@ -794,23 +714,33 @@ class KFRML(Updater):
             B = np.mat(np.eye(n_samples))
 
         if self.adapt_C_xpose_Q_inv_C:
-            self.R = rho*self.R + (x*B*x.T)
+            self.R[self.state_adapting_inds_mesh] = rho*self.R[self.state_adapting_inds_mesh] + (x*B*x.T)
 
-        self.S[self.adapting_inds,:] = rho*self.S[self.adapting_inds,:] + (y*B*x.T)
+        if np.any(np.isnan(self.R)):
+            print 'np.nan in self.R in riglib/bmi/clda.py!'
+
+        self.S[self.neur_by_state_adapting_inds_mesh] = rho*self.S[self.neur_by_state_adapting_inds_mesh] + (y*B*x.T)
         self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
-        R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
+        try:
+            R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+        except:
+            print self.R
+            print 'Error with pinv in riglib/bmi/clda.py'
+
         C = self.S * R_inv
 
         Q = (1./self.ESS) * (self.T - self.S*C.T)
         if hasattr(self, 'stable_inds_mesh'):
             Q[self.stable_inds_mesh] = decoder.filt.Q[self.stable_inds_mesh]
+
         if self.stable_inds_independent:
             Q[np.ix_(self.stable_inds, self.adapting_inds)] = 0
             Q[np.ix_(self.adapting_inds, self.stable_inds)] = 0
 
+        #mFR and sdFR are exempt from the 'adapting_inds'
         mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
         sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
 
@@ -832,7 +762,8 @@ class KFRML(Updater):
 
     def set_stable_inds(self, stable_inds, stable_inds_independent=False):
         '''
-        Docstring
+        Set certain neural tuning parmeters to remain static, e.g., if you 
+        want to add a new unit to a decoder but keep the existing parameters for the old units. 
         '''
         self.stable_inds = stable_inds
         self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds))
@@ -841,9 +772,112 @@ class KFRML(Updater):
         self.stable_inds_independent = stable_inds_independent
 
 
+class KFRML_IVC(KFRML):
+    '''
+    RML version where diagonality constraints are imposed on the steady state KF matrices
+    '''
+    default_gain = None
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
+        '''
+        See KFRML.calc for input argument documentation
+        '''
+        new_params = super(KFRML_IVC, self).calc(intended_kin=intended_kin, spike_counts=spike_counts, decoder=decoder, half_life=half_life, values=values, **kwargs)
+        C, Q, = new_params['filt.C'], new_params['filt.Q']
+
+        D = (C.T * np.linalg.pinv(Q) * C)
+        if self.default_gain == None:
+            d = np.mean([D[3,3], D[5,5]])
+            D[3:6, 3:6] = np.diag([d, d, d])
+        else:
+            # calculate the gain from the riccati equation solution
+            A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
+            W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
+            D_diag = []
+            for a, w, n in izip(A_diag, W_diag, [self.default_gain]*3):
+                d = self.scalar_riccati_eq_soln(a, w, n)
+                D_diag.append(d)
+
+            D[3:6, 3:6] = np.mat(np.diag(D_diag))
+
+        new_params['filt.C_xpose_Q_inv_C'] = D
+        new_params['filt.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
+        return new_params
+
+    @classmethod
+    def scalar_riccati_eq_soln(cls, a, w, n):
+        '''
+        For the scalar case, determine what you want the prediction covariance of the KF, 
+        which follows the riccati recursion for constant model parameters,
+        based on what gain you want to set for the steady-state KF
+
+        Parameters
+        ----------
+        a : float
+            Diagonal value of the A matrix for the velocity terms
+        w : float
+            Diagonal value of the W matrix for the velocity terms
+        n : float
+            Steady-state kalman filter gain for the velocity terms
+
+        Returns 
+        -------
+        float
+        '''
+        return (1-a*n)/w * (a-n)/n         
+
+
+class KFRML_baseline(KFRML):
+    '''
+    RML version where only the baseline firing rates are adapted
+    '''
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
+        '''
+        See KFRML.calc for input argument documentation
+        '''
+        if half_life is not None:
+            rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
+        else:
+            rho = self.rho 
+
+        drives_neurons = decoder.drives_neurons
+        mFR_old        = decoder.mFR
+        sdFR_old       = decoder.sdFR
+
+        x = intended_kin
+        y = spike_counts
+
+        self.R = rho*self.R + (x*x.T)
+        self.S = rho*self.S + (y*x.T)
+        self.T = rho*self.T + np.dot(y, y.T) #(y*y.T)
+        self.ESS = rho*self.ESS + 1
+
+        R_inv = np.mat(np.zeros(self.R.shape))
+        R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
+        C_new = self.S * R_inv
+
+        Q = decoder.filt.Q
+
+        mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
+        sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
+
+        C = decoder.filt.C
+        C[:,-1] = C_new[:,-1]
+
+        C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
+        C_xpose_Q_inv_C = C_xpose_Q_inv * C
+        
+        new_params = {'kf.C':C, 'kf.Q':Q, 
+            'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
+            'mFR':mFR, 'sdFR':sdFR}
+
+        return new_params
+
+
+###################################
+##### Updaters in development #####
+###################################
 class PPFRML(Updater):
-    '''
-    '''
+    '''RML method applied to more generic GLM'''
     update_kwargs = dict()
     def __init__(self, *args, **kwargs):
         super(PPFRML, self).__init__(self.calc, multiproc=False)
@@ -903,23 +937,81 @@ class PPFRML(Updater):
         return {'filt.C': self.C_est}
 
 
-class KFRML_IVC(KFRML):
+###############################
+##### Deprecated updaters #####
+###############################
+class KFSmoothbatch(Updater):
     '''
-    RML version where diagonality constraints are imposed on the steady state KF matrices
+    Deprecation Warning: This update method has not been used for quite long. See KFRML for an enhanced but similar method
+
+    Calculate KF Parameter updates using the SmoothBatch method. See [Orsborn et al, 2012] for mathematical details
     '''
-    default_gain = None
-    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
+    update_kwargs = dict(steady_state=True)
+    def __init__(self, batch_time, half_life):
         '''
-        Docstring
+        Constructor for KFSmoothbatch
 
         Parameters
         ----------
+        batch_time : float
+            Time over which to collect sample data
+        half_life : float
+            Time over which parameters are half-overwritten
 
-        Returns
-        -------
+        Return
+        ------
+        KFSmoothbatch instance
         '''
-        new_params = super(KFRML_IVC, self).calc(intended_kin=intended_kin, spike_counts=spike_counts, decoder=decoder, half_life=half_life, values=values, **kwargs)
-        C, Q, = new_params['filt.C'], new_params['filt.Q']
+        super(KFSmoothbatch, self).__init__(self.calc, multiproc=False)
+        self.half_life = half_life
+        self.batch_time = batch_time
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
+        
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
+        """
+        Smoothbatch calculations
+
+        Run least-squares on (intended_kinematics, spike_counts) to 
+        determine the C_hat and Q_hat of new batch. Then combine with 
+        old parameters using step-size rho
+        """
+        print "calculating new SB parameters"
+        C_old          = decoder.kf.C
+        Q_old          = decoder.kf.Q
+        drives_neurons = decoder.drives_neurons
+        mFR_old        = decoder.mFR
+        sdFR_old       = decoder.sdFR
+
+        C_hat, Q_hat = kfdecoder.KalmanFilter.MLE_obs_model(
+            intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
+
+        if not (half_life is None):
+            rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
+        else:
+            rho = self.rho 
+
+        C = (1-rho)*C_hat + rho*C_old
+        Q = (1-rho)*Q_hat + rho*Q_old
+
+        mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
+        sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
+        
+        D = C.T * np.linalg.pinv(Q) * C
+        new_params = {'kf.C':C, 'kf.Q':Q, 
+            'kf.C_xpose_Q_inv_C':D, 'kf.C_xpose_Q_inv':C.T * np.linalg.pinv(Q),
+            'mFR':mFR, 'sdFR':sdFR}
+        return new_params
+
+
+class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
+    '''This module is deprecated. See KFRML_IVC'''
+    def __init__(self, *args, **kwargs):
+        self.default_gain = kwargs.pop('default_gain', None)
+        suoer(KFOrthogonalPlantSmoothbatch, self).__init__(*args, **kwargs)
+
+    def calc(self, *args, **kwargs):
+        new_params = super(KFOrthogonalPlantSmoothbatch, self).calc(*args, **kwargs)
+        C, Q, = new_params['kf.C'], new_params['kf.Q']
 
         D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
@@ -930,148 +1022,55 @@ class KFRML_IVC(KFRML):
             A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
             W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
             D_diag = []
-            for a, w, n in izip(A_diag, W_diag, [self.default_gain]*3):
+            for a, w, n in izip(A_diag, W_diag, self.default_gain):
                 d = self.scalar_riccati_eq_soln(a, w, n)
                 D_diag.append(d)
 
             D[3:6, 3:6] = np.mat(np.diag(D_diag))
 
-        new_params['filt.C_xpose_Q_inv_C'] = D
-        new_params['filt.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
+        new_params['kf.C_xpose_Q_inv_C'] = D
+        new_params['kf.C_xpose_Q_inv'] = C.T * np.linalg.pinv(Q)
         return new_params
 
-    @classmethod
-    def scalar_riccati_eq_soln(cls, a, w, n):
-        '''    Docstring    '''
-        return (1-a*n)/w * (a-n)/n         
 
+class PPFSmoothbatch(Updater):
+    '''
+    Deprecated: This updater as of 2015-Sept-19 was never used in an experiment. 
+    '''
+    def __init__(self, batch_time, half_life):
+        super(PPFSmoothbatch, self).__init__(self.calc, multiproc=True)
+        self.half_life = half_life
+        self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
 
-class KFRML_baseline(KFRML):
-    '''    Docstring    '''
-    def calc(self, intended_kin, spike_counts, decoder, half_life=None, **kwargs):
-        '''    Docstring    '''
+    def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, **kwargs):
+        """
+        Smoothbatch calculations
 
+        Run least-squares on (intended_kinematics, spike_counts) to 
+        determine the C_hat and Q_hat of new batch. Then combine with 
+        old parameters using step-size rho
+        """
         if half_life is not None:
             rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
         else:
             rho = self.rho 
 
+        C_old = decoder.filt.C
         drives_neurons = decoder.drives_neurons
-        mFR_old        = decoder.mFR
-        sdFR_old       = decoder.sdFR
+        states = decoder.states
+        decoding_states = np.take(states, np.nonzero(drives_neurons)).ravel().tolist() #['hand_vx', 'hand_vz', 'offset'] 
 
-        x = intended_kin
-        y = spike_counts
+        C_hat, pvalues = ppfdecoder.PointProcessFilter.MLE_obs_model(
+            intended_kin, spike_counts, include_offset=False, drives_obs=drives_neurons)
+        C_hat = train.inflate(C_hat, decoding_states, states, axis=1)
+        pvalues = train.inflate(pvalues, decoding_states, states, axis=1)
+        pvalues[pvalues[:,:-1] == 0] = np.inf
 
-        self.R = rho*self.R + (x*x.T)
-        self.S = rho*self.S + (y*x.T)
-        self.T = rho*self.T + np.dot(y, y.T) #(y*y.T)
-        self.ESS = rho*self.ESS + 1
+        mesh = np.nonzero(pvalues < 0.1)
+        C = np.array(C_old.copy())
+        C[mesh] = (1-rho)*C_hat[mesh] + rho*np.array(C_old)[mesh]
+        C = np.mat(C)
 
-        R_inv = np.mat(np.zeros(self.R.shape))
-        R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
-        C_new = self.S * R_inv
-
-        # Q = 1./(1-(rho)**self.iter_counter) * (self.T - self.S*C.T)
-        Q = decoder.filt.Q
-
-        mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
-        sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
-
-        C = decoder.filt.C
-        C[:,-1] = C_new[:,-1]
-
-        C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
-        C_xpose_Q_inv_C = C_xpose_Q_inv * C
-        
-        new_params = {'kf.C':C, 'kf.Q':Q, 
-            'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
-            'mFR':mFR, 'sdFR':sdFR}
-
+        new_params = {'filt.C':C}
         return new_params
 
-
-
-def write_clda_data_to_hdf_table(hdf_fname, data, ignore_none=False):
-    '''
-    Save CLDA data generated during the experiment to the specified HDF file
-
-    Parameters
-    ----------
-    hdf_fname : string
-        filename of HDF file
-    data : list
-        list of dictionaries with the same keys and same dtypes for values
-
-    Returns
-    -------
-    None
-    '''
-    log_file = open(os.path.expandvars('$HOME/code/bmi3d/log/clda_hdf_log'), 'w')
-
-    compfilt = tables.Filters(complevel=5, complib="zlib", shuffle=True)
-    if len(data) > 0:
-        # Find the first parameter update dictionary
-        k = 0
-        first_update = data[k]
-        while first_update is None:
-            k += 1
-            first_update = data[k]
-    
-        table_col_names = first_update.keys()
-        print table_col_names
-        dtype = []
-        shapes = []
-        for col_name in table_col_names:
-            if isinstance(first_update[col_name], float):
-                shape = (1,)
-            else:
-                shape = first_update[col_name].shape
-            dtype.append((col_name.replace('.', '_'), 'f8', shape))
-            shapes.append(shape)
-    
-        log_file.write(str(dtype))
-        # Create the HDF table with the datatype above
-        dtype = np.dtype(dtype) 
-    
-        h5file = tables.openFile(hdf_fname, mode='a')
-        arr = h5file.createTable("/", 'clda', dtype, filters=compfilt)
-
-        null_update = np.zeros((1,), dtype=dtype)
-        for col_name in table_col_names:
-            null_update[col_name.replace('.', '_')] *= np.nan
-    
-        for k, param_update in enumerate(data):
-            log_file.write('%d, %s\n' % (k, str(ignore_none)))
-            if param_update == None:
-                if ignore_none:
-                    continue
-                else:
-                    data_row = null_update
-            else:
-                data_row = np.zeros((1,), dtype=dtype)
-                for col_name in table_col_names:
-                    data_row[col_name.replace('.', '_')] = np.asarray(param_update[col_name])
-    
-            arr.append(data_row)
-        h5file.close()
-        
-
-if __name__ == '__main__':
-    # Test case for CLDARecomputeParameters, to show non-blocking properties
-    # of the recomputation
-    work_queue = mp.Queue()
-    result_queue = mp.Queue()
-
-    work_queue.put((None, None, None))
-
-    clda_worker = CLDARecomputeParameters(work_queue, result_queue)
-    clda_worker.start()
-
-    while 1:
-        try:
-            result = result_queue.get_nowait()
-            break
-        except:
-            print 'stuff'
-        time.sleep(0.1)

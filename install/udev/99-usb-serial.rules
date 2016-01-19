@@ -1,0 +1,3 @@
+SUBSYSTEM=="tty", ATTRS{serial}=="953353430363519011D2", SYMLINK+="arduino_positioner"
+SUBSYSTEM=="tty", ATTRS{serial}=="75439323935351417011", SYMLINK+="arduino_neurosync"
+SUBSYSTEM=="tty", ATTRS{serial}=="A6WXCEPW", SYMLINK+="crist_reward"

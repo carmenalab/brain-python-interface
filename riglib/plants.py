@@ -15,20 +15,90 @@ import select
 import numpy as np
 from collections import namedtuple
 
-from riglib.ismore import settings
 from utils.constants import *
-from riglib.bmi import state_space_models as ssm
-from riglib.bmi import state_space_models
 from riglib import source
 import robot
 
 import struct
 from riglib.bmi.robot_arms import KinematicChain
 
-field_names = ['data', 'ts', 'ts_sent', 'ts_arrival', 'freq']
-ArmAssistFeedbackData = namedtuple("ArmAssistFeedbackData", field_names)
-ReHandFeedbackData    = namedtuple("ReHandFeedbackData",    field_names)
-PassiveExoFeedbackData = namedtuple("PassiveExoFeedbackData", ['data', 'ts_arrival'])
+
+class RefTrajectories(dict):
+    '''
+    Generic class to hold trajectories to be replayed by a plant. 
+    For now, this class is just a dictionary that has had its type changed
+    '''
+    pass
+
+
+from riglib.source import DataSourceSystem
+class FeedbackData(DataSourceSystem):
+    '''
+    Generic class for parsing UDP feedback data from a plant. Meant to be used with 
+    riglib.source.DataSource to grab and log data asynchronously. 
+
+    See DataSourceSystem for notes on the source interface
+    '''
+
+    MAX_MSG_LEN = 300
+    sleep_time = 0
+
+    # must define these in subclasses
+    update_freq = None
+    address     = None
+    dtype       = None
+
+    def __init__(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(self.address)
+
+        # self.file_ = open(self.feedback_filename, 'w')
+
+    def start(self):
+        self.listening = True
+        self.data = self.get_feedback_data()
+
+    def stop(self):
+        self.listening = False
+        self.sock.close()
+        # self.file_.close()
+
+    def __del__(self):
+        # The stop commands for the socket should be issued before this object is garbage-collected, but just in case...
+        self.stop()
+
+    def get(self):
+        return self.data.next()
+
+    def get_feedback_data(self):
+        '''Yield received feedback data.'''
+
+        self.last_timestamp = -1
+
+        while self.listening:
+            r, _, _ = select.select([self.sock], [], [], 0)
+            
+            if r:  # if the list r is not empty
+                feedback = self.sock.recv(self.MAX_MSG_LEN)
+                ts_arrival = time.time()  # secs
+                
+                # print "feedback:", feedback
+                # self.file_.write(feedback.rstrip('\r') + "\n")
+
+                processed_feedback = self.process_received_feedback(feedback, ts_arrival)
+
+                if processed_feedback['ts'] != self.last_timestamp:
+                    yield processed_feedback
+
+                self.last_timestamp = processed_feedback['ts']
+
+            time.sleep(self.sleep_time)
+
+    def process_received_feedback(self, feedback, ts_arrival):
+        raise NotImplementedError('Implement in subclasses!')
+            
+
 
 
 class Plant(object):
@@ -64,6 +134,18 @@ class Plant(object):
             decoder['q'] = self.get_intrinsic_coordinates()
 
     def get_data_to_save(self):
+        '''
+        Get data to save regarding the state of the plant on every iteration of the event loop
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        dict: 
+            keys are strings, values are np.ndarray objects of data values
+        '''
         return dict()
 
     def init(self):
@@ -87,145 +169,6 @@ class Plant(object):
     def init_decoder(self, decoder):
         decoder['q'] = self.get_intrinsic_coordinates()
 
-class FeedbackData(object):
-    '''Abstract parent class, not meant to be instantiated.'''
-
-    client_cls = None
-
-    def __init__(self):
-        self.client = self.client_cls()
-
-    def start(self):
-        self.client.start()
-        self.data = self.client.get_feedback_data()
-
-    def stop(self):
-        self.client.stop()
-
-    def get(self):
-        d = self.data.next()
-        return np.array([(tuple(d.data), tuple(d.ts), d.ts_sent, d.ts_arrival, d.freq)], dtype=self.dtype)
-
-    @staticmethod
-    def _get_dtype(state_names):
-        sub_dtype_data = np.dtype([(name, np.float64) for name in state_names])
-        sub_dtype_ts   = np.dtype([(name, np.int64)   for name in state_names])
-        return np.dtype([('data',       sub_dtype_data),
-                         ('ts',         sub_dtype_ts),
-                         ('ts_sent',    np.float64),
-                         ('ts_arrival', np.float64),
-                         ('freq',       np.float64)])
-
-class Client(object):
-    '''
-    Generic client for UDP data sources
-    '''
-
-    MAX_MSG_LEN = 200
-    sleep_time = 0
-
-    # TODO -- rename this function to something else?
-    def _create_and_bind_socket(self):
-        '''
-        Create UDP receive socket and bind
-        '''
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(self.address)
-
-        self._init = True
-        
-    def start(self):
-        self.listening = True
-
-    def stop(self):
-        self.listening = False
-    
-    def __del__(self):
-        self.stop()
-
-    def get_feedback_data(self):
-        raise NotImplementedError('Implement in subclasses!')
-
-class UpperArmPassiveExoClient(Client):
-    ##  socket to read from
-    address = ('10.0.0.1', 60000)
-    send_port = ('10.0.0.12', 60001)
-
-    #address = ('localhost', 60000) 
-    #send_port = ('localhost', 60001)
-
-    MAX_MSG_LEN = 48
-    sleep_time = 1 #### In production mode, this should be 1./60
-
-    def __init__(self):
-        self._create_and_bind_socket()
-        self.tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-    def get_feedback_data(self):
-        '''
-        Yield received feedback data.
-        '''
-        while self.listening:
-            self.tx_sock.sendto('s', self.send_port)
-            # Hang until the read socket is "ready" for reading
-            # "r" represents the list of devices that are ready from the list that was passed in
-            time.sleep(self.sleep_time)
-            r, _, _ = select.select([self.sock], [], [], 0)
-            
-            if len(r) > 0:
-                ts_arrival = int(time.time() * 1e6)
-                
-                data = self.sock.recvfrom(self.MAX_MSG_LEN)
-                self.tx_sock.sendto('c', self.send_port)
-
-                # unpack the data
-                data = struct.unpack('>dddddd', data[0])
-
-                yield PassiveExoFeedbackData(data=data, ts_arrival=ts_arrival)
-
-class StateSpaceUpperArmPassiveExo(state_space_models.StateSpace):
-    '''
-    State space to represent the EFRI exoskeleton in passive mode
-    '''
-    def __init__(self):
-        '''
-        Constructor for StateSpaceUpperArmPassiveExo
-        A 6-D state space is created to represent all the position states. No velocity states are included.
-        '''
-        super(StateSpaceUpperArmPassiveExo, self).__init__(
-            state_space_models.State('q1', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
-            state_space_models.State('q2', stochastic=False, drives_obs=False, min_val=-10, max_val=10, order=0),
-            state_space_models.State('q3', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
-            state_space_models.State('q4', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
-            state_space_models.State('q5', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
-            state_space_models.State('q6', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
-        )    
-
-def _get_dtype2(state_names):
-    sub_dtype_data = np.dtype([(name, np.float64) for name in state_names])
-    sub_dtype_ts   = np.dtype([(name, np.int64)   for name in state_names])
-    return np.dtype([('data',       sub_dtype_data),
-                     ('ts_arrival', np.float64)])
-
-class UpperArmPassiveExoData(FeedbackData):
-    '''
-    Docstring
-    '''
-
-    update_freq = 60.
-    client_cls = UpperArmPassiveExoClient
-
-    ssm = StateSpaceUpperArmPassiveExo()
-    state_names = [s.name for s in StateSpaceUpperArmPassiveExo().states if s.order == 0]
-    dtype = _get_dtype2(state_names)
-
-    def get(self):
-        d = self.data.next()
-        return np.array([(tuple(d.data), d.ts_arrival)], dtype=self.dtype)        
-
-class PassivePlant(Plant):
-    def drive(self, *args, **kwargs):
-        raise NotImplementedError("Passive plant cannot be driven!")
 
 class AsynchronousPlant(Plant):
     def init(self):
@@ -245,73 +188,13 @@ class AsynchronousPlant(Plant):
         self.source.stop()    
         super(AsynchronousPlant, self).stop()
 
-class PassiveExoChain(KinematicChain):
-    def _init_serial_link(self):
-        pi = np.pi
-        
-        d = np.array([-2.4767, -4.2709, -11.1398, 130, 7.0377, 152]) 
-        # d4: length from the shoulder center to the elbow of the monkey; this is mechanically fix! unit is [mm]
-        # d6: length from the elbow to the wrist; this is flexible depending on the actual value; unit is [mm]
-        a = np.array([1.8654, -1.0149, 0.4966, -7.7437, -2.4387, 0])
-        alpha = np.array([(-90-1.1344)*pi/180, pi/2, -pi/2, pi/2, -pi/2, 0])
-        offsets = np.array([25.8054*pi/180, -95.1254*pi/180, 37.8311*pi/180, 11.9996*pi/180, -60.2*pi/180, 0.5283*pi/180])
-        
-        links = []
-        for k in range(6):
-            link = robot.Link(a=a[k], d=d[k], alpha=alpha[k], offset=offsets[k])
-            links.append(link)
-        
-        r = robot.SerialLink(links)
-        
-        r.tool[0:3, -1] = np.array([0, 0, 45.]).reshape(-1,1)
-        self.robot = r
-        self.link_lengths = a
-
-class UpperArmPassiveExo(PassivePlant):
-    hdf_attrs = [('joint_angles', 'f8', (6,))]
-    read_addr = ('10.0.0.1', 60000)
-    def __init__(self, print_commands=True):
-        self.print_commands = print_commands
-        ssm = StateSpaceUpperArmPassiveExo()
-        self.initialized = False
-        self.rx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.ssm = StateSpaceUpperArmPassiveExo()
-        self.tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.kin_chain = PassiveExoChain()
-
-    def start(self):
-        self.rx_sock.bind(('10.0.0.1', 60000))
-        super(UpperArmPassiveExo, self).start()        
-
-    def get_joint_angles(self):
-        if self.initialized:
-            data = self.rx_sock.recvfrom(48)
-            self.tx_sock.sendto('c', ('10.0.0.12', 60001))
-            joint_angles = np.array(struct.unpack('>dddddd', data[0]))
-        else:
-            joint_angles = np.array(np.ones(6)*np.nan)
-        return joint_angles
-
-    def get_data_to_save(self):
-        joint_angles = self.get_joint_angles()            
-        self.tx_sock.sendto('s', ('10.0.0.12', 60001))
-        self.initialized = True
-
-        # joint_angles = np.array(tuple(self.source.read(n_pts=1)['data'][0]))
-        self.joint_angles = joint_angles
-        return dict(joint_angles=joint_angles)
-
-    def get_endpoint_pos(self):
-        '''
-        Get endpoint position using the model representation of the D-H parameters of the passive exo
-        '''
-        joint_angles = np.deg2rad(self.get_joint_angles())
-        return self.kin_chain.endpoint_pos(joint_angles)
-
-    def stop(self):
-        self.rx_sock.close()
-
+###################################################
+##### Virtual plants for specific experiments #####
+###################################################
 class CursorPlant(Plant):
+    '''
+    Create a plant which is a 2-D or 3-D cursor on a screen/stereo display
+    '''
     hdf_attrs = [('cursor', 'f8', (3,))]
     def __init__(self, endpt_bounds=None, cursor_radius=0.4, cursor_color=(.5, 0, .5, 1), starting_pos=np.array([0., 0., 0.]), vel_wall=True, **kwargs):
         self.endpt_bounds = endpt_bounds
@@ -319,8 +202,6 @@ class CursorPlant(Plant):
         self.starting_pos = starting_pos
         self.cursor_radius = cursor_radius
         self.cursor_color = cursor_color
-        # from riglib.bmi import state_space_models
-        # self.ssm = state_space_models.StateSpaceEndptVel2D()
         self._pickle_init()
         self.vel_wall = vel_wall
 
@@ -330,7 +211,6 @@ class CursorPlant(Plant):
         self.graphics_models = [self.cursor]
 
     def draw(self):
-        # print 'cursor pos', self.position
         self.cursor.translate(*self.position, reset=True)
 
     def get_endpoint_pos(self):
@@ -380,7 +260,6 @@ class CursorPlant(Plant):
                 if self.vel_wall: vel[2] = 0
         return pos, vel
 
-
     def drive(self, decoder):
         pos = decoder['q'].copy()
         vel = decoder['qdot'].copy()
@@ -394,7 +273,11 @@ class CursorPlant(Plant):
     def get_data_to_save(self):
         return dict(cursor=self.position)
 
+
 class onedimLFP_CursorPlant(CursorPlant):
+    '''
+    A square cursor confined to vertical movement
+    '''
     hdf_attrs = [('lfp_cursor', 'f8', (3,))]
 
     def __init__(self, endpt_bounds, *args, **kwargs):
@@ -433,6 +316,9 @@ class onedimLFP_CursorPlant(CursorPlant):
         return dict(lfp_cursor=self.position)
 
 class onedimLFP_CursorPlant_inverted(onedimLFP_CursorPlant):
+    '''
+    A square cursor confined to vertical movement
+    '''
     hdf_attrs = [('lfp_cursor', 'f8', (3,))]
 
     def drive(self, decoder):
@@ -472,6 +358,9 @@ arm_color = (181/256., 116/256., 96/256., 1)
 arm_radius = 0.6
 pi = np.pi
 class RobotArmGen2D(Plant):
+    '''
+    Generic virtual plant for creating a kinematic chain of any number of links but confined to the X-Z (vertical) plane
+    '''
     def __init__(self, link_radii=arm_radius, joint_radii=arm_radius, link_lengths=[15,15,5,5], joint_colors=arm_color,
         link_colors=arm_color, base_loc=np.array([2., 0., -15]), joint_limits=[(-pi,pi), (-pi,0), (-pi/2,pi/2), (-pi/2, 10*pi/180)], stay_on_screen=False, **kwargs):
         '''
@@ -498,10 +387,7 @@ class RobotArmGen2D(Plant):
 
         self.chain.translate(*self.base_loc, reset=True)
 
-        from riglib.bmi import state_space_models
-        # self.ssm = state_space_models.StateSpaceNLinkPlanarChain(n_links=self.num_joints)
-
-        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible','f8',(1,))]
+        self.hdf_attrs = [('cursor', 'f8', (3,)), ('joint_angles','f8', (self.num_joints, )), ('arm_visible', 'f8', (1,))]
 
         self.visible = True # arm is visible when initialized
 
@@ -544,7 +430,16 @@ class RobotArmGen2D(Plant):
         
     def set_intrinsic_coordinates(self, theta):
         '''
-        Set the joint by specifying the angle in radians. Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
+        Set the joints by specifying the angles in radians.
+
+        Parameters
+        ----------
+        theta : np.ndarray
+            Theta is a list of angles. If an element of theta = NaN, angle should remain the same.
+
+        Returns
+        -------
+        None
         '''
         new_endpt_pos = self.kin_chain.endpoint_pos(theta)
         if self.stay_on_screen and (new_endpt_pos[0] > 25 or new_endpt_pos[0] < -25 or new_endpt_pos[-1] < -14 or new_endpt_pos[-1] > 14):
@@ -575,8 +470,7 @@ class EndptControlled2LArm(RobotArmGen2D):
     '''
     def __init__(self, *args, **kwargs):
         super(EndptControlled2LArm, self).__init__(*args, **kwargs)
-        self.hdf_attrs = [('cursor', 'f8', (3,)), ('arm_visible','f8',(1,))]
-        # self.ssm = state_space_models.StateSpaceEndptVel2D()
+        self.hdf_attrs = [('cursor', 'f8', (3,)), ('arm_visible','f8', (1,))]
 
     def get_intrinsic_coordinates(self):
         return self.get_endpoint_pos()

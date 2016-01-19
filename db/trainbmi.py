@@ -14,7 +14,6 @@ import os
 
 import namelist
 from tracker import models
-from plexon import plexfile
 
 cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
@@ -27,11 +26,26 @@ from config import config
 
 import dbfunctions as dbfn
 
+import json
+
+from django.http import HttpResponse
+
+from riglib import experiment
+
+from json_param import Parameters
+from tasktrack import Track
+from tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
+import logging
+
+
+
 @task()
 def cache_plx(plxfile):
     """
     Create cache for plexon file
     """
+    from plexon import plexfile
     plexfile.openFile(str(plxfile)) 
 
 @task()
@@ -44,9 +58,9 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     name : string
         Name assigned to decoder object in the database
     clsname : string
-        BMI algorithm name (passed to namelist lookup table 'bmis')
+        BMI algorithm name (passed to bmilist lookup table 'bmis')
     extractorname : string
-        feature extractor algorithm name (passed to namelist lookup table 'extractors')
+        feature extractor algorithm name (passed to bmilist lookup table 'extractors')
     entry : models.TaskEntry
         Django record of training task
     cells : string
@@ -71,6 +85,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
 
     if 'spike' in extractor_cls.feature_type:  # e.g., 'spike_counts'
         # look at "cells" argument (ignore "channels")
+
         cells = [ (int(c), ord(u) - 96) for c, u in cellname.findall(cells)]
         if cells == []:
             units = None  # use all units by default
@@ -80,8 +95,12 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             #       if units == None:
             #           units = np.array(plx.units).astype(np.int32)"
         else:
-            cells = np.unique(cells)
-            units = np.array(cells).astype(np.int32)
+            unique_cells = []
+            for c in cells:
+                if c not in unique_cells: 
+                    unique_cells.append(c)
+            
+            units = np.array(unique_cells).astype(np.int32)
     elif ('lfp' in extractor_cls.feature_type) or ('ai_' in extractor_cls.feature_type):  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
         channels = np.array(channels.split(', ')).astype(np.int32)  # convert str to list of numbers
@@ -130,6 +149,8 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     ssm = namelist.bmi_state_space_models[ssm]
     kin_extractor_fn = namelist.kin_extractors[kin_extractor]
     decoder = training_method(files, extractor_cls, extractor_kwargs, kin_extractor_fn, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key)
+    decoder.te_id = entry
+
     tf = tempfile.NamedTemporaryFile('wb')
     cPickle.dump(decoder, tf, 2)
     tf.flush()
@@ -161,7 +182,6 @@ def cache_and_train(*args, **kwargs):
     
     else:
         raise Exception('Unknown recording_system!')
-
 
 def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     '''

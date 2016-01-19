@@ -6,28 +6,41 @@
 Welcome to BMI3D's documentation!
 =================================
 
-High-level descriptions:
+Setting up the rig:
 
 ..  toctree::
     :maxdepth: 1
 
     install
-    tasks
-    display
-    interface
-    tracker
-    data
-    comments
-    analysis
-    bmi
-    nidaq
 
-Low-level documentation:
+Setting up and running an experiment:
 
 ..  toctree::
     :maxdepth: 1
 
-    api.rst
+    prereqs
+    tasks
+    database
+    tracker
+    bmi
+    data_sources
+    nidaq
+
+Analyzing the data: 
+
+..  toctree::
+    :maxdepth: 1
+
+    analysis
+    data
+
+General coding guidelines:
+
+..  toctree::
+    :maxdepth: 1
+
+    comments
+
 
 
 Indices and tables
@@ -36,4 +49,5 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
 

@@ -15,6 +15,7 @@ import time, datetime
 from scipy.stats import nanmean
 import db
 from collections import defaultdict, OrderedDict
+from itertools import izip
 
 from config import config
 
@@ -58,6 +59,9 @@ def default_data_comb_fn(x):
     return x
 
 def default_trial_filter_fn(te, trial_msgs):
+    return True
+
+def default_block_filter_fn(te):
     return True
 
 def default_trial_proc_fn(te, trial_msgs): 
@@ -382,17 +386,28 @@ def load_last_decoder():
 
 class TaskEntry(object):
     '''
-    Wrapper class for the TaskEntry django class
+    Wrapper class for the TaskEntry django class so that object-oriented methods 
+    can be defined for TaskEntry blocks (e.g., for analysis methods for a particular experiment)
+    without needing to modfiy the database model.
     '''
     def __init__(self, task_entry_id, dbname='default', **kwargs):
         '''
-        Docstring
+        Constructor for TaskEntry
 
         Parameters
         ----------
+        task_entry_id : int
+            'id' number associated with the TaskEntry (database primary key)
+        dbname : string, optional, default='default'
+            Name of database (if multiple databases are available). Database must 
+            be declared in db/settings.py and paths must be configured using 
+            config_files/make_config.py
+        **kwargs : dict
+            For any additional parameters unused by child classes
 
         Returns
         -------
+        TaskEntry instance
         '''
         self.dbname = dbname
         if isinstance(task_entry_id, models.TaskEntry):
@@ -408,10 +423,14 @@ class TaskEntry(object):
             for key, value in self.params.items():
                 try:
                     setattr(self, key, value)
-                except AttributeError:
+                except AttributeError: # if the object already has an attribute of the same name ...
                     setattr(self, key + '_param', value)
                 except:
-                    pass
+                    import traceback
+                    traceback.print_exc()
+
+                if isinstance(value, list):
+                    self.params[key] = tuple(value)
 
         self.date = self.record.date
 
@@ -437,6 +456,62 @@ class TaskEntry(object):
             self.report = json.loads(self.record.report)
         except:
             self.report = ''
+
+        
+        # Parse out trial messages into separate trials
+        if os.path.exists(self.hdf_filename):
+            try:
+                task_msgs = self.hdf.root.task_msgs[:]
+                # Ignore the last message if it's the "None" transition used to stop the task
+                if task_msgs[-1]['msg'] == 'None':
+                    task_msgs = task_msgs[:-1]
+
+                # ignore "update bmi" messages. These have been removed in later datasets
+                task_msgs = task_msgs[task_msgs['msg'] != 'update_bmi']
+
+                # Try to add the target index.. these are not present in every task type
+                try:
+                    target_index = self.hdf.root.task[:]['target_index'].ravel()
+                    task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8')])
+                    task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
+                    for k in range(len(task_msgs)):
+                        task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
+                        task_msgs_ext[k]['time'] = task_msgs[k]['time']    
+                        try:
+                            task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
+                        except:
+                            task_msgs_ext[k]['target_index'] = np.nan
+                        
+                    self.task_msgs = task_msgs_ext  
+                except:
+                    self.task_msgs = task_msgs
+
+                ## Split the task messages into separate trials
+                self.trial_end_states = self.record.task.get().trial_end_states
+                self.trial_msgs = []
+                try:
+                    # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1
+                    trial_start = np.logical_or(self.task_msgs['msg'] == 'wait', np.logical_and(self.task_msgs['msg'] == 'targ_transition', self.task_msgs['target_index'] == -1))
+                    trial_start_inds, = np.nonzero(trial_start)
+                    trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
+
+                    for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+                        self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
+                except:
+                    # For tasks where there is no target index in the trial structure..
+                    trial_end = np.array([msg in self.trial_end_states for msg in self.task_msgs['msg']])
+                    trial_end_inds, = np.nonzero(trial_end)
+                    trial_start_inds = np.hstack([0, trial_end_inds[:-1]+1])
+                    trial_end = np.zeros(len(self.task_msgs))
+
+                    for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+                        self.trial_msgs.append(self.task_msgs[trial_st:trial_end+1])
+
+
+            except:
+                print "Couldn't process HDF file!"
+                import traceback
+                traceback.print_exc()
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
@@ -651,14 +726,14 @@ class TaskEntry(object):
         '''
         Get the task-generated HDF file linked to this TaskEntry
         '''
-        q = models.DataFile.objects.using(self.record._state.db).get(entry_id=self.id, system__name='hdf')
-        if db_name == 'exorig':
-            dbconfig = getattr(config, 'db_config_exorig')
-        elif db_name == 'bmi3d':
-            dbconfig = getattr(config, 'db_config_bmi3d')
-        else:
+        q = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id, system__name='hdf')
+        if len(q) == 0: 
+            # empty string for HDF filename if none is linked in the database
+            return ''
+        elif len(q) == 1:
+            q = q[0]
             dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-        return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
+            return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
 
     @property
     def hdf(self):
@@ -667,10 +742,21 @@ class TaskEntry(object):
         '''
         if not hasattr(self, 'hdf_file'):
             try:
-                self.hdf_file = tables.open_file(self.hdf_filename)
+                self.hdf_file = tables.open_file(self.hdf_filename, mode='r')
             except:
-                self.hdf_file = tables.openFile(self.hdf_filename)
+                self.hdf_file = tables.openFile(self.hdf_filename, mode='r')
         return self.hdf_file
+
+    def close_hdf(self):
+        if hasattr(self, 'hdf_file'):
+            self.hdf_file.close()
+            delattr(self, 'hdf_file')
+
+    def close(self):
+        '''
+        Cleanup functions
+        '''
+        self.close_hdf()
 
     @property
     def plx(self):
@@ -682,6 +768,10 @@ class TaskEntry(object):
         except:
             from plexon import plexfile
             self._plx = plexfile.openFile(str(self.plx_filename))
+
+            # parse out events
+            from riglib.dio import parse
+            self.strobe_data = parse.parse_data(self._plx.events[:].data)
         return self._plx
 
     @property
@@ -1008,7 +1098,7 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result. 
         '''
 
-        from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        import trial_filter_functions, trial_proc_functions, trial_condition_functions
         if filt == None:
             filt = kwargs.pop('trial_filter_fn', default_trial_filter_fn)
         if cond == None:
@@ -1099,7 +1189,7 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result. 
         '''
         if filt == None:
-            filt = kwargs.pop('block_filter_fn', default_trial_filter_fn)
+            filt = kwargs.pop('block_filter_fn', default_block_filter_fn)
         if cond == None:
             cond = kwargs.pop('block_condition_fn', default_trial_condition_fn)
         if proc == None:
@@ -1107,7 +1197,7 @@ class TaskEntryCollection(object):
         if comb == None:
             comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
 
-        from analysis import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
         block_filter_fn = filt
         block_condition_fn = cond
@@ -1192,7 +1282,7 @@ def get_bmi_blocks(date, subj='C'):
     blocks.sort(key=lambda x: x.date)
     return blocks
 
-def bmi_filt(te):                                         
+def bmi_filt(te):
     bmi_feat = models.Feature.objects.using(te._state.db).get(name='bmi')
     return bmi_feat in te.feats.all()
 

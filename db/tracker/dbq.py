@@ -1,5 +1,6 @@
 '''
 Methods for remotely interacting with the sqlite3 database using remote procedure call (RPC)
+For example, linking HDF file to a particular task entry.
 '''
 
 import os
@@ -53,10 +54,10 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
     num = enums[entry]
 
     if move:
-        dataname = "{subj}{time}_{num:02}.{suff}".format(
+        dataname = "{subj}{time}_{num:02}_te{id}.{suff}".format(
             subj=entry.subject.name[:4].lower(),
             time=time.strftime('%Y%m%d'), num=num+1,
-            suff=suff
+            id=entry.id, suff=suff
         )
         fullname = os.path.join(sys.path, dataname)
         permfile = dataname
@@ -73,7 +74,7 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
         permfile = curfile
 
     DataFile(local=local, path=permfile, system=sys, entry=entry).save(using=dbname)
-    print "Saved datafile for file=%s -> %s, system=%s, id=%d)..."%(curfile, permfile, system, entry.id)
+    print "Saved datafile for file=%s -> %s, system=%s, id=%d)..." % (curfile, permfile, system, entry.id)
 
 def save_bmi(name, entry, filename, dbname='default'):
     '''
@@ -93,21 +94,40 @@ def save_bmi(name, entry, filename, dbname='default'):
         time=entry.date.strftime('%Y%m%d'),
         num=num, name=name)
     base = System.objects.using(dbname).get(name='bmi').path
+
+    #Make sure decoder name doesn't exist already:
+    #Make sure new decoder name doesn't already exist: 
+    import os.path
+    dec_ix = 0
+
+    while os.path.isfile(os.path.join(base, pklname)): 
+        pklname = "{subj}{time}_{num:02}_{name}_{ix}.pkl".format(
+        subj=entry.subject.name[:4].lower(),
+        time=entry.date.strftime('%Y%m%d'),
+        num=num, name=name,ix=dec_ix)
+        dec_ix += 1
+
     shutil.copy2(filename, os.path.join(base, pklname))
 
     Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
     print "Saved decoder to %s"%os.path.join(base, pklname)
 
-def entry_error(entry):
-    TaskEntry.objects.get(pk=entry).remove()
-    print "Removed Bad Entry %d"%entry
+def hide_task_entry(entry, dbname='default'):
+    te = TaskEntry.objects.using(dbname).get(id=entry)
+    te.visible = False
+    te.save()
 
+
+
+#############################################################################
+##### Register functions for remote procedure call from other processes #####
+#############################################################################
 dispatcher = SimpleXMLRPCDispatcher(allow_none=True)
 dispatcher.register_function(save_log, 'save_log')
 dispatcher.register_function(save_calibration, 'save_cal')
 dispatcher.register_function(save_data, 'save_data')
 dispatcher.register_function(save_bmi, 'save_bmi')
-dispatcher.register_function(entry_error, 'entry_error')
+dispatcher.register_function(hide_task_entry, 'hide_task_entry')
 
 @csrf_exempt
 def rpc_handler(request):

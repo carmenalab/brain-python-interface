@@ -97,7 +97,7 @@ class Window(LogExperiment):
         self.world.init()
 
         #up vector is always (0,0,1), why would I ever need to roll the camera?!
-        self.set_eye((0,-self.screen_dist,0), (0,0))
+        self.set_eye((0, -self.screen_dist, 0), (0,0))
     
     def _get_renderer(self):
         near = 1
@@ -120,7 +120,7 @@ class Window(LogExperiment):
 
     def show_object(self, obj, show=False):
         '''
-        Show or hide an object
+        Show or hide an object. This function is an abstraction so that tasks don't need to know about attach/detach
         '''
         if show:
             obj.attach()
@@ -140,12 +140,6 @@ class Window(LogExperiment):
     def _start_None(self):
         pygame.display.quit()
 
-    def _start_reward(self):
-        pass
-
-    def _start_wait(self):
-        pass
-    
     def _test_stop(self, ts):
         '''
         Stop the task if the escape key is pressed, or if the super _test_stop instructs a stop
@@ -157,7 +151,6 @@ class Window(LogExperiment):
     def requeue(self):
         self.renderer._queue_render(self.world)
 
-    @profile
     def _cycle(self):
         self.requeue()
         self.draw_world()
@@ -195,29 +188,21 @@ class WindowDispl2D(Window):
         self.event = None
         super(WindowDispl2D, self).__init__(*args, **kwargs)
 
+    def _set_workspace_size(self):
+        '''
+        By default, the workspace is 50x28 cm, centered around the origin (0,0)
+        '''
+        self.workspace_bottom_left = (-25., -14.)
+        self.workspace_top_right   = (25., 14.)
+
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
+        os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         self.clock = pygame.time.Clock()
 
         flags = pygame.NOFRAME
-
-        if config.recording_sys['make'] == 'plexon':
-            self.workspace_bottom_left = (-25., -14.)
-            self.workspace_top_right   = (25., 14.)
-        elif config.recording_sys['make'] == 'blackrock':
-            from riglib.ismore import settings
-            MAT_SIZE = settings.MAT_SIZE
-
-            border = 10.  # TODO -- difference between this and self.display_border?
-            self.workspace_bottom_left = np.array([ 0. - border, 
-                                                    0. - border])
-            self.workspace_top_right   = np.array([MAT_SIZE[0] + border, 
-                                                   MAT_SIZE[1] + border])
-            
-        else:
-            raise Exception('Unknown recording_system!')
+        self._set_workspace_size()
 
         self.workspace_x_len = self.workspace_top_right[0] - self.workspace_bottom_left[0]
         self.workspace_y_len = self.workspace_top_right[1] - self.workspace_bottom_left[1]
@@ -337,7 +322,6 @@ class WindowDispl2D(Window):
             for mdl in model:
                 self.draw_model(mdl)
 
-    @profile
     def draw_world(self):
         #Refreshes the screen with original background
         self.screen.blit(self.screen_background, (0, 0))
@@ -365,7 +349,7 @@ class WindowDispl2D(Window):
 
 
 
-class FakeWindow(object):
+class FakeWindow(Window):
     '''
     A dummy class to secretly avoid rendering graphics without 
     the graphics-based tasks knowing about it. Used e.g. for simulation 
@@ -381,7 +365,7 @@ class FakeWindow(object):
     def screen_init(self):
         self.world = Group(self.models)
         # self.world.init()
-
+        
     def draw_world(self):
         pass
 

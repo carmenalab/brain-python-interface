@@ -6,17 +6,25 @@ import numpy as np
 from riglib import calibrations, bmi
 from riglib.bmi.bmi import BMI, Decoder
 from riglib.bmi import state_space_models
+import imp
 
 ## Get the list of experiment features
 try:
+    imp.find_module("featurelist")
+except ImportError:
+    print "Error importing featurelist!"
+    import traceback
+    traceback.print_exc()
+    raise Exception("Error importing featurelist!\n\n")
+    #features = dict()
+else:
     from featurelist import features
-except:
-    features = dict()
 
 ## Get the list of tasks
 try:
     from tasklist import tasks
 except ImportError:
+    print 'Import Error in db.namelist: from tasklist import tasks -- likely error in a single task preventing import'
     tasks = dict()
 
 from itertools import izip
@@ -40,6 +48,9 @@ generators = dict()
 for fn_name, fn in izip(generator_names, generator_functions):
     generators[fn_name] = fn
 
+
+################################################################################
+################################################################################
 from tracker import models
 class SubclassDict(dict):
     '''
@@ -54,25 +65,31 @@ class SubclassDict(dict):
                 if issubclass(name, inst):
                     return model
         raise KeyError
-        
-instance_to_model = SubclassDict( {
-    calibrations.Profile:models.Calibration,
-    calibrations.AutoAlign:models.AutoAlignment,
-    BMI: models.Decoder,
-    Decoder: models.Decoder,
-} )
 
+# from riglib.plants import RefTrajectories
+# from ismore.emg_decoding import LinearEMGDecoder
+# instance_to_model = SubclassDict( {
+#     calibrations.Profile:models.Calibration,
+#     calibrations.AutoAlign:models.AutoAlignment,
+#     BMI: models.Decoder,
+#     Decoder: models.Decoder,
+#     RefTrajectories: models.DataFile,
+#     LinearEMGDecoder: models.Decoder,
+# } )
+
+# instance_to_model_filter_kwargs = SubclassDict( {
+#     calibrations.Profile:dict(),
+#     calibrations.AutoAlign:dict(),
+#     BMI:dict(),
+#     Decoder:dict(),
+#     RefTrajectories: dict(system__name='ref_trajectories'),
+#     LinearEMGDecoder: dict(name__startswith='emg_decoder')
+# } )
+
+################################################################################
+################################################################################
 try:
-    from bmilist import bmi_algorithms
-    from bmilist import bmi_training_pos_vars
-    from bmilist import bmi_state_space_models
-    from bmilist import extractors
-    from bmilist import kin_extractors
-    from bmilist import default_extractor
-    from bmilist import bmi_update_rates
-    from bmilist import endpt_2D_state_space
-    from bmilist import tentacle_2D_state_space
-    from bmilist import joint_2D_state_space
+    from bmilist import *
 except:
     print "error importing BMI configuration variables"
     import traceback

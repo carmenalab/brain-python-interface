@@ -145,7 +145,7 @@ function TaskEntry(idx, info){
 		this.status = this.tr.hasClass("running") ? "running" : "completed";
 		if (this.status == 'running')
 			this.report.activate();
-		$.getJSON("/ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
+		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
 			this.notes = new Notes(this.idx);
 			this.update(expinfo);
 			this.disable();
@@ -403,7 +403,7 @@ TaskEntry.prototype.test = function() {
 	return this.run(false); 
 }
 
-/* Callback for the start experiment button
+/* Callback for the "Stop Experiment" button
  */
 TaskEntry.prototype.stop = function() {
 	var csrf = {};

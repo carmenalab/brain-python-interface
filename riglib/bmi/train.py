@@ -7,7 +7,7 @@ import sys
 
 import numpy as np
 from scipy.io import loadmat
-from riglib.nidaq import parse
+from riglib.dio import parse
 
 import tables
 import kfdecoder, ppfdecoder
@@ -147,14 +147,10 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     ts = nev_hdf.get(path).value['TimeStamp']
     msgs = nev_hdf.get(path).value['Value']
 
-    # copied from riglib/nidaq/parse.py
-    msgtype_mask = 0b0000111<<8
-    auxdata_mask = 0b1111000<<8
-    rawdata_mask = 0b11111111
-    msgtype = np.right_shift(np.bitwise_and(msgs, msgtype_mask), 8).astype(np.uint8)
+    msgtype = np.right_shift(np.bitwise_and(msgs, parse.msgtype_mask), 8).astype(np.uint8)
     # auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
-    auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8+3).astype(np.uint8)
-    rawdata = np.bitwise_and(msgs, rawdata_mask)
+    auxdata = np.right_shift(np.bitwise_and(msgs, parse.auxdata_mask), 8+3).astype(np.uint8)
+    rawdata = np.bitwise_and(msgs, parse.rawdata_mask)
 
     # data is an N x 4 matrix that will be the argument to parse.registrations()
     data = np.vstack([ts, msgtype, auxdata, rawdata]).T
@@ -276,12 +272,16 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
        tmask, rows = _get_tmask_blackrock_fake(files['hdf'], tslice)
     else:
         nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
-        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]]) 
+        #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]]) 
+        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, sys_name=source) 
     neurows = rows[tmask]
 
     neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs, strobe_rate=strobe_rate)
 
     return neural_features, units, extractor_kwargs
+
+def _get_neural_features_tdt(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
+    raise NotImplementedError
 
 def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=None, tslice=None, source='task', strobe_rate=60):
     '''
@@ -300,8 +300,10 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
         fn = _get_neural_features_plx
     elif 'blackrock' in files:
         fn = _get_neural_features_blackrock
+    elif 'tdt' in files:
+        fn = _get_neural_features_tdt
     else:
-        raise Exception('Could not find any plexon or blackrock files!')
+        raise Exception('Could not find any recognized neural data files!')
 
     neural_features, units, extractor_kwargs = fn(files, binlen, extractor_fn, extractor_kwargs, tslice=tslice, units=units, source=source, strobe_rate=strobe_rate)
 
@@ -342,7 +344,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
     -------
     '''
     if pos_key == 'plant_pos':  # used for ibmi tasks
-        vel_key == 'plant_vel'
+        vel_key = 'plant_vel'
 
     hdf = tables.openFile(files['hdf'])    
     kin = hdf.root.task[:][pos_key]
@@ -379,7 +381,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 ## Main training functions
 ################################################################################
 def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
-     ## get neural features
+    ## get neural features
     import extractor
     f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
     import onedim_lfp_decoder as old

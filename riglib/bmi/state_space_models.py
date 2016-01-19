@@ -10,83 +10,6 @@ import numpy as np
 ## Constants
 ############
 pi = np.pi
-deg_to_rad = pi/180
-
-def resample_ssm(A, W, Delta_old=0.1, Delta_new=0.005, include_offset=True):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    A = A.copy()
-    W = W.copy()
-    if include_offset:
-        orig_nS = A.shape[0]
-        A = A[:-1, :-1]
-        W = W[:-1, :-1]
-
-    loop_ratio = Delta_new/Delta_old
-    N = 1./loop_ratio
-    A_new = A**loop_ratio
-    nS = A.shape[0]
-    I = np.mat(np.eye(nS))
-    W_new = W * ( (I - A_new**N) * (I - A_new).I - I).I
-    if include_offset:
-        A_expand = np.mat(np.zeros([orig_nS, orig_nS]))
-        A_expand[:-1,:-1] = A_new
-        A_expand[-1,-1] = 1
-        W_expand = np.mat(np.zeros([orig_nS, orig_nS]))
-        W_expand[:-1,:-1] = W_new
-        return A_expand, W_expand
-    else:
-        return A_new, W_new
-
-def resample_scalar_ssm(a, w, Delta_old=0.1, Delta_new=0.005):
-    '''
-    Docstring
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    loop_ratio = Delta_new/Delta_old
-    a_delta_new = a**loop_ratio
-    w_delta_new = w / ((1-a_delta_new**(2*(1./loop_ratio)))/(1- a_delta_new**2))
-
-    mu = 1
-    sigma = 0
-    for k in range(int(1./loop_ratio)):
-        mu = a_delta_new*mu
-        sigma = a_delta_new * sigma * a_delta_new + w_delta_new
-    return a_delta_new, w_delta_new
-
-def _gen_A(t, s, m, n, off, ndim=3):
-    """
-    Utility function for generating block-diagonal matrices
-    used by the KF
-    
-        [t*I, s*I, 0
-         m*I, n*I, 0
-         0,   0,   off]
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    np.mat of shape (N, N); N = 2*ndim + 1
-    """
-    A = np.zeros([2*ndim+1, 2*ndim+1])
-    A_lower_dim = np.array([[t, s], [m, n]])
-    A[0:2*ndim, 0:2*ndim] = np.kron(A_lower_dim, np.eye(ndim))
-    A[-1,-1] = off
-    return np.mat(A)
 
 
 class State(object):
@@ -113,7 +36,8 @@ class State(object):
             Hard (nonlinear) constraint on the maximum value of the state. By default (np.nan), no constraint is applied.
         order : int
             Specification of the 'order' that this state would contribute to a differential equation, 
-            e.g., constant states are order 0, position states are order 1, velocity states are order 2, etc.
+            e.g., integrated position is order -1, position states are order 0, velocity states are order 1, acceleration is order 2, etc.
+            Constant states should be order NaN
 
         Returns
         -------
@@ -262,6 +186,7 @@ class StateSpace(object):
         else:
             return self.states == other.states
 
+
 class LinearVelocityStateSpace(StateSpace):
     def __init__(self, states, vel_decay=0.8, w=7, Delta=0.1):
         self.states = states 
@@ -344,6 +269,14 @@ class LinearVelocityStateSpace(StateSpace):
         # import pdb; pdb.set_trace()
         return states_equal and np.array_equal(A1, A2) and np.array_equal(B1, B2) and np.array_equal(W1, W2)
 
+
+#######################################################################
+##### Specific StateSpace types for particular experiments/plants #####
+#######################################################################
+# These class declarations may not actually be best placed in this class, 
+# but moving them now would cause problems with unpickling older decoder 
+# objects, which are saved with these state space model types. So put new 
+# state-space models elsewhere!
 offset_state = State('offset', stochastic=False, drives_obs=True, order=np.nan)
 offset_state._eq_comp_excl.append('order')
 
@@ -401,6 +334,126 @@ class StateSpaceEndptVel2D(LinearVelocityStateSpace):
 
         if not hasattr(self, 'w'):
             self.w = 7
+
+
+############################
+##### Helper functions #####
+############################
+def resample_ssm(A, W, Delta_old=0.1, Delta_new=0.005, include_offset=True):
+    '''
+    Change the effective sampling rate of a linear random-walk discrete-time state-space model
+    That is, state-space models of the form 
+
+    x_{t+1} = Ax_t + w_t, w_t ~ N(0, W)
+
+    Parameters
+    ----------
+    A : np.mat of shape (K, K)
+        State transition model
+    W : np.mat of shape (K, K)
+        Noise covariance estimate
+    Delta_old : float, optional, default=0.1
+        Old sampling rate
+    Delta_new : float, optional, default=0.005
+        New sampling rate
+    include_offset : bool, optional, default=True
+        Indicates whether the state-space matrices 
+
+    Returns
+    -------
+    A_new, W_new
+        New state-space model parameters at the new sampling rate.
+
+    '''
+    A = A.copy()
+    W = W.copy()
+    if include_offset:
+        orig_nS = A.shape[0]
+        A = A[:-1, :-1]
+        W = W[:-1, :-1]
+
+    loop_ratio = Delta_new/Delta_old
+    N = 1./loop_ratio
+    A_new = A**loop_ratio
+    nS = A.shape[0]
+    I = np.mat(np.eye(nS))
+    W_new = W * ( (I - A_new**N) * (I - A_new).I - I).I
+    if include_offset:
+        A_expand = np.mat(np.zeros([orig_nS, orig_nS]))
+        A_expand[:-1,:-1] = A_new
+        A_expand[-1,-1] = 1
+        W_expand = np.mat(np.zeros([orig_nS, orig_nS]))
+        W_expand[:-1,:-1] = W_new
+        return A_expand, W_expand
+    else:
+        return A_new, W_new
+
+def resample_scalar_ssm(a, w, Delta_old=0.1, Delta_new=0.005):
+    '''
+    Similar to resample_ssm, but for a scalar (1-d) state-space model, 
+    where the problem can be solved without complicated matrix roots
+
+    Parameters
+    ----------
+    a : float
+        State transition model
+    w : float 
+        Noise variance estimate
+    Delta_old : float, optional, default=0.1
+        Old sampling rate
+    Delta_new : float, optional, default=0.005
+        New sampling rate
+
+    Returns
+    -------
+    a_new, w_new
+        New state-space model parameters at the new sampling rate.
+
+    '''
+    loop_ratio = Delta_new/Delta_old
+    a_delta_new = a**loop_ratio
+    w_delta_new = w / ((1-a_delta_new**(2*(1./loop_ratio)))/(1- a_delta_new**2))
+
+    mu = 1
+    sigma = 0
+    for k in range(int(1./loop_ratio)):
+        mu = a_delta_new*mu
+        sigma = a_delta_new * sigma * a_delta_new + w_delta_new
+    return a_delta_new, w_delta_new
+
+def _gen_A(t, s, m, n, off, ndim=3):
+    """
+    Utility function for generating block-diagonal matrices
+    used by the KF
+    
+        [t*I, s*I, 0
+         m*I, n*I, 0
+         0,   0,   off]
+
+    Parameters
+    ----------
+    t : float 
+        See matrix equation above
+    s : float 
+        See matrix equation above
+    m : float 
+        See matrix equation above
+    n : float 
+        See matrix equation above
+    off : float 
+        See matrix equation above
+    ndim : int, optional, default = 3 
+        Number of states in each block, e.g. 3-states for (x,y,z) position
+
+    Returns
+    -------
+    np.mat of shape (N, N); N = 2*ndim + 1
+    """
+    A = np.zeros([2*ndim+1, 2*ndim+1])
+    A_lower_dim = np.array([[t, s], [m, n]])
+    A[0:2*ndim, 0:2*ndim] = np.kron(A_lower_dim, np.eye(ndim))
+    A[-1,-1] = off
+    return np.mat(A)
 
 
 if __name__ == '__main__':

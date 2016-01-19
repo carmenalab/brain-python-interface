@@ -9,7 +9,9 @@ from . import traits
 from experiment import LogExperiment
 
 class Pygame(LogExperiment):
-    ''' Docstring '''
+    '''
+    'Window' used by the older tasks (dots, eyemove, rds, redgreen, sensorymapping)
+    '''
     background = (0,0,0)
     fps = 60
     
@@ -19,13 +21,7 @@ class Pygame(LogExperiment):
 
     def screen_init(self):
         '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
+        Initialize the pygame display
         '''
         os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"

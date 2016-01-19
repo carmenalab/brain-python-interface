@@ -20,10 +20,9 @@ class Config(object):
         self.log_dir = '/home/lab/code/bmi3d/log'
 
     def __getattr__(self, attr):
-        if attr in self.parser.sections():
+        try:
             return dict(self.parser.items(attr))
-        else:
-
-            return super(Config, self).__getattr__(attr)
+        except:
+            raise AttributeError("config.py: Attribute '%s' not found in config file!" % attr)
 
 config = Config()
