@@ -401,6 +401,10 @@ class MultiChanDataSource(mp.Process):
             self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros/Falses by default
 
+    def register_supp_hdf(self):
+        from riglib.ismore import brainamp_hdf_writer
+        self.supp_hdf = brainamp_hdf_writer.BrainampData(self.channels, self.send_to_sinks_dtype)
+
     def start(self, *args, **kwargs):
         '''
         From Python's docs on the multiprocessing module:
@@ -423,6 +427,9 @@ class MultiChanDataSource(mp.Process):
         Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
         '''
         print "Starting datasource %r" % self.source
+        print "Registering Supp HDF file"
+        self.register_supp_hdf()
+
         try:
             system = self.source(**self.source_kwargs)
             system.start()
@@ -531,10 +538,14 @@ class MultiChanDataSource(mp.Process):
                             #     data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
                             #     self.sinks.send(self.name, data)
 
-                            # New way to send data (in blocks) (update 1/12/2016)
                             ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
                             data = np.array(self.data[ix_], dtype=self.send_to_sinks_dtype)
-                            self.sinks.send(self.name, data)
+
+                            # New way to send data (in blocks) (update 1/12/2016)
+                            #self.sinks.send(self.name, data)
+
+                            # New file storage for data (in blocks to supp hdf file) (update: 1/19/2016)
+                            self.supp_hdf.add_data(data)
 
                             self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)
 
@@ -544,6 +555,8 @@ class MultiChanDataSource(mp.Process):
         
         system.stop()
         print "ended datasource %r" % self.source
+        self.supp_hdf.close_data()
+        print 'end of supp hdf'
 
     def get(self, n_pts, channels, **kwargs):
         '''
