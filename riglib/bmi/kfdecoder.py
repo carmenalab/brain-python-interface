@@ -478,30 +478,34 @@ class FAKalmanFilter(KalmanFilter):
 
             input_type = self.FA_input
 
-            if input_type == 'all' or input_type == 'all_sc':
-                obs_t_mod = obs_t.copy()
+            input_dict = {}
+        
+            input_dict['all_input'] = obs_t.copy()
+            input_dict['all_sc_input'] = obs_t.copy()
 
-            else:
-                dmn = obs_t - self.FA_kwargs['fa_mu']
-                shar = (self.FA_kwargs['fa_sharL'] * dmn)
-                priv = (dmn - shar)
-                
-                if input_type == 'private':
-                    obs_t_mod = priv + self.FA_kwargs['fa_mu']
-                elif input_type == 'shared':
-                    obs_t_mod = shar + self.FA_kwargs['fa_mu']
-                elif input_type == 'private_sc':
-                    obs_t_mod = (priv*self.FA_kwargs['fa_priv_var_sc']) + self.FA_kwargs['fa_mu']
-                elif input_type == 'shared_sc':
-                    obs_t_mod = (shar*self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
-                else:
-                    raise Exception("Error in FA_KF input_type, none of the expected inputs")
+            dmn = obs_t - self.FA_kwargs['fa_mu']
+            shar = (self.FA_kwargs['fa_sharL'] * dmn)
+            priv = (dmn - shar)
+            
+            input_dict['private_input'] = priv + self.FA_kwargs['fa_mu']
+            input_dict['shared_input'] = shar + self.FA_kwargs['fa_mu']
+            input_dict['private_sc_input'] = np.multiply(priv, self.FA_kwargs['fa_priv_var_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['shared_sc_input'] = np.multiply(shar, self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+
+            if input_type in input_dict.keys():
+                obs_t_mod = input_dict[input_type]
+            else: 
+                raise Exception("Error in FA_KF input_type, none of the expected inputs")
         else:
             obs_t_mod = obs_t.copy()
+
+        input_dict['task_input'] = obs_t_mod.copy()
 
         #Note the 'obs_t_mod:'
         post_state = super(FAKalmanFilter, self)._forward_infer(st, obs_t_mod, Bu=Bu, u=u, target_state=target_state, 
             obs_is_control_independent=obs_is_control_independent, **kwargs)
+
+        self.FA_input_dict = input_dict
 
         return post_state
 
