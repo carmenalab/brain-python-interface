@@ -385,7 +385,8 @@ class MultiChanDataSource(mp.Process):
         self.last_read_idxs = np.zeros(self.n_chan)
         rawarray = shm.RawArray('c', self.n_chan * self.max_len * self.slice_size)
         self.data = np.frombuffer(rawarray, dtype).reshape((self.n_chan, self.max_len))
-        
+        self.state = 'wait'
+
         self.lock = mp.Lock()
         self.pipe, self._pipe = mp.Pipe()
         self.cmd_event = mp.Event()
@@ -400,6 +401,7 @@ class MultiChanDataSource(mp.Process):
             self.send_to_sinks_dtype = np.dtype([('chan'+str(chan), dtype) for chan in kwargs['channels']])
             self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros/Falses by default
+
 
     def register_supp_hdf(self):
         from riglib.ismore import brainamp_hdf_writer
@@ -433,6 +435,7 @@ class MultiChanDataSource(mp.Process):
         try:
             system = self.source(**self.source_kwargs)
             system.start()
+
         except Exception as e:
             print e
             self.status.value = -1
@@ -474,6 +477,7 @@ class MultiChanDataSource(mp.Process):
                 if data is not None:
                     try:
                         self.lock.acquire()
+                        system.state = self.state
 
                         try:
                             row = self.chan_to_row[chan]  # row in ringbuffer corresponding to this channel
@@ -534,17 +538,17 @@ class MultiChanDataSource(mp.Process):
                                     self.wrap_flags[row] = False
 
                             # Old way to send data to the sink manager, one column at a time
-                            # for idx in idxs_to_send:
-                            #     data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
-                            #     self.sinks.send(self.name, data)
+                            #for idx in idxs_to_send:
+                                #data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
+                                #self.sinks.send(self.name, data)
 
-                            ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
-                            data = np.array(self.data[ix_], dtype=self.send_to_sinks_dtype)
-
-                            # New way to send data (in blocks) (update 1/12/2016)
+                            #Slightly newer way to send data to the sink manager, all columns at a time:
+                            #ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
+                            #data = np.array(self.data[ix_], dtype=self.send_to_sinks_dtype)
                             #self.sinks.send(self.name, data)
 
-                            # New file storage for data (in blocks to supp hdf file) (update: 1/19/2016)
+                            #Newest way to send data to the supp hdf file, all columns at a time (1/21/2016)
+                            data = np.array(map(tuple, self.data[:, idxs_to_send].T), dtype = self.send_to_sinks_dtype)
                             self.supp_hdf.add_data(data)
 
                             self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)

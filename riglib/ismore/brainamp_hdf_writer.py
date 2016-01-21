@@ -28,9 +28,9 @@ class BrainampData(object):
 
     def add_data(self, data):
 
-        if len(data) != 1:
+        #if len(data) != 1:
         # this might not be necessary
-            data = np.array(data)[np.newaxis]
+            #data = np.array(data)[np.newaxis]
 
         self.ba_data.append(data)
 
