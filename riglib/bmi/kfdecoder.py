@@ -476,7 +476,7 @@ class FAKalmanFilter(KalmanFilter):
     def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, **kwargs):
         if hasattr(self, 'FA_kwargs'):
 
-            input_type = self.FA_input
+            input_type = self.FA_input+'_input'
 
             input_dict = {}
         
