@@ -315,50 +315,52 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         elif 'tdt' in files:
             raise NotImplementedError     
 
-class FABinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
-    # setup FA model, 
-    # yield features in dict with 'all', 'shared', 'private'
-    feature_type = 'all_spikes' #['all', 'shared', 'private']
+# class FABinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
+#     # setup FA model, 
+#     # yield features in dict with 'all', 'shared', 'private'
+#     feature_type = 'all_spikes' #['all', 'shared', 'private']
 
-    def __init__(self, source, n_subbins=1, units=[], **kwargs):
-        super(FABinnedSpikeCountsExtractor, self).__init__(source, n_subbins=n_subbins, units=units)
+#     def __init__(self, source, n_subbins=1, units=[], **kwargs):
+#         super(FABinnedSpikeCountsExtractor, self).__init__(source, n_subbins=n_subbins, units=units)
         
-        self.feature_dtype = [('all', 'f8', (len(units), n_subbins)), 
-                            ('shared', 'f8', (len(units), n_subbins)), 
-                            ('private', 'f8', (len(units), n_subbins)), 
-                            ('bin_edges', 'f8', 2)]
+#         self.feature_dtype = [('all', 'f8', (len(units), n_subbins)), 
+#                             ('shared', 'f8', (len(units), n_subbins)), 
+#                             ('private', 'f8', (len(units), n_subbins)), 
+#                             ('bin_edges', 'f8', 2)]
 
-        self.mu = kwargs['fa_mu']
-        self.sharL = kwargs['fa_sharL']
-        self.shar_var_scalar = kwargs['fa_shar_var_sc']
-        self.priv_var_scalar = kwargs['fa_priv_var_sc']
-        self.fa_scale_output = kwargs['fa_scale_output']
-        if 'downscale_factor' in kwargs:
-            self.downscale_factor = kwargs['downscale_factor']
-        else:
-            self.downscale_factor = 1.
+#         self.mu = kwargs['fa_mu']
+#         self.sharL = kwargs['fa_sharL']
+#         self.shar_var_scalar = kwargs['fa_shar_var_sc']
+#         self.priv_var_scalar = kwargs['fa_priv_var_sc']
+#         self.fa_scale_output = kwargs['fa_scale_output']
+#         if 'downscale_factor' in kwargs:
+#             self.downscale_factor = kwargs['downscale_factor']
+#         else:
+#             self.downscale_factor = 1.
 
-    def __call__(self, start_time, *args, **kwargs):
-        binned_spike_dict = super(FABinnedSpikeCountsExtractor, self).__call__(self, start_time, *args, **kwargs)
-        fa_output = self.decomp_input(binned_spike_dict['spike_counts'])
-        return fa_output
+#     def __call__(self, start_time, *args, **kwargs):
+#         binned_spike_dict = super(FABinnedSpikeCountsExtractor, self).__call__(self, start_time, *args, **kwargs)
+#         fa_output = self.decomp_input(binned_spike_dict['spike_counts'])
+#         return fa_output
 
-    def decomp_input(self, binned_spikes):
-        ''' Assume binned_spikes is N x 1, where N = number of units '''
+#     def decomp_input(self, binned_spikes):
+#         ''' Assume binned_spikes is N x 1, where N = number of units '''
 
-        demean_spikes = binned_spikes - self.mu
-        shared = (self.sharL*demean_spikes)
-        private = demean_spikes - shared
+#         demean_spikes = binned_spikes - self.mu
+#         shared = (self.sharL*demean_spikes)
+#         private = demean_spikes - shared
 
-        if self.fa_scale_output:
-            shared = self.mu + np.multiply(self.shar_var_scalar, shared)
-            private = self.mu + np.multiply(self.priv_var_scalar, private)
+#         if self.fa_scale_output:
+#             #shared = self.mu + (np.multiply(self.shar_var_scalar, shared)/3.)
+#             #private = self.mu + (np.multiply(self.priv_var_scalar, private)/3.)
+#             shared =  (np.multiply(self.shar_var_scalar, shared)/3.)+ self.mu
+#             private = (np.multiply(self.priv_var_scalar, private)/3.) + self.mu
 
-        else:
-            shared = shared #+ self.mu
-            private = private #+ self.mu
+#         else:
+#             shared = shared + self.mu
+#             private = private + self.mu
 
-        return dict(all=binned_spikes, private = private, shared = shared)
+#         return dict(all=binned_spikes, private = private, shared = shared)
 
 
 

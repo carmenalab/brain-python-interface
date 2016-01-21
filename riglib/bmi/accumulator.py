@@ -68,7 +68,6 @@ class RectWindowSpikeRateEstimator(FeatureAccumulator):
             decode = True
         return est, decode
 
-
 class NullAccumulator(FeatureAccumulator):
     '''
     A null accumulator to use in cases when no accumulation is desired.

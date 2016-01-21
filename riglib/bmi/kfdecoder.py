@@ -471,6 +471,40 @@ class PCAKalmanFilter(KalmanFilter):
         self.M = state['M']
         self.pca_offset = state['pca_offset']        
 
+class FAKalmanFilter(KalmanFilter):
+
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, **kwargs):
+        if hasattr(self, 'FA_kwargs'):
+
+            input_type = self.FA_input
+
+            if input_type == 'all' or input_type == 'all_sc':
+                obs_t_mod = obs_t.copy()
+
+            else:
+                dmn = obs_t - self.FA_kwargs['fa_mu']
+                shar = (self.FA_kwargs['fa_sharL'] * dmn)
+                priv = (dmn - shar)
+                
+                if input_type == 'private':
+                    obs_t_mod = priv + self.FA_kwargs['fa_mu']
+                elif input_type == 'shared':
+                    obs_t_mod = shar + self.FA_kwargs['fa_mu']
+                elif input_type == 'private_sc':
+                    obs_t_mod = (priv*self.FA_kwargs['fa_priv_var_sc']) + self.FA_kwargs['fa_mu']
+                elif input_type == 'shared_sc':
+                    obs_t_mod = (shar*self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+                else:
+                    raise Exception("Error in FA_KF input_type, none of the expected inputs")
+        else:
+            obs_t_mod = obs_t.copy()
+
+        #Note the 'obs_t_mod:'
+        post_state = super(FAKalmanFilter, self)._forward_infer(st, obs_t_mod, Bu=Bu, u=u, target_state=target_state, 
+            obs_is_control_independent=obs_is_control_independent, **kwargs)
+
+        return post_state
+
 
 class KFDecoder(bmi.BMI, bmi.Decoder):
     '''
