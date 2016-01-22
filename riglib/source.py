@@ -401,11 +401,15 @@ class MultiChanDataSource(mp.Process):
             self.send_to_sinks_dtype = np.dtype([('chan'+str(chan), dtype) for chan in kwargs['channels']])
             self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros/Falses by default
+            self.supp_hdf_file = kwargs['supp_file']
 
 
     def register_supp_hdf(self):
-        from riglib.ismore import brainamp_hdf_writer
-        self.supp_hdf = brainamp_hdf_writer.BrainampData(self.channels, self.send_to_sinks_dtype)
+        try:
+            from ismore.brainamp import brainamp_hdf_writer
+        except:
+            from riglib.ismore import brainamp_hdf_writer
+        self.supp_hdf = brainamp_hdf_writer.BrainampData(self.supp_hdf_file, self.channels, self.send_to_sinks_dtype)
 
     def start(self, *args, **kwargs):
         '''
@@ -429,8 +433,9 @@ class MultiChanDataSource(mp.Process):
         Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
         '''
         print "Starting datasource %r" % self.source
-        print "Registering Supp HDF file"
-        self.register_supp_hdf()
+        if self.send_data_to_sink_manager:
+            print "Registering Supplementary HDF file for datasource %r" % self.source
+            self.register_supp_hdf()
 
         try:
             system = self.source(**self.source_kwargs)
