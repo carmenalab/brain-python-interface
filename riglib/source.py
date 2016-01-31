@@ -387,10 +387,13 @@ class MultiChanDataSource(mp.Process):
 
 
         self.data = np.frombuffer(rawarray, dtype).reshape((self.n_chan, self.max_len))
+
         
 
         #self.fo2 = open('/storage/rawdata/test_rda_get.txt','w')
         #self.fo3 = open('/storage/rawdata/test_rda_run.txt','w')
+
+
         self.lock = mp.Lock()
         self.pipe, self._pipe = mp.Pipe()
         self.cmd_event = mp.Event()
@@ -405,11 +408,16 @@ class MultiChanDataSource(mp.Process):
             self.send_to_sinks_dtype = np.dtype([('chan'+str(chan), dtype) for chan in kwargs['channels']])
             self.next_send_idx = mp.Value('l', 0)
             self.wrap_flags = shm.RawArray('b', self.n_chan)  # zeros/Falses by default
+            self.supp_hdf_file = kwargs['supp_file']
+
 
 
     def register_supp_hdf(self):
-        from ismore.brainamp import brainamp_hdf_writer
-        self.supp_hdf = brainamp_hdf_writer.BrainampData(self.channels, self.send_to_sinks_dtype)
+        try:
+            from ismore.brainamp import brainamp_hdf_writer
+        except:
+            from riglib.ismore import brainamp_hdf_writer
+        self.supp_hdf = brainamp_hdf_writer.BrainampData(self.supp_hdf_file, self.channels, self.send_to_sinks_dtype)
 
 
     def start(self, *args, **kwargs):
@@ -434,12 +442,14 @@ class MultiChanDataSource(mp.Process):
         Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
         '''
         print "Starting datasource %r" % self.source
-        print "Registering Supp HDF file"
-        self.register_supp_hdf()
+        if self.send_data_to_sink_manager:
+            print "Registering Supplementary HDF file for datasource %r" % self.source
+            self.register_supp_hdf()
 
         try:
             system = self.source(**self.source_kwargs)
             system.start()
+
         except Exception as e:
             print e
             self.status.value = -1
@@ -486,6 +496,7 @@ class MultiChanDataSource(mp.Process):
                 if data is not None:
                     try:
                         self.lock.acquire()
+                        system.state = self.state
 
                         try:
                             row = self.chan_to_row[chan]  # row in ringbuffer corresponding to this channel
@@ -545,20 +556,20 @@ class MultiChanDataSource(mp.Process):
                                     self.wrap_flags[row] = False
 
                             # Old way to send data to the sink manager, one column at a time
-                            # print "idxs_to_send"
-                            # print idxs_to_send
                             # for idx in idxs_to_send:
                             #     data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
                             #     print "data shape"
                             #     print data.shape
                             #     self.sinks.send(self.name, data)
 
-                            # # # New way to send data (in blocks) (update 1/12/2016)
-                            # ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
-                                                  
+                            # # # New way to send data (in blocks) (update 1/12/2016): all columns at a time
+                            #ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
+                            #data = np.array(self.data[ix_], dtype=self.send_to_sinks_dtype)
+                            #self.sinks.send(self.name, data)
+
+                            #Newest way to send data to the supp hdf file, all columns at a time (1/21/2016)
                             data = np.array(map(tuple, self.data[:, idxs_to_send].T), dtype = self.send_to_sinks_dtype)
                             self.supp_hdf.add_data(data)
-
 
                             self.next_send_idx.value = np.mod(idxs_to_send[-1] + 1, self.max_len)
 

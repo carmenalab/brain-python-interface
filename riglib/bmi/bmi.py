@@ -958,7 +958,7 @@ class BMILoop(object):
             print self.decoder['q']
             raise Exception("Error initializing decoder state")
         self.init_decoder_mean = self.decoder.filt.state.mean
-
+        
         self.decoder.set_call_rate(1./self.update_rate)
 
     def create_assister(self):
