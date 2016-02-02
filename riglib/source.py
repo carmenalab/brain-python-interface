@@ -14,6 +14,7 @@ import ctypes
 
 import numpy as np
 
+
 class FuncProxy(object):
     '''
     Interface for calling functions in remote processes. Similar to tasktrack.FuncProxy.
@@ -354,7 +355,7 @@ class MultiChanDataSource(mp.Process):
         name: string, optional, default=None
             Name of the sink, i.e., HDF table. If one is not provided, it will be inferred based
             on the name of the source module
-        send_data_to_sink_manager: boolean, optional, default=True
+        send_data_to_sink_manager: boolean, optional, default=False
             Flag to indicate whether data should be saved to a sink (e.g., HDF file)            
         kwargs: dict, optional, default = {}
             For the multi-channel data source, you MUST specify a 'channels' keyword argument
@@ -372,20 +373,26 @@ class MultiChanDataSource(mp.Process):
         self.source_kwargs = kwargs
         self.bufferlen = bufferlen
         self.max_len = int(bufferlen * self.source.update_freq)
-        
         self.channels = kwargs['channels']
         self.chan_to_row = dict()
         for row, chan in enumerate(self.channels):
             self.chan_to_row[chan] = row
+        
         self.n_chan = len(self.channels)
-
         dtype = self.source.dtype  # e.g., np.dtype('float') for LFP
         self.slice_size = dtype.itemsize
         self.idxs = shm.RawArray('l', self.n_chan)
         self.last_read_idxs = np.zeros(self.n_chan)
         rawarray = shm.RawArray('c', self.n_chan * self.max_len * self.slice_size)
+
+
         self.data = np.frombuffer(rawarray, dtype).reshape((self.n_chan, self.max_len))
-        self.state = 'wait'
+
+        
+
+        #self.fo2 = open('/storage/rawdata/test_rda_get.txt','w')
+        #self.fo3 = open('/storage/rawdata/test_rda_run.txt','w')
+
 
         self.lock = mp.Lock()
         self.pipe, self._pipe = mp.Pipe()
@@ -404,12 +411,14 @@ class MultiChanDataSource(mp.Process):
             self.supp_hdf_file = kwargs['supp_file']
 
 
+
     def register_supp_hdf(self):
         try:
             from ismore.brainamp import brainamp_hdf_writer
         except:
             from riglib.ismore import brainamp_hdf_writer
         self.supp_hdf = brainamp_hdf_writer.BrainampData(self.supp_hdf_file, self.channels, self.send_to_sinks_dtype)
+
 
     def start(self, *args, **kwargs):
         '''
@@ -477,8 +486,13 @@ class MultiChanDataSource(mp.Process):
                 #   chan is the the channel number
                 #   data is a numpy array with a dtype (or subdtype) of
                 #   self.source.dtype
-                chan, data = system.get()
+                #print 'before get'
+                
 
+                chan, data = system.get()
+                #self.fo3.write(str(data[0][0]) + ' ' + str(time.time()) + ' \n')
+
+                #print 'after get'
                 if data is not None:
                     try:
                         self.lock.acquire()
@@ -526,7 +540,6 @@ class MultiChanDataSource(mp.Process):
                         # check if there is at least one column of data that
                         # has not yet been sent to the sink manager
                         if all(self.next_send_idx.value < idx + int(flag)*self.max_len for (idx, flag) in zip(self.idxs, self.wrap_flags)):
-
                             start_idx = self.next_send_idx.value
                             if not all(self.wrap_flags):
 
@@ -543,11 +556,13 @@ class MultiChanDataSource(mp.Process):
                                     self.wrap_flags[row] = False
 
                             # Old way to send data to the sink manager, one column at a time
-                            #for idx in idxs_to_send:
-                                #data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
-                                #self.sinks.send(self.name, data)
+                            # for idx in idxs_to_send:
+                            #     data = np.array([tuple(self.data[:, idx])], dtype=self.send_to_sinks_dtype)
+                            #     print "data shape"
+                            #     print data.shape
+                            #     self.sinks.send(self.name, data)
 
-                            #Slightly newer way to send data to the sink manager, all columns at a time:
+                            # # # New way to send data (in blocks) (update 1/12/2016): all columns at a time
                             #ix_ = np.ix_(np.arange(self.data.shape[0]), idxs_to_send)
                             #data = np.array(self.data[ix_], dtype=self.send_to_sinks_dtype)
                             #self.sinks.send(self.name, data)
@@ -586,8 +601,8 @@ class MultiChanDataSource(mp.Process):
         if self.status.value <= 0:
             raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
 
-        self.lock.acquire()
-        
+        self.lock.acquire()   
+   
         # these channels must be a subset of the channels passed into __init__
         n_chan = len(channels)
         data = np.zeros((n_chan, n_pts), dtype=self.source.dtype)
@@ -608,7 +623,8 @@ class MultiChanDataSource(mp.Process):
                     data[chan_num, :n_pts-idx] = self.data[row, -(n_pts-idx):]
                     data[chan_num, n_pts-idx:] = self.data[row, :idx]
                 self.last_read_idxs[row] = idx
-
+        #print (data['data'])
+        #self.fo2.write(str(data[0,0]['data']) + ' ' + str(len(data[0,:]['data'])) + ' ' + str(time.time()) + ' \n')
         self.lock.release()
 
         if self.filter is not None:
@@ -677,6 +693,8 @@ class MultiChanDataSource(mp.Process):
         Set self.status.value to negative so that the while loop in self.run() terminates
         '''
         self.status.value = -1
+        # self.fo2.close()
+        # self.fo3.close()
     
     def __del__(self):
         '''
