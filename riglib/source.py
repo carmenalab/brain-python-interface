@@ -496,8 +496,7 @@ class MultiChanDataSource(mp.Process):
                 if data is not None:
                     try:
                         self.lock.acquire()
-                        system.state = self.state
-
+                        
                         try:
                             row = self.chan_to_row[chan]  # row in ringbuffer corresponding to this channel
                         except KeyError:
