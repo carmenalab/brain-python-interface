@@ -387,6 +387,62 @@ def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     import onedim_lfp_decoder as old
     return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
 
+def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder):
+
+    from tasks.factor_analysis_tasks import FactorBMIBase
+    FA_dict = FactorBMIBase.generate_FA_matrices(FA_nfactors, FA_te_id)
+
+    # #Now, retrain: 
+    binlen = decoder.binlen
+    from db import dbfunctions as dbfn
+    te_id = dbfn.TaskEntry(decoder.te_id)
+    files = dict(plexon=te_id.plx_filename, hdf = te_id.hdf_filename)
+    extractor_cls = decoder.extractor_cls
+    extractor_kwargs = decoder.extractor_kwargs
+    kin_extractor = get_plant_pos_vel
+    ssm = decoder.ssm
+    update_rate = decoder.binlen
+    units = decoder.units
+    tslice = (0., te_id.length)
+
+
+    ## get kinematic data
+    kin_source = 'task'
+    tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
+    kin = kin_extractor(files, binlen, tmask, pos_key='cursor', vel_key=None)
+
+    ## get neural features
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, extractor_kwargs, tslice=tslice, units=units, source=kin_source)
+
+    #Get shared input: 
+    T = neural_features.shape[0]
+
+    demean = neural_features.T - np.tile(FA_dict['fa_mu'], [1, T])
+    shar = (FA_dict['fa_sharL']* demean)
+    shar_sc = np.multiply(shar, np.tile(FA_dict['fa_shar_var_sc'], [1, T])) + np.tile(FA_dict['fa_mu'], [1, T])
+
+
+    # Remove 1st kinematic sample and last neural features sample to align the 
+    # velocity with the neural features
+    kin = kin[1:].T
+    neural_features = shar_sc[:,:-1]
+
+    decoder2 = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
+    decoder2.extractor_cls = extractor_cls
+    decoder2.extractor_kwargs = extractor_kwargs
+    decoder2.te_id = decoder.te_id
+
+    import datetime
+    now = datetime.datetime.now()
+    tp = now.isoformat()
+    import pickle
+    fname = os.path.expandvars('$FA_GROM_DATA/decoder_')+tp+'.pkl'
+    f = open(fname, 'w')
+    pickle.dump(decoder2, f)
+    f.close()
+    return decoder2, fname
+
+
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
