@@ -387,7 +387,7 @@ def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     import onedim_lfp_decoder as old
     return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
 
-def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder):
+def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True):
 
     from tasks.factor_analysis_tasks import FactorBMIBase
     FA_dict = FactorBMIBase.generate_FA_matrices(FA_nfactors, FA_te_id)
@@ -420,12 +420,16 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder):
     demean = neural_features.T - np.tile(FA_dict['fa_mu'], [1, T])
     shar = (FA_dict['fa_sharL']* demean)
     shar_sc = np.multiply(shar, np.tile(FA_dict['fa_shar_var_sc'], [1, T])) + np.tile(FA_dict['fa_mu'], [1, T])
-
+    shar_unsc = shar + np.tile(FA_dict['fa_mu'], [1, T])
 
     # Remove 1st kinematic sample and last neural features sample to align the 
     # velocity with the neural features
     kin = kin[1:].T
-    neural_features = shar_sc[:,:-1]
+
+    if use_scaled:
+        neural_features = shar_sc[:,:-1]
+    else:
+        neural_features = shar_unsc[:,:-1]
 
     decoder2 = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
     decoder2.extractor_cls = extractor_cls
