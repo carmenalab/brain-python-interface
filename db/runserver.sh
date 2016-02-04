@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Set display to display 0
 DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
 
@@ -6,6 +7,13 @@ DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
 if [ -z "$BMI3D" ]
     then
     echo "ERROR: Need to define the BMI3D environment variable!"
+    exit 1
+fi
+
+#Check /storage (exist )
+storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
+if [ $storage == 'False' ]; then
+    echo "/storage does not exist --> if on Ismore, must mount"
     exit 1
 fi
 
@@ -56,7 +64,7 @@ date >> $BMI3D/log/runserver_log
 echo "Hash of HEAD commit at time of execution" >> $BMI3D/log/runserver_log  
 git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD >> $BMI3D/log/runserver_log  
 
-# Print the status of the BMI3D code so that there's a visible record of which files have changed since the last commti
+# Print the status of the BMI3D code so that there's a visible record of which  files have changed since the last commti
 echo "Working tree status at time of execution" >> $BMI3D/log/runserver_log   
 git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log   
 
