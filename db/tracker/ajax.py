@@ -15,6 +15,7 @@ from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataF
 
 import trainbmi
 import logging
+import traceback
 
 exp_tracker = Track()
 
@@ -168,9 +169,21 @@ def backup_entry(request, idx):
     entry.save()    
     return _respond(dict())
 
+def unbackup_entry(request, idx):
+    '''
+    See documentation for exp_info
+    '''
+    entry = TaskEntry.objects.get(pk=idx)
+    entry.backup = False
+    entry.save()    
+    return _respond(dict())
+
 def gen_info(request, idx):
-    gen = Generator.objects.get(pk=idx)
-    return _respond(gen.to_json())
+    try:
+        gen = Generator.objects.get(pk=idx)
+        return _respond(gen.to_json())
+    except:
+        traceback.print_exc()
 
 def start_next_exp(request):
     try:
