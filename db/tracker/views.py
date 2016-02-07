@@ -30,7 +30,25 @@ def list(request):
     '''
     td = datetime.timedelta(days=60)
     start_date = datetime.date.today() - td
-    entries = TaskEntry.objects.filter(date__gt=start_date, visible=True).order_by('-date')
+    # entries = TaskEntry.objects.filter(visible=True).order_by('-date') # date__gt=start_date, 
+    # entries = TaskEntry.objects.all()[:200][::-1]
+    entries = TaskEntry.objects.filter(task__name='bmi_control_tentacle_attractor').order_by('-date')
+
+    
+    for k in range(0, len(entries)):
+        ent = entries[k]
+        if k == 0 or not entries[k].date.date() == entries[k-1].date.date():
+            ent.html_date = ent.date.date()
+        else:
+            ent.html_date = None
+        ent.html_time = ent.date.time()
+
+    ## Determine how many rows the date should span
+    last = -1
+    for k, ent in enumerate(entries[::-1]):
+        if ent.html_date:
+            ent.rowspan = k - last
+            last = k
 
     task_records = Task.objects.filter(visible=True).order_by("name")
     try:
