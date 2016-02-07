@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-Create the configuration file for the BMI3D code
+Executable script to create the configuration file for the BMI3D code, a text file called '$BMI3D/config_files/config' 
 '''
 import os
 from collections import OrderedDict

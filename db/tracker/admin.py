@@ -1,3 +1,8 @@
+'''
+Declare which database tables are visible from Django's default admin interface. 
+
+This file was initially created by Django
+'''
 from tracker.models import Task, Feature, System, TaskEntry, Calibration, DataFile, Subject, Sequence, Generator, AutoAlignment, Decoder
 from django.contrib import admin
 
