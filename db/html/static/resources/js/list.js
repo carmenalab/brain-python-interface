@@ -130,27 +130,39 @@ function TaskEntry(idx, info){
     /* Constructor for TaskEntry class
      * idx: string of format row\d\d\d where \d\d\d represents the string numbers of the database ID of the block
      */
-	$("#content").hide();
+
+    // hide the old content
+	$("#content").hide(); 
+
 	this.sequence = new Sequence();
 	this.params = new Parameters();
-
 	this.report = new Report(TaskInterface.trigger.bind(this));
 	
 	$("#parameters").append(this.params.obj);
     $("#plots").empty()
 
+    console.log("JS constructing task entry", idx)
+
 	if (idx) { // the task entry which was clicked has an id (stored in the database)
+
+		// parse the actual integer database ID out of the HTML object name
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
+
+		// Create a jQuery object to represent the table row
 		this.tr = $("#"+idx);
+
 		this.status = this.tr.hasClass("running") ? "running" : "completed";
 		if (this.status == 'running')
 			this.report.activate();
-		$.getJSON("ajax/exp_info/"+this.idx+"/", {}, function (expinfo) {
-			this.notes = new Notes(this.idx);
-			this.update(expinfo);
-			this.disable();
-			$("#content").show("slide", "fast");
-		}.bind(this));
+
+		$.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
+			{}, // POST data to send to the server
+			function (expinfo) { // function to run on successful response
+				this.notes = new Notes(this.idx);
+				this.update(expinfo);
+				this.disable();
+				$("#content").show("slide", "fast");
+			}.bind(this));
 	} else { // a "new" task entry is being created
 		this.idx = null;
 
@@ -166,6 +178,8 @@ function TaskEntry(idx, info){
 			this.enable();
 			$("#content").show("slide", "fast");
 		} else {
+			console.log("flagged for backup " + info.flagged_for_backup)
+
 			TaskInterface.trigger.bind(this)({state:''});
 			this._task_query(function() {
 				this.enable();
@@ -175,6 +189,7 @@ function TaskEntry(idx, info){
 		$("#notes textarea").val("").removeAttr("disabled");
 	}
 	
+	// Disable reacting to clicks on the current row so that things don't get reset
 	this.tr.unbind("click");
 }
 
@@ -215,6 +230,8 @@ TaskEntry.prototype.update = function(info) {
 	          .text(value)); 
 	});
 
+	$('#report_backup').html('Flagged for backup: ' + info.flagged_for_backup+"\n<br><br>");
+
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
 	this.report.update(info.report);
@@ -246,27 +263,16 @@ TaskEntry.prototype.update = function(info) {
 	this.filelist = document.createElement("ul");
 	
 	// List out the data files in the 'filelist'
-	// see TaskEntry.to_json in models.py
+	// see TaskEntry.to_json in models.py to see how the file list is generated
 	for (var sys in info.datafiles) {
-		if (sys == "sequence") {  // info.datafiles["sequence"] is a boolean
-			if (info.datafiles[sys]) {  
-				var file = document.createElement("li");
-				var link = document.createElement("a");
-				link.href = "sequence_for/"+this.idx;
-				link.innerHTML = "Sequence";
-				file.appendChild(link);
-				this.filelist.appendChild(file);
-				numfiles++;
-			}
-		} else {  // info.datafiles[sys] is an array of files for that system
+		if (sys == "sequence") { 
+			// Do nothing. No point in showing the sequence..
+		} else {  
+			// info.datafiles[sys] is an array of files for that system
 			for (var i = 0; i < info.datafiles[sys].length; i++) {
-				datafile = info.datafiles[sys][i]
+				// Create a list element to hold the file name
 				var file = document.createElement("li");
-				// var link = document.createElement("a");
-				// link.href = "/static"+datafile;
-				// link.innerHTML = datafile;
-				// file.appendChild(datafile);
-				file.textContent = datafile;
+				file.textContent = info.datafiles[sys][i];
 				this.filelist.appendChild(file);
 				numfiles++;
 			}
@@ -274,20 +280,26 @@ TaskEntry.prototype.update = function(info) {
 	}
 
 	if (numfiles > 0) {
+		// Append the files onto the #files field
 		$("#files").append(this.filelist).show();
 
-		// make the BMI show up if there's a plexon file in the provided data files
+		// make the BMI show up if there's a neural data file linked
 		var found = false;
 		for (var sys in info.datafiles)
-			found = found || sys == "plexon" || sys == 'blackrock'
+			if ((sys == "plexon") || (sys == "blackrock") || (sys == "tdt")) {
+				found = true;
+				break;
+			}
+
 		if (found)
+			// Create the BMI object
 			this.bmi = new BMI(this.idx, info.bmi, info.notes);
 	}
 
 	if (info.sequence) {
 		$("#sequence").show()
 	} else {
-		$("#sequence").hide()
+		// $("#sequence").hide()
 	}
 
     // render plots
