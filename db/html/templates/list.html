@@ -35,11 +35,22 @@
 		$("#hidebtn").click(
 			function() {
 				console.log("Hiding task entry " + te.idx);
-				$.get("/ajax/hide_entry/"+te.idx);
-				$("row" + te.idx).slideToggle("slow");
+				$.get("/ajax/hide_entry/"+te.idx, 
+					{}, 
+					function() {
+						// console.log('slide');
+						// console.log("row" + te.idx);
+						$("#row" + te.idx).slideToggle("slow");
+						te.destroy();
+						// $("#row" + te.idx).hide();
+						// console.log($("row" + te.idx))
+						// console.log('slide toggle done');
+					}
+				);
 			}
 		);
 		$("#backupbtn").click(function() {$.get("/ajax/backup_entry/"+te.idx)});		
+		$("#unbackupbtn").click(function() {$.get("/ajax/unbackup_entry/"+te.idx)});		
 		$("#experiment").submit(function() { return te[taskaction](); })
 		$("#startbtn").click(function() { taskaction = "start"; })
 		$("#testbtn").click(function() { taskaction = "test"; })
@@ -51,6 +62,23 @@
 				$('#leftpane').slideToggle("fast");
 			}
 		);
+
+
+		// Clear out dates that are the same
+		var table = $('table#main');
+		var table_rows = $('#main tr'); // dictionary
+		console.log(table_rows);
+		for (var row_idx in table_rows) {
+
+			var trow = table_rows[row_idx];
+			console.log(typeof(row_idx));
+			console.log(typeof(trow));
+		}
+		// var rowCount = .length;
+		// for (var row in $('#main tr')) {
+		// 	console.log(row);
+		// }
+		// console.log();
 	})
 </script>
 </head>
@@ -64,17 +92,28 @@
 	        <hr>
 			<table id='main' style="direction:ltr;">
 				<thead>
-				<tr><th class='colDate'>Date</th><th class='colSubj'>Who</th><th class='colTask'>Task</th></tr>
+				<tr>
+					<th>Date</th>
+					<th>Time</th>
+					<th>ID</th>
+					<th class='colSubj'>Who</th>
+					<th class='colTask'>Task</th>
+				</tr>
 				</thead>
+
 				<tbody>
 					<tr id='newentry' class='rowactive'>
-						<td class='colDate'>Now</td>
+						<td>Today</td>
+						<td>Now</td>
+						<td></td> <!-- Empty for database ID slot -->
 						<td class='colSubj'>
 							<select id='subjects'>
 								{% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>
 								{% endfor %}
 							</select>
 						</td>
+						<td></td>
+						<td></td>
 						<td class='colTask'>
 							<select id='tasks'>
 								{% for t in tasks %}<option value='{{t.id}}'>{{ t.name }}</option>
@@ -84,9 +123,14 @@
 					</tr>
 				{% for e in entries %}
 					<tr id='row{{e.id}}' bgcolor={{e.bgcolor}} {% if e.id == running %} class='running' {% endif %}>
-					<td class='colDate' >{{e.date}} ({{e.id}})</td>
-					<td class='colSubj' >{{e.subject.name}}</td>
-					<td class='colTask' >{{e.task.name}}</td></tr>
+						{% if e.html_date %}
+							<td class='colDate' rowspan={{e.rowspan}}>{{e.html_date}}</td>
+						{% endif %}
+						<td class='colTime' >{{e.html_time}}</td>
+						<td class='colID'   >({{e.id}})</td>
+						<td class='colSubj' >{{e.subject.name}}</td>
+						<td class='colTask' >{{e.task.name}}</td>
+					</tr>
 				{% endfor %}
 				</tbody>
 			</table>
