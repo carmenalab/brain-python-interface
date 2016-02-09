@@ -1,3 +1,7 @@
+* {
+	font-family:Arial;
+}
+
 div.clear { clear:both; }
 body {
 	padding:0px;
@@ -57,7 +61,7 @@ input[type="number"] {
 }
 
 div#leftpane { 
-	width:600px; 
+	/*width:600px; */
 	overflow:auto;
 }
 div#rightpane { 
@@ -95,7 +99,11 @@ fieldset {
 }*/
 
 
-.options { float:left; width:35%; }
+.options { 
+	float:left; 
+	width:35%; 
+}
+
 #parameters table,#sequence table {
 	width:100%;
 	border-collapse:collapse;
@@ -153,10 +161,45 @@ input.startbtn:hover {
 #report table.option {
 	font-size:10pt;
 }
+
 #report {
     max-height:500px;
     overflow:auto;
 }
+
+#report td {
+	width : 300px;
+}
+
+#subjects {
+	width : 100px;
+}
+
+
+.colTime {
+	width : 75px;
+}
+
+.colID {
+	width : 50px;
+}
+
+.colSubj {
+	width : 100px;
+	font-size : 10pt;
+	font-family:Arial;
+}
+
+.colTask {
+	width : 200px;
+	text-align : left;
+}
+
+#tasks {
+	width : 200px;
+	text-align : left;
+}
+
 
 
 .active td, div.active { 
@@ -171,4 +214,4 @@ input.startbtn:hover {
 .error td, div.error { 
     background-color:#FDD; 
 }
-*{font-family:Arial;}
+
