@@ -10,6 +10,8 @@ var box_filters = {
         return (rates[0]*100).toPrecision(3) + "% / "+ (rates[1]*100).toPrecision(3) + "%";
     }
 }
+
+// Report class constructor
 function Report(callback) {
     this.notify = callback;
     this.obj = document.createElement("div");
@@ -25,18 +27,13 @@ function Report(callback) {
 
     this.boxes = {};
 }
-Report.prototype.pause = function() {
-    this.infos = [];
-}
-Report.prototype.unpause = function() {
-    if (this.infos.length > 0)
-        for (var i in this.infos)
-            this.update(this.infos[i]);
-    delete this.infos;
-}
+
 Report.prototype.activate = function() {
-    if (!this.ws) {
+    if (!this.ws) { 
+        // Create a new JS WebSocket object
         this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
+
+
         this.ws.onmessage = function(evt) {
             //console.log(evt.data);
             var report = JSON.parse(evt.data);
@@ -47,11 +44,16 @@ Report.prototype.activate = function() {
         }.bind(this);
     }
 }
+
 Report.prototype.deactivate = function() {
+    /*
+        Close the report websocket 
+    */
     if (this.ws)
         this.ws.close();
     delete this.ws;
 }
+
 Report.prototype.update = function(info) {
     if (typeof(this.notify) == "function" && info)
         this.notify(info);
@@ -94,4 +96,16 @@ Report.prototype.destroy = function () {
     this.deactivate();
     if (this.obj.parentNode)
         this.obj.parentNode.removeChild(this.obj);
+}
+
+
+// These functions are unused
+Report.prototype.pause = function() {
+    this.infos = [];
+}
+Report.prototype.unpause = function() {
+    if (this.infos.length > 0)
+        for (var i in this.infos)
+            this.update(this.infos[i]);
+    delete this.infos;
 }
