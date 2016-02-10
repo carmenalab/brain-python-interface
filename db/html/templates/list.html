@@ -57,9 +57,15 @@
 		$("#stopbtn").click(function() { taskaction = "stop"; })
 		$("#pausebtn").click(function() { taskaction = "pause"; })
 
-		$("#toggle_table").click(
+		$("#toggle_table").change(
 			function() {
-				$('#leftpane').slideToggle("fast");
+				if (this.checked) {
+					$('#leftpane').show()
+				 	$('#rightpane').style.marginLeft = "540px";
+				} else {
+					$('#leftpane').hide()
+					$('#rightpane').style.marginLeft = "0px";
+				}
 			}
 		);
 
@@ -84,8 +90,7 @@
 </head>
 
 <body>
-	<input id="toggle_table" type="submit" value="Toggle table">
-	<br>
+	<input id="toggle_table" type="checkbox" value="c" checked="on" name="hist_checkbox">Show History<br>
 	<div id="main_box">
 		<div id='leftpane'>
 			{{ n_blocks }} saved task entry records shown below
@@ -120,9 +125,9 @@
 						</td>
 					</tr>
 				{% for e in entries %}
-					<tr id='row{{e.id}}' bgcolor={{e.bgcolor}} {% if e.id == running %} class='running' {% endif %}>
+					<tr id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}  {% if e.html_date %} style='border-top : 1px solid black;' {% endif %} >
 						{% if e.html_date %}
-							<td class='colDate' bgcolor='white' rowspan={{e.rowspan}}>{{e.html_date}}</td>
+							<td class='colDate' bgcolor={{e.bgcolor}} rowspan={{e.rowspan}}>{{e.html_date}}</td>
 						{% endif %}
 						<td class='colTime' >{{e.html_time}}</td>
 						<td class='colID'   >({{e.id}})</td>
