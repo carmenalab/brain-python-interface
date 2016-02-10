@@ -32,6 +32,52 @@ table#main tr {
 	/*background:;*/
 }
 
+/* Left hand table styling */
+div#leftpane { 
+	/*width : 500px; */
+	overflow:auto;
+}
+
+.colDate {
+    width : 50px;
+}
+
+.colTime {
+	width : 75px;
+}
+
+.colID {
+	width : 50px;
+}
+
+.colSubj {
+	width : 100px;
+	font-size : 10pt;
+	font-family:Arial;
+}
+#subjects {
+	width : 100px;
+}
+
+.colTask {
+	width : 200px;
+	text-align : left;
+}
+#tasks {
+	width : 200px;
+	text-align : left;
+}
+
+
+div#rightpane { 
+	left : 540px; 
+	width : 1000px; 
+	height : 100%;
+	position : fixed;
+	overflow : auto;
+}
+
+
 table#main tbody>tr:hover {
 	background:#DDD;
 	/*bgcolor:#DDD;*/
@@ -40,8 +86,7 @@ table#main tr#newentry {
 	display:none;
 }
 th { text-align:left;}
-/*.colDate {	width:100px; }
-.colTask {	width:60px;}*/
+
 
 .rowactive td { 
 	position:relative; 
@@ -60,18 +105,8 @@ input[type="number"] {
 	font-weight:bold;
 }
 
-div#leftpane { 
-	/*width:600px; */
-	overflow:auto;
-}
-div#rightpane { 
-	left:600px; 
-	width:1000px; 
-	height:100%;
-	position:fixed;
-	overflow:auto;
-	margin-left:-1px;
-}
+
+
 div#content {
 	transition:all 0.25s ease-in-out;
 	min-height:100%;
@@ -171,34 +206,11 @@ input.startbtn:hover {
 	width : 300px;
 }
 
-#subjects {
-	width : 100px;
-}
 
 
-.colTime {
-	width : 75px;
-}
 
-.colID {
-	width : 50px;
-}
 
-.colSubj {
-	width : 100px;
-	font-size : 10pt;
-	font-family:Arial;
-}
 
-.colTask {
-	width : 200px;
-	text-align : left;
-}
-
-#tasks {
-	width : 200px;
-	text-align : left;
-}
 
 
 

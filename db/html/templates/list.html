@@ -122,7 +122,7 @@
 				{% for e in entries %}
 					<tr id='row{{e.id}}' bgcolor={{e.bgcolor}} {% if e.id == running %} class='running' {% endif %}>
 						{% if e.html_date %}
-							<td class='colDate' rowspan={{e.rowspan}}>{{e.html_date}}</td>
+							<td class='colDate' bgcolor='white' rowspan={{e.rowspan}}>{{e.html_date}}</td>
 						{% endif %}
 						<td class='colTime' >{{e.html_time}}</td>
 						<td class='colID'   >({{e.id}})</td>
