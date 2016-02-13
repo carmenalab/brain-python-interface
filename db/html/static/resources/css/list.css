@@ -12,18 +12,19 @@ body {
 #addbtn { margin:0.5em;padding:0.2em;}
 table#main { 
 	width:100%;
-	border-collapse:collapse;
+	/*border-collapse:collapse;*/
 	border-color:#AAA;
 }
+
 table#main td{
 	padding:0.5em;
-	border-bottom:0px solid;
-	border-color:#b8d1f3;
+	/*border-bottom:0px solid;*/
+	/*border-color:#b8d1f3;*/
 }
 table#main th {
 	padding:0.8em 0.5em;
-	border-bottom:1px solid;
-	border-color:inherit;
+	/*border-bottom:1px solid;
+	border-color:inherit;*/
 }
 
 /* Make the cursor over the list appear like a pointer */
@@ -36,6 +37,10 @@ table#main tr {
 div#leftpane { 
 	/*width : 500px; */
 	overflow:auto;
+}
+
+.firstRowOfday {
+	border-top : 1px solid black;
 }
 
 .colDate {
