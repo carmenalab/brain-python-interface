@@ -70,7 +70,7 @@ div#leftpane {
 
 
 div#rightpane { 
-	left : 540px; 
+	margin-left : 540px; 
 	width : 1000px; 
 	height : 100%;
 	position : fixed;

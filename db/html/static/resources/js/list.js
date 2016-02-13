@@ -240,6 +240,10 @@ TaskEntry.prototype.update = function(info) {
 	else
 		$("#notes").attr("value", info.notes);
 
+	// set the checkboxes for the "visible" and "flagged for backup"
+	$('#hidebtn').attr('checked', info.visible);
+	$('#backupbtn').attr('checked', info.flagged_for_backup);
+
 	this.expinfo = info;
 	// set the 'tasks' drop-down menu to match the 'info'
 	$("#tasks option").each(function() {
