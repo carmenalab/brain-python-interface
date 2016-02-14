@@ -3,10 +3,14 @@ function Sequence() {
     $("#seqparams").append(this.params.obj);
 
     var _this = this;
-    this._handle_chgen = function() {
-        $.getJSON("/ajax/gen_info/"+this.value+"/", {}, function(info) {
-            _this.params.update(info.params);
-        });
+    if (this.value) {
+        this._handle_chgen = function() {
+            $.getJSON("/ajax/gen_info/"+this.value+"/", {}, function(info) {
+                _this.params.update(info.params);
+            });
+        }
+    } else {
+        this._handle_chgen = function() {};
     }
     $("#seqgen").change(this._handle_chgen);
 

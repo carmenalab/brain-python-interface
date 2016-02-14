@@ -55,16 +55,21 @@ function TaskInterfaceConstructor() {
 	};
 	var states = {
 		completed: function() {
+			console.log("state = completed")
 			$(window).unbind("unload");
 			this.tr.addClass("rowactive active");
 			$(".active").removeClass("running error testing");
 			this.disable();
 			$(".startbtn").hide()
-			$("#copybtn").show();
+			$("#finished_task_buttons").show();
 			$("#bmi").hide();
 			this.report.deactivate();
+
+			$("#report").show()
+			$("#notes").show()			
 		},
 		stopped: function() {
+			console.log("state = stopped")
 			$(window).unbind("unload");
 			$(".active").removeClass("running error testing");
 			this.tr.addClass("rowactive active");
@@ -72,19 +77,25 @@ function TaskInterfaceConstructor() {
 			$("#stopbtn").hide()
 			$("#startbtn").show()
 			$("#testbtn").show()
-			$("#copybtn").hide();
+			$("#finished_task_buttons").hide();
 			$("#bmi").hide();
+
+			$("#report").hide()
+			$("#notes").hide()
 		},
 		running: function(info) {
+			console.log("state = running")
 			$(window).unbind("unload");
 			$(".active").removeClass("error testing").addClass("running");
 			this.disable();
 			$("#stopbtn").show()
 			$("#startbtn").hide()
 			$("#testbtn").hide()
-			$("#copybtn").hide();
+			$("#finished_task_buttons").hide();
 			$("#bmi").hide();
 			// this.report.activate();
+			$("#report").show()
+			$("#notes").show()				
 		},
 		testing: function(info) {
 			$(window).unload(this.stop.bind(this));
@@ -93,16 +104,19 @@ function TaskInterfaceConstructor() {
 			$("#stopbtn").show()
 			$("#startbtn").hide()
 			$("#testbtn").hide()
-			$("#copybtn").hide()
+			$("#finished_task_buttons").hide()
 			$("#bmi").hide();
 			// this.report.activate();
+
+			$("#report").show()
+			$("#notes").show()				
 		},
 		error: function(info) {
 			$(window).unbind("unload");
 			$(".active").removeClass("running testing").addClass("error");
 			this.disable();
 			$(".startbtn").hide();
-			$("#copybtn").show();
+			$("#finished_task_buttons").show();
 			$("#bmi").hide();
 			this.report.deactivate();
 		},
@@ -113,7 +127,7 @@ function TaskInterfaceConstructor() {
 			$("#stopbtn").hide();
 			$("#startbtn").show();
 			$("#testbtn").show();
-			$("#copybtn").hide();
+			$("#finished_task_buttons").hide();
 			$("#bmi").hide();
 			this.report.deactivate();
 		}

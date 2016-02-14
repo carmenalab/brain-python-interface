@@ -155,7 +155,16 @@ def hide_entry(request, idx):
     print "hide_entry"
     entry = TaskEntry.objects.get(pk=idx)
     entry.visible = False
-    entry.backup = False
+    entry.save()
+    return _respond(dict())
+
+def show_entry(request, idx):
+    '''
+    See documentation for exp_info
+    '''
+    print "hide_entry"
+    entry = TaskEntry.objects.get(pk=idx)
+    entry.visible = True
     entry.save()
     return _respond(dict())
 
@@ -164,7 +173,6 @@ def backup_entry(request, idx):
     See documentation for exp_info
     '''
     entry = TaskEntry.objects.get(pk=idx)
-    entry.visible = True
     entry.backup = True
     entry.save()    
     return _respond(dict())
