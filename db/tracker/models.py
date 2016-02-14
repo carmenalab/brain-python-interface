@@ -43,10 +43,26 @@ class Task(models.Model):
     
     def get(self, feats=()):
         from namelist import tasks
-        if len(tasks)==0: print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
         from riglib import experiment
-        if self.name in tasks:
-            return experiment.make(tasks[self.name], Feature.getall(feats))
+
+        if len(tasks) == 0: 
+            print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
+        
+        feature_classes = Feature.getall(feats)
+
+        if self.name in tasks and not None in feature_classes:
+
+            try:
+                Exp = experiment.make(tasks[self.name], feature_classes)
+                return Exp
+            except:
+                traceback.print_exc()
+                print self.name
+                print feats
+                print Feature.getall(feats)
+                return experiment.Experiment
+        elif self.name in tasks:
+            return tasks[self.name]
         else:
             return experiment.Experiment
 
@@ -469,7 +485,7 @@ class TaskEntry(models.Model):
 
     def offline_report(self):
         Exp = self.task.get(self.feats.all())
-        task = self.task.get(self.feats.all())
+        
         if len(self.report) == 0:
             return dict()
         else:
@@ -492,6 +508,7 @@ class TaskEntry(models.Model):
         '''
         Create a JSON dictionary of the metadata associated with this block for display in the web interface
         '''
+        print "starting TaskEntry.to_json()"
         from json_param import Parameters
 
         # Run the metaclass constructor for the experiment used. If this can be avoided, it would help to break some of the cross-package software dependencies,
@@ -519,6 +536,7 @@ class TaskEntry(models.Model):
         js['generators'] = exp_generators
 
         ## Add the sequence, used when the block gets copied
+        print "getting the sequence, if any"
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
 
@@ -604,6 +622,9 @@ class TaskEntry(models.Model):
             plot_files[keyname] = os.path.join('/static', fname)
 
         js['plot_files'] = plot_files
+        js['flagged_for_backup'] = self.backup
+        js['visible'] = self.visible
+        print "TaskEntry.to_json finished!"
         return js
 
     @property
