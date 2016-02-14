@@ -66,7 +66,11 @@ function TaskInterfaceConstructor() {
 			this.report.deactivate();
 
 			$("#report").show()
-			$("#notes").show()			
+			$("#notes").show()		
+
+			this.__date.each(function(index, elem) {
+				$(this).css('background-color', '#FFF');
+			})	
 		},
 		stopped: function() {
 			console.log("state = stopped")
@@ -164,6 +168,8 @@ function TaskEntry(idx, info){
 
 		// Create a jQuery object to represent the table row
 		this.tr = $("#"+idx);
+		this.__date = $("#"+idx + " .colDate");
+		console.log(this.__date);
 
 		this.status = this.tr.hasClass("running") ? "running" : "completed";
 		if (this.status == 'running')
@@ -223,10 +229,22 @@ TaskEntry.prototype.new_row = function(info) {
 
 	this.tr = $(document.createElement("tr"));
 	this.tr.attr("id", "row"+info.idx);
+
+
+
+
+
+
+	// TODO change this to reflect the new table structure
 	this.tr.html("<td class='colDate'>"+info.date+" ("+info.idx+")</td>" + 
 		"<td class='colSubj'>"+info.subj+"</td>" + 
 		"<td class='colTask'>"+info.task+"</td>");
 
+
+
+
+
+	
 	// Insert the new row after the top row of the table
 	$("#newentry").after(this.tr);
 	this.tr.addClass("active rowactive running");

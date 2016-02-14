@@ -2,7 +2,24 @@
 	font-family:Arial;
 }
 
+
+.active td, div.active { 
+    background-color:#EEE; 
+}
+.running td, div.running { 
+    background-color:#DFD; 
+}
+.testing td, div.testing { 
+    background-color:#FFD; 
+}
+.error td, div.error { 
+    background-color:#FDD; 
+}
+
+
 div.clear { clear:both; }
+
+
 body {
 	padding:0px;
 	margin:0px;
@@ -254,19 +271,6 @@ input:invalid {
 
 
 
-
-.active td, div.active { 
-    background-color:#EEE; 
-}
-.running td, div.running { 
-    background-color:#DFD; 
-}
-.testing td, div.testing { 
-    background-color:#FFD; 
-}
-.error td, div.error { 
-    background-color:#FDD; 
-}
 
 
 
