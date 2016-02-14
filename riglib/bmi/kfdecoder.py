@@ -476,12 +476,10 @@ class FAKalmanFilter(KalmanFilter):
     def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, **kwargs):
         if hasattr(self, 'FA_kwargs'):
 
-            input_type = self.FA_input+'_input'
-
+            input_type = self.FA_input + '_input'
             input_dict = {}
         
             input_dict['all_input'] = obs_t.copy()
-            input_dict['all_sc_input'] = obs_t.copy()
 
             dmn = obs_t - self.FA_kwargs['fa_mu']
             shar = (self.FA_kwargs['fa_sharL'] * dmn)
@@ -489,10 +487,14 @@ class FAKalmanFilter(KalmanFilter):
             
             input_dict['private_input'] = priv + self.FA_kwargs['fa_mu']
             input_dict['shared_input'] = shar + self.FA_kwargs['fa_mu']
-            input_dict['private_sc_input'] = np.multiply(priv, self.FA_kwargs['fa_priv_var_sc']) + self.FA_kwargs['fa_mu']
-            input_dict['shared_sc_input'] = np.multiply(shar, self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['private_scaled_input'] = np.multiply(priv, self.FA_kwargs['fa_priv_var_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['shared_scaled_input'] = np.multiply(shar, self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['all_scaled_by_shar_input'] = np.multiply(dmn, self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['sc_shared+unsc_priv_input'] = input_dict['shared_scaled_input'] + input_dict['private_input'] - self.FA_kwargs['fa_mu']
+            input_dict['sc_shared+sc_priv_input'] = input_dict['shared_scaled_input'] + input_dict['private_scaled_input']- self.FA_kwargs['fa_mu']
 
             if input_type in input_dict.keys():
+                print input_type
                 obs_t_mod = input_dict[input_type]
             else: 
                 raise Exception("Error in FA_KF input_type, none of the expected inputs")

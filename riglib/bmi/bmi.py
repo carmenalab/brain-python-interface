@@ -912,9 +912,10 @@ class BMILoop(object):
         self.init_decoder_state()
 
         if hasattr(self.decoder, 'adapting_state_inds'):
-            print 'HAS adapting state inds'
-        else:
-            print "NO adapting state inds"
+            print 'Decoder has adapting state inds'
+
+        if hasattr(self.decoder, 'adapting_neural_inds'):
+            print 'Decoder has adapting neural inds'
 
         # Declare data attributes to be stored in the sinks every iteration of the FSM
         self.add_dtype('loop_time', 'f8', (1,))
