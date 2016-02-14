@@ -59,12 +59,19 @@
 			function () {
 				if (this.checked) {
 					// TODO
+					console.log("Showing task entry " + te.idx);
+					$.get("/ajax/show_entry/"+te.idx, 
+						{}, 
+						function() {
+							$("#row" + te.idx).css('background-color', 'white');
+						}
+					);					
 				} else {
 					console.log("Hiding task entry " + te.idx);
 					$.get("/ajax/hide_entry/"+te.idx, 
 						{}, 
 						function() {
-							$("#row" + te.idx).hide();
+							$("#row" + te.idx).css('background-color', 'gray');
 							te.destroy();
 						}
 					);
@@ -93,10 +100,10 @@
 			function() {
 				if (this.checked) {
 					$('#leftpane').show()
-				 	$('#rightpane').style.marginLeft = "540px";
+				 	$('#rightpane').css('margin-left', "540px");
 				} else {
 					$('#leftpane').hide()
-					$('#rightpane').style.marginLeft = "0px";
+					$('#rightpane').css('margin-left', "0px");
 				}
 			}
 		);
@@ -122,7 +129,7 @@
 </head>
 
 <body>
-	<input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox">Show History<br>
+	<input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show History</span><br>
 	<div id="main_box">
 		<div id='leftpane'>
 			{{ n_blocks }} saved task entry records shown below
@@ -157,7 +164,7 @@
 						</td>
 					</tr>
 				{% for e in entries %}
-					<tr id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}  {% if e.html_date %} style='border-top : 1px solid black; ' {% endif %}>
+					<tr id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
 						{% if e.html_date %}
 							<td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
 							<td class='colTime firstRowOfday' >{{e.html_time}}</td>
@@ -168,7 +175,7 @@
 							<td class='colTime' >{{e.html_time}}</td>
 							<td class='colID'   >{{e.id}}</td>
 							<td class='colSubj' >{{e.subject.name}}</td>
-							<td class='colTask' >{{e.task.name}}</td>						
+							<td class='colTask' >{{e.task.name}}</td>				
 						{% endif %}
 
 					</tr>
