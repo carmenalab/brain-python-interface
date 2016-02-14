@@ -3,10 +3,13 @@
 <head>
 <title>Task Entries</title>
 
-
+<!-- CSS imports -->
 <link rel="stylesheet" type="text/css" href="{{STATIC_PREFIX}}resources/css/list.css" />
 <link rel="stylesheet" type="text/css" href="{{STATIC_PREFIX}}resources/css/bmi.css" />
 <link rel='stylesheet' type='text/css' href="{{STATIC_PREFIX}}resources/css/jquery-ui.css" />
+
+
+<!-- JS imports -->
 <script src='{{ STATIC_PREFIX }}resources/js/jquery.min.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/jquery-ui.min.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/parse_traits.js' type='text/javascript'></script>
@@ -50,9 +53,7 @@
 		// 	}
 		// );
 		// $("#backupbtn").click(function() {$.get("/ajax/backup_entry/"+te.idx)});		
-		// $("#unbackupbtn").click(function() {$.get("/ajax/unbackup_entry/"+te.idx)});		
-
-
+		// $("#unbackupbtn").click(function() {$.get("/ajax/unbackup_entry/"+te.idx)});
 
 		$("#hidebtn").change(
 			function () {

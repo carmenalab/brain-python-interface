@@ -39,6 +39,41 @@ div#leftpane {
 	overflow:auto;
 }
 
+.btn {
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+}
+
+#startbtn {
+	background-color: green;
+	float : right;
+}
+
+#testbtn {
+	background-color: blue;
+	float : right;
+}
+
+#stopbtn {
+	background-color: red;
+	float : right;
+}
+
+#copybtn {
+	background-color: blue;
+}
+
+input.btn:hover {
+	box-shadow: 0px 0px 15px black;
+}
+
+
+
 .firstRowOfday {
 	border-top : 1px solid black;
 }
@@ -178,7 +213,7 @@ fieldset#files { display:none; }
 input:invalid {
 	box-shadow:0px 0px 10px red;
 }
-input.startbtn {
+/*input.startbtn {
 	display:none;
 	float:right;
 	margin:8px;
@@ -192,11 +227,9 @@ input.startbtn {
 	border-radius:5px;
 	border:1px solid #888;
 	background:-webkit-linear-gradient(top, #FFF, #DDD);
-}
+}*/
 
-input.startbtn:hover {
-	box-shadow: 0px 0px 15px green;
-}
+
 
 #report table.option {
 	font-size:10pt;
