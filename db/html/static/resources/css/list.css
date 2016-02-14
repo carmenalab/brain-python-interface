@@ -81,6 +81,7 @@ input.btn:hover {
 
 .colDate {
     width : 50px;
+    background: #FFF;
 }
 
 .colTime {
@@ -122,6 +123,8 @@ div#rightpane {
 table#main tbody>tr:hover {
 	background:#DDD;
 }
+
+
 table#main tr#newentry {
 	display:none;
 }
@@ -265,3 +268,25 @@ input:invalid {
     background-color:#FDD; 
 }
 
+
+
+
+
+
+
+input#toggle_table
+{
+  /* Double-sized Checkboxes */
+  -ms-transform: scale(2); /* IE */
+  -moz-transform: scale(2); /* FF */
+  -webkit-transform: scale(2); /* Safari and Chrome */
+  -o-transform: scale(2); /* Opera */
+  padding: 10px;
+}
+
+.checkboxtext
+{
+  /* Checkbox text */
+  font-size: 110%;
+  display: inline;
+}
