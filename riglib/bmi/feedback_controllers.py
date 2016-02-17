@@ -74,6 +74,7 @@ class LinearFeedbackController(FeedbackController):
         current_state = np.mat(current_state).reshape(-1,1)
         target_state = np.mat(target_state).reshape(-1,1)
         ns = self.A * current_state + self.B * self.F * (target_state - current_state)
+
         return ns
 
     def __call__(self, current_state, target_state, mode=None):
@@ -89,6 +90,7 @@ class LinearFeedbackController(FeedbackController):
         np.mat of shape (N, 1)
             B*u where u_t = F(x^* - x_t)
         '''
+        
         
         current_state = np.mat(current_state).reshape(-1,1)
         target_state = np.mat(target_state).reshape(-1,1)

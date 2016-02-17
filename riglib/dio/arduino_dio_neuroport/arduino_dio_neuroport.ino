@@ -99,6 +99,6 @@ void handle_word() {
   digitalWrite(data_pins[15], HIGH);
 
   digitalWrite(strobe, HIGH);
-  delay(0.5);
+  delay(0.1);
   digitalWrite(strobe, LOW);  
 }
