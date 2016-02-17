@@ -123,6 +123,8 @@ function TaskInterfaceConstructor() {
 			$("#finished_task_buttons").show();
 			$("#bmi").hide();
 			this.report.deactivate();
+
+			$("#report").show()
 		},
 		errtest: function(info) {
 			$(window).unbind("unload");
@@ -134,6 +136,8 @@ function TaskInterfaceConstructor() {
 			$("#finished_task_buttons").hide();
 			$("#bmi").hide();
 			this.report.deactivate();
+
+			$("#report").show()
 		}
 	};
 }
