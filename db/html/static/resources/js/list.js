@@ -169,6 +169,7 @@ function TaskEntry(idx, info){
 
 		// parse the actual integer database ID out of the HTML object name
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
+		var id_num = this.idx
 
 		// Create a jQuery object to represent the table row
 		this.tr = $("#"+idx);
@@ -186,7 +187,15 @@ function TaskEntry(idx, info){
 				this.update(expinfo);
 				this.disable();
 				$("#content").show("slide", "fast");
-			}.bind(this));
+
+				// If the server responds with data, disable reacting to clicks on the current row so that things don't get reset
+				this.tr.unbind("click");
+			}.bind(this)
+			).error(
+				function() {
+					alert("There was an error accessing task entry " + id_num + ". See terminal for full error message"); 
+				}
+			);
 	} else { // a "new" task entry is being created
 		this.idx = null;
 
@@ -211,10 +220,11 @@ function TaskEntry(idx, info){
 			}.bind(this));
 		}
 		$("#notes textarea").val("").removeAttr("disabled");
+
+		// Disable reacting to clicks on the current row so that things don't get reset
+		this.tr.unbind("click");
 	}
 	
-	// Disable reacting to clicks on the current row so that things don't get reset
-	this.tr.unbind("click");
 }
 
 TaskEntry.prototype.new_row = function(info) {
