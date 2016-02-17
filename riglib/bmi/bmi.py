@@ -873,7 +873,6 @@ class BMISystem(object):
                 batch_data = self.learner.get_batch()
                 batch_data['decoder'] = self.decoder
                 kwargs.update(batch_data)
-
                 self.updater(**kwargs)
                 self.learner.disable() 
 
@@ -911,6 +910,12 @@ class BMILoop(object):
         # Initialize the decoder
         self.load_decoder()
         self.init_decoder_state()
+
+        if hasattr(self.decoder, 'adapting_state_inds'):
+            print 'Decoder has adapting state inds'
+
+        if hasattr(self.decoder, 'adapting_neural_inds'):
+            print 'Decoder has adapting neural inds'
 
         # Declare data attributes to be stored in the sinks every iteration of the FSM
         self.add_dtype('loop_time', 'f8', (1,))
@@ -954,7 +959,7 @@ class BMILoop(object):
             print self.decoder['q']
             raise Exception("Error initializing decoder state")
         self.init_decoder_mean = self.decoder.filt.state.mean
-
+        
         self.decoder.set_call_rate(1./self.update_rate)
 
     def create_assister(self):
@@ -1074,6 +1079,7 @@ class BMILoop(object):
         decoder_state : np.mat
             (N, 1) vector representing the state decoded by the BMI
         '''
+
         # Run the feature extractor
         feature_data = self.get_features()
 
@@ -1103,7 +1109,17 @@ class BMILoop(object):
         # Run the decoder
         if self.state not in self.static_states:
             neural_features = feature_data[self.extractor.feature_type]
-            self.task_data['internal_decoder_state'] = self.call_decoder(neural_features, target_state, **kwargs)
+
+            tmp = self.call_decoder(neural_features, target_state, **kwargs)
+
+            if hasattr(self.extractor, 'downscale_factor') and self.extractor.feature_type in ['private', 'shared']:
+                vel_ix = np.nonzero(self.decoder.ssm.state_order==1)[0]
+                tmp[vel_ix] /= float(self.extractor.downscale_factor)
+
+                tmp2 = self.decoder.filt.state.mean[vel_ix, 0].copy() / float(self.extractor.downscale_factor)
+                self.decoder.filt.state.mean[vel_ix] = tmp2
+
+            self.task_data['internal_decoder_state'] = tmp
 
         # Drive the plant to the decoded state, if permitted by the constraints of the plant
         # If not possible, plant.drive should also take care of setting the decoder's 

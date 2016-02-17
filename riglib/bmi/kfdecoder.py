@@ -471,6 +471,46 @@ class PCAKalmanFilter(KalmanFilter):
         self.M = state['M']
         self.pca_offset = state['pca_offset']        
 
+class FAKalmanFilter(KalmanFilter):
+
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, target_state=None, obs_is_control_independent=True, **kwargs):
+        if hasattr(self, 'FA_kwargs'):
+
+            input_type = self.FA_input + '_input'
+            input_dict = {}
+        
+            input_dict['all_input'] = obs_t.copy()
+
+            dmn = obs_t - self.FA_kwargs['fa_mu']
+            shar = (self.FA_kwargs['fa_sharL'] * dmn)
+            priv = (dmn - shar)
+            
+            input_dict['private_input'] = priv + self.FA_kwargs['fa_mu']
+            input_dict['shared_input'] = shar + self.FA_kwargs['fa_mu']
+            input_dict['private_scaled_input'] = np.multiply(priv, self.FA_kwargs['fa_priv_var_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['shared_scaled_input'] = np.multiply(shar, self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['all_scaled_by_shar_input'] = np.multiply(dmn, self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['sc_shared+unsc_priv_input'] = input_dict['shared_scaled_input'] + input_dict['private_input'] - self.FA_kwargs['fa_mu']
+            input_dict['sc_shared+sc_priv_input'] = input_dict['shared_scaled_input'] + input_dict['private_scaled_input']- self.FA_kwargs['fa_mu']
+
+            if input_type in input_dict.keys():
+                print input_type
+                obs_t_mod = input_dict[input_type]
+            else: 
+                raise Exception("Error in FA_KF input_type, none of the expected inputs")
+        else:
+            obs_t_mod = obs_t.copy()
+
+        input_dict['task_input'] = obs_t_mod.copy()
+
+        #Note the 'obs_t_mod:'
+        post_state = super(FAKalmanFilter, self)._forward_infer(st, obs_t_mod, Bu=Bu, u=u, target_state=target_state, 
+            obs_is_control_independent=obs_is_control_independent, **kwargs)
+
+        self.FA_input_dict = input_dict
+
+        return post_state
+
 
 class KFDecoder(bmi.BMI, bmi.Decoder):
     '''
@@ -778,7 +818,8 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         # Parse units into list of indices to keep
         inds_to_keep = self._proc_units(units, 'keep')
         dec_new = self._return_proc_units_decoder(inds_to_keep)
-        self._save_new_dec(dec_new, '_subset')
+        return dec_new
+        #self._save_new_dec(dec_new, '_subset')
         
 
     def _save_new_dec(self, dec_obj, suffix):

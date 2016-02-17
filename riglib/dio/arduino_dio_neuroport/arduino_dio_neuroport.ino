@@ -11,7 +11,7 @@ int data_pins[] = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 4
 int rstart_init = 0;
 
 void setup () {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // initialize the output pins
   for (int k = 0; k < (sizeof(data_pins)/sizeof(int)); k += 1) {

@@ -324,7 +324,7 @@ class SimKFDecoderSup(SimKFDecoder):
         '''
         print "Creating simulation decoder.."
         encoder = self.encoder
-        n_samples = 20000
+        n_samples = 2000
         units = self.encoder.get_units()
         n_units = len(units)
 
@@ -333,7 +333,7 @@ class SimKFDecoderSup(SimKFDecoder):
         A, _, W = ssm.get_ssm_matrices()
         mean = np.zeros(A.shape[0])
         mean[-1] = 1
-        state_samples = np.random.multivariate_normal(mean, 100*W, n_samples)
+        state_samples = np.random.multivariate_normal(mean, W, n_samples)
 
         spike_counts = np.zeros([n_units, n_samples])
         self.encoder.call_ds_rate = 1
