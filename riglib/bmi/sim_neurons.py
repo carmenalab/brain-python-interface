@@ -70,6 +70,8 @@ class GenericCosEnc(object):
         self.DT = DT
         self.unit_inds = np.arange(1, self.n_neurons+1)
 
+        #self.unit_inds = np.hstack((np.array([np.arange(1, self.n_neurons+1)]).T, np.ones(self.n_neurons, 1)))
+
     def get_units(self):
         '''
         Retrieive the identities of the units in the encoder. Only used because units in real experiments have "names"
@@ -77,7 +79,7 @@ class GenericCosEnc(object):
         # Just pretend that each unit is the 'a' unit on a separate electrode
         return np.array([(ind, 1) for ind in self.unit_inds])
 
-    def gen_spikes(self, next_state):
+    def gen_spikes(self, next_state, mode=None):
         """
         Simulate the spikes    
         
@@ -94,10 +96,13 @@ class GenericCosEnc(object):
         """
 
         rates = np.dot(self.C, next_state)
+        return self.return_spikes(rates, mode=mode)
+
+    def return_spikes(self, rates, mode=None):
         rates[rates < 0] = 0 # Floor firing rates at 0 Hz
         counts = poisson(rates * self.DT)
 
-        if self.return_ts:
+        if np.logical_or(mode=='ts', np.logical_and(mode is None, self.return_ts)):
             ts = []
             n_neurons = self.n_neurons
             for k, ind in enumerate(self.unit_inds):
@@ -105,20 +110,22 @@ class GenericCosEnc(object):
                 n_spikes = int(counts[k])
                 fake_time = (self.call_count + 0.5)* 1./60
                 if n_spikes > 0:
-                    spike_data = [(fake_time, int(ind/4)+1, ind % 4) for m in range(n_spikes)] 
+                    #spike_data = [(fake_time, int(ind/4)+1, ind % 4) for m in range(n_spikes)] 
+                    spike_data = [(fake_time, ind, 1) for m in range(n_spikes)] 
                     ts += (spike_data)
 
             ts = np.array(ts, dtype=ts_dtype)
             return ts
-        else:
+            
+        elif np.logical_or(mode=='counts', np.logical_and(mode is None, self.return_ts is False)):
             return counts
 
-    def __call__(self, next_state):
+    def __call__(self, next_state, mode=None):
         '''
         See CosEnc.__call__ for docs
         '''        
         if self.call_count % self.call_ds_rate == 0:
-            ts_data = self.gen_spikes(next_state)
+            ts_data = self.gen_spikes(next_state, mode=mode)
         else:
             if self.return_ts:
                 # return an empty list of time stamps
@@ -129,6 +136,62 @@ class GenericCosEnc(object):
 
         self.call_count += 1
         return ts_data
+
+class FACosEnc(GenericCosEnc):
+    '''
+    Simulate neurons where rate is linear function of underlying factor modulation, rate param through Poisson
+    '''
+    def __init__(self, C, ssm, DT=0.1, call_ds_rate=6,return_ts=False,max_FR=20):
+        super(FACosEnc, self).__init__(C, ssm, DT=DT, call_ds_rate=call_ds_rate, return_ts=return_ts)
+        
+        self.neuron_types = ['priv_noise', 'priv_tuned', 'shar_noise', 'shar_tuned']
+        self.neuron_type_cnts = np.array([2, 4, 2, self.n_neurons-2-4-2])
+        self.cum_neurons = zip(np.hstack(([0], np.cumsum(self.neuron_type_cnts[:-1]))), np.cumsum(self.neuron_type_cnts))
+
+        self.n_factors = 3
+        self.eps = 1e-15
+        self.max_FR = max_FR
+        #State to factors: 
+        self.enc = np.random.rand(self.n_factors, np.sum(self.ssm.drives_obs))
+        self.drives_obs_ix = np.nonzero(self.ssm.drives_obs)[0]
+
+        self.U = np.zeros((self.n_neurons, self.n_factors)) #Shared Tuned  (fact --> neur)
+        self.U[self.cum_neurons[3][0]:self.cum_neurons[3][1], :] = 2*(np.random.rand(self.cum_neurons[3][1] - self.cum_neurons[3][0], self.n_factors)) #
+        
+        self.V = np.zeros((self.n_neurons, 1)) #Shared Noise (fact --> neur)
+        self.V[self.cum_neurons[2][0]:self.cum_neurons[2][1], :] = (np.random.rand(self.cum_neurons[2][1] - self.cum_neurons[2][0], 1)) #
+
+        self.Psi = np.zeros((self.n_neurons, 1)) + self.eps #Private Noise variance
+        self.Psi[self.cum_neurons[0][0]:self.cum_neurons[0][1]] = 20*np.random.rand(self.cum_neurons[0][1] - self.cum_neurons[0][0], 1)
+        
+        self.Gam = np.zeros((self.n_neurons, len(self.drives_obs_ix))) #Private Tuned 
+        self.Gam[self.cum_neurons[1][0]:self.cum_neurons[1][1], :] = 10*np.random.rand(self.cum_neurons[1][1] - self.cum_neurons[1][0], len(self.drives_obs_ix))
+        
+    def gen_spikes(self, next_state, mode=None):
+        sub_next_state = np.mat(next_state[self.drives_obs_ix]).ravel()
+        enc_factors = np.mat(self.enc) * sub_next_state.T
+
+        rates = np.zeros((self.n_neurons, ))
+        shar_noise_fact = 20*np.random.rand()
+
+        for i in range(self.n_neurons):
+            #Priv noise:
+            rates[i] = rates[i] + np.abs(np.random.normal(0, self.Psi[i], 1))
+
+            #Priv tuned: 
+            #print self.Gam[i], next_state[self.drives_obs_ix], next_state[self.drives_obs_ix].shape, np.dot(self.Gam[i], next_state[self.drives_obs_ix])
+            tmp = np.dot(self.Gam[i], next_state[self.drives_obs_ix])
+            tmp = np.max([0, tmp])
+            rates[i] = rates[i] + tmp
+
+            #Shar noise:
+            rates[i] = rates[i] + self.V[i]*shar_noise_fact
+
+            #Shar tuned: 
+            tmp = np.dot(self.U[i,:], enc_factors)
+            tmp = np.max([0, tmp])
+            rates[i] = rates[i] + tmp
+        return self.return_spikes(rates, mode=mode)
 
 class CursorVelCosEnc(GenericCosEnc):
     def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, **kwargs):
