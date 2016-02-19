@@ -910,7 +910,6 @@ class BMILoop(object):
         # Initialize the decoder
         self.load_decoder()
         self.init_decoder_state()
-
         if hasattr(self.decoder, 'adapting_state_inds'):
             print 'HAS adapting state inds'
         else:
@@ -1061,7 +1060,7 @@ class BMILoop(object):
         '''
         Run the feature extractor to get any new features to be decoded. Called by move_plant
         '''
-        start_time = self.get_time()        
+        start_time = self.get_time()
         return self.extractor(start_time)
 
     def move_plant(self, **kwargs):
