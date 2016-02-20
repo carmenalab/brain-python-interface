@@ -269,12 +269,19 @@ TaskEntry.prototype.new_row = function(info) {
  */ 
 TaskEntry.prototype.update = function(info) {
 	// populate the list of generators
-	$('#seqgen').empty();
-	$.each(info.generators, function(key, value) {   
-	     $('#seqgen')
-	          .append($('<option>', { value : key })
-	          .text(value)); 
-	});
+	console.log("TaskEntry.prototype.update starting");
+
+	if (info.generators.length > 0) {
+		$('#seqgen').empty();
+		$.each(info.generators, function(key, value) {
+			console.log('Updating generator list')
+			console.log(info.generators);
+		     $('#seqgen')
+		          .append($('<option>', { value : key })
+		          .text(value)); 
+		});		
+	}
+
 
 	$('#report_backup').html('Flagged for backup: ' + info.flagged_for_backup+"\n<br><br>");
 
@@ -364,6 +371,8 @@ TaskEntry.prototype.update = function(info) {
     } else {
         $("#plots").empty()
     }
+
+    console.log("TaskEntry.prototype.update done!");
 }
 TaskEntry.plot_performance = function() {
 

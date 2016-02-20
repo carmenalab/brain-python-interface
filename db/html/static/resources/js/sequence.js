@@ -54,9 +54,10 @@ Sequence.prototype.update = function(info) {
         var _this = this;
         this._handle_chlist = function () {
             var id = this.value;
-            if (id == "new")
+            if (id == "new") {
+                console.log("Making sequence parameters editable!");
                 _this.edit()
-            else {
+            } else {
                 _this.params.update(info[id].params);
                 $("#seqparams input").attr("disabled", "disabled");
                 $("#seqgen option").each(function() {
