@@ -212,13 +212,22 @@ class TaskWrapper(object):
             self.params = Parameters(params)
         
         base_class = task_rec.get()
-        Task = experiment.make(base_class, feats=feats)
+
+        if None in feats:
+            raise Exception("Features not found properly in database!")
+        else:
+            Task = experiment.make(base_class, feats=feats)
 
         # Run commands which must be executed before the experiment class can be instantiated (e.g., starting neural recording)
         Task.pre_init(saveid=saveid)
 
         self.params.trait_norm(Task.class_traits())
         if issubclass(Task, experiment.Sequence):
+            print "seq", seq.id == None
+            print "seq", str(seq.id), seq
+            with open(log_filename, 'a') as f:
+                f.write("seq: %s \n" % str(seq))
+
             gen_constructor, gen_params = seq.get()
 
             # Typically, 'gen_constructor' is the experiment.generate.runseq function (not an element of namelist.generators)
