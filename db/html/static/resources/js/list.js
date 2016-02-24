@@ -180,6 +180,7 @@ function TaskEntry(idx, info){
 		if (this.status == 'running')
 			this.report.activate();
 
+        $('#wait_wheel').show()
 		$.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
 			{}, // POST data to send to the server
 			function (expinfo) { // function to run on successful response
@@ -187,6 +188,8 @@ function TaskEntry(idx, info){
 				this.update(expinfo);
 				this.disable();
 				$("#content").show("slide", "fast");
+
+                $('#wait_wheel').hide()
 
 				// If the server responds with data, disable reacting to clicks on the current row so that things don't get reset
 				this.tr.unbind("click");

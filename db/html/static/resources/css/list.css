@@ -294,3 +294,11 @@ input#toggle_table
   font-size: 110%;
   display: inline;
 }
+
+#wait_wheel_img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-left: -(X/2)px;
+    margin-top: -(Y/2)px;
+}

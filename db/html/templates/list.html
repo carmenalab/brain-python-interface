@@ -107,6 +107,8 @@
 				}
 			}
 		);
+
+		$('#wait_wheel').hide()
 	})
 </script>
 </head>
@@ -167,6 +169,9 @@
 			</table>
 		</div>
 
+        <div id="wait_wheel">
+            <img id="wait_wheel_img" src="{{ STATIC_PREFIX }}resources/images/ajax-loader.gif" alt="HTML5 Icon">
+        </div>
 
 		<div id="rightpane">
 			<div id='content' class="active">
