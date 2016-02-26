@@ -111,8 +111,14 @@ def task_info(request, idx, dbname='default'):
     JSON-encoded dictionary
     '''
     task = Task.objects.using(dbname).get(pk=idx)
-    feats = [Feature.objects.using(dbname).get(name=name) for name, isset in request.GET.items() if isset == "true"]
-    task_info = dict(params=task.params(feats=feats))
+    feats = []
+    for name, isset in request.GET.items():
+        if isset == "true": # box for the feature checked
+            feat = Feature.objects.using(dbname).get(name=name)
+            feats.append(feat)
+    
+    # feats = [Feature.objects.using(dbname).get(name=name) for name, isset in request.GET.items() if isset == "true"]
+    task_info = dict(params=task.params(feats=feats), generators=task.get_generators())
 
     if issubclass(task.get(feats=feats), experiment.Sequence):
         task_info['sequence'] = task.sequences()
@@ -225,6 +231,9 @@ def start_experiment(request, save=True):
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(Exp, experiment.Sequence):
+            print "creating seq"
+            print "data['sequence'] POST data"
+            print data['sequence']
             seq = Sequence.from_json(data['sequence'])
             seq.task = task
             if save:

@@ -78,6 +78,16 @@ class Task(models.Model):
             Task(name=name).save()
 
     def params(self, feats=(), values=None):
+        '''
+
+        Parameters
+        ----------
+        feats : iterable of Feature instances
+            Features selected on the task interface
+        values : dict
+            Values for the task parameters
+
+        '''
         #from namelist import instance_to_model, instance_to_model_filter_kwargs
 
         if values is None:
@@ -100,21 +110,11 @@ class Task(models.Model):
             if trait_name in values:
                 trait_params['value'] = values[trait_name]
 
-            # if the trait is an instance (generic object), then it is assumed that 
-            # the object is associated with some database model
-            # if trait_params['type'] == "Instance":
-            #     Model = instance_to_model[ctraits[trait_name].trait_type.klass]
-            #     filter_kwargs = instance_to_model_filter_kwargs[ctraits[trait_name].trait_type.klass]
-
-            #     # look up database records which match the model type & filter parameters
-            #     insts = Model.objects.filter(**filter_kwargs).order_by("-date")
-            #     trait_params['options'] = [(i.pk, i.path) for i in insts]
-
             if trait_params['type'] == "InstanceFromDB":
                 # look up the model name in the trait
                 mdl_name = ctraits[trait_name].bmi3d_db_model
+
                 # get the database Model class from 'db.tracker.models'
-                #Model = getattr(models, mdl_name)
                 Model = globals()[mdl_name]
                 filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
 
@@ -169,6 +169,19 @@ class Task(models.Model):
             seqs[s.id] = s.to_json()
 
         return seqs
+
+    def get_generators(self):
+        # Supply sequence generators which are declared to be compatible with the selected task class
+        exp_generators = dict() 
+        Exp = self.get()
+        if hasattr(Exp, 'sequence_generators'):
+            for seqgen_name in Exp.sequence_generators:
+                try:
+                    g = Generator.objects.using(self._state.db).get(name=seqgen_name)
+                    exp_generators[g.id] = seqgen_name
+                except:
+                    print "missing generator %s" % seqgen_name
+        return exp_generators        
 
 class Feature(models.Model):
     name = models.CharField(max_length=128)
@@ -357,8 +370,7 @@ class Sequence(models.Model):
         from riglib.experiment import generate
         from json_param import Parameters
 
-        if self.generator.static:
-            ## If the generator is static, 
+        if hasattr(self, 'generator') and self.generator.static: # If the generator is static, 
             if len(self.sequence) > 0:
                 return generate.runseq, dict(seq=cPickle.loads(str(self.sequence)))
             else:
