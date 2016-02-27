@@ -98,6 +98,7 @@ Sequence.prototype.update = function(info) {
 }
 
 Sequence.prototype.destroy = function() {
+	// clear out the 'options' dictionary
     for (var id in this.options)
         $(this.options[id]).remove()
     if (this.params) {
@@ -127,7 +128,9 @@ Sequence.prototype.edit = function() {
     $("#seqlist").replaceWith("<input id='seqlist' name='seq_name' type='text' value='"+curname+"' />");
     $("#seqgen, #seqparams input, #seqstatic").removeAttr("disabled");
     
-    this._handle_setname = function() { $("#seqlist").attr("value", _this._make_name()); };
+    this._handle_setname = function() { $
+    	("#seqlist").attr("value", _this._make_name()); 
+    };
     this._handle_chgen = function() {
         _this._handle_setname();
         $("#seqparams input").bind("blur.setname", _this._handle_setname );
