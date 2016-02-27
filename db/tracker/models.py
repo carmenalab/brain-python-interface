@@ -370,7 +370,7 @@ class Sequence(models.Model):
         from riglib.experiment import generate
         from json_param import Parameters
 
-        if hasattr(self, 'generator') and self.generator.static: # If the generator is static, 
+        if hasattr(self, 'generator') and self.generator.static: # If the generator is static, (NOTE: the generator being static is different from the *sequence* being static)
             if len(self.sequence) > 0:
                 return generate.runseq, dict(seq=cPickle.loads(str(self.sequence)))
             else:
@@ -396,7 +396,9 @@ class Sequence(models.Model):
 
         # Error handling when input argument 'js' actually specifies the primary key of a Sequence object already in the database
         try:
-            return Sequence.objects.get(pk=int(js))
+            seq = Sequence.objects.get(pk=int(js))
+            print "retreiving sequence from POSTed ID"
+            return seq
         except:
             pass
         
