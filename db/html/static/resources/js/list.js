@@ -195,7 +195,11 @@ function Report(callback) {
     this.info.className = "options";
     this.msgs.className = "rightside";
 
+    var linebreak = document.createElement("div");
+    linebreak.className = "clear";
+
     this.obj.appendChild(this.info);
+    this.obj.appendChild(linebreak);
     this.obj.appendChild(this.msgs);
     $("#report").append(this.obj);
 
@@ -206,7 +210,6 @@ Report.prototype.activate = function() {
     if (!this.ws) { 
         // Create a new JS WebSocket object
         this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
-
 
         this.ws.onmessage = function(evt) {
             //console.log(evt.data);
@@ -231,40 +234,46 @@ Report.prototype.deactivate = function() {
 Report.prototype.update = function(info) {
     if (typeof(this.notify) == "function" && info)
         this.notify(info);
-    if (info.status && info.status == "error") {
-    	console.log(this.msgs.innerHTML);
+    if (info.status && info.status == "error") { // received an error message through the websocket
+    	// append the error message (pre-formatted by python traceback) onto the printed out messages
         this.msgs.innerHTML += "<pre>"+info.msg+"</pre>";
-        console.log("logging error message");
     } else if (info.status && info.status == "stdout") {
         if (!this.stdout.parentNode)
             this.msgs.appendChild(this.stdout)
 
         this.stdout.innerHTML += info.msg;
     } else {
-        if (info.state) {
-            // console.log(info.state);
-        }
-        for (var i in info) {
-            //console.log(i)
-            if (!this.boxes[i] && (i!="status") && (i!="task") && (i!="subj") && (i!="date") && (i!="idx")) {
-                var row = document.createElement("tr");
-                var label = document.createElement("td");
-                label.innerHTML = i;
-                row.appendChild(label);
-                var data = document.createElement("td");
-                row.appendChild(data);
-                this.info.appendChild(row);
-                this.boxes[i] = data;
+        for (var stat in info) {
+			if (!this.boxes[stat]) { // if we haven't already made a table row for this stat
+				if (!stat.match("status|task|subj|date|idx")) { // if this is not one of the stats we ignore because it's reported elsewhere
+	                var row = document.createElement("tr");
+
+	            	// make a column in the row for the stat name
+	                var label = document.createElement("td");
+	                label.innerHTML = stat;
+	                
+	                // make a column in the row to hold the data to be updated by the server
+	                var data = document.createElement("td");
+
+	                row.appendChild(label);
+	                row.appendChild(data);
+
+	                this.info.appendChild(row);
+
+	                // save ref to the 'data' box, to be updated when new 'info' comes in
+	                this.boxes[stat] = data;					
+				}
             }
 
         }
 
-        for (var i in this.boxes) {
-            if (info[i])
-                if (box_filters[i])
-                    this.boxes[i].innerHTML = box_filters[i](info[i]);
+        // Update the stat data
+        for (var stat in this.boxes) {
+            if (info[stat])
+                if (box_filters[stat])
+                    this.boxes[stat].innerHTML = box_filters[stat](info[stat]);
                 else
-                    this.boxes[i].innerHTML = info[i];
+                    this.boxes[stat].innerHTML = info[stat];
         }
     }
 }
