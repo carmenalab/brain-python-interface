@@ -891,23 +891,28 @@ function TaskEntry(idx, info){
 		$("#tasks").change(this._task_query.bind(this));
 		$("#features input").change(this._task_query.bind(this));
 
-		if (info) { // TODO not sure how you could get info if there's no ID available...
-			console.log('Null task entry, info provided')
-			// if the 'info' is provided, 
+		if (info) { // if info is present and the id is null, then this block is being copied from a previous block
+			console.log('creating a new JS TaskEntry by copy')
 			this.update(info);
 			this.enable();
 			$("#content").show("slide", "fast");
-		} else {
-			console.log('Null task entry, no info!')
+		} else { // no id and no info suggests that the table header was clicked to create a new block
+            console.log('creating a brand-new JS TaskEntry')
+            clear_features()
 			TaskInterface.trigger.bind(this)({state:''});
-			this._task_query(function() {
-				this.enable();
-				$("#content").show("slide", "fast");
-			}.bind(this));
+
+            // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
+			this._task_query(
+                function() {
+    				this.enable();
+    				$("#content").show("slide", "fast");
+    			}.bind(this)
+            );
 		}
+        // make the notes blank and editable
 		$("#notes textarea").val("").removeAttr("disabled");
 
-		// Disable reacting to clicks on the current row so that things don't get reset
+		// Disable reacting to clicks on the current row so that the interface doesn't get reset
 		this.tr.unbind("click");
 	}
 	
@@ -927,25 +932,20 @@ function update_available_generators(gens) {
 	}
 }
 
+function clear_features() {
+    $("#features input[type=checkbox]").each(
+        function() {
+            this.checked = false;
+       }
+    );
+}
+
 /* Populate the 'exp_content' template with data from the 'info' object
  */ 
 TaskEntry.prototype.update = function(info) {
-	// populate the list of generators
 	console.log("TaskEntry.prototype.update starting");
 
-	// if (info.generators.length > 0) {
-	// 	$('#seqgen').empty();
-	// 	$.each(info.generators, function(key, value) {
-	// 		console.log('Updating generator list')
-	// 		console.log(info.generators);
-	// 	     $('#seqgen')
-	// 	          .append($('<option>', { value : key })
-	// 	          .text(value)); 
-	// 	});		
-	// }
-
-	// console.log(info.generators)
-
+    // populate the list of generators
 	if (Object.keys(info.generators).length > 0) {
 		console.log('limiting generators')
 		update_available_generators(info.generators);
@@ -953,8 +953,7 @@ TaskEntry.prototype.update = function(info) {
 		console.log('not limiting generators!')
 	}
 
-
-	$('#report_backup').html('Flagged for backup: ' + info.flagged_for_backup+"\n<br><br>");
+	// $('#report_backup').html('Flagged for backup: ' + info.flagged_for_backup+"\n<br><br>");
 
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
@@ -980,13 +979,15 @@ TaskEntry.prototype.update = function(info) {
 			this.selected = true;
 	});
 	// set checkmarks for all the features specified in the 'info'
-	$("#features input[type=checkbox]").each(function() {
-		this.checked = false;
-		for (var idx in info.feats) {
-			if (this.name == info.feats[idx])
-				this.checked = true;
-		}
-	});
+	$("#features input[type=checkbox]").each(
+        function() {
+    		this.checked = false;
+    		for (var idx in info.feats) {
+    			if (this.name == info.feats[idx])
+    				this.checked = true;
+    		}
+	   }
+    );
 	var numfiles = 0;
 	this.filelist = document.createElement("ul");
 	
@@ -1012,36 +1013,24 @@ TaskEntry.prototype.update = function(info) {
 		$("#files").append(this.filelist).show();
 
 		// make the BMI show up if there's a neural data file linked
-		var found = false;
+		var neural_data_found = false;
 		for (var sys in info.datafiles)
 			if ((sys == "plexon") || (sys == "blackrock") || (sys == "tdt")) {
-				found = true;
+				neural_data_found = true;
 				break;
 			}
 
-		if (found)
-			// Create the BMI object
-			this.bmi = new BMI(this.idx, info.bmi, info.notes);
+		if (neural_data_found){
+            // Create the JS object to represent the BMI menu
+            this.bmi = new BMI(this.idx, info.bmi, info.notes);
+        }
 	}
 
 	if (info.sequence) {
 		$("#sequence").show()
 	} else {
-		// $("#sequence").hide()
+		$("#sequence").hide()
 	}
-
-    // render plots
-	this.plot_filelist = document.createElement("ul");
-    if (info.plot_files) {
-        $("#plots").empty()
-        for (var plot_type in info.plot_files) {
-            var img = document.createElement("img");
-            img.setAttribute('src', '/static'+info.plot_files[plot_type])
-            $("#plots").append(img)
-        }
-    } else {
-        $("#plots").empty()
-    }
 
     console.log("TaskEntry.prototype.update done!");
 }
