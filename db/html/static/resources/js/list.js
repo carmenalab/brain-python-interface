@@ -232,7 +232,9 @@ Report.prototype.update = function(info) {
     if (typeof(this.notify) == "function" && info)
         this.notify(info);
     if (info.status && info.status == "error") {
-        this.msgs.innerHTML = "<pre>"+info.msg+"</pre>";
+    	console.log(this.msgs.innerHTML);
+        this.msgs.innerHTML += "<pre>"+info.msg+"</pre>";
+        console.log("logging error message");
     } else if (info.status && info.status == "stdout") {
         if (!this.stdout.parentNode)
             this.msgs.appendChild(this.stdout)
