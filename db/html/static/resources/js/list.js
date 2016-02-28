@@ -201,12 +201,15 @@ function Report(callback) {
     this.obj.appendChild(this.info);
     this.obj.appendChild(linebreak);
     this.obj.appendChild(this.msgs);
+
     $("#report").append(this.obj);
 
     this.boxes = {};
 }
 
 Report.prototype.activate = function() {
+	console.log('activating report');
+
     if (!this.ws) { 
         // Create a new JS WebSocket object
         this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
@@ -1144,12 +1147,6 @@ TaskEntry.prototype._task_query = function(callback) {
 }
 
 
-/* Callback for the 'Test' button
- */
-TaskEntry.prototype.test = function() {
-	this.disable();
-	return this.run(false); 
-}
 
 /* Callback for the "Stop Experiment" button
  */
@@ -1166,6 +1163,13 @@ TaskEntry.prototype.stop = function() {
 	// setTimeout(f, 5000);
 }
 
+/* Callback for the 'Test' button
+ */
+TaskEntry.prototype.test = function() {
+    this.disable();
+    return this.run(false); 
+}
+
 /* Callback for the 'Start experiment' button
  */
 TaskEntry.prototype.start = function() {
@@ -1175,7 +1179,12 @@ TaskEntry.prototype.start = function() {
 
 TaskEntry.prototype.run = function(save) {
     // activate the report; start listening to the websocket and update the 'report' field when new data is received
+    if (this.report){
+        this.report.destroy();
+    }
+    this.report = new Report(TaskInterface.trigger.bind(this));
 	this.report.activate();
+
 	var form = {};
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(this.get_data());
