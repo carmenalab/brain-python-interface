@@ -69,17 +69,17 @@ div#leftpane {
 
 #startbtn {
 	background-color: green;
-	float : right;
+	float : left;
 }
 
 #testbtn {
 	background-color: blue;
-	float : right;
+	float : left;
 }
 
 #stopbtn {
 	background-color: red;
-	float : right;
+	float : left;
 }
 
 #copybtn {
