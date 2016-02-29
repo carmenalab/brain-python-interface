@@ -28,7 +28,12 @@
 			// so it knows to create a "blank" TaskEntry
 			// Otherwise, the row will have an 'id' of format 'row\d\d\d\d'
 			$(this).click(function() {
-				te = new TaskEntry(this.id == "newentry" ? null : this.id);
+				var clicked_on_header = this.id == "newentry" || this.id == "te_table_header";
+				if (clicked_on_header) {
+					te = new TaskEntry(null);
+				} else {
+					te = new TaskEntry(this.id);
+				}
 			});
 		});
 
@@ -122,7 +127,7 @@
 	        <hr>
 			<table id='main' style="direction:ltr;">
 				<thead>
-				<tr>
+				<tr id="te_table_header">
 					<th>Date</th>
 					<th>Time</th>
 					<th>ID</th>

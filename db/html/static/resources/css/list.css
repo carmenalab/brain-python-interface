@@ -233,21 +233,7 @@ fieldset#files { display:none; }
 input:invalid {
 	box-shadow:0px 0px 10px red;
 }
-/*input.startbtn {
-	display:none;
-	float:right;
-	margin:8px;
-	padding:8px;
-	font-size:16pt;
-	box-shadow: 0px 0px 5px green;
-	transition:all 0.25s ease-in-out;
-	-webkit-transition:all 0.25s ease-in-out;
-	-moz-transition:all 0.25s ease-in-out;
-	-webkit-appearance:none;
-	border-radius:5px;
-	border:1px solid #888;
-	background:-webkit-linear-gradient(top, #FFF, #DDD);
-}*/
+
 
 
 

@@ -843,7 +843,9 @@ function TaskEntry(idx, info){
 
     console.log("JS constructing task entry", idx)
 
-	if (idx) { // the task entry which was clicked has an id (stored in the database)
+	if (idx) { 
+        // If the task entry which was clicked has an id (stored in the database)
+        // No 'info' is provided--the ID is pulled from the HTML
 
 		// parse the actual integer database ID out of the HTML object name
 		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
