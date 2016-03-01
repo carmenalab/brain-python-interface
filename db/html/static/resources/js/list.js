@@ -686,7 +686,7 @@ function TaskInterfaceConstructor() {
     this.trigger = function(info) {
 		if (this != lastentry) {
 			if (lastentry) {
-				$(window).unload(); //This stops testing runs, just in case
+				$(window).unload(); // direct away from the page. This stops testing runs, just in case.. TODO not sure if this works with no arguments
 				lastentry.tr.removeClass("rowactive active");
 				lastentry.destroy();
 			}
@@ -694,8 +694,9 @@ function TaskInterfaceConstructor() {
 			lastentry = this;
 			state = this.status;
 		}
-		for (var next in triggers[state]) {
-			if (triggers[state][next].bind(this)(info)) {
+        var transitions = triggers[state];
+		for (var next in transitions) {
+			if (transitions[next].bind(this)(info)) {
 				states[next].bind(this)(info);
 				this.status = next;
 				state = next;
@@ -886,7 +887,8 @@ function TaskEntry(idx, info){
 		console.log('creating task entry null')
 
 		// show the bar at the top left with drop-downs for subject and task
-		this.tr = $("#newentry").show();  // declared in list.html
+		this.tr = $("#newentry");
+        this.tr.show();  // declared in list.html
 		this.status = "stopped";
 
 		// Set 'change' bindings to re-run the _task_query function if the selected task or the features change
@@ -916,6 +918,7 @@ function TaskEntry(idx, info){
 
 		// Disable reacting to clicks on the current row so that the interface doesn't get reset
 		this.tr.unbind("click");
+        $('te_table_header').unbind("click");
 	}
 	
 }
@@ -1077,9 +1080,13 @@ TaskEntry.prototype.destroy = function() {
 
 	if (this.idx != null) {
 		var idx = "row"+this.idx;
-		this.tr.click(function() {
-			te = new TaskEntry(idx);
-		})
+
+        // re-bind a callback to when the row is clicked
+		this.tr.click(
+            function() {
+                te = new TaskEntry(idx);
+            }
+        )
 
         // clear the notes field
 		this.notes.destroy();
@@ -1092,16 +1099,24 @@ TaskEntry.prototype.destroy = function() {
 
 	} else {
 		//Remove the newentry row
-		this.tr.hide()
+        $('#newentry').hide()
+
 		//Rebind the click action to create a blank TaskEntry form
 		this.tr.click(function() {
 			te = new TaskEntry(null);
 		})
+
+        $('#te_table_header').click(
+            function() {
+                te = new TaskEntry(null);      
+            }
+        )
 		//Clean up event bindings
 		$("#features input").unbind("change");
 		$("#tasks").unbind("change");
 	}
 }
+
 TaskEntry.prototype._task_query = function(callback) {
 	console.log('calling TaskEntry.prototype._task_query')
 	var taskid = $("#tasks").attr("value");
@@ -1137,21 +1152,12 @@ TaskEntry.prototype._task_query = function(callback) {
 	);
 }
 
-
-
-/* Callback for the "Stop Experiment" button
- */
 TaskEntry.prototype.stop = function() {
+    /* Callback for the "Stop Experiment" button
+    */
 	var csrf = {};
 	csrf['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value");
 	$.post("stop", csrf, TaskInterface.trigger.bind(this));
-
-	// function f() {
-	// 	$.post("next_exp/", {
-	// 		'csrfmiddlewaretoken':$("#experiment input[name=csrfmiddlewaretoken]").attr("value")
-	// 	});
-	// }
-	// setTimeout(f, 5000);
 }
 
 /* Callback for the 'Test' button
@@ -1173,7 +1179,7 @@ TaskEntry.prototype.run = function(save) {
     if (this.report){
         this.report.destroy();
     }
-    this.report = new Report(TaskInterface.trigger.bind(this));
+    this.report = new Report(TaskInterface.trigger.bind(this)); // TaskInterface.trigger is a function. 
 	this.report.activate();
 
 	var form = {};
