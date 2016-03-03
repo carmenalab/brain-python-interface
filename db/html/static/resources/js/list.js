@@ -76,13 +76,7 @@ Sequence.prototype.update = function(info) {
                 $("#seqparams input").attr("disabled", "disabled");  // disable editing in the table
 
                 // change the value of the generator drop-down list to the generator for this sequence.
-                // TODO: there should be a way to just set the menu based on the known value of the generator...
-                $("#seqgen option").each(
-                	function() {
-	                    if (this.value == info[id].generator[0])
-	                        this.selected = true;
-                	}
-                )
+                $('#seqgen').val(info[id].generator[0]);
 
                 // mark the static checkbox, if the sequence was static
                 $("#seqstatic").attr("checked", info[id].static);
@@ -688,6 +682,8 @@ function TaskInterfaceConstructor() {
 			if (lastentry) {
 				$(window).unload(); // direct away from the page. This stops testing runs, just in case.. TODO not sure if this works with no arguments
 				lastentry.tr.removeClass("rowactive active");
+
+                // TODO related to clicking a different task entry than the one already highlighted?
 				lastentry.destroy();
 			}
 			states[this.status].bind(this)(info);
@@ -861,7 +857,9 @@ function TaskEntry(idx, info){
 		if (this.status == 'running')
 			this.report.activate();
 
+        // Show the wait wheel before sending the request for exp_info. It will be hidden once data is successfully returned and processed (see below)
         $('#wait_wheel').show()
+
 		$.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
 			{}, // POST data to send to the server
 			function (expinfo) { // function to run on successful response
@@ -958,8 +956,7 @@ TaskEntry.prototype.update = function(info) {
 		console.log('not limiting generators!')
 	}
 
-	// $('#report_backup').html('Flagged for backup: ' + info.flagged_for_backup+"\n<br><br>");
-
+    // Update all the sub-parts of the exp_content template separately
 	this.sequence.update(info.sequence);
 	this.params.update(info.params);
 	this.report.update(info.report);
@@ -973,6 +970,7 @@ TaskEntry.prototype.update = function(info) {
 	$('#backupbtn').attr('checked', info.flagged_for_backup);
 
 	this.expinfo = info;
+
 	// set the 'tasks' drop-down menu to match the 'info'
 	$("#tasks option").each(function() {
 		if (this.value == info.task)
@@ -993,11 +991,13 @@ TaskEntry.prototype.update = function(info) {
     		}
 	   }
     );
-	var numfiles = 0;
-	this.filelist = document.createElement("ul");
+
 	
 	// List out the data files in the 'filelist'
 	// see TaskEntry.to_json in models.py to see how the file list is generated
+    var numfiles = 0;
+    this.filelist = document.createElement("ul");
+
 	for (var sys in info.datafiles) {
 		if (sys == "sequence") { 
 			// Do nothing. No point in showing the sequence..
@@ -1039,17 +1039,17 @@ TaskEntry.prototype.update = function(info) {
 
     console.log("TaskEntry.prototype.update done!");
 }
-TaskEntry.plot_performance = function() {
 
-}
 /* callback for 'Copy Parameters' button
  */
 TaskEntry.copy = function() {
+    // start with the info saved in the current TaskEntry object
 	var info = te.expinfo;
-	info.report = {};
-	info.datafiles = {};
-	info.notes = "";
-	info.plot_files = {};
+
+	info.report = {};          // clear the report data
+	info.datafiles = {};       // clear the datafile data
+	info.notes = "";           // clear the notes
+	
 	te = new TaskEntry(null, info);
 }
 /*
@@ -1066,8 +1066,8 @@ TaskEntry.prototype.destroy = function() {
 
     // Free the parameters
     if (this.params) {
-		$(this.params.obj).remove()
-		delete this.params
+		$(this.params.obj).remove();
+		delete this.params;
 	}
 
     // Remove any designations that this TaskEntry is active/running/errored/etc.
