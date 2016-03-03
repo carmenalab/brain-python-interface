@@ -41,26 +41,6 @@
 
 		$("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
 
-		// $("#hidebtn").click(
-		// 	function() {
-		// 		console.log("Hiding task entry " + te.idx);
-		// 		$.get("/ajax/hide_entry/"+te.idx, 
-		// 			{}, 
-		// 			function() {
-		// 				// console.log('slide');
-		// 				// console.log("row" + te.idx);
-		// 				$("#row" + te.idx).slideToggle("slow");
-		// 				te.destroy();
-		// 				// $("#row" + te.idx).hide();
-		// 				// console.log($("row" + te.idx))
-		// 				// console.log('slide toggle done');
-		// 			}
-		// 		);
-		// 	}
-		// );
-		// $("#backupbtn").click(function() {$.get("/ajax/backup_entry/"+te.idx)});		
-		// $("#unbackupbtn").click(function() {$.get("/ajax/unbackup_entry/"+te.idx)});
-
 		$("#hidebtn").change(
 			function () {
 				if (this.checked) {
