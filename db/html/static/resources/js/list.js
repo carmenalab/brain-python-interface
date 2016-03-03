@@ -746,6 +746,7 @@ function TaskInterfaceConstructor() {
 			$("#report").show()
 			$("#notes").show()		
 
+            // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
             if (this.__date) {
                 this.__date.each(function(index, elem) {
                     $(this).css('background-color', '#FFF');
@@ -753,7 +754,6 @@ function TaskInterfaceConstructor() {
             }
 
             
-
             if (this.start_button_pressed) {
                 console.log("recorded start button press");
                 setTimeout(
@@ -778,7 +778,7 @@ function TaskInterfaceConstructor() {
 			$("#finished_task_buttons").hide();
 			$("#bmi").hide();
 
-			$("#report").hide()
+			$("#report").show()
 			$("#notes").hide()
 
 		},
@@ -811,8 +811,8 @@ function TaskInterfaceConstructor() {
 			$("#bmi").hide();
 			// this.report.activate();
 
-			$("#report").show()
-			$("#notes").show()				
+			$("#report").show();
+			$("#notes").hide();
 		},
 		error: function(info) {
 			$(window).unbind("unload");
