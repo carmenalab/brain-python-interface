@@ -32,7 +32,7 @@ function Sequence() {
 Sequence.prototype.update = function(info) {
     console.log("Sequence.prototype.update");
 
-    $("#seqlist").unbind("change", this._handle_chlist);
+    $("#seqlist").unbind("change");
     for (var id in this.options)
         $(this.options[id]).remove()
     if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
@@ -73,7 +73,8 @@ Sequence.prototype.update = function(info) {
             	// the selected sequence is a previously used sequence, so populate the parameters from the db
                 seq_obj.params.update(info[id].params);
 
-                $("#seqparams input").attr("disabled", "disabled");  // disable editing in the table
+                // disable editing in the table
+                $("#seqparams input").attr("disabled", "disabled");  
 
                 // change the value of the generator drop-down list to the generator for this sequence.
                 $('#seqgen').val(info[id].generator[0]);
@@ -100,8 +101,8 @@ Sequence.prototype.destroy = function() {
 
         delete this.params; // delete the JS object
     }
-    $("#seqlist").unbind("change", this._handle_chlist);
-    $("#seqgen").unbind("change", this._handle_chgen);
+    $("#seqlist").unbind("change");
+    $("#seqgen").unbind("change");
     if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
         $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'><option value='new'>Create New...</option></select>");
 }
@@ -728,9 +729,11 @@ function TaskInterfaceConstructor() {
 			testing: function(info) {return info.status == "testing"; }
 		},
 	};
+
+    // Functions to run when experiment states are entered
 	var states = {
 		completed: function() {
-			console.log("state = completed")
+			console.log("state = completed");
 			$(window).unbind("unload");
 			this.tr.addClass("rowactive active");
 			$(".active").removeClass("running error testing");
@@ -743,9 +746,25 @@ function TaskInterfaceConstructor() {
 			$("#report").show()
 			$("#notes").show()		
 
-			this.__date.each(function(index, elem) {
-				$(this).css('background-color', '#FFF');
-			})	
+            if (this.__date) {
+                this.__date.each(function(index, elem) {
+                    $(this).css('background-color', '#FFF');
+                });
+            }
+
+            
+
+            if (this.start_button_pressed) {
+                console.log("recorded start button press");
+                setTimeout(
+                    function () {
+                        console.log('callback after pressing stop');
+                        te = new TaskEntry(te.idx);
+                    },
+                    3000
+                );
+                console.log("finished set timeout");
+            }
 		},
 		stopped: function() {
 			console.log("state = stopped")
@@ -761,10 +780,11 @@ function TaskInterfaceConstructor() {
 
 			$("#report").hide()
 			$("#notes").hide()
+
 		},
 		running: function(info) {
 			console.log("state = running")
-			$(window).unbind("unload");
+			$(window).unbind("unload"); // remove any bindings to 'stop' methods when the page is reloaded (these bindings are added in the 'testing' mode)
 			$(".active").removeClass("error testing").addClass("running");
 			this.disable();
 			$("#stopbtn").show()
@@ -777,10 +797,14 @@ function TaskInterfaceConstructor() {
 			$("#notes").show()				
 		},
 		testing: function(info) {
-			$(window).unload(this.stop.bind(this));
+            // if you navigate away from the page during 'test' mode, the 'TaskEntry.stop' function is set to run
+			$(window).unload(te.stop);
+
 			$(".active").removeClass("error running").addClass("testing");
-			this.disable();
-			$("#stopbtn").show()
+			te.disable(); // disable editing of the exp_content interface
+
+			$("#stopbtn").show();
+
 			$("#startbtn").hide()
 			$("#testbtn").hide()
 			$("#finished_task_buttons").hide()
@@ -845,7 +869,12 @@ function TaskEntry(idx, info){
         // No 'info' is provided--the ID is pulled from the HTML
 
 		// parse the actual integer database ID out of the HTML object name
-		this.idx = parseInt(idx.match(/row(\d+)/)[1]);
+        if (typeof(idx) == "number") {
+            this.idx = idx;
+        } else {
+            this.idx = parseInt(idx.match(/row(\d+)/)[1]);    
+        }
+		
 		var id_num = this.idx
 
 		// Create a jQuery object to represent the table row
@@ -1185,14 +1214,19 @@ TaskEntry.prototype.run = function(save) {
 	var form = {};
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(this.get_data());
-	this.report.pause();
+	// this.report.pause();
+
+    // post to different URL depending on whether the data should be saved or not
 	var post_url = save ? "/start" : "/test";
 	$.post(post_url, form, function(info) {
 		TaskInterface.trigger.bind(this)(info);
 		this.report.update(info);
-		if (info.status == "running")
-			this.new_row(info);
-		this.report.unpause();
+		if (info.status == "running") {
+            this.new_row(info);
+            this.start_button_pressed = true;
+        }
+			
+		// this.report.unpause();
 	}.bind(this));
 	return false;
 }
@@ -1222,7 +1256,7 @@ TaskEntry.prototype.new_row = function(info) {
 
 	// Write the HTML for the table row
 	this.tr.html("<td class='colDate'>Today</td>" + 
-				"<td class='colTime' >Now</td>" + 
+				"<td class='colTime' >--</td>" + 
 				"<td class='colID'   >"+info.idx+"</td>" + 
 				"<td class='colSubj' >"+info.subj+"</td>" + 
 				"<td class='colTask' >"+info.task+"</td>");
