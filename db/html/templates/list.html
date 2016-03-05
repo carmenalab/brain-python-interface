@@ -65,7 +65,6 @@
 			}
 		);
 
-
 		$("#backupbtn").change(
 			function () {
 				if (this.checked) {
@@ -96,6 +95,43 @@
 
 		$('#wait_wheel').hide();
 		$('#create_new_seq').hide();
+
+
+
+		// hotkeys for simple TE tasks
+	    document.addEventListener('keydown', function(event) {
+	    	if (!(te == null) && (te.status == "completed")) {
+		        if (event.keyCode == 86) {
+		            // visible ('v')
+		            console.log('changing TE visibility');
+		            te.toggle_visible();
+		        } else if (event.keyCode == 66) { 
+		            // backup ('b')
+		            console.log('changing TE backup flag');
+		            te.toggle_backup();
+		        } else if(event.keyCode == 37) {
+		            // left 
+		            var prev_table_row = $('#row' + te.idx).prev();
+		            var prev_table_row_id = prev_table_row.attr('id');
+		            if (!(prev_table_row_id == "newentry")) {
+		            	te = new TaskEntry(prev_table_row_id);
+		            }
+		            console.log('going to "previous" TE', prev_table_row_id);
+
+		        } else if(event.keyCode == 39) {
+		            // right
+		            var next_table_row = $('#row' + te.idx).next();
+		            var next_table_row_id = next_table_row.attr('id');
+		            if (!(next_table_row_id == "newentry")) {
+		            	te = new TaskEntry(next_table_row_id);
+		            }
+		            console.log('going to "next" TE', next_table_row_id);
+
+		        }
+	    	} else {
+	    		console.log("keydown handler ignoring!");
+	    	}
+	    });		
 	})
 </script>
 </head>

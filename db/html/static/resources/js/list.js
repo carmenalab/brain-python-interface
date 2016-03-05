@@ -1069,6 +1069,62 @@ TaskEntry.prototype.update = function(info) {
     console.log("TaskEntry.prototype.update done!");
 }
 
+TaskEntry.prototype.toggle_visible = function() {
+    var btn = $('#hidebtn');
+    if (btn.attr('checked') == 'checked') {
+        // uncheck the box
+        btn.attr('checked', false);
+
+        // send the data
+        $.get("/ajax/hide_entry/"+this.idx, 
+            {}, 
+            function() {
+                console.log("Hiding task entry " + te.idx);
+                $("#row" + te.idx).css('background-color', 'gray');
+            }
+        );
+    } else { // is hidden, and we want to show
+        // uncheck the box
+        $('#hidebtn').attr('checked', true);
+
+        // send the data
+        $.get("/ajax/show_entry/"+this.idx, 
+            {}, 
+            function() {
+                console.log("Showing task entry " + te.idx);
+                $("#row" + te.idx).css('background-color', 'white');
+            }
+        );
+    }
+}
+
+TaskEntry.prototype.toggle_backup = function() {
+    var btn = $('#backupbtn');
+    if (btn.attr('checked') == 'checked') { // is flagged for backup and we want to unflag
+        // uncheck the box
+        btn.attr('checked', false);
+
+        // send the data
+        $.get("/ajax/unbackup_entry/"+this.idx, 
+            {}, 
+            function() {
+                console.log("Unflagging task entry for backup" + te.idx);
+            }
+        );
+    } else { // is hidden, and we want to show
+        // uncheck the box
+        btn.attr('checked', true);
+
+        // send the data
+        $.get("/ajax/backup_entry/"+te.idx,
+            {}, 
+            function() {
+                console.log("Flagging task entry for backup" + te.idx);
+            });
+    }
+}
+
+
 /* callback for 'Copy Parameters' button
  */
 TaskEntry.copy = function() {
