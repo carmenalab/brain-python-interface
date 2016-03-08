@@ -28,12 +28,12 @@ def list(request):
     -------
     Django HTTPResponse instance
     '''
+    print "views.list: new root request received"
     td = datetime.timedelta(days=60)
     start_date = datetime.date.today() - td
     # entries = TaskEntry.objects.filter(visible=True).order_by('-date') # date__gt=start_date, 
     # entries = TaskEntry.objects.all()[:200][::-1]
-    entries = TaskEntry.objects.all().order_by('-date')
-
+    entries = TaskEntry.objects.filter(visible=True).order_by('-date')
     
     for k in range(0, len(entries)):
         ent = entries[k]
@@ -65,28 +65,39 @@ def list(request):
         else:
             entry.bgcolor = '#FFFFFF'
 
+    subjects = Subject.objects.all().order_by("name")
+    features = Feature.objects.filter(visible=True).order_by("name")
+    generators = Generator.objects.filter(visible=True).order_by("name")
+    hostname = request.get_host()
 
     fields = dict(
         entries=entries, 
-        subjects=Subject.objects.all().order_by("name"), 
+        subjects=subjects, 
         tasks=tasks, 
-        features=Feature.objects.filter(visible=True).order_by("name"), 
-        generators=Generator.objects.filter(visible=True).order_by("name"),
-        hostname=request.get_host(),
+        features=features, 
+        generators=generators,
+        hostname=hostname,
         bmi_update_rates=namelist.bmi_update_rates,
         state_spaces=namelist.bmi_state_space_models,
         bmi_algorithms=namelist.bmi_algorithms,
         extractors=namelist.extractors,
         default_extractor=namelist.default_extractor,
-        # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
-        pos_vars=namelist.bmi_training_pos_vars, 
-        # post-processing methods on the selected kinematic variable
-        kin_extractors=namelist.kin_extractors,
+        pos_vars=namelist.bmi_training_pos_vars,            # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
+        kin_extractors=namelist.kin_extractors,             # post-processing methods on the selected kinematic variable
         n_blocks=len(entries),
     )
+
+    # this line is important--this is needed so the Track object knows if the task has ended in an error
+    # TODO there's probably some better way of doing this within the multiprocessing lib (some code to run after the process has terminated)
+    exp_tracker.update_alive()
+
     if exp_tracker.task_proxy is not None:
         fields['running'] = exp_tracker.task_proxy.saveid
-    return render_to_response('list.html', fields, RequestContext(request))
+
+    resp = render_to_response('list.html', fields, RequestContext(request))
+
+    print "views.list: resp done!"
+    return resp
 
 def listall(request):
     '''

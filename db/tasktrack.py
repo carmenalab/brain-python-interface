@@ -101,6 +101,11 @@ class Track(object):
         self.task_proxy = None
         return status
 
+    def update_alive(self):
+        if (not self.proc is None) and (not self.proc.is_alive()):
+            print "process died in error, destroying proxy object"
+            self.task_proxy = None
+
 
 def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''

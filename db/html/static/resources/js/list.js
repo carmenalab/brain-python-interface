@@ -20,8 +20,9 @@ function Sequence() {
     $("#seqgen").change(this._handle_chgen);
 
     $("#seqparams").click(
+        // if you click on the parameters table and the drop-down list of 
+        // available sequences (not generators) is enabled, then enable editing
     	function() {
-    		// if you click on the parameters table and the drop-down list of available sequences (not generators) is enabled, then enable editing
 	        if ($("#seqlist").attr("disabled") != "disabled") 
 	            this.edit();
     	}.bind(this)
@@ -262,14 +263,15 @@ Report.prototype.update = function(info) {
 	                this.boxes[stat] = data;					
 				}
             }
-
         }
 
         // Update the stat data
         for (var stat in this.boxes) {
             if (info[stat])
-                if (box_filters[stat])
+                if (box_filters[stat]){
+                    console.log("Calling box filter for stat ", stat);
                     this.boxes[stat].innerHTML = box_filters[stat](info[stat]);
+                }
                 else
                     this.boxes[stat].innerHTML = info[stat];
         }
@@ -780,7 +782,6 @@ function TaskInterfaceConstructor() {
 
 			$("#report").show()
 			$("#notes").hide()
-
 		},
 		running: function(info) {
 			console.log("state = running")
@@ -893,6 +894,7 @@ function TaskEntry(idx, info){
 			{}, // POST data to send to the server
 			function (expinfo) { // function to run on successful response
 				this.notes = new Notes(this.idx);
+                console.log(this)
 				this.update(expinfo);
 				this.disable();
 				$("#content").show("slide", "fast");
@@ -901,6 +903,8 @@ function TaskEntry(idx, info){
 
 				// If the server responds with data, disable reacting to clicks on the current row so that things don't get reset
 				this.tr.unbind("click");
+
+                $("#notes textarea").removeAttr("disabled");
 			}.bind(this)
 			).error(
 				function() {
@@ -1270,20 +1274,19 @@ TaskEntry.prototype.run = function(save) {
 	var form = {};
 	form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
 	form['data'] = JSON.stringify(this.get_data());
-	// this.report.pause();
 
     // post to different URL depending on whether the data should be saved or not
 	var post_url = save ? "/start" : "/test";
-	$.post(post_url, form, function(info) {
-		TaskInterface.trigger.bind(this)(info);
-		this.report.update(info);
-		if (info.status == "running") {
-            this.new_row(info);
-            this.start_button_pressed = true;
-        }
-			
-		// this.report.unpause();
-	}.bind(this));
+	$.post(post_url, form, 
+        function(info) {
+    		TaskInterface.trigger.bind(this)(info);
+    		this.report.update(info);
+    		if (info.status == "running") {
+                this.new_row(info);
+                this.start_button_pressed = true;
+            }
+	   }.bind(this)
+    );
 	return false;
 }
 
