@@ -1,22 +1,15 @@
 <form id="experiment" method="post" action="javascript:void();">
 	{% csrf_token %}
 
-	<!-- <div class="clear"></div> -->
 	<div id="finished_task_buttons">
 		<input id="copybtn" class="btn" type="button" value="Copy parameters">
-		<!-- <br> -->
 		<input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
 		<input id="backupbtn" type="checkbox" checked="on" name="hist_checkbox">Flagged for backup?
-		<!-- <input id="hidebtn" type="button" value="Hide Task Entry"> -->
-		<!-- <input id="backupbtn" type="button" value="Backup Task Entry"> -->
 	</div>
-	<!-- <div class="clear"></div> -->
 
-	<!-- <div class="clear"></div> -->
 	<input id="testbtn" class="btn startbtn" type="submit" value="Test">
 	<input id="startbtn" class="btn startbtn" type="submit" value="Start Experiment">
 	<input id="stopbtn" class="btn startbtn" type="submit" value="Stop Experiment">
-	<!-- <input id="pausebtn" class="btn startbtn" type="submit" value="Pause"> -->
 	<div class="clear"></div>	
 
 	<div>
