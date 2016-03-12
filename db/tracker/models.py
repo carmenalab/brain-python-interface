@@ -529,7 +529,7 @@ class TaskEntry(models.Model):
             try:
                 from db import dbfunctions
                 te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
-                rpt['Decoder name'] = te.decoder_record.name
+                rpt['Decoder name'] = te.decoder_record.name + ' (trained in block %d)' % te.decoder_record.entry_id
             except AttributeError:
                 pass
             except:
