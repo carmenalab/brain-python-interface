@@ -798,6 +798,7 @@ function TaskInterfaceConstructor() {
 			$("#notes").show()				
 		},
 		testing: function(info) {
+            console.log("state = testing");
             // if you navigate away from the page during 'test' mode, the 'TaskEntry.stop' function is set to run
 			$(window).unload(te.stop);
 
@@ -816,6 +817,7 @@ function TaskInterfaceConstructor() {
 			$("#notes").hide();
 		},
 		error: function(info) {
+            console.log("state = error");
 			$(window).unbind("unload");
 			$(".active").removeClass("running testing").addClass("error");
 			this.disable();
@@ -827,6 +829,8 @@ function TaskInterfaceConstructor() {
 			$("#report").show()
 		},
 		errtest: function(info) {
+            console.log("state = errtest");
+            
 			$(window).unbind("unload");
 			$(".active").removeClass("running testing").addClass("error");
 			this.enable();

@@ -190,7 +190,7 @@
 				{% endfor %}
 				</tbody>
 			</table>
-		</div>
+		</div> <!-- leftpane -->
 
         <div id="wait_wheel">
             <img id="wait_wheel_img" src="{{ STATIC_PREFIX }}resources/images/ajax-loader.gif" alt="HTML5 Icon">
@@ -198,9 +198,247 @@
 
 		<div id="rightpane">
 			<div id='content' class="active">
-				{% include "exp_content.html" %}
-			</div>
-		</div>
+				<form id="experiment" method="post" action="javascript:void();">
+					{% csrf_token %}
+
+					<div id="finished_task_buttons">
+						<input id="copybtn" class="btn" type="button" value="Copy parameters">
+						<input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
+						<input id="backupbtn" type="checkbox" checked="on" name="hist_checkbox">Flagged for backup?
+					</div>
+
+					<input id="testbtn" class="btn startbtn" type="submit" value="Test">
+					<input id="startbtn" class="btn startbtn" type="submit" value="Start Experiment">
+					<input id="stopbtn" class="btn startbtn" type="submit" value="Stop Experiment">
+					<div class="clear"></div>	
+
+					<div class="rightpane_fields">
+						<div class="options">
+							<fieldset id="features">
+								<legend>Features</legend>
+								<ul>
+								{% for f in features %}
+									<li title="{{f.desc}}">
+									<input type="checkbox" name="{{f.name}}" id="feat_{{f.name}}" value="{{f.id}}">
+									<label for="{{f.name}}">{{f.name}}</label>
+									</li>
+								{% endfor %}
+								</ul>
+							</fieldset> <!-- features -->
+
+							<fieldset id="sequence">
+								<legend>Sequence</legend>
+								<table>
+									<input id="create_new_seq" class="btn" type="submit" value="Create New Seq.">
+									<tr>
+										<td class="param_label"><label for="seqlist">Name:</label></td>
+										<td>
+											<select id="seqlist" name="seq_name">
+												<option value="new">Create New...</option>
+											</select>
+										</td>
+									</tr>
+
+									<tr>
+										<td class="param_label"><label class="traitname" for="seqgen">Generator:</label></td>
+										<td>
+											<select id="seqgen" name="seq_gen">
+												{% for g in generators %}<option value="{{g.id}}">{{g.name}}</option>
+												{% endfor %}
+											</select>
+										</td>
+									</tr>
+								</table>
+
+								<div id="seqparams">
+								</div>
+
+								<div id="seqstatic_div" class="clear">
+									<input id="seqstatic" type="checkbox" name="seqstatic">
+									<label for="seqstatic">Static</label>
+								</div>
+							</fieldset> <!-- sequence -->
+
+							<fieldset id="parameters">
+								Hide <input type="radio" onclick="javascript:te.params.hide_attrs();" name="yesno" id="noCheck"/>		
+								Show <input type="radio" onclick="javascript:te.params.show_all_attrs();" name="yesno" id="yesCheck"/>				
+								<legend>Parameters</legend>
+							</fieldset> <!-- parameters -->
+						</div>
+
+						<div class="rightside">
+							<fieldset id="report">
+								<legend>Report</legend>
+							</fieldset>
+
+							<fieldset id="notes">
+								<legend>Notes</legend>
+								<textarea name="notes"></textarea>
+							</fieldset>
+
+							<fieldset id="files">
+								<legend>Linked Data Files</legend>
+							</fieldset>
+
+							<fieldset id='bmi'>
+							<legend>BMI</legend>
+							    <div id='bmiwrap'>
+							    <table id='bmiinfo'>
+							       <!-- Drop-down menu for BMIs trained using this block -->
+							        <tr>
+							            <td>
+							                <label for='bminame'>Name</label>
+							            </td>
+							            <td>
+							                <select id='bminame' />
+							            </td>
+							        </tr>
+							        <!-- Drop-down menu of BMI training methods  -->
+							        <tr>
+							            <td>
+							                <label for='bmiclass'>Decoding algorithm:</label>
+							            </td>
+							            <td>
+							                <select id='bmiclass'>
+							                    {% for name in bmi_algorithms %}
+							                    <option>{{ name }}</option>
+							                    {% endfor %}
+							                </select>
+							            </td>
+							        </tr>
+							        <!-- Drop-down menu of feature extractors  -->
+							        <tr>
+							            <td>
+							                <label for='bmiextractor'>Feature Extractor:</label>
+							            </td>
+							            <td>
+							                <select id='bmiextractor'>
+							                    <option selected>{{ default_extractor }}</option>
+							                    {% for name in extractors %}
+							                        {% if not name == default_extractor %}
+							                            <option>{{ name }}</option>
+							                        {% endif %}
+							                    {% endfor %}
+							                </select>
+							            </td>
+							        </tr>
+							        <!-- Input box to specify the bin length/update rate of the decoder -->
+							        <tr>
+							            <td>
+							                <label for='bmiupdaterate'>BMI update rate</label>
+							            </td>
+							            <td>
+							                <!-- <input id='bmiupdaterate' /> -->
+							                <select id='bmiupdaterate'>
+							                    {% for update_rate in bmi_update_rates %}
+							                        <option>{{ update_rate }}</option>
+							                    {% endfor %}
+							                </select>
+							            </td>
+							        </tr>
+							        <!-- State space model -->
+							        <tr>
+							            <td>
+							                <label for='ssm'>State space</label>
+							            </td>
+							            <td>
+							                <select id='ssm'>
+							                    {% for ssm in state_spaces %}
+							                        <option>{{ ssm }}</option>
+							                    {% endfor %}
+							                </select>
+							            </td>
+							        </tr>
+							        <!-- Select position variable -->
+							        <tr>
+							            <td>
+							                <label for='pos_key'>Position variable</label>
+							            </td>
+							            <td>
+							                <select id='pos_key'>
+							                    {% for pos_key in pos_vars %}
+							                        <option>{{ pos_key }}</option>
+							                    {% endfor %}
+							                </select>
+							            </td>
+							        </tr>
+							        <!-- Select the function for extracting the kinematics from the HDF file -->
+							        <tr>
+							            <td>
+							                <label for='kin_extractor'>Kinematic extractor</label>
+							            </td>
+							            <td>
+							                <select id='kin_extractor'>
+							                    {% for var in kin_extractors %}
+							                        <option>{{ var }}</option>
+							                    {% endfor %}
+							                </select>
+							            </td>
+							        </tr>        
+							        <!-- Slider for specifying the time range of the block to use for training the decoder-->
+							        <tr>
+							            <td id='tselect' colspan='2'>
+							                <input id='tstart' />
+							                <div id='tslider'></div>
+							                <input id='tend' />
+							            </td>
+							        </tr>
+							        <!-- Buttons for train/cancel. No idea what the cancel button would do... -->
+							        <tr>
+							            <td colspan='2'>
+							                <input id='bmitrain' class='bmibtn' type='button' value='Train' />
+							                <input id='bmicancel' class='bmibtn' type='button' value='Cancel' />
+							            </td>
+							        </tr>
+							    </table>
+							    </div>
+							    <table id='cellselect'>
+							        <tr>
+							            <th>Available</th>
+							            <th></th>
+							            <th>Selected</th>
+							        </tr>
+							        <!-- Make boxes to list out the available spiking units. Only used for spike-count-based feature extractors -->
+							        <tr>
+							            <td>
+							                <select id='available' multiple='multiple'></select>
+							            </td>
+							            <td>
+							                <input type='button' id='makecell' value='>>'/>
+							                <br />
+							                <br />
+							                <input type='button' id='makeavail' value='<<'/>
+							            </td>
+							            <td>
+							                <select id='cells' multiple='multiple'>
+							                </select>
+							            </td>
+							        </tr>
+							        <!-- Text box of the selected spike units.  -->
+							        <tr>
+							            <td colspan='3'>Spike units:</td>
+							        </tr>
+							        <tr>
+							            <td colspan='3'><textarea id='cellnames'></textarea>
+							            </td>
+							        </tr>
+							        <!-- Text box in which to specify the continuous channels to use -->
+							        <tr>
+							            <td colspan='3'>Continuous channels (LFP, EMG, etc.):</td>
+							        </tr>
+							        <tr>
+							            <td colspan='3'><textarea id='channelnames'></textarea>
+							            </td>
+							        </tr>
+							    </table> 
+							</fieldset> <!-- BMI -->
+
+
+						</div> <!-- rightside -->
+					</div> <!-- rightpane_fields -->
+				</form> <!-- experiment form -->
+			</div> <!-- content -->
+		</div> <!-- rightpane -->
 	</div> <!--main_box-->
 </body>
 </html>
