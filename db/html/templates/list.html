@@ -100,7 +100,7 @@
 
 		// hotkeys for simple TE tasks
 	    document.addEventListener('keydown', function(event) {
-	    	if ((evt.target.tagName.toLowerCase() !== 'input') && (evt.target.tagName.toLowerCase() !== 'textarea') && !(te == null) && (te.status == "completed")) {
+	    	if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null) && (te.status == "completed")) {
 		        if (event.keyCode == 86) {
 		            // visible ('v')
 		            console.log('changing TE visibility');
