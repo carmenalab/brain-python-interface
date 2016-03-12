@@ -21,6 +21,7 @@ from config import config
 import importlib
 import subprocess    
 import traceback
+import imp
 
 def _get_trait_default(trait):
     '''
@@ -42,8 +43,8 @@ class Task(models.Model):
         return self.name
     
     def get(self, feats=()):
+        print "models.Task.get()"
         from namelist import tasks
-        from riglib import experiment
 
         if len(tasks) == 0: 
             print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
@@ -51,15 +52,33 @@ class Task(models.Model):
         feature_classes = Feature.getall(feats)
 
         if self.name in tasks and not None in feature_classes:
-
             try:
-                Exp = experiment.make(tasks[self.name], feature_classes)
+                # reload the module which contains the base task class
+                task_cls = tasks[self.name]
+
+                module_name = task_cls.__module__
+                if '.' in module_name:
+                    module_names = module_name.split('.')
+                    mod = __import__(module_names[0])
+                    for submod in module_names[1:]:
+                        mod = getattr(mod, submod)
+                else:
+                    mod = __import__(mod_name)
+                
+                task_cls_module = mod
+                task_cls_module = imp.reload(task_cls_module)
+                task_cls = getattr(task_cls_module, task_cls.__name__)
+
+                # run the metaclass constructor
+                Exp = experiment.make(task_cls, feature_classes)
                 return Exp
             except:
+                print "Problem making the task class!"
                 traceback.print_exc()
                 print self.name
                 print feats
                 print Feature.getall(feats)
+                print "*******"
                 return experiment.Experiment
         elif self.name in tasks:
             return tasks[self.name]
