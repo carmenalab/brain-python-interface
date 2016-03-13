@@ -1,5 +1,7 @@
 * {
 	font-family:Arial;
+	/* enable border to debug CSS */
+	/*border : 1px dashed black;*/ 
 }
 
 
@@ -243,15 +245,19 @@ input:invalid {
 
 fieldset#report {
     max-height:500px;
-    width:100%;
-    /*overflow:auto;*/
+    /*width:100%;*/
+    /*width : 460px;*/
+    /*overflow:scroll;*/
 }
 
 #report td {
 	/*width : 200px;*/
 }
 
-
+.report_table {
+	font-size:10pt;
+	width : 450px;
+}
 
 
 
@@ -282,6 +288,7 @@ input#toggle_table
   display: inline;
 }
 
+/*Rolling wheel when you click a task entry, visible before the server responds*/
 #wait_wheel_img {
     position: absolute;
     top: 50%;
@@ -293,13 +300,10 @@ input#toggle_table
 
 
 
+/* 
+ * BMI styling 
+*/
 
-
-
-
-
-
-/*BMI styling*/
 .bmibtn { float:left; }
 #bmiwrap {
     float:left;
