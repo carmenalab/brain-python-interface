@@ -189,7 +189,7 @@ function Report(callback) {
     this.msgs = document.createElement("div");
     this.stdout = document.createElement("pre");
     this.info.className = "options";
-    this.msgs.className = "rightside";
+    this.msgs.className = "report_table";
 
     var linebreak = document.createElement("div");
     linebreak.className = "clear";
@@ -237,6 +237,7 @@ Report.prototype.update = function(info) {
     	// append the error message (pre-formatted by python traceback) onto the printed out messages
         this.msgs.innerHTML += "<pre>"+info.msg+"</pre>";
     } else if (info.status && info.status == "stdout") {
+        // stdout denotes that the text was generated as a print statement
         if (!this.stdout.parentNode)
             this.msgs.appendChild(this.stdout)
 
@@ -830,7 +831,7 @@ function TaskInterfaceConstructor() {
 		},
 		errtest: function(info) {
             console.log("state = errtest");
-            
+
 			$(window).unbind("unload");
 			$(".active").removeClass("running testing").addClass("error");
 			this.enable();
