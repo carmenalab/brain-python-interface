@@ -247,7 +247,7 @@ fieldset#report {
     max-height:500px;
     /*width:100%;*/
     /*width : 460px;*/
-    /*overflow:scroll;*/
+    overflow:auto;
 }
 
 #report td {

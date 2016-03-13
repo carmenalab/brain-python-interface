@@ -109,12 +109,17 @@ Sequence.prototype.destroy = function() {
 }
 
 Sequence.prototype._make_name = function() {
+    // Make name for generator
     var gen = $("#sequence #seqgen option").filter(":selected").text()
     var txt = [];
     var d = new Date();
     var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
 
-    $("#sequence #seqparams input").each(function() { txt.push(this.name+"="+this.value); })
+    $("#sequence #seqparams input").each(
+        function() {
+            txt.push(this.name+"="+this.value);
+        }
+    )
     return gen+":["+txt.join(", ")+"]"
 }
 
@@ -142,30 +147,33 @@ Sequence.prototype.edit = function() {
 
 
 Sequence.prototype.enable = function() {
+    // only enable the drop-down of the old sequences
     $("#seqlist").removeAttr("disabled");
 }
 Sequence.prototype.disable = function() {
+    // disable the list of old sequences, the parameter inputs, the generator drop-down, the static checkbox
     $("#seqlist, #seqparams input, #seqgen, #seqstatic").attr("disabled", "disabled");
 }
 
 Sequence.prototype.get_data = function() {
 	// Get data describing the sequence/generator parameters, to be POSTed to the webserver
     if ($("#sequence #seqlist").get(0).tagName == "INPUT") {
-        //This is a new sequence, create new!
+        // send data about the generator params to the server and create a new generator
         var data = {};
-        data['name'] = $("#seqlist").attr("value");
-        data['generator'] = $("#seqgen").attr("value");
-        data['params'] = this.params.to_json();
-        data['static'] = $("#seqstatic").attr("checked") == "checked";
+        data['name']        = $("#seqlist").attr("value");
+        data['generator']   = $("#seqgen").attr("value");
+        data['params']      = this.params.to_json();
+        data['static']      = $("#seqstatic").attr("checked") == "checked"; // "checked" attr is apparently a string and not a boolean...
         return data;
     } else {
+        // running an old sequence, so just send the database ID
     	return parseInt($("#sequence #seqlist").attr("value"));	
     }
 }
 
 
 
-
+////////////////////////////////////////////////////////
 ////////////////////// Report //////////////////////////
 ////////////////////////////////////////////////////////
 function sec_to_time(len) {
@@ -280,22 +288,10 @@ Report.prototype.update = function(info) {
 }
 Report.prototype.destroy = function () {
     this.deactivate();
-    if (this.obj.parentNode)
+    if (this.obj.parentNode) {
         this.obj.parentNode.removeChild(this.obj);
+    }
 }
-
-
-// These functions are unused
-Report.prototype.pause = function() {
-    this.infos = [];
-}
-Report.prototype.unpause = function() {
-    if (this.infos.length > 0)
-        for (var i in this.infos)
-            this.update(this.infos[i]);
-    delete this.infos;
-}
-
 
 
 
@@ -763,6 +759,7 @@ function TaskInterfaceConstructor() {
                     function () {
                         console.log('callback after pressing stop');
                         te = new TaskEntry(te.idx);
+                        // te.tr.addClass("rowactive active");
                     },
                     3000
                 );
@@ -889,8 +886,11 @@ function TaskEntry(idx, info){
 		console.log(this.__date);
 
 		this.status = this.tr.hasClass("running") ? "running" : "completed";
-		if (this.status == 'running')
-			this.report.activate();
+		if (this.status == 'running'){
+            this.report.activate();
+        } else {
+            this.tr.addClass("rowactive active");
+        }
 
         // Show the wait wheel before sending the request for exp_info. It will be hidden once data is successfully returned and processed (see below)
         $('#wait_wheel').show()
@@ -909,6 +909,10 @@ function TaskEntry(idx, info){
 				// If the server responds with data, disable reacting to clicks on the current row so that things don't get reset
 				this.tr.unbind("click");
 
+                // console.log('setting ')
+                this.tr.addClass("rowactive active");
+
+                // enable editing of the notes field for a previously saved entry
                 $("#notes textarea").removeAttr("disabled");
 			}.bind(this)
 			).error(
@@ -920,7 +924,7 @@ function TaskEntry(idx, info){
 		// a "new" task entry is being created
 		// this code block executes when you click the header of the left table (date, time, etc.)
 		this.idx = null;
-		console.log('creating task entry null')
+		// console.log('creating task entry null')
 
 		// show the bar at the top left with drop-downs for subject and task
 		this.tr = $("#newentry");
@@ -1144,7 +1148,9 @@ TaskEntry.copy = function() {
 	info.datafiles = {};       // clear the datafile data
 	info.notes = "";           // clear the notes
 	
+
 	te = new TaskEntry(null, info);
+    $('#report').hide();        // creating a TaskEntry with "null" goes into the "stopped" state
 }
 /*
  * Destructor for TaskEntry objects
@@ -1374,26 +1380,34 @@ Notes.prototype.update = function(notes) {
 	$("#notes textarea").attr("value", notes);
 }
 Notes.prototype.activate = function() {
-	this._handle_keydown = function() {
+	var notes_keydown_handler = function() {
 		if (this.last_TO != null)
 			clearTimeout(this.last_TO);
 		this.last_TO = setTimeout(this.save.bind(this), 2000);
 	}.bind(this);
-	$("#notes textarea").keydown(this._handle_keydown);
+	$("#notes textarea").keydown(notes_keydown_handler);
 }
 Notes.prototype.destroy = function() {
-	$("#notes textarea").unbind("keydown", this._handle_keydown);
+    // unbind the handler to save notes to the database (see 'activate')
+	$("#notes textarea").unbind("keydown");    
+
+    // clear the text
 	$("#notes").val("");
+
+    // clear the timeout handler
 	if (this.last_TO != null)
 		clearTimeout(this.last_TO);
+
+    // save right at the end
 	this.save();
 }
 Notes.prototype.save = function() {
 	this.last_TO = null;
-	$.post("ajax/save_notes/"+this.idx+"/", {
-		"notes":$("#notes textarea").attr("value"), 
-		'csrfmiddlewaretoken':$("#experiment input[name=csrfmiddlewaretoken]").attr("value")
-	});
+    var notes_data = {
+        "notes"                 : $("#notes textarea").attr("value"), 
+        'csrfmiddlewaretoken'   : $("#experiment input[name=csrfmiddlewaretoken]").attr("value")
+    };
+	$.post("ajax/save_notes/"+this.idx+"/", notes_data);
 }
 
 
