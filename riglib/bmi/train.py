@@ -446,6 +446,31 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True):
     f.close()
     return decoder2, fname
 
+def conv_KF_to_splitFA_dec(hdf, decoder, neural_features, kin, dim_red_dict):
+    
+    FA = dim_red_dict['FA_model']
+
+    #Neural features in time x spikes: 
+    T = neural_features.shape[0]
+    zscore_X = neural_features - np.tile(dim_red_dict['fa_mu'].T, [T, 1])
+
+    z = FA.transform(zscore_X)
+    shar_z = dim_red_dict['fa_sharL']*zscore_X.T
+    priv = zscore_X.T - shar_z
+
+    #Time by features: 
+    neural_features2 = np.hstack((z, priv.T))
+    kin_extractor = get_plant_pos_vel
+    ssm = decoder.ssm
+    update_rate = decoder.binlen
+    units = decoder.units
+    tslice = (0., (zscore_X.shape[0]/60.)-1)
+
+    decoder = train_KFDecoder_abstract(ssm, kin, neural_features2.T, units, update_rate, tslice=tslice)
+    decoder.n_features = len(units)
+
+    return decoder
+
 
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
     '''
