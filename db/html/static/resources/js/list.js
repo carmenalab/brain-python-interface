@@ -180,14 +180,14 @@ function sec_to_time(len) {
     var d = new Date(len*1000);
     return d.toUTCString().slice(-12, -4);
 }
-var box_filters = {
-    "state":function(str) { return str.slice(0,1).toUpperCase() + str.slice(1).toLowerCase(); },
-    "length": sec_to_time,
-    "reward_len": function(reward) { return sec_to_time(reward[0]) + " / "+reward[1]; },
-    "rates":function(rates) {
-        return (rates[0]*100).toPrecision(3) + "% / "+ (rates[1]*100).toPrecision(3) + "%";
-    }
-}
+// var box_filters = {
+//     "state":function(str) { return str.slice(0,1).toUpperCase() + str.slice(1).toLowerCase(); },
+//     "length": sec_to_time,
+//     "reward_len": function(reward) { return sec_to_time(reward[0]) + " / "+reward[1]; },
+//     "rates":function(rates) {
+//         return (rates[0]*100).toPrecision(3) + "% / "+ (rates[1]*100).toPrecision(3) + "%";
+//     }
+// }
 
 // Report class constructor
 function Report(callback) {
@@ -212,7 +212,7 @@ function Report(callback) {
 }
 
 Report.prototype.activate = function() {
-	console.log('activating report');
+	// console.log('activating report');
 
     if (!this.ws) { 
         // Create a new JS WebSocket object
@@ -229,15 +229,6 @@ Report.prototype.activate = function() {
     }
 }
 
-Report.prototype.deactivate = function() {
-    /*
-        Close the report websocket 
-    */
-    if (this.ws)
-        this.ws.close();
-    delete this.ws;
-}
-
 Report.prototype.update = function(info) {
     if (typeof(this.notify) == "function" && info)
         this.notify(info);
@@ -246,6 +237,7 @@ Report.prototype.update = function(info) {
         this.msgs.innerHTML += "<pre>"+info.msg+"</pre>";
     } else if (info.status && info.status == "stdout") {
         // stdout denotes that the text was generated as a print statement
+        // TODO is 'stdout' used ever or is everything a message? look at websocket code
         if (!this.stdout.parentNode)
             this.msgs.appendChild(this.stdout)
 
@@ -277,9 +269,9 @@ Report.prototype.update = function(info) {
         // Update the stat data
         for (var stat in this.boxes) {
             if (info[stat])
-                if (box_filters[stat]){
-                    console.log("Calling box filter for stat ", stat);
-                    this.boxes[stat].innerHTML = box_filters[stat](info[stat]);
+                if (0) {//(box_filters[stat]){
+                    // console.log("Calling box filter for stat ", stat);
+                    // this.boxes[stat].innerHTML = box_filters[stat](info[stat]);
                 }
                 else
                     this.boxes[stat].innerHTML = info[stat];
@@ -291,6 +283,15 @@ Report.prototype.destroy = function () {
     if (this.obj.parentNode) {
         this.obj.parentNode.removeChild(this.obj);
     }
+}
+
+Report.prototype.deactivate = function() {
+    /*
+        Close the report websocket 
+    */
+    if (this.ws)
+        this.ws.close();
+    delete this.ws;
 }
 
 
