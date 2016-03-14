@@ -176,14 +176,8 @@ Sequence.prototype.get_data = function() {
 ////////////////////////////////////////////////////////
 ////////////////////// Report //////////////////////////
 ////////////////////////////////////////////////////////
-function sec_to_time(len) {
-    var d = new Date(len*1000);
-    return d.toUTCString().slice(-12, -4);
-}
-
-
-// Report class constructor
 function Report(callback) {
+    // Report class constructor
     this.notify = callback;
     this.obj = document.createElement("div");
     this.info = document.createElement("table");
@@ -192,6 +186,7 @@ function Report(callback) {
     this.info.className = "options";
     this.msgs.className = "report_table";
 
+    // 'linebreak' used to enforce a separation between the stat table and the text output
     var linebreak = document.createElement("div");
     linebreak.className = "clear";
 
@@ -269,6 +264,7 @@ Report.prototype.update = function(info) {
 Report.prototype.destroy = function () {
     this.deactivate();
     if (this.obj.parentNode) {
+        // this.obj.parentNode = $('#report')
         this.obj.parentNode.removeChild(this.obj);
     }
 }
