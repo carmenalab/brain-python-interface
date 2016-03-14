@@ -70,7 +70,7 @@ class GenericCosEnc(object):
         self.DT = DT
         self.unit_inds = np.arange(1, self.n_neurons+1)
 
-        #self.unit_inds = np.hstack((np.array([np.arange(1, self.n_neurons+1)]).T, np.ones(self.n_neurons, 1)))
+        #self.unit_inds = nlen(.hstack((np.array([np.arange(1, self.n_neurons+1)]).T, np.ones(self.n_neurons, 1)))
 
     def get_units(self):
         '''
@@ -126,6 +126,7 @@ class GenericCosEnc(object):
         '''        
         if self.call_count % self.call_ds_rate == 0:
             ts_data = self.gen_spikes(next_state, mode=mode)
+
         else:
             if self.return_ts:
                 # return an empty list of time stamps
@@ -141,33 +142,67 @@ class FACosEnc(GenericCosEnc):
     '''
     Simulate neurons where rate is linear function of underlying factor modulation, rate param through Poisson
     '''
-    def __init__(self, C, ssm, DT=0.1, call_ds_rate=6,return_ts=False,max_FR=20):
+    def __init__(self, C, ssm, DT=0.1, call_ds_rate=6,return_ts=False,max_FR=20, **kwargs):
+
         super(FACosEnc, self).__init__(C, ssm, DT=DT, call_ds_rate=call_ds_rate, return_ts=return_ts)
         
-        self.neuron_types = ['priv_noise', 'priv_tuned', 'shar_noise', 'shar_tuned']
-        self.neuron_type_cnts = np.array([2, 4, 2, self.n_neurons-2-4-2])
-        self.cum_neurons = zip(np.hstack(([0], np.cumsum(self.neuron_type_cnts[:-1]))), np.cumsum(self.neuron_type_cnts))
+        #self.input_type = ['priv_unt', 'priv_tun', 'shar_unt', 'shar_tun']
+        
+        #Parse kwargs: 
+        self.lambda_spk_update = 1
+        self.wt_sources = kwargs.pop('wt_sources', None)
+        self.n_facts = kwargs.pop('n_facts', [3, 3])
+        self.state_vel_var = kwargs.pop('state_vel_var', 2.7)
+        self.r2 = 1./self.state_vel_var
+        #Contribute part of these inputs to each neuron (find alpha weightings: \sum_i=1^6 \alpha_i= 1)
+        #Right now allocate neurons to each of these: 
+        # if self.wt_sources is None:
+        #     wt_sources = np.random.rand(len(self.input_type))
+        #     tmp = np.sum(wt_sources)
 
-        self.n_factors = 3
+        #     #Make rows add to 1:
+        #     self.wt_sources = wt_sources / tmp
+
+        # Establish number factors for tuned / untuned input sources: 
+        self.n_tun_factors = self.n_facts[0]
+        self.n_unt_factors = self.n_facts[1]
+
         self.eps = 1e-15
-        self.max_FR = max_FR
-        #State to factors: 
-        self.enc = np.random.rand(self.n_factors, np.sum(self.ssm.drives_obs))
-        self.drives_obs_ix = np.nonzero(self.ssm.drives_obs)[0]
+        
+        #Establish mapping from kinematics to factors: 
+        #Untuned private:
+        self.psi_unt = np.random.random_sample((self.n_neurons, 1))
+        self.psi_unt_std = 2
 
-        self.U = np.zeros((self.n_neurons, self.n_factors)) #Shared Tuned  (fact --> neur)
-        self.U[self.cum_neurons[3][0]:self.cum_neurons[3][1], :] = 2*(np.random.rand(self.cum_neurons[3][1] - self.cum_neurons[3][0], self.n_factors)) #
-        
-        self.V = np.zeros((self.n_neurons, 1)) #Shared Noise (fact --> neur)
-        self.V[self.cum_neurons[2][0]:self.cum_neurons[2][1], :] = (np.random.rand(self.cum_neurons[2][1] - self.cum_neurons[2][0], 1)) #
+        #self.psi_unt = np.random.normal(0, 1, (self.n_neurons, ssm.n_states))
 
-        self.Psi = np.zeros((self.n_neurons, 1)) + self.eps #Private Noise variance
-        self.Psi[self.cum_neurons[0][0]:self.cum_neurons[0][1]] = 20*np.random.rand(self.cum_neurons[0][1] - self.cum_neurons[0][0], 1)
+        #Cosine tuned private: TODO: make private
+        #self.psi_tun = 20*(np.random.random_sample((self.n_neurons, ssm.n_states))-0.5)
+
+        #Matched to fit KF data
+        self.psi_tun = np.random.normal(0, 1/2.5, (self.n_neurons, ssm.n_states))
+
+        #Only velocity tuned:
+        self.psi_tun[:, [0, 1, 2, 4, 6]] = 0
+
+
+        #Mapping from factors to neurons: 
+        # Random
+        self.U = 2.5*(np.random.random_sample((self.n_neurons, self.n_tun_factors))-0.5)
+        self.W = 5.0*(np.random.random_sample((self.n_neurons, self.n_unt_factors))-0.5)
+
+        #Mapping from states to factors:
+        #self.V = 2*(np.random.random_sample((self.n_tun_factors, ssm.n_states))-0.5)
+        self.v_ = 2*(np.random.random_sample(self.n_tun_factors)-0.5) * (np.sqrt(self.r2))
+        self.V = np.zeros((self.n_tun_factors, ssm.n_states))
+        self.V[:,3] = self.v_
+        self.V[:,5] = self.y2_eq_r2_min_x2(self.v_, self.r2)
+        #Matched to make z_i ~ N(0, I)
+
+        self.bin_step_count = -1
+
+    def gen_spikes_old_1(self, next_state, mode=None):
         
-        self.Gam = np.zeros((self.n_neurons, len(self.drives_obs_ix))) #Private Tuned 
-        self.Gam[self.cum_neurons[1][0]:self.cum_neurons[1][1], :] = 10*np.random.rand(self.cum_neurons[1][1] - self.cum_neurons[1][0], len(self.drives_obs_ix))
-        
-    def gen_spikes(self, next_state, mode=None):
         sub_next_state = np.mat(next_state[self.drives_obs_ix]).ravel()
         enc_factors = np.mat(self.enc) * sub_next_state.T
 
@@ -192,6 +227,156 @@ class FACosEnc(GenericCosEnc):
             tmp = np.max([0, tmp])
             rates[i] = rates[i] + tmp
         return self.return_spikes(rates, mode=mode)
+
+    def gen_spikes_old_2(self, next_state, mode=None):
+        if len(next_state.shape) == 1:
+            next_state = np.array([next_state]).T
+
+        # Private: 
+        unt_priv = self.mod_poisson(self.psi_unt)
+        tun_priv = self.mod_poisson(np.dot(self.psi_tun, next_state))
+        #np.dot(self.psi_tun, next_state).round(0)
+        #self.mod_poisson(np.dot(self.psi_tun, next_state))
+
+        task_shar_tun = self.mod_poisson(np.dot(self.U_tun, np.dot(self.V_tun , next_state)))
+        anat_shar_tun = np.dot(self.U_tun, self.mod_poisson(np.dot(self.V_tun, next_state)))
+
+        unt_fact = 14*np.random.rand(self.n_unt_factors, 1)
+        task_shar_unt = self.mod_poisson(np.dot(self.U_unt, unt_fact))
+        anat_shar_unt = np.dot( self.U_unt, self.mod_poisson(unt_fact))
+
+        counts_all = np.hstack(( unt_priv, tun_priv, task_shar_tun, anat_shar_tun, task_shar_unt, anat_shar_unt))
+        counts = np.array([np.sum(np.multiply(counts_all, self.wt_sources), axis = 1)]).T
+
+        if np.logical_or(mode=='ts', np.logical_and(mode is None, self.return_ts)):
+            ts = []
+            n_neurons = self.n_neurons
+            for k, ind in enumerate(self.unit_inds):
+                # separate spike counts into individual time-stamps
+                n_spikes = int(counts[k])
+                fake_time = (self.call_count + 0.5)* 1./60
+                if n_spikes > 0:
+                    #spike_data = [(fake_time, int(ind/4)+1, ind % 4) for m in range(n_spikes)] 
+                    spike_data = [(fake_time, ind, 1) for m in range(n_spikes)] 
+                    ts += (spike_data)
+
+            ts = np.array(ts, dtype=ts_dtype)
+            return ts
+            
+        elif np.logical_or(mode=='counts', np.logical_and(mode is None, self.return_ts is False)):
+            return counts
+
+    def _gen_state(self):
+        s = np.random.normal(0, 7, (7, 1))
+        s[[1, 4], :] = 0
+        s[-1, 0] = 1
+        return s
+
+    def gen_spikes(self, next_state, mode=None):
+        self.ns_pk = next_state
+
+        self.priv_tun_bins = np.random.poisson(self.lambda_spk_update, self.n_neurons)
+        self.priv_unt_bins = np.random.poisson(1, self.n_neurons)
+
+        self.shar_tun_bins = np.random.poisson(1, )
+        self.shar_unt_bins = np.random.poisson(1, )
+
+        if len(next_state.shape) == 1:
+            next_state = np.array([next_state]).T
+
+        # Private:
+        priv_unt = []
+        priv_tun = []
+        for n in range(self.n_neurons):
+
+            #Private untuned: 
+            if self.priv_unt_bins[n] > 0:
+                cnt = []
+                for z in range(self.priv_unt_bins[n]):
+                    psi_unt = np.max([np.random.normal(self.psi_unt[n], self.psi_unt_std), 0])
+                    cnt.append(psi_unt)
+                priv_unt.append(sum(cnt))
+            else:
+                priv_unt.append(0.)
+
+            #Private tuned: 
+            if self.priv_tun_bins[n] > 0:
+                cnt = []
+                for z in range(self.priv_tun_bins[n]):
+                    psi_tun = np.max([0, np.dot(self.psi_tun[n, :], next_state)])
+                    cnt.append(psi_tun)
+                priv_tun.append(sum(cnt))
+
+            else:
+                priv_tun.append(0.)
+
+        self.priv_tun = np.array(priv_tun)
+        self.priv_unt = np.array(priv_unt)
+
+
+        # Shar
+        #Z are normally dist:
+        if self.shar_tun_bins > 0:
+            t_tun = []
+            for z in range(self.shar_tun_bins):
+                task_shar_tun = np.dot(self.U, np.dot(self.V , next_state))
+                task_shar_tun[task_shar_tun<0] = 0.
+                
+                t_tun.append(task_shar_tun)
+                
+            self.shar_tun = np.squeeze(np.sum(np.hstack((t_tun)), axis=1))
+
+        else: 
+            self.shar_tun = np.zeros((self.n_neurons, ))
+
+        self.unt_fact = np.random.normal(0, 1, (self.n_unt_factors, 1))
+        if self.shar_unt_bins > 0:
+            t_unt = []
+            for z in range(self.shar_unt_bins):
+                task_shar_unt = np.dot(self.W, self.unt_fact)
+                task_shar_unt[task_shar_unt<0] = 0.
+                t_unt.append(task_shar_unt)
+
+            self.shar_unt = np.squeeze(np.sum(np.hstack((t_unt)), axis=1))
+        else:
+            self.shar_unt = np.zeros((self.n_neurons, ))
+
+
+        #Now weight everything together:
+        w = self.wt_sources
+        counts = np.squeeze(np.array(w[0]*self.priv_unt + w[1]*self.priv_tun + w[2]*self.shar_unt + w[3]*self.shar_tun))
+        counts = counts/self.lambda_spk_update
+
+        if np.logical_or(mode=='ts', np.logical_and(mode is None, self.return_ts)):
+            ts = []
+            n_neurons = self.n_neurons
+            for k, ind in enumerate(self.unit_inds):
+                # separate spike counts into individual time-stamps
+                n_spikes = int(counts[k])
+                fake_time = (self.call_count + 0.5)* 1./60
+                if n_spikes > 0:
+                    #spike_data = [(fake_time, int(ind/4)+1, ind % 4) for m in range(n_spikes)] 
+                    spike_data = [(fake_time, ind, 1) for m in range(n_spikes)] 
+                    ts += (spike_data)
+
+            ts = np.array(ts, dtype=ts_dtype)
+            return ts
+            
+        elif np.logical_or(mode=='counts', np.logical_and(mode is None, self.return_ts is False)):
+            return counts
+
+    def mod_poisson(self, x, dt=0.1):
+        x[x<0] = 0
+        return poisson(x*dt)
+
+    def y2_eq_r2_min_x2(self, x_arr, r2):
+        y = []
+        for x in x_arr:
+            if np.random.random_sample() > 0.5:
+                y.append(np.sqrt(r2 - x**2))
+            else:
+                y.append(-1*np.sqrt(r2 - x**2))
+        return np.array(y)
 
 class CursorVelCosEnc(GenericCosEnc):
     def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, **kwargs):
