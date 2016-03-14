@@ -485,7 +485,16 @@ class FAKalmanFilter(KalmanFilter):
             shar = (self.FA_kwargs['fa_sharL'] * dmn)
             priv = (dmn - shar)
             main_shar = (self.FA_kwargs['fa_main_shared'] * dmn)
-            
+            FA = self.FA_kwargs['FA_model']
+            main_priv = (dmn - main_shar)
+
+            inp = obs_t.copy()
+            if inp.shape[1] == 1:
+                inp = inp.T # want 1 x neurons
+            z = FA.transform(inp)
+            z = z.T #Transform to fact x 1
+            z = z[:self.FA_kwargs['fa_main_shar_n_dim'], :] #only use number in main space
+
             input_dict['private_input'] = priv + self.FA_kwargs['fa_mu']
             input_dict['shared_input'] = shar + self.FA_kwargs['fa_mu']
             input_dict['private_scaled_input'] = np.multiply(priv, self.FA_kwargs['fa_priv_var_sc']) + self.FA_kwargs['fa_mu']
@@ -494,10 +503,17 @@ class FAKalmanFilter(KalmanFilter):
             input_dict['sc_shared+unsc_priv_input'] = input_dict['shared_scaled_input'] + input_dict['private_input'] - self.FA_kwargs['fa_mu']
             input_dict['sc_shared+sc_priv_input'] = input_dict['shared_scaled_input'] + input_dict['private_scaled_input']- self.FA_kwargs['fa_mu']
             input_dict['main_shared_input'] = main_shar + self.FA_kwargs['fa_mu']
-            input_dict['main_sc_shared_input'] = np.multiply(input_dict['main_shared_input'], self.FA_kwargs['fa_main_shared_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['main_sc_shared_input'] = np.multiply(main_shar, self.FA_kwargs['fa_main_shared_sc']) + self.FA_kwargs['fa_mu']
+            input_dict['main_sc_shar+unsc_priv_input'] = input_dict['main_sc_shared_input'] + input_dict['private_input'] - self.FA_kwargs['fa_mu']
+            input_dict['main_sc_shar+sc_priv_input'] = input_dict['main_sc_shared_input'] + input_dict['private_scaled_input'] - self.FA_kwargs['fa_mu']
+            input_dict['priv_shar_concat_input'] = np.vstack((main_priv, z))
+            
+            PC = self.FA_kwargs['PC_model']
+            proj_X = PC.inverse_transform(PC.transform(dmn.T))
+            input_dict['pc_sc_input'] = np.multiply(proj_X.T, self.FA_kwargs['pc_var_sc']) + self.FA_kwargs['fa_mu']
             
             if input_type in input_dict.keys():
-                print input_type
+                #print input_type
                 obs_t_mod = input_dict[input_type]
             else: 
                 print input_type
