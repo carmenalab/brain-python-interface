@@ -131,7 +131,10 @@ class SimTime(object):
         Simulates time based on Delta*cycle_count, where the update_rate is specified as an instance attribute
         '''
         try:
+            if not (self.cycle_count % (60*10)):
+                print self.cycle_count/(60*10.)
             return self.cycle_count * self.update_rate
+
         except:
             # loop_counter has not been initialized yet, return 0
             return 0
@@ -222,9 +225,23 @@ class SimCosineTunedEnc(SimNeuralEnc):
         self._add_feature_extractor_dtype()
 
 class SimFAEnc(SimCosineTunedEnc):
+    def __init__(self, *args, **kwargs):
+        self.FACosEnc_kwargs = kwargs.pop('SimFAEnc_kwargs', dict())
+        super(SimFAEnc, self).__init__(*args, **kwargs)
+
     def _init_neural_encoder(self):
-        from riglib.bmi.sim_neurons import FACosEnc
-        self.encoder = FACosEnc(self.sim_C, self.ssm, return_ts=True, DT=0.1, call_ds_rate=6)
+        if 'encoder_fname' in self.FACosEnc_kwargs:
+            import pickle
+            self.encoder = pickle.load(open(self.FACosEnc_kwargs['encoder_fname']))
+            print 'using saved encoder;'
+            
+            if 'wt_sources' in self.FACosEnc_kwargs:
+                self.encoder.wt_sources = self.FACosEnc_kwargs['wt_sources']
+                print 'setting new weights: ', self.encoder.wt_sources
+        
+        else:
+            from riglib.bmi.sim_neurons import FACosEnc
+            self.encoder = FACosEnc(self.sim_C, self.ssm, return_ts=True, DT=0.1, call_ds_rate=6, **self.FACosEnc_kwargs)
 
 
 class SimCosineTunedPointProc(SimNeuralEnc):
