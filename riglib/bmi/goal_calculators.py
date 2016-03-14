@@ -24,7 +24,17 @@ class Obs_Goal_Calc(GoalCalculator):
         self.ssm = ssm
         import os
         self.pre_obs = True
-    
+        self.mid_speed = 10
+        self.mid_targ_rad = 6
+        self.targ_cnt = 0
+        self.pre_obs_targ_state = None
+        self.post_obs_targ_state = None
+
+    def clear(self):
+        self.pre_obs_targ_state = None
+        self.post_obs_targ_state = None    
+        print 'CLEAR'    
+
     def __call__(self, target_pos, **kwargs):
         #Use q_start th
         pos = kwargs.pop('q_start')
@@ -50,24 +60,41 @@ class Obs_Goal_Calc(GoalCalculator):
                 Exception('Not vertical or horiz. line causing divide by zero --> error')
 
         if pre_obs:
-            obs_ang = np.angle(obstacle_center[0] + 1j*obstacle_center[2])
-            obs_r = np.abs(obstacle_center[0] + 1j*obstacle_center[2])
-            
-            if self.ccw_fcn(pos, obstacle_center): 
-                targ_vect_ang = np.pi/2
-            else:
-                targ_vect_ang = -1*np.pi/2
+            if 1:
+            #if self.pre_obs_targ_state is None:
+                obs_ang = np.angle(obstacle_center[0] + 1j*obstacle_center[2])
+                obs_r = np.abs(obstacle_center[0] + 1j*obstacle_center[2])
+                
+                if self.ccw_fcn(pos, obstacle_center): 
+                    targ_vect_ang = np.pi/2
+                else:
+                    targ_vect_ang = -1*np.pi/2
 
-            target_state_pos = obstacle_center + 4*(np.array([np.cos(targ_vect_ang+obs_ang), 0, np.sin(targ_vect_ang+obs_ang)]))
-            target_vel = 5*np.array([np.cos(obs_ang), 0, np.sin(obs_ang)])
-            error = 0
-            target_state = np.hstack((target_state_pos, target_vel, 1)).reshape(-1, 1)
+                target_state_pos = obstacle_center + self.mid_targ_rad*(np.array([np.cos(targ_vect_ang+obs_ang), 0, np.sin(targ_vect_ang+obs_ang)]))
+                target_vel = self.mid_speed*np.array([np.cos(obs_ang), 0, np.sin(obs_ang)])
+                target_state = np.hstack((target_state_pos, target_vel, 1)).reshape(-1, 1)
+                self.pre_obs_targ_state = target_state
+            else:
+                target_state = self.pre_obs_targ_state
 
         else:
-            target_vel = np.zeros_like(target_pos)
-            offset_val = 1
-            error = 0
-            target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
+            if 1:
+            #if self.post_obs_targ_state is None:
+                target_vel = np.zeros_like(target_pos)
+                offset_val = 1
+                target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
+                
+                if self.pre_obs_targ_state is not None:
+                    self.post_obs_targ_state = target_state
+            else:
+                target_state = self.post_obs_targ_state
+
+        error = 0
+
+        # if self.pre_obs != pre_obs:
+        #     self.pre_obs = pre_obs
+        #     print self.pre_obs, target_state
+
         return (target_state, error), True
 
 
@@ -106,29 +133,6 @@ class Obs_Goal_Calc(GoalCalculator):
             if pos_ref[2] < 0 and pos_test[2] >0:
                 theta2 += 2*np.pi
             elif pos_ref[2] > 0 and pos_test[2] < 0:
-                theta1 += 2*np.pi
-
-        return theta1 > theta2
-
-    def fcn(self, slope, pt_on_line, test_pt):
-        b = pt_on_line[2] - slope*pt_on_line[0]
-
-        zz = False
-        if 0 < b: zz = True
-
-        test = False
-        if test_pt[2] < (slope*test_pt[0]) + b: test = True
-
-        return np.logical_xor(zz, test)
-
-    def cw_ccw_fcn(self, pos_test, pos_ref):
-        theta1 = np.angle(pos_test[0] + 1j * pos_test[2])
-        theta2 = np.angle(pos_ref[[0, 2]])
-
-        if pos_ref[0] < 0 and pos_test[0] < 0:
-            if pos_ref[2] < 0 and pos_test[2] >0:
-                theta2 += 2*np.pi
-            elif pos_ref[2] > 0 and pos_tes[2] < 0:
                 theta1 += 2*np.pi
 
         return theta1 > theta2
