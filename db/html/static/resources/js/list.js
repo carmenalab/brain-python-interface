@@ -180,14 +180,7 @@ function sec_to_time(len) {
     var d = new Date(len*1000);
     return d.toUTCString().slice(-12, -4);
 }
-// var box_filters = {
-//     "state":function(str) { return str.slice(0,1).toUpperCase() + str.slice(1).toLowerCase(); },
-//     "length": sec_to_time,
-//     "reward_len": function(reward) { return sec_to_time(reward[0]) + " / "+reward[1]; },
-//     "rates":function(rates) {
-//         return (rates[0]*100).toPrecision(3) + "% / "+ (rates[1]*100).toPrecision(3) + "%";
-//     }
-// }
+
 
 // Report class constructor
 function Report(callback) {
@@ -269,12 +262,7 @@ Report.prototype.update = function(info) {
         // Update the stat data
         for (var stat in this.boxes) {
             if (info[stat])
-                if (0) {//(box_filters[stat]){
-                    // console.log("Calling box filter for stat ", stat);
-                    // this.boxes[stat].innerHTML = box_filters[stat](info[stat]);
-                }
-                else
-                    this.boxes[stat].innerHTML = info[stat];
+                this.boxes[stat].innerHTML = info[stat];
         }
     }
 }
