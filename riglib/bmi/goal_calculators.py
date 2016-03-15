@@ -41,8 +41,11 @@ class Obs_Goal_Calc(GoalCalculator):
         #if past obstacle midline: 
         obstacle_center = target_pos/2.
         target_pos = target_pos.round(1)
-        slope = -1*1./(target_pos[2]/target_pos[0])
-
+        try:
+            slope = -1*1./(target_pos[2]/target_pos[0])
+        except:
+            slope = np.inf
+            
         if ((np.abs(slope) != np.inf) and (np.abs(slope) != np.nan) and np.abs(slope)!=0):
             pre_obs = self.fcn_det(slope, obstacle_center, pos)
             #print 'pre_obs: ', pre_obs, slope
