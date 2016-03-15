@@ -387,13 +387,14 @@ def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     import onedim_lfp_decoder as old
     return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
 
-def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True):
+def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use_main=True):
 
     from tasks.factor_analysis_tasks import FactorBMIBase
     FA_dict = FactorBMIBase.generate_FA_matrices(FA_nfactors, FA_te_id)
 
     # #Now, retrain: 
     binlen = decoder.binlen
+
     from db import dbfunctions as dbfn
     te_id = dbfn.TaskEntry(decoder.te_id)
     files = dict(plexon=te_id.plx_filename, hdf = te_id.hdf_filename)
@@ -416,25 +417,31 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True):
 
     #Get shared input: 
     T = neural_features.shape[0]
-
     demean = neural_features.T - np.tile(FA_dict['fa_mu'], [1, T])
-    shar = (FA_dict['fa_sharL']* demean)
-    shar_sc = np.multiply(shar, np.tile(FA_dict['fa_shar_var_sc'], [1, T])) + np.tile(FA_dict['fa_mu'], [1, T])
-    shar_unsc = shar + np.tile(FA_dict['fa_mu'], [1, T])
+    
+    if use_main:
+        main_shar = (FA_dict['fa_main_shared'] * demean)
+        main_priv = (demean - main_shar)
+        FA = FA_dict['FA_model']
+
+    else:    
+        shar = (FA_dict['fa_sharL']* demean)
+        shar_sc = np.multiply(shar, np.tile(FA_dict['fa_shar_var_sc'], [1, T])) + np.tile(FA_dict['fa_mu'], [1, T])
+        shar_unsc = shar + np.tile(FA_dict['fa_mu'], [1, T])
+        if use_scaled:
+            neural_features = shar_sc[:,:-1]
+        else:
+            neural_features = shar_unsc[:,:-1]
 
     # Remove 1st kinematic sample and last neural features sample to align the 
     # velocity with the neural features
     kin = kin[1:].T
 
-    if use_scaled:
-        neural_features = shar_sc[:,:-1]
-    else:
-        neural_features = shar_unsc[:,:-1]
-
     decoder2 = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
     decoder2.extractor_cls = extractor_cls
     decoder2.extractor_kwargs = extractor_kwargs
     decoder2.te_id = decoder.te_id
+    decoder2.trained_fa_dict = FA_dict
 
     import datetime
     now = datetime.datetime.now()

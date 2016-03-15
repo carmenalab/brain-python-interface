@@ -19,6 +19,125 @@ class GoalCalculator(object):
     def reset(self):
         pass    
 
+class Obs_Goal_Calc(GoalCalculator):
+    def __init__(self, ssm=None):
+        self.ssm = ssm
+        import os
+        self.pre_obs = True
+        self.mid_speed = 10
+        self.mid_targ_rad = 6
+        self.targ_cnt = 0
+        self.pre_obs_targ_state = None
+        self.post_obs_targ_state = None
+
+    def clear(self):
+        self.pre_obs_targ_state = None
+        self.post_obs_targ_state = None    
+        print 'CLEAR'    
+
+    def __call__(self, target_pos, **kwargs):
+        #Use q_start th
+        pos = kwargs.pop('q_start')
+        #if past obstacle midline: 
+        obstacle_center = target_pos/2.
+        target_pos = target_pos.round(1)
+        slope = -1*1./(target_pos[2]/target_pos[0])
+
+        if ((np.abs(slope) != np.inf) and (np.abs(slope) != np.nan) and np.abs(slope)!=0):
+            pre_obs = self.fcn_det(slope, obstacle_center, pos)
+            #print 'pre_obs: ', pre_obs, slope
+        else:
+            print 'division by zero!'
+            
+            if target_pos[0] ==0:
+                #Division by zero
+                pre_obs = False
+                if np.abs(pos[2]) < (np.abs(obstacle_center[2])-.2): pre_obs = True
+            elif target_pos[2] == 0:
+                pre_obs = False
+                if np.abs(pos[0]) < (np.abs(obstacle_center[0]) -.2): pre_obs = True
+            else: 
+                Exception('Not vertical or horiz. line causing divide by zero --> error')
+
+        if pre_obs:
+            if 1:
+            #if self.pre_obs_targ_state is None:
+                obs_ang = np.angle(obstacle_center[0] + 1j*obstacle_center[2])
+                obs_r = np.abs(obstacle_center[0] + 1j*obstacle_center[2])
+                
+                if self.ccw_fcn(pos, obstacle_center): 
+                    targ_vect_ang = np.pi/2
+                else:
+                    targ_vect_ang = -1*np.pi/2
+
+                target_state_pos = obstacle_center + self.mid_targ_rad*(np.array([np.cos(targ_vect_ang+obs_ang), 0, np.sin(targ_vect_ang+obs_ang)]))
+                target_vel = self.mid_speed*np.array([np.cos(obs_ang), 0, np.sin(obs_ang)])
+                target_state = np.hstack((target_state_pos, target_vel, 1)).reshape(-1, 1)
+                self.pre_obs_targ_state = target_state
+            else:
+                target_state = self.pre_obs_targ_state
+
+        else:
+            if 1:
+            #if self.post_obs_targ_state is None:
+                target_vel = np.zeros_like(target_pos)
+                offset_val = 1
+                target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
+                
+                if self.pre_obs_targ_state is not None:
+                    self.post_obs_targ_state = target_state
+            else:
+                target_state = self.post_obs_targ_state
+
+        error = 0
+
+        # if self.pre_obs != pre_obs:
+        #     self.pre_obs = pre_obs
+        #     print self.pre_obs, target_state
+
+        return (target_state, error), True
+
+
+    def fcn_det(self, slope, pt_on_line, test_pt):
+        abs_pt = np.abs(pt_on_line)
+        abs_test = np.abs(test_pt)
+
+        b = abs_pt[2] + abs_pt[0]
+       
+        if abs_test[2] +0.3 < (b - abs_test[0]):
+            return True
+        else:
+            return False
+
+        # zz = False
+        # if 0 < b: zz = True
+
+        # if test_pt[2] < 0:
+        #     eps = -.2
+        # else:
+        #     eps = .2
+
+        # test = False
+        # if (test_pt[2]+eps) < ((slope*test_pt[0]) + b): test = True
+
+        # if zz!=test:
+        #     return True
+        # else:
+        #     return False
+
+    def ccw_fcn(self, pos_test, pos_ref):
+        theta1 = np.angle(pos_test[0] + 1j * pos_test[2])
+        theta2 = np.angle(pos_ref[0]+ 1j*pos_ref[2])
+
+        if pos_ref[0] < 0 and pos_test[0] < 0:
+            if pos_ref[2] < 0 and pos_test[2] >0:
+                theta2 += 2*np.pi
+            elif pos_ref[2] > 0 and pos_test[2] < 0:
+                theta1 += 2*np.pi
+
+        return theta1 > theta2
+
+
 class ZeroVelocityGoal(GoalCalculator):
     '''
     Assumes that the target state of the BMI is to move to the task-specified position with zero velocity
