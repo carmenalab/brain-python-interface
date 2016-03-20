@@ -34,10 +34,16 @@ Sequence.prototype.update = function(info) {
     console.log("Sequence.prototype.update");
 
     $("#seqlist").unbind("change");
+
+    // remove all the existing options
     for (var id in this.options)
         $(this.options[id]).remove()
-    if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
+
+    // make sure seqlist is a 'select'
+    if ($('#seqlist').prop('tagName').toLowerCase() == "input") {
+        // seqlist becomes an 'input' when you 'Create New' so that you can assign it a name..
         $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'><option value='new'>Create New...</option></select>");
+    }
     
     // populate the list of available sequences already in the database
     this.options = {};
@@ -57,10 +63,18 @@ Sequence.prototype.update = function(info) {
             if (this.value == info[id].generator[0])
                 this.selected = true;
         })
+
+        // TODO the line below should replace the 'each' above
+        // $("#seqgen").val(info[id].generator[0]);
+
         $("#seqlist option").each(function() {
             if (this.value == id)
                 this.selected = true;
         })
+
+        // TODO the line below should replace the 'each' above
+        // $("#seqlist").val(id);
+
         this.params.update(info[id].params);
         $("#seqstatic").attr("checked", info[id].static);
 
@@ -104,8 +118,10 @@ Sequence.prototype.destroy = function() {
     }
     $("#seqlist").unbind("change");
     $("#seqgen").unbind("change");
-    if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
+    // if (document.getElementById("seqlist").tagName.toLowerCase() == "input")
+    if ($('#seqlist').prop('tagName').toLowerCase() == "input") {
         $("#seqlist").replaceWith("<select id='seqlist' name='seq_name'><option value='new'>Create New...</option></select>");
+    }
 }
 
 Sequence.prototype._make_name = function() {
@@ -153,7 +169,9 @@ Sequence.prototype.enable = function() {
 Sequence.prototype.disable = function() {
     // disable the list of old sequences, the parameter inputs, the generator drop-down, the static checkbox
     $("#seqlist, #seqparams input, #seqgen, #seqstatic").attr("disabled", "disabled");
+    $('#show_params').attr("disabled", false);
 }
+
 
 Sequence.prototype.get_data = function() {
 	// Get data describing the sequence/generator parameters, to be POSTed to the webserver
@@ -178,22 +196,32 @@ Sequence.prototype.get_data = function() {
 ////////////////////////////////////////////////////////
 function Report(callback) {
     // Report class constructor
+
+    // store a ref to the callback function passed in
     this.notify = callback;
+
+    // create div to hold all the Report data streaming in
     this.obj = document.createElement("div");
+
+    // this.info is a summary stat table
     this.info = document.createElement("table");
-    this.msgs = document.createElement("div");
-    this.stdout = document.createElement("pre");
     this.info.className = "options";
+    this.obj.appendChild(this.info);
+
+    // this.msgs = text printed by the task
+    this.msgs = document.createElement("div");
     this.msgs.className = "report_table";
+    this.obj.appendChild(this.msgs);
+
+    // Used for error messages?
+    this.stdout = document.createElement("pre");
+    this.msgs.appendChild(this.stdout)
 
     // 'linebreak' used to enforce a separation between the stat table and the text output
     var linebreak = document.createElement("div");
     linebreak.className = "clear";
-
-    this.obj.appendChild(this.info);
     this.obj.appendChild(linebreak);
-    this.obj.appendChild(this.msgs);
-
+    
     $("#report").append(this.obj);
 
     this.boxes = {};
@@ -227,7 +255,7 @@ Report.prototype.update = function(info) {
         // stdout denotes that the text was generated as a print statement
         // TODO is 'stdout' used ever or is everything a message? look at websocket code
         if (!this.stdout.parentNode)
-            this.msgs.appendChild(this.stdout)
+            this.msgs.appendChild(this.stdout);
 
         this.stdout.innerHTML += info.msg;
     } else {
@@ -287,21 +315,23 @@ function Parameters() {
 }
 Parameters.prototype.update = function(desc) {
     //Update the parameters descriptor to include the updated values
+    // TODO document
     for (var name in desc) {
-        if (typeof(this.traits[name]) != "undefined" &&
-            typeof(desc[name].value) == "undefined") {
-            if (this.traits[name].inputs.length > 1) {
-                var any = false;
+        if (typeof(this.traits[name]) != "undefined" && typeof(desc[name].value) == "undefined") {
+            var trait = this.traits[name]
+            if (trait.inputs.length > 1) { // more than one input entry field, e.g., for tuple traits
+                var any = false; // flag indicating that the tuple had any input specified
                 var tuple = [];
-                for (var i = 0; i < this.traits[name].inputs.length; i++) {
-                    tuple.push(this.traits[name].inputs[i].value);
-                    if (this.traits[name].inputs[i].value)
+                for (var i = 0; i < trait.inputs.length; i++) {
+                    tuple.push(trait.inputs[i].value);
+                    if (trait.inputs[i].value) {
                         any = true;
+                    }
                 }
                 if (any)
                     desc[name].value = tuple;
             } else {
-                desc[name].value = this.traits[name].inputs[0].value;
+                desc[name].value = trait.inputs[0].value;
             }
         }
     }
@@ -309,19 +339,19 @@ Parameters.prototype.update = function(desc) {
     this.obj.innerHTML = "";
     //reinitialize with the updated values
     this.traits = {};
-    var func;
+
     var funcs = {
-        "Float":this.add_float,
-        "Int": this.add_int,
-        "Tuple": this.add_tuple,
-        "Array": this.add_array,
-        "Instance": this.add_instance,
-        "InstanceFromDB": this.add_instance,
-        "DataFile": this.add_instance,
-        "String":this.add_string,
-        "Enum":this.add_enum,
-        "OptionsList":this.add_enum,
-        "Bool":this.add_bool,
+        "Float" :           this.add_float,
+        "Int":              this.add_int,
+        "Tuple":            this.add_tuple,
+        "Array":            this.add_array,
+        "Instance":         this.add_instance,
+        "InstanceFromDB":   this.add_instance,
+        "DataFile":         this.add_instance,
+        "String":           this.add_string,
+        "Enum":             this.add_enum,
+        "OptionsList":      this.add_enum,
+        "Bool":             this.add_bool,
     }
 
 
@@ -329,40 +359,37 @@ Parameters.prototype.update = function(desc) {
     this.hidden_trait_labels = {};
 
     for (var name in desc) {
-        if (funcs[desc[name]['type']]) // if there is a recognized constructor function for the trait type,
-            funcs[desc[name]['type']].bind(this)(name, desc[name]); // call the function 
+        if (funcs[desc[name]['type']]) {// if there is a recognized constructor function for the trait type,
+            var fn = funcs[desc[name]['type']].bind(this);
+            fn(name, desc[name]); // call the function 
+        }
         else
             console.log(desc[name]['type']);
     }
 
     // console.log(this.hidden_inputs);
-    this.hide_attrs();
+    this.show_all_attrs();
     // console.log(this.hidden_trait_labels);
 
 }
 Parameters.prototype.show_all_attrs = function() {
+    if ($('#show_params').prop('checked')) {
+        var vis = 'visible';
+    } else {
+        var vis = 'hidden';
+    }
+
     for (var attr_name in this.hidden_trait_labels) {
         var label = this.hidden_trait_labels[attr_name];
-        label.style.visibility = 'visible';
+        label.style.visibility = vis;
     }
 
     for (var k in this.hidden_inputs) {
         var input = this.hidden_inputs[k];
-        input.style.visibility = 'visible';
-    }
+        input.style.visibility = vis;
+    }        
 }
 
-Parameters.prototype.hide_attrs = function() {
-    for (var attr_name in this.hidden_trait_labels) {
-        var label = this.hidden_trait_labels[attr_name];
-        label.style.visibility = 'hidden';
-    }
-
-    for (var k in this.hidden_inputs) {
-        var input = this.hidden_inputs[k];
-        input.style.visibility = 'hidden';
-    }
-}
 
 Parameters.prototype._add = function(name, desc) {
     var trait = document.createElement("tr");
@@ -626,21 +653,21 @@ Parameters.prototype.add_enum = function(name, info) {
 Parameters.prototype.to_json = function() {
     var jsdata = {};
 
-    // special checkbox handler for arm_visible--to be removed!
-    if (typeof(this.traits["arm_visible"]) != "undefined")
-        this.traits["arm_visible"].inputs[0].value = this.traits["arm_visible"].inputs[0].checked;
-
-
     for (var name in this.traits) {
-        if (this.traits[name].inputs.length > 1) {
+        var trait = this.traits[name];
+        if (trait.inputs.length > 1) {
+            // tuple trait, put all the input options into a list
             var plist = [];
-            for (var i = 0; i < this.traits[name].inputs.length; i++) {
-                plist.push(this.traits[name].inputs[i].value)
+            for (var i = 0; i < trait.inputs.length; i++) {
+                plist.push(trait.inputs[i].value)
             }
-            if (plist[0].length > 0)
+
+            // add to the 'jsdata' dictionary, if data was input
+            if (plist[0].length > 0) {// if any parameters have been changed by the experimenter,
                 jsdata[name] = plist;
-        } else if (this.traits[name].inputs[0].value.length > 0) {
-            jsdata[name] = this.traits[name].inputs[0].value;
+            }
+        } else if (trait.inputs[0].value.length > 0) {
+            jsdata[name] = trait.inputs[0].value;
         }
     }
     return jsdata;
@@ -878,7 +905,8 @@ function TaskEntry(idx, info){
         }
 
         // Show the wait wheel before sending the request for exp_info. It will be hidden once data is successfully returned and processed (see below)
-        $('#wait_wheel').show()
+        $('#wait_wheel').show();
+        $('#tr_seqlist').hide();
 
 		$.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
 			{}, // POST data to send to the server
@@ -915,6 +943,9 @@ function TaskEntry(idx, info){
 		this.tr = $("#newentry");
         this.tr.show();  // declared in list.html
 		this.status = "stopped";
+
+        // 
+        $('#tr_seqlist').show();
 
 		// Set 'change' bindings to re-run the _task_query function if the selected task or the features change
 		$("#tasks").change(this._task_query.bind(this));

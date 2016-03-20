@@ -230,7 +230,7 @@
 								<legend>Sequence</legend>
 								<table>
 									<input id="create_new_seq" class="btn" type="submit" value="Create New Seq.">
-									<tr>
+									<tr id="tr_seqlist">
 										<td class="param_label"><label for="seqlist">Name:</label></td>
 										<td>
 											<select id="seqlist" name="seq_name">
@@ -251,6 +251,7 @@
 								</table>
 
 								<div id="seqparams">
+									Parameters
 								</div>
 
 								<div id="seqstatic_div" class="clear">
@@ -260,8 +261,7 @@
 							</fieldset> <!-- sequence -->
 
 							<fieldset id="parameters">
-								Hide <input type="radio" onclick="javascript:te.params.hide_attrs();" name="yesno" id="noCheck"/>		
-								Show <input type="radio" onclick="javascript:te.params.show_all_attrs();" name="yesno" id="yesCheck"/>				
+								<input id="show_params" type="checkbox" checked="off" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?		
 								<legend>Parameters</legend>
 							</fieldset> <!-- parameters -->
 						</div>
