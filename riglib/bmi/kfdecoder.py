@@ -514,7 +514,7 @@ class FAKalmanFilter(KalmanFilter):
             input_dict['main_sc_shar+sc_priv_input'] = input_dict['main_sc_shared_input'] + input_dict['private_scaled_input'] - self.FA_kwargs['fa_mu']
             
 
-            z = np.mat(self.FA_kwargs['U'].T) * np.mat(dmn)
+            z = self.FA_kwargs['u_svd'].T*self.FA_kwargs['uut_psi_inv']*dmn
             input_dict['split_input'] = np.vstack((z, main_priv))
             
             own_pc_trans = np.mat(self.FA_kwargs['own_pc_trans'])*np.mat(dmn)
@@ -531,7 +531,7 @@ class FAKalmanFilter(KalmanFilter):
 
         input_dict['task_input'] = obs_t_mod.copy()
 
-        
+
         post_state = super(FAKalmanFilter, self)._forward_infer(st, obs_t_mod, Bu=Bu, u=u, target_state=target_state, 
             obs_is_control_independent=obs_is_control_independent, **kwargs)
 
