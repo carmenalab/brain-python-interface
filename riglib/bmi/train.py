@@ -387,6 +387,41 @@ def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     import onedim_lfp_decoder as old
     return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
 
+def add_fa_dict_to_decoder(decoder_training_te, dec_ix, fa_te):
+    #First make sure we're training from the correct task entry: spike counts n_units == BMI units
+    from db import dbfunctions as dbfn
+    te = dbfn.TaskEntry(fa_te)
+    hdf = te.hdf
+    sc_n_units = hdf.root.task[0]['spike_counts'].shape[0]
+
+
+    from db.tracker import models
+    te_arr = models.Decoder.objects.filter(entry=decoder_training_te)
+    search_flag = 1
+    for te in te_arr:
+        ix = te.path.find('_')
+        if search_flag:
+            if int(te.path[ix+1:ix+3]) == dec_ix:
+                decoder_old = te
+                search_flag = 0
+
+    if search_flag:
+        raise Exception('No decoder from ', str(decoder_training_te), ' and matching index: ', str(dec_ix))
+
+    from tasks.factor_analysis_tasks import FactorBMIBase
+    FA_dict = FactorBMIBase.generate_FA_matrices(fa_te)
+
+    import pickle
+    dec = pickle.load(open(decoder_old.filename))
+    dec.trained_fa_dict = FA_dict
+    dec_n_units = dec.n_units
+
+    if dec_n_units != sc_n_units:
+        raise Exception('Cant use TE for BMI training and FA training -- n_units mismatch')
+
+    from db import trainbmi
+    trainbmi.save_new_decoder_from_existing(dec, decoder_old, suffix='_w_fa_dict_from_'+str(fa_te))
+
 def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use_main=True):
 
     from tasks.factor_analysis_tasks import FactorBMIBase
@@ -405,7 +440,6 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     update_rate = decoder.binlen
     units = decoder.units
     tslice = (0., te_id.length)
-
 
     ## get kinematic data
     kin_source = 'task'
