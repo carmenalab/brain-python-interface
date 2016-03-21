@@ -1,3 +1,11 @@
+'''
+Database initialization code. When 'db.tracker' is imported, it goes through the database and ensures that 
+	1) at least one subject is present
+	2) all the tasks from 'tasklist' appear in the db
+	3) all the features from 'featurelist' appear in the db
+	4) all the generators from all the tasks appear in the db 
+'''
+
 import os
 #os.nice(4)
 

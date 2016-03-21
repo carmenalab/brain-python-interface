@@ -15,6 +15,7 @@ from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataF
 
 import trainbmi
 import logging
+import traceback
 
 exp_tracker = Track()
 
@@ -110,8 +111,14 @@ def task_info(request, idx, dbname='default'):
     JSON-encoded dictionary
     '''
     task = Task.objects.using(dbname).get(pk=idx)
-    feats = [Feature.objects.using(dbname).get(name=name) for name, isset in request.GET.items() if isset == "true"]
-    task_info = dict(params=task.params(feats=feats))
+    feats = []
+    for name, isset in request.GET.items():
+        if isset == "true": # box for the feature checked
+            feat = Feature.objects.using(dbname).get(name=name)
+            feats.append(feat)
+    
+    # feats = [Feature.objects.using(dbname).get(name=name) for name, isset in request.GET.items() if isset == "true"]
+    task_info = dict(params=task.params(feats=feats), generators=task.get_generators())
 
     if issubclass(task.get(feats=feats), experiment.Sequence):
         task_info['sequence'] = task.sequences()
@@ -154,7 +161,16 @@ def hide_entry(request, idx):
     print "hide_entry"
     entry = TaskEntry.objects.get(pk=idx)
     entry.visible = False
-    entry.backup = False
+    entry.save()
+    return _respond(dict())
+
+def show_entry(request, idx):
+    '''
+    See documentation for exp_info
+    '''
+    print "hide_entry"
+    entry = TaskEntry.objects.get(pk=idx)
+    entry.visible = True
     entry.save()
     return _respond(dict())
 
@@ -163,14 +179,25 @@ def backup_entry(request, idx):
     See documentation for exp_info
     '''
     entry = TaskEntry.objects.get(pk=idx)
-    entry.visible = True
     entry.backup = True
     entry.save()    
     return _respond(dict())
 
+def unbackup_entry(request, idx):
+    '''
+    See documentation for exp_info
+    '''
+    entry = TaskEntry.objects.get(pk=idx)
+    entry.backup = False
+    entry.save()    
+    return _respond(dict())
+
 def gen_info(request, idx):
-    gen = Generator.objects.get(pk=idx)
-    return _respond(gen.to_json())
+    try:
+        gen = Generator.objects.get(pk=idx)
+        return _respond(gen.to_json())
+    except:
+        traceback.print_exc()
 
 def start_next_exp(request):
     try:
@@ -204,6 +231,9 @@ def start_experiment(request, save=True):
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(Exp, experiment.Sequence):
+            print "creating seq"
+            print "data['sequence'] POST data"
+            print data['sequence']
             seq = Sequence.from_json(data['sequence'])
             seq.task = task
             if save:

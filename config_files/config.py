@@ -1,3 +1,6 @@
+'''
+Module to read the 'config' text file for rig-specific configuration
+'''
 from ConfigParser import SafeConfigParser
 import os
 import sys
@@ -7,6 +10,9 @@ class Config(object):
     def __init__(self):
         parser = SafeConfigParser()
         self.parser = parser
+        if not os.path.exists(os.path.expandvars('$BMI3D/config_files/config')):
+            raise ValueError("config.py cannot find 'config' file. Check that it exists and that the environment variable $BMI3D is defined!")
+
         self.parser.read(os.path.expandvars('$BMI3D/config_files/config'))
 
         self.recording_system = dict(parser.items('recording_sys'))['make']

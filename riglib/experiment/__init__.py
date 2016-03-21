@@ -84,10 +84,17 @@ def make(exp_class, feats=()):
     class
         New class which inherits from the base 'exp_class' and the selected 'feats'
     '''
-    # construct the class list to define inheritance order for the custom task
-    # inherit from the features first, then the base class
-    clslist = tuple(feats) + (exp_class,)
+    if len(feats) == 0:
+        return exp_class
+    else:
+        # construct the class list to define inheritance order for the custom task
+        # inherit from the features first, then the base class
+        clslist = tuple(feats) + (exp_class,)
 
-    # return custom class
-    return type(exp_class.__name__, clslist, dict())
+        print "metaclass constructor"
+        print clslist
+        print feats
+
+        # return custom class
+        return type(exp_class.__name__, clslist, dict())
 
