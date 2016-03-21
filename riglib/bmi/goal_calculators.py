@@ -50,7 +50,7 @@ class Obs_Goal_Calc(GoalCalculator):
             pre_obs = self.fcn_det(slope, obstacle_center, pos)
             #print 'pre_obs: ', pre_obs, slope
         else:
-            print 'division by zero!'
+            #print 'division by zero!'
             
             if target_pos[0] ==0:
                 #Division by zero
