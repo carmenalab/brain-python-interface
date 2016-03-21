@@ -233,7 +233,7 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
     extractor_kwargs: dictionary
         Keyword arguments used to construct the feature extractor used online
     '''
-    
+
     hdf = tables.openFile(files['hdf'])
 
     plx_fname = str(files['plexon']) 
@@ -487,30 +487,82 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     f.close()
     return decoder2, fname
 
-def conv_KF_to_splitFA_dec(hdf, decoder, neural_features, kin, dim_red_dict):
+def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_'):
     
-    FA = dim_red_dict['FA_model']
+    from db import dbfunctions as dbfn
+    te = dbfn.TaskEntry(fa_te)
+    hdf = te.hdf
+    sc_n_units = hdf.root.task[0]['spike_counts'].shape[0]
 
-    #Neural features in time x spikes: 
-    T = neural_features.shape[0]
-    zscore_X = neural_features - np.tile(dim_red_dict['fa_mu'].T, [T, 1])
+    from db.tracker import models
+    te_arr = models.Decoder.objects.filter(entry=decoder_training_te)
+    search_flag = 1
+    for te in te_arr:
+        ix = te.path.find('_')
+        if search_flag:
+            if int(te.path[ix+1:ix+3]) == dec_ix:
+                decoder = pickle.load(open(te.filename))
+                if hasattr(decoder, 'trained_fa_dict'):
+                    ix = te.path.find('w_fa_dict_from_')
+                    if ix > 1:
+                        fa_te_train = te.path[ix+len(search_suffix):ix+len(search_suffix)+4]
+                        if int(fa_te_train) == fa_te:
+                            decoder_old = te
+                            #search_flag = 0
 
-    z = FA.transform(zscore_X)
-    shar_z = dim_red_dict['fa_sharL']*zscore_X.T
-    priv = zscore_X.T - shar_z
+    # if search_flag:
+    #     raise Exception('No decoder from ', str(decoder_training_te), ' and matching index: ', str(dec_ix), ' with FA training from: ',str(fa_te))
+    # else:
+    print 'Using old decoder: ', decoder_old.path
 
-    #Time by features: 
-    neural_features2 = np.hstack((z, priv.T))
+    decoder = pickle.load(open(decoder_old.filename))
+    if hasattr(decoder, 'trained_fa_dict'):
+        FA_dict = decoder.trained_fa_dict
+    else:
+        raise Exception('Make an FA dict decoder first, then re-train that')
+
+    from db import dbfunctions as dbfn
+    te_id = dbfn.TaskEntry(fa_te)
+
+    files = dict(plexon=te_id.plx_filename, hdf = te_id.hdf_filename)
+    extractor_cls = decoder.extractor_cls
+    extractor_kwargs = decoder.extractor_kwargs
+    extractor_kwargs['discard_zero_units'] = False
     kin_extractor = get_plant_pos_vel
     ssm = decoder.ssm
-    update_rate = decoder.binlen
+    update_rate = binlen = decoder.binlen
     units = decoder.units
-    tslice = (0., (zscore_X.shape[0]/60.)-1)
+    tslice = (0., te_id.length)
 
-    decoder = train_KFDecoder_abstract(ssm, kin, neural_features2.T, units, update_rate, tslice=tslice)
-    decoder.n_features = len(units)
+    ## get kinematic data
+    kin_source = 'task'
+    tmask, rows =_get_tmask(files, tslice, sys_name=kin_source)
+    kin = kin_extractor(files, binlen, tmask, pos_key='cursor', vel_key=None)
 
-    return decoder
+    ## get neural features
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, extractor_kwargs, tslice=tslice, units=units, source=kin_source)
+
+    #Get main shared input:
+    T = neural_features.shape[0]
+    demean = neural_features.T - np.tile(FA_dict['fa_mu'], [1, T])
+
+    #Neural features in time x spikes: 
+    z = FA_dict['u_svd'].T*FA_dict['uut_psi_inv']*demean
+
+    shar_z = FA_dict['fa_main_shared'] * demean
+    priv = demean - shar_z
+
+    #Time by features: 
+    neural_features2 = np.vstack((z, priv))
+    decoder_split = train_KFDecoder_abstract(ssm, kin.T, neural_features2, units, update_rate, tslice=tslice)
+    decoder_split.n_features = len(units)
+    decoder_split.trained_fa_dict = FA_dict
+
+    decoder_split.extractor_cls = extractor_cls
+    decoder_split.extractor_kwargs = extractor_kwargs
+
+    from db import trainbmi
+    trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix='_split')
 
 
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
