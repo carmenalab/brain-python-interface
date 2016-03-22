@@ -1045,7 +1045,7 @@ class BMILoop(object):
             n_features is the number of neural features the decoder is expecting to decode from.
             n_subbins is the number of simultaneous observations which will be decoded (typically 1)
         target_state : np.array of shape (n_states, 1)
-            The current optimal state to be in to accomplish the task. In this function call, this gets
+            The current optimal state to be in to accomplish the task. In this function call, this getsget_target_BMI_state
             used when adapting the decoder using CLDA
         kwargs : optional keyword arguments
             Optional arguments to CLDA, assist, etc.
