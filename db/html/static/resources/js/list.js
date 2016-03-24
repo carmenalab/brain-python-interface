@@ -752,7 +752,7 @@ function TaskInterfaceConstructor() {
 			$(".startbtn").hide()
 			$("#finished_task_buttons").show();
 			$("#bmi").hide();
-			this.report.deactivate();
+			
 
 			$("#report").show()
 			$("#notes").show()		
@@ -769,6 +769,7 @@ function TaskInterfaceConstructor() {
                 console.log("recorded start button press");
                 setTimeout(
                     function () {
+                        te.report.deactivate();
                         console.log('callback after pressing stop');
                         te = new TaskEntry(te.idx);
                         // te.tr.addClass("rowactive active");

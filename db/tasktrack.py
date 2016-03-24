@@ -114,7 +114,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     print "*************************** STARTING TASK *****************************"
     
     # Rerout prints to stdout to the websocket
-    sys.stdout = websock    
+    sys.stdout = websock
 
     # os.nice sets the 'niceness' of the task, i.e. how willing the process is
     # to share resources with other OS processes. Zero is neutral
@@ -176,6 +176,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         print err.read()
 
     # Redirect printing from the websocket back to the shell
+    websock.write("Running task cleanup functions....\n")
     sys.stdout = sys.__stdout__
 
     # Initiate task cleanup
@@ -190,8 +191,16 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
             dbq.hide_task_entry(kwargs['saveid'])
             print 'hiding task entry!'
         
+        cleanup_successful = False
     else:
-        task_wrapper.cleanup()
+        cleanup_successful = task_wrapper.cleanup()
+
+
+    # inform the user in the browser that the task is done!
+    if cleanup_successful:
+        websock.write("\n\n...done!\n")
+    else:
+        websock.write("\n\nError! Check for errors in the terminal!\n")
 
     print "*************************** EXITING TASK *****************************"
 
@@ -291,7 +300,6 @@ class TaskWrapper(object):
         setattr(self.task, attr, value)
 
     def cleanup(self):
-
         self.task.join()
         print "Calling saveout/task cleanup code"
         
@@ -300,7 +308,7 @@ class TaskWrapper(object):
             # returns the result of tracker.dbq.rpc_handler
             database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
-            self.task.cleanup(database, self.saveid, subject=self.subj)
+            cleanup_successful = self.task.cleanup(database, self.saveid, subject=self.subj)
             
             # if not self.task._task_init_complete:
             #     from tracker import dbq
@@ -308,8 +316,11 @@ class TaskWrapper(object):
             #     print 'hiding task entry!'
             # else:
             #     print 'not hiding task entry!'
+        else:
+            cleanup_successful = True
 
         self.task.terminate()
+        return cleanup_successful
 
 
 class TaskObjProxy(object):
