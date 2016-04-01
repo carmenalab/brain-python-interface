@@ -487,7 +487,7 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     f.close()
     return decoder2, fname
 
-def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_'):
+def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_', use_shar_z=False):
     
     from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(fa_te)
@@ -547,13 +547,23 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     demean = neural_features.T - np.tile(FA_dict['fa_mu'], [1, T])
 
     #Neural features in time x spikes: 
-    z = FA_dict['u_svd'].T*FA_dict['uut_psi_inv']*demean
+    FA = FA_dict['FA_model']
+    z = FA.transform(demean.T)
+    z = z.T
+    z = z[:FA_dict['fa_main_shar_n_dim'], :]
+
+    #z = FA_dict['u_svd'].T*FA_dict['uut_psi_inv']*demean
 
     shar_z = FA_dict['fa_main_shared'] * demean
     priv = demean - shar_z
 
-    #Time by features: 
-    neural_features2 = np.vstack((z, priv))
+    #Time by features:
+    if use_shar_z: 
+        neural_features2 = np.vstack((z, priv))
+        suffx = '_split_shar_z'
+    else:
+        neural_features2 = np.vstack((z, priv))
+        suffx = '_split_z'
     decoder_split = train_KFDecoder_abstract(ssm, kin.T, neural_features2, units, update_rate, tslice=tslice)
     decoder_split.n_features = len(units)
     decoder_split.trained_fa_dict = FA_dict
@@ -562,7 +572,7 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     decoder_split.extractor_kwargs = extractor_kwargs
 
     from db import trainbmi
-    trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix='_split')
+    trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix=suffx)
 
 
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
