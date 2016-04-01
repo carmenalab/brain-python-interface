@@ -141,6 +141,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F = (I - KC)*self.A
 
         post_state = pred_state
+
+        #print obs_t.shape, C.shape, Q.shape
         if obs_is_control_independent and using_control_input:
             post_state.mean += -KC*self.A*st.mean + K*obs_t
         else:
@@ -492,7 +494,7 @@ class FAKalmanFilter(KalmanFilter):
             inp = obs_t.copy()
             if inp.shape[1] == 1:
                 inp = inp.T # want 1 x neurons
-            z = FA.transform(inp)
+            z = FA.transform(dmn.T)
             z = z.T #Transform to fact x 1
             z = z[:self.FA_kwargs['fa_main_shar_n_dim'], :] #only use number in main space
 
@@ -514,8 +516,9 @@ class FAKalmanFilter(KalmanFilter):
             input_dict['main_sc_shar+sc_priv_input'] = input_dict['main_sc_shared_input'] + input_dict['private_scaled_input'] - self.FA_kwargs['fa_mu']
             
 
-            z = self.FA_kwargs['u_svd'].T*self.FA_kwargs['uut_psi_inv']*dmn
+            #z = self.FA_kwargs['u_svd'].T*self.FA_kwargs['uut_psi_inv']*dmn
             input_dict['split_input'] = np.vstack((z, main_priv))
+            #print input_dict['split_input'].shape
             
             own_pc_trans = np.mat(self.FA_kwargs['own_pc_trans'])*np.mat(dmn)
             input_dict['pca_input'] = own_pc_trans + self.FA_kwargs['fa_mu']
