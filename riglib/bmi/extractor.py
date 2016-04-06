@@ -245,11 +245,14 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
             spike_bin_fn = psth.SpikeBin(units, binlen)
             spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
 
+
             # discard units that never fired at all
-            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
-            units = units[unit_inds,:]
-            spike_counts = spike_counts[:, unit_inds]
-            extractor_kwargs['units'] = units
+            discard_zero_units = extractor_kwargs.pop('discard_zero_units', True)
+            if discard_zero_units:
+                unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+                units = units[unit_inds,:]
+                spike_counts = spike_counts[:, unit_inds]
+                extractor_kwargs['units'] = units
 
             return spike_counts, units, extractor_kwargs
 

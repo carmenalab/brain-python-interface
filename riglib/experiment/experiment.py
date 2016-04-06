@@ -12,6 +12,7 @@ import re
 import os
 import tables
 import traceback
+import cStringIO
 
 import numpy as np
 from . import traits
@@ -101,6 +102,7 @@ class Experiment(traits.HasTraits, threading.Thread):
 
     # set this flag to true if certain things should only happen in debugging mode
     debug = False
+    terminated_in_error = False
 
     ## GUI/database-related attributes
     # Flag to specify if you want to be able to create a BMI Decoder object from the web interface
@@ -361,8 +363,17 @@ class Experiment(traits.HasTraits, threading.Thread):
                 try:
                     self.fsm_tick()
                 except:
-                    traceback.print_exc(open(os.path.expandvars('$BMI3D/log/exp_run_log'), 'w'))
+                    self.print_to_terminal("Error in FSM tick")
                     self.state = None
+                    self.terminated_in_error = True
+
+                    self.termination_err = cStringIO.StringIO()
+                    traceback.print_exc(None, self.termination_err)
+                    self.termination_err.seek(0)
+
+                    self.print_to_terminal(self.termination_err.read())
+                    self.termination_err.seek(0)
+
 
     def run_sync(self):
         self.init()

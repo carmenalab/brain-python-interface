@@ -141,6 +141,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F = (I - KC)*self.A
 
         post_state = pred_state
+
+        #print obs_t.shape, C.shape, Q.shape
         if obs_is_control_independent and using_control_input:
             post_state.mean += -KC*self.A*st.mean + K*obs_t
         else:
@@ -485,62 +487,41 @@ class FAKalmanFilter(KalmanFilter):
             shar = (self.FA_kwargs['fa_sharL'] * dmn)
             priv = (dmn - shar)
             main_shar = (self.FA_kwargs['fa_main_shared'] * dmn)
-<<<<<<< HEAD
             main_priv = (dmn - main_shar)
 
-=======
             FA = self.FA_kwargs['FA_model']
-            main_priv = (dmn - main_shar)
 
             inp = obs_t.copy()
             if inp.shape[1] == 1:
                 inp = inp.T # want 1 x neurons
-            z = FA.transform(inp)
+            z = FA.transform(dmn.T)
             z = z.T #Transform to fact x 1
             z = z[:self.FA_kwargs['fa_main_shar_n_dim'], :] #only use number in main space
 
->>>>>>> f2544d6fc6080d9e1b7f45e7e5a2e0f0d4b5bc76
             input_dict['private_input'] = priv + self.FA_kwargs['fa_mu']
             input_dict['shared_input'] = shar + self.FA_kwargs['fa_mu']
+
             input_dict['private_scaled_input'] = np.multiply(priv, self.FA_kwargs['fa_priv_var_sc']) + self.FA_kwargs['fa_mu']
             input_dict['shared_scaled_input'] = np.multiply(shar, self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+
             input_dict['all_scaled_by_shar_input'] = np.multiply(dmn, self.FA_kwargs['fa_shar_var_sc']) + self.FA_kwargs['fa_mu']
+
             input_dict['sc_shared+unsc_priv_input'] = input_dict['shared_scaled_input'] + input_dict['private_input'] - self.FA_kwargs['fa_mu']
             input_dict['sc_shared+sc_priv_input'] = input_dict['shared_scaled_input'] + input_dict['private_scaled_input']- self.FA_kwargs['fa_mu']
+
             input_dict['main_shared_input'] = main_shar + self.FA_kwargs['fa_mu']
-<<<<<<< HEAD
-=======
             input_dict['main_sc_shared_input'] = np.multiply(main_shar, self.FA_kwargs['fa_main_shared_sc']) + self.FA_kwargs['fa_mu']
+
             input_dict['main_sc_shar+unsc_priv_input'] = input_dict['main_sc_shared_input'] + input_dict['private_input'] - self.FA_kwargs['fa_mu']
             input_dict['main_sc_shar+sc_priv_input'] = input_dict['main_sc_shared_input'] + input_dict['private_scaled_input'] - self.FA_kwargs['fa_mu']
-            input_dict['priv_shar_concat_input'] = np.vstack((main_priv, z))
             
-            PC = self.FA_kwargs['PC_model']
-            proj_X = PC.inverse_transform(PC.transform(dmn.T))
-            input_dict['pc_sc_input'] = np.multiply(proj_X.T, self.FA_kwargs['pc_var_sc']) + self.FA_kwargs['fa_mu']
->>>>>>> f2544d6fc6080d9e1b7f45e7e5a2e0f0d4b5bc76
-            
-            # ********
-            # ********
-            # ********
-            input_dict['main_sc_shared_input'] = np.multiply(main_shar, self.FA_kwargs['fa_main_shared_sc']) + self.FA_kwargs['fa_mu']
-            input_dict['main_sc_private_input'] = np.multiply(main_priv, self.FA_kwargs['fa_main_private_sc']) + self.FA_kwargs['fa_mu']
 
-            z = np.mat(self.FA_kwargs['U'].T) * np.mat(dmn)
-            input_dict['split_input'] = np.vstack((z, priv))
+            #z = self.FA_kwargs['u_svd'].T*self.FA_kwargs['uut_psi_inv']*dmn
+            input_dict['split_input'] = np.vstack((z, main_priv))
             #print input_dict['split_input'].shape
-
-            # PCA_model = self.FA_kwargs['PC_model']
-            # pc_obs = PCA_model.inverse_transform(PCA_model.transform(dmn.T)).T
-            # input_dict['pca_input'] = np.multiply(pc_obs, self.FA_kwargs['PC_sc']) + self.FA_kwargs['fa_mu']
-
-            own_pc_trans = np.mat(self.FA_kwargs['own_pc_trans'])*np.mat(dmn)
             
+            own_pc_trans = np.mat(self.FA_kwargs['own_pc_trans'])*np.mat(dmn)
             input_dict['pca_input'] = own_pc_trans + self.FA_kwargs['fa_mu']
-
-            # ********
-            # ********
-            # ********
 
             if input_type in input_dict.keys():
                 #print input_type
@@ -553,8 +534,7 @@ class FAKalmanFilter(KalmanFilter):
 
         input_dict['task_input'] = obs_t_mod.copy()
 
-        #Note the 'obs_t_mod:'
-        print obs_t_mod.shape
+
         post_state = super(FAKalmanFilter, self)._forward_infer(st, obs_t_mod, Bu=Bu, u=u, target_state=target_state, 
             obs_is_control_independent=obs_is_control_independent, **kwargs)
 

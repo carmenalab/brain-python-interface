@@ -21,6 +21,7 @@ from config import config
 import importlib
 import subprocess    
 import traceback
+import imp
 
 def _get_trait_default(trait):
     '''
@@ -42,11 +43,45 @@ class Task(models.Model):
         return self.name
     
     def get(self, feats=()):
+        print "models.Task.get()"
         from namelist import tasks
-        if len(tasks)==0: print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
-        from riglib import experiment
-        if self.name in tasks:
-            return experiment.make(tasks[self.name], Feature.getall(feats))
+
+        if len(tasks) == 0: 
+            print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
+        
+        feature_classes = Feature.getall(feats)
+
+        if self.name in tasks and not None in feature_classes:
+            try:
+                # reload the module which contains the base task class
+                task_cls = tasks[self.name]
+
+                module_name = task_cls.__module__
+                if '.' in module_name:
+                    module_names = module_name.split('.')
+                    mod = __import__(module_names[0])
+                    for submod in module_names[1:]:
+                        mod = getattr(mod, submod)
+                else:
+                    mod = __import__(mod_name)
+                
+                task_cls_module = mod
+                task_cls_module = imp.reload(task_cls_module)
+                task_cls = getattr(task_cls_module, task_cls.__name__)
+
+                # run the metaclass constructor
+                Exp = experiment.make(task_cls, feature_classes)
+                return Exp
+            except:
+                print "Problem making the task class!"
+                traceback.print_exc()
+                print self.name
+                print feats
+                print Feature.getall(feats)
+                print "*******"
+                return experiment.Experiment
+        elif self.name in tasks:
+            return tasks[self.name]
         else:
             return experiment.Experiment
 
@@ -62,6 +97,16 @@ class Task(models.Model):
             Task(name=name).save()
 
     def params(self, feats=(), values=None):
+        '''
+
+        Parameters
+        ----------
+        feats : iterable of Feature instances
+            Features selected on the task interface
+        values : dict
+            Values for the task parameters
+
+        '''
         #from namelist import instance_to_model, instance_to_model_filter_kwargs
 
         if values is None:
@@ -84,21 +129,11 @@ class Task(models.Model):
             if trait_name in values:
                 trait_params['value'] = values[trait_name]
 
-            # if the trait is an instance (generic object), then it is assumed that 
-            # the object is associated with some database model
-            # if trait_params['type'] == "Instance":
-            #     Model = instance_to_model[ctraits[trait_name].trait_type.klass]
-            #     filter_kwargs = instance_to_model_filter_kwargs[ctraits[trait_name].trait_type.klass]
-
-            #     # look up database records which match the model type & filter parameters
-            #     insts = Model.objects.filter(**filter_kwargs).order_by("-date")
-            #     trait_params['options'] = [(i.pk, i.path) for i in insts]
-
             if trait_params['type'] == "InstanceFromDB":
                 # look up the model name in the trait
                 mdl_name = ctraits[trait_name].bmi3d_db_model
+
                 # get the database Model class from 'db.tracker.models'
-                #Model = getattr(models, mdl_name)
                 Model = globals()[mdl_name]
                 filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
 
@@ -153,6 +188,19 @@ class Task(models.Model):
             seqs[s.id] = s.to_json()
 
         return seqs
+
+    def get_generators(self):
+        # Supply sequence generators which are declared to be compatible with the selected task class
+        exp_generators = dict() 
+        Exp = self.get()
+        if hasattr(Exp, 'sequence_generators'):
+            for seqgen_name in Exp.sequence_generators:
+                try:
+                    g = Generator.objects.using(self._state.db).get(name=seqgen_name)
+                    exp_generators[g.id] = seqgen_name
+                except:
+                    print "missing generator %s" % seqgen_name
+        return exp_generators        
 
 class Feature(models.Model):
     name = models.CharField(max_length=128)
@@ -341,8 +389,7 @@ class Sequence(models.Model):
         from riglib.experiment import generate
         from json_param import Parameters
 
-        if self.generator.static:
-            ## If the generator is static, 
+        if hasattr(self, 'generator') and self.generator.static: # If the generator is static, (NOTE: the generator being static is different from the *sequence* being static)
             if len(self.sequence) > 0:
                 return generate.runseq, dict(seq=cPickle.loads(str(self.sequence)))
             else:
@@ -368,7 +415,9 @@ class Sequence(models.Model):
 
         # Error handling when input argument 'js' actually specifies the primary key of a Sequence object already in the database
         try:
-            return Sequence.objects.get(pk=int(js))
+            seq = Sequence.objects.get(pk=int(js))
+            print "retreiving sequence from POSTed ID"
+            return seq
         except:
             pass
         
@@ -469,7 +518,7 @@ class TaskEntry(models.Model):
 
     def offline_report(self):
         Exp = self.task.get(self.feats.all())
-        task = self.task.get(self.feats.all())
+        
         if len(self.report) == 0:
             return dict()
         else:
@@ -480,7 +529,7 @@ class TaskEntry(models.Model):
             try:
                 from db import dbfunctions
                 te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
-                rpt['Decoder name'] = te.decoder_record.name
+                rpt['Decoder name'] = te.decoder_record.name + ' (trained in block %d)' % te.decoder_record.entry_id
             except AttributeError:
                 pass
             except:
@@ -492,6 +541,7 @@ class TaskEntry(models.Model):
         '''
         Create a JSON dictionary of the metadata associated with this block for display in the web interface
         '''
+        print "starting TaskEntry.to_json()"
         from json_param import Parameters
 
         # Run the metaclass constructor for the experiment used. If this can be avoided, it would help to break some of the cross-package software dependencies,
@@ -519,6 +569,7 @@ class TaskEntry(models.Model):
         js['generators'] = exp_generators
 
         ## Add the sequence, used when the block gets copied
+        print "getting the sequence, if any"
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
 
@@ -604,6 +655,9 @@ class TaskEntry(models.Model):
             plot_files[keyname] = os.path.join('/static', fname)
 
         js['plot_files'] = plot_files
+        js['flagged_for_backup'] = self.backup
+        js['visible'] = self.visible
+        print "TaskEntry.to_json finished!"
         return js
 
     @property
