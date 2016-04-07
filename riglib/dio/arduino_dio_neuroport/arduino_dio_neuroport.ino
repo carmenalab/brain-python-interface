@@ -10,6 +10,10 @@ int data_pins[] = {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 4
 
 int rstart_init = 0;
 
+char coda_data[1];
+int coda_rec = 30;
+int coda_pins[] = {27, 28, 29};
+
 void setup () {
   Serial.begin(115200);
 
@@ -19,6 +23,12 @@ void setup () {
   }
   
   pinMode(led, OUTPUT);
+  pinMode(coda_rec, OUTPUT);
+  
+  for (int k = 0; k < (sizeof(coda_pins)/sizeof(int)); k += 1) {
+    pinMode(coda_pins[k], OUTPUT);
+  }
+  
 
 }
 
@@ -38,6 +48,7 @@ void loop() {
         
         // positive edge for rstart
         digitalWrite(data_pins[15], HIGH);
+        Serial.println("blackrock recording started"); 
         delay(10);
         digitalWrite(rstart, HIGH);
         delay(200);
@@ -55,6 +66,7 @@ void loop() {
     else if ((c == 'p') && (en == 1)) {
         // positive edge for rstart
         digitalWrite(data_pins[15], LOW);
+        Serial.println("blackrock recording stopped"); 
         delay(10);
         digitalWrite(rstart, HIGH);
         delay(200);
@@ -68,11 +80,28 @@ void loop() {
         delay(500);
         digitalWrite(led, LOW);
     }
+
+    // Start CODA
+    else if ((c == 'g')) {
+      digitalWrite(coda_rec, HIGH);
+      Serial.println("coda recording started"); 
+    }
     
+    // Stop CODA
+    else if ((c == 'h')) {
+      digitalWrite(coda_rec, LOW);
+      Serial.println("coda recording stopped"); 
+    }
+
     // Digital data
     else if (c == 'd') {
       handle_word();
     }  
+
+    // Coda trial data
+    else if (c == 'c') {
+      handle_coda();
+    }
   }
 }
 
@@ -99,6 +128,25 @@ void handle_word() {
   digitalWrite(data_pins[15], HIGH);
 
   digitalWrite(strobe, HIGH);
-  delay(0.1);
+  delay(0.5);
   digitalWrite(strobe, LOW);  
+}
+
+void handle_coda() {
+  Serial.readBytes(coda_data, 1);
+  byte coda_byte_data = coda_data[0];
+
+  //Set bits: 
+  for (int bit_idx = 0; bit_idx < 3; bit_idx +=1) {
+    byte mask = 1 << bit_idx;
+    if (mask & coda_byte_data) {
+      digitalWrite(coda_pins[bit_idx], HIGH);
+      Serial.println("HIGH");
+      Serial.println(coda_pins[bit_idx]);
+    } else {
+      digitalWrite(coda_pins[bit_idx], LOW);
+      Serial.println("LOW");
+      Serial.println(coda_pins[bit_idx]);
+    }
+  }
 }

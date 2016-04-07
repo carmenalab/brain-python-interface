@@ -420,6 +420,15 @@ class MultiChanDataSource(mp.Process):
         self.supp_hdf = brainamp_hdf_writer.BrainampData(self.supp_hdf_file, self.channels, self.send_to_sinks_dtype)
 
 
+    def verify_data_arrival(self):
+        try:
+            from ismore.brainamp.brainamp_features import verify_data_arrival
+        except:
+            from riglib.ismore.brainamp.brainamp_features import verify_data_arrival
+
+        
+
+
     def start(self, *args, **kwargs):
         '''
         From Python's docs on the multiprocessing module:
@@ -577,10 +586,13 @@ class MultiChanDataSource(mp.Process):
             else:
                 time.sleep(.001)
         
-        system.stop()
-        print "ended datasource %r" % self.source
         self.supp_hdf.close_data()
         print 'end of supp hdf'
+
+        system.stop()
+        print "ended datasource %r" % self.source
+
+
 
     def get(self, n_pts, channels, **kwargs):
         '''
@@ -609,7 +621,7 @@ class MultiChanDataSource(mp.Process):
 
         if n_pts > self.max_len:
             n_pts = self.max_len
-
+        # print "channels", channels[-1]
         for chan_num, chan in enumerate(channels):
             try:
                 row = self.chan_to_row[chan]
