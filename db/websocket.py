@@ -150,6 +150,11 @@ class NotifyFeat(object):
             err.seek(0)
             self.websock.send(dict(status="error", msg=err.read()))
         finally:
+            if self.terminated_in_error:
+                # error_msg = "Error during FSM cycle!\n" + self.termination_err.read()
+            
+                self.websock.send(dict(status="error", msg=self.termination_err.read()))
+                # print "Term error"
             self.tracker_end_of_pipe.send(None)
 
     def print_to_terminal(self, *args):

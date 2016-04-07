@@ -910,7 +910,6 @@ class BMILoop(object):
         # Initialize the decoder
         self.load_decoder()
         self.init_decoder_state()
-
         if hasattr(self.decoder, 'adapting_state_inds'):
             print 'Decoder has adapting state inds'
 
@@ -1062,7 +1061,7 @@ class BMILoop(object):
         '''
         Run the feature extractor to get any new features to be decoded. Called by move_plant
         '''
-        start_time = self.get_time()        
+        start_time = self.get_time()
         return self.extractor(start_time)
 
     def move_plant(self, **kwargs):
@@ -1111,14 +1110,6 @@ class BMILoop(object):
             neural_features = feature_data[self.extractor.feature_type]
 
             tmp = self.call_decoder(neural_features, target_state, **kwargs)
-
-            if hasattr(self.extractor, 'downscale_factor') and self.extractor.feature_type in ['private', 'shared']:
-                vel_ix = np.nonzero(self.decoder.ssm.state_order==1)[0]
-                tmp[vel_ix] /= float(self.extractor.downscale_factor)
-
-                tmp2 = self.decoder.filt.state.mean[vel_ix, 0].copy() / float(self.extractor.downscale_factor)
-                self.decoder.filt.state.mean[vel_ix] = tmp2
-
             self.task_data['internal_decoder_state'] = tmp
 
         # Drive the plant to the decoded state, if permitted by the constraints of the plant
