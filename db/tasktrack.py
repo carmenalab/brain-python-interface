@@ -68,6 +68,7 @@ class Track(object):
 
         if 'seq' in kwargs:
             kwargs['seq'] = kwargs['seq'].get()  ## retreive the database data on this end of the pipe
+            kwargs['seq_params'] = kwargs['seq'].params
             print kwargs['seq']
 
         self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
@@ -209,7 +210,7 @@ class TaskWrapper(object):
     '''
     Wrapper for Experiment classes launched from the web interface
     '''
-    def __init__(self, subj, task_rec, feats, params, seq=None, saveid=None):
+    def __init__(self, subj, task_rec, feats, params, seq=None, seq_params=None, saveid=None):
         '''
         Parameters
         ----------
@@ -224,6 +225,8 @@ class TaskWrapper(object):
         seq : models.Sequence instance, or tuple
             Database record of Sequence parameters/static target sequence
             If passed in as a tuple, then it's the result of calling 'seq.get' on the models.Sequence instance
+        seq_params: params from seq (see above)
+
         saveid : int, optional
             ID number of db.tracker.models.TaskEntry associated with this task
             if None specified, then the data saved will not be linked to the
@@ -259,7 +262,8 @@ class TaskWrapper(object):
                 raise ValueError("Unrecognized type for seq")
 
             gen = gen_constructor(Task, **gen_params)
-
+            self.params.params['seq_params'] = seq_params
+            
             # 'gen' is now a true python generator usable by experiment.Sequence
             self.task = Task(gen, **self.params.params)
 
