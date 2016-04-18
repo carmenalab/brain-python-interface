@@ -855,56 +855,66 @@ def parse_blackrock_file(nev_fname, nsx_files):
     if not os.path.isfile(nev_hdf_fname):
         subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
 
-    import h5py
-    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+    import tables #Previously import h5py -- pytables works fine too
+    nev_hdf = tables.openFile(nev_hdf_fname, 'r')
 
     last_ts = 0
     units = []
 
-    for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
-        if 'spike_set' in nev_hdf.get('channel/' + key).keys():
-            spike_set = nev_hdf.get('channel/' + key + '/spike_set')
+    #for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
+    chans = nev_hdf.root.channel
+    chan_names= chans._v_children
+    for key in [key for key in chan_names.keys() if 'channel' in key]:
+        chan_tab = nev_hdf.root.channel._f_getChild(key)
+        if 'spike_set' in chan_tab:
+            spike_set = chan_tab.spike_set
             if spike_set is not None:
-                tstamps = spike_set.value['TimeStamp']
+                tstamps = spike_set[:]['TimeStamp']
                 if len(tstamps) > 0:
                     last_ts = max(last_ts, tstamps[-1])
+                else:
+                    print 'skipping ', key, ': no spikes'
 
                 channel = int(key[-5:])
-                for unit_num in np.sort(np.unique(spike_set.value['Unit'])):
+                for unit_num in np.sort(np.unique(spike_set[:]['Unit'])):
                     units.append((channel, int(unit_num)))
+        else:
+            print 'skipping ', key, ': no spikeset'
 
     fs = 30000.
     nev_length = last_ts / fs
-
-    nsx_fs = dict()
-    nsx_fs['.ns1'] = 500
-    nsx_fs['.ns2'] = 1000
-    nsx_fs['.ns3'] = 2000
-    nsx_fs['.ns4'] = 10000
-    nsx_fs['.ns5'] = 30000
-    nsx_fs['.ns6'] = 30000
-
-    NSP_channels = np.arange(128) + 1
-
     nsx_lengths = []
-    for nsx_fname in nsx_files:
+    
+    if nsx_files is not None:
+        nsx_fs = dict()
+        nsx_fs['.ns1'] = 500
+        nsx_fs['.ns2'] = 1000
+        nsx_fs['.ns3'] = 2000
+        nsx_fs['.ns4'] = 10000
+        nsx_fs['.ns5'] = 30000
+        nsx_fs['.ns6'] = 30000
 
-        nsx_hdf_fname = nsx_fname + '.hdf'
-        if not os.path.isfile(nsx_hdf_fname):
-            # convert .nsx file to hdf file using Blackrock's n2h5 utility
-            subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+        NSP_channels = np.arange(128) + 1
 
-        nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+        nsx_lengths = []
+        for nsx_fname in nsx_files:
 
-        for chan in NSP_channels:
-            chan_str = str(chan).zfill(5)
-            path = 'channel/channel%s/continuous_set' % chan_str
-            if nsx_hdf.get(path) is not None:
-                last_ts = len(nsx_hdf.get(path).value)
-                fs = nsx_fs[nsx_fname[-4:]]
-                nsx_lengths.append(last_ts / fs)
-                
-                break
+            nsx_hdf_fname = nsx_fname + '.hdf'
+            if not os.path.isfile(nsx_hdf_fname):
+                # convert .nsx file to hdf file using Blackrock's n2h5 utility
+                subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+
+            nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
+
+            for chan in NSP_channels:
+                chan_str = str(chan).zfill(5)
+                path = 'channel/channel%s/continuous_set' % chan_str
+                if nsx_hdf.get(path) is not None:
+                    last_ts = len(nsx_hdf.get(path).value)
+                    fs = nsx_fs[nsx_fname[-4:]]
+                    nsx_lengths.append(last_ts / fs)
+                    
+                    break
 
     length = max([nev_length] + nsx_lengths)
     return length, units, 

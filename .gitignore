@@ -32,3 +32,4 @@ riglib/ismore/traj_*.pkl
 *bmilist.py
 analysis
 tasks
+tests/sim_clda/*

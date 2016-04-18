@@ -215,14 +215,14 @@ def main_Y(session_length):
     return task
 
 
-def save_stuff(task):
+def save_stuff(task, suffix=''):
     enc = task.encoder
     task.decoder.save()
     enc.corresp_dec = task.decoder
 
     #Save task info
     ct = datetime.datetime.now()
-    pnm = os.path.expandvars('$FA_GROM_DATA/sims/enc'+ ct.strftime("%m%d%y_%H%M") + '.pkl')
+    pnm = os.path.expandvars('$FA_GROM_DATA/sims/enc'+ ct.strftime("%m%d%y_%H%M") + suffix + '.pkl')
     pickle.dump(enc, open(pnm,'wb'))
 
     #Save HDF file
