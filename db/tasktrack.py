@@ -69,7 +69,6 @@ class Track(object):
         if 'seq' in kwargs:
             kwargs['seq_params'] = kwargs['seq'].params
             kwargs['seq'] = kwargs['seq'].get()  ## retreive the database data on this end of the pipe
-
             print kwargs['seq']
 
         self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
