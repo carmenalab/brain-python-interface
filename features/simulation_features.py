@@ -131,7 +131,10 @@ class SimTime(object):
         Simulates time based on Delta*cycle_count, where the update_rate is specified as an instance attribute
         '''
         try:
+            if not (self.cycle_count % (60*10)):
+                print self.cycle_count/(60*10.)
             return self.cycle_count * self.update_rate
+
         except:
             # loop_counter has not been initialized yet, return 0
             return 0
@@ -206,10 +209,12 @@ class SimKalmanEnc(SimNeuralEnc):
 
 
 class SimCosineTunedEnc(SimNeuralEnc):
+    
     def _init_neural_encoder(self):
         ## Simulation neural encoder
         from riglib.bmi.sim_neurons import GenericCosEnc#CLDASimCosEnc
-        self.encoder = GenericCosEnc(return_ts=True)    
+        print 'SimCosineTunedEnc SSM:', self.ssm
+        self.encoder = GenericCosEnc(self.sim_C, self.ssm, return_ts=True, DT=0.1, call_ds_rate=6)
         
     def create_feature_extractor(self):
         '''
@@ -218,6 +223,25 @@ class SimCosineTunedEnc(SimNeuralEnc):
         self.extractor = extractor.SimBinnedSpikeCountsExtractor(self.fb_ctrl, self.encoder, 
             n_subbins=self.decoder.n_subbins, units=self.decoder.units, task=self)
         self._add_feature_extractor_dtype()
+
+class SimFAEnc(SimCosineTunedEnc):
+    def __init__(self, *args, **kwargs):
+        self.FACosEnc_kwargs = kwargs.pop('SimFAEnc_kwargs', dict())
+        super(SimFAEnc, self).__init__(*args, **kwargs)
+
+    def _init_neural_encoder(self):
+        if 'encoder_fname' in self.FACosEnc_kwargs:
+            import pickle
+            self.encoder = pickle.load(open(self.FACosEnc_kwargs['encoder_fname']))
+            print 'using saved encoder;'
+            
+            if 'wt_sources' in self.FACosEnc_kwargs:
+                self.encoder.wt_sources = self.FACosEnc_kwargs['wt_sources']
+                print 'setting new weights: ', self.encoder.wt_sources
+        
+        else:
+            from riglib.bmi.sim_neurons import FACosEnc
+            self.encoder = FACosEnc(self.sim_C, self.ssm, return_ts=True, DT=0.1, call_ds_rate=6, **self.FACosEnc_kwargs)
 
 
 class SimCosineTunedPointProc(SimNeuralEnc):
@@ -324,6 +348,7 @@ class SimKFDecoderSup(SimKFDecoder):
         '''
         print "Creating simulation decoder.."
         encoder = self.encoder
+        print self.encoder, type(self.encoder)
         n_samples = 2000
         units = self.encoder.get_units()
         n_units = len(units)
@@ -338,7 +363,7 @@ class SimKFDecoderSup(SimKFDecoder):
         spike_counts = np.zeros([n_units, n_samples])
         self.encoder.call_ds_rate = 1
         for k in range(n_samples):
-            spike_counts[:,k] = np.array(self.encoder(state_samples[k])).ravel()
+            spike_counts[:,k] = np.array(self.encoder(state_samples[k], mode='counts')).ravel()
 
         kin = state_samples.T
 
