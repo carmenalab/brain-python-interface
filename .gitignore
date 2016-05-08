@@ -16,7 +16,6 @@ db/db.sql
 db/*.sql
 *.sql.*
 *.jpeg
-*.png
 log/*
 *.ipynb
 *.doctree
