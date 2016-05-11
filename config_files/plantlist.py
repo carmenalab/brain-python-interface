@@ -9,7 +9,7 @@ RED = (1,0,0,.5)
 ## BMI Plants
 cursor_14x14 = plants.CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14))
 cursor_25x14 = plants.CursorPlant(endpt_bounds=(-25, 25, 0., 0., -14, 14))
-big_cursor_25x14 = plants.CursorPlant(endpt_bounds=(-25, 25, 0., 0., -14, 14), cursor_radius=1.2)
+big_cursor_25x14 = plants.CursorPlant(endpt_bounds=(-25, 25, 0., 0., -14, 14), cursor_radius=1.0)
 
 cursor_14x14_no_vel_wall = plants.CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14), vel_wall=False)
 
