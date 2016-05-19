@@ -147,49 +147,41 @@ class FACosEnc(GenericCosEnc):
         super(FACosEnc, self).__init__(C, ssm, DT=DT, call_ds_rate=call_ds_rate, return_ts=return_ts)
         
         #self.input_type = ['priv_unt', 'priv_tun', 'shar_unt', 'shar_tun']
-        
+
         #Parse kwargs: 
         self.lambda_spk_update = 1
         self.wt_sources = kwargs.pop('wt_sources', None)
         self.n_facts = kwargs.pop('n_facts', [3, 3])
         self.state_vel_var = kwargs.pop('state_vel_var', 2.7)
         self.r2 = 1./self.state_vel_var
-        #Contribute part of these inputs to each neuron (find alpha weightings: \sum_i=1^6 \alpha_i= 1)
-        #Right now allocate neurons to each of these: 
-        # if self.wt_sources is None:
-        #     wt_sources = np.random.rand(len(self.input_type))
-        #     tmp = np.sum(wt_sources)
-
-        #     #Make rows add to 1:
-        #     self.wt_sources = wt_sources / tmp
 
         # Establish number factors for tuned / untuned input sources: 
-        self.n_tun_factors = self.n_facts[0]
+        self.n_tun_factors = self.n_facts[0] #1
         self.n_unt_factors = self.n_facts[1]
 
         self.eps = 1e-15
         
         #Establish mapping from kinematics to factors: 
         #Untuned private:
-        self.psi_unt = np.random.random_sample((self.n_neurons, 1))
-        self.psi_unt_std = 2
 
-        #self.psi_unt = np.random.normal(0, 1, (self.n_neurons, ssm.n_states))
-
-        #Cosine tuned private: TODO: make private
-        #self.psi_tun = 20*(np.random.random_sample((self.n_neurons, ssm.n_states))-0.5)
+        #Uniform distribution from [0-1]
+        #self.psi_unt = np.random.random_sample((self.n_neurons, 1))
+        self.psi_unt = np.zeros((self.n_neurons, 1)) #517
+        self.psi_unt_std = np.random.random_sample((self.n_neurons, 1)) #517
+        #self.psi_unt_std = 2
 
         #Matched to fit KF data
-        self.psi_tun = np.random.normal(0, 1/2.5, (self.n_neurons, ssm.n_states))
+        self.psi_tun = np.random.normal(0, 1, (self.n_neurons, ssm.n_states))
 
         #Only velocity tuned:
         self.psi_tun[:, [0, 1, 2, 4, 6]] = 0
 
-
         #Mapping from factors to neurons: 
         # Random
-        self.U = 2.5*(np.random.random_sample((self.n_neurons, self.n_tun_factors))-0.5)
-        self.W = 5.0*(np.random.random_sample((self.n_neurons, self.n_unt_factors))-0.5)
+        # 518 self.U = 2.5*(np.random.random_sample((self.n_neurons, self.n_tun_factors))-0.5)
+        # 518 self.W = 2.*(np.random.random_sample((self.n_neurons, self.n_unt_factors))-0.5)
+        self.U = 5.*(np.random.random_sample((self.n_neurons, self.n_tun_factors))-0.5) #517
+        self.W = 2.*(np.random.random_sample((self.n_neurons, self.n_unt_factors))-0.5) #517
 
         #Mapping from states to factors:
         #self.V = 2*(np.random.random_sample((self.n_tun_factors, ssm.n_states))-0.5)
@@ -197,8 +189,17 @@ class FACosEnc(GenericCosEnc):
         self.V = np.zeros((self.n_tun_factors, ssm.n_states))
         self.V[:,3] = self.v_
         self.V[:,5] = self.y2_eq_r2_min_x2(self.v_, self.r2)
-        #Matched to make z_i ~ N(0, I)
 
+        #517:
+        # self.V = np.zeros((self.n_tun_factors, ssm.n_states))
+        # self.V[:, 3] = 2*(np.random.random_sample(self.n_tun_factors)-0.5)
+        # self.V[:, 5] = 2*(np.random.random_sample(self.n_tun_factors)-0.5)
+
+        #517: 
+        #REMEMBER -- MEAN IS FOR 0.1 SEC, so 20/10: 
+        self.mu = 2*np.random.random_sample((self.n_neurons, ))
+
+        #Matched to make z_i ~ N(0, I)
         self.bin_step_count = -1
 
     def gen_spikes_old_1(self, next_state, mode=None):
@@ -273,29 +274,37 @@ class FACosEnc(GenericCosEnc):
         return s
 
     def gen_spikes(self, next_state, mode=None):
+        print next_state
         self.ns_pk = next_state
 
         self.priv_tun_bins = np.random.poisson(self.lambda_spk_update, self.n_neurons)
         self.priv_unt_bins = np.random.poisson(1, self.n_neurons)
 
-        self.shar_tun_bins = np.random.poisson(1, )
-        self.shar_unt_bins = np.random.poisson(1, )
+        # self.shar_tun_bins = np.random.poisson(1, ) #517
+        # self.shar_unt_bins = np.random.poisson(1, ) #517
 
+        #517
+        self.shar_tun_bins = np.random.poisson(1, self.n_tun_factors, )
+        self.shar_unt_bins = np.random.poisson(1, self.n_unt_factors, )
+        
         if len(next_state.shape) == 1:
             next_state = np.array([next_state]).T
 
         # Private:
         priv_unt = []
         priv_tun = []
+
         for n in range(self.n_neurons):
 
-            #Private untuned: 
+            #Private untuned:
+            #If Poisson draw = True:  
             if self.priv_unt_bins[n] > 0:
                 cnt = []
                 for z in range(self.priv_unt_bins[n]):
-                    psi_unt = np.max([np.random.normal(self.psi_unt[n], self.psi_unt_std), 0])
+                    #psi_unt = np.max([np.random.normal(self.psi_unt[n], self.psi_unt_std), 0])
+                    psi_unt = np.random.normal(0, self.psi_unt_std[n]) #517
                     cnt.append(psi_unt)
-                priv_unt.append(sum(cnt))
+                priv_unt.append(np.sum(cnt))
             else:
                 priv_unt.append(0.)
 
@@ -303,49 +312,77 @@ class FACosEnc(GenericCosEnc):
             if self.priv_tun_bins[n] > 0:
                 cnt = []
                 for z in range(self.priv_tun_bins[n]):
-                    psi_tun = np.max([0, np.dot(self.psi_tun[n, :], next_state)])
+                    #psi_tun = np.max([0, np.dot(self.psi_tun[n, :], next_state)])
+                    psi_tun = np.dot(self.psi_tun[n, :], next_state) #517
                     cnt.append(psi_tun)
-                priv_tun.append(sum(cnt))
+                priv_tun.append(np.sum(cnt))
 
             else:
                 priv_tun.append(0.)
 
-        self.priv_tun = np.array(priv_tun)
-        self.priv_unt = np.array(priv_unt)
-
+        self.priv_tun = np.hstack((priv_tun))
+        self.priv_unt = np.hstack((priv_unt))
 
         # Shar
-        #Z are normally dist:
-        if self.shar_tun_bins > 0:
+        if self.shar_tun_bins[0] > 0:
             t_tun = []
-            for z in range(self.shar_tun_bins):
+            for z in range(self.shar_tun_bins[0]):
                 task_shar_tun = np.dot(self.U, np.dot(self.V , next_state))
-                task_shar_tun[task_shar_tun<0] = 0.
-                
+                #task_shar_tun[task_shar_tun<0] = 0.
                 t_tun.append(task_shar_tun)
-                
             self.shar_tun = np.squeeze(np.sum(np.hstack((t_tun)), axis=1))
-
         else: 
             self.shar_tun = np.zeros((self.n_neurons, ))
 
+        # #518
+        # t_tun = np.zeros((self.n_neurons,))
+        # for zi in range(self.n_tun_factors): #517
+        #     if self.shar_tun_bins[zi] > 0:
+        #         for z in range(self.shar_tun_bins[zi]):
+        #             #print next_state.shape, self.U.shape, self.V.shape, zi, type(self.U), type(self.V), type(next_state)
+        #             ns = np.array(next_state)
+        #             if len(ns.shape) < 2:
+        #                 ns = ns[:, np.newaxis]
+        #             #print 'ns: ', ns.shape, type(ns)
+        #             tmp2 = self.U[:,zi]*np.dot(self.V[zi,:], ns)
+        #             #print 'tmp2: ', tmp2.shape, t_tun.shape
+        #             t_tun += tmp2
+        #             #np.dot(self.U[:, zi], np.dot(self.V[zi, :] , next_state))
+                
+        # self.shar_tun = t_tun
+
+        #Shar Unt: 
         self.unt_fact = np.random.normal(0, 1, (self.n_unt_factors, 1))
-        if self.shar_unt_bins > 0:
+        if self.shar_unt_bins[0] > 0:
             t_unt = []
-            for z in range(self.shar_unt_bins):
+            for z in range(self.shar_unt_bins[0]):
                 task_shar_unt = np.dot(self.W, self.unt_fact)
-                task_shar_unt[task_shar_unt<0] = 0.
+                #task_shar_unt[task_shar_unt<0] = 0.
                 t_unt.append(task_shar_unt)
 
             self.shar_unt = np.squeeze(np.sum(np.hstack((t_unt)), axis=1))
         else:
             self.shar_unt = np.zeros((self.n_neurons, ))
 
+        #518
+        # self.unt_fact = np.random.normal(0, 1, (self.n_unt_factors, ))
+        # t_unt = np.zeros((self.n_neurons,))
+        # for zi in range(self.n_unt_factors): #517
+        #     if self.shar_unt_bins[zi] > 0:
+        #         for z in range(self.shar_unt_bins[zi]):
+        #             t_unt += self.W[:, zi] * self.unt_fact[zi]
+                
+        # self.shar_unt = t_unt
 
         #Now weight everything together:
         w = self.wt_sources
         counts = np.squeeze(np.array(w[0]*self.priv_unt + w[1]*self.priv_tun + w[2]*self.shar_unt + w[3]*self.shar_tun))
-        counts = counts/self.lambda_spk_update
+        
+        #517
+        #counts = counts/self.lambda_spk_update
+
+        #517, adding back the mean FR
+        counts += self.mu
 
         if np.logical_or(mode=='ts', np.logical_and(mode is None, self.return_ts)):
             ts = []
