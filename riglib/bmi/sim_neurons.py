@@ -178,9 +178,8 @@ class FACosEnc(GenericCosEnc):
 
         #Mapping from factors to neurons: 
         # Random
-        # 518 self.U = 2.5*(np.random.random_sample((self.n_neurons, self.n_tun_factors))-0.5)
-        # 518 self.W = 2.*(np.random.random_sample((self.n_neurons, self.n_unt_factors))-0.5)
-        self.U = 5.*(np.random.random_sample((self.n_neurons, self.n_tun_factors))-0.5) #517
+        self.U = 2.*(np.random.random_sample((self.n_neurons, self.n_tun_factors))-0.5)
+        #self.U = 5.*(np.random.random_sample((self.n_neurons, self.n_tun_factors))-0.5) #517
         self.W = 2.*(np.random.random_sample((self.n_neurons, self.n_unt_factors))-0.5) #517
 
         #Mapping from states to factors:
@@ -274,7 +273,6 @@ class FACosEnc(GenericCosEnc):
         return s
 
     def gen_spikes(self, next_state, mode=None):
-        print next_state
         self.ns_pk = next_state
 
         self.priv_tun_bins = np.random.poisson(self.lambda_spk_update, self.n_neurons)
@@ -324,55 +322,55 @@ class FACosEnc(GenericCosEnc):
         self.priv_unt = np.hstack((priv_unt))
 
         # Shar
-        if self.shar_tun_bins[0] > 0:
-            t_tun = []
-            for z in range(self.shar_tun_bins[0]):
-                task_shar_tun = np.dot(self.U, np.dot(self.V , next_state))
-                #task_shar_tun[task_shar_tun<0] = 0.
-                t_tun.append(task_shar_tun)
-            self.shar_tun = np.squeeze(np.sum(np.hstack((t_tun)), axis=1))
-        else: 
-            self.shar_tun = np.zeros((self.n_neurons, ))
+        # if self.shar_tun_bins[0] > 0:
+        #     t_tun = []
+        #     for z in range(self.shar_tun_bins[0]):
+        #         task_shar_tun = np.dot(self.U, np.dot(self.V , next_state))
+        #         #task_shar_tun[task_shar_tun<0] = 0.
+        #         t_tun.append(task_shar_tun)
+        #     self.shar_tun = np.squeeze(np.sum(np.hstack((t_tun)), axis=1))
+        # else: 
+        #     self.shar_tun = np.zeros((self.n_neurons, ))
 
         # #518
-        # t_tun = np.zeros((self.n_neurons,))
-        # for zi in range(self.n_tun_factors): #517
-        #     if self.shar_tun_bins[zi] > 0:
-        #         for z in range(self.shar_tun_bins[zi]):
-        #             #print next_state.shape, self.U.shape, self.V.shape, zi, type(self.U), type(self.V), type(next_state)
-        #             ns = np.array(next_state)
-        #             if len(ns.shape) < 2:
-        #                 ns = ns[:, np.newaxis]
-        #             #print 'ns: ', ns.shape, type(ns)
-        #             tmp2 = self.U[:,zi]*np.dot(self.V[zi,:], ns)
-        #             #print 'tmp2: ', tmp2.shape, t_tun.shape
-        #             t_tun += tmp2
-        #             #np.dot(self.U[:, zi], np.dot(self.V[zi, :] , next_state))
+        t_tun = np.zeros((self.n_neurons,))
+        for zi in range(self.n_tun_factors):
+            if self.shar_tun_bins[zi] > 0:
+                for z in range(self.shar_tun_bins[zi]):
+                    #print next_state.shape, self.U.shape, self.V.shape, zi, type(self.U), type(self.V), type(next_state)
+                    ns = np.array(next_state)
+                    if len(ns.shape) < 2:
+                        ns = ns[:, np.newaxis]
+                    #print 'ns: ', ns.shape, type(ns)
+                    tmp2 = self.U[:,zi]*np.dot(self.V[zi,:], ns)
+                    #print 'tmp2: ', tmp2.shape, t_tun.shape
+                    t_tun += tmp2
+                    #np.dot(self.U[:, zi], np.dot(self.V[zi, :] , next_state))
                 
-        # self.shar_tun = t_tun
+        self.shar_tun = t_tun
 
         #Shar Unt: 
-        self.unt_fact = np.random.normal(0, 1, (self.n_unt_factors, 1))
-        if self.shar_unt_bins[0] > 0:
-            t_unt = []
-            for z in range(self.shar_unt_bins[0]):
-                task_shar_unt = np.dot(self.W, self.unt_fact)
-                #task_shar_unt[task_shar_unt<0] = 0.
-                t_unt.append(task_shar_unt)
+        # self.unt_fact = np.random.normal(0, 1, (self.n_unt_factors, 1))
+        # if self.shar_unt_bins[0] > 0:
+        #     t_unt = []
+        #     for z in range(self.shar_unt_bins[0]):
+        #         task_shar_unt = np.dot(self.W, self.unt_fact)
+        #         #task_shar_unt[task_shar_unt<0] = 0.
+        #         t_unt.append(task_shar_unt)
 
-            self.shar_unt = np.squeeze(np.sum(np.hstack((t_unt)), axis=1))
-        else:
-            self.shar_unt = np.zeros((self.n_neurons, ))
+        #     self.shar_unt = np.squeeze(np.sum(np.hstack((t_unt)), axis=1))
+        # else:
+        #     self.shar_unt = np.zeros((self.n_neurons, ))
 
         #518
-        # self.unt_fact = np.random.normal(0, 1, (self.n_unt_factors, ))
-        # t_unt = np.zeros((self.n_neurons,))
-        # for zi in range(self.n_unt_factors): #517
-        #     if self.shar_unt_bins[zi] > 0:
-        #         for z in range(self.shar_unt_bins[zi]):
-        #             t_unt += self.W[:, zi] * self.unt_fact[zi]
+        self.unt_fact = np.random.normal(0, 1, (self.n_unt_factors, ))
+        t_unt = np.zeros((self.n_neurons,))
+        for zi in range(self.n_unt_factors): #517
+            if self.shar_unt_bins[zi] > 0:
+                for z in range(self.shar_unt_bins[zi]):
+                    t_unt += self.W[:, zi] * self.unt_fact[zi]
                 
-        # self.shar_unt = t_unt
+        self.shar_unt = t_unt
 
         #Now weight everything together:
         w = self.wt_sources
