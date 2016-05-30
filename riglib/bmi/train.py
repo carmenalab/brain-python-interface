@@ -487,7 +487,7 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     f.close()
     return decoder2, fname
 
-def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_', use_shar_z=False):
+def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_', use_shar_z=False, tslice=None):
     
     from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(fa_te)
@@ -532,7 +532,8 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     ssm = decoder.ssm
     update_rate = binlen = decoder.binlen
     units = decoder.units
-    tslice = (0., te_id.length)
+    if tslice is None:
+        tslice = (0., te_id.length)
 
     ## get kinematic data
     kin_source = 'task'
