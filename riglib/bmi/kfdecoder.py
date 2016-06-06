@@ -514,7 +514,7 @@ class FAKalmanFilter(KalmanFilter):
 
             input_dict['main_sc_shar+unsc_priv_input'] = input_dict['main_sc_shared_input'] + input_dict['private_input'] - self.FA_kwargs['fa_mu']
             input_dict['main_sc_shar+sc_priv_input'] = input_dict['main_sc_shared_input'] + input_dict['private_scaled_input'] - self.FA_kwargs['fa_mu']
-            
+            input_dict['main_sc_private_input'] = np.multiply(main_priv, self.FA_kwargs['fa_main_private_sc']) + self.FA_kwargs['fa_mu']
 
             #z = self.FA_kwargs['u_svd'].T*self.FA_kwargs['uut_psi_inv']*dmn
             input_dict['split_input'] = np.vstack((z, main_priv))

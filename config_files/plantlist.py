@@ -9,6 +9,8 @@ RED = (1,0,0,.5)
 ## BMI Plants
 cursor_14x14 = plants.CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14))
 cursor_25x14 = plants.CursorPlant(endpt_bounds=(-25, 25, 0., 0., -14, 14))
+big_cursor_25x14 = plants.CursorPlant(endpt_bounds=(-25, 25, 0., 0., -14, 14), cursor_radius=1.0)
+
 cursor_14x14_no_vel_wall = plants.CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14), vel_wall=False)
 
 chain_kwargs = dict(link_radii=.6, joint_radii=0.6, joint_colors=(181/256., 116/256., 96/256., 1), link_colors=(181/256., 116/256., 96/256., 1))
@@ -43,6 +45,7 @@ inv_cursor_onedimLFP = plants.onedimLFP_CursorPlant_inverted(endpt_bounds=(-14, 
 plantlist = dict(
 	cursor_14x14=cursor_14x14, 
 	cursor_25x14=cursor_25x14, 
+	big_cursor_25x14 = big_cursor_25x14,
 	chain_15_15_5_5=chain_15_15_5_5, 
 	chain_15_15_5_5_on_screen=chain_15_15_5_5_on_screen, 
 	chain_20_20=chain_20_20, 
