@@ -21,7 +21,8 @@ import robot
 
 import struct
 from riglib.bmi.robot_arms import KinematicChain
-
+import pygame
+import math
 
 class RefTrajectories(dict):
     '''
@@ -272,6 +273,60 @@ class CursorPlant(Plant):
 
     def get_data_to_save(self):
         return dict(cursor=self.position)
+
+
+class AuditoryCursor(Plant):
+    '''
+    An auditory cursor that changes frequency accordingly
+    '''
+    hdf_attrs = [('aud_cursor_freq', 'f8', (1,))]
+
+    def __init__(self, min_freq, max_freq, sound_duration=0.1):
+        self.min_freq = min_freq
+        self.max_freq = max_freq
+        self.bits = 16
+        
+        pygame.mixer.pre_init(44100, -self.bits, 2)
+        pygame.init()
+
+        duration = 0.1  # in seconds
+        self.sample_rate = 44100
+        self.n_samples = int(round(duration*self.sample_rate))
+        self.max_sample = 2**(self.bits - 1) - 1
+        self.freq = 0
+        #setup our numpy array to handle 16 bit ints, which is what we set our mixer to expect with "bits" up above
+        self.buf = np.zeros((self.n_samples, 2), dtype = np.int16)
+        self.buf_ext = np.zeros((10*self.n_samples, 2), dtype=np.int16)
+        self.t = np.arange(self.n_samples)/float(self.n_samples)*duration
+        self.t0 = np.arange(self.n_samples)*0
+        self.t_start = time.time()
+
+    def drive(self, decoder):
+        self.freq = decoder.filt.F
+
+        if np.logical_and(decoder.cnt == 0, decoder.feedback): 
+            #Just got reset: 
+            if self.freq > self.max_freq:
+                self.freq = self.max_freq
+            elif self.freq < self.min_freq:
+                self.freq = self.min_freq
+            self.play_freq()
+
+    def play_freq(self):
+        self.buf[:,0] = np.round(self.max_sample*np.sin(2*math.pi*self.freq*self.t)).astype(int)
+        self.buf[:,1] = np.round(self.max_sample*np.sin(2*math.pi*self.freq*self.t0)).astype(int)
+        sound = pygame.sndarray.make_sound(self.buf)
+        sound.play()
+
+    def play_white_noise(self):
+        self.buf_ext[:,0] = np.round(self.max_sample*np.random.normal(0, self.max_sample/2., (10*self.n_samples, ))).astype(int)
+        self.buf_ext[:,1] = np.round(self.max_sample*np.zeros((10*self.n_samples, ))).astype(int)
+        sound = pygame.sndarray.make_sound(self.buf_ext)
+        sound.play()
+
+
+    def get_intrinsic_coordinates(self):
+        return self.freq
 
 
 class onedimLFP_CursorPlant(CursorPlant):
