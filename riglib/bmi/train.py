@@ -251,6 +251,9 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
     if units == None:
         units = np.array(plx.units).astype(np.int32)
 
+    if tslice == None:
+        tslice = (1., plx.length-1)
+
     tmask, rows = _get_tmask_plexon(plx, tslice, sys_name=source)
     neurows = rows[tmask]
 
@@ -393,6 +396,57 @@ def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     import onedim_lfp_decoder as old
     return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
 
+def test_ratBMIdecoder(te_id=None, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None, **kwargs):
+    from db import dbfunctions as dbfn
+    te = dbfn.TaskEntry(te_id)
+    files = dict(hdf=te.hdf_filename, plexon=te.plx_filename)
+
+    entry = te.id
+    import extractor
+    extractor_cls = extractor.BinnedSpikeCountsExtractor
+
+    neural_features, units, extractor_kwargs = get_neural_features(files, 0.1, extractor_cls.extract_from_file, dict(), tslice=None)
+    extractor_kwargs['units'] = units
+
+    import rat_bmi_decoder
+    nsteps = kwargs.pop('nsteps', 10)
+    prob_t1 = kwargs.pop('prob_t1', 0.985)
+    prob_t2 = kwargs.pop('prob_t2', 0.015)
+    timeout = kwargs.pop('timeout', 30.)
+    timeout_pause = kwargs.pop('timeout_pause', 3.)
+    freq_lim = kwargs.pop('freq_lim', (400., 15000.))
+    e1_inds = kwargs.pop('e1_inds', None)
+    e2_inds = kwargs.pop('e2_inds', None)
+
+    e1_inds, e2_inds, FR_to_freq_fn, units, t1, t2, mid = rat_bmi_decoder.calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, prob_t2, timeout, 
+        timeout_pause, freq_lim, e1_inds, e2_inds)
+
+    task_params = dict(nsteps=nsteps, prob_t1=prob_t1, prob_t2=prob_t2, timeout_pause=timeout_pause, timeout=timeout, freq_lim=freq_lim, 
+        e1_inds=e1_inds, e2_inds=e2_inds, te_name=te.name, FR_to_freq_fn=FR_to_freq_fn, units=units, te_id=te_id, t1=t1, t2=t2, mid=mid,
+        extractor_kwargs=extractor_kwargs)
+
+    return task_params
+
+def create_ratBMIdecoder(task_params):
+    import extractor
+    task_params['extractor_cls'] = extractor.BinnedSpikeCountsExtractor
+    import rat_bmi_decoder
+    import state_space_models
+    rat_decoder= rat_bmi_decoder.create_decoder(state_space_models.StateSpaceEndptPos1D(), task_params)
+    rat_decoder.extractor_kwargs = task_params['extractor_kwargs']
+    import tempfile
+    import cPickle
+    from db.tracker import dbq
+
+    rat_decoder.te_id = task_params['te_id']
+    tf = tempfile.NamedTemporaryFile('wb')
+    cPickle.dump(rat_decoder, tf, 2)
+    tf.flush()
+
+    name = task_params['te_name'] + '_rat_bmi_decoder'
+    dbq.save_bmi(name, int(task_params['te_id']), tf.name)
+
+
 def add_fa_dict_to_decoder(decoder_training_te, dec_ix, fa_te):
     #First make sure we're training from the correct task entry: spike counts n_units == BMI units
     from db import dbfunctions as dbfn
@@ -493,7 +547,7 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     f.close()
     return decoder2, fname
 
-def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_', use_shar_z=False):
+def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_', use_shar_z=False, tslice=None):
     
     from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(fa_te)
@@ -538,7 +592,8 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     ssm = decoder.ssm
     update_rate = binlen = decoder.binlen
     units = decoder.units
-    tslice = (0., te_id.length)
+    if tslice is None:
+        tslice = (0., te_id.length)
 
     ## get kinematic data
     kin_source = 'task'

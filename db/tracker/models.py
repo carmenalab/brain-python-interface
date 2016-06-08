@@ -186,8 +186,10 @@ class Task(models.Model):
         from json_param import Parameters
         seqs = dict()
         for s in Sequence.objects.filter(task=self.id):
-            seqs[s.id] = s.to_json()
-
+            try:
+                seqs[s.id] = s.to_json()
+            except:
+                print 'Sequence cannot be Accessed: ', s.id 
         return seqs
 
     def get_generators(self):

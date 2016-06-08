@@ -192,7 +192,7 @@ class RelayPlexByte(RelayPlexon):
         '''
         see documentation for RelayPlexon.ni_out 
         '''
-        from riglib import nidaq
+        from riglib.dio import nidaq
         return nidaq.SendRowByte
 
 
