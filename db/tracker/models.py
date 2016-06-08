@@ -39,9 +39,10 @@ def _get_trait_default(trait):
 class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
+    
     def __unicode__(self):
         return self.name
-    
+        
     def get(self, feats=()):
         print "models.Task.get()"
         from namelist import tasks

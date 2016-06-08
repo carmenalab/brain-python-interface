@@ -30,6 +30,7 @@ class Filter(object):
 
         self.zi = np.zeros(max(len(a), len(b))-1)
 
+
     def __call__(self, samples):
         '''
         Run the filter parameters on the most recent set of samples
