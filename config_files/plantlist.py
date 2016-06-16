@@ -42,6 +42,12 @@ cursor_2dimLFP = plants.twodimLFP_CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14
 #cursor_onedimLFP_or = plants.onedimLFP_CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14), lfp_cursor_rad=1.5, lfp_cursor_color=(250/256., 102/256., 0/256., 1))
 inv_cursor_onedimLFP = plants.onedimLFP_CursorPlant_inverted(endpt_bounds=(-14, 14, 0., 0., -14, 14), lfp_cursor_rad=1.5, lfp_cursor_color=(248/256., 220/256., 0/256., 1))
 
+#ratBMI cursor
+min_freq = 400.
+max_freq = 15000.
+rat_cursor = plants.AuditoryCursor(min_freq, max_freq, sound_duration=0.1)
+
+
 plantlist = dict(
 	cursor_14x14=cursor_14x14, 
 	cursor_25x14=cursor_25x14, 
@@ -53,5 +59,6 @@ plantlist = dict(
 	cursor_onedimLFP=cursor_onedimLFP, 
     cursor_2dimLFP=cursor_2dimLFP,
     inv_cursor_onedimLFP=inv_cursor_onedimLFP,
-    tentacle2=tentacle2)
+    tentacle2=tentacle2,
+    aud_cursor=rat_cursor)
 
