@@ -21,9 +21,10 @@ from tasks import rat_bmi_tasks
 from db.tracker import models
 from db.json_param import Parameters
 
-decoder_trained_id = 5402
-decoder_list_ix = 1
+decoder_trained_id = 5431
+decoder_list_ix = 0
 session_length = 10*60.
+reward_time = 1.5
 
 decoder_list = models.Decoder.objects.filter(entry=decoder_trained_id)
 Decoder = decoder_list[decoder_list_ix]
@@ -43,7 +44,7 @@ saveid = entry.id
 
 Task = experiment.make(rat_bmi_tasks.RatBMI, [Autostart, PlexonBMI, PlexonSerialDIORowByte, RewardSystem, SaveHDF])
 Task.pre_init(saveid=saveid)
-task = Task(plant_type='aud_cursor', session_length=session_length., **kw)
+task = Task(plant_type='aud_cursor', session_length=session_length, reward_time=reward_time, **kw)
 task.subj=s[0]
 
 task.init()
