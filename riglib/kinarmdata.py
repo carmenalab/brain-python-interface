@@ -15,8 +15,7 @@ class Kinarmdata(DataSourceSystem):
 
     #  dtype is the numpy data type of items that will go 
     #  into the (multi-channel, in this case) datasource's ringbuffer
-
-    dtype = np.dtype('float')
+    dtype = np.dtype((np.float, (3, 50)))
 
     def __init__(self, addr=("192.168.0.8", 9090)):
         '''
@@ -28,7 +27,7 @@ class Kinarmdata(DataSourceSystem):
             (client (self) IP address, client UDP port)
 
         '''
-        self.conn = kinarmsocket.KinarmSocket(*addr)
+        self.conn = kinarmsocket.KinarmSocket(addr)
         self.conn.connect()
 
     def start(self):
@@ -47,10 +46,10 @@ class Kinarmdata(DataSourceSystem):
         '''
         Get a new kinarm sample
         '''
-        while True
-            try:
-                d = self.data.next()
-            except:
-                break
+        # while True:
+            # try:
+            #     d = self.data.next()
+            # except:
+            #     break
 
-        return d
+        return self.data.next()

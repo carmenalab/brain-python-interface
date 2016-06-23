@@ -66,7 +66,9 @@ class KinarmSocket(object):
                 if data.shape[0] == 150:
                     #reshape data into 3 x 50
                     kindata = data.reshape(50,3).T
-                    yield (kindata, arrival_ts)
+                    #kindata = np.hstack((kindata, np.zeros((3, 1))))
+                    #kindata[:, -1] = arrival_ts
+                    yield kindata
 
     def disconnect(self):
         self.socket.close()
