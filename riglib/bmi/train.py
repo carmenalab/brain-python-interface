@@ -408,7 +408,7 @@ def test_ratBMIdecoder(te_id=None, update_rate=0.1, tslice=None, kin_source='tas
     prob_t2 = kwargs.pop('prob_t2', 0.015)
     timeout = kwargs.pop('timeout', 30.)
     timeout_pause = kwargs.pop('timeout_pause', 3.)
-    freq_lim = kwargs.pop('freq_lim', (400., 15000.))
+    freq_lim = kwargs.pop('freq_lim', (1000., 20000.))
     e1_inds = kwargs.pop('e1_inds', None)
     e2_inds = kwargs.pop('e2_inds', None)
 
