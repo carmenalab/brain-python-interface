@@ -53,3 +53,20 @@ class Kinarmdata(DataSourceSystem):
             #     break
 
         return self.data.next()
+
+def make(cls=DataSourceSystem, *args, **kwargs):
+    '''
+    Docstring
+    This ridiculous function dynamically creates a class with a new init function
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    def init(self, *args, **kwargs):
+        super(self.__class__, self).__init__(*args, **kwargs)
+    
+    dtype = np.dtype((np.float, (3, 50)))    
+    return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))

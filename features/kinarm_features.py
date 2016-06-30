@@ -29,12 +29,13 @@ class KinarmData(traits.HasTraits):
         to file as it is collected.
         '''
         from riglib import source
-        src, mkw = self.source_class
-        self.kinarmdata = source.DataSource(src, **mkw)
+        from riglib import kinarmdata
+        System = Motion = kinarmdata.Kinarmdata
+        self.kinarmdata = source.DataSource(System)
         from riglib import sink
         self.sinks = sink.sinks
         self.sinks.register(self.kinarmdata)
-        super(MotionData, self).init()
+        super(KinarmData, self).init()
     
     @property
     def source_class(self):
@@ -42,7 +43,7 @@ class KinarmData(traits.HasTraits):
         Specify the source class as a function
         '''
         from riglib import kinarmdata
-        return kinarmdata.KinarmData()
+        return kinarmdata.Kinarmdata()
 
     def run(self):
         '''
@@ -69,39 +70,3 @@ class KinarmData(traits.HasTraits):
         '''
         self.kinarmdata.stop()
         super(KinarmData, self)._start_None()
-
-
-class MotionSimulate(MotionData):
-    '''
-    Simulate presence of raw motiontracking system using a randomized spatial function
-    '''
-    @property
-    def source_class(self):
-        '''
-        Specify the source class as a function in case future descendant classes want to use a different type of source
-        '''        
-        from riglib import motiontracker
-        cls = motiontracker.make(self.marker_count, cls=motiontracker.Simulate)
-        return cls, dict(radius=(100,100,50), offset=(-150,0,0))
-
-
-class MotionAutoAlign(MotionData):
-    '''Creates an auto-aligning motion tracker, for use with the 6-point alignment system'''
-    autoalign = traits.Instance(calibrations.AutoAlign)
-    
-    def init(self):
-        '''
-        Secondary init function. See riglib.experiment.Experiment.init()
-        Prior to starting the task, this 'init' adds a filter onto the motiondata source. See MotionData for further details.
-        '''
-        super(MotionAutoAlign, self).init()
-        self.motiondata.filter = self.autoalign
-
-    @property
-    def source_class(self):
-        '''
-        Specify the source class as a function in case future descendant classes want to use a different type of source
-        '''
-        from riglib import motiontracker
-        cls = motiontracker.make(self.marker_count, cls=motiontracker.AligningSystem)
-        return cls, dict()
