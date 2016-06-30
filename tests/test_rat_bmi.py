@@ -24,7 +24,7 @@ from db.json_param import Parameters
 decoder_trained_id = 5431
 decoder_list_ix = 0
 session_length = 10*60.
-reward_time = 1.5
+reward_time = 2.5
 
 decoder_list = models.Decoder.objects.filter(entry=decoder_trained_id)
 Decoder = decoder_list[decoder_list_ix]
