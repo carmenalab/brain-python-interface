@@ -164,11 +164,15 @@ class WindowWithExperimenterDisplay(Window):
     # This class has a hard-coded window size
     if hostname == 'lynx':
         _stereo_window_flip = True
+        _stereo_main_flip_z = True
         window_size = (1280+480, 1024)
-        window_size2 = (480, 384)
+        window_size1 = (1280, 1024)
+        window_size2 = (480, 270)
     else:
         _stereo_window_flip = False
+        _stereo_main_flip_z = False
         window_size = (1920 + 480, 1080)
+        window_size1 = (1920, 1080)
         window_size2 = (480, 270)
 
     def __init__(self, *args, **kwargs):
@@ -187,7 +191,8 @@ class WindowWithExperimenterDisplay(Window):
     def _get_renderer(self):
         near = 1
         far = 1024
-        return stereo.DualMultisizeDisplay(self.window_size, self.window_size2, self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip)
+        return stereo.DualMultisizeDisplay(self.window_size1, self.window_size2, self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip, 
+            flip_main_z = self._stereo_main_flip_z)
 
 
 class WindowDispl2D(Window):
