@@ -119,6 +119,7 @@ class TTLReward_arduino(TTLReward):
         self.port.write("a")
         self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
         self.reward_start = self.get_time() - self.start_time
+        super(TTLReward_arduino, self)._start_reward()
         
     def _end_reward(self):
         self.port.write("b")
