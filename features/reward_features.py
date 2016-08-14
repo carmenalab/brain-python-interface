@@ -111,7 +111,7 @@ class TTLReward_arduino(TTLReward):
     def __init__(self, *args, **kwargs):
         self.baudrate_rew = 115200
         import serial
-        self.port = serial.Serial('/dev/ttyACM0', baudrate=self.baudrate_rew)
+        self.port = serial.Serial('/dev/arduino_neurosync', baudrate=self.baudrate_rew)
         super(TTLReward_arduino, self).__init__(*args, **kwargs)
 
     def _start_reward(self):
