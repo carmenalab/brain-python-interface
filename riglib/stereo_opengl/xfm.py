@@ -20,7 +20,7 @@ class Quaternion(object):
         return "%g+%gi+%gj+%gk"%tuple(self.quat)
     
     def norm(self):
-        self.quat /= np.sqrt((self.quat**2).sum())
+        self.quat = self.quat / np.sqrt((self.quat**2).sum())
         return self
     
     def conj(self):
