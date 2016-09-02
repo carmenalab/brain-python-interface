@@ -22,6 +22,7 @@ import time
 from config import config
 from primitives import Cylinder, Sphere, Cone
 from profile_support import profile
+import socket
 
 try:
     import pygame
@@ -159,12 +160,25 @@ class Window(LogExperiment):
         
 
 class WindowWithExperimenterDisplay(Window):
-    _stereo_window_flip = False
+    hostname = socket.gethostname()
+    # This class has a hard-coded window size
+    if hostname == 'lynx':
+        _stereo_window_flip = True
+        _stereo_main_flip_z = True
+        window_size = (1280+480, 1024)
+        window_size1 = (1280, 1024)
+        window_size2 = (480, 270)
+    else:
+        _stereo_window_flip = False
+        _stereo_main_flip_z = False
+        window_size = (1920 + 480, 1080)
+        window_size1 = (1920, 1080)
+        window_size2 = (480, 270)
 
     def __init__(self, *args, **kwargs):
         super(WindowWithExperimenterDisplay, self).__init__(*args, **kwargs)
         # This class has a hard-coded window size
-        self.window_size = (1920 + 480, 1080)
+        # self.window_size = (1920 + 480, 1080)
 
     def set_os_params(self):
         # NOTE: in Ubuntu Unity, setting the SDL_VIDEO_WINDOW_POS seems to be largely ignored.
@@ -177,7 +191,8 @@ class WindowWithExperimenterDisplay(Window):
     def _get_renderer(self):
         near = 1
         far = 1024
-        return stereo.DualMultisizeDisplay((1920,1080), (480,270), self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip)
+        return stereo.DualMultisizeDisplay(self.window_size1, self.window_size2, self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip, 
+            flip_main_z = self._stereo_main_flip_z)
 
 
 class WindowDispl2D(Window):

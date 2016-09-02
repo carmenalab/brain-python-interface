@@ -106,6 +106,26 @@ class TTLReward(traits.HasTraits):
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
 
+class TTLReward_arduino(TTLReward):
+    ''' Same idea as TTL reward, using an arduino instead of nidaq (pin 8)'''
+    def __init__(self, *args, **kwargs):
+        self.baudrate_rew = 115200
+        import serial
+        self.port = serial.Serial('/dev/arduino_neurosync', baudrate=self.baudrate_rew)
+        super(TTLReward_arduino, self).__init__(*args, **kwargs)
+
+    def _start_reward(self):
+        #port = serial.Serial('/dev/arduino_rew', baudrate=self.baudrate_rew)
+        self.port.write("a")
+        self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
+        self.reward_start = self.get_time() - self.start_time
+        super(TTLReward_arduino, self)._start_reward()
+        
+    def _end_reward(self):
+        self.port.write("b")
+
+
+
 class JuiceLogging(traits.HasTraits):
     '''
     Save screenshots of the juice camera and link them to the task entry that has been created
