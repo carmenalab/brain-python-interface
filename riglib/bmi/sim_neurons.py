@@ -191,6 +191,8 @@ class FACosEnc(GenericCosEnc):
         self.W = self.W / np.sqrt(2) 
 
         #REMEMBER -- MEAN IS FOR 0.1 SEC, so 20/10: 
+        #self.mu = 2*(np.random.random_sample((self.n_neurons, ))+1)
+        self.mu = np.random.exponential(.75, size=(self.n_neurons, ))
 
         #Results prior to 7-30-16 used a mean of 2spks / 100 ms: 
         #self.mu = 2*(np.random.random_sample((self.n_neurons, ))+1)
