@@ -63,7 +63,7 @@ class TouchDataFeature(traits.HasTraits):
         '''
         See riglib.experiment.Experiment.join(). Re-join the 'motiondata' source process before cleaning up the experiment thread
         '''
-        self.touch_data.join()
+        #self.touch_data.join()
         super(TouchDataFeature, self).join()
     
     def _start_None(self):
