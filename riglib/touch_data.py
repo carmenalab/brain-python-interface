@@ -17,7 +17,7 @@ class TouchData(DataSourceSystem):
 
     #  dtype is the numpy data type of items that will go 
     #  into the (multi-channel, in this case) datasource's ringbuffer
-    dtype = np.dtype((np.float, (1,)))
+    dtype = np.dtype((np.float, (5,5)))
 
     def __init__(self):
         '''
@@ -49,7 +49,9 @@ class TouchData(DataSourceSystem):
         while self.conn.connected:
             self.conn.touch_port.write('t')
             tmp = self.conn.touch_port.read()
-            yield np.array([int(tmp)])
+            tmp2 = np.zeros((5, 5))-1
+            tmp2[0, 0] = float(tmp)
+            yield tmp2
 
     def stop(self):
         '''
