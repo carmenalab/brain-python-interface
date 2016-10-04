@@ -235,7 +235,7 @@ class Feature(models.Model):
 
     @staticmethod
     def getall(feats):
-        features = []
+        feature_class_list = []
         for feat in feats:
             if isinstance(feat, (int, float, str, unicode)):
                 try:
@@ -244,13 +244,17 @@ class Feature(models.Model):
                     try:
                         feat = Feature.objects.get(name=feat).get()
                     except:
-                        print "Cannot find feature %s"%feat
-                        continue
+                        try:
+                            from featurelist import features as FL
+                            feat = FL[feat]
+                        except:
+                            print "Cannot find feature %s"%feat
+                            continue
             elif isinstance(feat, models.Model):
                 feat = feat.get()
             
-            features.append(feat)
-        return features
+            feature_class_list.append(feat)
+        return feature_class_list
 
 class System(models.Model):
     name = models.CharField(max_length=128)
