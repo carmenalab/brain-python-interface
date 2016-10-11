@@ -65,10 +65,12 @@ class DualMultisizeDisplay(Renderer):
         self.main_window_size = main_window_size
         self.mini_window_size = mini_window_size
 
+        flip_main_z = kwargs.pop('flip_main_z', False)
         flip = kwargs.pop('flip', True)
 
+
         super(DualMultisizeDisplay, self).__init__((w+w2, h), fov, near, far, **kwargs)
-        main_projections = offaxis_frusta(main_window_size, fov, near, far, focal_dist, iod, flip=flip)
+        main_projections = offaxis_frusta(main_window_size, fov, near, far, focal_dist, iod, flip=flip, flip_z=flip_main_z)
         mini_projections = offaxis_frusta(mini_window_size, fov, near, far, focal_dist, iod, flip=flip)
         self.projections = (mini_projections[0], main_projections[0])
 

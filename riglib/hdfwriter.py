@@ -36,6 +36,7 @@ class HDFWriter(object):
         self.h5 = tables.openFile(filename, "w")
         self.data = {}
         self.msgs = {}
+        self.f = []
     
     def register(self, name, dtype, include_msgs=True):
         '''
@@ -84,11 +85,11 @@ class HDFWriter(object):
         None
         '''
         if system in self.data:
-            if len(data) != 1:
+            if data is not None:
+                if len(data) != 1:
                 # this might not be necessary
-                data = np.array(data)[np.newaxis]
-            self.data[system].append(data)
-            #print 'hdfwriter', system, data['cursor'], data['cursor'].shape
+                    data = np.array(data)[np.newaxis]
+                self.data[system].append(data)
 
     def sendMsg(self, msg):
         '''

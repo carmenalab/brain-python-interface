@@ -11,6 +11,7 @@ stuff['reward_sys'] = dict(version=0)
 stuff['recording_sys'] = dict(make='plexon', mount_point='/storage/plexon')
 stuff['graphics'] = dict(window_start_x=0, window_start_y=0)
 stuff['backup_root'] = dict(root='/backup')
+stuff['plexon IP address'] = dict(addr='10.0.0.13', port=6000)
 
 from db import settings
 databases = settings.DATABASES.keys()

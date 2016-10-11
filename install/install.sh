@@ -17,6 +17,14 @@ mkdir $CODE/src/
 sudo apt-get -y install git gitk
 if [ ! -d "$HOME/code/bmi3d" ]; then
     git clone https://github.com/carmenalab/bmi3d.git $HOME/code/bmi3d
+
+    #Add tasks & analysis, if desired
+    git clone https://github.com/carmenalab/bmi3d_tasks_analysis.git $HOME/code/bmi3d_tasks_analysis
+
+    #Make symlinks to tasks/analysis in main bmi3d repository
+    ln -s $HOME/code/bmi3d_tasks_analysis/analysis $HOME/code/bmi3d/analysis
+	ln -s $HOME/code/bmi3d_tasks_analysis/tasks $HOME/code/bmi3d/tasks
+
 fi
 
 # make log directory
@@ -82,6 +90,7 @@ sudo pip install sphinx
 sudo pip install numpydoc
 sudo pip install tornado
 sudo pip install tables==2.4.0
+sudo pip install sklearn
 
 
 ####### Download any src code
@@ -108,8 +117,8 @@ sudo python setup.py install
 # symlink for iPython
 sudo ln -s /usr/bin/ipython /usr/bin/ipy
 
-# NIDAQ software
-$HOME/code/bmi3d/riglib/nidaq/build.sh
+# NIDAQ software -- deprecated!
+# $HOME/code/bmi3d/riglib/nidaq/build.sh
 
 # Phidgets libraries
 cd $CODE/src/
@@ -141,6 +150,7 @@ sudo usermod -a -G dialout $USER # Serial ports belong to 'dialout' group
 
 ####### Reconfigure .bashrc
 sed -i '$a export PYTHONPATH=$PYTHONPATH:$HOME/code/robotics' $HOME/.bashrc
+sed -i '$a export BMI3D=/home/lab/code/bmi3d' $HOME/.bashrc
 sed -i '$a source $HOME/code/bmi3d/pathconfig.sh' $HOME/.bashrc
 source $HOME/.bashrc
 
