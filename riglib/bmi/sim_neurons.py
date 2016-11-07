@@ -163,15 +163,22 @@ class FACosEnc(GenericCosEnc):
 
         self.eps = 1e-15
         
-        #Establish mapping from kinematics to factors: 
-        self.psi_unt = np.zeros((self.n_neurons, 1)) #517
-        self.psi_unt_std = np.sqrt(7.)
+        if 'psi_tun' in kwargs:
+            print 'using kwargs psi tun'
+            self.psi_tun = kwargs['psi_tun']
+            self.psi_unt_std = kwargs['psi_unt_std']
 
-        #Matched to fit KF data -- unit vectors: 
-        self.psi_tun = np.random.normal(0, 1, (self.n_neurons, ssm.n_states))
-        self.psi_tun[:, [0, 1, 2, 4, 6]] = 0
-        self.psi_tun = self.psi_tun / np.tile(np.linalg.norm(self.psi_tun, axis=1)[:, np.newaxis], [1, ssm.n_states])
-        self.psi_tun = self.psi_tun/np.sqrt(2) #Due to 2 active states contributing to tuning
+
+        else:
+        #Establish mapping from kinematics to factors: 
+            self.psi_unt = np.zeros((self.n_neurons, 1)) #517
+            self.psi_unt_std = np.sqrt(7.) + np.zeros((self.n_neurons, ))
+
+            #Matched to fit KF data -- unit vectors: 
+            self.psi_tun = np.random.normal(0, 1, (self.n_neurons, ssm.n_states))
+            self.psi_tun[:, [0, 1, 2, 4, 6]] = 0
+            self.psi_tun = self.psi_tun / np.tile(np.linalg.norm(self.psi_tun, axis=1)[:, np.newaxis], [1, ssm.n_states])
+            self.psi_tun = self.psi_tun/np.sqrt(2) #Due to 2 active states contributing to tuning
 
         
         self.v_ = 2*(np.random.random_sample(self.n_tun_factors)-0.5)
@@ -226,7 +233,7 @@ class FACosEnc(GenericCosEnc):
                 cnt = []
                 for z in range(self.priv_unt_bins[n]):
                     #psi_unt = np.max([np.random.normal(self.psi_unt[n], self.psi_unt_std), 0])
-                    psi_unt = np.random.normal(0, self.psi_unt_std) #517
+                    psi_unt = np.random.normal(0, self.psi_unt_std[n]) #517
                     cnt.append(psi_unt)
                 priv_unt.append(np.sum(cnt))
             else:
@@ -312,6 +319,61 @@ class FACosEnc(GenericCosEnc):
             else:
                 y.append(-1*np.sqrt(r2 - x**2))
         return np.array(y)
+
+def from_file_to_FACosEnc():   
+    from riglib.bmi import state_space_models as ssm
+    import pickle
+    import os
+    dat = pickle.load(open(os.path.expandvars('/home/lab/preeya/fa_analysis/grom_data/co_obs_SNR_w_coefficients.pkl')))
+    SSM = ssm.StateSpaceEndptVel2D()
+
+    snr = {}
+    eps = 10**-10
+    for i in np.sort(dat.keys()):
+        snr[i] = []
+        d = dat[i]
+        kwargs = {}
+        kwargs['n_neurons'] = len(d.keys())
+        C = np.random.rand(kwargs['n_neurons'], SSM.n_states)
+        kwargs['wt_sources'] = [1, 1, 0, 0]
+        enc = FACosEnc(C, SSM, return_ts =True, **kwargs)
+
+        for n in d.keys():
+            #For individual units: 
+            enc.psi_tun[n, [3, 5, 6]] = d[n][3][0, :] #Terrible construction. 
+        
+        #Now set the standard deviation: Draw from VFB distribution of commands 
+        
+
+
+
+            t = np.linalg.norm(d[n][0][:2])
+            if t ==np.nan:
+                t = 0;
+            
+            snr_des = t/(np.sqrt(d[n][1])+eps)
+            snr_curr = nrm/float(std)
+            enc.psi_unt_std[n] = enc.psi_unt_std[n]*snr_curr/snr_des
+
+        #kwargs['psi_unt_std'] = psi_unt_std
+        #kwargs['psi_tun'] = psi_tun
+        pickle.dump(enc, open(os.path.expandvars('$FA_GROM_DATA/sims/test_obs_vs_co_overlap/encoder_param_matched_'+str(i)+'.pkl'), 'wb'))
+
+def make_FACosEnc(num):
+    from riglib.bmi import state_space_models as ssm
+    import pickle
+    num_neurons = 20;
+    SSM = ssm.StateSpaceEndptVel2D()
+
+    for n in range(num):
+        kwargs = {}
+        kwargs['n_neurons'] = num_neurons
+        C = np.random.rand(num_neurons, SSM.n_states)
+        enc = FACosEnc(C, SSM, return_ts=True, **kwargs)
+        enc.psi_unt_std[:4] /= 40
+        pickle.dump(enc, open('/storage/preeya/grom_data/sims/test_obs_vs_co_overlap/encoder_param_matched_'+str(n)+'.pkl', 'wb'))
+
+
 
 class CursorVelCosEnc(GenericCosEnc):
     def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, **kwargs):
