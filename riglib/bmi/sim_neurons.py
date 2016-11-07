@@ -201,6 +201,10 @@ class FACosEnc(GenericCosEnc):
         #self.mu = 2*(np.random.random_sample((self.n_neurons, ))+1)
         self.mu = np.random.exponential(.75, size=(self.n_neurons, ))
 
+
+        #Results prior to 7-30-16 used a mean of 2spks / 100 ms: 
+        #self.mu = 2*(np.random.random_sample((self.n_neurons, ))+1)
+        self.mu = np.random.exponential(.75, size=(self.n_neurons, ))
         self.bin_step_count = -1
 
     def _gen_state(self):

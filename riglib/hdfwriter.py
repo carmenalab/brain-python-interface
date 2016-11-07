@@ -90,7 +90,6 @@ class HDFWriter(object):
                 # this might not be necessary
                     data = np.array(data)[np.newaxis]
                 self.data[system].append(data)
-            #print 'hdfwriter', system, data['cursor'], data['cursor'].shape
 
     def sendMsg(self, msg):
         '''
