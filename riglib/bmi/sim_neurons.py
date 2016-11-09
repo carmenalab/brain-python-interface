@@ -323,16 +323,23 @@ class FACosEnc(GenericCosEnc):
                 y.append(-1*np.sqrt(r2 - x**2))
         return np.array(y)
 
-def from_file_to_FACosEnc():   
+def from_file_to_FACosEnc(plot=False):
     from riglib.bmi import state_space_models as ssm
     import pickle
     import os
+    import matplotlib.pyplot as plt
+
     dat = pickle.load(open(os.path.expandvars('/home/lab/preeya/fa_analysis/grom_data/co_obs_SNR_w_coefficients.pkl')))
     SSM = ssm.StateSpaceEndptVel2D()
 
     snr = {}
     eps = 10**-10
-    for i in np.sort(dat.keys()):
+
+    if plot:
+        f, ax = plt.subplots(nrows=3, ncols=3)
+
+    for j, i in enumerate(np.sort(dat.keys())):
+        
         snr[i] = []
         d = dat[i]
         kwargs = {}
@@ -341,26 +348,114 @@ def from_file_to_FACosEnc():
         kwargs['wt_sources'] = [1, 1, 0, 0]
         enc = FACosEnc(C, SSM, return_ts =True, **kwargs)
 
-        for n in d.keys():
+        for n in range(len(d.keys())):
             #For individual units: 
             enc.psi_tun[n, [3, 5, 6]] = d[n][3][0, :] #Terrible construction. 
-        
+            enc.mu[n] = 0
         #Now set the standard deviation: Draw from VFB distribution of commands 
         
+        data, enc = sim_enc(enc)
+        U = np.vstack((data['unt']))
+        T = np.vstack((data['tun']))
+        spk = U+T
+        vel = np.hstack((data['ctl']))[[3, 5], :].T
+        vel = np.hstack((np.array(vel), np.ones((len(vel), 1))))
 
-
-
-            t = np.linalg.norm(d[n][0][:2])
-            if t ==np.nan:
-                t = 0;
+        # Fit encoder: 
+        n_units = spk.shape[1]
+        snr_act = []
+        for n in range(n_units):
+            snr_des = d[n][2]
+            if np.isnan(snr_des):
+                snr_des = .3
+                print 'sucdess'
+            snr_act.append(snr_des)
+            s2 = spk[:, n] #Spikes: 
+            x = np.linalg.lstsq(vel , s2[:, np.newaxis]) #Regress Spikes against Velocities
+            qnoise = np.var(s2[:, np.newaxis] - vel*np.mat(x[0])) #Residuals
+            #Explained Variance vs. Residual Variance: 
+            qsig = np.var(vel*np.mat(x[0]))
+            k = qsig/(snr_des)
+            enc.psi_unt_std[n] = np.sqrt(k)# + eps
             
-            snr_des = t/(np.sqrt(d[n][1])+eps)
-            snr_curr = nrm/float(std)
-            enc.psi_unt_std[n] = enc.psi_unt_std[n]*snr_curr/snr_des
+        #Fit simulation: 
+        data, enc = sim_enc(enc)
+        U = np.vstack((data['unt']))
+        T = np.vstack((data['tun']))
+        spk = U+T
+        vel = np.hstack((data['ctl']))[[3, 5], :].T
+        vel = np.hstack((np.array(vel), np.ones((len(vel), 1))))
+        snr_sim = []
+        for n in range(n_units):
+            s2 = spk[:, n] #Spikes: 
+            x = np.linalg.lstsq(vel, s2[:, np.newaxis]) #Regress Spikes against Velocities
+            qnoise = np.var(s2[:, np.newaxis] - vel*np.mat(x[0])) #Residuals
+            #Explained Variance vs. Residual Variance: 
+            qsig = np.var(vel*np.mat(x[0]))
+            snr_sim.append(qsig/qnoise)
+
+        if plot:
+            axi = ax[j/3, j%3]
+            axi.plot(snr_sim, snr_act, '.')
+            axi.set_title(dat.keys()[j])
 
         #kwargs['psi_unt_std'] = psi_unt_std
         #kwargs['psi_tun'] = psi_tun
         pickle.dump(enc, open(os.path.expandvars('$FA_GROM_DATA/sims/test_obs_vs_co_overlap/encoder_param_matched_'+str(i)+'.pkl'), 'wb'))
+
+def test_sim_enc():
+    int_enc_names = [26, 28, 31, 39, 40, 41, 42, 43, 44]
+    import pickle, os
+    import matplotlib.pyplot as plt
+    real_data = pickle.load(open(os.path.expandvars('/home/lab/preeya/fa_analysis/grom_data/co_obs_SNR_w_coefficients.pkl')))
+    f, ax = plt.subplots(nrows=3, ncols=3)
+    for ie, e in enumerate(int_enc_names):
+        axi = ax[ie/3, ie%3]
+        match_data = real_data[e]
+        enc = pickle.load(open(os.path.expandvars('$FA_GROM_DATA/sims/test_obs_vs_co_overlap/encoder_param_matched_'+str(e)+'.pkl')))
+        data, enc = sim_enc(enc)
+        U = np.vstack((data['unt']))
+        T = np.vstack((data['tun']))
+
+        spk = U+T
+        vel = np.hstack((data['ctl']))[[3, 5], :].T
+        n_units = spk.shape[1]
+        for n in range(n_units):
+            s2 = spk[:, n] #Spikes: 
+            x = np.linalg.lstsq(s2[:, np.newaxis], vel) #Regress Spikes against Velocities
+            q = s2[:, np.newaxis] - vel*np.mat(x[0].T) #Residuals
+            #Explained Variance vs. Residual Variance: 
+            ev = np.var(vel*np.mat(x[0].T))
+            snr = ev/np.var(q)
+            axi.plot(snr, match_data[n][2], '.')
+        axi.set_xlim([0, 1.5])
+        axi.set_ylim([0, 1.5])
+
+def sim_enc(enc):
+    enc.call_ds_rate = 1
+    from tasks import sim_fa_decoding
+    dat = {}
+    dat['tun'] = []
+    dat['unt'] = []
+    dat['ctl'] = []
+
+    assister = sim_fa_decoding.SuperSimpleEndPtAssister()
+
+    for it in range(2000):
+        current_state = (np.random.rand(7, 1) - 0.5)*30
+        current_state[[1, 4], 0] = 0
+        target_state = np.zeros((7, 1))
+        ang = (np.random.permutation(8)[0])/8*np.pi*2
+        target_state[[0, 2], 0] = np.array([10*np.cos(ang), 10*np.sin(ang)])
+
+        ctrl = assister.calc_next_state(current_state, target_state)
+        ts_data = enc(ctrl)
+        dat['ctl'].append(ctrl)
+        dat['tun'].append(enc.priv_tun)
+        dat['unt'].append(enc.priv_unt)
+    enc.call_ds_rate = 6
+    return dat, enc
+
 
 def make_FACosEnc(num):
     from riglib.bmi import state_space_models as ssm
