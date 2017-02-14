@@ -106,13 +106,16 @@ class matfilesource(object):
         self.n = 0
 
     def get(self):
+        print 'soruc'
         return self.spike_counts[:, self.n]
 
-def run_sim(data_fname):
+def run_sim(data_fname=None, n_iter2 = None):
     state_units = 'cm'
     #data_fname = '/Users/sgowda/Desktop/ppf_code_1023/assist_ex_data/jeev100413_VFB_PPF_B100_NS5_NU17_Z1_assist_ofc_contData.mat'
     #data_fname = '/Users/sgowda/Desktop/ppf_code_1023/jeev100713_VFB_PPF_B100_NS5_NU13_Z1_from1020_from1030_cont_rmv81_contData.mat'
-    #data_fname = '/home/lab/preeya/jeev_data_tmp/jeev080713_VFB_PPF_B100_NS5_NU18_Z1_assist_ofc_cont_cont_cont_swap50a15a_cont_swap58a50a113ab114ab_cont_swap124a125b_cont_cont_swap125ba_cont_cont_Barrier1fixData.mat'
+    if  data_fname is None:
+        data_fname = '/home/lab/preeya/jeev_data_tmp/jeev080713_VFB_PPF_B100_NS5_NU18_Z1_assist_ofc_cont_cont_cont_swap50a15a_cont_swap58a50a113ab114ab_cont_swap124a125b_cont_cont_swap125ba_cont_cont_Barrier1fixData.mat'
+    
     data = loadmat(data_fname)
     spike_counts = data['spike_counts'].astype(np.float64)
     intended_kin = data['intended_kin']
@@ -134,13 +137,19 @@ def run_sim(data_fname):
 
     self = task
     batch_idx = 0
-    n_iter = spike_counts.shape[1]
+
+    if n_iter2 is None:
+        n_iter = spike_counts.shape[1]
+    elif n_iter2 is 'max':
+        n_iter = dat['n_iter'][0, 0]
+    else:
+        n_iter = n_iter2
+
     while self.idx < n_iter:
         st = time.time()
         self.get_cursor_location()
         #print time.time() - st
     print np.max(np.abs(self.decoder_error[3:6,:]))
 
-    #Plot: 
-    plot(T.dec)
+    return self, cursor_kin
 
