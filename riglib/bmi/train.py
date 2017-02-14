@@ -875,13 +875,20 @@ def inflate(A, current_states, full_state_ls, axis=0):
     -------
 
     '''
-    nS = len(full_state_ls)
+    try:
+        nS = len(full_state_ls)
+    except:
+        nS = full_state_ls.n_states
+
     if axis == 0:
         A_new = np.zeros([nS, A.shape[1]])
     elif axis == 1:
         A_new = np.zeros([A.shape[0], nS])
 
-    new_inds = [full_state_ls.index(x) for x in current_states]
+    try:
+        new_inds = [full_state_ls.index(x) for x in current_states]
+    except:
+        new_inds = [full_state_ls.state_names.index(x) for x in current_states]
     if axis == 0:
         A_new[new_inds, :] = A
     elif axis == 1:
@@ -1097,14 +1104,18 @@ def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
 
     beta = ppfdecoder.PointProcessFilter.frommlab(beta)
     beta[:,:-1] /= unit_conv('m', state_units)
-    beta_full = inflate(beta, states_explaining_neural_activity_2D_vel_decoding, states_3D_endpt, axis=1)
-    
-    states = states_3D_endpt#['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-    neuron_driving_states = states_explaining_neural_activity_2D_vel_decoding#['hand_vx', 'hand_vz', 'offset'] 
-    ## beta_full = inflate(beta, neuron_driving_states, states, axis=1)
+    #beta_full = inflate(beta, states_explaining_neural_activity_2D_vel_decoding, states_3D_endpt, axis=1)
+    #states = states_3D_endpt#['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    #states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    states = state_space_models.StateSpaceEndptVel2D()
+    neuron_driving_states = ['hand_vx', 'hand_vz', 'offset'] 
+    beta_full = inflate(beta, neuron_driving_states, states, axis=1)
 
     stochastic_states = ['hand_vx', 'hand_vz']  
-    is_stochastic = map(lambda x: x in stochastic_states, states)
+    try:
+        is_stochastic = map(lambda x: x in stochastic_states, states)
+    except:
+        is_stochastic = map(lambda x: x in stochastic_states, states.state_names)
 
     unit_names = [str(x[0]) for x in data['decoder']['predSig'][0,0][0]]
     units = [(int(x[3:6]), ord(x[-1]) - (ord('a') - 1)) for x in unit_names]
@@ -1113,8 +1124,11 @@ def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
     ppf = ppfdecoder.PointProcessFilter(A, W, beta_full, dt, is_stochastic=is_stochastic)
     ppf.spike_rate_dt = spike_rate_dt
 
-    drives_neurons = np.array([x in neuron_driving_states for x in states])
-    dec = ppfdecoder.PPFDecoder(ppf, units, empty_bounding_box, states, drives_neurons, [], binlen=dt)
+    try:
+        drives_neurons = np.array([x in neuron_driving_states for x in states])
+    except:
+        drives_neurons = np.array([x in neuron_driving_states for x in states.state_names])
+    dec = ppfdecoder.PPFDecoder(ppf, units, states, binlen=dt)
 
     if state_units == 'cm':
         dec.filt.W[3:6, 3:6] *= unit_conv('m', state_units)**2
