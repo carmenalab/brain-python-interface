@@ -4,42 +4,22 @@ import numpy as np
 import math
 import time
 import cProfile
-from riglib.bmi import train, clda, bmi, ppfdecoder
-from tasks import bmimultitasks, generatorfunctions as genfns
+from riglib.bmi import train, clda, bmi, ppfdecoder,extractor
+from tasks import bmimultitasks, manualcontrolmultitasks, generatorfunctions as genfns
 from features.simulation_features import SimHDF
 from riglib.bmi.train import unit_conv
+from tasks import cursor_clda_tasks
 
-reload(clda)
-reload(train)
-reload(bmi)
-reload(ppfdecoder)
+# reload(clda)
+# reload(train)
+# reload(bmi)
+# reload(ppfdecoder)
 
-# TODO clean up the way the decoder object is created from the MATLAB file
-
-state_units = 'cm'
-
-#data_fname = '/Users/sgowda/Desktop/ppf_code_1023/assist_ex_data/jeev100413_VFB_PPF_B100_NS5_NU17_Z1_assist_ofc_contData.mat'
-data_fname = '/Users/sgowda/Desktop/ppf_code_1023/jeev100713_VFB_PPF_B100_NS5_NU13_Z1_from1020_from1030_cont_rmv81_contData.mat'
-data = loadmat(data_fname)
-
-spike_counts = data['spike_counts'].astype(np.float64)
-intended_kin = data['intended_kin']
-beta_hat = data['beta_hat']
-aimPos = data['aimPos']
-n_iter = data['n_iter'][0,0]
-cursor_kin = data['cursor_kin']
-
-## convert to 3D kinematics
-aimPos3D = np.vstack([aimPos[0,:], np.zeros(n_iter), aimPos[1,:]])
-cursor_kin_3d = np.zeros([7, n_iter])
-cursor_kin_3d[[0,2,3,5], :] = cursor_kin
-
-use_exact_F_int = False
-
-class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
+class TestPPFReconstruction(bmimultitasks.BMIControlMulti):
     def __init__(self, *args, **kwargs):
         super(TestPPFReconstruction, self).__init__(*args, **kwargs)
         self.idx = 1
+        self.n_subbins = 1
         self.task_data = SimHDF()
         self.hdf = SimHDF()
         self.learn_flag = True
@@ -105,27 +85,62 @@ class TestPPFReconstruction(bmimultitasks.CLDAControlPPFContAdapt):
         self._update_target_loc()
         spike_obs = self.get_spike_counts()
         
-        self.call_decoder_output = self.call_decoder(spike_obs)
+        self.call_decoder_output = self.call_decoder(spike_obs, np.zeros((7, 1)))
         self.decoder_state[:,self.sl] = self.call_decoder_output * unit_conv(state_units, 'm') 
         
         self.decoder_error[:,self.sl] = cursor_kin_3d[:,self.sl] - self.decoder_state[:,self.sl]
         self.beta_error[self.idx] = np.max(np.abs(self.decoder.filt.tomlab(unit_scale=100) - beta_hat[:,:,self.idx+self.n_subbins]))
         self.idx += self.n_subbins
 
+    def create_feature_extractor(self):
+        self.matsource = matfilesource(spike_counts)
+        self.extractor = extractor.BinnedSpikeCountsExtractor(self.matsource)
 
+    def _cycle(self):
+        self.matsource.n += 1
+        super(TestPPFReconstruction, self)._cycle()
 
-gen = genfns.sim_target_seq_generator_multi(8, 1000)
-task = TestPPFReconstruction(gen)
-task.init()
+class matfilesource(object):
+    def __init__(self, spike_counts):
+        self.spike_counts = spike_counts
+        self.n = 0
 
-self = task
+    def get(self):
+        return self.spike_counts[:, self.n]
 
+def run_sim(data_fname):
+    state_units = 'cm'
+    #data_fname = '/Users/sgowda/Desktop/ppf_code_1023/assist_ex_data/jeev100413_VFB_PPF_B100_NS5_NU17_Z1_assist_ofc_contData.mat'
+    #data_fname = '/Users/sgowda/Desktop/ppf_code_1023/jeev100713_VFB_PPF_B100_NS5_NU13_Z1_from1020_from1030_cont_rmv81_contData.mat'
+    #data_fname = '/home/lab/preeya/jeev_data_tmp/jeev080713_VFB_PPF_B100_NS5_NU18_Z1_assist_ofc_cont_cont_cont_swap50a15a_cont_swap58a50a113ab114ab_cont_swap124a125b_cont_cont_swap125ba_cont_cont_Barrier1fixData.mat'
+    data = loadmat(data_fname)
+    spike_counts = data['spike_counts'].astype(np.float64)
+    intended_kin = data['intended_kin']
+    beta_hat = data['beta_hat']
+    aimPos = data['aimPos']
+    n_iter = data['n_iter'][0,0]
+    cursor_kin = data['cursor_kin']
 
-batch_idx = 0
-n_iter = 12000
-while self.idx < n_iter:
-    st = time.time()
-    self.get_cursor_location()
-    #print time.time() - st
+    ## convert to 3D kinematics
+    aimPos3D = np.vstack([aimPos[0,:], np.zeros(n_iter), aimPos[1,:]])
+    cursor_kin_3d = np.zeros([7, n_iter])
+    cursor_kin_3d[[0,2,3,5], :] = cursor_kin
+    use_exact_F_int = False
 
-print np.max(np.abs(self.decoder_error[3:6,:]))
+    #Run generator: 
+    gen = manualcontrolmultitasks.ManualControlMulti.centerout_2D_discrete()
+    task = TestPPFReconstruction(gen)
+    task.init()
+
+    self = task
+    batch_idx = 0
+    n_iter = spike_counts.shape[1]
+    while self.idx < n_iter:
+        st = time.time()
+        self.get_cursor_location()
+        #print time.time() - st
+    print np.max(np.abs(self.decoder_error[3:6,:]))
+
+    #Plot: 
+    plot(T.dec)
+
