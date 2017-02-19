@@ -20,12 +20,12 @@ class GoalCalculator(object):
         pass    
 
 class Obs_Goal_Calc(GoalCalculator):
-    def __init__(self, ssm=None):
+    def __init__(self, ssm=None, **kwargs):
         self.ssm = ssm
         import os
         self.pre_obs = True
-        self.mid_speed = 10
-        self.mid_targ_rad = 6
+        self.mid_speed = kwargs.pop('mid_targ_speed', 10)
+        self.mid_targ_rad = kwargs.pop('mid_targ_rad', 6)
         self.targ_cnt = 0
         self.pre_obs_targ_state = None
         self.post_obs_targ_state = None
@@ -38,35 +38,42 @@ class Obs_Goal_Calc(GoalCalculator):
     def __call__(self, target_pos, **kwargs):
         #Use q_start th
         pos = kwargs.pop('q_start')
+
         #if past obstacle midline: 
-        obstacle_center = target_pos/2.
+        
+        if 'center_pos' in kwargs:
+            obstacle_center = kwargs['center_pos'] + (target_pos - kwargs['center_pos'])*.5
+            center = kwargs['center_pos']
+        else:
+            obstacle_center = target_pos/2.
+            center = np.zeros((3, ))
+
         target_pos = target_pos.round(1)
         try:
-            slope = -1*1./(target_pos[2]/target_pos[0])
+            slope = -1*1./((target_pos[2] - center[2])/(target_pos[0]-center[0]))
         except:
             slope = np.inf
             
-        if ((np.abs(slope) != np.inf) and (np.abs(slope) != np.nan) and np.abs(slope)!=0):
-            pre_obs = self.fcn_det(slope, obstacle_center, pos)
+        #if ((np.abs(slope) != np.inf) and (np.abs(slope) != np.nan) and np.abs(slope)!=0):
+        pre_obs = self.fcn_det(slope, obstacle_center, pos, center, target_pos)
             #print 'pre_obs: ', pre_obs, slope
-        else:
-            #print 'division by zero!'
-            
-            if target_pos[0] ==0:
-                #Division by zero
-                pre_obs = False
-                if np.abs(pos[2]) < (np.abs(obstacle_center[2])-.2): pre_obs = True
-            elif target_pos[2] == 0:
-                pre_obs = False
-                if np.abs(pos[0]) < (np.abs(obstacle_center[0]) -.2): pre_obs = True
-            else: 
-                Exception('Not vertical or horiz. line causing divide by zero --> error')
+        # else:
+        #     #print 'division by zero!'
+        #     if target_pos[0] ==0:
+        #         #Division by zero
+        #         pre_obs = False
+        #         if np.abs(pos[2]) < (np.abs(obstacle_center[2])-.2): pre_obs = True
+        #     elif target_pos[2] == 0:
+        #         pre_obs = False
+        #         if np.abs(pos[0]) < (np.abs(obstacle_center[0]) -.2): pre_obs = True
+        #     else: 
+        #         Exception('Not vertical or horiz. line causing divide by zero --> error')
 
         if pre_obs:
             if 1:
             #if self.pre_obs_targ_state is None:
-                obs_ang = np.angle(obstacle_center[0] + 1j*obstacle_center[2])
-                obs_r = np.abs(obstacle_center[0] + 1j*obstacle_center[2])
+                obs_ang = np.angle(obstacle_center[0]-center[0] + 1j*(obstacle_center[2]-center[2]))
+                obs_r = np.abs((obstacle_center[0]-center[0]) + 1j*(obstacle_center[2]-center[2]))
                 
                 if self.ccw_fcn(pos, obstacle_center): 
                     targ_vect_ang = np.pi/2
@@ -101,16 +108,25 @@ class Obs_Goal_Calc(GoalCalculator):
         return (target_state, error), True
 
 
-    def fcn_det(self, slope, pt_on_line, test_pt):
-        abs_pt = np.abs(pt_on_line)
-        abs_test = np.abs(test_pt)
-
-        b = abs_pt[2] + abs_pt[0]
-       
-        if abs_test[2] +0.3 < (b - abs_test[0]):
+    def fcn_det(self, slope, pt_on_line, test_pt, center, target):
+        d_center = np.sqrt(np.sum((test_pt - center)**2))
+        d_target = np.sqrt(np.sum((test_pt - target)**2))
+        if d_center < d_target:
             return True
         else:
             return False
+
+
+        # abs_pt = np.abs(pt_on_line)
+        # abs_test = np.abs(test_pt)
+        # slope = -1*np.abs(slope)
+
+        # b = abs_pt[2] - slope*abs_pt[0]
+       
+        # if abs_test[2] +0.3 < (b + slope*abs_test[0]):
+        #     return True
+        # else:
+        #     return False
 
         # zz = False
         # if 0 < b: zz = True
@@ -137,9 +153,7 @@ class Obs_Goal_Calc(GoalCalculator):
                 theta2 += 2*np.pi
             elif pos_ref[2] > 0 and pos_test[2] < 0:
                 theta1 += 2*np.pi
-
         return theta1 > theta2
-
 
 class ZeroVelocityGoal(GoalCalculator):
     '''
