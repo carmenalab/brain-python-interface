@@ -33,7 +33,8 @@ def list(request):
     start_date = datetime.date.today() - td
     # entries = TaskEntry.objects.filter(visible=True).order_by('-date') # date__gt=start_date, 
     # entries = TaskEntry.objects.all()[:200][::-1]
-    entries = TaskEntry.objects.filter(visible=True).order_by('-date')
+    entries = TaskEntry.objects.filter(visible=True).order_by('-date')[:200]
+
     
     for k in range(0, len(entries)):
         ent = entries[k]
