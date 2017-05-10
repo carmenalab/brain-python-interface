@@ -360,3 +360,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
 
             time.sleep(3)
             super(TDTSerialDIORowByte, cls).pre_init(saveid=saveid)
+
+    @property
+    def data_files(self):
+        return None
