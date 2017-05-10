@@ -24,9 +24,14 @@ class TestPPFReconstruction(bmimultitasks.BMIControlMulti):
         self.hdf = SimHDF()
         self.learn_flag = True
 
+        n_iter = kwargs.pop('n_iter')
         self.beta_error = np.zeros(n_iter)
         self.decoder_state = np.zeros([7, n_iter])
+        self.neural_push = np.zeros([7, n_iter])
         self.decoder_error = np.zeros([7, n_iter])
+        self.kwargs_init = kwargs
+        self.state_units = kwargs.pop('state_units')
+        self.spike_counts = kwargs.pop('spike_counts')
 
     def load_decoder(self):
         '''
@@ -44,21 +49,19 @@ class TestPPFReconstruction(bmimultitasks.BMIControlMulti):
         # TODO pull from beta_hat[:,:,0] if available
         ## fake_decoder = train._train_PPFDecoder_sim_known_beta(
         ##         init_beta, units=units, dist_units=state_units)
-
-        decoder = train.load_PPFDecoder_from_mat_file(data_fname)
+        decoder = train.load_PPFDecoder_from_mat_file(self.kwargs_init.pop('data_fname'))
         #decoder.filt.C = np.mat(init_beta) #fake_decoder.filt.C
         #decoder.n_subbins = 3
         #decoder.bmicount = 0
-
         self.decoder = decoder
 
         # Initialize the position of the decoder
         self.decoder.filt._init_state()
-        self.decoder['hand_px', 'hand_pz'] = cursor_kin[0:2,0]*unit_conv('m', state_units)
+        self.decoder['hand_px', 'hand_pz'] = self.kwargs_init['cursor_kin'][0:2,0]*unit_conv('m', self.state_units)
 
     def create_learner(self):
         super(TestPPFReconstruction, self).create_learner()
-        if use_exact_F_int:
+        if self.kwargs_init['use_exact_F_int']:
             F_int_data = loadmat('/Users/sgowda/Desktop/ppf_code_1023/F_int.mat')
             F_int = F_int_data['F']
             alpha = F_int[0,0]
@@ -69,11 +72,11 @@ class TestPPFReconstruction(bmimultitasks.BMIControlMulti):
             self.learner.F_dict['hold'] = F
 
     def get_spike_counts(self):
-        return spike_counts[:,self.sl]
+        return self.spike_counts[:,self.sl]
 
     def _update_target_loc(self):
         # Set the target location based on what was recorded in the .mat file
-        self.target_location = aimPos3D[:,self.sl] * unit_conv('m', state_units)
+        self.target_location = self.kwargs_init['aimPos3D'][:,self.sl] * unit_conv('m', self.state_units)
         self.state = 'target'
 
     def get_cursor_location(self):
@@ -86,14 +89,14 @@ class TestPPFReconstruction(bmimultitasks.BMIControlMulti):
         spike_obs = self.get_spike_counts()
         
         self.call_decoder_output = self.call_decoder(spike_obs, np.zeros((7, 1)))
-        self.decoder_state[:,self.sl] = self.call_decoder_output * unit_conv(state_units, 'm') 
-        
-        self.decoder_error[:,self.sl] = cursor_kin_3d[:,self.sl] - self.decoder_state[:,self.sl]
-        self.beta_error[self.idx] = np.max(np.abs(self.decoder.filt.tomlab(unit_scale=100) - beta_hat[:,:,self.idx+self.n_subbins]))
+        self.decoder_state[:,self.sl] = self.call_decoder_output * unit_conv(self.state_units, 'm') 
+        self.neural_push[:, self.sl] = self.decoder.filt.neural_push * unit_conv(self.state_units, 'm') 
+        self.decoder_error[:,self.sl] = self.kwargs_init['cursor_kin_3d'][:,self.sl] - self.decoder_state[:,self.sl]
+        self.beta_error[self.idx] = np.max(np.abs(self.decoder.filt.tomlab(unit_scale=100) - self.kwargs_init['beta_hat'][:,:,self.idx+self.n_subbins]))
         self.idx += self.n_subbins
 
     def create_feature_extractor(self):
-        self.matsource = matfilesource(spike_counts)
+        self.matsource = matfilesource(self.spike_counts)
         self.extractor = extractor.BinnedSpikeCountsExtractor(self.matsource)
 
     def _cycle(self):
@@ -109,7 +112,7 @@ class matfilesource(object):
         print 'soruc'
         return self.spike_counts[:, self.n]
 
-def run_sim(data_fname=None, n_iter2 = None):
+def run_sim(data_fname=None, decoder_fname = None, n_iter2 = None, start_ix = 0):
     state_units = 'cm'
     #data_fname = '/Users/sgowda/Desktop/ppf_code_1023/assist_ex_data/jeev100413_VFB_PPF_B100_NS5_NU17_Z1_assist_ofc_contData.mat'
     #data_fname = '/Users/sgowda/Desktop/ppf_code_1023/jeev100713_VFB_PPF_B100_NS5_NU13_Z1_from1020_from1030_cont_rmv81_contData.mat'
@@ -117,31 +120,34 @@ def run_sim(data_fname=None, n_iter2 = None):
         data_fname = '/home/lab/preeya/jeev_data_tmp/jeev080713_VFB_PPF_B100_NS5_NU18_Z1_assist_ofc_cont_cont_cont_swap50a15a_cont_swap58a50a113ab114ab_cont_swap124a125b_cont_cont_swap125ba_cont_cont_Barrier1fixData.mat'
     
     data = loadmat(data_fname)
-    spike_counts = data['spike_counts'].astype(np.float64)
-    intended_kin = data['intended_kin']
-    beta_hat = data['beta_hat']
-    aimPos = data['aimPos']
-    n_iter = data['n_iter'][0,0]
-    cursor_kin = data['cursor_kin']
+    kwargs = dict()
+    kwargs['spike_counts'] = data['spike_counts'][:, start_ix:].astype(np.float64)
+    kwargs['intended_kin'] = data['intended_kin'][:, start_ix:]
+    kwargs['beta_hat'] = data['beta_hat'][:, :, start_ix:]
+    kwargs['aimPos'] = data['aimPos'][:, start_ix:]
+    kwargs['n_iter'] = data['n_iter'][0,0] - start_ix
+    kwargs['cursor_kin'] = data['cursor_kin'][:, start_ix:]
+    kwargs['data_fname'] = data_fname
+    kwargs['state_units'] = state_units
 
     ## convert to 3D kinematics
-    aimPos3D = np.vstack([aimPos[0,:], np.zeros(n_iter), aimPos[1,:]])
-    cursor_kin_3d = np.zeros([7, n_iter])
-    cursor_kin_3d[[0,2,3,5], :] = cursor_kin
-    use_exact_F_int = False
+    kwargs['aimPos3D'] = np.vstack([kwargs['aimPos'][0,:], np.zeros(kwargs['n_iter']), kwargs['aimPos'][1,:]])
+    cursor_kin_3d = np.zeros([7, kwargs['n_iter']])
+    cursor_kin_3d[[0,2,3,5], :] = kwargs['cursor_kin']
+    kwargs['cursor_kin_3d'] = cursor_kin_3d
+    kwargs['use_exact_F_int'] = False
+    kwargs['decoder_fname'] = decoder_fname
 
     #Run generator: 
     gen = manualcontrolmultitasks.ManualControlMulti.centerout_2D_discrete()
-    task = TestPPFReconstruction(gen)
+    task = TestPPFReconstruction(gen, **kwargs)
     task.init()
 
     self = task
     batch_idx = 0
 
-    if n_iter2 is None:
-        n_iter = spike_counts.shape[1]
-    elif n_iter2 is 'max':
-        n_iter = dat['n_iter'][0, 0]
+    if n_iter2 is None or n_iter2 is 'max':
+        n_iter = data['idx'][0, 0] - start_ix
     else:
         n_iter = n_iter2
 
@@ -151,5 +157,5 @@ def run_sim(data_fname=None, n_iter2 = None):
         #print time.time() - st
     print np.max(np.abs(self.decoder_error[3:6,:]))
 
-    return self, cursor_kin
+    return self, kwargs['cursor_kin']
 
