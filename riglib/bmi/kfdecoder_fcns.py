@@ -3,6 +3,8 @@ from db.tracker import models
 from db import dbfunctions as dbfn
 from db.tracker.models import Decoder
 from db import trainbmi
+import numpy as np
+import scipy
 
 def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_adaptation, decoder_entry_id=None):
     '''
