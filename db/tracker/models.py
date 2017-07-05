@@ -63,7 +63,7 @@ class Task(models.Model):
                     for submod in module_names[1:]:
                         mod = getattr(mod, submod)
                 else:
-                    mod = __import__(mod_name)
+                    mod = __import__(module_name)
                 
                 task_cls_module = mod
                 task_cls_module = imp.reload(task_cls_module)
