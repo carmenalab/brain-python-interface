@@ -63,7 +63,7 @@ def add_units(kfdec, units):
     units: string or np.ndarray of shape (N, 2) of units to ADD to current decoder
     '''
     units_curr = kfdec.units
-    new_units = proc_units(units, 'to_int')
+    new_units = proc_units(kfdec, units, 'to_int')
 
     keep_ix = []
     for r, r_un in enumerate(new_units):
