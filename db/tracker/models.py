@@ -640,7 +640,9 @@ class TaskEntry(models.Model):
                 traceback.print_exc()
                 js['bmi'] = dict(_neuralinfo=None)
         elif config.recording_sys['make'] == 'TDT':
-            raise NotImplementedError("This code does not yet know how to open TDT files!")
+            print 'This code does not yet know how to open TDT files!'
+            js['bmi'] = dict(_neuralinfo=None)
+            #raise NotImplementedError("This code does not yet know how to open TDT files!")
         else:
             raise Exception('Unrecognized recording_system!')
 
