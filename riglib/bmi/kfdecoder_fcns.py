@@ -188,11 +188,12 @@ def return_proc_units_decoder(kfdec, inds_to_keep):
 
     return decoder
 
-def save_new_dec(kfdec, dec_obj, suffix):
+def save_new_dec(task_entry_id, dec_obj, suffix):
+    te = dbfn.TaskEntry(task_entry_id)
     try:
-        te_id = kfdec.te_id
+        te_id = te.te_id
     except:
-        dec_nm = kfdec.name
+        dec_nm = te.name
         te_ix = dec_nm.find('te')
         te_ix_end = dec_nm.find('_',te_ix)
         te_id = int(dec_nm[te_ix+2:te_ix_end])
