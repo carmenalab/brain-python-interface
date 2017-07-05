@@ -348,6 +348,7 @@ class PositionerTaskController(Sequence):
 
     @staticmethod 
     def xy_sweep(z_min=-25, z_max=0, zpts=6):
+        
         xy_target_locs = np.vstack([
             [8.20564516129, 37.6302083333],
             [9.61693548387, 34.1145833333],
@@ -503,7 +504,13 @@ class PositionerTaskController(Sequence):
     ##### State transition functions #####
     def _start_go_to_origin(self):
         print "_start_go_to_origin"
-        self.pos_uctrl_iface.start_continuous_move(-10000, -10000, 10000)
+        self.pos_uctrl_iface.start_continuous_move(1000, 1000, -1000)
+
+    def _start_go_to_target(self,num_x,num_y,num_z):
+        # AY modification - _start_go_to_origin sends the positioner to a predetermined location.  Need to be able to send it
+        # different target locations for the different target positions.  Not currently working (also not implemented in tasklilst yet)
+        print "_start_go_to_target"
+        self.pos_uctrl_iface.start_continuous_move(num_x,num_y,num_z)
 
     def _start_reward(self):
         pass
