@@ -21,20 +21,25 @@ def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_ad
     '''
 
     decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
-    if type(decoder_entries) is models.Decoder:
-    	decoder = decoder_entries
-    else:
-    	try:
-	    	dec_ids = [de.pk for de in decoder_entries]
-    		_ix = np.nonzero(dec_ids==decoder_entry_id)[0]
-    		decoder = decoder_entries[_ix]
-    	except:
-    		if decoder_entry_id is None:
-    			raise Exception('Too many decoder entries trained from this TE, specify decoder_entry_id')
-    		else:
-	    		raise Exception('Too many decoder entries trained from this TE, no match to decoder_entry_id %d' %decoder_entry_id)
-
-    kfdec = decoder.load()
+    if len(decoder_entries) > 0:
+	    if type(decoder_entries) is models.Decoder:
+	    	decoder = decoder_entries
+	    else:
+	    	try:
+		    	dec_ids = [de.pk for de in decoder_entries]
+	    		_ix = np.nonzero(dec_ids==decoder_entry_id)[0]
+	    		decoder = decoder_entries[_ix]
+	    	except:
+	    		if decoder_entry_id is None:
+	    			raise Exception('Too many decoder entries trained from this TE, specify decoder_entry_id')
+	    		else:
+		    		raise Exception('Too many decoder entries trained from this TE, no match to decoder_entry_id %d' %decoder_entry_id)
+		kfdec = decoder.load()
+	else:
+		try:
+			kfdec = dbfn.TaskEntry(task_entry_id).decoder
+			print 'Loading decoder used in task %s'%dbfn.TaskEntry(task_entry_id).task
+    
 
     if add_or_rm is 'add':
     	kfdec_new , n_new_units = add_units(kfdec, units)
@@ -192,7 +197,7 @@ def save_new_dec(kfdec, dec_obj, suffix):
 
 
 
-def zscore_units(decoder_id_number, calc_zscore_from_te=None):
+#def zscore_units(decoder_id_number, calc_zscore_from_te=None):
 
 def flag_units_for_CLDA(decoder, units):
 	decoder.adapting_neural_inds = units
