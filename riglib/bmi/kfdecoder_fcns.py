@@ -6,8 +6,11 @@ from db import trainbmi
 import numpy as np
 import scipy
 from kfdecoder import KalmanFilter, KFDecoder
+import train
 
-def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_adaptation, decoder_entry_id=None):
+########## MAIN DECODER MANIPULATION METHODS #################
+
+def add_rm_units(task_entry_id, units, add_or_rm, flag_added_for_adaptation, name_suffix='', decoder_entry_id=None):
     '''
     Summary: Method to add or remove units from KF decoder. 
         Takes in task_entry_id number or decoder_entry_id to get decoder
@@ -23,11 +26,109 @@ def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_ad
 
     '''
 
+    kfdec = get_decoder_corr(task_entry_id, decoder_entry_id)
+
+    if add_or_rm is 'add':
+        kfdec_new , n_new_units = add_units(kfdec, units)
+        
+        # Only Adapt new units: 
+        if flag_added_for_adaptation:
+            kfdec_new.adapting_neural_inds = np.zeros((len(kfdec_new.units)))
+            kfdec_new.adapting_neural_inds[-1*len(units):] = 1
+
+        save_new_dec(task_entry_id, kfdec_new, name_suffix+'_add_'+str(n_new_units)+'_units')
+
+    elif add_or_rm is 'rm':
+        orig_units = kfdec.units
+        inds_to_keep = proc_units(kfdec, units, 'remove')
+        if len(orig_units) == len(inds_to_keep):
+            print ' units cannot be removed since theyre not in original decoder', orig_units
+        else:
+            dec_new = return_proc_units_decoder(kfdec, inds_to_keep)
+            save_new_dec(task_entry_id, dec_new, name_suffix+'_rm_'+str(len(units))+'_units')
+
+def flag_adapting_inds_for_CLDA(task_entry_id, state_names_to_adapt=None, units_to_adapt = None, decoder_entry_id=None):
+    
+    decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
+    state_adapting_inds = []
+    for s in state_names:
+        ix = np.nonzero(decoder.states == s)[0]
+        assert len(ix) == 0
+        state_adapting_inds.append(int(ix))
+    decoder.adapting_state_inds = np.array(adapting_inds)
+
+    neural_adapting_inds = []
+    for u in units_to_adapt:
+        uix = np.nonzero(np.logical_and(decoder.units[:, 0]== u[0], decoder.units[:, 1]== u[1]))[0]
+        neural_adapting_inds.append(int(uix))
+    decoder.adapting_neural_inds = np.array(neural_adapting_inds)
+    save_new_dec(task_entry_id, decoder, '_adapt_only_'+str(len(units_to_adapt))+'_units_'+str(len(state_names_to_adapt))+'_states')
+
+def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder_entry_id=None, training_method=train.train_KFDecoder):
+    '''
+    Summary: Method to be able to 'convert' a trained decoder to one that uses z-scored unit (e.g. you train a decoder
+        from VFB, but you want to zscore unit according to a passive / still session earlier). You would use the task_entry_id 
+        that was used to train the decoder OR entry that used the decoder, the task entry ID used to compute the z-scored units
+
+    Input param: task_entry_id:
+    Input param: decoder_entry_id:
+    Input param: calc_zscore_from_te:
+    Output param: 
+    '''
+    decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
+
+    # Init mFR / sdFR
+    hdf = dbfn.TaskEntry(calc_zscore_from_te).hdf
+    spk_counts = hdf.root.task[:]['spike_counts'][:, :, 0]
+    
+    # Make sure not repeated entries:
+    sum_spk_counts = np.sum(spk_counts, axis=1)
+    ix = np.nonzero(sum_spk_counts)[0][0]
+    sample = 1+ sum_spk_counts[ix:ix+6] - sum_spk_counts[ix]
+    assert np.sum(sample) != 6
+
+    mFR = np.squeeze(np.mean(spk_counts, axis=0))
+    sdFR = np.std(spk_counts, axis=0)
+    kwargs = dict(zscore=True, mFR=mFR, sdFR=sdFR)
+
+    #Retrain decoder w/ new zscoring:
+    training_id = decoder.te_id
+    saved_files = models.DataFile.objects.filter(entry_id=training_id)
+    files = {}
+    for fl in saved_files:
+        files[fl.system.name] = fl.get_path()
+
+    decoder = training_method(files, decoder.extractor_cls, decoder.extractor_kwargs, bmilist.kin_extractors[''], decoder.ssm, 
+        decoder.units, update_rate=decoder.binlen, tslice=decoder.tslice, pos_key=pos_key, **kwargs)
+
+    save_new_dec(task_entry_id, decoder, '_zscore_set_from_'+str(calc_zscore_from_te))
+
+def adj_state_noise(task_entry_id, decoder_entry_id, new_w):
+    decoder = get_decoder_corr(task_entry_id, decoder_entry_id, return_used_te=True)
+    W = np.diag(decoder.filt.W)
+    wix = np.nonzero(W)[0]
+    W[wix] = new_w
+    W_new = np.diag(W)
+    decoder.filt.W = W_new
+    save_new_dec(task_entry_id, decoder, '_W_new_'+str(new_w))    
+
+########################## HELPER DECODER MANIPULATION METHODS #################################
+
+def get_decoder_corr(task_entry_id, decoder_entry_id):
+    '''
+    Summary: get KF decoder either from entry that has trained the decoder (if this, need decoder_entry_id if > 1 decoder), 
+        or decoder that was used during task_entry_id
+    Input param: task_entry_id: dbname task entry ID
+    Input param: decoder_entry_id: decoder entry id: (models.Decoder.objects.get(entry=entry))
+    Output param: KF Decoder
+    '''
+
     decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
     if len(decoder_entries) > 0:
+        print 'Loading decoder TRAINED from task %d'%task_entry_id
         if type(decoder_entries) is models.Decoder:
             decoder = decoder_entries
-        else:
+        else: # list of decoders. Search for the right one. 
             try:
                 dec_ids = [de.pk for de in decoder_entries]
                 _ix = np.nonzero(dec_ids==decoder_entry_id)[0]
@@ -41,21 +142,13 @@ def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_ad
     else:
         try:
             kfdec = dbfn.TaskEntry(task_entry_id).decoder
-            print 'Loading decoder used in task %s'%dbfn.TaskEntry(task_entry_id).task
+            print 'Loading decoder USED in task %s'%dbfn.TaskEntry(task_entry_id).task
         except:
             raise Exception('Cannot load decoder from TE%d'%task_entry_id)
-    
-
-    if add_or_rm is 'add':
-        kfdec_new , n_new_units = add_units(kfdec, units)
-        save_new_dec(task_entry_id, kfdec_new, '_add_'+str(n_new_units)+'_units')
-
-    elif add_or_rm is 'rm':
-        inds_to_keep = proc_units(kfdec, units, 'remove')
-        dec_new = return_proc_units_decoder(inds_to_keep)
-        save_new_dec(task_entry_id, dec_new, '_rm_'+str(len(inds_to_keep))+'_units')
-
-    #flag_added_for_adaptation
+    if return_used_te:
+        return kfdec, 
+    else:
+        return kfdec
 
 def add_units(kfdec, units):
     '''
@@ -189,6 +282,14 @@ def return_proc_units_decoder(kfdec, inds_to_keep):
     return decoder
 
 def save_new_dec(task_entry_id, dec_obj, suffix):
+    '''
+    Summary: Method to save decoder to DB -- saves to TE that original decoder came from
+    Input param: task_entry_id: original task to save decoder to
+    Input param: dec_obj: KF decoder new
+    Input param: suffix:
+    Output param: 
+    '''
+
     te = dbfn.TaskEntry(task_entry_id)
     try:
         te_id = te.te_id
@@ -202,17 +303,3 @@ def save_new_dec(task_entry_id, dec_obj, suffix):
 
     old_dec_obj = te.decoder_record
     trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj, suffix=suffix)
-
-
-#def zscore_units(decoder_id_number, calc_zscore_from_te=None):
-
-def flag_units_for_CLDA(decoder, units):
-    decoder.adapting_neural_inds = units
-
-def flag_state_dimensions_for_CLDA(decoder, state_names):
-    adapting_inds = []
-    for s in state_names:
-        ix = np.nonzero(decoder.states == s)[0]
-        assert len(ix) == 0
-        adapting_inds.append(int(ix))
-    decoder.adapting_state_inds = np.array(adapting_inds)
