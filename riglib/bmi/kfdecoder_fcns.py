@@ -196,6 +196,8 @@ def save_new_dec(task_entry_id, dec_obj, suffix):
         dec_nm = te.name
         te_ix = dec_nm.find('te')
         te_ix_end = dec_nm.find('_',te_ix)
+        if te_ix_end == -1:
+            te_ix_end = len(dec_nm)
         te_id = int(dec_nm[te_ix+2:te_ix_end])
 
     old_dec_obj = Decoder.objects.filter(entry=te_id)
