@@ -201,7 +201,7 @@ def save_new_dec(task_entry_id, dec_obj, suffix):
         te_id = int(dec_nm[te_ix+2:te_ix_end])
 
     old_dec_obj = te.decoder_record
-    trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj[0], suffix=suffix)
+    trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj, suffix=suffix)
 
 
 #def zscore_units(decoder_id_number, calc_zscore_from_te=None):
