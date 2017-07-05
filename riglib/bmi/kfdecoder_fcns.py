@@ -63,14 +63,20 @@ def flag_adapting_inds_for_CLDA(task_entry_id, state_names_to_adapt=None, units_
     decoder.adapting_neural_inds = np.array(neural_adapting_inds)
     save_new_dec(task_entry_id, decoder, '_adapt_only_'+str(len(units_to_adapt))+'_units_'+str(len(state_names_to_adapt))+'_states')
 
-def zscore_units(task_entry_id, decoder_entry_id, calc_zscore_from_te):
-    
+def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder_entry_id=None, ):
+    '''
+    Summary: Method to be able to 'convert' a trained decoder to one that uses z-scored unit (e.g. you train a decoder
+        from VFB, but you want to zscore unit according to a passive / still session earlier). You would use the task_entry_id 
+        that was used to train the decoder OR entry that used the decoder, the task entry ID used to compute the z-scored units
+
+    Input param: task_entry_id:
+    Input param: decoder_entry_id:
+    Input param: calc_zscore_from_te:
+    Output param: 
+    '''
     decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
 
     # Init mFR / sdFR
-    decoder.mFR = 0.
-    decoder.sdFR = 1.
-
     hdf = dbfn.TaskEntry(calc_zscore_from_te).hdf
     spk_counts = hdf.root.task[:]['spike_counts'][:, :, 0]
     
@@ -82,8 +88,18 @@ def zscore_units(task_entry_id, decoder_entry_id, calc_zscore_from_te):
 
     mFR = np.squeeze(np.mean(spk_counts, axis=0))
     sdFR = np.std(spk_counts, axis=0)
+    kwargs = dict(zscore=True, mFR=mFR, sdFR=sdFR)
 
-    decoder.init_zscore(mFR, sdFR)
+    #Retrain decoder w/ new zscoring:
+    training_id = decoder.te_id
+    saved_files = models.DataFile.objects.filter(entry_id=training_id)
+    files = {}
+    for fl in saved_files:
+        files[fl.system.name] = fl.get_path()
+
+    decoder = training_method(files, decoder.extractor_cls, decoder.extractor_kwargs, bmilist.kin_extractors[''], decoder.ssm, 
+        decoder.units, update_rate=decoder.binlen, tslice=decoder.tslice, pos_key=pos_key, **kwargs)
+
     save_new_dec(task_entry_id, decoder, '_zscore_set_from_'+str(calc_zscore_from_te))
 
 def adj_state_noise(task_entry_id, decoder_entry_id, new_w):
