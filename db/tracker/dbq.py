@@ -110,7 +110,7 @@ def save_bmi(name, entry, filename, dbname='default'):
     shutil.copy2(filename, os.path.join(base, pklname))
 
     Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
-    decoder_entry = models.Decoder.objects.using(dbname).get(entry=entry)
+    decoder_entry = Decoder.objects.using(dbname).get(entry=entry)
 
     print "Saved decoder to %s"%os.path.join(base, pklname)
     print "Decoder ID: ", decoder_entry.pk
