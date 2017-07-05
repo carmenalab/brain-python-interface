@@ -351,7 +351,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         Run prior to starting the task to remotely start recording from the plexon system
         '''
         if saveid is not None:
-            port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=115200)
+            port = serial.Serial('/dev/arduino_neurosync', baudrate=baudrate)
             # for k in range(5):
             port.write('p')
             time.sleep(0.5)
@@ -360,3 +360,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
 
             time.sleep(3)
             super(TDTSerialDIORowByte, cls).pre_init(saveid=saveid)
+
+    @property
+    def data_files(self):
+        return None

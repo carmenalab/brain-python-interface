@@ -28,6 +28,7 @@ class TestPPFReconstruction(bmimultitasks.BMIControlMulti):
         self.beta_error = np.zeros(n_iter)
         self.decoder_state = np.zeros([7, n_iter])
         self.neural_push = np.zeros([7, n_iter])
+        self.P_est = np.zeros([7, 7, n_iter])
         self.decoder_error = np.zeros([7, n_iter])
         self.kwargs_init = kwargs
         self.state_units = kwargs.pop('state_units')
@@ -91,6 +92,8 @@ class TestPPFReconstruction(bmimultitasks.BMIControlMulti):
         self.call_decoder_output = self.call_decoder(spike_obs, np.zeros((7, 1)))
         self.decoder_state[:,self.sl] = self.call_decoder_output * unit_conv(self.state_units, 'm') 
         self.neural_push[:, self.sl] = self.decoder.filt.neural_push * unit_conv(self.state_units, 'm') 
+        P = self.decoder.filt.P_est * unit_conv(self.state_units, 'm')**2
+        self.P_est[:, :, self.sl] = P[:, :, np.newaxis]
         self.decoder_error[:,self.sl] = self.kwargs_init['cursor_kin_3d'][:,self.sl] - self.decoder_state[:,self.sl]
         self.beta_error[self.idx] = np.max(np.abs(self.decoder.filt.tomlab(unit_scale=100) - self.kwargs_init['beta_hat'][:,:,self.idx+self.n_subbins]))
         self.idx += self.n_subbins
@@ -116,8 +119,8 @@ def run_sim(data_fname=None, decoder_fname = None, n_iter2 = None, start_ix = 0)
     state_units = 'cm'
     #data_fname = '/Users/sgowda/Desktop/ppf_code_1023/assist_ex_data/jeev100413_VFB_PPF_B100_NS5_NU17_Z1_assist_ofc_contData.mat'
     #data_fname = '/Users/sgowda/Desktop/ppf_code_1023/jeev100713_VFB_PPF_B100_NS5_NU13_Z1_from1020_from1030_cont_rmv81_contData.mat'
-    if  data_fname is None:
-        data_fname = '/home/lab/preeya/jeev_data_tmp/jeev080713_VFB_PPF_B100_NS5_NU18_Z1_assist_ofc_cont_cont_cont_swap50a15a_cont_swap58a50a113ab114ab_cont_swap124a125b_cont_cont_swap125ba_cont_cont_Barrier1fixData.mat'
+    # if  data_fname is None:
+    #     data_fname = '/home/lab/preeya/jeev_data_tmp/jeev080713_VFB_PPF_B100_NS5_NU18_Z1_assist_ofc_cont_cont_cont_swap50a15a_cont_swap58a50a113ab114ab_cont_swap124a125b_cont_cont_swap125ba_cont_cont_Barrier1fixData.mat'
     
     data = loadmat(data_fname)
     kwargs = dict()

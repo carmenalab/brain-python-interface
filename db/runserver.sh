@@ -2,6 +2,10 @@
 
 # Set display to display 0
 DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
+if [ $DISPLAY=='' ]; then
+    DISPLAY=':0'
+fi
+#DISPLAY=':0'
 
 # Make sure that the environment variable BMI3D is installed
 if [ -z "$BMI3D" ]
