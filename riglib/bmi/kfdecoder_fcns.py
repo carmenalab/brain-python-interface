@@ -7,9 +7,9 @@ from db import trainbmi
 def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_adaptation, decoder_entry_id=None):
     '''
     Summary: Method to add or remove units from KF decoder. 
-    	Takes in task_entry_id number or decoder_entry_id to get decoder
-    	Removes or adds units to decoder
-	    	If adds, sets decoder weights to random entries
+        Takes in task_entry_id number or decoder_entry_id to get decoder
+        Removes or adds units to decoder
+            If adds, sets decoder weights to random entries
 
 
     Input param: task_entry_id: Decoder = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
@@ -22,28 +22,28 @@ def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_ad
 
     decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
     if len(decoder_entries) > 0:
-	    if type(decoder_entries) is models.Decoder:
-	    	decoder = decoder_entries
-	    else:
-	    	try:
-		    	dec_ids = [de.pk for de in decoder_entries]
-	    		_ix = np.nonzero(dec_ids==decoder_entry_id)[0]
-	    		decoder = decoder_entries[_ix]
-	    	except:
-	    		if decoder_entry_id is None:
-	    			raise Exception('Too many decoder entries trained from this TE, specify decoder_entry_id')
-	    		else:
-		    		raise Exception('Too many decoder entries trained from this TE, no match to decoder_entry_id %d' %decoder_entry_id)
-		kfdec = decoder.load()
-	else:
-		try:
-			kfdec = dbfn.TaskEntry(task_entry_id).decoder
-			print 'Loading decoder used in task %s'%dbfn.TaskEntry(task_entry_id).task
+        if type(decoder_entries) is models.Decoder:
+            decoder = decoder_entries
+        else:
+            try:
+                dec_ids = [de.pk for de in decoder_entries]
+                _ix = np.nonzero(dec_ids==decoder_entry_id)[0]
+                decoder = decoder_entries[_ix]
+            except:
+                if decoder_entry_id is None:
+                    raise Exception('Too many decoder entries trained from this TE, specify decoder_entry_id')
+                else:
+                    raise Exception('Too many decoder entries trained from this TE, no match to decoder_entry_id %d' %decoder_entry_id)
+        kfdec = decoder.load()
+    else:
+        try:
+            kfdec = dbfn.TaskEntry(task_entry_id).decoder
+            print 'Loading decoder used in task %s'%dbfn.TaskEntry(task_entry_id).task
     
 
     if add_or_rm is 'add':
-    	kfdec_new , n_new_units = add_units(kfdec, units)
-    	save_new_dec(task_entry_id, decoder, '_add_'+str(n_new_units)+'_units')
+        kfdec_new , n_new_units = add_units(kfdec, units)
+        save_new_dec(task_entry_id, decoder, '_add_'+str(n_new_units)+'_units')
 
     elif add_or_rm is 'rm':
         inds_to_keep = proc_units(kfdec, units, 'remove')
@@ -200,12 +200,12 @@ def save_new_dec(kfdec, dec_obj, suffix):
 #def zscore_units(decoder_id_number, calc_zscore_from_te=None):
 
 def flag_units_for_CLDA(decoder, units):
-	decoder.adapting_neural_inds = units
+    decoder.adapting_neural_inds = units
 
 def flag_state_dimensions_for_CLDA(decoder, state_names):
-	adapting_inds = []
-	for s in state_names:
-		ix = np.nonzero(decoder.states == s)[0]
-		assert len(ix) == 0
-		adapting_inds.append(int(ix))
-	decoder.adapting_state_inds = np.array(adapting_inds)
+    adapting_inds = []
+    for s in state_names:
+        ix = np.nonzero(decoder.states == s)[0]
+        assert len(ix) == 0
+        adapting_inds.append(int(ix))
+    decoder.adapting_state_inds = np.array(adapting_inds)
