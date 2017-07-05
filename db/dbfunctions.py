@@ -12,7 +12,7 @@ import cPickle
 import tables
 import matplotlib.pyplot as plt
 import time, datetime
-from numpy import nanmean
+
 import db
 from collections import defaultdict, OrderedDict
 from itertools import izip
