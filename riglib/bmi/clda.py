@@ -634,27 +634,20 @@ class KFRML(Updater):
 
         # By default, tuning parameters for all features will adapt
         if hasattr(decoder, 'adapting_neural_inds'):
-            self.adapting_inds = decoder.adapting_neural_inds
+            self.set_stable_inds(adapting_inds=decoder.adapting_neural_inds)
         else:
             self.adapting_inds = self.feature_inds.copy()
+            self.stable_inds_independent = False
 
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
 
         #Are stable units independent from other units ? If yes Q[stable_unit, other_units] = 0
-        self.stable_inds_independent = False
-
-
         #State space indices that will be adapted: 
-        if scipy.logical_and(hasattr(decoder, 'adapting_state_inds'), hasattr(decoder, 'ssm')):
-            self.state_adapting_names = decoder.adapting_state_inds.state_names
-            self.state_adapting_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if sn in self.state_adapting_names])
-            self.state_stable_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if i not in self.state_adapting_inds])
-            
-            print self.state_adapting_inds, decoder.ssm, decoder.adapting_state_inds
+        if hasattr(decoder, 'adapting_state_inds'):
+            self.set_stable_states(adapting_state_inds=decoder.adapting_state_inds)
         else:
             self.state_adapting_inds = np.arange(decoder.n_states)
         
-        self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
         self.neur_by_state_adapting_inds_mesh = np.ix_(self.adapting_inds, self.state_adapting_inds)
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
@@ -693,7 +686,6 @@ class KFRML(Updater):
 
         #update driver of neurons
         drives_neurons = decoder.drives_neurons
-
         mFR_old        = decoder.mFR
         sdFR_old       = decoder.sdFR
 
@@ -701,7 +693,7 @@ class KFRML(Updater):
         y = np.mat(spike_counts)
 
         #limit x to the indices that can adapt:
-        x = x[self.state_adapting_inds,:]
+        x = x[self.state_adapting_inds, :]
 
         # limit y to the features which are permitted to adapt
         y = y[self.adapting_inds, :]
@@ -760,17 +752,32 @@ class KFRML(Updater):
         self._new_params = new_params
         return new_params
 
-    def set_stable_inds(self, stable_inds, stable_inds_independent=False):
+    def set_stable_inds(self, stable_inds, adapting_inds=None, stable_inds_independent=False):
         '''
         Set certain neural tuning parmeters to remain static, e.g., if you 
         want to add a new unit to a decoder but keep the existing parameters for the old units. 
         '''
-        self.stable_inds = stable_inds
-        self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds))
+        if adapting_inds is None: # Stable inds provided
+            self.stable_inds = stable_inds   
+            self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds))
+        elif stable_inds is None: # Adapting inds provided:
+            self.adapting_inds = np.array(adapting_inds)
+            self.stable_inds = np.array(filter(lambda x: x not in self.adapting_inds, self.feature_inds))
+
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
         self.stable_inds_mesh = np.ix_(self.stable_inds, self.stable_inds)
         self.stable_inds_independent = stable_inds_independent
 
+    def set_stable_states(self, stable_state_inds, adapting_state_inds=None, stable_state_inds_independent=False):
+        '''
+        Maybe you want to keep specific states states (e.g. in iBMI, keep ArmAssist stable but adapt ReHand)
+        '''
+        if adapting_state_inds is None:
+            self.state_adapting_inds = np.array(filter(lambda x: x not in stable_state_inds))
+        elif stable_state_inds is None:
+            self.state_adapting_inds = adapting_state_inds
+        self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
+        self.stable_state_inds_independent = stable_state_inds_independent
 
 class KFRML_IVC(KFRML):
     '''
