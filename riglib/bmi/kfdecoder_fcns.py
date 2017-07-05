@@ -48,7 +48,7 @@ def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_ad
 
     if add_or_rm is 'add':
         kfdec_new , n_new_units = add_units(kfdec, units)
-        save_new_dec(task_entry_id, decoder, '_add_'+str(n_new_units)+'_units')
+        save_new_dec(task_entry_id, kfdec_new, '_add_'+str(n_new_units)+'_units')
 
     elif add_or_rm is 'rm':
         inds_to_keep = proc_units(kfdec, units, 'remove')
