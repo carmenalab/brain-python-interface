@@ -6,6 +6,7 @@ from db import trainbmi
 import numpy as np
 import scipy
 from kfdecoder import KalmanFilter, KFDecoder
+import train
 
 ########## MAIN DECODER MANIPULATION METHODS #################
 
@@ -63,7 +64,7 @@ def flag_adapting_inds_for_CLDA(task_entry_id, state_names_to_adapt=None, units_
     decoder.adapting_neural_inds = np.array(neural_adapting_inds)
     save_new_dec(task_entry_id, decoder, '_adapt_only_'+str(len(units_to_adapt))+'_units_'+str(len(state_names_to_adapt))+'_states')
 
-def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder_entry_id=None, ):
+def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder_entry_id=None, training_method=train.train_KFDecoder):
     '''
     Summary: Method to be able to 'convert' a trained decoder to one that uses z-scored unit (e.g. you train a decoder
         from VFB, but you want to zscore unit according to a passive / still session earlier). You would use the task_entry_id 
