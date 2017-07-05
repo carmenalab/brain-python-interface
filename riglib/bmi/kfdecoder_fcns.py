@@ -39,6 +39,8 @@ def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_ad
         try:
             kfdec = dbfn.TaskEntry(task_entry_id).decoder
             print 'Loading decoder used in task %s'%dbfn.TaskEntry(task_entry_id).task
+        except:
+            raise Exception('Cannot load decoder from TE%d'%task_entry_id)
     
 
     if add_or_rm is 'add':
