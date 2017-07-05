@@ -5,7 +5,7 @@ from db.tracker.models import Decoder
 from db import trainbmi
 import numpy as np
 import scipy
-from kfdecoder import KalmanFilter
+from kfdecoder import KalmanFilter, KFDecoder
 
 def add_rm_units(task_entry_id, units, add_or_rm, name_suffix, flag_added_for_adaptation, decoder_entry_id=None):
     '''
