@@ -110,10 +110,15 @@ def save_bmi(name, entry, filename, dbname='default'):
     shutil.copy2(filename, os.path.join(base, pklname))
 
     Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
-    decoder_entry = Decoder.objects.using(dbname).get(entry=entry)
-
+    try:
+        decoder_entry = Decoder.objects.using(dbname).get(entry=entry)
+    except:
+        print 'too many decoders to list: '
+        d = dbfn.TaskEntry(entry.pk)
+        d_list = d.get_decoders_trained_in_block()
+        for d in d_list:
+            print d.pk, d.name
     print "Saved decoder to %s"%os.path.join(base, pklname)
-    print "Decoder ID: ", decoder_entry.pk
 
 def hide_task_entry(entry, dbname='default'):
     te = TaskEntry.objects.using(dbname).get(id=entry)
