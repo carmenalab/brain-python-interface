@@ -114,6 +114,7 @@ def save_bmi(name, entry, filename, dbname='default'):
         decoder_entry = Decoder.objects.using(dbname).get(entry=entry)
     except:
         print 'too many decoders to list: '
+        import dbfunctions as dbfn
         d = dbfn.TaskEntry(entry.pk)
         d_list = d.get_decoders_trained_in_block()
         for d in d_list:
