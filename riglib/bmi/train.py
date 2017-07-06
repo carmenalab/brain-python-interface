@@ -693,8 +693,8 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     C = np.zeros([n_features, ssm.n_states])
     C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features)
 
-    mFR = np.mean(neural_features, axis=1)
-    sdFR = np.std(neural_features, axis=1)
+    mFR = np.squeeze(np.mean(neural_features, axis=1))
+    sdFR = np.squeeze(np.std(neural_features, axis=1))
 
     # Set state space model
     A, B, W = ssm.get_ssm_matrices(update_rate=update_rate)
