@@ -156,10 +156,11 @@ class SimNeuralEnc(object):
             self.ssm = kwargs.pop('ssm', None)
         super(SimNeuralEnc, self).__init__(*args, **kwargs)
 
-    def init(self):
+    def init(self,):
         self._init_neural_encoder()
         self.wait_time = 0
         self.pause = False
+        print 'neural encoder init function ', self
         super(SimNeuralEnc, self).init()
 
     def change_enc_ssm(self, new_ssm):
@@ -182,11 +183,7 @@ class SimNeuralEnc(object):
 
 class SimKalmanEnc(SimNeuralEnc):
     def _init_neural_encoder(self):
-        ## Simulation neural encoder
-        if hasattr(self, 'decoder'):
-            n_features = self.decoder.n_features
-        else:
-            n_features = 20
+        n_features = 50
         self.encoder = KalmanEncoder(self.ssm, n_features)
 
     def create_feature_extractor(self):
@@ -206,9 +203,8 @@ class SimKalmanEnc(SimNeuralEnc):
         feature_shape = [self.decoder.n_features, 1]
         feature_dtype = np.float64
         acc_len = int(self.decoder.binlen / self.update_rate)
-        acc_len = max(1, acc_len)
-
-        self.feature_accumulator = accumulator.NullAccumulator(acc_len)
+        acc_len = max(1, acc_len) 
+        self.feature_accumulator = accumulator.RectWindowSpikeRateEstimator(acc_len, feature_shape, feature_dtype)
 
 
 class SimCosineTunedEnc(SimNeuralEnc):
@@ -354,11 +350,11 @@ class SimKFDecoderSup(SimKFDecoder):
             print 'Already have a decoder!'
         else:
             print "Creating simulation decoder.."
-            encoder = self.encoder
             print self.encoder, type(self.encoder)
             n_samples = 2000
             units = self.encoder.get_units()
             n_units = len(units)
+            print 'units: ', n_units
 
             # draw samples from the W distribution
             ssm = self.ssm
