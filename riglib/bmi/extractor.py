@@ -694,9 +694,10 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.n_subbins = n_subbins
         self.units = units
         self.last_get_spike_counts_time = 0
-        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2),
+            ('ctrl_input', 'f8', self.encoder.C.shape[1])]
         self.task = task
-
+        self.sim_ctrl = np.zeros((self.encoder.C.shape[1]))
     def get_spike_ts(self):
         '''
         see BinnedSpikeCountsExtractor.get_spike_ts for docs
@@ -704,6 +705,8 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         current_state = self.task.get_current_state()
         target_state = self.task.get_target_BMI_state()
         ctrl = self.input_device.calc_next_state(current_state, target_state)
+        #print current_state.T, target_state.T, ctrl.T
+        self.sim_ctrl = ctrl
         ts_data = self.encoder(ctrl)
         return ts_data
 
