@@ -685,13 +685,14 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
 
     return decoder
 
-def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None):
+def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0.):
     #### Train the actual KF decoder matrices ####
     n_features = neural_features.shape[0]  # number of neural features
 
     # C should be trained on all of the stochastic state variables, excluding the offset terms
     C = np.zeros([n_features, ssm.n_states])
-    C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features)
+    C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features, 
+        regularizer=regularizer)
 
     mFR = np.squeeze(np.mean(neural_features, axis=1))
     sdFR = np.squeeze(np.std(neural_features, axis=1))
