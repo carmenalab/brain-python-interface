@@ -28,15 +28,16 @@ class KalmanEncoder(object):
     generates a vector of neural features y according to the KF observation
     model equation: y = Cx + q.
     '''
-    def __init__(self, ssm, n_features, int_neural_features=True):
+    def __init__(self, ssm, n_features, int_neural_features=False, scale_noise=1.):
         self.ssm = ssm
         self.n_features = n_features
         self.int_neural_features = int_neural_features
+        self.scale_noise = scale_noise
 
         drives_neurons = ssm.drives_obs
         nX = ssm.n_states
 
-        C = np.random.standard_normal([n_features, nX])
+        C = 3*np.random.standard_normal([n_features, nX])
         C[:, ~drives_neurons] = 0
         Q = np.identity(n_features)
 
@@ -45,10 +46,11 @@ class KalmanEncoder(object):
 
     def __call__(self, intended_state, **kwargs):
         q = np.random.multivariate_normal(np.zeros(self.Q.shape[0]), self.Q).reshape(-1, 1)
-        neural_features = np.dot(self.C, intended_state.reshape(-1,1)) + q
+        neural_features = np.dot(self.C, intended_state.reshape(-1,1)) + self.scale_noise*q
         if self.int_neural_features:
             nf = np.round(neural_features)
             nf[nf <=0] = 0
+            nf[nf > 10] = 10
             return nf
         else:
             return neural_features
