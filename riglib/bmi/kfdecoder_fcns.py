@@ -7,10 +7,11 @@ import numpy as np
 import scipy
 from kfdecoder import KalmanFilter, KFDecoder
 import train
-
+import pickle
+import re
 ########## MAIN DECODER MANIPULATION METHODS #################
 
-def add_rm_units(task_entry_id, units, add_or_rm, flag_added_for_adaptation, name_suffix='', decoder_entry_id=None):
+def add_rm_units(task_entry_id, units, add_or_rm, flag_added_for_adaptation, name_suffix='', decoder_entry_id=None, **kwargs):
     '''
     Summary: Method to add or remove units from KF decoder. 
         Takes in task_entry_id number or decoder_entry_id to get decoder
@@ -25,8 +26,10 @@ def add_rm_units(task_entry_id, units, add_or_rm, flag_added_for_adaptation, nam
     Input param: decoder_entry_id: used if more than 1 decoder training on block
 
     '''
-
-    kfdec = get_decoder_corr(task_entry_id, decoder_entry_id)
+    if 'decoder_path' in kwargs:
+        kfdec = pickle.load(open(kwargs['decoder_path']))
+    else:
+        kfdec = get_decoder_corr(task_entry_id, decoder_entry_id)
 
     if add_or_rm is 'add':
         kfdec_new , n_new_units = add_units(kfdec, units)
@@ -200,6 +203,17 @@ def add_units(kfdec, units):
     decoder.units = units
     decoder.extractor_cls = kfdec.extractor_cls
     decoder.extractor_kwargs = kfdec.extractor_kwargs
+    try:
+        CE = kfdec.corresp_encoder
+        CE.C = np.vstack((CE.C, np.random.randn(len(new_units), CE.C.shape[1])))
+        Q = np.eye(len(units))
+        Q[:len(units_curr), :len(units_curr)] = CE.Q
+        CE.Q = Q
+        CE.n_features = len(units)
+        decoder.corresp_encoder = CE
+        print 'adjusted corresp_encoder too!'
+    except:
+        pass
     decoder.extractor_kwargs['units'] = units
     return decoder, len(keep_ix)
 
@@ -250,7 +264,11 @@ def return_proc_units_decoder(kfdec, inds_to_keep):
     Q = Q[np.ix_(inds_to_keep, inds_to_keep)]
     Q_inv = np.linalg.inv(Q)
 
-    if isinstance(kfdec.mFR, np.ndarray):
+    if isinstance(kfdec.mFR, np.matrix):
+        mFR = np.squeeze(np.array(kfdec.mFR))[inds_to_keep]
+        sdFR = np.squeeze(np.array(kfdec.sdFR))[inds_to_keep]
+        
+    elif isinstance(kfdec.mFR, np.ndarray):
         mFR = kfdec.mFR[inds_to_keep]
         sdFR = kfdec.mFR[inds_to_keep]
     else:
@@ -295,11 +313,22 @@ def save_new_dec(task_entry_id, dec_obj, suffix):
         te_id = te.te_id
     except:
         dec_nm = te.name
-        te_ix = dec_nm.find('te')
-        te_ix_end = dec_nm.find('_',te_ix)
+        te_ix = re.search('te[0-9]',dec_nm)
+        ix = te_ix.start() + 2
+        sub_dec_nm = dec_nm[ix:]
+        
+        te_ix_end = sub_dec_nm.find('_')
         if te_ix_end == -1:
-            te_ix_end = len(dec_nm)
-        te_id = int(dec_nm[te_ix+2:te_ix_end])
+            te_ix_end = len(sub_dec_nm)
+        te_id = int(sub_dec_nm[:te_ix_end])
 
     old_dec_obj = te.decoder_record
+    if old_dec_obj is None:
+        old_dec_obj = faux_decoder_obj(task_entry_id)
     trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj, suffix=suffix)
+
+
+class faux_decoder_obj(object):
+    def __init__(self, task_entry_id, *args,**kwargs):
+        self.name = ''
+        self.entry_id = task_entry_id
