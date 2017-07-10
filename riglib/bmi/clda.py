@@ -421,7 +421,6 @@ class Updater(object):
         if self.multiproc:
             self.calculator.stop()
 
-
 class PPFContinuousBayesianUpdater(Updater):
     '''
     Adapt the parameters of a PPFDecoder using an HMM to implement a gradient-descent type parameter update.
@@ -520,14 +519,13 @@ class PPFContinuousBayesianUpdater(Updater):
 
         return {'filt.C': np.mat(self.beta_est.copy())}
 
-
 class KFRML(Updater):
     '''
     Calculate updates for KF parameters using the recursive maximum likelihood (RML) method
     See (Dangi et al, Neural Computation, 2014) for mathematical details.
     '''
     update_kwargs = dict(steady_state=False)
-    def __init__(self, batch_time, half_life, adapt_C_xpose_Q_inv_C=True):
+    def __init__(self, batch_time, half_life, adapt_C_xpose_Q_inv_C=True, regularizer=None):
         '''
         Constructor for KFRML
 
@@ -540,6 +538,8 @@ class KFRML(Updater):
         adapt_C_xpose_Q_inv_C : bool
             Flag specifying whether to update the decoder property C^T Q^{-1} C, which 
             defines the feedback dynamics of the final closed-loop system if A and W are known
+        regularizer: float
+            Defines lambda regularizer to use in calculation of C matrix : C = (X*X.T + lambda*eye).I * (X*Y)
 
         Returns
         -------
@@ -550,7 +550,7 @@ class KFRML(Updater):
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         self.adapt_C_xpose_Q_inv_C = adapt_C_xpose_Q_inv_C
-
+        self.regularizer = regularizer
         self._new_params = None
 
     @staticmethod
@@ -634,7 +634,7 @@ class KFRML(Updater):
 
         # By default, tuning parameters for all features will adapt
         if hasattr(decoder, 'adapting_neural_inds'):
-            self.set_stable_inds(adapting_inds=decoder.adapting_neural_inds)
+            self.set_stable_inds(None, adapting_inds=decoder.adapting_neural_inds)
         else:
             self.adapting_inds = self.feature_inds.copy()
             self.stable_inds_independent = False
@@ -643,8 +643,13 @@ class KFRML(Updater):
 
         #Are stable units independent from other units ? If yes Q[stable_unit, other_units] = 0
         #State space indices that will be adapted: 
+        self.state_inds = np.arange(len(decoder.states))
         if hasattr(decoder, 'adapting_state_inds'):
-            self.set_stable_states(adapting_state_inds=decoder.adapting_state_inds)
+            if type(decoder.adapting_state_inds) is not list:
+                ad = [i for i, j in enumerate(decoder.states) if j in decoder.adapting_state_inds.state_names]
+            else:
+                ad = decoder.adapting_state_inds
+            self.set_stable_states(None, adapting_state_inds=ad)
         else:
             self.state_adapting_inds = np.arange(decoder.n_states)
         
@@ -717,7 +722,11 @@ class KFRML(Updater):
 
         R_inv = np.mat(np.zeros(self.R.shape))
         try:
-            R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+            if self.regularizer is None:
+                R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+            else:
+                dn = np.sum(drives_neurons)
+                R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)]+self.regularizer*np.eye(dn))
         except:
             print self.R
             print 'Error with pinv in riglib/bmi/clda.py'
@@ -773,7 +782,7 @@ class KFRML(Updater):
         Maybe you want to keep specific states states (e.g. in iBMI, keep ArmAssist stable but adapt ReHand)
         '''
         if adapting_state_inds is None:
-            self.state_adapting_inds = np.array(filter(lambda x: x not in stable_state_inds))
+            self.state_adapting_inds = np.array(filter(lambda x: x not in stable_state_inds, self.state_inds))
         elif stable_state_inds is None:
             self.state_adapting_inds = adapting_state_inds
         self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
