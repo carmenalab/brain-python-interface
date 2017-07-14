@@ -14,12 +14,12 @@ extractor_cls = extractor.BinnedSpikeCountsExtractor
 class BlackrockData(object):
     '''Stream Blackrock neural data.'''
 
-    def init(self):
+    def init(self, data_type, channels):
         from riglib import blackrock, source
 
-        if 'spike' in extractor_cls.feature_type:  # e.g., 'spike_counts'
+        if data_type is 'spike':  # e.g., 'spike_counts'
             self.neurondata = source.DataSource(blackrock.Spikes, channels=channels)
-        elif 'lfp' in extractor_cls.feature_type:  # e.g., 'lfp_power'
+        elif data_type is 'lfp':  # e.g., 'lfp_power'
             self.neurondata = source.MultiChanDataSource(blackrock.LFP, channels=channels)
         else:
             raise Exception("Unknown extractor class, unable to create data source object!")
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     # f = open('data.txt', 'w')
 
     self = BlackrockData()
-    self.init()
+    self.init('spike', [8, 9, 10, 11])
     self.run()
 
     n_secs = 15
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     for chan in channels:
         save_dict['chan' + str(chan)] = data[chan]
 
-    sio.matlab.savemat('cbpy_spike_data.mat', save_dict)
+    sio.savemat('cbpy_spike_data.mat', save_dict)
 
     # print save_dict
 
