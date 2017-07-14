@@ -53,7 +53,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
             self.C = np.mat(C)
             self.Q = np.mat(Q)
 
-            if is_stochastic == None:
+            if is_stochastic is None:
                 n_states = self.A.shape[0]
                 self.is_stochastic = np.ones(n_states, dtype=bool)
             else:
@@ -304,7 +304,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         return F, K
 
     @classmethod
-    def MLE_obs_model(self, hidden_state, obs, include_offset=True, drives_obs=None):
+    def MLE_obs_model(self, hidden_state, obs, include_offset=True, drives_obs=None,
+        regularizer=None):
         """
         Unconstrained ML estimator of {C, Q} given observations and
         the corresponding hidden states
