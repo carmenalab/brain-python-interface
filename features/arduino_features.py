@@ -223,8 +223,11 @@ class BlackrockSerialDIORowByte(SerialDIORowByte):
     def init(self):
         self.possible_filenames = []
         for file_ext in self.file_exts:
-            file_pattern = os.path.join(self.storage_root, "*/", file_ext)
-            self.possible_filenames += self.filter_files(glob.glob(file_pattern))
+            file_pattern1 = os.path.join(self.storage_root, "*/", file_ext)
+            file_pattern2 = os.path.join(self.storage_root, file_ext)
+            
+            self.possible_filenames += self.filter_files(glob.glob(file_pattern1))
+            self.possible_filenames += self.filter_files(glob.glob(file_pattern2))
 
         self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
 
