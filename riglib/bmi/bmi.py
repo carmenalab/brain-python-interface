@@ -638,7 +638,7 @@ class Decoder(object):
         if assist_level > 0:
             x_assist = kwargs.pop('x_assist')
 
-            if kwargs['ortho_damp_assist']:
+            if 'ortho_damp_assist' in kwargs and kwargs['ortho_damp_assist']:
                 # Normalize: 
                 x_assist /= np.linalg.norm(x_assist)
                 targ_comp = float(self.filt.state.mean.T*x_assist)*x_assist
