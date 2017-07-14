@@ -276,8 +276,14 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                 # convert .nev file to hdf file using Blackrock's n2h5 utility
                 subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
 
-            import h5py
-            nev_hdf = h5py.File(nev_hdf_fname, 'r')
+            try:
+                import h5py
+                nev_hdf = h5py.File(nev_hdf_fname, 'r')
+                open_method = 1
+            except:
+                import tables
+                nev_hdf = tables.openFile(nev_hdf_fname)
+                open_method = 2
 
             n_bins = len(interp_rows)
             n_units = units.shape[0]
@@ -291,11 +297,18 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
                 chan_str = str(chan).zfill(5)
                 path = 'channel/channel%s/spike_set' % chan_str
-                ts = nev_hdf.get(path).value['TimeStamp']
 
-                # the units corresponding to each timestamp in ts
-                # 0-based numbering (comes from .nev file), so add 1
-                units_ts = nev_hdf.get(path).value['Unit'] + 1
+                if open_method == 1:    
+                    ts = nev_hdf.get(path).value['TimeStamp']
+                    # the units corresponding to each timestamp in ts
+                    # 0-based numbering (comes from .nev file), so add 1
+                    units_ts = nev_hdf.get(path).value['Unit'] + 1
+                
+                elif open_method == 2:
+                    grp = nev_hdf.getNode('/'+path)
+                    ts = grp[:]['TimeStamp']
+                    units_ts = grp[:]['Unit']
+
 
                 # get the ts for this unit, in units of secs
                 fs = 30000.
@@ -694,10 +707,11 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.n_subbins = n_subbins
         self.units = units
         self.last_get_spike_counts_time = 0
-        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2),
+        self.feature_dtype = [('spike_counts', 'f8', (len(units), n_subbins)), ('bin_edges', 'f8', 2),
             ('ctrl_input', 'f8', self.encoder.C.shape[1])]
         self.task = task
         self.sim_ctrl = np.zeros((self.encoder.C.shape[1]))
+        
     def get_spike_ts(self):
         '''
         see BinnedSpikeCountsExtractor.get_spike_ts for docs
