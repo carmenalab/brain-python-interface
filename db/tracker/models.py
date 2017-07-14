@@ -22,6 +22,7 @@ import importlib
 import subprocess    
 import traceback
 import imp
+import tables
 
 def _get_trait_default(trait):
     '''
@@ -847,7 +848,7 @@ class Decoder(models.Model):
 
         return decoder_data
 
-def parse_blackrock_file(nev_fname, nsx_files):
+def parse_blackrock_file_n2h5(nev_fname, nsx_files):
     '''
     # convert .nev file to hdf file using Blackrock's n2h5 utility (if it doesn't exist already)
     # this code goes through the spike_set for each channel in order to:
@@ -923,6 +924,104 @@ def parse_blackrock_file(nev_fname, nsx_files):
     length = max([nev_length] + nsx_lengths)
     return length, units, 
 
+def parse_blackrock_file(nev_fname, nsx_files):
+    ''' Method to parse blackrock files using new
+    brpy from blackrock (with some modifications). Files are 
+    saved as a ____ file?
+    
+    # this code goes through the spike_set for each channel in order to:
+    #  1) determine the last timestamp in the file
+    #  2) create a list of units that had spikes in this file
+    '''
+    from riglib.blackrock.brpylib import NevFile, NsxFile
+
+    # First parse the NEV file: 
+    nev_hdf_fname = nev_fname + '.hdf'
+    nev_file = NevFile(nev_fname)
+    spk_data = nev_file.getdata()
+
+    # Make HDF file from NEV file # 
+    last_ts, units = make_hdf_spks(spk_data, nev_hdf_fname)
+    fs = 30000.
+    nev_length = last_ts / fs
+
+           ### TODO ###
+    ### PROCESS NSX FILES ###
+
+    return nev_length, units
+
+def make_hdf_spks(data, nev_hdf_fname):
+    last_ts = 0
+    units = []
+
+    #### Open h5file: ####
+    h5file = tables.openFile(nev_hdf_fname, mode="w", title='BlackRock Nev Data')
+    h5file.createGroup('/', 'channel')
+
+    ### Spike Data First ###
+    channels = data['spike_events']['ChannelID']
+    base_str = 'channel00000'
+    for ic, c in enumerate(channels):
+        c_str = base_str[:-1*len(str(c))]+ str(c)
+        h5file.createGroup('/channel', c_str)
+        tab = h5file.createTable('/channel/'+c_str, 'spike_set', spike_set)
+
+        for i, (ts, u, wv) in enumerate(zip(data['spike_events']['TimeStamps'][ic], data['spike_events']['Classification'][ic], data['spike_events']['Waveforms'][ic])):
+            trial = tab.row
+            trial['TimeStamp'] = ts
+            if u == 'none':
+                u = 0
+            trial['Unit'] = u
+            trial['Wave'] = wv
+            trial.append()
+
+        #Check for non-zero units: 
+        if len(data['spike_events']['TimeStamps'])>0:
+            un = np.unique(data['spike_events']['Classification'][ic])
+            for ci in un:
+                if ci == 'none':
+                    # Unsorted
+                    units.append((c, 0))
+                else:
+                    # Sorted
+                    units.append((c, 1))
+
+        last_ts = np.max([last_ts, ts])
+        tab.flush()
+
+    ### Digital Data ###
+    try:
+        ts = data['dig_events']['TimeStamps']
+        val = data['dig_events']['Data']
+
+        for dchan in range(1, 1+len(ts)):
+            h5file.createGroup('/channel', 'digital000'+str(dchan))
+            dtab = h5file.createTable('/channel/digital000'+str(dchan), 'digital_set', digital_set)
+
+            ts_chan = ts[dchan-1]
+            val_chan = val[dchan-1]
+            
+            for ii, (tsi, vli) in enumerate(zip(ts_chan, val_chan)):
+                trial = dtab.row
+                trial['TimeStamp'] = tsi
+                trial['Value'] = vli
+                trial.append()
+            last_ts = np.max([last_ts, tsi])
+            dtab.flush()
+    except:
+        print 'no digital info in nev file '
+    h5file.close()
+    print 'successfully made HDF file from NEV file: %s' %nev_hdf_fname
+    return last_ts, units
+
+class spike_set(tables.IsDescription):
+    TimeStamp = tables.Int32Col()
+    Unit = tables.Int8Col()
+    Wave = tables.Int16Col(shape=(48,))
+
+class digital_set(tables.IsDescription):
+    TimeStamp = tables.Int32Col()
+    Value = tables.Int16Col()
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)
