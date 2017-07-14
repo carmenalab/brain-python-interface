@@ -636,9 +636,19 @@ class Decoder(object):
         self.filt(neural_obs, **kwargs)
 
         if assist_level > 0:
-            weighted_avg_lfc = int(weighted_avg_lfc)
             x_assist = kwargs.pop('x_assist')
-            self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
+
+            if kwargs['ortho_damp_assist']:
+                # Normalize: 
+                x_assist /= np.linalg.norm(x_assist)
+                targ_comp = float(self.filt.state.mean.T*x_assist)*x_assist
+                orth_comp = self.filt.state.mean - targ_comp
+
+                # High assist damps orthogonal component a lot
+                self.filt.state.mean = targ_comp + (1 - assist_level)*orth_comp
+
+            else:
+                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
 
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):
