@@ -258,7 +258,7 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
     return neural_features, units, extractor_kwargs
 
 def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):    
-    if units == None:
+    if units is None:
         raise Exception('"units" variable is None in preprocess_files!')
 
     # Note: blackrock units are actually 0-based, but the units to be used for training
