@@ -9,6 +9,8 @@ from kfdecoder import KalmanFilter, KFDecoder
 import train
 import pickle
 import re
+import tables
+
 ########## MAIN DECODER MANIPULATION METHODS #################
 
 def add_rm_units(task_entry_id, units, add_or_rm, flag_added_for_adaptation, name_suffix='', decoder_entry_id=None, **kwargs):
@@ -22,6 +24,7 @@ def add_rm_units(task_entry_id, units, add_or_rm, flag_added_for_adaptation, nam
     Input param: task_entry_id: Decoder = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
     Input param: units: list of units to add or remove
     Input param: add_or_rm: 'add' or 'rm' 
+    Input param: flag_added_for_adaptation: whether or not to flag newly added units as adapting inds
     Input param: name_suffix: new decoder suffix. If empty, will append 'add_or_rm_units_len(units)'
     Input param: decoder_entry_id: used if more than 1 decoder training on block
 
@@ -67,21 +70,42 @@ def flag_adapting_inds_for_CLDA(task_entry_id, state_names_to_adapt=None, units_
     decoder.adapting_neural_inds = np.array(neural_adapting_inds)
     save_new_dec(task_entry_id, decoder, '_adapt_only_'+str(len(units_to_adapt))+'_units_'+str(len(state_names_to_adapt))+'_states')
 
-def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder_entry_id=None, training_method=train.train_KFDecoder):
+def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder_entry_id=None, 
+    training_method=train.train_KFDecoder, retrain_flag = False, **kwargs):
     '''
-    Summary: Method to be able to 'convert' a trained decoder to one that uses z-scored unit (e.g. you train a decoder
-        from VFB, but you want to zscore unit according to a passive / still session earlier). You would use the task_entry_id 
-        that was used to train the decoder OR entry that used the decoder, the task entry ID used to compute the z-scored units
+    Summary: Method to be able to 'convert' a trained decoder (that uses zscoring) to one that uses z-scored from another session
+         (e.g. you train a decoder from VFB, but you want to zscore unit according to a passive / still session earlier). You 
+         would use the task_entry_id that was used to train the decoder OR entry that used the decoder. Then 'calc_zscore_from_te'
+         is the task entry ID used to compute the z-scored units. You can either retrain the decoder iwth the new z-scored units, or not
 
     Input param: task_entry_id:
     Input param: decoder_entry_id:
     Input param: calc_zscore_from_te:
     Output param: 
     '''
-    decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
+    if 'decoder_path' in kwargs:
+        decoder = pickle.load(open(kwargs['decoder_path']))
+    else:
+        decoder = get_decoder_corr(task_entry_id, decoder_entry_id)
+
+    assert (hasattr(decoder, 'zscore') and decoder.zscore is True)," Cannot update mFR /sdFR of decoder that was not trained as zscored decoder. Retrain!"
 
     # Init mFR / sdFR
-    hdf = dbfn.TaskEntry(calc_zscore_from_te).hdf
+    if 'hdf_path' in kwargs:
+        hdf = tables.openFile(kwargs['hdf_path'])
+    else:
+        hdf = dbfn.TaskEntry(calc_zscore_from_te).hdf
+    
+    # Get HDF update rate from hdf file. 
+    try:
+        hdf_update_rate = np.round(np.mean(hdf.root.task[:]['loop_time'])*1000.)/1000.
+    except:
+        from config import config
+        if config.recording_system == 'blackrock':
+            hdf_update_rate = .05;
+        elif config.recording_system == 'plexon':
+            hdf_update_rate = 1/60.
+
     spk_counts = hdf.root.task[:]['spike_counts'][:, :, 0]
     
     # Make sure not repeated entries:
@@ -90,21 +114,42 @@ def zscore_units(task_entry_id, calc_zscore_from_te, pos_key = 'cursor', decoder
     sample = 1+ sum_spk_counts[ix:ix+6] - sum_spk_counts[ix]
     assert np.sum(sample) != 6
 
-    mFR = np.squeeze(np.mean(spk_counts, axis=0))
-    sdFR = np.std(spk_counts, axis=0)
-    kwargs = dict(zscore=True, mFR=mFR, sdFR=sdFR)
+    decoder_update_rate = decoder.binlen
+    bin_spks, _ = bin_(None, spk_counts.T, hdf_update_rate, decoder_update_rate, only_neural=True)
+    mFR = np.squeeze(np.mean(bin_spks, axis=1))
+    sdFR = np.std(bin_spks, axis=1)
+    kwargs2 = dict(mFR=mFR, sdFR=sdFR)
 
     #Retrain decoder w/ new zscoring:
-    training_id = decoder.te_id
-    saved_files = models.DataFile.objects.filter(entry_id=training_id)
-    files = {}
-    for fl in saved_files:
-        files[fl.system.name] = fl.get_path()
+    if 'te_id' in kwargs:
+        training_id = kwargs['te_id']
+    else:
+        training_id = decoder.te_id
+    
 
-    decoder = training_method(files, decoder.extractor_cls, decoder.extractor_kwargs, bmilist.kin_extractors[''], decoder.ssm, 
-        decoder.units, update_rate=decoder.binlen, tslice=decoder.tslice, pos_key=pos_key, **kwargs)
+    if retrain_flag:
+        raise NotImplementedError("Need to test retraining with real data")
+        saved_files = models.DataFile.objects.filter(entry_id=training_id)
+        files = {}
+        for fl in saved_files:
+            files[fl.system.name] = fl.get_path()
+        import bmilist
+        decoder = training_method(files, decoder.extractor_cls, decoder.extractor_kwargs, bmilist.kin_extractors[''], decoder.ssm, 
+            decoder.units, update_rate=decoder.binlen, tslice=decoder.tslice, pos_key=pos_key, zscore=True, **kwargs2)
+        suffx = '_zscore_set_from_'+str(calc_zscore_from_te)+'_retrained'
+    else:
+        decoder.mFR = 0.
+        decoder.sdFR = 1.
+        decoder.init_zscore(mFR, sdFR)
+        decoder.mFR = mFR
+        decoder.sdFR = sdFR
 
-    save_new_dec(task_entry_id, decoder, '_zscore_set_from_'+str(calc_zscore_from_te))
+        suffx = '_zscore_set_from_'+str(calc_zscore_from_te)
+
+    if task_entry_id is not None:
+        save_new_dec(task_entry_id, decoder, suffx)
+    else:
+        return decoder, suffx
 
 def adj_state_noise(task_entry_id, decoder_entry_id, new_w):
     decoder = get_decoder_corr(task_entry_id, decoder_entry_id, return_used_te=True)
@@ -174,7 +219,7 @@ def add_units(kfdec, units):
     new_units = np.array(new_units)[keep_ix, :]
     units = np.vstack((units_curr, new_units))
 
-    C = np.vstack(( kfdec.filt.C, np.random.rand(len(new_units), kfdec.ssm.n_states)))
+    C = np.vstack(( kfdec.filt.C, np.zeros((len(new_units), kfdec.ssm.n_states))))
     Q = np.eye( len(units), len(units) )
     Q[np.ix_(np.arange(len(units_curr)), np.arange(len(units_curr)))] = kfdec.filt.Q
     Q_inv = np.linalg.inv(Q)
@@ -294,8 +339,16 @@ def return_proc_units_decoder(kfdec, inds_to_keep):
     decoder.units = units
     decoder.extractor_cls = kfdec.extractor_cls
     decoder.extractor_kwargs = kfdec.extractor_kwargs
-
     decoder.extractor_kwargs['units'] = units
+    try:
+        CE = kfdec.corresp_encoder
+        CE.C = CE.C[inds_to_keep, :]
+        CE.Q = CE.Q[np.ix_(inds_to_keep, inds_to_keep)]
+        CE.n_features = len(units)
+        decoder.corresp_encoder = CE
+        print 'adjusted corresp_encoder too!'
+    except:
+        pass
 
     return decoder
 
@@ -327,6 +380,29 @@ def save_new_dec(task_entry_id, dec_obj, suffix):
         old_dec_obj = faux_decoder_obj(task_entry_id)
     trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj, suffix=suffix)
 
+def bin_(kin, neural_features, update_rate, desired_update_rate, only_neural=False):
+
+    n = desired_update_rate/float(update_rate)
+    if not only_neural:
+        assert kin.shape[1] == neural_features.shape[1]
+    
+    ix_end = int(np.floor(neural_features.shape[1] / n)*n)
+
+    if (n - round(n)) < 1e-5:
+        n = int(n)
+        if not only_neural:
+            kin_ = kin[:, :ix_end].reshape(kin[:, :ix_end].shape[0], kin[:, :ix_end].shape[1]/n, n)
+            bin_kf = np.mean(kin_, axis=2)
+
+        nf_ = neural_features[:, :ix_end].reshape(neural_features[:, :ix_end].shape[0], neural_features[:, :ix_end].shape[1]/n, n)
+        bin_nf = np.sum(nf_, axis=2)
+
+        if only_neural:
+            return bin_nf, desired_update_rate
+        else:
+            return bin_nf, bin_kf, desired_update_rate
+    else:
+        raise Exception('Desired rate %f not multiple of original rate %f', desired_update_rate, update_rate)
 
 class faux_decoder_obj(object):
     def __init__(self, task_entry_id, *args,**kwargs):
