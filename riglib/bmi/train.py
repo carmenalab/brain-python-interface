@@ -383,7 +383,8 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 ################################################################################
 ## Main training functions
 ################################################################################
-def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task',
+    pos_key='cursor', vel_key=None, zscore=False):
     ## get neural features
     import extractor
     f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
@@ -629,8 +630,8 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     from db import trainbmi
     trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix=suffx)
 
-
-def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, 
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, **kwargs):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
@@ -659,6 +660,11 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
         Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
     vel_key : string
         Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
+    zscore : Bool 
+        Determines whether to zscore neural_data or not
+    kwargs:
+        mFR: mean firing rate to use to zscore units
+        sdFR: standard dev. to use to zscore units
 
     Returns
     -------
@@ -671,38 +677,56 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key)
 
     ## get neural features
-    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, extractor_kwargs, tslice=tslice, units=units, source=kin_source)
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, 
+        extractor_kwargs, tslice=tslice, units=units, source=kin_source)
 
     # Remove 1st kinematic sample and last neural features sample to align the 
     # velocity with the neural features
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
 
-    decoder = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
+    decoder = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice, zscore=zscore, **kwargs)
 
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
 
     return decoder
 
-def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0.):
+def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0., zscore=False, **kwargs):
     #### Train the actual KF decoder matrices ####
     n_features = neural_features.shape[0]  # number of neural features
+
+    if zscore:
+        if 'mFR' in kwargs and 'sdFR' in kwargs:
+            print 'using kwargs mFR, sdFR to zscore'
+            mFR = kwargs['mFR']
+            sdFR = kwargs['sdFR']
+        else:
+            print 'computing own mFR, sdFR to zscore'
+            mFR = np.mean(neural_features, axis=1)
+            sdFR = np.std(neural_features, axis=1)
+        neural_features = (neural_features - mFR[:, np.newaxis])*(1./sdFR[:, np.newaxis])
+
+    else:
+        mFR = np.squeeze(np.mean(neural_features, axis=1))
+        sdFR = np.squeeze(np.std(neural_features, axis=1))
 
     # C should be trained on all of the stochastic state variables, excluding the offset terms
     C = np.zeros([n_features, ssm.n_states])
     C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features, 
         regularizer=regularizer)
 
-    mFR = np.squeeze(np.mean(neural_features, axis=1))
-    sdFR = np.squeeze(np.std(neural_features, axis=1))
-
     # Set state space model
     A, B, W = ssm.get_ssm_matrices(update_rate=update_rate)
 
     # instantiate KFdecoder
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
-    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=update_rate, tslice=tslice)
+    decoder = kfdecoder.KFDecoder(kf, units, ssm, binlen=update_rate, tslice=tslice)
+
+    if zscore:
+        decoder.init_zscore(mFR, sdFR)  
+    decoder.mFR = mFR
+    decoder.sdFR = sdFR
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
     from clda import KFRML
@@ -725,7 +749,8 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
 
     return decoder
 
-def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task',
+    pos_key='cursor', vel_key=None, zscore=False):
     '''
     Create a new PPFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
