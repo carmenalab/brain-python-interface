@@ -374,6 +374,19 @@
 							                    {% endfor %}
 							                </select>
 							            </td>
+							        </tr>  
+							        <!-- Select whether to zscore data or not -->
+							        <tr>
+							            <td>
+							                <label for='zscore'>zscore neural features</label>
+							            </td>
+							            <td>
+							                <select id='zscore'>
+							                    {% for var in zscores %}
+							                        <option>{{ var }}</option>
+							                    {% endfor %}
+							                </select>
+							            </td>
 							        </tr>        
 							        <!-- Slider for specifying the time range of the block to use for training the decoder-->
 							        <tr>
