@@ -725,8 +725,6 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
 
     if zscore:
         decoder.init_zscore(mFR, sdFR)  
-    decoder.mFR = mFR
-    decoder.sdFR = sdFR
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
     from clda import KFRML
