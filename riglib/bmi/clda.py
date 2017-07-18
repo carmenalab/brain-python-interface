@@ -655,6 +655,11 @@ class KFRML(Updater):
         
         self.neur_by_state_adapting_inds_mesh = np.ix_(self.adapting_inds, self.state_adapting_inds)
 
+        if hasattr(self, 'adapt_mFR_stats'):
+            self.adapt_mFR_stats = decoder.adapt_mFR_stats
+        else:
+            self.adapt_mFR_stats = False
+
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
         '''
         Parameters
@@ -677,7 +682,7 @@ class KFRML(Updater):
         new_params : dict
             New parameters to feed back to the Decoder in use by the task.
         '''
-        if intended_kin == None or spike_counts == None or decoder == None:
+        if intended_kin is None or spike_counts is None or decoder is None:
             raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
 
         # Calculate the step size based on the half life and the number of samples to train from
@@ -741,9 +746,17 @@ class KFRML(Updater):
             Q[np.ix_(self.stable_inds, self.adapting_inds)] = 0
             Q[np.ix_(self.adapting_inds, self.stable_inds)] = 0
 
-        #mFR and sdFR are exempt from the 'adapting_inds'
-        mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
-        sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
+        #mFR and sdFR are not exempt from the 'adapting_inds'
+        try:
+            mFR = mFR_old.copy()
+            sdFR = sdFR_old.copy()
+        except:
+            mFR = 0.
+            sdFR = 1.
+
+        if self.adapt_mFR_stats:
+            mFR[self.adapting_inds] = (1-rho)*np.mean(spike_counts[self.adapting_inds,:].T, axis=0) + rho*mFR_old[self.adapting_inds]
+            sdFR[self.adapting_inds] = (1-rho)*np.std(spike_counts[self.adapting_inds,:].T, axis=0) + rho*sdFR_old[self.adapting_inds]
 
         C_xpose_Q_inv = C.T * np.linalg.pinv(Q)
 
@@ -753,6 +766,7 @@ class KFRML(Updater):
         if self.adapt_C_xpose_Q_inv_C:
             C_xpose_Q_inv_C = C_xpose_Q_inv * C
             new_params['filt.C_xpose_Q_inv_C'] = C_xpose_Q_inv_C
+            new_params['filt.C_xpose_Q_inv'] = C_xpose_Q_inv
             new_params['filt.R'] = self.R
         else:
             new_params['filt.C_xpose_Q_inv_C'] = decoder.filt.C_xpose_Q_inv_C
@@ -768,9 +782,9 @@ class KFRML(Updater):
         '''
         if adapting_inds is None: # Stable inds provided
             self.stable_inds = stable_inds   
-            self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds))
+            self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds)).astype(int)
         elif stable_inds is None: # Adapting inds provided:
-            self.adapting_inds = np.array(adapting_inds)
+            self.adapting_inds = np.array(adapting_inds).astype(int)
             self.stable_inds = np.array(filter(lambda x: x not in self.adapting_inds, self.feature_inds))
 
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
@@ -784,7 +798,7 @@ class KFRML(Updater):
         if adapting_state_inds is None:
             self.state_adapting_inds = np.array(filter(lambda x: x not in stable_state_inds, self.state_inds))
         elif stable_state_inds is None:
-            self.state_adapting_inds = adapting_state_inds
+            self.state_adapting_inds = np.array(adapting_state_inds).astype(int)
         self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
         self.stable_state_inds_independent = stable_state_inds_independent
 
@@ -802,8 +816,21 @@ class KFRML_IVC(KFRML):
 
         D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
-            d = np.mean([D[3,3], D[5,5]])
-            D[3:6, 3:6] = np.diag([d, d, d])
+            # assume velocity states are last half of states: 
+            v0 = int(.5*(D.shape[0] - 1))
+            
+            # get non-zero indices (e.g. cursor state only uses indices 3 and 5, not 4)
+            vix = np.nonzero(np.diag(D[v0:-1, v0:-1]))[0] + v0
+
+            # take mean: 
+            d = np.mean(np.diag(D)[vix])
+
+            # set diagonal to mean, off-diagonal to zeros: 
+            D[v0:-1, v0:-1] = np.diag(np.zeros((v0,))+d)
+            
+            #Old: cursor only: 
+            #d = np.mean([D[3,3], D[5,5]])
+            #D[3:6, 3:6] = np.diag([d, d, d])
         else:
             # calculate the gain from the riccati equation solution
             A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
