@@ -622,7 +622,8 @@ class Decoder(object):
 
         # re-normalize the variance of the spike observations, if nec
         if hasattr(self, 'zscore') and self.zscore:
-            neural_obs = (np.asarray(neural_obs).ravel() - self.mFR_curr) * self.sdFR_ratio
+            #neural_obs = (np.asarray(neural_obs).ravel() - self.mFR_curr) * self.sdFR_ratio
+            neural_obs = (np.asarray(neural_obs).ravel() - self.mFR) * (1./self.sdFR)
             # set the spike count of any unit that now has zero-mean with its original mean
             # This functionally removes it from the decoder. 
             neural_obs[self.zeromeanunits] = self.mFR[self.zeromeanunits] 
@@ -834,7 +835,6 @@ class BMISystem(object):
             current function call 
         '''
         n_units, n_obs = neural_obs.shape
-
         # If the target is specified as a 1D position, tile to match 
         # the number of dimensions as the neural features
         if np.ndim(target_state) == 1 or (target_state.shape[1] == 1 and n_obs > 1):
