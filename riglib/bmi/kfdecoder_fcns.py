@@ -39,8 +39,7 @@ def add_rm_units(task_entry_id, units, add_or_rm, flag_added_for_adaptation, nam
         
         # Only Adapt new units: 
         if flag_added_for_adaptation:
-            kfdec_new.adapting_neural_inds = np.zeros((len(kfdec_new.units)))
-            kfdec_new.adapting_neural_inds[-1*len(units):] = 1
+            kfdec_new.adapting_neural_inds = np.arange(len(kfdec_new.units)-len(units), len(kfdec_new.units))
 
         save_new_dec(task_entry_id, kfdec_new, name_suffix+'_add_'+str(n_new_units)+'_units')
 
