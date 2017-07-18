@@ -596,9 +596,11 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.zeromeanunits, = np.nonzero(mFR_curr == 0) #find any units with a mean FR of zero for this session
         sdFR_curr[self.zeromeanunits] = np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
         mFR_curr[self.zeromeanunits] = np.nan
-        self.sdFR_ratio = self.sdFR/sdFR_curr
-        self.mFR_diff = mFR_curr-self.mFR
-        self.mFR_curr = mFR_curr
+        #self.sdFR_ratio = self.sdFR/sdFR_curr
+        #self.mFR_diff = mFR_curr-self.mFR
+        #self.mFR_curr = mFR_curr
+        self.mFR = mFR_curr
+        self.sdFR = sdFR_curr
         self.zscore = True
 
     def update_params(self, new_params, steady_state=True):
