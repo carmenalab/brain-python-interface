@@ -161,7 +161,7 @@ def adj_state_noise(task_entry_id, decoder_entry_id, new_w):
 
 ########################## HELPER DECODER MANIPULATION METHODS #################################
 
-def get_decoder_corr(task_entry_id, decoder_entry_id):
+def get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=True):
     '''
     Summary: get KF decoder either from entry that has trained the decoder (if this, need decoder_entry_id if > 1 decoder), 
         or decoder that was used during task_entry_id
@@ -169,33 +169,34 @@ def get_decoder_corr(task_entry_id, decoder_entry_id):
     Input param: decoder_entry_id: decoder entry id: (models.Decoder.objects.get(entry=entry))
     Output param: KF Decoder
     '''
-
-    decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
-    if len(decoder_entries) > 0:
-        print 'Loading decoder TRAINED from task %d'%task_entry_id
-        if type(decoder_entries) is models.Decoder:
-            decoder = decoder_entries
-        else: # list of decoders. Search for the right one. 
-            try:
-                dec_ids = [de.pk for de in decoder_entries]
-                _ix = np.nonzero(dec_ids==decoder_entry_id)[0]
-                decoder = decoder_entries[_ix]
-            except:
-                if decoder_entry_id is None:
-                    raise Exception('Too many decoder entries trained from this TE, specify decoder_entry_id')
-                else:
-                    raise Exception('Too many decoder entries trained from this TE, no match to decoder_entry_id %d' %decoder_entry_id)
-        kfdec = decoder.load()
+    ld = True
+    if get_dec_used is False:
+        decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
+        if len(decoder_entries) > 0:
+            print 'Loading decoder TRAINED from task %d'%task_entry_id
+            if type(decoder_entries) is models.Decoder:
+                decoder = decoder_entries
+                ld = False
+            else: # list of decoders. Search for the right one. 
+                try:
+                    dec_ids = [de.pk for de in decoder_entries]
+                    _ix = np.nonzero(dec_ids==decoder_entry_id)[0]
+                    decoder = decoder_entries[_ix]
+                    ld = False
+                except:
+                    if decoder_entry_id is None:
+                        print 'Too many decoder entries trained from this TE, specify decoder_entry_id'
+                    else:
+                        print 'Too many decoder entries trained from this TE, no match to decoder_entry_id %d'%decoder_entry_id
+    if ld is False:
+        kfdec = decoder.load()            
     else:
         try:
             kfdec = dbfn.TaskEntry(task_entry_id).decoder
             print 'Loading decoder USED in task %s'%dbfn.TaskEntry(task_entry_id).task
         except:
             raise Exception('Cannot load decoder from TE%d'%task_entry_id)
-    if return_used_te:
-        return kfdec, 
-    else:
-        return kfdec
+    return kfdec
 
 def add_units(kfdec, units):
     '''
@@ -276,11 +277,11 @@ def proc_units(kfdec, units, mode):
         if isinstance(units, (str, unicode)):
             units = units.split(', ')
 
-        units_lut = dict(a=1, b=2, c=3, d=4)
+        units_lut = dict(a=1, b=2, c=3, d=4, e=5, f=6, g=7, h=8, i=9, j=10, k=11)
         units_int = []
         for u in units:
-            ch = int(re.match('(\d+)([a-d])', u).group(1))
-            unit_ind = re.match('(\d+)([a-d])', u).group(2)
+            ch = int(re.match('(\d+)([a-k])', u).group(1))
+            unit_ind = re.match('(\d+)([a-k])', u).group(2)
             # import pdb; pdb.set_trace()
             units_int.append((ch, units_lut[unit_ind]))
 
