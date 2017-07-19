@@ -712,7 +712,7 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
         sdFR = np.squeeze(np.std(neural_features, axis=1))
 
     # C should be trained on all of the stochastic state variables, excluding the offset terms
-    C = np.zeros([n_features, ssm.n_states])
+    C = np.zeros((n_features, ssm.n_states))
     C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features, 
         regularizer=regularizer)
 
