@@ -641,13 +641,12 @@ class Decoder(object):
 
             if 'ortho_damp_assist' in kwargs and kwargs['ortho_damp_assist']:
                 # Normalize: 
-                x_assist /= np.linalg.norm(x_assist)
-                targ_comp = float(self.filt.state.mean.T*x_assist)*x_assist
-                orth_comp = self.filt.state.mean - targ_comp
+                x_assist[self.drives_neurons,:] /= np.linalg.norm(x_assist[self.drives_neurons,:])
+                targ_comp = float(self.filt.state.mean[self.drives_neurons,:].T*x_assist[self.drives_neurons,:])*x_assist[self.drives_neurons,:]
+                orth_comp = self.filt.state.mean[self.drives_neurons,:] - targ_comp
 
                 # High assist damps orthogonal component a lot
-                self.filt.state.mean = targ_comp + (1 - assist_level)*orth_comp
-
+                self.filt.state.mean[self.drives_neurons,:] = targ_comp + (1 - assist_level)*orth_comp
             else:
                 self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
 
