@@ -561,10 +561,16 @@ class NevFile:
                     output['spike_events']['Waveforms'].append(
                         [np.fromfile(file=self.datafile, dtype=data_type, count=samples).astype(np.int32) * dig_factor])
                 else:
-                    output['spike_events']['Waveforms'][idx] = \
-                        np.append(output['spike_events']['Waveforms'][idx],
-                                  [np.fromfile(file=self.datafile, dtype=data_type, count=samples).astype(np.int32) *
-                                   dig_factor], axis=0)
+                    try:
+                        output['spike_events']['Waveforms'][idx] = \
+                            np.append(output['spike_events']['Waveforms'][idx],
+                                [np.fromfile(file=self.datafile, dtype=data_type, count=samples).astype(np.int32) *
+                                dig_factor], axis=0)
+                    except:
+                        output['spike_events']['Waveforms'][idx] = \
+                            np.append(output['spike_events']['Waveforms'][idx],
+                                [np.zeros((samples,)).astype(np.int32) * dig_factor], axis=0)
+                        print 'adding zero waveform'
 
             # For comment events
             elif packet_id == COMMENT_PACKET_ID:
