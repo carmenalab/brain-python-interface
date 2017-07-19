@@ -698,15 +698,13 @@ class KFRML(Updater):
         drives_neurons = decoder.drives_neurons
         mFR_old        = decoder.mFR
         sdFR_old       = decoder.sdFR
-
         x = np.mat(intended_kin)
         y = np.mat(spike_counts)
-
         #limit x to the indices that can adapt:
-        x = x[self.state_adapting_inds, :]
+        #x = x[self.state_adapting_inds, :]
 
         # limit y to the features which are permitted to adapt
-        y = y[self.adapting_inds, :]
+        #y = y[self.adapting_inds, :]
 
         if values is not None:
             n_samples = np.sum(values)
@@ -716,13 +714,17 @@ class KFRML(Updater):
             B = np.mat(np.eye(n_samples))
 
         if self.adapt_C_xpose_Q_inv_C:
-            self.R[self.state_adapting_inds_mesh] = rho*self.R[self.state_adapting_inds_mesh] + (x*B*x.T)
+            #self.R[self.state_adapting_inds_mesh] = rho*self.R[self.state_adapting_inds_mesh] + (x*B*x.T)
+            self.R = rho*self.R + (x*B*x.T)
 
         if np.any(np.isnan(self.R)):
             print 'np.nan in self.R in riglib/bmi/clda.py!'
 
-        self.S[self.neur_by_state_adapting_inds_mesh] = rho*self.S[self.neur_by_state_adapting_inds_mesh] + (y*B*x.T)
-        self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
+        #self.S[self.neur_by_state_adapting_inds_mesh] = rho*self.S[self.neur_by_state_adapting_inds_mesh] + (y*B*x.T)
+        #self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
+
+        self.S[:, decoder.drives_neurons] = rho*self.S[:, decoder.drives_neurons] + (y*B*x[decoder.drives_neurons, :].T)
+        self.T = rho*self.T + np.dot(y, B*y.T)
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
@@ -736,8 +738,10 @@ class KFRML(Updater):
             print self.R
             print 'Error with pinv in riglib/bmi/clda.py'
 
-        C = self.S * R_inv
-
+        C_new = self.S * R_inv
+        C = decoder.filt.C
+        C[np.ix_(self.adapting_inds, self.state_adapting_inds)] = C_new[np.ix_(self.adapting_inds, self.state_adapting_inds)]
+        
         Q = (1./self.ESS) * (self.T - self.S*C.T)
         if hasattr(self, 'stable_inds_mesh'):
             Q[self.stable_inds_mesh] = decoder.filt.Q[self.stable_inds_mesh]
@@ -759,7 +763,6 @@ class KFRML(Updater):
             sdFR[self.adapting_inds] = (1-rho)*np.std(spike_counts[self.adapting_inds,:].T, axis=0) + rho*sdFR_old[self.adapting_inds]
 
         C_xpose_Q_inv = C.T * np.linalg.pinv(Q)
-
         new_params = {'filt.C':C, 'filt.Q':Q, 'filt.C_xpose_Q_inv':C_xpose_Q_inv,
             'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS, 'filt.S':self.S, 'filt.T':self.T}
 
