@@ -947,9 +947,13 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry):
         units = hdf.root.attr[:n_units]['units']
 
     else:
-        nev_file = NevFile(nev_fname)
-        spk_data = nev_file.getdata()
-
+        try:
+            nev_file = NevFile(nev_fname)
+            spk_data = nev_file.getdata()
+        except:
+            print 'nev file is not available for opening. Try in a few seconds!'
+            raise Exception
+        
         # Make HDF file from NEV file # 
         last_ts, units, h5file = make_hdf_spks(spk_data, nev_hdf_fname)
 
