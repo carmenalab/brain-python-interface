@@ -312,7 +312,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
                 # get the ts for this unit, in units of secs
                 fs = 30000.
-                ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
+                ts = [t/fs for idx, (t, u_t) in enumerate(zip(ts, units_ts)) if u_t == unit]
 
                 # insert value interp_rows[0]-step to beginning of interp_rows array
                 interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
