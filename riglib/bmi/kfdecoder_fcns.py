@@ -217,8 +217,10 @@ def add_units(kfdec, units):
 
     new_units = np.array(new_units)[keep_ix, :]
     units = np.vstack((units_curr, new_units))
+    n_states = kfdec.filt.C.shape[1]
+    n_features = len(units)
 
-    C = np.vstack(( kfdec.filt.C, np.zeros((len(new_units), kfdec.ssm.n_states))))
+    C = np.vstack(( kfdec.filt.C, 1e-3*np.random.randn(len(new_units), kfdec.ssm.n_states)))
     Q = np.eye( len(units), len(units) )
     Q[np.ix_(np.arange(len(units_curr)), np.arange(len(units_curr)))] = kfdec.filt.Q
     Q_inv = np.linalg.inv(Q)
@@ -237,9 +239,9 @@ def add_units(kfdec, units):
     filt.C_xpose_Q_inv_C = C_xpose_Q_inv_C        
 
     filt.R = kfdec.filt.R
-    filt.S = np.vstack(( kfdec.filt.S, np.random.rand(len(new_units), kfdec.filt.S.shape[1])))
-    filt.T = Q.copy()
-    filt.T[np.ix_(np.arange(len(units_curr)), np.arange(len(units_curr)))] = kfdec.filt.T
+    ix = np.random.permutation(n_features)[:len(new_units)]
+    filt.S = np.vstack(( kfdec.filt.S, kfdec.filt.S[ix, :]))
+    filt.T = Q + filt.S * filt.S.T
     filt.ESS = kfdec.filt.ESS
 
     decoder = KFDecoder(filt, units, kfdec.ssm, mFR=mFR, sdFR=sdFR, binlen=kfdec.binlen, tslice=kfdec.tslice)
@@ -249,8 +251,8 @@ def add_units(kfdec, units):
     decoder.extractor_kwargs = kfdec.extractor_kwargs
     try:
         CE = kfdec.corresp_encoder
-        CE.C = np.vstack((CE.C, np.random.randn(len(new_units), CE.C.shape[1])))
-        Q = np.eye(len(units))
+        CE.C = np.vstack((CE.C, 3*np.random.randn(len(new_units), CE.C.shape[1])))
+        Q = .1*np.eye(len(units))
         Q[:len(units_curr), :len(units_curr)] = CE.Q
         CE.Q = Q
         CE.n_features = len(units)
