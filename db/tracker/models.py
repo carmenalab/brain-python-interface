@@ -626,11 +626,9 @@ class TaskEntry(models.Model):
             try:
                 length, units = parse_blackrock_file(self.nev_file, self.nsx_files)
 
-                # Blackrock units start from 0 (unlike plexon), so add 1
+                # Blackrock units start from 1 --> a, unsorted units are 21 --> u
                 # for web interface purposes
-                # i.e., unit 0 on channel 3 will be "3a" on web interface
-                units = [(chan, unit+1) for chan, unit in units]
-
+                
                 js['bmi'] = dict(_neuralinfo=dict(
                     length=length, 
                     units=units,
@@ -974,7 +972,7 @@ def make_hdf_spks(data, nev_hdf_fname):
             trial = tab.row
             trial['TimeStamp'] = ts
             if u == 'none':
-                u = 0
+                u = 10
             trial['Unit'] = u
             trial['Wave'] = wv
             trial.append()
@@ -985,10 +983,10 @@ def make_hdf_spks(data, nev_hdf_fname):
             for ci in un:
                 if ci == 'none':
                     # Unsorted
-                    units.append((c, 0))
+                    units.append((c, 10))
                 else:
-                    # Sorted
-                    units.append((c, 1))
+                    # Sorted (units are numbered )
+                    units.append((c, int(ci)))
 
         last_ts = np.max([last_ts, ts])
         tab.flush()
@@ -1016,7 +1014,12 @@ def make_hdf_spks(data, nev_hdf_fname):
         print 'no digital info in nev file '
     h5file.close()
     print 'successfully made HDF file from NEV file: %s' %nev_hdf_fname
-    return last_ts, units
+
+    un_array = np.vstack((units))
+    idx = np.lexsort((un_array[:, 1], un_array[:, 0]))
+    units2 = [units[i] for i in idx]
+
+    return last_ts, units2
 
 class spike_set(tables.IsDescription):
     TimeStamp = tables.Int32Col()
