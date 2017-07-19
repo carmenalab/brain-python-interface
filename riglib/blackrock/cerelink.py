@@ -26,7 +26,7 @@ class Connection(object):
         self.parameters['inst-port']   = 51001
         self.parameters['client-port'] = 51002
 
-        self.channel_offset = 4  # TODO -- some bug with nPlay
+        self.channel_offset = 0  # used to be 4 -- some old bug with nPlay
         print 'Using cbpy channel offset of:', self.channel_offset
 
         if sys.platform == 'darwin':  # OS X
@@ -139,9 +139,13 @@ class Connection(object):
                 chan = list_[0]
                 for unit, unit_ts in enumerate(list_[1]['timestamps']):
                     for ts in unit_ts:
-                        # blackrock unit numbers are actually 0-based
-                        # however, within Python code, web interface, etc., use 1-based numbering for unit number
-                        yield SpikeEventData(chan=chan-self.channel_offset, unit=unit+1, ts=ts, arrival_ts=arrival_ts)
+                        # blackrock unit numbers are 0-based where zero is unsorted unit
+                        if unit == 0:
+                            # Unsorted units are unit 10 (j)
+                            un = 10
+                        else:
+                            un = unit
+                        yield SpikeEventData(chan=chan-self.channel_offset, unit=un, ts=ts, arrival_ts=arrival_ts)
 
             time.sleep(sleep_time)
 
