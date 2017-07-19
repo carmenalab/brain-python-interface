@@ -624,8 +624,7 @@ class TaskEntry(models.Model):
         
         elif config.recording_sys['make'] == 'blackrock':
             try:
-                length, units = parse_blackrock_file(self.nev_file, self.nsx_files)
-
+                length, units = parse_blackrock_file(self.nev_file, self.nsx_files, self)
                 # Blackrock units start from 1 --> a, unsorted units are 21 --> u
                 # for web interface purposes
                 
@@ -926,7 +925,7 @@ def parse_blackrock_file_n2h5(nev_fname, nsx_files):
     length = max([nev_length] + nsx_lengths)
     return length, units, 
 
-def parse_blackrock_file(nev_fname, nsx_files):
+def parse_blackrock_file(nev_fname, nsx_files, task_entry):
     ''' Method to parse blackrock files using new
     brpy from blackrock (with some modifications). Files are 
     saved as a ____ file?
@@ -939,11 +938,26 @@ def parse_blackrock_file(nev_fname, nsx_files):
 
     # First parse the NEV file: 
     nev_hdf_fname = nev_fname + '.hdf'
-    nev_file = NevFile(nev_fname)
-    spk_data = nev_file.getdata()
+    datafiles = DataFile.objects.using(task_entry._state.db).filter(entry_id=task_entry.id)
+    files = [d.get_path() for d in datafiles]
+    if nev_hdf_fname in files:
+        hdf = tables.openFile(nev_hdf_fname)
+        n_units = hdf.root.attr[0]['n_units']
+        last_ts = hdf.root.attr[0]['last_ts']
+        units = hdf.root.attr[:n_units]['units']
 
-    # Make HDF file from NEV file # 
-    last_ts, units = make_hdf_spks(spk_data, nev_hdf_fname)
+    else:
+        nev_file = NevFile(nev_fname)
+        spk_data = nev_file.getdata()
+
+        # Make HDF file from NEV file # 
+        last_ts, units, h5file = make_hdf_spks(spk_data, nev_hdf_fname)
+
+        import dbq
+        dbq.save_data(nev_hdf_fname, 'blackrock', task_entry.pk, move=False, local=True, custom_suffix='', dbname=task_entry._state.db)
+
+
+
     fs = 30000.
     nev_length = last_ts / fs
 
@@ -1012,6 +1026,20 @@ def make_hdf_spks(data, nev_hdf_fname):
             dtab.flush()
     except:
         print 'no digital info in nev file '
+
+    # Adding length / unit info: 
+    tb = h5file.createTable('/', 'attr', mini_attr)
+    rw = tb.row
+    rw['last_ts'] = last_ts
+    U = np.zeros((192, 2))
+    n_units = len(units)
+    U[:n_units, :] = np.vstack((units))
+
+    rw['units'] = U
+    rw['n_units'] = n_units
+    rw.append()
+    tb.flush()
+
     h5file.close()
     print 'successfully made HDF file from NEV file: %s' %nev_hdf_fname
 
@@ -1019,7 +1047,7 @@ def make_hdf_spks(data, nev_hdf_fname):
     idx = np.lexsort((un_array[:, 1], un_array[:, 0]))
     units2 = [units[i] for i in idx]
 
-    return last_ts, units2
+    return last_ts, units2, h5file
 
 class spike_set(tables.IsDescription):
     TimeStamp = tables.Int32Col()
@@ -1029,6 +1057,12 @@ class spike_set(tables.IsDescription):
 class digital_set(tables.IsDescription):
     TimeStamp = tables.Int32Col()
     Value = tables.Int16Col()
+
+class mini_attr(tables.IsDescription): 
+    last_ts = tables.Float64Col()
+    units = tables.Int16Col(shape=(192, 2))
+    n_units = tables.Int16Col()
+
 
 class DataFile(models.Model):
     date = models.DateTimeField(auto_now_add=True)
