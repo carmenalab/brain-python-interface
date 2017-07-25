@@ -944,7 +944,7 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry):
         hdf = tables.openFile(nev_hdf_fname)
         n_units = hdf.root.attr[0]['n_units']
         last_ts = hdf.root.attr[0]['last_ts']
-        units = hdf.root.attr[:n_units]['units']
+        units = hdf.root.attr[0]['units'][:n_units]
 
     else:
         try:
