@@ -65,7 +65,7 @@ def _split(data, flip=False):
     rawdata = np.bitwise_and(msgs, rawdata_mask)
     return np.vstack([data[:,0], msgtype, auxdata, rawdata]).T
 
-def registrations(data):
+def registrations(data, map_system=False):
     '''
     Parse the DIO data from the neural recording system to determine which 
     data sources were registered by the experiment software
@@ -86,7 +86,10 @@ def registrations(data):
         tuples of (name, dtype)
     '''
     if data.ndim < 2 or data.shape[1] != 4:
-        data = _split(data)
+        if map_system:
+            data = _split(data, flip=True)
+        else:
+            data = _split(data)
 
     ts, msgtype, auxdata, rawdata = data[:,0], data[:,1], data[:,2], data[:,3].astype(np.uint8)
     idx = msgtype == MSG_TYPE_REGISTER #data[:,1] == MSG_TYPE_REGISTER 

@@ -213,7 +213,7 @@ class ArduinoReward(traits.HasTraits):
         '''
         super(ArduinoReward, self)._start_reward()
         self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
-        self.port.write('j')
+        self.port.write('a')
         self.reward_start = self.get_time() - self.start_time
 
     def _test_reward_end(self, ts):
@@ -231,6 +231,6 @@ class ArduinoReward(traits.HasTraits):
         -------
         None
         '''
-        self.port.write('n')
+        self.port.write('b')
 
 
