@@ -244,10 +244,10 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
         raise Exception("Could not open .plx file: %s" % plx_fname)
     
     # Use all of the units if none are specified
-    if units == None:
+    if units is None:
         units = np.array(plx.units).astype(np.int32)
 
-    if tslice == None:
+    if tslice is None:
         tslice = (1., plx.length-1)
 
     tmask, rows = _get_tmask_plexon(plx, tslice, sys_name=source)
