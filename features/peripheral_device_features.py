@@ -58,6 +58,11 @@ class Joystick(object):
         self.joystick.join()
         super(Joystick, self).join()
 
+class ArduinoJoystick(Joystick):
+    def register_num_channels(self):
+        from riglib import arduino_joystick, source, sink
+        System = arduino_joystick.make(2, 1)
+        self.joystick = source.DataSource(System)
 
 class Joystick_plus_TouchSensor(Joystick):
     '''
