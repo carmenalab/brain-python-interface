@@ -30,7 +30,7 @@ class System(DataSourceSystem):
         self.sensordat = np.zeros((n_sensors,))
         self.inputdat = np.zeros((n_inputs,), dtype=np.bool)
         self.data = np.zeros((1,), dtype=self.dtype)
-        self.port = serial.Serial('/dev/ttyACM0', baudrate=9600)
+        self.port = serial.Serial('/dev/arduino_joystick', baudrate=9600)
         self.port.flush()
     def start(self):
         '''
