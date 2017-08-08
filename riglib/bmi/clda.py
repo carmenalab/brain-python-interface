@@ -15,6 +15,7 @@ import re
 import assist
 import os
 import scipy
+import copy
 
 from utils.angle_utils import *
 
@@ -410,7 +411,10 @@ class Updater(object):
                 import traceback
                 traceback.print_exc()
         else:
-            res = self._result
+            if self._result is not None:
+                res = self._result
+            else:
+                res = None
             self._result = None
             return res
 
@@ -728,6 +732,7 @@ class KFRML(Updater):
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
+        
         try:
             if self.regularizer is None:
                 R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
@@ -739,7 +744,7 @@ class KFRML(Updater):
             print 'Error with pinv in riglib/bmi/clda.py'
 
         C_new = self.S * R_inv
-        C = decoder.filt.C
+        C = copy.deepcopy(decoder.filt.C)
         C[np.ix_(self.adapting_inds, self.state_adapting_inds)] = C_new[np.ix_(self.adapting_inds, self.state_adapting_inds)]
         
         Q = (1./self.ESS) * (self.T - self.S*C.T)
@@ -870,7 +875,6 @@ class KFRML_IVC(KFRML):
         float
         '''
         return (1-a*n)/w * (a-n)/n         
-
 
 class KFRML_baseline(KFRML):
     '''
