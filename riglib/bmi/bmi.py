@@ -13,6 +13,7 @@ import re
 import os
 import tables
 import datetime
+import copy
 
 
 class GaussianState(object):
@@ -887,7 +888,7 @@ class BMISystem(object):
 
             new_params = None # by default, no new parameters are available
             if self.has_updater:
-                new_params = self.updater.get_result()
+                new_params = copy.deepcopy(self.updater.get_result())
 
             # Update the decoder if new parameters are available
             if not (new_params is None):
