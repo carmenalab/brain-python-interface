@@ -659,7 +659,7 @@ class KFRML(Updater):
         
         self.neur_by_state_adapting_inds_mesh = np.ix_(self.adapting_inds, self.state_adapting_inds)
 
-        if hasattr(self, 'adapt_mFR_stats'):
+        if hasattr(decoder, 'adapt_mFR_stats'):
             self.adapt_mFR_stats = decoder.adapt_mFR_stats
         else:
             self.adapt_mFR_stats = False
