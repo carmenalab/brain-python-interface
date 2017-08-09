@@ -693,8 +693,17 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     return decoder
 
 def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0., zscore=False, **kwargs):
+    
     #### Train the actual KF decoder matrices ####
-    n_features = neural_features.shape[0]  # number of neural features
+    if type(zscore) is bool:
+        pass
+    else:
+        if zscore == 'True':
+            zscore = True
+        elif zscore == 'False':
+            zscore = False
+        else:
+            raise Exception
 
     if zscore:
         if 'mFR' in kwargs and 'sdFR' in kwargs:
@@ -711,6 +720,8 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
         mFR = np.squeeze(np.mean(neural_features, axis=1))
         sdFR = np.squeeze(np.std(neural_features, axis=1))
 
+    n_features = len(mFR)
+
     # C should be trained on all of the stochastic state variables, excluding the offset terms
     C = np.zeros((n_features, ssm.n_states))
     C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features, 
@@ -723,8 +734,11 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
     decoder = kfdecoder.KFDecoder(kf, units, ssm, binlen=update_rate, tslice=tslice)
 
-    if zscore:
+    if zscore is True:
         decoder.init_zscore(mFR, sdFR)  
+    else:
+        print 'no init_zscore'
+
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
     from clda import KFRML
