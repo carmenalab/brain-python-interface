@@ -81,16 +81,16 @@ void loop() {
         digitalWrite(led, LOW);
     }
 
-    // Start CODA
+    // Set CODA pin to default value (not recording)
     else if ((c == 'g')) {
       digitalWrite(coda_rec, HIGH);
-      Serial.println("coda recording started"); 
+      Serial.println("coda pin set to 1 - default value, not recording"); 
     }
     
-    // Stop CODA
+    // Start CODA
     else if ((c == 'h')) {
       digitalWrite(coda_rec, LOW);
-      Serial.println("coda recording stopped"); 
+      Serial.println("coda recording started"); 
     }
 
     // Digital data
