@@ -1,6 +1,6 @@
 int led = 13;
 int strobe = 49; // no dedicated rstart pin for Blackrock
-int rstart = 49;
+int rstart = 47;
 int di0 = 36;
 char c;
 char d;
@@ -47,12 +47,12 @@ void loop() {
         }
         
         // positive edge for rstart
-        digitalWrite(data_pins[15], HIGH);
+        digitalWrite(rstart, HIGH);
         Serial.println("blackrock recording started"); 
         delay(10);
-        digitalWrite(rstart, HIGH);
+        digitalWrite(strobe, HIGH);
         delay(200);
-        digitalWrite(rstart, LOW);
+        digitalWrite(strobe, LOW);
   
         en = 1;    
         
@@ -65,12 +65,12 @@ void loop() {
     // Stop recording
     else if ((c == 'p') && (en == 1)) {
         // positive edge for rstart
-        digitalWrite(data_pins[15], LOW);
+        digitalWrite(rstart, LOW);
         Serial.println("blackrock recording stopped"); 
         delay(10);
-        digitalWrite(rstart, HIGH);
+        digitalWrite(strobe, HIGH);
         delay(200);
-        digitalWrite(rstart, LOW);
+        digitalWrite(strobe, LOW);
         
         en = 0;
         c = ' ';
@@ -125,7 +125,7 @@ void handle_word() {
       }
     }  
 
-  digitalWrite(data_pins[15], HIGH);
+  digitalWrite(rstart, HIGH);
 
   digitalWrite(strobe, HIGH);
   delay(0.5);
