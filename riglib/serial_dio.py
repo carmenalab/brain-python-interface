@@ -64,27 +64,30 @@ class SendRowByte(object):
         None
         '''
         # Save the index of the system being registered (arbitrary number corresponding to the order in which systems were registered)
-        self.n_systems += 1
-        self.systems[system] = self.n_systems
+        if system in ['armassist', 'rehand']:
+            print 'not registering ', system, ' for rowbyte'
+        else:
+            self.n_systems += 1
+            self.systems[system] = self.n_systems
 
 
-        # if self.n_systems > 1:
-        #     raise Exception("This currently only works for one system!")
-        
-        #print "System Register: %s" % system, self.systems[system]
-        #print "Arduino register %s" % system, self.systems[system]
+            # if self.n_systems > 1:
+            #     raise Exception("This currently only works for one system!")
+            
+            #print "System Register: %s" % system, self.systems[system]
+            #print "Arduino register %s" % system, self.systems[system]
 
-        #if self.n_systems > 1:
-        #    raise Exception("This currently only works for one system!")
+            #if self.n_systems > 1:
+            #    raise Exception("This currently only works for one system!")
 
-        print "Arduino register %s" % system, self.systems[system]
+            print "Arduino register %s" % system, self.systems[system]
 
-        for sys_name_chr in system:
-            reg_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, ord(sys_name_chr))
-            self._send_data_word_to_serial_port(reg_word)
+            for sys_name_chr in system:
+                reg_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, ord(sys_name_chr))
+                self._send_data_word_to_serial_port(reg_word)
 
-        null_term_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, 0) # data payload is 0 for null terminator
-        self._send_data_word_to_serial_port(null_term_word)
+            null_term_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, 0) # data payload is 0 for null terminator
+            self._send_data_word_to_serial_port(null_term_word)
 
     def sendMsg(self, msg):
         '''
