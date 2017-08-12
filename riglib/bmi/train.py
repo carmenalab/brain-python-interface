@@ -137,15 +137,21 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
 
     nev_hdf_fname = nev_fname + '.hdf'
     if not os.path.isfile(nev_hdf_fname):
-        # convert .nev file to hdf file using Blackrock's n2h5 utility
-        subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+        # convert .nev file to hdf file using our own blackrock_parse_files:
+        from db.tracker import models
+        task_entry = int(nev_name[-8:-4])
+        _, _ = models.parse_blackrock_file(nev_fname, 0, task_entry)
+        
+    #import h5py
+    #nev_hdf = h5py.File(nev_hdf_fname, 'r')
+    nev_hdf = tables.openFile(nev_hdf_fname)
 
-    import h5py
-    nev_hdf = h5py.File(nev_hdf_fname, 'r')
+    #path = 'channel/digital00001/digital_set'
+    #ts = nev_hdf.get(path).value['TimeStamp']
+    #msgs = nev_hdf.get(path).value['Value']
 
-    path = 'channel/digital00001/digital_set'
-    ts = nev_hdf.get(path).value['TimeStamp']
-    msgs = nev_hdf.get(path).value['Value']
+    ts = nev_hdf.root.channel.digital0001.digital_set[:]['TimeStamp']
+    msgs = nev_hdf.root.channel.digital0001.digital_set[:]['Value'] + 2**16
 
     msgtype = np.right_shift(np.bitwise_and(msgs, parse.msgtype_mask), 8).astype(np.uint8)
     # auxdata = np.right_shift(np.bitwise_and(msgs, auxdata_mask), 8).astype(np.uint8)
@@ -261,7 +267,7 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
 
     return neural_features, units, extractor_kwargs
 
-def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):    
+def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=20.):    
     if units is None:
         raise Exception('"units" variable is None in preprocess_files!')
 
@@ -309,6 +315,7 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
         fn = _get_neural_features_plx
     elif 'blackrock' in files:
         fn = _get_neural_features_blackrock
+        strobe_rate = 20.
     elif 'tdt' in files:
         fn = _get_neural_features_tdt
     else:
@@ -684,9 +691,11 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     # sys.stdout.write(units)
     binlen = update_rate
 
+    from config import config
+
     ## get kinematic data
     tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
-    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key)
+    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=config.hdf_update_rate_hz)
 
     ## get neural features
     neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, 
@@ -717,6 +726,8 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
         else:
             raise Exception
 
+    print 'zscore value: ', zscore, type(zscore)
+
     if zscore:
         if 'mFR' in kwargs and 'sdFR' in kwargs:
             print 'using kwargs mFR, sdFR to zscore'
@@ -746,8 +757,9 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
     decoder = kfdecoder.KFDecoder(kf, units, ssm, binlen=update_rate, tslice=tslice)
 
-    if zscore is True:
+    if zscore:
         decoder.init_zscore(mFR, sdFR)  
+        print 'zscore init'
     else:
         print 'no init_zscore'
 
