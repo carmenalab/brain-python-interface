@@ -106,6 +106,49 @@ class TTLReward(traits.HasTraits):
         base_channel = 0
         comedi.comedi_dio_bitfield2(self.com, subdevice, write_mask, 0x000000, base_channel)
 
+class TTLReward_arduino(TTLReward):
+    ''' Same idea as TTL reward, using an arduino instead of nidaq (pin 8)'''
+    def __init__(self, *args, **kwargs):
+        self.baudrate_rew = 115200
+        import serial
+        self.port = serial.Serial('/dev/arduino_neurosync', baudrate=self.baudrate_rew)
+        super(TTLReward_arduino, self).__init__(*args, **kwargs)
+
+    def _start_reward(self):
+        #port = serial.Serial('/dev/arduino_rew', baudrate=self.baudrate_rew)
+        self.port.write("a")
+        self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
+        self.reward_start = self.get_time() - self.start_time
+        super(TTLReward_arduino, self)._start_reward()
+        
+    def _end_reward(self):
+        self.port.write("b")
+
+class TTLReward_arduino_tdt(traits.HasTraits):
+    ''' Same idea as TTL reward, using an arduino instead of nidaq (pin 8)'''
+    def __init__(self, *args, **kwargs):
+        self.baudrate_rew = 115200
+        import serial
+        #self.port = serial.Serial('/dev/ttyACM0', baudrate=self.baudrate_rew)
+        self.port = serial.Serial('/dev/arduino_neurosync', baudrate=self.baudrate_rew)
+        
+        super(TTLReward_arduino_tdt, self).__init__(*args, **kwargs)
+
+    def _start_reward(self):
+        #port = serial.Serial('/dev/arduino_rew', baudrate=self.baudrate_rew)
+        self.port.write("j")
+        self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
+        self.reward_start = self.get_time() - self.start_time
+        super(TTLReward_arduino_tdt, self)._start_reward()
+
+    def _test_reward_end(self, ts):
+        return (ts - self.reward_start) > self.reward_time
+        
+    def _end_reward(self):
+        self.port.write("n")
+
+
+
 class JuiceLogging(traits.HasTraits):
     '''
     Save screenshots of the juice camera and link them to the task entry that has been created
@@ -170,7 +213,7 @@ class ArduinoReward(traits.HasTraits):
         '''
         super(ArduinoReward, self)._start_reward()
         self.reportstats['Reward #'] = self.reportstats['Reward #'] + 1
-        self.port.write('j')
+        self.port.write('a')
         self.reward_start = self.get_time() - self.start_time
 
     def _test_reward_end(self, ts):
@@ -188,6 +231,6 @@ class ArduinoReward(traits.HasTraits):
         -------
         None
         '''
-        self.port.write('n')
+        self.port.write('b')
 
 

@@ -248,10 +248,10 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
         raise Exception("Could not open .plx file: %s" % plx_fname)
     
     # Use all of the units if none are specified
-    if units == None:
+    if units is None:
         units = np.array(plx.units).astype(np.int32)
 
-    if tslice == None:
+    if tslice is None:
         tslice = (1., plx.length-1)
 
     tmask, rows = _get_tmask_plexon(plx, tslice, sys_name=source)
@@ -262,7 +262,7 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
     return neural_features, units, extractor_kwargs
 
 def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):    
-    if units == None:
+    if units is None:
         raise Exception('"units" variable is None in preprocess_files!')
 
     # Note: blackrock units are actually 0-based, but the units to be used for training
@@ -389,7 +389,8 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 ################################################################################
 ## Main training functions
 ################################################################################
-def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task',
+    pos_key='cursor', vel_key=None, zscore=False):
     ## get neural features
     import extractor
     f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
@@ -414,7 +415,7 @@ def test_ratBMIdecoder(te_id=None, update_rate=0.1, tslice=None, kin_source='tas
     prob_t2 = kwargs.pop('prob_t2', 0.015)
     timeout = kwargs.pop('timeout', 30.)
     timeout_pause = kwargs.pop('timeout_pause', 3.)
-    freq_lim = kwargs.pop('freq_lim', (400., 15000.))
+    freq_lim = kwargs.pop('freq_lim', (1000., 20000.))
     e1_inds = kwargs.pop('e1_inds', None)
     e2_inds = kwargs.pop('e2_inds', None)
 
@@ -635,8 +636,8 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     from db import trainbmi
     trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix=suffx)
 
-
-def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, 
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, **kwargs):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
@@ -665,6 +666,11 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
         Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
     vel_key : string
         Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
+    zscore : Bool 
+        Determines whether to zscore neural_data or not
+    kwargs:
+        mFR: mean firing rate to use to zscore units
+        sdFR: standard dev. to use to zscore units
 
     Returns
     -------
@@ -683,40 +689,68 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key)
 
     ## get neural features
-    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, extractor_kwargs, tslice=tslice, units=units, source=kin_source)
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, 
+        extractor_kwargs, tslice=tslice, units=units, source=kin_source)
 
     # Remove 1st kinematic sample and last neural features sample to align the 
     # velocity with the neural features
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
 
-    decoder = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice)
+    decoder = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice, zscore=zscore, **kwargs)
 
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
 
     return decoder
 
-def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None):
+def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0., zscore=False, **kwargs):
+    
     #### Train the actual KF decoder matrices ####
-    n_features = neural_features.shape[0]  # number of neural features
+    if type(zscore) is bool:
+        pass
+    else:
+        if zscore == 'True':
+            zscore = True
+        elif zscore == 'False':
+            zscore = False
+        else:
+            raise Exception
+
+    if zscore:
+        if 'mFR' in kwargs and 'sdFR' in kwargs:
+            print 'using kwargs mFR, sdFR to zscore'
+            mFR = kwargs['mFR']
+            sdFR = kwargs['sdFR']
+        else:
+            print 'computing own mFR, sdFR to zscore'
+            mFR = np.mean(neural_features, axis=1)
+            sdFR = np.std(neural_features, axis=1)
+        neural_features = (neural_features - mFR[:, np.newaxis])*(1./sdFR[:, np.newaxis])
+
+    else:
+        mFR = np.squeeze(np.mean(neural_features, axis=1))
+        sdFR = np.squeeze(np.std(neural_features, axis=1))
+
+    n_features = len(mFR)
 
     # C should be trained on all of the stochastic state variables, excluding the offset terms
-    C = np.zeros([n_features, ssm.n_states])
-    print 'KIN', kin.shape, 'SSM: ', ssm.train_inds, 'NF: ', neural_features
-    C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features)
+    C = np.zeros((n_features, ssm.n_states))
+    C[:, ssm.drives_obs_inds], Q = kfdecoder.KalmanFilter.MLE_obs_model(kin[ssm.train_inds, :], neural_features, regularizer=regularizer)
 
-
-
-    mFR = np.mean(neural_features, axis=1)
-    sdFR = np.std(neural_features, axis=1)
 
     # Set state space model
     A, B, W = ssm.get_ssm_matrices(update_rate=update_rate)
 
     # instantiate KFdecoder
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
-    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=update_rate, tslice=tslice)
+    decoder = kfdecoder.KFDecoder(kf, units, ssm, binlen=update_rate, tslice=tslice)
+
+    if zscore is True:
+        decoder.init_zscore(mFR, sdFR)  
+    else:
+        print 'no init_zscore'
+
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
     from clda import KFRML
@@ -739,7 +773,8 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
 
     return decoder
 
-def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None):
+def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task',
+    pos_key='cursor', vel_key=None, zscore=False):
     '''
     Create a new PPFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
@@ -890,13 +925,20 @@ def inflate(A, current_states, full_state_ls, axis=0):
     -------
 
     '''
-    nS = len(full_state_ls)
+    try:
+        nS = len(full_state_ls)
+    except:
+        nS = full_state_ls.n_states
+
     if axis == 0:
         A_new = np.zeros([nS, A.shape[1]])
     elif axis == 1:
         A_new = np.zeros([A.shape[0], nS])
 
-    new_inds = [full_state_ls.index(x) for x in current_states]
+    try:
+        new_inds = [full_state_ls.index(x) for x in current_states]
+    except:
+        new_inds = [full_state_ls.state_names.index(x) for x in current_states]
     if axis == 0:
         A_new[new_inds, :] = A
     elif axis == 1:
@@ -1112,14 +1154,18 @@ def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
 
     beta = ppfdecoder.PointProcessFilter.frommlab(beta)
     beta[:,:-1] /= unit_conv('m', state_units)
-    beta_full = inflate(beta, states_explaining_neural_activity_2D_vel_decoding, states_3D_endpt, axis=1)
-    
-    states = states_3D_endpt#['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
-    neuron_driving_states = states_explaining_neural_activity_2D_vel_decoding#['hand_vx', 'hand_vz', 'offset'] 
-    ## beta_full = inflate(beta, neuron_driving_states, states, axis=1)
+    #beta_full = inflate(beta, states_explaining_neural_activity_2D_vel_decoding, states_3D_endpt, axis=1)
+    #states = states_3D_endpt#['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    #states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
+    states = state_space_models.StateSpaceEndptVel2D()
+    neuron_driving_states = ['hand_vx', 'hand_vz', 'offset'] 
+    beta_full = inflate(beta, neuron_driving_states, states, axis=1)
 
     stochastic_states = ['hand_vx', 'hand_vz']  
-    is_stochastic = map(lambda x: x in stochastic_states, states)
+    try:
+        is_stochastic = map(lambda x: x in stochastic_states, states)
+    except:
+        is_stochastic = map(lambda x: x in stochastic_states, states.state_names)
 
     unit_names = [str(x[0]) for x in data['decoder']['predSig'][0,0][0]]
     units = [(int(x[3:6]), ord(x[-1]) - (ord('a') - 1)) for x in unit_names]
@@ -1128,8 +1174,11 @@ def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
     ppf = ppfdecoder.PointProcessFilter(A, W, beta_full, dt, is_stochastic=is_stochastic)
     ppf.spike_rate_dt = spike_rate_dt
 
-    drives_neurons = np.array([x in neuron_driving_states for x in states])
-    dec = ppfdecoder.PPFDecoder(ppf, units, empty_bounding_box, states, drives_neurons, [], binlen=dt)
+    try:
+        drives_neurons = np.array([x in neuron_driving_states for x in states])
+    except:
+        drives_neurons = np.array([x in neuron_driving_states for x in states.state_names])
+    dec = ppfdecoder.PPFDecoder(ppf, units, states, binlen=dt)
 
     if state_units == 'cm':
         dec.filt.W[3:6, 3:6] *= unit_conv('m', state_units)**2

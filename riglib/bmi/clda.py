@@ -15,6 +15,7 @@ import re
 import assist
 import os
 import scipy
+import copy
 
 from utils.angle_utils import *
 
@@ -410,7 +411,10 @@ class Updater(object):
                 import traceback
                 traceback.print_exc()
         else:
-            res = self._result
+            if self._result is not None:
+                res = self._result
+            else:
+                res = None
             self._result = None
             return res
 
@@ -420,7 +424,6 @@ class Updater(object):
         '''
         if self.multiproc:
             self.calculator.stop()
-
 
 class PPFContinuousBayesianUpdater(Updater):
     '''
@@ -520,14 +523,13 @@ class PPFContinuousBayesianUpdater(Updater):
 
         return {'filt.C': np.mat(self.beta_est.copy())}
 
-
 class KFRML(Updater):
     '''
     Calculate updates for KF parameters using the recursive maximum likelihood (RML) method
     See (Dangi et al, Neural Computation, 2014) for mathematical details.
     '''
     update_kwargs = dict(steady_state=False)
-    def __init__(self, batch_time, half_life, adapt_C_xpose_Q_inv_C=True):
+    def __init__(self, batch_time, half_life, adapt_C_xpose_Q_inv_C=True, regularizer=None):
         '''
         Constructor for KFRML
 
@@ -540,6 +542,8 @@ class KFRML(Updater):
         adapt_C_xpose_Q_inv_C : bool
             Flag specifying whether to update the decoder property C^T Q^{-1} C, which 
             defines the feedback dynamics of the final closed-loop system if A and W are known
+        regularizer: float
+            Defines lambda regularizer to use in calculation of C matrix : C = (X*X.T + lambda*eye).I * (X*Y)
 
         Returns
         -------
@@ -550,7 +554,7 @@ class KFRML(Updater):
         self.half_life = half_life
         self.rho = np.exp(np.log(0.5) / (self.half_life/batch_time))
         self.adapt_C_xpose_Q_inv_C = adapt_C_xpose_Q_inv_C
-
+        self.regularizer = regularizer
         self._new_params = None
 
     @staticmethod
@@ -633,29 +637,32 @@ class KFRML(Updater):
         self.stable_inds = []
 
         # By default, tuning parameters for all features will adapt
-        if hasattr(decoder, 'adapting_neural_inds'):
-            self.adapting_inds = decoder.adapting_neural_inds
+        if hasattr(decoder, 'adapting_neur_inds'):
+            self.set_stable_inds(None, adapting_inds=decoder.adapting_neur_inds)
         else:
             self.adapting_inds = self.feature_inds.copy()
+            self.stable_inds_independent = False
 
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
 
         #Are stable units independent from other units ? If yes Q[stable_unit, other_units] = 0
-        self.stable_inds_independent = False
-
-
         #State space indices that will be adapted: 
-        if scipy.logical_and(hasattr(decoder, 'adapting_state_inds'), hasattr(decoder, 'ssm')):
-            self.state_adapting_names = decoder.adapting_state_inds.state_names
-            self.state_adapting_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if sn in self.state_adapting_names])
-            self.state_stable_inds = np.array([i for i, sn in enumerate(decoder.ssm.state_names) if i not in self.state_adapting_inds])
-            
-            print self.state_adapting_inds, decoder.ssm, decoder.adapting_state_inds
+        self.state_inds = np.arange(len(decoder.states))
+        if hasattr(decoder, 'adapting_state_inds'):
+            if type(decoder.adapting_state_inds) is not list:
+                ad = [i for i, j in enumerate(decoder.states) if j in decoder.adapting_state_inds.state_names]
+            else:
+                ad = decoder.adapting_state_inds
+            self.set_stable_states(None, adapting_state_inds=ad)
         else:
             self.state_adapting_inds = np.arange(decoder.n_states)
         
-        self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
         self.neur_by_state_adapting_inds_mesh = np.ix_(self.adapting_inds, self.state_adapting_inds)
+
+        if hasattr(decoder, 'adapt_mFR_stats'):
+            self.adapt_mFR_stats = decoder.adapt_mFR_stats
+        else:
+            self.adapt_mFR_stats = False
 
     def calc(self, intended_kin=None, spike_counts=None, decoder=None, half_life=None, values=None, **kwargs):
         '''
@@ -679,7 +686,7 @@ class KFRML(Updater):
         new_params : dict
             New parameters to feed back to the Decoder in use by the task.
         '''
-        if intended_kin == None or spike_counts == None or decoder == None:
+        if intended_kin is None or spike_counts is None or decoder is None:
             raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")
 
         # Calculate the step size based on the half life and the number of samples to train from
@@ -692,19 +699,16 @@ class KFRML(Updater):
             rho = self.rho 
 
         #update driver of neurons
-        drives_neurons = decoder.drives_neurons
-
-        mFR_old        = decoder.mFR
-        sdFR_old       = decoder.sdFR
-
+        drives_neurons = decoder.drives_neurons.copy()
+        mFR_old        = decoder.mFR.copy()
+        sdFR_old       = decoder.sdFR.copy()
         x = np.mat(intended_kin)
         y = np.mat(spike_counts)
-
         #limit x to the indices that can adapt:
-        x = x[self.state_adapting_inds,:]
+        #x = x[self.state_adapting_inds, :]
 
         # limit y to the features which are permitted to adapt
-        y = y[self.adapting_inds, :]
+        #y = y[self.adapting_inds, :]
 
         if values is not None:
             n_samples = np.sum(values)
@@ -714,44 +718,64 @@ class KFRML(Updater):
             B = np.mat(np.eye(n_samples))
 
         if self.adapt_C_xpose_Q_inv_C:
-            self.R[self.state_adapting_inds_mesh] = rho*self.R[self.state_adapting_inds_mesh] + (x*B*x.T)
+            #self.R[self.state_adapting_inds_mesh] = rho*self.R[self.state_adapting_inds_mesh] + (x*B*x.T)
+            self.R = rho*self.R + (x*B*x.T)
 
         if np.any(np.isnan(self.R)):
             print 'np.nan in self.R in riglib/bmi/clda.py!'
 
-        self.S[self.neur_by_state_adapting_inds_mesh] = rho*self.S[self.neur_by_state_adapting_inds_mesh] + (y*B*x.T)
-        self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
+        #self.S[self.neur_by_state_adapting_inds_mesh] = rho*self.S[self.neur_by_state_adapting_inds_mesh] + (y*B*x.T)
+        #self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
+
+        self.S[:, decoder.drives_neurons] = rho*self.S[:, decoder.drives_neurons] + (y*B*x[decoder.drives_neurons, :].T)
+        self.T = rho*self.T + np.dot(y, B*y.T)
         self.ESS = rho*self.ESS + n_samples
 
         R_inv = np.mat(np.zeros(self.R.shape))
+        
         try:
-            R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+            if self.regularizer is None:
+                R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
+            else:
+                dn = np.sum(drives_neurons)
+                R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)]+self.regularizer*np.eye(dn))
         except:
             print self.R
             print 'Error with pinv in riglib/bmi/clda.py'
 
-        C = self.S * R_inv
-
+        C_new = self.S * R_inv
+        C = copy.deepcopy(decoder.filt.C)
+        C[np.ix_(self.adapting_inds, self.state_adapting_inds)] = C_new[np.ix_(self.adapting_inds, self.state_adapting_inds)]
+        
         Q = (1./self.ESS) * (self.T - self.S*C.T)
         if hasattr(self, 'stable_inds_mesh'):
-            Q[self.stable_inds_mesh] = decoder.filt.Q[self.stable_inds_mesh]
+            Q_old = decoder.filt.Q[self.stable_inds_mesh].copy()
+            Q[self.stable_inds_mesh] = Q_old
 
         if self.stable_inds_independent:
             Q[np.ix_(self.stable_inds, self.adapting_inds)] = 0
             Q[np.ix_(self.adapting_inds, self.stable_inds)] = 0
 
-        #mFR and sdFR are exempt from the 'adapting_inds'
-        mFR = (1-rho)*np.mean(spike_counts.T, axis=0) + rho*mFR_old
-        sdFR = (1-rho)*np.std(spike_counts.T, axis=0) + rho*sdFR_old
+        #mFR and sdFR are not exempt from the 'adapting_inds'
+        try:
+            mFR = mFR_old.copy()
+            sdFR = sdFR_old.copy()
+        except:
+            mFR = 0.
+            sdFR = 1.
+
+        if self.adapt_mFR_stats:
+            mFR[self.adapting_inds] = (1-rho)*np.mean(spike_counts[self.adapting_inds,:].T, axis=0) + rho*mFR_old[self.adapting_inds]
+            sdFR[self.adapting_inds] = (1-rho)*np.std(spike_counts[self.adapting_inds,:].T, axis=0) + rho*sdFR_old[self.adapting_inds]
 
         C_xpose_Q_inv = C.T * np.linalg.pinv(Q)
-
         new_params = {'filt.C':C, 'filt.Q':Q, 'filt.C_xpose_Q_inv':C_xpose_Q_inv,
             'mFR':mFR, 'sdFR':sdFR, 'kf.ESS':self.ESS, 'filt.S':self.S, 'filt.T':self.T}
 
         if self.adapt_C_xpose_Q_inv_C:
             C_xpose_Q_inv_C = C_xpose_Q_inv * C
             new_params['filt.C_xpose_Q_inv_C'] = C_xpose_Q_inv_C
+            new_params['filt.C_xpose_Q_inv'] = C_xpose_Q_inv
             new_params['filt.R'] = self.R
         else:
             new_params['filt.C_xpose_Q_inv_C'] = decoder.filt.C_xpose_Q_inv_C
@@ -760,17 +784,32 @@ class KFRML(Updater):
         self._new_params = new_params
         return new_params
 
-    def set_stable_inds(self, stable_inds, stable_inds_independent=False):
+    def set_stable_inds(self, stable_inds, adapting_inds=None, stable_inds_independent=False):
         '''
         Set certain neural tuning parmeters to remain static, e.g., if you 
         want to add a new unit to a decoder but keep the existing parameters for the old units. 
         '''
-        self.stable_inds = stable_inds
-        self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds))
+        if adapting_inds is None: # Stable inds provided
+            self.stable_inds = stable_inds   
+            self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds)).astype(int)
+        elif stable_inds is None: # Adapting inds provided:
+            self.adapting_inds = np.array(adapting_inds).astype(int)
+            self.stable_inds = np.array(filter(lambda x: x not in self.adapting_inds, self.feature_inds))
+
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
         self.stable_inds_mesh = np.ix_(self.stable_inds, self.stable_inds)
         self.stable_inds_independent = stable_inds_independent
 
+    def set_stable_states(self, stable_state_inds, adapting_state_inds=None, stable_state_inds_independent=False):
+        '''
+        Maybe you want to keep specific states states (e.g. in iBMI, keep ArmAssist stable but adapt ReHand)
+        '''
+        if adapting_state_inds is None:
+            self.state_adapting_inds = np.array(filter(lambda x: x not in stable_state_inds, self.state_inds))
+        elif stable_state_inds is None:
+            self.state_adapting_inds = np.array(adapting_state_inds).astype(int)
+        self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
+        self.stable_state_inds_independent = stable_state_inds_independent
 
 class KFRML_IVC(KFRML):
     '''
@@ -786,8 +825,21 @@ class KFRML_IVC(KFRML):
 
         D = (C.T * np.linalg.pinv(Q) * C)
         if self.default_gain == None:
-            d = np.mean([D[3,3], D[5,5]])
-            D[3:6, 3:6] = np.diag([d, d, d])
+            # assume velocity states are last half of states: 
+            v0 = int(.5*(D.shape[0] - 1))
+            
+            # get non-zero indices (e.g. cursor state only uses indices 3 and 5, not 4)
+            vix = np.nonzero(np.diag(D[v0:-1, v0:-1]))[0] + v0
+
+            # take mean: 
+            d = np.mean(np.diag(D)[vix])
+
+            # set diagonal to mean, off-diagonal to zeros: 
+            D[v0:-1, v0:-1] = np.diag(np.zeros((v0,))+d)
+            
+            #Old: cursor only: 
+            #d = np.mean([D[3,3], D[5,5]])
+            #D[3:6, 3:6] = np.diag([d, d, d])
         else:
             # calculate the gain from the riccati equation solution
             A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
@@ -825,7 +877,6 @@ class KFRML_IVC(KFRML):
         '''
         return (1-a*n)/w * (a-n)/n         
 
-
 class KFRML_baseline(KFRML):
     '''
     RML version where only the baseline firing rates are adapted
@@ -840,8 +891,11 @@ class KFRML_baseline(KFRML):
             rho = self.rho 
 
         drives_neurons = decoder.drives_neurons
-        mFR_old        = decoder.mFR
-        sdFR_old       = decoder.sdFR
+        mFR_old        = decoder.mFR.copy()
+        sdFR_old       = decoder.sdFR.copy()
+        
+        mFR = mFR_old.copy()
+        sdFR = sdFR_old.copy()
 
         x = intended_kin
         y = spike_counts
@@ -852,15 +906,18 @@ class KFRML_baseline(KFRML):
         self.ESS = rho*self.ESS + 1
 
         R_inv = np.mat(np.zeros(self.R.shape))
-        R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
+        try:
+            R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
+        except:
+            R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
         C_new = self.S * R_inv
 
-        Q = decoder.filt.Q
+        Q = decoder.filt.Q.copy()
 
-        mFR = (1-rho)*np.mean(spike_counts.T,axis=0) + rho*mFR_old
-        sdFR = (1-rho)*np.std(spike_counts.T,axis=0) + rho*sdFR_old
+        mFR[self.adapting_inds] = (1-rho)*np.mean(spike_counts[self.adapting_inds,:].T, axis=0) + rho*mFR_old[self.adapting_inds]
+        sdFR[self.adapting_inds] = (1-rho)*np.std(spike_counts[self.adapting_inds,:].T, axis=0) + rho*sdFR_old[self.adapting_inds]
 
-        C = decoder.filt.C
+        C = decoder.filt.C.copy()
         C[:,-1] = C_new[:,-1]
 
         C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)

@@ -24,6 +24,8 @@ class Config(object):
 
         self.reward_system_version = int(dict(parser.items('reward_sys'))['version'])        
         self.log_dir = '/home/lab/code/bmi3d/log'
+        self.plexon_ip = dict(parser.items('plexon IP address'))['addr']
+        self.plexon_port = dict(parser.items('plexon IP address'))['port']
 
     def __getattr__(self, attr):
         try:

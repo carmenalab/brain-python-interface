@@ -1740,6 +1740,7 @@ BMI.prototype.train = function() {
     data.ssm = $("#ssm").val();
     data.pos_key = $("#pos_key").val();
     data.kin_extractor = $("#kin_extractor").val();
+    data.zscore = $("#zscore").val();
 
     data.csrfmiddlewaretoken = csrf.val();
 

@@ -1,5 +1,6 @@
+
 '''
-Features for the kinarm which is sending packets blindly to the BMI machine
+Features for a touch sensor on the neurosync arduino
 '''
 
 import time
@@ -12,13 +13,15 @@ import subprocess
 
 import time
 from riglib.experiment import traits
+from riglib import touch_data
 
 ########################################################################################################
-# Phasespace datasources
+# Touch sensor datasources
 ########################################################################################################
-class KinarmData(traits.HasTraits):
+
+class TouchDataFeature(traits.HasTraits):
     '''
-    Enable reading of data from Kinarm (3 x 50 matrix)
+    Enable reading of data from touch sensor
     '''
 
     def init(self):
@@ -29,21 +32,20 @@ class KinarmData(traits.HasTraits):
         to file as it is collected.
         '''
         from riglib import source
-        from riglib import kinarmdata
-        System = Motion = kinarmdata.Kinarmdata
-        self.kinarmdata = source.DataSource(System)
+        System  = touch_data.TouchData
+        self.touch_data = source.DataSource(System)
         from riglib import sink
         self.sinks = sink.sinks
-        self.sinks.register(self.kinarmdata)
-        super(KinarmData, self).init()
+        self.sinks.register(self.touch_data)
+        super(TouchDataFeature, self).init()
     
     @property
     def source_class(self):
         '''
         Specify the source class as a function
         '''
-        from riglib import kinarmdata
-        return kinarmdata.Kinarmdata()
+        from riglib import touch_data
+        return touch_data.TouchData()
 
     def run(self):
         '''
@@ -51,22 +53,22 @@ class KinarmData(traits.HasTraits):
         See riglib.experiment.Experiment.run(). This 'run' method starts the motiontracker source prior to starting the experiment's 
         main thread/process, and handle any errors by stopping the source
         '''
-        self.kinarmdata.start()
+        self.touch_data.start()
         try:
-            super(KinarmData, self).run()
+            super(TouchDataFeature, self).run()
         finally:
-            self.kinarmdata.stop()
+            self.touch_data.stop()
     
     def join(self):
         '''
         See riglib.experiment.Experiment.join(). Re-join the 'motiondata' source process before cleaning up the experiment thread
         '''
-        self.kinarmdata.join()
-        super(KinarmData, self).join()
+        #self.touch_data.join()
+        super(TouchDataFeature, self).join()
     
     def _start_None(self):
         '''
         Code to run before the 'None' state starts (i.e., the task stops)
         '''
-        self.kinarmdata.stop()
-        super(KinarmData, self)._start_None()
+        self.touch_data.stop()
+        super(TouchDataFeature, self)._start_None()

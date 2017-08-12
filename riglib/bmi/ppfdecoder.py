@@ -194,8 +194,9 @@ class PointProcessFilter(bmi.GaussianStateHMM):
 
         x_est = np.mat(np.zeros([n_states, 1]))
         x_est = x_pred + P_est*self.C.T*unpred_spikes
+        self.neural_push = P_est*self.C.T*obs_t
+        self.P_est = P_est
         post_state = GaussianState(x_est, P_est)
-
         return post_state
 
     def __getstate__(self):

@@ -8,6 +8,11 @@ import plexnet
 from collections import Counter
 import os
 import array
+from config import config
+
+PL_IP = config.plexon_ip
+PL_PORT = int(config.plexon_port)
+PL_ADDR = (PL_IP, PL_PORT)
 
 PL_SingleWFType = 1
 PL_ExtEventType = 4
@@ -22,7 +27,7 @@ class Spikes(DataSourceSystem):
     update_freq = 40000
     dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32), ("arrival_ts", np.float64)])
 
-    def __init__(self, addr=("10.0.0.13", 6000), channels=None):
+    def __init__(self, addr=PL_ADDR, channels=None):
         '''
         Constructor for plexon.Spikes
 
@@ -90,7 +95,7 @@ class LFP(DataSourceSystem):
     #   self.data.next() is called
     dtype = np.dtype('float')
 
-    def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=512):
+    def __init__(self, addr=PL_ADDR, channels=None, chan_offset=512):
         '''
         Constructor for plexon.LFP
 
@@ -162,7 +167,7 @@ class Aux(DataSourceSystem):
     # see comment above
     dtype = np.dtype('float')
 
-    def __init__(self, addr=("10.0.0.13", 6000), channels=None, chan_offset=768):
+    def __init__(self, addr=PL_ADDR, channels=None, chan_offset=768):
         '''
         Constructor for plexon.Aux
 

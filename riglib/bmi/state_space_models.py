@@ -335,6 +335,28 @@ class StateSpaceEndptVel2D(LinearVelocityStateSpace):
         if not hasattr(self, 'w'):
             self.w = 7
 
+class StateSpaceEndptVel3D(LinearVelocityStateSpace):
+    def __init__(self, **kwargs):
+        states = [
+            State('hand_px', stochastic=False, drives_obs=False, min_val=-25., max_val=25., order=0),
+            State('hand_py', stochastic=False, drives_obs=False, order=0),
+            State('hand_pz', stochastic=False, drives_obs=False, min_val=-14., max_val=14., order=0),
+            State('hand_vx', stochastic=True,  drives_obs=True, order=1),
+            State('hand_vy', stochastic=True,  drives_obs=True, order=1),
+            State('hand_vz', stochastic=True,  drives_obs=True, order=1),
+            offset_state]
+        super(StateSpaceEndptVel3D, self).__init__(states, **kwargs)  
+    def __setstate__(self, state):
+        self.__dict__ = state
+        if not hasattr(self, 'Delta'):
+            self.Delta = 0.1
+
+        if not hasattr(self, 'vel_decay'):
+            self.vel_decay = 0.8
+
+        if not hasattr(self, 'w'):
+            self.w = 7  
+
 class StateSpaceEndptPos1D(StateSpace):
     ''' StateSpace for 1D pos control (e.g. RatBMI)'''
     def __init__(self, **kwargs):

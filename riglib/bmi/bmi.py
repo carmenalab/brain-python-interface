@@ -13,6 +13,7 @@ import re
 import os
 import tables
 import datetime
+import copy
 
 
 class GaussianState(object):
@@ -622,7 +623,8 @@ class Decoder(object):
 
         # re-normalize the variance of the spike observations, if nec
         if hasattr(self, 'zscore') and self.zscore:
-            neural_obs = (np.asarray(neural_obs).ravel() - self.mFR_curr) * self.sdFR_ratio
+            #neural_obs = (np.asarray(neural_obs).ravel() - self.mFR_curr) * self.sdFR_ratio
+            neural_obs = (np.asarray(neural_obs).ravel() - self.mFR) * (1./self.sdFR)
             # set the spike count of any unit that now has zero-mean with its original mean
             # This functionally removes it from the decoder. 
             neural_obs[self.zeromeanunits] = self.mFR[self.zeromeanunits] 
@@ -636,9 +638,18 @@ class Decoder(object):
         self.filt(neural_obs, **kwargs)
 
         if assist_level > 0:
-            weighted_avg_lfc = int(weighted_avg_lfc)
             x_assist = kwargs.pop('x_assist')
-            self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
+
+            if 'ortho_damp_assist' in kwargs and kwargs['ortho_damp_assist']:
+                # Normalize: 
+                x_assist[self.drives_neurons,:] /= np.linalg.norm(x_assist[self.drives_neurons,:])
+                targ_comp = float(self.filt.state.mean[self.drives_neurons,:].T*x_assist[self.drives_neurons,:])*x_assist[self.drives_neurons,:]
+                orth_comp = self.filt.state.mean[self.drives_neurons,:] - targ_comp
+
+                # High assist damps orthogonal component a lot
+                self.filt.state.mean[self.drives_neurons,:] = targ_comp + (1 - assist_level)*orth_comp
+            else:
+                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
 
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):
@@ -824,7 +835,6 @@ class BMISystem(object):
             current function call 
         '''
         n_units, n_obs = neural_obs.shape
-
         # If the target is specified as a 1D position, tile to match 
         # the number of dimensions as the neural features
         if np.ndim(target_state) == 1 or (target_state.shape[1] == 1 and n_obs > 1):
@@ -878,7 +888,7 @@ class BMISystem(object):
 
             new_params = None # by default, no new parameters are available
             if self.has_updater:
-                new_params = self.updater.get_result()
+                new_params = copy.deepcopy(self.updater.get_result())
 
             # Update the decoder if new parameters are available
             if not (new_params is None):

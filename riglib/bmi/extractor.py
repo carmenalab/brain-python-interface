@@ -276,8 +276,14 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                 # convert .nev file to hdf file using Blackrock's n2h5 utility
                 subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
 
-            import h5py
-            nev_hdf = h5py.File(nev_hdf_fname, 'r')
+            try:
+                import h5py
+                nev_hdf = h5py.File(nev_hdf_fname, 'r')
+                open_method = 1
+            except:
+                import tables
+                nev_hdf = tables.openFile(nev_hdf_fname)
+                open_method = 2
 
             n_bins = len(interp_rows)
             n_units = units.shape[0]
@@ -291,15 +297,22 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
                 chan_str = str(chan).zfill(5)
                 path = 'channel/channel%s/spike_set' % chan_str
-                ts = nev_hdf.get(path).value['TimeStamp']
 
-                # the units corresponding to each timestamp in ts
-                # 0-based numbering (comes from .nev file), so add 1
-                units_ts = nev_hdf.get(path).value['Unit'] + 1
+                if open_method == 1:    
+                    ts = nev_hdf.get(path).value['TimeStamp']
+                    # the units corresponding to each timestamp in ts
+                    # 0-based numbering (comes from .nev file), so add 1
+                    units_ts = nev_hdf.get(path).value['Unit'] + 1
+                
+                elif open_method == 2:
+                    grp = nev_hdf.getNode('/'+path)
+                    ts = grp[:]['TimeStamp']
+                    units_ts = grp[:]['Unit']
+
 
                 # get the ts for this unit, in units of secs
                 fs = 30000.
-                ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
+                ts = [t/fs for idx, (t, u_t) in enumerate(zip(ts, units_ts)) if u_t == unit]
 
                 # insert value interp_rows[0]-step to beginning of interp_rows array
                 interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
@@ -694,9 +707,11 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.n_subbins = n_subbins
         self.units = units
         self.last_get_spike_counts_time = 0
-        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+        self.feature_dtype = [('spike_counts', 'f8', (len(units), n_subbins)), ('bin_edges', 'f8', 2),
+            ('ctrl_input', 'f8', self.encoder.C.shape[1])]
         self.task = task
-
+        self.sim_ctrl = np.zeros((self.encoder.C.shape[1]))
+        
     def get_spike_ts(self):
         '''
         see BinnedSpikeCountsExtractor.get_spike_ts for docs
@@ -704,6 +719,8 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         current_state = self.task.get_current_state()
         target_state = self.task.get_target_BMI_state()
         ctrl = self.input_device.calc_next_state(current_state, target_state)
+        #print current_state.T, target_state.T, ctrl.T
+        self.sim_ctrl = ctrl
         ts_data = self.encoder(ctrl)
         return ts_data
 

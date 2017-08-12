@@ -223,8 +223,11 @@ class BlackrockSerialDIORowByte(SerialDIORowByte):
     def init(self):
         self.possible_filenames = []
         for file_ext in self.file_exts:
-            file_pattern = os.path.join(self.storage_root, "*/", file_ext)
-            self.possible_filenames += self.filter_files(glob.glob(file_pattern))
+            file_pattern1 = os.path.join(self.storage_root, "*/", file_ext)
+            file_pattern2 = os.path.join(self.storage_root, file_ext)
+            
+            self.possible_filenames += self.filter_files(glob.glob(file_pattern1))
+            self.possible_filenames += self.filter_files(glob.glob(file_pattern2))
 
         self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
 
@@ -351,7 +354,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         Run prior to starting the task to remotely start recording from the plexon system
         '''
         if saveid is not None:
-            port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=115200)
+            port = serial.Serial('/dev/arduino_neurosync', baudrate=baudrate)
             # for k in range(5):
             port.write('p')
             time.sleep(0.5)
@@ -360,3 +363,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
 
             time.sleep(3)
             super(TDTSerialDIORowByte, cls).pre_init(saveid=saveid)
+
+    @property
+    def data_files(self):
+        return None

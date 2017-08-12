@@ -86,6 +86,7 @@ def list(request):
         pos_vars=namelist.bmi_training_pos_vars,            # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
         kin_extractors=namelist.kin_extractors,             # post-processing methods on the selected kinematic variable
         n_blocks=len(entries),
+        zscores=namelist.zscores,
     )
 
     # this line is important--this is needed so the Track object knows if the task has ended in an error
