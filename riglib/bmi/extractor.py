@@ -284,6 +284,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                 import tables
                 nev_hdf = tables.openFile(nev_hdf_fname)
                 open_method = 2
+                print 'open method 2'
 
             n_bins = len(interp_rows)
             n_units = units.shape[0]
@@ -302,7 +303,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                     ts = nev_hdf.get(path).value['TimeStamp']
                     # the units corresponding to each timestamp in ts
                     # 0-based numbering (comes from .nev file), so add 1
-                    units_ts = nev_hdf.get(path).value['Unit'] + 1
+                    units_ts = nev_hdf.get(path).value['Unit']
                 
                 elif open_method == 2:
                     grp = nev_hdf.getNode('/'+path)
