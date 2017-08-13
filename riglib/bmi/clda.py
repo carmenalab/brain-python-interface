@@ -749,8 +749,10 @@ class KFRML(Updater):
         
         Q = (1./self.ESS) * (self.T - self.S*C.T)
         if hasattr(self, 'stable_inds_mesh'):
-            Q_old = decoder.filt.Q[self.stable_inds_mesh].copy()
-            Q[self.stable_inds_mesh] = Q_old
+            if len(self.stable_inds) > 0:
+                print 'stable inds mesh: ', self.stable_inds, self.stable_inds_mesh
+                Q_old = decoder.filt.Q[self.stable_inds_mesh].copy()
+                Q[self.stable_inds_mesh] = Q_old
 
         if self.stable_inds_independent:
             Q[np.ix_(self.stable_inds, self.adapting_inds)] = 0
