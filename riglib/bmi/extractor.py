@@ -818,26 +818,39 @@ class LFPButterBPFPowerExtractor(object):
             step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
             interp_rows = neurows[::step]
 
-        # TODO -- for now, use .ns3 file (2 kS/s)
+        # TODO -- for now, use .ns3 or .ns2 file (2 kS/s)
+        nsx_fname = None
         for fname in nsx_fnames:
             if '.ns3' in fname:
                 nsx_fname = fname
-        extractor_kwargs['fs'] = 2000
+                fs_ = 2000
+        if nsx_fname is None:
+            for fname in nsx_fnames:
+                if '.ns2' in fname:
+                    nsx_fname = fname
+                    fs_ = 1000
+        
+        if nsx_fname is None:
+            raise Exception('Need an nsx file --> .ns2 or .ns3 is acceptable. Higher nsx files yield memory errors')
+        extractor_kwargs['fs'] = fs_
 
         # default order of 5 seems to cause problems when fs > 1000
         extractor_kwargs['filt_order'] = 3
 
-        
-        nsx_hdf_fname = nsx_fname + '.hdf'
-        if not os.path.isfile(nsx_hdf_fname):
-            # convert .nsx file to hdf file using Blackrock's n2h5 utility
-            subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+        if nsx_fname[-4:] == '.hdf':
+            nsx_hdf_fname = nsx_fname
+        else:
+            nsx_hdf_fname = nsx_fname + '.hdf'
+            if not os.path.isfile(nsx_hdf_fname):
+                # convert .nsx file to hdf file using Blackrock's n2h5 utility
+                from db.tracker import models
+                models.parse_blackrock_file(None, [nsx_fname], )
 
         import h5py
         nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
 
         # create extractor object
-        f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+        f_extractor = LFPButterBPFPowerExtractor(None, **extractor_kwargs)
         extractor_kwargs = f_extractor.extractor_kwargs
 
         win_len  = f_extractor.win_len
