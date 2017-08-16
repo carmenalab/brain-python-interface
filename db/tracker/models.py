@@ -299,7 +299,6 @@ class System(models.Model):
         df.entry_id = entry_id
         df.save()
 
-
 class Subject(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):
@@ -690,10 +689,10 @@ class TaskEntry(models.Model):
             df = DataFile.objects.get(system__name="blackrock", path__endswith=".nev", entry=self.id)
             return df.get_path()
         except:
-            import traceback
-            traceback.print_exc()
-            return 'no_nev_file'
-
+            #import traceback
+            #traceback.print_exc()
+            #return 'no_nev_file'
+            return None
     @property
     def nsx_files(self):
         '''Return a list containing the names of the nsx files (there could be more
@@ -709,9 +708,10 @@ class TaskEntry(models.Model):
 
             return [df.get_path() for df in dfs]
         except:
-            import traceback
-            traceback.print_exc()
-            return []
+            #import traceback
+            #traceback.print_exc()
+            #return []
+            return None
 
     @property
     def name(self):
@@ -926,7 +926,7 @@ def parse_blackrock_file_n2h5(nev_fname, nsx_files):
     length = max([nev_length] + nsx_lengths)
     return length, units, 
 
-def parse_blackrock_file(nev_fname, nsx_files, task_entry):
+def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(96) + 1):
     ''' Method to parse blackrock files using new
     brpy from blackrock (with some modifications). Files are 
     saved as a ____ file?
@@ -938,38 +938,67 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry):
     from riglib.blackrock.brpylib import NevFile, NsxFile
 
     # First parse the NEV file: 
-    nev_hdf_fname = nev_fname + '.hdf'
-    datafiles = DataFile.objects.using(task_entry._state.db).filter(entry_id=task_entry.id)
-    files = [d.get_path() for d in datafiles]
-    if nev_hdf_fname in files:
-        hdf = tables.openFile(nev_hdf_fname)
-        n_units = hdf.root.attr[0]['n_units']
-        last_ts = hdf.root.attr[0]['last_ts']
-        units = hdf.root.attr[0]['units'][:n_units]
-
-    else:
-        try:
-            nev_file = NevFile(nev_fname)
-            spk_data = nev_file.getdata()
-        except:
-            print 'nev file is not available for opening. Try in a few seconds!'
-            raise Exception
+    if nev_fname is not None:
+        nev_hdf_fname = nev_fname + '.hdf'
+        if task_entry is not None:
+            datafiles = DataFile.objects.using(task_entry._state.db).filter(entry_id=task_entry.id)
+            files = [d.get_path() for d in datafiles]
+        else:
+            # Guess where the file shoudl be: 
+            files = ['/storage/rawdata/blackrock/'+nev_hdf_fname]
         
-        # Make HDF file from NEV file # 
-        last_ts, units, h5file = make_hdf_spks(spk_data, nev_hdf_fname)
+        if nev_hdf_fname in files:
+            hdf = tables.openFile(nev_hdf_fname)
+            n_units = hdf.root.attr[0]['n_units']
+            last_ts = hdf.root.attr[0]['last_ts']
+            units = hdf.root.attr[0]['units'][:n_units]
 
-        import dbq
-        dbq.save_data(nev_hdf_fname, 'blackrock', task_entry.pk, move=False, local=True, custom_suffix='', dbname=task_entry._state.db)
+        else:
+            try:
+                nev_file = NevFile(nev_fname)
+                spk_data = nev_file.getdata()
+            except:
+                print 'nev file is not available for opening. Try in a few seconds!'
+                raise Exception
+            
+            # Make HDF file from NEV file # 
+            last_ts, units, h5file = make_hdf_spks(spk_data, nev_hdf_fname)
+            
+            if task_entry is not None:
+                import dbq
+                dbq.save_data(nev_hdf_fname, 'blackrock', task_entry.pk, move=False, local=True, custom_suffix='', dbname=task_entry._state.db)
 
+        fs = 30000.
+        nev_length = last_ts / fs
+    else:
+        units = []
+        nev_length = 0
 
+    if nsx_files is not None:
+        for nsx_fname in nsx_files:
+            nsx_hdf_fname = nsx_fname + '.hdf'
+            if not os.path.isfile(nsx_hdf_fname):
+                
+                # convert .nsx file to hdf file using Blackrock's n2h5 utility
+                # subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+                nsx_file = NsxFile(nsx_fname)
 
-    fs = 30000.
-    nev_length = last_ts / fs
+                # Extract data - note: data will be returned based on *SORTED* elec_ids, see cont_data['elec_ids']
+                cont_data = nsx_file.getdata(nsx_chan, 0, 'all', 1)
 
-           ### TODO ###
-    ### PROCESS NSX FILES ###
+                # Close the nsx file now that all data is out
+                nsx_file.close()
 
-    return nev_length, units
+                # Make HDF file: 
+                tmax_cts = make_hdf_cts(cont_data, nsx_hdf_fname, nsx_file)
+                if task_entry is not None:
+                    import dbq
+                    dbq.save_data(nsx_hdf_fname, 'blackrock', task_entry.pk, move=False, local=True, custom_suffix='', dbname=task_entry._state.db)
+            else:
+                tmax_cts = 0
+
+    length = max([nev_length] + [tmax_cts])
+    return length, units
 
 def make_hdf_spks(data, nev_hdf_fname):
     last_ts = 0
@@ -1036,7 +1065,7 @@ def make_hdf_spks(data, nev_hdf_fname):
     tb = h5file.createTable('/', 'attr', mini_attr)
     rw = tb.row
     rw['last_ts'] = last_ts
-    U = np.zeros((192, 2))
+    U = np.zeros((500, 2))
     n_units = len(units)
     U[:n_units, :] = np.vstack((units))
 
@@ -1054,6 +1083,30 @@ def make_hdf_spks(data, nev_hdf_fname):
 
     return last_ts, units2, h5file
 
+def make_hdf_cts(data, nsx_hdf_fname, nsx_file):
+    last_ts = []
+    channels = []
+
+    h5file = tables.openFile(nsx_hdf_fname, mode="w", title='BlackRock Nsx Data')
+    h5file.createGroup('/', 'channel')
+
+    channel_ids = data['elec_ids']
+    hdr_ids = data['ExtendedHeaderIndices']
+    channel_labels = [nsx_file.extended_headers[h]['ElectrodeLabel'] for h in hdr_ids]
+    print 'saving channel nums: ', channel_ids
+
+    for ic, (c, chan) in enumerate(zip(channel_ids, channel_labels)):
+        channel_data = data['data'][ic]
+        c_str = 'channel'+str(c).zfill(5)
+        h5file.createGroup('/channel', c_str)
+        h5file.createArray('/channel/'+c_str, 'Value', channel_data)
+    
+    t = data['start_time_s'] + np.arange(data['data'].shape[1]) / data['samp_per_s']
+    h5file.createArray('/channel', 'TimeStamp', t)
+    #h5file.createArray('/channel', 'ElectrodeLabels', np.hstack((channel_labels)))
+    h5file.close()
+    return t[-1]
+
 class spike_set(tables.IsDescription):
     TimeStamp = tables.Int32Col()
     Unit = tables.Int8Col()
@@ -1063,9 +1116,13 @@ class digital_set(tables.IsDescription):
     TimeStamp = tables.Int32Col()
     Value = tables.Int16Col()
 
+class continuous_set(tables.IsDescription):
+    TimeStamp = tables.Int32Col()
+    Value = tables.Int16Col()
+
 class mini_attr(tables.IsDescription): 
     last_ts = tables.Float64Col()
-    units = tables.Int16Col(shape=(192, 2))
+    units = tables.Int16Col(shape=(500, 2))
     n_units = tables.Int16Col()
 
 
