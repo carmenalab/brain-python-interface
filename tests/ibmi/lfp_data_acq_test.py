@@ -5,7 +5,7 @@ import scipy.io as sio
 from riglib.bmi import extractor
 
 
-channels = [5, 6]
+channels = np.arange(1, 97)
 n_chan = len(channels)
 
 extractor_cls = extractor.LFPMTMPowerExtractor
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     self.init()
     self.run()
 
-    n_secs = 15
+    n_secs = 60*10
     update_rate = 0.1
     N = int(n_secs / update_rate)
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
         for row in range(n_chan):
             d = new_data[row]
-            print row, d.shape
+            #print row, d.shape
             idx = idxs[row]
             data[row, idx:idx+len(d)] = d
             idxs[row] += len(d)
@@ -70,4 +70,4 @@ if __name__ == '__main__':
     save_dict = dict()
     save_dict['data'] = data
 
-    sio.matlab.savemat('cbpy_lfp_data.mat', save_dict)
+    sio.savemat('cbpy_lfp_data.mat', save_dict)
