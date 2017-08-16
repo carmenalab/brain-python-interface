@@ -59,6 +59,16 @@ class Joystick(object):
         super(Joystick, self).join()
 
 class ArduinoJoystick(Joystick):
+    def init(self):
+        '''
+        Same as above, w/o Phidgets import
+        '''
+        from riglib import source, sink
+        self.sinks = sink.sinks
+        self.register_num_channels()
+        super(Joystick, self).init()
+        self.sinks.register(self.joystick)
+
     def register_num_channels(self):
         from riglib import arduino_joystick, source, sink
         System = arduino_joystick.make(2, 1)
