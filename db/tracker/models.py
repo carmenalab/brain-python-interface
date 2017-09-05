@@ -23,6 +23,8 @@ import subprocess
 import traceback
 import imp
 import tables
+import tempfile
+import shutil
 
 def _get_trait_default(trait):
     '''
@@ -1005,7 +1007,8 @@ def make_hdf_spks(data, nev_hdf_fname):
     units = []
 
     #### Open h5file: ####
-    h5file = tables.openFile(nev_hdf_fname, mode="w", title='BlackRock Nev Data')
+    tf = tempfile.NamedTemporaryFile(delete=False)
+    h5file = tables.openFile(tf.name, mode="w", title='BlackRock Nev Data')
     h5file.createGroup('/', 'channel')
 
     ### Spike Data First ###
@@ -1075,6 +1078,8 @@ def make_hdf_spks(data, nev_hdf_fname):
     tb.flush()
 
     h5file.close()
+    shutil.copyfile(tf.name, nev_hdf_fname)
+    os.remove(tf.name)
     print 'successfully made HDF file from NEV file: %s' %nev_hdf_fname
 
     un_array = np.vstack((units))
@@ -1087,7 +1092,8 @@ def make_hdf_cts(data, nsx_hdf_fname, nsx_file):
     last_ts = []
     channels = []
 
-    h5file = tables.openFile(nsx_hdf_fname, mode="w", title='BlackRock Nsx Data')
+    tf = tempfile.NamedTemporaryFile(delete=False)
+    h5file = tables.openFile(tf.name, mode="w", title='BlackRock Nsx Data')
     h5file.createGroup('/', 'channel')
 
     channel_ids = data['elec_ids']
@@ -1105,6 +1111,9 @@ def make_hdf_cts(data, nsx_hdf_fname, nsx_file):
     h5file.createArray('/channel', 'TimeStamp', t)
     #h5file.createArray('/channel', 'ElectrodeLabels', np.hstack((channel_labels)))
     h5file.close()
+    shutil.copyfile(tf.name, nsx_hdf_fname)
+    os.remove(tf.name)
+    print 'successfully made HDF file from NSX file: %s' %nsx_hdf_fname
     return t[-1]
 
 class spike_set(tables.IsDescription):
