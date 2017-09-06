@@ -260,7 +260,6 @@ class FeedbackControllerLearner(Learner):
             traceback.print_exc()
             return None
 
-
 class OFCLearner(Learner):
     '''
     An intention estimator where the subject is assumed to operate like a muiti-modal LQR controller
@@ -659,7 +658,9 @@ class KFRML(Updater):
         
         self.neur_by_state_adapting_inds_mesh = np.ix_(self.adapting_inds, self.state_adapting_inds)
 
+
         if hasattr(decoder, 'adapt_mFR_stats'):
+            print 'setitng adapting mFR. updater', decoder.adapt_mFR_stats
             self.adapt_mFR_stats = decoder.adapt_mFR_stats
         else:
             self.adapt_mFR_stats = False
@@ -699,9 +700,15 @@ class KFRML(Updater):
             rho = self.rho 
 
         #update driver of neurons
-        drives_neurons = decoder.drives_neurons.copy()
-        mFR_old        = decoder.mFR.copy()
-        sdFR_old       = decoder.sdFR.copy()
+        try:
+            drives_neurons = decoder.drives_neurons.copy()
+            mFR_old        = decoder.mFR.copy()
+            sdFR_old       = decoder.sdFR.copy()
+        except:
+            drives_neurons = decoder.drives_neurons
+            mFR_old = decoder.mFR
+            sdFR_old = decoder.sdFR
+
         x = np.mat(intended_kin)
         y = np.mat(spike_counts)
         #limit x to the indices that can adapt:
@@ -887,6 +894,7 @@ class KFRML_baseline(KFRML):
         '''
         See KFRML.calc for input argument documentation
         '''
+        print "calculating new baseline parameters"
         if half_life is not None:
             rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
         else:
@@ -897,37 +905,12 @@ class KFRML_baseline(KFRML):
         sdFR_old       = decoder.sdFR.copy()
         
         mFR = mFR_old.copy()
-        sdFR = sdFR_old.copy()
-
-        x = intended_kin
-        y = spike_counts
-
-        self.R = rho*self.R + (x*x.T)
-        self.S = rho*self.S + (y*x.T)
-        self.T = rho*self.T + np.dot(y, y.T) #(y*y.T)
-        self.ESS = rho*self.ESS + 1
-
-        R_inv = np.mat(np.zeros(self.R.shape))
-        try:
-            R_inv[np.ix_(drives_neurons, drives_neurons)] = self.R[np.ix_(drives_neurons, drives_neurons)].I
-        except:
-            R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)])
-        C_new = self.S * R_inv
-
-        Q = decoder.filt.Q.copy()
+        sdFR= sdFR_old.copy()
 
         mFR[self.adapting_inds] = (1-rho)*np.mean(spike_counts[self.adapting_inds,:].T, axis=0) + rho*mFR_old[self.adapting_inds]
         sdFR[self.adapting_inds] = (1-rho)*np.std(spike_counts[self.adapting_inds,:].T, axis=0) + rho*sdFR_old[self.adapting_inds]
-
-        C = decoder.filt.C.copy()
-        C[:,-1] = C_new[:,-1]
-
-        C_xpose_Q_inv   = C.T * np.linalg.pinv(Q)
-        C_xpose_Q_inv_C = C_xpose_Q_inv * C
         
-        new_params = {'kf.C':C, 'kf.Q':Q, 
-            'kf.C_xpose_Q_inv_C':C_xpose_Q_inv_C, 'kf.C_xpose_Q_inv':C_xpose_Q_inv,
-            'mFR':mFR, 'sdFR':sdFR}
+        new_params = {'mFR':mFR, 'sdFR':sdFR}
 
         return new_params
 
@@ -1058,7 +1041,7 @@ class KFSmoothbatch(Updater):
         D = C.T * np.linalg.pinv(Q) * C
         new_params = {'kf.C':C, 'kf.Q':Q, 
             'kf.C_xpose_Q_inv_C':D, 'kf.C_xpose_Q_inv':C.T * np.linalg.pinv(Q),
-            'mFR':mFR, 'sdFR':sdFR}
+            'mFR':mFR, 'sdFR':sdFR, 'rho':rho }
         return new_params
 
 
