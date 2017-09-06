@@ -369,8 +369,12 @@ class SimKFDecoderSup(SimKFDecoder):
                 spike_counts[:,k] = np.array(self.encoder(state_samples[k], mode='counts')).ravel()
 
             kin = state_samples.T
-
-            self.decoder = train.train_KFDecoder_abstract(ssm, kin, spike_counts, units, 0.1)
+            zscore = False
+            if hasattr(self, 'clda_adapt_mFR_stats'):
+                if self.clda_adapt_mFR_stats:
+                    zscore = True
+            print ' zscore decoder ? : ', zscore
+            self.decoder = train.train_KFDecoder_abstract(ssm, kin, spike_counts, units, 0.1, zscore=zscore)
             self.encoder.call_ds_rate = 6
 
             self.init_neural_features = spike_counts
