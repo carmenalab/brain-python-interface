@@ -153,7 +153,7 @@ class Quaternion(object):
             axis = axis.T / np.sqrt((axis**2).sum(1))
         else:
             if not np.all(axis == 0):
-                axis /= np.sqrt((axis**2).sum())
+                axis = axis / np.sqrt((axis**2).sum())
         w = np.cos(rad*0.5)
         v = axis * np.sin(rad*0.5)
         return cls(w, *v)

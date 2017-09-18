@@ -47,12 +47,12 @@ class Connection(object):
         '''Open the interface to the NSP (or nPlay).'''
 
         print 'calling cbpy.open in cerelink.connect()'
-        # try:
-        #     result, return_dict = cbpy.open(connection='default')
-        #     time.sleep(3)
-        # except:
-        result, return_dict = cbpy.open(connection='default', parameter=self.parameters)
-        time.sleep(3)
+        try:
+            result, return_dict = cbpy.open(connection='default')
+            time.sleep(3)
+        except:
+            result, return_dict = cbpy.open(connection='default', parameter=self.parameters)
+            time.sleep(3)
 
         print 'cbpy.open result:', result
         print 'cbpy.open return_dict:', return_dict

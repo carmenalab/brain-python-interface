@@ -976,6 +976,7 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(
         units = []
         nev_length = 0
 
+    tmax_cts = 0
     if nsx_files is not None:
         for nsx_fname in nsx_files:
             nsx_hdf_fname = nsx_fname + '.hdf'

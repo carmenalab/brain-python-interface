@@ -5,7 +5,7 @@ import scipy.io as sio
 from riglib.bmi import extractor
 
 
-channels = [1, 2, 3, 4]
+channels = range(33)
 n_chan = len(channels)
 
 extractor_cls = extractor.BinnedSpikeCountsExtractor
@@ -39,10 +39,10 @@ if __name__ == '__main__':
     # f = open('data.txt', 'w')
 
     self = BlackrockData()
-    self.init('spike', [8, 9, 10, 11])
+    self.init('spike',channels)
     self.run()
 
-    n_secs = 15
+    n_secs = 30
     update_rate = 1./60
     N = int(n_secs / update_rate)
 
@@ -58,13 +58,13 @@ if __name__ == '__main__':
 
         new_data = self.neurondata.get()
         for (ts, chan, unit) in zip(new_data['ts'], new_data['chan'], new_data['unit']):
-            if chan in channels:
-                data[chan][0, idxs[chan]] = ts * 30000
-                data[chan][1, idxs[chan]] = unit
-                idxs[chan] += 1
-                print (ts, chan, unit)
-            else:
-                pass
+            #if chan in channels:
+            data[chan][0, idxs[chan]] = ts * 30000
+            data[chan][1, idxs[chan]] = unit
+            idxs[chan] += 1
+                #print (ts, chan, unit)
+            #else:
+                #pass
                 # print 'received data on unwanted channel:', chan
 
         # print new_data
@@ -81,8 +81,21 @@ if __name__ == '__main__':
     for chan in channels:
         save_dict['chan' + str(chan)] = data[chan]
 
-    sio.savemat('cbpy_spike_data.mat', save_dict)
+    #sio.savemat('cbpy_spike_data.mat', save_dict)
 
     # print save_dict
 
     # f.close()
+
+    for i in range(32):
+        if i == 0:
+            assert np.sum(data[i][0, :]) == 0.
+            assert np.sum(data[i][1, :]) == 0.
+        elif i == 2: 
+            assert len(np.array([j for j in data[i][1, :] if j in [1, 2, 3]]))==0
+        elif i == 12:
+            assert len(np.array([j for j in data[i][1, :] if j in [2]]))==0
+        elif i == 24: 
+            assert len(np.array([j for j in data[i][1, :] if j in [1, 2, 3]]))==0
+        else:
+            assert len(np.array([j for j in data[i][1, :] if j not in [1, 2, 3, 4, 10, 0]]))==0
