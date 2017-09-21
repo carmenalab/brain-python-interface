@@ -1023,6 +1023,7 @@ def make_hdf_spks(data, nev_hdf_fname):
         for i, (ts, u, wv) in enumerate(zip(data['spike_events']['TimeStamps'][ic], data['spike_events']['Classification'][ic], data['spike_events']['Waveforms'][ic])):
             trial = tab.row
             trial['TimeStamp'] = ts
+            last_ts = np.max([last_ts, ts])
             if u == 'none':
                 u = 10
             trial['Unit'] = u
@@ -1040,7 +1041,6 @@ def make_hdf_spks(data, nev_hdf_fname):
                     # Sorted (units are numbered )
                     units.append((c, int(ci)))
 
-        last_ts = np.max([last_ts, ts])
         tab.flush()
 
     ### Digital Data ###
