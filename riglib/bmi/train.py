@@ -139,7 +139,7 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     if not os.path.isfile(nev_hdf_fname):
         # convert .nev file to hdf file using our own blackrock_parse_files:
         from db.tracker import models
-        task_entry = int(nev_name[-8:-4])
+        task_entry = int(nev_fname[-8:-4])
         _, _ = models.parse_blackrock_file(nev_fname, 0, task_entry)
         
     #import h5py
