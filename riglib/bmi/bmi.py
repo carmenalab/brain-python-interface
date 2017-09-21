@@ -148,10 +148,10 @@ class GaussianStateHMM(object):
         """
         ## Initialize the BMI state, assuming 
         nS = self.A.shape[0] # number of state variables
-        if init_state == None:
+        if init_state is None:
             init_state = np.mat( np.zeros([nS, 1]) )
             if self.include_offset: init_state[-1,0] = 1
-        if init_cov == None:
+        if init_cov is None:
             init_cov = np.mat( np.zeros([nS, nS]) )
         self.state = GaussianState(init_state, init_cov) 
         self.init_noise_models()

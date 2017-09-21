@@ -340,13 +340,13 @@ class KalmanFilter(bmi.GaussianStateHMM):
             Y = np.mat(obs)
     
         n_states = X.shape[0]
-        if not drives_obs == None:
+        if not drives_obs is None:
             X = X[drives_obs, :]
             
         # ML estimate of C and Q
         C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
         Q = np.cov(Y - C*X, bias=1)
-        if not drives_obs == None:
+        if not drives_obs is None:
             n_obs = C.shape[0]
             C_tmp = np.zeros([n_obs, n_states])
             C_tmp[:,drives_obs] = C
@@ -381,7 +381,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
         D = self.C_xpose_Q_inv_C 
-
         nS = A.shape[0]
         P = np.mat(np.zeros([nS, nS]))
         I = np.mat(np.eye(nS))
