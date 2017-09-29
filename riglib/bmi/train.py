@@ -135,12 +135,16 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
 def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     ''' Find the rows of the nev file to use for training the decoder.'''
 
-    nev_hdf_fname = nev_fname + '.hdf'
-    if not os.path.isfile(nev_hdf_fname):
-        # convert .nev file to hdf file using our own blackrock_parse_files:
-        from db.tracker import models
-        task_entry = int(nev_fname[-8:-4])
-        _, _ = models.parse_blackrock_file(nev_fname, 0, task_entry)
+    if nev_fname[-4:] != '.hdf':
+        nev_hdf_fname = nev_fname + '.hdf'
+        
+        if not os.path.isfile(nev_hdf_fname):
+            # convert .nev file to hdf file using our own blackrock_parse_files:
+            from db.tracker import models
+            task_entry = int(nev_fname[-8:-4])
+            _, _ = models.parse_blackrock_file(nev_fname, 0, task_entry)
+    else:
+        nev_hdf_fname = nev_fname
         
     #import h5py
     #nev_hdf = h5py.File(nev_hdf_fname, 'r')

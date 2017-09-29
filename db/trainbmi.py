@@ -139,7 +139,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     system_names = set(d.system.name for d in datafiles)
     for system_name in system_names:
         filenames = [d.get_path() for d in datafiles if d.system.name == system_name]
-        if system_name == 'blackrock':
+        if system_name in ['blackrock', 'blackrock2']:
             files[system_name] = filenames  # list of (one or more) files
         else:
             assert(len(filenames) == 1)
