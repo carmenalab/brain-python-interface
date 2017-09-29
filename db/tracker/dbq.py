@@ -59,15 +59,21 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
             time=time.strftime('%Y%m%d'), num=num+1,
             id=entry.id, suff=suff
         )
-        fullname = os.path.join(sys.path, dataname)
+        if system != 'blackrock2':
+            fullname = os.path.join(sys.path, dataname)
+            sys_path = sys.path
+        else:
+            fullname = os.path.join('/storage/rawdata/blackrock', dataname)
+            sys_path = '/storage/rawdata/blackrock'
+            print 'BLACKROCK SYSTEM: '
         permfile = dataname
 
-        if os.path.abspath(sys.path) == os.path.abspath(os.path.split(curfile)[0]):
+        if os.path.abspath(sys_path) == os.path.abspath(os.path.split(curfile)[0]):
             print "moving file..."
             os.rename(curfile, fullname)
         elif not os.path.exists(fullname):
             print "copying file..."
-            shutil.copy2(curfile, os.path.join(sys.path, dataname))
+            shutil.copy2(curfile, os.path.join(sys_path, dataname))
         else:
             raise ValueError('Will not overwrite existing files')
     else:

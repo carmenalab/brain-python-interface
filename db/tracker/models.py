@@ -691,10 +691,16 @@ class TaskEntry(models.Model):
             df = DataFile.objects.get(system__name="blackrock", path__endswith=".nev", entry=self.id)
             return df.get_path()
         except:
+            try:
+                df = DataFile.objects.get(system__name="blackrock2", path__endswith=".nev", entry=self.id)
+                return df.get_path()
+            except:
+                return None
             #import traceback
             #traceback.print_exc()
             #return 'no_nev_file'
-            return None
+            #return None
+
     @property
     def nsx_files(self):
         '''Return a list containing the names of the nsx files (there could be more
@@ -710,10 +716,14 @@ class TaskEntry(models.Model):
 
             return [df.get_path() for df in dfs]
         except:
-            #import traceback
-            #traceback.print_exc()
-            #return []
-            return None
+            try:
+                dfs = []
+                for k in range(1, 7):
+                    df_k = DataFile.objects.filter(system__name="blackrock2", path__endswith=".ns%d" % k, entry=self.id)
+                    dfs+= list(df_k)
+                return [df.get_path() for df in dfs]
+            except:
+                return None
 
     @property
     def name(self):
