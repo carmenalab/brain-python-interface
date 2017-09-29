@@ -258,6 +258,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
         elif 'blackrock' in files:
             nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+            nev_hdf_fname = [name for name in files['blackrock'] if '.nev' in name and name[-4:]=='.hdf']
             nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]            
             # interpolate between the rows to 180 Hz
             if binlen < 1./strobe_rate:
@@ -271,10 +272,15 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                 interp_rows = neurows[::step]
 
             
-            nev_hdf_fname = nev_fname + '.hdf'
-            if not os.path.isfile(nev_hdf_fname):
-                # convert .nev file to hdf file using Blackrock's n2h5 utility
-                subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+            
+            if len(nev_hdf_fname) == 0:
+                nev_hdf_fname = nev_fname + '.hdf'
+                
+                if not os.path.isfile(nev_hdf_fname):
+                    # convert .nev file to hdf file using Blackrock's n2h5 utility
+                    subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+            else:
+                nev_hdf_fname = nev_hdf_fname[0]
 
             try:
                 import h5py
