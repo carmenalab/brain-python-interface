@@ -70,6 +70,7 @@ class SerialDIORowByte(object):
         '''
         from riglib import sink
         self.nidaq = sink.sinks.start(serial_dio.SendRowByte)
+        self.dbq_kwargs = dict()
         super(SerialDIORowByte, self).init()
     
     def run(self):
@@ -129,20 +130,19 @@ class SerialDIORowByte(object):
 
         print "Beginning neural data file cleanup"
         # specify which database to save to. If you're running from the web interface, this will always pick the 'default' database
+        
         if "dbname" in kwargs:
-            dbq_kwargs = dict(dbname=kwargs["dbname"])
-        else:
-            dbq_kwargs = dict()
+            self.dbq_kwargs['dbname']=kwargs["dbname"]
 
         # Call the appropriate functions in the dbq module to actually link the files
         if self.data_files is None or len(self.data_files) == 0:
             print "\tData files not found properly!\n\tThey will have be manually linked using dbq.save_data!\n\n"
         elif isinstance(self.data_files, str):
-            database.save_data(self.data_files, self.db_sys_name, saveid, True, False, **dbq_kwargs)
+            database.save_data(self.data_files, self.db_sys_name, saveid, True, False, **self.dbq_kwargs)
         elif np.iterable(self.data_files):
             for df in self.data_files:
                 ext = os.path.splitext(df)[1][1:]
-                database.save_data(df, self.db_sys_name, saveid, True, False, ext, **dbq_kwargs)
+                database.save_data(df, self.db_sys_name, saveid, True, False, ext, **self.dbq_kwargs)
         
     @classmethod 
     def pre_init(cls, saveid=None):
@@ -215,7 +215,7 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
 
 
 class BlackrockSerialDIORowByte(SerialDIORowByte):
-    db_sys_name = "blackrock"
+    db_sys_name = "blackrock2"
     storage_root = "/storage/blackrock"
 
     file_exts = ["*.nev", "*.ns1", "*.ns2", "*.ns3", "*.ns4", "*.ns5", "*.ns6"]
@@ -232,7 +232,7 @@ class BlackrockSerialDIORowByte(SerialDIORowByte):
         self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
 
         super(BlackrockSerialDIORowByte, self).init()
-
+        
     @property
     def data_files(self):
         if not hasattr(self, "_data_files"):
