@@ -172,7 +172,10 @@ class ZeroVelocityGoal(GoalCalculator):
         -------
         ZeroVelocityGoal instance
         '''
-        self.ssm = ssm
+        try:
+            self.ssm = ssm()
+        except:
+            self.ssm = ssm
 
     def __call__(self, target_pos, **kwargs):
         '''
@@ -190,10 +193,16 @@ class ZeroVelocityGoal(GoalCalculator):
         np.ndarray
             (N, 1) indicating the target state
         '''
-        target_vel = np.zeros_like(target_pos)
-        offset_val = 1
+
+        # Add zero velocity if needed: 
+        n_pos_vel_states = int(self.ssm.n_states) - 1
+        if len(target_pos) < n_pos_vel_states :
+            target_vel = np.zeros_like(target_pos)
+            offset_val = 1
+            target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
+        else:
+            target_state = np.hstack([target_pos, 1]).reshape(-1, 1)
         error = 0
-        target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
         return (target_state, error), True
 
 class ZeroVelocityAccelGoal(ZeroVelocityGoal):
