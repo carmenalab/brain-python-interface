@@ -874,8 +874,15 @@ class TaskEntry(object):
 
     @property 
     def blackrock_filenames(self):
-        x = self.get_datafile(system_name='blackrock', intermediate_path='')+self.get_datafile(system_name='blackrock2', intermediate_path='rawdata')
-        return x
+        x = self.get_datafile(system_name='blackrock', intermediate_path='')
+        y = self.get_datafile(system_name='blackrock2', intermediate_path='rawdata')
+
+        if type(x) is not list:
+            x = [x]
+        if type(y) is not list:
+            y = [y]
+        
+        return x+y
     @property
     def nev_filename(self):
         '''
