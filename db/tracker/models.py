@@ -1032,21 +1032,29 @@ def make_hdf_spks(data, nev_hdf_fname):
 
         for i, (ts, u, wv) in enumerate(zip(data['spike_events']['TimeStamps'][ic], data['spike_events']['Classification'][ic], data['spike_events']['Waveforms'][ic])):
             trial = tab.row
-            trial['TimeStamp'] = ts
             last_ts = np.max([last_ts, ts])
+            skip = False
             if u == 'none':
                 u = 10
-            trial['Unit'] = u
-            trial['Wave'] = wv
-            trial.append()
+            elif u == 'noise':
+                skip = True
+
+            if not skip:
+                trial['Unit'] = u
+                trial['Wave'] = wv
+                trial['TimeStamp'] = ts
+                trial.append()
 
         #Check for non-zero units: 
         if len(data['spike_events']['TimeStamps'])>0:
             un = np.unique(data['spike_events']['Classification'][ic])
             for ci in un:
+                #ci = 10
                 if ci == 'none':
                     # Unsorted
                     units.append((c, 10))
+                elif ci == 'noise':
+                    pass
                 else:
                     # Sorted (units are numbered )
                     units.append((c, int(ci)))
