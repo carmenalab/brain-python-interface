@@ -84,15 +84,27 @@ class FeedbackControllerAssist(Assister):
 class FeedbackControllerAssist_StateSpecAssistLevels(FeedbackControllerAssist):
     '''
     Assister where machine controller is LQR controller, but different assist_levels for 
-    different control variables (e.g. ArmAssist vs. Rehand)
+    different control variables (e.g. XY in ArmAssist vs. Psi+Rehand)
     '''
     def __init__(self, fb_ctrl, style='additive', **kwargs):
         super(FeedbackControllerAssist_StateSpecAssistLevels, self).__init__(fb_ctrl, style)
+        # Currently this assister assumes that plant is IsMore Plant: 
+        self.assist_level_state_ix = dict()
+        self.assist_level_state_ix[0] = np.array([0, 1, 7, 8])
+        self.assist_level_state_ix[1] = np.array([2, 3, 4, 5, 6, 9, 10, 11, 12, 13])
         
 
-        
     def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
-
+        if self.style == 'additive':
+            Bu = self.fb_ctrl(current_state, target_state, mode=mode)
+            for ia, al in enumerate(assist_level):
+                Bu[self.assist_level_state_ix[ia]] = al*Bu[self.assist_level_state_ix[ia]]
+            return dict(Bu=Bu, assist_level=0)
+        
+        elif self.style == 'mixing':
+            x_assist = self.fb_ctrl.calc_next_state(current_state, target_state, mode=mode)
+            return dict(x_assist=x_assist, assist_level=assist_level, assist_level_ix=self.assist_level_ix)
+        
 
 class SSMLFCAssister(FeedbackControllerAssist):
     '''

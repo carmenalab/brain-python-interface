@@ -618,7 +618,7 @@ class Decoder(object):
         kwargs: dict
             Mostly for kwargs function call compatibility
         """
-        if assist_level > 0 and 'x_assist' not in kwargs:
+        if np.any(assist_level) > 0 and 'x_assist' not in kwargs:
             raise ValueError("Assist cannot be used if the forcing term is not specified!")
 
         # re-normalize the variance of the spike observations, if nec
@@ -648,6 +648,14 @@ class Decoder(object):
 
                 # High assist damps orthogonal component a lot
                 self.filt.state.mean[self.drives_neurons,:] = targ_comp + (1 - assist_level)*orth_comp
+            
+            elif type(assist_level) is np.ndarray:
+                tmp = np.zeros((len(self.filt.state.mean)))
+                assist_level_ix = kwargs['assist_level_ix']
+                for ia, al in enumerate(assist_level):
+                    tmp[assist_level_ix[ia]] = (1-al)*self.filt.state.mean[assist_level_ix[ia]] + al*x_assist[assist_level_ix[ia]]
+                self.filt.state.mean = tmp
+            
             else:
                 self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
 
@@ -1098,14 +1106,14 @@ class BMILoop(object):
 
         # Determine the target_state and save to file
         current_assist_level = self.get_current_assist_level()
-        if current_assist_level > 0 or self.learn_flag:
+        if np.any(current_assist_level > 0) or self.learn_flag:
             target_state = self.get_target_BMI_state(self.decoder.states)
         else:
             target_state = np.ones([self.decoder.n_states, self.decoder.n_subbins]) * np.nan
 
 
         # Determine the assistive control inputs to the Decoder
-        if current_assist_level > 0:
+        if np.any(current_assist_level) > 0:
             current_state = self.get_current_state()
 
             if target_state.shape[1] > 1:
