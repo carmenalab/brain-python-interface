@@ -81,6 +81,18 @@ class FeedbackControllerAssist(Assister):
             F = self.get_F(assist_level)
             return dict(F=F, x_target=target_state)            
 
+class FeedbackControllerAssist_StateSpecAssistLevels(FeedbackControllerAssist):
+    '''
+    Assister where machine controller is LQR controller, but different assist_levels for 
+    different control variables (e.g. ArmAssist vs. Rehand)
+    '''
+    def __init__(self, fb_ctrl, style='additive', **kwargs):
+        super(FeedbackControllerAssist_StateSpecAssistLevels, self).__init__(fb_ctrl, style)
+        
+
+        
+    def calc_assisted_BMI_state(self, current_state, target_state, assist_level, mode=None, **kwargs):
+
 
 class SSMLFCAssister(FeedbackControllerAssist):
     '''
