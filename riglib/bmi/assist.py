@@ -103,7 +103,7 @@ class FeedbackControllerAssist_StateSpecAssistLevels(FeedbackControllerAssist):
         
         elif self.style == 'mixing':
             x_assist = self.fb_ctrl.calc_next_state(current_state, target_state, mode=mode)
-            return dict(x_assist=x_assist, assist_level=assist_level, assist_level_ix=self.assist_level_ix)
+            return dict(x_assist=x_assist, assist_level=assist_level, assist_level_ix=self.assist_level_state_ix)
         
 
 class SSMLFCAssister(FeedbackControllerAssist):

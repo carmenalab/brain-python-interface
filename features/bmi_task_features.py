@@ -207,9 +207,9 @@ class LinearlyDecreasingXYAssist(LinearlyDecreasingAttribute):
     xy_assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")
     
     def __init__(self, *args, **kwargs):
-        super(LinearlyDecreasingAssist, self).__init__(*args, **kwargs)
-        if 'assist_level' not in self.attrs:
-            self.attrs.append('assist_level')
+        super(LinearlyDecreasingXYAssist, self).__init__(*args, **kwargs)
+        if 'xy_assist_level' not in self.attrs:
+            self.attrs.append('xy_assist_level')
 
 class LinearlyDecreasingAngAssist(LinearlyDecreasingAttribute):
     ''' 
@@ -219,9 +219,9 @@ class LinearlyDecreasingAngAssist(LinearlyDecreasingAttribute):
     ang_assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")
     
     def __init__(self, *args, **kwargs):
-        super(LinearlyDecreasingAssist, self).__init__(*args, **kwargs)
-        if 'assist_level' not in self.attrs:
-            self.attrs.append('assist_level')
+        super(LinearlyDecreasingAngAssist, self).__init__(*args, **kwargs)
+        if 'ang_assist_level' not in self.attrs:
+            self.attrs.append('ang_assist_level')
 
 class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
     '''

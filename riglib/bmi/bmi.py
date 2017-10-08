@@ -637,24 +637,33 @@ class Decoder(object):
         # Run the filter
         self.filt(neural_obs, **kwargs)
 
-        if assist_level > 0:
+        if np.any(assist_level) > 0:
             x_assist = kwargs.pop('x_assist')
 
             if 'ortho_damp_assist' in kwargs and kwargs['ortho_damp_assist']:
-                # Normalize: 
                 x_assist[self.drives_neurons,:] /= np.linalg.norm(x_assist[self.drives_neurons,:])
                 targ_comp = float(self.filt.state.mean[self.drives_neurons,:].T*x_assist[self.drives_neurons,:])*x_assist[self.drives_neurons,:]
                 orth_comp = self.filt.state.mean[self.drives_neurons,:] - targ_comp
+                
+                if type(assist_level) is np.ndarray:
+                    tmp = np.mat(np.zeros((len(self.filt.state.mean)))).T
+                    tmp[:7, :] = self.filt.state.mean[:7, 0]
+                    assist_level_ix = kwargs['assist_level_ix']
+                    for ia, al in enumerate(assist_level):
+                        ix = np.nonzero(assist_level_ix[ia] <= 6)[0] 
+                        tmp[assist_level_ix[ia][ix]+7, :] = targ_comp[assist_level_ix[ia][ix]] + (1 - al)*orth_comp[assist_level_ix[ia][ix]]
+                    self.filt.state.mean = tmp
 
-                # High assist damps orthogonal component a lot
-                self.filt.state.mean[self.drives_neurons,:] = targ_comp + (1 - assist_level)*orth_comp
+                else:
+                    # High assist damps orthogonal component a lot
+                    self.filt.state.mean[self.drives_neurons,:] = targ_comp + (1 - assist_level)*orth_comp
             
             elif type(assist_level) is np.ndarray:
                 tmp = np.zeros((len(self.filt.state.mean)))
                 assist_level_ix = kwargs['assist_level_ix']
                 for ia, al in enumerate(assist_level):
                     tmp[assist_level_ix[ia]] = (1-al)*self.filt.state.mean[assist_level_ix[ia]] + al*x_assist[assist_level_ix[ia]]
-                self.filt.state.mean = tmp
+                self.filt.state.mean = np.mat(tmp).T
             
             else:
                 self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
