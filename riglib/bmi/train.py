@@ -43,7 +43,7 @@ def sys_eq(sys1, sys2):
     -------
     Boolean indicating whether sys1 and sys2 match
     '''
-    return sys1 in [sys2, sys2[1:]]
+    return sys1 in [sys2, sys2[1:], sys2.upper()]
 
 
 #FAKE_BLACKROCK_TMASK = True

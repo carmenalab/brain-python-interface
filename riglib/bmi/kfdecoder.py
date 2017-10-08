@@ -143,6 +143,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
         post_state = pred_state
 
         #print obs_t.shape, C.shape, Q.shape
+        if np.any(obs_t > 1000):
+            print 'observations have counts >> 1000 '
+
         if obs_is_control_independent and using_control_input:
             post_state.mean += -KC*self.A*st.mean + K*obs_t
         else:

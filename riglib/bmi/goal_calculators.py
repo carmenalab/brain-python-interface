@@ -205,6 +205,30 @@ class ZeroVelocityGoal(GoalCalculator):
         error = 0
         return (target_state, error), True
 
+class ZeroVelocityGoal_ismore(GoalCalculator):
+    def __init__(self, ssm=None, pause_states=[]):
+        try:
+            self.ssm = ssm()
+        except:
+            self.ssm = ssm
+
+        self.pause_states = pause_states
+
+    def __call__(self, target_pos, state, **kwargs):
+        if state in self.pause_states:
+            target_state = kwargs['current_state']
+            error = 0
+        else:
+            n_pos_vel_states = int(self.ssm.n_states) - 1
+            if len(target_pos) < n_pos_vel_states :
+                target_vel = np.zeros_like(target_pos)
+                offset_val = 1
+                target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
+            else:
+                target_state = np.hstack([target_pos, 1]).reshape(-1, 1)
+            error = 0
+        return (target_state, error), True            
+
 class ZeroVelocityAccelGoal(ZeroVelocityGoal):
     '''
     Similar to ZeroVelocityGoal, but used for a second order system where you also want the goal acceleration to be zero.
