@@ -104,7 +104,7 @@ class SerialDIORowByte(object):
         super(SerialDIORowByte, self).set_state(condition, **kwargs)
 
     def _cycle(self):
-        if not self.checked_for_file_changes and (time.time() - self.task_start_time > 10):
+        if not self.checked_for_file_changes and (time.time() - self.task_start_time > 5):
             filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
             inds, = np.nonzero(filesizes - self.possible_filesizes)
             if len(inds) == 0:
