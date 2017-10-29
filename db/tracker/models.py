@@ -1138,7 +1138,7 @@ def make_hdf_cts(data, nsx_hdf_fname, nsx_file):
 class spike_set(tables.IsDescription):
     TimeStamp = tables.Int32Col()
     Unit = tables.Int8Col()
-    Wave = tables.Int16Col(shape=(48,))
+    Wave = tables.Int32Col(shape=(48,))
 
 class digital_set(tables.IsDescription):
     TimeStamp = tables.Int32Col()
