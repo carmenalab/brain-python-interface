@@ -9,7 +9,11 @@ from scipy.signal import butter, lfilter
 import math
 import os
 from itertools import izip
-
+try:
+    import h5py
+except:
+    print 'cannot import h5py, blackrock .nev files will be opened w/ pytables'
+    
 import nitime.algorithms as tsa
 
 
@@ -283,7 +287,6 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                 nev_hdf_fname = nev_hdf_fname[0]
 
             try:
-                import h5py
                 nev_hdf = h5py.File(nev_hdf_fname, 'r')
                 open_method = 1
             except:
