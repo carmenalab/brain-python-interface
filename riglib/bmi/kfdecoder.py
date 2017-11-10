@@ -419,6 +419,30 @@ class KalmanFilter(bmi.GaussianStateHMM):
         K_null = np.eye(n_neurons) - np.linalg.pinv(K) * K
         return K_null
 
+class KalmanFilterDriftCorrection(KalmanFilter):
+    def _init_state(self):
+        if hasattr(self, 'prev_task_drift_corr'):
+            self.drift_corr = self.prev_task_drift_corr
+        else:
+            self.drift_corr = np.zeros_like(( self.state.mean ))
+        
+        self.drift_rho = np.exp(np.log(0.5) / (self.drift_hl/ 0.1 ))
+        print 'Warning: Assuming Binlen is equal to 100 ms for Decoder drift correction'
+
+
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, F=None, obs_is_control_independent=True, **kwargs):
+        state = super(KalmanFilter, self)._forward_infer(st, obs_t, Bu=None, u=None, x_target=None, F=None, 
+            obs_is_control_independent=True, **kwargs)
+
+        ### Apply Drift Correction ###
+        decoded_vel = state.mean.copy()
+        state.mean = state.mean - self.drift_corr
+
+        ### Update Drift Correcton ###
+        self.drift_corr = self.drift_corr*self.drift_rho + decoded_vel*(1 - self.drift_rho)
+        
+        return state
+
 class PCAKalmanFilter(KalmanFilter):
     '''
     A modified KalmanFilter where the Kalman gain is confined to produce outputs in a lower-dimensional linear subspace, i.e. some principal component space

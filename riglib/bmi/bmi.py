@@ -1273,6 +1273,19 @@ class BMILoop(object):
     def cleanup(self, database, saveid, **kwargs):
         super(BMILoop, self).cleanup(database, saveid, **kwargs)
 
+        # Resave decoder with drift-parameter saved as prev_task_drift_corr:
+        if hasattr(self.decoder.filt, 'drift_corr'):
+            self.decoder.filt.prev_task_drift_corr = self.decoder.filt.drift_corr
+            decoder_name = self.decoder.name + '_d'+str(saveid) 
+            decoder_tempfilename = self.decoder.save()
+
+            # Link the pickled decoder file to the associated task entry in the database
+            dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+            if dbname == 'default':
+                database.save_bmi(decoder_name, saveid, decoder_tempfilename)
+            else:
+                database.save_bmi(decoder_name, saveid, decoder_tempfilename, dbname=dbname)  
+
         # Open a log file in case of error b/c errors not visible to console
         # at this point
         f = open(os.path.join(os.getenv('HOME'), 'code/bmi3d/log/clda_cleanup_log'), 'w')
