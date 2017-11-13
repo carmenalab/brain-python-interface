@@ -1275,7 +1275,7 @@ class BMILoop(object):
 
         # Resave decoder with drift-parameter saved as prev_task_drift_corr:
         if hasattr(self.decoder.filt, 'drift_corr'):
-            self.decoder.filt.prev_task_drift_corr = self.decoder.filt.drift_corr
+            print 'saving decoder: ', self.decoder.filt.drift_corr, self.decoder.filt.prev_drift_corr
             decoder_name = self.decoder.name + '_d'+str(saveid) 
             decoder_tempfilename = self.decoder.save()
 

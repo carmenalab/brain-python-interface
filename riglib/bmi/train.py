@@ -386,7 +386,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
         step = int(binlen/(1./update_rate_hz))
         inds = inds[::step]
         kin = kin[inds]
-
+        
         if vel_key is not None:
             velocity = hdf.root.task[inds][vel_key]
         else:
@@ -717,6 +717,78 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
 
     return decoder
 
+def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, 
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, **kwargs):
+    '''
+    Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
+
+    Parameters
+    ---------- 
+    files : dict
+        Dictionary of files which contain training data. Keys are file tyes, values are file names.
+        Kinematic data is assumed to be stored in an 'hdf' file and neural data assumed to be in 'plx' or 'nev' files
+    extractor_cls : class
+        Class of feature extractor to instantiate
+    extractor_kwargs : dict 
+        Parameters to specify for feature extractor to instantiate it to specification
+    kin_extractor : callable
+        Function to extract kinematics from the HDF file.
+    ssm : state_space_models.StateSpace instance
+        State space model for the Decoder object being created.
+    units : np.iterable 
+        Spiking units are specified as tuples of (electrode channe, electrode unit)
+    update_rate : float, optional
+        Time in seconds between decoder updates. default=0.1
+    tslice : iterable of length 2, optional
+        Start and end times in seconds to specify the portion of the training data to use for ML estimation. By default, the whole dataset will be used
+    kin_source : string, optional
+        Table from the HDF file to grab kinematic data. Default is the 'task' table.
+    pos_key : string, optional
+        Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
+    vel_key : string
+        Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
+    zscore : Bool 
+        Determines whether to zscore neural_data or not
+    kwargs:
+        mFR: mean firing rate to use to zscore units
+        sdFR: standard dev. to use to zscore units
+
+    Returns
+    -------
+    KFDecoder instance
+    '''
+    import sys
+    print files
+    # sys.stdout.write(files)
+    # sys.stdout.write(extractor_cls)
+    # sys.stdout.write(extractor_kwargs.keys())
+    # sys.stdout.write(units)
+    binlen = update_rate
+
+    from config import config
+
+    ## get kinematic data
+    tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
+    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=config.hdf_update_rate_hz)
+
+    ## get neural features
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, 
+        extractor_kwargs, tslice=tslice, units=units, source=kin_source)
+
+    # Remove 1st kinematic sample and last neural features sample to align the 
+    # velocity with the neural features
+    kin = kin[1:].T
+    neural_features = neural_features[:-1].T
+
+    kwargs['driftKF'] = True
+    decoder = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate,
+        tslice=tslice, zscore=zscore, **kwargs)
+
+    decoder.extractor_cls = extractor_cls
+    decoder.extractor_kwargs = extractor_kwargs
+
+    return decoder
+
 def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0., zscore=False, **kwargs):
     
     #### Train the actual KF decoder matrices ####
@@ -758,7 +830,12 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     A, B, W = ssm.get_ssm_matrices(update_rate=update_rate)
 
     # instantiate KFdecoder
-    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
+    driftKF = kwargs.pop('driftKF', False)
+    if driftKF:
+        kf = kfdecoder.KalmanFilterDriftCorrection(A, W, C, Q, is_stochastic=ssm.is_stochastic)
+    else:
+        kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
+
     decoder = kfdecoder.KFDecoder(kf, units, ssm, binlen=update_rate, tslice=tslice)
 
     if zscore:

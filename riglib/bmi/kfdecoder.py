@@ -420,27 +420,30 @@ class KalmanFilter(bmi.GaussianStateHMM):
         return K_null
 
 class KalmanFilterDriftCorrection(KalmanFilter):
+    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv',
+        'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'drift_corr','prev_drift_corr']
+
     def _init_state(self):
-        if hasattr(self, 'prev_task_drift_corr'):
-            self.drift_corr = self.prev_task_drift_corr
+        if hasattr(self, 'prev_drift_corr'):
+            self.drift_corr = self.prev_drift_corr.copy()
+            print 'prev drift corr', np.mean(self.prev_drift_corr)
         else:
-            self.drift_corr = np.zeros_like(( self.state.mean ))
+            self.drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))
+            self.prev_drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))        
+        super(KalmanFilterDriftCorrection, self)._init_state()
         
-        self.drift_rho = np.exp(np.log(0.5) / (self.drift_hl/ 0.1 ))
-        print 'Warning: Assuming Binlen is equal to 100 ms for Decoder drift correction'
-
-
     def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, F=None, obs_is_control_independent=True, **kwargs):
-        state = super(KalmanFilter, self)._forward_infer(st, obs_t, Bu=None, u=None, x_target=None, F=None, 
+        state = super(KalmanFilterDriftCorrection, self)._forward_infer(st, obs_t, Bu=None, u=None, x_target=None, F=None, 
             obs_is_control_independent=True, **kwargs)
 
         ### Apply Drift Correction ###
         decoded_vel = state.mean.copy()
-        state.mean = state.mean - self.drift_corr
+        state.mean[self.vel_ix] = decoded_vel[self.vel_ix] - self.drift_corr[self.vel_ix]
 
         ### Update Drift Correcton ###
-        self.drift_corr = self.drift_corr*self.drift_rho + decoded_vel*(1 - self.drift_rho)
-        
+        self.drift_corr[self.vel_ix] = self.drift_corr[self.vel_ix]*self.drift_rho + decoded_vel[self.vel_ix]*(1 - self.drift_rho)
+        self.prev_drift_corr = self.drift_corr.copy()
+
         return state
 
 class PCAKalmanFilter(KalmanFilter):
