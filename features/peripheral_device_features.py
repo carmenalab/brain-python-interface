@@ -81,15 +81,15 @@ class ArduinoIMU(object):
         Prior to starting the task, this 'init' instantiates a DataSource with 2 channels for the
         inputs from the IMU
         '''
-        from riglib import source, phidgets, sink
+        from riglib import sink
         self.sinks = sink.sinks
         self.register_num_channels()
         super(ArduinoIMU, self).init()
         self.sinks.register(self.arduino_imu)
 
     def register_num_channels(self):
-        from riglib import source, arduino_joystick, sink
-        System = arduino_imu.make(10, 1)
+        from riglib import source, arduino_imu
+        System = arduino_imu.make(6, 1)
         self.arduino_imu = source.DataSource(System)
 
     def run(self):
