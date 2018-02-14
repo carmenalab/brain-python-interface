@@ -74,6 +74,42 @@ class ArduinoJoystick(Joystick):
         System = arduino_joystick.make(2, 1)
         self.joystick = source.DataSource(System)
 
+class ArduinoIMU(object):
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' instantiates a DataSource with 2 channels for the
+        inputs from the IMU
+        '''
+        from riglib import sink
+        self.sinks = sink.sinks
+        self.register_num_channels()
+        super(ArduinoIMU, self).init()
+        self.sinks.register(self.arduino_imu)
+
+    def register_num_channels(self):
+        from riglib import source, arduino_imu
+        System = arduino_imu.make(6, 1)
+        self.arduino_imu = source.DataSource(System)
+
+    def run(self):
+        '''
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        See riglib.experiment.Experiment.run(). This 'run' method starts the joystick source and stops it after the FSM has finished running
+        '''
+        self.arduino_imu.start()
+        try:
+            super(ArduinoIMU, self).run()
+        finally:
+            self.arduino_imu.stop()
+
+    def join(self):
+        '''
+        See riglib.experiment.Experiment.join(). Re-join the joystick source process before cleaning up the experiment thread
+        '''
+        self.arduino_imu.join()
+        super(ArduinoIMU, self).join()    
+
 class Joystick_plus_TouchSensor(Joystick):
     '''
     code to use touch sensor (attached to joystick in exorig) plus joystick
@@ -82,7 +118,6 @@ class Joystick_plus_TouchSensor(Joystick):
         from riglib import source, phidgets, sink
         System = phidgets.make(3, 1)
         self.joystick = source.DataSource(System)
-
 
 class DualJoystick(object):
     '''
@@ -116,7 +151,6 @@ class DualJoystick(object):
         '''
         self.dualjoystick.join()
         super(DualJoystick, self).join()
-
 
 class Button(object):
     '''
