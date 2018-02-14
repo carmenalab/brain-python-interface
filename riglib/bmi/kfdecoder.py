@@ -10,7 +10,6 @@ import train
 import pickle
 import re
 
-
 class KalmanFilter(bmi.GaussianStateHMM):
     """
     Low-level KF, agnostic to application
@@ -242,6 +241,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         else:
             return dtype(F), dtype(K)
 
+
     def get_kalman_gain_seq(self, N=1000, tol=1e-10, verbose=False):
         '''
         Calculate K_t for times {0, 1, ..., N}
@@ -347,8 +347,16 @@ class KalmanFilter(bmi.GaussianStateHMM):
             X = X[drives_obs, :]
             
         # ML estimate of C and Q
-        C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
+        if regularizer is None:
+            C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
+        else:
+            x = X.T
+            y = Y.T
+            XtX_lamb = x.T.dot(x) + regularizer * np.eye(x.shape[1])
+            XtY = x.T.dot(y)
+            C = np.linalg.solve(XtX_lamb, XtY).T
         Q = np.cov(Y - C*X, bias=1)
+
         if not drives_obs is None:
             n_obs = C.shape[0]
             C_tmp = np.zeros([n_obs, n_states])
