@@ -9,10 +9,10 @@ from scipy.signal import butter, lfilter
 import math
 import os
 from itertools import izip
-try:
-    import h5py
-except:
-    print 'cannot import h5py, blackrock .nev files will be opened w/ pytables'
+# try:
+#     import h5py
+# except:
+#     print 'cannot import h5py, blackrock .nev files will be opened w/ pytables'
     
 import nitime.algorithms as tsa
 
@@ -244,7 +244,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
             else:
                 step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
                 interp_rows = neurows[::step]
-
+            print 'step: ', step
             from plexon import psth
             spike_bin_fn = psth.SpikeBin(units, binlen)
             spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
@@ -293,7 +293,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                 import tables
                 nev_hdf = tables.openFile(nev_hdf_fname)
                 open_method = 2
-                print 'open method 2'
+                #print 'open method 2'
 
             n_bins = len(interp_rows)
             n_units = units.shape[0]
@@ -315,9 +315,14 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                     units_ts = nev_hdf.get(path).value['Unit']
                 
                 elif open_method == 2:
-                    grp = nev_hdf.getNode('/'+path)
-                    ts = grp[:]['TimeStamp']
-                    units_ts = grp[:]['Unit']
+                    try:
+                        grp = nev_hdf.getNode('/'+path)
+                        ts = grp[:]['TimeStamp']
+                        units_ts = grp[:]['Unit']
+                    except:
+                        print 'no spikes recorded on channel: ', chan_str, ': adding zeros'
+                        ts = []
+                        unit_ts = []
 
 
                 # get the ts for this unit, in units of secs
@@ -332,12 +337,17 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
 
             # discard units that never fired at all
-            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
-            units = units[unit_inds,:]
-            spike_counts = spike_counts[:, unit_inds]
+            if 'keep_zero_units' in extractor_kwargs:
+                print 'keeping zero firing units'
+            else:
+                unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+                units = units[unit_inds,:]
+                spike_counts = spike_counts[:, unit_inds]
+            
             extractor_kwargs['units'] = units
 
-            return spike_counts, units, extractor_kwargs       
+            return spike_counts, units, extractor_kwargs  
+                 
         elif 'tdt' in files:
             raise NotImplementedError     
 
