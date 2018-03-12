@@ -4,7 +4,9 @@ from riglib.bmi import extractor
 import numpy as np
 from riglib.bmi import clda
 from riglib.bmi import train
-
+from riglib.bmi import state_space_models
+import datetime
+import matplotlib.pyplot as plt
 
 class State(object):
     '''For compatibility with other BMI decoding implementations, literally just holds the state'''
@@ -41,6 +43,7 @@ class RatFilter(object):
 
         #Freq data(F) 
         self.F = 0.
+        self.baseline = False
 
     def get_mean(self):
         return np.array(self.state.mean).ravel()
@@ -67,6 +70,7 @@ class RatFilter(object):
 
     def __call__(self, obs, **kwargs):
         self.state = self._mov_avg(obs, **kwargs)
+        self.baseline = self.state.mean < self.mid
 
     def _mov_avg(self, obs,**kwargs):
         ''' Function to compute moving average with old mean and new observation'''
@@ -83,9 +87,52 @@ class RatFilter(object):
     def FR_to_freq(self, mean_FR):
         return self.FR_to_freq_fn(mean_FR)
 
-
     def _pickle_init(self):
         pass
+
+class IsmoreSleepFilter(RatFilter):
+    def __init__(self, task_params):
+        self.e1_inds = task_params['e1_inds']
+        self.e2_inds = task_params['e2_inds']
+        self.FR_to_alpha_fn = task_params['FR_to_alpha_fn']
+        self.dec_params = task_params
+        self.mid = task_params['mid']
+
+        #Cursor data (X)
+        self.FR = 0.
+
+        #Freq data(F) 
+        self.alpha = 0.
+        self.model_attrs = []
+        self.baseline = False
+
+    def init_from_task(self, **kwargs):
+        #Define n_steps
+        self.n_steps = kwargs.pop('nsteps', 1)
+        self.A = np.ones(( self.n_steps, ))/float(self.n_steps)
+
+        #Neural data (Y)
+        self.Y = np.zeros(( self.n_steps, len(self.e1_inds)+len(self.e2_inds)))
+        self.n_units = len(self.e1_inds)+len(self.e2_inds)
+
+    def _mov_avg(self, obs,**kwargs):
+        ''' Function to compute moving average with old mean and new observation'''
+
+        self.Y[:-1, :] = self.Y[1:, :]
+        self.Y[-1, :] = np.squeeze(obs)
+
+        d_fr = np.sum(self.Y[:, self.e1_inds], axis=1) - np.sum(self.Y[:, self.e2_inds], axis=1)
+        mean_FR = np.dot(d_fr, self.A)
+        self.FR = mean_FR
+        self.alpha = self.FR_to_alpha_fn(self.FR)
+
+        # Max alpha is -1 or 1 : 
+        if self.alpha > 1:
+            self.alpha = 1.
+        elif self.alpha < -1:
+            self.alpha = -1
+
+        return State(self.alpha)
 
 from riglib.bmi.bmi import Decoder
 class RatDecoder(Decoder):
@@ -94,9 +141,9 @@ class RatDecoder(Decoder):
         
         #Args: filter, units, ssm, extractor_cls, extractor_kwargs
         super(RatDecoder, self).__init__(args[0], args[1], args[2])
-        
         self.extractor_cls = args[3]
         self.extractor_kwargs = args[4]
+        self.n_features = len(self.filt.e1_inds) + len(self.filt.e2_inds)
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -111,6 +158,10 @@ class RatDecoder(Decoder):
     def init_from_task(self,**kwargs):
         pass
 
+class IsmoreSleepDecoder(RatDecoder):
+    def __init__(self, *args, **kwargs):
+        self.binlen = 0.1
+        super(IsmoreSleepDecoder, self).__init__(*args, **kwargs)
 
 ########## Functions to make decoder ###########
 
@@ -124,7 +175,7 @@ import re
 cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
 def calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, prob_t2, timeout, 
-    timeout_pause, freq_lim, e1_inds, e2_inds):
+    timeout_pause, freq_lim, e1_inds, e2_inds, sim_fcn='rat', **kwargs):
 
     #Enter e1, e2 as string: 
     if np.logical_or(e1_inds is None, e2_inds is None):
@@ -145,9 +196,63 @@ def calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, pro
             e2_inds], axis=1))
 
     x, pdf, pdf_individual = generate_gmm(baseline_data)
-    t2, mid, t1, num_t1, num_t2, num_miss, FR_to_freq_fn = sim_data(x, pdf, pdf_individual, prob_t1, prob_t2, baseline_data, timeout, timeout_pause, freq_lim)
 
-    return e1_inds, e2_inds, FR_to_freq_fn, units, t1, t2, mid
+    if sim_fcn == 'rat':
+        t2, mid, t1, num_t1, num_t2, num_miss, FR_to_freq_fn = sim_data(x, pdf, pdf_individual, prob_t1, prob_t2,
+        baseline_data, timeout, timeout_pause, freq_lim, sim_bmi_fcn='rat')
+
+        return e1_inds, e2_inds, FR_to_freq_fn, units, t1, t2, mid
+    
+    elif sim_fcn == 'ismore':
+        # Get fcn: 
+        t1 = prob_under_pdf(x, pdf, prob_t1)
+        t2 = prob_under_pdf(x, pdf, prob_t2)
+        idx_mid = np.argmax(pdf)
+        mid = x[idx_mid]
+        FR_to_alpha_fn = map_to_freq(t2, mid, t1, freq_lim[0], freq_lim[1])
+        
+        # Plot FR to alpha fcn
+        x_axis = np.linspace(t2, t1, 100)
+        y_axis = []
+        for xi in x_axis:
+            yi = FR_to_alpha_fn(xi)
+            yi = np.max([-1., yi])
+            yi = np.min([1., yi])
+            y_axis.append(yi)
+        import matplotlib.pyplot as plt
+        f, ax = plt.subplots()
+        ax.plot(x_axis, y_axis)
+
+
+        kwargs2 = dict(replay_neural_features = neural_features, e1_inds=e1_inds, 
+            e2_inds = e2_inds, FR_to_alpha_fn=FR_to_alpha_fn, mid = mid)
+
+        filt = IsmoreSleepFilter(kwargs2)
+        decoder = IsmoreSleepDecoder(filt, units, state_space_models.StateSpaceEndptPos1D(),
+            extractor.BinnedSpikeCountsExtractor, {})
+        
+        pname = ismore_sim_bmi(neural_features, decoder, targets_matrix=kwargs['targets_matrix'])
+
+        # Analyze data: 
+        import tables
+        import matplotlib.pyplot as plt
+        hdf = tables.openFile(pname[:-4]+'.hdf')
+
+        # Plot x/y trajectory: 
+        f, ax = plt.subplots()
+        ax.plot(hdf.root.task[2:]['plant_pos'][:, 0], hdf.root.task[2:]['plant_pos'][:, 1])
+
+        ix = np.nonzero(hdf.root.task[:]['target_index'] == 1)[0]
+        ax.plot(hdf.root.task[ix[0]]['target_pos'][0], hdf.root.task[ix[0]]['target_pos'][1], 'r.',
+            markersize=20)
+    
+        ix = np.nonzero(hdf.root.task[:]['target_index'] == 0)[0] + 5
+        ax.plot(hdf.root.task[ix[0]]['target_pos'][0], hdf.root.task[ix[0]]['target_pos'][1], 'g.',
+            markersize=20)
+
+        nrewards = np.nonzero(hdf.root.task_msgs[:]['msg']=='reward')[0]
+
+        return decoder, len(nrewards)
 
 
 ###### From Rat BMI #######
@@ -210,7 +315,8 @@ def map_to_freq(t2, mid, t1, min_freq, max_freq):
     p = np.poly1d(z)
     return p
 
-def sim_data(x, pdf, pdf_individual, prob_t1, prob_t2, data, timeout, timeout_pause, freq_lim):
+def sim_data(x, pdf, pdf_individual, prob_t1, prob_t2, data, 
+    timeout, timeout_pause, freq_lim, sim_bmi_fcn='rat'):
     t1 = prob_under_pdf(x, pdf, prob_t1)
     t2 = prob_under_pdf(x, pdf, prob_t2)
     idx_mid = np.argmax(pdf)
@@ -254,7 +360,11 @@ def sim_data(x, pdf, pdf_individual, prob_t1, prob_t2, data, timeout, timeout_pa
     ##get the control function
     p = map_to_freq(t2, mid, t1, freq_lim[0], freq_lim[1])
     ##run a simulation
-    num_t1, num_t2, num_miss = sim_bmi(data, t1, t2, mid, timeout, timeout_pause, p)
+    if sim_bmi_fcn=='rat':
+        num_t1, num_t2, num_miss = sim_bmi(data, t1, t2, mid, timeout, timeout_pause, p)
+    elif sim_bmi_fcn == 'ismore':
+        num_t1, num_t2, num_miss = ismore_sim_bmi(data, t1, t2, mid, timeout, timeout_pause, p)
+    
     print "Simulation results:\nNumber of T1: " + str(num_t1) + "\nNumber of T2: " + str(num_t2) + "\nNumber of Misses: " + str(num_miss)
     print "Calculated T2 value is " + str(round(t2, 5))
     print "Calculated mid value is " + str(round(mid, 5))
@@ -318,6 +428,33 @@ def sim_bmi(baseline_data, t1, t2, midpoint, timeout, timeout_pause, p):
             clock+=1
     return num_t1, num_t2, num_miss
 
+def ismore_sim_bmi(baseline_data, decoder, targets_matrix=None):
+    import ismore.invasive.bmi_ismoretasks as bmi_ismoretasks
+    from riglib import experiment
+    from features.hdf_features import SaveHDF
+    from ismore.brainamp_features import SimBrainAmpData
+    import datetime
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import multiprocessing as mp
+    from features.blackrock_features import BlackrockBMI
+    from ismore.exo_3D_visualization import Exo3DVisualizationInvasive
+
+    targets = bmi_ismoretasks.SimBMIControlReplayFile.B1_targets(length=100, green=1, red=0, blue=0, brown=0)
+    plant_type = 'IsMore'
+    
+    kwargs=dict(assist_level_time=400., assist_level=(1.,1.),session_length=0.,
+        timeout_time=15., replay_neural_features=baseline_data, decoder=decoder)
+    
+    if targets_matrix is not None:
+        kwargs['targets_matrix']=targets_matrix
+    
+    Task = experiment.make(bmi_ismoretasks.SimBMIControlReplayFile, [SaveHDF, BlackrockBMI, Exo3DVisualizationInvasive])
+    task = Task(targets, plant_type=plant_type, **kwargs)
+    task.run_sync()
+    pnm = save_dec_enc(task)
+    return pnm
+
 def plot_cursor_func(t2, mid, t1, min_freq, max_freq):
     f, ax2 = plt.subplots()
     x = np.linspace(t2-1, t1+1, 1000)
@@ -345,3 +482,50 @@ def plot_cursor_func(t2, mid, t1, min_freq, max_freq):
     ax2.set_ylabel("Feedback frequency")
     ax2.set_xlabel("Cursor value (E1-E2)")
     ax2.set_title("Cursor-frequency map", fontsize = 18)
+
+def save_dec_enc(task, pref='sleep_sim_'):
+    '''
+    Summary: method to save encoder / decoder and hdf file information from task in sim_data folder
+    Input param: task: task, output from arm_assist_main, or generally task object
+    Input param: pref: prefix to saved file names (defaults to 'enc' for encoder)
+    Output param: pkl file name used to save encoder/decoder
+    '''
+    #enc = task.encoder
+    task.decoder.save()
+    #enc.corresp_dec = task.decoder
+
+    #Save task info
+    import pickle
+    ct = datetime.datetime.now()
+    #pnm = '/Users/preeyakhanna/ismore/ismore_tests/sim_data/'+pref + ct.strftime("%Y%m%d_%H_%M_%S") + '.pkl'
+    pnm = '/home/tecnalia/code/ismore/ismore_tests/sim_data/'+pref + ct.strftime("%m%d%y_%H%M") + '.pkl'
+    pnm2 = '/Users/preeyakhanna/code/ismore/ismore_tests/sim_data/'+pref + ct.strftime("%m%d%y_%H%M") + '.pkl'
+    
+    # try:
+    #     pickle.dump(enc, open(pnm,'wb'))
+    # except:
+    #     pickle.dump(enc, open(pnm2, 'wb'))
+    #     pnm = pnm2
+
+    #Save HDF file
+    new_hdf = pnm[:-4]+'.hdf'
+    import shutil
+    f = open(task.h5file.name)
+    f.close()
+
+    #Wait 
+    import time
+    time.sleep(1.)
+
+    #Wait after HDF cleaned up
+    task.cleanup_hdf()
+    import time
+    time.sleep(1.)
+
+    #Copy temp file to actual desired location
+    shutil.copy(task.h5file.name, new_hdf)
+    f = open(new_hdf)
+    f.close()
+
+    #Return filename
+    return pnm
