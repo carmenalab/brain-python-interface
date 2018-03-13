@@ -82,7 +82,7 @@ class StateSpace(object):
     '''
     A collection of multiple 'State' instances forms a StateSpace
     '''
-    def __init__(self, *states):
+    def __init__(self, *states, **kwargs):
         '''
         Constructor for StateSpace
 
@@ -95,7 +95,10 @@ class StateSpace(object):
         -------
         StateSpace instance
         '''
-        self.states = list(states)
+        if 'statelist' in kwargs:
+            self.states = kwargs['statelist']
+        else:
+            self.states = list(states)
 
     def __repr__(self):
         return 'State space: ' + str(self.state_names)
