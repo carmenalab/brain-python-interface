@@ -70,7 +70,6 @@ class RatFilter(object):
 
     def __call__(self, obs, **kwargs):
         self.state = self._mov_avg(obs, **kwargs)
-        self.baseline = self.state.mean < self.mid
 
     def _mov_avg(self, obs,**kwargs):
         ''' Function to compute moving average with old mean and new observation'''
@@ -97,6 +96,8 @@ class IsmoreSleepFilter(RatFilter):
         self.FR_to_alpha_fn = task_params['FR_to_alpha_fn']
         self.dec_params = task_params
         self.mid = task_params['mid']
+        self.e1_max = task_params['e1_perc']
+        self.e2_max = task_params['e2_perc']
 
         #Cursor data (X)
         self.FR = 0.
@@ -121,7 +122,17 @@ class IsmoreSleepFilter(RatFilter):
         self.Y[:-1, :] = self.Y[1:, :]
         self.Y[-1, :] = np.squeeze(obs)
 
-        d_fr = np.sum(self.Y[:, self.e1_inds], axis=1) - np.sum(self.Y[:, self.e2_inds], axis=1)
+        if self.e1_max is not None:
+            e1_tmp = np.min([self.e1_max, np.sum(self.Y[:, self.e1_inds], axis=1)])
+        else:
+            e1_tmp = np.sum(self.Y[:, self.e1_inds], axis=1)
+
+        if self.e2_max is not None:
+            e2_tmp = np.min([self.e2_max, np.sum(self.Y[:, self.e2_inds], axis=1)])
+        else:
+            e2_tmp = np.sum(self.Y[:, self.e2_inds], axis=1)
+
+        d_fr = e1_tmp - e2_tmp
         mean_FR = np.dot(d_fr, self.A)
         self.FR = mean_FR
         self.alpha = self.FR_to_alpha_fn(self.FR)
@@ -132,6 +143,7 @@ class IsmoreSleepFilter(RatFilter):
         elif self.alpha < -1:
             self.alpha = -1
 
+        self.baseline = self.FR < self.mid
         return State(self.alpha)
 
 from riglib.bmi.bmi import Decoder
@@ -189,11 +201,31 @@ def calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, pro
         e2_inds = np.array([i for i, u in enumerate(units) if np.logical_and(u[0] in e2[:,0], u[1] in e2[:,1])])
 
     T = neural_features.shape[0]
-    baseline_data = np.zeros((T - nsteps))
+    if 'saturate_perc' in kwargs:
+        baseline_data = np.zeros((T - nsteps, 2))
+    else:
+        baseline_data = np.zeros((T - nsteps))
     for ib in range(T-nsteps):
-        baseline_data[ib] = np.mean(np.sum(neural_features[ib:ib+nsteps, 
-            e1_inds], axis=1))-np.mean(np.sum(neural_features[ib:ib+nsteps, 
-            e2_inds], axis=1))
+        if 'saturate_perc' in kwargs:
+            baseline_data[ib, 0] = np.mean(np.sum(neural_features[ib:ib+nsteps, 
+                e1_inds], axis=1))
+            baseline_data[ib, 1] = np.mean(np.sum(neural_features[ib:ib+nsteps, 
+                e2_inds], axis=1)) 
+        else:
+            baseline_data[ib] = np.mean(np.sum(neural_features[ib:ib+nsteps, 
+                e1_inds], axis=1))-np.mean(np.sum(neural_features[ib:ib+nsteps, 
+                e2_inds], axis=1))
+
+    if 'saturate_perc' in kwargs:
+        sat_perc = kwargs.pop('saturate_perc')
+        e1_perc = np.percentile(baseline_data[:, 0], sat_perc)
+        e2_perc = np.percentile(baseline_data[:, 1], sat_perc)
+        baseline_data[:, 0][baseline_data[:, 0] > e1_perc] = e1_perc
+        baseline_data[:, 1][baseline_data[:, 1] > e2_perc] = e2_perc
+        baseline_data = baseline_data[:, 0] - baseline_data[:, 1]
+    else:
+        e1_perc = None
+        e2_perc = None
 
     x, pdf, pdf_individual = generate_gmm(baseline_data)
 
@@ -225,32 +257,40 @@ def calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, pro
 
 
         kwargs2 = dict(replay_neural_features = neural_features, e1_inds=e1_inds, 
-            e2_inds = e2_inds, FR_to_alpha_fn=FR_to_alpha_fn, mid = mid)
+            e2_inds = e2_inds, FR_to_alpha_fn=FR_to_alpha_fn, mid = mid, e1_perc=e1_perc,
+            e2_perc=e2_perc)
 
         filt = IsmoreSleepFilter(kwargs2)
         decoder = IsmoreSleepDecoder(filt, units, state_space_models.StateSpaceEndptPos1D(),
             extractor.BinnedSpikeCountsExtractor, {})
+        if kwargs['skip_sim']:
+            nrewards = []
+
+        else:
+            if type(kwargs['targets_matrix']) is str:
+                import pickle
+                kwargs['targets_matrix'] = pickle.load(open(kwargs['targets_matrix']))
+            pname = ismore_sim_bmi(neural_features, decoder, targets_matrix=kwargs['targets_matrix'],
+                session_length=kwargs['session_length'])
+
+            # Analyze data: 
+            import tables
+            import matplotlib.pyplot as plt
+            hdf = tables.openFile(pname[:-4]+'.hdf')
+
+            # Plot x/y trajectory: 
+            f, ax = plt.subplots()
+            ax.plot(hdf.root.task[2:]['plant_pos'][:, 0], hdf.root.task[2:]['plant_pos'][:, 1])
+
+            ix = np.nonzero(hdf.root.task[:]['target_index'] == 1)[0]
+            ax.plot(hdf.root.task[ix[0]]['target_pos'][0], hdf.root.task[ix[0]]['target_pos'][1], 'r.',
+                markersize=20)
         
-        pname = ismore_sim_bmi(neural_features, decoder, targets_matrix=kwargs['targets_matrix'])
+            ix = np.nonzero(hdf.root.task[:]['target_index'] == 0)[0] + 5
+            ax.plot(hdf.root.task[ix[0]]['target_pos'][0], hdf.root.task[ix[0]]['target_pos'][1], 'g.',
+                markersize=20)
 
-        # Analyze data: 
-        import tables
-        import matplotlib.pyplot as plt
-        hdf = tables.openFile(pname[:-4]+'.hdf')
-
-        # Plot x/y trajectory: 
-        f, ax = plt.subplots()
-        ax.plot(hdf.root.task[2:]['plant_pos'][:, 0], hdf.root.task[2:]['plant_pos'][:, 1])
-
-        ix = np.nonzero(hdf.root.task[:]['target_index'] == 1)[0]
-        ax.plot(hdf.root.task[ix[0]]['target_pos'][0], hdf.root.task[ix[0]]['target_pos'][1], 'r.',
-            markersize=20)
-    
-        ix = np.nonzero(hdf.root.task[:]['target_index'] == 0)[0] + 5
-        ax.plot(hdf.root.task[ix[0]]['target_pos'][0], hdf.root.task[ix[0]]['target_pos'][1], 'g.',
-            markersize=20)
-
-        nrewards = np.nonzero(hdf.root.task_msgs[:]['msg']=='reward')[0]
+            nrewards = np.nonzero(hdf.root.task_msgs[:]['msg']=='reward')[0]
 
         return decoder, len(nrewards)
 
@@ -428,7 +468,7 @@ def sim_bmi(baseline_data, t1, t2, midpoint, timeout, timeout_pause, p):
             clock+=1
     return num_t1, num_t2, num_miss
 
-def ismore_sim_bmi(baseline_data, decoder, targets_matrix=None):
+def ismore_sim_bmi(baseline_data, decoder, targets_matrix=None, session_length=0.):
     import ismore.invasive.bmi_ismoretasks as bmi_ismoretasks
     from riglib import experiment
     from features.hdf_features import SaveHDF
@@ -440,16 +480,15 @@ def ismore_sim_bmi(baseline_data, decoder, targets_matrix=None):
     from features.blackrock_features import BlackrockBMI
     from ismore.exo_3D_visualization import Exo3DVisualizationInvasive
 
-    targets = bmi_ismoretasks.SimBMIControlReplayFile.B1_targets(length=100, green=1, red=0, blue=0, brown=0)
+    targets = bmi_ismoretasks.SimBMIControlReplayFile.sleep_gen(length=100)
     plant_type = 'IsMore'
     
-    kwargs=dict(assist_level_time=400., assist_level=(1.,1.),session_length=0.,
-        timeout_time=15., replay_neural_features=baseline_data, decoder=decoder)
+    kwargs=dict(session_length=session_length, replay_neural_features=baseline_data, decoder=decoder)
     
     if targets_matrix is not None:
         kwargs['targets_matrix']=targets_matrix
     
-    Task = experiment.make(bmi_ismoretasks.SimBMIControlReplayFile, [SaveHDF, BlackrockBMI, Exo3DVisualizationInvasive])
+    Task = experiment.make(bmi_ismoretasks.SimBMIControlReplayFile, [SaveHDF, Exo3DVisualizationInvasive])
     task = Task(targets, plant_type=plant_type, **kwargs)
     task.run_sync()
     pnm = save_dec_enc(task)
