@@ -14,7 +14,6 @@ class State(object):
     def __init__(self, mean, *args, **kwargs):
         self.mean = mean
 
-
 class RatFilter(object):
     '''Moving Avergae Filter used in 1D or 2D LFP control:
     x_{t} = a0*x_{t} + a1*x_{t-1} + a2*x_{t-2} + ...
@@ -217,15 +216,25 @@ def calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, pro
                 e2_inds], axis=1))
 
     if 'saturate_perc' in kwargs:
+
         sat_perc = kwargs.pop('saturate_perc')
-        e1_perc = np.percentile(baseline_data[:, 0], sat_perc)
-        e2_perc = np.percentile(baseline_data[:, 1], sat_perc)
+        # ignore the first second of data
+        e1_perc = np.percentile(baseline_data[20:, 0], sat_perc)
+        e2_perc = np.percentile(baseline_data[20:, 1], sat_perc)
+
+        import pdb
+        pdb.set_trace()
+
         baseline_data[:, 0][baseline_data[:, 0] > e1_perc] = e1_perc
         baseline_data[:, 1][baseline_data[:, 1] > e2_perc] = e2_perc
+
+
         baseline_data = baseline_data[:, 0] - baseline_data[:, 1]
     else:
         e1_perc = None
         e2_perc = None
+
+
 
     x, pdf, pdf_individual = generate_gmm(baseline_data)
 
@@ -317,7 +326,7 @@ def generate_gmm(data):
     AIC = [m.aic(X) for m in models]
     ##figure out the best-fit mixture
     M_best = models[np.argmin(AIC)]
-    x = np.linspace(data.min(), data.max(), data.size)
+    x = np.linspace(data.min()-1, data.max()+1, data.size)
     ##compute the pdf
     logprob, responsibilities = M_best.score_samples(x.reshape(x.size, 1))
     pdf = np.exp(logprob)
@@ -344,6 +353,7 @@ def prob_under_pdf(x_pdf, y_pdf, prob):
         x_range = x_pdf[0:i]
         y_range = y_pdf[0:i]
         auc = metrics.auc(x_range, y_range)
+        print auc
         i+=1
     return x_pdf[i]
 
