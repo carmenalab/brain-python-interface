@@ -185,8 +185,8 @@ def create_decoder(ssm, task_params):
 import re
 cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
-def calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, prob_t2, timeout, 
-    timeout_pause, freq_lim, e1_inds, e2_inds, sim_fcn='rat', **kwargs):
+def calc_decoder_from_baseline_file(neural_features, neural_features_unbinned, units, nsteps, prob_t1,
+    prob_t2, timeout, timeout_pause, freq_lim, e1_inds, e2_inds, sim_fcn='rat', **kwargs):
 
     #Enter e1, e2 as string: 
     if np.logical_or(e1_inds is None, e2_inds is None):
@@ -222,19 +222,12 @@ def calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, pro
         e1_perc = np.percentile(baseline_data[20:, 0], sat_perc)
         e2_perc = np.percentile(baseline_data[20:, 1], sat_perc)
 
-        import pdb
-        pdb.set_trace()
-
         baseline_data[:, 0][baseline_data[:, 0] > e1_perc] = e1_perc
         baseline_data[:, 1][baseline_data[:, 1] > e2_perc] = e2_perc
-
-
         baseline_data = baseline_data[:, 0] - baseline_data[:, 1]
     else:
         e1_perc = None
         e2_perc = None
-
-
 
     x, pdf, pdf_individual = generate_gmm(baseline_data)
 
@@ -279,7 +272,7 @@ def calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, pro
             if type(kwargs['targets_matrix']) is str:
                 import pickle
                 kwargs['targets_matrix'] = pickle.load(open(kwargs['targets_matrix']))
-            pname = ismore_sim_bmi(neural_features, decoder, targets_matrix=kwargs['targets_matrix'],
+            pname = ismore_sim_bmi(neural_features_unbinned, decoder, targets_matrix=kwargs['targets_matrix'],
                 session_length=kwargs['session_length'])
 
             # Analyze data: 
@@ -353,7 +346,6 @@ def prob_under_pdf(x_pdf, y_pdf, prob):
         x_range = x_pdf[0:i]
         y_range = y_pdf[0:i]
         auc = metrics.auc(x_range, y_range)
-        print auc
         i+=1
     return x_pdf[i]
 
@@ -492,7 +484,6 @@ def ismore_sim_bmi(baseline_data, decoder, targets_matrix=None, session_length=0
 
     targets = bmi_ismoretasks.SimBMIControlReplayFile.sleep_gen(length=100)
     plant_type = 'IsMore'
-    
     kwargs=dict(session_length=session_length, replay_neural_features=baseline_data, decoder=decoder)
     
     if targets_matrix is not None:

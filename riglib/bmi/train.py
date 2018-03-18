@@ -462,13 +462,19 @@ def test_IsmoreSleepDecoder(te_id, e1_units, e2_units, nsteps=1, prob_t1 = 0.985
     
     neural_features, units, extractor_kwargs = get_neural_features(files, 0.1, extractor_cls.extract_from_file, 
         dict(), tslice=None, units=units)
+
+    neural_features_unbinned, units, extractor_kwargs = get_neural_features(files, 0.05, extractor_cls.extract_from_file, 
+        dict(), tslice=None, units=units)
+
     import riglib.bmi.rat_bmi_decoder
     
     kwargs = dict(targets_matrix=targets_matrix, session_length=session_length, 
         saturate_perc=saturate_perc, skip_sim=skip_sim)
 
     decoder, nrewards = riglib.bmi.rat_bmi_decoder.calc_decoder_from_baseline_file(neural_features, 
-        units, nsteps, prob_t1, prob_t2, timeout, timeout_pause, freq_lim, e1_inds, e2_inds, sim_fcn='ismore', **kwargs)
+        neural_features_unbinned, units, nsteps, prob_t1, prob_t2, timeout, timeout_pause, freq_lim, 
+        e1_inds, e2_inds, sim_fcn='ismore', **kwargs)
+    
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
     pickle.dump(decoder, open('/storage/decoders/sleep_from_te'+str(te_id)+'.pkl', 'wb'))
