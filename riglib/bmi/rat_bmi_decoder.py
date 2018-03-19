@@ -97,6 +97,7 @@ class IsmoreSleepFilter(RatFilter):
         self.mid = task_params['mid']
         self.e1_max = task_params['e1_perc']
         self.e2_max = task_params['e2_perc']
+        self.freq_lim = task_params['freq_lim']
 
         #Cursor data (X)
         self.FR = 0.
@@ -137,10 +138,10 @@ class IsmoreSleepFilter(RatFilter):
         self.alpha = self.FR_to_alpha_fn(self.FR)
 
         # Max alpha is -1 or 1 : 
-        if self.alpha > 1:
-            self.alpha = 1.
-        elif self.alpha < -1:
-            self.alpha = -1
+        if self.alpha > self.freq_lim[1]:
+            self.alpha = self.freq_lim[1]
+        elif self.alpha < self.freq_lim[0]:
+            self.alpha = self.freq_lim[1]
 
         self.baseline = self.FR < self.mid
         return State(self.alpha)
@@ -250,8 +251,8 @@ def calc_decoder_from_baseline_file(neural_features, neural_features_unbinned, u
         y_axis = []
         for xi in x_axis:
             yi = FR_to_alpha_fn(xi)
-            yi = np.max([-1., yi])
-            yi = np.min([1., yi])
+            yi = np.max([freq_lim[0], yi])
+            yi = np.min([freq_lim[1], yi])
             y_axis.append(yi)
         import matplotlib.pyplot as plt
         f, ax = plt.subplots()
@@ -260,7 +261,7 @@ def calc_decoder_from_baseline_file(neural_features, neural_features_unbinned, u
 
         kwargs2 = dict(replay_neural_features = neural_features, e1_inds=e1_inds, 
             e2_inds = e2_inds, FR_to_alpha_fn=FR_to_alpha_fn, mid = mid, e1_perc=e1_perc,
-            e2_perc=e2_perc)
+            e2_perc=e2_perc, freq_lim=freq_lim)
 
         filt = IsmoreSleepFilter(kwargs2)
         decoder = IsmoreSleepDecoder(filt, units, state_space_models.StateSpaceEndptPos1D(),
@@ -489,7 +490,7 @@ def ismore_sim_bmi(baseline_data, decoder, targets_matrix=None, session_length=0
     if targets_matrix is not None:
         kwargs['targets_matrix']=targets_matrix
     
-    Task = experiment.make(bmi_ismoretasks.SimBMIControlReplayFile, [SaveHDF, Exo3DVisualizationInvasive])
+    Task = experiment.make(bmi_ismoretasks.SimBMIControlReplayFile, [SaveHDF])#, Exo3DVisualizationInvasive])
     task = Task(targets, plant_type=plant_type, **kwargs)
     task.run_sync()
     pnm = save_dec_enc(task)
@@ -541,11 +542,11 @@ def save_dec_enc(task, pref='sleep_sim_'):
     pnm = '/home/tecnalia/code/ismore/ismore_tests/sim_data/'+pref + ct.strftime("%m%d%y_%H%M") + '.pkl'
     pnm2 = '/Users/preeyakhanna/code/ismore/ismore_tests/sim_data/'+pref + ct.strftime("%m%d%y_%H%M") + '.pkl'
     
-    # try:
-    #     pickle.dump(enc, open(pnm,'wb'))
-    # except:
-    #     pickle.dump(enc, open(pnm2, 'wb'))
-    #     pnm = pnm2
+    try:
+        pickle.dump(dict(), open(pnm,'wb'))
+    except:
+        pickle.dump(dict(), open(pnm2, 'wb'))
+        pnm = pnm2
 
     #Save HDF file
     new_hdf = pnm[:-4]+'.hdf'
