@@ -141,7 +141,7 @@ class IsmoreSleepFilter(RatFilter):
         if self.alpha > self.freq_lim[1]:
             self.alpha = self.freq_lim[1]
         elif self.alpha < self.freq_lim[0]:
-            self.alpha = self.freq_lim[1]
+            self.alpha = self.freq_lim[0]
 
         self.baseline = self.FR < self.mid
         return State(self.alpha)
@@ -353,7 +353,7 @@ def prob_under_pdf(x_pdf, y_pdf, prob):
 ##function to map ensemble values to frequency values
 def map_to_freq(t2, mid, t1, min_freq, max_freq):
     fr_pts = np.array([t2, mid, t1])
-    freq_pts = np.array([min_freq, np.floor(((1.0*max_freq)+min_freq)/2), max_freq])
+    freq_pts = np.array([min_freq, (max_freq + min_freq)/2., max_freq])
     z = np.polyfit(fr_pts, freq_pts, 2)
     p = np.poly1d(z)
     return p
