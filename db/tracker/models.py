@@ -49,7 +49,6 @@ class Task(models.Model):
     def get(self, feats=()):
         print "models.Task.get()"
         from namelist import tasks
-
         if len(tasks) == 0: 
             print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
         
@@ -493,6 +492,7 @@ class TaskEntry(models.Model):
     def task_params(self):
         from json_param import Parameters
         data = Parameters(self.params).params
+
         if 'bmi' in data:
             data['decoder'] = data['bmi']
         ##    del data['bmi']
@@ -626,16 +626,18 @@ class TaskEntry(models.Model):
         
         elif config.recording_sys['make'] == 'blackrock':
             try:
-                length, units = parse_blackrock_file(self.nev_file, self.nsx_files, self)
-                # Blackrock units start from 1 --> a, unsorted units are 21 --> u
-                # for web interface purposes
+                print 'skipping .nev conversion'
+                js['bmi'] = dict(_neuralinfo=None)
                 
-                js['bmi'] = dict(_neuralinfo=dict(
-                    length=length, 
-                    units=units,
-                    name=name,
-                    is_seed=int(Exp.is_bmi_seed),
-                    ))    
+                # length, units = parse_blackrock_file(self.nev_file, self.nsx_files, self)
+                
+                # js['bmi'] = dict(_neuralinfo=dict(
+                #     length=length, 
+                #     units=units,
+                #     name=name,
+                #     is_seed=int(Exp.is_bmi_seed),
+                #     ))
+                      
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print "No blackrock files found"
                 js['bmi'] = dict(_neuralinfo=None)
