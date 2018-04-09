@@ -254,10 +254,17 @@ def calc_decoder_from_baseline_file(neural_features, neural_features_unbinned, u
             yi = np.max([freq_lim[0], yi])
             yi = np.min([freq_lim[1], yi])
             y_axis.append(yi)
+
+        x_axis2 = np.arange(-10, 10)
+        y_axis2 = []
+        for xi in x_axis2:
+            y_axis2.append(FR_to_alpha_fn(xi))
+
         import matplotlib.pyplot as plt
         f, ax = plt.subplots()
         ax.plot(x_axis, y_axis)
-
+        ax.plot(x_axis2, y_axis2, 'r.')
+        ax.plot([-5, 5], [0, 0], 'r--')
 
         kwargs2 = dict(replay_neural_features = neural_features, e1_inds=e1_inds, 
             e2_inds = e2_inds, FR_to_alpha_fn=FR_to_alpha_fn, mid = mid, e1_perc=e1_perc,
@@ -268,6 +275,8 @@ def calc_decoder_from_baseline_file(neural_features, neural_features_unbinned, u
             extractor.BinnedSpikeCountsExtractor, {})
         if kwargs['skip_sim']:
             nrewards = []
+            import pdb
+            pdb.set_trace()
 
         else:
             if type(kwargs['targets_matrix']) is str:
@@ -308,7 +317,7 @@ from sklearn.mixture import GMM
 import numpy as np
 import matplotlib.pyplot as plt
 
-def generate_gmm(data):
+def generate_gmm(data, ax=None):
     ##reshape the data
     X = data.reshape(data.shape[0], 1)
     ##fit models with 1-10 components
@@ -326,7 +335,8 @@ def generate_gmm(data):
     pdf = np.exp(logprob)
     pdf_individual = responsibilities * pdf[:, np.newaxis]
     #plot the stuff
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
     ax.hist(X, 50, normed = True, histtype = 'stepfilled', alpha = 0.4)
     ax.plot(x, pdf, '-k')
     ax.plot(x, pdf_individual, '--k')
@@ -353,7 +363,9 @@ def prob_under_pdf(x_pdf, y_pdf, prob):
 ##function to map ensemble values to frequency values
 def map_to_freq(t2, mid, t1, min_freq, max_freq):
     fr_pts = np.array([t2, mid, t1])
-    freq_pts = np.array([min_freq, np.floor(((1.0*max_freq)+min_freq)/2), max_freq])
+    freq_pts = np.array([min_freq, ((1.0*max_freq)+(1.0*min_freq))/2., max_freq])
+    import pdb
+    pdb.set_trace()
     z = np.polyfit(fr_pts, freq_pts, 2)
     p = np.poly1d(z)
     return p
