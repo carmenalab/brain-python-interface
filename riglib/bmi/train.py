@@ -43,6 +43,12 @@ def sys_eq(sys1, sys2):
     -------
     Boolean indicating whether sys1 and sys2 match
     '''
+    if sys2 == 'task':
+        if sys1 in ['TAS\x00TASK', 'btqassskh', 'btqassskkkh', 'tasktasktask', 'task\x00task\x00task']:
+            return True
+        elif sys1[:4] in ['tqas', 'tacs','ttua', 'bttu', 'tttu']:
+            return True
+
     return sys1 in [sys2, sys2[1:], sys2.upper()]
 
 
@@ -385,13 +391,30 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
     else:
         step = int(binlen/(1./update_rate_hz))
         inds = inds[::step]
-        kin = kin[inds]
-        
-        if vel_key is not None:
-            velocity = hdf.root.task[inds][vel_key]
-        else:
-            velocity = np.diff(kin, axis=0) * 1./binlen
-            velocity = np.vstack([np.zeros(kin.shape[1]), velocity])
+        try:
+            kin = kin[inds]
+            if vel_key is not None:
+                velocity = hdf.root.task[inds][vel_key]
+            else:
+                velocity = np.diff(kin, axis=0) * 1./binlen
+                velocity = np.vstack([np.zeros(kin.shape[1]), velocity])        
+
+        except: 
+            kin2 = np.zeros((len(inds), kin.shape[1]))
+            vel2 = np.zeros((len(inds), kin.shape[1]))
+
+            ix = np.nonzero(inds < len(kin))[0]
+            kin2[ix, :] = kin[inds[ix], :]
+            kin = kin2.copy()
+
+            if vel_key is not None:
+                vel2[ix, :] = hdf.root.task[inds[ix]][vel_key]
+            else:
+                vel2 = np.diff(kin, axis=0) * 1./binlen
+                vel2 = np.vstack([np.zeros(kin.shape[1]), vel2])    
+
+            velocity = vel2.copy()
+
         kin = np.hstack([kin, velocity])
 
     return kin
@@ -691,7 +714,8 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix=suffx)
 
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, 
-    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, **kwargs):
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, filter_kin=True, simple_lin_reg=False, 
+    use_data_kwargs=None, **kwargs):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
@@ -745,20 +769,68 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=config.hdf_update_rate_hz)
 
     ## get neural features
+    if 'blackrock' in files.keys():
+        strobe_rate = 20.
+    else:
+        strobe_rate = 60.
+
     neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, 
-        extractor_kwargs, tslice=tslice, units=units, source=kin_source)
+        extractor_kwargs, tslice=tslice, units=units, source=kin_source, strobe_rate=strobe_rate)
 
     # Remove 1st kinematic sample and last neural features sample to align the 
     # velocity with the neural features
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
+    
+    if filter_kin:
+        filts = get_filterbank(fs=1./update_rate)
+        kin_filt = np.zeros_like(kin)
+        for chan in range(14):
+            for filt in filts[chan]:
+                kin_filt[chan, :] = filt(kin[chan, :])
+    else:
+        kin_filt = kin.copy()
 
-    decoder = train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=tslice, zscore=zscore, **kwargs)
+    if simple_lin_reg:
+        from sklearn.linear_model import Ridge
+        decoder = Ridge(1000.0, fit_intercept=True, normalize=False)
 
-    decoder.extractor_cls = extractor_cls
-    decoder.extractor_kwargs = extractor_kwargs
+        if use_data_kwargs is not None: 
 
-    return decoder
+            # HDF rows to use in training
+            X = []
+            Y = []
+
+            for pair in use_data_kwargs['pairs']:
+                X.append(neural_features[:, pair[0]])
+                Y.append(kin_filt[:, pair[1]])
+
+            # Convert these hdf rows to 
+        decoder.fit(np.vstack((X)), np.vstack((Y)))
+
+    else:
+        decoder = train_KFDecoder_abstract(ssm, kin_filt, neural_features, units, update_rate, tslice=tslice, zscore=zscore, **kwargs)
+        decoder.extractor_cls = extractor_cls
+        decoder.extractor_kwargs = extractor_kwargs
+
+    return decoder, neural_features, kin_filt
+
+def get_filterbank(n_channels=14, fs=1000.):
+    from ismore.filter import Filter
+    from scipy.signal import butter
+    band  = [.001, 1]  # Hz
+    nyq   = 0.5 * fs
+    low   = band[0] / nyq
+    high  = band[1] / nyq
+    high = np.min([high, 0.99])
+    bpf_coeffs = butter(4, [low, high], btype='band')
+
+    channel_filterbank = [None]*n_channels
+    for k in range(n_channels):
+        filts = [Filter(bpf_coeffs[0], bpf_coeffs[1])]
+        channel_filterbank[k] = filts
+    return channel_filterbank
+
 
 def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, 
     kin_source='task', pos_key='cursor', vel_key=None, zscore=False, **kwargs):
@@ -832,7 +904,10 @@ def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, 
 
     return decoder
 
-def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0., zscore=False, **kwargs):
+def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0., 
+    zscore=False, **kwargs):
+    print kwargs
+    print 'end of kwargs'
     
     #### Train the actual KF decoder matrices ####
     if type(zscore) is bool:
@@ -856,11 +931,23 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
             print 'computing own mFR, sdFR to zscore'
             mFR = np.mean(neural_features, axis=1)
             sdFR = np.std(neural_features, axis=1)
+            if hasattr(kwargs, 'zscore_set_std_to_one'):
+                sdFR = np.ones_like(mFR)
         neural_features = (neural_features - mFR[:, np.newaxis])*(1./sdFR[:, np.newaxis])
 
     else:
         mFR = np.squeeze(np.mean(neural_features, axis=1))
         sdFR = np.squeeze(np.std(neural_features, axis=1))
+
+    if 'noise_rej' in kwargs:
+        if kwargs['noise_rej']:
+            sum_pop = np.sum(neural_features, axis = 0)
+            bins_noisy = np.nonzero(sum_pop > kwargs['noise_rej_cutoff'])[0]
+            print 'replacing %d noisy bins of total %d bins w/ mFR for decoder training!' % (len(bins_noisy), len(sum_pop))
+            neural_features[:, bins_noisy] = mFR[:, np.newaxis]
+    else:
+        kwargs['noise_rej'] = False
+        kwargs['noise_rej_cutoff'] = -1.
 
     n_features = len(mFR)
 
@@ -875,6 +962,7 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     # instantiate KFdecoder
     driftKF = kwargs.pop('driftKF', False)
     if driftKF:
+        print 'Training Drift Decoder. Noise Rejection? ', kwargs['noise_rej']
         kf = kfdecoder.KalmanFilterDriftCorrection(A, W, C, Q, is_stochastic=ssm.is_stochastic)
     else:
         kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
@@ -904,6 +992,9 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     decoder.filt.ESS = ESS
     decoder.n_features = n_features
 
+    decoder.filt.noise_rej = kwargs['noise_rej']
+    decoder.filt.noise_rej_cutoff = kwargs['noise_rej_cutoff']
+    decoder.filt.noise_rej_mFR = mFR
     # decoder.extractor_cls = extractor_cls
     # decoder.extractor_kwargs = extractor_kwargs
 

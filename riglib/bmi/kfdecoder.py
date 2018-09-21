@@ -430,6 +430,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
 class KalmanFilterDriftCorrection(KalmanFilter):
     attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv',
         'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'drift_corr','prev_drift_corr']
+    noise_threshold = 96.*3.5
 
     def _init_state(self):
         if hasattr(self, 'prev_drift_corr'):
@@ -437,10 +438,26 @@ class KalmanFilterDriftCorrection(KalmanFilter):
             print 'prev drift corr', np.mean(self.prev_drift_corr)
         else:
             self.drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))
-            self.prev_drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))        
+            self.prev_drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))
+
+        if hasattr(self, 'noise_rej'):
+            if self.noise_rej:
+                print 'noise rej thresh: ', self.noise_rej_cutoff
+        else:
+            self.noise_rej = False
+        self.noise_cnt = 0
+
         super(KalmanFilterDriftCorrection, self)._init_state()
         
     def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, F=None, obs_is_control_independent=True, **kwargs):
+        
+        if self.noise_rej:
+            if np.sum(obs_t) > self.noise_rej_cutoff:
+                #print np.sum(obs_t), 'rejecting noise!'
+                self.noise_cnt += 1 
+                obs_t = np.mat(self.noise_rej_mFR).T
+                
+
         state = super(KalmanFilterDriftCorrection, self)._forward_infer(st, obs_t, Bu=None, u=None, x_target=None, F=None, 
             obs_is_control_independent=True, **kwargs)
 
@@ -449,7 +466,7 @@ class KalmanFilterDriftCorrection(KalmanFilter):
         state.mean[self.vel_ix] = decoded_vel[self.vel_ix] - self.drift_corr[self.vel_ix]
 
         ### Update Drift Correcton ###
-        self.drift_corr[self.vel_ix] = self.drift_corr[self.vel_ix]*self.drift_rho + decoded_vel[self.vel_ix]*(1 - self.drift_rho)
+        self.drift_corr[self.vel_ix] = self.drift_corr[self.vel_ix]*self.drift_rho + decoded_vel[self.vel_ix]*float(1. - self.drift_rho)
         self.prev_drift_corr = self.drift_corr.copy()
 
         return state
