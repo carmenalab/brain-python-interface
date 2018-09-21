@@ -322,7 +322,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                     except:
                         print 'no spikes recorded on channel: ', chan_str, ': adding zeros'
                         ts = []
-                        unit_ts = []
+                        units_ts = []
 
 
                 # get the ts for this unit, in units of secs
