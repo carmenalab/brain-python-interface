@@ -62,6 +62,7 @@ def train_decoder_ajax_handler(request, idx):
         ssm=request.POST['ssm'],
         pos_key=request.POST['pos_key'],
         kin_extractor=request.POST['kin_extractor'],
+        zscore=request.POST['zscore'],
     )
     trainbmi.cache_and_train(**kwargs)
     return _respond(dict(status="success"))

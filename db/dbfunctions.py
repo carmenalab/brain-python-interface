@@ -12,7 +12,7 @@ import cPickle
 import tables
 import matplotlib.pyplot as plt
 import time, datetime
-from scipy.stats import nanmean
+
 import db
 from collections import defaultdict, OrderedDict
 from itertools import izip
@@ -874,8 +874,15 @@ class TaskEntry(object):
 
     @property 
     def blackrock_filenames(self):
-        return self.get_datafile(system_name='blackrock', intermediate_path='')
+        x = self.get_datafile(system_name='blackrock', intermediate_path='')
+        y = self.get_datafile(system_name='blackrock2', intermediate_path='rawdata')
 
+        if type(x) is not list:
+            x = [x]
+        if type(y) is not list:
+            y = [y]
+        
+        return x+y
     @property
     def nev_filename(self):
         '''

@@ -57,9 +57,9 @@ void loop() {
         en = 1;    
         
         // turn on LED (debugging)
-        digitalWrite(led, HIGH);
-        delay(500);
-        digitalWrite(led, LOW);        
+        //digitalWrite(led, HIGH);
+        //delay(500);
+        //digitalWrite(led, LOW);        
     }
     
     // Stop recording
@@ -76,9 +76,9 @@ void loop() {
         c = ' ';
         
         // turn on LED (debugging)
-        digitalWrite(led, HIGH);
-        delay(500);
-        digitalWrite(led, LOW);
+        //digitalWrite(led, HIGH);
+        //delay(500);
+        //digitalWrite(led, LOW);
     }
 
     // Set CODA pin to default value (not recording)
@@ -90,6 +90,7 @@ void loop() {
     // Start CODA
     else if ((c == 'h')) {
       digitalWrite(coda_rec, LOW);
+      digitalWrite(rstart, HIGH);
       Serial.println("coda recording started"); 
     }
 
@@ -100,7 +101,10 @@ void loop() {
 
     // Coda trial data
     else if (c == 'c') {
-      handle_coda();
+      Serial.readBytes(coda_data, 1);
+      byte coda_byte_data = coda_data[0];
+      handle_coda(coda_byte_data);
+      send_coda_to_br(coda_byte_data);
     }
   }
 }
@@ -132,9 +136,7 @@ void handle_word() {
   digitalWrite(strobe, LOW);  
 }
 
-void handle_coda() {
-  Serial.readBytes(coda_data, 1);
-  byte coda_byte_data = coda_data[0];
+void handle_coda(byte coda_byte_data) {
 
   //Set bits: 
   for (int bit_idx = 0; bit_idx < 3; bit_idx +=1) {
@@ -150,3 +152,21 @@ void handle_coda() {
     }
   }
 }
+
+void send_coda_to_br(byte coda_byte_data) {
+  // Set bits:
+  for (int bit_idx = 0; bit_idx < 8; bit_idx += 1) {
+    byte mask = 1 << bit_idx;
+    if (mask & coda_byte_data) {
+      digitalWrite(data_pins[bit_idx], HIGH);
+    } else {
+      digitalWrite(data_pins[bit_idx], LOW);
+    }
+  }
+ digitalWrite(rstart, HIGH);
+ digitalWrite(strobe, HIGH);
+ delay(0.5);
+ digitalWrite(strobe, LOW);
+}
+    
+    

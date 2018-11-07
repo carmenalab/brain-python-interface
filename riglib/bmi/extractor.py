@@ -9,7 +9,11 @@ from scipy.signal import butter, lfilter
 import math
 import os
 from itertools import izip
-
+# try:
+#     import h5py
+# except:
+#     print 'cannot import h5py, blackrock .nev files will be opened w/ pytables'
+    
 import nitime.algorithms as tsa
 
 
@@ -240,7 +244,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
             else:
                 step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
                 interp_rows = neurows[::step]
-
+            print 'step: ', step
             from plexon import psth
             spike_bin_fn = psth.SpikeBin(units, binlen)
             spike_counts = np.array(list(plx.spikes.bin(interp_rows, spike_bin_fn)))
@@ -258,6 +262,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
         elif 'blackrock' in files:
             nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+            nev_hdf_fname = [name for name in files['blackrock'] if '.nev' in name and name[-4:]=='.hdf']
             nsx_fnames = [name for name in files['blackrock'] if '.ns' in name]            
             # interpolate between the rows to 180 Hz
             if binlen < 1./strobe_rate:
@@ -271,13 +276,24 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
                 interp_rows = neurows[::step]
 
             
-            nev_hdf_fname = nev_fname + '.hdf'
-            if not os.path.isfile(nev_hdf_fname):
-                # convert .nev file to hdf file using Blackrock's n2h5 utility
-                subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+            
+            if len(nev_hdf_fname) == 0:
+                nev_hdf_fname = nev_fname + '.hdf'
+                
+                if not os.path.isfile(nev_hdf_fname):
+                    # convert .nev file to hdf file using Blackrock's n2h5 utility
+                    subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
+            else:
+                nev_hdf_fname = nev_hdf_fname[0]
 
-            import h5py
-            nev_hdf = h5py.File(nev_hdf_fname, 'r')
+            try:
+                nev_hdf = h5py.File(nev_hdf_fname, 'r')
+                open_method = 1
+            except:
+                import tables
+                nev_hdf = tables.openFile(nev_hdf_fname)
+                open_method = 2
+                #print 'open method 2'
 
             n_bins = len(interp_rows)
             n_units = units.shape[0]
@@ -291,15 +307,27 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
                 chan_str = str(chan).zfill(5)
                 path = 'channel/channel%s/spike_set' % chan_str
-                ts = nev_hdf.get(path).value['TimeStamp']
 
-                # the units corresponding to each timestamp in ts
-                # 0-based numbering (comes from .nev file), so add 1
-                units_ts = nev_hdf.get(path).value['Unit'] + 1
+                if open_method == 1:    
+                    ts = nev_hdf.get(path).value['TimeStamp']
+                    # the units corresponding to each timestamp in ts
+                    # 0-based numbering (comes from .nev file), so add 1
+                    units_ts = nev_hdf.get(path).value['Unit']
+                
+                elif open_method == 2:
+                    try:
+                        grp = nev_hdf.getNode('/'+path)
+                        ts = grp[:]['TimeStamp']
+                        units_ts = grp[:]['Unit']
+                    except:
+                        print 'no spikes recorded on channel: ', chan_str, ': adding zeros'
+                        ts = []
+                        units_ts = []
+
 
                 # get the ts for this unit, in units of secs
                 fs = 30000.
-                ts = [t/fs for idx, t in enumerate(ts) if units_ts[i] == unit]
+                ts = [t/fs for idx, (t, u_t) in enumerate(zip(ts, units_ts)) if u_t == unit]
 
                 # insert value interp_rows[0]-step to beginning of interp_rows array
                 interp_rows_ = np.insert(interp_rows, 0, interp_rows[0]-step)
@@ -309,12 +337,17 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
 
 
             # discard units that never fired at all
-            unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
-            units = units[unit_inds,:]
-            spike_counts = spike_counts[:, unit_inds]
+            if 'keep_zero_units' in extractor_kwargs:
+                print 'keeping zero firing units'
+            else:
+                unit_inds, = np.nonzero(np.sum(spike_counts, axis=0))
+                units = units[unit_inds,:]
+                spike_counts = spike_counts[:, unit_inds]
+            
             extractor_kwargs['units'] = units
 
-            return spike_counts, units, extractor_kwargs       
+            return spike_counts, units, extractor_kwargs  
+                 
         elif 'tdt' in files:
             raise NotImplementedError     
 
@@ -694,9 +727,11 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.n_subbins = n_subbins
         self.units = units
         self.last_get_spike_counts_time = 0
-        self.feature_dtype = [('spike_counts', 'u4', (len(units), n_subbins)), ('bin_edges', 'f8', 2)]
+        self.feature_dtype = [('spike_counts', 'f8', (len(units), n_subbins)), ('bin_edges', 'f8', 2),
+            ('ctrl_input', 'f8', self.encoder.C.shape[1])]
         self.task = task
-
+        self.sim_ctrl = np.zeros((self.encoder.C.shape[1]))
+        
     def get_spike_ts(self):
         '''
         see BinnedSpikeCountsExtractor.get_spike_ts for docs
@@ -704,6 +739,8 @@ class SimBinnedSpikeCountsExtractor(BinnedSpikeCountsExtractor):
         current_state = self.task.get_current_state()
         target_state = self.task.get_target_BMI_state()
         ctrl = self.input_device.calc_next_state(current_state, target_state)
+        #print current_state.T, target_state.T, ctrl.T
+        self.sim_ctrl = ctrl
         ts_data = self.encoder(ctrl)
         return ts_data
 
@@ -800,26 +837,39 @@ class LFPButterBPFPowerExtractor(object):
             step = int(binlen/(1./strobe_rate)) # Downsample kinematic data according to decoder bin length (assumes non-overlapping bins)
             interp_rows = neurows[::step]
 
-        # TODO -- for now, use .ns3 file (2 kS/s)
+        # TODO -- for now, use .ns3 or .ns2 file (2 kS/s)
+        nsx_fname = None
         for fname in nsx_fnames:
             if '.ns3' in fname:
                 nsx_fname = fname
-        extractor_kwargs['fs'] = 2000
+                fs_ = 2000
+        if nsx_fname is None:
+            for fname in nsx_fnames:
+                if '.ns2' in fname:
+                    nsx_fname = fname
+                    fs_ = 1000
+        
+        if nsx_fname is None:
+            raise Exception('Need an nsx file --> .ns2 or .ns3 is acceptable. Higher nsx files yield memory errors')
+        extractor_kwargs['fs'] = fs_
 
         # default order of 5 seems to cause problems when fs > 1000
         extractor_kwargs['filt_order'] = 3
 
-        
-        nsx_hdf_fname = nsx_fname + '.hdf'
-        if not os.path.isfile(nsx_hdf_fname):
-            # convert .nsx file to hdf file using Blackrock's n2h5 utility
-            subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
+        if nsx_fname[-4:] == '.hdf':
+            nsx_hdf_fname = nsx_fname
+        else:
+            nsx_hdf_fname = nsx_fname + '.hdf'
+            if not os.path.isfile(nsx_hdf_fname):
+                # convert .nsx file to hdf file using Blackrock's n2h5 utility
+                from db.tracker import models
+                models.parse_blackrock_file(None, [nsx_fname], )
 
         import h5py
         nsx_hdf = h5py.File(nsx_hdf_fname, 'r')
 
         # create extractor object
-        f_extractor = extractor.LFPButterBPFPowerExtractor(None, **extractor_kwargs)
+        f_extractor = LFPButterBPFPowerExtractor(None, **extractor_kwargs)
         extractor_kwargs = f_extractor.extractor_kwargs
 
         win_len  = f_extractor.win_len

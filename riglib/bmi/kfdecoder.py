@@ -10,7 +10,6 @@ import train
 import pickle
 import re
 
-
 class KalmanFilter(bmi.GaussianStateHMM):
     """
     Low-level KF, agnostic to application
@@ -53,7 +52,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
             self.C = np.mat(C)
             self.Q = np.mat(Q)
 
-            if is_stochastic == None:
+            if is_stochastic is None:
                 n_states = self.A.shape[0]
                 self.is_stochastic = np.ones(n_states, dtype=bool)
             else:
@@ -143,6 +142,9 @@ class KalmanFilter(bmi.GaussianStateHMM):
         post_state = pred_state
 
         #print obs_t.shape, C.shape, Q.shape
+        if np.any(obs_t > 1000):
+            print 'observations have counts >> 1000 '
+
         if obs_is_control_independent and using_control_input:
             post_state.mean += -KC*self.A*st.mean + K*obs_t
         else:
@@ -239,6 +241,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         else:
             return dtype(F), dtype(K)
 
+
     def get_kalman_gain_seq(self, N=1000, tol=1e-10, verbose=False):
         '''
         Calculate K_t for times {0, 1, ..., N}
@@ -304,7 +307,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
         return F, K
 
     @classmethod
-    def MLE_obs_model(self, hidden_state, obs, include_offset=True, drives_obs=None):
+    def MLE_obs_model(self, hidden_state, obs, include_offset=True, drives_obs=None,
+        regularizer=None):
         """
         Unconstrained ML estimator of {C, Q} given observations and
         the corresponding hidden states
@@ -339,13 +343,21 @@ class KalmanFilter(bmi.GaussianStateHMM):
             Y = np.mat(obs)
     
         n_states = X.shape[0]
-        if not drives_obs == None:
+        if not drives_obs is None:
             X = X[drives_obs, :]
             
         # ML estimate of C and Q
-        C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
+        if regularizer is None:
+            C = np.mat(np.linalg.lstsq(X.T, Y.T)[0].T)
+        else:
+            x = X.T
+            y = Y.T
+            XtX_lamb = x.T.dot(x) + regularizer * np.eye(x.shape[1])
+            XtY = x.T.dot(y)
+            C = np.linalg.solve(XtX_lamb, XtY).T
         Q = np.cov(Y - C*X, bias=1)
-        if not drives_obs == None:
+
+        if not drives_obs is None:
             n_obs = C.shape[0]
             C_tmp = np.zeros([n_obs, n_states])
             C_tmp[:,drives_obs] = C
@@ -380,7 +392,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         A, W, C, Q = np.mat(self.A), np.mat(self.W), np.mat(self.C), np.mat(self.Q)
         D = self.C_xpose_Q_inv_C 
-
         nS = A.shape[0]
         P = np.mat(np.zeros([nS, nS]))
         I = np.mat(np.eye(nS))
@@ -416,6 +427,49 @@ class KalmanFilter(bmi.GaussianStateHMM):
         K_null = np.eye(n_neurons) - np.linalg.pinv(K) * K
         return K_null
 
+class KalmanFilterDriftCorrection(KalmanFilter):
+    attrs_to_pickle = ['A', 'W', 'C', 'Q', 'C_xpose_Q_inv',
+        'C_xpose_Q_inv_C', 'R', 'S', 'T', 'ESS', 'drift_corr','prev_drift_corr']
+    noise_threshold = 96.*3.5
+
+    def _init_state(self):
+        if hasattr(self, 'prev_drift_corr'):
+            self.drift_corr = self.prev_drift_corr.copy()
+            print 'prev drift corr', np.mean(self.prev_drift_corr)
+        else:
+            self.drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))
+            self.prev_drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))
+
+        if hasattr(self, 'noise_rej'):
+            if self.noise_rej:
+                print 'noise rej thresh: ', self.noise_rej_cutoff
+        else:
+            self.noise_rej = False
+        self.noise_cnt = 0
+
+        super(KalmanFilterDriftCorrection, self)._init_state()
+        
+    def _forward_infer(self, st, obs_t, Bu=None, u=None, x_target=None, F=None, obs_is_control_independent=True, **kwargs):
+        
+        if self.noise_rej:
+            if np.sum(obs_t) > self.noise_rej_cutoff:
+                #print np.sum(obs_t), 'rejecting noise!'
+                self.noise_cnt += 1 
+                obs_t = np.mat(self.noise_rej_mFR).T
+                
+
+        state = super(KalmanFilterDriftCorrection, self)._forward_infer(st, obs_t, Bu=None, u=None, x_target=None, F=None, 
+            obs_is_control_independent=True, **kwargs)
+
+        ### Apply Drift Correction ###
+        decoded_vel = state.mean.copy()
+        state.mean[self.vel_ix] = decoded_vel[self.vel_ix] - self.drift_corr[self.vel_ix]
+
+        ### Update Drift Correcton ###
+        self.drift_corr[self.vel_ix] = self.drift_corr[self.vel_ix]*self.drift_rho + decoded_vel[self.vel_ix]*float(1. - self.drift_rho)
+        self.prev_drift_corr = self.drift_corr.copy()
+
+        return state
 
 class PCAKalmanFilter(KalmanFilter):
     '''
@@ -542,7 +596,6 @@ class FAKalmanFilter(KalmanFilter):
 
         return post_state
 
-
 class KFDecoder(bmi.BMI, bmi.Decoder):
     '''
     Wrapper for KalmanFilter specifically for the application of BMI decoding.
@@ -597,9 +650,11 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         self.zeromeanunits, = np.nonzero(mFR_curr == 0) #find any units with a mean FR of zero for this session
         sdFR_curr[self.zeromeanunits] = np.nan # set mean and SD of quiet units to nan to avoid divide by 0 error
         mFR_curr[self.zeromeanunits] = np.nan
-        self.sdFR_ratio = self.sdFR/sdFR_curr
-        self.mFR_diff = mFR_curr-self.mFR
-        self.mFR_curr = mFR_curr
+        #self.sdFR_ratio = self.sdFR/sdFR_curr
+        #self.mFR_diff = mFR_curr-self.mFR
+        #self.mFR_curr = mFR_curr
+        self.mFR = mFR_curr
+        self.sdFR = sdFR_curr
         self.zscore = True
 
     def update_params(self, new_params, steady_state=True):
@@ -732,107 +787,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         import sskfdecoder
         self.filt = sskfdecoder.SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q) 
 
-    def _proc_units(self, units, mode):
-        '''
-        Parse list of units indices to keep from string or np.ndarray of shape (N, 2)
-        Inputs: 
-            units -- 
-            mode -- can be 'keep' or 'remove' or 'to_int'. Tells function what to do with the units
-        '''
-
-        if isinstance(units[0], (str, unicode)):
-            # convert to array
-            if isinstance(units, (str, unicode)):
-                units = units.split(', ')
-
-            units_lut = dict(a=1, b=2, c=3, d=4)
-            units_int = []
-            for u in units:
-                ch = int(re.match('(\d+)([a-d])', u).group(1))
-                unit_ind = re.match('(\d+)([a-d])', u).group(2)
-                # import pdb; pdb.set_trace()
-                units_int.append((ch, units_lut[unit_ind]))
-
-            units = units_int
-        
-        if mode == 'to_int':
-            return units
-
-        inds_to_keep = []
-        new_units = map(tuple, units)
-        for k, old_unit in enumerate(self.units):
-            if mode == 'keep':
-                if tuple(old_unit) in new_units:
-                    inds_to_keep.append(k)
-            elif mode == 'remove':
-                if tuple(old_unit) not in new_units:
-                    inds_to_keep.append(k)
-        return inds_to_keep
-
-    def add_units(self, units):
-        '''
-        Add units to KFDecoder, e.g. to account for appearance of new cells 
-        on a particular day, will need to do CLDA to fit new deocder weight
-        
-        Parameters: 
-        units: string or np.ndarray of shape (N, 2) of units to REMOVE from current decoder
-        '''
-        units_curr = self.units
-        new_units = self._proc_units(units, 'to_int')
-
-        keep_ix = []
-        for r, r_un in enumerate(new_units):
-            if len(np.nonzero(np.all(r_un==units_curr, axis=1))[0]) > 0: 
-                print 'not adding unit ', r_un, ' -- already in decoder'
-            else:
-                keep_ix.append(r)
-
-        new_units = np.array(new_units)[keep_ix, :]
-        units = np.vstack((units_curr, new_units))
-
-        C = np.vstack(( self.filt.C, np.random.rand(len(new_units), self.ssm.n_states)))
-        Q = np.eye( len(units), len(units) )
-        Q[np.ix_(np.arange(len(units_curr)), np.arange(len(units_curr)))] = self.filt.Q
-        Q_inv = np.linalg.inv(Q)
-
-        if isinstance(self.mFR, np.ndarray):
-            mFR = np.hstack(( self.mFR, np.zeros((len(new_units))) ))
-            sdFR = np.hstack(( self.sdFR, np.zeros((len(new_units))) ))
-        else:
-            mFR = self.mFR
-            sdFR = self.sdFR
-
-        filt = KalmanFilter(A=self.filt.A, W=self.filt.W, C=C, Q=Q, is_stochastic=self.filt.is_stochastic)
-        C_xpose_Q_inv = C.T * Q_inv
-        C_xpose_Q_inv_C = C.T * Q_inv * C
-        filt.C_xpose_Q_inv = C_xpose_Q_inv
-        filt.C_xpose_Q_inv_C = C_xpose_Q_inv_C        
-
-        filt.R = self.filt.R
-        filt.S = np.vstack(( self.filt.S, np.random.rand(len(new_units), self.filt.S.shape[1])))
-        filt.T = Q.copy()
-        filt.T[np.ix_(np.arange(len(units_curr)), np.arange(len(units_curr)))] = self.filt.T
-        filt.ESS = self.filt.ESS
-
-        decoder = KFDecoder(filt, units, self.ssm, mFR=mFR, sdFR=sdFR, binlen=self.binlen, tslice=self.tslice)
-        decoder.n_features = units.shape[0]
-        decoder.units = units
-        decoder.extractor_cls = self.extractor_cls
-        decoder.extractor_kwargs = self.extractor_kwargs
-        decoder.extractor_kwargs['units'] = units
-        self._save_new_dec(decoder, '_add')
-
-    def remove_units(self, units):
-        '''
-        Remove units to KFDecoder, e.g. to account for disappearance of new cells on a particular day
-        
-        Parameters: 
-        units: string or np.ndarray of shape (N, 2) of units to REMOVE from current decoder
-        '''
-        inds_to_keep = self._proc_units(units, 'remove')
-        dec_new = self._return_proc_units_decoder(inds_to_keep)
-        self._save_new_dec(dec_new, '_rm')
-
     def subselect_units(self, units):
         '''
         Prune units from the KFDecoder, e.g., due to loss of recordings for a particular cell
@@ -851,64 +805,6 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         dec_new = self._return_proc_units_decoder(inds_to_keep)
         return dec_new
         #self._save_new_dec(dec_new, '_subset')
-        
-
-    def _save_new_dec(self, dec_obj, suffix):
-        try:
-            te_id = self.te_id
-        except:
-            dec_nm = self.name
-            te_ix = dec_nm.find('te')
-            te_ix_end = dec_nm.find('_',te_ix)
-            te_id = int(dec_nm[te_ix+2:te_ix_end])
-
-        #from db.tracker.models import Decoder
-        #from db import trainbmi
-
-        old_dec_obj = Decoder.objects.filter(entry=te_id)
-        trainbmi.save_new_decoder_from_existing(dec_obj, old_dec_obj[0], suffix=suffix)
-
-    def _return_proc_units_decoder(self, inds_to_keep):
-        A = self.filt.A
-        W = self.filt.W
-        C = self.filt.C
-        Q = self.filt.Q
-        print 'INDS: ', inds_to_keep
-        C = C[inds_to_keep, :]
-        Q = Q[np.ix_(inds_to_keep, inds_to_keep)]
-        Q_inv = np.linalg.inv(Q)
-
-        if isinstance(self.mFR, np.ndarray):
-            mFR = self.mFR[inds_to_keep]
-            sdFR = self.mFR[inds_to_keep]
-        else:
-            mFR = self.mFR
-            sdFR = self.sdFR
-
-        filt = KalmanFilter(A=A, W=W, C=C, Q=Q, is_stochastic=self.filt.is_stochastic)
-        C_xpose_Q_inv = C.T * Q_inv
-        C_xpose_Q_inv_C = C.T * Q_inv * C
-        filt.C_xpose_Q_inv = C_xpose_Q_inv
-        filt.C_xpose_Q_inv_C = C_xpose_Q_inv_C        
-
-        units = self.units[inds_to_keep]
-
-        filt.R = self.filt.R
-        filt.S = self.filt.S[inds_to_keep, :]
-        filt.T = self.filt.T[np.ix_(inds_to_keep, inds_to_keep)]
-        filt.ESS = self.filt.ESS
-
-        decoder = KFDecoder(filt, units, self.ssm, mFR=mFR, sdFR=sdFR, binlen=self.binlen, tslice=self.tslice)
-
-        decoder.n_features = units.shape[0]
-        decoder.units = units
-        decoder.extractor_cls = self.extractor_cls
-        decoder.extractor_kwargs = self.extractor_kwargs
-
-        decoder.extractor_kwargs['units'] = units
-
-        return decoder
-
 
 def project_Q(C_v, Q_hat):
     """ 
@@ -1005,3 +901,7 @@ def project_Q(C_v, Q_hat):
     #print C_v.T * Q.I * C_v
     #print v_star
     return Q
+
+
+
+

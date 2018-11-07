@@ -198,7 +198,30 @@ class LinearlyDecreasingAssist(LinearlyDecreasingAttribute):
         super(LinearlyDecreasingAssist, self).__init__(*args, **kwargs)
         if 'assist_level' not in self.attrs:
             self.attrs.append('assist_level')
+
+class LinearlyDecreasingXYAssist(LinearlyDecreasingAttribute):
+    ''' 
+    linearly decreasing XY assist -- for ArmAssist
+    '''
+    aa_assist_level = traits.Tuple((0.0, 0.0), desc='level of assist to apply to XY output')
+    aa_assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")
     
+    def __init__(self, *args, **kwargs):
+        super(LinearlyDecreasingXYAssist, self).__init__(*args, **kwargs)
+        if 'aa_assist_level' not in self.attrs:
+            self.attrs.append('aa_assist_level')
+
+class LinearlyDecreasingAngAssist(LinearlyDecreasingAttribute):
+    ''' 
+    linearly decreasing angular assist -- for psi and ReHand
+    '''
+    rh_assist_level = traits.Tuple((0.0, 0.0), desc='level of assist to apply to ang output')
+    rh_assist_level_time = traits.Float(600, desc="Number of seconds to go from initial to minimum assist level")
+    
+    def __init__(self, *args, **kwargs):
+        super(LinearlyDecreasingAngAssist, self).__init__(*args, **kwargs)
+        if 'rh_assist_level' not in self.attrs:
+            self.attrs.append('rh_assist_level')
 
 class LinearlyDecreasingHalfLife(LinearlyDecreasingAttribute):
     '''

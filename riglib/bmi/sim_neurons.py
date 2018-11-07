@@ -28,14 +28,16 @@ class KalmanEncoder(object):
     generates a vector of neural features y according to the KF observation
     model equation: y = Cx + q.
     '''
-    def __init__(self, ssm, n_features):
+    def __init__(self, ssm, n_features, int_neural_features=False, scale_noise=1.):
         self.ssm = ssm
         self.n_features = n_features
+        self.int_neural_features = int_neural_features
+        self.scale_noise = scale_noise
 
         drives_neurons = ssm.drives_obs
         nX = ssm.n_states
 
-        C = np.random.standard_normal([n_features, nX])
+        C = 3*np.random.standard_normal([n_features, nX])
         C[:, ~drives_neurons] = 0
         Q = np.identity(n_features)
 
@@ -44,8 +46,14 @@ class KalmanEncoder(object):
 
     def __call__(self, intended_state, **kwargs):
         q = np.random.multivariate_normal(np.zeros(self.Q.shape[0]), self.Q).reshape(-1, 1)
-        neural_features = np.dot(self.C, intended_state.reshape(-1,1)) + q
-        return neural_features
+        neural_features = np.dot(self.C, intended_state.reshape(-1,1)) + self.scale_noise*q
+        if self.int_neural_features:
+            nf = np.round(neural_features)
+            nf[nf <=0] = 0
+            nf[nf > 10] = 10
+            return nf
+        else:
+            return neural_features
 
     def get_units(self):
         '''
@@ -189,15 +197,22 @@ class FACosEnc(GenericCosEnc):
 
         self.eps = 1e-15
         
-        #Establish mapping from kinematics to factors: 
-        self.psi_unt = np.zeros((self.n_neurons, 1)) #517
-        self.psi_unt_std = np.sqrt(7.)
+        if 'psi_tun' in kwargs:
+            print 'using kwargs psi tun'
+            self.psi_tun = kwargs['psi_tun']
+            self.psi_unt_std = kwargs['psi_unt_std']
 
-        #Matched to fit KF data -- unit vectors: 
-        self.psi_tun = np.random.normal(0, 1, (self.n_neurons, ssm.n_states))
-        self.psi_tun[:, [0, 1, 2, 4, 6]] = 0
-        self.psi_tun = self.psi_tun / np.tile(np.linalg.norm(self.psi_tun, axis=1)[:, np.newaxis], [1, ssm.n_states])
-        self.psi_tun = self.psi_tun/np.sqrt(2) #Due to 2 active states contributing to tuning
+
+        else:
+        #Establish mapping from kinematics to factors: 
+            self.psi_unt = np.zeros((self.n_neurons, 1)) #517
+            self.psi_unt_std = np.sqrt(7.) + np.zeros((self.n_neurons, ))
+
+            #Matched to fit KF data -- unit vectors: 
+            self.psi_tun = np.random.normal(0, 1, (self.n_neurons, ssm.n_states))
+            self.psi_tun[:, [0, 1, 2, 4, 6]] = 0
+            self.psi_tun = self.psi_tun / np.tile(np.linalg.norm(self.psi_tun, axis=1)[:, np.newaxis], [1, ssm.n_states])
+            self.psi_tun = self.psi_tun/np.sqrt(2) #Due to 2 active states contributing to tuning
 
         
         self.v_ = 2*(np.random.random_sample(self.n_tun_factors)-0.5)
@@ -217,6 +232,8 @@ class FACosEnc(GenericCosEnc):
         self.W = self.W / np.sqrt(2) 
 
         #REMEMBER -- MEAN IS FOR 0.1 SEC, so 20/10: 
+        #self.mu = 2*(np.random.random_sample((self.n_neurons, ))+1)
+        self.mu = np.random.exponential(.75, size=(self.n_neurons, ))
 
         #Results prior to 7-30-16 used a mean of 2spks / 100 ms: 
         #self.mu = 2*(np.random.random_sample((self.n_neurons, ))+1)
@@ -253,7 +270,7 @@ class FACosEnc(GenericCosEnc):
                 cnt = []
                 for z in range(self.priv_unt_bins[n]):
                     #psi_unt = np.max([np.random.normal(self.psi_unt[n], self.psi_unt_std), 0])
-                    psi_unt = np.random.normal(0, self.psi_unt_std) #517
+                    psi_unt = np.random.normal(0, self.psi_unt_std[n]) #517
                     cnt.append(psi_unt)
                 priv_unt.append(np.sum(cnt))
             else:
@@ -339,6 +356,156 @@ class FACosEnc(GenericCosEnc):
             else:
                 y.append(-1*np.sqrt(r2 - x**2))
         return np.array(y)
+
+def from_file_to_FACosEnc(plot=False):
+    from riglib.bmi import state_space_models as ssm
+    import pickle
+    import os
+    import matplotlib.pyplot as plt
+
+    dat = pickle.load(open(os.path.expandvars('/home/lab/preeya/fa_analysis/grom_data/co_obs_SNR_w_coefficients.pkl')))
+    SSM = ssm.StateSpaceEndptVel2D()
+
+    snr = {}
+    eps = 10**-10
+
+    if plot:
+        f, ax = plt.subplots(nrows=3, ncols=3)
+
+    for j, i in enumerate(np.sort(dat.keys())):
+        
+        snr[i] = []
+        d = dat[i]
+        kwargs = {}
+        kwargs['n_neurons'] = len(d.keys())
+        C = np.random.rand(kwargs['n_neurons'], SSM.n_states)
+        kwargs['wt_sources'] = [1, 1, 0, 0]
+        enc = FACosEnc(C, SSM, return_ts =True, **kwargs)
+
+        for n in range(len(d.keys())):
+            #For individual units: 
+            enc.psi_tun[n, [3, 5, 6]] = d[n][3][0, :] #Terrible construction. 
+            enc.mu[n] = 0
+        #Now set the standard deviation: Draw from VFB distribution of commands 
+        
+        data, enc = sim_enc(enc)
+        U = np.vstack((data['unt']))
+        T = np.vstack((data['tun']))
+        spk = U+T
+        vel = np.hstack((data['ctl']))[[3, 5], :].T
+        vel = np.hstack((np.array(vel), np.ones((len(vel), 1))))
+
+        # Fit encoder: 
+        n_units = spk.shape[1]
+        snr_act = []
+        for n in range(n_units):
+            snr_des = d[n][2]
+            if np.isnan(snr_des):
+                snr_des = .3
+                print 'sucdess'
+            snr_act.append(snr_des)
+            s2 = spk[:, n] #Spikes: 
+            x = np.linalg.lstsq(vel , s2[:, np.newaxis]) #Regress Spikes against Velocities
+            qnoise = np.var(s2[:, np.newaxis] - vel*np.mat(x[0])) #Residuals
+            #Explained Variance vs. Residual Variance: 
+            qsig = np.var(vel*np.mat(x[0]))
+            k = qsig/(snr_des)
+            enc.psi_unt_std[n] = np.sqrt(k)# + eps
+            
+        #Fit simulation: 
+        data, enc = sim_enc(enc)
+        U = np.vstack((data['unt']))
+        T = np.vstack((data['tun']))
+        spk = U+T
+        vel = np.hstack((data['ctl']))[[3, 5], :].T
+        vel = np.hstack((np.array(vel), np.ones((len(vel), 1))))
+        snr_sim = []
+        for n in range(n_units):
+            s2 = spk[:, n] #Spikes: 
+            x = np.linalg.lstsq(vel, s2[:, np.newaxis]) #Regress Spikes against Velocities
+            qnoise = np.var(s2[:, np.newaxis] - vel*np.mat(x[0])) #Residuals
+            #Explained Variance vs. Residual Variance: 
+            qsig = np.var(vel*np.mat(x[0]))
+            snr_sim.append(qsig/qnoise)
+
+        if plot:
+            axi = ax[j/3, j%3]
+            axi.plot(snr_sim, snr_act, '.')
+            axi.set_title(dat.keys()[j])
+
+        #kwargs['psi_unt_std'] = psi_unt_std
+        #kwargs['psi_tun'] = psi_tun
+        pickle.dump(enc, open(os.path.expandvars('$FA_GROM_DATA/sims/test_obs_vs_co_overlap/encoder_param_matched_'+str(i)+'.pkl'), 'wb'))
+
+def test_sim_enc():
+    int_enc_names = [26, 28, 31, 39, 40, 41, 42, 43, 44]
+    import pickle, os
+    import matplotlib.pyplot as plt
+    real_data = pickle.load(open(os.path.expandvars('/home/lab/preeya/fa_analysis/grom_data/co_obs_SNR_w_coefficients.pkl')))
+    f, ax = plt.subplots(nrows=3, ncols=3)
+    for ie, e in enumerate(int_enc_names):
+        axi = ax[ie/3, ie%3]
+        match_data = real_data[e]
+        enc = pickle.load(open(os.path.expandvars('$FA_GROM_DATA/sims/test_obs_vs_co_overlap/encoder_param_matched_'+str(e)+'.pkl')))
+        data, enc = sim_enc(enc)
+        U = np.vstack((data['unt']))
+        T = np.vstack((data['tun']))
+
+        spk = U+T
+        vel = np.hstack((data['ctl']))[[3, 5], :].T
+        n_units = spk.shape[1]
+        for n in range(n_units):
+            s2 = spk[:, n] #Spikes: 
+            x = np.linalg.lstsq(s2[:, np.newaxis], vel) #Regress Spikes against Velocities
+            q = s2[:, np.newaxis] - vel*np.mat(x[0].T) #Residuals
+            #Explained Variance vs. Residual Variance: 
+            ev = np.var(vel*np.mat(x[0].T))
+            snr = ev/np.var(q)
+            axi.plot(snr, match_data[n][2], '.')
+        axi.set_xlim([0, 1.5])
+        axi.set_ylim([0, 1.5])
+
+def sim_enc(enc):
+    enc.call_ds_rate = 1
+    from tasks import sim_fa_decoding
+    dat = {}
+    dat['tun'] = []
+    dat['unt'] = []
+    dat['ctl'] = []
+
+    assister = sim_fa_decoding.SuperSimpleEndPtAssister()
+
+    for it in range(2000):
+        current_state = (np.random.rand(7, 1) - 0.5)*30
+        current_state[[1, 4], 0] = 0
+        target_state = np.zeros((7, 1))
+        ang = (np.random.permutation(8)[0])/8*np.pi*2
+        target_state[[0, 2], 0] = np.array([10*np.cos(ang), 10*np.sin(ang)])
+
+        ctrl = assister.calc_next_state(current_state, target_state)
+        ts_data = enc(ctrl)
+        dat['ctl'].append(ctrl)
+        dat['tun'].append(enc.priv_tun)
+        dat['unt'].append(enc.priv_unt)
+    enc.call_ds_rate = 6
+    return dat, enc
+
+
+def make_FACosEnc(num):
+    from riglib.bmi import state_space_models as ssm
+    import pickle
+    num_neurons = 20;
+    SSM = ssm.StateSpaceEndptVel2D()
+
+    for n in range(num):
+        kwargs = {}
+        kwargs['n_neurons'] = num_neurons
+        C = np.random.rand(num_neurons, SSM.n_states)
+        enc = FACosEnc(C, SSM, return_ts=True, **kwargs)
+        enc.psi_unt_std[:4] /= 40
+        pickle.dump(enc, open('/storage/preeya/grom_data/sims/test_obs_vs_co_overlap/encoder_param_matched_'+str(n)+'.pkl', 'wb'))
+
+
 
 class CursorVelCosEnc(GenericCosEnc):
     '''

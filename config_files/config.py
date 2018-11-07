@@ -27,6 +27,11 @@ class Config(object):
         self.plexon_ip = dict(parser.items('plexon IP address'))['addr']
         self.plexon_port = dict(parser.items('plexon IP address'))['port']
 
+        try:
+            self.hdf_update_rate_hz = int(dict(parser.items('update_rates'))['hdf_hz'])
+        except:
+            self.hdf_update_rate_hz = 60.
+
     def __getattr__(self, attr):
         try:
             return dict(self.parser.items(attr))

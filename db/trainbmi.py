@@ -49,7 +49,7 @@ def cache_plx(plxfile):
     plexfile.openFile(str(plxfile)) 
 
 @task()
-def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key, kin_extractor):
+def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key, kin_extractor, zscore):
     """
     Create a new Decoder object from training data and save a record to the database
 
@@ -139,7 +139,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     system_names = set(d.system.name for d in datafiles)
     for system_name in system_names:
         filenames = [d.get_path() for d in datafiles if d.system.name == system_name]
-        if system_name == 'blackrock':
+        if system_name in ['blackrock', 'blackrock2']:
             files[system_name] = filenames  # list of (one or more) files
         else:
             assert(len(filenames) == 1)
@@ -148,7 +148,8 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     training_method = namelist.bmi_algorithms[clsname]
     ssm = namelist.bmi_state_space_models[ssm]
     kin_extractor_fn = namelist.kin_extractors[kin_extractor]
-    decoder = training_method(files, extractor_cls, extractor_kwargs, kin_extractor_fn, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key)
+    decoder = training_method(files, extractor_cls, extractor_kwargs, kin_extractor_fn, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key,
+        zscore=zscore)
     decoder.te_id = entry
 
     tf = tempfile.NamedTemporaryFile('wb')

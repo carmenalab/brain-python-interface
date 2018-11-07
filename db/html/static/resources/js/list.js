@@ -82,8 +82,9 @@ Sequence.prototype.update = function(info) {
         var seq_obj = this;
         this._handle_chlist = function () {
             var id = this.value; // 'this' is bound to the options list when it's used inside the callback below
-            if (id == "new")
+            if (id == "new") {
                 seq_obj.edit()
+            }
             else {
             	// the selected sequence is a previously used sequence, so populate the parameters from the db
                 seq_obj.params.update(info[id].params);
@@ -99,6 +100,7 @@ Sequence.prototype.update = function(info) {
             }
         };
         $("#seqlist").change(this._handle_chlist);
+        $("#seqgen").change(this._handle_chgen);
 
         $("#seqstatic,#seqparams input, #seqgen").attr("disabled", "disabled");
     } else {
@@ -1740,6 +1742,7 @@ BMI.prototype.train = function() {
     data.ssm = $("#ssm").val();
     data.pos_key = $("#pos_key").val();
     data.kin_extractor = $("#kin_extractor").val();
+    data.zscore = $("#zscore").val();
 
     data.csrfmiddlewaretoken = csrf.val();
 

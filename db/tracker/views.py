@@ -33,7 +33,8 @@ def list(request):
     start_date = datetime.date.today() - td
     # entries = TaskEntry.objects.filter(visible=True).order_by('-date') # date__gt=start_date, 
     # entries = TaskEntry.objects.all()[:200][::-1]
-    entries = TaskEntry.objects.filter(visible=True).order_by('-date')
+    entries = TaskEntry.objects.filter(visible=True).order_by('-date')[:200]
+
     
     for k in range(0, len(entries)):
         ent = entries[k]
@@ -85,6 +86,7 @@ def list(request):
         pos_vars=namelist.bmi_training_pos_vars,            # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
         kin_extractors=namelist.kin_extractors,             # post-processing methods on the selected kinematic variable
         n_blocks=len(entries),
+        zscores=namelist.zscores,
     )
 
     # this line is important--this is needed so the Track object knows if the task has ended in an error

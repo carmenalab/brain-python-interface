@@ -13,6 +13,7 @@ import re
 import os
 import tables
 import datetime
+import copy
 
 
 class GaussianState(object):
@@ -147,10 +148,10 @@ class GaussianStateHMM(object):
         """
         ## Initialize the BMI state, assuming 
         nS = self.A.shape[0] # number of state variables
-        if init_state == None:
+        if init_state is None:
             init_state = np.mat( np.zeros([nS, 1]) )
             if self.include_offset: init_state[-1,0] = 1
-        if init_cov == None:
+        if init_cov is None:
             init_cov = np.mat( np.zeros([nS, nS]) )
         self.state = GaussianState(init_state, init_cov) 
         self.init_noise_models()
@@ -617,12 +618,13 @@ class Decoder(object):
         kwargs: dict
             Mostly for kwargs function call compatibility
         """
-        if assist_level > 0 and 'x_assist' not in kwargs:
+        if np.any(assist_level) > 0 and 'x_assist' not in kwargs:
             raise ValueError("Assist cannot be used if the forcing term is not specified!")
 
         # re-normalize the variance of the spike observations, if nec
         if hasattr(self, 'zscore') and self.zscore:
-            neural_obs = (np.asarray(neural_obs).ravel() - self.mFR_curr) * self.sdFR_ratio
+            #neural_obs = (np.asarray(neural_obs).ravel() - self.mFR_curr) * self.sdFR_ratio
+            neural_obs = (np.asarray(neural_obs).ravel() - self.mFR) * (1./self.sdFR)
             # set the spike count of any unit that now has zero-mean with its original mean
             # This functionally removes it from the decoder. 
             neural_obs[self.zeromeanunits] = self.mFR[self.zeromeanunits] 
@@ -635,10 +637,36 @@ class Decoder(object):
         # Run the filter
         self.filt(neural_obs, **kwargs)
 
-        if assist_level > 0:
-            weighted_avg_lfc = int(weighted_avg_lfc)
+        if np.any(assist_level) > 0:
             x_assist = kwargs.pop('x_assist')
-            self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
+
+            if 'ortho_damp_assist' in kwargs and kwargs['ortho_damp_assist']:
+                x_assist[self.drives_neurons,:] /= np.linalg.norm(x_assist[self.drives_neurons,:])
+                targ_comp = float(self.filt.state.mean[self.drives_neurons,:].T*x_assist[self.drives_neurons,:])*x_assist[self.drives_neurons,:]
+                orth_comp = self.filt.state.mean[self.drives_neurons,:] - targ_comp
+                
+                if type(assist_level) is np.ndarray:
+                    tmp = np.mat(np.zeros((len(self.filt.state.mean)))).T
+                    tmp[:7, :] = self.filt.state.mean[:7, 0]
+                    assist_level_ix = kwargs['assist_level_ix']
+                    for ia, al in enumerate(assist_level):
+                        ix = np.nonzero(assist_level_ix[ia] <= 6)[0] 
+                        tmp[assist_level_ix[ia][ix]+7, :] = targ_comp[assist_level_ix[ia][ix]] + (1 - al)*orth_comp[assist_level_ix[ia][ix]]
+                    self.filt.state.mean = tmp
+
+                else:
+                    # High assist damps orthogonal component a lot
+                    self.filt.state.mean[self.drives_neurons,:] = targ_comp + (1 - assist_level)*orth_comp
+            
+            elif type(assist_level) is np.ndarray:
+                tmp = np.zeros((len(self.filt.state.mean)))
+                assist_level_ix = kwargs['assist_level_ix']
+                for ia, al in enumerate(assist_level):
+                    tmp[assist_level_ix[ia]] = (1-al)*self.filt.state.mean[assist_level_ix[ia]] + al*x_assist[assist_level_ix[ia]]
+                self.filt.state.mean = np.mat(tmp).T
+            
+            else:
+                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
 
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):
@@ -824,7 +852,6 @@ class BMISystem(object):
             current function call 
         '''
         n_units, n_obs = neural_obs.shape
-
         # If the target is specified as a 1D position, tile to match 
         # the number of dimensions as the neural features
         if np.ndim(target_state) == 1 or (target_state.shape[1] == 1 and n_obs > 1):
@@ -878,7 +905,7 @@ class BMISystem(object):
 
             new_params = None # by default, no new parameters are available
             if self.has_updater:
-                new_params = self.updater.get_result()
+                new_params = copy.deepcopy(self.updater.get_result())
 
             # Update the decoder if new parameters are available
             if not (new_params is None):
@@ -1088,14 +1115,14 @@ class BMILoop(object):
 
         # Determine the target_state and save to file
         current_assist_level = self.get_current_assist_level()
-        if current_assist_level > 0 or self.learn_flag:
+        if np.any(current_assist_level > 0) or self.learn_flag:
             target_state = self.get_target_BMI_state(self.decoder.states)
         else:
             target_state = np.ones([self.decoder.n_states, self.decoder.n_subbins]) * np.nan
 
 
         # Determine the assistive control inputs to the Decoder
-        if current_assist_level > 0:
+        if np.any(current_assist_level) > 0:
             current_state = self.get_current_state()
 
             if target_state.shape[1] > 1:
@@ -1245,6 +1272,19 @@ class BMILoop(object):
 
     def cleanup(self, database, saveid, **kwargs):
         super(BMILoop, self).cleanup(database, saveid, **kwargs)
+
+        # Resave decoder with drift-parameter saved as prev_task_drift_corr:
+        if hasattr(self.decoder.filt, 'drift_corr'):
+            print 'saving decoder: ', self.decoder.filt.drift_corr, self.decoder.filt.prev_drift_corr
+            decoder_name = self.decoder.name + '_d'+str(saveid) 
+            decoder_tempfilename = self.decoder.save()
+
+            # Link the pickled decoder file to the associated task entry in the database
+            dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+            if dbname == 'default':
+                database.save_bmi(decoder_name, saveid, decoder_tempfilename)
+            else:
+                database.save_bmi(decoder_name, saveid, decoder_tempfilename, dbname=dbname)  
 
         # Open a log file in case of error b/c errors not visible to console
         # at this point
