@@ -93,9 +93,9 @@ for i, t in enumerate(t_vec):
     if tstep - t_elapsed > 0:
         time.sleep(tstep - t_elapsed)
     else:
-        print 'Warning: iteration time is greater than tstep'
+        print('Warning: iteration time is greater than tstep')
 
-print 'Total simulation time:', time.time() - t_sim_start
+print('Total simulation time:', time.time() - t_sim_start)
 
 # stop ReHand process
 rh.stop()

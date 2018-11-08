@@ -2,14 +2,13 @@
 This module contains functions which convert parameter sets stored
 as JSON blobs into python dictionaries or vice versa.
 '''
-import __builtin__
+import builtins
 import ast
 import json
 import numpy as np
 
-from tracker import models
 from riglib import calibrations
-import namelist
+# from . import namelist
 import os
 
 def param_objhook(obj):
@@ -29,6 +28,7 @@ def param_objhook(obj):
         is simply returned.
 
     '''
+    from . import models
     if '__django_model__' in obj:
         model = getattr(models, obj['__django_model__'])
         return model(pk = obj['pk'])
@@ -37,7 +37,7 @@ def param_objhook(obj):
         return func(*obj['args'])
     elif '__class__' in obj:
         # look up the module
-        mod = __builtin__.__import__(obj['__module__'], fromlist=[obj['__class__']])
+        mod = builtins.__import__(obj['__module__'], fromlist=[obj['__class__']])
 
         # get the class with the 'getattr' and then run the class constructor on the class data
         return getattr(mod, obj['__class__'])(obj['__dict__'])
@@ -61,6 +61,7 @@ def norm_trait(trait, value):
     -------
     typecast value of trait
     '''
+    from . import models
     ttype = trait.trait_type.__class__.__name__
     if ttype == 'Instance':
         # if the trait is an 'Instance' type and the value is a number, then the number gets interpreted as the primary key to a model in the database
@@ -142,17 +143,18 @@ class Parameters(object):
     @classmethod
     def from_html(cls, params):
         processed = dict()
-        for name, value in params.items():
-            if isinstance(value, (str, unicode)):
+        for name, value in list(params.items()):
+            if isinstance(value, str):
                 processed[name] = _parse_str(value)
             elif isinstance(value, list):
-                processed[name] = map(_parse_str, value)
+                processed[name] = list(map(_parse_str, value))
             else:
                 processed[name] = value
 
         return cls.from_dict(processed)
 
     def to_json(self):
+        from . import models
         def encode(obj):
             if isinstance(obj, models.models.Model):
                 # If an object is a Django model instance, serialize it using just the model name and the primary key 
@@ -167,7 +169,7 @@ class Parameters(object):
                 return obj.tolist()    
             elif isinstance(obj, dict):
                 # if the object is a dictionary, just run the encoder on each of the 'values' of the dictionary
-                return dict((k, encode(v)) for k, v in obj.items())
+                return dict((k, encode(v)) for k, v in list(obj.items()))
             elif isinstance(obj, object) and hasattr(obj, '__dict__'):
                 # if the object is a new-style class (inherits from 'object'), save the module, class name and object data
                 # (python object data (attributes) are stored in the parameter __dict__)
@@ -199,7 +201,7 @@ class Parameters(object):
         '''
         params = self.params
         self.params = dict()
-        for name, value in params.items():
+        for name, value in list(params.items()):
             if name in traits:
                 self.params[name] = norm_trait(traits[name], value)
             else:

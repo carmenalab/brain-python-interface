@@ -2,7 +2,7 @@
 """
 Classes to simulate neural activity (spike firing rates) by various methods.
 """
-from __future__ import division
+
 import os
 import numpy as np
 
@@ -11,7 +11,7 @@ from scipy.io import loadmat
 import numpy as np
 from numpy.random import poisson, rand
 from scipy.io import loadmat, savemat
-from itertools import izip
+
 
 
 from scipy.integrate import trapz, simps
@@ -198,7 +198,7 @@ class FACosEnc(GenericCosEnc):
         self.eps = 1e-15
         
         if 'psi_tun' in kwargs:
-            print 'using kwargs psi tun'
+            print('using kwargs psi tun')
             self.psi_tun = kwargs['psi_tun']
             self.psi_unt_std = kwargs['psi_unt_std']
 
@@ -372,17 +372,17 @@ def from_file_to_FACosEnc(plot=False):
     if plot:
         f, ax = plt.subplots(nrows=3, ncols=3)
 
-    for j, i in enumerate(np.sort(dat.keys())):
+    for j, i in enumerate(np.sort(list(dat.keys()))):
         
         snr[i] = []
         d = dat[i]
         kwargs = {}
-        kwargs['n_neurons'] = len(d.keys())
+        kwargs['n_neurons'] = len(list(d.keys()))
         C = np.random.rand(kwargs['n_neurons'], SSM.n_states)
         kwargs['wt_sources'] = [1, 1, 0, 0]
         enc = FACosEnc(C, SSM, return_ts =True, **kwargs)
 
-        for n in range(len(d.keys())):
+        for n in range(len(list(d.keys()))):
             #For individual units: 
             enc.psi_tun[n, [3, 5, 6]] = d[n][3][0, :] #Terrible construction. 
             enc.mu[n] = 0
@@ -402,7 +402,7 @@ def from_file_to_FACosEnc(plot=False):
             snr_des = d[n][2]
             if np.isnan(snr_des):
                 snr_des = .3
-                print 'sucdess'
+                print('sucdess')
             snr_act.append(snr_des)
             s2 = spk[:, n] #Spikes: 
             x = np.linalg.lstsq(vel , s2[:, np.newaxis]) #Regress Spikes against Velocities
@@ -431,7 +431,7 @@ def from_file_to_FACosEnc(plot=False):
         if plot:
             axi = ax[j/3, j%3]
             axi.plot(snr_sim, snr_act, '.')
-            axi.set_title(dat.keys()[j])
+            axi.set_title(list(dat.keys())[j])
 
         #kwargs['psi_unt_std'] = psi_unt_std
         #kwargs['psi_tun'] = psi_tun
@@ -782,7 +782,7 @@ class PointProcessEnsemble(object):
         
         # x_t = np.hstack([x_t, 1])
         x_t = np.array(x_t).ravel()
-        counts = np.array(map(lambda unit: unit(x_t), self.point_process_units)).astype(int)
+        counts = np.array([unit(x_t) for unit in self.point_process_units]).astype(int)
         return counts
 
 class CLDASimPointProcessEnsemble(PointProcessEnsemble):

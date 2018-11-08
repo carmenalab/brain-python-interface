@@ -56,8 +56,8 @@ class SingleChannelVideo(traits.HasTraits):
         cmd_caller = MultiprocShellCommand(cmd)
         cmd_caller.start()
         self.cmd_caller = cmd_caller
-        print "started video recording"
-        print cmd
+        print("started video recording")
+        print(cmd)
         
         super(SingleChannelVideo, self).init()
 
@@ -75,15 +75,15 @@ class SingleChannelVideo(traits.HasTraits):
         None
         '''
 
-        print "executing command to stop video recording"
+        print("executing command to stop video recording")
         os.popen('ssh -tt video /home/lab/bin/recording_end.sh')
 
-        print "Checking if video recording is done"
+        print("Checking if video recording is done")
         if self.cmd_caller.done.is_set():
-            print "SSH command finished!"
+            print("SSH command finished!")
 
         super(SingleChannelVideo, self).cleanup(database, saveid, **kwargs)
-        print "sleeping so that video recording can wrap up"
+        print("sleeping so that video recording can wrap up")
         time.sleep(5)        
 
         ## Get the video filename

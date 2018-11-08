@@ -3,8 +3,8 @@
 Representations of plants (control systems)
 '''
 import numpy as np
-from stereo_opengl.primitives import Cylinder, Sphere, Cone, Cube, Chain
-from stereo_opengl.models import Group
+from .stereo_opengl.primitives import Cylinder, Sphere, Cone, Cube, Chain
+from .stereo_opengl.models import Group
 from riglib.bmi import robot_arms
 from riglib.stereo_opengl.xfm import Quaternion
 
@@ -70,7 +70,7 @@ class FeedbackData(DataSourceSystem):
         self.stop()
 
     def get(self):
-        return self.data.next()
+        return next(self.data)
 
     def get_feedback_data(self):
         '''Yield received feedback data.'''

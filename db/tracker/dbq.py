@@ -8,7 +8,7 @@ import time
 import json
 import shutil
 import datetime
-from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
+from xmlrpc.server import SimpleXMLRPCDispatcher
 
 import django
 from django.http import HttpResponse
@@ -17,8 +17,8 @@ from django.views.decorators.csrf import csrf_exempt
 from distutils.version import StrictVersion
 
 from riglib import experiment
-from models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
-import cPickle
+from .models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
+import pickle
 import tempfile
 
 def save_log(idx, log, dbname='default'):
@@ -27,7 +27,7 @@ def save_log(idx, log, dbname='default'):
     entry.save()
 
 def save_calibration(subject, system, name, params, dbname='default'):
-    print subject, system
+    print(subject, system)
     subj = Subject.objects.using(dbname).get(name=subject)
     sys = System.objects.using(dbname).get(name=system)
     Calibration(subject=subj, system=sys, name=name, params=params).save(using=dbname)
@@ -65,14 +65,14 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
         else:
             fullname = os.path.join('/storage/rawdata/blackrock', dataname)
             sys_path = '/storage/rawdata/blackrock'
-            print 'BLACKROCK SYSTEM: '
+            print('BLACKROCK SYSTEM: ')
         permfile = dataname
 
         if os.path.abspath(sys_path) == os.path.abspath(os.path.split(curfile)[0]):
-            print "moving file..."
+            print("moving file...")
             os.rename(curfile, fullname)
         elif not os.path.exists(fullname):
-            print "copying file..."
+            print("copying file...")
             shutil.copy2(curfile, os.path.join(sys_path, dataname))
         else:
             raise ValueError('Will not overwrite existing files')
@@ -80,7 +80,7 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
         permfile = curfile
 
     DataFile(local=local, path=permfile, system=sys, entry=entry).save(using=dbname)
-    print "Saved datafile for file=%s -> %s, system=%s, id=%d)..." % (curfile, permfile, system, entry.id)
+    print("Saved datafile for file=%s -> %s, system=%s, id=%d)..." % (curfile, permfile, system, entry.id))
 
 def save_bmi(name, entry, filename, dbname='default'):
     '''
@@ -119,13 +119,13 @@ def save_bmi(name, entry, filename, dbname='default'):
     try:
         decoder_entry = Decoder.objects.using(dbname).get(entry=entry)
     except:
-        print 'too many decoders to list: '
+        print('too many decoders to list: ')
         import dbfunctions as dbfn
         d = dbfn.TaskEntry(entry.pk)
         d_list = d.get_decoders_trained_in_block()
         for d in d_list:
-            print d.pk, d.name
-    print "Saved decoder to %s"%os.path.join(base, pklname)
+            print(d.pk, d.name)
+    print("Saved decoder to %s"%os.path.join(base, pklname))
 
 def hide_task_entry(entry, dbname='default'):
     te = TaskEntry.objects.using(dbname).get(id=entry)
@@ -146,10 +146,6 @@ dispatcher.register_function(hide_task_entry, 'hide_task_entry')
 
 @csrf_exempt
 def rpc_handler(request):
-    if StrictVersion('%d.%d.%d' % django.VERSION[0:3]) < StrictVersion('1.6.0'):
-        response = HttpResponse(mimetype="application/xml") 
-        response.write(dispatcher._marshaled_dispatch(request.raw_post_data))
-    else:
-        response = HttpResponse(mimetype="application/xml") 
-        response.write(dispatcher._marshaled_dispatch(request.body))
+    response = HttpResponse(content_type="application/xml") 
+    response.write(dispatcher._marshaled_dispatch(request.body))
     return response

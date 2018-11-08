@@ -22,7 +22,7 @@ class SpikeData(traits.HasTraits):
         try:
             super(SpikeData, self).init()
         except:
-            print "SpikeData: running without a task"
+            print("SpikeData: running without a task")
     
     def run(self):
         self.neurondata.start()
@@ -74,11 +74,11 @@ unique_data = np.hstack(data_ls[offset_bins:])
 mean_offset = np.mean(unique_data['arrival_ts'] - unique_data['ts'])
 jitter = unique_data['arrival_ts'] - unique_data['ts'] - mean_offset
 abs_jitter = np.abs(jitter)
-print len(abs_jitter)
-print len(np.nonzero(abs_jitter < 0.005)[0])
-print len(np.nonzero(abs_jitter < 0.010)[0])
-print "Observed channels with units"
-print np.unique(data['chan'])
+print(len(abs_jitter))
+print(len(np.nonzero(abs_jitter < 0.005)[0]))
+print(len(np.nonzero(abs_jitter < 0.010)[0]))
+print("Observed channels with units")
+print(np.unique(data['chan']))
 
 plt.close('all')
 plt.figure()

@@ -29,12 +29,12 @@ C_new = C.copy()
 C_new[:, ~drives_neurons] = 0
 kf_new = KalmanFilter(A, W, C_new, Q)
 F_new, K_new = kf_new.get_sskf()
-print "\n\n\n"
-print "T="
-print F_new[0:2,0:2]
-print "S="
-print F_new[0:2,2:4]
-print "N="
-print F_new[2:4,2:4]
-print "M="
-print F_new[2:4,0:2]
+print("\n\n\n")
+print("T=")
+print(F_new[0:2,0:2])
+print("S=")
+print(F_new[0:2,2:4])
+print("N=")
+print(F_new[2:4,2:4])
+print("M=")
+print(F_new[2:4,0:2])

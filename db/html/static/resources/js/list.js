@@ -677,15 +677,6 @@ Parameters.prototype.to_json = function() {
     return jsdata;
 }
 
-
-
-
-
-
-
-
-
-
 //
 // TaskInterface class
 //
@@ -706,6 +697,7 @@ function TaskInterfaceConstructor() {
 			lastentry = this;
 			state = this.status;
 		}
+        
         var transitions = triggers[state];
 		for (var next in transitions) {
 			if (transitions[next].bind(this)(info)) {
@@ -1278,7 +1270,8 @@ TaskEntry.prototype.stop = function() {
     */
 	var csrf = {};
 	csrf['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value");
-	$.post("stop", csrf, TaskInterface.trigger.bind(this));
+	$.post("stop/", csrf, TaskInterface.trigger.bind(this));
+    console.log("TaskEntry.prototype.stop")
 }
 
 /* Callback for the 'Test' button

@@ -8,7 +8,7 @@ for a basic introduction
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import json
-import cPickle, pickle
+import pickle, pickle
 import inspect
 from collections import OrderedDict
 from django.db import models
@@ -46,11 +46,11 @@ class Task(models.Model):
     def __unicode__(self):
         return self.name
         
-    def get(self, feats=()):
-        print "models.Task.get()"
-        from namelist import tasks
+    def get(self, feats=(), verbose=False):
+        if verbose: print("models.Task.get()")
+        from config.namelist import tasks
         if len(tasks) == 0: 
-            print 'Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task'
+            print('Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task')
         
         feature_classes = Feature.getall(feats)
 
@@ -76,12 +76,12 @@ class Task(models.Model):
                 Exp = experiment.make(task_cls, feature_classes)
                 return Exp
             except:
-                print "Problem making the task class!"
+                print("Problem making the task class!")
                 traceback.print_exc()
-                print self.name
-                print feats
-                print Feature.getall(feats)
-                print "*******"
+                print(self.name)
+                print(feats)
+                print(Feature.getall(feats))
+                print("*******")
                 return experiment.Experiment
         elif self.name in tasks:
             return tasks[self.name]
@@ -93,9 +93,11 @@ class Task(models.Model):
         '''
         Automatically create a new database record for any tasks added to db/namelist.py
         '''
-        from namelist import tasks
+        from config.namelist import tasks
         real = set(tasks.keys())
         db = set(task.name for task in Task.objects.all())
+        print(Task.objects.all())
+        print(real - db)
         for name in real - db:
             Task(name=name).save()
 
@@ -185,13 +187,13 @@ class Task(models.Model):
         return params
 
     def sequences(self):
-        from json_param import Parameters
+        from .json_param import Parameters
         seqs = dict()
         for s in Sequence.objects.filter(task=self.id):
             try:
                 seqs[s.id] = s.to_json()
             except:
-                print 'Sequence cannot be Accessed: ', s.id 
+                print('Sequence cannot be Accessed: ', s.id) 
         return seqs
 
     def get_generators(self):
@@ -204,7 +206,7 @@ class Task(models.Model):
                     g = Generator.objects.using(self._state.db).get(name=seqgen_name)
                     exp_generators[g.id] = seqgen_name
                 except:
-                    print "missing generator %s" % seqgen_name
+                    print("missing generator %s" % seqgen_name)
         return exp_generators        
 
 class Feature(models.Model):
@@ -222,7 +224,7 @@ class Feature(models.Model):
             return ''
     
     def get(self):
-        from namelist import features
+        from config.namelist import features
         if self.name in features:
             return features[self.name]
         else:
@@ -230,7 +232,7 @@ class Feature(models.Model):
 
     @staticmethod
     def populate():
-        from namelist import features
+        from config.namelist import features
         real = set(features.keys())
         db = set(feat.name for feat in Feature.objects.all())
         for name in real - db:
@@ -240,7 +242,7 @@ class Feature(models.Model):
     def getall(feats):
         feature_class_list = []
         for feat in feats:
-            if isinstance(feat, (int, float, str, unicode)):
+            if isinstance(feat, (int, float, str)):
                 try:
                     feat = Feature.objects.get(pk=int(feat)).get()
                 except ValueError:
@@ -251,7 +253,7 @@ class Feature(models.Model):
                             from featurelist import features as FL
                             feat = FL[feat]
                         except:
-                            print "Cannot find feature %s"%feat
+                            print("Cannot find feature %s"%feat)
                             continue
             elif isinstance(feat, models.Model):
                 feat = feat.get()
@@ -318,12 +320,12 @@ class Generator(models.Model):
         '''
         Retrieve the function that can be used to construct the ..... generator? sequence?
         '''
-        from namelist import generators
+        from config.namelist import generators
         return generators[self.name]
 
     @staticmethod
     def populate():
-        from namelist import generators
+        from config.namelist import generators
         listed_generators = set(generators.keys())
         db_generators = set(gen.name for gen in Generator.objects.all())
 
@@ -333,7 +335,7 @@ class Generator(models.Model):
             # The sequence/generator constructor can either be a callable or a class constructor... not aware of any uses of the class constructor
             try:
                 args = inspect.getargspec(generators[name]).args
-                print args
+                print(args)
             except TypeError:
                 args = inspect.getargspec(generators[name].__init__).args
                 args.remove("self")
@@ -370,8 +372,8 @@ class Generator(models.Model):
         # arginfo = zip(names, defaults)
 
         params = OrderedDict()
-        from itertools import izip
-        for name, default in izip(names, defaults):
+        
+        for name, default in zip(names, defaults):
             if name == 'exp':
                 continue
             typename = "String"
@@ -384,29 +386,29 @@ class Generator(models.Model):
 
 class Sequence(models.Model):
     date = models.DateTimeField(auto_now_add=True)
-    generator = models.ForeignKey(Generator)
+    generator = models.ForeignKey(Generator, on_delete=models.PROTECT)
     name = models.CharField(max_length=128)
     params = models.TextField() #json data
     sequence = models.TextField(blank=True) #pickle data
-    task = models.ForeignKey(Task)
+    task = models.ForeignKey(Task, on_delete=models.PROTECT)
 
     def __unicode__(self):
         return self.name
     
     def get(self):
         from riglib.experiment import generate
-        from json_param import Parameters
+        from .json_param import Parameters
 
         if hasattr(self, 'generator') and self.generator.static: # If the generator is static, (NOTE: the generator being static is different from the *sequence* being static)
             if len(self.sequence) > 0:
-                return generate.runseq, dict(seq=cPickle.loads(str(self.sequence)))
+                return generate.runseq, dict(seq=pickle.loads(str(self.sequence)))
             else:
                 return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))            
         else:
             return self.generator.get(), Parameters(self.params).params
 
     def to_json(self):
-        from json_param import Parameters
+        from .json_param import Parameters
         state = 'saved' if self.pk is not None else "new"
         js = dict(name=self.name, state=state)
         js['static'] = len(self.sequence) > 0
@@ -419,12 +421,12 @@ class Sequence(models.Model):
         '''
         Construct a models.Sequence instance from JSON data (e.g., generated by the web interface for starting experiments)
         '''
-        from json_param import Parameters
+        from .json_param import Parameters
 
         # Error handling when input argument 'js' actually specifies the primary key of a Sequence object already in the database
         try:
             seq = Sequence.objects.get(pk=int(js))
-            print "retreiving sequence from POSTed ID"
+            print("retreiving sequence from POSTed ID")
             return seq
         except:
             pass
@@ -447,18 +449,18 @@ class Sequence(models.Model):
 
         # If the sequence is to be static, 
         if js['static']:
-            print "db.tracker.models.Sequence.from_json: storing static sequence data to database"
+            print("db.tracker.models.Sequence.from_json: storing static sequence data to database")
             generator_params = Parameters(seq.params).params
             seq_data = seq.generator.get()(**generator_params)
-            seq.sequence = cPickle.dumps(seq_data)
+            seq.sequence = pickle.dumps(seq_data)
         return seq
 
 class TaskEntry(models.Model):
-    subject = models.ForeignKey(Subject)
+    subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
     date = models.DateTimeField(auto_now_add=True)
-    task = models.ForeignKey(Task)
+    task = models.ForeignKey(Task, on_delete=models.PROTECT)
     feats = models.ManyToManyField(Feature)
-    sequence = models.ForeignKey(Sequence, blank=True)
+    sequence = models.ForeignKey(Sequence, blank=True, null=True, on_delete=models.PROTECT)
 
     params = models.TextField()
     report = models.TextField()
@@ -474,7 +476,7 @@ class TaskEntry(models.Model):
             id=self.id)
     
     def get(self, feats=()):
-        from json_param import Parameters
+        from .json_param import Parameters
         from riglib import experiment
         Exp = experiment.make(self.task.get(), tuple(f.get() for f in self.feats.all())+feats)
         params = Parameters(self.params)
@@ -490,7 +492,7 @@ class TaskEntry(models.Model):
     
     @property
     def task_params(self):
-        from json_param import Parameters
+        from .json_param import Parameters
         data = Parameters(self.params).params
 
         if 'bmi' in data:
@@ -535,23 +537,23 @@ class TaskEntry(models.Model):
             rpt = Exp.offline_report(report)
 
             ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
-            try:
-                from db import dbfunctions
-                te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
-                rpt['Decoder name'] = te.decoder_record.name + ' (trained in block %d)' % te.decoder_record.entry_id
-            except AttributeError:
-                pass
-            except:
-                import traceback
-                traceback.print_exc()
+            # try:
+            #     from db import dbfunctions
+            #     te = dbfunctions.TaskEntry(self.id, dbname=self._state.db)
+            #     rpt['Decoder name'] = te.decoder_record.name + ' (trained in block %d)' % te.decoder_record.entry_id
+            # except AttributeError:
+            #     pass
+            # except:
+            #     import traceback
+            #     traceback.print_exc()
             return rpt
 
     def to_json(self):
         '''
         Create a JSON dictionary of the metadata associated with this block for display in the web interface
         '''
-        print "starting TaskEntry.to_json()"
-        from json_param import Parameters
+        print("starting TaskEntry.to_json()")
+        from .json_param import Parameters
 
         # Run the metaclass constructor for the experiment used. If this can be avoided, it would help to break some of the cross-package software dependencies,
         # making it easier to analyze data without installing software for the entire rig
@@ -564,7 +566,7 @@ class TaskEntry(models.Model):
         js['params'] = self.task.params(self.feats.all(), values=self.task_params)
 
         if len(js['params'])!=len(self.task_params):
-            print 'param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params)
+            print('param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params))
 
         # Supply sequence generators which are declared to be compatible with the selected task class
         exp_generators = dict() 
@@ -574,11 +576,11 @@ class TaskEntry(models.Model):
                     g = Generator.objects.using(self._state.db).get(name=seqgen_name)
                     exp_generators[g.id] = seqgen_name
                 except:
-                    print "missing generator %s" % seqgen_name
+                    print("missing generator %s" % seqgen_name)
         js['generators'] = exp_generators
 
         ## Add the sequence, used when the block gets copied
-        print "getting the sequence, if any"
+        print("getting the sequence, if any")
         if issubclass(self.task.get(), experiment.Sequence):
             js['sequence'] = {self.sequence.id:self.sequence.to_json()}
 
@@ -618,15 +620,15 @@ class TaskEntry(models.Model):
 
                 js['bmi'] = dict(_neuralinfo=_neuralinfo)
             except MemoryError:
-                print "Memory error opening plexon file!"
+                print("Memory error opening plexon file!")
                 js['bmi'] = dict(_neuralinfo=None)
             except (ObjectDoesNotExist, AssertionError, IOError):
-                print "No plexon file found"
+                print("No plexon file found")
                 js['bmi'] = dict(_neuralinfo=None)
         
         elif config.recording_sys['make'] == 'blackrock':
             try:
-                print 'skipping .nev conversion'
+                print('skipping .nev conversion')
                 js['bmi'] = dict(_neuralinfo=None)
                 
                 # length, units = parse_blackrock_file(self.nev_file, self.nsx_files, self)
@@ -639,14 +641,14 @@ class TaskEntry(models.Model):
                 #     ))
                       
             except (ObjectDoesNotExist, AssertionError, IOError):
-                print "No blackrock files found"
+                print("No blackrock files found")
                 js['bmi'] = dict(_neuralinfo=None)
             except:
                 import traceback
                 traceback.print_exc()
                 js['bmi'] = dict(_neuralinfo=None)
         elif config.recording_sys['make'] == 'TDT':
-            print 'This code does not yet know how to open TDT files!'
+            print('This code does not yet know how to open TDT files!')
             js['bmi'] = dict(_neuralinfo=None)
             #raise NotImplementedError("This code does not yet know how to open TDT files!")
         else:
@@ -667,7 +669,7 @@ class TaskEntry(models.Model):
         js['plot_files'] = plot_files
         js['flagged_for_backup'] = self.backup
         js['visible'] = self.visible
-        print "TaskEntry.to_json finished!"
+        print("TaskEntry.to_json finished!")
         return js
 
     @property
@@ -764,10 +766,10 @@ class TaskEntry(models.Model):
         return Decoder.objects.get(id=decoder_id)
 
 class Calibration(models.Model):
-    subject = models.ForeignKey(Subject)
+    subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
     date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=128)
-    system = models.ForeignKey(System)
+    system = models.ForeignKey(System, on_delete=models.PROTECT)
 
     params = models.TextField()
 
@@ -776,7 +778,7 @@ class Calibration(models.Model):
             subj=self.subject.name, system=self.system.name)
     
     def get(self):
-        from json_param import Parameters
+        from .json_param import Parameters
         return getattr(calibrations, self.name)(**Parameters(self.params).params)
 
 class AutoAlignment(models.Model):
@@ -808,7 +810,7 @@ def decoder_unpickler(mod_name, kls_name):
 class Decoder(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=128)
-    entry = models.ForeignKey(TaskEntry)
+    entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
     path = models.TextField()
     
     def __unicode__(self):
@@ -828,7 +830,7 @@ class Decoder(models.Model):
 
         if os.path.exists(decoder_fname):
             fh = open(decoder_fname, 'r')
-            unpickler = cPickle.Unpickler(fh)
+            unpickler = pickle.Unpickler(fh)
             unpickler.find_global = decoder_unpickler
             dec = unpickler.load() # object will now contain the new class path reference
             fh.close()
@@ -836,7 +838,7 @@ class Decoder(models.Model):
             dec.name = self.name
             return dec
         else: # file not present!
-            print "Decoder file could not be found! %s" % decoder_fname
+            print("Decoder file could not be found! %s" % decoder_fname)
             return None
 
     def get(self):
@@ -885,7 +887,7 @@ def parse_blackrock_file_n2h5(nev_fname, nsx_files):
     #for key in [key for key in nev_hdf.get('channel').keys() if 'channel' in key]:
     chans = nev_hdf.root.channel
     chan_names= chans._v_children
-    for key in [key for key in chan_names.keys() if 'channel' in key]:
+    for key in [key for key in list(chan_names.keys()) if 'channel' in key]:
         chan_tab = nev_hdf.root.channel._f_getChild(key)
         if 'spike_set' in chan_tab:
             spike_set = chan_tab.spike_set
@@ -894,13 +896,13 @@ def parse_blackrock_file_n2h5(nev_fname, nsx_files):
                 if len(tstamps) > 0:
                     last_ts = max(last_ts, tstamps[-1])
                 else:
-                    print 'skipping ', key, ': no spikes'
+                    print('skipping ', key, ': no spikes')
 
                 channel = int(key[-5:])
                 for unit_num in np.sort(np.unique(spike_set[:]['Unit'])):
                     units.append((channel, int(unit_num)))
         else:
-            print 'skipping ', key, ': no spikeset'
+            print('skipping ', key, ': no spikeset')
 
     fs = 30000.
     nev_length = last_ts / fs
@@ -972,14 +974,14 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(
                 nev_file = NevFile(nev_fname)
                 spk_data = nev_file.getdata()
             except:
-                print 'nev file is not available for opening. Try in a few seconds!'
+                print('nev file is not available for opening. Try in a few seconds!')
                 raise Exception
             
             # Make HDF file from NEV file # 
             last_ts, units, h5file = make_hdf_spks(spk_data, nev_hdf_fname)
             
             if task_entry is not None:
-                import dbq
+                from . import dbq
                 dbq.save_data(nev_hdf_fname, 'blackrock', task_entry.pk, move=False, local=True, custom_suffix='', dbname=task_entry._state.db)
 
         fs = 30000.
@@ -1007,7 +1009,7 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(
                 # Make HDF file: 
                 tmax_cts = make_hdf_cts(cont_data, nsx_hdf_fname, nsx_file)
                 if task_entry is not None:
-                    import dbq
+                    from . import dbq
                     dbq.save_data(nsx_hdf_fname, 'blackrock', task_entry.pk, move=False, local=True, custom_suffix='', dbname=task_entry._state.db)
             else:
                 tmax_cts = 0
@@ -1083,7 +1085,7 @@ def make_hdf_spks(data, nev_hdf_fname):
             last_ts = np.max([last_ts, tsi])
             dtab.flush()
     except:
-        print 'no digital info in nev file '
+        print('no digital info in nev file ')
 
     # Adding length / unit info: 
     tb = h5file.createTable('/', 'attr', mini_attr)
@@ -1101,7 +1103,7 @@ def make_hdf_spks(data, nev_hdf_fname):
     h5file.close()
     shutil.copyfile(tf.name, nev_hdf_fname)
     os.remove(tf.name)
-    print 'successfully made HDF file from NEV file: %s' %nev_hdf_fname
+    print('successfully made HDF file from NEV file: %s' %nev_hdf_fname)
 
     un_array = np.vstack((units))
     idx = np.lexsort((un_array[:, 1], un_array[:, 0]))
@@ -1120,7 +1122,7 @@ def make_hdf_cts(data, nsx_hdf_fname, nsx_file):
     channel_ids = data['elec_ids']
     hdr_ids = data['ExtendedHeaderIndices']
     channel_labels = [nsx_file.extended_headers[h]['ElectrodeLabel'] for h in hdr_ids]
-    print 'saving channel nums: ', channel_ids
+    print('saving channel nums: ', channel_ids)
 
     for ic, (c, chan) in enumerate(zip(channel_ids, channel_labels)):
         channel_data = data['data'][ic]
@@ -1134,7 +1136,7 @@ def make_hdf_cts(data, nsx_hdf_fname, nsx_file):
     h5file.close()
     shutil.copyfile(tf.name, nsx_hdf_fname)
     os.remove(tf.name)
-    print 'successfully made HDF file from NSX file: %s' %nsx_hdf_fname
+    print('successfully made HDF file from NSX file: %s' %nsx_hdf_fname)
     return t[-1]
 
 class spike_set(tables.IsDescription):
@@ -1161,8 +1163,8 @@ class DataFile(models.Model):
     local = models.BooleanField(default=True)
     archived = models.BooleanField(default=False)
     path = models.CharField(max_length=256)
-    system = models.ForeignKey(System)
-    entry = models.ForeignKey(TaskEntry)
+    system = models.ForeignKey(System, on_delete=models.PROTECT)
+    entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
 
     def __unicode__(self):
         if self.entry_id > 0:
@@ -1226,7 +1228,7 @@ class DataFile(models.Model):
         try:
             os.unlink(self.get_path())
         except OSError:
-            print "already deleted..."
+            print("already deleted...")
 
     def delete(self, **kwargs):
         self.remove()

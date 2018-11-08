@@ -10,7 +10,7 @@ except:
     import warnings
     warnings.warn('riglib/stereo_opengl_primitives.py: not importing name pygame')
 
-from models import TriMesh
+from .models import TriMesh
 
 class Plane(TriMesh):
     def __init__(self, width=1, height=1, **kwargs):
@@ -161,8 +161,8 @@ class Chain(object):
     An open chain of cylinders and cones, e.g. to simulate a stick-figure arm/robot
     '''
     def __init__(self, link_radii, joint_radii, link_lengths, joint_colors, link_colors):
-        from models import Group
-        from xfm import Quaternion
+        from .models import Group
+        from .xfm import Quaternion
         self.num_joints = num_joints = len(link_lengths)
 
         self.link_radii = self.make_list(link_radii, num_joints)
@@ -196,10 +196,10 @@ class Chain(object):
             self.link_groups[i].translate(0, 0, link_offsets[i])
 
     def _update_link_graphics(self, curr_vecs):
-        from models import Group
-        from xfm import Quaternion
+        from .models import Group
+        from .xfm import Quaternion
 
-        for i in xrange(self.num_joints):
+        for i in range(self.num_joints):
             # Rotate each joint to the vector specified by the corresponding row in self.curr_vecs
             # Annoyingly, the baseline orientation of the first group is always different from the 
             # more distal attachments, so the rotations have to be found relative to the orientation 
@@ -258,7 +258,7 @@ class Circle(Shape2D):
 
     def draw(self, surface, pos2pix_fn):
         if self.visible:
-            color = tuple(map(lambda x: int(255*x), self.color[0:3]))
+            color = tuple([int(255*x) for x in self.color[0:3]])
 
             pix_pos    = pos2pix_fn(self.center_pos)
             pix_radius = pos2pix_fn([self.radius, 0])[0] - pos2pix_fn([0, 0])[0]
@@ -276,13 +276,13 @@ class Sector(Shape2D):
 
     def draw(self, surface, pos2pix_fn):
         if self.visible:
-            color = tuple(map(lambda x: int(255*x), self.color[0:3]))
+            color = tuple([int(255*x) for x in self.color[0:3]])
             
             arc_angles = np.linspace(self.ang_range[0], self.ang_range[1], 5)
             pts = list(self.center_pos + self.radius*np.c_[np.cos(arc_angles), np.sin(arc_angles)])
             pts.append(self.center_pos)
             
-            point_list = map(pos2pix_fn, pts)
+            point_list = list(map(pos2pix_fn, pts))
             pygame.draw.polygon(surface, color, point_list)
         
         return self.visible  # return True if object was drawn
@@ -298,7 +298,7 @@ class Line(Shape2D):
 
     def draw(self, surface, pos2pix_fn):
         if self.visible:
-            color = tuple(map(lambda x: int(255*x), self.color[0:3]))
+            color = tuple([int(255*x) for x in self.color[0:3]])
 
             # create points and then rotate to correct orientation
             pts = np.array([[          0,  self.width/2], 
@@ -309,7 +309,7 @@ class Line(Shape2D):
                                 [np.sin(self.angle),  np.cos(self.angle)]])
             pts = np.dot(rot_mat, pts.T).T + self.start_pos
             
-            point_list = map(pos2pix_fn, pts)
+            point_list = list(map(pos2pix_fn, pts))
             pygame.draw.polygon(surface, color, point_list)
 
         return self.visible  # return True if object was drawn

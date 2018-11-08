@@ -10,7 +10,7 @@ try:
     from OWL import *
 except:
     OWL_MODE2 = False
-    print "Cannot find phasespace driver"
+    print("Cannot find phasespace driver")
 
 cwd = os.path.split(os.path.abspath(__file__))[0]
 
@@ -286,7 +286,7 @@ def make_autoalign_reference(data, filename=os.path.join(cwd, "alignment2.npz"))
     Returns
     -------
     '''
-    from stereo_opengl import xfm
+    from .stereo_opengl import xfm
     assert data.shape[1:] == (6, 3)
     mdata = np.median(data,0)
     cdata = mdata - mdata[0]

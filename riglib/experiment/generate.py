@@ -7,7 +7,7 @@ import itertools
 
 import numpy as np
 
-from experiment import TrialTypes, Sequence
+from .experiment import TrialTypes, Sequence
 
 
 def block_random(*args, **kwargs):
@@ -24,10 +24,10 @@ def block_random(*args, **kwargs):
     '''
     n_blocks = kwargs.pop('nblocks')
     inds = [np.arange(len(arg)) for arg in args]
-    from itertools import product, izip
+    from itertools import product
     items = []
     for x in product(*inds):
-        item = [arg[i] for arg,i in izip(args, x)]
+        item = [arg[i] for arg,i in zip(args, x)]
         items.append(item)
 
     n_items = len(items)
@@ -63,7 +63,7 @@ def runseq(exp, seq=None, reps=1):
             for s in seq:
                 yield exp.trial_types[s]
     else:
-        print "runseq"
+        print("runseq")
         for _ in range(reps):
             for s in seq:
                 yield s
@@ -97,13 +97,13 @@ def sequence(length, probs=2):
     except TypeError:
         opts = probs
         probs = [1 / float(opts)] * opts
-    return np.random.permutation([i for i, p in enumerate(probs) for _ in xrange(int(length*p))])
+    return np.random.permutation([i for i, p in enumerate(probs) for _ in range(int(length*p))])
 
 def _fix_missing(probs):
     '''
     Deprecated
     '''
-    total, n = map(sum, zip(*((i, 1) for i in probs if i is not None)))
+    total, n = list(map(sum, list(zip(*((i, 1) for i in probs if i is not None)))))
     if n < len(probs):
         p = (1 - total) / (len(probs) - n)
         probs = [i or p for i in probs]
@@ -125,7 +125,7 @@ class AdaptiveTrials(object):
         self.block = list(itertools.chain(*block))
         random.shuffle(self.block)
 
-    def next(self):
+    def __next__(self):
         if len(self.block) < 1:
             self.new_block()
         return self.block[0]

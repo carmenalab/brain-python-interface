@@ -9,7 +9,7 @@ import time
 import struct
 import binascii
 import threading
-import cStringIO
+import io
 import traceback
 
 
@@ -37,7 +37,7 @@ def _xsum(msg):
     char
         The 8-bit checksum of the entire message
     '''
-    chrval = map(lambda x: int(''.join(x), 16), zip(*[iter(binascii.b2a_hex(msg))]*2))
+    chrval = [int(''.join(x), 16) for x in zip(*[iter(binascii.b2a_hex(msg))]*2)]
     return chr(sum(chrval) % 256)
 
 class Basic(object):
@@ -292,7 +292,7 @@ class System(traits.HasTraits, threading.Thread):
         #self.reset_stats()
 
     def _parse_status(self, msg):
-        msg = cStringIO.StringIO(msg)
+        msg = io.StringIO(msg)
         output = {}
         for length, name, op in self._order:
             part = msg.read(length)
@@ -309,7 +309,7 @@ class System(traits.HasTraits, threading.Thread):
     def run(self):
         while self._running:
             header = self.port.read(2)
-            print "recieved %r"%header
+            print("recieved %r"%header)
             try:
                 self.plock.acquire()
                 msg = self.port.read(self._messages[header][0] - 2)
@@ -318,11 +318,11 @@ class System(traits.HasTraits, threading.Thread):
                 if len(self._messages[header]) > 2:
                     self._messages[header][-1](msg)
                 else:
-                    print self._messages[header], repr(msg)
+                    print(self._messages[header], repr(msg))
             except:
                 traceback.print_exc()
                 time.sleep(10)
-                print repr(msg),repr(self.port.read(self.port.inWaiting()))
+                print(repr(msg),repr(self.port.read(self.port.inWaiting())))
     
     def reward(self, time=500, volume=None):
         '''Returns the string used to output a time or volume reward.
@@ -366,8 +366,8 @@ def open():
         reward = Basic()
         return reward
     except:
-        print "Reward system not found"
+        print("Reward system not found")
         import traceback
         import os
-        import __builtin__
-        traceback.print_exc(file=__builtin__.open(os.path.expanduser('~/code/bmi3d/log/reward.log'), 'w'))
+        import builtins
+        traceback.print_exc(file=builtins.open(os.path.expanduser('~/code/bmi3d/log/reward.log'), 'w'))

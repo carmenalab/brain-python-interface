@@ -23,59 +23,59 @@ def bmi_block_reconstruction_error(idx, cls=tasks.BMIReconstruction, n_iter=None
 
 class TestFixedPPF(unittest.TestCase):
     def runTest(self):
-        print "Testing fixed PPF block"
+        print("Testing fixed PPF block")
         abs_max_error = bmi_block_reconstruction_error(2295, n_iter=n_iter)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)    
 
 class TestFixedKF(unittest.TestCase):
     def runTest(self):
-        print "Testing fixed KF block"
+        print("Testing fixed KF block")
         abs_max_error = bmi_block_reconstruction_error(2908, n_iter=n_iter)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)
 
 class TestPPFCLDA(unittest.TestCase):
     def runTest(self):
-        print "Testing adapting PPF block"
+        print("Testing adapting PPF block")
         abs_max_error = bmi_block_reconstruction_error(2306, cls=tasks.ContCLDARecon, n_iter=n_iter)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)        
 
 class TestRML(unittest.TestCase):
     def runTest(self):
-        print "Testing RML block"
+        print("Testing RML block")
         abs_max_error = bmi_block_reconstruction_error(3133, cls=tasks.KFRMLRecon, n_iter=n_iter)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)
 
 class TestRMLWithAssist(unittest.TestCase):
     def runTest(self):
-        print "Testing RML block with assist"
+        print("Testing RML block with assist")
         raise NotImplementedError("ID Number is wrong! find a correct block")
         abs_max_error = bmi_block_reconstruction_error(3040, cls=tasks.KFRMLRecon, n_iter=n_iter)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)
 
 class TestRMLCGWithAssist(unittest.TestCase):
     def runTest(self):
-        print "Testing RML block with assist"
+        print("Testing RML block with assist")
         abs_max_error = bmi_block_reconstruction_error(5270, cls=tasks.KFRMLCGRecon, n_iter=n_iter)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)
 
 class TestJointRML(unittest.TestCase):
     def runTest(self):
-        print "Testing Joint RML"
+        print("Testing Joint RML")
         abs_max_error = bmi_block_reconstruction_error(3040, cls=tasks.KFRMLJointRecon, n_iter=n_iter)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)
 
 class TestJointRMLWithAssist(unittest.TestCase):
     def runTest(self):
-        print "Testing Joint RML block with assist"
+        print("Testing Joint RML block with assist")
         abs_max_error = bmi_block_reconstruction_error(3088, cls=tasks.KFRMLJointRecon, n_iter=n_iter)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)
 
 

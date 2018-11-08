@@ -6,27 +6,22 @@ import json
 
 import numpy as np
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 
 from riglib import experiment
 
-from json_param import Parameters
-from tasktrack import Track
-from models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+from .json_param import Parameters
+
+from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
 import trainbmi
 import logging
 import traceback
 
-exp_tracker = Track()
+from .exp_tracker import exp_tracker
 
 http_request_queue = []
 
-# create the object representing the reward system. 
-try:
-    from riglib import reward
-    r = reward.Basic()
-except:
-    pass
 
 def train_decoder_ajax_handler(request, idx):
     '''
@@ -58,7 +53,7 @@ def train_decoder_ajax_handler(request, idx):
         cells=request.POST['cells'],
         channels=request.POST['channels'],
         binlen=1./update_rate,
-        tslice=map(float, request.POST.getlist('tslice[]')),
+        tslice=list(map(float, request.POST.getlist('tslice[]'))),
         ssm=request.POST['ssm'],
         pos_key=request.POST['pos_key'],
         kin_extractor=request.POST['kin_extractor'],
@@ -94,7 +89,7 @@ def _respond(data):
     HttpResponse
         JSON-encoded version of the input dictionary
     '''
-    return HttpResponse(json.dumps(data, cls=encoder), mimetype="application/json")
+    return HttpResponse(json.dumps(data, cls=encoder), content_type="application/json")
 
 def task_info(request, idx, dbname='default'):
     '''
@@ -113,7 +108,7 @@ def task_info(request, idx, dbname='default'):
     '''
     task = Task.objects.using(dbname).get(pk=idx)
     feats = []
-    for name, isset in request.GET.items():
+    for name, isset in list(request.GET.items()):
         if isset == "true": # box for the feature checked
             feat = Feature.objects.using(dbname).get(name=name)
             feats.append(feat)
@@ -146,12 +141,12 @@ def exp_info(request, idx, dbname='default'):
     try:
         entry_data = entry.to_json()
     except:
-        print "##### Error trying to access task entry data: id=%s, dbname=%s" % (idx, dbname)
+        print("##### Error trying to access task entry data: id=%s, dbname=%s" % (idx, dbname))
         import traceback
         exception = traceback.format_exc()
         exception.replace('\n', '\n    ')
-        print exception.rstrip()
-        print "#####"
+        print(exception.rstrip())
+        print("#####")
     else:
         return _respond(entry_data)
 
@@ -159,7 +154,7 @@ def hide_entry(request, idx):
     '''
     See documentation for exp_info
     '''
-    print "hide_entry"
+    print("hide_entry")
     entry = TaskEntry.objects.get(pk=idx)
     entry.visible = False
     entry.save()
@@ -169,7 +164,7 @@ def show_entry(request, idx):
     '''
     See documentation for exp_info
     '''
-    print "hide_entry"
+    print("hide_entry")
     entry = TaskEntry.objects.get(pk=idx)
     entry.visible = True
     entry.save()
@@ -207,42 +202,41 @@ def start_next_exp(request):
     except IndexError:
         return _respond(dict(status="error", msg="No experiments in queue!"))
 
+@csrf_exempt
 def start_experiment(request, save=True):
     '''
     Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
     interface
     '''
     #make sure we don't have an already-running experiment
-    if exp_tracker.status.value != '':
-        http_request_queue.append((request, save))
-        return _respond(dict(status="running", msg="Already running task, queuelen=%d!" % len(http_request_queue)))
+    if len(exp_tracker.status.value) != 0:
+        print("exp_tracker.status.value", exp_tracker.status.value)
+        return _respond(dict(status="running", msg="Already running task!"))
 
     # Try to start the task, and if there are any errors, send them to the browser interface
     try:
         data = json.loads(request.POST['data'])
 
         task =  Task.objects.get(pk=data['task'])
-        Exp = task.get(feats=data['feats'].keys())
+        Exp = task.get(feats=list(data['feats'].keys()))
 
-        entry = TaskEntry(subject_id=data['subject'], task=task)
+        entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
-        kwargs = dict(subj=entry.subject, task_rec=task, feats=Feature.getall(data['feats'].keys()),
+        kwargs = dict(subj=entry.subject, task_rec=task, feats=Feature.getall(list(data['feats'].keys())),
                       params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(Exp, experiment.Sequence):
-            print "creating seq"
-            print "data['sequence'] POST data"
-            print data['sequence']
+            print("creating seq")
+            print("data['sequence'] POST data")
+            print(data['sequence'])
             seq = Sequence.from_json(data['sequence'])
             seq.task = task
             if save:
                 seq.save()
             entry.sequence = seq
             kwargs['seq'] = seq
-        else:
-            entry.sequence_id = -1
         
         response = dict(status="testing", subj=entry.subject.name, 
                         task=entry.task.name)
@@ -252,7 +246,7 @@ def start_experiment(request, save=True):
             entry.save()
 
             # Link the features used to the task entry
-            for feat in data['feats'].keys():
+            for feat in list(data['feats'].keys()):
                 f = Feature.objects.get(pk=feat)
                 entry.feats.add(f.pk)
 
@@ -271,9 +265,9 @@ def start_experiment(request, save=True):
 
     except Exception as e:
         # Generate an HTML response with the traceback of any exceptions thrown
-        import cStringIO
+        import io
         import traceback
-        err = cStringIO.StringIO()
+        err = io.StringIO()
         traceback.print_exc(None, err)
         err.seek(0)
         return _respond(dict(status="error", msg=err.read()))
@@ -293,10 +287,11 @@ def rpc(fn):
     JSON-encoded dictionary 
     '''
     #make sure that there exists an experiment to stop
-    if exp_tracker.status.value not in ["running", "testing"]:
-        return _respond(dict(status="error", msg="No task to modify attributes"))
+    if exp_tracker.status.value not in [b"running", b"testing"]:
+        print("rpc not possible", str(exp_tracker.status.value))
+        return _respond(dict(status="error", msg="No task running, so cannot run command!"))
     try:
-        status = exp_tracker.status.value
+        status = exp_tracker.status.value.decode("utf-8")
         fn(exp_tracker)
         return _respond(dict(status="pending", msg=status))
     except Exception as e:
@@ -318,13 +313,14 @@ def _respond_err(e):
     JSON-encoded dictionary
         Sets status to "error" and provides the specific error message
     '''
-    import cStringIO
+    import io
     import traceback
-    err = cStringIO.StringIO()
+    err = io.StringIO()
     traceback.print_exc(None, err)
     err.seek(0)
     return _respond(dict(status="error", msg=err.read()))        
 
+@csrf_exempt
 def stop_experiment(request):
     return rpc(lambda exp_tracker: exp_tracker.stoptask())
 
@@ -340,6 +336,7 @@ def set_task_attr(request, attr, value):
     '''
     return rpc(lambda exp_tracker: exp_tracker.task_proxy.remote_set_attr(attr, value))
 
+@csrf_exempt
 def save_notes(request, idx):
     te = TaskEntry.objects.get(pk=idx)
     te.notes = request.POST['notes']
@@ -350,10 +347,31 @@ def reward_drain(request, onoff):
     '''
     Start/stop the "drain" of a solenoid reward remotely
     '''
+    from riglib import reward
+    r = reward.Basic()
+
     if onoff == 'on':
         r.drain(600)
-        print 'drain on'
+        print('drain on')
     else:
-        print 'drain off'
+        print('drain off')
         r.drain_off()
     return HttpResponse('Turning reward %s' % onoff)
+
+def populate_models(request):
+    """ Database initialization code. When 'db.tracker' is imported, it goes through the database and ensures that 
+    1) at least one subject is present
+    2) all the tasks from 'tasklist' appear in the db
+    3) all the features from 'featurelist' appear in the db
+    4) all the generators from all the tasks appear in the db 
+    """
+    from . import models
+    subjects = models.Subject.objects.all()
+    if len(subjects) == 0:
+        subj = models.Subject(name='testing')
+        subj.save()
+
+    for m in [models.Task, models.Feature, models.Generator, models.System]:
+        m.populate()
+
+    return HttpResponse("Updated Tasks, features generators, and systems")

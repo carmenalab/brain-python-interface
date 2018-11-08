@@ -4,7 +4,7 @@ inherit from these classes.
 '''
 
 
-from __future__ import division
+
 import os
 
 import numpy as np
@@ -13,14 +13,14 @@ from OpenGL.GL import *
 from riglib.experiment import LogExperiment
 from riglib.experiment import traits
 
-from render import stereo
-from models import Group
-from xfm import Quaternion
+from .render import stereo
+from .models import Group
+from .xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere, Cube, Chain
 from riglib.stereo_opengl.environment import Box
 import time
 from config import config
-from primitives import Cylinder, Sphere, Cone
+from .primitives import Cylinder, Sphere, Cone
 from profile_support import profile
 import socket
 
@@ -285,7 +285,7 @@ class WindowDispl2D(Window):
         '''
         Draw a single Model on the current surface, or recurse if the model is a composite model (i.e., a Group)
         '''
-        color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+        color = tuple([int(255*x) for x in model.color[0:3]])
         if isinstance(model, Sphere):
             pos = model._xfm.move[[0,2]]
             pix_pos = self.pos2pix(pos)
@@ -316,7 +316,7 @@ class WindowDispl2D(Window):
             bottom_right_pix_pos = self.pos2pix(bottom_right)
 
             rect = pygame.Rect(top_left_pix_pos, bottom_right_pix_pos - top_left_pix_pos)
-            color = tuple(map(lambda x: int(255*x), model.color[0:3]))
+            color = tuple([int(255*x) for x in model.color[0:3]])
 
             pygame.draw.rect(self.get_surf(), color, rect)
 
@@ -390,7 +390,7 @@ class FakeWindow(Window):
     def _start_reward(self, *args, **kwargs):
         n_rewards = self.calc_state_occurrences('reward')
         if n_rewards % 10 == 0:
-            print n_rewards
+            print(n_rewards)
         super(FakeWindow, self)._start_reward(*args, **kwargs)
 
     def show_object(self, *args, **kwargs):

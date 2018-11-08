@@ -5,8 +5,7 @@ Classes for BMI decoding using the Kalman filter.
 import numpy as np
 from scipy.io import loadmat
 
-import bmi
-import train
+from . import bmi
 import pickle
 import re
 
@@ -71,7 +70,7 @@ class KalmanFilter(bmi.GaussianStateHMM):
         self.include_offset = np.array_equal(np.array(self.A)[-1, :], offset_row)
 
         self.alt = nS < self.C.shape[0] # No. of states less than no. of observations
-        attrs = self.__dict__.keys()
+        attrs = list(self.__dict__.keys())
         if not 'C_xpose_Q_inv_C' in attrs:
             C, Q = self.C, self.Q 
             self.C_xpose_Q_inv = C.T * np.linalg.pinv(Q)
@@ -140,10 +139,6 @@ class KalmanFilter(bmi.GaussianStateHMM):
         F = (I - KC)*self.A
 
         post_state = pred_state
-
-        #print obs_t.shape, C.shape, Q.shape
-        if np.any(obs_t > 1000):
-            print 'observations have counts >> 1000 '
 
         if obs_is_control_independent and using_control_input:
             post_state.mean += -KC*self.A*st.mean + K*obs_t
@@ -227,7 +222,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
             last_P = P
             P -= KC*P;
             iter_idx += 1
-        if verbose: print "Converged in %d iterations--error: %g" % (iter_idx, np.linalg.norm(K-last_K)) 
+        if verbose: 
+            print(("Converged in %d iterations--error: %g" % (iter_idx, np.linalg.norm(K-last_K)))) 
     
         n_state_vars, n_state_vars = A.shape
         F = (np.mat(np.eye(n_state_vars, n_state_vars)) - KC) * A
@@ -274,7 +270,8 @@ class KalmanFilter(bmi.GaussianStateHMM):
                 P -= K[n]*H*P;
                 if n > 0 and np.linalg.norm(K[n] - K[n-1]) < tol: 
                     ss_idx = n
-                    if verbose: print "breaking after %d iterations" % n
+                    if verbose: 
+                        print(("breaking after %d iterations" % n))
 
         return K, ss_idx
 
@@ -375,9 +372,16 @@ class KalmanFilter(bmi.GaussianStateHMM):
 
         Parameters
         ----------
+        hidden_state : np.ndarray of shape (N, T)
+            N = dimensionality of state vector, T = number of observations
+        include_offset : boolean, optional, default=False
+            if True, append a "1" to each state vector to add an offset term into the 
+            regression
 
         Returns
         -------        
+        A : np.ndarray of shape (N, N)
+        W : np.ndarray of shape (N, N)
         '''
         X = hidden_state
         T = hidden_state.shape[1]
@@ -439,14 +443,14 @@ class KalmanFilterDriftCorrection(KalmanFilter):
     def _init_state(self):
         if hasattr(self, 'prev_drift_corr'):
             self.drift_corr = self.prev_drift_corr.copy()
-            print 'prev drift corr', np.mean(self.prev_drift_corr)
+            print(('prev drift corr', np.mean(self.prev_drift_corr)))
         else:
             self.drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))
             self.prev_drift_corr = np.mat(np.zeros(( self.A.shape[0], 1)))
 
         if hasattr(self, 'noise_rej'):
             if self.noise_rej:
-                print 'noise rej thresh: ', self.noise_rej_cutoff
+                print(('noise rej thresh: ', self.noise_rej_cutoff))
         else:
             self.noise_rej = False
         self.noise_cnt = 0
@@ -493,7 +497,7 @@ class PCAKalmanFilter(KalmanFilter):
             M = self.M
             pca_offset = self.pca_offset
         except:
-            print "couldn't extract PCA parameters!"
+            print("couldn't extract PCA parameters!")
             M = 1
             pca_offset = 0
 
@@ -581,11 +585,11 @@ class FAKalmanFilter(KalmanFilter):
             own_pc_trans = np.mat(self.FA_kwargs['own_pc_trans'])*np.mat(dmn)
             input_dict['pca_input'] = own_pc_trans + self.FA_kwargs['fa_mu']
 
-            if input_type in input_dict.keys():
+            if input_type in list(input_dict.keys()):
                 #print input_type
                 obs_t_mod = input_dict[input_type]
             else: 
-                print input_type
+                print(input_type)
                 raise Exception("Error in FA_KF input_type, none of the expected inputs")
         else:
             obs_t_mod = obs_t.copy()
@@ -722,7 +726,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         '''
         # generate random permutation
         import random
-        inds = range(self.filt.C.shape[0])
+        inds = list(range(self.filt.C.shape[0]))
         random.shuffle(inds)
 
         # shuffle rows of C, and rows+cols of Q
@@ -779,7 +783,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
 
         # change state space Model
         # TODO generalize this beyond endpoint
-        import state_space_models
+        from . import state_space_models
         A, W = self.ssm.get_ssm_matrices(update_rate=new_binlen)
         self.filt.A = A
         self.filt.W = W
@@ -788,7 +792,7 @@ class KFDecoder(bmi.BMI, bmi.Decoder):
         '''
         Create an SSKFDecoder object based on KalmanFilter parameters in this KFDecoder object
         '''
-        import sskfdecoder
+        from . import sskfdecoder
         self.filt = sskfdecoder.SteadyStateKalmanFilter(A=self.filt.A, W=self.filt.W, C=self.filt.C, Q=self.filt.Q) 
 
     def subselect_units(self, units):
@@ -814,7 +818,7 @@ def project_Q(C_v, Q_hat):
     """ 
     Deprecated! See clda.KFRML_IVC
     """
-    print "projecting!"
+    print("projecting!")
     from scipy.optimize import fmin_bfgs, fmin_ncg
 
     C_v = np.mat(C_v)
@@ -894,7 +898,7 @@ def project_Q(C_v, Q_hat):
     #print v_star
     #v_star = fmin_bfgs(cost_fn, nu_0, maxiter=10000, gtol=1e-15)
     v_star = fmin_bfgs(cost_fn, nu_0, fprime=grad, maxiter=10000, gtol=1e-15)
-    print v_star
+    print(v_star)
 
     Q_inv = arg_opt(v_star)
     Q = Q_inv.I

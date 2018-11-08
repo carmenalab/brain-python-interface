@@ -6,7 +6,7 @@ import os
 import pygame
 
 from . import traits
-from experiment import LogExperiment
+from .experiment import LogExperiment
 
 class Pygame(LogExperiment):
     '''

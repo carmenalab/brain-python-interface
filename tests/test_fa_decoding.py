@@ -173,7 +173,7 @@ class SimVFB(Autostart, SimTime, FakeWindow, SimKFDecoderSup, SimFAEnc, BMIContr
                 temp1 = np.array([t]*ntargets)
                 temp2 = np.arange(0, 2*np.pi, 2*np.pi/ntargets)
                 np.random.shuffle(temp2)
-                theta = theta + zip(temp1, temp2)
+                theta = theta + list(zip(temp1, temp2))
         np.random.shuffle(theta)
         theta = np.vstack(theta)
 

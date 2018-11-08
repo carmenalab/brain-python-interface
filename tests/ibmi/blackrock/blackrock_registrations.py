@@ -58,7 +58,7 @@ def parse_nev_hdf(nev_hdf):
     return data, reg
 
 def compare_hdfs(data, reg, hdf):
-    system_list = [system[0] for k,system in reg.items()]
+    system_list = [system[0] for k,system in list(reg.items())]
 
     f, ax = plt.subplots(nrows = len(system_list))
     if len(system_list)==1:
@@ -66,7 +66,7 @@ def compare_hdfs(data, reg, hdf):
 
     for i_s, sys_name in enumerate(system_list):
         syskey = None
-        for key, system in reg.items():
+        for key, system in list(reg.items()):
             
             #match each system in the nev_hdf to a table in the normal hdf:
             if sys_eq(system[0], sys_name):
@@ -79,7 +79,7 @@ def compare_hdfs(data, reg, hdf):
         rows = parse.rowbyte(data)[syskey][:,0]
         timestamps = rows / 30000.
         
-        print sys_name, 'rows in nev_hdf: ', len(timestamps), 'rows in hdf: ', len(hdf.get_node('/'+sys_name))
+        print(sys_name, 'rows in nev_hdf: ', len(timestamps), 'rows in hdf: ', len(hdf.get_node('/'+sys_name)))
 
         tab = hdf.get_node('/'+sys_name)
         if sys_name == 'brainamp':

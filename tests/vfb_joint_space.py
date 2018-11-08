@@ -49,9 +49,9 @@ q_start_constr = np.array([-angles[0][1], -angles[0][3], 0, 0])
 
 joint_pos = chain.inverse_kinematics_pso(starting_pos_ps, q_start_constr, verbose=True, time_limit=1.0, n_particles=30)
 cursor_pos = chain.endpoint_pos(joint_pos)
-print "starting position"
-print starting_pos_ps
-print "error = %g" % np.linalg.norm(cursor_pos - starting_pos_ps)
+print("starting position")
+print(starting_pos_ps)
+print("error = %g" % np.linalg.norm(cursor_pos - starting_pos_ps))
 
 assister = assist.TentacleAssist(ssm=train.tentacle_2D_state_space, kin_chain=chain)
 
@@ -68,14 +68,14 @@ cursor_pos_hist = []
 target_joint_pos = chain.inverse_kinematics(target_list[target_idx] - shoulder_anchor, verbose=True, n_particles=500, eps=0.05, n_iter=10)
 target = target_list[target_idx] - shoulder_anchor	
 while True:
-	if k % 100 == 0: print k
+	if k % 100 == 0: print(k)
 	joint_pos = np.array(x[-1][0:4, -1]).ravel()
 
 	# evaluate the cursor position
 	cursor_pos = chain.endpoint_pos(joint_pos)
 	cursor_pos_hist.append(cursor_pos)	
 	if np.linalg.norm(cursor_pos - target) < 2.:
-		print target_idx
+		print(target_idx)
 		target_idx += 1
 		if target_idx >= n_targets: break
 		target = target_list[target_idx] - shoulder_anchor	

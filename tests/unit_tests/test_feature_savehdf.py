@@ -101,4 +101,4 @@ if __name__ == '__main__':
         suite.addTest(unittest.makeSuite(cls))      
 
     runner = unittest.TextTestRunner()
-    print(runner.run(suite))
+    print((runner.run(suite)))

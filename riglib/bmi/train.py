@@ -10,10 +10,10 @@ from scipy.io import loadmat
 from riglib.dio import parse
 
 import tables
-import kfdecoder, ppfdecoder
+from . import kfdecoder, ppfdecoder
 import pdb
-import state_space_models
-from itertools import izip
+from . import state_space_models
+
 
 import stat
 import os
@@ -98,30 +98,30 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
     '''
     # Open plx file
     from plexon import plexfile
-    if isinstance(plx, str) or isinstance(plx, unicode):
+    if isinstance(plx, str) or isinstance(plx, str):
         plx = plexfile.openFile(plx)
 
     # Get the list of all the systems registered in the neural data file
     events = plx.events[:].data
     reg = parse.registrations(events)
 
-    if len(reg.keys()) > 0:
+    if len(list(reg.keys())) > 0:
         # find the key for the specified system data
         syskey = None
-        for key, system in reg.items():
+        for key, system in list(reg.items()):
             if sys_eq(system[0], sys_name):
                 syskey = key
                 break
 
         if syskey is None:
-            print reg.items()
+            print((list(reg.items())))
             raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')        
-    elif len(reg.keys()) == 0:
+    elif len(list(reg.keys())) == 0:
         # try to find how many systems' rowbytes were in the HDF file
         rowbyte_data = parse.rowbyte(events)
-        if len(rowbyte_data.keys()) == 1:
-            print "No systems registered, but only one system registered with rowbytes! Using it anyway instead of throwing an error"
-            syskey = rowbyte_data.keys()[0]
+        if len(list(rowbyte_data.keys())) == 1:
+            print("No systems registered, but only one system registered with rowbytes! Using it anyway instead of throwing an error")
+            syskey = list(rowbyte_data.keys())[0]
         else:
             raise Exception("No systems registered and I don't know which sys to use to train!")
 
@@ -175,7 +175,7 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     reg = parse.registrations(data)
     syskey = None
 
-    for key, system in reg.items():
+    for key, system in list(reg.items()):
             if sys_eq(system[0], sys_name):
                 syskey = key
                 break
@@ -206,7 +206,7 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
 def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
     # need to create fake "rows" and "tmask" variables
 
-    print 'WARNING: Using _get_tmask_blackrock_fake function!!'
+    print('WARNING: Using _get_tmask_blackrock_fake function!!')
     
     binlen = 0.1
     strobe_rate = 10
@@ -355,7 +355,7 @@ def null_kin_extractor(files, binlen, tmask, update_rate_hz=60., pos_key='cursor
         inds = inds[::step]
         kin = kin[inds]
 
-    print "kin.shape", kin.shape
+    print(("kin.shape", kin.shape))
     return kin
 
 
@@ -426,9 +426,9 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
 def create_onedimLFP(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, kin_source='task',
     pos_key='cursor', vel_key=None, zscore=False):
     ## get neural features
-    import extractor
+    from . import extractor
     f_extractor = extractor.LFPMTMPowerExtractor(None, **extractor_kwargs)
-    import onedim_lfp_decoder as old
+    from . import onedim_lfp_decoder as old
     return old.create_decoder(units, ssm, extractor_cls, f_extractor.extractor_kwargs)
 
 def test_ratBMIdecoder(te_id=None, update_rate=0.1, tslice=None, kin_source='task', pos_key='cursor', vel_key=None, **kwargs):
@@ -437,13 +437,13 @@ def test_ratBMIdecoder(te_id=None, update_rate=0.1, tslice=None, kin_source='tas
     files = dict(hdf=te.hdf_filename, plexon=te.plx_filename)
 
     entry = te.id
-    import extractor
+    from . import extractor
     extractor_cls = extractor.BinnedSpikeCountsExtractor
 
     neural_features, units, extractor_kwargs = get_neural_features(files, 0.1, extractor_cls.extract_from_file, dict(), tslice=None)
     extractor_kwargs['units'] = units
 
-    import rat_bmi_decoder
+    from . import rat_bmi_decoder
     nsteps = kwargs.pop('nsteps', 10)
     prob_t1 = kwargs.pop('prob_t1', 0.985)
     prob_t2 = kwargs.pop('prob_t2', 0.015)
@@ -470,7 +470,7 @@ def test_IsmoreSleepDecoder(te_id, e1_units, e2_units, nsteps=1, prob_t1 = 0.985
     te = dbfn.TaskEntry(te_id)
     files = dict(hdf=te.hdf_filename, blackrock=te.blackrock_filenames)
     entry = te.id
-    import extractor
+    from . import extractor
     extractor_cls = extractor.BinnedSpikeCountsExtractor
 
     units = np.vstack((e1_units, e2_units))
@@ -506,19 +506,19 @@ def test_IsmoreSleepDecoder(te_id, e1_units, e2_units, nsteps=1, prob_t1 = 0.985
     return decoder, nrewards
 
 def create_ratBMIdecoder(task_params):
-    import extractor
+    from . import extractor
     task_params['extractor_cls'] = extractor.BinnedSpikeCountsExtractor
-    import rat_bmi_decoder
-    import state_space_models
+    from . import rat_bmi_decoder
+    from . import state_space_models
     rat_decoder= rat_bmi_decoder.create_decoder(state_space_models.StateSpaceEndptPos1D(), task_params)
     rat_decoder.extractor_kwargs = task_params['extractor_kwargs']
     import tempfile
-    import cPickle
+    import pickle
     from db.tracker import dbq
 
     rat_decoder.te_id = task_params['te_id']
     tf = tempfile.NamedTemporaryFile('wb')
-    cPickle.dump(rat_decoder, tf, 2)
+    pickle.dump(rat_decoder, tf, 2)
     tf.flush()
 
     name = task_params['te_name'] + '_rat_bmi_decoder'
@@ -651,7 +651,7 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     # if search_flag:
     #     raise Exception('No decoder from ', str(decoder_training_te), ' and matching index: ', str(dec_ix), ' with FA training from: ',str(fa_te))
     # else:
-    print 'Using old decoder: ', decoder_old.path
+    print(('Using old decoder: ', decoder_old.path))
 
     decoder = pickle.load(open(decoder_old.filename))
     if hasattr(decoder, 'trained_fa_dict'):
@@ -755,7 +755,7 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     KFDecoder instance
     '''
     import sys
-    print files
+    print(files)
     # sys.stdout.write(files)
     # sys.stdout.write(extractor_cls)
     # sys.stdout.write(extractor_kwargs.keys())
@@ -769,7 +769,7 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=config.hdf_update_rate_hz)
 
     ## get neural features
-    if 'blackrock' in files.keys():
+    if 'blackrock' in list(files.keys()):
         strobe_rate = 20.
     else:
         strobe_rate = 60.
@@ -873,7 +873,7 @@ def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, 
     KFDecoder instance
     '''
     import sys
-    print files
+    print(files)
     # sys.stdout.write(files)
     # sys.stdout.write(extractor_cls)
     # sys.stdout.write(extractor_kwargs.keys())
@@ -906,8 +906,8 @@ def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, 
 
 def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0., 
     zscore=False, **kwargs):
-    print kwargs
-    print 'end of kwargs'
+    print(kwargs)
+    print('end of kwargs')
     
     #### Train the actual KF decoder matrices ####
     if type(zscore) is bool:
@@ -920,15 +920,15 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
         else:
             raise Exception
 
-    print 'zscore value: ', zscore, type(zscore)
+    print(('zscore value: ', zscore, type(zscore)))
 
     if zscore:
         if 'mFR' in kwargs and 'sdFR' in kwargs:
-            print 'using kwargs mFR, sdFR to zscore'
+            print('using kwargs mFR, sdFR to zscore')
             mFR = kwargs['mFR']
             sdFR = kwargs['sdFR']
         else:
-            print 'computing own mFR, sdFR to zscore'
+            print('computing own mFR, sdFR to zscore')
             mFR = np.mean(neural_features, axis=1)
             sdFR = np.std(neural_features, axis=1)
             if hasattr(kwargs, 'zscore_set_std_to_one'):
@@ -943,7 +943,7 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
         if kwargs['noise_rej']:
             sum_pop = np.sum(neural_features, axis = 0)
             bins_noisy = np.nonzero(sum_pop > kwargs['noise_rej_cutoff'])[0]
-            print 'replacing %d noisy bins of total %d bins w/ mFR for decoder training!' % (len(bins_noisy), len(sum_pop))
+            print(('replacing %d noisy bins of total %d bins w/ mFR for decoder training!' % (len(bins_noisy), len(sum_pop))))
             neural_features[:, bins_noisy] = mFR[:, np.newaxis]
     else:
         kwargs['noise_rej'] = False
@@ -962,7 +962,7 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     # instantiate KFdecoder
     driftKF = kwargs.pop('driftKF', False)
     if driftKF:
-        print 'Training Drift Decoder. Noise Rejection? ', kwargs['noise_rej']
+        print(('Training Drift Decoder. Noise Rejection? ', kwargs['noise_rej']))
         kf = kfdecoder.KalmanFilterDriftCorrection(A, W, C, Q, is_stochastic=ssm.is_stochastic)
     else:
         kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=ssm.is_stochastic)
@@ -971,13 +971,13 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
 
     if zscore:
         decoder.init_zscore(mFR, sdFR)  
-        print 'zscore init'
+        print('zscore init')
     else:
-        print 'no init_zscore'
+        print('no init_zscore')
 
 
     # Compute sufficient stats for C and Q matrices (used for RML CLDA)
-    from clda import KFRML
+    from .clda import KFRML
     n_features, n_states = C.shape
     R = np.mat(np.zeros([n_states, n_states]))
     S = np.mat(np.zeros([n_features, n_states]))
@@ -1076,7 +1076,7 @@ def train_PPFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsl
     decoder = ppfdecoder.PPFDecoder(ppf, units, ssm, binlen=binlen, tslice=tslice)
 
     # Compute sufficient stats for C matrix (used for RML CLDA)
-    from clda import KFRML
+    from .clda import KFRML
     n_features, n_states = C.shape
     S = np.mat(np.zeros([n_features, n_states]))
     S_small, = decoder.compute_suff_stats(kin[ssm.train_inds, :], neural_features)
@@ -1390,9 +1390,9 @@ def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
 
     stochastic_states = ['hand_vx', 'hand_vz']  
     try:
-        is_stochastic = map(lambda x: x in stochastic_states, states)
+        is_stochastic = [x in stochastic_states for x in states]
     except:
-        is_stochastic = map(lambda x: x in stochastic_states, states.state_names)
+        is_stochastic = [x in stochastic_states for x in states.state_names]
 
     unit_names = [str(x[0]) for x in data['decoder']['predSig'][0,0][0]]
     units = [(int(x[3:6]), ord(x[-1]) - (ord('a') - 1)) for x in unit_names]

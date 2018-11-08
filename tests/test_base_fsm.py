@@ -26,15 +26,15 @@ class BaseExp(LogExperiment):
         self.iter_idx += 1
         super(BaseExp, self)._cycle()
 
-    def _start_state3(self): print "start state3"
-    def _while_state3(self): print "while state3"
-    def _end_state3(self): print "end state3"
-    def _start_state2(self): print "start state2"
-    def _while_state2(self): print "while state2"
-    def _end_state2(self): print "end state2"
-    def _start_state1(self): print "start state1"
-    def _while_state1(self): print "while state1"
-    def _end_state1(self): print "end state1"
+    def _start_state3(self): print("start state3")
+    def _while_state3(self): print("while state3")
+    def _end_state3(self): print("end state3")
+    def _start_state2(self): print("start state2")
+    def _while_state2(self): print("while state2")
+    def _end_state2(self): print("end state2")
+    def _start_state1(self): print("start state1")
+    def _while_state1(self): print("while state1")
+    def _end_state1(self): print("end state1")
     ################## State trnasition test functions ##################
     def _test_event3to1(self, time_in_state): return event3to1[self.iter_idx]
     def _test_event3to2(self, time_in_state): return event3to2[self.iter_idx]
@@ -53,7 +53,7 @@ exp = BaseExp()
 exp.run_sync()
 
 if exp.event_log == [('state1', 'event1to2', 1), ('state2', 'event2to3', 2), ('state3', 'event3to1', 3), ('state1', 'event1to3', 4), ('state3', 'event3to2', 5), ('state2', 'stop', 7)]:
-    print "event transitions match!"
+    print("event transitions match!")
 
 
 

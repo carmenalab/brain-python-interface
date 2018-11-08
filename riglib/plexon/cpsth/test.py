@@ -6,7 +6,7 @@ chan = np.random.randint(256, size=(100000)).astype(np.int32)
 unit = np.random.randint(4, size=(100000)).astype(np.int32)
 
 idx = np.array(list(set(zip(chan, unit))))
-spikes = np.array(zip(ts, chan, unit), dtype=[('ts', float), ('chan', np.int32), ('unit', np.int32)])
+spikes = np.array(list(zip(ts, chan, unit)), dtype=[('ts', float), ('chan', np.int32), ('unit', np.int32)])
 
 def count(units, spikes, binlen=1):
     t = (spikes['ts'].max() - spikes['ts']) < binlen
@@ -26,7 +26,7 @@ def main(num, binlen=1):
         truth = count(units, data)
         test = sb(data)
         #print test
-        print truth, test, sum(truth - test)
+        print(truth, test, sum(truth - test))
 
 if __name__ == "__main__":
     main(1000)

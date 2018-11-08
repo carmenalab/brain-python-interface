@@ -5,4 +5,4 @@ def main():
 
 if __name__=='__main__':
 	b = main()
-	print b
+	print(b)

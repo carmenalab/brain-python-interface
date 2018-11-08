@@ -1,7 +1,7 @@
 '''
 Module to read the 'config' text file for rig-specific configuration
 '''
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import os
 import sys
 
@@ -10,10 +10,11 @@ class Config(object):
     def __init__(self):
         parser = SafeConfigParser()
         self.parser = parser
-        if not os.path.exists(os.path.expandvars('$BMI3D/config_files/config')):
-            raise ValueError("config.py cannot find 'config' file. Check that it exists and that the environment variable $BMI3D is defined!")
+        config_fname = os.path.join(os.path.dirname(__file__), "config")
+        if not os.path.exists(config_fname):
+            raise ValueError("config.py cannot find 'config' file at expected location %s" % config_fname)
 
-        self.parser.read(os.path.expandvars('$BMI3D/config_files/config'))
+        self.parser.read(config_fname)
 
         self.recording_system = dict(parser.items('recording_sys'))['make']
         self.data_path = dict(parser.items('db_config_default'))['data_path']
@@ -26,6 +27,8 @@ class Config(object):
         self.log_dir = '/home/lab/code/bmi3d/log'
         self.plexon_ip = dict(parser.items('plexon IP address'))['addr']
         self.plexon_port = dict(parser.items('plexon IP address'))['port']
+
+        self.log_path = "/home/suraj/code/bmi3d/log"
 
         try:
             self.hdf_update_rate_hz = int(dict(parser.items('update_rates'))['hdf_hz'])

@@ -13,7 +13,7 @@ import subprocess
 from riglib import bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
-from hdf_features import SaveHDF
+from .hdf_features import SaveHDF
 import sys
 import glob
 import datetime
@@ -37,7 +37,7 @@ class RelayPlexon(object):
         file_pattern = "/storage/plexon/*.plx"
         file_names = glob.glob(file_pattern)
         start_time = datetime.datetime.today() - datetime.timedelta(days=1)
-        file_names = filter(lambda fname: datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time, file_names)
+        file_names = [fname for fname in file_names if datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time]
 
         self.possible_filenames = file_names
         self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
@@ -65,7 +65,7 @@ class RelayPlexon(object):
             filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
             inds, = np.nonzero(filesizes - self.possible_filesizes)
             if len(inds) == 1:
-                print "only one plx file changed since the start of the task."
+                print("only one plx file changed since the start of the task.")
                 self._plexfile = self.possible_filenames[inds[0]]
                 return self._plexfile
 
@@ -150,7 +150,7 @@ class RelayPlexon(object):
             else:
                 database.save_data(self.plexfile, "plexon", saveid, True, False, dbname=dbname)
         else:
-            print '\n\nPlexon file not found properly! It will have to be manually linked!\n\n'
+            print('\n\nPlexon file not found properly! It will have to be manually linked!\n\n')
 
     @classmethod 
     def pre_init(cls, saveid=None):
@@ -257,7 +257,7 @@ class RelayPlexByte(RelayPlexon):
 #         super(PlexonBMI, self).init()
 
 
-from neural_sys_features import CorticalData, CorticalBMI
+from .neural_sys_features import CorticalData, CorticalBMI
 class PlexonBMI(CorticalBMI):
     @property 
     def sys_module(self):

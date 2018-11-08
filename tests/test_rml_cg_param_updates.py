@@ -37,8 +37,8 @@ for k in range(len(param_hist))[5::6]:
         decoder.update_params(new_params)
         C_error.append(np.max(np.abs(decoder.filt.C - param_hist[k]['kf_C'])))
         Q_error.append(np.max(np.abs(decoder.filt.Q - param_hist[k]['kf_Q'])))
-    if (k - 5)/6 % 100 == 0: print k
+    if (k - 5)/6 % 100 == 0: print(k)
 
 
-print 'max C err', np.max(C_error)
-print 'max Q err', np.max(Q_error)
+print('max C err', np.max(C_error))
+print('max Q err', np.max(Q_error))

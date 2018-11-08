@@ -14,7 +14,7 @@ except ImportError:
 
 import matplotlib.pyplot as plt
 from collections import OrderedDict
-from itertools import izip
+
 
 import time
 
@@ -167,7 +167,7 @@ class KinematicChain(object):
 
             current_cost = np.linalg.norm(endpoint_traj[k] - target_pos, 2)
             if current_cost < eps:
-                print "Terminating early"
+                print("Terminating early")
                 break
 
             # calculate the jacobian
@@ -202,8 +202,8 @@ class KinematicChain(object):
         end_time = time.time()
         runtime = end_time - start_time
         if verbose:
-            print "Runtime: %g" % runtime
-            print "# of iterations: %g" % k
+            print("Runtime: %g" % runtime)
+            print("# of iterations: %g" % k)
 
         if return_path:
             return q, endpoint_traj[:k]
@@ -288,7 +288,7 @@ class KinematicChain(object):
         cost_fn = lambda q: self.ik_cost(q, q_start, target_pos)
 
         gbest = particles_q.copy()
-        gbestcost = np.array(map(cost_fn, gbest))
+        gbestcost = np.array(list(map(cost_fn, gbest)))
         pbest = gbest[np.argmin(gbestcost)]
         pbestcost = cost_fn(pbest)
 
@@ -312,7 +312,7 @@ class KinematicChain(object):
             particles_q[max_viol] = max_limits[max_viol]
 
             # update the costs
-            costs = np.array(map(cost_fn, particles_q))
+            costs = np.array(list(map(cost_fn, particles_q)))
 
             # update the 'bests'
             gbest[gbestcost > costs] = particles_q[gbestcost > costs]
@@ -335,7 +335,7 @@ class KinematicChain(object):
                 break
             
         end_time = time.time()
-        if verbose: print "Runtime = %g, error = %g, n_iter=%d" % (end_time-start_time, error, k)
+        if verbose: print("Runtime = %g, error = %g, n_iter=%d" % (end_time-start_time, error, k))
 
         return pbest
 
@@ -450,7 +450,7 @@ class PlanarXZKinematicChain(KinematicChain):
         else:
             angles = []
             limit_hit = []
-            for angle, (lim_min, lim_max) in izip(joint_angles, self.joint_limits):
+            for angle, (lim_min, lim_max) in zip(joint_angles, self.joint_limits):
                 limit_hit.append(angle < lim_min or angle > lim_max)
                 angle = max(lim_min, angle)
                 angle = min(angle, lim_max)
@@ -617,7 +617,7 @@ class PlanarXZKinematicChain(KinematicChain):
         Detect a collision between the chain and a circular object
         '''
         spatial_joint_pos = self.spatial_positions_of_joints(theta).T + self.base_loc
-        plant_segments = [(x, y) for x, y in izip(spatial_joint_pos[:-1], spatial_joint_pos[1:])]
+        plant_segments = [(x, y) for x, y in zip(spatial_joint_pos[:-1], spatial_joint_pos[1:])]
         dist_to_object = np.zeros(len(plant_segments))
         for k, segment in enumerate(plant_segments):
             dist_to_object[k] = point_to_line_segment_distance(obstacle_pos, segment)
@@ -629,7 +629,7 @@ class PlanarXZKinematicChain(KinematicChain):
             ax = plt.subplot(111)
 
         if isinstance(joint_pos, dict):
-            joint_pos = np.vstack(joint_pos.values())
+            joint_pos = np.vstack(list(joint_pos.values()))
         elif isinstance(joint_pos, np.ndarray) and np.ndim(joint_pos) == 1:
             joint_pos = joint_pos.reshape(1, -1)
         elif isinstance(joint_pos, tuple):

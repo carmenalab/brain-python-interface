@@ -27,13 +27,13 @@ class Connection(object):
         self.parameters['client-port'] = 51002
 
         self.channel_offset = 0  # used to be 4 -- some old bug with nPlay
-        print 'Using cbpy channel offset of:', self.channel_offset
+        print('Using cbpy channel offset of:', self.channel_offset)
 
         if sys.platform == 'darwin':  # OS X
-            print 'Using OS X settings for cbpy'
+            print('Using OS X settings for cbpy')
             self.parameters['client-addr'] = '255.255.255.255'
         else:  # linux
-            print 'Using linux settings for cbpy'
+            print('Using linux settings for cbpy')
             self.parameters['client-addr'] = '192.168.137.255'
             self.parameters['receive-buffer-size'] = 8388608
 
@@ -46,7 +46,7 @@ class Connection(object):
     def connect(self):
         '''Open the interface to the NSP (or nPlay).'''
 
-        print 'calling cbpy.open in cerelink.connect()'
+        print('calling cbpy.open in cerelink.connect()')
         # try:
         #     result, return_dict = cbpy.open(connection='default')
         #     time.sleep(3)
@@ -54,11 +54,11 @@ class Connection(object):
         result, return_dict = cbpy.open(connection='default', parameter=self.parameters)
         time.sleep(3)
 
-        print 'cbpy.open result:', result
-        print 'cbpy.open return_dict:', return_dict
+        print('cbpy.open result:', result)
+        print('cbpy.open return_dict:', return_dict)
         if return_dict['connection'] != 'Master':
             raise Exception
-        print ''
+        print('')
         
         # return_dict = cbpy.open('default', self.parameters)  # old cbpy
         
@@ -83,11 +83,11 @@ class Connection(object):
         # range_parameter['begin_channel'] = channels[0]
         # range_parameter['end_channel']   = channels[-1]
 
-        print 'calling cbpy.trial_config in cerelink.select_channels()'
+        print('calling cbpy.trial_config in cerelink.select_channels()')
         result, reset = cbpy.trial_config(buffer_parameter=buffer_parameter)
-        print 'cbpy.trial_config result:', result
-        print 'cbpy.trial_config reset:', reset
-        print ''
+        print('cbpy.trial_config result:', result)
+        print('cbpy.trial_config reset:', reset)
+        print('')
     
     def start_data(self):
         '''Start the buffering of data.'''
@@ -103,11 +103,11 @@ class Connection(object):
         if not self._init:
             raise ValueError("Please open the interface to Central/nPlay first.")
 
-        print 'calling cbpy.trial_config in cerelink.stop()'
+        print('calling cbpy.trial_config in cerelink.stop()')
         result, reset = cbpy.trial_config(reset=False)
-        print 'cbpy.trial_config result:', result
-        print 'cbpy.trial_config reset:', reset
-        print ''
+        print('cbpy.trial_config result:', result)
+        print('cbpy.trial_config reset:', reset)
+        print('')
 
         self.streaming = False
 
@@ -117,10 +117,10 @@ class Connection(object):
         if not self._init:
             raise ValueError("Please open the interface to Central/nPlay first.")
         
-        print 'calling cbpy.close in cerelink.disconnect()'
+        print('calling cbpy.close in cerelink.disconnect()')
         result = cbpy.close()
-        print 'result:', result
-        print ''
+        print('result:', result)
+        print('')
 
         self._init = False
     
@@ -169,7 +169,7 @@ class Connection(object):
                     if chan == 8:
                         self.nsamp_recv += len(samples)
                         if self.nsamp_recv > self.nsamp_last_print + 2000:
-                            print "cerelink.py: # received =", self.nsamp_recv
+                            print("cerelink.py: # received =", self.nsamp_recv)
                             self.nsamp_last_print = self.nsamp_recv
 
                 yield ContinuousData(chan=list_[0],

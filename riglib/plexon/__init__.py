@@ -1,17 +1,21 @@
 '''
 Base code for 'bmi' feature (both spikes and field potentials) when using the plexon system
 '''
-from __future__ import division
+
 import time
 import numpy as np
-import plexnet
+from . import plexnet
 from collections import Counter
 import os
 import array
-from config import config
 
-PL_IP = config.plexon_ip
-PL_PORT = int(config.plexon_port)
+try:
+    from config import config
+    PL_IP = config.plexon_ip
+    PL_PORT = int(config.plexon_port)
+except:
+    PL_IP = "127.0.0.1" # default to localhost
+    PL_PORT = 6000
 PL_ADDR = (PL_IP, PL_PORT)
 
 PL_SingleWFType = 1
@@ -48,7 +52,7 @@ class Spikes(DataSourceSystem):
         try:
             self.conn.select_spikes(channels)
         except:
-            print "Cannot run select_spikes method; old system?"
+            print("Cannot run select_spikes method; old system?")
 
     def start(self):
         '''
@@ -71,9 +75,9 @@ class Spikes(DataSourceSystem):
         '''
         Return a single spike timestamp/waveform. Must be polled continuously for additional spike data. The polling is automatically taken care of by riglib.source.DataSource
         '''
-        d = self.data.next()
+        d = next(self.data)
         while d.type != PL_SingleWFType:
-            d = self.data.next()
+            d = next(self.data)
 
         return np.array([(d.ts / self.update_freq, d.chan, d.unit, d.arrival_ts)], dtype=self.dtype)
 
@@ -121,7 +125,7 @@ class LFP(DataSourceSystem):
         try:
         	self.conn.select_continuous(channels_offset)
         except:
-            print "Cannot run select_continuous method"
+            print("Cannot run select_continuous method")
 
     def start(self):
         '''
@@ -141,9 +145,9 @@ class LFP(DataSourceSystem):
         '''
         Get a new LFP sample/block of LFP samples from the 
         '''
-        d = self.data.next()
+        d = next(self.data)
         while d.type != PL_ADDataType:
-            d = self.data.next()
+            d = next(self.data)
 
         # values are in currently signed integers in the range [-2048, 2047]
         # first convert to float
@@ -194,7 +198,7 @@ class Aux(DataSourceSystem):
         try:
             self.conn.select_continuous(channels_offset)
         except:
-            print "Cannot run select_continuous method"
+            print("Cannot run select_continuous method")
 
     def start(self):
         self.conn.start_data()
@@ -204,9 +208,9 @@ class Aux(DataSourceSystem):
         self.conn.stop_data()
 
     def get(self):
-        d = self.data.next()
+        d = next(self.data)
         while d.type != PL_ADDataType:
-            d = self.data.next()
+            d = next(self.data)
 
         # values are in currently signed integers in the range [-2048, 2047]
         # first convert to float

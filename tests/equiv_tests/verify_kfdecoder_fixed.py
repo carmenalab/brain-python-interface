@@ -17,7 +17,7 @@ cursor = hdf.root.task[:]['cursor']
 assert np.all(assist_level == 0)
 
 task_msgs = hdf.root.task_msgs[:]
-update_bmi_msgs = filter(lambda x: x['msg'] == 'update_bmi', task_msgs)
+update_bmi_msgs = [x for x in task_msgs if x['msg'] == 'update_bmi']
 inds = [x[1] for x in update_bmi_msgs]
 
 assert len(inds) == 0
@@ -31,10 +31,10 @@ for k in range(spike_counts.shape[0]):
 
     error[k] = np.linalg.norm(cursor[k] - np.float32(st[0:3]))
     if error[k] > 1e-6:
-        print "error!"
+        print("error!")
         break
 
-print "Reconstruction error: ", np.max(np.abs(error))
+print("Reconstruction error: ", np.max(np.abs(error)))
 
 # Convert the SSM to 60Hz
 dec_new = train._interpolate_KFDecoder_state_between_updates(dbfunctions.get_decoder(te))
@@ -44,4 +44,4 @@ for k in range(T):
     st[k] = dec_new(spike_counts[k], target=target[k], target_radius=1.8, assist_level=assist_level[k])
     error_with_interp[k] = np.linalg.norm(cursor[k] - np.float32(st[k, 0:3]))
 
-print "Max error with interpolation: ", np.max(np.abs(error_with_interp[5::6])) 
+print("Max error with interpolation: ", np.max(np.abs(error_with_interp[5::6]))) 

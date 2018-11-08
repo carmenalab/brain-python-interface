@@ -57,7 +57,7 @@ def stuff():
 	cost_fn = lambda x: cost(x, q_start)
 
 	gbest = particles_q.copy()
-	gbestcost = np.array(map(cost_fn, gbest))
+	gbestcost = np.array(list(map(cost_fn, gbest)))
 	pbest = gbest[np.argmin(gbestcost)]
 	pbestcost = cost_fn(pbest)
 
@@ -79,11 +79,11 @@ def stuff():
 		particles_q[max_viol] = max_limits[max_viol]
 
 		# update the costs
-		costs = np.array(map(cost_fn, particles_q))
+		costs = np.array(list(map(cost_fn, particles_q)))
 
 		# update the 'bests'
 		gbest[gbestcost > costs] = particles_q[gbestcost > costs]
-		gbestcost = map(cost_fn, gbest)
+		gbestcost = list(map(cost_fn, gbest))
 
 		pbest = gbest[np.argmin(gbestcost)]
 		pbestcost = cost_fn(pbest)	
@@ -100,7 +100,7 @@ def stuff():
 			break
 		
 	end_time = time.time()
-	print "Runtime = %g" % (end_time-start_time)
+	print("Runtime = %g" % (end_time-start_time))
 
 	return pbest
 
@@ -119,22 +119,22 @@ pbest = planar_chain.inverse_kinematics_pso(q_start_constr, target_pos, verbose=
 
 # cProfile.run('planar_chain.inverse_kinematics_pso(q_start_constr, target_pos)', timeunit=0.001)
 
-import cProfile, pstats, StringIO
+import cProfile, pstats, io
 pr = cProfile.Profile(timeunit=0.001)
 pr.enable()
 planar_chain.inverse_kinematics_pso(q_start_constr, target_pos)
 pr.disable()
-s = StringIO.StringIO()
+s = io.StringIO()
 sortby = 'time'
 ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
 ps.print_stats()
-print s.getvalue()
+print(s.getvalue())
 
 
 # print planar_chain.endpoint_pos(pbest)
-print "target position"
-print target_pos
-print "error = %g" % np.linalg.norm(planar_chain.endpoint_pos(pbest) - target_pos)
+print("target position")
+print(target_pos)
+print("error = %g" % np.linalg.norm(planar_chain.endpoint_pos(pbest) - target_pos))
 
 # print "q_start_constr"
 # print q_start_constr * 180/np.pi

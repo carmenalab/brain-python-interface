@@ -32,3 +32,5 @@ riglib/ismore/traj_*.pkl
 analysis
 tasks
 tests/sim_clda/*
+*.egg-info/*
+*/*.egg-info/*

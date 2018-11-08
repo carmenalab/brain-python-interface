@@ -15,7 +15,7 @@ stuff['plexon IP address'] = dict(addr='10.0.0.13', port=6000)
 stuff['update_rates'] = dict(hdf_hz=60)
 
 from db import settings
-databases = settings.DATABASES.keys()
+databases = list(settings.DATABASES.keys())
 
 for dbname in databases:
     stuff['db_config_%s' % dbname] = dict(data_path='/storage')
@@ -23,16 +23,16 @@ for dbname in databases:
 config_filename = '$BMI3D/config_files/config'
 config_fh = open(os.path.expandvars(config_filename), 'w')
 
-for system_name, system_opts in stuff.items():
+for system_name, system_opts in list(stuff.items()):
     config_fh.write('[%s]\n' % system_name)
-    print system_name
-    for option, default in system_opts.items():
-        print option, default
-        opt_val = raw_input("Enter value for '%s' (default=%s): " % (option, str(default)))
+    print(system_name)
+    for option, default in list(system_opts.items()):
+        print(option, default)
+        opt_val = input("Enter value for '%s' (default=%s): " % (option, str(default)))
         if opt_val == '':
             opt_val = default
         config_fh.write('%s = %s\n' % (option, opt_val))
     config_fh.write('\n')
-    print 
+    print() 
 
 config_fh.close()

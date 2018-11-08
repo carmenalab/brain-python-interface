@@ -18,10 +18,10 @@ sockets = []
 class ClientSocket(websocket.WebSocketHandler):
     def open(self):
         sockets.append(self)
-        print "WebSocket opened"
+        print("WebSocket opened")
 
     def on_close(self):
-        print "WebSocket closed"
+        print("WebSocket closed")
         sockets.remove(self)
 
     def check_origin(self, origin):
@@ -61,7 +61,7 @@ class Server(mp.Process):
         '''
         Main function to run in the process. See mp.Process.run() for additional documentation.
         '''
-        print "Running websocket service"
+        print("Running websocket service")
         application = tornado.web.Application([
             (r"/connect", ClientSocket),
         ])
@@ -78,11 +78,11 @@ class Server(mp.Process):
             self.notify(msg)
 
         # force the message to string, if necessary (e.g., NotifyFeat.set_state sends a dict)
-        if not isinstance(msg, (str, unicode)):
+        if not isinstance(msg, str):
             msg = json.dumps(msg)
 
         # Write to 'self.pipe'. The write apparently triggers the function self._stdout to run 
-        os.write(self.pipe, struct.pack('I', len(msg))+msg)
+        os.write(self.pipe, struct.pack('I', len(msg)) + bytes(msg, 'utf8'))
 
     def _stdout(self, fd, event):
         '''
@@ -97,7 +97,7 @@ class Server(mp.Process):
             sock.write_message(msg)
 
     def stop(self):
-        print "Stopping websocket service"
+        print("Stopping websocket service")
         self.send("stop")
 
     ##### Currently unused functions below this line #####
@@ -108,7 +108,7 @@ class Server(mp.Process):
 
     def flush(self):
         msg = json.dumps(dict(status="stdout", msg=cgi.escape(self.outqueue)))
-        os.write(self.outp, struct.pack('I', len(msg))+msg)
+        os.write(self.outp, struct.pack('I', len(msg)) + bytes(msg, 'utf8'))
         self.outqueue = ""
 
     def _send(self, fd, event):
@@ -143,9 +143,9 @@ class NotifyFeat(object):
         try:
             super(NotifyFeat, self).run()
         except:
-            import cStringIO
+            import io
             import traceback
-            err = cStringIO.StringIO()
+            err = io.StringIO()
             traceback.print_exc(None, err)
             err.seek(0)
             self.websock.send(dict(status="error", msg=err.read()))

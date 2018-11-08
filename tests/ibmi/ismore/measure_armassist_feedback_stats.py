@@ -30,7 +30,7 @@ recv_packet_count = 0
 while True:
     feedback = recv_feedback()
     if feedback is not None:
-        print feedback
+        print(feedback)
 
         # TODO -- replace code below with a call to 
         # udp_feedback_client.ArmAssistData.process_received_feedback()
@@ -57,18 +57,18 @@ while True:
         py_vec.append(py)
         ppsi_vec.append(ppsi)
 
-        print 'min:', np.min(np.array(px_vec))
-        print 'max:', np.max(np.array(px_vec))
-        print 'std:', np.std(np.array(px_vec))
+        print('min:', np.min(np.array(px_vec)))
+        print('max:', np.max(np.array(px_vec)))
+        print('std:', np.std(np.array(px_vec)))
 
-        print 'min:', np.min(np.array(py_vec))
-        print 'max:', np.max(np.array(py_vec))
-        print 'std:', np.std(np.array(py_vec))
+        print('min:', np.min(np.array(py_vec)))
+        print('max:', np.max(np.array(py_vec)))
+        print('std:', np.std(np.array(py_vec)))
 
-        print 'min:', np.min(np.array(ppsi_vec))
-        print 'max:', np.max(np.array(ppsi_vec))
-        print 'std:', np.std(np.array(ppsi_vec))
+        print('min:', np.min(np.array(ppsi_vec)))
+        print('max:', np.max(np.array(ppsi_vec)))
+        print('std:', np.std(np.array(ppsi_vec)))
 
         recv_packet_count += 1
         t_elapsed = time.time() - t_start
-        print recv_packet_count / t_elapsed
+        print(recv_packet_count / t_elapsed)

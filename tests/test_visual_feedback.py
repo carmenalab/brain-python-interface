@@ -19,13 +19,13 @@ import os
 os.environ['DISPLAY'] = ':0'
 
 def consolerun(base_class='', feats=[], exp_params=dict(), gen_fn=None, gen_params=dict()):
-    if isinstance(base_class, (str, unicode)):
+    if isinstance(base_class, str):
         # assume that it's the name of a task as stored in the database
         base_class = models.Task.objects.get(name=base_class).get()
     
     for k, feat in enumerate(feats):
         # assume that the feature is input as the name of a feature already known to the database
-        if isinstance(feat, (str, unicode)):
+        if isinstance(feat, str):
             feats[k] = models.Feature.objects.get(name=feat).get()
 
     # Run the pseudo-metaclass constructor

@@ -37,7 +37,7 @@ class Connection(object):
     SPIKE_CHAN_UNSORTED_WAVEFORMS = (0x08)
 
     def __init__(self, addr, port):
-        print 'USING MODIFIED PLEXNET'
+        print('USING MODIFIED PLEXNET')
         self.addr = (addr, port)
 
 
@@ -260,7 +260,7 @@ class Connection(object):
                 packet = packet[16:]
                 
                 while len(packet) > 16:
-                    header = dict(zip(hnames, struct.unpack('hHI4h', packet[:16])))
+                    header = dict(list(zip(hnames, struct.unpack('hHI4h', packet[:16]))))
                     packet = packet[16:]
                     
                     if header['type'] not in invalid:
@@ -277,7 +277,7 @@ class Connection(object):
                         if header['type'] == 5:  # 5 is PL_ADDataType
                             chan = header['chan'] + 1
                         
-                        ts = long(header['Uts']) << 32 | long(header['ts'])
+                        ts = int(header['Uts']) << 32 | int(header['ts'])
                         # print wavedat
                         yield WaveData(type=header['type'], chan=chan,
                             unit=header['unit'], ts=ts, waveform=wavedat, 
@@ -309,19 +309,19 @@ if __name__ == "__main__":
         # conn.select_spikes(spike_channels, unsorted=unsorted)
         # # conn.select_spikes(unsorted=unsorted)
 
-        print 'selecting continuous channels'
+        print('selecting continuous channels')
         cont_channels = [65, 66] #502, 503, 504, 505] #[85, 86]
         conn.select_continuous(cont_channels)
         # conn.select_continuous()  # select all 800 continuous channels
         
-        print 'starting data'
+        print('starting data')
         conn.start_data() #start the data pump
 
         waves = conn.get_data()
         start = time.time()
 
         while (time.time()-start) < args.discard_len:
-            wave = waves.next()
+            wave = next(waves)
 
         got_first = False
 
@@ -336,9 +336,9 @@ if __name__ == "__main__":
 
         start = time.time()
         while (time.time()-start) < args.len:
-            wave = waves.next()
+            wave = next(waves)
             if not got_first and wave is not None:
-                print wave
+                print(wave)
                 first_ts = wave.ts
                 first_arrival_ts = wave.arrival_ts 
                 got_first = True
@@ -362,8 +362,8 @@ if __name__ == "__main__":
         conn.stop_data()
         conn.disconnect()
 
-    print 'n_samples', n_samples
-    print 'n_packets', n_packets
+    print('n_samples', n_samples)
+    print('n_packets', n_packets)
 
     plt.figure()
     plt.subplot(2,1,1)

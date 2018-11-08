@@ -13,7 +13,7 @@ import subprocess
 from riglib import bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
-from hdf_features import SaveHDF
+from .hdf_features import SaveHDF
 import sys
 import glob
 import datetime
@@ -61,7 +61,7 @@ class SerialDIORowByte(object):
             Cutoff time for the file timestamp. The file needs 
             to be modified after this time in order to pass the filter.
         '''
-        return filter(lambda fname: datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time, file_names)
+        return [fname for fname in file_names if datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time]
 
     def init(self):
         '''
@@ -108,9 +108,9 @@ class SerialDIORowByte(object):
             filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
             inds, = np.nonzero(filesizes - self.possible_filesizes)
             if len(inds) == 0:
-                print "\n\n\nFile recording did not start? no files have changed size!\n"
+                print("\n\n\nFile recording did not start? no files have changed size!\n")
             else:
-                print "%d neural files have changed since the start of the block" % len(inds)
+                print("%d neural files have changed since the start of the block" % len(inds))
             self.checked_for_file_changes = True
         super(SerialDIORowByte, self)._cycle()
 
@@ -128,7 +128,7 @@ class SerialDIORowByte(object):
         # Sleep time so that the neural recording system has time to save cleanly        
         time.sleep(5)
 
-        print "Beginning neural data file cleanup"
+        print("Beginning neural data file cleanup")
         # specify which database to save to. If you're running from the web interface, this will always pick the 'default' database
         
         if "dbname" in kwargs:
@@ -136,7 +136,7 @@ class SerialDIORowByte(object):
 
         # Call the appropriate functions in the dbq module to actually link the files
         if self.data_files is None or len(self.data_files) == 0:
-            print "\tData files not found properly!\n\tThey will have be manually linked using dbq.save_data!\n\n"
+            print("\tData files not found properly!\n\tThey will have be manually linked using dbq.save_data!\n\n")
         elif isinstance(self.data_files, str):
             database.save_data(self.data_files, self.db_sys_name, saveid, True, False, **self.dbq_kwargs)
         elif np.iterable(self.data_files):
@@ -188,7 +188,7 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
             filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
             inds, = np.nonzero(filesizes - self.possible_filesizes)
             if len(inds) == 1:
-                print "\tonly one plx file changed since the start of the task."
+                print("\tonly one plx file changed since the start of the task.")
                 self._data_files = self.possible_filenames[inds[0]]
                 return self._data_files
 
@@ -205,7 +205,7 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
             if len(files) > 0:
                 tdiff = os.stat(files[0]).st_mtime - start
                 if abs(tdiff) < sec_per_min:
-                    print "\tfound plexon file by finding a file with a timestamp within one minute of the last thing in the event log"
+                    print("\tfound plexon file by finding a file with a timestamp within one minute of the last thing in the event log")
                     self._data_files = files[0]
                     return self._data_files
 
@@ -247,10 +247,10 @@ class BlackrockSerialDIORowByte(SerialDIORowByte):
             if len(np.unique(file_dates)) <= 1:
                 self._data_files = files_which_changed_size
             else:
-                print "Filenames ambiguous! BlackrockSerialDIORowByte cannot figure out which files are associated with this block"
-                print "these are the options:"
-                print files_which_changed_size
-                print
+                print("Filenames ambiguous! BlackrockSerialDIORowByte cannot figure out which files are associated with this block")
+                print("these are the options:")
+                print(files_which_changed_size)
+                print()
 
         return self._data_files
 

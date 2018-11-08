@@ -32,7 +32,7 @@ class HDFWriter(object):
         -------
         HDFWriter instance
         '''
-        print "HDFWriter: Saving datafile to %s"%filename
+        print("HDFWriter: Saving datafile to %s"%filename)
         self.h5 = tables.openFile(filename, "w")
         self.data = {}
         self.msgs = {}
@@ -55,7 +55,7 @@ class HDFWriter(object):
         -------
         None
         '''
-        print "HDFWriter registered %r" % name
+        print("HDFWriter registered %r" % name)
         if dtype.subdtype is not None:
             #just a simple dtype with a shape
             dtype, sliceshape = dtype.subdtype
@@ -105,7 +105,7 @@ class HDFWriter(object):
         -------
         None
         '''  
-        for system in self.msgs.keys():
+        for system in list(self.msgs.keys()):
             row = self.msgs[system].row
             row['time'] = len(self.data[system])
             row['msg'] = msg
@@ -137,7 +137,7 @@ class HDFWriter(object):
         Close the HDF file so that it saves properly after the process terminates
         '''
         self.h5.close()
-        print "Closed hdf"
+        print("Closed hdf")
 
 
 class PlexRelayWriter(HDFWriter):

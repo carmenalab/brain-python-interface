@@ -35,7 +35,7 @@ class RelayBlackrock(object):
         -------
         '''
         from riglib.dio import nidaq
-        print 'nidaq.SendAll', nidaq.SendAll
+        print('nidaq.SendAll', nidaq.SendAll)
         return nidaq.SendAll
 
     @property    
@@ -223,7 +223,7 @@ class BlackrockData(object):
         finally:
             self.neurondata.stop()
 
-from neural_sys_features import CorticalData, CorticalBMI
+from .neural_sys_features import CorticalData, CorticalBMI
 from riglib import blackrock
 class BlackrockData(CorticalData):
     @property 

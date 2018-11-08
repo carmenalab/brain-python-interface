@@ -12,7 +12,7 @@ data = [None]*T
 for k in range(T):
     data[k] = ds.get()
     data_k = data[k]
-    print data_k[data_k['chan'] == 232]
+    print(data_k[data_k['chan'] == 232])
 
     time.sleep(0.1)
 ds.stop()

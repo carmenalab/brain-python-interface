@@ -55,13 +55,13 @@ traits.OptionsList = OptionsList
 
 
 
-import experiment
-import generate
-import report
-from experiment import Experiment, LogExperiment, Sequence, TrialTypes, FSMTable, StateTransitions
+from . import experiment
+from . import generate
+from . import report
+from .experiment import Experiment, LogExperiment, Sequence, TrialTypes, FSMTable, StateTransitions
 
 try:
-    from Pygame import Pygame
+    from .Pygame import Pygame
 except:
     import warnings
     warnings.warn('riglib/experiment/__init__.py: could not import Pygame (note capital P)')
@@ -91,9 +91,9 @@ def make(exp_class, feats=()):
         # inherit from the features first, then the base class
         clslist = tuple(feats) + (exp_class,)
 
-        print "metaclass constructor"
-        print clslist
-        print feats
+        print("metaclass constructor")
+        print(clslist)
+        print(feats)
 
         # return custom class
         return type(exp_class.__name__, clslist, dict())

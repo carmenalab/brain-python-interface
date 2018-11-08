@@ -11,7 +11,7 @@ import cProfile
 from riglib.bmi import train, clda, bmi, ppfdecoder, extractor
 from tasks import bmimultitasks, generatorfunctions as genfns
 from riglib.bmi.train import unit_conv
-from itertools import izip
+
 from tasks import bmi_recon_tasks
 
 reload(clda)
@@ -28,7 +28,7 @@ parser.add_option("-b", "--block", dest="block", help="Database ID number of blo
 (options, args) = parser.parse_args()
 idx = options.block
 te = performance._get_te(idx)
-print te
+print(te)
 T = len(te.hdf.root.task)
 n_iter = 100 #T
 #n_iter = 15782
@@ -111,7 +111,7 @@ self = task = bmi_recon_tasks.ContCLDARecon(te, n_iter, gen)
 task.init()
 error = task.calc_recon_error()
 
-print "Max recon error", np.max(np.abs(error))
+print("Max recon error", np.max(np.abs(error)))
 
 # task = CLDAPPFReconstruction(gen)
 # task.init()

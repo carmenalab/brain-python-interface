@@ -8,14 +8,14 @@ import json
 import numpy as np
 import datetime
 import pickle
-import cPickle
+import pickle
 import tables
 import matplotlib.pyplot as plt
 import time, datetime
 
 import db
 from collections import defaultdict, OrderedDict
-from itertools import izip
+
 
 from config import config
 
@@ -24,7 +24,7 @@ try:
 except:
     pass
 
-from tracker import models
+from .tracker import models
 
 # default DB, change this variable from python session to switch to other database
 db_name = 'default'
@@ -47,7 +47,7 @@ def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
         key = grouping_fn(te)
         keyed_ids[key].append(id)
 
-    keys = keyed_ids.keys()
+    keys = list(keyed_ids.keys())
     keys.sort()
 
     grouped_ids = []
@@ -264,21 +264,21 @@ def session_summary(entry):
     Takes TaskEntry object.
     '''
     entry = lookup_task_entries(entry)
-    print "Subject: ", get_subject(entry)
-    print "Task: ", get_task_name(entry)
-    print "Date: ", str(get_date(entry))
+    print("Subject: ", get_subject(entry))
+    print("Task: ", get_task_name(entry))
+    print("Date: ", str(get_date(entry)))
     hours = np.floor(get_length(entry)/3600)
     mins = np.floor(get_length(entry)/60) - hours*60
     secs = get_length(entry) - mins*60
-    print "Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs))
+    print("Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs)))
     try:
-        print "Assist level: ", get_param(entry,'assist_level')
+        print("Assist level: ", get_param(entry,'assist_level'))
     except:
-        print "Assist level: 0"
-    print "Completed trials: ", get_completed_trials(entry)
-    print "Success rate: ", get_success_rate(entry)*100, "%"
-    print "Reward rate: ", get_reward_rate(entry), "trials/minute"
-    print "Initiate rate: ", get_initiate_rate(entry), "trials/minute"
+        print("Assist level: 0")
+    print("Completed trials: ", get_completed_trials(entry))
+    print("Success rate: ", get_success_rate(entry)*100, "%")
+    print("Reward rate: ", get_reward_rate(entry), "trials/minute")
+    print("Initiate rate: ", get_initiate_rate(entry), "trials/minute")
     
 def query_daterange(startdate, enddate=datetime.date.today()):
     '''
@@ -334,7 +334,7 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
     dec_list = []
     for dec in all_decoders:
         try:
-            decobj = cPickle.load(open(db.paths.data_path+'/decoders/'+dec.path))
+            decobj = pickle.load(open(db.paths.data_path+'/decoders/'+dec.path))
             decset = set(tuple(unit) for unit in decobj.units)
             if subset==decset:
                 dec_list = dec_list + [dec]
@@ -366,7 +366,7 @@ def get_task_entries_by_date(subj=None, date=datetime.date.today(), dbname='defa
     else:
         raise ValueError("Cannot interpret date: %r" % date)
 
-    if isinstance(subj, str) or isinstance(subj, unicode):
+    if isinstance(subj, str) or isinstance(subj, str):
         kwargs['subject__name__startswith'] = str(subj)
     elif subj is not None:
         kwargs['subject__name'] = subj.name
@@ -416,11 +416,11 @@ class TaskEntry(object):
             self.record = models.TaskEntry.objects.using(self.dbname).get(id=task_entry_id)
         self.id = self.record.id
         self.params = self.record.params
-        if (isinstance(self.params, str) or isinstance(self.params, unicode)) and len(self.params) > 0:
+        if (isinstance(self.params, str) or isinstance(self.params, str)) and len(self.params) > 0:
             self.params = json.loads(self.record.params)
 
             # Add the params dict to the object's dict
-            for key, value in self.params.items():
+            for key, value in list(self.params.items()):
                 try:
                     setattr(self, key, value)
                 except AttributeError: # if the object already has an attribute of the same name ...
@@ -495,7 +495,7 @@ class TaskEntry(object):
                     trial_start_inds, = np.nonzero(trial_start)
                     trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
 
-                    for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+                    for trial_st, trial_end in zip(trial_start_inds, trial_end_inds):
                         self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
                 except:
                     # For tasks where there is no target index in the trial structure..
@@ -504,12 +504,12 @@ class TaskEntry(object):
                     trial_start_inds = np.hstack([0, trial_end_inds[:-1]+1])
                     trial_end = np.zeros(len(self.task_msgs))
 
-                    for trial_st, trial_end in izip(trial_start_inds, trial_end_inds):
+                    for trial_st, trial_end in zip(trial_start_inds, trial_end_inds):
                         self.trial_msgs.append(self.task_msgs[trial_st:trial_end+1])
 
 
             except:
-                print "Couldn't process HDF file!"
+                print("Couldn't process HDF file!")
                 import traceback
                 traceback.print_exc()
 
@@ -533,7 +533,7 @@ class TaskEntry(object):
         if return_type == 'record':
             decoder_objects = list(records)
         elif return_type == 'object':
-            decoder_objects = map(lambda x: x.load(), records)
+            decoder_objects = [x.load() for x in records]
         else:
             raise ValueError("Unrecognized return_type!")
         if len(decoder_objects) == 1: decoder_objects = decoder_objects[0]
@@ -551,7 +551,7 @@ class TaskEntry(object):
         '''
         report = self.record.offline_report()
         for key in report:
-            print key, report[key]
+            print(key, report[key])
 
     def proc(self, filt=None, proc=None, cond=None, comb=None, **kwargs):
         '''
@@ -606,7 +606,7 @@ class TaskEntry(object):
 
 
         te = self
-        trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
+        trial_msgs = [msgs for msgs in te.trial_msgs if trial_filter_fn(te, msgs)]
         n_trials = len(trial_msgs)
         
         blockset_data = defaultdict(list)
@@ -621,8 +621,8 @@ class TaskEntry(object):
         for key in blockset_data:
             newdata[key] = data_comb_fn(blockset_data[key])
 
-        if len(newdata.keys()) == 1:
-            key = newdata.keys()[0]
+        if len(list(newdata.keys())) == 1:
+            key = list(newdata.keys())[0]
             return newdata[key]
         else:
             return newdata
@@ -995,7 +995,7 @@ class TaskEntry(object):
         '''
         current_db = self.record._state.db
         if current_db == new_db:
-            print "new database and current database are the same!"
+            print("new database and current database are the same!")
             return
 
         # save the subject
@@ -1027,7 +1027,7 @@ class TaskEntry(object):
         '''
         task_msgs = self.hdf.root.task_msgs[:]
         n_msgs = len(task_msgs)
-        msg_inds = np.array(filter(lambda k: task_msgs[k]['msg'] == state_name, range(n_msgs)))
+        msg_inds = np.array([k for k in range(n_msgs) if task_msgs[k]['msg'] == state_name])
 
         inds = np.zeros(len(self.hdf.root.task), dtype=bool)
         for idx in msg_inds:
@@ -1141,10 +1141,10 @@ class TaskEntryCollection(object):
             blockset_data = defaultdict(list)
             for te in blockset:
                 if verbose:
-                    print "."
+                    print(".")
           
                 # Filter out the trials you want
-                trial_msgs = filter(lambda msgs: trial_filter_fn(te, msgs), te.trial_msgs)
+                trial_msgs = [msgs for msgs in te.trial_msgs if trial_filter_fn(te, msgs)]
                 n_trials = len(trial_msgs)
         
                 ## Call a function on each trial    
@@ -1155,7 +1155,7 @@ class TaskEntryCollection(object):
                         blockset_data[trial_condition].append(output)
                     except:
                         error_count += 1
-                        print trial_msgs[k]
+                        print(trial_msgs[k])
                         import traceback
                         traceback.print_exc()
                         if error_count > max_errors:
@@ -1165,8 +1165,8 @@ class TaskEntryCollection(object):
             blockset_data_comb = dict()
             for key in blockset_data:
                 blockset_data_comb[key] = data_comb_fn(blockset_data[key])
-            if len(blockset_data_comb.keys()) == 1:
-                key = blockset_data_comb.keys()[0]
+            if len(list(blockset_data_comb.keys())) == 1:
+                key = list(blockset_data_comb.keys())[0]
                 result.append(blockset_data_comb[key])
             else:
                 result.append(blockset_data_comb)
@@ -1226,7 +1226,7 @@ class TaskEntryCollection(object):
             blockset_data = []
             for te in blockset:
                 if verbose:
-                    print "."
+                    print(".")
 
                 if block_filter_fn(te):
                     blockset_data.append(block_proc_fn(te, **kwargs))
@@ -1282,7 +1282,7 @@ def min_trials(min_trial_count):
 ## Filters
 ##########
 def get_blocks_after(id, **kwargs):
-    return filter(lambda x: x.id > id, models.TaskEntry.objects.filter(**kwargs))
+    return [x for x in models.TaskEntry.objects.filter(**kwargs) if x.id > id]
 
 def get_bmi_blocks(date, subj='C'):
     blocks = TaskEntrySet.get_blocks(filter_fns=[min_trials(50)], subj=subj, date=date, task__name__startswith='bmi') + TaskEntrySet.get_blocks(filter_fns=[min_trials(5)], subj=subj, date=date, task__name__startswith='clda')
@@ -1468,11 +1468,11 @@ def get_binned_spikes_file(entry):
     ''' Return binned spike file if it exists'''
     entry = lookup_task_entries(entry)
     fname = db.paths.data_path+'binned_spikes/'+entry.name+'.npz'
-    print fname
+    print(fname)
     if os.path.isfile(fname):
         return np.load(fname)
     else:
-        print 'Not found'
+        print('Not found')
         return None
     
 def get_success_rate(entry):
@@ -1543,19 +1543,19 @@ def session_summary(entry):
     Takes TaskEntry object.
     '''
     entry = lookup_task_entries(entry)
-    print "Subject: ", get_subject(entry)
-    print "Task: ", get_task_name(entry)
-    print "Date: ", str(get_date(entry))
+    print("Subject: ", get_subject(entry))
+    print("Task: ", get_task_name(entry))
+    print("Date: ", str(get_date(entry)))
     hours = np.floor(get_length(entry)/3600)
     mins = np.floor(get_length(entry)/60) - hours*60
     secs = get_length(entry) - mins*60
-    print "Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs))
+    print("Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs)))
     try:
-        print "Assist level: ", get_param(entry,'assist_level')
+        print("Assist level: ", get_param(entry,'assist_level'))
     except:
-        print "Assist level: 0"
-    print "Completed trials: ", get_completed_trials(entry)
-    print "Success rate: ", get_success_rate(entry)*100, "%"
-    print "Reward rate: ", get_reward_rate(entry), "trials/minute"
-    print "Initiate rate: ", get_initiate_rate(entry), "trials/minute"
+        print("Assist level: 0")
+    print("Completed trials: ", get_completed_trials(entry))
+    print("Success rate: ", get_success_rate(entry)*100, "%")
+    print("Reward rate: ", get_reward_rate(entry), "trials/minute")
+    print("Initiate rate: ", get_initiate_rate(entry), "trials/minute")
    

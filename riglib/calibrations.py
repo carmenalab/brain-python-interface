@@ -71,7 +71,7 @@ class Profile(object):
         bedge = len(order) / float(blocks)
 
         ccs = np.zeros((blocks,))
-        for b in xrange(blocks):
+        for b in range(blocks):
             val = order[int(b*bedge):int((b+1)*bedge)]
             trn = np.array(list(idx - set(val)))
 
@@ -266,7 +266,7 @@ class AutoAlign(object):
         Returns
         -------
         '''
-        print "Making autoaligner from reference %s"%reference
+        print("Making autoaligner from reference %s"%reference)
         from riglib.stereo_opengl import xfm
         self._quat = xfm.Quaternion
         self.ref = np.load(reference)['reference']

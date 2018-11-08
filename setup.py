@@ -1,0 +1,13 @@
+import setuptools
+
+setuptools.setup(
+    name="bmi3d",
+    version="0.1.0",
+    author="people",
+    description="electrophysiology experimental rig library",
+    packages=setuptools.find_packages(),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Operating System :: OS Independent",
+    ],
+)

@@ -12,7 +12,7 @@ parser.add_option("-i", "--idx", dest="idx", type="int", help="block index to ru
 idx = options.idx
 
 te = performance._get_te(idx)
-print te
+print(te)
 hdf = te.hdf
 dec = te.decoder
 bmi_params = te.clda_param_hist
@@ -23,7 +23,7 @@ target = hdf.root.task[:]['target']
 cursor = hdf.root.task[:]['cursor']
 
 task_msgs = hdf.root.task_msgs[:]
-update_bmi_msgs = filter(lambda x: x['msg'] == 'update_bmi', task_msgs)
+update_bmi_msgs = [x for x in task_msgs if x['msg'] == 'update_bmi']
 inds = [x[1] for x in update_bmi_msgs]
 
 T = spike_counts.shape[0]
@@ -46,4 +46,4 @@ for k in range(T):
         pass
         #import pdb; pdb.set_trace()
 
-print 'Max error', np.max(np.abs(error))
+print('Max error', np.max(np.abs(error)))

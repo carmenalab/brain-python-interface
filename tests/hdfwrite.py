@@ -10,10 +10,10 @@ def test(filename, shape=(8,4), length=2**28):
     times = np.zeros(length)
     times[0] = time.time()
     data = np.random.randn(*shape)
-    for i in xrange(1, int(length)):
+    for i in range(1, int(length)):
         h5.send("test", data)
         times[i] = time.time()
-    print "I'm done!"
+    print("I'm done!")
     h5.stop()
     h5.join()
     np.save("/tmp/times.npy", times)

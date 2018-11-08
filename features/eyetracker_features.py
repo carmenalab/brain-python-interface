@@ -92,9 +92,9 @@ class EyeData(traits.HasTraits):
         '''
         self.eyedata.pause()
         self.eyefile = tempfile.mktemp()
-        print "retrieving data from eyetracker..."
+        print("retrieving data from eyetracker...")
         self.eyedata.retrieve(self.eyefile)
-        print "Done!"
+        print("Done!")
         self.eyedata.stop()
         super(EyeData, self)._start_None()
     

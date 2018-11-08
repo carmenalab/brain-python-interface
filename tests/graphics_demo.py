@@ -1,4 +1,4 @@
-from __future__ import division
+
 import sys
 
 import time
@@ -42,11 +42,11 @@ class Test2(Window):
         ts = time.time() - self.start_time
         t = (ts / 2.) * np.pi
         if self.count<len(pos_list):
-            print "initial position = ", np.around(arm4j.get_endpoint_pos(),decimals=2)
-            print "setting position to ", np.around(pos_list[self.count], decimals=2)
+            print("initial position = ", np.around(arm4j.get_endpoint_pos(),decimals=2))
+            print("setting position to ", np.around(pos_list[self.count], decimals=2))
             arm4j.set_endpoint_pos(pos_list[self.count])
             time.sleep(2)
-            print "final position = ", np.around(arm4j.get_endpoint_pos(),decimals=2)
+            print("final position = ", np.around(arm4j.get_endpoint_pos(),decimals=2))
             
             self.count+=1
         self.draw_world()

@@ -21,14 +21,14 @@ for i in range(sec_of_dat*f_s):
         sensdat[0,0] = kit.getSensorValue(0)/1000.
         sensdat[0,1] = kit.getSensorValue(1)/1000.
     except:
-        print time.time() - s['start_time'], i
-        print kit.isAttached()
+        print(time.time() - s['start_time'], i)
+        print(kit.isAttached())
         err_ind.extend([i])
 
     try:
-        print kit.getSensorRawValue(2), kit.getSensorValue(2)
+        print(kit.getSensorRawValue(2), kit.getSensorValue(2))
     except:
-        print 'novalue'
+        print('novalue')
 
     s['sens'] = np.vstack((s['sens'], sensdat))
     left_over_time = np.max([0, 1000/60. - (time.time() - s['tic'])])

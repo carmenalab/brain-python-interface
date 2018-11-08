@@ -67,7 +67,7 @@ class State(object):
                 if x in other.__dict__:
                     if not (x == '_eq_comp_excl') and not (x in self._eq_comp_excl) and not (x in other._eq_comp_excl):
                         if not (self.__dict__[x] == other.__dict__[x] or (np.isnan(self.__dict__[x]) and np.isnan(other.__dict__[x]))):
-                            print self, other, x
+                            print(self, other, x)
                             import pdb; pdb.set_trace()
                             return False
             return True
@@ -133,8 +133,8 @@ class StateSpace(object):
         '''
         A tuple of min values and max values for each state
         '''
-        min_bounds = np.array(filter(lambda x: x is not np.nan, [x.min_val for x in self.states]))
-        max_bounds = np.array(filter(lambda x: x is not np.nan, [x.max_val for x in self.states]))
+        min_bounds = np.array([x for x in [x.min_val for x in self.states] if x is not np.nan])
+        max_bounds = np.array([x for x in [x.max_val for x in self.states] if x is not np.nan])
         return (min_bounds, max_bounds)
 
     @property
@@ -142,7 +142,7 @@ class StateSpace(object):
         '''
         A list of the names of all the states which have limits on the values they can take.
         '''
-        return [x.name for x in filter(lambda x: x.min_val is not np.nan, self.states)]
+        return [x.name for x in [x for x in self.states if x.min_val is not np.nan]]
 
     @property
     def n_states(self):
@@ -156,7 +156,7 @@ class StateSpace(object):
         '''
         An array of 
         '''
-        return filter(lambda k: self.states[k].stochastic, range(self.n_states))
+        return [k for k in range(self.n_states) if self.states[k].stochastic]
 
     @property
     def drives_obs_inds(self):
@@ -164,7 +164,7 @@ class StateSpace(object):
         A list of the indices of the states which are related to observations when 
         used as a hidden state-space. Used when seeding Decoders
         '''
-        return filter(lambda k: self.states[k].drives_obs, range(self.n_states))
+        return [k for k in range(self.n_states) if self.states[k].drives_obs]
 
     @property 
     def state_order(self):

@@ -6,7 +6,7 @@ import numpy as np
 from OpenGL.GL import *
 from OpenGL import GLUT as glut
 
-from xfm import Transform
+from .xfm import Transform
 
 class Model(object):
     def __init__(self, shader="default", color=(0.5, 0.5, 0.5, 1), 
@@ -292,12 +292,12 @@ def obj_load(filename):
         if el[0] == "#":
             pass
         elif el[0] == "v":
-            verts.append(map(float, el[1:]))
+            verts.append(list(map(float, el[1:])))
         elif el[0] == "vt":
-            tcoords.append(map(float, el[1:]))
+            tcoords.append(list(map(float, el[1:])))
         elif el[0] == "vn":
-            normals.append(map(float, el[1:]))
+            normals.append(list(map(float, el[1:])))
         elif el[0] == "f":
             for v in el[1:]:
                 pass
-            map(facesplit, el[1:])
+            list(map(facesplit, el[1:]))

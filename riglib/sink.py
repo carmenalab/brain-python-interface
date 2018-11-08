@@ -7,8 +7,8 @@ import inspect
 import traceback
 import multiprocessing as mp
 
-import source
-from source import FuncProxy
+from . import source
+from .source import FuncProxy
 
 class DataSink(mp.Process):
     '''
@@ -74,7 +74,7 @@ class DataSink(mp.Process):
         
         # close the sink if the status bit has been set to 0
         output.close()
-        print "ended datasink"
+        print("ended datasink")
     
     def __getattr__(self, attr):
         '''
@@ -166,7 +166,7 @@ class SinkManager(object):
         Returns
         -------
         '''
-        print "sinkmanager start %s"%output
+        print(("sinkmanager start %s"%output))
         sink = DataSink(output, **kwargs)
         sink.start()
         self.registrations[sink] = set()
@@ -252,16 +252,16 @@ sinks = SinkManager()
 class PrintSink(object):
     '''A null sink which directly prints the received data'''
     def __init__(self):
-        print "Starting print sink"
+        print("Starting print sink")
     
     def register(self, name, dtype):
-        print "Registered name %s with dtype %r"%(name, dtype)
+        print(("Registered name %s with dtype %r"%(name, dtype)))
     
     def send(self, system, data):
-        print "Received %s data: \n%r"%(system, data)
+        print(("Received %s data: \n%r"%(system, data)))
     
     def sendMsg(self, msg):
-        print "### MESSAGE: %s"%msg
+        print(("### MESSAGE: %s"%msg))
     
     def close(self):
-        print "Ended print sink"
+        print("Ended print sink")

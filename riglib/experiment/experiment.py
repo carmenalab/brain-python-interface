@@ -12,7 +12,7 @@ import re
 import os
 import tables
 import traceback
-import cStringIO
+import io
 
 import numpy as np
 from . import traits
@@ -31,20 +31,20 @@ sec_per_min = 60.
 class FSMTable(object):
     def __init__(self, **kwargs):
         self.states = OrderedDict()
-        for state_name, transitions in kwargs.items():
+        for state_name, transitions in list(kwargs.items()):
             self.states[state_name] = transitions
 
     def __getitem__(self, key):
         return self.states[key]
 
     def get_possible_state_transitions(self, current_state):
-        return self.states[current_state].items()
+        return list(self.states[current_state].items())
 
     def _lookup_next_state(self, current_state, transition_event):
         return self.states[current_state][transition_event]
 
     def __iter__(self):
-        return self.states.keys().__iter__()
+        return list(self.states.keys()).__iter__()
 
     @staticmethod
     def construct_from_dict(status):
@@ -57,7 +57,7 @@ class FSMTable(object):
 class StateTransitions(object):
     def __init__(self, stoppable=True, **kwargs):
         self.state_transitions = OrderedDict()
-        for event, next_state in kwargs.items():
+        for event, next_state in list(kwargs.items()):
             self.state_transitions[event] = next_state
 
         if stoppable and not ('stop' in self.state_transitions):
@@ -67,11 +67,11 @@ class StateTransitions(object):
         return self.state_transitions[key]
 
     def __iter__(self):
-        transition_events = self.state_transitions.keys()
+        transition_events = list(self.state_transitions.keys())
         return transition_events.__iter__()
 
     def items(self):
-        return self.state_transitions.items()
+        return list(self.state_transitions.items())
 
 
 class Experiment(traits.HasTraits, threading.Thread):
@@ -141,7 +141,7 @@ class Experiment(traits.HasTraits, threading.Thread):
             Names of traits which are designated to be runtime-editable
         '''
         traits = super(Experiment, cls).class_editable_traits()
-        editable_traits = filter(lambda x: x not in cls.exclude_parent_traits, traits)
+        editable_traits = [x for x in traits if x not in cls.exclude_parent_traits]
         return editable_traits
 
     @classmethod
@@ -150,9 +150,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         Print out the FSM of the task in a semi-readable form
         '''
         for state in cls.status:
-            print 'When in state "%s"' % state 
-            for trigger_event, next_state in cls.status[state].items():
-                print '\tevent "%s" moves the task to state "%s"' % (trigger_event, next_state)
+            print('When in state "%s"' % state) 
+            for trigger_event, next_state in list(cls.status[state].items()):
+                print('\tevent "%s" moves the task to state "%s"' % (trigger_event, next_state))
 
     @classmethod
     def auto_gen_fsm_functions(cls):
@@ -162,20 +162,20 @@ class Experiment(traits.HasTraits, threading.Thread):
         events_to_test = []
         for state in cls.status:
             # make _start function 
-            print '''def _start_%s(self): pass''' % state
+            print('''def _start_%s(self): pass''' % state)
 
             # make _while function
-            print '''def _while_%s(self): pass''' % state
+            print('''def _while_%s(self): pass''' % state)
             # make _end function
-            print '''def _end_%s(self): pass''' % state
+            print('''def _end_%s(self): pass''' % state)
             for event, _ in cls.status.get_possible_state_transitions(state):
                 events_to_test.append(event)
 
-        print "################## State trnasition test functions ##################"
+        print("################## State trnasition test functions ##################")
 
         for event in events_to_test:
             if event == 'stop': continue
-            print '''def _test_%s(self, time_in_state): return False''' % event
+            print('''def _test_%s(self, time_in_state): return False''' % event)
 
     @classmethod
     def is_hidden(cls, trait):
@@ -203,7 +203,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         Examples might include sending a trigger to start a recording device (e.g., neural system), since you might want
         recording to be guaranteed to start before any task event loop activity occurs. 
         '''
-        print 'running experiment.Experiment.pre_init'
+        print('running experiment.Experiment.pre_init')
         pass
 
     def __init__(self, **kwargs):
@@ -245,9 +245,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         ## Figure out which traits to not save to the HDF file
         ## Large/complex python objects cannot be saved as HDF file attributes
         ctraits = self.class_traits()
-        self.object_trait_names = filter(lambda ctr: ctraits[ctr].trait_type.__class__.__name__ in ['Instance', 'InstanceFromDB', 'DataFile'], ctraits.keys())
+        self.object_trait_names = [ctr for ctr in list(ctraits.keys()) if ctraits[ctr].trait_type.__class__.__name__ in ['Instance', 'InstanceFromDB', 'DataFile']]
 
-        print "finished executing Experiment.__init__"
+        print("finished executing Experiment.__init__")
 
     def init(self):
         '''
@@ -273,9 +273,9 @@ class Experiment(traits.HasTraits, threading.Thread):
             else:
                 self.task_data = None
         except:
-            print "Error creating the task_data record array"
+            print("Error creating the task_data record array")
             traceback.print_exc()
-            print self.dtype
+            print(self.dtype)
             self.task_data = None
 
         # Register the "task" source with the sinks
@@ -367,7 +367,7 @@ class Experiment(traits.HasTraits, threading.Thread):
                     self.state = None
                     self.terminated_in_error = True
 
-                    self.termination_err = cStringIO.StringIO()
+                    self.termination_err = io.StringIO()
                     traceback.print_exc(None, self.termination_err)
                     self.termination_err.seek(0)
 
@@ -590,9 +590,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         Print to the terminal rather than the websocket if the websocket is being used by the 'Notify' feature (see db.tasktrack)
         '''
         if len(args) == 1:
-            print args[0]
+            print(args[0])
         else:
-            print args
+            print(args)
 
     ################################
     ## Cleanup/termination functions
@@ -623,7 +623,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         -------
         None
         '''
-        print "experimient.Experiment.cleanup executing"
+        print("experimient.Experiment.cleanup executing")
     
     def cleanup_hdf(self):
         ''' 
@@ -713,7 +713,7 @@ class LogExperiment(Experiment):
 
         see riglib.Experiment.cleanup for argument descriptions
         '''
-        print "experiment.LogExperiment.cleanup"
+        print("experiment.LogExperiment.cleanup")
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if dbname == 'default':
@@ -810,7 +810,7 @@ class Sequence(LogExperiment):
             raise ValueError("Experiment classes which inherit from Sequence must specify a target generator!")
 
         if np.iterable(gen):
-            from generate import runseq
+            from .generate import runseq
             gen = runseq(self, seq=gen)
 
         self.gen = gen
@@ -825,10 +825,10 @@ class Sequence(LogExperiment):
         new information needed to start the trial. If the generator runs out, the task stops. 
         '''
         if self.debug:
-            print "_start_wait"
+            print("_start_wait")
 
         try:
-            self.next_trial = self.gen.next()
+            self.next_trial = next(self.gen)
         except StopIteration:
             self.end_task()
 

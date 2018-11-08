@@ -4,10 +4,9 @@ High-level classes for BMI used to tie all th BMI subcomponent systems together
 import numpy as np
 import traceback
 import re
-from riglib.plexon import Spikes
 import multiprocessing as mp
-import Queue
-from itertools import izip
+import queue
+
 import time
 import re
 import os
@@ -66,7 +65,7 @@ class GaussianState(object):
             mu = other*self.mean
             cov = other*self.cov*other.T
         else:
-            print type(other)
+            print((type(other)))
             raise
         return GaussianState(mu, cov)
 
@@ -79,7 +78,7 @@ class GaussianState(object):
         if isinstance(other, int) or isinstance(other, np.float64) or isinstance(other, float):
             cov = other**2 * self.cov
         else:
-            print type(other)
+            print((type(other)))
             raise
         return GaussianState(mean, cov)
 
@@ -246,8 +245,8 @@ class GaussianStateHMM(object):
             True value returned indicates equality between objects for the specified attributes
         '''
         if isinstance(other, type(self)):
-            attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
-            equal = map(lambda attr: np.array_equal(getattr(self, attr), getattr(other, attr)), attrs_eq)
+            attrs_eq = [y for y in [x for x in attrs if x in self.__dict__] if y in other.__dict__]
+            equal = [np.array_equal(getattr(self, attr), getattr(other, attr)) for attr in attrs_eq]
             return np.all(equal)
         else:
             return False
@@ -271,8 +270,8 @@ class GaussianStateHMM(object):
             The difference between each of the specified 'attrs'
         '''
         if isinstance(other, type(self)):
-            attrs_eq = filter(lambda y: y in other.__dict__, filter(lambda x: x in self.__dict__, attrs))
-            diff = map(lambda attr: getattr(self, attr) - getattr(other, attr), attrs_eq)
+            attrs_eq = [y for y in [x for x in attrs if x in self.__dict__] if y in other.__dict__]
+            diff = [getattr(self, attr) - getattr(other, attr) for attr in attrs_eq]
             return np.array(diff)
         else:
             return False
@@ -310,7 +309,7 @@ class GaussianStateHMM(object):
             try:
                 data_to_pickle[attr] = getattr(self, attr)
             except:
-                print "GaussianStateHMM: could not pickle attribute %s" % attr
+                print(("GaussianStateHMM: could not pickle attribute %s" % attr))
         return data_to_pickle
 
 
@@ -335,6 +334,26 @@ class MachineOnlyFilter(GaussianStateHMM):
             return self.A * st + Bu
         else:
             return self.A * st
+
+
+class RectangularBounder(object):
+    """ Hard limit on state values """
+    def __init__(self, bounding_box, states_to_bound):
+        self.bounding_box = bounding_box
+        self.states_to_bound = states_to_bound
+
+    def __call__(self, state_mean, state_names):
+        """
+        Apply bounds on state vector, if bounding box is specified
+        """
+        state_mean = state_mean.copy()
+        min_bounds, max_bounds = self.bounding_box
+
+        repl_with_min = np.array(state_mean[:,0]).ravel() < min_bounds
+        repl_with_max = np.array(state_mean[:,0]).ravel() > max_bounds
+        state_mean[repl_with_min, :] = min_bounds[repl_with_min].reshape(-1, 1)
+        state_mean[repl_with_max, :] = min_bounds[repl_with_max].reshape(-1, 1)
+        return state_mean
 
 
 class Decoder(object):
@@ -366,7 +385,8 @@ class Decoder(object):
         """
 
         self.filt = filt
-        self.filt._init_state()
+        if not filt is None:
+            self.filt._init_state()
         self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
@@ -398,12 +418,12 @@ class Decoder(object):
         Functionality common to unpickling a Decoder from file and instantiating a new Decoder.
         A call to this function is the last line in __init__ as well as __setstate__.
         '''
-        import train
+        from . import train
 
         # If the decoder doesn't have an 'ssm' attribute, then it's an old
         # decoder in which case the ssm is the 2D endpoint SSM
         if not hasattr(self, 'ssm'):
-            import state_space_models
+            from . import state_space_models
             self.ssm = state_space_models.StateSpaceEndptVel2D()
             # self.ssm = train.endpt_2D_state_space
 
@@ -473,7 +493,7 @@ class Decoder(object):
             the parameter to replace. In particular, the keys can be dot-separated,
             e.g. to set the attribute 'self.kf.C', the key would be 'kf.C'
         '''
-        for key, val in new_params.items():
+        for key, val in list(new_params.items()):
             attr_list = key.split('.')
             final_attr = attr_list[-1]
             attr_list = attr_list[:-1]
@@ -488,7 +508,7 @@ class Decoder(object):
         """
         Apply bounds on state vector, if bounding box is specified
         """
-        if not self.bounding_box == None:
+        if not self.bounding_box is None:
             min_bounds, max_bounds = self.bounding_box
             state = self[self.states_to_bound]
             repl_with_min = state < min_bounds
@@ -521,7 +541,7 @@ class Decoder(object):
         elif idx == 'qdot':
             vel_states, = np.nonzero(self.ssm.state_order == 1)
             return np.array([self.__getitem__(k) for k in vel_states])      
-        elif isinstance(idx, str) or isinstance(idx, unicode):
+        elif isinstance(idx, str) or isinstance(idx, str):
             idx = self.states.index(idx)
             return self.filt.state.mean[idx, 0]
         elif np.iterable(idx):
@@ -547,11 +567,11 @@ class Decoder(object):
         elif idx == 'qdot':
             vel_states, = np.nonzero(self.ssm.state_order == 1)
             self.filt.state.mean[vel_states, 0] = value
-        elif isinstance(idx, str) or isinstance(idx, unicode):
+        elif isinstance(idx, str) or isinstance(idx, str):
             idx = self.states.index(idx)
             self.filt.state.mean[idx, 0] = value
         elif np.iterable(idx):
-            [self.__setitem__(k, val) for k, val in izip(idx, value)]
+            [self.__setitem__(k, val) for k, val in zip(idx, value)]
         else:
             raise ValueError("Decoder: Improper index type: %" % type(idx))
 
@@ -620,6 +640,9 @@ class Decoder(object):
         kwargs: dict
             Mostly for kwargs function call compatibility
         """
+        if np.any(neural_obs > 1000):
+            print('observations have counts >> 1000 ')
+        
         if np.any(assist_level) > 0 and 'x_assist' not in kwargs:
             raise ValueError("Assist cannot be used if the forcing term is not specified!")
 
@@ -755,9 +778,9 @@ class Decoder(object):
             f.close()
             return filename
         else:
-            import tempfile, cPickle
+            import tempfile, pickle
             tf2 = tempfile.NamedTemporaryFile(delete=False) 
-            cPickle.dump(self, tf2)
+            pickle.dump(self, tf2)
             tf2.flush()
             return tf2.name
 
@@ -887,7 +910,7 @@ class BMISystem(object):
                 elif self.learner.input_state_index == -1:
                     learner_state = prev_state
                 else:
-                    print "Not implemented yet: %d" % self.learner.input_state_index
+                    print(("Not implemented yet: %d" % self.learner.input_state_index))
                     learner_state = prev_state
 
                 if learn_flag:
@@ -940,10 +963,10 @@ class BMILoop(object):
         self.load_decoder()
         self.init_decoder_state()
         if hasattr(self.decoder, 'adapting_state_inds'):
-            print 'Decoder has adapting state inds'
+            print('Decoder has adapting state inds')
 
         if hasattr(self.decoder, 'adapting_neural_inds'):
-            print 'Decoder has adapting neural inds'
+            print('Decoder has adapting neural inds')
 
         # Declare data attributes to be stored in the sinks every iteration of the FSM
         self.add_dtype('loop_time', 'f8', (1,))
@@ -983,8 +1006,8 @@ class BMILoop(object):
         try:
             self.decoder['q'] = self.plant.get_intrinsic_coordinates()
         except:
-            print self.plant.get_intrinsic_coordinates()
-            print self.decoder['q']
+            print((self.plant.get_intrinsic_coordinates()))
+            print((self.decoder['q']))
             raise Exception("Error initializing decoder state")
         self.init_decoder_mean = self.decoder.filt.state.mean
         
@@ -1002,7 +1025,7 @@ class BMILoop(object):
         Instantiate the feature accumulator used to implement rate matching between the Decoder and the task,
         e.g. using a 10 Hz KFDecoder in a 60 Hz task
         '''
-        import accumulator
+        from . import accumulator
         feature_shape = [self.decoder.n_features, 1]
         feature_dtype = np.float64
         acc_len = int(self.decoder.binlen / self.update_rate)
@@ -1026,7 +1049,7 @@ class BMILoop(object):
         Create the feature extractor object. The feature extractor takes raw neural data from the streaming processor
         (e.g., spike timestamps) and outputs a decodable observation vector (e.g., counts of spikes in last 100ms from each unit)
         '''
-        import extractor
+        from . import extractor
         if hasattr(self.decoder, 'extractor_cls') and hasattr(self.decoder, 'extractor_kwargs'):
             self.extractor = self.decoder.extractor_cls(self.neurondata, **self.decoder.extractor_kwargs)
         else:
@@ -1053,7 +1076,7 @@ class BMILoop(object):
         The "learner" uses knowledge of the task goals to determine the "intended" 
         action of the BMI subject and pairs this intention estimation with actual observations.
         '''
-        import clda
+        from . import clda
         self.learn_flag = False
         self.learner = clda.DumbLearner()
 
@@ -1112,7 +1135,7 @@ class BMILoop(object):
         feature_data = self.get_features()
 
         # Save the "neural features" (e.g., spike counts vector) to HDF file
-        for key, val in feature_data.items():
+        for key, val in list(feature_data.items()):
             self.task_data[key] = val
 
         # Determine the target_state and save to file
@@ -1178,11 +1201,11 @@ class BMILoop(object):
         super(BMILoop, self)._cycle()
 
     def enable_clda(self):
-        print "CLDA enabled"
+        print("CLDA enabled")
         self.learn_flag = True
 
     def disable_clda(self):
-        print "CLDA disabled after %d successful trials" % self.calc_state_occurrences('reward')
+        print(("CLDA disabled after %d successful trials" % self.calc_state_occurrences('reward')))
         self.learn_flag = False
 
     def cleanup_hdf(self):
@@ -1193,7 +1216,7 @@ class BMILoop(object):
         log_file = open(os.path.join(os.getenv("HOME"), 'code/bmi3d/log/clda_log'), 'w')
         log_file.write(str(self.state) + '\n')
         try:
-            import clda
+            from . import clda
             if len(self.bmi_system.param_hist) > 0 and not self.updater is None:
                 log_file.write('n_updates: %g\n' % len(self.bmi_system.param_hist))
                 ignore_none = self.learner.batch_size > 1
@@ -1234,8 +1257,8 @@ class BMILoop(object):
                 k += 1
                 first_update = data[k]
         
-            table_col_names = first_update.keys()
-            print table_col_names
+            table_col_names = list(first_update.keys())
+            print(table_col_names)
             dtype = []
             shapes = []
             for col_name in table_col_names:
@@ -1277,7 +1300,7 @@ class BMILoop(object):
 
         # Resave decoder with drift-parameter saved as prev_task_drift_corr:
         if hasattr(self.decoder.filt, 'drift_corr'):
-            print 'saving decoder: ', self.decoder.filt.drift_corr, self.decoder.filt.prev_drift_corr
+            print(('saving decoder: ', self.decoder.filt.drift_corr, self.decoder.filt.prev_drift_corr))
             decoder_name = self.decoder.name + '_d'+str(saveid) 
             decoder_tempfilename = self.decoder.save()
 

@@ -3,7 +3,7 @@ Interact with a peripheral 'button' device hooked up to an FTDI chip
 '''
 
 import threading
-import Queue
+import queue
 import ftdi
 import time
 
@@ -27,7 +27,7 @@ class Button(threading.Thread):
         
         ftdi.ftdi_set_bitmode(port, 0xFF, ftdi.BITMODE_BITBANG)
         self.port = port
-        self.queue = Queue.Queue()
+        self.queue = queue.Queue()
         self.daemon = True
         self.start()
        
@@ -99,4 +99,4 @@ if __name__ == "__main__":
     while True:
         k = btn.pressed()
         if k is not None:
-            print k
+            print(k)

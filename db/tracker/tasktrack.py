@@ -7,22 +7,20 @@ calling functions to start/stop the task, enabling/disabling decoder adaptation,
 import os
 import sys
 import time
-import xmlrpclib
+import xmlrpc.client
 import multiprocessing as mp
 import collections
 
 from riglib import experiment
-import websocket
+from . import websocket
 
 from config import config
-from json_param import Parameters
+from .json_param import Parameters
 
-import cStringIO
+import io
 import traceback
 
-from tracker import models
-
-log_filename = os.path.expandvars('$BMI3D/log/tasktrack_log')
+log_filename = os.path.join(config.log_path, "tasktrack_log")
 def log_error(err, mode='a'):
     traceback.print_exc(None, err)
     with open(log_filename, mode) as fp:
@@ -44,7 +42,7 @@ class Track(object):
 
     def notify(self, msg):
         if msg['status'] == "error" or msg['State'] == "stopped":
-            self.status.value = ""
+            self.status.value = b""
 
     def runtask(self, **kwargs):
         '''
@@ -54,7 +52,8 @@ class Track(object):
             f.write("Running new task: \n")
 
         # initialize task status
-        self.status.value = "testing" if 'saveid' in kwargs else "running"
+        # self.status.value = b"testing" if 'saveid' in kwargs else b"running"
+        self.status.value = b"running" if 'saveid' in kwargs else b"testing" 
 
         # create a proxy for interacting with attributes/functions of the task.
         # The task runs in a separate process and we cannot directly access python 
@@ -63,13 +62,13 @@ class Track(object):
 
         # Spawn the process
         args = (self.tracker_end_of_pipe, self.task_end_of_pipe, self.websock)
-        print "Track.runtask"
-        print kwargs
+        print("Track.runtask")
+        print(kwargs)
 
         if 'seq' in kwargs:
             kwargs['seq_params'] = kwargs['seq'].params
             kwargs['seq'] = kwargs['seq'].get()  ## retreive the database data on this end of the pipe
-            print kwargs['seq']
+            print(kwargs['seq'])
 
         self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
         self.proc.start()
@@ -82,29 +81,29 @@ class Track(object):
         self.websock.stop()
 
     def pausetask(self):
-        self.status.value = self.task_proxy.pause()
+        self.status.value = bytes(self.task_proxy.pause())
 
     def stoptask(self):
         '''
         Terminate the task gracefully by running riglib.experiment.Experiment.end_task
         '''
-        assert self.status.value in "testing,running"
+        assert self.status.value in [b"testing", b"running"]
         try:
             self.task_proxy.end_task()
         except Exception as e:
-            err = cStringIO.StringIO()
+            err = io.StringIO()
             traceback.print_exc(None, err)
             err.seek(0)
             return dict(status="error", msg=err.read())
 
-        status = self.status.value
-        self.status.value = ""
+        status = self.status.value.decode("utf-8")
+        self.status.value = b""
         self.task_proxy = None
         return status
 
     def update_alive(self):
         if (not self.proc is None) and (not self.proc.is_alive()):
-            print "process died in error, destroying proxy object"
+            print("process died in error, destroying proxy object")
             self.task_proxy = None
 
 
@@ -112,7 +111,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
     Target function to execute in the spawned process to start the task
     '''
-    print "*************************** STARTING TASK *****************************"
+    print("*************************** STARTING TASK *****************************")
     
     # Rerout prints to stdout to the websocket
     sys.stdout = websock
@@ -169,12 +168,12 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
                     cmd = None
     except:
         task_wrapper = None
-        err = cStringIO.StringIO()
+        err = io.StringIO()
         log_error(err, mode='a')
         err.seek(0)
         websock.send(dict(status="error", msg=err.read()))
         err.seek(0)
-        print err.read()
+        print(err.read())
 
     # Redirect printing from the websocket back to the shell
     websock.write("Running task cleanup functions....\n")
@@ -182,15 +181,15 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
 
     # Initiate task cleanup
     if task_wrapper is None:
-        print "\nERROR: Task was never initialized, cannot run cleanup function!"
-        print "see %s for error messages" % log_filename
-        print open(log_filename, 'rb').read()
-        print
+        print("\nERROR: Task was never initialized, cannot run cleanup function!")
+        print("see %s for error messages" % log_filename)
+        print(open(log_filename, 'rb').read())
+        print()
 
         if 'saveid' in kwargs:
-            from tracker import dbq
+            from .tracker import dbq
             dbq.hide_task_entry(kwargs['saveid'])
-            print 'hiding task entry!'
+            print('hiding task entry!')
         
         cleanup_successful = False
     else:
@@ -203,7 +202,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     else:
         websock.write("\n\nError! Check for errors in the terminal!\n")
 
-    print "*************************** EXITING TASK *****************************"
+    print("*************************** EXITING TASK *****************************")
 
 
 class TaskWrapper(object):
@@ -237,7 +236,7 @@ class TaskWrapper(object):
         self.subj = subj
         if isinstance(params, Parameters):
             self.params = params
-        elif isinstance(params, (string, unicode)):
+        elif isinstance(params, (string, str)):
             self.params = Parameters(params)
         
         base_class = task_rec.get()
@@ -252,6 +251,7 @@ class TaskWrapper(object):
 
         self.params.trait_norm(Task.class_traits())
         if issubclass(Task, experiment.Sequence):
+            from . import models
             # retreive the sequence data from the db, or from the input argument if the input arg was a tuple
             if isinstance(seq, tuple):
                 gen_constructor, gen_params = seq
@@ -305,12 +305,12 @@ class TaskWrapper(object):
 
     def cleanup(self):
         self.task.join()
-        print "Calling saveout/task cleanup code"
+        print("Calling saveout/task cleanup code")
         
         if self.saveid is not None:
             # get object representing function calls to the remote database
             # returns the result of tracker.dbq.rpc_handler
-            database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+            database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
             cleanup_successful = self.task.cleanup(database, self.saveid, subject=self.subj)
             

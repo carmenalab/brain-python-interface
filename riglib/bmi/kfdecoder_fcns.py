@@ -5,8 +5,8 @@ from db.tracker.models import Decoder
 from db import trainbmi
 import numpy as np
 import scipy
-from kfdecoder import KalmanFilter, KFDecoder
-import train
+from .kfdecoder import KalmanFilter, KFDecoder
+from . import train
 import pickle
 import re
 import tables
@@ -47,7 +47,7 @@ def add_rm_units(task_entry_id, units, add_or_rm, flag_added_for_adaptation, nam
         orig_units = kfdec.units
         inds_to_keep = proc_units(kfdec, units, 'remove')
         if len(orig_units) == len(inds_to_keep):
-            print ' units cannot be removed since theyre not in original decoder', orig_units
+            print(' units cannot be removed since theyre not in original decoder', orig_units)
         else:
             dec_new = return_proc_units_decoder(kfdec, inds_to_keep)
             save_new_dec(task_entry_id, dec_new, name_suffix+'_rm_'+str(len(units))+'_units')
@@ -173,7 +173,7 @@ def get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=True):
     if get_dec_used is False:
         decoder_entries = dbfn.TaskEntry(task_entry_id).get_decoders_trained_in_block()
         if len(decoder_entries) > 0:
-            print 'Loading decoder TRAINED from task %d'%task_entry_id
+            print('Loading decoder TRAINED from task %d'%task_entry_id)
             if type(decoder_entries) is models.Decoder:
                 decoder = decoder_entries
                 ld = False
@@ -185,15 +185,15 @@ def get_decoder_corr(task_entry_id, decoder_entry_id, get_dec_used=True):
                     ld = False
                 except:
                     if decoder_entry_id is None:
-                        print 'Too many decoder entries trained from this TE, specify decoder_entry_id'
+                        print('Too many decoder entries trained from this TE, specify decoder_entry_id')
                     else:
-                        print 'Too many decoder entries trained from this TE, no match to decoder_entry_id %d'%decoder_entry_id
+                        print('Too many decoder entries trained from this TE, no match to decoder_entry_id %d'%decoder_entry_id)
     if ld is False:
         kfdec = decoder.load()            
     else:
         try:
             kfdec = dbfn.TaskEntry(task_entry_id).decoder
-            print 'Loading decoder USED in task %s'%dbfn.TaskEntry(task_entry_id).task
+            print('Loading decoder USED in task %s'%dbfn.TaskEntry(task_entry_id).task)
         except:
             raise Exception('Cannot load decoder from TE%d'%task_entry_id)
     return kfdec
@@ -212,7 +212,7 @@ def add_units(kfdec, units):
     keep_ix = []
     for r, r_un in enumerate(new_units):
         if len(np.nonzero(np.all(r_un==units_curr, axis=1))[0]) > 0: 
-            print 'not adding unit ', r_un, ' -- already in decoder'
+            print('not adding unit ', r_un, ' -- already in decoder')
         else:
             keep_ix.append(r)
 
@@ -258,7 +258,7 @@ def add_units(kfdec, units):
         CE.Q = Q
         CE.n_features = len(units)
         decoder.corresp_encoder = CE
-        print 'adjusted corresp_encoder too!'
+        print('adjusted corresp_encoder too!')
     except:
         pass
     decoder.extractor_kwargs['units'] = units
@@ -272,9 +272,9 @@ def proc_units(kfdec, units, mode):
         mode -- can be 'keep' or 'remove' or 'to_int'. Tells function what to do with the units
     '''
 
-    if isinstance(units[0], (str, unicode)):
+    if isinstance(units[0], str):
         # convert to array
-        if isinstance(units, (str, unicode)):
+        if isinstance(units, str):
             units = units.split(', ')
 
         units_lut = dict(a=1, b=2, c=3, d=4, e=5, f=6, g=7, h=8, i=9, j=10, k=11)
@@ -291,7 +291,7 @@ def proc_units(kfdec, units, mode):
         return units
 
     inds_to_keep = []
-    new_units = map(tuple, units)
+    new_units = list(map(tuple, units))
     for k, old_unit in enumerate(kfdec.units):
         if mode == 'keep':
             if tuple(old_unit) in new_units:
@@ -306,7 +306,7 @@ def return_proc_units_decoder(kfdec, inds_to_keep):
     W = kfdec.filt.W
     C = kfdec.filt.C
     Q = kfdec.filt.Q
-    print 'Indices to keep: ', inds_to_keep
+    print('Indices to keep: ', inds_to_keep)
     C = C[inds_to_keep, :]
     Q = Q[np.ix_(inds_to_keep, inds_to_keep)]
     Q_inv = np.linalg.inv(Q)
@@ -348,7 +348,7 @@ def return_proc_units_decoder(kfdec, inds_to_keep):
         CE.Q = CE.Q[np.ix_(inds_to_keep, inds_to_keep)]
         CE.n_features = len(units)
         decoder.corresp_encoder = CE
-        print 'adjusted corresp_encoder too!'
+        print('adjusted corresp_encoder too!')
     except:
         pass
 

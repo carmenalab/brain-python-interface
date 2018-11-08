@@ -97,7 +97,7 @@ class ShaderProgram(object):
     
     def draw(self, ctx, models, **kwargs):
         glUseProgram(self.program)
-        for name, v in kwargs.items():
+        for name, v in list(kwargs.items()):
             if isinstance(v, Texture):
                 self.uniforms[name] = ctx.get_texunit(v)
             elif name in self.uniforms:
@@ -107,7 +107,7 @@ class ShaderProgram(object):
             elif hasattr(v, "__call__"):
                 v(self)
         
-        for tex, funcs in models.items():
+        for tex, funcs in list(models.items()):
             if tex is None:
                 self.uniforms.texture = ctx.get_texunit("None")
             else:
