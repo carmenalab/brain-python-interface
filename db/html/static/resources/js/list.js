@@ -13,6 +13,8 @@ function Sequence() {
         $.getJSON("/ajax/gen_info/"+this.value+"/", 
         	{}, 
         	function(info) {
+                console.log("chgen")
+                console.log(info)
             	params.update(info.params);
         	}
         );
@@ -192,7 +194,6 @@ Sequence.prototype.get_data = function() {
 }
 
 
-
 ////////////////////////////////////////////////////////
 ////////////////////// Report //////////////////////////
 ////////////////////////////////////////////////////////
@@ -316,8 +317,9 @@ function Parameters() {
     this.traits = {};
 }
 Parameters.prototype.update = function(desc) {
-    //Update the parameters descriptor to include the updated values
-    // TODO document
+    // Update the parameters descriptor to include the updated values
+    // "desc" is a JSON object of form {"param1": {"value": value, "type": type, "desc": string description}, "param2": ...}
+    // if the parameter is a drop-down, the parameter's info should also have an "options" field
     for (var name in desc) {
         if (typeof(this.traits[name]) != "undefined" && typeof(desc[name].value) == "undefined") {
             var trait = this.traits[name]

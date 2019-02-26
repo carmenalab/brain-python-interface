@@ -7,7 +7,7 @@ many versions of CLDA (see clda.py).
 import numpy as np
 import train
 from riglib import mp_calc
-from riglib.stereo_opengl import ik
+# from riglib.stereo_opengl import ik # appears to be unused
 import re
 import pickle
 from riglib.bmi import state_space_models
