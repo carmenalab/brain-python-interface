@@ -61,6 +61,7 @@ class KalmanEncoder(object):
         '''
         return np.array([(k,1) for k in range(self.n_features)])
 
+
 ###########################
 ##### Poisson encoder #####
 ###########################
@@ -69,6 +70,30 @@ class GenericCosEnc(object):
     Simulate neurons where the firing rate is a linear function of covariates and the rate parameter goes through a Poisson
     '''
     def __init__(self, C, ssm, return_ts=False, DT=0.1, call_ds_rate=6):
+        '''
+        Constructor for GenericCosEnc
+
+        Parameters
+        ----------
+        C : np.ndarray of shape (N, K)
+            N is the number of simulated neurons, K is the number of covariates driving neuronal activity. 
+            The product of C and the hidden state vector x should give the intended spike rates in Hz
+        ssm : state_space_models.StateSpace instance
+            ARG_DESCR
+        return_ts : bool, optional, default=False
+            If True, fake timestamps are returned for each spike event in the same format 
+            as real spike data would be delivered over the network during a real experiment. 
+            If False, a vector of counts is returned instead. Specify True or False depending on 
+            which type of feature extractor you're using for your simulated task. 
+        DT : float, optional, default=0.1
+            Sampling interval to come up with new spike processes
+        call_ds_rate : int, optional, default=6
+            Calculating DT / call_ds_rate gives the interval between ticks of the main event loop
+
+        Returns
+        -------
+        GenericCosEnc instance
+        '''
         self.C = C
         self.ssm = ssm
         self.n_neurons = C.shape[0]
@@ -145,6 +170,7 @@ class GenericCosEnc(object):
 
         self.call_count += 1
         return ts_data
+
 
 class FACosEnc(GenericCosEnc):
     '''
@@ -482,6 +508,9 @@ def make_FACosEnc(num):
 
 
 class CursorVelCosEnc(GenericCosEnc):
+    '''
+    Cosine encoder tuned to the X-Z velocity of a cursor. Corresponds to the StateSpaceEndptVel2D state-space model
+    '''
     def __init__(self, n_neurons=25, mod_depth=14./0.2, baselines=10, **kwargs):
         C = np.zeros([n_neurons, 7])
         C[:,-1] = baselines
@@ -491,7 +520,9 @@ class CursorVelCosEnc(GenericCosEnc):
         C[:,5] = mod_depth * np.sin(angles)
 
         ssm = None
-        super(CLDASimCosEnc, self).__init__(C, ssm, *kwargs)
+        super(CLDASimCosEnc, self).__init__(C, ssm=None, **kwargs)
+
+
 
 #################################
 ##### Point-process encoder #####

@@ -86,9 +86,10 @@ class HDFWriter(object):
         '''
         if system in self.data:
             if data is not None:
-                if len(data) != 1:
-                # this might not be necessary
-                    data = np.array(data)[np.newaxis]
+                # if len(data) != 1:
+                # # this might not be necessary
+                #     data = np.array(data)[np.newaxis]
+                #     print(data)
                 self.data[system].append(data)
 
     def sendMsg(self, msg):

@@ -60,6 +60,8 @@ class GaussianState(object):
             mu = other*self.mean
             cov = other**2 * self.cov
         elif isinstance(other, np.ndarray):
+            # This never actually happens for an array because of how numpy implements array multiplication..
+            # (but if it did the following would be logical)
             other = np.mat(other)
             mu = other*self.mean
             cov = other*self.cov*other.T

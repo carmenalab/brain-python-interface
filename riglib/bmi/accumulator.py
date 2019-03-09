@@ -23,8 +23,9 @@ class RectWindowSpikeRateEstimator(FeatureAccumulator):
             to rectangular binning
         feature_shape : np.array of shape (n_features, n_timepoints)
             Shape of the extracted features passed to the Decoder on each call
-        feature_dtype : TODO
-            TODO
+        feature_dtype : np.dtype
+            Data type of feature vector. Can be "np.float64" for a vector of numbers
+            or something more complicated.
 
         Returns
         -------

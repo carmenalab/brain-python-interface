@@ -357,6 +357,10 @@ class KalmanFilter(bmi.GaussianStateHMM):
             C = np.linalg.solve(XtX_lamb, XtY).T
         Q = np.cov(Y - C*X, bias=1)
 
+        if np.ndim(Q) == 0:
+            # if "obs" only has 1 feature, Q might get collapsed to a scalar
+            Q = np.mat(Q.reshape(1,1))
+
         if not drives_obs is None:
             n_obs = C.shape[0]
             C_tmp = np.zeros([n_obs, n_states])
