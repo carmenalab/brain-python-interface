@@ -171,6 +171,7 @@ class DataSource(mp.Process):
             system = self.source(**self.source_kwargs)
             system.start()
         except Exception as e:
+            print("source.DataSource.run: unable to start source!")
             print e
             self.status.value = -1
 
@@ -186,6 +187,7 @@ class DataSource(mp.Process):
                     else:
                         ret = getattr(system, cmd)(*args, **kwargs)
                 except Exception as e:
+                    print("source.DataSource.run: unable to process RPC call")
                     traceback.print_exc()
                     ret = e
                 self.lock.release()
@@ -206,6 +208,10 @@ class DataSource(mp.Process):
                 if self.send_data_to_sink_manager:
                     self.sinks.send(self.name, data)
                 if data is not None:
+                    if not isinstance(data, np.ndarray):
+                        raise ValueError("source.DataSource.run: Data returned from \
+                            source system must be an array to ensure type consistency!")
+
                     try:
                         self.lock.acquire()
                         i = self.idx.value % self.max_len
@@ -213,7 +219,8 @@ class DataSource(mp.Process):
                         self.idx.value += 1
                         self.lock.release()
                     except Exception as e:
-                        print e
+                        print("source.DataSource.run, exception saving data to ring buffer")
+                        print(e)
             else:
                 time.sleep(.001)
 
@@ -330,14 +337,13 @@ class DataSource(mp.Process):
         if attr in self.methods:
             # if the attribute requested is an instance method of the 'source', return a proxy to the remote source's method
             return FuncProxy(attr, self.pipe, self.cmd_event)
-        elif not attr.beginsWith("__"):
+        elif not attr.startswith("__"):
             # try to look up the attribute remotely
-            print "getting attribute %s" % attr
             self.pipe.send(("getattr", (attr,), {}))
             self.cmd_event.set()
             return self.pipe.recv()
-        # TODO stylistically, this last statement should be what happens if an "else:" is hit
-        raise AttributeError(attr)
+        else:
+            raise AttributeError(attr)
 
 
 class MultiChanDataSource(mp.Process):
@@ -586,8 +592,9 @@ class MultiChanDataSource(mp.Process):
             else:
                 time.sleep(.001)
         
-        self.supp_hdf.close_data()
-        print 'end of supp hdf'
+        if hasattr(self, "supp_hdf"):
+            self.supp_hdf.close_data()
+            print 'end of supp hdf'
 
         system.stop()
         print "ended datasource %r" % self.source

@@ -9,9 +9,6 @@ import numpy as np
 import fnmatch
 import os
 import subprocess
-from riglib import calibrations, bmi
-from riglib.bmi import extractor
-from riglib.experiment import traits
 
 
 class SaveHDF(object):
