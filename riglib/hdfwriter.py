@@ -104,7 +104,7 @@ class HDFWriter(object):
         Returns
         -------
         None
-        '''
+        '''  
         for system in self.msgs.keys():
             row = self.msgs[system].row
             row['time'] = len(self.data[system])
