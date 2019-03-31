@@ -208,9 +208,9 @@ class DataSource(mp.Process):
                 if self.send_data_to_sink_manager:
                     self.sinks.send(self.name, data)
                 if data is not None:
-                    if not isinstance(data, np.ndarray):
-                        raise ValueError("source.DataSource.run: Data returned from \
-                            source system must be an array to ensure type consistency!")
+                    # if not isinstance(data, np.ndarray):
+                    #     raise ValueError("source.DataSource.run: Data returned from \
+                    #         source system must be an array to ensure type consistency!")
 
                     try:
                         self.lock.acquire()
@@ -342,8 +342,7 @@ class DataSource(mp.Process):
             self.pipe.send(("getattr", (attr,), {}))
             self.cmd_event.set()
             return self.pipe.recv()
-        else:
-            raise AttributeError(attr)
+        raise AttributeError(attr)
 
 
 class MultiChanDataSource(mp.Process):
