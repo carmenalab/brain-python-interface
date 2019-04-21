@@ -25,6 +25,7 @@ import imp
 import tables
 import tempfile
 import shutil
+import importlib
 
 def _get_trait_default(trait):
     '''
@@ -42,9 +43,26 @@ def _get_trait_default(trait):
 class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
+    import_path = models.CharField(max_length=200, blank=True, null=True)
     
     def __unicode__(self):
         return self.name
+
+    def get_base_class(self):
+        if not self.import_path is None:
+            import importlib
+            path_components = self.import_path.split(".")
+            module_name = (".").join(path_components[:-1])
+            class_name = path_components[-1]
+            module = importlib.import_module(module_name)
+            task_cls = getattr(module, class_name)
+            return task_cls
+        else:
+            from config.namelist import tasks
+            if self.name in tasks:
+                return tasks[self.name]
+            else:
+                raise ValueError("Could not find base class for task!")
         
     def get(self, feats=(), verbose=False):
         if verbose: print("models.Task.get()")
@@ -53,24 +71,25 @@ class Task(models.Model):
             print('Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task')
         
         feature_classes = Feature.getall(feats)
+        task_cls = self.get_base_class()
 
-        if self.name in tasks and not None in feature_classes:
+        if not None in feature_classes:
             try:
                 # reload the module which contains the base task class
-                task_cls = tasks[self.name]
+                # task_cls = tasks[self.name]
 
-                module_name = task_cls.__module__
-                if '.' in module_name:
-                    module_names = module_name.split('.')
-                    mod = __import__(module_names[0])
-                    for submod in module_names[1:]:
-                        mod = getattr(mod, submod)
-                else:
-                    mod = __import__(module_name)
+                # module_name = task_cls.__module__
+                # if '.' in module_name:
+                #     module_names = module_name.split('.')
+                #     mod = __import__(module_names[0])
+                #     for submod in module_names[1:]:
+                #         mod = getattr(mod, submod)
+                # else:
+                #     mod = __import__(module_name)
                 
-                task_cls_module = mod
-                task_cls_module = imp.reload(task_cls_module)
-                task_cls = getattr(task_cls_module, task_cls.__name__)
+                # task_cls_module = mod
+                # task_cls_module = imp.reload(task_cls_module)
+                # task_cls = getattr(task_cls_module, task_cls.__name__)
 
                 # run the metaclass constructor
                 Exp = experiment.make(task_cls, feature_classes)
@@ -100,6 +119,34 @@ class Task(models.Model):
         print(real - db)
         for name in real - db:
             Task(name=name).save()
+
+    @staticmethod
+    def add_new_task(task_name, class_path):
+        """ Add new task to the database
+        
+        Parameters
+        ----------
+        task_name : string
+            Human-readable name of task. 
+        class_path : string
+            Python import path to the class, for example, riglib.experiment.Experiment
+        """
+        if " " in class_path:
+            raise ValueError("Class path cannot have spaces!")
+
+        try:
+            import importlib
+            path_components = class_path.split(".")
+            module_name = (".").join(path_components[:-1])
+            class_name = path_components[-1]
+            module = importlib.import_module(module_name)
+            task_cls = module.getattr(class_name)
+        except:
+            raise ImportError("Error importing class")
+            traceback.print_exc()
+        else:
+            # finish adding to table
+            Task(name=task_name, import_path=class_path).save()
 
     def params(self, feats=(), values=None):
         '''
