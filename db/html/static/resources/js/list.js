@@ -1067,10 +1067,12 @@ TaskEntry.prototype.update = function(info) {
 			}
 		}
 	}
-
+    
+    $("#files").append('<a href="link_data_files/'+ this.idx +'"">Manually link data files</a>').show();
 	if (numfiles > 0) {
 		// Append the files onto the #files field
 		$("#files").append(this.filelist).show();
+
 
 		// make the BMI show up if there's a neural data file linked
 		var neural_data_found = false;

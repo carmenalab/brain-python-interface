@@ -18,6 +18,8 @@ urlpatterns = [
     path('setup/add_new_task', ajax.add_new_task),
     path('setup/populate_models', ajax.populate_models),
     path(r'exp_log/all/', views.listall),
+    path("exp_log/link_data_files/<int:task_entry_id>", views.link_data_files_view_generator),
+    path("exp_log/link_data_files/<int:task_entry_id>/submit", views.link_data_files_response_handler),
     # path(r'listdb/(?P<dbname>.+?)/.*?/ajax/exp_info/(?P<idx>\d+)/', ajax.exp_info),
     # path(r'listdb/(?P<dbname>.+?)/.*?/ajax/task_info/(?P<idx>\d+)/', ajax.task_info),
 

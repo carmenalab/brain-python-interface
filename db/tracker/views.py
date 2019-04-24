@@ -208,7 +208,6 @@ def _color_entries(entries):
             last_tdiff = tdiff
         entry.bgcolor = colors[color_idx]
 
-
 def get_sequence(request, idx):
     '''
     Pointing browser to WEBROOT/sequence_for/(?P<idx>\d+)/ returns a pickled
@@ -226,3 +225,22 @@ def get_sequence(request, idx):
         time="%04d%02d%02d"%(entry.date.year, entry.date.month, entry.date.day),
         idx=idx)
     return response
+
+def link_data_files_view_generator(request, task_entry_id):
+    from . import models
+    systems = models.System.objects.all()
+    display_data = dict(systems=systems, task_entry_id=task_entry_id)
+    return render(request, "link_data_files.html", display_data)
+
+from django.views.decorators.csrf import csrf_exempt
+@csrf_exempt
+def link_data_files_response_handler(request, task_entry_id):
+    from . import models
+    print("link_data_files_response_handler", request.POST)
+    file_path = request.POST["file_path"]
+    data_system_id = request.POST["data_system_id"]
+
+    data_file = models.DataFile(local=True, archived=False, path=file_path, 
+        system_id=data_system_id, entry_id=task_entry_id)
+    data_file.save()
+    return HttpResponse("Added new data file")
