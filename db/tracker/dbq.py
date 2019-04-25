@@ -137,15 +137,15 @@ def hide_task_entry(entry, dbname='default'):
 #############################################################################
 ##### Register functions for remote procedure call from other processes #####
 #############################################################################
-dispatcher = SimpleXMLRPCDispatcher(allow_none=True)
-dispatcher.register_function(save_log, 'save_log')
-dispatcher.register_function(save_calibration, 'save_cal')
-dispatcher.register_function(save_data, 'save_data')
-dispatcher.register_function(save_bmi, 'save_bmi')
-dispatcher.register_function(hide_task_entry, 'hide_task_entry')
+# dispatcher = SimpleXMLRPCDispatcher(allow_none=True)
+# dispatcher.register_function(save_log, 'save_log')
+# dispatcher.register_function(save_calibration, 'save_cal')
+# dispatcher.register_function(save_data, 'save_data')
+# dispatcher.register_function(save_bmi, 'save_bmi')
+# dispatcher.register_function(hide_task_entry, 'hide_task_entry')
 
-@csrf_exempt
-def rpc_handler(request):
-    response = HttpResponse(content_type="application/xml") 
-    response.write(dispatcher._marshaled_dispatch(request.body))
-    return response
+# @csrf_exempt
+# def rpc_handler(request):
+#     response = HttpResponse(content_type="application/xml") 
+#     response.write(dispatcher._marshaled_dispatch(request.body))
+#     return response

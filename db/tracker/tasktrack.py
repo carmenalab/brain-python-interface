@@ -30,15 +30,15 @@ def log_error(err, mode='a'):
 
 class Track(object):
     '''
-    Tracker for task instantiation running in a separate process
+    Tracker for task instantiation running in a separate process. This is a singleton.
     '''
     def __init__(self):
         # shared memory to store the status of the task in a char array
         self.status = mp.Array('c', 256)
         self.task_proxy = None
         self.proc = None
-        self.websock = websocket.Server(self.notify)
         self.tracker_end_of_pipe, self.task_end_of_pipe = mp.Pipe()
+        self.websock = websocket.Server(self.notify)
 
     def notify(self, msg):
         if msg['status'] == "error" or msg['State'] == "stopped":
@@ -310,9 +310,10 @@ class TaskWrapper(object):
         if self.saveid is not None:
             # get object representing function calls to the remote database
             # returns the result of tracker.dbq.rpc_handler
-            database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+            # database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+            from . import dbq
 
-            cleanup_successful = self.task.cleanup(database, self.saveid, subject=self.subj)
+            cleanup_successful = self.task.cleanup(dbq, self.saveid, subject=self.subj)
             
             # if not self.task._task_init_complete:
             #     from tracker import dbq

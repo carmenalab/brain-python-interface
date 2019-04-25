@@ -18,7 +18,7 @@ import trainbmi
 import logging
 import traceback
 
-from .exp_tracker import exp_tracker
+from . import exp_tracker
 
 http_request_queue = []
 
@@ -209,8 +209,9 @@ def start_experiment(request, save=True):
     interface
     '''
     #make sure we don't have an already-running experiment
-    if len(exp_tracker.status.value) != 0:
-        print("exp_tracker.status.value", exp_tracker.status.value)
+    tracker = exp_tracker.get()
+    if len(tracker.status.value) != 0:
+        print("exp_tracker.status.value", tracker.status.value)
         return _respond(dict(status="running", msg="Already running task!"))
 
     # Try to start the task, and if there are any errors, send them to the browser interface
@@ -257,8 +258,8 @@ def start_experiment(request, save=True):
             # Give the entry ID to the runtask as a kwarg so that files can be linked after the task is done
             kwargs['saveid'] = entry.id
         
-        # Start the task FSM and exp_tracker
-        exp_tracker.runtask(**kwargs)
+        # Start the task FSM and tracker
+        tracker.runtask(**kwargs)
 
         # Return the JSON response
         return _respond(response)
@@ -279,7 +280,7 @@ def rpc(fn):
     Parameters
     ----------
     fn : callable
-        Function which takes a single argument, the exp_tracker object. 
+        Function which takes a single argument, the tracker object. 
         Return values from this function are ignored.
 
     Returns
@@ -287,12 +288,13 @@ def rpc(fn):
     JSON-encoded dictionary 
     '''
     #make sure that there exists an experiment to stop
-    if exp_tracker.status.value not in [b"running", b"testing"]:
-        print("rpc not possible", str(exp_tracker.status.value))
+    tracker = exp_tracker.get()
+    if tracker.status.value not in [b"running", b"testing"]:
+        print("rpc not possible", str(tracker.status.value))
         return _respond(dict(status="error", msg="No task running, so cannot run command!"))
     try:
-        status = exp_tracker.status.value.decode("utf-8")
-        fn(exp_tracker)
+        status = tracker.status.value.decode("utf-8")
+        fn(tracker)
         return _respond(dict(status="pending", msg=status))
     except Exception as e:
         import traceback
@@ -322,19 +324,19 @@ def _respond_err(e):
 
 @csrf_exempt
 def stop_experiment(request):
-    return rpc(lambda exp_tracker: exp_tracker.stoptask())
+    return rpc(lambda tracker: tracker.stoptask())
 
 def enable_clda(request):
-    return rpc(lambda exp_tracker: exp_tracker.task_proxy.enable_clda())
+    return rpc(lambda tracker: tracker.task_proxy.enable_clda())
 
 def disable_clda(request):
-    return rpc(lambda exp_tracker: exp_tracker.task_proxy.disable_clda())
+    return rpc(lambda tracker: tracker.task_proxy.disable_clda())
 
 def set_task_attr(request, attr, value):
     '''
     Generic function to change a task attribute while the task is running.
     '''
-    return rpc(lambda exp_tracker: exp_tracker.task_proxy.remote_set_attr(attr, value))
+    return rpc(lambda tracker: tracker.task_proxy.remote_set_attr(attr, value))
 
 @csrf_exempt
 def save_notes(request, idx):
@@ -375,3 +377,11 @@ def populate_models(request):
         m.populate()
 
     return HttpResponse("Updated Tasks, features generators, and systems")
+
+def add_new_task(request):
+    from . import models
+    name, import_path = request.POST['name'], request.POST['import_path']
+    task = models.Task(name=name, import_path=import_path)
+    task.save()
+
+    return HttpResponse("Added new task: %s" % task.name)

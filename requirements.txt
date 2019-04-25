@@ -3,14 +3,14 @@ scipy
 matplotlib
 numexpr
 cython
-django-celery==3.1.10
+django-celery
 traits
 pandas
 patsy
 statsmodels
 PyOpenGL 
 PyOpenGL_accelerate
-Django==1.6
+Django
 pylibftdi
 nitime
 sphinx
@@ -20,4 +20,3 @@ tables
 pyserial
 h5py
 pygame
-south

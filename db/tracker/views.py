@@ -11,7 +11,7 @@ from django.http import HttpResponse
 from .models import TaskEntry, Task, Subject, Feature, Generator
 
 from config import namelist
-from .exp_tracker import exp_tracker
+from . import exp_tracker
 
 import datetime
 
@@ -92,10 +92,11 @@ def list_exp_history(request):
 
     # this line is important--this is needed so the Track object knows if the task has ended in an error
     # TODO there's probably some better way of doing this within the multiprocessing lib (some code to run after the process has terminated)
-    exp_tracker.update_alive()
+    tracker = exp_tracker.get()
+    tracker.update_alive()
 
-    if exp_tracker.task_proxy is not None:
-        fields['running'] = exp_tracker.task_proxy.saveid
+    if tracker.task_proxy is not None:
+        fields['running'] = tracker.task_proxy.saveid
 
     resp = render_to_response('list.html', fields, RequestContext(request))
 
@@ -141,8 +142,9 @@ def listall(request):
         pos_vars=namelist.bmi_training_pos_vars,
         n_blocks=len(entries),
     )
-    if exp_tracker.task_proxy is not None:
-        fields['running'] = exp_tracker.task_proxy.saveid
+    tracker = exp_tracker.get()
+    if tracker.task_proxy is not None:
+        fields['running'] = tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
 def listdb(request, dbname='default', subject=None, task=None):
@@ -185,8 +187,9 @@ def listdb(request, dbname='default', subject=None, task=None):
         pos_vars=namelist.bmi_training_pos_vars,
         n_blocks=len(entries),
     )
-    if exp_tracker.task_proxy is not None:
-        fields['running'] = exp_tracker.task_proxy.saveid
+    tracker = exp_tracker.get()
+    if tracker.task_proxy is not None:
+        fields['running'] = tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
 def setup(request):
@@ -205,7 +208,6 @@ def _color_entries(entries):
             last_tdiff = tdiff
         entry.bgcolor = colors[color_idx]
 
-
 def get_sequence(request, idx):
     '''
     Pointing browser to WEBROOT/sequence_for/(?P<idx>\d+)/ returns a pickled
@@ -223,3 +225,22 @@ def get_sequence(request, idx):
         time="%04d%02d%02d"%(entry.date.year, entry.date.month, entry.date.day),
         idx=idx)
     return response
+
+def link_data_files_view_generator(request, task_entry_id):
+    from . import models
+    systems = models.System.objects.all()
+    display_data = dict(systems=systems, task_entry_id=task_entry_id)
+    return render(request, "link_data_files.html", display_data)
+
+from django.views.decorators.csrf import csrf_exempt
+@csrf_exempt
+def link_data_files_response_handler(request, task_entry_id):
+    from . import models
+    print("link_data_files_response_handler", request.POST)
+    file_path = request.POST["file_path"]
+    data_system_id = request.POST["data_system_id"]
+
+    data_file = models.DataFile(local=True, archived=False, path=file_path, 
+        system_id=data_system_id, entry_id=task_entry_id)
+    data_file.save()
+    return HttpResponse("Added new data file")

@@ -15,8 +15,12 @@ urlpatterns = [
     path('', views.main),
     path(r'exp_log/', views.list_exp_history),
     path('setup', views.setup),
+    path('setup/add/new_subject', ajax.add_new_subject),
+    path('setup/add/new_task', ajax.add_new_task),
     path('setup/populate_models', ajax.populate_models),
     path(r'exp_log/all/', views.listall),
+    path("exp_log/link_data_files/<int:task_entry_id>", views.link_data_files_view_generator),
+    path("exp_log/link_data_files/<int:task_entry_id>/submit", views.link_data_files_response_handler),
     # path(r'listdb/(?P<dbname>.+?)/.*?/ajax/exp_info/(?P<idx>\d+)/', ajax.exp_info),
     # path(r'listdb/(?P<dbname>.+?)/.*?/ajax/task_info/(?P<idx>\d+)/', ajax.task_info),
 
@@ -41,7 +45,7 @@ urlpatterns = [
     path(r'rewarddrain/<str:onoff>/', ajax.reward_drain),
     path(r'disable_clda/', ajax.disable_clda),
     path(r'sequence_for/<int:idx>/', views.get_sequence),
-    path(r'RPC2/', dbq.rpc_handler),
+    # path(r'RPC2/', dbq.rpc_handler), # this should hopefully be deprecated
     # Uncomment the next line to enable the admin:
     path(r'admin/', admin.site.urls),
 ]

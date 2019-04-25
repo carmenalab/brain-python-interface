@@ -67,7 +67,7 @@ class Server(mp.Process):
         ])
 
         application.listen(8001)
-        self.ioloop = tornado.ioloop.IOLoop.instance() # docs say it's better to use '.current()' instead of '.instance()'?
+        self.ioloop = tornado.ioloop.IOLoop.current()
         self.ioloop.add_handler(self._pipe, self._send, self.ioloop.READ)
         self.ioloop.add_handler(self._outp, self._stdout, self.ioloop.READ)
         self.ioloop.start()
@@ -98,7 +98,8 @@ class Server(mp.Process):
 
     def stop(self):
         print("Stopping websocket service")
-        self.send("stop")
+        self.send(dict(status="stopped", State="stopped"))
+        self.join()
 
     ##### Currently unused functions below this line #####
     def write(self, data):
@@ -161,13 +162,3 @@ class NotifyFeat(object):
         sys.stdout = sys.__stdout__
         super(NotifyFeat, self).print_to_terminal(*args)
         sys.stdout = self.websock
-
-
-
-def test():
-    serv = Server()
-    serv.send(dict(state="working well"))
-    serv.stop()
-
-if __name__ == "__main__":
-    test()
