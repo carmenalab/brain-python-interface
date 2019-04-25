@@ -14,7 +14,7 @@ from tracker import ajax, views, dbq
 urlpatterns = [
     path('', views.main),
     path(r'exp_log/', views.list_exp_history),
-    path('setup/', views.setup),
+    path('setup', views.setup),
     path('setup/populate_models', ajax.populate_models),
     path(r'exp_log/all/', views.listall),
     # path(r'listdb/(?P<dbname>.+?)/.*?/ajax/exp_info/(?P<idx>\d+)/', ajax.exp_info),
