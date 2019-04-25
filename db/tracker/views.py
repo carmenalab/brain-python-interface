@@ -54,10 +54,7 @@ def list_exp_history(request):
             ent.rowspan = k - last
             last = k
 
-    task_records = Task.objects.filter(visible=True).order_by("name")
-    from config.tasklist import tasks
-    task_records_list = [t for t in task_records if t.name in tasks.keys()]
-    tasks = task_records_list
+    tasks = Task.objects.filter(visible=True).order_by("name")
 
     epoch = datetime.datetime.utcfromtimestamp(0)
     for entry in entries:
@@ -193,7 +190,12 @@ def listdb(request, dbname='default', subject=None, task=None):
     return render_to_response('list.html', fields, RequestContext(request))
 
 def setup(request):
-    return render(request, "setup.html", dict())
+    from . import models
+    subjects = models.Subject.objects.all()
+    tasks = models.Task.objects.all()
+    features = models.Feature.objects.all()
+    return render(request, "setup.html", 
+        dict(subjects=subjects, tasks=tasks, features=features))
 
 def _color_entries(entries):
     epoch = datetime.datetime.utcfromtimestamp(0)

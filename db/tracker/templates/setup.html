@@ -6,5 +6,45 @@
 
 <body>
 	<h1>Setup/configure</h1>
-	
+	<h2>Subjects</h2>
+	<table>
+		{% for subject in subjects %}
+		<tr><td>{{subject.id}}</td><td>{{subject.name}}</td></tr>
+		{% endfor %}
+	</table>
+
+	Add new<br>
+	<form action="/setup/add/new_subject" method="POST">
+		Subject name <input type="text" name="subject_name"><br>
+		<input type="submit">
+	</form>
+
+	<h2>Tasks</h2>
+	<table>
+		{% for task in tasks %}
+		<tr><td>{{task.id}}</td><td>{{task.name}}</td></tr>
+		{% endfor %}
+	</table>
+
+	Add new<br>
+	<form action="/setup/add/new_task" method="POST">
+		Task name <input type="text" name="name"><br>
+		Task class path (must be importable) <input type="text" name="import_path"><br>
+		<input type="submit">
+	</form>
+
+	<h2>Features</h2>
+	<table>
+		{% for feature in features %}
+		<tr><td>{{feature.id}}</td><td>{{feature.name}}</td></tr>
+		{% endfor %}
+	</table>
+
+	Add new<br>
+	<form action="/setup/add/new_feature" method="POST">
+		Feature name <input type="text" name="name"><br>
+		Feature class path (must be importable) <input type="text" name="import_path"><br>
+		<input type="submit">
+	</form>
+
 </body>

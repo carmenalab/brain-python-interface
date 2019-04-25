@@ -70,7 +70,10 @@ class Track(object):
             kwargs['seq'] = kwargs['seq'].get()  ## retreive the database data on this end of the pipe
             print(kwargs['seq'])
 
-        self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
+        print(args)
+        print(kwargs)
+        kwargs.pop("params")
+        self.proc = mp.Process(target=remote_runtask, args=args)
         self.proc.start()
         
     def __del__(self):

@@ -378,6 +378,7 @@ def populate_models(request):
 
     return HttpResponse("Updated Tasks, features generators, and systems")
 
+@csrf_exempt
 def add_new_task(request):
     from . import models
     name, import_path = request.POST['name'], request.POST['import_path']
@@ -385,3 +386,12 @@ def add_new_task(request):
     task.save()
 
     return HttpResponse("Added new task: %s" % task.name)
+
+@csrf_exempt
+def add_new_subject(request):
+    from . import models 
+    subject_name = request.POST['subject_name']
+    subj = models.Subject(name=subject_name)
+    subj.save()
+
+    return HttpResponse("Added new subject: %s" % subj.name)

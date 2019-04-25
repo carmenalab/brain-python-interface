@@ -259,6 +259,8 @@ class Task(models.Model):
 class Feature(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(blank=True, default=True)
+    import_path = models.CharField(max_length=200, blank=True, null=True)
+    
     def __unicode__(self):
         return self.name
 
@@ -649,7 +651,9 @@ class TaskEntry(models.Model):
         # Parse the "report" data and put it into the JS response
         js['report'] = self.offline_report()
 
-        if config.recording_sys['make'] == 'plexon':
+        if not hasattr(config, "recording_sys"):
+            pass
+        elif config.recording_sys['make'] == 'plexon':
             try:
                 from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
                 plexon = System.objects.using(self._state.db).get(name='plexon')
@@ -699,7 +703,7 @@ class TaskEntry(models.Model):
             js['bmi'] = dict(_neuralinfo=None)
             #raise NotImplementedError("This code does not yet know how to open TDT files!")
         else:
-            raise Exception('Unrecognized recording_system!')
+            print('Unrecognized recording_system!')
 
 
         for dec in Decoder.objects.using(self._state.db).filter(entry=self.id):
