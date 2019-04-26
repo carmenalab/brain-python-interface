@@ -27,18 +27,25 @@ def log_error(err, mode='a'):
         err.seek(0)
         fp.write(err.read())
 
+def log_str(s, mode="a"):
+    with open(log_filename, mode) as fp:
+        fp.write(s)
+
 
 class Track(object):
     '''
     Tracker for task instantiation running in a separate process. This is a singleton.
     '''
-    def __init__(self):
+    def __init__(self, use_websock=True):
         # shared memory to store the status of the task in a char array
         self.status = mp.Array('c', 256)
         self.task_proxy = None
         self.proc = None
         self.tracker_end_of_pipe, self.task_end_of_pipe = mp.Pipe()
-        self.websock = websocket.Server(self.notify)
+        if use_websock:
+            self.websock = websocket.Server(self.notify)
+        else:
+            self.websock = None
 
     def notify(self, msg):
         if msg['status'] == "error" or msg['State'] == "stopped":
@@ -78,7 +85,8 @@ class Track(object):
         Destructor for Track object. Not sure if this function ever gets called 
         since Track is a singleton created upon import of the db.tracker.ajax module...
         '''
-        self.websock.stop()
+        if not self.websock is None:
+            self.websock.stop()
 
     def pausetask(self):
         self.status.value = bytes(self.task_proxy.pause())
@@ -91,6 +99,7 @@ class Track(object):
         try:
             self.task_proxy.end_task()
         except Exception as e:
+            traceback.print_exc()
             err = io.StringIO()
             traceback.print_exc(None, err)
             err.seek(0)
@@ -113,8 +122,11 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
     print("*************************** STARTING TASK *****************************")
     
+    use_websock = not (websock is None)
+
     # Rerout prints to stdout to the websocket
-    sys.stdout = websock
+    if use_websock:
+        sys.stdout = websock
 
     # os.nice sets the 'niceness' of the task, i.e. how willing the process is
     # to share resources with other OS processes. Zero is neutral
@@ -123,10 +135,11 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     status = "running" if 'saveid' in kwargs else "testing"
 
     # Force all tasks to use the Notify feature defined above. 
-    kwargs['params']['websock'] = websock
+    if use_websock:
+        kwargs['params']['websock'] = websock
+        kwargs['feats'].insert(0, websocket.NotifyFeat)
     kwargs['params']['tracker_status'] = status
-    kwargs['params']['tracker_end_of_pipe'] = tracker_end_of_pipe
-    kwargs['feats'].insert(0, websocket.NotifyFeat)
+    kwargs['params']['tracker_end_of_pipe'] = tracker_end_of_pipe        
 
     try:
         # Instantiate the task
@@ -134,11 +147,10 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         cmd = task_end_of_pipe.recv()
 
         # Rerout prints to stdout to the websocket
-        sys.stdout = websock
+        if use_websock: sys.stdout = websock
 
         while (cmd is not None) and (task_wrapper.task.state is not None):
-            with open(log_filename, 'a') as f:
-                f.write('remote command received: %s, %s, %s\n' % cmd)
+            log_str('remote command received: %s, %s, %s\n' % cmd)
             try:
                 fn_name = cmd[0]
                 cmd_args = cmd[1]
@@ -150,34 +162,48 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
                 # run the function and save the return value as a single object
                 # if an exception is thrown, the code will jump to the last 'except' case
                 ret = fn(*cmd_args, **cmd_kwargs)
+                log_str("return value: %s\n" % str(ret))
 
                 # send the return value back to the remote process 
                 task_end_of_pipe.send(ret)
 
                 # hang and wait for the next command to come in
+                log_str("task state = %s, stop status=%s, waiting for next command...\n" % (task_wrapper.task.state, str(task_wrapper.task.stop)))
                 cmd = task_end_of_pipe.recv()
             except KeyboardInterrupt:
                 # Handle the KeyboardInterrupt separately. How the hell would
                 # a keyboard interrupt even get here?
                 cmd = None
             except Exception as e:
+                err = io.StringIO()
+                log_error(err, mode='a')
+
                 task_end_of_pipe.send(e)
                 if task_end_of_pipe.poll(60.):
                     cmd = task_end_of_pipe.recv()
                 else:
                     cmd = None
+            log_str('Done with command: %s\n\n' % fn_name)            
     except:
         task_wrapper = None
         err = io.StringIO()
         log_error(err, mode='a')
         err.seek(0)
-        websock.send(dict(status="error", msg=err.read()))
+        if use_websock:
+            websock.send(dict(status="error", msg=err.read()))
+        with open(log_filename, 'a') as f:
+            err.seek(0)
+            f.write(err.read())
         err.seek(0)
         print(err.read())
 
+    log_str('End of task while loop\n')
+
     # Redirect printing from the websocket back to the shell
-    websock.write("Running task cleanup functions....\n")
+    if use_websock:
+        websock.write("Running task cleanup functions....\n")
     sys.stdout = sys.__stdout__
+    print("Running task cleanup functions....\n")
 
     # Initiate task cleanup
     if task_wrapper is None:
@@ -187,7 +213,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         print()
 
         if 'saveid' in kwargs:
-            from .tracker import dbq
+            from . import dbq
             dbq.hide_task_entry(kwargs['saveid'])
             print('hiding task entry!')
         
@@ -198,9 +224,9 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
 
     # inform the user in the browser that the task is done!
     if cleanup_successful:
-        websock.write("\n\n...done!\n")
+        if use_websock: websock.write("\n\n...done!\n")
     else:
-        websock.write("\n\nError! Check for errors in the terminal!\n")
+        if use_websock: websock.write("\n\nError! Check for errors in the terminal!\n")
 
     print("*************************** EXITING TASK *****************************")
 
@@ -282,7 +308,7 @@ class TaskWrapper(object):
         return "pause" if self.task.pause else "running"
     
     def end_task(self):
-        self.task.end_task()
+        return self.task.end_task()
 
     def enable_clda(self):
         self.task.enable_clda()
@@ -329,26 +355,30 @@ class TaskWrapper(object):
 
 
 class TaskObjProxy(object):
-    def __init__(self, cmds):
-        self.cmds = cmds
+    def __init__(self, tracker_end_of_pipe):
+        self.tracker_end_of_pipe = tracker_end_of_pipe
 
     def __getattr__(self, attr):
         with open(log_filename, 'a') as f:
-            f.write("remotely getting attribute\n")
+            f.write("remotely getting attribute: %s\n" % attr)
 
-        self.cmds.send(("__getattr__", [attr], {}))
-        ret = self.cmds.recv()
+        self.tracker_end_of_pipe.send(("__getattr__", [attr], {}))
+        ret = self.tracker_end_of_pipe.recv()
         if isinstance(ret, Exception): 
             # Assume that the attribute can't be retreived b/c the name refers 
             # to a function
-            ret = TaskFuncProxy(attr, self.cmds)
+            ret = TaskFuncProxy(attr, self.tracker_end_of_pipe)
 
         return ret
 
+    def end_task(self):
+        end_task_fn = TaskFuncProxy("end_task", self.tracker_end_of_pipe)
+        end_task_fn()
+        self.tracker_end_of_pipe.send(None)
+
     def remote_set_attr(self, attr, value):
-        with open(log_filename, 'a') as f:
-            f.write('trying to remotely set attribute %s to %s\n' % (attr, value))
-        ret = TaskFuncProxy('set_task_attr', self.cmds)
+        log_str('trying to remotely set attribute %s to %s\n' % (attr, value))
+        ret = TaskFuncProxy('set_task_attr', self.tracker_end_of_pipe)
         ret(attr, value)
 
 

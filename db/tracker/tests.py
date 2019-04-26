@@ -108,9 +108,9 @@ class TestTaskStartStop(TestCase):
         print("stop_resp", stop_resp)
         print(stop_resp.content)
 
-    def tearDown(self):
-        p = psutil.Process(exp_tracker.get().websock.pid)
-        p.terminate()
+    # def tearDown(self):
+    #     p = psutil.Process(exp_tracker.get().websock.pid)
+    #     p.terminate()
 
 class TestWebsocket(TestCase):
     def test_send(self):

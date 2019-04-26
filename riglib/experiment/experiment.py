@@ -373,6 +373,7 @@ class Experiment(traits.HasTraits, threading.Thread):
 
                     self.print_to_terminal(self.termination_err.read())
                     self.termination_err.seek(0)
+        print("end of experiment.run, task state is", self.state)
 
 
     def run_sync(self):
