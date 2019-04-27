@@ -8,7 +8,7 @@ import traceback
 import multiprocessing as mp
 
 from . import source
-from .source import FuncProxy
+from .mp_proxy import FuncProxy
 
 class DataSink(mp.Process):
     '''
@@ -36,7 +36,10 @@ class DataSink(mp.Process):
         self.cmd_pipe, self._cmd_pipe = mp.Pipe()
         self.pipe, self._pipe = mp.Pipe()
         self.status = mp.Value('b', 1) # mp boolean used for terminating the remote process
-        self.methods = set(n for n in dir(output) if inspect.ismethod(getattr(output, n)))
+
+        self.methods = set(filter(lambda n: inspect.isfunction(getattr(output, n)), dir(output)))
+        # python 2 version: inspect.ismethod doesn't work because the object is not instantiated
+        # self.methods = set(n for n in dir(output) if inspect.ismethod(getattr(output, n)))
     
     def run(self):
         '''
@@ -93,7 +96,7 @@ class DataSink(mp.Process):
         if attr in self.methods:
             return FuncProxy(attr, self.cmd_pipe, self.cmd_event)
         else:
-            super(DataSink, self).__getattr__(self, attr)
+            raise AttributeError("Can't get attribute: %s. Remote methods available: %s" % (attr, str(self.methods)))
 
     def send(self, system, data):
         '''

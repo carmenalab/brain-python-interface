@@ -79,8 +79,8 @@ class TestSaveHDF(unittest.TestCase):
         
         hdf = tables.open_file("saveHDF_test_output.hdf")
 
-        self.assertEqual(hdf.root.task_msgs[:]["msg"].tolist(), 
-            ['wait', 'trial', 'reward', 'wait', 'None'])
+        saved_msgs = [x.decode('utf-8') for x in hdf.root.task_msgs[:]["msg"]]
+        self.assertEqual(saved_msgs, ['wait', 'trial', 'reward', 'wait', 'None'])
         self.assertEqual(hdf.root.task_msgs[:]["time"].tolist(), [0, 100, 101, 201, 601])
 
         self.assertTrue(np.all(hdf.root.task[:]["dummy_feat_for_test"][251:300] == -1))

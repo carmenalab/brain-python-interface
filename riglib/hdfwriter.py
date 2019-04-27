@@ -33,7 +33,7 @@ class HDFWriter(object):
         HDFWriter instance
         '''
         print("HDFWriter: Saving datafile to %s"%filename)
-        self.h5 = tables.openFile(filename, "w")
+        self.h5 = tables.open_file(filename, "w")
         self.data = {}
         self.msgs = {}
         self.f = []
@@ -59,14 +59,14 @@ class HDFWriter(object):
         if dtype.subdtype is not None:
             #just a simple dtype with a shape
             dtype, sliceshape = dtype.subdtype
-            arr = self.h5.createEArray("/", name, tables.Atom.from_dtype(dtype), 
+            arr = self.h5.create_earray("/", name, tables.Atom.from_dtype(dtype), 
                 shape=(0,)+sliceshape, filters=compfilt)
         else:
-            arr = self.h5.createTable("/", name, dtype, filters=compfilt)
+            arr = self.h5.create_table("/", name, dtype, filters=compfilt)
 
         self.data[name] = arr
         if include_msgs:
-            msg = self.h5.createTable("/", name+"_msgs", MsgTable, filters=compfilt)
+            msg = self.h5.create_table("/", name+"_msgs", MsgTable, filters=compfilt)
             self.msgs[name] = msg
     
     def send(self, system, data):
