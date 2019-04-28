@@ -12,6 +12,8 @@ import multiprocessing as mp
 import collections
 
 from riglib import experiment
+from riglib.mp_proxy import FuncProxy
+
 from . import websocket
 
 from config import config
@@ -91,8 +93,8 @@ class Track(object):
         if not self.websock is None:
             self.websock.stop()
 
-    def pausetask(self):
-        self.status.value = bytes(self.task_proxy.pause())
+    # def pausetask(self):
+    #     self.status.value = bytes(self.task_proxy.pause())
 
     def stoptask(self):
         '''
@@ -113,10 +115,18 @@ class Track(object):
         self.task_proxy = None
         return status
 
+    def get_status(self):
+        return self.status.value.decode("utf-8")
+
     def update_alive(self):
+        """ Check if the remote process is still alive, and if dead, reset the task_proxy object """
         if (not self.proc is None) and (not self.proc.is_alive()):
             print("process died in error, destroying proxy object")
             self.task_proxy = None
+
+    def task_running(self):
+        print(self.get_status())
+        return self.get_status() in ["running", "testing"]
 
 
 def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
@@ -323,11 +333,11 @@ class TaskWrapper(object):
         return self.task.state
 
     def __getattr__(self, attr):
-        # This function is only defined because __getattr__ is not defined 
-        # for children of 'object' by default, but the TaskObjProxy always calles '__getattr__'
-        # when trying to remotely retreive an attribute. Might be avoidable if TaskObjProxy were
-        # to use '__getattribute__' instead
-        return getattr(self, attr)
+        """ Redirect attribute access to the task object if the attribute can't be found in the wrapper """
+        try:
+            return self.task.__getattribute__(attr)
+        except:
+            raise AttributeError("Could not get task attribute: %s" % attr)
 
     def set_task_attr(self, attr, value):
         setattr(self.task, attr, value)
@@ -370,26 +380,16 @@ class TaskObjProxy(object):
         if isinstance(ret, Exception): 
             # Assume that the attribute can't be retreived b/c the name refers 
             # to a function
-            ret = TaskFuncProxy(attr, self.tracker_end_of_pipe)
+            ret = FuncProxy(attr, self.tracker_end_of_pipe)
 
         return ret
 
     def end_task(self):
-        end_task_fn = TaskFuncProxy("end_task", self.tracker_end_of_pipe)
+        end_task_fn = FuncProxy("end_task", self.tracker_end_of_pipe)
         end_task_fn()
         self.tracker_end_of_pipe.send(None)
 
     def remote_set_attr(self, attr, value):
         log_str('trying to remotely set attribute %s to %s\n' % (attr, value))
-        ret = TaskFuncProxy('set_task_attr', self.tracker_end_of_pipe)
+        ret = FuncProxy('set_task_attr', self.tracker_end_of_pipe)
         ret(attr, value)
-
-
-class TaskFuncProxy(object):
-    def __init__(self, func, pipe):
-        self.pipe = pipe
-        self.cmd = func
-
-    def __call__(self, *args, **kwargs):
-        self.pipe.send((self.cmd, args, kwargs))
-        return self.pipe.recv()

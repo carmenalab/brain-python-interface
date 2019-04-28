@@ -42,7 +42,7 @@ class TestHDFWriter(unittest.TestCase):
         self.assertEqual(len(h5.root.table2), 1)
         self.assertEqual(len(h5.root.table1_msgs), 1)
 
-        self.assertEqual(h5.root.table1_msgs[0]['msg'], "message!")
+        self.assertEqual(h5.root.table1_msgs[0]['msg'].decode("utf-8"), "message!")
         self.assertEqual(h5.root.table1_msgs[0]['time'], 4)
 
         self.assertTrue(np.all(h5.root.table2[:]['stuff2'] == 1))
@@ -52,3 +52,7 @@ class TestHDFWriter(unittest.TestCase):
     def tearDown(self):
         if os.path.exists(test_output_fname):
             os.remove(test_output_fname)
+
+if __name__ == '__main__':
+    unittest.main()
+

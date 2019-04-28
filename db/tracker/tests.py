@@ -101,12 +101,26 @@ class TestTaskStartStop(TestCase):
         start_resp = c.post("/start", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
 
+        tracker = exp_tracker.get()
+        self.assertTrue(tracker.task_running())
+
+        # check the 'state' of the task
+        self.assertEqual(tracker.task_proxy.get_state(), "wait")
+
+        # update report stats 
+        tracker.task_proxy.update_report_stats()
+
+        # access report stats
+        reportstats = tracker.task_proxy.reportstats
+        self.assertTrue(len(reportstats.keys()) > 0)
+
         import time
         time.sleep(2)
-        
         stop_resp = c.post("/exp_log/stop/")
-        print("stop_resp", stop_resp)
-        print(stop_resp.content)
+        
+        import time
+        time.sleep(2)
+        self.assertFalse(tracker.task_running())
 
     # def tearDown(self):
     #     p = psutil.Process(exp_tracker.get().websock.pid)

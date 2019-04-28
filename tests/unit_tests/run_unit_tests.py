@@ -17,7 +17,6 @@ test_classes = [
 ]
 
 import reqlib
-reload(reqlib)
  
 def my_suite():
     suite = unittest.TestSuite()

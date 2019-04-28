@@ -812,10 +812,10 @@ class Sequence(LogExperiment):
 
         if np.iterable(gen):
             from .generate import runseq
-            gen = runseq(self, seq=gen)
-
-        self.gen = gen
-        if not hasattr(gen, "next"):
+            self.gen = runseq(self, seq=gen)
+        elif hasattr(gen, '__next__'): # python 3 renamed 'next' to '__next__'
+            self.gen = gen 
+        else:
             raise ValueError("Input argument to Sequence 'gen' must be of 'generator' type!")
 
         super(Sequence, self).__init__(*args, **kwargs)
