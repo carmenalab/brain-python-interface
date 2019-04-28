@@ -334,7 +334,8 @@ class DataSource(mp.Process):
         object
             The arbitrary value associated with the named attribute, if it exists.
         '''
-        if attr in self.methods:
+        methods = object.__getattribute__(self, "methods") # this is done instead of "self.methods" to avoid infinite recursion in Windows
+        if attr in methods:
             # if the attribute requested is an instance method of the 'source', return a proxy to the remote source's method
             return FuncProxy(attr, self.pipe, self.cmd_event)
         elif not attr.startswith("__"):
