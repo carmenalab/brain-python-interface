@@ -45,7 +45,7 @@ urlpatterns = [
     path(r'rewarddrain/<str:onoff>/', ajax.reward_drain),
     path(r'disable_clda/', ajax.disable_clda),
     path(r'sequence_for/<int:idx>/', views.get_sequence),
-    # path(r'RPC2/', dbq.rpc_handler), # this should hopefully be deprecated
+    path(r'RPC2/', dbq.rpc_handler),
     # Uncomment the next line to enable the admin:
     path(r'admin/', admin.site.urls),
 ]

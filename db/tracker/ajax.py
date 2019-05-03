@@ -224,7 +224,7 @@ def start_experiment(request, save=True):
         entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
-        kwargs = dict(subj=entry.subject, task_rec=task, feats=Feature.getall(list(data['feats'].keys())),
+        kwargs = dict(subj=entry.subject.id, base_class=task.get(), feats=Feature.getall(list(data['feats'].keys())),
                       params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences

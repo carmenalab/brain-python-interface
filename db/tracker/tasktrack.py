@@ -29,7 +29,9 @@ def log_error(err, mode='a'):
         err.seek(0)
         fp.write(err.read())
 
-def log_str(s, mode="a"):
+def log_str(s, mode="a", newline=True):
+    if newline and not s.endswith("\n"):
+        s += "\n"
     with open(log_filename, mode) as fp:
         fp.write(s)
 
@@ -57,8 +59,7 @@ class Track(object):
         '''
         Begin running of task
         '''
-        with open(log_filename, 'w') as f:
-            f.write("Running new task: \n")
+        log_str("Running new task: \n", mode="w")
 
         # initialize task status
         # self.status.value = b"testing" if 'saveid' in kwargs else b"running"
@@ -79,10 +80,9 @@ class Track(object):
             kwargs['seq'] = kwargs['seq'].get()  ## retreive the database data on this end of the pipe
             print(kwargs['seq'])
 
-        print(args)
-        print(kwargs)
-        kwargs.pop("params")
-        self.proc = mp.Process(target=remote_runtask, args=args)
+        self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
+        log_str("Spawning process...")
+        log_str(str(kwargs))
         self.proc.start()
         
     def __del__(self):
@@ -133,6 +133,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     '''
     Target function to execute in the spawned process to start the task
     '''
+    log_str("remote_runtask")
     print("*************************** STARTING TASK *****************************")
     
     use_websock = not (websock is None)
@@ -143,7 +144,8 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
 
     # os.nice sets the 'niceness' of the task, i.e. how willing the process is
     # to share resources with other OS processes. Zero is neutral
-    os.nice(0)
+    if not sys.platform == "win32":
+        os.nice(0)
 
     status = "running" if 'saveid' in kwargs else "testing"
 
@@ -248,14 +250,14 @@ class TaskWrapper(object):
     '''
     Wrapper for Experiment classes launched from the web interface
     '''
-    def __init__(self, subj, task_rec, feats, params, seq=None, seq_params=None, saveid=None):
+    def __init__(self, subj, base_class, feats, params, seq=None, seq_params=None, saveid=None):
         '''
         Parameters
         ----------
         subj : tracker.models.Subject instance
             Database record for subject performing the task
-        task_rec : tracker.models.Task instance
-            Database record for base task being run (without features)
+        base_class : a child class of riglib.experiment.Experiment
+            The base class for the task, without the feature mixins
         feats : list 
             List of features to enable for the task
         params : json_param.Parameters, or string representation of JSON object
@@ -270,15 +272,16 @@ class TaskWrapper(object):
             if None specified, then the data saved will not be linked to the
             database entry and will be lost after the program exits
         '''
+        log_str("TaskWrapper constructor")
         self.saveid = saveid
-        self.taskname = task_rec.name
         self.subj = subj
         if isinstance(params, Parameters):
             self.params = params
-        elif isinstance(params, (string, str)):
+        elif isinstance(params, str):
             self.params = Parameters(params)
+        elif isinstance(params, dict):
+            self.params = Parameters.from_dict(params)
         
-        base_class = task_rec.get()
 
         if None in feats:
             raise Exception("Features not found properly in database!")
@@ -306,8 +309,7 @@ class TaskWrapper(object):
             # 'gen' is now a true python generator usable by experiment.Sequence
             self.task = Task(gen, **self.params.params)
 
-            with open(log_filename, 'a') as f:
-                f.write("instantiating task with a generator\n")
+            log_str("instantiating task with a generator\n")
 
         else:
             self.task = Task(**self.params.params)
@@ -349,10 +351,9 @@ class TaskWrapper(object):
         if self.saveid is not None:
             # get object representing function calls to the remote database
             # returns the result of tracker.dbq.rpc_handler
-            # database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
-            from . import dbq
+            database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
-            cleanup_successful = self.task.cleanup(dbq, self.saveid, subject=self.subj)
+            cleanup_successful = self.task.cleanup(database, self.saveid, subject=self.subj)
             
             # if not self.task._task_init_complete:
             #     from tracker import dbq

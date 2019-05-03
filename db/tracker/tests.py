@@ -6,10 +6,11 @@ Replace this with more appropriate tests for your application.
 """
 from django.test import TestCase, Client
 import json
+import time, sys
 
 from tracker import models
 from tracker import exp_tracker
-import psutil
+# import psutil
 
 from riglib.experiment import LogExperiment
 
@@ -56,7 +57,7 @@ class TestModels(TestCase):
 
         post_data = {"name": "test_add_new_task_to_table", 
             "import_path": "riglib.experiment.LogExperiment"}
-        resp = c.post("/setup/add_new_task", post_data)
+        resp = c.post("/setup/add/new_task", post_data)
 
         task = models.Task.objects.get(name="test_add_new_task_to_table")
         task_cls = task.get()
@@ -86,20 +87,42 @@ class TestModels(TestCase):
         te.save()
 
 class TestTaskStartStop(TestCase):
-    def test_start_experiment(self):
+    def test_start_experiment_python(self):
+        subj = models.Subject(name="test_subject")
+        subj.save()
+
+        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
+        task.save()        
+
+        task_start_data = dict(subj=subj.id, base_class=task.get_base_class(), feats=[],
+                      params=dict())
+
+        # task_start_data = dict(subj=1, task=1, feats=dict(), params=dict(), sequence=None)
+        tracker = exp_tracker.get()
+        tracker.runtask(**task_start_data)
+
+        time.sleep(5)
+        tracker.stoptask()
+
+    def test_start_experiment_ajax(self):
         c = Client()
 
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp")
+        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
         task.save()        
 
         task_start_data = dict(subject=1, task=1, feats=dict(), params=dict(), sequence=None)
 
         post_data = {"data": json.dumps(task_start_data)}
-        start_resp = c.post("/start", post_data)
+
+        import sys
+        # if sys.platform == "win32":
+        start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
+        print("JSON response")
+        print(start_resp_obj)
 
         tracker = exp_tracker.get()
         self.assertTrue(tracker.task_running())
@@ -122,9 +145,6 @@ class TestTaskStartStop(TestCase):
         time.sleep(2)
         self.assertFalse(tracker.task_running())
 
-    # def tearDown(self):
-    #     p = psutil.Process(exp_tracker.get().websock.pid)
-    #     p.terminate()
 
 class TestWebsocket(TestCase):
     def test_send(self):

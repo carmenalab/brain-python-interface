@@ -66,9 +66,6 @@ class Task(models.Model):
         
     def get(self, feats=(), verbose=False):
         if verbose: print("models.Task.get()")
-        from config.namelist import tasks
-        if len(tasks) == 0: 
-            print('Import error in tracker.models.Task.get: from namelist import task returning empty -- likely error in task')
         
         feature_classes = Feature.getall(feats)
         task_cls = self.get_base_class()
@@ -102,9 +99,8 @@ class Task(models.Model):
                 print(Feature.getall(feats))
                 print("*******")
                 return experiment.Experiment
-        elif self.name in tasks:
-            return tasks[self.name]
         else:
+            print("Task was not installed properly, defaulting to generic experiment!")
             return experiment.Experiment
 
     @staticmethod
