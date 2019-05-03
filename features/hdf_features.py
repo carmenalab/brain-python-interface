@@ -7,7 +7,7 @@ import random
 import traceback
 import numpy as np
 import fnmatch
-import os
+import os, sys
 import subprocess
 from riglib import calibrations, bmi
 from riglib.bmi import extractor
@@ -25,7 +25,9 @@ class SaveHDF(object):
         '''
         from riglib import sink
         self.sinks = sink.sinks
-        self.h5file = tempfile.NamedTemporaryFile()
+        self.h5file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
+        self.h5file.flush()
+        self.h5file.close()
         self.hdf = sink.sinks.start(self.sink_class, filename=self.h5file.name)
 
         super(SaveHDF, self).init()    

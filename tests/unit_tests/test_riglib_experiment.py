@@ -92,7 +92,11 @@ class TestLogExperiment(unittest.TestCase):
         self.exp.add_dtype("field2", "int", (1,))
 
         self.exp.init()
-        ref_dtype = np.dtype([('field1', '<f8', (1,)), ('field2', '<i8', (1,))])
+        import sys
+        if sys.platform == "win32":
+            ref_dtype = np.dtype([('field1', '<f8', (1,)), ('field2', '<i4', (1,))])
+        else:
+            ref_dtype = np.dtype([('field1', '<f8', (1,)), ('field2', '<i8', (1,))])
         self.assertEqual(self.exp.dtype, ref_dtype)
 
     def test_thread_start(self):

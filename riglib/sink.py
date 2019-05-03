@@ -93,7 +93,8 @@ class DataSink(mp.Process):
         object:
             Value of specified named attribute
         '''
-        if attr in self.methods:
+        methods = object.__getattribute__(self, "methods")
+        if attr in methods:
             return FuncProxy(attr, self.cmd_pipe, self.cmd_event)
         else:
             raise AttributeError("Can't get attribute: %s. Remote methods available: %s" % (attr, str(self.methods)))

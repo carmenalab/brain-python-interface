@@ -94,7 +94,9 @@ class DataSource(mp.Process):
         self.stream = mp.Event()
         self.last_idx = 0
 
-        self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+        # self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+        self.methods = set(filter(lambda n: inspect.isfunction(getattr(source, n)), dir(source)))
+
 
         # in DataSource.run, there is a call to "self.sinks.send(...)",
         # but if the DataSource was never registered with the sink manager,

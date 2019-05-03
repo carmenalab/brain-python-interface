@@ -89,16 +89,11 @@ class TestSaveHDF(unittest.TestCase):
 
     def tearDown(self):
         if os.path.exists("saveHDF_test_output.hdf"):
-            os.remove("saveHDF_test_output.hdf")
+            try:
+                os.remove("saveHDF_test_output.hdf")
+            except PermissionError:
+                pass
 
 
 if __name__ == '__main__':
-    test_classes = [TestSaveHDF]
-    suite = unittest.TestSuite()
-    result = unittest.TestResult()
-
-    for cls in test_classes:
-        suite.addTest(unittest.makeSuite(cls))      
-
-    runner = unittest.TextTestRunner()
-    print((runner.run(suite)))
+    unittest.main()
