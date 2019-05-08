@@ -3,7 +3,6 @@ scipy
 matplotlib
 numexpr
 cython
-django-celery
 traits
 pandas
 patsy
@@ -17,7 +16,9 @@ sphinx
 numpydoc
 tornado
 tables
+sklearn
 pyserial
 h5py
 pygame
 ipdb
+django-celery
