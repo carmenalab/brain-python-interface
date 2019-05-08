@@ -203,52 +203,40 @@ function Report(callback) {
     // store a ref to the callback function passed in
     this.notify = callback;
 
-    // create div to hold all the Report data streaming in
-    this.obj = document.createElement("div");
-
-    // this.info is a summary stat table
-    this.info = document.createElement("table");
-    this.info.className = "options";
-    this.obj.appendChild(this.info);
+    // this.info is a summary stat table\
+    this.info = $("#report_info");
 
     // this.msgs = text printed by the task
-    this.msgs = document.createElement("div");
-    this.msgs.className = "report_table";
-    this.obj.appendChild(this.msgs);
+    this.msgs = $("#report_msgs");
 
     // Used for error messages?
-    this.stdout = document.createElement("pre");
-    this.msgs.appendChild(this.stdout)
-
-    // 'linebreak' used to enforce a separation between the stat table and the text output
-    var linebreak = document.createElement("div");
-    linebreak.className = "clear";
-    this.obj.appendChild(linebreak);
-    
-    $("#report").append(this.obj);
+    this.stdout = $("#stdout");
 
     this.boxes = {};
 }
 
 Report.prototype.activate = function() {
-	// console.log('activating report');
+    // old websocket code
+    // if (!this.ws) { 
+    //     // Create a new JS WebSocket object
+    //     this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
 
-    if (!this.ws) { 
-        // Create a new JS WebSocket object
-        this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
+    //     this.ws.onmessage = function(evt) {
+    //         //console.log(evt.data);
+    //         var report = JSON.parse(evt.data);
+    //         if (this.infos)
+    //             this.infos.push(report)
+    //         else
+    //             this.update(report);
+    //     }.bind(this);
+    // }
 
-        this.ws.onmessage = function(evt) {
-            //console.log(evt.data);
-            var report = JSON.parse(evt.data);
-            if (this.infos)
-                this.infos.push(report)
-            else
-                this.update(report);
-        }.bind(this);
-    }
+    $.post("report", {}, function() {this.update.bind(this)})
 }
 
 Report.prototype.update = function(info) {
+    console.log("Report.update")
+    console.log(info)
     if (typeof(this.notify) == "function" && info)
         this.notify(info);
     if (info.status && info.status == "error") { // received an error message through the websocket
@@ -262,6 +250,7 @@ Report.prototype.update = function(info) {
 
         this.stdout.innerHTML += info.msg;
     } else {
+        console.log("adding to report table..");
         for (var stat in info) {
 			if (!this.boxes[stat]) { // if we haven't already made a table row for this stat
 				if (!stat.match("status|task|subj|date|idx")) { // if this is not one of the stats we ignore because it's reported elsewhere
@@ -277,7 +266,7 @@ Report.prototype.update = function(info) {
 	                row.appendChild(label);
 	                row.appendChild(data);
 
-	                this.info.appendChild(row);
+	                this.info.append(row);
 
 	                // save ref to the 'data' box, to be updated when new 'info' comes in
 	                this.boxes[stat] = data;					
@@ -294,10 +283,8 @@ Report.prototype.update = function(info) {
 }
 Report.prototype.destroy = function () {
     this.deactivate();
-    if (this.obj.parentNode) {
-        // this.obj.parentNode = $('#report')
-        this.obj.parentNode.removeChild(this.obj);
-    }
+    this.msgs.html('<pre id="stdout"></pre>');
+    this.info.html("");
 }
 
 Report.prototype.deactivate = function() {
@@ -393,22 +380,6 @@ Parameters.prototype.show_all_attrs = function() {
         input.style.visibility = vis;
     }        
 }
-
-
-Parameters.prototype._add = function(name, desc) {
-    var trait = document.createElement("tr");
-    trait.title = desc;
-    var td = document.createElement("td");
-    td.className = "param_label";
-    trait.appendChild(td);
-    var label = document.createElement("label");
-    label.innerHTML = name;
-    label.setAttribute("for", "param_"+name);
-    td.appendChild(label);
-
-    return trait;
-}
-
 /*
 Function to add an attribute row and label where the 'visibility' attribute of the label can be toggled
 */
@@ -677,6 +648,9 @@ Parameters.prototype.to_json = function() {
     return jsdata;
 }
 
+
+var report_activation = null;
+
 //
 // TaskInterface class
 //
@@ -766,6 +740,7 @@ function TaskInterfaceConstructor() {
                 setTimeout(
                     function () {
                         te.report.deactivate();
+                        clearTimeout(report_activation);
                         console.log('callback after pressing stop');
                         te = new TaskEntry(te.idx);
                         // te.tr.addClass("rowactive active");
@@ -785,6 +760,7 @@ function TaskInterfaceConstructor() {
 			$("#startbtn").show()
 			$("#testbtn").show()
 			$("#finished_task_buttons").hide();
+            clearTimeout(report_activation);
 			$("#bmi").hide();
 
 			$("#report").show()
@@ -801,6 +777,9 @@ function TaskInterfaceConstructor() {
 			$("#finished_task_buttons").hide();
 			$("#bmi").hide();
 			// this.report.activate();
+
+            report_activation = setInterval(this.report.activate.bind(this.report), 1000);
+
 			$("#report").show()
 			$("#notes").show()				
 		},
@@ -818,7 +797,7 @@ function TaskInterfaceConstructor() {
 			$("#testbtn").hide()
 			$("#finished_task_buttons").hide()
 			$("#bmi").hide();
-			// this.report.activate();
+			report_activation = setInterval(this.report.activate, 1000);
 
 			$("#report").show();
 			$("#notes").hide();
@@ -832,6 +811,7 @@ function TaskInterfaceConstructor() {
 			$("#finished_task_buttons").show();
 			$("#bmi").hide();
 			this.report.deactivate();
+            clearInterval(report_activation);
 
 			$("#report").show()
 		},
@@ -847,6 +827,7 @@ function TaskInterfaceConstructor() {
 			$("#finished_task_buttons").hide();
 			$("#bmi").hide();
 			this.report.deactivate();
+            clearInterval(report_activation);
 
 			$("#report").show()
 		}
@@ -1067,11 +1048,11 @@ TaskEntry.prototype.update = function(info) {
 			}
 		}
 	}
-    
-    $("#files").append('<a href="link_data_files/'+ this.idx +'"">Manually link data files</a>').show();
+    $("#files").show();    
+    $("#file_list").append('<a href="link_data_files/'+ this.idx +'"">Manually link data files</a>');
 	if (numfiles > 0) {
 		// Append the files onto the #files field
-		$("#files").append(this.filelist).show();
+		$("#file_list").append(this.filelist);
 
 
 		// make the BMI show up if there's a neural data file linked
@@ -1184,6 +1165,9 @@ TaskEntry.prototype.destroy = function() {
 		$(this.params.obj).remove();
 		delete this.params;
 	}
+
+    // Clear out list of files
+    $("#file_list").html("")
 
     // Remove any designations that this TaskEntry is active/running/errored/etc.
 	this.tr.removeClass("rowactive active error");
