@@ -4,76 +4,25 @@ CODE=/code
 BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 USER=root  # We're in a docker container so root is safe 
 
-####### Set up directories
-mkdir -p $CODE
-mkdir /backup
-chown $USER /backup
-
-mkdir /storage
-chown -R $USER /storage
-mkdir /storage/plots
-mkdir $CODE/src/
-
-# make log directory
-mkdir $BMI3D/log
-
-# Add the repository to get the rabbitmq server
-curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.deb.sh | bash
-apt-get update
-
-
-####### Install Ubuntu dependencies
-# apt-get -y install python-pip libhdf5-serial-dev
-# setup the CIFS 
-apt-get -y install smbclient cifs-utils
-# pygame
-# apt-get -y install mercurial python-dev python-numpy ffmpeg libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libsdl1.2-dev  libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev
-# install tools
-apt-get -y install bison flex
-# ssh
-apt-get -y install openssh-server
-# text editors
-# apt-get -y install sublime-text vim-gnome
-apt-get -y install rabbitmq-server
-apt-get -y install libusb-dev
-apt-get -y install ipython
-# NIDAQ
-apt-get -y install libcomedi-dev python-comedilib  swig
-# DHCP server
-apt-get -y install isc-dhcp-server
-apt-get -y install sqlite3
-# Arduino IDE
-apt-get install arduino arduino-core  
-# Serial lib
-apt-get install setserial
-
-####### Install Python dependencies
-pip install -r requirements.txt
-
-
 ####### Download any src code
 git clone https://github.com/sgowda/plot $HOME/code/plotutil
 git clone https://github.com/sgowda/robotics_toolbox $HOME/code/robotics
 # pygame
 hg clone https://bitbucket.org/pygame/pygame $HOME/code/pygame
 # Phidgets code
-wget http://www.phidgets.com/downloads/libraries/libphidget.tar.gz
-wget http://www.phidgets.com/downloads/libraries/PhidgetsPython.zip
-
-
+wget https://www.phidgets.com/downloads/phidget22/libraries/linux/libphidget22/libphidget22-1.1.20190417.tar.gz
+wget https://www.phidgets.com/downloads/phidget22/libraries/any/Phidget22Python/Phidget22Python_1.1.20190418.zip
 
 
 ####### Install source code, configure software
 # plexread module
 cd $BMI3D/riglib
+echo which python
 python setup.py install
 
 # pygame
 cd $HOME/code/pygame
 python setup.py install
-
-# symlink for iPython
-ln -s /usr/bin/ipython /usr/bin/ipy
 
 # NIDAQ software -- deprecated!
 # $HOME/code/bmi3d/riglib/nidaq/build.sh
