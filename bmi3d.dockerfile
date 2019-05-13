@@ -1,11 +1,13 @@
 FROM python:3
 
-##### Install required ubuntu packages
-# Add the repository to get the rabbitmq server
+#### Connect up third-party repositories (rabbitmq and erlang)
 RUN curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.deb.sh | bash
-RUN apt-get update && apt-get -y upgrade
+RUN echo "deb http://dl.bintray.com/rabbitmq-erlang/debian bionic erlang" \
+	>> /etc/apt/sources.list.d/bintray.erlang.list
+RUN apt-get -y update
 
-# Install dependencies
+
+##### Install required ubuntu packages
 RUN apt-get install -y \
 	smbclient \
 	cifs-utils \
@@ -19,35 +21,49 @@ RUN apt-get install -y \
 	isc-dhcp-server \
 	sqlite3
 
-# Rabbitmq can run into issues so run as a separate command
-RUN apt-get install rabbitmq-server 
-
-
-###### Install python dependencies
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+# Install rabbitmq with it's erlang dependencies
+RUN apt-get install -y --allow-unauthenticated \
+    erlang-base-hipe \
+    erlang-asn1 \
+    erlang-crypto \
+    erlang-eldap \
+    erlang-ftp \
+    erlang-inets \
+    erlang-mnesia \
+    erlang-os-mon \
+    erlang-parsetools \
+    erlang-public-key \
+    erlang-runtime-tools \
+    erlang-snmp \
+    erlang-ssl \
+    erlang-syntax-tools \
+    erlang-tftp \
+    erlang-tools \
+    erlang-xmerl \
+    rabbitmq-server
 
 
 ####### Set up directories and copy source code
-#RUN mkdir -v -p /code/src/
-#RUN mkdir -v -p /backup && chown root /backup
-#RUN mkdir -v -p /storage/plots && chown -R root /storage
-
-
-# ----- Expected cache invalidation here ------- #
+RUN mkdir -v -p /code/src/
+RUN mkdir -v -p /backup && chown root /backup
+RUN mkdir -v -p /storage/plots && chown -R root /storage
 
 COPY . /code/bmi3d/
 WORKDIR /code/bmi3d/
 RUN mkdir -v logs
 
 
+###### Install python dependencies
+RUN echo $PWD
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
 
 # Prepare scripts: Fix line endings because windows breaks bash
-# RUN sed -i 's/\r$//' install/docker/src_code_install.sh	
+RUN sed -i 's/\r$//' install/docker/src_code_install.sh	
 
 
 
-#RUN ./install/docker/src_code_install.sh 
+RUN ./install/docker/src_code_install.sh 
  
 #CMD [ "python", "./your-daemon-or-script.py" ]
