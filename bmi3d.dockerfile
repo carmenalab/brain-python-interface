@@ -49,11 +49,9 @@ RUN mkdir -v -p /code/src/
 RUN mkdir -v -p /backup && chown root /backup
 RUN mkdir -v -p /storage/plots && chown -R root /storage
 
+# --- Expect cache invalidation here if source files have changed --- #
 COPY bmi3d/ /code/bmi3d/
 COPY bmi3d_tasks_analysis/ /code/bmi3d_tasks_analysis/
-
-RUN ls
-RUN ls /code/bmi3d/
 
 # Replace windows symlinks with unix ones in the new env
 RUN rm /code/bmi3d/analysis && ln -s /code/bmi3d_tasks_analysis/analysis/ /code/bmi3d/analysis \
@@ -72,17 +70,11 @@ RUN mkdir -v logs
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-
-# Prepare scripts: Fix line endings because windows breaks bash
-#RUN sed -i 's/\r$//' install/docker/src_code_install.sh	
-#RUN ./install/docker/src_code_install.sh 
-
-
 # Set env vars for future reference
-
 ENV BMI3D="/code/bmi3d" \
 	PYTHONPATH="${PYTHONPATH}:/code/bmi3d/:/code/bmi3d_tasks_analysis"
 
-RUN python config/make_config.py 
+# RUN python config/make_config.py 
+
 
 CMD [ "/bin/bash", "./db/runserver.sh" ]
