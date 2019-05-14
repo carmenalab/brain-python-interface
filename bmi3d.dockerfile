@@ -63,7 +63,7 @@ RUN for f in $(find ./code/ -name "*.sh"); \
 	done  
 
 WORKDIR /code/bmi3d/
-RUN mkdir -v logs
+RUN mkdir -v log
 
 
 ###### Install python dependencies
