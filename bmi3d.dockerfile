@@ -74,7 +74,7 @@ RUN pip install -r requirements.txt
 ENV BMI3D="/code/bmi3d" \
 	PYTHONPATH="${PYTHONPATH}:/code/bmi3d/:/code/bmi3d_tasks_analysis"
 
-# RUN python config/make_config.py 
+RUN python config/make_config.py --use-defaults
 
 
 CMD [ "/bin/bash", "./db/runserver.sh" ]
