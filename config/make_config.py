@@ -33,7 +33,7 @@ for system_name, system_opts in list(stuff.items()):
     for option, default in list(system_opts.items()):
 
         if use_defaults:
-            print(f"Using default ({default}) for {option}")
+            print(f"  Using default ({default}) for {option}")
             opt_val = default
         else:
             opt_val = input(f"  Enter value for '{option}' (default={default}): ")
