@@ -19,7 +19,8 @@ RUN apt-get install -y \
 	python-comedilib  \
 	swig \
 	isc-dhcp-server \
-	sqlite3
+	sqlite3 \
+	vim
 
 # Install rabbitmq with it's erlang dependencies
 RUN apt-get install -y --allow-unauthenticated \
@@ -48,22 +49,40 @@ RUN mkdir -v -p /code/src/
 RUN mkdir -v -p /backup && chown root /backup
 RUN mkdir -v -p /storage/plots && chown -R root /storage
 
-COPY . /code/bmi3d/
+COPY bmi3d/ /code/bmi3d/
+COPY bmi3d_tasks_analysis/ /code/bmi3d_tasks_analysis/
+
+RUN ls
+RUN ls /code/bmi3d/
+
+# Replace windows symlinks with unix ones in the new env
+RUN rm /code/bmi3d/analysis && ln -s /code/bmi3d_tasks_analysis/analysis/ /code/bmi3d/analysis \
+ && rm /code/bmi3d/tasks    && ln -s /code/bmi3d_tasks_analysis/tasks/    /code/bmi3d/tasks
+
+# Fix all .sh files that might have aquired windows line endings
+RUN for f in $(find ./code/ -name "*.sh"); \
+	do echo "fixing: $f" && sed -i 's/\r$//' $f; \
+	done  
+
 WORKDIR /code/bmi3d/
 RUN mkdir -v logs
 
 
 ###### Install python dependencies
-RUN echo $PWD
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
 
 # Prepare scripts: Fix line endings because windows breaks bash
-RUN sed -i 's/\r$//' install/docker/src_code_install.sh	
+#RUN sed -i 's/\r$//' install/docker/src_code_install.sh	
+#RUN ./install/docker/src_code_install.sh 
 
 
+# Set env vars for future reference
 
-RUN ./install/docker/src_code_install.sh 
- 
-#CMD [ "python", "./your-daemon-or-script.py" ]
+ENV BMI3D="/code/bmi3d" \
+	PYTHONPATH="${PYTHONPATH}:/code/bmi3d/:/code/bmi3d_tasks_analysis"
+
+RUN python config/make_config.py 
+
+CMD [ "/bin/bash", "./db/runserver.sh" ]
