@@ -395,3 +395,16 @@ def add_new_subject(request):
     subj.save()
 
     return HttpResponse("Added new subject: %s" % subj.name)
+
+@csrf_exempt
+def get_report(request):
+    '''
+    Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
+    interface
+    '''
+    #make sure we don't have an already-running experiment
+    tracker = exp_tracker.get()
+    tracker.task_proxy.update_report_stats()
+    reportstats = tracker.task_proxy.reportstats
+    return _respond(reportstats)
+

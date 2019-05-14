@@ -260,12 +260,25 @@
 							<fieldset id="parameters">
 								<input id="show_params" type="checkbox" checked="off" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?		
 								<legend>Parameters</legend>
+								<!-- <table id="params_table">
+								</table> -->
 							</fieldset> <!-- parameters -->
 						</div>
 
 						<div class="rightside">
 							<fieldset id="report">
 								<legend>Report</legend>
+								<div id="report_div">
+									<table class="option" id="report_info">
+									</table>
+
+									<div class="report_table" id="report_msgs">
+										<pre id="stdout"></pre>
+									</div>
+
+									
+									<div class="clear"></div>
+								</div>
 							</fieldset>
 
 							<fieldset id="notes">
@@ -275,6 +288,8 @@
 
 							<fieldset id="files">
 								<legend>Linked Data Files</legend>
+								<div id="file_list">
+								</div>
 							</fieldset>
 
 							<fieldset id='bmi'>
