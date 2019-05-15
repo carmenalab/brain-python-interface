@@ -5,9 +5,6 @@ This file was initially created by Django
 '''
 from tracker.models import Task, Feature, System, TaskEntry, Calibration, DataFile, Subject, Sequence, Generator, AutoAlignment, Decoder
 from django.contrib import admin
-
-
-
 from django.db.models.signals import post_delete
 from django.dispatch.dispatcher import receiver
 
