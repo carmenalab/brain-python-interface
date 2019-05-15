@@ -2,12 +2,17 @@
 Lookup table for features, generators and tasks for experiments
 '''
 
-## Get the list of experiment features
-from .featurelist import features
+# Get the list of experiment features
+try:
+    from .featurelist import features
+except (ImportError, ModuleNotFoundError):
+    features = {}
 
-## Get the list of tasks
-from .tasklist import tasks
-
+# Get the list of tasks
+try:
+    from .tasklist import tasks
+except (ImportError, ModuleNotFoundError):
+    tasks = {}
 
 # Derive generator functions from the tasklist (all generatorfunctions should be staticmethods of a task)
 generator_names = []
@@ -67,4 +72,4 @@ class SubclassDict(dict):
 
 ################################################################################
 ################################################################################
-from .bmilist import *
+# from .bmilist import *
