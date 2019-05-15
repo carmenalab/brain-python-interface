@@ -1,36 +1,33 @@
-'''
+"""
 Methods for remotely interacting with the sqlite3 database using remote procedure call (RPC)
 For example, linking HDF file to a particular task entry.
-'''
+"""
 
 import os
 import time
 import json
 import shutil
 import datetime
-from xmlrpc.server import SimpleXMLRPCDispatcher
 
-import django
+from xmlrpc.server import SimpleXMLRPCDispatcher
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from distutils.version import StrictVersion
+from db.tracker.models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
 
-from riglib import experiment
-from .models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
-import pickle
-import tempfile
 
 def save_log(idx, log, dbname='default'):
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
     entry.report = json.dumps(log)
     entry.save()
 
+
 def save_calibration(subject, system, name, params, dbname='default'):
     print(subject, system)
     subj = Subject.objects.using(dbname).get(name=subject)
     sys = System.objects.using(dbname).get(name=system)
     Calibration(subject=subj, system=sys, name=name, params=params).save(using=dbname)
+
 
 def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None, dbname='default'):
     suffix = dict(supp_hdf="supp.hdf", eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png", video="avi")
@@ -82,10 +79,11 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
     DataFile(local=local, path=permfile, system=sys, entry=entry).save(using=dbname)
     print("Saved datafile for file=%s -> %s, system=%s, id=%d)..." % (curfile, permfile, system, entry.id))
 
+
 def save_bmi(name, entry, filename, dbname='default'):
-    '''
+    """
     Save BMI objects to database
-    '''
+    """
     entry = TaskEntry.objects.using(dbname).get(pk=entry)
     now = entry.date
     today = datetime.date(now.year, now.month, now.day)
@@ -101,8 +99,8 @@ def save_bmi(name, entry, filename, dbname='default'):
         num=num, name=name)
     base = System.objects.using(dbname).get(name='bmi').path
 
-    #Make sure decoder name doesn't exist already:
-    #Make sure new decoder name doesn't already exist: 
+    # Make sure decoder name doesn't exist already:
+    # Make sure new decoder name doesn't already exist:
     import os.path
     dec_ix = 0
 
@@ -115,7 +113,7 @@ def save_bmi(name, entry, filename, dbname='default'):
 
     shutil.copy2(filename, os.path.join(base, pklname))
 
-    Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
+    Decoder(name=name, entry=entry, path=pklname).save(using=dbname)
     try:
         decoder_entry = Decoder.objects.using(dbname).get(entry=entry)
     except:
@@ -127,15 +125,15 @@ def save_bmi(name, entry, filename, dbname='default'):
             print(d.pk, d.name)
     print("Saved decoder to %s"%os.path.join(base, pklname))
 
+
 def hide_task_entry(entry, dbname='default'):
     te = TaskEntry.objects.using(dbname).get(id=entry)
     te.visible = False
     te.save()
 
 
-
 #############################################################################
-##### Register functions for remote procedure call from other processes #####
+#     Register functions for remote procedure call from other processes     #
 #############################################################################
 dispatcher = SimpleXMLRPCDispatcher(allow_none=True)
 dispatcher.register_function(save_log, 'save_log')
@@ -143,6 +141,7 @@ dispatcher.register_function(save_calibration, 'save_cal')
 dispatcher.register_function(save_data, 'save_data')
 dispatcher.register_function(save_bmi, 'save_bmi')
 dispatcher.register_function(hide_task_entry, 'hide_task_entry')
+
 
 @csrf_exempt
 def rpc_handler(request):

@@ -1,7 +1,7 @@
-'''
+"""
 An extension of Tornado's web socket which enables the task to 
 print data to the web interface while the task is running.
-'''
+"""
 
 import os
 import sys
@@ -15,6 +15,7 @@ from tornado import websocket
 
 sockets = []
 
+
 class ClientSocket(websocket.WebSocketHandler):
     def open(self):
         sockets.append(self)
@@ -25,7 +26,7 @@ class ClientSocket(websocket.WebSocketHandler):
         sockets.remove(self)
 
     def check_origin(self, origin):
-        '''
+        """
         Returns a boolean indicating whether the requesting URL is one that the 
         handler will respond to. For this websocket, everyone with access gets a response since 
         we're running the server locally (or over ssh tunnels) and not over the regular internet.
@@ -41,14 +42,14 @@ class ClientSocket(websocket.WebSocketHandler):
             Returns True if the request originates from a valid URL
 
         See websocket.WebSocketHandler.check_origin for additional documentation
-        '''
+        """
         return True
 
 
 class Server(mp.Process):
-    '''
+    """
     Spawn a process to deal with the websocket asynchronously, without halting other webserver operations. 
-    '''
+    """
     def __init__(self, notify=None):
         super(self.__class__, self).__init__()
         self._pipe, self.pipe = os.pipe()
@@ -58,9 +59,9 @@ class Server(mp.Process):
         self.start()
 
     def run(self):
-        '''
+        """
         Main function to run in the process. See mp.Process.run() for additional documentation.
-        '''
+        """
         print("Running websocket service")
         application = tornado.web.Application([
             (r"/connect", ClientSocket),
@@ -85,9 +86,9 @@ class Server(mp.Process):
         os.write(self.pipe, struct.pack('I', len(msg)) + bytes(msg, 'utf8'))
 
     def _stdout(self, fd, event):
-        '''
+        """
         Handler for self._pipe; Read the data from the input pipe and propagate the data to all the listening sockets
-        '''
+        """
         nbytes, = struct.unpack('I', os.read(fd, 4))
         msg = os.read(fd, nbytes)
 
@@ -103,7 +104,7 @@ class Server(mp.Process):
 
     ##### Currently unused functions below this line #####
     def write(self, data):
-        '''Used for stdout hooking'''
+        """Used for stdout hooking"""
         self.outqueue += data
         self.flush()
 
@@ -123,9 +124,9 @@ class Server(mp.Process):
     
 
 class NotifyFeat(object):
-    '''
+    """
     Send task report and state data to display on the web inteface
-    '''
+    """
     def __init__(self, *args,  **kwargs):
         super(NotifyFeat, self).__init__(*args, **kwargs)
         self.websock = kwargs.pop('websock')

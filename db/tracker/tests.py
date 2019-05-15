@@ -6,13 +6,15 @@ Replace this with more appropriate tests for your application.
 """
 from django.test import TestCase, Client
 import json
-import time, sys
+import time
+import sys
 
-from tracker import models
-from tracker import exp_tracker
+from db.tracker import models
+from db.tracker import exp_tracker
 # import psutil
 
 from riglib.experiment import LogExperiment
+
 
 class TestDataFile(TestCase):
     def setUp(self):
@@ -55,8 +57,10 @@ class TestModels(TestCase):
     def test_add_new_task_to_table(self):
         c = Client()
 
-        post_data = {"name": "test_add_new_task_to_table", 
-            "import_path": "riglib.experiment.LogExperiment"}
+        post_data = {
+            "name": "test_add_new_task_to_table",
+            "import_path": "riglib.experiment.LogExperiment"
+        }
         resp = c.post("/setup/add/new_task", post_data)
 
         task = models.Task.objects.get(name="test_add_new_task_to_table")
@@ -85,6 +89,7 @@ class TestModels(TestCase):
 
         te = models.TaskEntry(subject_id=subj.id, task_id=task.id)
         te.save()
+
 
 class TestTaskStartStop(TestCase):
     def test_start_experiment_python(self):
@@ -117,7 +122,6 @@ class TestTaskStartStop(TestCase):
 
         post_data = {"data": json.dumps(task_start_data)}
 
-        import sys
         # if sys.platform == "win32":
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
@@ -137,11 +141,9 @@ class TestTaskStartStop(TestCase):
         reportstats = tracker.task_proxy.reportstats
         self.assertTrue(len(reportstats.keys()) > 0)
 
-        import time
         time.sleep(2)
         stop_resp = c.post("/exp_log/stop/")
-        
-        import time
+
         time.sleep(2)
         self.assertFalse(tracker.task_running())
 

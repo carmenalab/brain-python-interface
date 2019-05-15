@@ -1,25 +1,28 @@
-'''
+"""
 HTML rendering 'view' functions for Django web interface. Retreive data from database to put into HTML format.
-'''
+"""
 
 import json
 
 from django.template import RequestContext
 from django.shortcuts import render_to_response, render
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 
-from .models import TaskEntry, Task, Subject, Feature, Generator
+from db.tracker.models import TaskEntry, Task, Subject, Feature, Generator, DataFile, System
+from db.tracker import exp_tracker
 
 from config import namelist
-from . import exp_tracker
 
 import datetime
+
 
 def main(request):
     return render(request, "main.html", dict())
 
+
 def list_exp_history(request):
-    '''
+    """
     Top-level view called when browser pointed at webroot
 
     Parameters
@@ -30,7 +33,7 @@ def list_exp_history(request):
     Returns 
     -------
     Django HTTPResponse instance
-    '''
+    """
     print("views.list: new root request received")
     td = datetime.timedelta(days=60)
     start_date = datetime.date.today() - td
@@ -38,7 +41,6 @@ def list_exp_history(request):
     # entries = TaskEntry.objects.all()[:200][::-1]
     entries = TaskEntry.objects.filter(visible=True).order_by('-date')[:200]
 
-    
     for k in range(0, len(entries)):
         ent = entries[k]
         if k == 0 or not entries[k].date.date() == entries[k-1].date.date():
@@ -47,7 +49,7 @@ def list_exp_history(request):
             ent.html_date = None
         ent.html_time = ent.date.time()
 
-    ## Determine how many rows the date should span
+    # Determine how many rows the date should span
     last = -1
     for k, ent in enumerate(entries[::-1]):
         if ent.html_date:
@@ -100,8 +102,9 @@ def list_exp_history(request):
     print("views.list: resp done!")
     return resp
 
+
 def listall(request):
-    '''
+    """
     Top-level view called when browser pointed at WEBROOT/all
 
     Parameters
@@ -112,7 +115,7 @@ def listall(request):
     Returns 
     -------
     Django HTTPResponse instance
-    '''
+    """
     entries = TaskEntry.objects.all().order_by("-date")
 
     epoch = datetime.datetime.utcfromtimestamp(0)
@@ -144,8 +147,9 @@ def listall(request):
         fields['running'] = tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
+
 def listdb(request, dbname='default', subject=None, task=None):
-    '''
+    """
     Top-level view called when browser pointed at WEBROOT/dbname/DBNAME, 
     to list the task entries in a particular database
 
@@ -157,7 +161,7 @@ def listdb(request, dbname='default', subject=None, task=None):
     Returns 
     -------
     Django HTTPResponse instance
-    '''
+    """
     filter_kwargs = dict(visible=True)
     if not (subject is None) and isinstance(subject, str):
         filter_kwargs['subject__name'] = subject
@@ -189,6 +193,7 @@ def listdb(request, dbname='default', subject=None, task=None):
         fields['running'] = tracker.task_proxy.saveid
     return render_to_response('list.html', fields, RequestContext(request))
 
+
 def setup(request):
     from . import models
     subjects = models.Subject.objects.all()
@@ -196,6 +201,7 @@ def setup(request):
     features = models.Feature.objects.all()
     return render(request, "setup.html", 
         dict(subjects=subjects, tasks=tasks, features=features))
+
 
 def _color_entries(entries):
     epoch = datetime.datetime.utcfromtimestamp(0)
@@ -210,11 +216,12 @@ def _color_entries(entries):
             last_tdiff = tdiff
         entry.bgcolor = colors[color_idx]
 
+
 def get_sequence(request, idx):
-    '''
+    """
     Pointing browser to WEBROOT/sequence_for/(?P<idx>\d+)/ returns a pickled
     file with the 'sequence' used in the specified id
-    '''
+    """
     import pickle
     entry = TaskEntry.objects.get(pk=idx)
     seq = pickle.loads(str(entry.sequence.sequence))
@@ -228,21 +235,21 @@ def get_sequence(request, idx):
         idx=idx)
     return response
 
+
 def link_data_files_view_generator(request, task_entry_id):
-    from . import models
-    systems = models.System.objects.all()
+    systems = System.objects.all()
     display_data = dict(systems=systems, task_entry_id=task_entry_id)
     return render(request, "link_data_files.html", display_data)
 
-from django.views.decorators.csrf import csrf_exempt
+
 @csrf_exempt
 def link_data_files_response_handler(request, task_entry_id):
-    from . import models
     print("link_data_files_response_handler", request.POST)
     file_path = request.POST["file_path"]
     data_system_id = request.POST["data_system_id"]
 
-    data_file = models.DataFile(local=True, archived=False, path=file_path, 
+    data_file = DataFile(
+        local=True, archived=False, path=file_path,
         system_id=data_system_id, entry_id=task_entry_id)
     data_file.save()
     return HttpResponse("Added new data file")

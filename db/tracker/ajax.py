@@ -1,7 +1,7 @@
-'''
+"""
 Handlers for AJAX (Javascript) functions used in the web interface to start 
 experiments and train BMI decoders
-'''
+"""
 import json
 
 import numpy as np
@@ -10,21 +10,20 @@ from django.views.decorators.csrf import csrf_exempt
 
 from riglib import experiment
 
-from .json_param import Parameters
+from db import trainbmi
+from db.tracker import exp_tracker
+from db.tracker.json_param import Parameters
+from db.tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
-from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
-import trainbmi
 import logging
 import traceback
 
-from . import exp_tracker
 
 http_request_queue = []
 
 
 def train_decoder_ajax_handler(request, idx):
-    '''
+    """
     AJAX handler for creating a new decoder.
 
     Parameters
@@ -38,8 +37,8 @@ def train_decoder_ajax_handler(request, idx):
     -------
     Django HttpResponse
         Indicates 'success' if all commands initiated without error.
-    '''
-    ## Check if the name of the decoder is already taken
+    """
+    # Check if the name of the decoder is already taken
     collide = Decoder.objects.filter(entry=idx, name=request.POST['bminame'])
     if len(collide) > 0:
         return _respond(dict(status='error', msg='Name collision -- please choose a different name'))
@@ -64,9 +63,9 @@ def train_decoder_ajax_handler(request, idx):
 
 
 class encoder(json.JSONEncoder):
-    '''
+    """
     Encoder for JSON data that defines how the data should be returned. 
-    '''
+    """
     def default(self, o):
         if isinstance(o, np.ndarray):
             return o.tolist()
@@ -75,8 +74,9 @@ class encoder(json.JSONEncoder):
         else:
             return super(encoder, self).default(o)
 
+
 def _respond(data):
-    '''
+    """
     Generic HTTPResponse to return JSON-formatted dictionary values
 
     Parameters
@@ -88,11 +88,12 @@ def _respond(data):
     -------
     HttpResponse
         JSON-encoded version of the input dictionary
-    '''
+    """
     return HttpResponse(json.dumps(data, cls=encoder), content_type="application/json")
 
+
 def task_info(request, idx, dbname='default'):
-    '''
+    """
     Get information about the task
 
     Parameters
@@ -105,7 +106,7 @@ def task_info(request, idx, dbname='default'):
     Returns
     -------
     JSON-encoded dictionary
-    '''
+    """
     task = Task.objects.using(dbname).get(pk=idx)
     feats = []
     for name, isset in list(request.GET.items()):
@@ -121,8 +122,9 @@ def task_info(request, idx, dbname='default'):
 
     return _respond(task_info)
 
+
 def exp_info(request, idx, dbname='default'):
-    '''
+    """
     Get information about the task
 
     Parameters
@@ -136,7 +138,7 @@ def exp_info(request, idx, dbname='default'):
     -------
     JSON-encoded dictionary 
         Data containing features, parameters, and any report data from the TaskEntry
-    '''
+    """
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
     try:
         entry_data = entry.to_json()
@@ -150,43 +152,48 @@ def exp_info(request, idx, dbname='default'):
     else:
         return _respond(entry_data)
 
+
 def hide_entry(request, idx):
-    '''
+    """
     See documentation for exp_info
-    '''
+    """
     print("hide_entry")
     entry = TaskEntry.objects.get(pk=idx)
     entry.visible = False
     entry.save()
     return _respond(dict())
 
+
 def show_entry(request, idx):
-    '''
+    """
     See documentation for exp_info
-    '''
+    """
     print("hide_entry")
     entry = TaskEntry.objects.get(pk=idx)
     entry.visible = True
     entry.save()
     return _respond(dict())
 
+
 def backup_entry(request, idx):
-    '''
+    """
     See documentation for exp_info
-    '''
+    """
     entry = TaskEntry.objects.get(pk=idx)
     entry.backup = True
     entry.save()    
     return _respond(dict())
 
+
 def unbackup_entry(request, idx):
-    '''
+    """
     See documentation for exp_info
-    '''
+    """
     entry = TaskEntry.objects.get(pk=idx)
     entry.backup = False
     entry.save()    
     return _respond(dict())
+
 
 def gen_info(request, idx):
     try:
@@ -195,6 +202,7 @@ def gen_info(request, idx):
     except:
         traceback.print_exc()
 
+
 def start_next_exp(request):
     try:
         req, save = http_request_queue.pop(0)
@@ -202,13 +210,14 @@ def start_next_exp(request):
     except IndexError:
         return _respond(dict(status="error", msg="No experiments in queue!"))
 
+
 @csrf_exempt
 def start_experiment(request, save=True):
-    '''
+    """
     Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
     interface
-    '''
-    #make sure we don't have an already-running experiment
+    """
+    # Make sure we don't have an already-running experiment
     tracker = exp_tracker.get()
     if len(tracker.status.value) != 0:
         print("exp_tracker.status.value", tracker.status.value)
@@ -218,8 +227,8 @@ def start_experiment(request, save=True):
     try:
         data = json.loads(request.POST['data'])
 
-        task =  Task.objects.get(pk=data['task'])
-        Exp = task.get(feats=list(data['feats'].keys()))
+        task = Task.objects.get(pk=data['task'])
+        exp = task.get(feats=list(data['feats'].keys()))
 
         entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
         params = Parameters.from_html(data['params'])
@@ -228,7 +237,7 @@ def start_experiment(request, save=True):
                       params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
-        if issubclass(Exp, experiment.Sequence):
+        if issubclass(exp, experiment.Sequence):
             print("creating seq")
             print("data['sequence'] POST data")
             print(data['sequence'])
@@ -273,8 +282,9 @@ def start_experiment(request, save=True):
         err.seek(0)
         return _respond(dict(status="error", msg=err.read()))
 
+
 def rpc(fn):
-    '''
+    """
     Generic remote procedure call function
 
     Parameters
@@ -286,8 +296,8 @@ def rpc(fn):
     Returns
     -------
     JSON-encoded dictionary 
-    '''
-    #make sure that there exists an experiment to stop
+    """
+    # make sure that there exists an experiment to stop
     tracker = exp_tracker.get()
     if tracker.status.value not in [b"running", b"testing"]:
         print("rpc not possible", str(tracker.status.value))
@@ -301,8 +311,9 @@ def rpc(fn):
         traceback.print_exc()
         return _respond_err(e)
 
+
 def _respond_err(e):
-    '''
+    """
     Default error response from server to webclient
 
     Parameters
@@ -314,7 +325,7 @@ def _respond_err(e):
     -------
     JSON-encoded dictionary
         Sets status to "error" and provides the specific error message
-    '''
+    """
     import io
     import traceback
     err = io.StringIO()
@@ -322,21 +333,26 @@ def _respond_err(e):
     err.seek(0)
     return _respond(dict(status="error", msg=err.read()))        
 
+
 @csrf_exempt
 def stop_experiment(request):
     return rpc(lambda tracker: tracker.stoptask())
 
+
 def enable_clda(request):
     return rpc(lambda tracker: tracker.task_proxy.enable_clda())
+
 
 def disable_clda(request):
     return rpc(lambda tracker: tracker.task_proxy.disable_clda())
 
+
 def set_task_attr(request, attr, value):
-    '''
+    """
     Generic function to change a task attribute while the task is running.
-    '''
+    """
     return rpc(lambda tracker: tracker.task_proxy.remote_set_attr(attr, value))
+
 
 @csrf_exempt
 def save_notes(request, idx):
@@ -345,10 +361,11 @@ def save_notes(request, idx):
     te.save()
     return _respond(dict(status="success"))
 
+
 def reward_drain(request, onoff):
-    '''
+    """
     Start/stop the "drain" of a solenoid reward remotely
-    '''
+    """
     from riglib import reward
     r = reward.Basic()
 
@@ -359,6 +376,7 @@ def reward_drain(request, onoff):
         print('drain off')
         r.drain_off()
     return HttpResponse('Turning reward %s' % onoff)
+
 
 def populate_models(request):
     """ Database initialization code. When 'db.tracker' is imported, it goes through the database and ensures that 
@@ -378,6 +396,7 @@ def populate_models(request):
 
     return HttpResponse("Updated Tasks, features generators, and systems")
 
+
 @csrf_exempt
 def add_new_task(request):
     from . import models
@@ -386,6 +405,7 @@ def add_new_task(request):
     task.save()
 
     return HttpResponse("Added new task: %s" % task.name)
+
 
 @csrf_exempt
 def add_new_subject(request):
@@ -396,13 +416,14 @@ def add_new_subject(request):
 
     return HttpResponse("Added new subject: %s" % subj.name)
 
+
 @csrf_exempt
 def get_report(request):
-    '''
+    """
     Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
     interface
-    '''
-    #make sure we don't have an already-running experiment
+    """
+    # make sure we don't have an already-running experiment
     tracker = exp_tracker.get()
     tracker.task_proxy.update_report_stats()
     reportstats = tracker.task_proxy.reportstats

@@ -1,18 +1,19 @@
-'''
+"""
 This module contains functions which convert parameter sets stored
 as JSON blobs into python dictionaries or vice versa.
-'''
+"""
 import builtins
 import ast
 import json
 import numpy as np
 
 from riglib import calibrations
-# from . import namelist
+from config import namelist
 import os
 
+
 def param_objhook(obj):
-    '''
+    """
     A custom JSON "decoder" which can recognize certain types of serialized python objects 
     (django models, function calls, object constructors) and re-create the objects
 
@@ -27,13 +28,13 @@ def param_objhook(obj):
         If possible, a python object based on the JSON data is created. If not, the original dictionary
         is simply returned.
 
-    '''
+    """
     from . import models
     if '__django_model__' in obj:
         model = getattr(models, obj['__django_model__'])
-        return model(pk = obj['pk'])
+        return model(pk=obj['pk'])
     elif '__builtin__' in obj:
-        func = getattr(__builtin__, obj['__builtin__'])
+        func = getattr(builtins, obj['__builtin__'])
         return func(*obj['args'])
     elif '__class__' in obj:
         # look up the module
@@ -41,11 +42,12 @@ def param_objhook(obj):
 
         # get the class with the 'getattr' and then run the class constructor on the class data
         return getattr(mod, obj['__class__'])(obj['__dict__'])
-    else: # the type of object is unknown, just return the original dictionary
+    else:   # the type of object is unknown, just return the original dictionary
         return obj
 
+
 def norm_trait(trait, value):
-    '''
+    """
     Take user input and convert to the type of the trait. 
     For example, a user might select a decoder's name/id but the ID needs to be mapped 
     to an object for type checking when the experiment is constructed)
@@ -60,7 +62,7 @@ def norm_trait(trait, value):
     Returns
     -------
     typecast value of trait
-    '''
+    """
     from . import models
     ttype = trait.trait_type.__class__.__name__
     if ttype == 'Instance':

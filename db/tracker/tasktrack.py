@@ -1,8 +1,8 @@
-'''
+"""
 Web browser GUI-launched tasks run in a separate process. This module provides 
 mechanisms for interacting withe the task running in another process, e.g.,
 calling functions to start/stop the task, enabling/disabling decoder adaptation, etc.
-'''
+"""
 
 import os
 import sys
@@ -23,11 +23,14 @@ import io
 import traceback
 
 log_filename = os.path.join(config.log_path, "tasktrack_log")
+
+
 def log_error(err, mode='a'):
     traceback.print_exc(None, err)
     with open(log_filename, mode) as fp:
         err.seek(0)
         fp.write(err.read())
+
 
 def log_str(s, mode="a", newline=True):
     if newline and not s.endswith("\n"):
@@ -37,9 +40,9 @@ def log_str(s, mode="a", newline=True):
 
 
 class Track(object):
-    '''
+    """
     Tracker for task instantiation running in a separate process. This is a singleton.
-    '''
+    """
     def __init__(self, use_websock=True):
         # shared memory to store the status of the task in a char array
         self.status = mp.Array('c', 256)
@@ -56,9 +59,9 @@ class Track(object):
             self.status.value = b""
 
     def runtask(self, **kwargs):
-        '''
+        """
         Begin running of task
-        '''
+        """
         log_str("Running new task: \n", mode="w")
 
         # initialize task status
@@ -86,10 +89,10 @@ class Track(object):
         self.proc.start()
         
     def __del__(self):
-        '''
+        """
         Destructor for Track object. Not sure if this function ever gets called 
         since Track is a singleton created upon import of the db.tracker.ajax module...
-        '''
+        """
         if not self.websock is None:
             self.websock.stop()
 
@@ -97,9 +100,9 @@ class Track(object):
     #     self.status.value = bytes(self.task_proxy.pause())
 
     def stoptask(self):
-        '''
+        """
         Terminate the task gracefully by running riglib.experiment.Experiment.end_task
-        '''
+        """
         assert self.status.value in [b"testing", b"running"]
         try:
             self.task_proxy.end_task()
@@ -130,9 +133,9 @@ class Track(object):
 
 
 def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
-    '''
+    """
     Target function to execute in the spawned process to start the task
-    '''
+    """
     log_str("remote_runtask")
     print("*************************** STARTING TASK *****************************")
     
@@ -236,22 +239,23 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     else:
         cleanup_successful = task_wrapper.cleanup()
 
-
     # inform the user in the browser that the task is done!
     if cleanup_successful:
-        if use_websock: websock.write("\n\n...done!\n")
+        if use_websock:
+            websock.write("\n\n...done!\n")
     else:
-        if use_websock: websock.write("\n\nError! Check for errors in the terminal!\n")
+        if use_websock:
+            websock.write("\n\nError! Check for errors in the terminal!\n")
 
     print("*************************** EXITING TASK *****************************")
 
 
 class TaskWrapper(object):
-    '''
+    """
     Wrapper for Experiment classes launched from the web interface
-    '''
+    """
     def __init__(self, subj, base_class, feats, params, seq=None, seq_params=None, saveid=None):
-        '''
+        """
         Parameters
         ----------
         subj : tracker.models.Subject instance
@@ -271,7 +275,7 @@ class TaskWrapper(object):
             ID number of db.tracker.models.TaskEntry associated with this task
             if None specified, then the data saved will not be linked to the
             database entry and will be lost after the program exits
-        '''
+        """
         log_str("TaskWrapper constructor")
         self.saveid = saveid
         self.subj = subj
@@ -281,7 +285,6 @@ class TaskWrapper(object):
             self.params = Parameters(params)
         elif isinstance(params, dict):
             self.params = Parameters.from_dict(params)
-        
 
         if None in feats:
             raise Exception("Features not found properly in database!")
