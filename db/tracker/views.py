@@ -1,44 +1,36 @@
 '''
 HTML rendering 'view' functions for Django web interface. Retreive data from database to put into HTML format.
 '''
-
+import datetime
+import pickle
 import json
 
 from django.template import RequestContext
 from django.shortcuts import render_to_response, render
 from django.http import HttpResponse
 
-from .models import TaskEntry, Task, Subject, Feature, Generator
-
 from config import namelist
 from . import exp_tracker
 
-import datetime
 
 def main(request):
     return render(request, "main.html", dict())
 
-def list_exp_history(request):
-    '''
-    Top-level view called when browser pointed at webroot
-
-    Parameters
-    ----------
-    request: HTTPRequest instance
-        No data needs to be extracted from this request
-
-    Returns 
-    -------
-    Django HTTPResponse instance
-    '''
-    print("views.list: new root request received")
+def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None):
+    from . import models
+    # from .models import TaskEntry, Task, Subject, Feature, Generator
     td = datetime.timedelta(days=60)
-    start_date = datetime.date.today() - td
-    # entries = TaskEntry.objects.filter(visible=True).order_by('-date') # date__gt=start_date, 
-    # entries = TaskEntry.objects.all()[:200][::-1]
-    entries = TaskEntry.objects.filter(visible=True).order_by('-date')[:200]
 
+    filter_kwargs = dict(visible=True)
+    if not (subject is None) and isinstance(subject, str):
+        filter_kwargs['subject__name'] = subject
+    if not (task is None) and isinstance(task, str):
+        filter_kwargs['task__name'] = task
     
+    entries = models.TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
+    if isinstance(max_entries, int):
+        entries = entries[:max_entries]
+
     for k in range(0, len(entries)):
         ent = entries[k]
         if k == 0 or not entries[k].date.date() == entries[k-1].date.date():
@@ -54,7 +46,7 @@ def list_exp_history(request):
             ent.rowspan = k - last
             last = k
 
-    tasks = Task.objects.filter(visible=True).order_by("name")
+    tasks = models.Task.objects.filter(visible=True).order_by("name")
 
     epoch = datetime.datetime.utcfromtimestamp(0)
     for entry in entries:
@@ -64,10 +56,10 @@ def list_exp_history(request):
         else:
             entry.bgcolor = '#FFFFFF'
 
-    subjects = Subject.objects.all().order_by("name")
-    features = Feature.objects.filter(visible=True).order_by("name")
-    generators = Generator.objects.filter(visible=True).order_by("name")
-    hostname = request.get_host()
+    subjects = models.Subject.objects.all().order_by("name")
+    features = models.Feature.objects.filter(visible=True).order_by("name")
+    generators = models.Generator.objects.filter(visible=True).order_by("name")
+    
 
     fields = dict(
         entries=entries, 
@@ -75,17 +67,39 @@ def list_exp_history(request):
         tasks=tasks, 
         features=features, 
         generators=generators,
-        hostname=hostname,
-        bmi_update_rates=namelist.bmi_update_rates,
-        state_spaces=namelist.bmi_state_space_models,
-        bmi_algorithms=namelist.bmi_algorithms,
-        extractors=namelist.extractors,
-        default_extractor=namelist.default_extractor,
-        pos_vars=namelist.bmi_training_pos_vars,      # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
-        kin_extractors=namelist.kin_extractors,       # post-processing methods on the selected kinematic variable
         n_blocks=len(entries),
-        #zscores=namelist.zscores,
     )
+
+    try:
+        from config import bmiconfig
+        fields['bmi_update_rates'] = bmiconfig.bmi_update_rates
+        fields['state_spaces'] = bmiconfig.bmi_state_space_models
+        fields['bmi_algorithms'] = bmiconfig.bmi_algorithms
+        fields['extractors'] = bmiconfig.extractors
+        fields['default_extractor'] = bmiconfig.default_extractor
+        fields['pos_vars'] = bmiconfig.bmi_training_pos_vars      # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
+        fields['kin_extractors'] = bmiconfig.kin_extractors       # post-processing methods on the selected kinematic variable
+    except ImportError:
+        pass
+    return fields
+
+def list_exp_history(request, **kwargs):
+    '''
+    Top-level view called when browser pointed at webroot
+
+    Parameters
+    ----------
+    request: HTTPRequest instance
+        No data needs to be extracted from this request
+
+    Returns 
+    -------
+    Django HTTPResponse instance
+    '''
+    from .models import TaskEntry, Task, Subject, Feature, Generator
+
+    fields = _list_exp_history(**kwargs)
+    fields['hostname'] = request.get_host()
 
     # this line is important--this is needed so the Track object knows if the task has ended in an error
     # TODO there's probably some better way of doing this within the multiprocessing lib (some code to run after the process has terminated)
@@ -96,108 +110,24 @@ def list_exp_history(request):
         fields['running'] = tracker.task_proxy.saveid
 
     resp = render_to_response('list.html', fields, RequestContext(request))
-
-    print("views.list: resp done!")
     return resp
-
-def listall(request):
-    '''
-    Top-level view called when browser pointed at WEBROOT/all
-
-    Parameters
-    ----------
-    request: HTTPRequest instance
-        No data needs to be extracted from this request
-
-    Returns 
-    -------
-    Django HTTPResponse instance
-    '''
-    entries = TaskEntry.objects.all().order_by("-date")
-
-    epoch = datetime.datetime.utcfromtimestamp(0)
-    for entry in entries:
-        tdiff = entry.date - epoch
-        if tdiff.days % 2 == 0:
-            entry.bgcolor = '#E1EEf4'
-        else:
-            entry.bgcolor = '#FFFFFF'#'#dae5f4'
-
-
-    fields = dict(
-        entries=entries, 
-        subjects=Subject.objects.all().order_by("name"), 
-        tasks=Task.objects.filter(visible=True).order_by("name"), 
-        features=Feature.objects.filter(visible=True).order_by("name"), 
-        generators=Generator.objects.filter(visible=True).order_by("name"),
-        hostname=request.get_host(),
-        bmi_update_rates=namelist.bmi_update_rates,
-        state_spaces=namelist.bmi_state_space_models,
-        bmi_algorithms=namelist.bmi_algorithms,
-        extractors=namelist.extractors,
-        default_extractor=namelist.default_extractor,
-        pos_vars=namelist.bmi_training_pos_vars,
-        n_blocks=len(entries),
-    )
-    tracker = exp_tracker.get()
-    if tracker.task_proxy is not None:
-        fields['running'] = tracker.task_proxy.saveid
-    return render_to_response('list.html', fields, RequestContext(request))
-
-def listdb(request, dbname='default', subject=None, task=None):
-    '''
-    Top-level view called when browser pointed at WEBROOT/dbname/DBNAME, 
-    to list the task entries in a particular database
-
-    Parameters
-    ----------
-    request: HTTPRequest instance
-        No data needs to be extracted from this request
-
-    Returns 
-    -------
-    Django HTTPResponse instance
-    '''
-    filter_kwargs = dict(visible=True)
-    if not (subject is None) and isinstance(subject, str):
-        filter_kwargs['subject__name'] = subject
-    if not (task is None) and isinstance(task, str):
-        filter_kwargs['task__name'] = task
-
-    print(filter_kwargs)
-
-    entries = TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
-    _color_entries(entries)
-
-    fields = dict(
-        entries=entries, 
-        subjects=Subject.objects.using(dbname).all().order_by("name"), 
-        tasks=Task.objects.using(dbname).filter(visible=True).order_by("name"), 
-        features=Feature.objects.using(dbname).filter(visible=True).order_by("name"), 
-        generators=Generator.objects.using(dbname).filter(visible=True).order_by("name"),
-        hostname=request.get_host(),
-        bmi_update_rates=namelist.bmi_update_rates,
-        state_spaces=namelist.bmi_state_space_models,
-        bmi_algorithms=namelist.bmi_algorithms,
-        extractors=namelist.extractors,
-        default_extractor=namelist.default_extractor,
-        pos_vars=namelist.bmi_training_pos_vars,
-        n_blocks=len(entries),
-    )
-    tracker = exp_tracker.get()
-    if tracker.task_proxy is not None:
-        fields['running'] = tracker.task_proxy.saveid
-    return render_to_response('list.html', fields, RequestContext(request))
 
 def setup(request):
     from . import models
+    from .models import TaskEntry, Task, Subject, Feature, Generator
+
     subjects = models.Subject.objects.all()
     tasks = models.Task.objects.all()
     features = models.Feature.objects.all()
+
+    from features import built_in_features
+    built_in_feature_names = list(built_in_features.keys())
     return render(request, "setup.html", 
-        dict(subjects=subjects, tasks=tasks, features=features))
+        dict(subjects=subjects, tasks=tasks, features=features, built_in_feature_names=built_in_feature_names))
 
 def _color_entries(entries):
+    from .models import TaskEntry, Task, Subject, Feature, Generator
+
     epoch = datetime.datetime.utcfromtimestamp(0)
     
     last_tdiff = entries[0].date - epoch
@@ -215,7 +145,7 @@ def get_sequence(request, idx):
     Pointing browser to WEBROOT/sequence_for/(?P<idx>\d+)/ returns a pickled
     file with the 'sequence' used in the specified id
     '''
-    import pickle
+    from .models import TaskEntry, Task, Subject, Feature, Generator
     entry = TaskEntry.objects.get(pk=idx)
     seq = pickle.loads(str(entry.sequence.sequence))
     log = json.loads(entry.report)
@@ -230,6 +160,7 @@ def get_sequence(request, idx):
 
 def link_data_files_view_generator(request, task_entry_id):
     from . import models
+    from .models import TaskEntry, Task, Subject, Feature, Generator
     systems = models.System.objects.all()
     display_data = dict(systems=systems, task_entry_id=task_entry_id)
     return render(request, "link_data_files.html", display_data)
@@ -238,6 +169,7 @@ from django.views.decorators.csrf import csrf_exempt
 @csrf_exempt
 def link_data_files_response_handler(request, task_entry_id):
     from . import models
+    from .models import TaskEntry, Task, Subject, Feature, Generator
     print("link_data_files_response_handler", request.POST)
     file_path = request.POST["file_path"]
     data_system_id = request.POST["data_system_id"]

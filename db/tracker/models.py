@@ -40,6 +40,14 @@ def _get_trait_default(trait):
             pass
     return default
 
+def import_by_path(import_path):
+    path_components = import_path.split(".")
+    module_name = (".").join(path_components[:-1])
+    class_name = path_components[-1]
+    module = importlib.import_module(module_name)
+    cls = getattr(module, class_name)
+    return cls    
+
 class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
@@ -50,19 +58,9 @@ class Task(models.Model):
 
     def get_base_class(self):
         if not self.import_path is None:
-            import importlib
-            path_components = self.import_path.split(".")
-            module_name = (".").join(path_components[:-1])
-            class_name = path_components[-1]
-            module = importlib.import_module(module_name)
-            task_cls = getattr(module, class_name)
-            return task_cls
+            return import_by_path(self.import_path)
         else:
-            from config.namelist import tasks
-            if self.name in tasks:
-                return tasks[self.name]
-            else:
-                raise ValueError("Could not find base class for task!")
+            raise ValueError("Could not find base class for task. No import_path provided")
         
     def get(self, feats=(), verbose=False):
         if verbose: print("models.Task.get()")
@@ -103,18 +101,18 @@ class Task(models.Model):
             print("Task was not installed properly, defaulting to generic experiment!")
             return experiment.Experiment
 
-    @staticmethod
-    def populate():
-        '''
-        Automatically create a new database record for any tasks added to db/namelist.py
-        '''
-        from config.namelist import tasks
-        real = set(tasks.keys())
-        db = set(task.name for task in Task.objects.all())
-        print(Task.objects.all())
-        print(real - db)
-        for name in real - db:
-            Task(name=name).save()
+    # @staticmethod
+    # def populate():
+    #     '''
+    #     Automatically create a new database record for any tasks added to db/namelist.py
+    #     '''
+    #     from config.namelist import tasks
+    #     real = set(tasks.keys())
+    #     db = set(task.name for task in Task.objects.all())
+    #     print(Task.objects.all())
+    #     print(real - db)
+    #     for name in real - db:
+    #         Task(name=name).save()
 
     @staticmethod
     def add_new_task(task_name, class_path):
@@ -269,19 +267,18 @@ class Feature(models.Model):
             return ''
     
     def get(self):
-        from config.namelist import features
-        if self.name in features:
-            return features[self.name]
+        if self.import_path is not None:
+            return import_by_path(self.import_path)
         else:
-            return None
+            raise ValueError("Feature %s has no import_path" % self.name)
 
-    @staticmethod
-    def populate():
-        from config.namelist import features
-        real = set(features.keys())
-        db = set(feat.name for feat in Feature.objects.all())
-        for name in real - db:
-            Feature(name=name).save()
+    # @staticmethod
+    # def populate():
+    #     from config.namelist import features
+    #     real = set(features.keys())
+    #     db = set(feat.name for feat in Feature.objects.all())
+    #     for name in real - db:
+    #         Feature(name=name).save()
 
     @staticmethod
     def getall(feats):
@@ -360,17 +357,40 @@ class Generator(models.Model):
 
     def __unicode__(self):
         return self.name
+
+    @staticmethod
+    def get_all_generators():
+        generator_names = []
+        generator_functions = []
+        tasks = Task.objects.all()
+        for task in tasks:
+            task_cls = task.get()  #tasks[task]
+            if hasattr(task_cls, 'sequence_generators'):
+                generator_function_names = task_cls.sequence_generators
+                gen_fns = [getattr(task_cls, x) for x in generator_function_names]
+                for fn_name, fn in zip(generator_function_names, gen_fns):
+                    if fn in generator_functions:
+                        pass
+                    else:
+                        generator_names.append(fn_name)
+                        generator_functions.append(fn)
+
+        generators = dict()
+        for fn_name, fn in zip(generator_names, generator_functions):
+            generators[fn_name] = fn
+        return generators        
     
     def get(self):
         '''
         Retrieve the function that can be used to construct the ..... generator? sequence?
         '''
-        from config.namelist import generators
+        # from config.namelist import generators
+        generators = Generator.get_all_generators()
         return generators[self.name]
 
     @staticmethod
     def populate():
-        from config.namelist import generators
+        generators = Generator.get_all_generators()
         listed_generators = set(generators.keys())
         db_generators = set(gen.name for gen in Generator.objects.all())
 
@@ -386,7 +406,7 @@ class Generator(models.Model):
                 args.remove("self")
             
             # A generator is determined to be static only if it takes an "exp" argument representing the Experiment class
-            static = ~("exp" in args)
+            static = not ("exp" in args)
             if "exp" in args:
                 args.remove("exp")
 

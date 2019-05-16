@@ -13,6 +13,24 @@ This package has been used with the following recording systems:
 
 Code documentation can be found at http://carmenalab.github.io/bmi3d_docs/
 
+Getting started
+---------------
+python3 -m venv env
+source ./env/bin/activate
+pip install -e .
+
+# set up the database
+cd db
+python manage.py makemigrations
+python manage.py migrate
+python manage.py makemigrations tracker
+python manage.py migrate
+
+# start server
+python manage.py runserver
+
+# Setup
+
 Papers which have used this package
 -----------------------------------
 - Ramos Murguialday et al., A Novel Implantable Hybrid Brain-Machine-Interface (BMI) for Motor Rehabilitation in Stroke Patients. IEEE NER 2019

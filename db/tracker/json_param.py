@@ -6,10 +6,9 @@ import builtins
 import ast
 import json
 import numpy as np
-
-from riglib import calibrations
-# from . import namelist
 import os
+
+from config import config
 
 def param_objhook(obj):
     '''
@@ -75,7 +74,7 @@ def norm_trait(trait, value):
             # look up the model name in the trait
             mdl_name = trait.bmi3d_db_model
             # get the database Model class from 'db.tracker.models'
-            with open(os.path.expandvars("$BMI3D/log/json_param_log"), "w") as f:
+            with open(os.path.join(config.log_path, "json_param_log"), "w") as f:
                 f.write(str(trait) + "\n")
                 f.write(str(mdl_name) + "\n")
 
@@ -113,7 +112,7 @@ def norm_trait(trait, value):
     try:
         return trait.cast(value)
     except:
-        f = open(os.path.expandvars('$BMI3D/log/trait_log'), 'w')
+        f = open(os.path.join(config.log_path, "trait_log"), 'w')
         f.write('Error with type for trait %s, %s, value %s' % (str(trait), str(ttype), str(value)))
         f.close()
         import traceback

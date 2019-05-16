@@ -385,6 +385,9 @@ def add_new_task(request):
     task = models.Task(name=name, import_path=import_path)
     task.save()
 
+    # add any new generators for the task
+    models.Generator.populate()
+
     return HttpResponse("Added new task: %s" % task.name)
 
 @csrf_exempt
@@ -395,6 +398,38 @@ def add_new_subject(request):
     subj.save()
 
     return HttpResponse("Added new subject: %s" % subj.name)
+
+@csrf_exempt
+def enable_features(request):
+    from features import built_in_features
+    from . import models
+
+    feature_names_added = []
+
+    for key in request.POST:
+        if key in built_in_features:
+            # check if the feature is already installed
+            existing_features = models.Feature.objects.filter(name=key)
+
+            if len(existing_features) > 0:
+                continue
+
+            import_path = built_in_features[key].__module__ + '.' + built_in_features[key].__qualname__
+            feat = models.Feature(name=key, import_path=import_path)
+            feat.save()
+
+            feature_names_added.append(feat.name)
+
+    return HttpResponse("Enabled built-in features: %s" % str(feature_names_added))
+
+@csrf_exempt
+def add_new_feature(request):
+    from . import models
+    name, import_path = request.POST['name'], request.POST['import_path']
+    feat = models.Feature(name=name, import_path=import_path)
+    feat.save()
+
+    return HttpResponse("Added new feature: %s" % feat.name)
 
 @csrf_exempt
 def get_report(request):

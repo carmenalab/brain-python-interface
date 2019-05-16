@@ -13,12 +13,16 @@ from tracker import ajax, views, dbq
 
 urlpatterns = [
     path('', views.main),
-    path(r'exp_log/', views.list_exp_history),
+
     path('setup', views.setup),
     path('setup/add/new_subject', ajax.add_new_subject),
     path('setup/add/new_task', ajax.add_new_task),
+    path('setup/add/new_feature', ajax.add_new_feature),
     path('setup/populate_models', ajax.populate_models),
-    path(r'exp_log/all/', views.listall),
+    path('setup/add/enable_features', ajax.enable_features),
+    
+    path(r'exp_log/', views.list_exp_history, dict(max_entries=200)),
+    path(r'exp_log/all/', views.list_exp_history),
     path("exp_log/link_data_files/<int:task_entry_id>", views.link_data_files_view_generator),
     path("exp_log/link_data_files/<int:task_entry_id>/submit", views.link_data_files_response_handler),
     # path(r'listdb/(?P<dbname>.+?)/.*?/ajax/exp_info/(?P<idx>\d+)/', ajax.exp_info),

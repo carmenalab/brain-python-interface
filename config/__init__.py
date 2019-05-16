@@ -8,6 +8,9 @@ import sys
 ## Hack getattr: http://stackoverflow.com/questions/2447353/getattr-on-a-module
 class Config(object):
     def __init__(self):
+        self.log_path = os.path.join(os.path.dirname(__file__), "../log")
+        self.log_dir = self.log_path
+
         try:
             parser = SafeConfigParser()
             self.parser = parser
@@ -25,18 +28,15 @@ class Config(object):
             self.display_start_pos = '%s,%s' % (self.window_start_x, self.window_start_y)
 
             self.reward_system_version = int(dict(parser.items('reward_sys'))['version'])        
-            self.log_dir = '/home/lab/code/bmi3d/log'
             self.plexon_ip = dict(parser.items('plexon IP address'))['addr']
             self.plexon_port = dict(parser.items('plexon IP address'))['port']
-
-            self.log_path = "/home/suraj/code/bmi3d/log"
 
             try:
                 self.hdf_update_rate_hz = int(dict(parser.items('update_rates'))['hdf_hz'])
             except:
                 self.hdf_update_rate_hz = 60.
         except:
-            self.log_path = ""
+            pass
 
     def __getattr__(self, attr):
         try:

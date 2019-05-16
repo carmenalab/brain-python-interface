@@ -34,13 +34,24 @@
 	</form>
 
 	<h2>Features</h2>
+	Currently installed features:<br>
+	--
+	<br><br>
 	<table>
 		{% for feature in features %}
 		<tr><td>{{feature.id}}</td><td>{{feature.name}}</td></tr>
 		{% endfor %}
 	</table>
 
-	Add new<br>
+	Enable built-in feature<br><br>
+	<form action="/setup/add/enable_features" method="POST">
+		{% for feature in built_in_feature_names %}
+			<input type="checkbox" name="{{feature}}" value="{{feature}}">{{feature}}<br>
+		{% endfor %}
+		<input type="submit">
+	</form>
+
+	Add new custom feature<br>
 	<form action="/setup/add/new_feature" method="POST">
 		Feature name <input type="text" name="name"><br>
 		Feature class path (must be importable) <input type="text" name="import_path"><br>

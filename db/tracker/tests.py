@@ -5,14 +5,15 @@ when you run "manage.py test".
 Replace this with more appropriate tests for your application.
 """
 from django.test import TestCase, Client
-import json
-import time, sys
+import json, time, sys, datetime
 
 from tracker import models
 from tracker import exp_tracker
+from tracker import views
 # import psutil
 
 from riglib.experiment import LogExperiment
+
 
 class TestDataFile(TestCase):
     def setUp(self):
@@ -63,6 +64,44 @@ class TestModels(TestCase):
         task_cls = task.get()
         self.assertEqual(task_cls, LogExperiment)
 
+    def test_add_new_feature_to_table(self):
+        c = Client()
+        post_data = {"name": "saveHDF", 
+            "import_path": "features.hdf_features.SaveHDF"}
+        resp = c.post("/setup/add/new_feature", post_data)
+
+        feat = models.Feature.objects.get(name="saveHDF")
+        feat_cls = feat.get()
+        from features.hdf_features import SaveHDF
+        self.assertEqual(feat_cls, SaveHDF)
+
+        feat.delete()
+        self.assertEqual(len(models.Feature.objects.all()), 0)
+
+    def test_add_new_subject_from_POST(self):
+        test_name = "test_subject_post"
+        c = Client()
+        post_data = {"subject_name": test_name}
+
+        resp = c.post("/setup/add/new_subject", post_data)
+
+        subj = models.Subject.objects.get(name=test_name)
+        self.assertEqual(subj.name, test_name)
+
+    def test_add_built_in_feature_from_POST(self):
+        c = Client()
+        self.assertEqual(len(models.Feature.objects.all()), 0)
+
+        post_data = {"saveHDF": 1}
+        resp = c.post("/setup/add/enable_features", post_data)
+
+        from features.hdf_features import SaveHDF
+        feat = models.Feature.objects.get(name="saveHDF")
+        self.assertEqual(feat.get(), SaveHDF)
+
+        feat.delete()
+        self.assertEqual(len(models.Feature.objects.all()), 0)        
+
     def test_add_new_task_no_features(self):
         task = models.Task(name="test_task", import_path="riglib.experiment.LogExperiment")
         task.save()
@@ -85,6 +124,56 @@ class TestModels(TestCase):
 
         te = models.TaskEntry(subject_id=subj.id, task_id=task.id)
         te.save()
+
+class TestExpLog(TestCase):
+    def test_list_exp_history(self):
+        subj = models.Subject(name="test_subject")
+        subj.save()
+        subj = models.Subject.objects.get(name="test_subject")
+
+        task = models.Task(name="test_task")
+        task.save()
+        task = models.Task.objects.get(name="test_task")
+
+        list_data0 = views._list_exp_history()
+        self.assertEqual(len(list_data0['entries']), 0)
+        self.assertEqual(len(list_data0['subjects']), 1)
+        self.assertEqual(len(list_data0['tasks']), 1)
+        self.assertEqual(len(list_data0['features']), 0)
+        self.assertEqual(len(list_data0['generators']), 0)
+
+        te1 = models.TaskEntry(subject_id=subj.id, task_id=task.id, date=datetime.datetime.now())
+        te1.save()
+
+        list_data1 = views._list_exp_history()
+        self.assertEqual(len(list_data1['entries']), 1)
+        self.assertEqual(len(list_data1['subjects']), 1)
+        self.assertEqual(len(list_data1['tasks']), 1)
+        self.assertEqual(len(list_data1['features']), 0)
+        self.assertEqual(len(list_data1['generators']), 0)
+
+
+        for k in range(300):
+            te2_date = datetime.datetime.now() - datetime.timedelta(days=k)
+            te2 = models.TaskEntry(subject_id=subj.id, task_id=task.id, date=te2_date)
+            te2.save()
+
+        # all entries returned if no args
+        list_data2 = views._list_exp_history()
+        self.assertEqual(len(list_data2['entries']), 301)
+
+        # 'listall' should return all entries
+        list_data3 = views._list_exp_history(max_entries=100)
+        self.assertEqual(len(list_data3['entries']), 100)
+
+class TestGenerators(TestCase):
+    def test_generator_retreival(self):
+        task = models.Task(name="test_task1", import_path="riglib.experiment.mocks.MockSequenceWithGenerators")
+        task.save()
+
+        models.Generator.populate()
+        self.assertEqual(len(models.Generator.objects.all()), 2)
+
 
 class TestTaskStartStop(TestCase):
     def test_start_experiment_python(self):
@@ -117,7 +206,6 @@ class TestTaskStartStop(TestCase):
 
         post_data = {"data": json.dumps(task_start_data)}
 
-        import sys
         # if sys.platform == "win32":
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
@@ -137,11 +225,9 @@ class TestTaskStartStop(TestCase):
         reportstats = tracker.task_proxy.reportstats
         self.assertTrue(len(reportstats.keys()) > 0)
 
-        import time
         time.sleep(2)
         stop_resp = c.post("/exp_log/stop/")
         
-        import time
         time.sleep(2)
         self.assertFalse(tracker.task_running())
 

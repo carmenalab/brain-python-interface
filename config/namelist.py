@@ -3,30 +3,30 @@ Lookup table for features, generators and tasks for experiments
 '''
 
 ## Get the list of experiment features
-from .featurelist import features
+# from .featurelist import features
 
 ## Get the list of tasks
-from .tasklist import tasks
+# from .tasklist import tasks
 
 
 # Derive generator functions from the tasklist (all generatorfunctions should be staticmethods of a task)
-generator_names = []
-generator_functions = []
-for task in tasks:
-    task_cls = tasks[task]
-    if hasattr(task_cls, 'sequence_generators'):
-        generator_function_names = task_cls.sequence_generators
-        gen_fns = [getattr(task_cls, x) for x in generator_function_names]
-        for fn_name, fn in zip(generator_function_names, gen_fns):
-            if fn in generator_functions:
-                pass
-            else:
-                generator_names.append(fn_name)
-                generator_functions.append(fn)
+# generator_names = []
+# generator_functions = []
+# for task in tasks:
+#     task_cls = tasks[task]
+#     if hasattr(task_cls, 'sequence_generators'):
+#         generator_function_names = task_cls.sequence_generators
+#         gen_fns = [getattr(task_cls, x) for x in generator_function_names]
+#         for fn_name, fn in zip(generator_function_names, gen_fns):
+#             if fn in generator_functions:
+#                 pass
+#             else:
+#                 generator_names.append(fn_name)
+#                 generator_functions.append(fn)
 
-generators = dict()
-for fn_name, fn in zip(generator_names, generator_functions):
-    generators[fn_name] = fn
+# generators = dict()
+# for fn_name, fn in zip(generator_names, generator_functions):
+#     generators[fn_name] = fn
 
 
 ################################################################################
@@ -67,4 +67,6 @@ class SubclassDict(dict):
 
 ################################################################################
 ################################################################################
-from .bmilist import *
+# from .bmilist import *
+
+
