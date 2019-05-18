@@ -8,7 +8,6 @@ pandas
 patsy
 statsmodels
 PyOpenGL
-PyOpenGL-accelerate
 Django
 pylibftdi
 nitime
