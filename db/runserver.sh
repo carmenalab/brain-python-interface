@@ -15,7 +15,7 @@ if [ -z "$BMI3D" ]
 fi
 
 #Check /storage (exist )
-storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
+storage=$(python $BMI3D/config/check_storage.py 2>&1)
 if [ $storage == 'False' ]; then
     echo "/storage does not exist --> if on Ismore, must mount"
     exit 1
@@ -28,8 +28,8 @@ if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then
 fi
 
 # Check that a config file is in the correct place, $BMI3D/config
-if [ ! -e $BMI3D/config_files/config ]; then 
-    echo "ERROR: cannot find config file! Did you run $BMI3D/config_files/make_config.py?"
+if [ ! -e $BMI3D/config/config ]; then
+    echo "ERROR: cannot find config file! Did you run $BMI3D/config/make_config.py?"
     exit 1
 fi
     

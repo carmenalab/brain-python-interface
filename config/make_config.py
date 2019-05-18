@@ -1,8 +1,9 @@
 #!/usr/bin/python
 '''
-Executable script to create the configuration file for the BMI3D code, a text file called '$BMI3D/config_files/config' 
+Executable script to create the configuration file for the BMI3D code, a text file called '$BMI3D/config/config'
 '''
 import os
+import sys
 from collections import OrderedDict
 
 stuff = OrderedDict()
@@ -14,24 +15,32 @@ stuff['backup_root'] = dict(root='/backup')
 stuff['plexon IP address'] = dict(addr='10.0.0.13', port=6000)
 stuff['update_rates'] = dict(hdf_hz=60)
 
+# Add an optional commandline flag to make setup non-interactive
+use_defaults = '-y' in sys.argv or '--use-defaults' in sys.argv
+
 from db import settings
 databases = list(settings.DATABASES.keys())
 
-for dbname in databases:
-    stuff['db_config_%s' % dbname] = dict(data_path='/storage')
+for db_name in databases:
+    stuff[f'db_config_{db_name}'] = dict(data_path='/storage')
 
-config_filename = '$BMI3D/config_files/config'
+config_filename = '$BMI3D/config/config'
 config_fh = open(os.path.expandvars(config_filename), 'w')
 
 for system_name, system_opts in list(stuff.items()):
-    config_fh.write('[%s]\n' % system_name)
+    config_fh.write(f'[{system_name}]\n')
     print(system_name)
     for option, default in list(system_opts.items()):
-        print(option, default)
-        opt_val = input("Enter value for '%s' (default=%s): " % (option, str(default)))
-        if opt_val == '':
+
+        if use_defaults:
+            print(f"  Using default ({default}) for {option}")
             opt_val = default
-        config_fh.write('%s = %s\n' % (option, opt_val))
+        else:
+            opt_val = input(f"  Enter value for '{option}' (default={default}): ")
+            if opt_val == '':
+                opt_val = default
+
+        config_fh.write(f'{option} = {opt_val}\n')
     config_fh.write('\n')
     print() 
 

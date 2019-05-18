@@ -1,4 +1,3 @@
-
 '''
 Django config file mostly auto-generated when a django project is created.
 See https://docs.djangoproject.com/en/dev/intro/tutorial01/ for an introduction
@@ -8,10 +7,7 @@ on how to customize this file test
 import os
 cwd = os.path.split(os.path.abspath(__file__))[0]
 
-import djcelery
-djcelery.setup_loader()
 # Django settings for db project.
-
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -126,7 +122,6 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'djcelery',
     'tracker.apps.TrackerConfig',
     'trainbmi'
 )
