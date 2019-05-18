@@ -4,8 +4,7 @@
 FROM bmi3d:base
 
 # --- Expect cache invalidation here if source files have changed --- #
-COPY bmi3d/ /code/bmi3d/
-COPY bmi3d_tasks_analysis/ /code/bmi3d_tasks_analysis/
+COPY bmi3d/requirements.txt /code/bmi3d/requirements.txt
 
 WORKDIR /code/bmi3d/
 
