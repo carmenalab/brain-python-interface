@@ -8,7 +8,6 @@ COPY bmi3d/ /code/bmi3d/
 COPY bmi3d_tasks_analysis/ /code/bmi3d_tasks_analysis/
 
 WORKDIR /code/bmi3d/
-RUN mkdir -v log
 
 ###### Install python dependencies
 RUN pip install --upgrade pip

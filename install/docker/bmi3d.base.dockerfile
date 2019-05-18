@@ -49,6 +49,7 @@ RUN apt-get install -y --allow-unauthenticated \
 ####### Set up directories
 RUN mkdir -v -p /code/src/
 RUN mkdir -v -p /backup && chown root /backup
-RUN mkdir -v -p /storage/plots && chown -R root /storage
+RUN mkdir -v -p /storage/plots && chown -R root /storage\
+RUN mkdir -v -p /code/bmi3d/log
 
 
