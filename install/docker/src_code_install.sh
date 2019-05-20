@@ -5,10 +5,8 @@ BMI3D=$CODE/bmi3d ### Directory in which to install the bmi3d software
 USER=root  # We're in a docker container so root is safe 
 
 ####### Download any src code
-git clone https://github.com/sgowda/plot $HOME/code/plotutil
 git clone https://github.com/sgowda/robotics_toolbox $HOME/code/robotics
-# pygame
-hg clone https://bitbucket.org/pygame/pygame $HOME/code/pygame
+
 # Phidgets code
 #wget https://www.phidgets.com/downloads/phidget22/libraries/linux/libphidget22/libphidget22-1.1.20190417.tar.gz
 #wget https://www.phidgets.com/downloads/phidget22/libraries/any/Phidget22Python/Phidget22Python_1.1.20190418.zip
@@ -19,10 +17,6 @@ hg clone https://bitbucket.org/pygame/pygame $HOME/code/pygame
 #cd $BMI3D/riglib
 which python
 #python setup.py install
-
-# pygame
-cd $HOME/code/pygame
-python setup.py install
 
 # NIDAQ software -- deprecated!
 # $HOME/code/bmi3d/riglib/nidaq/build.sh
