@@ -67,16 +67,11 @@
 			}
 		);
 
-		var taskaction = "run"; // TaskEntry function name to call on submit
-
-		// this gets run every time the experiment form gets submitted
-		$("#experiment").submit(function() { return te[taskaction](); })
-
 		// these all function as form submit buttons for the experiment form
-		$("#startbtn").click(function() { taskaction = "start"; })
-		$("#testbtn").click(function() { taskaction = "test"; })
-		$("#stopbtn").click(function() { taskaction = "stop"; })
-		$("#pausebtn").click(function() { taskaction = "pause"; })
+		$("#startbtn").click(function() {return te["start"]();})
+		$("#testbtn").click(function() {return te["test"]();})
+		$("#stopbtn").click(function() {return te["stop"]();})
+		// $("#pausebtn").click(function() { taskaction = "pause"; return te["pause"]();})
 
 		$("#toggle_table").change(
 			function() {
@@ -269,6 +264,7 @@
 							<fieldset id="report">
 								<legend>Report</legend>
 								<div id="report_div">
+									<input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); console.log(info);})"><br>
 									<table class="option" id="report_info">
 									</table>
 
@@ -280,6 +276,13 @@
 									<div class="clear"></div>
 								</div>
 							</fieldset>
+
+							<fieldset id="annotations">
+								<legend>Annotations</legend>
+								<div id="annot_div">
+									Misc. annotation: <input type="text" id="misc_annotation" width="20"><input type="button" value="Save" onclick="record_annotation($('#misc_annotation').val())"><br>
+								</div>
+							</fieldset>							
 
 							<fieldset id="notes">
 								<legend>Notes</legend>

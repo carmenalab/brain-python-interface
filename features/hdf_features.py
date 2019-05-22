@@ -73,6 +73,15 @@ class SaveHDF(object):
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
+    def record_annotation(self, msg):
+        """ Record a user-input annotation """
+        self.hdf.sendMsg("annotation: " + msg)
+        super(SaveHDF, self).record_annotation(msg)
+        print("Saved annotation to HDF: " + msg)
+
+    def get_h5_filename(self):
+        return self.h5file.name        
+
     def cleanup(self, database, saveid, **kwargs):
         '''
         See LogExperiment.cleanup for documentation
@@ -88,6 +97,7 @@ class SaveHDF(object):
             import traceback
             traceback.print_exc()
 
+        # this 'if' is needed because the remote procedure call to save_data doesn't like kwargs
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if dbname == 'default':
             database.save_data(self.h5file.name, "hdf", saveid)

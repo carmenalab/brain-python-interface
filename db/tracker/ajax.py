@@ -16,7 +16,7 @@ from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, Data
 
 import trainbmi
 import logging
-import traceback
+import io, traceback
 
 from . import exp_tracker
 
@@ -113,11 +113,16 @@ def task_info(request, idx, dbname='default'):
             feat = Feature.objects.using(dbname).get(name=name)
             feats.append(feat)
     
-    # feats = [Feature.objects.using(dbname).get(name=name) for name, isset in request.GET.items() if isset == "true"]
     task_info = dict(params=task.params(feats=feats), generators=task.get_generators())
 
-    if issubclass(task.get(feats=feats), experiment.Sequence):
+    task_cls = task.get(feats=feats)
+    if issubclass(task_cls, experiment.Sequence):
         task_info['sequence'] = task.sequences()
+
+    if hasattr(task_cls, 'annotations'):
+        task_info['annotations'] = task_cls.annotations
+    else:
+        task_info['annotations'] = []
 
     return _respond(task_info)
 
@@ -215,7 +220,7 @@ def start_experiment(request, save=True):
         return _respond(dict(status="running", msg="Already running task!"))
 
     # Try to start the task, and if there are any errors, send them to the browser interface
-    try:
+    try:        
         data = json.loads(request.POST['data'])
 
         task =  Task.objects.get(pk=data['task'])
@@ -271,6 +276,7 @@ def start_experiment(request, save=True):
         err = io.StringIO()
         traceback.print_exc(None, err)
         err.seek(0)
+        traceback.print_exc()
         return _respond(dict(status="error", msg=err.read()))
 
 def rpc(fn):
@@ -287,15 +293,20 @@ def rpc(fn):
     -------
     JSON-encoded dictionary 
     '''
-    #make sure that there exists an experiment to stop
     tracker = exp_tracker.get()
+
+    # make sure that there exists an experiment to interact with
     if tracker.status.value not in [b"running", b"testing"]:
         print("rpc not possible", str(tracker.status.value))
         return _respond(dict(status="error", msg="No task running, so cannot run command!"))
+
     try:
         status = tracker.status.value.decode("utf-8")
-        fn(tracker)
-        return _respond(dict(status="pending", msg=status))
+        fn_response = fn(tracker)
+        response_data = dict(status="pending", msg=status)
+        if not fn_response is None:
+            response_data['data'] = fn_response
+        return _respond(response_data)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -315,8 +326,6 @@ def _respond_err(e):
     JSON-encoded dictionary
         Sets status to "error" and provides the specific error message
     '''
-    import io
-    import traceback
     err = io.StringIO()
     traceback.print_exc(None, err)
     err.seek(0)
@@ -438,8 +447,16 @@ def get_report(request):
     interface
     '''
     #make sure we don't have an already-running experiment
-    tracker = exp_tracker.get()
-    tracker.task_proxy.update_report_stats()
-    reportstats = tracker.task_proxy.reportstats
-    return _respond(reportstats)
 
+    def report_fn(tracker):
+        tracker.task_proxy.update_report_stats()
+        reportstats = tracker.task_proxy.reportstats
+        print(reportstats)
+        return tracker.task_proxy.reportstats
+
+    return rpc(report_fn)
+
+@csrf_exempt
+def record_annotation(request):
+    return rpc(lambda tracker: tracker.task_proxy.record_annotation(request.POST["annotation"]))
+    

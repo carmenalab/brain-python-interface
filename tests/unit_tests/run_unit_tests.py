@@ -6,6 +6,7 @@ from test_riglib_bmi import TestKalmanFilter, TestKFDecoder, TestZeroVelocityGoa
 from test_riglib_experiment import TestLogExperiment, TestSequence
 from test_riglib_hdfwriter import TestHDFWriter
 from test_feature_savehdf import TestSaveHDF
+from test_mixin_features import TestTaskWithFeatures
 
 from requirements import *
 
@@ -13,7 +14,7 @@ test_classes = [
     TestKalmanFilter, 
     TestDataSourceSystem, TestKFDecoder, TestLogExperiment, 
     TestSequence, TestHDFWriter, TestZeroVelocityGoal, TestNullAccumulator,
-    TestSaveHDF
+    TestSaveHDF, TestTaskWithFeatures
 ]
 
 import reqlib

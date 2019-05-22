@@ -101,19 +101,6 @@ class Task(models.Model):
             print("Task was not installed properly, defaulting to generic experiment!")
             return experiment.Experiment
 
-    # @staticmethod
-    # def populate():
-    #     '''
-    #     Automatically create a new database record for any tasks added to db/namelist.py
-    #     '''
-    #     from config.namelist import tasks
-    #     real = set(tasks.keys())
-    #     db = set(task.name for task in Task.objects.all())
-    #     print(Task.objects.all())
-    #     print(real - db)
-    #     for name in real - db:
-    #         Task(name=name).save()
-
     @staticmethod
     def add_new_task(task_name, class_path):
         """ Add new task to the database
@@ -129,7 +116,6 @@ class Task(models.Model):
             raise ValueError("Class path cannot have spaces!")
 
         try:
-            import importlib
             path_components = class_path.split(".")
             module_name = (".").join(path_components[:-1])
             class_name = path_components[-1]
@@ -250,6 +236,13 @@ class Task(models.Model):
                     print("missing generator %s" % seqgen_name)
         return exp_generators        
 
+def can_be_int(x):
+    try:
+        int(x)
+        return True
+    except ValueError:
+        return False
+
 class Feature(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(blank=True, default=True)
@@ -284,23 +277,18 @@ class Feature(models.Model):
     def getall(feats):
         feature_class_list = []
         for feat in feats:
-            if isinstance(feat, (int, float, str)):
-                try:
-                    feat = Feature.objects.get(pk=int(feat)).get()
-                except ValueError:
-                    try:
-                        feat = Feature.objects.get(name=feat).get()
-                    except:
-                        try:
-                            from featurelist import features as FL
-                            feat = FL[feat]
-                        except:
-                            print("Cannot find feature %s"%feat)
-                            continue
-            elif isinstance(feat, models.Model):
-                feat = feat.get()
+            if isinstance(feat, Feature):
+                feat_cls = feat.get()
+            elif isinstance(feat, int):
+                feat_cls = Feature.objects.get(pk=feat).get()
+            elif isinstance(feat, str) and can_be_int(feat):
+                feat_cls = Feature.objects.get(pk=int(feat)).get()
+            elif isinstance(feat, str):
+                feat_cls = Feature.objects.get(name=feat).get()
+            else:
+                print("Cannot find feature: ", feat)
             
-            feature_class_list.append(feat)
+            feature_class_list.append(feat_cls)
         return feature_class_list
 
 class System(models.Model):

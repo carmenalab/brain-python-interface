@@ -209,8 +209,6 @@ class TestTaskStartStop(TestCase):
         # if sys.platform == "win32":
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
-        print("JSON response")
-        print(start_resp_obj)
 
         tracker = exp_tracker.get()
         self.assertTrue(tracker.task_running())
@@ -230,6 +228,87 @@ class TestTaskStartStop(TestCase):
         
         time.sleep(2)
         self.assertFalse(tracker.task_running())
+
+    def test_start_experiment_with_features(self):
+        c = Client()
+
+        subj = models.Subject(name="test_subject")
+        subj.save()
+
+        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
+        task.save()
+
+        feat = models.Feature(name="saveHDF", import_path="features.hdf_features.SaveHDF")
+        feat.save()
+
+        task_start_data = dict(subject=1, task=1, feats={"saveHDF":"saveHDF"}, params=dict(), sequence=None)
+
+        post_data = {"data": json.dumps(task_start_data)}
+
+        # if sys.platform == "win32":
+        start_resp = c.post("/test", post_data)
+        start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
+
+        tracker = exp_tracker.get()
+        self.assertTrue(tracker.task_running())
+
+        # check the 'state' of the task
+        self.assertEqual(tracker.task_proxy.get_state(), "wait")
+
+        # update report stats 
+        tracker.task_proxy.update_report_stats()
+
+        # access report stats
+        reportstats = tracker.task_proxy.reportstats
+        self.assertTrue(len(reportstats.keys()) > 0)
+
+        time.sleep(2)
+        stop_resp = c.post("/exp_log/stop/")
+        
+        time.sleep(2)
+        self.assertFalse(tracker.task_running())
+
+class TestTaskAnnotation(TestCase):
+    def test_annotate_experiment(self):
+        c = Client()
+
+        subj = models.Subject(name="test_subject")
+        subj.save()
+
+        task = models.Task(name="generic_exp", import_path="riglib.experiment.mocks.MockSequenceWithGenerators")
+        task.save()
+
+        models.Generator.populate()
+
+        feat = models.Feature(name="saveHDF", import_path="features.hdf_features.SaveHDF")
+        feat.save()
+
+        task_start_data = dict(subject=1, task=1, feats={"saveHDF":"saveHDF"}, params=dict(), 
+            sequence=dict(generator=1, name="seq1", params=dict(n_targets=1000), static=False))
+
+        post_data = {"data": json.dumps(task_start_data)}
+
+        # if sys.platform == "win32":
+        start_resp = c.post("/test", post_data)
+        start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
+
+        tracker = exp_tracker.get()
+        h5file = tracker.task_proxy.get_h5_filename()
+        self.assertTrue(tracker.task_running())
+
+        time.sleep(2)
+        c.post("/exp_log/record_annotation", dict(annotation="test post annotation"))
+
+        time.sleep(2)
+        stop_resp = c.post("/exp_log/stop/")
+        
+        time.sleep(2)
+        self.assertFalse(tracker.task_running())
+
+        # check that the annotation is recorded in the HDF5 file
+        import h5py
+        hdf = h5py.File(h5file)
+        self.assertTrue(b"annotation: test post annotation" in hdf["/task_msgs"]["msg"][:])
 
 
 class TestWebsocket(TestCase):

@@ -95,5 +95,28 @@ class TestSequence(unittest.TestCase):
         self.exp.run_sync()
         self.assertEqual(self.targets, self.exp.target_history)
 
+
+class TestTaskWithFeatures(unittest.TestCase):
+    def test_metaclass_constructor(self):
+        from features.hdf_features import SaveHDF
+        exp = experiment.make(experiment.LogExperiment, feats=(SaveHDF,))
+        exp()
+
+    def test_mock_seq_with_features(self):
+        from riglib.experiment.mocks import MockSequenceWithGenerators
+        from features.hdf_features import SaveHDF
+        import h5py
+
+        task_cls = experiment.make(MockSequenceWithGenerators, feats=(SaveHDF,))
+        exp = task_cls(MockSequenceWithGenerators.gen_fn1())
+        exp.run_sync()
+
+        hdf = h5py.File(exp.h5file.name)
+
+        ref_current_state = np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+            0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0,
+            0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0])
+        self.assertTrue(np.array_equal(hdf["/task"]["current_state"].ravel(), ref_current_state))
+
 if __name__ == '__main__':
     unittest.main()

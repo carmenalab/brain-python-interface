@@ -100,6 +100,8 @@ class Experiment(traits.HasTraits, threading.Thread):
     # Rate at which FSM is called. Set to 60 Hz by default to match the typical monitor update rate
     fps = 60 # Hz
 
+    cycle_count = 0
+
     # set this flag to true if certain things should only happen in debugging mode
     debug = False
     terminated_in_error = False
@@ -267,11 +269,8 @@ class Experiment(traits.HasTraits, threading.Thread):
         # NOTE: all data variables MUST be declared prior to this point. So child classes overriding the 'init' method must
         # declare their variables using the 'add_dtype' function BEFORE calling the 'super' method.
         try:
-            if len(self.dtype) > 0:
-                self.dtype = np.dtype(self.dtype)
-                self.task_data = np.zeros((1,), dtype=self.dtype)
-            else:
-                self.task_data = None
+            self.dtype = np.dtype(self.dtype)
+            self.task_data = np.zeros((1,), dtype=self.dtype)
         except:
             print("Error creating the task_data record array")
             traceback.print_exc()
@@ -473,6 +472,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         self.update_report_stats()
 
         self.start_state(condition)
+
+    def record_annotation(self, msg):
+        """ Record a user-input annotation """
+        pass
 
     def get_time(self):
         '''

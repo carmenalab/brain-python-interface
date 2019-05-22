@@ -101,28 +101,51 @@ class MockSequence(Sequence):
 
 class MockSequenceWithGenerators(Sequence):
     status = FSMTable(
-        wait=StateTransitions(event1to2='state2', event1to3='state3'),
-        state2=StateTransitions(event2to3='state3', event2to1='wait'),
-        state3=StateTransitions(event3to2='state2', event3to1='wait'),
+        wait=StateTransitions(start_trial="trial"),
+        trial=StateTransitions(target_reached="reward"),
+        reward=StateTransitions(reward_complete="wait"),
     )
     state = 'wait'
 
-    sequence_generators = ['gen_fn1', 'gen_fn2']
+    sequence_generators = ['gen_fn1']
 
     def __init__(self, *args, **kwargs):
-        self.iter_idx = 0
         self.target_history = []
-        super(MockSequence, self).__init__(*args, **kwargs)
+        self.sim_state_seq = []
+        for k in range(4):
+            self.sim_state_seq += [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2]
+
+        self.current_state = None
+        super().__init__(*args, **kwargs)
+
+    def init(self):
+        self.add_dtype("target_state", int, (1,))
+        self.add_dtype("current_state", int, (1,))
+        super().init()
+
+    def get_time(self):
+        return self.cycle_count * 1.0/60
+
+    @staticmethod
+    def gen_fn1(n_targets=4):
+        target_seq = [1, 2] * n_targets
+        return [{"target":x} for x in target_seq]
+
+    def _test_start_trial(self, ts):
+        return True
+
+    def _test_reward_complete(self, ts):
+        return True
 
     def _cycle(self):
-        self.iter_idx += 1
-        super(MockSequence, self)._cycle()
+        self.current_state = self.sim_state_seq[self.cycle_count % len(self.sim_state_seq)]
+        self.task_data["target_state"] = self._gen_target
+        self.task_data["current_state"] = self.current_state
 
-    @staticmethod
-    def gen_fn1():
-    	return [1, 2, 1, 2, 1, 2, 1, 2]
+        if self.cycle_count == 21:
+            self.record_annotation("test annotation")
 
-    @staticmethod
-    def gen_fn2():
-    	return [3, 4, 3, 4, 3, 4, 3, 4]
+        super()._cycle()
 
+    def _test_target_reached(self, ts):
+        return self.current_state == self._gen_target
