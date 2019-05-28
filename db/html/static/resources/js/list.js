@@ -206,7 +206,20 @@ Sequence.prototype.get_data = function() {
         return parseInt($("#sequence #seqlist").attr("value")); 
     }
 }
+Sequence.prototype.update_available_generators = function(gens) {
+    debug("update_available_generators");
+    console.log(gens);
+    if (Object.keys(gens).length > 0) {
+        $('#seqgen').empty();
 
+        console.log('Updating generator list')
+        $.each(gens, function(key, value) {
+            $('#seqgen')
+            .append($('<option>', { value : key })
+            .text(value)); 
+        });
+    }
+}
 
 ////////////////////////////////////////////////////////
 ////////////////////// Report //////////////////////////
@@ -256,11 +269,6 @@ Report.prototype.update = function(info) {
         // append the error message (pre-formatted by python traceback) onto the printed out messages
         this.msgs.append("<pre>"+info.msg+"</pre>");
     } else if (info.status && info.status == "stdout") {
-        // stdout denotes that the text was generated as a print statement
-        // TODO is 'stdout' used ever or is everything a message? look at websocket code
-        // if (!this.stdout.parentNode)
-        //     this.msgs.append(this.stdout);
-
         this.stdout.append(info.msg);
     } else {
         console.log("adding to report table..");
@@ -308,357 +316,12 @@ Report.prototype.deactivate = function() {
         this.ws.close();
     delete this.ws;
 }
-
-
-
-
-function Parameters() {
-    this.obj = document.createElement("table");
-    this.traits = {};
-}
-Parameters.prototype.update = function(desc) {
-    // Update the parameters descriptor to include the updated values
-    // "desc" is a JSON object of form {"param1": {"value": value, "type": type, "desc": string description}, "param2": ...}
-    // if the parameter is a drop-down, the parameter's info should also have an "options" field
-    for (var name in desc) {
-        if (typeof(this.traits[name]) != "undefined" && typeof(desc[name].value) == "undefined") {
-            var trait = this.traits[name]
-            if (trait.inputs.length > 1) { // more than one input entry field, e.g., for tuple traits
-                var any = false; // flag indicating that the tuple had any input specified
-                var tuple = [];
-                for (var i = 0; i < trait.inputs.length; i++) {
-                    tuple.push(trait.inputs[i].value);
-                    if (trait.inputs[i].value) {
-                        any = true;
-                    }
-                }
-                if (any)
-                    desc[name].value = tuple;
-            } else {
-                desc[name].value = trait.inputs[0].value;
-            }
-        }
-    }
-    //clear out the parameters box
-    this.obj.innerHTML = "";
-    //reinitialize with the updated values
-    this.traits = {};
-
-    var funcs = {
-        "Float" :           this.add_float,
-        "Int":              this.add_int,
-        "Tuple":            this.add_tuple,
-        "Array":            this.add_array,
-        "Instance":         this.add_instance,
-        "InstanceFromDB":   this.add_instance,
-        "DataFile":         this.add_instance,
-        "String":           this.add_string,
-        "Enum":             this.add_enum,
-        "OptionsList":      this.add_enum,
-        "Bool":             this.add_bool,
-    }
-
-
-    this.hidden_inputs = [];
-    this.hidden_trait_labels = {};
-
-    for (var name in desc) {
-        if (funcs[desc[name]['type']]) {// if there is a recognized constructor function for the trait type,
-            var fn = funcs[desc[name]['type']].bind(this);
-            fn(name, desc[name]); // call the function 
-        }
-        else
-            console.log(desc[name]['type']);
-    }
-
-    // console.log(this.hidden_inputs);
-    this.show_all_attrs();
-    // console.log(this.hidden_trait_labels);
-
-}
-Parameters.prototype.show_all_attrs = function() {
-    if ($('#show_params').prop('checked')) {
-        var vis = 'visible';
-    } else {
-        var vis = 'hidden';
-    }
-
-    for (var attr_name in this.hidden_trait_labels) {
-        var label = this.hidden_trait_labels[attr_name];
-        label.style.visibility = vis;
-    }
-
-    for (var k in this.hidden_inputs) {
-        var input = this.hidden_inputs[k];
-        input.style.visibility = vis;
-    }        
-}
-/*
-Function to add an attribute row and label where the 'visibility' attribute of the label can be toggled
-*/
-Parameters.prototype._add2 = function(name, desc, hidden) {
-    var trait = document.createElement("tr");
-    trait.title = desc;
-    var td = document.createElement("td");
-    td.className = "param_label";
-    trait.appendChild(td);
-    var label = document.createElement("label");
-    label.innerHTML = name;
-    label.setAttribute("for", "param_"+name);
-    
-    td.appendChild(label);
-
-    // label.style.visibility = hidden;
-    if (hidden === 'hidden') {
-        this.hidden_trait_labels[name] = label;
-    }
-
-    return trait;
-}
-Parameters.prototype.add_tuple = function(name, info) {
-    var len = info['default'].length;
-    var trait = this._add2(name, info['desc'], info['hidden']);
-    var wrapper = document.createElement("td");
-    wrapper.style.webkitColumnCount = len < 4? len : 4;
-    wrapper.style.mozColumnCount = len < 4? len : 4;
-    wrapper.style.columnCount = len < 4? len : 4;
-
-    wrapper.style.visibility = info['hidden'];
-    trait.appendChild(wrapper);
-    this.obj.appendChild(trait);
-
-    this.traits[name] = {"obj":trait, "inputs":[]};
-
-    // Create an input text field for element of the attribute tuple
-    for (var i=0; i < len; i++) {
-        var input = document.createElement("input");
-        input.type = "text";
-        input.name = name;
-        input.placeholder = JSON.stringify(info['default'][i]);
-        if (typeof(info['value']) != "undefined")
-            if (typeof(info['value'][i]) != "string")
-                input.value = JSON.stringify(info['value'][i]);
-            else
-                input.value = info['value'][i];
-        // input.style.visibility = info['hidden'];
-        if (info['hidden'] === 'hidden') {
-            this.hidden_inputs.push(input);
-        }
-
-        wrapper.appendChild(input);
-        this.traits[name]['inputs'].push(input);
-    }
-    this.traits[name].inputs[0].id = "param_"+name;
-    for (var i in this.traits[name].inputs) {
-        var inputs = this.traits[name].inputs
-        this.traits[name].inputs[i].onchange = function() {
-            if (this.value.length > 0) {
-                for (var j in inputs)
-                    inputs[j].required = "required";
-            } else {
-                for (var j in inputs)
-                    inputs[j].removeAttribute("required");
-            }
-        }
-    }
+Report.prototype.hide = function() {
+    // $("#report").hide();
 }
 
-Parameters.prototype.add_int = function (name, info) {
-    var trait = this._add2(name, info['desc'], info['hidden']);
-    var div = document.createElement("td");
-    var input = document.createElement("input");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
-    trait.appendChild(div);
-    div.appendChild(input);
-    this.obj.appendChild(trait);
-
-    input.type = "number";
-    input.name = name;
-    input.id = "param_"+name;
-    input.title = "An integer value"
-    if (typeof(info['value']) != "undefined")
-        input.value = info['value'];
-    else
-        input.value = info['default'];
-    this.traits[name] = {"obj":trait, "inputs":[input]};
-}
-Parameters.prototype.add_float = function (name, info) {
-    //console.log(info)
-    var trait = this._add2(name, info['desc'], info['hidden']);
-    var div = document.createElement("td");
-    var input = document.createElement("input");
-    trait.appendChild(div);
-    div.appendChild(input);
-    this.obj.appendChild(trait);
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
-
-    input.type = "text";
-    input.name = name;
-    input.id = "param_"+name;
-    input.title = "A floating point value";
-    input.pattern = "-?[0-9]*\.?[0-9]*";
-    input.placeholder = info['default'];
-    if (typeof(info['value']) == "string")
-        input.value = info.value;
-    else if (typeof(info['value']) != "undefined")
-        input.value = JSON.stringify(info.value);
-    this.traits[name] = {"obj":trait, "inputs":[input]};
-}
-Parameters.prototype.add_bool = function (name, info) {
-    //console.log(info)
-    var trait = this._add2(name, info['desc'], info['hidden']);
-    var div = document.createElement("td");
-    var input = document.createElement("input");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
-    trait.appendChild(div);
-    div.appendChild(input);
-    this.obj.appendChild(trait);
-
-    input.type = "checkbox";
-    input.name = name;
-    input.id = "param_"+name;
-    input.title = "A boolean value"
-    if (typeof(info['value']) != "undefined")
-        input.checked=info['value'];
-    else
-        input.checked = info['default'];
-    this.traits[name] = {"obj":trait, "inputs":[input]};
-}
-Parameters.prototype.add_array = function (name, info) {
-    if (info['default'].length < 4) {
-        this.add_tuple(name, info);
-        for (var i=0; i < this.traits[name].inputs.length; i++)
-            this.traits[name].inputs[i].pattern = '[0-9\\(\\)\\[\\]\\.\\,\\s\\-]*';
-    } else {
-        var trait = this._add2(name, info['desc'], info['hidden']);
-        var div = document.createElement("td");
-        var input = document.createElement("input");
-        // input.style.visibility = info['hidden'];
-        if (info['hidden'] === 'hidden') {
-            this.hidden_inputs.push(input);
-        }
-        trait.appendChild(div);
-        div.appendChild(input);
-        this.obj.appendChild(trait);
-
-        input.type = "text";
-        input.name = name;
-        input.id = "param_"+name;
-        input.title = "An array value";
-        input.placeholder = info['default'];
-        if (typeof(info['value']) == "string")
-            input.value = info['value'];
-        else if (typeof(info['value']) != "undefined")
-            input.value = JSON.stringify(info['value']);
-        input.pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
-        this.traits[name] = {"obj":trait, "inputs":[input]};
-    }
-}
-Parameters.prototype.add_string = function (name, info) {
-    var trait = this._add2(name, info['desc'], info['hidden']);
-    var div = document.createElement("td");
-    var input = document.createElement("input");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
-    trait.appendChild(div);
-    div.appendChild(input);
-    this.obj.appendChild(trait);
-
-    input.type = "text";
-    input.name = name;
-    input.id = "param_"+name;
-    input.placeholder = info['default'];
-    if (typeof(info['value']) != "undefined") {
-        input.setAttribute("value", info['value']);
-    }
-    this.traits[name] = {"obj":trait, "inputs":[input]};
-}
-Parameters.prototype.add_instance = function(name, info) {
-    //console.log(info)
-    var options = info['options'];
-    var trait = this._add2(name, info['desc'], info['hidden']);
-    var div = document.createElement("td");
-    var input = document.createElement("select");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
-    trait.appendChild(div);
-    div.appendChild(input);
-    this.obj.appendChild(trait);
-
-    input.name = name;
-    input.id = "param_"+name;
-    for (var i = 0; i < options.length; i++) {
-        var opt = document.createElement("option");
-        opt.value = options[i][0];
-        opt.innerHTML = options[i][1];
-        if ((typeof(info['value']) != "undefined" && info['value'] == opt.value) ||
-            (info['default'] == opt.value))
-            opt.setAttribute("selected", "selected");
-        input.appendChild(opt);
-    }
-    this.traits[name] = {"obj":trait, "inputs":[input]};
-}
-Parameters.prototype.add_enum = function(name, info) {
-    //console.log(info)
-    var options = info['options'];
-    var trait = this._add2(name, info['desc'], info['hidden']);
-    var div = document.createElement("td");
-    var input = document.createElement("select");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
-    trait.appendChild(div);
-    div.appendChild(input);
-    this.obj.appendChild(trait);
-
-    input.name = name;
-    input.id = "param_"+name;
-    for (var i = 0; i < options.length; i++) {
-        var opt = document.createElement("option");
-        opt.value = options[i];
-        opt.innerHTML = options[i];
-        if ((typeof(info['value']) != "undefined" && info['value'] == opt.value) ||
-            (info['default'] == opt.value))
-            opt.setAttribute("selected", "selected");
-        input.appendChild(opt);
-    }
-    this.traits[name] = {"obj":trait, "inputs":[input]};
-}
-Parameters.prototype.to_json = function() {
-    var jsdata = {};
-
-    for (var name in this.traits) {
-        var trait = this.traits[name];
-        if (trait.inputs.length > 1) {
-            // tuple trait, put all the input options into a list
-            var plist = [];
-            for (var i = 0; i < trait.inputs.length; i++) {
-                plist.push(trait.inputs[i].value)
-            }
-
-            // add to the 'jsdata' dictionary, if data was input
-            if (plist[0].length > 0) {// if any parameters have been changed by the experimenter,
-                jsdata[name] = plist;
-            }
-        } else if (trait.inputs[0].value.length > 0) {
-            jsdata[name] = trait.inputs[0].value;
-        }
-    }
-    return jsdata;
+Report.prototype.show = function() {
+    // $("#report").show();
 }
 
 
@@ -667,6 +330,125 @@ var report_activation = null;
 //
 // TaskInterface class
 //
+function interface_fn_completed() {
+    console.log("state = completed");
+    $(window).unbind("unload");
+    this.tr.addClass("rowactive active");
+    $(".active").removeClass("running error testing");
+    this.disable();
+    $(".startbtn").hide()
+    $("#finished_task_buttons").show();
+    $("#bmi").hide();
+    
+
+    $("#report").show()
+    $("#notes").show()      
+
+    // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
+    if (this.__date) {
+        this.__date.each(function(index, elem) {
+            $(this).css('background-color', '#FFF');
+        });
+    }
+
+    if (this.start_button_pressed) {
+        console.log("recorded start button press");
+        setTimeout(
+            function () {
+                te.report.deactivate();
+                clearTimeout(report_activation);
+                console.log('callback after pressing stop');
+                te = new TaskEntry(te.idx);
+            },
+            3000
+        );
+        console.log("finished set timeout");
+    }
+}
+
+function interface_fn_stopped() {
+    console.log("state = stopped")
+    $(window).unbind("unload");
+    $(".active").removeClass("running error testing");
+    this.tr.addClass("rowactive active");
+    this.enable();
+    $("#stopbtn").hide()
+    $("#startbtn").show()
+    $("#testbtn").show()
+    $("#finished_task_buttons").hide();
+    clearTimeout(report_activation);
+    $("#bmi").hide();
+
+    $("#report").show()
+    $("#notes").hide()
+}
+
+function interface_fn_running(info) {
+    console.log("state = running")
+    $(window).unbind("unload"); // remove any bindings to 'stop' methods when the page is reloaded (these bindings are added in the 'testing' mode)
+    $(".active").removeClass("error testing").addClass("running");
+    this.disable();
+    $("#stopbtn").show()
+    $("#startbtn").hide()
+    $("#testbtn").hide()
+    $("#finished_task_buttons").hide();
+    $("#bmi").hide();
+    this.report.activate();
+
+    $("#report").show()
+    $("#notes").show()              
+}
+
+function interface_fn_testing(info) {
+    console.log("state = testing");
+    // if you navigate away from the page during 'test' mode, the 'TaskEntry.stop' function is set to run
+    $(window).unload(te.stop);
+
+    $(".active").removeClass("error running").addClass("testing");
+    te.disable(); // disable editing of the exp_content interface
+
+    $("#stopbtn").show();
+
+    $("#startbtn").hide()
+    $("#testbtn").hide()
+    $("#finished_task_buttons").hide()
+    $("#bmi").hide();
+    this.report.activate();
+
+    $("#report").show();
+    $("#notes").hide();
+}
+
+function interface_fn_error(info) {
+    console.log("state = error");
+    $(window).unbind("unload");
+    $(".active").removeClass("running testing").addClass("error");
+    this.disable();
+    $(".startbtn").hide();
+    $("#finished_task_buttons").show();
+    $("#bmi").hide();
+    this.report.deactivate();
+    clearInterval(report_activation);
+
+    $("#report").show()
+}
+function interface_fn_errtest(info) {
+    console.log("state = errtest");
+
+    $(window).unbind("unload");
+    $(".active").removeClass("running testing").addClass("error");
+    this.enable();
+    $("#stopbtn").hide();
+    $("#startbtn").show();
+    $("#testbtn").show();
+    $("#finished_task_buttons").hide();
+    $("#bmi").hide();
+    this.report.deactivate();
+    clearInterval(report_activation);
+
+    $("#report").show()
+}
+
 function TaskInterfaceConstructor() {
     debug("TaskInterfaceConstructor")
     var state = "";
@@ -675,6 +457,7 @@ function TaskInterfaceConstructor() {
     this.trigger = function(info) {
         debug("TaskInterfaceConstructor.trigger");
         if (this != lastentry) {
+            debug("Different entry")
             if (lastentry) {
                 $(window).unload(); // direct away from the page. This stops testing runs, just in case.. TODO not sure if this works with no arguments
                 lastentry.tr.removeClass("rowactive active");
@@ -728,121 +511,12 @@ function TaskInterfaceConstructor() {
 
     // Functions to run when experiment states are entered
     var states = {
-        completed: function() {
-            console.log("state = completed");
-            $(window).unbind("unload");
-            this.tr.addClass("rowactive active");
-            $(".active").removeClass("running error testing");
-            this.disable();
-            $(".startbtn").hide()
-            $("#finished_task_buttons").show();
-            $("#bmi").hide();
-            
-
-            $("#report").show()
-            $("#notes").show()      
-
-            // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
-            if (this.__date) {
-                this.__date.each(function(index, elem) {
-                    $(this).css('background-color', '#FFF');
-                });
-            }
-
-            
-            if (this.start_button_pressed) {
-                console.log("recorded start button press");
-                setTimeout(
-                    function () {
-                        te.report.deactivate();
-                        clearTimeout(report_activation);
-                        console.log('callback after pressing stop');
-                        te = new TaskEntry(te.idx);
-                    },
-                    3000
-                );
-                console.log("finished set timeout");
-            }
-        },
-        stopped: function() {
-            console.log("state = stopped")
-            $(window).unbind("unload");
-            $(".active").removeClass("running error testing");
-            this.tr.addClass("rowactive active");
-            this.enable();
-            $("#stopbtn").hide()
-            $("#startbtn").show()
-            $("#testbtn").show()
-            $("#finished_task_buttons").hide();
-            clearTimeout(report_activation);
-            $("#bmi").hide();
-
-            $("#report").show()
-            $("#notes").hide()
-        },
-        running: function(info) {
-            console.log("state = running")
-            $(window).unbind("unload"); // remove any bindings to 'stop' methods when the page is reloaded (these bindings are added in the 'testing' mode)
-            $(".active").removeClass("error testing").addClass("running");
-            this.disable();
-            $("#stopbtn").show()
-            $("#startbtn").hide()
-            $("#testbtn").hide()
-            $("#finished_task_buttons").hide();
-            $("#bmi").hide();
-            this.report.activate();
-
-            $("#report").show()
-            $("#notes").show()              
-        },
-        testing: function(info) {
-            console.log("state = testing");
-            // if you navigate away from the page during 'test' mode, the 'TaskEntry.stop' function is set to run
-            $(window).unload(te.stop);
-
-            $(".active").removeClass("error running").addClass("testing");
-            te.disable(); // disable editing of the exp_content interface
-
-            $("#stopbtn").show();
-
-            $("#startbtn").hide()
-            $("#testbtn").hide()
-            $("#finished_task_buttons").hide()
-            $("#bmi").hide();
-            this.report.activate();
-
-            $("#report").show();
-            $("#notes").hide();
-        },
-        error: function(info) {
-            console.log("state = error");
-            $(window).unbind("unload");
-            $(".active").removeClass("running testing").addClass("error");
-            this.disable();
-            $(".startbtn").hide();
-            $("#finished_task_buttons").show();
-            $("#bmi").hide();
-            this.report.deactivate();
-            clearInterval(report_activation);
-
-            $("#report").show()
-        },
-        errtest: function(info) {
-            console.log("state = errtest");
-
-            $(window).unbind("unload");
-            $(".active").removeClass("running testing").addClass("error");
-            this.enable();
-            $("#stopbtn").hide();
-            $("#startbtn").show();
-            $("#testbtn").show();
-            $("#finished_task_buttons").hide();
-            $("#bmi").hide();
-            this.report.deactivate();
-            clearInterval(report_activation);
-
-            $("#report").show()
-        }
+        "completed": interface_fn_completed,
+        "stopped": interface_fn_stopped,
+        "running": interface_fn_running,
+        "testing": interface_fn_testing,
+        "error": interface_fn_error,
+        "errtest": interface_fn_errtest,
     };
 }
 
@@ -851,6 +525,80 @@ var TaskInterface = new TaskInterfaceConstructor();
 
 function create_annotation_callback(annotation_str) {
     return function() {record_annotation(annotation_str)}
+}
+
+function record_annotation(annotation) {
+    debug("calling record_annotation: " + annotation)
+    $.post("record_annotation", {"annotation": annotation}, function(resp) {
+        console.log("Annotation response", resp)
+    })
+}
+
+function Annotations() {
+    this.annotation_buttons = [];
+
+    this.update = function(taskinfo) {
+        this.destroy_annotation_buttons();
+        if (taskinfo.annotations) {
+            this.annotations = taskinfo.annotations;
+            for (var i = 0; i < taskinfo.annotations.length; i += 1) {
+                var new_button = $('<button/>',
+                    {
+                        text: taskinfo.annotations[i],
+                        id: "annotation_btn_" + i.toString(),
+                        click: create_annotation_callback(taskinfo.annotations[i]),
+                        type: "button"
+                    }
+                );
+
+                var new_break = $("<br>");
+
+                $("#annot_div").append(new_button);
+                $("#annot_div").append(new_break);
+                this.annotation_buttons.push(new_button);
+                this.annotation_buttons.push(new_break);
+            }
+        }
+    }
+
+    this.update_from_server = function(taskid, sel_feats) {
+        $.getJSON("ajax/task_info/"+taskid+"/", sel_feats, 
+            function(taskinfo) {
+                this.update(taskinfo);
+            }.bind(this)
+        );
+    }
+
+    this.destroy_annotation_buttons = function() {
+        for (var i = 0; i < this.annotation_buttons.length; i += 1) {
+            this.annotation_buttons[i].remove()
+        }
+    }
+
+    this.destroy = function() {
+        this.destroy_annotation_buttons();
+    }
+
+    this.hide = function() {
+        // $("#annotations").hide();
+    }
+
+    this.show = function() {
+        // $("#annotations").show();
+    }
+}
+
+
+
+
+
+
+function Buttons() {
+
+}
+
+function Files() {
+
 }
 
 //
@@ -868,7 +616,8 @@ function TaskEntry(idx, info){
     this.sequence = new Sequence();
     this.params = new Parameters();
     this.report = new Report(TaskInterface.trigger.bind(this));
-    this.annotation_buttons = [];
+    // this.annotation_buttons = [];
+    this.annotations = new Annotations();
     
     $("#parameters").append(this.params.obj);
     $("#plots").empty()
@@ -927,13 +676,14 @@ function TaskEntry(idx, info){
             ).error(
                 function() {
                     alert("There was an error accessing task entry " + id_num + ". See terminal for full error message"); 
-                }
+                    this.tr.removeClass("rowactive active error");
+                    $('#wait_wheel').hide();
+                }.bind(this)
             );
     } else { 
         // a "new" task entry is being created
         // this code block executes when you click the header of the left table (date, time, etc.)
         this.idx = null;
-        // console.log('creating task entry null')
 
         // show the bar at the top left with drop-downs for subject and task
         this.tr = $("#newentry");
@@ -945,7 +695,7 @@ function TaskEntry(idx, info){
 
         // Set 'change' bindings to re-run the _task_query function if the selected task or the features change
         $("#tasks").change(this._task_query.bind(this));
-        $("#features input").change(this._task_query.bind(this));
+        feats.bind_change_callback(this._task_query.bind(this))
 
         if (info) { // if info is present and the id is null, then this block is being copied from a previous block
             console.log('creating a new JS TaskEntry by copy')
@@ -953,18 +703,15 @@ function TaskEntry(idx, info){
 
             // update the annotation buttons
             var taskid = $("#tasks").attr("value");
-            var feats = get_checked_features();
-            $.getJSON("ajax/task_info/"+taskid+"/", feats, 
-                function(taskinfo) {
-                    this.update_annotations(taskinfo);
-                }.bind(this)
-            );
-
+            var sel_feats = feats.get_checked_features();
+            this.annotations.update_from_server(taskid, sel_feats);
             this.enable();
             $("#content").show("slide", "fast");
         } else { // no id and no info suggests that the table header was clicked to create a new block
             console.log('creating a brand-new JS TaskEntry')
-            clear_features()
+            feats.clear();
+            this.annotations.hide()
+            this.report.hide()
             TaskInterface.trigger.bind(this)({state:''});
 
             // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
@@ -984,31 +731,6 @@ function TaskEntry(idx, info){
     }
     
 }
-
-function update_available_generators(gens) {
-    debug("update_available_generators");
-    console.log(gens);
-    if (Object.keys(gens).length > 0) {
-        $('#seqgen').empty();
-
-        console.log('Updating generator list')
-        $.each(gens, function(key, value) {
-            $('#seqgen')
-            .append($('<option>', { value : key })
-            .text(value)); 
-        });
-    }
-}
-
-function clear_features() {
-    debug("clear_features");
-    $("#features input[type=checkbox]").each(
-        function() {
-            this.checked = false;
-       }
-    );
-}
-
 /* Populate the 'exp_content' template with data from the 'info' object
  */ 
 TaskEntry.prototype.update = function(info) {
@@ -1017,7 +739,7 @@ TaskEntry.prototype.update = function(info) {
     // populate the list of generators
     if (Object.keys(info.generators).length > 0) {
         console.log('limiting generators')
-        update_available_generators(info.generators);
+        this.sequence.update_available_generators(info.generators);
     } else {
         console.log('not limiting generators!')
     }
@@ -1047,16 +769,9 @@ TaskEntry.prototype.update = function(info) {
         if (this.value == info.subject)
             this.selected = true;
     });
-    // set checkmarks for all the features specified in the 'info'
-    $("#features input[type=checkbox]").each(
-        function() {
-            this.checked = false;
-            for (var idx in info.feats) {
-                if (this.name == info.feats[idx])
-                    this.checked = true;
-            }
-       }
-    );
+
+    feats.select_features(info.feats);
+
 
     
     // List out the data files in the 'filelist'
@@ -1106,29 +821,6 @@ TaskEntry.prototype.update = function(info) {
     }
 
     console.log("TaskEntry.prototype.update done!");
-}
-
-TaskEntry.prototype.update_annotations = function(taskinfo) {
-    if (taskinfo.annotations) {
-        this.annotations = taskinfo.annotations;
-        for (var i = 0; i < taskinfo.annotations.length; i += 1) {
-            var new_button = $('<button/>',
-                {
-                    text: taskinfo.annotations[i],
-                    id: "annotation_btn_" + i.toString(),
-                    click: create_annotation_callback(taskinfo.annotations[i]),
-                    type: "button"
-                }
-            );
-
-            var new_break = $("<br>");
-
-            $("#annot_div").append(new_button);
-            $("#annot_div").append(new_break);
-            this.annotation_buttons.push(new_button);
-            this.annotation_buttons.push(new_break);
-        }
-    }    
 }
 
 TaskEntry.prototype.toggle_visible = function() {
@@ -1204,6 +896,7 @@ TaskEntry.copy = function() {
     te = new TaskEntry(null, info);
     $('#report').hide();        // creating a TaskEntry with "null" goes into the "stopped" state
 }
+
 /*
  * Destructor for TaskEntry objects
  */
@@ -1217,9 +910,7 @@ TaskEntry.prototype.destroy = function() {
     // Destruct the Sequence object for this TaskEntry 
     this.sequence.destroy();
 
-    for (var i = 0; i < this.annotation_buttons.length; i += 1) {
-        this.annotation_buttons[i].remove()
-    }
+    this.annotations.destroy();
 
     // Free the parameters
     if (this.params) {
@@ -1272,27 +963,17 @@ TaskEntry.prototype.destroy = function() {
             }
         )
         //Clean up event bindings
-        $("#features input").unbind("change");
+        feats.unbind_change_callback();
         $("#tasks").unbind("change");
     }
-}
-
-function get_checked_features() {
-    debug("get_checked_features")
-    var feats = {};
-    $("#features input").each(function() { 
-        if (this.checked) 
-            feats[this.name] = this.checked;    
-    });
-    return feats;    
 }
 
 TaskEntry.prototype._task_query = function(callback) {
     debug('TaskEntry.prototype._task_query')
     var taskid = $("#tasks").attr("value");
-    var feats = get_checked_features();
+    var sel_feats = feats.get_checked_features();
 
-    $.getJSON("ajax/task_info/"+taskid+"/", feats, 
+    $.getJSON("ajax/task_info/"+taskid+"/", sel_feats, 
         function(taskinfo) {
             console.log("Information about task received from the server");
             console.log(taskinfo);
@@ -1307,14 +988,14 @@ TaskEntry.prototype._task_query = function(callback) {
             if (typeof(callback) == "function")
                 callback();
 
-            this.update_annotations(taskinfo);
+            this.annotations.update(taskinfo);
 
             console.log("\tgenerator data");
             console.log("\t", taskinfo.generators);
             if (taskinfo.generators) {
                 console.log('taskinfo.generators')
                 console.log(taskinfo.generators)
-                update_available_generators(taskinfo.generators);
+                this.sequence.update_available_generators(taskinfo.generators);
             }
         }.bind(this)
     );
@@ -1389,7 +1070,7 @@ TaskEntry.prototype.new_row = function(info) {
         te = new TaskEntry(null);
     })
     //Clean up event bindings
-    $("#features input").unbind("change");
+    feats.unbind_change_callback();
     $("#tasks").unbind("change");
 
     this.tr = $(document.createElement("tr"));
@@ -1417,11 +1098,7 @@ TaskEntry.prototype.get_data = function() {
     var data = {};
     data['subject'] = parseInt($("#subjects").attr("value"));
     data['task'] = parseInt($("#tasks").attr("value"));
-    data['feats'] = {};
-    $("#experiment #features input").each(function() {
-        if (this.checked)
-            data.feats[this.value] = this.name;
-    })
+    data['feats'] = feats.get_checked_features();
     data['params'] = this.params.to_json();
     data['sequence'] = this.sequence.get_data();
 
@@ -1429,7 +1106,8 @@ TaskEntry.prototype.get_data = function() {
 }
 TaskEntry.prototype.enable = function() {
     debug("TaskEntry.prototype.enable");
-    $("#parameters input, #features input").removeAttr("disabled");
+    $("#parameters input").removeAttr("disabled");
+    feats.enable_entry();
     if (this.sequence)
         this.sequence.enable();
     if (!this.idx)
@@ -1437,7 +1115,8 @@ TaskEntry.prototype.enable = function() {
 }
 TaskEntry.prototype.disable = function() {
     debug("TaskEntry.prototype.disable");
-    $("#parameters input, #features input").attr("disabled", "disabled");
+    $("#parameters input").attr("disabled", "disabled");
+    feats.disable_entry();
     if (this.sequence)
         this.sequence.disable();
     if (!this.idx)
@@ -1813,9 +1492,3 @@ BMI.prototype.train = function() {
     }.bind(this), "json");
 }
 
-function record_annotation(annotation) {
-    debug("calling record_annotation: " + annotation)
-    $.post("record_annotation", {"annotation": annotation}, function(resp) {
-        console.log("Annotation response", resp)
-    })
-}

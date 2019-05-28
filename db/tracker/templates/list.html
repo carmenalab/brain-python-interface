@@ -10,11 +10,15 @@
 
 <script src='{{ STATIC_PREFIX }}resources/js/jquery.min.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/jquery-ui.min.js' type='text/javascript'></script>
+<script src='{{ STATIC_PREFIX }}resources/js/features.js' type='text/javascript'></script>
+<script src='{{ STATIC_PREFIX }}resources/js/parameters.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/list.js' type='text/javascript'></script>
+
 
 <script type='text/javascript'>
 	var hostname = "{{hostname}}";
 	var te = null;
+	var feats = new Features();
 	$(document).ready(function() {
 		$("table#main tr").each(function() {
 			// Register a click callback for each row of the 'main' table
@@ -31,12 +35,15 @@
 			});
 		});
 
+		$("#new_exp").click(function() {
+			te = new TaskEntry(null);
+		})
+
 		$("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
 
 		$("#hidebtn").change(
 			function () {
 				if (this.checked) {
-					// TODO
 					console.log("Showing task entry " + te.idx);
 					$.get("/ajax/show_entry/"+te.idx, 
 						{}, 
@@ -123,7 +130,7 @@
 	    	} else {
 	    		console.log("keydown handler ignoring!");
 	    	}
-	    });		
+	    });
 	})
 </script>
 </head>
@@ -132,7 +139,8 @@
 	<input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show History</span><br>
 	<div id="main_box">
 		<div id='leftpane'>
-			{{ n_blocks }} saved task entry records shown below
+			{{ n_blocks }} saved task entry records shown below<br>
+			<button id="new_exp">Start new experiment</button>
 	        <hr>
 			<table id='main' style="direction:ltr;">
 				<thead>

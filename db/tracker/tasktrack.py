@@ -206,9 +206,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
         err.seek(0)
         if use_websock:
             websock.send(dict(status="error", msg=err.read()))
-        with open(log_filename, 'a') as f:
-            err.seek(0)
-            f.write(err.read())
+        log_error(err)
         err.seek(0)
         print(err.read())
 
