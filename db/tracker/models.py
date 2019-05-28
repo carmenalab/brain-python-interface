@@ -611,8 +611,10 @@ class TaskEntry(models.Model):
         # Run the metaclass constructor for the experiment used. If this can be avoided, it would help to break some of the cross-package software dependencies,
         # making it easier to analyze data without installing software for the entire rig
 
-        Exp = self.task.get(self.feats.all())        
-        state = 'completed' if self.pk is not None else "new"
+        Exp = self.task.get(self.feats.all())
+        from . import exp_tracker
+        tracker = exp_tracker.get()      
+        state = tracker.get_status()#'completed' if self.pk is not None else "new"
 
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])

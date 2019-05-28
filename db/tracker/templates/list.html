@@ -96,7 +96,6 @@
 		$('#create_new_seq').hide();
 
 
-
 		// hotkeys for simple TE tasks
 	    document.addEventListener('keydown', function(event) {
 	    	if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null) && (te.status == "completed")) {
@@ -131,6 +130,14 @@
 	    		console.log("keydown handler ignoring!");
 	    	}
 	    });
+
+		// // update status
+		// $.post("get_status", {}, function (status_info) {
+		// 	if (status_info.status == "running" && status_info.saveid != null) {
+		// 		te = new TaskEntry(status_info.saveid);
+		// 		interface_fn_running.bind(te)({});
+		// 	}
+		// })
 	})
 </script>
 </head>

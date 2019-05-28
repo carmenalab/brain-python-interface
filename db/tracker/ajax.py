@@ -145,6 +145,8 @@ def exp_info(request, idx, dbname='default'):
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
     try:
         entry_data = entry.to_json()
+        tracker = exp_tracker.get()
+        entry_data["state"] = tracker.get_status()
     except:
         print("##### Error trying to access task entry data: id=%s, dbname=%s" % (idx, dbname))
         import traceback
@@ -252,9 +254,10 @@ def start_experiment(request, save=True):
             entry.save()
 
             # Link the features used to the task entry
-            for feat in list(data['feats'].keys()):
-                f = Feature.objects.get(pk=feat)
-                entry.feats.add(f.pk)
+            feat_recs = Feature.getall(list(data['feats'].keys()))
+            for feat in feat_recs:
+                # f = Feature.objects.get(pk=feat)
+                entry.feats.add(feat.pk)
 
             response['date'] = entry.date.strftime("%h %d, %Y %I:%M %p")
             response['status'] = "running"
@@ -443,16 +446,12 @@ def add_new_feature(request):
 @csrf_exempt
 def get_report(request):
     '''
-    Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
-    interface
+    Get data for the report field in the frontend
     '''
-    #make sure we don't have an already-running experiment
-
     def report_fn(tracker):
         tracker.task_proxy.update_report_stats()
         reportstats = tracker.task_proxy.reportstats
-        print(reportstats)
-        return tracker.task_proxy.reportstats
+        return reportstats
 
     return rpc(report_fn)
 
@@ -460,3 +459,13 @@ def get_report(request):
 def record_annotation(request):
     return rpc(lambda tracker: tracker.task_proxy.record_annotation(request.POST["annotation"]))
     
+@csrf_exempt
+def get_status(request):
+    tracker = exp_tracker.get()
+    if tracker.task_kwargs is None:
+        saveid = None
+    else:
+        saveid = tracker.task_kwargs["saveid"]
+    print("saveid", saveid)
+    return _respond(dict(status=tracker.get_status(), saveid=saveid))
+

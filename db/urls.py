@@ -32,6 +32,7 @@ urlpatterns = [
     # path(r'listdb/(?P<dbname>.+?)/(?P<subject>.+?)/(?P<task>.+?)', views.listdb),
     # path(r'listdb/(?P<dbname>.+?)/(?P<subject>.+?)', views.listdb),
     # path(r'listdb/(?P<dbname>.+?)/', views.listdb),
+    path(r'exp_log/get_status', ajax.get_status),
     path(r'exp_log/report', ajax.get_report),
     path(r'exp_log/ajax/task_info/<int:idx>/', ajax.task_info),
     path(r'exp_log/ajax/exp_info/<int:idx>/', ajax.exp_info),

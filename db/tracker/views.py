@@ -106,8 +106,8 @@ def list_exp_history(request, **kwargs):
     tracker = exp_tracker.get()
     tracker.update_alive()
 
-    if tracker.task_proxy is not None:
-        fields['running'] = tracker.task_proxy.saveid
+    if tracker.task_proxy is not None and "saveid" in tracker.task_kwargs:
+        fields['running'] = tracker.task_kwargs["saveid"]
 
     resp = render_to_response('list.html', fields, RequestContext(request))
     return resp

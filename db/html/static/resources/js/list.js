@@ -457,7 +457,6 @@ function TaskInterfaceConstructor() {
     this.trigger = function(info) {
         debug("TaskInterfaceConstructor.trigger");
         if (this != lastentry) {
-            debug("Different entry")
             if (lastentry) {
                 $(window).unload(); // direct away from the page. This stops testing runs, just in case.. TODO not sure if this works with no arguments
                 lastentry.tr.removeClass("rowactive active");
