@@ -441,6 +441,13 @@ def add_new_feature(request):
     return HttpResponse("Added new feature: %s" % feat.name)
 
 @csrf_exempt
+def setup_run_upkeep(request):
+    # Update the list of generators
+    from . import models
+    models.Generator.populate()
+    return HttpResponse("Updated generators!")
+
+@csrf_exempt
 def get_report(request):
     '''
     Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 

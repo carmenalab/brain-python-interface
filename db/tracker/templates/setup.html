@@ -1,10 +1,12 @@
 <!-- Setup things -->
-
+{% load static %}{% get_static_prefix as STATIC_PREFIX %}<!DOCTYPE HTML>
 <head>
-	
+	<script src='{{ STATIC_PREFIX }}resources/js/jquery.min.js' type='text/javascript'></script>
+	<script src='{{ STATIC_PREFIX }}resources/js/jquery-ui.min.js' type='text/javascript'></script>
 </head>
 
 <body>
+	<input type="button" onclick="$.post('/setup/run_upkeep')" value="Run upkeep tasks"><br>
 	<h1>Setup/configure</h1>
 	<h2>Subjects</h2>
 	<table>

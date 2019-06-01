@@ -20,6 +20,7 @@ urlpatterns = [
     path('setup/add/new_feature', ajax.add_new_feature),
     path('setup/populate_models', ajax.populate_models),
     path('setup/add/enable_features', ajax.enable_features),
+    path('setup/run_upkeep', ajax.setup_run_upkeep),
     
     path(r'exp_log/', views.list_exp_history, dict(max_entries=200)),
     path(r'exp_log/all/', views.list_exp_history),
