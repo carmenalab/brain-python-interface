@@ -17,466 +17,480 @@
 
 
 <script type='text/javascript'>
-	var hostname = "{{hostname}}";
-	var te = null;
-	var feats = new Features();
-	$(document).ready(function() {
-		$("table#main tr").each(function() {
-			// Register a click callback for each row of the 'main' table
-			// If you click on the very top row, the id is set to "newentry" 
-			// so it knows to create a "blank" TaskEntry
-			// Otherwise, the row will have an 'id' of format 'row\d\d\d\d'
-			$(this).click(function() {
-				var clicked_on_header = this.id == "newentry" || this.id == "te_table_header";
-				if (clicked_on_header) {
-					te = new TaskEntry(null);
-				} else {
-					te = new TaskEntry(this.id);
-				}
-			});
-		});
+  var hostname = "{{hostname}}";
+  var te = null;
+  var feats = new Features();
+  $(document).ready(function() {
+    $("table#main tr").each(function() {
+      // Register a click callback for each row of the 'main' table
+      // If you click on the very top row, the id is set to "newentry" 
+      // so it knows to create a "blank" TaskEntry
+      // Otherwise, the row will have an 'id' of format 'row\d\d\d\d'
+      $(this).click(function() {
+        var clicked_on_header = this.id == "newentry" || this.id == "te_table_header";
+        if (clicked_on_header) {
+          te = new TaskEntry(null);
+        } else {
+          te = new TaskEntry(this.id);
+        }
+      });
+    });
 
-		$("#new_exp").click(function() {
-			te = new TaskEntry(null);
-		})
+    $("#new_exp").click(function() {
+      te = new TaskEntry(null);
+    })
 
-		$("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
+    $("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
 
-		$("#hidebtn").change(
-			function () {
-				if (this.checked) {
-					console.log("Showing task entry " + te.idx);
-					$.get("/ajax/show_entry/"+te.idx, 
-						{}, 
-						function() {
-							$("#row" + te.idx).css('background-color', 'white');
-						}
-					);					
-				} else {
-					console.log("Hiding task entry " + te.idx);
-					$.get("/ajax/hide_entry/"+te.idx, 
-						{}, 
-						function() {
-							$("#row" + te.idx).css('background-color', 'gray');
-							te.destroy();
-						}
-					);
-				}
-			}
-		);
+    $("#hidebtn").change(
+      function () {
+        if (this.checked) {
+          console.log("Showing task entry " + te.idx);
+          $.get("/ajax/show_entry/"+te.idx, 
+            {}, 
+            function() {
+              $("#row" + te.idx).css('background-color', 'white');
+            }
+          );          
+        } else {
+          console.log("Hiding task entry " + te.idx);
+          $.get("/ajax/hide_entry/"+te.idx, 
+            {}, 
+            function() {
+              $("#row" + te.idx).css('background-color', 'gray');
+              te.destroy();
+            }
+          );
+        }
+      }
+    );
 
-		$("#backupbtn").change(
-			function () {
-				if (this.checked) {
-					$.get("/ajax/backup_entry/"+te.idx);
-				} else {
-					$.get("/ajax/unbackup_entry/"+te.idx);
-				}
-			}
-		);
+    $("#backupbtn").change(
+      function () {
+        if (this.checked) {
+          $.get("/ajax/backup_entry/"+te.idx);
+        } else {
+          $.get("/ajax/unbackup_entry/"+te.idx);
+        }
+      }
+    );
 
-		// these all function as form submit buttons for the experiment form
-		$("#startbtn").click(function() {return te["start"]();})
-		$("#testbtn").click(function() {return te["test"]();})
-		$("#stopbtn").click(function() {return te["stop"]();})
-		// $("#pausebtn").click(function() { taskaction = "pause"; return te["pause"]();})
+    // these all function as form submit buttons for the experiment form
+    $("#startbtn").click(function() {return te.start();})
+    $("#testbtn").click(function() {return te.test();})
+    $("#stopbtn").click(function() {return te.stop();})
+    $("#saverecbtn").click(function() {return te.saverec();})
+    // $("#pausebtn").click(function() { taskaction = "pause"; return te["pause"]();})
 
-		$("#toggle_table").change(
-			function() {
-				if (this.checked) {
-					$('#leftpane').show()
-				 	$('#rightpane').css('margin-left', "540px");
-				} else {
-					$('#leftpane').hide()
-					$('#rightpane').css('margin-left', "0px");
-				}
-			}
-		);
+    $("#toggle_table").change(
+      function() {
+        if (this.checked) {
+          $('#leftpane').show()
+          $('#rightpane').css('margin-left', "540px");
+        } else {
+          $('#leftpane').hide()
+          $('#rightpane').css('margin-left', "0px");
+        }
+      }
+    );
 
-		$('#wait_wheel').hide();
-		$('#create_new_seq').hide();
+    $('#wait_wheel').hide();
+    $('#create_new_seq').hide();
 
 
 
-		// hotkeys for simple TE tasks
-	    document.addEventListener('keydown', function(event) {
-	    	if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null) && (te.status == "completed")) {
-		        if (event.keyCode == 86) {
-		            // visible ('v')
-		            console.log('changing TE visibility');
-		            te.toggle_visible();
-		        } else if (event.keyCode == 66) { 
-		            // backup ('b')
-		            console.log('changing TE backup flag');
-		            te.toggle_backup();
-		        } else if(event.keyCode == 37) {
-		            // left 
-		            var prev_table_row = $('#row' + te.idx).prev();
-		            var prev_table_row_id = prev_table_row.attr('id');
-		            if (!(prev_table_row_id == "newentry")) {
-		            	te = new TaskEntry(prev_table_row_id);
-		            }
-		            console.log('going to "previous" TE', prev_table_row_id);
+    // hotkeys for simple TE tasks
+      document.addEventListener('keydown', function(event) {
+        if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null) && (te.status == "completed")) {
+            if (event.keyCode == 86) {
+                // visible ('v')
+                console.log('changing TE visibility');
+                te.toggle_visible();
+            } else if (event.keyCode == 66) { 
+                // backup ('b')
+                console.log('changing TE backup flag');
+                te.toggle_backup();
+            } else if(event.keyCode == 37) {
+                // left 
+                var prev_table_row = $('#row' + te.idx).prev();
+                var prev_table_row_id = prev_table_row.attr('id');
+                if (!(prev_table_row_id == "newentry")) {
+                  te = new TaskEntry(prev_table_row_id);
+                }
+                console.log('going to "previous" TE', prev_table_row_id);
 
-		        } else if(event.keyCode == 39) {
-		            // right
-		            var next_table_row = $('#row' + te.idx).next();
-		            var next_table_row_id = next_table_row.attr('id');
-		            if (!(next_table_row_id == "newentry")) {
-		            	te = new TaskEntry(next_table_row_id);
-		            }
-		            console.log('going to "next" TE', next_table_row_id);
+            } else if(event.keyCode == 39) {
+                // right
+                var next_table_row = $('#row' + te.idx).next();
+                var next_table_row_id = next_table_row.attr('id');
+                if (!(next_table_row_id == "newentry")) {
+                  te = new TaskEntry(next_table_row_id);
+                }
+                console.log('going to "next" TE', next_table_row_id);
 
-		        }
-	    	} else {
-	    		console.log("keydown handler ignoring!");
-	    	}
-	    });
-	})
+            }
+        } else {
+          console.log("keydown handler ignoring!");
+        }
+      });
+  })
 </script>
 </head>
 
 <body>
-	<input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show History</span><br>
-	<div id="main_box">
-		<div id='leftpane'>
-			{{ n_blocks }} saved task entry records shown below<br>
-			<button id="new_exp">Start new experiment</button>
-	        <hr>
-			<table id='main' style="direction:ltr;">
-				<thead>
-				<tr id="te_table_header">
-					<th>Date</th>
-					<th>Time</th>
-					<th>ID</th>
-					<th class='colSubj'>Who</th>
-					<th class='colTask'>Task</th>
-				</tr>
-				</thead>
+  <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show History</span><br>
+  <div id="main_box">
+    <div id='leftpane'>
+      {{ n_blocks }} saved task entry records shown below<br>
+      <button id="new_exp">Start new experiment</button>
+          <hr>
+      <table id='main' style="direction:ltr;">
+        <thead>
+        <tr id="te_table_header">
+          <th>Date</th>
+          <th>Time</th>
+          <th>ID</th>
+          <th class='colSubj'>Who</th>
+          <th class='colTask'>Task</th>
+        </tr>
+        </thead>
 
-				<tbody>
-					<tr id='newentry' class='rowactive'>
-						<td>Today</td>
-						<td>Now</td>
-						<td></td> <!-- Empty for database ID slot -->
-						<td class='colSubj'>
-							<select id='subjects'>
-								{% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>
-								{% endfor %}
-							</select>
-						</td>
-						<td class='colTask'>
-							<select id='tasks'>
-								{% for t in tasks %}<option value='{{t.id}}'>{{ t.name }}</option>
-								{% endfor %}
-							</select>
-						</td>
-					</tr>
-				{% for e in entries %}
-					<tr id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
-						{% if e.html_date %}
-							<td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
-							<td class='colTime firstRowOfday' >{{e.html_time}}</td>
-							<td class='colID firstRowOfday'   >{{e.id}}</td>
-							<td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
-							<td class='colTask firstRowOfday' >{{e.task.name}}</td>
-						{% else %}
-							<td class='colTime' >{{e.html_time}}</td>
-							<td class='colID'   >{{e.id}}</td>
-							<td class='colSubj' >{{e.subject.name}}</td>
-							<td class='colTask' >{{e.task.name}}</td>				
-						{% endif %}
+        <tbody>
+          <tr id='newentry' class='rowactive'>
+            <td>Today</td>
+            <td>Now</td>
+            <td></td> <!-- Empty for database ID slot -->
+            <td class='colSubj'>
+              <select id='subjects'>
+                {% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class='colTask'>
+              <select id='tasks'>
+                {% for t in tasks %}<option value='{{t.id}}'>{{ t.name }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+        {% for e in entries %}
+          <tr id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
+            {% if e.html_date %}
+              <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
+              <td class='colTime firstRowOfday' >{{e.html_time}}</td>
+              <td class='colID firstRowOfday'   >{{e.id}}</td>
+              <td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
+              <td class='colTask firstRowOfday' >{{e.task.name}}</td>
+            {% else %}
+              <td class='colTime' >{{e.html_time}}</td>
+              <td class='colID'   >{{e.id}}</td>
+              <td class='colSubj' >{{e.subject.name}}</td>
+              <td class='colTask' >{{e.task.name}}</td>       
+            {% endif %}
 
-					</tr>
-				{% endfor %}
-				</tbody>
-			</table>
-		</div> <!-- leftpane -->
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div> <!-- leftpane -->
 
         <div id="wait_wheel">
             <img id="wait_wheel_img" src="{{ STATIC_PREFIX }}resources/images/ajax-loader.gif" alt="HTML5 Icon">
         </div>
 
-		<div id="rightpane">
-			<div id='content' class="active">
-				<form id="experiment" method="post" action="javascript:void();" accept-charset="utf-8">
-					{% csrf_token %}
+    <div id="rightpane">
+      <div id='content' class="active">
+        <form id="experiment" method="post" action="javascript:void();" accept-charset="utf-8">
+          {% csrf_token %}
 
-					<div id="finished_task_buttons">
-						<input id="copybtn" class="btn" type="button" value="Copy parameters">
-						<input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
-						<input id="backupbtn" type="checkbox" checked="on" name="hist_checkbox">Flagged for backup?
-					</div>
+          <div id="finished_task_buttons">
+            <input id="copybtn" class="btn" type="button" value="Copy parameters">
+            <input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
+            <input id="backupbtn" type="checkbox" checked="on" name="hist_checkbox">Flagged for backup?
+          </div>
 
-					<input id="testbtn" class="btn startbtn" type="submit" value="Test">
-					<input id="startbtn" class="btn startbtn" type="submit" value="Start Experiment">
-					<input id="stopbtn" class="btn startbtn" type="submit" value="Stop Experiment">
-					<div class="clear"></div>	
+          <div id="start_buttons">
+            <input id="testbtn" class="btn startbtn" type="submit" value="Test">
+            <input id="startbtn" class="btn startbtn" type="submit" value="Start Experiment">
+            <input id="saverecbtn" class="btn startbtn" type="submit" value="Save Record">
+          </div>
 
-					<div class="rightpane_fields">
-						<div class="options">
-							<fieldset id="features">
-								<legend>Features</legend>
-								<ul>
-								{% for f in features %}
-									<li title="{{f.desc}}">
-									<input type="checkbox" name="{{f.name}}" id="feat_{{f.name}}" value="{{f.id}}">
-									<label for="{{f.name}}">{{f.name}}</label>
-									</li>
-								{% endfor %}
-								</ul>
-							</fieldset> <!-- features -->
+          <div id="stop_buttons">
+            <input id="stopbtn" class="btn startbtn" type="submit" value="Stop Experiment">
+          </div>         
 
-							<fieldset id="sequence">
-								<legend>Sequence</legend>
-								<table>
-									<input id="create_new_seq" class="btn" type="submit" value="Create New Seq.">
-									<tr id="tr_seqlist">
-										<td class="param_label"><label for="seqlist">Name:</label></td>
-										<td>
-											<select id="seqlist" name="seq_name">
-												<option value="new">Create New...</option>
-											</select>
-										</td>
-									</tr>
+          <div class="clear"></div>
 
-									<tr>
-										<!-- List of generators -->
-										<td class="param_label"><label class="traitname" for="seqgen">Generator:</label></td>
-										<td>
-											<select id="seqgen" name="seq_gen">
-												{% for g in generators %}<option value="{{g.id}}">{{g.name}}</option>
-												{% endfor %}
-											</select>
-										</td>
-									</tr>
-								</table>
+          <div id="entry_name_div">
+            Custom Name: 
+            <input type="text" id="entry_name" style="width:200px; ! important;">
+            <input type="button" value="Save name" onclick="te.save_name()">
+          </div>
 
-								<div id="seqparams">
-									Parameters
-								</div>
+          <div class="rightpane_fields">
+            <div class="options">
+              <fieldset id="features">
+                <legend>Features</legend>
+                <ul>
+                {% for f in features %}
+                  <li title="{{f.desc}}">
+                  <input type="checkbox" name="{{f.name}}" id="feat_{{f.name}}" value="{{f.id}}">
+                  <label for="{{f.name}}">{{f.name}}</label>
+                  </li>
+                {% endfor %}
+                </ul>
+              </fieldset> <!-- features -->
 
-								<div id="seqstatic_div" class="clear">
-									<input id="seqstatic" type="checkbox" name="seqstatic">
-									<label for="seqstatic">Static</label>
-								</div>
-							</fieldset> <!-- sequence -->
+              <fieldset id="sequence">
+                <legend>Sequence</legend>
+                <table>
+                  <input id="create_new_seq" class="btn" type="submit" value="Create New Seq.">
+                  <tr id="tr_seqlist">
+                    <td class="param_label"><label for="seqlist">Name:</label></td>
+                    <td>
+                      <select id="seqlist" name="seq_name">
+                        <option value="new">Create New...</option>
+                      </select>
+                    </td>
+                  </tr>
 
-							<fieldset id="parameters">
-								<input id="show_params" type="checkbox" checked="off" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?		
-								<legend>Parameters</legend>
-								<!-- <table id="params_table">
-								</table> -->
-							</fieldset> <!-- parameters -->
-						</div>
+                  <tr>
+                    <!-- List of generators -->
+                    <td class="param_label"><label class="traitname" for="seqgen">Generator:</label></td>
+                    <td>
+                      <select id="seqgen" name="seq_gen">
+                        {% for g in generators %}<option value="{{g.id}}">{{g.name}}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                </table>
 
-						<div class="rightside">
-							<fieldset id="report">
-								<legend>Report</legend>
-								<div id="report_div">
-									<input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); console.log(info);})"><br>
-									<table class="option" id="report_info">
-									</table>
+                <div id="seqparams">
+                  Parameters
+                </div>
 
-									<div class="report_table" id="report_msgs">
-										<pre id="stdout"></pre>
-									</div>
+                <div id="seqstatic_div" class="clear">
+                  <input id="seqstatic" type="checkbox" name="seqstatic">
+                  <label for="seqstatic">Static</label>
+                </div>
+              </fieldset> <!-- sequence -->
 
-									
-									<div class="clear"></div>
-								</div>
-							</fieldset>
+              <fieldset id="parameters">
+                <input id="show_params" type="checkbox" checked="off" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?   
+                <legend>Parameters</legend>
+                <!-- <table id="params_table">
+                </table> -->
+              </fieldset> <!-- parameters -->
+            </div>
 
-							<fieldset id="annotations">
-								<legend>Annotations</legend>
-								<div id="annot_div">
-									Misc. annotation: <input type="text" id="misc_annotation" width="20"><input type="button" value="Save" onclick="record_annotation($('#misc_annotation').val())"><br>
-								</div>
-							</fieldset>							
+            <div class="rightside">
+              <fieldset id="report">
+                <legend>Report</legend>
+                <div id="report_div">
+                  <input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); console.log(info);})"><br>
+                  <table class="option" id="report_info">
+                  </table>
 
-							<fieldset id="notes">
-								<legend>Notes</legend>
-								<textarea name="notes"></textarea>
-							</fieldset>
+                  <div class="report_table" id="report_msgs">
+                    <pre id="stdout"></pre>
+                  </div>
 
-							<fieldset id="files">
-								<legend>Linked Data Files</legend>
-								<div id="file_list">
-								</div>
-							</fieldset>
+                  
+                  <div class="clear"></div>
+                </div>
+              </fieldset>
 
-							<fieldset id='bmi'>
-							<legend>BMI</legend>
-							    <div id='bmiwrap'>
-							    <table id='bmiinfo'>
-							       <!-- Drop-down menu for BMIs trained using this block -->
-							        <tr>
-							            <td>
-							                <label for='bminame'>Name</label>
-							            </td>
-							            <td>
-							                <select id='bminame' />
-							            </td>
-							        </tr>
-							        <!-- Drop-down menu of BMI training methods  -->
-							        <tr>
-							            <td>
-							                <label for='bmiclass'>Decoding algorithm:</label>
-							            </td>
-							            <td>
-							                <select id='bmiclass'>
-							                    {% for name in bmi_algorithms %}
-							                    <option>{{ name }}</option>
-							                    {% endfor %}
-							                </select>
-							            </td>
-							        </tr>
-							        <!-- Drop-down menu of feature extractors  -->
-							        <tr>
-							            <td>
-							                <label for='bmiextractor'>Feature Extractor:</label>
-							            </td>
-							            <td>
-							                <select id='bmiextractor'>
-							                    <option selected>{{ default_extractor }}</option>
-							                    {% for name in extractors %}
-							                        {% if not name == default_extractor %}
-							                            <option>{{ name }}</option>
-							                        {% endif %}
-							                    {% endfor %}
-							                </select>
-							            </td>
-							        </tr>
-							        <!-- Input box to specify the bin length/update rate of the decoder -->
-							        <tr>
-							            <td>
-							                <label for='bmiupdaterate'>BMI update rate</label>
-							            </td>
-							            <td>
-							                <!-- <input id='bmiupdaterate' /> -->
-							                <select id='bmiupdaterate'>
-							                    {% for update_rate in bmi_update_rates %}
-							                        <option>{{ update_rate }}</option>
-							                    {% endfor %}
-							                </select>
-							            </td>
-							        </tr>
-							        <!-- State space model -->
-							        <tr>
-							            <td>
-							                <label for='ssm'>State space</label>
-							            </td>
-							            <td>
-							                <select id='ssm'>
-							                    {% for ssm in state_spaces %}
-							                        <option>{{ ssm }}</option>
-							                    {% endfor %}
-							                </select>
-							            </td>
-							        </tr>
-							        <!-- Select position variable -->
-							        <tr>
-							            <td>
-							                <label for='pos_key'>Position variable</label>
-							            </td>
-							            <td>
-							                <select id='pos_key'>
-							                    {% for pos_key in pos_vars %}
-							                        <option>{{ pos_key }}</option>
-							                    {% endfor %}
-							                </select>
-							            </td>
-							        </tr>
-							        <!-- Select the function for extracting the kinematics from the HDF file -->
-							        <tr>
-							            <td>
-							                <label for='kin_extractor'>Kinematic extractor</label>
-							            </td>
-							            <td>
-							                <select id='kin_extractor'>
-							                    {% for var in kin_extractors %}
-							                        <option>{{ var }}</option>
-							                    {% endfor %}
-							                </select>
-							            </td>
-							        </tr>  
-							        <!-- Select whether to zscore data or not -->
-							        <tr>
-							            <td>
-							                <label for='zscore'>zscore neural features</label>
-							            </td>
-							            <td>
-							                <select id='zscore'>
-							                    {% for var in zscores %}
-							                        <option>{{ var }}</option>
-							                    {% endfor %}
-							                </select>
-							            </td>
-							        </tr>        
-							        <!-- Slider for specifying the time range of the block to use for training the decoder-->
-							        <tr>
-							            <td id='tselect' colspan='2'>
-							                <input id='tstart' />
-							                <div id='tslider'></div>
-							                <input id='tend' />
-							            </td>
-							        </tr>
-							        <!-- Buttons for train/cancel. No idea what the cancel button would do... -->
-							        <tr>
-							            <td colspan='2'>
-							                <input id='bmitrain' class='bmibtn' type='button' value='Train' />
-							                <input id='bmicancel' class='bmibtn' type='button' value='Cancel' />
-							            </td>
-							        </tr>
-							    </table>
-							    </div>
-							    <table id='cellselect'>
-							        <tr>
-							            <th>Available</th>
-							            <th></th>
-							            <th>Selected</th>
-							        </tr>
-							        <!-- Make boxes to list out the available spiking units. Only used for spike-count-based feature extractors -->
-							        <tr>
-							            <td>
-							                <select id='available' multiple='multiple'></select>
-							            </td>
-							            <td>
-							                <input type='button' id='makecell' value='>>'/>
-							                <br />
-							                <br />
-							                <input type='button' id='makeavail' value='<<'/>
-							            </td>
-							            <td>
-							                <select id='cells' multiple='multiple'>
-							                </select>
-							            </td>
-							        </tr>
-							        <!-- Text box of the selected spike units.  -->
-							        <tr>
-							            <td colspan='3'>Spike units:</td>
-							        </tr>
-							        <tr>
-							            <td colspan='3'><textarea id='cellnames'></textarea>
-							            </td>
-							        </tr>
-							        <!-- Text box in which to specify the continuous channels to use -->
-							        <tr>
-							            <td colspan='3'>Continuous channels (LFP, EMG, etc.):</td>
-							        </tr>
-							        <tr>
-							            <td colspan='3'><textarea id='channelnames'></textarea>
-							            </td>
-							        </tr>
-							    </table> 
-							</fieldset> <!-- BMI -->
+              <fieldset id="annotations">
+                <legend>Annotations</legend>
+                <div id="annot_div">
+                  Misc. annotation: <input type="text" id="misc_annotation" width="20"><input type="button" value="Save" onclick="record_annotation($('#misc_annotation').val())"><br>
+                </div>
+              </fieldset>             
+
+              <fieldset id="notes">
+                <legend>Notes</legend>
+                <textarea name="notes"></textarea>
+              </fieldset>
+
+              <fieldset id="files">
+                <legend>Linked Data Files</legend>
+                <div id="file_list">
+                </div>
+              </fieldset>
+
+              <fieldset id='bmi'>
+              <legend>BMI</legend>
+                  <div id='bmiwrap'>
+                  <table id='bmiinfo'>
+                     <!-- Drop-down menu for BMIs trained using this block -->
+                      <tr>
+                          <td>
+                              <label for='bminame'>Name</label>
+                          </td>
+                          <td>
+                              <select id='bminame' />
+                          </td>
+                      </tr>
+                      <!-- Drop-down menu of BMI training methods  -->
+                      <tr>
+                          <td>
+                              <label for='bmiclass'>Decoding algorithm:</label>
+                          </td>
+                          <td>
+                              <select id='bmiclass'>
+                                  {% for name in bmi_algorithms %}
+                                  <option>{{ name }}</option>
+                                  {% endfor %}
+                              </select>
+                          </td>
+                      </tr>
+                      <!-- Drop-down menu of feature extractors  -->
+                      <tr>
+                          <td>
+                              <label for='bmiextractor'>Feature Extractor:</label>
+                          </td>
+                          <td>
+                              <select id='bmiextractor'>
+                                  <option selected>{{ default_extractor }}</option>
+                                  {% for name in extractors %}
+                                      {% if not name == default_extractor %}
+                                          <option>{{ name }}</option>
+                                      {% endif %}
+                                  {% endfor %}
+                              </select>
+                          </td>
+                      </tr>
+                      <!-- Input box to specify the bin length/update rate of the decoder -->
+                      <tr>
+                          <td>
+                              <label for='bmiupdaterate'>BMI update rate</label>
+                          </td>
+                          <td>
+                              <!-- <input id='bmiupdaterate' /> -->
+                              <select id='bmiupdaterate'>
+                                  {% for update_rate in bmi_update_rates %}
+                                      <option>{{ update_rate }}</option>
+                                  {% endfor %}
+                              </select>
+                          </td>
+                      </tr>
+                      <!-- State space model -->
+                      <tr>
+                          <td>
+                              <label for='ssm'>State space</label>
+                          </td>
+                          <td>
+                              <select id='ssm'>
+                                  {% for ssm in state_spaces %}
+                                      <option>{{ ssm }}</option>
+                                  {% endfor %}
+                              </select>
+                          </td>
+                      </tr>
+                      <!-- Select position variable -->
+                      <tr>
+                          <td>
+                              <label for='pos_key'>Position variable</label>
+                          </td>
+                          <td>
+                              <select id='pos_key'>
+                                  {% for pos_key in pos_vars %}
+                                      <option>{{ pos_key }}</option>
+                                  {% endfor %}
+                              </select>
+                          </td>
+                      </tr>
+                      <!-- Select the function for extracting the kinematics from the HDF file -->
+                      <tr>
+                          <td>
+                              <label for='kin_extractor'>Kinematic extractor</label>
+                          </td>
+                          <td>
+                              <select id='kin_extractor'>
+                                  {% for var in kin_extractors %}
+                                      <option>{{ var }}</option>
+                                  {% endfor %}
+                              </select>
+                          </td>
+                      </tr>  
+                      <!-- Select whether to zscore data or not -->
+                      <tr>
+                          <td>
+                              <label for='zscore'>zscore neural features</label>
+                          </td>
+                          <td>
+                              <select id='zscore'>
+                                  {% for var in zscores %}
+                                      <option>{{ var }}</option>
+                                  {% endfor %}
+                              </select>
+                          </td>
+                      </tr>        
+                      <!-- Slider for specifying the time range of the block to use for training the decoder-->
+                      <tr>
+                          <td id='tselect' colspan='2'>
+                              <input id='tstart' />
+                              <div id='tslider'></div>
+                              <input id='tend' />
+                          </td>
+                      </tr>
+                      <!-- Buttons for train/cancel. No idea what the cancel button would do... -->
+                      <tr>
+                          <td colspan='2'>
+                              <input id='bmitrain' class='bmibtn' type='button' value='Train' />
+                              <input id='bmicancel' class='bmibtn' type='button' value='Cancel' />
+                          </td>
+                      </tr>
+                  </table>
+                  </div>
+                  <table id='cellselect'>
+                      <tr>
+                          <th>Available</th>
+                          <th></th>
+                          <th>Selected</th>
+                      </tr>
+                      <!-- Make boxes to list out the available spiking units. Only used for spike-count-based feature extractors -->
+                      <tr>
+                          <td>
+                              <select id='available' multiple='multiple'></select>
+                          </td>
+                          <td>
+                              <input type='button' id='makecell' value='>>'/>
+                              <br />
+                              <br />
+                              <input type='button' id='makeavail' value='<<'/>
+                          </td>
+                          <td>
+                              <select id='cells' multiple='multiple'>
+                              </select>
+                          </td>
+                      </tr>
+                      <!-- Text box of the selected spike units.  -->
+                      <tr>
+                          <td colspan='3'>Spike units:</td>
+                      </tr>
+                      <tr>
+                          <td colspan='3'><textarea id='cellnames'></textarea>
+                          </td>
+                      </tr>
+                      <!-- Text box in which to specify the continuous channels to use -->
+                      <tr>
+                          <td colspan='3'>Continuous channels (LFP, EMG, etc.):</td>
+                      </tr>
+                      <tr>
+                          <td colspan='3'><textarea id='channelnames'></textarea>
+                          </td>
+                      </tr>
+                  </table> 
+              </fieldset> <!-- BMI -->
 
 
-						</div> <!-- rightside -->
-					</div> <!-- rightpane_fields -->
-				</form> <!-- experiment form -->
-			</div> <!-- content -->
-		</div> <!-- rightpane -->
-	</div> <!--main_box-->
+            </div> <!-- rightside -->
+          </div> <!-- rightpane_fields -->
+        </form> <!-- experiment form -->
+      </div> <!-- content -->
+    </div> <!-- rightpane -->
+  </div> <!--main_box-->
 </body>
 </html>

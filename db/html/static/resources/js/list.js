@@ -107,11 +107,19 @@ Report.prototype.deactivate = function() {
     delete this.ws;
 }
 Report.prototype.hide = function() {
-    // $("#report").hide();
+    $("#report").hide();
 }
 
 Report.prototype.show = function() {
-    // $("#report").show();
+    $("#report").show();
+}
+
+Report.prototype.set_mode = function(mode) {
+    if (mode == "completed") {
+        $("#report_update").hide();
+    } else if (mode == "running") {
+
+    }
 }
 
 
@@ -126,7 +134,8 @@ function interface_fn_completed() {
     this.tr.addClass("rowactive active");
     $(".active").removeClass("running error testing");
     this.disable();
-    $(".startbtn").hide()
+    $("#start_buttons").hide()
+    $("#stop_buttons").hide();
     $("#finished_task_buttons").show();
     $("#bmi").hide();
     
@@ -142,17 +151,14 @@ function interface_fn_completed() {
     }
 
     if (this.start_button_pressed) {
-        console.log("recorded start button press");
         setTimeout(
             function () {
                 te.report.deactivate();
                 clearTimeout(report_activation);
-                console.log('callback after pressing stop');
                 te = new TaskEntry(te.idx);
             },
             3000
         );
-        console.log("finished set timeout");
     }
 }
 
@@ -162,9 +168,8 @@ function interface_fn_stopped() {
     $(".active").removeClass("running error testing");
     this.tr.addClass("rowactive active");
     this.enable();
-    $("#stopbtn").hide()
-    $("#startbtn").show()
-    $("#testbtn").show()
+    $("#stop_buttons").hide();
+    $("#start_buttons").show();
     $("#finished_task_buttons").hide();
     clearTimeout(report_activation);
     $("#bmi").hide();
@@ -178,9 +183,8 @@ function interface_fn_running(info) {
     $(window).unbind("unload"); // remove any bindings to 'stop' methods when the page is reloaded (these bindings are added in the 'testing' mode)
     $(".active").removeClass("error testing").addClass("running");
     this.disable();
-    $("#stopbtn").show()
-    $("#startbtn").hide()
-    $("#testbtn").hide()
+    $("#stop_buttons").show()
+    $("#start_buttons").hide();
     $("#finished_task_buttons").hide();
     $("#bmi").hide();
     this.report.activate();
@@ -197,10 +201,8 @@ function interface_fn_testing(info) {
     $(".active").removeClass("error running").addClass("testing");
     te.disable(); // disable editing of the exp_content interface
 
-    $("#stopbtn").show();
-
-    $("#startbtn").hide()
-    $("#testbtn").hide()
+    $("#stop_buttons").show();
+    $("#start_buttons").hide()
     $("#finished_task_buttons").hide()
     $("#bmi").hide();
     this.report.activate();
@@ -214,7 +216,7 @@ function interface_fn_error(info) {
     $(window).unbind("unload");
     $(".active").removeClass("running testing").addClass("error");
     this.disable();
-    $(".startbtn").hide();
+    $("#start_buttons").hide();
     $("#finished_task_buttons").show();
     $("#bmi").hide();
     this.report.deactivate();
@@ -228,9 +230,8 @@ function interface_fn_errtest(info) {
     $(window).unbind("unload");
     $(".active").removeClass("running testing").addClass("error");
     this.enable();
-    $("#stopbtn").hide();
-    $("#startbtn").show();
-    $("#testbtn").show();
+    $("#stop_buttons").hide();
+    $("#start_buttons").show();
     $("#finished_task_buttons").hide();
     $("#bmi").hide();
     this.report.deactivate();
@@ -370,11 +371,11 @@ function Annotations() {
     }
 
     this.hide = function() {
-        // $("#annotations").hide();
+        $("#annotations").hide();
     }
 
     this.show = function() {
-        // $("#annotations").show();
+        $("#annotations").show();
     }
 }
 
@@ -388,7 +389,46 @@ function Buttons() {
 }
 
 function Files() {
+    this.neural_data_found = false;
+}
+Files.prototype.hide = function() {
+    $("#files").hide();
+}
+Files.prototype.show = function() {
+    $("#files").show();
+}
+Files.prototype.update_filelist = function(datafiles) {
+    // List out the data files in the 'filelist'
+    // see TaskEntry.to_json in models.py to see how the file list is generated
+    var numfiles = 0;
+    this.filelist = document.createElement("ul");
 
+    for (var sys in datafiles) {
+        if (sys == "sequence") { 
+            // Do nothing. No point in showing the sequence..
+        } else {  
+            // info.datafiles[sys] is an array of files for that system
+            for (var i = 0; i < datafiles[sys].length; i++) {
+                // Create a list element to hold the file name
+                var file = document.createElement("li");
+                file.textContent = datafiles[sys][i];
+                this.filelist.appendChild(file);
+                numfiles++;
+            }
+        }
+    }
+
+    $("#file_list").append('<a href="link_data_files/'+ this.idx +'"">Manually link data files</a>');
+    if (numfiles > 0) {
+        // Append the files onto the #files field
+        $("#file_list").append(this.filelist);
+
+        for (var sys in datafiles)
+            if ((sys == "plexon") || (sys == "blackrock") || (sys == "tdt")) {
+                this.neural_data_found = true;
+                break;
+            }
+    }    
 }
 
 //
@@ -407,6 +447,7 @@ function TaskEntry(idx, info) {
     this.params = new Parameters();
     this.report = new Report(TaskInterface.trigger.bind(this));
     this.annotations = new Annotations();
+    this.files = new Files();
     
     $("#parameters").append(this.params.obj);
     $("#plots").empty()
@@ -436,6 +477,12 @@ function TaskEntry(idx, info) {
             this.report.activate();
         } else {
             this.tr.addClass("rowactive active");
+        }
+
+        if (this.status == "completed") {
+            this.annotations.hide();
+            this.report.set_mode("completed");
+            this.files.show();
         }
 
         // Show the wait wheel before sending the request for exp_info. It will be hidden once data is successfully returned and processed (see below)
@@ -496,11 +543,14 @@ function TaskEntry(idx, info) {
             this.annotations.update_from_server(taskid, sel_feats);
             this.enable();
             $("#content").show("slide", "fast");
+
+            this.files.hide();
         } else { // no id and no info suggests that the table header was clicked to create a new block
             console.log('creating a brand-new JS TaskEntry')
             feats.clear();
-            this.annotations.hide()
-            this.report.hide()
+            this.annotations.hide();
+            this.report.hide();
+            this.files.hide();
             TaskInterface.trigger.bind(this)({state:''});
 
             // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
@@ -562,47 +612,15 @@ TaskEntry.prototype.update = function(info) {
 
     feats.select_features(info.feats);
 
+    $("#entry_name").val(info.entry_name);
 
-    
-    // List out the data files in the 'filelist'
-    // see TaskEntry.to_json in models.py to see how the file list is generated
-    var numfiles = 0;
-    this.filelist = document.createElement("ul");
+    this.files.show();
+    this.files.update_filelist(info.datafiles);
 
-    for (var sys in info.datafiles) {
-        if (sys == "sequence") { 
-            // Do nothing. No point in showing the sequence..
-        } else {  
-            // info.datafiles[sys] is an array of files for that system
-            for (var i = 0; i < info.datafiles[sys].length; i++) {
-                // Create a list element to hold the file name
-                var file = document.createElement("li");
-                file.textContent = info.datafiles[sys][i];
-                this.filelist.appendChild(file);
-                numfiles++;
-            }
-        }
-    }
-    $("#files").show();    
-    $("#file_list").append('<a href="link_data_files/'+ this.idx +'"">Manually link data files</a>');
-    if (numfiles > 0) {
-        // Append the files onto the #files field
-        $("#file_list").append(this.filelist);
-
-
-        // make the BMI show up if there's a neural data file linked
-        var neural_data_found = false;
-        for (var sys in info.datafiles)
-            if ((sys == "plexon") || (sys == "blackrock") || (sys == "tdt")) {
-                neural_data_found = true;
-                break;
-            }
-
-        if (neural_data_found){
-            // Create the JS object to represent the BMI menu
-            this.bmi = new BMI(this.idx, info.bmi, info.notes);
-        }
-    }
+    if (this.files.neural_data_found){
+        // Create the JS object to represent the BMI menu
+        this.bmi = new BMI(this.idx, info.bmi, info.notes);
+    }    
 
     if (info.sequence) {
         $("#sequence").show()
@@ -641,6 +659,10 @@ TaskEntry.prototype.toggle_visible = function() {
             }
         );
     }
+}
+
+TaskEntry.prototype.save_name = function() {
+    $.post("save_entry_name", {"id": this.idx, "entry_name": $("#entry_name").val()});
 }
 
 TaskEntry.prototype.toggle_backup = function() {
@@ -812,7 +834,7 @@ TaskEntry.prototype.stop = function() {
 TaskEntry.prototype.test = function() {
     debug("TaskEntry.prototype.test")
     this.disable();
-    return this.run(false); 
+    return this.run(false, true);
 }
 
 /* Callback for the 'Start experiment' button
@@ -820,10 +842,15 @@ TaskEntry.prototype.test = function() {
 TaskEntry.prototype.start = function() {
     debug("TaskEntry.prototype.start")
     this.disable();
-    return this.run(true);
+    return this.run(true, true);
 }
 
-TaskEntry.prototype.run = function(save) {
+TaskEntry.prototype.saverec = function() {
+    this.disable();
+    return this.run(true, false);
+}
+
+TaskEntry.prototype.run = function(save, exec) {
     debug("TaskEntry.run")
     // activate the report; start listening to the websocket and update the 'report' field when new data is received
     if (this.report){
@@ -831,13 +858,25 @@ TaskEntry.prototype.run = function(save) {
     }
     this.report = new Report(TaskInterface.trigger.bind(this)); // TaskInterface.trigger is a function. 
     this.report.activate();
+    this.report.set_mode("running");
+
+    this.annotations.show();
+    this.files.hide();    
 
     var form = {};
     form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
     form['data'] = JSON.stringify(this.get_data());
 
     // post to different URL depending on whether the data should be saved or not
-    var post_url = save ? "/start" : "/test";
+    var post_url = "";
+    if (save && exec) {
+        post_url = "/start";
+    } else if (save && !exec) {
+        post_url = "/saverec";
+    } else if (!save && exec) {
+        post_url = "/test";
+    }
+    // var post_url = save ? "/start" : "/test";
     $.post(post_url, form, 
         function(info) {
             TaskInterface.trigger.bind(this)(info);

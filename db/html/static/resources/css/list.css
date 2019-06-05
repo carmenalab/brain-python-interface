@@ -79,6 +79,11 @@ div#leftpane {
 	float : left;
 }
 
+#saverecbtn {
+	background-color: orange;
+	float : left;
+}
+
 #stopbtn {
 	background-color: red;
 	float : left;

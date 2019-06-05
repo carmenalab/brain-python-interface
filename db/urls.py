@@ -44,8 +44,12 @@ urlpatterns = [
     path(r'exp_log/ajax/save_notes/<int:idx>/', ajax.save_notes),
     path(r'make_bmi/<int:idx>/?', ajax.train_decoder_ajax_handler),
     path(r'ajax/setattr/<str:attr>/<str:value>', ajax.set_task_attr),
+
     path(r'start', ajax.start_experiment),
     path(r'test', ajax.start_experiment, dict(save=False)),
+    path(r'saverec', ajax.start_experiment, dict(save=True, execute=False)),
+    path(r'exp_log/save_entry_name', ajax.save_entry_name),
+
     path(r'exp_log/stop/', ajax.stop_experiment),
     path(r'enable_clda/', ajax.enable_clda),
     path(r'rewarddrain/<str:onoff>/', ajax.reward_drain),
