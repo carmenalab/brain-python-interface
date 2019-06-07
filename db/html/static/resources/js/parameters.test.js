@@ -1,5 +1,5 @@
 QUnit.test("Parameters creation", function( assert ) {
-	var p = new Parameters();
+	  var p = new Parameters();
   	// assert.ok(p.obj.innerHTML == "", "Parameters table starts empty");
 
   	// add one of each type to the parameters
@@ -27,4 +27,8 @@ QUnit.test("Parameters creation", function( assert ) {
   		k += 1;
   	}
   	$("#seqparams").append(p.obj);
+
+    // cleanup
+    $(p.obj).remove();  
+    delete p; 
 });

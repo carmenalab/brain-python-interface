@@ -520,6 +520,7 @@ class TaskEntry(models.Model):
     notes = models.TextField()
     visible = models.BooleanField(blank=True, default=True)
     backup = models.BooleanField(blank=True, default=False)
+    entry_name = models.CharField(blank=True, null=True, max_length=50)
 
     def __unicode__(self):
         return "{date}: {subj} on {task} task, id={id}".format(
@@ -726,6 +727,8 @@ class TaskEntry(models.Model):
         js['plot_files'] = plot_files
         js['flagged_for_backup'] = self.backup
         js['visible'] = self.visible
+        entry_name = self.entry_name if not self.entry_name is None else ""
+        js['entry_name'] = entry_name
         print("TaskEntry.to_json finished!")
         return js
 

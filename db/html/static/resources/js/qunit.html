@@ -2,17 +2,19 @@
 <html>
 <head>
     <title>QUnit Test Suite</title>
-      <link rel="stylesheet" href="https://code.jquery.com/qunit/qunit-2.9.2.css">
-      <script src="https://code.jquery.com/qunit/qunit-2.9.2.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/qunit/qunit-2.9.2.css">
+    <script src="https://code.jquery.com/qunit/qunit-2.9.2.js"></script>
     <!-- libs -->
     <script src='jquery.min.js' type='text/javascript'></script>
-    <script src="./node_modules/sinon/pkg/sinon.js"></script>
+    <script src='jquery-ui.min.js' type='text/javascript'></script>
     <!-- Your project file goes here -->
     <script type="text/javascript" src="parameters.js"></script>
     <script type="text/javascript" src="features.js"></script>
+    <script type="text/javascript" src="sequence.js"></script>
     <!-- Your tests file goes here -->
     <script type="text/javascript" src="parameters.test.js"></script>
-    <script type="text/javascript" src="features.test.js"></script>    
+    <script type="text/javascript" src="features.test.js"></script>
+    <script type="text/javascript" src="sequence.test.js"></script>
 </head>
 
 <body>
@@ -25,14 +27,24 @@
                 <label for="feat_feature2">Feature 2</label></li>
         </ul> 
     </div>
-    <div id="seqparams"  hidden="true">
-        Parameters
-    </div>
 
-    <select id="seqgen" name="seq_gen"  hidden="true">
-        <option value="gen1">gen1</option>
-        <option value="gen2">gen2</option>
-    </select>    
+    <fieldset id="sequence">
+        <div id="seqparams" hidden="true">
+            Parameters
+        </div>
+
+        <select id="seqlist" name="seq_name">
+            <option value="new">Create New...</option>
+        </select>    
+
+        <select id="seqgen" name="seq_gen"  hidden="true">
+            <option value="gen1">gen1</option>
+            <option value="gen2">gen2</option>
+        </select>    
+        
+        <input id="seqstatic" type="checkbox" name="seqstatic">
+        <label for="seqstatic">Static</label>        
+    </fieldset>
 
 
     <h1 id="qunit-header">QUnit Test Suite</h1>

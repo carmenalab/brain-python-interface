@@ -248,7 +248,7 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
 
 
     # inform the user in the browser that the task is done!
-    if cleanup_successful:
+    if cleanup_successful == True or cleanup_successful is None:
         if use_websock: websock.write("\n\n...done!\n")
     else:
         if use_websock: websock.write("\n\nError! Check for errors in the terminal!\n")

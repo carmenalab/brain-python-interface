@@ -20,6 +20,7 @@ urlpatterns = [
     path('setup/add/new_feature', ajax.add_new_feature),
     path('setup/populate_models', ajax.populate_models),
     path('setup/add/enable_features', ajax.enable_features),
+    path('setup/run_upkeep', ajax.setup_run_upkeep),
     
     path(r'exp_log/', views.list_exp_history, dict(max_entries=200)),
     path(r'exp_log/all/', views.list_exp_history),
@@ -44,8 +45,12 @@ urlpatterns = [
     path(r'exp_log/ajax/save_notes/<int:idx>/', ajax.save_notes),
     path(r'make_bmi/<int:idx>/?', ajax.train_decoder_ajax_handler),
     path(r'ajax/setattr/<str:attr>/<str:value>', ajax.set_task_attr),
+
     path(r'start', ajax.start_experiment),
     path(r'test', ajax.start_experiment, dict(save=False)),
+    path(r'saverec', ajax.start_experiment, dict(save=True, execute=False)),
+    path(r'exp_log/save_entry_name', ajax.save_entry_name),
+
     path(r'exp_log/stop/', ajax.stop_experiment),
     path(r'enable_clda/', ajax.enable_clda),
     path(r'rewarddrain/<str:onoff>/', ajax.reward_drain),

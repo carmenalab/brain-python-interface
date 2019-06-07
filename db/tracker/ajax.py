@@ -210,7 +210,7 @@ def start_next_exp(request):
         return _respond(dict(status="error", msg="No experiments in queue!"))
 
 @csrf_exempt
-def start_experiment(request, save=True):
+def start_experiment(request, save=True, execute=True):
     '''
     Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
     interface
@@ -218,7 +218,7 @@ def start_experiment(request, save=True):
     #make sure we don't have an already-running experiment
     tracker = exp_tracker.get()
     if len(tracker.status.value) != 0:
-        print("exp_tracker.status.value", tracker.status.value)
+        print("Task is running, exp_tracker.status.value:", tracker.status.value)
         return _respond(dict(status="running", msg="Already running task!"))
 
     # Try to start the task, and if there are any errors, send them to the browser interface
@@ -226,13 +226,15 @@ def start_experiment(request, save=True):
         data = json.loads(request.POST['data'])
 
         task =  Task.objects.get(pk=data['task'])
-        Exp = task.get(feats=list(data['feats'].keys()))
+        feature_names = list(data['feats'].keys())
+        Exp = task.get(feats=feature_names)
 
         entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
-        kwargs = dict(subj=entry.subject.id, base_class=task.get(), feats=Feature.getall(list(data['feats'].keys())),
-                      params=params)
+        feats = Feature.getall(feature_names)
+        kwargs = dict(subj=entry.subject.id, base_class=task.get(), 
+            feats=feats, params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(Exp, experiment.Sequence):
@@ -254,10 +256,9 @@ def start_experiment(request, save=True):
             entry.save()
 
             # Link the features used to the task entry
-            feat_recs = Feature.getall(list(data['feats'].keys()))
-            for feat in feat_recs:
-                # f = Feature.objects.get(pk=feat)
-                entry.feats.add(feat.pk)
+            for feat_name in feature_names:
+                f = Feature.objects.get(name=feat_name)
+                entry.feats.add(f.pk)
 
             response['date'] = entry.date.strftime("%h %d, %Y %I:%M %p")
             response['status'] = "running"
@@ -265,9 +266,14 @@ def start_experiment(request, save=True):
 
             # Give the entry ID to the runtask as a kwarg so that files can be linked after the task is done
             kwargs['saveid'] = entry.id
+        else:
+            entry.delete()
         
         # Start the task FSM and tracker
-        tracker.runtask(**kwargs)
+        if execute:
+            tracker.runtask(**kwargs)
+        else:
+            response["status"] = "completed"
 
         # Return the JSON response
         return _respond(response)
@@ -444,6 +450,13 @@ def add_new_feature(request):
     return HttpResponse("Added new feature: %s" % feat.name)
 
 @csrf_exempt
+def setup_run_upkeep(request):
+    # Update the list of generators
+    from . import models
+    models.Generator.populate()
+    return HttpResponse("Updated generators!")
+
+@csrf_exempt
 def get_report(request):
     '''
     Get data for the report field in the frontend
@@ -461,6 +474,7 @@ def record_annotation(request):
     
 @csrf_exempt
 def get_status(request):
+    """ Send the task tracker's status back to the frontend """
     tracker = exp_tracker.get()
     if tracker.task_kwargs is None:
         saveid = None
@@ -468,4 +482,12 @@ def get_status(request):
         saveid = tracker.task_kwargs["saveid"]
     print("saveid", saveid)
     return _respond(dict(status=tracker.get_status(), saveid=saveid))
+
+@csrf_exempt
+def save_entry_name(request):
+    from . import models
+    te_rec = models.TaskEntry.objects.get(id=request.POST["id"])
+    te_rec.entry_name = request.POST["entry_name"]
+    te_rec.save()
+    return _respond(dict(status="success", msg="Saved entry name: %s" % te_rec.entry_name))
 

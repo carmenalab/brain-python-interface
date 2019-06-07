@@ -107,7 +107,7 @@ class MockSequenceWithGenerators(Sequence):
     )
     state = 'wait'
 
-    sequence_generators = ['gen_fn1']
+    sequence_generators = ['gen_fn1', 'gen_fn2']
 
     def __init__(self, *args, **kwargs):
         self.target_history = []
@@ -129,6 +129,11 @@ class MockSequenceWithGenerators(Sequence):
     @staticmethod
     def gen_fn1(n_targets=4):
         target_seq = [1, 2] * n_targets
+        return [{"target":x} for x in target_seq]
+
+    @staticmethod
+    def gen_fn2(n_targets2=4):
+        target_seq = [1, 2] * n_targets2
         return [{"target":x} for x in target_seq]
 
     def _test_start_trial(self, ts):
