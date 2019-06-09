@@ -11,10 +11,12 @@
     <script type="text/javascript" src="parameters.js"></script>
     <script type="text/javascript" src="features.js"></script>
     <script type="text/javascript" src="sequence.js"></script>
+    <script type="text/javascript" src="report.js"></script>
     <!-- Your tests file goes here -->
     <script type="text/javascript" src="parameters.test.js"></script>
     <script type="text/javascript" src="features.test.js"></script>
     <script type="text/javascript" src="sequence.test.js"></script>
+    <script type="text/javascript" src="report.test.js"></script>
 </head>
 
 <body>
@@ -45,6 +47,23 @@
         <input id="seqstatic" type="checkbox" name="seqstatic">
         <label for="seqstatic">Static</label>        
     </fieldset>
+
+
+    <fieldset id="report">
+      <legend>Report</legend>
+      <div id="report_div">
+        <input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); console.log(info);})"><br>
+        <table class="option" id="report_info">
+        </table>
+
+        <div class="report_table" id="report_msgs">
+          <pre id="stdout"></pre>
+        </div>
+
+        
+        <div class="clear"></div>
+      </div>
+    </fieldset>    
 
 
     <h1 id="qunit-header">QUnit Test Suite</h1>

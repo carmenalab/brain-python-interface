@@ -14,6 +14,8 @@
 <script src='{{ STATIC_PREFIX }}resources/js/features.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/parameters.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/list.js' type='text/javascript'></script>
+<script src='{{ STATIC_PREFIX }}resources/js/bmi.js' type='text/javascript'></script>
+<script src='{{ STATIC_PREFIX }}resources/js/report.js' type='text/javascript'></script>
 
 
 <script type='text/javascript'>
@@ -288,7 +290,7 @@
               <fieldset id="report">
                 <legend>Report</legend>
                 <div id="report_div">
-                  <input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); console.log(info);})"><br>
+                  <input type="button" value="Update report" id="report_update" onclick="te.report.manual_update()"><br>
                   <table class="option" id="report_info">
                   </table>
 
