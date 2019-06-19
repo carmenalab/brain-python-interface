@@ -2,7 +2,7 @@ function Report(callback) {
     // store a ref to the callback function passed in
     this.notify = callback;
 
-    // this.info is a summary stat table\
+    // this.info is a summary stat table
     this.info = $("#report_info");
 
     // this.msgs = text printed by the task
@@ -30,8 +30,10 @@ Report.prototype.activate = function() {
 }
 
 Report.prototype.update = function(info) {
+    // run the 'notify' callback every time this function is provided with info
     if (typeof(this.notify) == "function" && info)
         this.notify(info);
+
     if (info.status && info.status == "error") { // received an error message through the websocket
         // append the error message (pre-formatted by python traceback) onto the printed out messages
         this.msgs.append("<pre>"+info.msg+"</pre>");

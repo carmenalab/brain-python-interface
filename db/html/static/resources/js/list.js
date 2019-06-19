@@ -270,14 +270,6 @@ function Annotations() {
 }
 
 
-
-
-
-
-function Buttons() {
-
-}
-
 function Files() {
     this.neural_data_found = false;
 }
@@ -583,7 +575,7 @@ TaskEntry.prototype.toggle_backup = function() {
 }
 
 
-/* callback for 'Copy Parameters' button
+/* callback for 'Copy Parameters' button. Note this is not a prototype function
  */
 TaskEntry.copy = function() {
     debug("TaskEntry.copy")
@@ -698,11 +690,7 @@ TaskEntry.prototype._task_query = function(callback) {
 
             this.annotations.update(taskinfo);
 
-            console.log("\tgenerator data");
-            console.log("\t", taskinfo.generators);
             if (taskinfo.generators) {
-                console.log('taskinfo.generators')
-                console.log(taskinfo.generators)
                 this.sequence.update_available_generators(taskinfo.generators);
             }
         }.bind(this)
