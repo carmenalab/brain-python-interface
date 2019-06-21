@@ -332,6 +332,9 @@ class System(models.Model):
         df.entry_id = entry_id
         df.save()
 
+    def __repr__(self):
+        return "System[{}]".format(self.name)
+
 class Subject(models.Model):
     name = models.CharField(max_length=128)
     def __unicode__(self):

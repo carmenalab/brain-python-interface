@@ -131,6 +131,8 @@ def _parse_str(value):
 
 class Parameters(object):
     def __init__(self, rawtext):
+        if rawtext == '':
+            rawtext = '{}'
         self.params = json.loads(rawtext, object_hook=param_objhook)
     
     @classmethod
@@ -153,9 +155,9 @@ class Parameters(object):
         return cls.from_dict(processed)
 
     def to_json(self):
-        from . import models
+        from django.db import models
         def encode(obj):
-            if isinstance(obj, models.models.Model):
+            if isinstance(obj, models.Model):
                 # If an object is a Django model instance, serialize it using just the model name and the primary key 
                 return dict(
                     __django_model__=obj.__class__.__name__,

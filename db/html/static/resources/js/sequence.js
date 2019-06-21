@@ -46,6 +46,9 @@ Sequence.prototype.seqlist_type = function() {
  * 
  */ 
 Sequence.prototype.update = function(info) {
+    if (info === undefined) {
+        return;
+    }
     // example info: {3: { name: "gen_fn1:[n_targets=]", state: "saved", static: false}}
     // number of objects probably depends on whether exp_info or task_info server fn is called
     $("#seqlist").unbind("change");
