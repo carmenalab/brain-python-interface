@@ -1,6 +1,6 @@
 QUnit.test("Report tests", function(assert) {
 	var callback_info = null;
-	var report = Report(function(info) {callback_info = info});
+	var report = new Report(function(info) {callback_info = info});
 	
 	// test update of error messages
 	var error_report = {"status":"error", "msg":"Test error message"}

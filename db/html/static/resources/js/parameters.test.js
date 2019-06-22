@@ -28,6 +28,20 @@ QUnit.test("Parameters creation", function( assert ) {
   	}
   	$("#seqparams").append(p.obj);
 
+    // test that placeholder values also get grabbed
+    data = {"param1": {"type":"Float", "value":"", "desc":"Parameter 1", "default":"10"}};
+    p.update(data);
+    param_data = p.to_json();
+    assert.equal(Object.keys(param_data).length, 1)
+    assert.equal(param_data["param1"], "10");
+
+    // test that placeholder values get overwritten if a value is supplied
+    data = {"param1": {"type":"Float", "value":"11", "desc":"Parameter 1", "default":"10"}};
+    p.update(data);
+    param_data = p.to_json();
+    assert.equal(Object.keys(param_data).length, 1)
+    assert.equal(param_data["param1"], "11");
+
     // cleanup
     $(p.obj).remove();  
     delete p; 

@@ -335,28 +335,29 @@ Parameters.prototype.add_enum = function(name, info) {
     }
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
-Parameters.prototype.to_json = function() {
+
+function get_param_input(input_obj) {
+    if (input_obj.value.length > 0) {
+        return input_obj.value;
+    } else {
+        return input_obj.placeholder;
+    }
+}
+
+Parameters.prototype.to_json = function(get_all) {
     var jsdata = {};
 
     for (var name in this.traits) {
         var trait = this.traits[name];
-        if (trait.inputs.length > 1) {
-            // tuple trait, put all the input options into a list
+        if (trait.inputs.length > 1) { // tuple/array trait
+            // put all the input options into a list
             var plist = [];
             for (var i = 0; i < trait.inputs.length; i++) {
-                plist.push(trait.inputs[i].value)
+                plist.push(get_param_input(trait.inputs[i]))
             }
-
-            // add to the 'jsdata' dictionary, if data was input
-            if (plist[0].length > 0) {// if any parameters have been changed by the experimenter,
-                jsdata[name] = plist;
-            }
+            jsdata[name] = plist;
         } else {
-            if (trait.inputs[0].value.length > 0) {
-                jsdata[name] = trait.inputs[0].value;
-            } else {
-                jsdata[name] = trait.inputs[0].placeholder;
-            }
+            jsdata[name] = get_param_input(trait.inputs[0]);
         }
     }
     return jsdata;
