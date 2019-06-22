@@ -12,6 +12,7 @@
 <script src='{{ STATIC_PREFIX }}resources/js/jquery-ui.min.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/sequence.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/features.js' type='text/javascript'></script>
+<script src='{{ STATIC_PREFIX }}resources/js/collections.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/parameters.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/list.js' type='text/javascript'></script>
 <script src='{{ STATIC_PREFIX }}resources/js/bmi.js' type='text/javascript'></script>
@@ -22,6 +23,7 @@
   var hostname = "{{hostname}}";
   var te = null;
   var feats = new Features();
+  var collections = new Collections();
   $(document).ready(function() {
     $("table#main tr").each(function() {
       // Register a click callback for each row of the 'main' table
@@ -145,6 +147,7 @@
     <div id='leftpane'>
       {{ n_blocks }} saved task entry records shown below<br>
       <button id="new_exp">Start new experiment</button>
+      <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null; $('.colShortDesc').show()">Clear content</button>
           <hr>
       <table id='main' style="direction:ltr;">
         <thead>
@@ -154,6 +157,7 @@
           <th>ID</th>
           <th class='colSubj'>Who</th>
           <th class='colTask'>Task</th>
+          <th class='colShortDesc'>Description</th>
         </tr>
         </thead>
 
@@ -176,18 +180,20 @@
             </td>
           </tr>
         {% for e in entries %}
-          <tr id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
+          <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
             {% if e.html_date %}
               <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
               <td class='colTime firstRowOfday' >{{e.html_time}}</td>
               <td class='colID firstRowOfday'   >{{e.id}}</td>
               <td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
               <td class='colTask firstRowOfday' >{{e.task.name}}</td>
+              <td class='colShortDesc firstRowOfday'>{{e.desc}}</td>
             {% else %}
               <td class='colTime' >{{e.html_time}}</td>
               <td class='colID'   >{{e.id}}</td>
               <td class='colSubj' >{{e.subject.name}}</td>
-              <td class='colTask' >{{e.task.name}}</td>       
+              <td class='colTask' >{{e.task.name}}</td>
+              <td class='colShortDesc'>{{e.desc}}</td>
             {% endif %}
 
           </tr>
@@ -319,6 +325,18 @@
                 <legend>Linked Data Files</legend>
                 <div id="file_list">
                 </div>
+              </fieldset>
+
+              <fieldset id="collections">
+                <legend>Dataset Collections</legend>
+                <ul>
+                {% for c in collections %}
+                  <li>
+                    <input type="checkbox" name="{{c.name}}" id="col_{{c.safe_name}}" value="{{c.id}}" onchange="update_collection({{c.name}})">
+                    <label for="{{c.name}}">{{c.name}}</label>
+                  </li>
+                {% endfor %}
+                </ul>
               </fieldset>
 
               <fieldset id='bmi'>

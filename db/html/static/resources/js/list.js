@@ -279,7 +279,7 @@ Files.prototype.hide = function() {
 Files.prototype.show = function() {
     $("#files").show();
 }
-Files.prototype.update_filelist = function(datafiles) {
+Files.prototype.update_filelist = function(datafiles, task_entry_id) {
     // List out the data files in the 'filelist'
     // see TaskEntry.to_json in models.py to see how the file list is generated
     var numfiles = 0;
@@ -300,7 +300,7 @@ Files.prototype.update_filelist = function(datafiles) {
         }
     }
 
-    $("#file_list").append('<a href="link_data_files/'+ this.idx +'"">Manually link data files</a>');
+    $("#file_list").append('<a href="link_data_files/'+ task_entry_id +'"">Manually link data files</a>');
     if (numfiles > 0) {
         // Append the files onto the #files field
         $("#file_list").append(this.filelist);
@@ -321,6 +321,9 @@ function TaskEntry(idx, info) {
     /* Constructor for TaskEntry class
      * idx: string of format row\d\d\d where \d\d\d represents the string numbers of the database ID of the block
      */
+
+    // hide short descriptions
+    $('.colShortDesc').hide()
 
     // hide the old content
     $("#content").hide(); 
@@ -402,6 +405,7 @@ function TaskEntry(idx, info) {
         // a "new" task entry is being created
         // this code block executes when you click the header of the left table (date, time, etc.)
         this.idx = null;
+        $("#entry_name").val("");
 
         // show the bar at the top left with drop-downs for subject and task
         this.tr = $("#newentry");
@@ -494,10 +498,12 @@ TaskEntry.prototype.update = function(info) {
 
     feats.select_features(info.feats);
 
+    collections.select_collections(info.collections);
+
     $("#entry_name").val(info.entry_name);
 
     this.files.show();
-    this.files.update_filelist(info.datafiles);
+    this.files.update_filelist(info.datafiles, this.idx);
 
     if (this.files.neural_data_found){
         // Create the JS object to represent the BMI menu
@@ -814,6 +820,7 @@ TaskEntry.prototype.get_data = function() {
     data['feats'] = feats.get_checked_features();
     data['params'] = this.params.to_json();
     data['sequence'] = this.sequence.get_data();
+    data['entry_name'] = $("#entry_name").val();
 
     return data
 }

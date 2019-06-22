@@ -195,6 +195,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         return trait in cls.hidden_traits
 
+    @classmethod
+    def get_desc(cls, params):
+        return "An experiment!"
+
     ####################################
     ##### Initialization functions #####
     ####################################

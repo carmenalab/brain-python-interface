@@ -125,6 +125,42 @@ class TestModels(TestCase):
         te = models.TaskEntry(subject_id=subj.id, task_id=task.id)
         te.save()
 
+    def test_task_entry_collections(self):
+        # setup
+        subj = models.Subject(name="test_subject")
+        subj.save()
+        subj = models.Subject.objects.get(name="test_subject")
+
+        task = models.Task(name="test_task")
+        task.save()
+        task = models.Task.objects.get(name="test_task")
+
+        te1 = models.TaskEntry(subject_id=subj.id, task_id=task.id)
+        te1.save()
+
+        te2 = models.TaskEntry(subject_id=subj.id, task_id=task.id)
+        te2.save()
+
+        col = models.TaskEntryCollection(name="new_col")
+        col.save()
+        col.add_entry(te1)
+
+        self.assertEqual(len(col.entries.all()), 1)
+
+        # adding the same entry twice shouldn't do anything
+        col.add_entry(te1)
+        self.assertEqual(len(col.entries.all()), 1)
+
+        # adding a second entry should increase the length of the list
+        col.add_entry(te2)
+        self.assertEqual(len(col.entries.all()), 2)
+
+        # remove_entry should cause a change in the list
+        col.remove_entry(te1)
+        self.assertEqual(len(col.entries.all()), 1)
+        self.assertEqual(col.entries.all()[0].id, te2.id)
+
+
 class TestExpLog(TestCase):
     def test_list_exp_history(self):
         subj = models.Subject(name="test_subject")

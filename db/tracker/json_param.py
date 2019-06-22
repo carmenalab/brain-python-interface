@@ -207,7 +207,19 @@ class Parameters(object):
                 self.params[name] = norm_trait(traits[name], value)
             else:
                 self.params[name] = value
-    
+
+    def get_data(self):
+        """ Return data with values converted to numbers if possible """
+        params_parsed = dict()
+        for key in self.params:
+            # The internet suggests this might be the best way to check 
+            # if a string is a number...
+            try:
+                params_parsed[key] = float(self.params[key])
+            except:
+                params_parsed[key] = self.params[key]
+        return params_parsed
+
     def __contains__(self, attr):
         return attr in self.params
     

@@ -230,6 +230,8 @@ def start_experiment(request, save=True, execute=True):
         Exp = task.get(feats=feature_names)
 
         entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
+        if 'entry_name' in data:
+            entry.entry_name = data['entry_name']
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
         feats = Feature.getall(feature_names)

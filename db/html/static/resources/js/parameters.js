@@ -82,14 +82,25 @@ Parameters.prototype.show_all_attrs = function() {
 /*
 Function to add an attribute row and label where the 'visibility' attribute of the label can be toggled
 */
-Parameters.prototype._add2 = function(name, desc, hidden) {
+Parameters.prototype.add_to_table = function(name, info) {
+    let desc = info["desc"];
+    let hidden = info["hidden"];
+    let label_text = info["label"];
+
     var trait = document.createElement("tr");
     trait.title = desc;
     var td = document.createElement("td");
     td.className = "param_label";
     trait.appendChild(td);
     var label = document.createElement("label");
-    label.innerHTML = name;
+    td.style.textAlign = "right";
+
+    if (label_text != undefined) {
+        label.innerHTML = label_text;
+    } else {
+        label.innerHTML = name;    
+    }
+    
     label.setAttribute("for", "param_"+name);
     
     td.appendChild(label);
@@ -103,7 +114,7 @@ Parameters.prototype._add2 = function(name, desc, hidden) {
 }
 Parameters.prototype.add_tuple = function(name, info) {
     var len = info['default'].length;
-    var trait = this._add2(name, info['desc'], info['hidden']);
+    var trait = this.add_to_table(name, info);
     var wrapper = document.createElement("td");
     wrapper.style.webkitColumnCount = len < 4? len : 4;
     wrapper.style.mozColumnCount = len < 4? len : 4;
@@ -150,7 +161,7 @@ Parameters.prototype.add_tuple = function(name, info) {
 }
 
 Parameters.prototype.add_int = function (name, info) {
-    var trait = this._add2(name, info['desc'], info['hidden']);
+    var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
     // input.style.visibility = info['hidden'];
@@ -173,7 +184,7 @@ Parameters.prototype.add_int = function (name, info) {
 }
 Parameters.prototype.add_float = function (name, info) {
     //console.log(info)
-    var trait = this._add2(name, info['desc'], info['hidden']);
+    var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
     trait.appendChild(div);
@@ -198,7 +209,7 @@ Parameters.prototype.add_float = function (name, info) {
 }
 Parameters.prototype.add_bool = function (name, info) {
     //console.log(info)
-    var trait = this._add2(name, info['desc'], info['hidden']);
+    var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
     // input.style.visibility = info['hidden'];
@@ -225,7 +236,7 @@ Parameters.prototype.add_array = function (name, info) {
         for (var i=0; i < this.traits[name].inputs.length; i++)
             this.traits[name].inputs[i].pattern = '[0-9\\(\\)\\[\\]\\.\\,\\s\\-]*';
     } else {
-        var trait = this._add2(name, info['desc'], info['hidden']);
+        var trait = this.add_to_table(name, info);
         var div = document.createElement("td");
         var input = document.createElement("input");
         // input.style.visibility = info['hidden'];
@@ -250,7 +261,7 @@ Parameters.prototype.add_array = function (name, info) {
     }
 }
 Parameters.prototype.add_string = function (name, info) {
-    var trait = this._add2(name, info['desc'], info['hidden']);
+    var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
     // input.style.visibility = info['hidden'];
@@ -273,7 +284,7 @@ Parameters.prototype.add_string = function (name, info) {
 Parameters.prototype.add_instance = function(name, info) {
     //console.log(info)
     var options = info['options'];
-    var trait = this._add2(name, info['desc'], info['hidden']);
+    var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("select");
     // input.style.visibility = info['hidden'];
@@ -300,7 +311,7 @@ Parameters.prototype.add_instance = function(name, info) {
 Parameters.prototype.add_enum = function(name, info) {
     //console.log(info)
     var options = info['options'];
-    var trait = this._add2(name, info['desc'], info['hidden']);
+    var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("select");
     // input.style.visibility = info['hidden'];

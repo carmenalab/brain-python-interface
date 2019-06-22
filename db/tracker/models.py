@@ -70,25 +70,7 @@ class Task(models.Model):
 
         if not None in feature_classes:
             try:
-                # reload the module which contains the base task class
-                # task_cls = tasks[self.name]
-
-                # module_name = task_cls.__module__
-                # if '.' in module_name:
-                #     module_names = module_name.split('.')
-                #     mod = __import__(module_names[0])
-                #     for submod in module_names[1:]:
-                #         mod = getattr(mod, submod)
-                # else:
-                #     mod = __import__(module_name)
-                
-                # task_cls_module = mod
-                # task_cls_module = imp.reload(task_cls_module)
-                # task_cls = getattr(task_cls_module, task_cls.__name__)
-
-                # run the metaclass constructor
-                Exp = experiment.make(task_cls, feature_classes)
-                return Exp
+                return experiment.make(task_cls, feature_classes)
             except:
                 print("Problem making the task class!")
                 traceback.print_exc()
@@ -130,6 +112,7 @@ class Task(models.Model):
 
     def params(self, feats=(), values=None):
         '''
+        Get user-editable parameters for the frontend
 
         Parameters
         ----------
@@ -157,6 +140,10 @@ class Task(models.Model):
             trait_params['default'] = _get_trait_default(ctraits[trait_name])
             trait_params['desc'] = ctraits[trait_name].desc
             trait_params['hidden'] = 'hidden' if Exp.is_hidden(trait_name) else 'visible'
+            if hasattr(ctraits[trait_name], 'label'):
+                trait_params['label'] = ctraits[trait_name].label
+            else:
+                trait_params['label'] = trait_name
 
             if trait_name in values:
                 trait_params['value'] = values[trait_name]
@@ -292,9 +279,11 @@ class Feature(models.Model):
         return feature_class_list
 
 class System(models.Model):
+    """ Representation for systems which generate data (similar to a data type)"""
     name = models.CharField(max_length=128)
     path = models.TextField()
     archive = models.TextField()
+    processor_path = models.CharField(max_length=200, blank=True, null=True)
 
     def __unicode__(self):
         return self.name
@@ -307,7 +296,13 @@ class System(models.Model):
             except ObjectDoesNotExist:
                 System(name=name, path="/storage/rawdata/%s"%name).save()
 
-    @staticmethod 
+    def get_post_processor(self):
+        if len(self.processor_path) > 0:
+            return import_by_path(self.processor_path)
+        else:
+            return lambda x: x # identity fn
+
+    @staticmethod
     def make_new_sys(name):
         try:
             new_sys_rec = System.objects.get(name=name)
@@ -715,9 +710,14 @@ class TaskEntry(models.Model):
         else:
             print('Unrecognized recording_system!')
 
-
         for dec in Decoder.objects.using(self._state.db).filter(entry=self.id):
             js['bmi'][dec.name] = dec.to_json()
+
+        # collections info
+        js['collections'] = []
+        for col in TaskEntryCollection.objects.all():
+            if self in col.entries.all():
+                js['collections'].append(col.name)
 
         # include paths to any plots associated with this task entry, if offline
         files = os.popen('find /storage/plots/ -name %s*.png' % self.id)
@@ -802,7 +802,6 @@ class TaskEntry(models.Model):
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
-        # import config
         if config.recording_sys['make'] == 'plexon':
             try:
                 return str(os.path.basename(self.plx_file).rstrip('.plx'))
@@ -827,6 +826,18 @@ class TaskEntry(models.Model):
         params = eval(self.params)
         decoder_id = params['bmi']
         return Decoder.objects.get(id=decoder_id)
+
+    @property
+    def desc(self):
+        """Get a description of the TaskEntry using the experiment class and the
+        record-specific parameters """
+        Exp = self.task.get_base_class()
+        from . import json_param
+        params = json_param.Parameters(self.params)
+        try:
+            return Exp.get_desc(params.get_data())
+        except:
+            return "Error generating description"
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
@@ -1229,6 +1240,17 @@ class DataFile(models.Model):
     system = models.ForeignKey(System, on_delete=models.PROTECT)
     entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
 
+    @staticmethod
+    def create(system, task_entry, path, **kwargs):
+        df = DataFile(system_id=system.id, entry_id=task_entry.id)
+
+        for attr in kwargs:
+            setattr(df, attr, kwargs[attr])
+
+        post_processor = system.get_post_processor()
+        df.path = post_processor(path)
+        df.save()
+
     def __unicode__(self):
         if self.entry_id > 0:
             return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
@@ -1305,3 +1327,27 @@ class DataFile(models.Model):
         rel_datafile = os.path.relpath(fname, '/storage')
         backup_fname = os.path.join(backup_root, rel_datafile)
         return os.path.exists(backup_fname)
+
+
+class TaskEntryCollection(models.Model):
+    """ Collection of TaskEntry records grouped together, e.g. for analysis """
+    name = models.CharField(max_length=200, default='')
+    entries = models.ManyToManyField(TaskEntry)
+
+    @property
+    def safe_name(self):
+        return self.name.replace(' ', '_')
+
+    def add_entry(self, te):
+        if not isinstance(te, TaskEntry):
+            te = TaskEntry(id=te)
+
+        if te not in self.entries.all():
+            self.entries.add(te)
+
+    def remove_entry(self, te):
+        if not isinstance(te, TaskEntry):
+            te = TaskEntry(id=te)
+
+        if te in self.entries.all():
+            self.entries.remove(te)

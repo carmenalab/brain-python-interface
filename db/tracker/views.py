@@ -59,6 +59,7 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
     subjects = models.Subject.objects.all().order_by("name")
     features = models.Feature.objects.filter(visible=True).order_by("name")
     generators = models.Generator.objects.filter(visible=True).order_by("name")
+    collections = models.TaskEntryCollection.objects.all().order_by("name")
     
 
     fields = dict(
@@ -67,6 +68,7 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         tasks=tasks, 
         features=features, 
         generators=generators,
+        collections=collections,
         n_blocks=len(entries),
     )
 
@@ -169,12 +171,16 @@ from django.views.decorators.csrf import csrf_exempt
 @csrf_exempt
 def link_data_files_response_handler(request, task_entry_id):
     from . import models
-    from .models import TaskEntry, Task, Subject, Feature, Generator
     print("link_data_files_response_handler", request.POST)
     file_path = request.POST["file_path"]
     data_system_id = request.POST["data_system_id"]
 
-    data_file = models.DataFile(local=True, archived=False, path=file_path, 
-        system_id=data_system_id, entry_id=task_entry_id)
-    data_file.save()
+    system = models.System.objects.get(id=data_system_id)
+    task_entry = models.TaskEntry.objects.get(id=task_entry_id)
+
+    data_file = models.DataFile.create(system, task_entry, file_path, local=True, archived=False)
+
+    # data_file = models.DataFile(local=True, archived=False, path=file_path, 
+    #     system_id=data_system_id, entry_id=task_entry_id)
+    # data_file.save()
     return HttpResponse("Added new data file")
