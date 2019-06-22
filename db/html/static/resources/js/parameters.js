@@ -351,8 +351,12 @@ Parameters.prototype.to_json = function() {
             if (plist[0].length > 0) {// if any parameters have been changed by the experimenter,
                 jsdata[name] = plist;
             }
-        } else if (trait.inputs[0].value.length > 0) {
-            jsdata[name] = trait.inputs[0].value;
+        } else {
+            if (trait.inputs[0].value.length > 0) {
+                jsdata[name] = trait.inputs[0].value;
+            } else {
+                jsdata[name] = trait.inputs[0].placeholder;
+            }
         }
     }
     return jsdata;
