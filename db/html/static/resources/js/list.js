@@ -769,6 +769,8 @@ TaskEntry.prototype.run = function(save, exec) {
                 this.new_row(info);
                 this.start_button_pressed = true;
             } else if (info.status == "completed") {
+                this.new_row(info);
+                this.tr.removeClass("running active error testing")
                 this.destroy();
                 te = new TaskEntry(this.idx);
                 te.tr.addClass("active");
