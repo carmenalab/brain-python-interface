@@ -297,7 +297,7 @@ class System(models.Model):
                 System(name=name, path="/storage/rawdata/%s"%name).save()
 
     def get_post_processor(self):
-        if len(self.processor_path) > 0:
+        if self.processor_path is not None and len(self.processor_path) > 0:
             return import_by_path(self.processor_path)
         else:
             return lambda x: x # identity fn
@@ -1250,6 +1250,7 @@ class DataFile(models.Model):
         post_processor = system.get_post_processor()
         df.path = post_processor(path)
         df.save()
+        return df
 
     def __unicode__(self):
         if self.entry_id > 0:

@@ -2,7 +2,7 @@
 Handlers for AJAX (Javascript) functions used in the web interface to start 
 experiments and train BMI decoders
 '''
-import json
+import json, datetime
 
 import numpy as np
 from django.http import HttpResponse
@@ -232,6 +232,11 @@ def start_experiment(request, save=True, execute=True):
         entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
         if 'entry_name' in data:
             entry.entry_name = data['entry_name']
+        if 'date' in data and data['date'] != "Today" and len(data['date'].split("-")) == 3:
+            datestr = data['date'].split("-")
+            print("Got custom date: ", datestr)
+            entry.date = datetime.datetime(int(datestr[0]), int(datestr[1]), int(datestr[2])) # this does not work: datetime.datetime.strptime("%Y-%m-%d", datetime.datetime.now().strftime("%Y-%m-%d"))
+
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
         feats = Feature.getall(feature_names)

@@ -272,6 +272,7 @@ function Annotations() {
 
 function Files() {
     this.neural_data_found = false;
+    $("#file_modal_server_resp").html("");
 }
 Files.prototype.hide = function() {
     $("#files").hide();
@@ -300,7 +301,6 @@ Files.prototype.update_filelist = function(datafiles, task_entry_id) {
         }
     }
 
-    $("#file_list").append('<a href="link_data_files/'+ task_entry_id +'"">Manually link data files</a>');
     if (numfiles > 0) {
         // Append the files onto the #files field
         $("#file_list").append(this.filelist);
@@ -812,8 +812,6 @@ TaskEntry.prototype.new_row = function(info) {
 }
 
 TaskEntry.prototype.get_data = function() {
-    debug("TaskEntry.prototype.get_data");
-
     var data = {};
     data['subject'] = parseInt($("#subjects").attr("value"));
     data['task'] = parseInt($("#tasks").attr("value"));
@@ -821,6 +819,7 @@ TaskEntry.prototype.get_data = function() {
     data['params'] = this.params.to_json();
     data['sequence'] = this.sequence.get_data();
     data['entry_name'] = $("#entry_name").val();
+    data['date'] = $("#newentry_today").html();
 
     return data
 }
@@ -841,6 +840,18 @@ TaskEntry.prototype.disable = function() {
         this.sequence.disable();
     if (!this.idx)
         $("#subjects, #tasks").attr("disabled", "disabled");
+}
+
+TaskEntry.prototype.link_new_files = function() {
+    data = {"file_path": $("#file_path").val(),
+        "data_system_id": $("#data_system_id").val(),
+    }
+
+    $.post("/exp_log/link_data_files/" + this.idx + "/submit", data, 
+        function(resp) {
+            $("#file_modal_server_resp").append(resp + "<br>");
+            console.log("posted the file!");
+        })
 }
 
 //

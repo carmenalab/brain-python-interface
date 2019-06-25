@@ -4,6 +4,8 @@ HTML rendering 'view' functions for Django web interface. Retreive data from dat
 import datetime
 import pickle
 import json
+import traceback
+import os
 
 from django.template import RequestContext
 from django.shortcuts import render_to_response, render
@@ -69,6 +71,7 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         features=features, 
         generators=generators,
         collections=collections,
+        systems=models.System.objects.all(),
         n_blocks=len(entries),
     )
 
@@ -171,16 +174,24 @@ from django.views.decorators.csrf import csrf_exempt
 @csrf_exempt
 def link_data_files_response_handler(request, task_entry_id):
     from . import models
-    print("link_data_files_response_handler", request.POST)
     file_path = request.POST["file_path"]
-    data_system_id = request.POST["data_system_id"]
 
+    data_system_id = request.POST["data_system_id"]
     system = models.System.objects.get(id=data_system_id)
+    if not os.path.isabs(file_path):
+        file_path = os.path.join(system.path, file_path)
+        print(file_path)
+
     task_entry = models.TaskEntry.objects.get(id=task_entry_id)
 
-    data_file = models.DataFile.create(system, task_entry, file_path, local=True, archived=False)
+    if os.path.exists(file_path):
+        try:
+            data_file = models.DataFile.create(system, task_entry, file_path, local=True, archived=False)
+            return HttpResponse("Added new data file: {}".format(data_file.path))
+        except:
+            print("Error creating data file")
+            traceback.print_exc()
+            return HttpResponse("Error creating data file, see terminal for error message")
+    else:
+        return HttpResponse("File does not exist!")
 
-    # data_file = models.DataFile(local=True, archived=False, path=file_path, 
-    #     system_id=data_system_id, entry_id=task_entry_id)
-    # data_file.save()
-    return HttpResponse("Added new data file")
