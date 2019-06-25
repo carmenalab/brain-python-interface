@@ -837,6 +837,8 @@ class TaskEntry(models.Model):
         try:
             return Exp.get_desc(params.get_data())
         except:
+            import traceback
+            traceback.print_exc()
             return "Error generating description"
 
 class Calibration(models.Model):
@@ -1328,6 +1330,16 @@ class DataFile(models.Model):
         rel_datafile = os.path.relpath(fname, '/storage')
         backup_fname = os.path.join(backup_root, rel_datafile)
         return os.path.exists(backup_fname)
+
+    @property 
+    def file_size(self):
+        try:
+            path = self.get_path()
+            return os.stat(path).st_size
+        except:
+            print("Error getting data file size: ", self)
+            traceback.print_exc()
+            return -1
 
 
 class TaskEntryCollection(models.Model):

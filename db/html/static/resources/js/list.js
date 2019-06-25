@@ -760,7 +760,7 @@ TaskEntry.prototype.run = function(save, exec) {
     } else if (!save && exec) {
         post_url = "/test";
     }
-    // var post_url = save ? "/start" : "/test";
+    
     $.post(post_url, form, 
         function(info) {
             TaskInterface.trigger.bind(this)(info);
@@ -768,6 +768,10 @@ TaskEntry.prototype.run = function(save, exec) {
             if (info.status == "running") {
                 this.new_row(info);
                 this.start_button_pressed = true;
+            } else if (info.status == "completed") {
+                this.destroy();
+                te = new TaskEntry(this.idx);
+                te.tr.addClass("active");
             }
        }.bind(this)
     );
