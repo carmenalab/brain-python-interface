@@ -11,6 +11,9 @@ class Config(object):
         self.log_path = os.path.join(os.path.dirname(__file__), "../log")
         self.log_dir = self.log_path
 
+        if not os.path.exists(self.log_path):
+            os.mkdir(self.log_path)
+
         try:
             parser = SafeConfigParser()
             self.parser = parser

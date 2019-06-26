@@ -1326,10 +1326,13 @@ class DataFile(models.Model):
         '''
         Return a boolean indicating whether a copy of the file is available on the backup
         '''
-        fname = self.get_path()
-        rel_datafile = os.path.relpath(fname, '/storage')
-        backup_fname = os.path.join(backup_root, rel_datafile)
-        return os.path.exists(backup_fname)
+        try:
+            fname = self.get_path()
+            rel_datafile = os.path.relpath(fname, '/storage')
+            backup_fname = os.path.join(backup_root, rel_datafile)
+            return os.path.exists(backup_fname)
+        except:
+            return False
 
     @property 
     def file_size(self):
