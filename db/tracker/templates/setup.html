@@ -1,63 +1,115 @@
 <!-- Setup things -->
 {% load static %}{% get_static_prefix as STATIC_PREFIX %}<!DOCTYPE HTML>
 <head>
-	<script src='{{ STATIC_PREFIX }}resources/js/jquery.min.js' type='text/javascript'></script>
-	<script src='{{ STATIC_PREFIX }}resources/js/jquery-ui.min.js' type='text/javascript'></script>
+  <script src='{{ STATIC_PREFIX }}resources/js/jquery.min.js' type='text/javascript'></script>
+  <script src='{{ STATIC_PREFIX }}resources/js/jquery-ui.min.js' type='text/javascript'></script>
+  <link rel="stylesheet" href='{{ STATIC_PREFIX }}resources/css/bootstrap.min.css'>
+
+  <script>
+    function add_new_subject() {
+      var data = {'subject_name': $("#new_subject_name").val()};
+      $.post("/setup/add/new_subject", data, function(resp) {
+        $("#alert_field").html(resp);
+
+        // clear fields
+        $("#new_subject_name").val('');
+
+        // TODO refresh the table
+      })
+    }
+
+    function add_new_task() {
+      var data = {'name': $("#task_name").val(), 'import_path': $("#task_import_path").val()};
+      $.post("/setup/add/new_task", data, function(resp) {
+        $("#alert_field").html(resp);
+
+        // clear fields
+        $("#task_name").val('');
+        $("#task_import_path").val('');
+
+        // TODO refresh the table
+      })
+    }
+  </script>
 </head>
 
 <body>
-	<input type="button" onclick="$.post('/setup/run_upkeep')" value="Run upkeep tasks"><br>
-	<h1>Setup/configure</h1>
-	<h2>Subjects</h2>
-	<table>
-		{% for subject in subjects %}
-		<tr><td>{{subject.id}}</td><td>{{subject.name}}</td></tr>
-		{% endfor %}
-	</table>
+  <div class="alert alert-info" role="alert" id="alert_field">
+  </div>
 
-	Add new<br>
-	<form action="/setup/add/new_subject" method="POST">
-		Subject name <input type="text" name="subject_name"><br>
-		<input type="submit">
-	</form>
+  <input type="button" onclick="$.post('/setup/run_upkeep')" value="Run upkeep tasks"><br>
+  <h1>Setup</h1>
 
-	<h2>Tasks</h2>
-	<table>
-		{% for task in tasks %}
-		<tr><td>{{task.id}}</td><td>{{task.name}}</td></tr>
-		{% endfor %}
-	</table>
+  <h2>System configuration</h2>
+  <!-- TODO add fields for the config form -->
 
-	Add new<br>
-	<form action="/setup/add/new_task" method="POST">
-		Task name <input type="text" name="name"><br>
-		Task class path (must be importable) <input type="text" name="import_path"><br>
-		<input type="submit">
-	</form>
+  <h2>Subjects</h2>
+  <table class="table table-hover table-sm" style="width: auto;">
+    <thead>
+      <th>Index</th><th>Name</th>
+    </thead>
 
-	<h2>Features</h2>
-	Currently installed features:<br>
-	--
-	<br><br>
-	<table>
-		{% for feature in features %}
-		<tr><td>{{feature.id}}</td><td>{{feature.name}}</td></tr>
-		{% endfor %}
-	</table>
+    {% for subject in subjects %}
+    <tr><td>{{subject.id}}</td><td>{{subject.name}}</td></tr>
+    {% endfor %}
 
-	Enable built-in feature<br><br>
-	<form action="/setup/add/enable_features" method="POST">
-		{% for feature in built_in_feature_names %}
-			<input type="checkbox" name="{{feature}}" value="{{feature}}">{{feature}}<br>
-		{% endfor %}
-		<input type="submit">
-	</form>
+    <tr>
+      <td><input type="submit" value="Add New" onclick="add_new_subject()"></td>
+      <td><input type="text" id="new_subject_name"></td>
+    </tr>
+  </table>
 
-	Add new custom feature<br>
-	<form action="/setup/add/new_feature" method="POST">
-		Feature name <input type="text" name="name"><br>
-		Feature class path (must be importable) <input type="text" name="import_path"><br>
-		<input type="submit">
-	</form>
+
+  <h2>Tasks</h2>
+  <table class="table table-hover table-sm" style="width: auto;">
+    <thead>
+      <tr>
+        <th>Index</th><th>Task name</th><th>Python path (must be importable)</th>
+      </tr>
+    </thead>
+
+    {% for task in tasks %}
+    <tr><td>{{task.id}}</td><td>{{task.name}}</td><td>{{task.import_path}}</td></tr>
+    {% endfor %}
+
+    <tr>
+      <td><input type="submit" value="Add New" onclick="add_new_task()"></td>
+      <td><input type="text" id="task_name"></td>
+      <td><input type="text" id="task_import_path">
+    </tr>
+  </table>
+
+
+  <h2>Data source systems</h2>
+  <!-- TODO add table for systems -->
+
+
+  <h2>Features</h2>
+  <table class="table table-hover table-sm" style="width: auto;">
+    <thead>
+      <tr>
+        <th>Index</th><th>Feature name</th><!-- <th>Python path (must be importable)</th> -->
+      </tr>
+    </thead>
+
+    {% for feature in features %}
+    <tr><td>{{feature.id}}</td><td>{{feature.name}}</td></tr>
+    {% endfor %}
+  </table>
+
+  Enable built-in feature<br><br>
+  <form action="/setup/add/enable_features" method="POST">
+    {% for feature in built_in_feature_names %}
+      <input type="checkbox" name="{{feature}}" value="{{feature}}">{{feature}}<br>
+    {% endfor %}
+    <input type="submit">
+  </form>
+
+  Add new custom feature<br>
+  <form action="/setup/add/new_feature" method="POST">
+    Feature name <input type="text" name="name"><br>
+    Feature class path (must be importable) <input type="text" name="import_path"><br>
+    <input type="submit">
+  </form>
 
 </body>
