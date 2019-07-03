@@ -18,6 +18,7 @@ urlpatterns = [
     path('setup/add/new_subject', ajax.add_new_subject),
     path('setup/add/new_task', ajax.add_new_task),
     path('setup/add/new_feature', ajax.add_new_feature),
+    path('setup/add/new_system', ajax.add_new_system),
     path('setup/populate_models', ajax.populate_models),
     path('setup/add/enable_features', ajax.enable_features),
     path('setup/run_upkeep', ajax.setup_run_upkeep),

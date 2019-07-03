@@ -30,6 +30,19 @@
         // TODO refresh the table
       })
     }
+
+    function add_new_system() {
+      data = {'name': $("#system_name").val(), "path": $("#system_path").val(), 
+        "processor_path": $("#system_processor_path").val()}
+      $.post("/setup/add/new_system", data, function(resp) {
+        $("#alert_field").html(resp);
+
+        // clear fields
+        $("#system_name").val('');
+        $("#system_path").val('');
+        $("#system_processor_path").val('');
+      })
+    }
   </script>
 </head>
 
@@ -39,9 +52,32 @@
 
   <input type="button" onclick="$.post('/setup/run_upkeep')" value="Run upkeep tasks"><br>
   <h1>Setup</h1>
+  <h2>System Configuration</h2>
+    <table class="table table-hover table-sm" style="width: auto;">
+      <thead>
+        <th>Parameter</th><th>Value</th>
+      </thead>
+
+      <!-- make a table with the current values  -->
+        <!-- stuff['reward_sys'] = dict(version=0)
+        stuff['recording_sys'] = dict(make='plexon', mount_point='/storage/plexon')
+        stuff['graphics'] = dict(window_start_x=0, window_start_y=0)
+        stuff['backup_root'] = dict(root='/backup')
+        stuff['plexon IP address'] = dict(addr='10.0.0.13', port=6000)
+        stuff['update_rates'] = dict(hdf_hz=60) -->
+
+      <tr>
+        <td><input type="submit" value="Add New" onclick="add_new_subject()"></td>
+        <td><input type="text" id="new_subject_name"></td>
+      </tr>
+
+    </table>
 
   <h2>System configuration</h2>
-  <!-- TODO add fields for the config form -->
+  <form action="/setup/config">
+
+
+  </form>
 
   <h2>Subjects</h2>
   <table class="table table-hover table-sm" style="width: auto;">
@@ -82,6 +118,24 @@
 
   <h2>Data source systems</h2>
   <!-- TODO add table for systems -->
+  <table class="table table-hover table-sm" style="width: auto;">
+    <thead>
+      <tr>
+        <th>Index</th><th>System name</th><th>Path where data is generated/saved</th><th>Post-processing function (optional)</th>
+      </tr>
+    </thead>
+
+    {% for system in systems %}
+    <tr><td>{{system.id}}</td><td>{{system.name}}</td><td>{{system.path}}</td><td>{{system.processor_path}}</td></tr>
+    {% endfor %}
+
+    <tr>
+      <td><input type="submit" value="Add New" onclick="add_new_system()"></td>
+      <td><input type="text" id="system_name"></td>
+      <td><input type="text" id="system_path"></td>
+      <td><input type="text" id="system_processor_path"></td>
+    </tr>
+  </table>  
 
 
   <h2>Features</h2>

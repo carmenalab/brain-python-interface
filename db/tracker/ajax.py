@@ -425,6 +425,15 @@ def add_new_subject(request):
     return HttpResponse("Added new subject: %s" % subj.name)
 
 @csrf_exempt
+def add_new_system(request):
+    from . import models
+    sys = models.System(name=request.POST['name'], path=request.POST['path'], 
+        processor_path=request.POST['processor_path'])
+    sys.save()
+
+    return HttpResponse("Added new system: %s" % sys.name)
+
+@csrf_exempt
 def enable_features(request):
     from features import built_in_features
     from . import models

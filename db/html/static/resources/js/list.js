@@ -853,11 +853,17 @@ TaskEntry.prototype.link_new_files = function() {
         "data_system_id": $("#data_system_id").val(),
     }
 
+    if (data["file_path"] == "") {
+        data["file_path"] = document.getElementById("file_path_browser_sel").files[0].name;
+    }
+
+
     $.post("/exp_log/link_data_files/" + this.idx + "/submit", data, 
         function(resp) {
             $("#file_modal_server_resp").append(resp + "<br>");
             console.log("posted the file!");
-        })
+        }
+    )
 }
 
 //

@@ -124,11 +124,13 @@ def setup(request):
     subjects = models.Subject.objects.all()
     tasks = models.Task.objects.all()
     features = models.Feature.objects.all()
+    systems = models.System.objects.all()
 
     from features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
     return render(request, "setup.html", 
-        dict(subjects=subjects, tasks=tasks, features=features, built_in_feature_names=built_in_feature_names))
+        dict(subjects=subjects, tasks=tasks, features=features, systems=systems,
+            built_in_feature_names=built_in_feature_names))
 
 def _color_entries(entries):
     from .models import TaskEntry, Task, Subject, Feature, Generator

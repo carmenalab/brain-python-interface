@@ -7,6 +7,7 @@ import sys
 
 ## Hack getattr: http://stackoverflow.com/questions/2447353/getattr-on-a-module
 class Config(object):
+    config_fname = os.path.join(os.path.dirname(__file__), "config")
     def __init__(self):
         self.log_path = os.path.join(os.path.dirname(__file__), "../log")
         self.log_dir = self.log_path
@@ -17,11 +18,11 @@ class Config(object):
         try:
             parser = SafeConfigParser()
             self.parser = parser
-            config_fname = os.path.join(os.path.dirname(__file__), "config")
-            if not os.path.exists(config_fname):
-                raise ValueError("config.py cannot find 'config' file at expected location %s" % config_fname)
+            
+            if not os.path.exists(self.config_fname):
+                raise ValueError("config.py cannot find 'config' file at expected location %s" % self.config_fname)
 
-            self.parser.read(config_fname)
+            self.parser.read(self.config_fname)
 
             self.recording_system = dict(parser.items('recording_sys'))['make']
             self.data_path = dict(parser.items('db_config_default'))['data_path']
@@ -46,5 +47,18 @@ class Config(object):
             return dict(self.parser.items(attr))
         except:
             raise AttributeError("config.py: Attribute '%s' not found in config file!" % attr)
+
+    def write_to_config_file(self, config_data):
+        config_fh = open(os.path.expandvars(self.config_fname), 'w')
+
+        for system_name, system_opts in list(config_data.items()):
+            config_fh.write('[%s]\n' % system_name)
+            for option, opt_val in list(system_opts.items()):
+                config_fh.write('%s = %s\n' % (option, opt_val))
+            config_fh.write('\n')
+
+        config_fh.close()
+        return self.config_fname
+
 
 config = Config()

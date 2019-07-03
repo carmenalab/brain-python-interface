@@ -350,7 +350,11 @@
                   <div class="modal-content">
                     <span class="close" id="file_modal_close" onclick="$('#file_modal').css('display', 'none')">&times;</span>
 
-                    File path <input type="text" id="file_path" name="file_path" style="width:200px; ! important;"><br>
+                    File path <input type="text" id="file_path" name="file_path" style="width:200px; ! important;">
+
+                    Browse for a file: <input type="file" id="file_path_browser_sel">
+
+                    <br>
                     Data type/system <select id="data_system_id" name="data_system_id">
                       {% for system in systems %}
                       <option value={{system.id}}>{{system.name}}--Default path: {{system.path}}</option>

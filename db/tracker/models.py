@@ -252,14 +252,6 @@ class Feature(models.Model):
         else:
             raise ValueError("Feature %s has no import_path" % self.name)
 
-    # @staticmethod
-    # def populate():
-    #     from config.namelist import features
-    #     real = set(features.keys())
-    #     db = set(feat.name for feat in Feature.objects.all())
-    #     for name in real - db:
-    #         Feature(name=name).save()
-
     @staticmethod
     def getall(feats):
         feature_class_list = []
