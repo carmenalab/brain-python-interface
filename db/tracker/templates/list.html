@@ -149,6 +149,7 @@
 
   function reset_date_on_new_task() {
     $("#newentry_today").html("Today");
+    $('#newentry_today').css('color', 'black');
   }
 </script>
 </head>
@@ -173,11 +174,12 @@
         </tr>
         </thead>
 
-        <div id="date_entry_modal" class="modal">
+        <div id="date_entry_modal"  class="modal fade" role="dialog">
           <div class="modal-content">
             <span class="close" onclick="$('#date_entry_modal').css('display', 'none')">&times;</span>
-            Enter date <input type="date" id="date_entry_date">
-            <input type="button" value="Set" onclick="$('#newentry_today').html($('#date_entry_date').val()); $('#date_entry_modal').css('display', 'none')">
+            Enter date <input type="date" id="date_entry_date" onchange="$('#newentry_today').html($('#date_entry_date').val()); $('#newentry_today').css('color', 'red'); $('#date_entry_modal').css('display', 'none')">
+            <!-- <input type="button" value="Set" onclick="$('#newentry_today').html($('#date_entry_date').val()); $('#date_entry_modal').css('display', 'none')"> -->
+          </div>
         </div>
 
         <tbody>
