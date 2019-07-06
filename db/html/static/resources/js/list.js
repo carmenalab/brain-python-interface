@@ -280,6 +280,9 @@ Files.prototype.hide = function() {
 Files.prototype.show = function() {
     $("#files").show();
 }
+Files.prototype.clear = function() {
+    $("#file_list").html("")
+}
 Files.prototype.update_filelist = function(datafiles, task_entry_id) {
     // List out the data files in the 'filelist'
     // see TaskEntry.to_json in models.py to see how the file list is generated
@@ -517,6 +520,37 @@ TaskEntry.prototype.update = function(info) {
     }
 
     console.log("TaskEntry.prototype.update done!");
+}
+TaskEntry.prototype.reload = function() {
+    this.files.clear();
+
+    $.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
+        {}, // POST data to send to the server
+        function (expinfo) { // function to run on successful response
+            this.notes = new Notes(this.idx);
+            console.log(this)
+            this.update(expinfo);
+            this.disable();
+            $("#content").show("slide", "fast");
+
+            $('#wait_wheel').hide()
+
+            // If the server responds with data, disable reacting to clicks on the current row so that things don't get reset
+            this.tr.unbind("click");
+
+            // console.log('setting ')
+            this.tr.addClass("rowactive active");
+
+            // enable editing of the notes field for a previously saved entry
+            $("#notes textarea").removeAttr("disabled");
+        }.bind(this)
+        ).error(
+            function() {
+                alert("There was an error accessing task entry " + id_num + ". See terminal for full error message"); 
+                this.tr.removeClass("rowactive active error");
+                $('#wait_wheel').hide();
+            }.bind(this)
+        );
 }
 
 TaskEntry.prototype.toggle_visible = function() {
@@ -849,12 +883,30 @@ TaskEntry.prototype.disable = function() {
 }
 
 TaskEntry.prototype.link_new_files = function() {
-    data = {"file_path": $("#file_path").val(),
+    data = {
         "data_system_id": $("#data_system_id").val(),
     }
 
-    if (data["file_path"] == "") {
-        data["file_path"] = document.getElementById("file_path_browser_sel").files[0].name;
+    var file_path = $("#file_path").val();
+    var new_file_path = $("#new_file_path").val();
+    var new_file_data = $("#new_file_raw_data").val();
+    var new_file_data_format= $("new_file_data_format").val();
+    var browser_sel_file = document.getElementById("file_path_browser_sel").files[0];
+
+    if (new_file_data != "") {
+        data['file_path'] = new_file_path;
+        data['raw_data'] = new_file_data; 
+        data['raw_data_format'] = new_file_data_format;
+    } else if (file_path != "") {
+        data['file_path'] = file_path;
+        data['raw_data'] = ''
+        data['raw_data_format'] = null;
+    } else if (browser_sel_file != undefined) {
+        data['file_path'] = browser_sel_file.name;
+        data['raw_data'] = ''
+        data['raw_data_format'] = null;
+    } else {
+        data = {};
     }
 
 

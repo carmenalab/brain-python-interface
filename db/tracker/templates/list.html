@@ -232,6 +232,8 @@
         <form id="experiment" method="post" action="javascript:void();" accept-charset="utf-8">
           {% csrf_token %}
 
+          <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()"><br>
+
           <div id="finished_task_buttons">
             <input id="copybtn" class="btn" type="button" value="Copy parameters">
             <input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
@@ -344,20 +346,42 @@
 
               <fieldset id="files">
                 <legend>Linked Data Files</legend>
-                <button id="myBtn" onclick="$('#file_modal').css('display', 'block')">Manually link data files</button>
+                <button onclick="$('#file_modal').css('display', 'block')">Manually link data files</button><br>
                 <!-- File add modal -->
                 <div id="file_modal" class="modal">
 
                   <!-- Modal content -->
                   <div class="modal-content">
-                    <span class="close" id="file_modal_close" onclick="$('#file_modal').css('display', 'none')">&times;</span>
+                    <span class="close" id="file_modal_close" onclick="$('#file_modal').css('display', 'none'); te.reload();">&times;</span>
+                    <button id="file_modal_clear" onclick="$('#file_path, #new_file_path, #new_file_raw_data').val('');">Clear</button>
 
-                    File path <input type="text" id="file_path" name="file_path" style="width:200px; ! important;">
-
-                    Browse for a file: <input type="file" id="file_path_browser_sel">
+                    <table>
+                      <thead>
+                        <td><b>Existing file</b></td>
+                        <td><b>New text data</b></td>
+                      </thead>
+                      <tr>
+                        <td valign="top">
+                            Enter the file path: <input type="text" id="file_path" name="file_path" style="width:200px; ! important;"><br><br>
+                            or browse for a file: <input type="file" id="file_path_browser_sel"><br>
+                        </td>
+                        <!-- <td>OR</td> -->
+                        <td valign="top">
+                          Name of new file path:<br>
+                          <input type="text" id="new_file_path" style="width:200px; ! important;">
+                          Data type <select id="new_file_data_format">
+                            <option value="json">JSON</option>
+                            <option value="txt">text</option>
+                          </select><br>
+                          Data<br>
+                          <textarea rows="10" cols="50" id="new_file_raw_data">
+                          </textarea>                          
+                        </td>
+                    </table>
 
                     <br>
-                    Data type/system <select id="data_system_id" name="data_system_id">
+                    <hr>
+                    Select data type/system <select id="data_system_id" name="data_system_id">
                       {% for system in systems %}
                       <option value={{system.id}}>{{system.name}}--Default path: {{system.path}}</option>
                       {% endfor %}
