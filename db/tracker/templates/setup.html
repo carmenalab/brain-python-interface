@@ -9,25 +9,35 @@
     function add_new_subject() {
       var data = {'subject_name': $("#new_subject_name").val()};
       $.post("/setup/add/new_subject", data, function(resp) {
-        $("#alert_field").html(resp);
+        $("#alert_field").html(resp["msg"]);
 
-        // clear fields
-        $("#new_subject_name").val('');
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#new_subject_name").val('');
 
-        // TODO refresh the table
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>");
+          $('#subject-table tr:last').before(tr);
+        }
       })
     }
 
     function add_new_task() {
       var data = {'name': $("#task_name").val(), 'import_path': $("#task_import_path").val()};
       $.post("/setup/add/new_task", data, function(resp) {
-        $("#alert_field").html(resp);
+        $("#alert_field").html(resp["msg"]);
 
-        // clear fields
-        $("#task_name").val('');
-        $("#task_import_path").val('');
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#task_name").val('');
+          $("#task_import_path").val('');
 
-        // TODO refresh the table
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + resp["data"].import_path + "</td>");
+          $('#task-table tr:last').before(tr);
+        }
       })
     }
 
@@ -35,12 +45,14 @@
       data = {'name': $("#system_name").val(), "path": $("#system_path").val(), 
         "processor_path": $("#system_processor_path").val()}
       $.post("/setup/add/new_system", data, function(resp) {
-        $("#alert_field").html(resp);
+        $("#alert_field").html(resp["msg"]);
 
-        // clear fields
-        $("#system_name").val('');
-        $("#system_path").val('');
-        $("#system_processor_path").val('');
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#system_name").val('');
+          $("#system_path").val('');
+          $("#system_processor_path").val('');
+        }
       })
     }
   </script>
@@ -68,7 +80,7 @@
 
       <tr>
         <td><input type="submit" value="Add New" onclick="add_new_subject()"></td>
-        <td><input type="text" id="new_subject_name"></td>
+        <td><input type="text"></td>
       </tr>
 
     </table>
@@ -80,7 +92,7 @@
   </form>
 
   <h2>Subjects</h2>
-  <table class="table table-hover table-sm" style="width: auto;">
+  <table class="table table-hover table-sm" style="width: auto;" id="subject-table">
     <thead>
       <th>Index</th><th>Name</th>
     </thead>
@@ -97,7 +109,7 @@
 
 
   <h2>Tasks</h2>
-  <table class="table table-hover table-sm" style="width: auto;">
+  <table class="table table-hover table-sm" style="width: auto;" id="task-table">
     <thead>
       <tr>
         <th>Index</th><th>Task name</th><th>Python path (must be importable)</th>

@@ -187,7 +187,7 @@ def link_data_files_response_handler(request, task_entry_id):
         file_path = os.path.join(system.path, file_path)
         print(file_path)
 
-    if raw_data != '':
+    if raw_data.isspace():
         # new file
         try:        
             with open(file_path, 'w') as fp:

@@ -57,7 +57,7 @@ class Task(models.Model):
         return self.name
 
     def get_base_class(self):
-        if not self.import_path is None:
+        if not self.import_path is None and len(self.import_path) > 0:
             return import_by_path(self.import_path)
         else:
             raise ValueError("Could not find base class for task. No import_path provided")
@@ -342,7 +342,12 @@ class Generator(models.Model):
         generator_functions = []
         tasks = Task.objects.all()
         for task in tasks:
-            task_cls = task.get()  #tasks[task]
+            try:
+                task_cls = task.get()  #tasks[task]
+            except:
+                # if a task is not importable, then it cannot have any detectable generators
+                continue
+                
             if hasattr(task_cls, 'sequence_generators'):
                 generator_function_names = task_cls.sequence_generators
                 gen_fns = [getattr(task_cls, x) for x in generator_function_names]
