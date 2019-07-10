@@ -407,13 +407,24 @@ def populate_models(request):
 def add_new_task(request):
     from . import models
     name, import_path = request.POST['name'], request.POST['import_path']
+    
+    #  verify import path
+    if import_path == '':
+        import_path = "riglib.experiment.Experiment"
+
+    try:
+        models.import_by_path(import_path)
+    except:
+        return _respond(dict(msg="import path invalid!", status="error"))
+
     task = models.Task(name=name, import_path=import_path)
     task.save()
 
     # add any new generators for the task
     models.Generator.populate()
 
-    return HttpResponse("Added new task: %s" % task.name)
+    task_data = dict(id=task.id, name=task.name, import_path=task.import_path)
+    return _respond(dict(msg="Added new task: %s" % task.name, status="success", data=task_data))
 
 @csrf_exempt
 def add_new_subject(request):
@@ -422,7 +433,7 @@ def add_new_subject(request):
     subj = models.Subject(name=subject_name)
     subj.save()
 
-    return HttpResponse("Added new subject: %s" % subj.name)
+    return _respond(dict(msg="Added new subject: %s" % subj.name, status="success", data=dict(id=subj.id, name=subj.name)))
 
 @csrf_exempt
 def add_new_system(request):
@@ -431,7 +442,7 @@ def add_new_system(request):
         processor_path=request.POST['processor_path'])
     sys.save()
 
-    return HttpResponse("Added new system: %s" % sys.name)
+    return _respond(dict(msg="Added new system: %s" % sys.name, status="success"))
 
 @csrf_exempt
 def enable_features(request):
@@ -454,7 +465,7 @@ def enable_features(request):
 
             feature_names_added.append(feat.name)
 
-    return HttpResponse("Enabled built-in features: %s" % str(feature_names_added))
+    return _respond(dict(msg="Enabled built-in features: %s" % str(feature_names_added), status="success"))
 
 @csrf_exempt
 def add_new_feature(request):
@@ -463,7 +474,7 @@ def add_new_feature(request):
     feat = models.Feature(name=name, import_path=import_path)
     feat.save()
 
-    return HttpResponse("Added new feature: %s" % feat.name)
+    return _respond(dict(msg="Added new feature: %s" % feat.name, status="success"))
 
 @csrf_exempt
 def setup_run_upkeep(request):
