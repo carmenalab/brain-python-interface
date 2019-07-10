@@ -533,7 +533,19 @@ class TaskEntry(models.Model):
             exp = Exp(**params.params)
         exp.event_log = json.loads(self.report)
         return exp
-    
+
+    def update_date(self, *date_args):
+        """Utility function to update the date of a record if set improperly (e.g., if entered manually)"""
+        import datetime
+        if len(date_args) == 1 and isinstance(date_args[0], datetime.datetime):
+            self.date = date_args[0]
+            self.save()
+        elif len(date_args) >= 3 and len(date_args) <= 7: # assume these are numbers with fields split out
+            self.date = datetime.datetime(*date_args)
+            self.save()
+        else:
+            raise ValueError("Unrecognized date arguments: ", date_args)
+
     @property
     def task_params(self):
         from .json_param import Parameters
