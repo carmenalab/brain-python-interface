@@ -893,7 +893,7 @@ TaskEntry.prototype.link_new_files = function() {
     var new_file_data_format= $("new_file_data_format").val();
     var browser_sel_file = document.getElementById("file_path_browser_sel").files[0];
 
-    if (new_file_data != "") {
+    if ($.trim(new_file_data) != "" && $.trim(new_file_path) != "") {
         data['file_path'] = new_file_path;
         data['raw_data'] = new_file_data; 
         data['raw_data_format'] = new_file_data_format;
@@ -908,7 +908,6 @@ TaskEntry.prototype.link_new_files = function() {
     } else {
         data = {};
     }
-
 
     $.post("/exp_log/link_data_files/" + this.idx + "/submit", data, 
         function(resp) {

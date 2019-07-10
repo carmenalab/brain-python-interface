@@ -177,22 +177,25 @@ from django.views.decorators.csrf import csrf_exempt
 def link_data_files_response_handler(request, task_entry_id):
     from . import models
     file_path = request.POST["file_path"]
-    raw_data = request.POST.get('raw_data', '')
-    raw_data_format = request.POST.get('raw_data_format', '')
+    raw_data = request.POST["raw_data"]
+    raw_data_format = request.POST['raw_data_format']
     data_system_id = request.POST["data_system_id"]
     
     task_entry = models.TaskEntry.objects.get(id=task_entry_id)
     system = models.System.objects.get(id=data_system_id)
     if not os.path.isabs(file_path):
         file_path = os.path.join(system.path, file_path)
-        print(file_path)
+    
+    print("Adding file", file_path)
 
-    if raw_data.isspace():
+    if len(raw_data.strip()) > 0:
         # new file
         try:        
             with open(file_path, 'w') as fp:
                 fp.write(raw_data)
         except:
+            import traceback
+            traceback.print_exc()
             return HttpResponse("Unable to add new file")
 
     if os.path.exists(file_path):
