@@ -5,7 +5,7 @@ See https://docs.djangoproject.com/en/dev/intro/tutorial01/ for an introduction
 on how to customize this file test
 '''
 
-import os
+import os, glob, re
 cwd = os.path.split(os.path.abspath(__file__))[0]
 
 import djcelery
@@ -21,24 +21,36 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': os.path.join(cwd, "db.sql"),                      # Or path to database file if using sqlite3.
-        'USER': '',                      # Not used with sqlite3.
-        'PASSWORD': '',                  # Not used with sqlite3.
-        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
-        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
-    },
-    'testing': {
-        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': os.path.join(cwd, "db_testing.sql"),                      # Or path to database file if using sqlite3.
-        'USER': '',                      # Not used with sqlite3.
-        'PASSWORD': '',                  # Not used with sqlite3.
-        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
-        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
-    },
-}
+db_dir = cwd
+def get_sqlite3_databases():
+    dbs = dict()
+    
+    db_files = glob.glob(os.path.join(db_dir, '*.sql'))
+    for db in db_files:
+        db_name_re = re.match('db(.*?).sql', os.path.basename(db))
+        db_name = db_name_re.group(1)
+
+        if db_name.startswith('_'):
+            db_name = db_name[1:]
+        elif db_name == "":
+            db_name = "default"
+        else:
+            # unrecognized db name pattern
+            print("Unrecognized database file: ", db)
+            continue
+
+        dbs[db_name] = {
+            'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+            'NAME': db,                      # Or path to database file if using sqlite3.
+            'USER': '',                      # Not used with sqlite3.
+            'PASSWORD': '',                  # Not used with sqlite3.
+            'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+            'PORT': '',                      # Set to empty string for default. Not used with sqlite3.        
+        }
+
+    return dbs
+
+DATABASES = get_sqlite3_databases()
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name

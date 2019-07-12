@@ -53,8 +53,14 @@ class Task(models.Model):
     visible = models.BooleanField(default=True, blank=True)
     import_path = models.CharField(max_length=200, blank=True, null=True)
     
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        if not self.import_path is None and self.import_path != "":
+            return "Task[{}]: {}".format(self.name, self.import_path)
+        else:
+            return "Task[{}]".format(self.name)
+
+    def __repr__(self):
+        return self.__str__()
 
     def get_base_class(self):
         if not self.import_path is None and len(self.import_path) > 0:
@@ -517,12 +523,22 @@ class TaskEntry(models.Model):
     backup = models.BooleanField(blank=True, default=False)
     entry_name = models.CharField(blank=True, null=True, max_length=50)
 
-    def __unicode__(self):
+    def __str__(self):
         return "{date}: {subj} on {task} task, id={id}".format(
             date=self.date.strftime("%h. %e, %Y, %l:%M %p"),
             subj=self.subject.name,
             task=self.task.name,
             id=self.id)
+
+    def __repr__(self):
+        return self.__str__()
+
+    @property 
+    def ui_id(self):
+        if self.entry_name is not None and self.entry_name != "":
+            return "%s (%d)" % (self.entry_name, self.id)
+        else:
+            return str(self.id)
     
     def get(self, feats=()):
         from .json_param import Parameters
@@ -1263,11 +1279,14 @@ class DataFile(models.Model):
         df.save()
         return df
 
-    def __unicode__(self):
+    def __str__(self):
         if self.entry_id > 0:
             return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
         else:
             return "datafile '{name}' for System {sys_name}".format(name=self.path, sys_name=self.system.name)
+
+    def __repr__(self):
+        return self.__str__()
 
     def to_json(self):
         return dict(system=self.system.name, path=self.path)

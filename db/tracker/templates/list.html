@@ -160,8 +160,7 @@
     <div id='leftpane'>
       {{ n_blocks }} saved task entry records shown below<br>
       <button id="new_exp">Start new experiment</button>
-      <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null; $('.colShortDesc').show()">Clear content</button>
-          <hr>
+      <hr>
       <table id='main' style="direction:ltr;">
         <thead>
         <tr id="te_table_header">
@@ -205,13 +204,13 @@
             {% if e.html_date %}
               <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
               <td class='colTime firstRowOfday' >{{e.html_time}}</td>
-              <td class='colID firstRowOfday'   >{{e.id}}</td>
+              <td class='colID firstRowOfday'   >{{e.ui_id}}</td>
               <td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
               <td class='colTask firstRowOfday' >{{e.task.name}}</td>
               <td class='colShortDesc firstRowOfday'>{{e.desc}}</td>
             {% else %}
               <td class='colTime' >{{e.html_time}}</td>
-              <td class='colID'   >{{e.id}}</td>
+              <td class='colID'   >{{e.ui_id}}</td>
               <td class='colSubj' >{{e.subject.name}}</td>
               <td class='colTask' >{{e.task.name}}</td>
               <td class='colShortDesc'>{{e.desc}}</td>
@@ -232,7 +231,8 @@
         <form id="experiment" method="post" action="javascript:void();" accept-charset="utf-8">
           {% csrf_token %}
 
-          <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()"><br>
+          <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()">
+          <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null; $('.colShortDesc').show()">Clear content</button><br>
 
           <div id="finished_task_buttons">
             <input id="copybtn" class="btn" type="button" value="Copy parameters">
@@ -253,8 +253,7 @@
           <div class="clear"></div>
 
           <div id="entry_name_div">
-            Custom Name: 
-            <input type="text" id="entry_name" style="width:200px; ! important;">
+            Name: <input type="text" id="entry_name" style="width:200px; ! important;">
             <input type="button" value="Save name" onclick="te.save_name()">
           </div>
 
@@ -391,7 +390,7 @@
                     <div id="file_modal_server_resp"></div>
                     <br>
                     
-                    <button id="submit_files_to_link" onclick="te.link_new_files();">Submit</button>
+                    <button id="submit_files_to_link" onclick="te.link_new_files();">Add file</button>
                   </div>
 
                 </div>
