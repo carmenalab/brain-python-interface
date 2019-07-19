@@ -154,3 +154,8 @@ class MockSequenceWithGenerators(Sequence):
 
     def _test_target_reached(self, ts):
         return self.current_state == self._gen_target
+
+from . import traits
+class MockSequenceWithTraits(MockSequenceWithGenerators):
+    options_trait = traits.OptionsList(["option1", "option2"], desc='options', label="Options")
+    float_trait = traits.Float(15, desc="float", label="Float")

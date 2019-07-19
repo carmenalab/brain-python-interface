@@ -5,6 +5,8 @@ Basic OpenGL shapes constructed out of triangular meshes
 import numpy as np
 from numpy import pi
 try:
+    import os
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"    
     import pygame
 except:
     import warnings

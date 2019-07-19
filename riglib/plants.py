@@ -2,6 +2,8 @@
 '''
 Representations of plants (control systems)
 '''
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import numpy as np
 from .stereo_opengl.primitives import Cylinder, Sphere, Cone, Cube, Chain
 from .stereo_opengl.models import Group

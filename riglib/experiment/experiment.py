@@ -18,6 +18,8 @@ import numpy as np
 from . import traits
 
 try:
+    import os
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
     import pygame
 except ImportError:
     import warnings
@@ -74,6 +76,20 @@ class StateTransitions(object):
         return list(self.state_transitions.items())
 
 
+def _get_trait_default(trait):
+    '''
+    Function which tries to determine the default value for a trait in the class declaration
+    '''
+    _, default = trait.default_value()
+    if isinstance(default, tuple) and len(default) > 0:
+        try:
+            func, args, _ = default
+            default = func(*args)
+        except:
+            pass
+    return default
+
+
 class Experiment(traits.HasTraits, threading.Thread):
     '''
     Common ancestor of all task/experiment classes
@@ -124,7 +140,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         Attribute for update rate of task. Using @property in case any future modifications
         decide to change fps on initialization
         '''
-        return 1./self.fps        
+        return 1./self.fps
 
     @classmethod
     def class_editable_traits(cls):
@@ -142,9 +158,71 @@ class Experiment(traits.HasTraits, threading.Thread):
         editable_traits: list of strings
             Names of traits which are designated to be runtime-editable
         '''
-        traits = super(Experiment, cls).class_editable_traits()
+        # traits = super(Experiment, cls).class_editable_traits()
+        from traits.trait_base import not_event, not_false
+        traits = cls.class_trait_names(type=not_event, editable=not_false)
         editable_traits = [x for x in traits if x not in cls.exclude_parent_traits]
         return editable_traits
+
+    @classmethod
+    def get_trait_info(cls, trait_name, ctraits=None):
+        """Get dictionary of information on a given trait"""
+        if ctraits is None:
+            ctraits = cls.class_traits()
+
+        trait_params = dict()
+        trait_params['type'] = ctraits[trait_name].trait_type.__class__.__name__
+        trait_params['default'] = _get_trait_default(ctraits[trait_name])
+        trait_params['desc'] = ctraits[trait_name].desc
+        trait_params['hidden'] = 'hidden' if cls.is_hidden(trait_name) else 'visible'
+        if hasattr(ctraits[trait_name], 'label'):
+            trait_params['label'] = ctraits[trait_name].label
+        else:
+            trait_params['label'] = trait_name
+
+        if trait_params['type'] == "InstanceFromDB":
+            # a database instance. pass back the model and the query parameters and let the db 
+            # handle the rest
+            trait_params['options'] = (mdl_name, ctraits[trait_name].bmi3d_query_kwargs)
+
+        elif trait_params['type'] == 'Instance':
+            raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
+
+        elif trait_params['type'] == "Enum":
+            raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
+
+        elif trait_params['type'] == "OptionsList":
+            trait_params['options'] = ctraits[trait_name].bmi3d_input_options
+
+        elif trait_params['type'] == "DataFile":
+            trait_params['options'] = ("DataFile", ctraits[trait_name].bmi3d_query_kwargs)
+
+        return trait_params
+
+    @classmethod
+    def get_params(cls):
+        # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
+        params = OrderedDict()
+
+        ctraits = cls.class_traits()
+
+        # add all the traits that are explicitly instructed to appear at the top of the menu
+        ordered_traits = cls.ordered_traits
+        for trait in ordered_traits:
+            if trait in cls.class_editable_traits():
+                params[trait] = cls.get_trait_info(trait, ctraits=ctraits)
+
+        # add all the remaining non-hidden traits
+        for trait in cls.class_editable_traits():
+            if trait not in params and not cls.is_hidden(trait):
+                params[trait] = cls.get_trait_info(trait, ctraits=ctraits)
+
+        # add any hidden traits
+        for trait in cls.class_editable_traits():
+            if trait not in params:
+                params[trait] = cls.get_trait_info(trait, ctraits=ctraits)
+        return params
+
 
     @classmethod
     def parse_fsm(cls):

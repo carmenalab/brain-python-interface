@@ -15,6 +15,7 @@ try:
 except ImportError:
     import enthought.traits.api as traits
 
+
 class InstanceFromDB(traits.Instance):
     def __init__(self, *args, **kwargs):
         if 'bmi3d_db_model' in kwargs:
@@ -40,13 +41,10 @@ class DataFile(InstanceFromDB):
 
 class OptionsList(traits.Enum):
     def __init__(self, *args, **kwargs):
-        if 'bmi3d_input_options' in kwargs:
-            self.bmi3d_input_options = kwargs['bmi3d_input_options']
-        else:
-            raise Exception
+        if 'bmi3d_input_options' not in kwargs:
+            kwargs['bmi3d_input_options'] = args[0]
 
         super(OptionsList, self).__init__(*args, **kwargs)
-        #setattr(self, 'bmi3d_input_options', bmi3d_input_options)
 
 
 traits.InstanceFromDB = InstanceFromDB

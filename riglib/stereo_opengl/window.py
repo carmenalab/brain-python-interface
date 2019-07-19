@@ -2,9 +2,6 @@
 Graphical display classes. Experimental tasks involving graphical displays 
 inherit from these classes.
 '''
-
-
-
 import os
 
 import numpy as np
@@ -21,10 +18,10 @@ from riglib.stereo_opengl.environment import Box
 import time
 from config import config
 from .primitives import Cylinder, Sphere, Cone
-from profile_support import profile
 import socket
 
 try:
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"    
     import pygame
 except:
     import warnings

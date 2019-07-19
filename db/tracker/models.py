@@ -27,18 +27,6 @@ import tempfile
 import shutil
 import importlib
 
-def _get_trait_default(trait):
-    '''
-    Function which tries to determine the default value for a trait in the class declaration
-    '''
-    _, default = trait.default_value()
-    if isinstance(default, tuple) and len(default) > 0:
-        try:
-            func, args, _ = default
-            default = func(*args)
-        except:
-            pass
-    return default
 
 def import_by_path(import_path):
     path_components = import_path.split(".")
@@ -128,33 +116,16 @@ class Task(models.Model):
             Values for the task parameters
 
         '''
-        #from namelist import instance_to_model, instance_to_model_filter_kwargs
+        Exp = self.get(feats=feats)
+        params = Exp.get_params()
 
         if values is None:
             values = dict()
-        
-        # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
-        params = OrderedDict()
+                   
+        for trait_name in params:
+            if params[trait_name]['type'] in ['InstanceFromDB', 'DataFile']:
+                mdl_name, filter_kwargs = params[trait_name]['options']
 
-        # Run the meta-class constructor to make the Task class (base task class + features )
-        Exp = self.get(feats=feats)
-        ctraits = Exp.class_traits()
-
-        def add_trait(trait_name):
-            trait_params = dict()
-            trait_params['type'] = ctraits[trait_name].trait_type.__class__.__name__
-            trait_params['default'] = _get_trait_default(ctraits[trait_name])
-            trait_params['desc'] = ctraits[trait_name].desc
-            trait_params['hidden'] = 'hidden' if Exp.is_hidden(trait_name) else 'visible'
-            if hasattr(ctraits[trait_name], 'label'):
-                trait_params['label'] = ctraits[trait_name].label
-            else:
-                trait_params['label'] = trait_name
-
-            if trait_name in values:
-                trait_params['value'] = values[trait_name]
-
-            if trait_params['type'] == "InstanceFromDB":
                 # look up the model name in the trait
                 mdl_name = ctraits[trait_name].bmi3d_db_model
 
@@ -164,47 +135,85 @@ class Task(models.Model):
 
                 # look up database records which match the model type & filter parameters
                 insts = Model.objects.filter(**filter_kwargs).order_by("-date")
-                trait_params['options'] = [(i.pk, i.path) for i in insts]
+                params[trait_name]['options'] = [(i.pk, i.path) for i in insts]
 
-            elif trait_params['type'] == 'Instance':
-                raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
+            if trait_name in values:
+                params[trait_name]['value'] = values[trait_name]                
+        return params                
+        # #from namelist import instance_to_model, instance_to_model_filter_kwargs
 
-            # if the trait is an enumeration, look in the 'Exp' class for 
-            # the options because for some reason the trait itself can't 
-            # store the available options (at least at the time this was written..)
-            elif trait_params['type'] == "Enum":
-                raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
+        
+        # # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
+        # params = OrderedDict()
 
-            elif trait_params['type'] == "OptionsList":
-                trait_params['options'] = ctraits[trait_name].bmi3d_input_options
+        # # Run the meta-class constructor to make the Task class (base task class + features )
+        # Exp = self.get(feats=feats)
+        # ctraits = Exp.class_traits()
 
-            elif trait_params['type'] == "DataFile":
-                # look up database records which match the model type & filter parameters
-                filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
-                insts = DataFile.objects.filter(**filter_kwargs).order_by("-date")
-                trait_params['options'] = [(i.pk, i.path) for i in insts]                
+        # def add_trait(trait_name):
+        #     trait_params = dict()
+        #     trait_params['type'] = ctraits[trait_name].trait_type.__class__.__name__
+        #     trait_params['default'] = _get_trait_default(ctraits[trait_name])
+        #     trait_params['desc'] = ctraits[trait_name].desc
+        #     trait_params['hidden'] = 'hidden' if Exp.is_hidden(trait_name) else 'visible'
+        #     if hasattr(ctraits[trait_name], 'label'):
+        #         trait_params['label'] = ctraits[trait_name].label
+        #     else:
+        #         trait_params['label'] = trait_name
 
-            params[trait_name] = trait_params
+        #     if trait_name in values:
+        #         trait_params['value'] = values[trait_name]
 
-            if trait_name == 'bmi': # a hack for really old data, where the 'decoder' was mistakenly labeled 'bmi'
-                params['decoder'] = trait_params
+        #     if trait_params['type'] == "InstanceFromDB":
+        #         # look up the model name in the trait
+        #         mdl_name = ctraits[trait_name].bmi3d_db_model
 
-        # add all the traits that are explicitly instructed to appear at the top of the menu
-        ordered_traits = Exp.ordered_traits
-        for trait in ordered_traits:
-            if trait in Exp.class_editable_traits():
-                add_trait(trait)
+        #         # get the database Model class from 'db.tracker.models'
+        #         Model = globals()[mdl_name]
+        #         filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
 
-        # add all the remaining non-hidden traits
-        for trait in Exp.class_editable_traits():
-            if trait not in params and not Exp.is_hidden(trait):
-                add_trait(trait)
+        #         # look up database records which match the model type & filter parameters
+        #         insts = Model.objects.filter(**filter_kwargs).order_by("-date")
+        #         trait_params['options'] = [(i.pk, i.path) for i in insts]
 
-        # add any hidden traits
-        for trait in Exp.class_editable_traits():
-            if trait not in params:
-                add_trait(trait)
-        return params
+        #     elif trait_params['type'] == 'Instance':
+        #         raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
+
+        #     # if the trait is an enumeration, look in the 'Exp' class for 
+        #     # the options because for some reason the trait itself can't 
+        #     # store the available options (at least at the time this was written..)
+        #     elif trait_params['type'] == "Enum":
+        #         raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
+
+        #     elif trait_params['type'] == "OptionsList":
+        #         trait_params['options'] = ctraits[trait_name].bmi3d_input_options
+
+        #     elif trait_params['type'] == "DataFile":
+        #         # look up database records which match the model type & filter parameters
+        #         filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
+        #         insts = DataFile.objects.filter(**filter_kwargs).order_by("-date")
+        #         trait_params['options'] = [(i.pk, i.path) for i in insts]                
+
+        #     params[trait_name] = trait_params
+
+        #     if trait_name == 'bmi': # a hack for really old data, where the 'decoder' was mistakenly labeled 'bmi'
+        #         params['decoder'] = trait_params
+
+        # # add all the traits that are explicitly instructed to appear at the top of the menu
+        # ordered_traits = Exp.ordered_traits
+        # for trait in ordered_traits:
+        #     if trait in Exp.class_editable_traits():
+        #         add_trait(trait)
+
+        # # add all the remaining non-hidden traits
+        # for trait in Exp.class_editable_traits():
+        #     if trait not in params and not Exp.is_hidden(trait):
+        #         add_trait(trait)
+
+        # # add any hidden traits
+        # for trait in Exp.class_editable_traits():
+        #     if trait not in params:
+        #         add_trait(trait)
 
     def sequences(self):
         from .json_param import Parameters
