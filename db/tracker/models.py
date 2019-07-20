@@ -868,9 +868,15 @@ class TaskEntry(models.Model):
         record-specific parameters """
         Exp = self.task.get_base_class()
         from . import json_param
+        import json
         params = json_param.Parameters(self.params)
+
+        if self.report is not None and len(self.report) > 0:
+            report_data = json.loads(self.report)
+        else:
+            report_data = None
         try:
-            return Exp.get_desc(params.get_data())
+            return Exp.get_desc(params.get_data(), report_data)
         except:
             import traceback
             traceback.print_exc()

@@ -610,7 +610,7 @@ class Decoder(object):
             Name of the state, index of the state, or list of indices/names 
             of the Decoder state(s) to return
         """
-        if isinstance(idx, int):
+        if isinstance(idx, int) or isinstance(idx, np.int64):
             return self.filt.state.mean[idx, 0]
         elif idx == 'q':
             pos_states, = np.nonzero(self.ssm.state_order == 0)
@@ -636,7 +636,7 @@ class Decoder(object):
             Name of the state, index of the state, or list of indices/names 
             of the Decoder state(s) to return
         """
-        if isinstance(idx, int):
+        if isinstance(idx, int) or isinstance(idx, np.int64):
             self.filt.state.mean[idx, 0] = value
         elif idx == 'q':
             pos_states, = np.nonzero(self.ssm.state_order == 0)

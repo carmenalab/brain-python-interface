@@ -274,7 +274,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         return trait in cls.hidden_traits
 
     @classmethod
-    def get_desc(cls, params):
+    def get_desc(cls, params, report):
         return "An experiment!"
 
     ####################################
