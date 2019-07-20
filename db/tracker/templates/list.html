@@ -51,7 +51,7 @@
       function () {
         if (this.checked) {
           console.log("Showing task entry " + te.idx);
-          $.get("/ajax/show_entry/"+te.idx, 
+          $.get("ajax/show_entry/"+te.idx, 
             {}, 
             function() {
               $("#row" + te.idx).css('background-color', 'white');
@@ -59,7 +59,7 @@
           );          
         } else {
           console.log("Hiding task entry " + te.idx);
-          $.get("/ajax/hide_entry/"+te.idx, 
+          $.get("ajax/hide_entry/"+te.idx, 
             {}, 
             function() {
               $("#row" + te.idx).css('background-color', 'gray');

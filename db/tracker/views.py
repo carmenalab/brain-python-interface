@@ -184,7 +184,12 @@ def link_data_files_response_handler(request, task_entry_id):
     task_entry = models.TaskEntry.objects.get(id=task_entry_id)
     system = models.System.objects.get(id=data_system_id)
     if not os.path.isabs(file_path):
-        file_path = os.path.join(system.path, file_path)
+        sys_path = system.path
+        if system.input_path is not None and system.input_path != "":
+            sys_path = system.input_path
+        else:
+            sys_path = system.path
+        file_path = os.path.join(sys_path, file_path)
     
     print("Adding file", file_path)
 

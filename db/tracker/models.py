@@ -291,6 +291,7 @@ class System(models.Model):
     path = models.TextField()
     archive = models.TextField()
     processor_path = models.CharField(max_length=200, blank=True, null=True)
+    input_path = models.TextField(blank=True, null=True)
 
     def __unicode__(self):
         return self.name
@@ -874,6 +875,9 @@ class TaskEntry(models.Model):
             import traceback
             traceback.print_exc()
             return "Error generating description"
+
+    def get_data_files(self):
+        return DataFile.objects.filter(entry_id=self.id)
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
