@@ -8,8 +8,12 @@ from riglib.experiment.mocks import MockSequenceWithGenerators
 from features.hdf_features import SaveHDF
 import h5py
 
+from riglib import sink
 
 class TestTaskWithFeatures(unittest.TestCase):
+    def setUp(self):
+        sink.sinks = sink.SinkManager() # reset the sink manager
+
     def test_metaclass_constructor(self):
         exp = experiment.make(experiment.LogExperiment, feats=(SaveHDF,))
         exp()
@@ -25,7 +29,6 @@ class TestTaskWithFeatures(unittest.TestCase):
         # test that the annotation appears in the messages
         self.assertTrue(b'annotation: test annotation' in hdf["/task_msgs"]["msg"])
 
-        # import ipdb; ipdb.set_trace()
         ref_current_state = np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0,
             0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0,
             0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0])

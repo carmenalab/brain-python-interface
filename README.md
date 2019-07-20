@@ -26,6 +26,7 @@ Visual C++ Build tools (for the 'traits' package)
 ```bash
 git clone https://github.com/carmenalab/brain-python-interface
 cd brain-python-interface
+pip install -r requirements.txt
 pip install -e .
 ```
 
