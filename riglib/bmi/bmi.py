@@ -610,7 +610,7 @@ class Decoder(object):
             Name of the state, index of the state, or list of indices/names 
             of the Decoder state(s) to return
         """
-        if isinstance(idx, int) or isinstance(idx, np.int64):
+        if isinstance(idx, int) or isinstance(idx, np.int64) or isinstance(idx, np.int32):
             return self.filt.state.mean[idx, 0]
         elif idx == 'q':
             pos_states, = np.nonzero(self.ssm.state_order == 0)
@@ -624,7 +624,10 @@ class Decoder(object):
         elif np.iterable(idx):
             return np.array([self.__getitem__(k) for k in idx])
         else:
-            raise ValueError("Decoder: Improper index type: %s" % type(idx))
+            try:
+                return self.filt.state.mean[idx, 0]
+            except:
+                raise ValueError("Decoder: Improper index type: %s" % type(idx))
 
     def __setitem__(self, idx, value):
         """
@@ -636,7 +639,7 @@ class Decoder(object):
             Name of the state, index of the state, or list of indices/names 
             of the Decoder state(s) to return
         """
-        if isinstance(idx, int) or isinstance(idx, np.int64):
+        if isinstance(idx, int) or isinstance(idx, np.int64) or isinstance(idx, np.int32):
             self.filt.state.mean[idx, 0] = value
         elif idx == 'q':
             pos_states, = np.nonzero(self.ssm.state_order == 0)
@@ -650,7 +653,10 @@ class Decoder(object):
         elif np.iterable(idx):
             [self.__setitem__(k, val) for k, val in zip(idx, value)]
         else:
-            raise ValueError("Decoder: Improper index type: %" % type(idx))
+            try:
+                self.filt.state.mean[idx, 0] = value
+            except:
+                raise ValueError("Decoder: Improper index type: %" % type(idx))
 
     def __setstate__(self, state):
         """
@@ -1390,7 +1396,8 @@ class BMILoop(object):
 
         # Open a log file in case of error b/c errors not visible to console
         # at this point
-        f = open(os.path.join(os.getenv('HOME'), 'code/bmi3d/log/clda_cleanup_log'), 'w')
+        from config import config
+        f = open(os.path.join(config.log_path, 'clda_cleanup_log'), 'w')
         f.write('Opening log file\n')
 
         f.write('# of paramter updates: %d\n' % len(self.bmi_system.param_hist))

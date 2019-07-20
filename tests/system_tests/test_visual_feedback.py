@@ -11,11 +11,7 @@ from riglib.experiment import generate
 
 from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
 
-# Tell linux to use Display 0 (the monitor physically attached to the 
-# machine. Otherwise, if you are connected remotely, it will try to run 
-# the graphics through SSH, which doesn't work for some reason.
-import os
-os.environ['DISPLAY'] = ':0'
+
 
 
 def consolerun(base_class='', feats=[], exp_params=dict(), gen_fn=None, gen_params=dict()):
@@ -41,7 +37,14 @@ def consolerun(base_class='', feats=[], exp_params=dict(), gen_fn=None, gen_para
     # run!
     exp.run_sync()
 
-consolerun(base_class=TargetCaptureVFB2DWindow, feats=[SaveHDF, Autostart], 
-    exp_params=dict(session_length=10, window_size=(480, 270), plant_visible=True, plant_type='cursor_14x14', rand_start=(0.,0.), max_tries=1), 
-    gen_params=dict(nblocks=1)
-)
+if __name__ == '__main__':
+    # Tell linux to use Display 0 (the monitor physically attached to the 
+    # machine. Otherwise, if you are connected remotely, it will try to run 
+    # the graphics through SSH, which doesn't work for some reason.
+    import os
+    os.environ['DISPLAY'] = ':0'
+    
+    consolerun(base_class=TargetCaptureVFB2DWindow, feats=[SaveHDF, Autostart], 
+        exp_params=dict(session_length=10, window_size=(480, 270), plant_visible=True, plant_type='cursor_14x14', rand_start=(0.,0.), max_tries=1), 
+        gen_params=dict(nblocks=1)
+    )

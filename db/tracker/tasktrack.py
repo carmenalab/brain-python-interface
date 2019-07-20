@@ -303,11 +303,11 @@ class TaskWrapper(object):
 
         self.params.trait_norm(Task.class_traits())
         if issubclass(Task, experiment.Sequence):
-            from . import models
+            # from . import models
             # retreive the sequence data from the db, or from the input argument if the input arg was a tuple
             if isinstance(seq, tuple):
                 gen_constructor, gen_params = seq
-            elif isinstance(seq, models.Sequence):
+            elif hasattr(seq, 'get'): #isinstance(seq, models.Sequence):
                 gen_constructor, gen_params = seq.get()
                 # Typically, 'gen_constructor' is the experiment.generate.runseq function (not an element of namelist.generators)
             else:

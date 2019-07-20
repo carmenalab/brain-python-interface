@@ -27,12 +27,12 @@ def param_objhook(obj):
         is simply returned.
 
     '''
-    from . import models
+    from tracker import models
     if '__django_model__' in obj:
         model = getattr(models, obj['__django_model__'])
         return model(pk = obj['pk'])
     elif '__builtin__' in obj:
-        func = getattr(__builtin__, obj['__builtin__'])
+        func = getattr(builtins, obj['__builtin__'])
         return func(*obj['args'])
     elif '__class__' in obj:
         # look up the module
@@ -60,7 +60,6 @@ def norm_trait(trait, value):
     -------
     typecast value of trait
     '''
-    from . import models
     ttype = trait.trait_type.__class__.__name__
     if ttype == 'Instance':
         # if the trait is an 'Instance' type and the value is a number, then the number gets interpreted as the primary key to a model in the database
@@ -78,12 +77,14 @@ def norm_trait(trait, value):
                 f.write(str(trait) + "\n")
                 f.write(str(mdl_name) + "\n")
 
+            from . import models
             Model = getattr(models, mdl_name)
             record = Model.objects.get(pk=value)
             value = record.get()
         # Otherwise, let's hope it's already an instance            
     elif ttype == 'DataFile':
         # Similar to Instance traits, except we always know to use models.DataFile as the database table to look up the primary key
+        from . import models
         if isinstance(value, int):
             record = models.DataFile.objects.get(pk=value)
             value = record.get()

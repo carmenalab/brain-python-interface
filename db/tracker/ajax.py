@@ -415,6 +415,8 @@ def add_new_task(request):
     try:
         models.import_by_path(import_path)
     except:
+        import traceback
+        traceback.print_exc()
         return _respond(dict(msg="import path invalid!", status="error"))
 
     task = models.Task(name=name, import_path=import_path)

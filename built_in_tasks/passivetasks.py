@@ -58,6 +58,7 @@ class TargetCaptureVFB2DWindow(TargetCaptureVisualFeedback, WindowDispl2D):
     fps = 20.
     def __init__(self,*args, **kwargs):
         super(TargetCaptureVFB2DWindow, self).__init__(*args, **kwargs)
+        self.assist_level = (1, 1)
 
     def _start_wait(self):
         self.wait_time = 0.
@@ -73,4 +74,4 @@ class TargetCaptureVFB2DWindow(TargetCaptureVisualFeedback, WindowDispl2D):
         for item in report:
             if item[0] == "reward":
                 reward_count += 1
-        return "{} rewarded trials in {} min".format(reward_count, int(np.ceil(duration)))
+        return "{} rewarded trials in {} min".format(reward_count, int(np.ceil(duration / 60)))

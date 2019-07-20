@@ -15,6 +15,9 @@ class Config(object):
         if not os.path.exists(self.log_path):
             os.mkdir(self.log_path)
 
+        self.window_start_x = 0
+        self.window_start_y = 0
+        self.display_start_pos = '%s,%s' % (self.window_start_x, self.window_start_y)
         try:
             parser = SafeConfigParser()
             self.parser = parser
