@@ -250,8 +250,10 @@ class Feature(models.Model):
     visible = models.BooleanField(blank=True, default=True)
     import_path = models.CharField(max_length=200, blank=True, null=True)
     
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        return "Feature[{}]".format(self.name)
+    def __repr__(self):
+        return self.__str__()
 
     @property
     def desc(self):
@@ -293,9 +295,11 @@ class System(models.Model):
     processor_path = models.CharField(max_length=200, blank=True, null=True)
     input_path = models.TextField(blank=True, null=True)
 
-    def __unicode__(self):
-        return self.name
-    
+    def __str__(self):
+        return "System[{}]".format(self.name)
+    def __repr__(self):
+        return self.__str__()
+
     @staticmethod
     def populate():
         for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params", "juice_log", "blackrock"]:
@@ -335,13 +339,12 @@ class System(models.Model):
         df.entry_id = entry_id
         df.save()
 
-    def __repr__(self):
-        return "System[{}]".format(self.name)
-
 class Subject(models.Model):
     name = models.CharField(max_length=128)
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        return "Subject[{}]".format(self.name)
+    def __repr__(self):
+        return self.__str__()
 
 class Generator(models.Model):
     name = models.CharField(max_length=128)
@@ -349,8 +352,11 @@ class Generator(models.Model):
     static = models.BooleanField()
     visible = models.BooleanField(blank=True, default=True)
 
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        return "Generator[{}]".format(self.name)
+
+    def __repr__(self):
+        return self.__str__()
 
     @staticmethod
     def get_all_generators():
@@ -456,9 +462,12 @@ class Sequence(models.Model):
     sequence = models.TextField(blank=True) #pickle data
     task = models.ForeignKey(Task, on_delete=models.PROTECT)
 
-    def __unicode__(self):
-        return self.name
+    # def __str__(self):
+    #     return "Sequence[{}] of type Generator[{}]".format(self.name, self.generator.name)
     
+    # def __repr__(self):
+    #     return self.__str__()
+
     def get(self):
         from riglib.experiment import generate
         from .json_param import Parameters
@@ -535,7 +544,7 @@ class TaskEntry(models.Model):
 
     def __str__(self):
         return "{date}: {subj} on {task} task, id={id}".format(
-            date=self.date.strftime("%h. %e, %Y, %l:%M %p"),
+            date=str(self.date),
             subj=self.subject.name,
             task=self.task.name,
             id=self.id)
@@ -893,9 +902,12 @@ class Calibration(models.Model):
 
     params = models.TextField()
 
-    def __unicode__(self):
+    def __str__(self):
         return "{date}:{system} calibration for {subj}".format(date=self.date, 
             subj=self.subject.name, system=self.system.name)
+
+    def __repr__(self):
+        return self.__str__()
     
     def get(self):
         from .json_param import Parameters
@@ -933,9 +945,12 @@ class Decoder(models.Model):
     entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
     path = models.TextField()
     
-    def __unicode__(self):
-        return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
+    def __str__(self):
+        return "Decoder[{date}:{name}] trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
+    def __repr__(self):
+        return self.__str__()
+
     @property 
     def filename(self):
         data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
