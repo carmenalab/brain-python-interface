@@ -24,7 +24,7 @@ Visual C++ Build tools (for the 'traits' package)
 
 # Installation
 ```bash
-git clone https://github.com/carmenalab/brain-python-interface
+git clone -b unstable_py3 https://github.com/carmenalab/brain-python-interface.git
 cd brain-python-interface
 pip install -r requirements.txt
 pip install -e .
