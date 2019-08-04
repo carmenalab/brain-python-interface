@@ -26,22 +26,22 @@ Visual C++ Build tools (for the 'traits' package)
 ```bash
 git clone -b unstable_py3 https://github.com/carmenalab/brain-python-interface.git
 cd brain-python-interface
-pip install -r requirements.txt
-pip install -e .
+pip3 install -r requirements.txt
+pip3 install -e .
 ```
 
 # set up the database
 ```bash
 cd db
-python manage.py makemigrations
-python manage.py migrate
-python manage.py makemigrations tracker
-python manage.py migrate                  # make sure to do this twice!
+python3 manage.py makemigrations
+python3 manage.py migrate
+python3 manage.py makemigrations tracker
+python3 manage.py migrate                  # make sure to do this twice!
 ```
 
 # start server
 ```bash
-python manage.py runserver
+python3 manage.py runserver
 ```
 
 # Setup
