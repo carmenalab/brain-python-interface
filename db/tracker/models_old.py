@@ -39,7 +39,7 @@ def import_by_path(import_path):
 class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
-    import_path = models.CharField(max_length=200, blank=True, null=True)
+    # import_path = models.CharField(max_length=200, blank=True, null=True)
     
     def __str__(self):
         if not self.import_path is None and self.import_path != "":
@@ -249,7 +249,7 @@ def can_be_int(x):
 class Feature(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(blank=True, default=True)
-    import_path = models.CharField(max_length=200, blank=True, null=True)
+    # import_path = models.CharField(max_length=200, blank=True, null=True)
     
     def __str__(self):
         return "Feature[{}]".format(self.name)
@@ -294,8 +294,8 @@ class System(models.Model):
     name = models.CharField(max_length=128)
     path = models.TextField()
     archive = models.TextField()
-    processor_path = models.CharField(max_length=200, blank=True, null=True)
-    input_path = models.TextField(blank=True, null=True)
+    # processor_path = models.CharField(max_length=200, blank=True, null=True)
+    # input_path = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return "System[{}]".format(self.name)
@@ -542,7 +542,7 @@ class TaskEntry(models.Model):
     notes = models.TextField()
     visible = models.BooleanField(blank=True, default=True)
     backup = models.BooleanField(blank=True, default=False)
-    entry_name = models.CharField(blank=True, null=True, max_length=50)
+    # entry_name = models.CharField(blank=True, null=True, max_length=50)
 
     def __str__(self):
         return "{date}: {subj} on {task} task, id={id}".format(
@@ -1301,7 +1301,7 @@ class DataFile(models.Model):
     archived = models.BooleanField(default=False)
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System, on_delete=models.PROTECT)
-    entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
+    entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT, null=True, blank=True)
 
     @staticmethod
     def create(system, task_entry, path, **kwargs):
@@ -1409,25 +1409,25 @@ class DataFile(models.Model):
             return -1
 
 
-class TaskEntryCollection(models.Model):
-    """ Collection of TaskEntry records grouped together, e.g. for analysis """
-    name = models.CharField(max_length=200, default='')
-    entries = models.ManyToManyField(TaskEntry)
+# class TaskEntryCollection(models.Model):
+#     """ Collection of TaskEntry records grouped together, e.g. for analysis """
+#     name = models.CharField(max_length=200, default='')
+#     entries = models.ManyToManyField(TaskEntry)
 
-    @property
-    def safe_name(self):
-        return self.name.replace(' ', '_')
+#     @property
+#     def safe_name(self):
+#         return self.name.replace(' ', '_')
 
-    def add_entry(self, te):
-        if not isinstance(te, TaskEntry):
-            te = TaskEntry(id=te)
+#     def add_entry(self, te):
+#         if not isinstance(te, TaskEntry):
+#             te = TaskEntry(id=te)
 
-        if te not in self.entries.all():
-            self.entries.add(te)
+#         if te not in self.entries.all():
+#             self.entries.add(te)
 
-    def remove_entry(self, te):
-        if not isinstance(te, TaskEntry):
-            te = TaskEntry(id=te)
+#     def remove_entry(self, te):
+#         if not isinstance(te, TaskEntry):
+#             te = TaskEntry(id=te)
 
-        if te in self.entries.all():
-            self.entries.remove(te)
+#         if te in self.entries.all():
+#             self.entries.remove(te)
