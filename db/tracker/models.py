@@ -1300,8 +1300,8 @@ class DataFile(models.Model):
     local = models.BooleanField(default=True)
     archived = models.BooleanField(default=False)
     path = models.CharField(max_length=256)
-    system = models.ForeignKey(System, on_delete=models.PROTECT)
-    entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
+    system = models.ForeignKey(System, on_delete=models.PROTECT, blank=True, null=True)
+    entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT, blank=True, null=True)
 
     @staticmethod
     def create(system, task_entry, path, **kwargs):
