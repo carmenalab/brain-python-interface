@@ -41,25 +41,6 @@ class TestExp(experiment.Experiment):
         super(TestExp, self)._cycle(*args, **kwargs)
 
 
-
-# class FeatureTestFixture(object):
-#     """ Generic feature interface. Why is this not part of the lib? """
-#     def __init__(self, *args, **kwargs):
-#         pass
-
-#     def init(self):
-#         pass
-
-#     def run(self):
-#         pass
-
-#     def set_state(self, *args, **kwargs):
-#         pass
-
-#     def join(self):
-#         pass
-
-
 class TestSaveHDF(unittest.TestCase):
     def setUp(self):
         sink.sinks = sink.SinkManager()
