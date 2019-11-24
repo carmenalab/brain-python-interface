@@ -16,6 +16,7 @@ from collections import OrderedDict
 min_per_hour = 60.
 sec_per_min = 60.
 
+
 class FSMTable(object):
     def __init__(self, **kwargs):
         self.states = OrderedDict()
@@ -61,6 +62,7 @@ class StateTransitions(object):
     def items(self):
         return list(self.state_transitions.items())
 
+
 class Clock(object):
     def tick(self, fps):
         import time
@@ -78,16 +80,28 @@ class FSM(object):
     debug = False
     fps = 60 # frames per second
 
+    log_exclude = set()  # List out state/trigger pairs to exclude from logging
+
     def __init__(self, *args, **kwargs):
+        self.verbose = kwargs.pop('verbose', False)
+
+        # state and event transitions
+        self.state_log = []
+        self.event_log = []
+
         self.clock = Clock()
 
-    def screen_init(self):
+        # Timestamp for rough loop timing
+        self.last_time = self.get_time()
+        self.cycle_count = 0        
+
+    @property 
+    def update_rate(self):
         '''
-        This method is implemented by the riglib.stereo_opengl.Window class, which is not used by all tasks. However, 
-        since Experiment is the ancestor of all tasks, a stub function is here so that any children
-        using the window can safely use 'super'. 
+        Attribute for update rate of task. Using @property in case any future modifications
+        decide to change fps on initialization
         '''
-        pass
+        return 1./self.fps        
 
     def print_to_terminal(self, *args):
         '''
@@ -99,18 +113,9 @@ class FSM(object):
             print(args)        
 
     def init(self):
-        '''
-        Initialization method to run *after* object construction (see self.start). 
-        This may be necessary in some cases where features are used with multiple inheritance to extend tasks 
-        (this is the standard way of creating custom base experiment + features classes through the browser interface). 
-        With multiple inheritance, it's difficult/annoying to make guarantees about the order of operations for 
-        each of the individual __init__ functions from each of the parents. Instead, this function runs after all the 
-        __init__ functions have finished running if any subsequent initialization is necessary before the main event loop 
-        can execute properly. Examples include initialization of the decoder state/parameters. 
-        '''
-        # Timestamp for rough loop timing
-        self.last_time = self.get_time()
-        self.cycle_count = 0        
+        '''Interface for child classes to run initialization code after object
+        construction'''
+        pass
 
     def run(self):
         '''
@@ -130,7 +135,6 @@ class FSM(object):
         '''
 
         ## Initialize the FSM before the loop
-        self.screen_init()
         self.set_state(self.state)
         
         while self.state is not None:
@@ -147,8 +151,13 @@ class FSM(object):
                     self.state = None
                     self.terminated_in_error = True
 
-                    traceback.print_exc()
-        print("end of experiment.run, task state is", self.state)
+                    self.termination_err = io.StringIO()
+                    traceback.print_exc(None, self.termination_err)
+                    self.termination_err.seek(0)
+
+                    self.print_to_terminal(self.termination_err.read())
+                    self.termination_err.seek(0)
+        if self.verbose: print("end of FSM.run, task state is", self.state)
 
     def run_sync(self):
         self.init()
@@ -221,11 +230,15 @@ class FSM(object):
         -------
         None
         '''
-        fsm_edges = self.status[self.state]
-        next_state = fsm_edges[event]
-        self.set_state(next_state)
+        log = (self.state, event) not in self.log_exclude
+        if log:  
+            self.event_log.append((self.state, event, self.get_time()))
 
-    def set_state(self, condition):
+        fsm_edges = self.status[self.state]
+        next_state = fsm_edges[event]            
+        self.set_state(next_state, log=log)        
+        
+    def set_state(self, condition, log=True):
         '''
         Change the state of the task
 
@@ -238,10 +251,12 @@ class FSM(object):
         -------
         None
         '''
-        self.state = condition
-
         # Record the time at which the new state is entered. Used for timed states, e.g., the reward state
         self.start_time = self.get_time()
+
+        if log:
+            self.state_log.append((condition, self.start_time))        
+        self.state = condition
 
         self.start_state(condition)
 
@@ -272,3 +287,78 @@ class FSM(object):
         loop_time = start_time - self.last_time
         self.last_time = start_time
         return loop_time
+
+    @classmethod
+    def parse_fsm(cls):
+        '''
+        Print out the FSM of the task in a semi-readable form
+        '''
+        for state in cls.status:
+            print('When in state "%s"' % state) 
+            for trigger_event, next_state in list(cls.status[state].items()):
+                print('\tevent "%s" moves the task to state "%s"' % (trigger_event, next_state))
+
+    @classmethod
+    def auto_gen_fsm_functions(cls):
+        '''
+        Parse the FSM to write all the _start, _end, _while, and _test functions
+        '''
+        events_to_test = []
+        for state in cls.status:
+            # make _start function 
+            print('''def _start_%s(self): pass''' % state)
+
+            # make _while function
+            print('''def _while_%s(self): pass''' % state)
+            # make _end function
+            print('''def _end_%s(self): pass''' % state)
+            for event, _ in cls.status.get_possible_state_transitions(state):
+                events_to_test.append(event)
+
+        print("################## State trnasition test functions ##################")
+
+        for event in events_to_test:
+            if event == 'stop': continue
+            print('''def _test_%s(self, time_in_state): return False''' % event)
+
+    def end_task(self):
+        '''
+        End the FSM gracefully on the next iteration by setting the task's "stop" flag.
+        '''
+        self.stop = True      
+
+    def _test_stop(self, ts):
+        ''' 
+        FSM 'test' function. Returns the 'stop' attribute of the task
+        '''
+        return self.stop
+
+
+class ThreadedFSM(FSM, threading.Thread):
+    """ FSM + infrastructure to run FSM in its own thread """
+    def __init__(self):
+        FSM.__init__(self)
+        threading.Thread.__init__(self)
+
+    def start(self):
+        '''
+        From the python docs on threading.Thread:
+            Once a thread object is created, its activity must be started by 
+            calling the thread's start() method. This invokes the run() method in a 
+            separate thread of control.
+
+        Prior to the thread's start method being called, the secondary init function (self.init) is executed.
+        After the threading.Thread.start is executed, the 'run' method is executed automatically in a separate thread.
+
+        Returns
+        -------
+        None
+        '''
+        self.init()
+        threading.Thread.start(self)
+
+    def join(self):
+        '''
+        Code to run before re-joining the FSM thread 
+        '''
+        threading.Thread.join(self)

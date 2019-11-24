@@ -33,3 +33,5 @@ tasks
 tests/sim_clda/*
 *.egg-info/*
 */*.egg-info/*
+*/build/*
+*/dist/*

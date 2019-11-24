@@ -13,7 +13,7 @@ from mocks import MockDatabase
 class TestLogExperiment(unittest.TestCase):
     def setUp(self):
         sink.sinks = sink.SinkManager()        
-        self.exp = MockLogExperiment()
+        self.exp = MockLogExperiment(verbose=False)
 
     def test_exp_fsm_output(self):
         """Experiment state sequence follows reference sequence"""
@@ -67,13 +67,13 @@ class TestLogExperiment(unittest.TestCase):
     def test_thread_stop(self):
         """Experiment execution in remote thread should terminate when 'end_task' is called"""
         # Experiment should never start if the initial state is None
-        exp = experiment.Experiment()
+        exp = experiment.Experiment(verbose=False)
         exp.state = None
         exp.start()
         exp.join()
         self.assertEqual(exp.cycle_count, 0)
 
-        exp = experiment.Experiment()
+        exp = experiment.Experiment(verbose=False)
         exp.state = "wait"
         exp.start()
         time.sleep(1)
@@ -111,7 +111,18 @@ class TestTaskWithFeatures(unittest.TestCase):
         exp = task_cls(MockSequenceWithGenerators.gen_fn1())
         exp.run_sync()
 
-        hdf = h5py.File(exp.h5file.name)
+        # optional delay if the OS is not ready to let you open the HDF file
+        # created just now
+        open_count = 0
+        while open_count < 3:
+            try:
+                hdf = h5py.File(exp.h5file.name)
+                break
+            except OSError:
+                open_count += 1
+                if open_count >= 3:
+                    raise Exception("Unable to open HDF file!")
+                time.sleep(1)
 
         ref_current_state = np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0,
             0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0,
