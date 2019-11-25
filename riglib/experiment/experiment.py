@@ -96,7 +96,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         Examples might include sending a trigger to start a recording device (e.g., neural system), since you might want
         recording to be guaranteed to start before any task event loop activity occurs. 
         '''
-        if self.verbose: print('running experiment.Experiment.pre_init')
+        print('running experiment.Experiment.pre_init')
         pass
 
     def __init__(self, verbose=True, **kwargs):

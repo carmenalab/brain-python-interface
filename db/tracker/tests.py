@@ -42,14 +42,14 @@ class TestDataFile(TestCase):
         self.assertTrue(data_file.entry_id == te.id)
         self.assertTrue(data_file.system_id == system.id)
 
-    def test_data_file_linking_through_post(self):
-        c = Client()
-        post_data = {'file_path':"dummy_file_path", 'data_system_id':1}
-        te = models.TaskEntry.objects.all()[0]
-        c.post("/exp_log/link_data_files/%d/submit" % te.id, post_data)
+    #def test_data_file_linking_through_post(self):
+    #    c = Client()
+    #    post_data = {'file_path':"dummy_file_path", 'data_system_id':1}
+    #    te = models.TaskEntry.objects.all()[0]
+    #    c.post("/exp_log/link_data_files/%d/submit" % te.id, post_data)
 
-        data_file = models.DataFile.objects.get(path="dummy_file_path")
-        self.assertEqual(data_file.entry_id, te.id)
+    #    data_file = models.DataFile.objects.get(path="dummy_file_path")
+    #    self.assertEqual(data_file.entry_id, te.id)
 
 
 class TestModels(TestCase):

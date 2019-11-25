@@ -132,8 +132,8 @@ class MockSequenceWithGenerators(Sequence):
         return [{"target":x} for x in target_seq]
 
     @staticmethod
-    def gen_fn2(n_targets2=4):
-        target_seq = [1, 2] * n_targets2
+    def gen_fn2(n_targets=4):
+        target_seq = [1, 2] * n_targets
         return [{"target":x} for x in target_seq]
 
     def _test_start_trial(self, ts):
