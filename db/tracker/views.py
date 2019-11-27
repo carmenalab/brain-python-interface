@@ -11,7 +11,6 @@ from django.template import RequestContext
 from django.shortcuts import render_to_response, render
 from django.http import HttpResponse
 
-from config import namelist
 from . import exp_tracker
 
 
@@ -126,8 +125,13 @@ def setup(request):
     features = models.Feature.objects.all()
     systems = models.System.objects.all()
 
+    # populate the list of built-in features which could be added
     from features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
+    for feat in features:
+        if feat.name in built_in_feature_names:
+            built_in_feature_names.remove(feat.name)
+
     return render(request, "setup.html", 
         dict(subjects=subjects, tasks=tasks, features=features, systems=systems,
             built_in_feature_names=built_in_feature_names))

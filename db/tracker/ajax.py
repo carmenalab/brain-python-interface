@@ -429,6 +429,29 @@ def add_new_task(request):
     return _respond(dict(msg="Added new task: %s" % task.name, status="success", data=task_data))
 
 @csrf_exempt
+def update_task_import_path(request):
+    from . import models
+    task_id, import_path = request.POST['id'], request.POST['import_path']
+
+    #  verify import path
+    if import_path == '':
+        import_path = "riglib.experiment.Experiment"
+
+    try:
+        models.import_by_path(import_path)
+    except:
+        import traceback
+        traceback.print_exc()
+        return _respond(dict(msg="import path invalid!", status="error"))
+
+    task = models.Task.objects.get(id=task_id)
+    task.import_path = import_path
+    task.save()
+
+    task_data = dict(id=task.id, name=task.name, import_path=task.import_path)
+    return _respond(dict(msg="Updated task import path: %s" % task.name, status="success", data=task_data))
+
+@csrf_exempt
 def add_new_subject(request):
     from . import models 
     subject_name = request.POST['subject_name']
@@ -479,6 +502,23 @@ def add_new_feature(request):
     return _respond(dict(msg="Added new feature: %s" % feat.name, status="success"))
 
 @csrf_exempt
+def update_feature_import_path(request):
+    feature_id, feature_path = request.POST['id'], request.POST['import_path']
+
+    try:
+        models.import_by_path(import_path)
+    except:
+        import traceback
+        traceback.print_exc()
+        return _respond(dict(msg="import path invalid!", status="error"))    
+
+    feat = models.Feature.objects.get(id=feature_id)
+    feat.import_path = import_path
+    feat.save()
+
+    return _respond(dict(msg="Updated feature import path: %s" % feat.name, status="success"))
+
+@csrf_exempt
 def setup_run_upkeep(request):
     # Update the list of generators
     from . import models
@@ -520,3 +560,10 @@ def save_entry_name(request):
     te_rec.save()
     return _respond(dict(status="success", msg="Saved entry name: %s" % te_rec.entry_name))
 
+@csrf_exempt
+def update_built_in_feature_import_paths(request):
+    """For built-in features, update the import path based on the features module"""
+    from . import models
+    for feat in models.Feature.objects.all():
+        feat.get(update_builtin=True)
+    return _respond(dict(status="success", msg="Updated built-in feature paths!"))

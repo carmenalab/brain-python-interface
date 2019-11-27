@@ -22,6 +22,9 @@ urlpatterns = [
     path('setup/populate_models', ajax.populate_models),
     path('setup/add/enable_features', ajax.enable_features),
     path('setup/run_upkeep', ajax.setup_run_upkeep),
+    path('setup/update/built_in_feature_paths', ajax.update_built_in_feature_import_paths),
+    path('setup/update/task_import_path', ajax.update_task_import_path),
+    path('setup/update/feature_import_path', ajax.update_feature_import_path),
     
     path(r'exp_log/', views.list_exp_history, dict(max_entries=200)),
     path(r'exp_log/all/', views.list_exp_history),

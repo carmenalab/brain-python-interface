@@ -55,6 +55,24 @@
         }
       })
     }
+
+    function store_single_task_import_path(id) {
+      console.log('task', id)
+      data = {'id': id, "import_path": $("#import_path_task_" + id).val()};
+      console.log(data);
+      $.post("/setup/update/task_import_path", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+      });
+    }
+
+    function store_single_feature_import_path(id) {
+      console.log('feature', id);
+      data = {'id': id, "import_path": $("#import_path_feature_" + id).val()};
+      console.log(data);
+      $.post("/setup/update/feature_import_path", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+      });
+    }    
   </script>
 </head>
 
@@ -97,14 +115,16 @@
       <th>Index</th><th>Name</th>
     </thead>
 
-    {% for subject in subjects %}
-    <tr><td>{{subject.id}}</td><td>{{subject.name}}</td></tr>
-    {% endfor %}
-
+    <!-- Row to add new subjects -->
     <tr>
       <td><input type="submit" value="Add New" onclick="add_new_subject()"></td>
       <td><input type="text" id="new_subject_name"></td>
     </tr>
+
+    {% for subject in subjects %}
+    <tr><td>{{subject.id}}</td><td>{{subject.name}}</td></tr>
+    {% endfor %}
+
   </table>
 
 
@@ -116,15 +136,27 @@
       </tr>
     </thead>
 
-    {% for task in tasks %}
-    <tr><td>{{task.id}}</td><td>{{task.name}}</td><td>{{task.import_path}}</td></tr>
-    {% endfor %}
-
+    <!-- Row to add new tasks -->
     <tr>
       <td><input type="submit" value="Add New" onclick="add_new_task()"></td>
       <td><input type="text" id="task_name"></td>
       <td><input type="text" id="task_import_path">
     </tr>
+
+    {% for task in tasks %}
+    <tr>
+      <td>{{task.id}}</td>
+      <td>{{task.name}}</td>
+      <td>
+        {% if task.import_path is None %}
+          <input type="text" id="import_path_task_{{task.id}}"><input type="submit" value="Store" onclick="store_single_task_import_path({{task.id}})">
+        {% else %}
+          {{task.import_path}}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+
   </table>
 
 
@@ -151,15 +183,25 @@
 
 
   <h2>Features</h2>
+  <input type="submit" value="Update built-in feature paths" onclick="$.post('/setup/update/built_in_feature_paths', {}, function(resp) {console.log(resp)})"><br>
   <table class="table table-hover table-sm" style="width: auto;">
     <thead>
       <tr>
-        <th>Index</th><th>Feature name</th><!-- <th>Python path (must be importable)</th> -->
+        <th>Index</th><th>Feature name</th><th>Python path (must be importable)</th>
       </tr>
     </thead>
 
     {% for feature in features %}
-    <tr><td>{{feature.id}}</td><td>{{feature.name}}</td></tr>
+    <tr>
+      <td>{{feature.id}}</td>
+      <td>{{feature.name}}</td>
+      <td>
+        {% if feature.import_path is None %}
+          <input type="text" id="import_path_task_{{feature.id}}"><input type="submit" value="Store" onclick="store_single_feature_import_path({{feature.id}})">
+        {% else %}
+          {{feature.import_path}}
+        {% endif %}
+    </tr>
     {% endfor %}
   </table>
 

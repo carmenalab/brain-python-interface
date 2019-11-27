@@ -264,9 +264,19 @@ class Feature(models.Model):
         else:
             return ''
     
-    def get(self):
+    def get(self, update_builtin=False):
+        from features import built_in_features
         if self.import_path is not None:
             return import_by_path(self.import_path)
+        elif self.name in built_in_features:
+            import_path = built_in_features[self.name].__module__ + '.' + built_in_features[self.name].__qualname__
+            if update_builtin:
+                self.import_path = import_path
+                self.save()
+                return import_by_path(self.import_path)
+            else:
+                print("Feature %s import path not found, but found a default" % self.name)
+                return import_by_path(import_path)
         else:
             print("Feature %s has no import_path" % self.name)
             return None
