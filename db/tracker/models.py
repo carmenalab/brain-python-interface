@@ -54,7 +54,7 @@ class Task(models.Model):
         if not self.import_path is None and len(self.import_path) > 0:
             return import_by_path(self.import_path)
         else:
-            print(r"Could not find base class for task. No import_path provided")
+            print(r"Could not find base class for task %s. No import_path provided" % self.name)
             return experiment.Experiment
         
     def get(self, feats=(), verbose=False):
@@ -1466,3 +1466,17 @@ class KeyValueStore(models.Model):
             return objs[0].value
         if len(objs) > 1:
             raise ValueError("Duplicate keys: %s" % key)
+
+    @classmethod 
+    def set(cls, key, value):
+        matching_recs = cls.objects.filter(key=key)
+        if len(matching_recs) == 0:
+            obj = cls(key=key, value=value)
+            obj.save()
+        elif len(matching_recs) == 1:
+            obj = matching_recs[0]
+            obj.value = value
+            obj.save()
+        else:
+            raise ValueError("Duplicate keys: %s" % key)
+

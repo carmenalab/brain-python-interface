@@ -82,13 +82,25 @@
       $("#alert_field").html("Not implemented!");
     }
 
+    function generic_post(data) {
+      $.post("/setup/update/generic", data, function (resp) {
+        $("#alert_field").html(resp["msg"]);
+      });      
+    }
+
     function save_recording_sys() {
-      $("#alert_field").html("Not implemented!");
-    }        
+      generic_post({'action': 'save_recording_sys', 
+        'selected_recording_sys': $("#recording_sys_make").val(),
+      });
+    }
 
     function update_database_path(db_name) {
+      // generic_post({'action': 'update_database_storage_path',
+      //   'db_name': db_name, 
+      //   'db_storage_path': $("#db_" + db_name + "_path").val()
+      // });
       $("#alert_field").html("Not implemented!");
-    }            
+    }
 
     $(document).ready(function() {
       // initialize the currently selected system parameters
@@ -106,14 +118,13 @@
   <h1>Setup</h1>
   <h2>System Configuration</h2>
     Neural recording system: 
-    <!-- TODO verify that the value is being set properly -->
     <select id="recording_sys_make">
       {% for sys in recording_sys_options %}
         <option value='{{sys}}'>{{sys}}</option>
       {% endfor %}
     </select>
 
-    <!-- TODO pull current value from KV store -->
+    <!-- Button to save recording system -->
     <input type="submit" value="Save Recording Sys." onclick="save_recording_sys()">
 
     <table class="table table-hover table-sm" style="width: auto;">
@@ -183,11 +194,13 @@
       <td>{{task.id}}</td>
       <td>{{task.name}}</td>
       <td>
-        {% if task.import_path is None %}
-          <input type="text" id="import_path_task_{{task.id}}"><input type="submit" value="Store" onclick="store_single_task_import_path({{task.id}})">
-        {% else %}
-          {{task.import_path}}
-        {% endif %}
+        <input type="text" id="import_path_task_{{task.id}}" 
+          {% if task.import_path is None %}
+            value=""
+          {% else %}
+            value="{{task.import_path}}"
+          {% endif %}>
+        <input type="submit" value="Save" onclick="store_single_task_import_path({{task.id}})">
       </td>
     </tr>
     {% endfor %}
