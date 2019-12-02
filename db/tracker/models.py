@@ -712,9 +712,11 @@ class TaskEntry(models.Model):
         # Parse the "report" data and put it into the JS response
         js['report'] = self.offline_report()
 
-        if not hasattr(config, "recording_sys"):
+        recording_sys_make = KeyValueStore.get('recording_sys')
+
+        if recording_sys_make is None:
             pass
-        elif config.recording_sys['make'] == 'plexon':
+        elif recording_sys_make == 'plexon':
             try:
                 from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
                 plexon = System.objects.using(self._state.db).get(name='plexon')
@@ -738,7 +740,7 @@ class TaskEntry(models.Model):
                 print("No plexon file found")
                 js['bmi'] = dict(_neuralinfo=None)
         
-        elif config.recording_sys['make'] == 'blackrock':
+        elif recording_sys_make == 'blackrock':
             try:
                 print('skipping .nev conversion')
                 js['bmi'] = dict(_neuralinfo=None)
@@ -759,7 +761,7 @@ class TaskEntry(models.Model):
                 import traceback
                 traceback.print_exc()
                 js['bmi'] = dict(_neuralinfo=None)
-        elif config.recording_sys['make'] == 'TDT':
+        elif recording_sys_make == 'TDT':
             print('This code does not yet know how to open TDT files!')
             js['bmi'] = dict(_neuralinfo=None)
             #raise NotImplementedError("This code does not yet know how to open TDT files!")
@@ -963,16 +965,24 @@ class Decoder(models.Model):
     def __repr__(self):
         return self.__str__()
 
+    def get_data_path(self, db_name=None):
+        try:
+            if db_name is not None:
+                data_path = getattr(config, 'db_config_'+db_name)['data_path']
+            else:
+                data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+        except:
+            print("Database path not set up correctly!")
+            data_path = ''
+        return data_path
+
     @property 
     def filename(self):
-        data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+        data_path = self.get_data_path()
         return os.path.join(data_path, 'decoders', self.path)        
 
     def load(self, db_name=None):
-        if db_name is not None:
-            data_path = getattr(config, 'db_config_'+db_name)['data_path']
-        else:
-            data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+        data_path = self.get_data_path()
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
 
         if os.path.exists(decoder_fname):
@@ -1441,3 +1451,18 @@ class TaskEntryCollection(models.Model):
 
         if te in self.entries.all():
             self.entries.remove(te)
+
+
+class KeyValueStore(models.Model):
+    key = models.TextField()
+    value = models.TextField()
+
+    @classmethod
+    def get(cls, key):
+        objs = cls.objects.filter(key=key)
+        if len(objs) == 0:
+            return None
+        if len(objs) == 1:
+            return objs[0].value
+        if len(objs) > 1:
+            raise ValueError("Duplicate keys: %s" % key)

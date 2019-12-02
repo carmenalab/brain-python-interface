@@ -35,3 +35,10 @@ tests/sim_clda/*
 */*.egg-info/*
 */build/*
 */dist/*
+riglib/fsm/build/*
+riglib/fsm/dist/*
+riglib/hdfwriter/build/*
+riglib/hdfwriter/dist/*
+riglib/hdfwriter/hdfwriter.egg-info/*
+riglib/fsm/fsm.egg-info/*
+env/*

@@ -433,7 +433,7 @@ def update_task_import_path(request):
     from . import models
     task_id, import_path = request.POST['id'], request.POST['import_path']
 
-    #  verify import path
+    # verify import path
     if import_path == '':
         import_path = "riglib.experiment.Experiment"
 

@@ -72,20 +72,61 @@
       $.post("/setup/update/feature_import_path", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
       });
-    }    
+    }
+
+    function enable_built_in_feature(feature) {
+      $("#alert_field").html("Not implemented!");
+    }
+
+    function add_new_feature() {
+      $("#alert_field").html("Not implemented!");
+    }
+
+    function save_recording_sys() {
+      $("#alert_field").html("Not implemented!");
+    }        
+
+    function update_database_path(db_name) {
+      $("#alert_field").html("Not implemented!");
+    }            
+
+    $(document).ready(function() {
+      // initialize the currently selected system parameters
+      $("#recording_sys_make").val("{{recording_sys}}");
+    });
   </script>
 </head>
 
 <body>
   <div class="alert alert-info" role="alert" id="alert_field">
+    <!-- TODO make this always on top -->
   </div>
 
-  <input type="button" onclick="$.post('/setup/run_upkeep')" value="Run upkeep tasks"><br>
+<!--   <input type="button" onclick="$.post('/setup/run_upkeep')" value="Run upkeep tasks"><br> -->
   <h1>Setup</h1>
   <h2>System Configuration</h2>
+    Neural recording system: 
+    <!-- TODO verify that the value is being set properly -->
+    <select id="recording_sys_make">
+      {% for sys in recording_sys_options %}
+        <option value='{{sys}}'>{{sys}}</option>
+      {% endfor %}
+    </select>
+
+    <!-- TODO pull current value from KV store -->
+    <input type="submit" value="Save Recording Sys." onclick="save_recording_sys()">
+
     <table class="table table-hover table-sm" style="width: auto;">
       <thead>
-        <th>Parameter</th><th>Value</th>
+        <th>Database</th><th>Storage path</th>
+        {% for database in databases %}
+          <tr>
+            <td>{{database.name}}</td>
+            <td><input type="text" value="{{database.path}}" id="db_{{database.name}}_path">
+              <input type="submit" value="Save" onclick='update_database_path("{{database.name}}")'>
+            </td>
+          </tr>
+        {% endfor %}
       </thead>
 
       <!-- make a table with the current values  -->
@@ -96,18 +137,12 @@
         stuff['plexon IP address'] = dict(addr='10.0.0.13', port=6000)
         stuff['update_rates'] = dict(hdf_hz=60) -->
 
-      <tr>
+<!--       <tr>
         <td><input type="submit" value="Add New" onclick="add_new_subject()"></td>
         <td><input type="text"></td>
-      </tr>
+      </tr> -->
 
     </table>
-
-  <h2>System configuration</h2>
-  <form action="/setup/config">
-
-
-  </form>
 
   <h2>Subjects</h2>
   <table class="table table-hover table-sm" style="width: auto;" id="subject-table">
@@ -191,6 +226,13 @@
       </tr>
     </thead>
 
+    <!-- New feature row -->
+    <tr>
+      <td><input type="submit" value="Add New" onclick="add_new_feature()"></td>
+      <td><input type="text" name="name" id="new_feature_name"></td>
+      <td><input type="text" id="new_feature_path"</td>
+    </tr>
+
     {% for feature in features %}
     <tr>
       <td>{{feature.id}}</td>
@@ -203,21 +245,31 @@
         {% endif %}
     </tr>
     {% endfor %}
+
+    <!-- Built-in features -->
+    {% for feature in built_in_feature_names %}
+    <tr>
+      <td>--</td>
+      <td>{{feature}}</td>
+      <td><input type="submit" value="Enable" onclick="enable_built_in_feature('{{feature}}')">
+    </tr>
+    {% endfor %}
+
   </table>
 
-  Enable built-in feature<br><br>
+<!--   Enable built-in feature<br><br>
   <form action="/setup/add/enable_features" method="POST">
     {% for feature in built_in_feature_names %}
       <input type="checkbox" name="{{feature}}" value="{{feature}}">{{feature}}<br>
     {% endfor %}
     <input type="submit">
   </form>
-
-  Add new custom feature<br>
+ -->
+<!--   Add new custom feature<br>
   <form action="/setup/add/new_feature" method="POST">
     Feature name <input type="text" name="name"><br>
     Feature class path (must be importable) <input type="text" name="import_path"><br>
     <input type="submit">
-  </form>
+  </form> -->
 
 </body>

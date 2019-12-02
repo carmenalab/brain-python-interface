@@ -132,9 +132,33 @@ def setup(request):
         if feat.name in built_in_feature_names:
             built_in_feature_names.remove(feat.name)
 
+    # list of available databases
+    from db import settings
+    databases = list(settings.DATABASES.keys())
+
+    # check that a 'database file' system exists
+    db_sys = models.System.objects.filter(name="metadata")
+    if len(db_sys) == 0:
+        db_sys = models.System(name="metadata", path="db")
+        db_sys.save()
+
+    database_objs = []
+    for db in databases:
+        database_obj = models.DataFile.objects.filter(path='db_%s.sql' % db)
+        if len(database_obj) == 0:
+            database_objs.append({"name":db, "path":"--"})
+        else:
+            database_obj = database_obj[0]
+            database_obj.name = db
+            database_objs.append(database_obj)
+
+    recording_sys = models.KeyValueStore.get("recording_sys")
+    recording_sys_options =  ['tdt', 'blackrock', 'plexon', 'None']
+
     return render(request, "setup.html", 
         dict(subjects=subjects, tasks=tasks, features=features, systems=systems,
-            built_in_feature_names=built_in_feature_names))
+            built_in_feature_names=built_in_feature_names, databases=database_objs,
+            recording_sys=recording_sys, recording_sys_options=recording_sys_options))
 
 def _color_entries(entries):
     from .models import TaskEntry, Task, Subject, Feature, Generator
