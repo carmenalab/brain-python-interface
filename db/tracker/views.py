@@ -153,7 +153,7 @@ def setup(request):
             database_objs.append(database_obj)
 
     recording_sys = models.KeyValueStore.get("recording_sys")
-    recording_sys_options =  ['tdt', 'blackrock', 'plexon', 'None']
+    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon']
 
     return render(request, "setup.html", 
         dict(subjects=subjects, tasks=tasks, features=features, systems=systems,

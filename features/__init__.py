@@ -1,8 +1,7 @@
 '''
 Module for the core "features" that can be used to extend and customize a 
 task/experiment by multiple inheritance.
-''' 
-
+'''
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness
 from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor
@@ -14,6 +13,9 @@ from .hdf_features import SaveHDF
 from .video_recording_features import SingleChannelVideo
 from .bmi_task_features import NormFiringRates
 from .arduino_features import PlexonSerialDIORowByte
+from .blackrock_features import BlackrockBMI
+from .blackrock_features import RelayBlackrockByte
+
 
 built_in_features = dict(
     autostart=Autostart,
@@ -41,6 +43,8 @@ built_in_features = dict(
     single_video=SingleChannelVideo,
     exp_display=WindowWithExperimenterDisplay,
     relay_arduino=PlexonSerialDIORowByte,
+    blackrockbmi        = BlackrockBMI,
+    relay_blackrockbyte = RelayBlackrockByte,
 )
 
 # >>> features.built_in_features['autostart'].__module__

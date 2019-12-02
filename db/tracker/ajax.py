@@ -567,3 +567,51 @@ def update_built_in_feature_import_paths(request):
     for feat in models.Feature.objects.all():
         feat.get(update_builtin=True)
     return _respond(dict(status="success", msg="Updated built-in feature paths!"))
+
+def update_database_storage_path(request):
+    from . import models
+    db_name = request.POST['db_name']
+    db_storage_path = request.POST['db_storage_path']
+
+    db_rec_obj = models.DataFile.objects.filter(path='db_%s.sql' % db_name)
+    print(db_rec_obj)
+    if len(db_rec_obj) == 0:
+        # create database record object
+        try:
+            db_sys = models.System.objects.get(name="metadata", path="db")
+        except:
+            return _respond(dict(status="error", msg="database system not found!"))
+        db_rec_obj = models.DataFile(path='db_%s.sql' % db_name, system=db_sys)
+        db_rec_obj.path = db_storage_path
+        print(db_rec_obj.path)
+        db_rec_obj.save()
+
+        assert len(models.DataFile.objects.filter(path='db_%s.sql' % db_name)) == 1
+
+        return _respond(dict(status="success", msg="Created record of new database and set path to %s" % db_rec_obj.path))
+    elif len(db_rec_obj) == 1:
+        db_rec_obj = db_rec_obj[0]
+        db_rec_obj.path = db_storage_path
+        db_rec_obj.save()
+        return _respond(dict(status="success", msg="Updated path to %s" % db_rec_obj.path))
+    else:
+        return _respond(dict(status="error", msg="Duplicate databases! Fix manually!"))
+
+def save_recording_sys(request):
+    from . import models
+    models.KeyValueStore.set('recording_sys', request.POST['selected_recording_sys'])
+    print(models.KeyValueStore.get('recording_sys'))
+    ret_msg = "Set recording_sys to %s" % models.KeyValueStore.get('recording_sys')
+    return _respond(dict(status="success", msg=ret_msg))
+
+@csrf_exempt
+def setup_handler(request):
+    """One-stop handler for setup functions to avoid adding a bunch of URLs"""
+    action = request.POST['action']
+    if action == "update_database_storage_path":
+        return update_database_storage_path(request)
+    elif action == "save_recording_sys":
+        return save_recording_sys(request)
+    else:
+        return _respond(dict(status="error", msg="Unrecognized data type: %s" % data_type))
+

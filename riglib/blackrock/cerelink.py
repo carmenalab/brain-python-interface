@@ -6,7 +6,11 @@ Blackrock Neural Signal Processor (NSP) (or nPlay).
 import sys
 import time
 from collections import namedtuple
-from cerebus import cbpy
+try:
+    from cerebus import cbpy
+except ImportError:
+    import warnings
+    warnings.warn("Unable to import cerebus library. Check if is installed if using the Blackrock NeuroPort system")
 
 SpikeEventData = namedtuple("SpikeEventData",
                             ["chan", "unit", "ts", "arrival_ts"])
