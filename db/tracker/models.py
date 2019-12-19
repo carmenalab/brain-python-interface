@@ -982,14 +982,17 @@ class Decoder(models.Model):
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
 
         if os.path.exists(decoder_fname):
-            fh = open(decoder_fname, 'r')
-            unpickler = pickle.Unpickler(fh)
-            unpickler.find_global = decoder_unpickler
-            dec = unpickler.load() # object will now contain the new class path reference
-            fh.close()
+            try:
+                fh = open(decoder_fname, 'r')
+                unpickler = pickle.Unpickler(fh)
+                unpickler.find_global = decoder_unpickler
+                dec = unpickler.load() # object will now contain the new class path reference
+                fh.close()
 
-            dec.name = self.name
-            return dec
+                dec.name = self.name
+                return dec
+            except:
+                return None
         else: # file not present!
             print("Decoder file could not be found! %s" % decoder_fname)
             return None
