@@ -95,11 +95,10 @@
     }
 
     function update_database_path(db_name) {
-      // generic_post({'action': 'update_database_storage_path',
-      //   'db_name': db_name, 
-      //   'db_storage_path': $("#db_" + db_name + "_path").val()
-      // });
-      $("#alert_field").html("Not implemented!");
+      generic_post({'action': 'update_database_storage_path',
+        'db_name': db_name, 
+        'db_storage_path': $("#db_" + db_name + "_path").val()
+      });
     }
 
     $(document).ready(function() {

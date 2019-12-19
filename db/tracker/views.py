@@ -136,21 +136,26 @@ def setup(request):
     from db import settings
     databases = list(settings.DATABASES.keys())
 
-    # check that a 'database file' system exists
-    db_sys = models.System.objects.filter(name="metadata")
-    if len(db_sys) == 0:
-        db_sys = models.System(name="metadata", path="db")
-        db_sys.save()
+    # # check that a 'database file' system exists
+    # db_sys = models.System.objects.filter(name="metadata")
+    # if len(db_sys) == 0:
+    #     db_sys = models.System(name="metadata", path="db")
+    #     db_sys.save()
 
     database_objs = []
     for db in databases:
-        database_obj = models.DataFile.objects.filter(path='db_%s.sql' % db)
-        if len(database_obj) == 0:
-            database_objs.append({"name":db, "path":"--"})
-        else:
-            database_obj = database_obj[0]
-            database_obj.name = db
-            database_objs.append(database_obj)
+        path = models.KeyValueStore.get('data_path', '--', dbname=db)
+        database_objs.append({"name":db, "path":path})
+
+        # database_obj = models.DataFile.objects.filter(path='db_%s.sql' % db)
+        # if len(database_obj) == 0:
+        #     database_objs.append({"name":db, "path":"--"})
+        # else:
+        #     database_obj = database_obj[0]
+        #     database_obj.name = db
+        #     database_objs.append(database_obj)
+
+    print(database_objs)
 
     recording_sys = models.KeyValueStore.get("recording_sys")
     recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon']

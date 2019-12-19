@@ -42,3 +42,6 @@ riglib/hdfwriter/dist/*
 riglib/hdfwriter/hdfwriter.egg-info/*
 riglib/fsm/fsm.egg-info/*
 env/*
+tests/*.mat
+tests/*.hdf
+*.h5

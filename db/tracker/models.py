@@ -401,7 +401,6 @@ class Generator(models.Model):
         '''
         Retrieve the function that can be used to construct the ..... generator? sequence?
         '''
-        # from config.namelist import generators
         generators = Generator.get_all_generators()
         return generators[self.name]
 
@@ -697,10 +696,7 @@ class TaskEntry(models.Model):
         datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
 
         ## Add data files linked to this task entry to the web interface. 
-        try:
-            backup_root = config.backup_root['root']
-        except:
-            backup_root = '/None'
+        backup_root = KeyValueStore.get('backup_root', '/None')
         
         js['datafiles'] = dict()
         system_names = set(d.system.name for d in datafiles)
@@ -769,6 +765,9 @@ class TaskEntry(models.Model):
             print('Unrecognized recording_system!')
 
         for dec in Decoder.objects.using(self._state.db).filter(entry=self.id):
+            if 'bmi' not in js:
+                print("Warning: found a decoder but not a recording system. Your recording system may not be set up correctly")
+                js['bmi'] = dict(_neuralinfo=None)
             js['bmi'][dec.name] = dec.to_json()
 
         # collections info
@@ -860,12 +859,14 @@ class TaskEntry(models.Model):
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
-        if config.recording_sys['make'] == 'plexon':
+        recording_sys_make = KeyValueStore.get('recording_sys')
+
+        if recording_sys_make == 'plexon':
             try:
                 return str(os.path.basename(self.plx_file).rstrip('.plx'))
             except:
                 return 'noname'
-        elif config.recording_sys['make'] == 'blackrock':
+        elif recording_sys_make == 'blackrock':
             try:
                 return str(os.path.basename(self.nev_file).rstrip('.nev'))
             except:
@@ -966,14 +967,9 @@ class Decoder(models.Model):
         return self.__str__()
 
     def get_data_path(self, db_name=None):
-        try:
-            if db_name is not None:
-                data_path = getattr(config, 'db_config_'+db_name)['data_path']
-            else:
-                data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
-        except:
+        data_path = KeyValueStore.get('data_path', '', dbname=db_name)
+        if len(data_path) == 0:
             print("Database path not set up correctly!")
-            data_path = ''
         return data_path
 
     @property 
@@ -1458,14 +1454,22 @@ class KeyValueStore(models.Model):
     value = models.TextField()
 
     @classmethod
-    def get(cls, key):
-        objs = cls.objects.filter(key=key)
-        if len(objs) == 0:
-            return None
-        if len(objs) == 1:
-            return objs[0].value
-        if len(objs) > 1:
-            raise ValueError("Duplicate keys: %s" % key)
+    def get(cls, key, default=None, dbname=None):
+        try:
+            if dbname is not None:
+                objs = cls.objects.using(dbname).filter(key=key)
+            else:
+                objs = cls.objects.filter(key=key)
+            if len(objs) == 0:
+                return default
+            if len(objs) == 1:
+                return objs[0].value
+            if len(objs) > 1:
+                raise ValueError("Duplicate keys: %s" % key)
+        except:
+            print("KeyValueStore error")
+            traceback.print_exc()
+            return default
 
     @classmethod 
     def set(cls, key, value):

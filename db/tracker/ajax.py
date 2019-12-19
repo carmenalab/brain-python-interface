@@ -573,29 +573,11 @@ def update_database_storage_path(request):
     db_name = request.POST['db_name']
     db_storage_path = request.POST['db_storage_path']
 
-    db_rec_obj = models.DataFile.objects.filter(path='db_%s.sql' % db_name)
-    print(db_rec_obj)
-    if len(db_rec_obj) == 0:
-        # create database record object
-        try:
-            db_sys = models.System.objects.get(name="metadata", path="db")
-        except:
-            return _respond(dict(status="error", msg="database system not found!"))
-        db_rec_obj = models.DataFile(path='db_%s.sql' % db_name, system=db_sys)
-        db_rec_obj.path = db_storage_path
-        print(db_rec_obj.path)
-        db_rec_obj.save()
-
-        assert len(models.DataFile.objects.filter(path='db_%s.sql' % db_name)) == 1
-
-        return _respond(dict(status="success", msg="Created record of new database and set path to %s" % db_rec_obj.path))
-    elif len(db_rec_obj) == 1:
-        db_rec_obj = db_rec_obj[0]
-        db_rec_obj.path = db_storage_path
-        db_rec_obj.save()
-        return _respond(dict(status="success", msg="Updated path to %s" % db_rec_obj.path))
+    if db_name == 'default':
+        models.KeyValueStore.set("data_path", db_storage_path)
+        return _respond(dict(status="success", msg="Updated storage path for %s db" % db_name))
     else:
-        return _respond(dict(status="error", msg="Duplicate databases! Fix manually!"))
+        return _respond(dict(status="error", msg="Not yet implemented for non-default tables!"))
 
 def save_recording_sys(request):
     from . import models
