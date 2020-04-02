@@ -124,7 +124,7 @@ def learning_curve_metrics(hdf_list, epoch_size=56, n_factors=5):
     #For each epoch, fit FA model (stick w/ 5 factors for now):
     ratio = []
     for te, r_ix in zip(te_refs, rew_ix_list):
-        print te, len(r_ix)
+        print(te, len(r_ix))
 
         update_bmi_ix = np.nonzero(np.diff(np.squeeze(hdf.root.task[:]['internal_decoder_state'][:, 3, 0])))[0] + 1
         bin_spk, targ_pos, targ_ix, z, zz = pa.extract_trials_all(hdf_dict[te], r_ix, time_cutoff=1000, update_bmi_ix=update_bmi_ix)
@@ -190,7 +190,7 @@ def get_trials_per_min(hdf,nmin=2, rew_per_min_cutoff=0, ignore_assist=False, re
         try:
             beg_zer_assist_ix = assist_ix[0]
         except:
-            print 'No values w/o assist for filename: ', hdf.filename
+            print('No values w/o assist for filename: ', hdf.filename)
             beg_zer_assist_ix = rew_ix[-1]+1
     else:
         beg_zer_assist_ix = 0
@@ -251,13 +251,13 @@ def extract_trials_all(hdf, rew_ix, neural_bins = 100, time_cutoff=40, hdf_ix=Fa
 
     if rew_pls:
         go_ix = np.array([hdf.root.task_msgs[it - step_dict[m['msg']]]['time'] for it, m in enumerate(hdf.root.task_msgs[:]) 
-            if m['msg'] in step_dict.keys()])
+            if m['msg'] in list(step_dict.keys())])
 
         rew_ix = np.array([hdf.root.task_msgs[it]['time'] for it, m in enumerate(hdf.root.task_msgs[:]) 
-            if m['msg'] in step_dict.keys()])
+            if m['msg'] in list(step_dict.keys())])
 
         outcome_ix = np.array([hdf.root.task_msgs[it]['msg'] for it, m in enumerate(hdf.root.task_msgs[:]) 
-            if m['msg'] in step_dict.keys()])
+            if m['msg'] in list(step_dict.keys())])
 
     else:
         go_ix = np.array([hdf.root.task_msgs[it-3][1] for it, t in enumerate(hdf.root.task_msgs[:]) if 
@@ -299,7 +299,7 @@ def extract_trials_all(hdf, rew_ix, neural_bins = 100, time_cutoff=40, hdf_ix=Fa
         reach_tm_all = np.hstack((reach_tm_all, np.zeros(( bin_spk_i.shape[0] ))+((r-g)*1000./60.) ))
         hdf_ix_all = np.hstack((hdf_ix_all, hdf_ix_i ))
 
-    print go_ix.shape, rew_ix.shape, bin_spk.shape, bin_spk_i.shape, nbins, hdf_ix_i.shape
+    print(go_ix.shape, rew_ix.shape, bin_spk.shape, bin_spk_i.shape, nbins, hdf_ix_i.shape)
     targ_ix = get_target_ix(targ_i_all[1:,:])
     
     if hdf_ix:
@@ -390,13 +390,13 @@ def find_k_FA(zscore_X, xval_test_perc = .1, iters=100, max_k = 20, plot=True):
     perc_shar_var = np.zeros((iters, max_k))
 
     for i in range(iters):
-        print 'iter: ', i
+        print('iter: ', i)
         ix = np.random.permutation(ntrials)
         train_ix = ix[:ntrain]
         test_ix = ix[ntrain:]
 
         for k in range(max_k):
-            print 'factor n : ', k
+            print('factor n : ', k)
             FA = skdecomp.FactorAnalysis(n_components=k+1)
             FA.fit(zscore_X[train_ix,:])
             LL = np.sum(FA.score(zscore_X[test_ix,:]))
@@ -442,7 +442,7 @@ def fit_all_targs(spk, targ_ix, proc_spks=True, iters=10, max_k = 10, return_ax=
         else:
             ix = np.nonzero(targ_ix==t)[0]
             resh_spk_trunc_bin = spk[ix,:]
-            print 'ix: ', str(len(ix))
+            print('ix: ', str(len(ix)))
         zscore_X, mu = zscore_spks(resh_spk_trunc_bin)
         log_lik, psv = find_k_FA(zscore_X, iters=iters, max_k =max_k, plot=False)
         LL[t] = log_lik

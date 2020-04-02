@@ -27,7 +27,7 @@ class BlackrockData(object):
         try:
             super(BlackrockData, self).init()
         except:
-            print "BlackrockData: running without a task"
+            print("BlackrockData: running without a task")
 
     def run(self):
         self.neurondata.start()

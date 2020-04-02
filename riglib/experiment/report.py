@@ -4,7 +4,7 @@ Generate reporting stats for completed/ongoing tasks
 
 
 import numpy as np
-from experiment import LogExperiment, TrialTypes
+from .experiment import LogExperiment, TrialTypes
 import re
 
 def trialtype(exp):
@@ -75,7 +75,7 @@ def print_report(report):
     '''
     repstr = ["%8s: %d"%("rewards", report['rewards'])]
     ttrial = 0
-    for tname, tdict in report['trials'].items():
+    for tname, tdict in list(report['trials'].items()):
         total = len(tdict['correct']) + len(tdict['incorrect']) + len(tdict['timeout'])
         ttrial += total
         if total == 0:
@@ -85,4 +85,4 @@ def print_report(report):
         cRT = np.mean(tdict['correct'])
         repstr.append("%8s: %g%%, RT=%g"%(tname, cper, cRT))
     repstr.insert(0, "%8s: %d"%("total", ttrial))
-    print "\n".join(repstr)
+    print("\n".join(repstr))

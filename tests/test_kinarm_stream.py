@@ -12,7 +12,7 @@ sinks.start(hdfwriter.HDFWriter, filename="/tmp/test.hdf")
 sinks.register(Motion)
 
 datasource.start()
-print "reading for 10 seconds..."
+print("reading for 10 seconds...")
 t0 = time.time()
 try:
     while (time.time()-t0)<10:
@@ -23,4 +23,4 @@ except KeyboardInterrupt:
 datasource.stop()
 
 sinks.stop()
-print "complete!"
+print("complete!")

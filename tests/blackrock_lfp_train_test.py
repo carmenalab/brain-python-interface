@@ -20,7 +20,7 @@ for system_name in system_names:
 from riglib.bmi import extractor
 
 
-channels = range(1, 7)
+channels = list(range(1, 7))
 units = np.hstack([np.array(channels).reshape(-1,1), np.ones((len(channels),1), dtype=np.int)])
 extractor_cls = extractor.LFPButterBPFPowerExtractor
 extractor_kwargs = dict()

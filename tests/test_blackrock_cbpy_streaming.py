@@ -15,7 +15,7 @@ class StreamingTask(object):
         for k in range(300):
             new_spike_data = self.neurondata.get()
             time.sleep(0.1)
-            print "%d new %s data points received" % (len(new_spike_data), self.data_type)
+            print("%d new %s data points received" % (len(new_spike_data), self.data_type))
         self.neurondata.stop()
 
 class LFPStreamingTask(object):
@@ -27,7 +27,7 @@ class LFPStreamingTask(object):
         for k in range(300):
             new_spike_data = self.neurondata.get_new(self.blackrock_channels)
             time.sleep(0.1)
-            print "%d new %s data points received" % (np.mean(map(len, new_spike_data)), self.data_type)
+            print("%d new %s data points received" % (np.mean(list(map(len, new_spike_data))), self.data_type))
         self.neurondata.stop()
 
 
@@ -49,7 +49,7 @@ class TestLFPBlackrockData(blackrock_features.BlackrockData, LFPStreamingTask):
 ## task.run()
 
 
-print "\n\n\n Testing Spike acquisition \n\n\n"
+print("\n\n\n Testing Spike acquisition \n\n\n")
 task = TestSpikeBlackrockData()
 task.init()
 task.run()

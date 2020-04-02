@@ -30,6 +30,6 @@ while True:
     surf.set_at((960, 540), (255,255,255))
     surf.set_at((2880, 540), (255,255,255))
     for evt in pygame.event.get(pygame.MOUSEBUTTONDOWN):
-        print evt
+        print(evt)
     pygame.display.flip()
     time.sleep(0.01)

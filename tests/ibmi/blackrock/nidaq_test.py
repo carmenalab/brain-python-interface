@@ -4,7 +4,7 @@ import time
 com = comedi.comedi_open("/dev/comedi0")
 
 nchan = comedi.comedi_get_n_channels(com, 0)
-print "found comedi system with %d channels" % nchan
+print("found comedi system with %d channels" % nchan)
 
 for i in range(nchan):
 	comedi.comedi_dio_config(com, 0, i, comedi.COMEDI_OUTPUT)

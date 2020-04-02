@@ -1,8 +1,7 @@
+#!/usr/bin/env python
 '''
 Install the cython code required to open plexon files. 
 '''
-
-#! /usr/bin/env python
 
 # System imports
 from distutils.core import setup
@@ -41,5 +40,5 @@ setup(  name        = "Plexfile utilities",
         author      = "James Gao",
         version     = "0.1.0",
         packages = ['plexon'],
-        ext_modules = cythonize([psth, plexfile], include_dirs=['.', 'plexon/cython/'])
+        ext_modules = cythonize([psth, plexfile], include_path=['.', 'plexon/cython/', np.get_include()])
         )

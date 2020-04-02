@@ -5,7 +5,7 @@ import serial
 from collections import defaultdict
 import struct
 from numpy import binary_repr
-from dio.parse import MSG_TYPE_ROWBYTE, MSG_TYPE_REGISTER
+from .dio.parse import MSG_TYPE_ROWBYTE, MSG_TYPE_REGISTER
 import time
 
 def construct_word(aux, msg_type, data, n_bits_data=8, n_bits_msg_type=3):
@@ -77,7 +77,7 @@ class SendRowByte(object):
         #if self.n_systems > 1:
         #    raise Exception("This currently only works for one system!")
 
-        print "Arduino register %s" % system, self.systems[system]
+        print("Arduino register %s" % system, self.systems[system])
 
         for sys_name_chr in system:
             reg_word = construct_word(self.systems[system], MSG_TYPE_REGISTER, ord(sys_name_chr))
@@ -139,6 +139,6 @@ class SendRowByte(object):
     def _send_data_word_to_serial_port(self, word, verbose=False):
         #self.port.write(word)
         if verbose:
-            print binary_repr(word, 16)
+            print(binary_repr(word, 16))
         word_str = 'd' + struct.pack('<H', word)
         self.port.write(word_str)

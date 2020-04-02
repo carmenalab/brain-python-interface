@@ -24,15 +24,15 @@ def test_block(idx, n_iter=None):
 
 class TestFixedDecoderBMI(unittest.TestCase):
     def test_ppf_fixed(self):
-        print "Testing fixed PPF block"
+        print("Testing fixed PPF block")
         abs_max_error = test_block(2295)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)    
 
     def test_kf_fixed(self):
-        print "Testing fixed KF block"
+        print("Testing fixed KF block")
         abs_max_error = test_block(2908)
-        print abs_max_error
+        print(abs_max_error)
         self.assertTrue(abs_max_error < 1e-10)    
         
 if __name__ == '__main__':

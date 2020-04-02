@@ -21,21 +21,21 @@ for file_ in sample_blackrock_files:
 	path = hdf_fname_wo_ext + ext
 	fullpath = os.path.join(r'/storage/blackrock', path)
 
-	print path
-	print fullpath
+	print(path)
+	print(fullpath)
 	if os.path.isfile(fullpath):
 		raise Exception('File %s already exists!' % fullpath)
 	else:
-		print "Executing system command: sudo cp %s %s" % (file_, fullpath)
-		print ''
+		print("Executing system command: sudo cp %s %s" % (file_, fullpath))
+		print('')
 		os.system("sudo cp %s %s" % (file_, fullpath))
 
 
-		print 'Saving DataFile object to database with following params:'
-		print 'entry:', entry
-		print 'system:', system
-		print 'path:', path
-		print ''
+		print('Saving DataFile object to database with following params:')
+		print('entry:', entry)
+		print('system:', system)
+		print('path:', path)
+		print('')
 		DataFile(entry=entry, system=system, path=path).save()
 
 

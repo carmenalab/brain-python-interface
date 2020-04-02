@@ -41,25 +41,6 @@ class TestExp(experiment.Experiment):
         super(TestExp, self)._cycle(*args, **kwargs)
 
 
-
-# class FeatureTestFixture(object):
-#     """ Generic feature interface. Why is this not part of the lib? """
-#     def __init__(self, *args, **kwargs):
-#         pass
-
-#     def init(self):
-#         pass
-
-#     def run(self):
-#         pass
-
-#     def set_state(self, *args, **kwargs):
-#         pass
-
-#     def join(self):
-#         pass
-
-
 class TestSaveHDF(unittest.TestCase):
     def setUp(self):
         sink.sinks = sink.SinkManager()
@@ -79,8 +60,8 @@ class TestSaveHDF(unittest.TestCase):
         
         hdf = tables.open_file("saveHDF_test_output.hdf")
 
-        self.assertEqual(hdf.root.task_msgs[:]["msg"].tolist(), 
-            ['wait', 'trial', 'reward', 'wait', 'None'])
+        saved_msgs = [x.decode('utf-8') for x in hdf.root.task_msgs[:]["msg"]]
+        self.assertEqual(saved_msgs, ['wait', 'trial', 'reward', 'wait', 'None'])
         self.assertEqual(hdf.root.task_msgs[:]["time"].tolist(), [0, 100, 101, 201, 601])
 
         self.assertTrue(np.all(hdf.root.task[:]["dummy_feat_for_test"][251:300] == -1))
@@ -89,16 +70,11 @@ class TestSaveHDF(unittest.TestCase):
 
     def tearDown(self):
         if os.path.exists("saveHDF_test_output.hdf"):
-            os.remove("saveHDF_test_output.hdf")
+            try:
+                os.remove("saveHDF_test_output.hdf")
+            except PermissionError:
+                pass
 
 
 if __name__ == '__main__':
-    test_classes = [TestSaveHDF]
-    suite = unittest.TestSuite()
-    result = unittest.TestResult()
-
-    for cls in test_classes:
-        suite.addTest(unittest.makeSuite(cls))      
-
-    runner = unittest.TextTestRunner()
-    print(runner.run(suite))
+    unittest.main()

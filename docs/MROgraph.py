@@ -91,7 +91,7 @@ def testHierarchy(**options):
     class F(object): pass
     class E(object): pass
     class D(object): pass
-    class G(object): __metaclass__=M
+    class G(object, metaclass=M): pass
     class C(F,D,G): pass
     class B(E,D): pass
     class A(B,C): pass

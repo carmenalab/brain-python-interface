@@ -191,8 +191,8 @@ def calc_decoder_from_baseline_file(neural_features, neural_features_unbinned, u
 
     #Enter e1, e2 as string: 
     if np.logical_or(e1_inds is None, e2_inds is None):
-        e1_string = raw_input('Enter e1 cells: ')
-        e2_string = raw_input('Enter e2 cells: ')
+        e1_string = input('Enter e1 cells: ')
+        e2_string = input('Enter e2 cells: ')
         
         e1 = np.array([ (int(c), ord(u) - 96) for c, u in cellname.findall(e1_string)])
         e2 = np.array([ (int(c), ord(u) - 96) for c, u in cellname.findall(e2_string)])
@@ -418,10 +418,10 @@ def sim_data(x, pdf, pdf_individual, prob_t1, prob_t2, data,
     elif sim_bmi_fcn == 'ismore':
         num_t1, num_t2, num_miss = ismore_sim_bmi(data, t1, t2, mid, timeout, timeout_pause, p)
     
-    print "Simulation results:\nNumber of T1: " + str(num_t1) + "\nNumber of T2: " + str(num_t2) + "\nNumber of Misses: " + str(num_miss)
-    print "Calculated T2 value is " + str(round(t2, 5))
-    print "Calculated mid value is " + str(round(mid, 5))
-    print "Calculated T1 value is " + str(round(t1, 5))
+    print("Simulation results:\nNumber of T1: " + str(num_t1) + "\nNumber of T2: " + str(num_t2) + "\nNumber of Misses: " + str(num_miss))
+    print("Calculated T2 value is " + str(round(t2, 5)))
+    print("Calculated mid value is " + str(round(mid, 5)))
+    print("Calculated T1 value is " + str(round(t1, 5)))
     ##plot the control functio
     plot_cursor_func(t2, mid, t1, freq_lim[0], freq_lim[1])
     #plt.show()

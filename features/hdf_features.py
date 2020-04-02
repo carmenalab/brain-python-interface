@@ -7,7 +7,7 @@ import random
 import traceback
 import numpy as np
 import fnmatch
-import os
+import os, sys
 import subprocess
 from riglib import calibrations, bmi
 from riglib.bmi import extractor
@@ -25,7 +25,9 @@ class SaveHDF(object):
         '''
         from riglib import sink
         self.sinks = sink.sinks
-        self.h5file = tempfile.NamedTemporaryFile()
+        self.h5file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
+        self.h5file.flush()
+        self.h5file.close()
         self.hdf = sink.sinks.start(self.sink_class, filename=self.h5file.name)
 
         super(SaveHDF, self).init()    
@@ -71,21 +73,31 @@ class SaveHDF(object):
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
+    def record_annotation(self, msg):
+        """ Record a user-input annotation """
+        self.hdf.sendMsg("annotation: " + msg)
+        super(SaveHDF, self).record_annotation(msg)
+        print("Saved annotation to HDF: " + msg)
+
+    def get_h5_filename(self):
+        return self.h5file.name        
+
     def cleanup(self, database, saveid, **kwargs):
         '''
         See LogExperiment.cleanup for documentation
         '''
         super(SaveHDF, self).cleanup(database, saveid, **kwargs)
-        print "Beginning HDF file cleanup"
-        print "\tHDF data currently saved to temp file: %s" % self.h5file.name
+        print("Beginning HDF file cleanup")
+        print("\tHDF data currently saved to temp file: %s" % self.h5file.name)
         try:
-            print "\tRunning self.cleanup_hdf()"
+            print("\tRunning self.cleanup_hdf()")
             self.cleanup_hdf()
         except:
-            print "\n\n\n\n\nError cleaning up HDF file!"
+            print("\n\n\n\n\nError cleaning up HDF file!")
             import traceback
             traceback.print_exc()
 
+        # this 'if' is needed because the remote procedure call to save_data doesn't like kwargs
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if dbname == 'default':
             database.save_data(self.h5file.name, "hdf", saveid)

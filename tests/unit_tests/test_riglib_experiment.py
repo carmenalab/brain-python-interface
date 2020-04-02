@@ -3,62 +3,17 @@ import os
 import numpy as np
 import time
 
-from riglib.experiment import LogExperiment, FSMTable, StateTransitions, Sequence
+from riglib.experiment.mocks import *
 from riglib import experiment
 from riglib import sink
 
 from mocks import MockDatabase
 
-event1to2 = [False, True,  False, False, False, False, False, False]
-event1to3 = [False, False, False, False, True,  False, False, False]
-event2to3 = [False, False, True,  False, False, False, False, False]
-event2to1 = [False, False, False, False, False, False, False, False]
-event3to2 = [False, False, False, False, False, True,  False, False]
-event3to1 = [False, False, False, True,  False, False, False, False]
-
-class MockLogExperiment(LogExperiment):
-    status = FSMTable(
-        state1=StateTransitions(event1to2='state2', event1to3='state3'),
-        state2=StateTransitions(event2to3='state3', event2to1='state1'),
-        state3=StateTransitions(event3to2='state2', event3to1='state1'),
-    )
-    state = 'state1'
-
-    def __init__(self, *args, **kwargs):
-        self.iter_idx = 0
-        super(MockLogExperiment, self).__init__(*args, **kwargs)
-
-    def _cycle(self):
-        self.iter_idx += 1
-        super(MockLogExperiment, self)._cycle()
-
-    def _start_state3(self): pass
-    def _while_state3(self): pass
-    def _end_state3(self): pass
-    def _start_state2(self): pass
-    def _while_state2(self): pass
-    def _end_state2(self): pass
-    def _start_state1(self): pass
-    def _while_state1(self): pass
-    def _end_state1(self): pass
-    ################## State trnasition test functions ##################
-    def _test_event3to1(self, time_in_state): return event3to1[self.iter_idx]
-    def _test_event3to2(self, time_in_state): return event3to2[self.iter_idx]
-    def _test_event2to3(self, time_in_state): return event2to3[self.iter_idx]
-    def _test_event2to1(self, time_in_state): return event2to1[self.iter_idx]
-    def _test_event1to3(self, time_in_state): return event1to3[self.iter_idx]
-    def _test_event1to2(self, time_in_state): return event1to2[self.iter_idx]
-    def _test_stop(self, time_in_state):
-        return self.iter_idx >= len(event1to2) - 1
-
-    def get_time(self):
-        return self.iter_idx
-
 
 class TestLogExperiment(unittest.TestCase):
     def setUp(self):
         sink.sinks = sink.SinkManager()        
-        self.exp = MockLogExperiment()
+        self.exp = MockLogExperiment(verbose=False)
 
     def test_exp_fsm_output(self):
         """Experiment state sequence follows reference sequence"""
@@ -92,7 +47,11 @@ class TestLogExperiment(unittest.TestCase):
         self.exp.add_dtype("field2", "int", (1,))
 
         self.exp.init()
-        ref_dtype = np.dtype([('field1', '<f8', (1,)), ('field2', '<i8', (1,))])
+        import sys
+        if sys.platform == "win32":
+            ref_dtype = np.dtype([('field1', '<f8', (1,)), ('field2', '<i4', (1,))])
+        else:
+            ref_dtype = np.dtype([('field1', '<f8', (1,)), ('field2', '<i8', (1,))])
         self.assertEqual(self.exp.dtype, ref_dtype)
 
     def test_thread_start(self):
@@ -108,13 +67,13 @@ class TestLogExperiment(unittest.TestCase):
     def test_thread_stop(self):
         """Experiment execution in remote thread should terminate when 'end_task' is called"""
         # Experiment should never start if the initial state is None
-        exp = experiment.Experiment()
+        exp = experiment.Experiment(verbose=False)
         exp.state = None
         exp.start()
         exp.join()
         self.assertEqual(exp.cycle_count, 0)
 
-        exp = experiment.Experiment()
+        exp = experiment.Experiment(verbose=False)
         exp.state = "wait"
         exp.start()
         time.sleep(1)
@@ -127,59 +86,6 @@ class TestLogExperiment(unittest.TestCase):
         self.assertTrue(exp.cycle_count < exp.fps + margin)
 
 
-
-
-class MockSequence(Sequence):
-    event1to2 = [False, True,  False, True, False, True, False, True, False, True, False]
-    event1to3 = [False, False, False, False, False,  False, False, False, False, False, False]
-    event2to3 = [False, False, False,  False, False, False, False, False, False, False, False]
-    event2to1 = [False, False, True, False, True, False, True, False, True, False, False]
-    event3to2 = [False, False, False, False, False, False,  False, False, False, False, False]
-    event3to1 = [False, False, False, False,  False, False, False, False, False, False, False]
-
-
-    status = FSMTable(
-        wait=StateTransitions(event1to2='state2', event1to3='state3'),
-        state2=StateTransitions(event2to3='state3', event2to1='wait'),
-        state3=StateTransitions(event3to2='state2', event3to1='wait'),
-    )
-    state = 'wait'
-
-    def __init__(self, *args, **kwargs):
-        self.iter_idx = 0
-        self.target_history = []
-        super(MockSequence, self).__init__(*args, **kwargs)
-
-    def _cycle(self):
-        self.iter_idx += 1
-        super(MockSequence, self)._cycle()
-
-    def _start_state3(self): pass
-    def _while_state3(self): pass
-    def _end_state3(self): pass
-    def _start_state2(self): pass
-    def _while_state2(self): pass
-    def _end_state2(self): pass
-    def _start_state1(self): pass
-    def _while_state1(self): pass
-    def _end_state1(self): pass
-    ################## State trnasition test functions ##################
-    def _test_event3to1(self, time_in_state): return self.event3to1[self.iter_idx]
-    def _test_event3to2(self, time_in_state): return self.event3to2[self.iter_idx]
-    def _test_event2to3(self, time_in_state): return self.event2to3[self.iter_idx]
-    def _test_event2to1(self, time_in_state): return self.event2to1[self.iter_idx]
-    def _test_event1to3(self, time_in_state): return self.event1to3[self.iter_idx]
-    def _test_event1to2(self, time_in_state): return self.event1to2[self.iter_idx]
-    def _test_stop(self, time_in_state):
-        return self.iter_idx >= len(event1to2) - 1
-
-    def get_time(self):
-        return self.iter_idx
-
-    def _start_wait(self):
-        super(MockSequence, self)._start_wait()
-        self.target_history.append(self.next_trial)
-
 class TestSequence(unittest.TestCase):
     def setUp(self):
         self.targets = [1, 2, 3, 4, 5]
@@ -188,6 +94,40 @@ class TestSequence(unittest.TestCase):
     def test_target_sequence(self):
         self.exp.run_sync()
         self.assertEqual(self.targets, self.exp.target_history)
+
+
+class TestTaskWithFeatures(unittest.TestCase):
+    def test_metaclass_constructor(self):
+        from features.hdf_features import SaveHDF
+        exp = experiment.make(experiment.LogExperiment, feats=(SaveHDF,))
+        exp()
+
+    def test_mock_seq_with_features(self):
+        from riglib.experiment.mocks import MockSequenceWithGenerators
+        from features.hdf_features import SaveHDF
+        import h5py
+
+        task_cls = experiment.make(MockSequenceWithGenerators, feats=(SaveHDF,))
+        exp = task_cls(MockSequenceWithGenerators.gen_fn1())
+        exp.run_sync()
+
+        # optional delay if the OS is not ready to let you open the HDF file
+        # created just now
+        open_count = 0
+        while open_count < 3:
+            try:
+                hdf = h5py.File(exp.h5file.name)
+                break
+            except OSError:
+                open_count += 1
+                if open_count >= 3:
+                    raise Exception("Unable to open HDF file!")
+                time.sleep(1)
+
+        ref_current_state = np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+            0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0,
+            0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0])
+        self.assertTrue(np.array_equal(hdf["/task"]["current_state"].ravel(), ref_current_state))
 
 if __name__ == '__main__':
     unittest.main()

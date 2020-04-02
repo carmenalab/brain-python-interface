@@ -13,53 +13,9 @@ from multiprocessing import sharedctypes as shm
 import ctypes
 
 import numpy as np
+from .mp_proxy import FuncProxy
 
-
-class FuncProxy(object):
-    '''
-    Interface for calling functions in remote processes. Similar to tasktrack.FuncProxy.
-    '''
-    def __init__(self, name, pipe, event):
-        '''
-        Constructor for FuncProxy
-
-        Parameters
-        ----------
-        name : string
-            Name of remote function to call
-        pipe : mp.Pipe instance
-            multiprocessing pipe through which to send data (function name, arguments) and receive the result
-        event : mp.Event instance
-            A flag to set which is multiprocessing-compatible (visible to both the current and the remote processes)
-
-        Returns
-        -------
-        FuncProxy instance
-        '''
-        self.pipe = pipe
-        self.name = name
-        self.event = event
-
-    def __call__(self, *args, **kwargs):
-        '''
-        Return the result of the remote function call
-
-        Parameters
-        ----------
-        *args, **kwargs : positional arguments, keyword arguments
-            To be passed to the remote function associated when the object was created
-
-        Returns
-        -------
-        function result
-        '''
-        self.pipe.send((self.name, args, kwargs))
-        self.event.set()
-        return self.pipe.recv()
-
-
-# NOTE: this import MUST be after the defintion of FuncProxy
-import sink
+from . import sink # this circular import is not ideal..
 
 class DataSourceSystem(object):
     '''
@@ -138,7 +94,9 @@ class DataSource(mp.Process):
         self.stream = mp.Event()
         self.last_idx = 0
 
-        self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+        # self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+        self.methods = set(filter(lambda n: inspect.isfunction(getattr(source, n)), dir(source)))
+
 
         # in DataSource.run, there is a call to "self.sinks.send(...)",
         # but if the DataSource was never registered with the sink manager,
@@ -172,7 +130,7 @@ class DataSource(mp.Process):
             system.start()
         except Exception as e:
             print("source.DataSource.run: unable to start source!")
-            print e
+            print(e)
             self.status.value = -1
 
         streaming = True
@@ -267,7 +225,7 @@ class DataSource(mp.Process):
         try:
             data = np.fromstring(data, dtype=self.source.dtype)
         except:
-            print "can't get fromstring..."
+            print("can't get fromstring...")
 
         if self.filter is not None:
             return self.filter(data, **kwargs)
@@ -296,7 +254,7 @@ class DataSource(mp.Process):
         try:
             data = np.fromstring(data, dtype=self.source.dtype)
         except:
-            print "can't get fromstring..."
+            print("can't get fromstring...")
 
         if self.filter is not None:
             return self.filter(data, **kwargs)
@@ -334,7 +292,8 @@ class DataSource(mp.Process):
         object
             The arbitrary value associated with the named attribute, if it exists.
         '''
-        if attr in self.methods:
+        methods = object.__getattribute__(self, "methods") # this is done instead of "self.methods" to avoid infinite recursion in Windows
+        if attr in methods:
             # if the attribute requested is an instance method of the 'source', return a proxy to the remote source's method
             return FuncProxy(attr, self.pipe, self.cmd_event)
         elif not attr.startswith("__"):
@@ -455,9 +414,9 @@ class MultiChanDataSource(mp.Process):
         '''
         Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
         '''
-        print "Starting datasource %r" % self.source
+        print(("Starting datasource %r" % self.source))
         if self.send_data_to_sink_manager:
-            print "Registering Supplementary HDF file for datasource %r" % self.source
+            print(("Registering Supplementary HDF file for datasource %r" % self.source))
             self.register_supp_hdf()
 
         try:
@@ -465,7 +424,7 @@ class MultiChanDataSource(mp.Process):
             system.start()
 
         except Exception as e:
-            print e
+            print(e)
             self.status.value = -1
 
         streaming = True
@@ -545,7 +504,7 @@ class MultiChanDataSource(mp.Process):
                         # Set the flag indicating that data has arrived from the source
                         self.data_has_arrived.value = 1
                     except Exception as e:
-                        print e
+                        print(e)
 
                     if self.send_data_to_sink_manager:
                         self.lock.acquire()
@@ -560,10 +519,10 @@ class MultiChanDataSource(mp.Process):
                                 # among channels which have not wrapped, 
                                 # in order to determine end_idx
                                 end_idx = np.min([idx for (idx, flag) in zip(self.idxs, self.wrap_flags) if not flag])
-                                idxs_to_send = range(start_idx, end_idx)
+                                idxs_to_send = list(range(start_idx, end_idx))
                             else:
                                 min_idx = np.min(self.idxs[:])
-                                idxs_to_send = range(start_idx, self.max_len) + range(0, min_idx)
+                                idxs_to_send = list(range(start_idx, self.max_len)) + list(range(0, min_idx))
                                 
                                 for row in range(self.n_chan):
                                     self.wrap_flags[row] = False
@@ -581,7 +540,7 @@ class MultiChanDataSource(mp.Process):
                             #self.sinks.send(self.name, data)
 
                             #Newest way to send data to the supp hdf file, all columns at a time (1/21/2016)
-                            data = np.array(map(tuple, self.data[:, idxs_to_send].T), dtype = self.send_to_sinks_dtype)
+                            data = np.array(list(map(tuple, self.data[:, idxs_to_send].T)), dtype = self.send_to_sinks_dtype)
                             self.supp_hdf.add_data(data)
 
 
@@ -593,10 +552,10 @@ class MultiChanDataSource(mp.Process):
         
         if hasattr(self, "supp_hdf"):
             self.supp_hdf.close_data()
-            print 'end of supp hdf'
+            print('end of supp hdf')
 
         system.stop()
-        print "ended datasource %r" % self.source
+        print(("ended datasource %r" % self.source))
 
 
 
@@ -632,7 +591,7 @@ class MultiChanDataSource(mp.Process):
             try:
                 row = self.chan_to_row[chan]
             except KeyError:
-                print 'data source was not configured to get data on channel', chan
+                print(('data source was not configured to get data on channel', chan))
             else:  # executed if try clause does not raise a KeyError
                 idx = self.idxs[row]
                 if idx >= n_pts:  # no wrap-around required
@@ -678,7 +637,7 @@ class MultiChanDataSource(mp.Process):
             try:
                 row = self.chan_to_row[chan]
             except KeyError:
-                print 'data source was not configured to get data on channel', chan
+                print(('data source was not configured to get data on channel', chan))
                 data.append(None)
             else:  # executed if try clause does not raise a KeyError
                 idx = self.idxs[row]
@@ -737,7 +696,7 @@ class MultiChanDataSource(mp.Process):
         if attr in self.methods:
             return FuncProxy(attr, self.pipe, self.cmd_event)
         elif not attr.beginsWith("__"):
-            print "getting attribute %s" % attr
+            print(("getting attribute %s" % attr))
             self.pipe.send(("getattr", (attr,), {}))
             self.cmd_event.set()
             return self.pipe.recv()

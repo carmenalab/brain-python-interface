@@ -4,14 +4,14 @@ Classes for BMI decoding using the Point-process filter.
 
 import numpy as np
 
-import bmi
-from bmi import GaussianState
+from . import bmi
+from .bmi import GaussianState
 from scipy.io import loadmat
 import time
 import cmath
-import feedback_controllers
+from . import feedback_controllers
 import pickle
-import train
+from . import train
 
 class PointProcessFilter(bmi.GaussianStateHMM):
     """
@@ -396,7 +396,7 @@ class OneStepMPCPointProcessFilterCovFb(OneStepMPCPointProcessFilter):
 
         Q_inv = np.mat(np.diag(lambda_predict*dt))
 
-        from bmi import GaussianState
+        from .bmi import GaussianState
         if (self.prev_obs is not None) and (self.r_scale < np.inf):
             y_ref = self.prev_obs
             G = self.C.T * Q_inv
@@ -447,7 +447,7 @@ class PPFDecoder(bmi.BMI, bmi.Decoder):
         None
         '''
         import random
-        inds = range(self.filt.C.shape[0])
+        inds = list(range(self.filt.C.shape[0]))
         random.shuffle(inds)
 
         # shuffle rows of C

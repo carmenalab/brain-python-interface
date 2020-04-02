@@ -1,8 +1,8 @@
 import multiprocessing as mp
 import time
-from itertools import izip
+
 import numpy as np
-import Queue
+import queue
 
 class MPCompute(mp.Process):
     """
@@ -133,7 +133,7 @@ class FuncProxy(object):
             self.prev_result = output_data
             self.waiting = False
             return output_data, True
-        except Queue.Empty:
+        except queue.Empty:
             if self.waiting_resp == None:
                 return None
             elif self.waiting_resp == 'prev':
@@ -157,15 +157,15 @@ class FuncProxy(object):
             return False
 
         args_same = True
-        for a1, a2 in izip(args, self.prev_input[0]):
+        for a1, a2 in zip(args, self.prev_input[0]):
             try: 
                 args_same = args_same and np.all(a1 == a2)
             except ValueError:
                 args_same = args_same and np.array_equal(a1, a2)
 
-        kwargs_same = kwargs.keys() == self.prev_input[1].keys()
+        kwargs_same = list(kwargs.keys()) == list(self.prev_input[1].keys())
 
-        for key1, key2 in izip(kwargs.keys(), self.prev_input[1].keys()):
+        for key1, key2 in zip(list(kwargs.keys()), list(self.prev_input[1].keys())):
             k1 = kwargs[key1]
             k2 = kwargs[key2]
             if key1 == 'q_start': 
@@ -199,7 +199,7 @@ class FuncProxy(object):
                 return self._stuff()
 
             elif not input_same_as_last:
-                if self.verbose: print "queuing job"
+                if self.verbose: print("queuing job")
                 self.work_queue.put(input_data)    
                 self.prev_input = input_data
                 self.waiting = True

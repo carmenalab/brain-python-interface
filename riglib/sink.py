@@ -7,8 +7,8 @@ import inspect
 import traceback
 import multiprocessing as mp
 
-import source
-from source import FuncProxy
+from . import source
+from .mp_proxy import FuncProxy
 
 class DataSink(mp.Process):
     '''
@@ -36,7 +36,10 @@ class DataSink(mp.Process):
         self.cmd_pipe, self._cmd_pipe = mp.Pipe()
         self.pipe, self._pipe = mp.Pipe()
         self.status = mp.Value('b', 1) # mp boolean used for terminating the remote process
-        self.methods = set(n for n in dir(output) if inspect.ismethod(getattr(output, n)))
+
+        self.methods = set(filter(lambda n: inspect.isfunction(getattr(output, n)), dir(output)))
+        # python 2 version: inspect.ismethod doesn't work because the object is not instantiated
+        # self.methods = set(n for n in dir(output) if inspect.ismethod(getattr(output, n)))
     
     def run(self):
         '''
@@ -74,7 +77,7 @@ class DataSink(mp.Process):
         
         # close the sink if the status bit has been set to 0
         output.close()
-        print "ended datasink"
+        print("ended datasink")
     
     def __getattr__(self, attr):
         '''
@@ -90,10 +93,11 @@ class DataSink(mp.Process):
         object:
             Value of specified named attribute
         '''
-        if attr in self.methods:
+        methods = object.__getattribute__(self, "methods")
+        if attr in methods:
             return FuncProxy(attr, self.cmd_pipe, self.cmd_event)
         else:
-            super(DataSink, self).__getattr__(self, attr)
+            raise AttributeError("Can't get attribute: %s. Remote methods available: %s" % (attr, str(self.methods)))
 
     def send(self, system, data):
         '''
@@ -166,7 +170,7 @@ class SinkManager(object):
         Returns
         -------
         '''
-        print "sinkmanager start %s"%output
+        print(("sinkmanager start %s"%output))
         sink = DataSink(output, **kwargs)
         sink.start()
         self.registrations[sink] = set()
@@ -252,16 +256,16 @@ sinks = SinkManager()
 class PrintSink(object):
     '''A null sink which directly prints the received data'''
     def __init__(self):
-        print "Starting print sink"
+        print("Starting print sink")
     
     def register(self, name, dtype):
-        print "Registered name %s with dtype %r"%(name, dtype)
+        print(("Registered name %s with dtype %r"%(name, dtype)))
     
     def send(self, system, data):
-        print "Received %s data: \n%r"%(system, data)
+        print(("Received %s data: \n%r"%(system, data)))
     
     def sendMsg(self, msg):
-        print "### MESSAGE: %s"%msg
+        print(("### MESSAGE: %s"%msg))
     
     def close(self):
-        print "Ended print sink"
+        print("Ended print sink")

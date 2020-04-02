@@ -17,12 +17,12 @@ class PlexonLFPData(traits.HasTraits):
     
     def init(self):
         from riglib import plexon, source
-        print channels
+        print(channels)
         self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=channels, chan_offset=chan_offset)
         try:
             super(PlexonLFPData, self).init()
         except:
-            print "PlexonLFPData: running without a task"
+            print("PlexonLFPData: running without a task")
 
     def run(self):
         self.neurondata.start()
@@ -44,19 +44,19 @@ if __name__ == '__main__':
     data = np.zeros((n_chan, 2*n_samp))
     idxs = np.zeros(n_chan)
 
-    print 'discarding initial data...',
+    print('discarding initial data...', end=' ')
     t_start = time.time()
     while time.time() - t_start < 5:
         # get new_data but don't do anything with it
         new_data = self.neurondata.get_new(channels=channels)
         time.sleep(0.005)
-    print 'done.'
+    print('done.')
 
     for k in range(N):
         t_start = time.time()
 
         new_data = self.neurondata.get_new(channels=channels)
-        print new_data[0].shape
+        print(new_data[0].shape)
 
         for row in range(n_chan):
             d = new_data[row]
@@ -75,9 +75,9 @@ if __name__ == '__main__':
     save_dict['channels'] = channels
     # save_dict['n_garbage'] = n_garbage
 
-    print 'saving data...',
+    print('saving data...', end=' ')
     sio.matlab.savemat('lfp_data_0222_8pm_1.mat', save_dict)
-    print 'done.'
+    print('done.')
 
-    print data
-    print idxs
+    print(data)
+    print(idxs)

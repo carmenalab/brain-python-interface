@@ -2,5 +2,5 @@
 Collection of graphical renderers
 '''
 
-from render import Renderer
-import stereo
+from .render import Renderer
+from . import stereo

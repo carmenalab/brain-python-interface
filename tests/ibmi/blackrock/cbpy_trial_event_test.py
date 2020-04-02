@@ -12,10 +12,10 @@ parameters['client-port'] = 51002
 parameters['receive-buffer-size'] = 8388608
 
 result, return_dict = cbpy.open(connection='default', parameter=parameters)
-print 'result:', result
-print 'connection:', return_dict['connection']
-print 'instrument:', return_dict['instrument']
-print ''
+print('result:', result)
+print('connection:', return_dict['connection'])
+print('instrument:', return_dict['instrument'])
+print('')
 
 
 range_parameter = dict()
@@ -30,9 +30,9 @@ buffer_parameter['absolute'] = True
 result, reset = cbpy.trial_config(range_parameter=range_parameter, buffer_parameter=buffer_parameter)  # works
 # result, reset = cbpy.trial_config()
 
-print 'result:', result
-print 'reset:', reset
-print ''
+print('result:', result)
+print('reset:', reset)
+print('')
 
 n_secs = 10
 loop_time = 0.1

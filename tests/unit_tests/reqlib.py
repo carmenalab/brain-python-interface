@@ -23,11 +23,11 @@ def swreq(req):
 		return test_func
 	return wrap
 
-def generate_traceability_matrix(requirements, test_suite, runner_output):
+def generate_traceability_matrix(requirements, test_suite_tests, runner_output):
 	scanned_classes = []
 	tested_reqs = defaultdict(list)
 
-	for ts in test_suite._tests:
+	for ts in test_suite_tests:
 		for test_class in ts._tests:
 			class_name = test_class.__class__.__name__
 			if class_name not in scanned_classes:

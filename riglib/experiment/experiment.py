@@ -5,19 +5,20 @@ finite state machine representing different phases of the task
 
 import time
 import random
-import threading
 import traceback
 import collections
 import re
 import os
 import tables
 import traceback
-import cStringIO
-
+import io
 import numpy as np
+
 from . import traits
+from riglib.fsm import FSMTable, StateTransitions, ThreadedFSM
 
 try:
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
     import pygame
 except ImportError:
     import warnings
@@ -28,53 +29,22 @@ from collections import OrderedDict
 min_per_hour = 60.
 sec_per_min = 60.
 
-class FSMTable(object):
-    def __init__(self, **kwargs):
-        self.states = OrderedDict()
-        for state_name, transitions in kwargs.items():
-            self.states[state_name] = transitions
 
-    def __getitem__(self, key):
-        return self.states[key]
-
-    def get_possible_state_transitions(self, current_state):
-        return self.states[current_state].items()
-
-    def _lookup_next_state(self, current_state, transition_event):
-        return self.states[current_state][transition_event]
-
-    def __iter__(self):
-        return self.states.keys().__iter__()
-
-    @staticmethod
-    def construct_from_dict(status):
-        outward_transitions = OrderedDict()
-        for state in status:
-            outward_transitions[state] = StateTransitions(stoppable=False, **status[state])
-        return FSMTable(**outward_transitions)
+def _get_trait_default(trait):
+    '''
+    Function which tries to determine the default value for a trait in the class declaration
+    '''
+    _, default = trait.default_value()
+    if isinstance(default, tuple) and len(default) > 0:
+        try:
+            func, args, _ = default
+            default = func(*args)
+        except:
+            pass
+    return default
 
 
-class StateTransitions(object):
-    def __init__(self, stoppable=True, **kwargs):
-        self.state_transitions = OrderedDict()
-        for event, next_state in kwargs.items():
-            self.state_transitions[event] = next_state
-
-        if stoppable and not ('stop' in self.state_transitions):
-            self.state_transitions['stop'] = None
-
-    def __getitem__(self, key):
-        return self.state_transitions[key]
-
-    def __iter__(self):
-        transition_events = self.state_transitions.keys()
-        return transition_events.__iter__()
-
-    def items(self):
-        return self.state_transitions.items()
-
-
-class Experiment(traits.HasTraits, threading.Thread):
+class Experiment(ThreadedFSM, traits.HasTraits):
     '''
     Common ancestor of all task/experiment classes
     '''
@@ -100,6 +70,8 @@ class Experiment(traits.HasTraits, threading.Thread):
     # Rate at which FSM is called. Set to 60 Hz by default to match the typical monitor update rate
     fps = 60 # Hz
 
+    cycle_count = 0
+
     # set this flag to true if certain things should only happen in debugging mode
     debug = False
     terminated_in_error = False
@@ -116,86 +88,7 @@ class Experiment(traits.HasTraits, threading.Thread):
     # Runtime settable traits
     session_length = traits.Float(0, desc="Time until task automatically stops. Length of 0 means no auto stop.")
 
-    @property 
-    def update_rate(self):
-        '''
-        Attribute for update rate of task. Using @property in case any future modifications
-        decide to change fps on initialization
-        '''
-        return 1./self.fps        
-
-    @classmethod
-    def class_editable_traits(cls):
-        '''
-        Class method to retrieve the list of editable traits for the given experiment. 
-        The default behavior for an experiment class is to make all traits editable except for those
-        listed in the attribute 'exclude_parent_traits'. 
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        editable_traits: list of strings
-            Names of traits which are designated to be runtime-editable
-        '''
-        traits = super(Experiment, cls).class_editable_traits()
-        editable_traits = filter(lambda x: x not in cls.exclude_parent_traits, traits)
-        return editable_traits
-
-    @classmethod
-    def parse_fsm(cls):
-        '''
-        Print out the FSM of the task in a semi-readable form
-        '''
-        for state in cls.status:
-            print 'When in state "%s"' % state 
-            for trigger_event, next_state in cls.status[state].items():
-                print '\tevent "%s" moves the task to state "%s"' % (trigger_event, next_state)
-
-    @classmethod
-    def auto_gen_fsm_functions(cls):
-        '''
-        Parse the FSM to write all the _start, _end, _while, and _test functions
-        '''
-        events_to_test = []
-        for state in cls.status:
-            # make _start function 
-            print '''def _start_%s(self): pass''' % state
-
-            # make _while function
-            print '''def _while_%s(self): pass''' % state
-            # make _end function
-            print '''def _end_%s(self): pass''' % state
-            for event, _ in cls.status.get_possible_state_transitions(state):
-                events_to_test.append(event)
-
-        print "################## State trnasition test functions ##################"
-
-        for event in events_to_test:
-            if event == 'stop': continue
-            print '''def _test_%s(self, time_in_state): return False''' % event
-
-    @classmethod
-    def is_hidden(cls, trait):
-        '''
-        Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden 
-
-        Parameters
-        ----------
-        trait: string
-            Name of trait to check
-
-        Returns
-        -------
-        bool
-        '''
-        return trait in cls.hidden_traits
-
-    ####################################
-    ##### Initialization functions #####
-    ####################################
+    # Initialization functions -----------------------------------------------
     @classmethod 
     def pre_init(cls, **kwargs):
         '''
@@ -203,10 +96,10 @@ class Experiment(traits.HasTraits, threading.Thread):
         Examples might include sending a trigger to start a recording device (e.g., neural system), since you might want
         recording to be guaranteed to start before any task event loop activity occurs. 
         '''
-        print 'running experiment.Experiment.pre_init'
+        print('running experiment.Experiment.pre_init')
         pass
 
-    def __init__(self, **kwargs):
+    def __init__(self, verbose=True, **kwargs):
         '''
         Constructor for Experiment. This is the standard python object constructor
 
@@ -220,7 +113,8 @@ class Experiment(traits.HasTraits, threading.Thread):
         Experiment instance
         '''
         traits.HasTraits.__init__(self, **kwargs)
-        threading.Thread.__init__(self)
+        ThreadedFSM.__init__(self)
+        self.verbose = verbose
         self.task_start_time = self.get_time()
         self.reportstats = collections.OrderedDict()
         self.reportstats['State'] = None #State stat is automatically updated for all experiment classes
@@ -245,9 +139,9 @@ class Experiment(traits.HasTraits, threading.Thread):
         ## Figure out which traits to not save to the HDF file
         ## Large/complex python objects cannot be saved as HDF file attributes
         ctraits = self.class_traits()
-        self.object_trait_names = filter(lambda ctr: ctraits[ctr].trait_type.__class__.__name__ in ['Instance', 'InstanceFromDB', 'DataFile'], ctraits.keys())
+        self.object_trait_names = [ctr for ctr in list(ctraits.keys()) if ctraits[ctr].trait_type.__class__.__name__ in ['Instance', 'InstanceFromDB', 'DataFile']]
 
-        print "finished executing Experiment.__init__"
+        if self.verbose: print("finished executing Experiment.__init__")
 
     def init(self):
         '''
@@ -267,15 +161,12 @@ class Experiment(traits.HasTraits, threading.Thread):
         # NOTE: all data variables MUST be declared prior to this point. So child classes overriding the 'init' method must
         # declare their variables using the 'add_dtype' function BEFORE calling the 'super' method.
         try:
-            if len(self.dtype) > 0:
-                self.dtype = np.dtype(self.dtype)
-                self.task_data = np.zeros((1,), dtype=self.dtype)
-            else:
-                self.task_data = None
+            self.dtype = np.dtype(self.dtype)
+            self.task_data = np.zeros((1,), dtype=self.dtype)
         except:
-            print "Error creating the task_data record array"
+            print("Error creating the task_data record array")
             traceback.print_exc()
-            print self.dtype
+            print(self.dtype)
             self.task_data = None
 
         # Register the "task" source with the sinks
@@ -311,29 +202,121 @@ class Experiment(traits.HasTraits, threading.Thread):
         '''
         pass
 
-    ###############################
-    ##### Threading functions #####
-    ###############################
-    def start(self):
+    # Trait functions --------------------------------------------------------
+    @classmethod
+    def class_editable_traits(cls):
         '''
-        From the python docs on threading.Thread:
-            Once a thread object is created, its activity must be started by 
-            calling the thread's start() method. This invokes the run() method in a 
-            separate thread of control.
+        Class method to retrieve the list of editable traits for the given experiment. 
+        The default behavior for an experiment class is to make all traits editable except for those
+        listed in the attribute 'exclude_parent_traits'. 
 
-        Prior to the thread's start method being called, the secondary init function (self.init) is executed.
-        After the threading.Thread.start is executed, the 'run' method is executed automatically in a separate thread.
+        Parameters
+        ----------
+        None
 
         Returns
         -------
-        None
+        editable_traits: list of strings
+            Names of traits which are designated to be runtime-editable
         '''
-        self.init()
-        super(Experiment, self).start()
+        # traits = super(Experiment, cls).class_editable_traits()
+        from traits.trait_base import not_event, not_false
+        traits = cls.class_trait_names(type=not_event, editable=not_false)
+        editable_traits = [x for x in traits if x not in cls.exclude_parent_traits]
+        return editable_traits
 
+    @classmethod
+    def get_trait_info(cls, trait_name, ctraits=None):
+        """Get dictionary of information on a given trait"""
+        if ctraits is None:
+            ctraits = cls.class_traits()
+
+        trait_params = dict()
+        trait_params['type'] = ctraits[trait_name].trait_type.__class__.__name__
+        trait_params['default'] = _get_trait_default(ctraits[trait_name])
+        trait_params['desc'] = ctraits[trait_name].desc
+        trait_params['hidden'] = 'hidden' if cls.is_hidden(trait_name) else 'visible'
+        if hasattr(ctraits[trait_name], 'label'):
+            trait_params['label'] = ctraits[trait_name].label
+        else:
+            trait_params['label'] = trait_name
+
+        if trait_params['type'] == "InstanceFromDB":
+            # a database instance. pass back the model and the query parameters and let the db 
+            # handle the rest
+            trait_params['options'] = (mdl_name, ctraits[trait_name].bmi3d_query_kwargs)
+
+        elif trait_params['type'] == 'Instance':
+            raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
+
+        elif trait_params['type'] == "Enum":
+            raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
+
+        elif trait_params['type'] == "OptionsList":
+            trait_params['options'] = ctraits[trait_name].bmi3d_input_options
+
+        elif trait_params['type'] == "DataFile":
+            trait_params['options'] = ("DataFile", ctraits[trait_name].bmi3d_query_kwargs)
+
+        return trait_params
+
+    @classmethod
+    def get_params(cls):
+        # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
+        params = OrderedDict()
+
+        ctraits = cls.class_traits()
+
+        # add all the traits that are explicitly instructed to appear at the top of the menu
+        ordered_traits = cls.ordered_traits
+        for trait in ordered_traits:
+            if trait in cls.class_editable_traits():
+                params[trait] = cls.get_trait_info(trait, ctraits=ctraits)
+
+        # add all the remaining non-hidden traits
+        for trait in cls.class_editable_traits():
+            if trait not in params and not cls.is_hidden(trait):
+                params[trait] = cls.get_trait_info(trait, ctraits=ctraits)
+
+        # add any hidden traits
+        for trait in cls.class_editable_traits():
+            if trait not in params:
+                params[trait] = cls.get_trait_info(trait, ctraits=ctraits)
+        return params
+
+    def get_trait_values(self):
+        '''
+        Retrieve all the values of the 'trait' objects
+        '''
+        trait_values = dict()
+        for trait in self.class_editable_traits():
+            trait_values[trait] = getattr(self, trait)
+        return trait_values
+
+    @classmethod
+    def is_hidden(cls, trait):
+        '''
+        Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden 
+
+        Parameters
+        ----------
+        trait: string
+            Name of trait to check
+
+        Returns
+        -------
+        bool
+        '''
+        return trait in cls.hidden_traits
+
+    @classmethod
+    def get_desc(cls, params, report):
+        return "An experiment!"
+
+    # FSM functions ----------------------------------------------------------
     def run(self):
         '''
-        Generic method to run the finite state machine of the task. Code that needs to execute 
+        Method to run the finite state machine of the task. Code that needs to execute 
         imediately before the task starts running in child classes should be of the form:
 
         def run(self):
@@ -350,165 +333,19 @@ class Experiment(traits.HasTraits, threading.Thread):
 
         ## Initialize the FSM before the loop
         self.screen_init()
-        self.set_state(self.state)
         self.reportstats['State'] = self.state
-        
-        while self.state is not None:
-            if self.debug: 
-                # allow ungraceful termination if in debugging mode so that pdb 
-                # can catch the exception in the appropriate place
-                self.fsm_tick()
-            else:
-                # in "production" mode (not debugging), try to capture & log errors gracefully
-                try:
-                    self.fsm_tick()
-                except:
-                    self.print_to_terminal("Error in FSM tick")
-                    self.state = None
-                    self.terminated_in_error = True
-
-                    self.termination_err = cStringIO.StringIO()
-                    traceback.print_exc(None, self.termination_err)
-                    self.termination_err.seek(0)
-
-                    self.print_to_terminal(self.termination_err.read())
-                    self.termination_err.seek(0)
-
-
-    def run_sync(self):
-        self.init()
-        self.run()
-
-    ###########################################################
-    ##### Finite state machine (FSM) transition functions #####
-    ###########################################################
-    def fsm_tick(self):
-        '''
-        Execute the commands corresponding to a single tick of the event loop
-        '''
-        # Execute commands
-        self.exec_state_specific_actions(self.state)
-
-        # Execute the commands which must run every loop, independent of the FSM state
-        # (e.g., running the BMI decoder)
-        self._cycle()
-
-        current_state = self.state
-
-        # iterate over the possible events which could move the task out of the current state
-        for event in self.status[current_state]:
-            if self.test_state_transition_event(event): # if the event has occurred
-                # execute commands to end the current state
-                self.end_state(current_state)
-
-                # trigger the transition for the event
-                self.trigger_event(event)
-
-                # stop searching for transition events (transition events must be 
-                # mutually exclusive for this FSM to function properly)
-                break
-
-    def test_state_transition_event(self, event):
-        event_test_fn_name = "_test_%s" % event
-        if hasattr(self, event_test_fn_name):
-            event_test_fn = getattr(self, event_test_fn_name)
-            time_since_state_started = self.get_time() - self.start_time
-            return event_test_fn(time_since_state_started)
-        else:
-            return False
-
-    def end_state(self, state):
-        end_state_fn_name = "_end_%s" % state
-        if hasattr(self, end_state_fn_name):
-            end_state_fn = getattr(self, end_state_fn_name)
-            end_state_fn()
-
-    def start_state(self, state):
-        state_start_fn_name = "_start_%s" % state
-        if hasattr(self, state_start_fn_name):
-            state_start_fn = getattr(self, state_start_fn_name)
-            state_start_fn()
-
-    def exec_state_specific_actions(self, state):
-        if hasattr(self, "_while_%s" % state):
-            getattr(self, "_while_%s" % state)()
-
-    def trigger_event(self, event):
-        '''
-        Transition the task state to a new state, where the next state depends on the current state as well as the trigger event
-
-        Parameters
-        ----------
-        event: string
-            Based on the current state, a particular event will trigger a particular state transition (Mealy machine)
-
-        Returns
-        -------
-        None
-        '''
-        fsm_edges = self.status[self.state]
-        next_state = fsm_edges[event]
-        self.set_state(next_state)
-
-    def set_state(self, condition):
-        '''
-        Change the state of the task
-
-        Parameters
-        ----------
-        condition: string
-            Name of new state. The state name must be a key in the 'status' dictionary attribute of the task
-
-        Returns
-        -------
-        None
-        '''
-        self.state = condition
-
-        # Record the time at which the new state is entered. Used for timed states, e.g., the reward state
-        self.start_time = self.get_time()
-
-        # Update the report for the GUI
-        self.update_report_stats()
-
-        self.start_state(condition)
-
-    def get_time(self):
-        '''
-        Abstraction to get the current time. By default, state transitions are based on wall clock time, not on iteration count.
-        To get simulations to run faster than real time, this function must be overwritten.
-
-        Returns
-        -------
-        float: The current time in seconds
-        '''
-        return time.time()
+        super(Experiment, self).run()
 
     def _cycle(self):
         '''
         Code that needs to run every task loop iteration goes here
         '''
-        # print "Experiment._cycle"
-        self.cycle_count += 1
-        if self.fps > 0:
-            self.clock.tick(self.fps)
+        super(Experiment, self)._cycle()
 
         # Send task data to any registered sinks
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)        
 
-    def iter_time(self):
-        '''
-        Determine the time elapsed since the last time this function was called
-        '''
-        start_time = self.get_time()
-        loop_time = start_time - self.last_time
-        self.last_time = start_time
-        return loop_time
-
-    ##############################
-    ##### FSM test functions #####
-    ##############################
     def _test_stop(self, ts):
         ''' 
         FSM 'test' function. Returns the 'stop' attribute of the task
@@ -531,9 +368,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         assert isinstance(state_time, (float, int))
         return ts > state_time
 
-    ############################
-    ##### Report functions #####
-    ############################
+    # UI interaction functions -----------------------------------------------
     @classmethod
     def _time_to_string(cls, sec):
         '''
@@ -585,27 +420,11 @@ class Experiment(traits.HasTraits, threading.Thread):
             offline_report['Success rate'] = str(np.round(float(n_success_trials)/n_trials*100,decimals=2)) + '%'
         return offline_report
 
-    def print_to_terminal(self, *args):
-        '''
-        Print to the terminal rather than the websocket if the websocket is being used by the 'Notify' feature (see db.tasktrack)
-        '''
-        if len(args) == 1:
-            print args[0]
-        else:
-            print args
+    def record_annotation(self, msg):
+        """ Record a user-input annotation """
+        pass
 
-    ################################
-    ## Cleanup/termination functions
-    ################################
-    def get_trait_values(self):
-        '''
-        Retrieve all the values of the 'trait' objects
-        '''
-        trait_values = dict()
-        for trait in self.class_editable_traits():
-            trait_values[trait] = getattr(self, trait)
-        return trait_values
-
+    # UI cleanup functions ---------------------------------------------------
     def cleanup(self, database, saveid, **kwargs):
         '''
         Commands to execute at the end of a task.
@@ -623,7 +442,7 @@ class Experiment(traits.HasTraits, threading.Thread):
         -------
         None
         '''
-        print "experimient.Experiment.cleanup executing"
+        if self.verbose: print("experimient.Experiment.cleanup executing")
     
     def cleanup_hdf(self):
         ''' 
@@ -644,67 +463,18 @@ class Experiment(traits.HasTraits, threading.Thread):
                     h5file.root.task.attrs[trait] = getattr(self, trait)
             h5file.close()
 
-    def end_task(self):
-        '''
-        End the FSM gracefully on the next iteration by setting the task's "stop" flag.
-        '''
-        self.stop = True
-
     def terminate(self):
         '''
         Cleanup commands for tasks executed using the "test" button
         '''
         pass
 
-    def join(self):
-        '''
-        Code to run before re-joining the experiment thread (see db.tasktrack.TaskWrapper.cleanup)
-        '''
-        super(Experiment, self).join()
-
 
 class LogExperiment(Experiment):
     '''
     Extension of the experiment class which logs state transitions
     '''
-    # List out state/trigger pairs to exclude from logging
-    log_exclude = set()
     trial_end_states = []
-    def __init__(self, **kwargs):
-        '''
-        Constructor for LogExperiment
-
-        Parameters
-        ----------
-        kwargs: dict
-            These are all propagated to the parent (none used for this constructor)
-
-        Returns
-        -------
-        LogExperiment instance
-        '''
-        self.state_log = []
-        self.event_log = []
-        super(LogExperiment, self).__init__(**kwargs)
-    
-    def trigger_event(self, event):
-        '''
-        see riglib.Experiment.trigger_event for description.
-        Saves a history of state transitions before executing the event
-        '''
-        log = (self.state, event) not in self.log_exclude
-        if log:  
-            self.event_log.append((self.state, event, self.get_time()))
-        self.set_state(self.status[self.state][event], log=log)
-
-    def set_state(self, condition, log=True):
-        '''
-        see riglib.Experiment.set_state for description.
-        Saves the sequence of entered states before executing the parent's 'set_state'
-        '''
-        if log:
-            self.state_log.append((condition, self.get_time()))
-        super(LogExperiment, self).set_state(condition)
 
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -713,17 +483,13 @@ class LogExperiment(Experiment):
 
         see riglib.Experiment.cleanup for argument descriptions
         '''
-        print "experiment.LogExperiment.cleanup"
+        if self.verbose: print("experiment.LogExperiment.cleanup")
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if dbname == 'default':
             database.save_log(saveid, self.event_log)
         else:
             database.save_log(saveid, self.event_log, dbname=dbname)
-
-        #added to hide task entry if task did not initialize correctly
-        # if (self._task_init_complete == False):
-        #     database.hide_task_entry(saveid, dbname=dbname)
 
     ##########################################################
     ##### Functions to calculate statistics from the log #####
@@ -810,11 +576,11 @@ class Sequence(LogExperiment):
             raise ValueError("Experiment classes which inherit from Sequence must specify a target generator!")
 
         if np.iterable(gen):
-            from generate import runseq
-            gen = runseq(self, seq=gen)
-
-        self.gen = gen
-        if not hasattr(gen, "next"):
+            from .generate import runseq
+            self.gen = runseq(self, seq=gen)
+        elif hasattr(gen, '__next__'): # python 3 renamed 'next' to '__next__'
+            self.gen = gen 
+        else:
             raise ValueError("Input argument to Sequence 'gen' must be of 'generator' type!")
 
         super(Sequence, self).__init__(*args, **kwargs)
@@ -825,10 +591,10 @@ class Sequence(LogExperiment):
         new information needed to start the trial. If the generator runs out, the task stops. 
         '''
         if self.debug:
-            print "_start_wait"
+            print("_start_wait")
 
         try:
-            self.next_trial = self.gen.next()
+            self.next_trial = next(self.gen)
         except StopIteration:
             self.end_task()
 

@@ -56,7 +56,7 @@ class SendAll(object):
         -------
         None
         '''
-        print "nidaq register %s" % system
+        print("nidaq register %s" % system)
 
         # Save the index of the system being registered (arbitrary number corresponding to the order in which systems were registered)
         self.systems[system] = pcidio.register_sys(system, str(dtype.descr))
@@ -100,7 +100,7 @@ class SendAll(object):
         -------
         None
         '''
-        print "Sending rstart command"
+        print("Sending rstart command")
         pcidio.rstart(state)
 
     def send(self, system, data):

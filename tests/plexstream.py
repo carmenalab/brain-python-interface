@@ -8,4 +8,4 @@ time.sleep(10)
 data = ds.get(True)
 ds.stop()
 
-print data
+print(data)

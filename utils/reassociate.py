@@ -22,7 +22,7 @@ def reassoc_20130106():
                newname = os.path.join(plexon.path, path)+".plx"
                #os.rename(fname, newname)
                #models.DataFile(system=plexon, entry=te, path=path+'.plx').save()
-               print models.DataFile(system=plexon, entry=te, path=newname)
+               print(models.DataFile(system=plexon, entry=te, path=newname))
 
 def move_fs_orphans(path='/storage/plexon/', dest='/storage/plexon/orphans'):
     valid = set(f.get_path() for f in models.DataFile.objects.filter(system=plexon))
@@ -38,7 +38,7 @@ def move_archive_orphans(path='/backup/bmi3d/plexon/', dest='/backup/bmi3d/plexo
         if plx not in files:
             newname = os.path.join(dest, os.path.split(plx)[1])
             os.rename(plx, newname)
-            print newname
+            print(newname)
 
 def assoc_plexon2():
     rplex = models.Feature.objects.get(name='relay_plexon')
@@ -54,7 +54,7 @@ def assoc_plexon2():
             newname = os.path.splitext(query[0].path)[0]+'.plx'
             os.rename(fname, os.path.join("/storage/plexon2", newname))
             models.DataFile(system=plex2, entry=te, path=newname).save()
-            print newname
+            print(newname)
 
 def move_p2_orphans(path='/storage/plexon2/', dest='/storage/plexon2/orphans'):
     valid = set(f.get_path() for f in models.DataFile.objects.filter(system=plex2))
@@ -71,7 +71,7 @@ def set_archived():
                 df.get_path()
                 df.save()
             except IOError:
-                print df.path, "File not found!"
+                print(df.path, "File not found!")
 
 def old():
     path = "/storage/plexon/"
@@ -89,8 +89,8 @@ def old():
         target, tdiff = sorted(tdiffs, key=lambda x:x[1])[0]
         if tdiff < 60:
             newname = "cart{time}_{num:02}.plx".format(time=target.date.strftime('%Y%m%d'), num=etime[target]+1)
-            print "renaming %s to %s"%(os.path.join(path, orphan), os.path.join(path, newname))
+            print("renaming %s to %s"%(os.path.join(path, orphan), os.path.join(path, newname)))
             df = models.DataFile(local=False, path=newname, system=system, entry=target)
             os.rename(os.path.join(path, orphan), os.path.join(path, newname))
             df.save()
-            print df
+            print(df)

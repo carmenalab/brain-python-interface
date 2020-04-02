@@ -3,7 +3,7 @@
 Simulation of CLDA control task
 """
 ## Imports
-from __future__ import division
+
 from db import dbfunctions
 from db.tracker import dbq
 from db.tracker import models
@@ -149,7 +149,7 @@ else:
 
 self = task
 task.init()
-print 'task init called'
+print('task init called')
 task.run()
 
 if args.save:

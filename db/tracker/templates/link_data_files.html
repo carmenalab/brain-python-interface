@@ -1,0 +1,15 @@
+<head>
+</head>
+
+<body>
+	<form action="{{task_entry_id}}/submit" method="POST">
+		File path <input type="text" id="file_path" name="file_path"><br>
+		Data type/system <select id="data_system_id" name="data_system_id">
+			{% for system in systems %}
+			<option value={{system.id}}>{{system.name}}</option>
+			{% endfor %}
+		</select>
+		<br>
+		<input type="submit" value="Submit">
+	</form>
+</body>

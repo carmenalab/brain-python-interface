@@ -2,14 +2,14 @@
 This module implements IK functions for running inverse kinematics.
 Current, only a two-joint system can be modelled.
 '''
-from __future__ import division
+
 import numpy as np
 
-from xfm import Quaternion
-from models import Group
-from primitives import Cylinder, Sphere, Cone
-from textures import TexModel
-from utils import cloudy_tex
+from .xfm import Quaternion
+from .models import Group
+from .primitives import Cylinder, Sphere, Cone
+from .textures import TexModel
+from .utils import cloudy_tex
 from collections import OrderedDict
 from riglib.bmi import robot_arms
 
@@ -414,8 +414,8 @@ class RobotArmGen3D(Plant, Group):
         # print self.upperarm.xfm.rotate
         self.curr_vecs[0] = self.lengths[0]*self.upperarm.xfm.rotate.quat[1:]
         self.curr_vecs[1] = self.lengths[1]*self.forearm.xfm.rotate.quat[1:]
-        print self.forearm.xfm
-        print self.upperarm.xfm
+        print(self.forearm.xfm)
+        print(self.upperarm.xfm)
         # raise NotImplementedError("update curr_vecs!")
 
               

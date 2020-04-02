@@ -3,28 +3,25 @@ Functions to call appropriate constructor functions based on UI data and to link
 '''
 
 import os
-os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 
 import re
-import cPickle
-import tempfile
-import xmlrpclib
 import pickle
-import os
+import tempfile
+import xmlrpc.client
+import pickle
 
-import namelist
-from tracker import models
 
-cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
+
+
+
 
 from celery import task, chain
-from tracker import dbq
+
 
 import numpy as np
 from riglib.bmi import extractor, train
 from config import config 
 
-import dbfunctions as dbfn
 
 import json
 
@@ -32,23 +29,26 @@ from django.http import HttpResponse
 
 from riglib import experiment
 
-from json_param import Parameters
-from tasktrack import Track
-from tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
 import logging
 
-
-
-@task()
+@task
 def cache_plx(plxfile):
     """
     Create cache for plexon file
     """
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
     from plexon import plexfile
     plexfile.openFile(str(plxfile)) 
 
-@task()
+@task
 def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key, kin_extractor, zscore):
     """
     Create a new Decoder object from training data and save a record to the database
@@ -79,9 +79,20 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     pos_key : string
         TODO
     """
-    print "make bmi"
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
+    cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
+
+    print("make bmi")
     extractor_cls = namelist.extractors[extractorname]
-    print 'Training with extractor class:', extractor_cls
+    print('Training with extractor class:', extractor_cls)
 
     if 'spike' in extractor_cls.feature_type:  # e.g., 'spike_counts'
         # look at "cells" argument (ignore "channels")
@@ -128,7 +139,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     else:
         raise Exception("Unknown extractor_cls: %s" % extractor_cls)
 
-    database = xmlrpclib.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
 
     # list of DataFile objects
     datafiles = models.DataFile.objects.filter(entry_id=entry)
@@ -153,7 +164,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     decoder.te_id = entry
 
     tf = tempfile.NamedTemporaryFile('wb')
-    cPickle.dump(decoder, tf, 2)
+    pickle.dump(decoder, tf, 2)
     tf.flush()
     database.save_bmi(name, int(entry), tf.name)
 
@@ -162,20 +173,28 @@ def cache_and_train(*args, **kwargs):
     Cache plexon file (if using plexon system) and train BMI.
     """
 
-    # import config
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
     if config.recording_sys['make'] == 'plexon':
-        print "cache and train"
+        print("cache and train")
         entry = kwargs['entry']
-        print entry
+        print(entry)
         plxfile = models.DataFile.objects.get(system__name='plexon', entry=entry)
-        print plxfile
+        print(plxfile)
 
         if not plxfile.has_cache():
             cache = cache_plx.si(plxfile.get_path())
             train = make_bmi.si(*args, **kwargs)
             chain(cache, train)()
         else:
-            print "calling"
+            print("calling")
             make_bmi.delay(*args, **kwargs)
     
     elif config.recording_sys['make'] == 'blackrock':
@@ -201,6 +220,14 @@ def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     -------
     None
     '''
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
     import riglib.bmi
     if not isinstance(obj, riglib.bmi.bmi.Decoder):
@@ -209,7 +236,7 @@ def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     new_decoder_fname = obj.save()
     new_decoder_name = orig_decoder_record.name + suffix
     training_block_id = orig_decoder_record.entry_id
-    print "Saving new decoder:", new_decoder_name
+    print("Saving new decoder:", new_decoder_name)
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
 ## Functions to manipulate existing (KF)Decoders. These belong elsewhere
@@ -218,8 +245,17 @@ def conv_mm_dec_to_cm(decoder_record):
     '''
     Convert a mm unit decoder to cm
     '''
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
-    print decoder_fname
+    print(decoder_fname)
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
     from riglib.bmi import train
@@ -231,24 +267,51 @@ def conv_mm_dec_to_cm(decoder_record):
 
     new_decoder_name = decoder_name + '_cm'
     training_block_id = decoder_record.entry_id
-    print new_decoder_name
+    print(new_decoder_name)
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
 def zero_out_SSKF_bias(decoder_record):
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
     dec = open_decoder_from_record(decoder_record)
     dec.filt.C_xpose_Q_inv_C[:,-1] = 0
     dec.filt.C_xpose_Q_inv_C[-1,:] = 0
     save_new_decoder_from_existing(dec, decoder_record, suffix='_zero_bias')
 
 def conv_kfdecoder_binlen(decoder_record, new_binlen):
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
     dec = open_decoder_from_record(decoder_record)
     dec.change_binlen(new_binlen)
     save_new_decoder_from_existing(dec, decoder_record, suffix='_%dHz' % int(1./new_binlen))
 
 def conv_kfdecoder_to_ppfdecoder(decoder_record):
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
     # Load the decoder
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
-    print decoder_fname
+    print(decoder_fname)
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
 
@@ -261,11 +324,20 @@ def conv_kfdecoder_to_ppfdecoder(decoder_record):
 
     new_decoder_name = decoder_name + '_ppf'
     training_block_id = decoder_record.entry_id
-    print new_decoder_name
-    from tracker import dbq
+    print(new_decoder_name)
+    from .tracker import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 
 def conv_kfdecoder_to_sskfdecoder(decoder_record):
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+
     dec = open_decoder_from_record(decoder_record)
 
     F, K = dec.filt.get_sskf()
@@ -276,9 +348,18 @@ def conv_kfdecoder_to_sskfdecoder(decoder_record):
     save_new_decoder_from_existing(decoder_record, '_sskf')
 
 def make_kfdecoder_interpolate(decoder_record):
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+    from .tracker import dbq
+    from . import namelist
+    from .tracker import models
+    from . import dbfunctions as dbfn
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+        
     # Load the decoder
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
-    print decoder_fname
+    print(decoder_fname)
     decoder_name = decoder_record.name
     dec = pickle.load(open(decoder_fname))
 
@@ -291,7 +372,7 @@ def make_kfdecoder_interpolate(decoder_record):
 
     new_decoder_name = decoder_name + '_60hz'
     training_block_id = decoder_record.entry_id
-    print new_decoder_name
-    from tracker import dbq
+    print(new_decoder_name)
+    from .tracker import dbq
     dbq.save_bmi(new_decoder_name, training_block_id, new_decoder_fname)
 

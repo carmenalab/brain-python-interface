@@ -2,7 +2,7 @@
 This module appears to be deprecated.....
 '''
 
-import plexnet
+from . import plexnet
 from riglib.source import DataSource
 
 class _PlexCont(object):
@@ -19,9 +19,9 @@ class _PlexCont(object):
         self.conn.stop_data()
 
     def get(self):
-        d = self.data.next()
+        d = next(self.data)
         while d.type != 5:
-            d = self.data.next()
+            d = next(self.data)
 
         return np.array([(d.ts, d.chan, d.unit)], dtype=self.dtype)
 

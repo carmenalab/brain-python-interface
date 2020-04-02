@@ -100,8 +100,8 @@ class Connection(object):
                 self.supports_spikes = any([b == sup_spike for b in resp[4:]])
                 self.supports_cont = any([b == sup_cont for b in resp[4:]])
 
-        print 'supports spikes:', self.supports_spikes
-        print 'supports continuous:', self.supports_cont
+        print('supports spikes:', self.supports_spikes)
+        print('supports continuous:', self.supports_cont)
 
         packet = array.array('i', '\x00'*PACKETSIZE)
         packet[0] = self.PLEXNET_COMMAND_FROM_CLIENT_TO_SERVER_GET_PARAMETERS_MMF
@@ -117,7 +117,7 @@ class Connection(object):
             if resp[0] == self.PLEXNET_COMMAND_FROM_SERVER_TO_CLIENT_SENDING_SERVER_AREA:
                 self.n_spike = resp[15]
                 self.n_cont = resp[17]
-                print "Spike channels: %d, continuous channels: %d"%(self.n_spike, self.n_cont)
+                print("Spike channels: %d, continuous channels: %d"%(self.n_spike, self.n_cont))
                 gotServerArea = True
         
         self._init = True
@@ -283,7 +283,7 @@ class Connection(object):
                 packet = packet[16:]
                 
                 while len(packet) > 16:
-                    header = dict(zip(hnames, struct.unpack('hHI4h', packet[:16])))
+                    header = dict(list(zip(hnames, struct.unpack('hHI4h', packet[:16]))))
                     packet = packet[16:]
                     
                     if header['type'] not in invalid:
@@ -300,7 +300,7 @@ class Connection(object):
                         if header['type'] == 5:  # 5 is PL_ADDataType
                             chan = header['chan'] + 1
                         
-                        ts = long(header['Uts']) << 32 | long(header['ts'])
+                        ts = int(header['Uts']) << 32 | int(header['ts'])
 
                         yield WaveData(type=header['type'], chan=chan,
                             unit=header['unit'], ts=ts, waveform=wavedat, 
@@ -322,17 +322,17 @@ if __name__ == "__main__":
         csvfile.writeheader()
 
         #Initialize the connection
-        print 'initializing connection'
+        print('initializing connection')
         conn = Connection(args.address, args.port)
         conn.connect(256, analog=True) #Request all 256 channels
         
-        print 'selecting spike channels'
+        print('selecting spike channels')
         spike_channels = [] #2, 3, 4]
         unsorted = False #True
         conn.select_spikes(spike_channels, unsorted=unsorted)
         # conn.select_spikes(unsorted=unsorted)
 
-        print 'selecting continuous channels'
+        print('selecting continuous channels')
         # cont_channels = 512 + np.array([1, 2, 5, 9, 10, 192, 250, 256]) #range(513, 768) #range(512+1, 512+192) #[1, 532, 533, 768, 800] #502, 503, 504, 505] #[85, 86]
         cont_channels = 512 + np.array([53])
         # cont_channels = [1, 532, 533, 768, 800] #502, 503, 504, 505] #[85, 86]
@@ -358,7 +358,7 @@ if __name__ == "__main__":
         got_first = False
 
 
-        print 'starting data'
+        print('starting data')
         conn.start_data() #start the data pump
 
         waves = conn.get_data()
@@ -366,9 +366,9 @@ if __name__ == "__main__":
 
 
         while (time.time()-start) < args.len:
-            wave = waves.next()
+            wave = next(waves)
             if not got_first and wave is not None:
-                print wave
+                print(wave)
                 first_ts = wave.ts
                 first_arrival_ts = wave.arrival_ts 
                 got_first = True
@@ -401,10 +401,10 @@ if __name__ == "__main__":
             save_dict['data'] = data
             save_dict['channels'] = cont_channels
 
-            print 'saving data...',
+            print('saving data...', end=' ')
             import scipy.io as sio
             sio.matlab.savemat('plexnet_data_0222_8pm_1.mat', save_dict)
-            print 'done.'
+            print('done.')
 
 
     plt.figure()

@@ -25,7 +25,7 @@ class Positioner(object):
 
     def _parse_resp(self, resp):
         resp = resp.rstrip()
-        limits = map(int, resp[-6:])
+        limits = list(map(int, resp[-6:]))
         return limits
 
     def poll_limit_switches(self, N=100):
@@ -33,7 +33,7 @@ class Positioner(object):
             time.sleep(0.1)
             self.port.write('\n')
             raw_resp = self.port.readline()
-            print "limit switches", self._parse_resp(raw_resp)
+            print("limit switches", self._parse_resp(raw_resp))
 
     def read_limit_switches(self):
         self.port.write('\n')
@@ -45,7 +45,7 @@ class Positioner(object):
         # self.port.readline()
 
     def sleep_motors(self):
-        print "sleep motors"
+        print("sleep motors")
         self.port.write('s\n')
         # self.port.readline()
 
@@ -73,7 +73,7 @@ class Positioner(object):
 
         k = 0
         while (abs(n_steps_x) > n_steps_sent_x) or (abs(n_steps_y) > n_steps_sent_y) or (abs(n_steps_z) > n_steps_sent_z):
-            if k % 10 == 0: print k
+            if k % 10 == 0: print(k)
             step_x = int(n_steps_sent_x < abs(n_steps_x))
             step_y = int(n_steps_sent_y < abs(n_steps_y))
             step_z = int(n_steps_sent_z < abs(n_steps_z))
@@ -103,7 +103,7 @@ class Positioner(object):
 
             k = 0
             while (abs(n_steps_x) > n_steps_sent_x) or (abs(n_steps_y) > n_steps_sent_y) or (abs(n_steps_z) > n_steps_sent_z):
-                if k % 10 == 0: print k
+                if k % 10 == 0: print(k)
                 step_x = int(n_steps_sent_x < abs(n_steps_x))
                 step_y = int(n_steps_sent_y < abs(n_steps_y))
                 step_z = int(n_steps_sent_z < abs(n_steps_z))
@@ -152,7 +152,7 @@ class Positioner(object):
                 step_y = int(y_can_decrease)
                 step_z = int(z_can_decrease)
                 if verbose:
-                    print step_x, step_y, step_z
+                    print(step_x, step_y, step_z)
 
                 self.step_motors(step_x, step_y, step_z, dir_x, dir_y, dir_z)
                 can_move = self._parse_resp(self.port.readline())
@@ -193,7 +193,7 @@ class Positioner(object):
                 step_y = int(y_can_increase)
                 step_z = int(z_can_increase)
                 if verbose:
-                    print step_x, step_y, step_z
+                    print(step_x, step_y, step_z)
 
                 self.step_motors(step_x, step_y, step_z, dir_x, dir_y, dir_z)
                 can_move = self._parse_resp(self.port.readline())
@@ -233,11 +233,11 @@ class Positioner(object):
 
         try:
             m = re.match(".*?: (\d+), (\d+), (\d+)", movement_data)
-            n_steps_actuated = map(int, [m.group(x) for x in [1,2,3]])
+            n_steps_actuated = list(map(int, [m.group(x) for x in [1,2,3]]))
         except:
             import traceback
             traceback.print_exc()
-            print movement_data
+            print(movement_data)
 
         if not stiff:
             self.sleep_motors()
@@ -258,10 +258,10 @@ class Positioner(object):
             n_steps_min_to_max[k] = self.go_to_max()
             time.sleep(2)
             n_steps_max_to_min[k] = self.go_to_min()
-            print "min to max"
-            print n_steps_min_to_max
-            print "max to min"
-            print n_steps_max_to_min
+            print("min to max")
+            print(n_steps_min_to_max)
+            print("max to min")
+            print(n_steps_max_to_min)
             time.sleep(2)
             
         return n_steps_min_to_max, n_steps_max_to_min
@@ -494,8 +494,8 @@ class PositionerTaskController(Sequence):
             raw_data = self.rx_sock.recv(8*3)
             import struct
             new_pos = struct.unpack('ddd', raw_data)
-            print "received new position!"
-            print new_pos
+            print("received new position!")
+            print(new_pos)
             self._gen_int_target_pos = new_pos
             return True 
         else:
@@ -503,13 +503,13 @@ class PositionerTaskController(Sequence):
 
     ##### State transition functions #####
     def _start_go_to_origin(self):
-        print "_start_go_to_origin"
+        print("_start_go_to_origin")
         self.pos_uctrl_iface.start_continuous_move(1000, 1000, -1000)
 
     def _start_go_to_target(self,num_x,num_y,num_z):
         # AY modification - _start_go_to_origin sends the positioner to a predetermined location.  Need to be able to send it
         # different target locations for the different target positions.  Not currently working (also not implemented in tasklilst yet)
-        print "_start_go_to_target"
+        print("_start_go_to_target")
         self.pos_uctrl_iface.start_continuous_move(num_x,num_y,num_z)
 
     def _start_reward(self):
@@ -552,8 +552,8 @@ class PositionerTaskController(Sequence):
 
             # if no position errors were accumulated, then self.steps_from_origin should all be 0
             acc_error = self.steps_from_origin
-            print "accumulated step errors"
-            print acc_error
+            print("accumulated step errors")
+            print(acc_error)
 
         self.loc = np.zeros(3)
         self.steps_from_origin = np.zeros(3)
@@ -585,4 +585,4 @@ class PositionerTaskController(Sequence):
             self.pos_uctrl_iface.sleep_motors()
             
 
-from calib import *
+from .calib import *

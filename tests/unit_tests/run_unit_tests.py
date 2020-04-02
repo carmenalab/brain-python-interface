@@ -6,6 +6,9 @@ from test_riglib_bmi import TestKalmanFilter, TestKFDecoder, TestZeroVelocityGoa
 from test_riglib_experiment import TestLogExperiment, TestSequence
 from test_riglib_hdfwriter import TestHDFWriter
 from test_feature_savehdf import TestSaveHDF
+from test_mixin_features import TestTaskWithFeatures
+from test_riglib_traits import TestTraits
+from test_built_in_vfb_task import TestVisualFeedback
 
 from requirements import *
 
@@ -13,25 +16,24 @@ test_classes = [
     TestKalmanFilter, 
     TestDataSourceSystem, TestKFDecoder, TestLogExperiment, 
     TestSequence, TestHDFWriter, TestZeroVelocityGoal, TestNullAccumulator,
-    TestSaveHDF
+    TestSaveHDF, TestTraits, TestTaskWithFeatures, TestVisualFeedback,
 ]
 
 import reqlib
-reload(reqlib)
  
-def my_suite():
-    suite = unittest.TestSuite()
-    result = unittest.TestResult()
+suite = unittest.TestSuite()
+result = unittest.TestResult()
 
-    for cls in test_classes:
-        suite.addTest(unittest.makeSuite(cls))      
+for cls in test_classes:
+    suite.addTest(unittest.makeSuite(cls))      
 
-    runner = unittest.TextTestRunner()
-    runner_output = runner.run(suite)
+suite_tests = suite._tests.copy() # making a copy because this list gets destroyed in the python 3 implementation
 
-    git_hash = os.popen("git rev-parse HEAD").readlines()[0].strip()
-    runner_output_text = "Git hash: %s\nAll tests pass? %s\n\n" % (git_hash, str(runner_output.wasSuccessful()))
+runner = unittest.TextTestRunner()
+runner_output = runner.run(suite)
 
-    reqlib.generate_traceability_matrix(all_requirements, suite, runner_output_text)
- 
-my_suite()    
+git_hash = os.popen("git rev-parse HEAD").readlines()[0].strip()
+runner_output_text = "Git hash: %s\nAll tests pass? %s\n\n" % (git_hash, str(runner_output.wasSuccessful()))
+
+# import ipdb; ipdb.set_trace()
+reqlib.generate_traceability_matrix(all_requirements, suite_tests, runner_output_text)

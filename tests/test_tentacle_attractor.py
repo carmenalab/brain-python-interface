@@ -30,7 +30,7 @@ class TentacleAttractorBMIRecon(bmi_recon_tasks.BMIReconstruction):
     def create_assister(self):
         from tasks.bmimultitasks import TentacleAssist
         self.assister = TentacleAssist(ssm=self.decoder.ssm, kin_chain=self.plant.kin_chain, update_rate=self.decoder.binlen)
-        print self.assister
+        print(self.assister)
 
     def create_goal_calculator(self):
         shoulder_anchor = self.plant.base_loc
@@ -68,4 +68,4 @@ task.init()
 error = task.calc_recon_error(verbose=False, n_iter_betw_fb=1000)
 abs_max_error = np.max(np.abs(error))
 
-print abs_max_error
+print(abs_max_error)

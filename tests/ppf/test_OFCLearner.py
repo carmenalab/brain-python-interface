@@ -28,4 +28,4 @@ for idx in range(1, n_iter):
 
 kin_data, _ = learner.get_batch()
 learner_error = intended_kin[:,:kin_data.shape[1]] - np.array(kin_data[state_inds_2d,:])
-print np.max(np.abs(learner_error))
+print(np.max(np.abs(learner_error)))

@@ -5,11 +5,11 @@ heavily on the kfdecoder module.
 import numpy as np
 from scipy.io import loadmat
 
-import bmi
-import train
+from . import bmi
+from . import train
 import pickle
 
-import kfdecoder
+from . import kfdecoder
 
 class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
     """
@@ -31,7 +31,7 @@ class SteadyStateKalmanFilter(bmi.GaussianStateHMM):
         -------
 
         '''
-        if len(kwargs.keys()) == 0:
+        if len(list(kwargs.keys())) == 0:
             ## This condition should only be true in the unpickling phase
             pass
         else:

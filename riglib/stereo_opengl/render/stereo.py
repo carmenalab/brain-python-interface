@@ -5,7 +5,7 @@ Extensions of the render.Renderer class for stereo displays
 import numpy as np
 from OpenGL.GL import *
 
-from render import Renderer
+from .render import Renderer
 from ..utils import offaxis_frusta
 
 class LeftRight(Renderer):

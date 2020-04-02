@@ -58,4 +58,4 @@ spikes_ensemble = np.zeros([N, C])
 for n in range(1, N):
     spikes_ensemble[n-1, :] = ensemble(X[n,:])
 
-print np.array_equal(spikes_ensemble, spike_counts)
+print(np.array_equal(spikes_ensemble, spike_counts))

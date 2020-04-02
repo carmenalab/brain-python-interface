@@ -16,25 +16,25 @@ parameters['inst-port']   = 51001
 parameters['client-port'] = 51002
 
 if sys.platform == 'darwin':  # OS X
-    print 'Using OS X settings for cbpy'
+    print('Using OS X settings for cbpy')
     parameters['client-addr'] = '255.255.255.255'
 else:  # linux
-    print 'Using linux settings for cbpy'
+    print('Using linux settings for cbpy')
     parameters['client-addr'] = '192.168.137.255'
     parameters['receive-buffer-size'] = 8388608
 
 result, return_dict = cbpy.open(connection='default', parameter=parameters)
-print 'result:', result
-print 'connection:', return_dict['connection']
-print 'instrument:', return_dict['instrument']
-print ''
+print('result:', result)
+print('connection:', return_dict['connection'])
+print('instrument:', return_dict['instrument'])
+print('')
 
 
 buffer_parameter = {'absolute': True}
 result, reset = cbpy.trial_config(buffer_parameter=buffer_parameter)
-print 'result:', result
-print 'reset:', reset
-print ''
+print('result:', result)
+print('reset:', reset)
+print('')
 
 n_secs = 20
 loop_time = 0.1
@@ -44,9 +44,9 @@ last_nsp_time = 0
 
 for itr in range(n_itrs):
     t_start = time.time()
-    print '-' * 79
-    print '\nitr %d of %d:' % (itr+1, n_itrs)
-    print ''
+    print('-' * 79)
+    print('\nitr %d of %d:' % (itr+1, n_itrs))
+    print('')
 
     # print 'calling cbpy.trial_event(), followed by cbpy.time()'
     # print ''
@@ -67,9 +67,9 @@ for itr in range(n_itrs):
                 for ts in unit_ts:
                     if ts < last_nsp_time:
                         args = (ts, chan, unit, last_nsp_time)
-                        print 'Warning: timestamp %d for (chan,unit)=(%d,%d) is less than last NSP time of %d' % args
+                        print('Warning: timestamp %d for (chan,unit)=(%d,%d) is less than last NSP time of %d' % args)
 
-                inds = range(idx, idx + len(unit_ts))
+                inds = list(range(idx, idx + len(unit_ts)))
 
                 data[inds, 0] = unit_ts
                 data[inds, 1] = chan
@@ -79,19 +79,19 @@ for itr in range(n_itrs):
         
 
     # print 'trial_event result:', trial_event_result
-    print ''
-    print 'trial data:\n'
+    print('')
+    print('trial data:\n')
 
     if data.shape[0] > 0:
         data = data[np.argsort(data[:,0]), :]
         
         headers = ['timestamp', 'channel', 'unit']
-        print tabulate.tabulate(data, headers=headers)
-        print ''
+        print(tabulate.tabulate(data, headers=headers))
+        print('')
 
     # print 'time result:', time_result
-    print 'NSP time:', int(nsp_time)
-    print ''
+    print('NSP time:', int(nsp_time))
+    print('')
 
     last_nsp_time = nsp_time
 

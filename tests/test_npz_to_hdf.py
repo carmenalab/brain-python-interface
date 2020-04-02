@@ -10,12 +10,12 @@ import tables
 import numpy as np
 
 te = performance._get_te(2440)
-print te
+print(te)
 te.clda_param_hist;
 error = np.zeros(len(te.clda_param_hist))
 
 for k, update in enumerate(te.clda_param_hist):
     if update is not None:
-        print k
+        print(k)
         error[k] = np.max(np.abs(te.hdf.root.clda[k]['filt_C'] - update['filt.C']))
-print np.max(np.abs(error))
+print(np.max(np.abs(error)))

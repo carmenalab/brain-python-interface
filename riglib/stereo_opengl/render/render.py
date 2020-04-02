@@ -7,7 +7,7 @@ import numpy as np
 from OpenGL.GL import *
 
 from ..utils import perspective
-from shader import ShaderProgram
+from .shader import ShaderProgram
 
 cwd = os.path.join(os.path.abspath(os.path.split(__file__)[0]), "..")
 
@@ -33,12 +33,12 @@ class Renderer(object):
 
         #compile the given shaders and the programs
         self.shaders = dict()
-        for k, v in shaders.items():
-            print "Compiling shader %s..."%k
+        for k, v in list(shaders.items()):
+            print("Compiling shader %s..."%k)
             self.add_shader(k, *v)
         
         self.programs = dict()
-        for name, shaders in programs.items():
+        for name, shaders in list(programs.items()):
             self.add_program(name, shaders)
         
         #Set up the texture units
@@ -65,16 +65,16 @@ class Renderer(object):
         shader: ???????, default=None
             ????????
         '''
-        queue = dict((k, dict()) for k in self.programs.keys())
+        queue = dict((k, dict()) for k in list(self.programs.keys()))
 
         for pname, drawfunc, tex in root.render_queue(shader=shader):
             if tex not in queue[pname]:
                 queue[pname][tex] = []
             queue[pname][tex].append(drawfunc)
         
-        for pname in self.programs.keys():
+        for pname in list(self.programs.keys()):
             #assert len(self.texavail) > len(queue[pname])
-            for tex in queue[pname].keys():
+            for tex in list(queue[pname].keys()):
                 if tex is not None:
                     self.get_texunit(tex)
         
@@ -139,10 +139,10 @@ class Renderer(object):
             kwargs['modelview'] = root._xfm.to_mat()
         
         if shader is not None:
-            for items in self.render_queue.values():
+            for items in list(self.render_queue.values()):
                 self.programs[shader].draw(self, items, **kwargs)
         else:
-            for name, program in self.programs.items():
+            for name, program in list(self.programs.items()):
                 program.draw(self, self.render_queue[name], **kwargs)
     
     def draw_done(self):

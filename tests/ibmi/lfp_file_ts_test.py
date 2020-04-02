@@ -36,10 +36,10 @@ for nsx_fname in files:
 
 			length = last_ts / fs
 			lengths.append(length)
-			print length
+			print(length)
 
 			break
 
-print lengths
-print max(lengths)
+print(lengths)
+print(max(lengths))
 

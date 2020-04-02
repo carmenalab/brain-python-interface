@@ -198,4 +198,6 @@ class TestZeroVelocityGoal(unittest.TestCase):
         (goal_state, error), _ = goal_calc(target_pos)
 
         self.assertTrue(np.array_equal(goal_state.ravel(), np.array([0, 0, 0, 0, 0, 0, 1])))
-        
+
+if __name__ == '__main__':
+    unittest.main()
