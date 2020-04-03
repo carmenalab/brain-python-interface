@@ -15,7 +15,7 @@ motion_data.start()
 
 while True:
     print(motion_data.get())
-    time.sleep(0.1)
+    time.sleep(1)
     
 
 

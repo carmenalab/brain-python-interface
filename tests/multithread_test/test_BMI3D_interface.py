@@ -29,9 +29,6 @@ class MotionData(object):
         
         #print(self.data_array)
         
-        #update data in the motion buffer
-
-        #save data
 
     def start(self):
         self.test_client.dataListener = self.receive_data

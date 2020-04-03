@@ -4,7 +4,7 @@ import numpy as np
 import string
 import pickle
 
-import pygame
+import pyautogui
 
 
 
@@ -18,7 +18,7 @@ class TestServer(object):
     UDP_IP = "127.0.0.1"
     UDP_PORT = 5005
     MESSAGE = "Hello, World!"
-    SLEEP_TIME = 0.01 # seond
+    SLEEP_TIME = 0.01 # seond 100 Hz per second
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, # Internet
@@ -46,21 +46,10 @@ class TestServerMouse(TestServer):
         super().__init__()
 
     def __dataThreadFunction( self, socket,sleep_time ):
-        print('here ')
-        pygame.init()
-        (width, height) = (300, 200)
-        screen = pygame.display.set_mode((width, height))
 
         while True:
-
-            #need to poll the event before 
-            pygame.event.get()
-            # Block for input
-            cursor_pos = pygame.mouse.get_pos()
-            #print(cursor_pos)
-
-            screen.fill((0, 0, 0))
-            pygame.display.flip()
+            #get cursor position with pyautogui
+            cursor_pos = pyautogui.position()
 
             #prepare dump data
             dump_data = pickle.dumps(cursor_pos)

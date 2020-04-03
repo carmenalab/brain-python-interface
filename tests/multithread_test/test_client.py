@@ -2,6 +2,7 @@ import socket
 import struct
 from threading import Thread
 import pickle
+import numpy
 
 class TestClient:
     def __init__(self):
@@ -35,7 +36,7 @@ class TestClient:
             data, addr = socket.recvfrom( 32768 ) # 32k byte buffer size
             if( len( data ) > 0 ):
                 #self.__processMessage( data )
-                data_arr  = pickle.loads(data)
+                data_arr  = numpy.asarray(pickle.loads(data))
                 # Send information to any listener.
                 if self.dataListener is not None:
                     self.dataListener(data_arr)
