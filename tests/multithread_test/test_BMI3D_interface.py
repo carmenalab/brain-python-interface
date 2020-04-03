@@ -27,7 +27,7 @@ class MotionData(object):
             self.data_array.insert(0,rec_num)
             self.data_array.pop()
         
-        #print(self.data_array)
+        #save data to a 
         
 
     def start(self):
