@@ -1,6 +1,7 @@
 import socket
 import struct
 from threading import Thread
+import pickle
 
 class TestClient:
     def __init__(self):
@@ -34,10 +35,10 @@ class TestClient:
             data, addr = socket.recvfrom( 32768 ) # 32k byte buffer size
             if( len( data ) > 0 ):
                 #self.__processMessage( data )
-
-                        # Send information to any listener.
+                data_arr  = pickle.loads(data)
+                # Send information to any listener.
                 if self.dataListener is not None:
-                    self.dataListener(data)
+                    self.dataListener(data_arr)
 
     def run( self ):
         # Create the data socket

@@ -2,15 +2,19 @@ import socket,time
 from threading import Thread
 import numpy as np
 import string
+import pickle
+
+import pygame
 
 
 
 '''
+this class generates random numbers and broadcast them via the UDP protocal to the local network
 print "UDP target IP:", UDP_IP
 print "UDP target port:", UDP_PORT
 print "message:", MESSAGE
 '''
-class TestServer(object):
+class TestServer(object): 
     UDP_IP = "127.0.0.1"
     UDP_PORT = 5005
     MESSAGE = "Hello, World!"
@@ -33,3 +37,45 @@ class TestServer(object):
         dataThread = Thread( target = self.__dataThreadFunction, args = (self.sock, self.SLEEP_TIME))
         print('Server starts to broadcast data')
         dataThread.start() 
+
+#this child class replaces the generator and then waits for the mouse command
+class TestServerMouse(TestServer):
+
+    def __init__(self):
+        
+        super().__init__()
+
+    def __dataThreadFunction( self, socket,sleep_time ):
+        print('here ')
+        pygame.init()
+        (width, height) = (300, 200)
+        screen = pygame.display.set_mode((width, height))
+
+        while True:
+
+            #need to poll the event before 
+            pygame.event.get()
+            # Block for input
+            cursor_pos = pygame.mouse.get_pos()
+            #print(cursor_pos)
+
+            screen.fill((0, 0, 0))
+            pygame.display.flip()
+
+            #prepare dump data
+            dump_data = pickle.dumps(cursor_pos)
+
+            self.sock.sendto(dump_data, (self.UDP_IP, self.UDP_PORT))
+            time.sleep(sleep_time)
+    
+    def run(self):
+        dataThread = Thread( target = self.__dataThreadFunction, args = (self.sock, self.SLEEP_TIME))
+        print('Server starts to broadcast data')
+        dataThread.start() 
+        
+        
+
+#test function 
+if __name__ == "__main__":
+    tsm = TestServerMouse()
+    tsm.run()

@@ -1,6 +1,7 @@
 from test_client import TestClient
 import numpy as np
 from multiprocessing import Process,Lock
+import pickle
 
 mutex = Lock()
 
@@ -17,7 +18,8 @@ class MotionData(object):
     
     def receive_data(self, data):
         #print( "Received data from client", data)
-        rec_num  = float(data)
+        rec_num  = data
+
         #self.data_array[2:] = self.data_array[1:]
         
         #make a running buffer
