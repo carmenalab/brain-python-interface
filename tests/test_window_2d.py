@@ -34,25 +34,34 @@ class TestGraphics(Sequence, Window):
         self.dtype = [('target', 'f', (3,)), ('cursor', 'f', (3,)), (('target_index', 'i', (1,)))]
         self.target1 = Sphere(radius=self.target_radius, color=(1,0,0,.5))
         self.add_model(self.target1)
-        self.target2 = Sphere(radius=self.target_radius, color=(1,0,0,.5))
+        self.target2 = Sphere(radius=self.target_radius, color=(1,0,0,0.5))
         self.add_model(self.target2)
             
         # Initialize target location variable
-        self.target_location = np.array([0,0,0])
+        self.target_location = np.array([0.0,0.0,0.0])
 
     ##### HELPER AND UPDATE FUNCTIONS ####
 
 #<<<<<<< HEAD
     def _get_renderer(self):
         return stereo.MirrorDisplay(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
+    def _cycle(self):
+        
+        super()._cycle()
 
     #### STATE FUNCTIONS ####
     def _while_wait(self):
-        print("_while_wait")
-        self.target1.translate(0, 0, 0, reset=True)
-        self.target1.attach()
+        #print("_while_wait")
+        
+        delta_movement = np.array([0,0,0.01])
+        self.target_location += delta_movement
+
+        self.target1.translate(self.target_location[0], 
+                               self.target_location[1],
+                               self.target_location[2], reset=True)
         self.requeue()
         self.draw_world()
+        print('current target 1 position ' + np.array2string(self.target_location))
 
 
 def target_seq_generator(n_targs, n_trials):
@@ -75,9 +84,11 @@ def target_seq_generator(n_targs, n_trials):
 
 
 if __name__ == "__main__":
+    print('Remember to set window size in stereoOpenGL class')
     gen = target_seq_generator(8, 1000)
     w = TestGraphics(gen)
     w.init()
     w.run()
+    
  
 

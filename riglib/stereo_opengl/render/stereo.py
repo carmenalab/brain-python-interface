@@ -48,8 +48,6 @@ class MirrorDisplay(Renderer):
         kwargs: optional keyword-arguments
             Optional shaders and stuff to pass to the lower-level drawing functions
         '''
-        print('aha')
-        print(self.size)
         w, h = self.size
         w = int(w)
         h = int(h)
