@@ -41,7 +41,7 @@ class Window(LogExperiment):
 
     #window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
     #XPS computer
-    window_size = traits.Tuple((1280, 360), descr='window size, in pixels')
+    window_size = traits.Tuple((1280, 720), descr='window size, in pixels')
     # window_size = (1920*2, 1080)
     background = (0,0,0,1)
 

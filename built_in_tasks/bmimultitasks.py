@@ -29,7 +29,7 @@ from riglib.stereo_opengl.primitives import Line
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
 
-from . import manualcontrolmultitasks
+from manualcontrolmultitasks import ManualControlMulti
 
 target_colors = {"blue":(0,0,1,0.5),
 "yellow": (1,1,0,0.5),
@@ -195,7 +195,7 @@ class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
 #################
 ##### Tasks #####
 #################
-class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, manualcontrolmultitasks.ManualControlMulti):
+class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ManualControlMulti):
     '''
     Target capture task with cursor position controlled by BMI output.
     Cursor movement can be assisted toward target by setting assist_level > 0.

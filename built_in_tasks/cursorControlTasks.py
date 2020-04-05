@@ -1,7 +1,7 @@
 
-from .manualcontrolmultitasks import ManualControlMulti
+from manualcontrolmultitasks import ManualControlMulti
 from riglib.stereo_opengl.window import WindowDispl2D
-from .bmimultitasks import BMIControlMulti
+from bmimultitasks import BMIControlMulti
 import pygame
 import numpy as np
 import copy
@@ -69,4 +69,37 @@ class CursorControl(ManualControlMulti, WindowDispl2D):
 
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
+
+#this task can be run on its
+#we will not involve  database at this time
+target_pos_radius = 10
+
+def target_seq_generator(n_targs, n_trials):
+    #generate targets
+    angles = np.transpose(np.arange(0,2*np.pi,2*np.pi / n_targs))
+    unit_targets = targets = np.stack((np.cos(angles), np.sin(angles)),1)
+    targets = unit_targets * target_pos_radius
+
+    center = np.array((0,0))
+
+    target_inds = np.random.randint(0, n_targs, n_trials)
+    target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
+
+    k = 0
+    while k < n_trials:
+        targ = targets[target_inds[k], :]
+        yield np.array([[center[0], 0, center[1]],
+                        [targ[0], 0, targ[1]]])
+        k += 1
+
+
+if __name__ == "__main__":
+    print('Remember to set window size in stereoOpenGL class')
+    gen = target_seq_generator(8, 1000)
+    
+    w = CursorControl(gen)
+    w.init()
+    w.run()
+
+
         
