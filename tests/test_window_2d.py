@@ -8,8 +8,11 @@ from riglib.stereo_opengl.window import Window
 
 import pygame
 import numpy as np
+import importlib
 
-reload(window)
+#importlib.reload(window)
+m_to_cm = 100
+target_pos_radius = 10
 
 class TestGraphics(Sequence, Window):
     status = dict(
@@ -19,12 +22,15 @@ class TestGraphics(Sequence, Window):
     #initial state
     state = "wait"
     target_radius = 2.
+
+    
         
     #create targets, cursor objects, initialize
     def __init__(self, *args, **kwargs):
         # Add the target and cursor locations to the task data to be saved to
         # file
-        super(TestGraphics, self).__init__(*args, **kwargs)
+        #super(TestGraphics, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.dtype = [('target', 'f', (3,)), ('cursor', 'f', (3,)), (('target_index', 'i', (1,)))]
         self.target1 = Sphere(radius=self.target_radius, color=(1,0,0,.5))
         self.add_model(self.target1)
@@ -36,13 +42,13 @@ class TestGraphics(Sequence, Window):
 
     ##### HELPER AND UPDATE FUNCTIONS ####
 
-<<<<<<< HEAD
+#<<<<<<< HEAD
     def _get_renderer(self):
         return stereo.MirrorDisplay(self.window_size, self.fov, 1, 1024, self.screen_dist, self.iod)
 
     #### STATE FUNCTIONS ####
     def _while_wait(self):
-        print "_while_wait"
+        print("_while_wait")
         self.target1.translate(0, 0, 0, reset=True)
         self.target1.attach()
         self.requeue()
@@ -50,8 +56,16 @@ class TestGraphics(Sequence, Window):
 
 
 def target_seq_generator(n_targs, n_trials):
+    #generate targets
+    angles = np.transpose(np.arange(0,2*np.pi,2*np.pi / n_targs))
+    unit_targets = targets = np.stack((np.cos(angles), np.sin(angles)),1)
+    targets = unit_targets * target_pos_radius
+
+    center = np.array((0,0))
+
     target_inds = np.random.randint(0, n_targs, n_trials)
     target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
+
     k = 0
     while k < n_trials:
         targ = m_to_cm*targets[target_inds[k], :]
@@ -59,7 +73,11 @@ def target_seq_generator(n_targs, n_trials):
                         [targ[0], 0, targ[1]]])
         k += 1
 
-gen = target_seq_generator(8, 1000)
-w = TestGraphics(gen)
-w.init()
-w.run()
+
+if __name__ == "__main__":
+    gen = target_seq_generator(8, 1000)
+    w = TestGraphics(gen)
+    w.init()
+    w.run()
+ 
+

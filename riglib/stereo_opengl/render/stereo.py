@@ -48,7 +48,11 @@ class MirrorDisplay(Renderer):
         kwargs: optional keyword-arguments
             Optional shaders and stuff to pass to the lower-level drawing functions
         '''
+        print('aha')
+        print(self.size)
         w, h = self.size
+        w = int(w)
+        h = int(h)
 
         # draw the portion of the screen with lower-left corner (0, 0), width 'w' and height 'h'
         glViewport(0, 0, w, h)
