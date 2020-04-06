@@ -113,11 +113,7 @@ def list_exp_history(request, **kwargs):
     if tracker.task_proxy is not None and "saveid" in tracker.task_kwargs:
         fields['running'] = tracker.task_kwargs["saveid"]
 
-<<<<<<< HEAD
     resp = render(None,'list.html', fields)
-=======
-    resp = render(none,'list.html', fields, RequestContext(request))
->>>>>>> 7e3968e3f1004e4294905373c5414ef522d8b21d
     return resp
 
 def setup(request):
