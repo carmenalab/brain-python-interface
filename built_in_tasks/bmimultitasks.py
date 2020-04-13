@@ -490,6 +490,10 @@ class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
         
         if 'sim_C'  in kwargs:
             self.sim_C = kwargs['sim_C']
+        if 'assist_level' in kwargs:
+            self.assist_level = kwargs['assist_level']
+
+        
 
         A, B, W = ssm.get_ssm_matrices()
 
@@ -500,6 +504,14 @@ class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
         self.ssm = ssm
 
         super(SimBMIControlMulti, self).__init__(*args, **kwargs)
+
+
+    def _start_wait(self):
+        self.wait_time = 0.
+        super()._start_wait()
+
+    def _test_start_trial(self, ts):
+        return ts > self.wait_time and not self.pause
 
     @staticmethod
     def sim_target_seq_generator_multi(n_targs, n_trials):
