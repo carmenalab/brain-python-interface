@@ -487,8 +487,12 @@ class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
     def __init__(self, *args, **kwargs):
         from riglib.bmi.state_space_models import StateSpaceEndptVel2D
         ssm = StateSpaceEndptVel2D()
+        
+        if 'sim_C'  in kwargs:
+            self.sim_C = kwargs['sim_C']
 
         A, B, W = ssm.get_ssm_matrices()
+
         Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
         R = 10000*np.mat(np.diag([1., 1., 1.]))
         self.fb_ctrl = LQRController(A, B, Q, R)
