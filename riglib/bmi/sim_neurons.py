@@ -320,7 +320,13 @@ class FACosEnc(GenericCosEnc):
         self.shar_unt = t_unt
 
         #Now weight everything together:
-        w = self.wt_sources
+        if self.wt_sources is None: # if mp wt_sources, equally weight the sources
+            w = np.array([1,1,1,1]) / 4
+        else:
+            w = self.wt_sources
+
+        
+
         counts = np.squeeze(np.array(w[0]*self.priv_unt + w[1]*self.priv_tun + w[2]*self.shar_unt + w[3]*self.shar_tun))
         
         #Adding back the mean FR
