@@ -18,13 +18,14 @@ class CursorControl(ManualControlMulti, WindowDispl2D):
     def __init__(self, *args, **kwargs):
         # just run the parent ManualControlMulti's initialization
         self.move_step = 1
-        super(CursorControl, self).__init__(*args, **kwargs)
-
-    def init(self):
-        pygame.init()
         self.assist_level = (0.5, 0.5)
-        super(CursorControl, self).init()
+        super(CursorControl, self).__init__(*args, **kwargs)
+    
+    def init(self):
+        #pygame.init()
 
+        super(CursorControl, self).init()
+    
     # override the _cycle function
     def _cycle(self):
         #print(self.state)
