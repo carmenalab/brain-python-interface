@@ -38,6 +38,7 @@ class Simulate(object):
         self.isi = isi
 
     def start(self):
+
         '''
         Docstring
 
@@ -48,6 +49,18 @@ class Simulate(object):
         -------
         '''
         self.stime = time.time()
+    
+    def retrieve(self, filename):
+        '''
+        for sim, there is no need to retrieve an file
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        pass
 
     def get(self):
         '''
@@ -59,7 +72,7 @@ class Simulate(object):
         Returns
         -------
         '''
-        time.sleep(1./update_freq)
+        time.sleep(1./self.update_freq)
         return self.interp((time.time() - self.stime) % self.mod) + np.random.randn(2)*.01
 
     def stop(self):
@@ -72,7 +85,19 @@ class Simulate(object):
         Returns
         -------
         '''
-        return 
+        return
+
+    def sendMsg(self, msg):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        pass
 
 class System(object):
     '''
