@@ -32,12 +32,12 @@ class EyeData(traits.HasTraits):
         self.sinks = sink.sinks
 
         src, ekw = self.eye_source
-        f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
+        #f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata = source.DataSource(src, **ekw)
         self.sinks.register(self.eyedata)
-        f.write('instantiated source\n')
+        #f.write('instantiated source\n')
         super(EyeData, self).init()
-        f.close()
+        #f.close()
     
     @property
     def eye_source(self):
@@ -58,10 +58,10 @@ class EyeData(traits.HasTraits):
         Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
         See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
         '''
-        f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
+        #f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata.start()
-        f.write('started eyedata\n')
-        f.close()
+        #f.write('started eyedata\n')
+        #f.close()
         try:
             super(EyeData, self).run()
         finally:
@@ -121,6 +121,7 @@ class EyeData(traits.HasTraits):
         Returns
         -------
         '''
+        
         super(EyeData, self).cleanup(database, saveid, **kwargs)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if dbname == 'default':
@@ -145,7 +146,7 @@ class SimulatedEyeData(EyeData):
         -------
         '''
         from riglib import eyetracker
-        return eyetracker.Simulate, dict(fixations=fixations, fixation_len=fixation_len)
+        return eyetracker.Simulate, dict(fixations= self.fixations)
 
 class CalibratedEyeData(EyeData):
     '''Filters eyetracking data with a calibration profile'''
@@ -219,3 +220,11 @@ class FixationStart(CalibratedEyeData):
         -------
         '''
         return ts > self.fixation_length
+
+'''
+if __name__ == "__main__":
+    sim_eye_data = SimulatedEyeData()
+
+    sim_eye_data.init()
+    sim_eye_data.run()
+'''
