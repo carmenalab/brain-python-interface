@@ -59,6 +59,7 @@ class EyeData(traits.HasTraits):
         See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
         '''
         #f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
+        print("before eyedata run")
         self.eyedata.start()
         #f.write('started eyedata\n')
         #f.close()
@@ -148,6 +149,30 @@ class SimulatedEyeData(EyeData):
         from riglib import eyetracker
         return eyetracker.Simulate, dict(fixations= self.fixations)
 
+    def _cycle(self):
+        '''
+        Docstring
+        basically, extract the data and do something with it
+
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        print('cycle started')
+        #retrieve data
+        data_temp = self.eyedata.get()
+
+        #send the data to sinks
+        if data_temp is not None:
+            self.sinks.send(self.eyedata.name, data_temp)
+
+        super(SimulatedEyeData, self)._cycle()
+
+
+
 class CalibratedEyeData(EyeData):
     '''Filters eyetracking data with a calibration profile'''
     cal_profile = traits.Instance(calibrations.EyeProfile)
@@ -164,7 +189,6 @@ class CalibratedEyeData(EyeData):
         '''
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
         self.eyedata.set_filter(self.cal_profile)
-
 class FixationStart(CalibratedEyeData):
     '''Triggers the start_trial event whenever fixation exceeds *fixation_length*'''
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
