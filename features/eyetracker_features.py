@@ -59,7 +59,6 @@ class EyeData(traits.HasTraits):
         See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
         '''
         #f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
-        print("before eyedata run")
         self.eyedata.start()
         #f.write('started eyedata\n')
         #f.close()
@@ -161,7 +160,6 @@ class SimulatedEyeData(EyeData):
         Returns
         -------
         '''
-        print('cycle started')
         #retrieve data
         data_temp = self.eyedata.get()
 

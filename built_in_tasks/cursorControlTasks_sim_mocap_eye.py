@@ -119,7 +119,8 @@ if __name__ == "__main__":
     
     #mix features into the experiment base class
     base_class = CursorControl
-    feats = [SimulatedEyeData, SaveHDF]
+    feats = [SaveHDF, SimulatedEyeData]
+    #feats =  [SaveHDF]
     Exp = experiment.make(base_class, feats=feats)
     print(Exp)
 

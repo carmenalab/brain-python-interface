@@ -48,6 +48,7 @@ class Simulate(object):
         Returns
         -------
         '''
+        print("eyetracker.simulate.start()")
         self.stime = time.time()
     
     def retrieve(self, filename):
@@ -73,7 +74,11 @@ class Simulate(object):
         -------
         '''
         time.sleep(1./self.update_freq)
-        return self.interp((time.time() - self.stime) % self.mod) + np.random.randn(2)*.01
+
+        data = self.interp((time.time() - self.stime) % self.mod) + np.random.randn(2)*.01
+        #expand dims
+        data_2 = np.expand_dims(data, axis = 0)
+        return data_2
 
     def stop(self):
         '''

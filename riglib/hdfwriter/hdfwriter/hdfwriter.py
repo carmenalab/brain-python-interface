@@ -56,6 +56,7 @@ class HDFWriter(object):
         None
         '''
         print("HDFWriter registered %r" % name)
+        print(dtype)
         if dtype.subdtype is not None:
             #just a simple dtype with a shape
             dtype, sliceshape = dtype.subdtype
