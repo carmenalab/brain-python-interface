@@ -13,8 +13,8 @@ class TestAoReward(unittest.TestCase):
         pass
 
     def test_flow_out(self):
-        reward_time = 1000 #ms
-        self.reward_sys(reward_time)
+        reward_time_ms  = 1000 #ms
+        self.reward_sys(reward_time_ms)
 
     @unittest.skip("not sure how to calibrate yet")
     def test_calibration(self):
