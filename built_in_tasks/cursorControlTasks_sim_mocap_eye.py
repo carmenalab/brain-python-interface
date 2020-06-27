@@ -107,7 +107,7 @@ def target_seq_generator(n_targs, n_trials):
 
 if __name__ == "__main__":
     print('Remember to set window size in stereoOpenGL class')
-    gen = target_seq_generator(8, 1000)
+    gen = target_seq_generator(8, 6)
 
     #incorporate the saveHDF feature by blending code
     #see tests\start_From_cmd_line_sim
@@ -122,7 +122,6 @@ if __name__ == "__main__":
     feats = [SaveHDF, SimulatedEyeData, MotionSimulate]
     #feats =  [SaveHDF]
     Exp = experiment.make(base_class, feats=feats)
-    print(Exp)
 
     exp = Exp(gen)
     exp.init()
