@@ -3,7 +3,8 @@ import numpy
 import matplotlib.pyplot as plt
 
 #replace this with your hdf filename
-fname = 'c:\\Users\\Si Jia\\AppData\\Local\\Temp\\tmp9fswwtwp.h5'
+#fname = 'c:\\Users\\Si Jia\\AppData\\Local\\Temp\\tmp9fswwtwp.h5'
+fname = '/tmp/tmpdcbqn2zo.h5'
 hdffile = tables.open_file(fname,'r') #read-onl
 
 print(hdffile)
