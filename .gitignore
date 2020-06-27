@@ -17,7 +17,6 @@ db/*.sql
 *.sql.*
 *.jpeg
 log/*
-*.ipynb
 *.doctree
 tasks/debugging.txt
 riglib/plexon/plexfile.py
