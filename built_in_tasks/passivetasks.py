@@ -24,7 +24,7 @@ from riglib.bmi.extractor import DummyExtractor
 from riglib.stereo_opengl.window import WindowDispl2D, FakeWindow
 
 
-from .bmimultitasks import BMIControlMulti
+from built_in_tasks.bmimultitasks import BMIControlMulti
 
 
 bmi_ssm_options = ['Endpt2D', 'Tentacle', 'Joint2L']
@@ -69,6 +69,8 @@ class TargetCaptureVFB2DWindow(TargetCaptureVisualFeedback, WindowDispl2D):
 
     @classmethod
     def get_desc(cls, params, report):
+        if report == None:
+            return "Broken report"
         duration = report[-1][-1] - report[0][-1]
         reward_count = 0
         for item in report:

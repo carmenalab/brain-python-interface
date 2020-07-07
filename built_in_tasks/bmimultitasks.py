@@ -29,7 +29,7 @@ from riglib.stereo_opengl.primitives import Line
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
 
-from manualcontrolmultitasks import ManualControlMulti
+from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
 
 target_colors = {"blue":(0,0,1,0.5),
 "yellow": (1,1,0,0.5),

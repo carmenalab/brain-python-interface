@@ -16,7 +16,7 @@ from riglib.stereo_opengl.textures import Texture, TexModel
 from riglib.stereo_opengl.render import stereo, Renderer
 from riglib.stereo_opengl.utils import cloudy_tex
 
-from plantlist import plantlist
+from built_in_tasks.plantlist import plantlist
 
 from riglib.stereo_opengl import ik
 import os
@@ -31,7 +31,7 @@ GREEN = (0,1,0,0.5)
 GOLD = (1., 0.843, 0., 0.5)
 mm_per_cm = 1./10
 
-from target_graphics import *
+from built_in_tasks.target_graphics import *
 
 target_colors = {
 "yellow": (1,1,0,0.75),

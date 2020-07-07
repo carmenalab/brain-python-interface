@@ -14,7 +14,7 @@ from .json_param import Parameters
 
 from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
-import trainbmi
+import db.trainbmi as trainbmi
 import logging
 import io, traceback
 
