@@ -333,7 +333,7 @@ class NatNetClient:
 
         # Send information to any listener.
         if self.newFrameListener is not None:
-            print(frameNumber)
+            #print(frameNumber)
             self.newFrameListener( frameNumber, markerSetCount, unlabeledMarkersCount, rigidBodyCount, skeletonCount,
                                   labeledMarkerCount, timecode, timecodeSub, timestamp, isRecording, trackedModelsChanged )
 
@@ -437,8 +437,8 @@ class NatNetClient:
 
         messageID = int.from_bytes( data[0:2], byteorder='little' )
         trace( "Message ID:", messageID )
-        print(messageID)
-        print(self.NAT_FRAMEOFDATA)
+        #print(messageID)
+        #print(self.NAT_FRAMEOFDATA)
         
         packetSize = int.from_bytes( data[2:4], byteorder='little' )
         trace( "Packet Size:", packetSize )
@@ -471,7 +471,7 @@ class NatNetClient:
             trace( "ERROR: Unrecognized packet type" )
             
         trace( "End Packet\n----------\n" )
-        print('Finished Processing')
+        #print('Finished Processing')
             
     def sendCommand( self, command, commandStr, socket, address ):
         # Compose the message in our known message format
