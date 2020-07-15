@@ -19,7 +19,7 @@ import time
 from riglib.experiment import traits
 
 ########################################################################################################
-# Phasespace datasources
+# Optitrack datasources
 ########################################################################################################
 class MotionData(traits.HasTraits):
     '''
@@ -50,8 +50,8 @@ class MotionData(traits.HasTraits):
         '''
         Specify the source class as a function in case future descendant classes want to use a different type of source
         '''
-        from riglib.optitrack_client.optitrack_interface import MotionData
-        return MotionData, dict()
+        from riglib.optitrack_client.optitrack_interface import MotionData as op_client
+        return op_client, dict()
 
     def run(self):
         '''

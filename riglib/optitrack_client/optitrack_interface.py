@@ -8,14 +8,18 @@ mutex = Lock()
 class MotionData(object):
     """
     this is is the dataSource interface for getting the mocap at BMI3D's reqeust
+    compatible with DataSourceSystem
     """
+    update_freq = 120 # Hz
+    rigid_body_count = 1 #for now,only one rigid body
 
-    def __init__(self, num_length):
+    dtype = np.dtype((np.float, (rigid_body_count, 4)))
+
+
+    def __init__(self):
         self.test_client = TestClient()
-        #self.data_array = np.zeros(num_length)
-        #self.data_array = np.zeros(num_length)
-        self.data_array = [None] * num_length
-        self.num_length = num_length
+        self.num_length = 10 # slots for buffer
+        self.data_array = [None] * self.num_length
     
         # This is a callback function that gets connected to the NatNet client and called once per mocap frame.
     def receiveNewFrame(self, frameNumber, markerSetCount, unlabeledMarkersCount, rigidBodyCount, skeletonCount,
