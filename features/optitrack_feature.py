@@ -50,8 +50,8 @@ class MotionData(traits.HasTraits):
         '''
         Specify the source class as a function in case future descendant classes want to use a different type of source
         '''
-        from riglib.optitrack_client.optitrack_interface import MotionData as op_client
-        return op_client, dict()
+        from riglib.optitrack_client.optitrack_interface import System
+        return System, dict()
 
     def run(self):
         '''
@@ -89,9 +89,8 @@ class MotionSimulate(MotionData):
         '''
         Specify the source class as a function in case future descendant classes want to use a different type of source
         '''        
-        from riglib import motiontracker
-        cls = motiontracker.make(self.marker_count, cls=motiontracker.Simulate)
-        return cls, dict(radius=(100,100,50), offset=(-150,0,0))
+        from riglib.optitrack_client.optitrack_interface import Simulation
+        return Simulation, dict()
 
 
 class MotionAutoAlign(MotionData):

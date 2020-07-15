@@ -5,18 +5,17 @@ import pickle
 
 mutex = Lock()
 
-class MotionData(object):
+class System(object):
     """
     this is is the dataSource interface for getting the mocap at BMI3D's reqeust
     compatible with DataSourceSystem
     """
-    update_freq = 120 # Hz
-    rigid_body_count = 1 #for now,only one rigid body
-
-    dtype = np.dtype((np.float, (rigid_body_count, 4)))
-
-
+    rigidBodyCount = 1
+    dtype = np.dtype((np.float, (rigidBodyCount, 6))) #6 degress of freedo
     def __init__(self):
+        self.update_freq = 120 #Hz
+        self.rigid_body_count = 1 #for now,only one rigid body
+
         self.test_client = TestClient()
         self.num_length = 10 # slots for buffer
         self.data_array = [None] * self.num_length
@@ -52,3 +51,16 @@ class MotionData(object):
             current_value = self.data_array[0]
         #return the latest saved data
         return current_value
+
+class Simulation(System):
+    '''
+    this class does all the things except when the optitrack is not broadcasting data
+    the get function starts to return random numbers
+    '''
+    update_freq = 10 #Hz
+
+    def get(self):
+        mag_fac = 10
+        current_value = np.random.rand(self.rigidBodyCount, 6) * mag_fac
+        return current_value
+        
