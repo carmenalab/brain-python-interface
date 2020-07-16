@@ -28,9 +28,6 @@ class CursorControl(ManualControlMulti, WindowDispl2D):
 
     def init(self):
         pygame.init()
-
-        
-
         self.assist_level = (0, 0)
         super(CursorControl, self).init()
 
@@ -41,18 +38,54 @@ class CursorControl(ManualControlMulti, WindowDispl2D):
         #target and plant data have been saved in
         #the parent manualcontrolmultitasks
 
-        self.move_effector_cursor()
+        self.move_effector()
         super(CursorControl, self)._cycle()
 
     # do nothing
     def move_effector(self):
-        pass
+        self.scale_factor = 50
+
+        #get data from motion tracker- take average of all data points since last poll
+        #the default regid body yields a 6 degree of freedom
+        #so, its 1 by 6 vector for now
+        pt = self.motiondata.get()
+
+        
+        if len(pt) > 0:#check if there is avaialble data
+
+            #does some transformation
+            #centering
+            #transformation
+            pt = pt[:,0,:]
+            #average the data in the buffer
+
+            pt = pt.mean(0)
+            pt = pt[:3] * self.scale_factor
+
+            #limited to 2D, set the y direction to 
+            if self.limit2d: 
+                pt[1] = 0
+            self.no_data_count = 0
+
+
+        else: #if no new data
+            self.no_data_count +=1
+            pt = None
+
+        # Set the plant's endpoint to the position 
+        # determined by the motiontracker, 
+        # unless there is no data available
+        if pt is not None:
+            self.plant.set_endpoint_pos(pt)
+        
+
 
     def move_plant(self, **kwargs):
         pass
 
     # use keyboard to control the task
     def move_effector_cursor(self):
+        #incremental adding
         np.array([0., 0., 0.])
         curr_pos = copy.deepcopy(self.plant.get_endpoint_pos())
 
