@@ -63,7 +63,7 @@ class System(object):
         if (not current_value is None) and (not rotation_value is None):
             pos_rot = np.concatenate((np.asarray(current_value),np.asarray(rotation_value)))
             
-
+        pos_rot = np.expand_dims(pos_rot, axis = 0)
         return pos_rot #return that (x,y,z, rotation matrix)
 
 class Simulation(System):
@@ -76,5 +76,6 @@ class Simulation(System):
     def get(self):
         mag_fac = 10
         current_value = np.random.rand(self.rigidBodyCount, 6) * mag_fac
+        current_value = np.expand_dims(current_value, axis = 0)
         return current_value
         
