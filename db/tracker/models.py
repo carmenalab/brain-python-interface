@@ -127,12 +127,8 @@ class Task(models.Model):
             if params[trait_name]['type'] in ['InstanceFromDB', 'DataFile']:
                 mdl_name, filter_kwargs = params[trait_name]['options']
 
-                # look up the model name in the trait
-                mdl_name = ctraits[trait_name].bmi3d_db_model
-
                 # get the database Model class from 'db.tracker.models'
                 Model = globals()[mdl_name]
-                filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
 
                 # look up database records which match the model type & filter parameters
                 insts = Model.objects.filter(**filter_kwargs).order_by("-date")
@@ -776,15 +772,7 @@ class TaskEntry(models.Model):
             if self in col.entries.all():
                 js['collections'].append(col.name)
 
-        # include paths to any plots associated with this task entry, if offline
-        files = os.popen('find /storage/plots/ -name %s*.png' % self.id)
-        plot_files = dict()
-        for f in files:
-            fname = f.rstrip()
-            keyname = os.path.basename(fname).rstrip('.png')[len(str(self.id)):]
-            plot_files[keyname] = os.path.join('/static', fname)
-
-        js['plot_files'] = plot_files
+        js['plot_files'] = dict()  # deprecated
         js['flagged_for_backup'] = self.backup
         js['visible'] = self.visible
         entry_name = self.entry_name if not self.entry_name is None else ""

@@ -6,7 +6,7 @@
 *.so
 _build
 riglib/nidaq/pcidio.py
-riglib/build
+riglib/plexon/build
 riglib/plexon/plexfile.c
 riglib/plexon/psth.c
 db/settings.py
