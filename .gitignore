@@ -11,6 +11,7 @@ riglib/plexon/plexfile.c
 riglib/plexon/psth.c
 db/settings.py
 db/paths.py
+db/path.txt
 tests/map_test
 db/db.sql
 db/*.sql

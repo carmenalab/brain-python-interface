@@ -17,7 +17,9 @@ Getting started
 ---------------
 # Dependencies
 ## Linux/OS X
-(none at this time)
+```bash
+sudo xargs apt-get -y install < requirements.system
+```
 
 ## Windows
 Visual C++ Build tools (for the 'traits' package)
@@ -46,11 +48,11 @@ python3 manage.py runserver
 
 # Setup
 Once the server is running, open up Chrome and navigate to localhost:8000/setup
-- Under 'subjects', make sure at least one subject is listed. A subject named 'test' is recommended for separating exploration/debugging from real data. 
-- Under 'tasks', add a task to the system by giving it the python path for your task class. See documentation link above for details on how to write a task. There are a couple of built in tasks to help you get started. 
+- Under "Subjects", make sure at least one subject is listed. A subject named "test" is recommended for separating exploration/debugging from real data. 
+- Under "tasks", add a task to the system by giving it the python path for your task class. See documentation link above for details on how to write a task. There are a couple of built in tasks to help you get started. 
 
-	- For example, you can add the built-in task 'riglib.experiment.mocks.MockSequenceWithGenerator' just to check that the user interface works
-	- If you want to try something graphical, you can add the built-in task 'built_in_tasks.passivetasks.TargetCaptureVFB2DWindow'. This will be a 'visual feedback' task in which a cursor automatically does the center-out task, a standard task in motor ephys. 
+	- For example, you can add the built-in task `riglib.experiment.mocks.MockSequenceWithGenerator` just to check that the user interface works
+	- If you want to try something graphical, you can add the built-in task `built_in_tasks.passivetasks.TargetCaptureVFB2DWindow`. This will be a "visual feedback" task in which a cursor automatically does the center-out task, a standard task in motor ephys. 
 
 
 # Run a task
