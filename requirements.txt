@@ -10,7 +10,7 @@ patsy
 statsmodels
 PyOpenGL 
 PyOpenGL_accelerate
-Django
+Django==2.2.1
 pylibftdi
 nitime
 sphinx
