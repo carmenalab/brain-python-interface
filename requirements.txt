@@ -21,3 +21,4 @@ pyserial
 h5py
 pygame
 ipdb
+hdfwriter=0.1.3
