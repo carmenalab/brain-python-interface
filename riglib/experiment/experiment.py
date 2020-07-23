@@ -244,7 +244,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         if trait_params['type'] == "InstanceFromDB":
             # a database instance. pass back the model and the query parameters and let the db 
             # handle the rest
-            trait_params['options'] = (mdl_name, ctraits[trait_name].bmi3d_query_kwargs)
+            trait_params['options'] = (ctraits[trait_name].bmi3d_db_model, ctraits[trait_name].bmi3d_query_kwargs)
 
         elif trait_params['type'] == 'Instance':
             raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
