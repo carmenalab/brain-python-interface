@@ -18,7 +18,7 @@ for te in models.TaskEntry.objects.all():
         te.backup = False
         te.save()
 
-    if te.sequence_id == -1:
+    if te.sequence_id in [-1, 0]:
         te.sequence_id = 1
         te.save()
         task_entry_with_invalid_sequence_id.append(te.id)
