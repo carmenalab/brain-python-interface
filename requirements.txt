@@ -3,13 +3,12 @@ scipy
 matplotlib
 numexpr
 cython
-django-celery
 traits
 pandas
 patsy
 statsmodels
 PyOpenGL 
-PyOpenGL_accelerate
+PyOpenGL-accelerate
 Django
 pylibftdi
 nitime
@@ -21,3 +20,4 @@ pyserial
 h5py
 pygame
 ipdb
+celery
