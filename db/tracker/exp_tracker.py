@@ -1,6 +1,12 @@
 """ Singleton for interactions between the browser and riglib """
 from .tasktrack import Track
-exp_tracker = Track(use_websock=False)
+import sys
+if sys.platform == "win32":
+	use_websock = False
+else:
+	use_websock = True
+
+exp_tracker = Track(use_websock=use_websock)
 
 def get():
 	return exp_tracker

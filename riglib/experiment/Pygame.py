@@ -3,6 +3,7 @@ General-purpose "pygame" experiment class. Mostly unused
 '''
 
 import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
 from . import traits

@@ -32,8 +32,13 @@ class GaussianState(object):
         if isinstance(mean, np.matrix):
             assert mean.shape[1] == 1 # column vector
             self.mean = mean
-        elif isinstance(mean, float):
-            self.mean = mean
+        elif isinstance(mean, (float, int)):
+            mean = float(mean)
+            if isinstance(cov, float):
+                self.mean = mean
+            else:
+                self.mean = mean * np.mat(np.ones([cov.shape[0], 1]))
+
         elif isinstance(mean, np.ndarray):
             if np.ndim(mean) == 1:
                 mean = mean.reshape(-1,1)
@@ -65,8 +70,7 @@ class GaussianState(object):
             mu = other*self.mean
             cov = other*self.cov*other.T
         else:
-            print((type(other)))
-            raise
+            raise ValueError("Unrecognized type: ", type(other))
         return GaussianState(mu, cov)
 
     def __mul__(self, other):
@@ -78,8 +82,7 @@ class GaussianState(object):
         if isinstance(other, int) or isinstance(other, np.float64) or isinstance(other, float):
             cov = other**2 * self.cov
         else:
-            print((type(other)))
-            raise
+            raise ValueError("Unrecognized type: ", type(other))
         return GaussianState(mean, cov)
 
     def __add__(self, other):
@@ -98,6 +101,51 @@ class GaussianState(object):
         else:
             # print other
             raise ValueError("Gaussian state: cannot add type :%s" % type(other))
+
+    def probability(self, x, calc_log_pr=False):
+        """ Evaluate multivariate Gaussian probability density of input vector, given the 
+        mean and covariance of this object """
+        assert x.shape == self.mean.shape
+        k = self.mean.shape[0]
+
+        log_det_sign, log_det_cov = np.linalg.slogdet(self.cov)
+        if log_det_sign != 1.0:
+            raise ValueError("Covariance matrix is not positive definite!")
+
+        log_pr = -0.5*(k*np.log(2*np.pi) + log_det_cov + \
+            (x - self.mean).T * self.cov.I * (x - self.mean))
+
+        if calc_log_pr:
+            return log_pr 
+        else:
+            return np.exp(log_pr)
+
+    def volume(self, boundary):
+        """ Calculate volume of ellipsoid x^T * cov^-1 * x """
+        from scipy.special import gamma
+        
+        cov_det = np.linalg.det(self.cov)
+        n = self.mean.shape[0]
+        if cov_det == 0:
+            cov_eigenvals, _ = np.linalg.eig(self.cov)
+            n = np.sum(cov_eigenvals > 1e-5)
+            cov_det = np.product(cov_eigenvals[cov_eigenvals > 1e-5])
+
+        n_sphere_vol = np.pi**(float(n)/2)/gamma(float(n)/2 + 1)
+        return n_sphere_vol * boundary**(float(n)/2) * np.sqrt(cov_det)
+
+    def distance(self, x, sqrt=False):
+        """ Calculate Mahalanobis distance """
+        if not hasattr(self, "cov_inv"):
+            self.cov_inv = np.linalg.inv(self.cov)
+
+        dist_sq = (x - self.mean).T * self.cov_inv * (x - self.mean)
+        dist_sq = dist_sq[0,0]
+        if sqrt:
+            return np.sqrt(dist_sq)
+        else:
+            return dist_sq
+
 
 
 class GaussianStateHMM(object):
@@ -148,14 +196,17 @@ class GaussianStateHMM(object):
         None
         """
         ## Initialize the BMI state, assuming 
-        nS = self.A.shape[0] # number of state variables
+        nS = self.n_states() # number of state variables
         if init_state is None:
             init_state = np.mat( np.zeros([nS, 1]) )
             if self.include_offset: init_state[-1,0] = 1
         if init_cov is None:
             init_cov = np.mat( np.zeros([nS, nS]) )
-        self.state = GaussianState(init_state, init_cov) 
+        self.state = GaussianState(init_state, init_cov)
         self.init_noise_models()
+
+    def n_states(self):
+        return self.A.shape[0]
 
     def init_noise_models(self):
         '''
@@ -311,6 +362,32 @@ class GaussianStateHMM(object):
             except:
                 print(("GaussianStateHMM: could not pickle attribute %s" % attr))
         return data_to_pickle
+
+    def predict(self, observations, *args, **kwargs):
+        if isinstance(observations, list):
+            N = len(observations)
+        elif isinstance(observations, np.ndarray):
+            time_dim = kwargs.pop("time_dim", 1)
+            if time_dim not in [0, 1]:
+                raise ValueError("Can't interpret observation matrix")
+            N = observations.shape[time_dim]
+            if time_dim == 1:
+                observations = observations.T
+        state_seq = []
+        data = []
+        for k in range(N):
+            ret = self._forward_infer(self.state, observations[k], *args, **kwargs)
+            if np.iterable(ret):
+                state_k, data_k = ret
+            else:
+                state_k = ret
+                data_k = None
+
+            self.state = state_k
+
+            state_seq.append(state_k)
+            data.append(data_k)
+        return state_seq, data            
 
 
 class MachineOnlyFilter(GaussianStateHMM):
@@ -533,7 +610,7 @@ class Decoder(object):
             Name of the state, index of the state, or list of indices/names 
             of the Decoder state(s) to return
         """
-        if isinstance(idx, int):
+        if isinstance(idx, int) or isinstance(idx, np.int64) or isinstance(idx, np.int32):
             return self.filt.state.mean[idx, 0]
         elif idx == 'q':
             pos_states, = np.nonzero(self.ssm.state_order == 0)
@@ -547,7 +624,10 @@ class Decoder(object):
         elif np.iterable(idx):
             return np.array([self.__getitem__(k) for k in idx])
         else:
-            raise ValueError("Decoder: Improper index type: %s" % type(idx))
+            try:
+                return self.filt.state.mean[idx, 0]
+            except:
+                raise ValueError("Decoder: Improper index type: %s" % type(idx))
 
     def __setitem__(self, idx, value):
         """
@@ -559,7 +639,7 @@ class Decoder(object):
             Name of the state, index of the state, or list of indices/names 
             of the Decoder state(s) to return
         """
-        if isinstance(idx, int):
+        if isinstance(idx, int) or isinstance(idx, np.int64) or isinstance(idx, np.int32):
             self.filt.state.mean[idx, 0] = value
         elif idx == 'q':
             pos_states, = np.nonzero(self.ssm.state_order == 0)
@@ -573,7 +653,10 @@ class Decoder(object):
         elif np.iterable(idx):
             [self.__setitem__(k, val) for k, val in zip(idx, value)]
         else:
-            raise ValueError("Decoder: Improper index type: %" % type(idx))
+            try:
+                self.filt.state.mean[idx, 0] = value
+            except:
+                raise ValueError("Decoder: Improper index type: %" % type(idx))
 
     def __setstate__(self, state):
         """
@@ -1313,7 +1396,8 @@ class BMILoop(object):
 
         # Open a log file in case of error b/c errors not visible to console
         # at this point
-        f = open(os.path.join(os.getenv('HOME'), 'code/bmi3d/log/clda_cleanup_log'), 'w')
+        from config import config
+        f = open(os.path.join(config.log_path, 'clda_cleanup_log'), 'w')
         f.write('Opening log file\n')
 
         f.write('# of paramter updates: %d\n' % len(self.bmi_system.param_hist))

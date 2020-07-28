@@ -22,7 +22,6 @@ log/*
 tasks/debugging.txt
 riglib/plexon/plexfile.py
 riglib/plexon/psth.py
-config
 db/build
 docs/_build/*
 riglib/ismore/traj_*.pkl
@@ -34,3 +33,15 @@ tasks
 tests/sim_clda/*
 *.egg-info/*
 */*.egg-info/*
+*/build/*
+*/dist/*
+riglib/fsm/build/*
+riglib/fsm/dist/*
+riglib/hdfwriter/build/*
+riglib/hdfwriter/dist/*
+riglib/hdfwriter/hdfwriter.egg-info/*
+riglib/fsm/fsm.egg-info/*
+env/*
+tests/*.mat
+tests/*.hdf
+*.h5

@@ -1,5 +1,5 @@
 '''
-Base code for 'saveHDF' feature in experiments for periodically writing data to an HDF file during experiment
+Base code for 'saveHDF' feature in experiments for writing data to an HDF file during experiment
 '''
 
 import tables
@@ -86,10 +86,6 @@ class HDFWriter(object):
         '''
         if system in self.data:
             if data is not None:
-                # if len(data) != 1:
-                # # this might not be necessary
-                #     data = np.array(data)[np.newaxis]
-                #     print(data)
                 self.data[system].append(data)
 
     def sendMsg(self, msg):
@@ -139,23 +135,3 @@ class HDFWriter(object):
         self.h5.close()
         print("Closed hdf")
 
-
-class PlexRelayWriter(HDFWriter):
-    '''Deprecated: This class appears to be unused as of Mar 7 2015 '''
-    def __init__(self, filename, device="/dev/comedi0"):
-        import nidaq
-        self.ni = nidaq.SendRow(device)
-        super(PlexRelayWriter, self).__init__(filename)
-
-    def register(self, system, dtype):
-        self.ni.register(system, dtype)
-        super(PlexRelayWriter, self).register(system, dtype)
-
-    def send(self, system, data):
-        row = len(self.data[system])
-        self.ni.send(system, row)
-        super(PlexRelayWriter, self).send(system, data)
-
-    def sendMsg(self, msg):
-        self.ni.sendMsg(msg)
-        super(PlexRelayWriter, self).sendMsg(msg)

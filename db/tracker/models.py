@@ -27,42 +27,35 @@ import tempfile
 import shutil
 import importlib
 
-def _get_trait_default(trait):
-    '''
-    Function which tries to determine the default value for a trait in the class declaration
-    '''
-    _, default = trait.default_value()
-    if isinstance(default, tuple) and len(default) > 0:
-        try:
-            func, args, _ = default
-            default = func(*args)
-        except:
-            pass
-    return default
+
+def import_by_path(import_path):
+    path_components = import_path.split(".")
+    module_name = (".").join(path_components[:-1])
+    class_name = path_components[-1]
+    module = importlib.import_module(module_name)
+    cls = getattr(module, class_name)
+    return cls    
 
 class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
     import_path = models.CharField(max_length=200, blank=True, null=True)
     
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        if not self.import_path is None and self.import_path != "":
+            return "Task[{}]: {}".format(self.name, self.import_path)
+        else:
+            return "Task[{}]".format(self.name)
+
+    def __repr__(self):
+        return self.__str__()
 
     def get_base_class(self):
-        if not self.import_path is None:
-            import importlib
-            path_components = self.import_path.split(".")
-            module_name = (".").join(path_components[:-1])
-            class_name = path_components[-1]
-            module = importlib.import_module(module_name)
-            task_cls = getattr(module, class_name)
-            return task_cls
+        if not self.import_path is None and len(self.import_path) > 0:
+            return import_by_path(self.import_path)
         else:
-            from config.namelist import tasks
-            if self.name in tasks:
-                return tasks[self.name]
-            else:
-                raise ValueError("Could not find base class for task!")
+            print(r"Could not find base class for task %s. No import_path provided" % self.name)
+            return experiment.Experiment
         
     def get(self, feats=(), verbose=False):
         if verbose: print("models.Task.get()")
@@ -72,25 +65,7 @@ class Task(models.Model):
 
         if not None in feature_classes:
             try:
-                # reload the module which contains the base task class
-                # task_cls = tasks[self.name]
-
-                # module_name = task_cls.__module__
-                # if '.' in module_name:
-                #     module_names = module_name.split('.')
-                #     mod = __import__(module_names[0])
-                #     for submod in module_names[1:]:
-                #         mod = getattr(mod, submod)
-                # else:
-                #     mod = __import__(module_name)
-                
-                # task_cls_module = mod
-                # task_cls_module = imp.reload(task_cls_module)
-                # task_cls = getattr(task_cls_module, task_cls.__name__)
-
-                # run the metaclass constructor
-                Exp = experiment.make(task_cls, feature_classes)
-                return Exp
+                return experiment.make(task_cls, feature_classes)
             except:
                 print("Problem making the task class!")
                 traceback.print_exc()
@@ -102,19 +77,6 @@ class Task(models.Model):
         else:
             print("Task was not installed properly, defaulting to generic experiment!")
             return experiment.Experiment
-
-    @staticmethod
-    def populate():
-        '''
-        Automatically create a new database record for any tasks added to db/namelist.py
-        '''
-        from config.namelist import tasks
-        real = set(tasks.keys())
-        db = set(task.name for task in Task.objects.all())
-        print(Task.objects.all())
-        print(real - db)
-        for name in real - db:
-            Task(name=name).save()
 
     @staticmethod
     def add_new_task(task_name, class_path):
@@ -131,7 +93,6 @@ class Task(models.Model):
             raise ValueError("Class path cannot have spaces!")
 
         try:
-            import importlib
             path_components = class_path.split(".")
             module_name = (".").join(path_components[:-1])
             class_name = path_components[-1]
@@ -146,6 +107,7 @@ class Task(models.Model):
 
     def params(self, feats=(), values=None):
         '''
+        Get user-editable parameters for the frontend
 
         Parameters
         ----------
@@ -155,29 +117,16 @@ class Task(models.Model):
             Values for the task parameters
 
         '''
-        #from namelist import instance_to_model, instance_to_model_filter_kwargs
+        Exp = self.get(feats=feats)
+        params = Exp.get_params()
 
         if values is None:
             values = dict()
-        
-        # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
-        params = OrderedDict()
+                   
+        for trait_name in params:
+            if params[trait_name]['type'] in ['InstanceFromDB', 'DataFile']:
+                mdl_name, filter_kwargs = params[trait_name]['options']
 
-        # Run the meta-class constructor to make the Task class (base task class + features )
-        Exp = self.get(feats=feats)
-        ctraits = Exp.class_traits()
-
-        def add_trait(trait_name):
-            trait_params = dict()
-            trait_params['type'] = ctraits[trait_name].trait_type.__class__.__name__
-            trait_params['default'] = _get_trait_default(ctraits[trait_name])
-            trait_params['desc'] = ctraits[trait_name].desc
-            trait_params['hidden'] = 'hidden' if Exp.is_hidden(trait_name) else 'visible'
-
-            if trait_name in values:
-                trait_params['value'] = values[trait_name]
-
-            if trait_params['type'] == "InstanceFromDB":
                 # look up the model name in the trait
                 mdl_name = ctraits[trait_name].bmi3d_db_model
 
@@ -187,47 +136,85 @@ class Task(models.Model):
 
                 # look up database records which match the model type & filter parameters
                 insts = Model.objects.filter(**filter_kwargs).order_by("-date")
-                trait_params['options'] = [(i.pk, i.path) for i in insts]
+                params[trait_name]['options'] = [(i.pk, i.path) for i in insts]
 
-            elif trait_params['type'] == 'Instance':
-                raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
+            if trait_name in values:
+                params[trait_name]['value'] = values[trait_name]                
+        return params                
+        # #from namelist import instance_to_model, instance_to_model_filter_kwargs
 
-            # if the trait is an enumeration, look in the 'Exp' class for 
-            # the options because for some reason the trait itself can't 
-            # store the available options (at least at the time this was written..)
-            elif trait_params['type'] == "Enum":
-                raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
+        
+        # # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
+        # params = OrderedDict()
 
-            elif trait_params['type'] == "OptionsList":
-                trait_params['options'] = ctraits[trait_name].bmi3d_input_options
+        # # Run the meta-class constructor to make the Task class (base task class + features )
+        # Exp = self.get(feats=feats)
+        # ctraits = Exp.class_traits()
 
-            elif trait_params['type'] == "DataFile":
-                # look up database records which match the model type & filter parameters
-                filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
-                insts = DataFile.objects.filter(**filter_kwargs).order_by("-date")
-                trait_params['options'] = [(i.pk, i.path) for i in insts]                
+        # def add_trait(trait_name):
+        #     trait_params = dict()
+        #     trait_params['type'] = ctraits[trait_name].trait_type.__class__.__name__
+        #     trait_params['default'] = _get_trait_default(ctraits[trait_name])
+        #     trait_params['desc'] = ctraits[trait_name].desc
+        #     trait_params['hidden'] = 'hidden' if Exp.is_hidden(trait_name) else 'visible'
+        #     if hasattr(ctraits[trait_name], 'label'):
+        #         trait_params['label'] = ctraits[trait_name].label
+        #     else:
+        #         trait_params['label'] = trait_name
 
-            params[trait_name] = trait_params
+        #     if trait_name in values:
+        #         trait_params['value'] = values[trait_name]
 
-            if trait_name == 'bmi': # a hack for really old data, where the 'decoder' was mistakenly labeled 'bmi'
-                params['decoder'] = trait_params
+        #     if trait_params['type'] == "InstanceFromDB":
+        #         # look up the model name in the trait
+        #         mdl_name = ctraits[trait_name].bmi3d_db_model
 
-        # add all the traits that are explicitly instructed to appear at the top of the menu
-        ordered_traits = Exp.ordered_traits
-        for trait in ordered_traits:
-            if trait in Exp.class_editable_traits():
-                add_trait(trait)
+        #         # get the database Model class from 'db.tracker.models'
+        #         Model = globals()[mdl_name]
+        #         filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
 
-        # add all the remaining non-hidden traits
-        for trait in Exp.class_editable_traits():
-            if trait not in params and not Exp.is_hidden(trait):
-                add_trait(trait)
+        #         # look up database records which match the model type & filter parameters
+        #         insts = Model.objects.filter(**filter_kwargs).order_by("-date")
+        #         trait_params['options'] = [(i.pk, i.path) for i in insts]
 
-        # add any hidden traits
-        for trait in Exp.class_editable_traits():
-            if trait not in params:
-                add_trait(trait)
-        return params
+        #     elif trait_params['type'] == 'Instance':
+        #         raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
+
+        #     # if the trait is an enumeration, look in the 'Exp' class for 
+        #     # the options because for some reason the trait itself can't 
+        #     # store the available options (at least at the time this was written..)
+        #     elif trait_params['type'] == "Enum":
+        #         raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
+
+        #     elif trait_params['type'] == "OptionsList":
+        #         trait_params['options'] = ctraits[trait_name].bmi3d_input_options
+
+        #     elif trait_params['type'] == "DataFile":
+        #         # look up database records which match the model type & filter parameters
+        #         filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
+        #         insts = DataFile.objects.filter(**filter_kwargs).order_by("-date")
+        #         trait_params['options'] = [(i.pk, i.path) for i in insts]                
+
+        #     params[trait_name] = trait_params
+
+        #     if trait_name == 'bmi': # a hack for really old data, where the 'decoder' was mistakenly labeled 'bmi'
+        #         params['decoder'] = trait_params
+
+        # # add all the traits that are explicitly instructed to appear at the top of the menu
+        # ordered_traits = Exp.ordered_traits
+        # for trait in ordered_traits:
+        #     if trait in Exp.class_editable_traits():
+        #         add_trait(trait)
+
+        # # add all the remaining non-hidden traits
+        # for trait in Exp.class_editable_traits():
+        #     if trait not in params and not Exp.is_hidden(trait):
+        #         add_trait(trait)
+
+        # # add any hidden traits
+        # for trait in Exp.class_editable_traits():
+        #     if trait not in params:
+        #         add_trait(trait)
 
     def sequences(self):
         from .json_param import Parameters
@@ -252,13 +239,22 @@ class Task(models.Model):
                     print("missing generator %s" % seqgen_name)
         return exp_generators        
 
+def can_be_int(x):
+    try:
+        int(x)
+        return True
+    except ValueError:
+        return False
+
 class Feature(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(blank=True, default=True)
     import_path = models.CharField(max_length=200, blank=True, null=True)
     
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        return "Feature[{}]".format(self.name)
+    def __repr__(self):
+        return self.__str__()
 
     @property
     def desc(self):
@@ -268,52 +264,54 @@ class Feature(models.Model):
         else:
             return ''
     
-    def get(self):
-        from config.namelist import features
-        if self.name in features:
-            return features[self.name]
+    def get(self, update_builtin=False):
+        from features import built_in_features
+        if self.import_path is not None:
+            return import_by_path(self.import_path)
+        elif self.name in built_in_features:
+            import_path = built_in_features[self.name].__module__ + '.' + built_in_features[self.name].__qualname__
+            if update_builtin:
+                self.import_path = import_path
+                self.save()
+                return import_by_path(self.import_path)
+            else:
+                print("Feature %s import path not found, but found a default" % self.name)
+                return import_by_path(import_path)
         else:
+            print("Feature %s has no import_path" % self.name)
             return None
-
-    @staticmethod
-    def populate():
-        from config.namelist import features
-        real = set(features.keys())
-        db = set(feat.name for feat in Feature.objects.all())
-        for name in real - db:
-            Feature(name=name).save()
 
     @staticmethod
     def getall(feats):
         feature_class_list = []
         for feat in feats:
-            if isinstance(feat, (int, float, str)):
-                try:
-                    feat = Feature.objects.get(pk=int(feat)).get()
-                except ValueError:
-                    try:
-                        feat = Feature.objects.get(name=feat).get()
-                    except:
-                        try:
-                            from featurelist import features as FL
-                            feat = FL[feat]
-                        except:
-                            print("Cannot find feature %s"%feat)
-                            continue
-            elif isinstance(feat, models.Model):
-                feat = feat.get()
+            if isinstance(feat, Feature):
+                feat_cls = feat.get()
+            elif isinstance(feat, int):
+                feat_cls = Feature.objects.get(pk=feat).get()
+            elif isinstance(feat, str) and can_be_int(feat):
+                feat_cls = Feature.objects.get(pk=int(feat)).get()
+            elif isinstance(feat, str):
+                feat_cls = Feature.objects.get(name=feat).get()
+            else:
+                print("Cannot find feature: ", feat)
             
-            feature_class_list.append(feat)
+            feature_class_list.append(feat_cls)
         return feature_class_list
 
 class System(models.Model):
+    """ Representation for systems which generate data (similar to a data type)"""
     name = models.CharField(max_length=128)
     path = models.TextField()
     archive = models.TextField()
+    processor_path = models.CharField(max_length=200, blank=True, null=True)
+    input_path = models.TextField(blank=True, null=True)
 
-    def __unicode__(self):
-        return self.name
-    
+    def __str__(self):
+        return "System[{}]".format(self.name)
+    def __repr__(self):
+        return self.__str__()
+
     @staticmethod
     def populate():
         for name in ["eyetracker", "hdf", "plexon", "bmi", "bmi_params", "juice_log", "blackrock"]:
@@ -322,7 +320,13 @@ class System(models.Model):
             except ObjectDoesNotExist:
                 System(name=name, path="/storage/rawdata/%s"%name).save()
 
-    @staticmethod 
+    def get_post_processor(self):
+        if self.processor_path is not None and len(self.processor_path) > 0:
+            return import_by_path(self.processor_path)
+        else:
+            return lambda x: x # identity fn
+
+    @staticmethod
     def make_new_sys(name):
         try:
             new_sys_rec = System.objects.get(name=name)
@@ -349,8 +353,10 @@ class System(models.Model):
 
 class Subject(models.Model):
     name = models.CharField(max_length=128)
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        return "Subject[{}]".format(self.name)
+    def __repr__(self):
+        return self.__str__()
 
 class Generator(models.Model):
     name = models.CharField(max_length=128)
@@ -358,19 +364,49 @@ class Generator(models.Model):
     static = models.BooleanField()
     visible = models.BooleanField(blank=True, default=True)
 
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        return "Generator[{}]".format(self.name)
+
+    def __repr__(self):
+        return self.__str__()
+
+    @staticmethod
+    def get_all_generators():
+        generator_names = []
+        generator_functions = []
+        tasks = Task.objects.all()
+        for task in tasks:
+            try:
+                task_cls = task.get()  #tasks[task]
+            except:
+                # if a task is not importable, then it cannot have any detectable generators
+                continue
+                
+            if hasattr(task_cls, 'sequence_generators'):
+                generator_function_names = task_cls.sequence_generators
+                gen_fns = [getattr(task_cls, x) for x in generator_function_names]
+                for fn_name, fn in zip(generator_function_names, gen_fns):
+                    if fn in generator_functions:
+                        pass
+                    else:
+                        generator_names.append(fn_name)
+                        generator_functions.append(fn)
+
+        generators = dict()
+        for fn_name, fn in zip(generator_names, generator_functions):
+            generators[fn_name] = fn
+        return generators        
     
     def get(self):
         '''
         Retrieve the function that can be used to construct the ..... generator? sequence?
         '''
-        from config.namelist import generators
+        generators = Generator.get_all_generators()
         return generators[self.name]
 
     @staticmethod
     def populate():
-        from config.namelist import generators
+        generators = Generator.get_all_generators()
         listed_generators = set(generators.keys())
         db_generators = set(gen.name for gen in Generator.objects.all())
 
@@ -386,7 +422,7 @@ class Generator(models.Model):
                 args.remove("self")
             
             # A generator is determined to be static only if it takes an "exp" argument representing the Experiment class
-            static = ~("exp" in args)
+            static = not ("exp" in args)
             if "exp" in args:
                 args.remove("exp")
 
@@ -437,9 +473,12 @@ class Sequence(models.Model):
     sequence = models.TextField(blank=True) #pickle data
     task = models.ForeignKey(Task, on_delete=models.PROTECT)
 
-    def __unicode__(self):
-        return self.name
+    # def __str__(self):
+    #     return "Sequence[{}] of type Generator[{}]".format(self.name, self.generator.name)
     
+    # def __repr__(self):
+    #     return self.__str__()
+
     def get(self):
         from riglib.experiment import generate
         from .json_param import Parameters
@@ -512,13 +551,24 @@ class TaskEntry(models.Model):
     notes = models.TextField()
     visible = models.BooleanField(blank=True, default=True)
     backup = models.BooleanField(blank=True, default=False)
+    entry_name = models.CharField(blank=True, null=True, max_length=50)
 
-    def __unicode__(self):
+    def __str__(self):
         return "{date}: {subj} on {task} task, id={id}".format(
-            date=self.date.strftime("%h. %e, %Y, %l:%M %p"),
+            date=str(self.date),
             subj=self.subject.name,
             task=self.task.name,
             id=self.id)
+
+    def __repr__(self):
+        return self.__str__()
+
+    @property 
+    def ui_id(self):
+        if self.entry_name is not None and self.entry_name != "":
+            return "%s (%d)" % (self.entry_name, self.id)
+        else:
+            return str(self.id)
     
     def get(self, feats=()):
         from .json_param import Parameters
@@ -534,7 +584,19 @@ class TaskEntry(models.Model):
             exp = Exp(**params.params)
         exp.event_log = json.loads(self.report)
         return exp
-    
+
+    def update_date(self, *date_args):
+        """Utility function to update the date of a record if set improperly (e.g., if entered manually)"""
+        import datetime
+        if len(date_args) == 1 and isinstance(date_args[0], datetime.datetime):
+            self.date = date_args[0]
+            self.save()
+        elif len(date_args) >= 3 and len(date_args) <= 7: # assume these are numbers with fields split out
+            self.date = datetime.datetime(*date_args)
+            self.save()
+        else:
+            raise ValueError("Unrecognized date arguments: ", date_args)
+
     @property
     def task_params(self):
         from .json_param import Parameters
@@ -603,8 +665,10 @@ class TaskEntry(models.Model):
         # Run the metaclass constructor for the experiment used. If this can be avoided, it would help to break some of the cross-package software dependencies,
         # making it easier to analyze data without installing software for the entire rig
 
-        Exp = self.task.get(self.feats.all())        
-        state = 'completed' if self.pk is not None else "new"
+        Exp = self.task.get(self.feats.all())
+        from . import exp_tracker
+        tracker = exp_tracker.get()      
+        state = tracker.get_status()#'completed' if self.pk is not None else "new"
 
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
@@ -632,10 +696,7 @@ class TaskEntry(models.Model):
         datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
 
         ## Add data files linked to this task entry to the web interface. 
-        try:
-            backup_root = config.backup_root['root']
-        except:
-            backup_root = '/None'
+        backup_root = KeyValueStore.get('backup_root', '/None')
         
         js['datafiles'] = dict()
         system_names = set(d.system.name for d in datafiles)
@@ -647,9 +708,11 @@ class TaskEntry(models.Model):
         # Parse the "report" data and put it into the JS response
         js['report'] = self.offline_report()
 
-        if not hasattr(config, "recording_sys"):
+        recording_sys_make = KeyValueStore.get('recording_sys')
+
+        if recording_sys_make is None:
             pass
-        elif config.recording_sys['make'] == 'plexon':
+        elif recording_sys_make == 'plexon':
             try:
                 from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
                 plexon = System.objects.using(self._state.db).get(name='plexon')
@@ -673,7 +736,7 @@ class TaskEntry(models.Model):
                 print("No plexon file found")
                 js['bmi'] = dict(_neuralinfo=None)
         
-        elif config.recording_sys['make'] == 'blackrock':
+        elif recording_sys_make == 'blackrock':
             try:
                 print('skipping .nev conversion')
                 js['bmi'] = dict(_neuralinfo=None)
@@ -694,16 +757,24 @@ class TaskEntry(models.Model):
                 import traceback
                 traceback.print_exc()
                 js['bmi'] = dict(_neuralinfo=None)
-        elif config.recording_sys['make'] == 'TDT':
+        elif recording_sys_make == 'TDT':
             print('This code does not yet know how to open TDT files!')
             js['bmi'] = dict(_neuralinfo=None)
             #raise NotImplementedError("This code does not yet know how to open TDT files!")
         else:
             print('Unrecognized recording_system!')
 
-
         for dec in Decoder.objects.using(self._state.db).filter(entry=self.id):
+            if 'bmi' not in js:
+                print("Warning: found a decoder but not a recording system. Your recording system may not be set up correctly")
+                js['bmi'] = dict(_neuralinfo=None)
             js['bmi'][dec.name] = dec.to_json()
+
+        # collections info
+        js['collections'] = []
+        for col in TaskEntryCollection.objects.all():
+            if self in col.entries.all():
+                js['collections'].append(col.name)
 
         # include paths to any plots associated with this task entry, if offline
         files = os.popen('find /storage/plots/ -name %s*.png' % self.id)
@@ -716,6 +787,8 @@ class TaskEntry(models.Model):
         js['plot_files'] = plot_files
         js['flagged_for_backup'] = self.backup
         js['visible'] = self.visible
+        entry_name = self.entry_name if not self.entry_name is None else ""
+        js['entry_name'] = entry_name
         print("TaskEntry.to_json finished!")
         return js
 
@@ -786,13 +859,14 @@ class TaskEntry(models.Model):
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
-        # import config
-        if config.recording_sys['make'] == 'plexon':
+        recording_sys_make = KeyValueStore.get('recording_sys')
+
+        if recording_sys_make == 'plexon':
             try:
                 return str(os.path.basename(self.plx_file).rstrip('.plx'))
             except:
                 return 'noname'
-        elif config.recording_sys['make'] == 'blackrock':
+        elif recording_sys_make == 'blackrock':
             try:
                 return str(os.path.basename(self.nev_file).rstrip('.nev'))
             except:
@@ -812,6 +886,29 @@ class TaskEntry(models.Model):
         decoder_id = params['bmi']
         return Decoder.objects.get(id=decoder_id)
 
+    @property
+    def desc(self):
+        """Get a description of the TaskEntry using the experiment class and the
+        record-specific parameters """
+        Exp = self.task.get_base_class()
+        from . import json_param
+        import json
+        params = json_param.Parameters(self.params)
+
+        if self.report is not None and len(self.report) > 0:
+            report_data = json.loads(self.report)
+        else:
+            report_data = None
+        try:
+            return Exp.get_desc(params.get_data(), report_data)
+        except:
+            import traceback
+            traceback.print_exc()
+            return "Error generating description"
+
+    def get_data_files(self):
+        return DataFile.objects.filter(entry_id=self.id)
+
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
     date = models.DateTimeField(auto_now_add=True)
@@ -820,9 +917,12 @@ class Calibration(models.Model):
 
     params = models.TextField()
 
-    def __unicode__(self):
+    def __str__(self):
         return "{date}:{system} calibration for {subj}".format(date=self.date, 
             subj=self.subject.name, system=self.system.name)
+
+    def __repr__(self):
+        return self.__str__()
     
     def get(self):
         from .json_param import Parameters
@@ -860,30 +960,39 @@ class Decoder(models.Model):
     entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
     path = models.TextField()
     
-    def __unicode__(self):
-        return "{date}:{name} trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
+    def __str__(self):
+        return "Decoder[{date}:{name}] trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
     
+    def __repr__(self):
+        return self.__str__()
+
+    def get_data_path(self, db_name=None):
+        data_path = KeyValueStore.get('data_path', '', dbname=db_name)
+        if len(data_path) == 0:
+            print("Database path not set up correctly!")
+        return data_path
+
     @property 
     def filename(self):
-        data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+        data_path = self.get_data_path()
         return os.path.join(data_path, 'decoders', self.path)        
 
     def load(self, db_name=None):
-        if db_name is not None:
-            data_path = getattr(config, 'db_config_'+db_name)['data_path']
-        else:
-            data_path = getattr(config, 'db_config_%s' % self._state.db)['data_path']
+        data_path = self.get_data_path()
         decoder_fname = os.path.join(data_path, 'decoders', self.path)
 
         if os.path.exists(decoder_fname):
-            fh = open(decoder_fname, 'r')
-            unpickler = pickle.Unpickler(fh)
-            unpickler.find_global = decoder_unpickler
-            dec = unpickler.load() # object will now contain the new class path reference
-            fh.close()
+            try:
+                fh = open(decoder_fname, 'r')
+                unpickler = pickle.Unpickler(fh)
+                unpickler.find_global = decoder_unpickler
+                dec = unpickler.load() # object will now contain the new class path reference
+                fh.close()
 
-            dec.name = self.name
-            return dec
+                dec.name = self.name
+                return dec
+            except:
+                return None
         else: # file not present!
             print("Decoder file could not be found! %s" % decoder_fname)
             return None
@@ -1210,14 +1319,29 @@ class DataFile(models.Model):
     local = models.BooleanField(default=True)
     archived = models.BooleanField(default=False)
     path = models.CharField(max_length=256)
-    system = models.ForeignKey(System, on_delete=models.PROTECT)
-    entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
+    system = models.ForeignKey(System, on_delete=models.PROTECT, blank=True, null=True)
+    entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT, blank=True, null=True)
 
-    def __unicode__(self):
+    @staticmethod
+    def create(system, task_entry, path, **kwargs):
+        df = DataFile(system_id=system.id, entry_id=task_entry.id)
+
+        for attr in kwargs:
+            setattr(df, attr, kwargs[attr])
+
+        post_processor = system.get_post_processor()
+        df.path = post_processor(path)
+        df.save()
+        return df
+
+    def __str__(self):
         if self.entry_id > 0:
             return "{name} datafile for {entry}".format(name=self.system.name, entry=self.entry)
         else:
             return "datafile '{name}' for System {sys_name}".format(name=self.path, sys_name=self.system.name)
+
+    def __repr__(self):
+        return self.__str__()
 
     def to_json(self):
         return dict(system=self.system.name, path=self.path)
@@ -1285,7 +1409,81 @@ class DataFile(models.Model):
         '''
         Return a boolean indicating whether a copy of the file is available on the backup
         '''
-        fname = self.get_path()
-        rel_datafile = os.path.relpath(fname, '/storage')
-        backup_fname = os.path.join(backup_root, rel_datafile)
-        return os.path.exists(backup_fname)
+        try:
+            fname = self.get_path()
+            rel_datafile = os.path.relpath(fname, '/storage')
+            backup_fname = os.path.join(backup_root, rel_datafile)
+            return os.path.exists(backup_fname)
+        except:
+            return False
+
+    @property 
+    def file_size(self):
+        try:
+            path = self.get_path()
+            return os.stat(path).st_size
+        except:
+            print("Error getting data file size: ", self)
+            traceback.print_exc()
+            return -1
+
+
+class TaskEntryCollection(models.Model):
+    """ Collection of TaskEntry records grouped together, e.g. for analysis """
+    name = models.CharField(max_length=200, default='')
+    entries = models.ManyToManyField(TaskEntry)
+
+    @property
+    def safe_name(self):
+        return self.name.replace(' ', '_')
+
+    def add_entry(self, te):
+        if not isinstance(te, TaskEntry):
+            te = TaskEntry(id=te)
+
+        if te not in self.entries.all():
+            self.entries.add(te)
+
+    def remove_entry(self, te):
+        if not isinstance(te, TaskEntry):
+            te = TaskEntry(id=te)
+
+        if te in self.entries.all():
+            self.entries.remove(te)
+
+
+class KeyValueStore(models.Model):
+    key = models.TextField()
+    value = models.TextField()
+
+    @classmethod
+    def get(cls, key, default=None, dbname=None):
+        try:
+            if dbname is not None:
+                objs = cls.objects.using(dbname).filter(key=key)
+            else:
+                objs = cls.objects.filter(key=key)
+            if len(objs) == 0:
+                return default
+            if len(objs) == 1:
+                return objs[0].value
+            if len(objs) > 1:
+                raise ValueError("Duplicate keys: %s" % key)
+        except:
+            print("KeyValueStore error")
+            traceback.print_exc()
+            return default
+
+    @classmethod 
+    def set(cls, key, value):
+        matching_recs = cls.objects.filter(key=key)
+        if len(matching_recs) == 0:
+            obj = cls(key=key, value=value)
+            obj.save()
+        elif len(matching_recs) == 1:
+            obj = matching_recs[0]
+            obj.value = value
+            obj.save()
+        else:
+            raise ValueError("Duplicate keys: %s" % key)
+
