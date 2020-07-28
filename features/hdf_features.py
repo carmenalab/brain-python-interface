@@ -12,6 +12,7 @@ import subprocess
 from riglib import calibrations, bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
+import hdfwriter
 
 
 class SaveHDF(object):
@@ -37,7 +38,6 @@ class SaveHDF(object):
         '''
         Specify the sink class as a function in case future descendant classes want to use a different type of sink
         '''
-        from riglib import hdfwriter
         return hdfwriter.HDFWriter
 
     def run(self):

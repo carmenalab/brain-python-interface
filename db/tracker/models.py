@@ -373,7 +373,7 @@ class Generator(models.Model):
         tasks = Task.objects.all()
         for task in tasks:
             try:
-                task_cls = task.get()  #tasks[task]
+                task_cls = task.get()
             except:
                 # if a task is not importable, then it cannot have any detectable generators
                 continue
@@ -469,11 +469,11 @@ class Sequence(models.Model):
     sequence = models.TextField(blank=True) #pickle data
     task = models.ForeignKey(Task, on_delete=models.PROTECT)
 
-    # def __str__(self):
-    #     return "Sequence[{}] of type Generator[{}]".format(self.name, self.generator.name)
+    def __str__(self):
+        return "Sequence[{}] of type Generator[{}]".format(self.name, self.generator.name)
     
-    # def __repr__(self):
-    #     return self.__str__()
+    def __repr__(self):
+        return self.__str__()
 
     def get(self):
         from riglib.experiment import generate
@@ -548,6 +548,7 @@ class TaskEntry(models.Model):
     visible = models.BooleanField(blank=True, default=True)
     backup = models.BooleanField(blank=True, default=False)
     entry_name = models.CharField(blank=True, null=True, max_length=50)
+    sw_version = models.CharField(blank=True, null=True, max_length=100)
 
     def __str__(self):
         return "{date}: {subj} on {task} task, id={id}".format(

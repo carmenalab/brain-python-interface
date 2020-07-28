@@ -109,7 +109,7 @@ class Server(mp.Process):
         self.flush()
 
     def flush(self):
-        msg = json.dumps(dict(status="stdout", msg=cgi.escape(self.outqueue)))
+        msg = json.dumps(dict(status="stdout", msg=cgi.html.escape(self.outqueue)))
         os.write(self.outp, struct.pack('I', len(msg)) + bytes(msg, 'utf8'))
         self.outqueue = ""
 

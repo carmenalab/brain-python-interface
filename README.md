@@ -1,3 +1,4 @@
+
 brain-python-interface (a.k.a. bmi3d)
 ====================================
 **This the unstable python 3 branch. It may not yet do what you want it to do. Use the master branch for the heavily-tested (but out of date) python 2 version**
@@ -40,6 +41,8 @@ python3 manage.py migrate
 python3 manage.py makemigrations tracker
 python3 manage.py migrate                  # make sure to do this twice!
 ```
+Sometimes the python makemigrations/migrate commands hang. If it has been a while you may need to kill with Ctrl+C
+
 
 # start server
 ```bash

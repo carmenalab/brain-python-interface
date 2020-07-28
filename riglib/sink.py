@@ -70,7 +70,7 @@ class DataSink(mp.Process):
                         ret = getattr(output, cmd)(*args, **kwargs)
                         
                 except Exception as e:
-                    traceback.print_exc(file=open(os.path.expandvars('$BMI3D/log/data_sink_log'), 'a'))
+                    traceback.print_exc(file=open(os.path.join(os.path.dirname(__file__), '../log/data_sink_log'), 'a'))
                     ret = e
                 self.cmd_event.clear()
                 self._cmd_pipe.send(ret)
@@ -150,7 +150,7 @@ class SinkManager(object):
 
         Returns
         -------
-        None
+        SinkManager instance
         '''
         self.sinks = []
         self.sources = []
@@ -181,7 +181,7 @@ class SinkManager(object):
         self.sinks.append(sink)
         return sink
 
-    def register(self, system, dtype=None):
+    def register(self, system, dtype=None, **kwargs):
         '''
         Register a system with all the known sinks
 
@@ -214,7 +214,13 @@ class SinkManager(object):
         for s in self.sinks:
             if (name, dtype) not in self.registrations[s]:
                 self.registrations[s].add((name, dtype))
-                s.register(name, dtype)
+
+                # an unpleasant hack to deal with a change in the default arguments for registering an HDF table
+                import hdfwriter
+                if s.output == hdfwriter.HDFWriter:
+                    s.register(name, dtype, **kwargs)
+                else:
+                    s.register(name, dtype)
                 
     def send(self, system, data):
         '''

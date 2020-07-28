@@ -175,7 +175,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
             self.sinks = sink.sinks
 
         try:
-            self.sinks.register("task", self.dtype)
+            self.sinks.register("task", self.dtype, include_msgs=True)
         except:
             traceback.print_exc()            
             raise Exception("Error registering task source")

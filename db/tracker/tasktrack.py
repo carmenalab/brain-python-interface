@@ -362,6 +362,7 @@ class TaskWrapper(object):
             # get object representing function calls to the remote database
             # returns the result of tracker.dbq.rpc_handler
             database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+            # from tracker import dbq as database
 
             cleanup_successful = self.task.cleanup(database, self.saveid, subject=self.subj)
             

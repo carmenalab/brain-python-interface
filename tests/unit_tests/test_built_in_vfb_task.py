@@ -20,7 +20,7 @@ class TestVisualFeedback(unittest.TestCase):
     def test_n_successful_targets(self):
         TestFeat = experiment.make(TargetCaptureVFB2DWindow, feats=[SaveHDF])
 
-        n_targets = 8
+        n_targets = 1
         seq = TargetCaptureVFB2DWindow.centerout_2D_discrete(nblocks=1, ntargets=n_targets) 
         feat = TestFeat(seq, window_size=(480, 240))
 
