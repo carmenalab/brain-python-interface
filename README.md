@@ -25,15 +25,29 @@ sudo xargs apt-get -y install < requirements.system
 ## Windows
 Visual C++ Build tools (for the 'traits' package)
 
+
 # Installation
 ```bash
-git clone -b unstable_py3 https://github.com/carmenalab/brain-python-interface.git
+git clone -b develop https://github.com/carmenalab/brain-python-interface.git
 cd brain-python-interface
 pip3 install -r requirements.txt
 pip3 install -e .
 ```
 
-# set up the database
+## Installation in Docker
+- Set up docker on Ubuntu following these instructions: https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-20-04
+- In the `install` folder, execute `build_docker.sh` to build the image
+- Also in the `install` folder, execute `run_docker.sh` to load the image. Annoyingly at this time, because the source directory is mounted in a way that is volatile, the bash shell will 'reinstall' the bmi3d package every time you load the image
+
+Graphics generation from inside the image has only been tested in Ubuntu. To test, load the image using `run_docker.sh` and
+```bash
+cd /src/tests/unit_tests/
+python3 test_built_in_vfb_task.py
+```
+If successful, you'll see the pygame window pop up looking like a poorly-made video game. If unsuccessful, you'll see the graphics in the terminal itself in ASCII art. 
+
+
+# Setting up the database
 ```bash
 cd db
 python3 manage.py makemigrations
@@ -41,15 +55,13 @@ python3 manage.py migrate
 python3 manage.py makemigrations tracker
 python3 manage.py migrate                  # make sure to do this twice!
 ```
-Sometimes the python makemigrations/migrate commands hang. If it has been a while you may need to kill with Ctrl+C
 
-
-# start server
+# Start server
 ```bash
 python3 manage.py runserver
 ```
 
-# Setup
+# Setup paths and configurations
 Once the server is running, open up Chrome and navigate to localhost:8000/setup
 - Under "Subjects", make sure at least one subject is listed. A subject named "test" is recommended for separating exploration/debugging from real data. 
 - Under "tasks", add a task to the system by giving it the python path for your task class. See documentation link above for details on how to write a task. There are a couple of built in tasks to help you get started. 
@@ -60,6 +72,14 @@ Once the server is running, open up Chrome and navigate to localhost:8000/setup
 
 # Run a task
 Navigate to http://localhost:8000/exp_log/ in chrome. Then press 'Start new experiment' and run your task. 
+
+
+# Troubleshooting
+This package has a lot of dependencies which makes installation somewhat brittle due to versions of different dependencies not getting along. 
+
+- Installation in a virtual environment (see `venv` in python3) or in a Docker container is recommended to try to isolate the package from version conflict issues. 
+- Run scripts in `tests/unit_tests/` to try to isolate which components may not be working correctly. Issues in `riglib` will be easier to fix than issues in the database. 
+
 
 Papers which have used this package
 -----------------------------------
