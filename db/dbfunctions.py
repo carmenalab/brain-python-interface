@@ -3,6 +3,8 @@ Interface between the Django database methods/models and data analysis code
 '''
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+
+
 import sys
 import json
 import numpy as np
@@ -24,7 +26,7 @@ try:
 except:
     pass
 
-from .tracker import models
+from tracker import models
 
 # default DB, change this variable from python session to switch to other database
 db_name = 'default'
@@ -732,8 +734,9 @@ class TaskEntry(object):
             return ''
         elif len(q) == 1:
             q = q[0]
-            dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-            return os.path.join(dbconfig['data_path'], 'rawdata', q.system.name, q.path)
+            # dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
+            data_path = models.KeyValueStore.get('data_path', default='/storage', dbname=self.record._state.db)
+            return os.path.join(data_path, 'rawdata', q.system.name, q.path)
 
     @property
     def hdf(self):
@@ -788,7 +791,7 @@ class TaskEntry(object):
         This function will error if there is no decoder actually associated with this TaskEntry
         '''
         if not hasattr(self, '_decoder_obj'):
-            self._decoder_obj = self.decoder_record.load()
+            self._decoder_obj = self.decoder_record.load(encoding='latin1')
         return self._decoder_obj
 
     @property

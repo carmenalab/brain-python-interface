@@ -128,13 +128,13 @@ STATICFILES_DIRS = (
 )
 ADMIN_MEDIA_PREFIX = '/static/admin/'
 INSTALLED_APPS = (
+    'tracker',
     'django.contrib.auth',
     'django.contrib.admin',    
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'tracker.apps.TrackerConfig',
     'trainbmi'
 )
 

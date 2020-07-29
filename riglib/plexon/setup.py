@@ -2,8 +2,6 @@
 '''
 Install the cython code required to open plexon files. 
 '''
-
-# System imports
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
@@ -12,9 +10,6 @@ import numpy as np
 psth = Extension("plexon.psth",
     ['plexon/psth.pyx', 'plexon/cpsth/psth.c'],
     include_dirs= ['.', np.get_include(), 'plexon/', 'plexon/cpsth/'],
-    # define_macros = [('DEBUG', None)],
-    # extra_compile_args=["-g"],
-    # extra_link_args=["-g"],
 )
 
 plexfile = Extension("plexon.plexfile",
@@ -30,9 +25,6 @@ plexfile = Extension("plexon.plexfile",
         'plexon/cpsth/', 
         'plexon/cplexfile/'
     ],
-#    define_macros = [('DEBUG', None)],
-#    extra_compile_args=["-g"],
-#    extra_link_args=["-g"],
 )
 
 setup(  name        = "Plexfile utilities",

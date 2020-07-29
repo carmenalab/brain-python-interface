@@ -8,7 +8,8 @@ import json
 import numpy as np
 import os
 
-from config import config
+log_path = os.path.join(os.path.dirname(__file__), '../../log')
+
 
 def param_objhook(obj):
     '''
@@ -73,7 +74,7 @@ def norm_trait(trait, value):
             # look up the model name in the trait
             mdl_name = trait.bmi3d_db_model
             # get the database Model class from 'db.tracker.models'
-            with open(os.path.join(config.log_path, "json_param_log"), "w") as f:
+            with open(os.path.join(log_path, "json_param_log"), "w") as f:
                 f.write(str(trait) + "\n")
                 f.write(str(mdl_name) + "\n")
 
@@ -89,31 +90,27 @@ def norm_trait(trait, value):
             record = models.DataFile.objects.get(pk=value)
             value = record.get()
     elif ttype == 'Bool':
-        # # Boolean values come back as 'on'/'off' instead of True/False
-        # bool_values = ['off', 'on']
-        # if not str(value) in bool_values:
-        #     f = open(os.path.expandvars('$BMI3D/log/trait_log'), 'w')
-        #     f.write('Error with type for trait %s, %s, value %s' % (str(trait), str(ttype), str(value)))
-        #     f.close()
-        #     import traceback
-        #     traceback.print_exc()
-        #     raise Exception
-
-        # value = bool_values.index(value)
-        # value = bool(value)
         if value == 'on':
             value = True
         elif value == 'off':
             value = False
+        else:
+            # let invalid values get caught by the cast below
+            pass
+
     elif ttype == 'Tuple':
         # Explicit cast to tuple for backwards compatibility reasons (should not be necessary for newer versions of the code/traits lib?)
         value = tuple(value)
-        
+
     #use Cast to validate the value
     try:
-        return trait.cast(value)
+        if trait.cast is not None:
+            return trait.cast 
+        else:
+            # this interface changed in later versions of the trait library
+            return trait.validate(trait, 'casting', value)
     except:
-        f = open(os.path.join(config.log_path, "trait_log"), 'w')
+        f = open(os.path.join(log_path, "trait_log"), 'w')
         f.write('Error with type for trait %s, %s, value %s' % (str(trait), str(ttype), str(value)))
         f.close()
         import traceback

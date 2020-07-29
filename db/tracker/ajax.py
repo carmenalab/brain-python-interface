@@ -259,6 +259,15 @@ def start_experiment(request, save=True, execute=True):
                         task=entry.task.name)
 
         if save:
+            # tag software version using the git hash
+            import git
+            repo = git.repo.Repo(__file__, search_parent_directories=True)
+            sw_version = repo.commit().hexsha[:8]
+            repo_dirty = repo.is_dirty(index=True, working_tree=True, untracked_files=False)
+            if repo_dirty:
+                sw_version += '.dirty'
+            entry.sw_version = sw_version
+            
             # Save the task entry to database
             entry.save()
 

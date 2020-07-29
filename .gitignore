@@ -6,11 +6,12 @@
 *.so
 _build
 riglib/nidaq/pcidio.py
-riglib/build
-riglib/plexon/plexfile.c
-riglib/plexon/psth.c
+riglib/plexon/build
+riglib/plexon/plexon/plexfile.c
+riglib/plexon/plexon/psth.c
 db/settings.py
 db/paths.py
+db/path.txt
 tests/map_test
 db/db.sql
 db/*.sql
@@ -45,3 +46,4 @@ env/*
 tests/*.mat
 tests/*.hdf
 *.h5
+riglib/plexon/Plexfile_utilities.egg-info/*

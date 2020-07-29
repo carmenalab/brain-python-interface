@@ -211,6 +211,51 @@ class TestGenerators(TestCase):
         self.assertEqual(len(models.Generator.objects.all()), 2)
 
 
+class TestVisualFeedbackTask(TestCase):
+    def test_start_experiment_python(self):
+        subj = models.Subject(name="test_subject")
+        subj.save()
+
+        task = models.Task(name="test_vfb", import_path="built_in_tasks.passivetasks.TargetCaptureVFB2DWindow")
+        task.save()
+
+        models.Generator.populate()
+        gen = models.Generator.objects.get(name='centerout_2D_discrete')
+
+        import json
+        seq_params = dict(nblocks=1, ntargets=1)
+        seq_rec = models.Sequence(generator=gen,
+            params=json.dumps(seq_params), task=task)
+        seq_rec.save()
+        print(seq_rec)
+
+        task_rec = models.Task.objects.get(name='test_vfb')
+        te = models.TaskEntry(task=task_rec, subject=subj)
+        te.save()
+
+        from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
+        
+        seq, seq_params = seq_rec.get()
+        # seq = TargetCaptureVFB2DWindow.centerout_2D_discrete()
+
+        base_class = task.get_base_class()
+        from riglib import experiment
+        from tracker import json_param
+        Task = experiment.make(base_class, feats=[])
+
+        params = json_param.Parameters.from_dict(dict(window_size=(480, 240)))
+        params.trait_norm(Task.class_traits())
+
+
+        saveid = te.id
+        task_start_data = dict(subj=subj.id, base_class=base_class, feats=[],
+                      params=dict(window_size=(480, 240)), seq=seq_rec, seq_params=seq_params,
+                      saveid=saveid)
+
+        tracker = exp_tracker.get()
+        tracker.runtask(**task_start_data)
+
+
 class TestTaskStartStop(TestCase):
     def test_start_experiment_python(self):
         subj = models.Subject(name="test_subject")
@@ -345,6 +390,19 @@ class TestTaskAnnotation(TestCase):
         import h5py
         hdf = h5py.File(h5file)
         self.assertTrue(b"annotation: test post annotation" in hdf["/task_msgs"]["msg"][:])
+
+
+class TestParamCast(TestCase):
+    def test_norm_trait(self):
+        from tracker import json_param
+        from riglib.experiment import traits
+
+        t = traits.Float(1, descr='test trait')
+        t1 = json_param.norm_trait(t, 1.0)
+        self.assertEqual(t1, 1.0)
+
+        self.assertRaises(Exception, json_param.norm_trait, t, '1.0')        
+        
 
 
 class TestWebsocket(TestCase):
