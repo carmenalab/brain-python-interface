@@ -1,70 +1,104 @@
-from .NatNetClient import NatNetClient as TestClient
 import numpy as np
-from multiprocessing import Process,Lock
-import pickle
+import sys, time
+import socket
 
-mutex = Lock()
 
+N_TEST_FRAMES = 1 #number of testing frames during start
 class System(object):
     """
     this is is the dataSource interface for getting the mocap at BMI3D's reqeust
     compatible with DataSourceSystem
     uses data_array to keep track of the lastest buffer
     """
+    port_num  = 1230 #same as the optitrack #default to 1230
+    HEADERSIZE = 10
+    rece_byte_size = 512
+    debug = True
+    optitrack_ip_addr = "10.155.206.1"
+
+
     rigidBodyCount = 1
     update_freq = 120 
-    dtype = np.dtype((np.float, (rigidBodyCount, 6))) #6 degress of freedo
+    dtype = np.dtype((np.float, (rigidBodyCount, 6))) #6 degress of freedom
+    
     def __init__(self):
         self.rigid_body_count = 1 #for now,only one rigid body
 
-        self.test_client = TestClient()
-        self.num_length = 10 # slots for buffer
-        self.data_array = [None] * self.num_length
-        self.rotation_buffer = [None] * self.num_length
+
     
-        # This is a callback function that gets connected to the NatNet client and called once per mocap frame.
-    def receiveNewFrame(self, frameNumber, markerSetCount, unlabeledMarkersCount, rigidBodyCount, skeletonCount,
-                        labeledMarkerCount, timecode, timecodeSub, timestamp, isRecording, trackedModelsChanged ):
-        #print( "Received frame", frameNumber )
-        pass
 
-    # This is a callback function that gets connected to the NatNet client. It is called once per rigid body per frame
-    def receiveRigidBodyFrame(self, id, position, rotation ):
-        #print( "Received frame for rigid body", position )
-
-        #save to the running buffer with a lock
-        with mutex:
-            self.data_array.insert(0,position)
-            self.data_array.pop()
-            #save to rotation buffer list
-            self.rotation_buffer.insert(0,position)
-            self.rotation_buffer.pop()
-        
- 
     def start(self):
-        self.test_client.newFrameListener = self.receiveNewFrame
-        self.test_client.rigidBodyListener =self.receiveRigidBodyFrame
-        self.test_client.run()
-        print('Started the interface thread')
-    
+        #start to connect to the client
+                #set up the socket
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
+  
+        print("connecting to the c# server")
+        '''
+        self.s.bind(('', 1230)) #bind to all incoming request
+        self.s.listen() #listen to one clinet
+        '''
+        try:
+            #clientsocket, address = self.s.accept()
+            self.s.connect((self.optitrack_ip_addr, self.port_num))
+        except:
+            print("cannot connect to Motive")
+            print("Is the c# server running?")
+        
+        #otherwise it works as expected and set client to be a 
+        #class property
+        #self.clientsocket = clientsocket
+        print(f"Connection to c# client \
+             {self.optitrack_ip_addr} has been established.")
+
+        #automatically pull 10 frames
+        # and cal the mean round trip time
+        t1 = time.perf_counter()
+        for i in range(N_TEST_FRAMES): self.get()
+        t2 = time.perf_counter()
+        print(f'time to grab {N_TEST_FRAMES} frames : \
+              {(t2 - t1)} s ')
+                        
+
     def stop(self):
-        pass
+        msg = "stop"
+        self.send_command(msg)
+        #close the socket
+        #self.s.close()
+        print("socket closed!")
     
     def get(self):
-        current_value = None
-        rotation_value = None
-        pos_rot = None
+        #the property  that gets one frame of data
+        # 3 positions and 3 angles
+        #the last element is frame number
+        msg = "get"
+        result_string = self.send_and_receive(msg)
+        motive_frame = np.fromstring(result_string, sep=',')
+        current_value = motive_frame[:6] #only using the motion data
 
-        with mutex:
-            current_value = self.data_array[0]
-            rotation_value = self.rotation_buffer[0]
+        #for some weird reason, the string needs to be expanded..
+        #just send the motion data for now
+        current_value = np.expand_dims(current_value, axis = 0)
+        return current_value
         
-        #return the latest saved data
-        if (not current_value is None) and (not rotation_value is None):
-            pos_rot = np.concatenate((np.asarray(current_value),np.asarray(rotation_value)))
-            
-        pos_rot = np.expand_dims(pos_rot, axis = 0)
-        return pos_rot #return that (x,y,z, rotation matrix)
+
+
+    def send_command(self, msg):
+        #get the message in string and encode in  bytes and send to the socket
+        msg = f"{len(msg):<{self.HEADERSIZE}}"+msg
+        msg_ascii = msg.encode("ascii")
+        self.s.send(msg_ascii)
+
+    def send_and_receive(self, msg):
+        #this function sends a command
+        #and then wait for a response
+        msg = f"{len(msg):<{self.HEADERSIZE}}"+msg
+        msg_ascii = msg.encode("ascii")
+        self.s.send(msg_ascii)
+        result_in_bytes = self.s.recv(self.rece_byte_size)
+        return str(result_in_bytes,encoding="ASCII")
+    
 
 class Simulation(System):
     '''
@@ -72,10 +106,15 @@ class Simulation(System):
     the get function starts to return random numbers
     '''
     update_freq = 60 #Hz
-
     def get(self):
         mag_fac = 10
         current_value = np.random.rand(self.rigidBodyCount, 6) * mag_fac
         current_value = np.expand_dims(current_value, axis = 0)
         return current_value
         
+
+if __name__ == "__main__":
+    s = System()
+    s.start()
+    print(s.get())
+    s.stop()
