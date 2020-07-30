@@ -7,8 +7,9 @@ import inspect
 import traceback
 import multiprocessing as mp
 
-from . import source
+# from . import source
 from .mp_proxy import FuncProxy
+from . import singleton
 
 class DataSink(mp.Process):
     '''
@@ -138,7 +139,8 @@ class DataSink(mp.Process):
         self.stop()
 
 
-class SinkManager(object):
+class SinkManager(singleton.Singleton):
+    __instance = None
     ''' Data Sink manager singleton to be used by features '''
     def __init__(self):
         '''
@@ -152,9 +154,13 @@ class SinkManager(object):
         -------
         SinkManager instance
         '''
+        super().__init__()
+        self.reset()
+
+    def reset(self):
         self.sinks = []
         self.sources = []
-        self.registrations = dict()
+        self.registrations = dict()        
 
     def start(self, output, **kwargs):
         '''
@@ -196,18 +202,31 @@ class SinkManager(object):
         -------
         None
         '''
-        if isinstance(system, source.DataSource):
+        if hasattr(system, 'name'):
             name = system.name
-            dtype = system.source.dtype
-        elif isinstance(system, source.MultiChanDataSource):
-            name = system.name
-            dtype = system.send_to_sinks_dtype
-        elif isinstance(system, str):
-            name = system
-        else: 
+        elif isinstance(system, 'str'):
+            name = system 
+        else:
             # assume that the system is a class
             name = system.__module__.split(".")[1]
-            dtype = system.dtype
+
+        if hasattr(system, 'send_to_sinks_dtype'): # used by source.MultiChanDataSource
+            dtype = system.send_to_sinks_dtype
+        elif hasattr(system, 'source'):
+            dtype = system.source.dtype
+
+        # if isinstance(system, source.DataSource):
+        #     name = system.name
+        #     dtype = system.source.dtype
+        # elif isinstance(system, source.MultiChanDataSource):
+        #     name = system.name
+        #     dtype = system.send_to_sinks_dtype
+        # elif isinstance(system, str):
+        #     name = system
+        # else: 
+        #     # assume that the system is a class
+        #     name = system.__module__.split(".")[1]
+        #     dtype = system.dtype
 
         self.sources.append((name, dtype))
 
@@ -254,9 +273,6 @@ class SinkManager(object):
         '''
         for s in self.sinks:
             yield s
-
-# Data Sink manager singleton to be used by features
-sinks = SinkManager()
 
 
 class PrintSink(object):

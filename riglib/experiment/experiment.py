@@ -172,7 +172,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         # Register the "task" source with the sinks
         if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
             from riglib import sink
-            self.sinks = sink.sinks
+            self.sinks = sink.SinkManager.get_instance()
 
         try:
             self.sinks.register("task", self.dtype, include_msgs=True)

@@ -43,7 +43,8 @@ class TestExp(experiment.Experiment):
 
 class TestSaveHDF(unittest.TestCase):
     def setUp(self):
-        sink.sinks = sink.SinkManager()
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.reset()
 
     def test_save_hdf(self):
         TestFeat = experiment.make(TestExp, feats=[SaveHDF])

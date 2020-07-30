@@ -69,7 +69,8 @@ class SerialDIORowByte(object):
         Prior to starting the task, this 'init' sets up the NIDAQ card as a sink
         '''
         from riglib import sink
-        self.nidaq = sink.sinks.start(serial_dio.SendRowByte)
+        sink_manager = sink.SinkManager.get_instance()
+        self.nidaq = sink_manager.start(serial_dio.SendRowByte)
         self.dbq_kwargs = dict()
         super(SerialDIORowByte, self).init()
     
@@ -272,7 +273,8 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         Prior to starting the task, this 'init' sets up the NIDAQ card as a sink
         '''
         from riglib import sink
-        self.nidaq = sink.sinks.start(self.ni_out)
+        sink_manager = sink.SinkManager.get_instance()
+        self.nidaq = sink_manager.start(self.ni_out)
         super(TDTSerialDIORowByte, self).init()
 
     @property

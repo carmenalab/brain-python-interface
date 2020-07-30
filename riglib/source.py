@@ -104,23 +104,6 @@ class DataSource(mp.Process):
         # so, set send_data_to_sink_manager to False if you want to avoid this
         self.send_data_to_sink_manager = send_data_to_sink_manager
 
-    def start(self, *args, **kwargs):
-        '''
-        From Python's docs on the multiprocessing module:
-            Start the process's activity.
-            This must be called at most once per process object. It arranges for the object's run() method to be invoked in a separate process.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        '''
-        self.sinks = sink.sinks
-        super(DataSource, self).start(*args, **kwargs)
-
     def run(self):
         '''
         Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
@@ -164,7 +147,8 @@ class DataSource(mp.Process):
             if streaming:
                 data = system.get()
                 if self.send_data_to_sink_manager:
-                    self.sinks.send(self.name, data)
+                    sink_manager = sink.SinkManager.get_instance()
+                    sink_manager.send(self.name, data)
                 if data is not None:
                     # if not isinstance(data, np.ndarray):
                     #     raise ValueError("source.DataSource.run: Data returned from \
@@ -407,7 +391,7 @@ class MultiChanDataSource(mp.Process):
         -------
         None
         '''
-        self.sinks = sink.sinks
+        self.sinks = sink_manager = sink.SinkManager.get_instance()
         super(MultiChanDataSource, self).start(*args, **kwargs)
 
     def run(self):

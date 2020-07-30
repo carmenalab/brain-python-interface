@@ -15,7 +15,8 @@ from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
 
 class TestVisualFeedback(unittest.TestCase):
     def setUp(self):
-        sink.sinks = sink.SinkManager() # reset the sink manager
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.reset()
 
     def test_n_successful_targets(self):
         TestFeat = experiment.make(TargetCaptureVFB2DWindow, feats=[SaveHDF])

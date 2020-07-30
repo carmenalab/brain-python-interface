@@ -24,12 +24,13 @@ class SaveHDF(object):
         Secondary init function. See riglib.experiment.Experiment.init()
         Prior to starting the task, this 'init' starts an HDFWriter sink.
         '''
-        from riglib import sink
-        self.sinks = sink.sinks
         self.h5file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
         self.h5file.flush()
         self.h5file.close()
-        self.hdf = sink.sinks.start(self.sink_class, filename=self.h5file.name)
+
+        from riglib import sink
+        sink_manager = sink.SinkManager.get_instance()
+        self.hdf = sink_manager.start(self.sink_class, filename=self.h5file.name)
 
         super(SaveHDF, self).init()    
 

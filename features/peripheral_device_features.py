@@ -27,13 +27,13 @@ class Joystick(object):
         inputs from the phidgets joystick. 
         '''
         from riglib import source, phidgets, sink
-        self.sinks = sink.sinks
+        sink_manager = sink.SinkManager.get_instance()
         #System = phidgets.make(2, 1)
         #self.joystick = source.DataSource(System)
 
         self.register_num_channels()
         super(Joystick, self).init()
-        self.sinks.register(self.joystick)
+        sink_manager.register(self.joystick)
 
     def register_num_channels(self):
         from riglib import source, phidgets, sink
@@ -64,7 +64,7 @@ class ArduinoJoystick(Joystick):
         Same as above, w/o Phidgets import
         '''
         from riglib import source, sink
-        self.sinks = sink.sinks
+        self.sinks = sink.sinks # sink_manager = sink.SinkManager.get_instance()
         self.register_num_channels()
         super(Joystick, self).init()
         self.sinks.register(self.joystick)
@@ -82,10 +82,11 @@ class ArduinoIMU(object):
         inputs from the IMU
         '''
         from riglib import sink
-        self.sinks = sink.sinks
         self.register_num_channels()
         super(ArduinoIMU, self).init()
-        self.sinks.register(self.arduino_imu)
+
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.arduino_imu)
 
     def register_num_channels(self):
         from riglib import source, arduino_imu

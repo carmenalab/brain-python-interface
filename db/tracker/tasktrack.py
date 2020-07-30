@@ -11,7 +11,7 @@ import xmlrpc.client
 import multiprocessing as mp
 import collections
 
-from riglib import experiment
+from riglib import experiment, singleton
 from riglib.mp_proxy import FuncProxy
 
 from . import websocket
@@ -36,11 +36,18 @@ def log_str(s, mode="a", newline=True):
         fp.write(s)
 
 
-class Track(object):
+if sys.platform == "win32":
+    use_websock = False
+else:
+    use_websock = True
+
+class Track(singleton.Singleton):
     '''
     Tracker for task instantiation running in a separate process. This is a singleton.
     '''
-    def __init__(self, use_websock=True):
+    __instance = None 
+    def __init__(self, use_websock=use_websock):
+        super().__init__()
         # shared memory to store the status of the task in a char array
         self.status = mp.Array('c', 256)
         self.reset()

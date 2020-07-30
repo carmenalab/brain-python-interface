@@ -176,13 +176,14 @@ class Plant(object):
 class AsynchronousPlant(Plant):
     def init(self):
         from riglib import sink
-        sink.sinks.register(self.source)
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.source)
         super(AsynchronousPlant, self).init()
 
     def start(self):
         '''
         Only start the DataSource after it has been registered with 
-        The SinkManager singleton (sink.sinks) in the call to init()
+        the sink manager in the call to init()
         '''
         self.source.start()
         super(AsynchronousPlant, self).start()

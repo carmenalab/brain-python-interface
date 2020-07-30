@@ -12,7 +12,8 @@ from riglib import sink
 
 class TestTaskWithFeatures(unittest.TestCase):
     def setUp(self):
-        sink.sinks = sink.SinkManager() # reset the sink manager
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.reset()
 
     def test_metaclass_constructor(self):
         exp = experiment.make(experiment.LogExperiment, feats=(SaveHDF,))

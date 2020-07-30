@@ -42,7 +42,8 @@ class CorticalData(object):
             raise Exception("Unknown extractor class, unable to create data source object!")
 
         if self.register_with_sink_manager:
-            sink.sinks.register(self.neurondata)            
+            sink_manager = sink.SinkManager.get_instance()
+            sink_manager.register(self.neurondata)            
 
         super(CorticalData, self).init()
 

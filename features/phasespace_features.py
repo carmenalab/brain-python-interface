@@ -37,8 +37,8 @@ class MotionData(traits.HasTraits):
         src, mkw = self.source_class
         self.motiondata = source.DataSource(src, **mkw)
         from riglib import sink
-        self.sinks = sink.sinks
-        self.sinks.register(self.motiondata)
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.motiondata)
         super(MotionData, self).init()
     
     @property
