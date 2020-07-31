@@ -247,8 +247,10 @@ class TestVisualFeedbackTask(TestCase):
         params.trait_norm(Task.class_traits())
 
 
+        from features import Autostart
+
         saveid = te.id
-        task_start_data = dict(subj=subj.id, base_class=base_class, feats=[],
+        task_start_data = dict(subj=subj.id, base_class=base_class, feats=[Autostart],
                       params=dict(window_size=(480, 240)), seq=seq_rec, seq_params=seq_params,
                       saveid=saveid)
 

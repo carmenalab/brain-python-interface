@@ -855,7 +855,7 @@ class Decoder(object):
         filename: string
             filename of pickled Decoder object 
         '''
-        if filename is not '':
+        if filename != '':
             f = open(filename, 'w')
             pickle.dump(self, f)
             f.close()

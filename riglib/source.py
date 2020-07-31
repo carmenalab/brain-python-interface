@@ -15,7 +15,7 @@ import ctypes
 import numpy as np
 from .mp_proxy import FuncProxy
 
-from . import sink # this circular import is not ideal..
+from . import sink
 
 class DataSourceSystem(object):
     '''

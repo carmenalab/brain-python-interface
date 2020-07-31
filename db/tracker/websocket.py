@@ -130,11 +130,10 @@ class NotifyFeat(object):
     def __init__(self, *args,  **kwargs):
         super(NotifyFeat, self).__init__(*args, **kwargs)
         self.websock = kwargs.pop('websock')
-        self.tracker_end_of_pipe = kwargs.pop('tracker_end_of_pipe')
         self.tracker_status = kwargs.pop('tracker_status')
 
     def set_state(self, state, *args, **kwargs):
-        self.reportstats['status'] = self.tracker_status
+        self.reportstats['status'] = str(self.tracker_status)
         self.reportstats['State'] = state or 'stopped'
         
         # Call 'Server.send' above
@@ -152,7 +151,6 @@ class NotifyFeat(object):
         finally:
             if self.terminated_in_error:
                 self.websock.send(dict(status="error", msg=self.termination_err.read()))
-            self.tracker_end_of_pipe.send(None)
 
     def print_to_terminal(self, *args):
         sys.stdout = sys.__stdout__

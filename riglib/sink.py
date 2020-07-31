@@ -204,7 +204,7 @@ class SinkManager(singleton.Singleton):
         '''
         if hasattr(system, 'name'):
             name = system.name
-        elif isinstance(system, 'str'):
+        elif isinstance(system, str):
             name = system 
         else:
             # assume that the system is a class
