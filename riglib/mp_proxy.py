@@ -84,8 +84,11 @@ class FuncProxy(object):
 
 
 class ObjProxy(PipeWrapper):
-    def __init__(self, *args, **kwargs):
-        self.methods = kwargs.pop('methods', [])
+    def __init__(self, target_class, *args, **kwargs):
+        self.target_class = target_class
+        is_instance_method = lambda n: inspect.isfunction(getattr(self.target_class, n))
+        self.methods = set(filter(is_instance_method, dir(self.target_class)))
+
         super().__init__(*args, **kwargs)
         self.lock = mp.Lock()
 
@@ -96,7 +99,7 @@ class ObjProxy(PipeWrapper):
         pipe = object.__getattribute__(self, "pipe")
         cmd_event = object.__getattribute__(self, "cmd_event")
         lock = object.__getattribute__(self, "lock")
-        print("methods:", methods)
+
         if attr in methods:
             self.log_str("returning function proxy for %s" % attr)
             return FuncProxy(attr, pipe, cmd_event, lock)
@@ -104,13 +107,6 @@ class ObjProxy(PipeWrapper):
             self.log_str("sending __getattribute__ over pipe")
             fn_getattr = FuncProxy("__getattribute__", pipe, cmd_event, lock)
             return fn_getattr(attr)
-            # pipe.send(("__getattribute__", [attr], {}))
-            # cmd_event.set()
-            # ret = pipe.recv()
-            # if isinstance(ret, Exception): 
-            #     raise AttributeError("Can't get attribute: %s. Remote methods available: %s" % (attr, str(self.methods)))
-
-            # return ret
 
     def set(self, attr, value):
         self.log_str("ObjProxy.setattr")
@@ -129,36 +125,32 @@ class ObjProxy(PipeWrapper):
 class DataPipe(PipeWrapper):
     pass
 
+def call_from_remote(x):
+    return x
+
+def call_from_parent(x):
+    return x
+
 class RPCProcess(mp.Process):
     """mp.Process which implements remote procedure call (RPC) through a mp.Pipe object"""
     proxy = ObjProxy
-    def __init__(self, *args, **kwargs):
+    def __init__(self, target_class=object, log_filename=''):
         super().__init__()
         self.cmd_pipe = None
         self.data_pipe = None
-        self.log_filename = kwargs.pop('log_filename', '')
+        self.log_filename = log_filename
         if self.log_filename != '':
             with open(self.log_filename, 'w') as f:
                 f.write('')
-        self.run_the_loop = False
-        self._remote_methods = None
+
         self.target = None
+        self.target_class = target_class
 
         self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1) # mp boolean used for terminating the remote process
 
         self.target_proxy = None
         self.data_proxy = None
-
-    @property
-    def remote_class(self):
-        raise NotImplementedError("Specify the type of self.target to distinguish methods from attributes")
-
-    def remote_methods(self):
-        if self._remote_methods is None:
-            is_instance_method = lambda n: inspect.isfunction(getattr(self.remote_class, n))
-            self._remote_methods = set(filter(is_instance_method, dir(self.remote_class)))
-        return self._remote_methods
 
     def __getattr__(self, attr):
         """ Redirect attribute access to the target object if the 
@@ -168,7 +160,7 @@ class RPCProcess(mp.Process):
                 try:
                     return getattr(self.target_proxy, attr)
                 except:
-                    raise AttributeError("RPCProcess: could not forward getattr %s to target of type %s" % (attr, self.remote_class))
+                    raise AttributeError("RPCProcess: could not forward getattr %s to target of type %s" % (attr, self.target_class))
             else:
                 raise AttributeError("RPCProcess: target proxy not initialized")
         except:
@@ -188,25 +180,29 @@ class RPCProcess(mp.Process):
             with open(self.log_filename, mode) as fp:
                 fp.write(s)
 
+    @call_from_remote
     def target_constr(self):
         pass
 
+    @call_from_remote
     def target_destr(self, ret_status, msg):
         pass
 
+    @call_from_parent
     def start(self):
         self.cmd_pipe, pipe_end2 = mp.Pipe()
         self.data_pipe, data_pipe2 = mp.Pipe()
 
-        self.target_proxy = self.proxy(pipe=pipe_end2, log_filename=self.log_filename, 
-            methods=self.remote_methods(), cmd_event=self.cmd_event)
+        self.target_proxy = self.proxy(self.target_class, pipe=pipe_end2, 
+            log_filename=self.log_filename, cmd_event=self.cmd_event)
         self.data_proxy = DataPipe(data_pipe2)
         super().start()
         return self.target_proxy, self.data_proxy
-    
+
     def is_enabled(self):
         return self.status.value > 0
 
+    @call_from_parent
     def disable(self):
         self.status.value = 0;
 
@@ -216,10 +212,11 @@ class RPCProcess(mp.Process):
     def clear_cmd(self):
         self.cmd_event.clear()
 
+    @call_from_remote
     def loop_task(self):
-        import time
         time.sleep(0.01)
 
+    @call_from_remote
     def run(self):
         self.log_str("RPCProcess.run")
 
@@ -227,11 +224,9 @@ class RPCProcess(mp.Process):
 
         try:
             while self.is_enabled():
-                if not self.target.is_running():
-                    self.log_str("Termination condition reached:")
-                    self.disable()
-                # else:
-                #     self.log_str("run state: %s" % self.target.run_state)
+                if not self.check_run_condition():
+                    self.log_str("The target's termination condition was reached")
+                    break
 
                 if self.is_cmd_present():
                     self.proc_rpc_command()
@@ -239,7 +234,7 @@ class RPCProcess(mp.Process):
 
                 self.loop_task()
 
-            self.log_str("RPCProcess.run END OF WHILE LOOP")
+            self.log_str("RPCProcess.run: end of while loop")
             ret_status, msg = 0, ''
         except KeyboardInterrupt:
             ret_status, msg = 1, 'KeyboardInterrupt'
@@ -253,6 +248,7 @@ class RPCProcess(mp.Process):
         finally:
             self.target_destr(ret_status, msg)
 
+    @call_from_remote
     def proc_rpc_command(self):
         cmd = self.cmd_pipe.recv()
         self.log_str("Received command: %s" % str(cmd))
@@ -261,8 +257,6 @@ class RPCProcess(mp.Process):
             self.disable()
             return 
 
-        self.log_str('remote command received: %s, %s, %s\n' % cmd)
-        print('rpc target', self.target)
         try:
             fn_name, cmd_args, cmd_kwargs = cmd
             fn = getattr(self.target, fn_name)
@@ -271,14 +265,10 @@ class RPCProcess(mp.Process):
             fn_output = fn(*cmd_args, **cmd_kwargs)
             self.cmd_pipe.send(fn_output)
 
-            self.log_str("Target = %s" % str(self.target))
-            self.log_str('self.target.__dict:' + str(self.target.__dict__))
             self.log_str('Done with command: %s, output=%s\n\n' % (fn_name, fn_output))
-            return "completed"
         except Exception as e:
             err = io.StringIO()
             self.log_error(err, mode='a')
 
             self.cmd_pipe.send(e)
-            return "error"
 

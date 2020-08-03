@@ -58,6 +58,8 @@ from . import generate
 from . import report
 from .experiment import Experiment, LogExperiment, Sequence, TrialTypes, FSMTable, StateTransitions
 
+from . import task_wrapper
+
 try:
     from .Pygame import Pygame
 except:

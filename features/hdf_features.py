@@ -32,6 +32,8 @@ class SaveHDF(object):
         sink_manager = sink.SinkManager.get_instance()
         self.hdf = sink_manager.start(self.sink_class, filename=self.h5file.name)
 
+        self.h5file_name = self.h5file.name
+
         super(SaveHDF, self).init()    
 
     @property
