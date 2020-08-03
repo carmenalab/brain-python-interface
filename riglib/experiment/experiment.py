@@ -387,6 +387,9 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         '''
         self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
 
+    def online_report(self):
+        return self.reportstats
+
     @classmethod
     def offline_report(self, event_log):
         '''Returns an ordered dict with report stats to be displayed when past session of this task is selected
