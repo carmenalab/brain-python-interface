@@ -4,6 +4,7 @@ from riglib import sink
 import time
 
 class DataSinkTarget(object):
+	'''Mock sink for unit testing only'''
 	remote_value = 43
 	def __init__(self):
 		self.rx_systems = []
@@ -15,9 +16,6 @@ class DataSinkTarget(object):
 
 	def incr_remote_value(self):
 		self.remote_value += 1
-
-	def get_remote_value(self):
-		return self.remote_value
 
 	def get_sink_data(self):
 		return self.rx_systems, self.rx_data
@@ -35,11 +33,11 @@ class TestSink(unittest.TestCase):
 		s.start()
 
 		# test that you can access remote attributes of the target object
-		self.assertEqual(s.get_remote_value(), 43)
+		self.assertEqual(s.remote_value, 43)
 
 		# test that you can call remote procedures which change target object state
 		s.incr_remote_value()
-		self.assertEqual(s.get_remote_value(), 44)
+		self.assertEqual(s.remote_value, 44)
 
 
 		# test that all the data you send to the target is received
@@ -76,11 +74,11 @@ class TestSink(unittest.TestCase):
 		s2 = sink_manager.start(DataSinkTarget)
 
 		# test that you can access remote attributes of the target object
-		self.assertEqual(s1.get_remote_value(), 43)
+		self.assertEqual(s1.remote_value, 43)
 
 		# test that you can call remote procedures which change target object state
 		s1.incr_remote_value()
-		self.assertEqual(s1.get_remote_value(), 44)		
+		self.assertEqual(s1.remote_value, 44)		
 
 
 		# test that all the data you send to the target is received
@@ -92,6 +90,7 @@ class TestSink(unittest.TestCase):
 		
 		time.sleep(1) # needed so all the data is sent before looking at the cache
 
+		# test that both sinks received all of the sent data
 		for s in [s1, s2]:
 			rx_systems, rx_data = s.get_sink_data()
 			
@@ -105,7 +104,6 @@ class TestSink(unittest.TestCase):
 		# test destruction. Sleep so processing can complete
 		time.sleep(1)
 		sink_manager.stop()
-		# s.join()
 
 
 if __name__ == '__main__':

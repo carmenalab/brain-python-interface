@@ -185,7 +185,8 @@ class RPCProcess(mp.Process):
     def target_constr(self):
         try:
             self.target = self.target_class(**self.target_kwargs)
-            self.target.start()
+            if hasattr(self.target, 'start'):
+                self.target.start()
         except Exception as e:
             print("RPCProcess.target_constr: unable to start source!")
             print(e)
@@ -219,8 +220,12 @@ class RPCProcess(mp.Process):
         return self.status.value > 0
 
     @call_from_parent
-    def disable(self):
-        self.status.value = 0;
+    def stop(self):
+        self.status.value = -1;
+
+    def __del__(self):
+        '''Stop the process when the object is destructed'''
+        self.stop()
 
     def is_cmd_present(self):
         return self.cmd_event.is_set()
@@ -270,7 +275,7 @@ class RPCProcess(mp.Process):
         self.log_str("Received command: %s" % str(cmd))
 
         if cmd is None:
-            self.disable()
+            self.stop()
             return 
 
         try:
