@@ -48,11 +48,248 @@ class DataSourceSystem(object):
         '''
         pass
 
-class DataSource(mp.Process):
-    '''
-    Generic single-channel data source
-    '''
-    def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, **kwargs):
+# class DataSource(mp.Process):
+#     '''
+#     Generic single-channel data source
+#     '''
+#     def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, **kwargs):
+#         '''
+#         Parameters
+#         ----------
+#         source: class compatible with DataSourceSystem
+#             Class to be instantiated as the "system" with changing data values. 
+#         bufferlen: float
+#             Number of seconds long to make the ringbuffer. Seconds are converted to number 
+#             of samples based on the 'update_freq' attribute of the source
+#         name: string, optional, default=None
+#             Name of the sink, i.e., HDF table. If one is not provided, it will be inferred based
+#             on the name of the source module
+#         send_data_to_sink_manager: boolean, optional, default=True
+#             Flag to indicate whether data should be saved to a sink (e.g., HDF file)
+#         kwargs: optional keyword arguments
+#             Passed to the source during object construction if any are specified
+
+#         Returns
+#         -------
+#         DataSource instance
+#         '''
+#         super(DataSource, self).__init__()
+#         if name is not None:
+#             self.name = name
+#         else:
+#             self.name = source.__module__.split('.')[-1]
+#         self.filter = None
+#         self.source = source
+#         self.source_kwargs = kwargs
+#         self.bufferlen = bufferlen
+#         self.max_len = bufferlen * int(self.source.update_freq)
+#         self.slice_size = self.source.dtype.itemsize
+        
+#         self.lock = mp.Lock()
+#         self.idx = shm.RawValue('l', 0)
+#         self.data = shm.RawArray('c', self.max_len * self.slice_size)
+#         self.pipe, self._pipe = mp.Pipe()
+#         self.cmd_event = mp.Event()
+#         self.status = mp.Value('b', 1)
+#         self.stream = mp.Event()
+#         self.last_idx = 0
+
+#         # self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
+#         self.methods = set(filter(lambda n: inspect.isfunction(getattr(source, n)), dir(source)))
+
+
+#         # in DataSource.run, there is a call to "self.sinks.send(...)",
+#         # but if the DataSource was never registered with the sink manager,
+#         # then this line results in unnecessary IPC
+#         # so, set send_data_to_sink_manager to False if you want to avoid this
+#         self.send_data_to_sink_manager = send_data_to_sink_manager
+
+#     def run(self):
+#         '''
+#         Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
+#         '''
+#         try:
+#             system = self.source(**self.source_kwargs)
+#             system.start()
+#         except Exception as e:
+#             print("source.DataSource.run: unable to start source!")
+#             print(e)
+#             self.status.value = -1
+
+#         streaming = True
+#         size = self.slice_size
+#         while self.status.value > 0:
+#             if self.cmd_event.is_set(): # if a command has been sent from the main task
+#                 cmd, args, kwargs = self._pipe.recv()
+#                 self.lock.acquire()
+#                 try:
+#                     if cmd == "getattr":
+#                         ret = getattr(system, args[0])
+#                     else:
+#                         ret = getattr(system, cmd)(*args, **kwargs)
+#                 except Exception as e:
+#                     print("source.DataSource.run: unable to process RPC call")
+#                     traceback.print_exc()
+#                     ret = e
+#                 self.lock.release()
+#                 self._pipe.send(ret)
+#                 self.cmd_event.clear()
+
+#             if self.stream.is_set():
+#                 self.stream.clear()
+#                 streaming = not streaming
+#                 if streaming:
+#                     self.idx.value = 0
+#                     system.start()
+#                 else:
+#                     system.stop()
+
+#             if streaming:
+#                 data = system.get()
+#                 if self.send_data_to_sink_manager:
+#                     sink_manager = sink.SinkManager.get_instance()
+#                     sink_manager.send(self.name, data)
+#                 if data is not None:
+#                     # if not isinstance(data, np.ndarray):
+#                     #     raise ValueError("source.DataSource.run: Data returned from \
+#                     #         source system must be an array to ensure type consistency!")
+
+#                     try:
+#                         self.lock.acquire()
+#                         i = self.idx.value % self.max_len
+#                         self.data[i*size:(i+1)*size] = np.array(data).tobytes()
+#                         self.idx.value += 1
+#                         self.lock.release()
+#                     except Exception as e:
+#                         print("source.DataSource.run, exception saving data to ring buffer")
+#                         print(e)
+#             else:
+#                 time.sleep(.001)
+
+#         # stop the system once self.status.value has been set to a negative number
+#         system.stop()
+
+#     def get(self, all=False, **kwargs):
+#         '''
+#         Retreive data from the remote process
+
+#         Parameters
+#         ----------
+#         all : boolean, optional, default=False
+#             If true, returns all the data currently available. Since a finite buffer is used, 
+#             this is NOT the same as all the data observed. (see 'bufferlen' in __init__ for buffer size)
+#         kwargs : optional kwargs 
+#             To be passed to self.filter, if it is listed
+
+#         Returns
+#         -------
+#         np.recarray 
+#             Datatype of record array is the dtype of the DataSourceSystem
+#         '''
+#         if self.status.value <= 0:
+#             raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
+            
+#         self.lock.acquire()
+#         i = (self.idx.value % self.max_len) * self.slice_size
+#         if all:
+#             if self.idx.value < self.max_len:
+#                 data = self.data[:i]
+#             else:
+#                 data = self.data[i:]+self.data[:i]
+#         else:
+#             mlen = min((self.idx.value - self.last_idx), self.max_len)
+#             last = ((self.idx.value - mlen) % self.max_len) * self.slice_size
+#             if last > i:
+#                 data = self.data[last:] + self.data[:i]
+#             else:
+#                 data = self.data[last:i]
+            
+#         self.last_idx = self.idx.value
+#         self.lock.release()
+#         try:
+#             data = np.fromstring(data, dtype=self.source.dtype)
+#         except:
+#             print("can't get fromstring...")
+
+#         if self.filter is not None:
+#             return self.filter(data, **kwargs)
+#         return data
+
+#     def read(self, n_pts=1, **kwargs):
+#         '''
+#         Read the last n_pts out of the buffer? Not sure how this is different from .get, and it doesn't appear to be used in any existing code....
+#         '''
+#         if self.status.value <= 0:
+#             raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
+            
+#         self.lock.acquire()
+#         idx = self.idx.value % self.max_len 
+#         i = idx * self.slice_size
+        
+#         if n_pts > self.max_len:
+#             n_pts = self.max_len
+
+#         if idx >= n_pts:  # no wrap-around required
+#             data = self.data[(idx-n_pts)*self.slice_size:idx*self.slice_size]
+#         else:
+#             data = self.data[-(n_pts-idx)*self.slice_size:] + self.data[:idx*self.slice_size]
+
+#         self.lock.release()
+#         try:
+#             data = np.fromstring(data, dtype=self.source.dtype)
+#         except:
+#             print("can't get fromstring...")
+
+#         if self.filter is not None:
+#             return self.filter(data, **kwargs)
+#         return data
+
+#     def pause(self):
+#         '''
+#         Used to toggle the 'streaming' variable in the remote "run" process 
+#         '''
+#         self.stream.set()
+
+#     def stop(self):
+#         '''
+#         Set self.status.value to negative so that the while loop in self.run() terminates
+#         '''
+#         self.status.value = -1
+    
+#     def __del__(self):
+#         '''
+#         Make sure the remote process stops if the Source object is destroyed
+#         '''
+#         self.stop()
+
+#     def __getattr__(self, attr):
+#         '''
+#         Try to retreive attributes from the remote DataSourceSystem if the are not found in the proximal Source object
+
+#         Parameters
+#         ----------
+#         attr : string 
+#             Name of attribute to retreive
+
+#         Returns
+#         -------
+#         object
+#             The arbitrary value associated with the named attribute, if it exists.
+#         '''
+#         methods = object.__getattribute__(self, "methods") # this is done instead of "self.methods" to avoid infinite recursion in Windows
+#         if attr in methods:
+#             # if the attribute requested is an instance method of the 'source', return a proxy to the remote source's method
+#             return FuncProxy(attr, self.pipe, self.cmd_event)
+#         elif not attr.startswith("__"):
+#             # try to look up the attribute remotely
+#             self.pipe.send(("getattr", (attr,), {}))
+#             self.cmd_event.set()
+#             return self.pipe.recv()
+#         raise AttributeError(attr)
+
+from .mp_proxy import RPCProcess
+class DataSource(RPCProcess):
+    def __init__(self, source, bufferlen=10, name=None, send_data_to_sink_manager=True, source_kwargs=dict(), **kwargs):
         '''
         Parameters
         ----------
@@ -73,14 +310,14 @@ class DataSource(mp.Process):
         -------
         DataSource instance
         '''
-        super(DataSource, self).__init__()
+        super(DataSource, self).__init__(**kwargs)
         if name is not None:
             self.name = name
         else:
             self.name = source.__module__.split('.')[-1]
         self.filter = None
-        self.source = source
-        self.source_kwargs = kwargs
+        self.target_class = self.source = source
+        self.target_kwargs = self.source_kwargs = source_kwargs #kwargs
         self.bufferlen = bufferlen
         self.max_len = bufferlen * int(self.source.update_freq)
         self.slice_size = self.source.dtype.itemsize
@@ -88,14 +325,12 @@ class DataSource(mp.Process):
         self.lock = mp.Lock()
         self.idx = shm.RawValue('l', 0)
         self.data = shm.RawArray('c', self.max_len * self.slice_size)
-        self.pipe, self._pipe = mp.Pipe()
-        self.cmd_event = mp.Event()
+        # self.pipe, self._pipe = mp.Pipe()
+        # self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1)
         self.stream = mp.Event()
         self.last_idx = 0
-
-        # self.methods = set(n for n in dir(source) if inspect.ismethod(getattr(source, n)))
-        self.methods = set(filter(lambda n: inspect.isfunction(getattr(source, n)), dir(source)))
+        self.streaming = False
 
 
         # in DataSource.run, there is a call to "self.sinks.send(...)",
@@ -104,70 +339,56 @@ class DataSource(mp.Process):
         # so, set send_data_to_sink_manager to False if you want to avoid this
         self.send_data_to_sink_manager = send_data_to_sink_manager
 
-    def run(self):
-        '''
-        Main function executed by the mp.Process object. This function runs in the *remote* process, not in the main process
-        '''
+    def target_constr(self):
         try:
-            system = self.source(**self.source_kwargs)
-            system.start()
+            self.target = self.target_class(**self.target_kwargs)
+            self.target.start()
         except Exception as e:
             print("source.DataSource.run: unable to start source!")
             print(e)
+
+            import io
+            err = io.StringIO()
+            self.log_error(err, mode='a')
+            err.seek(0)
+
             self.status.value = -1
 
-        streaming = True
-        size = self.slice_size
-        while self.status.value > 0:
-            if self.cmd_event.is_set(): # if a command has been sent from the main task
-                cmd, args, kwargs = self._pipe.recv()
-                self.lock.acquire()
-                try:
-                    if cmd == "getattr":
-                        ret = getattr(system, args[0])
-                    else:
-                        ret = getattr(system, cmd)(*args, **kwargs)
-                except Exception as e:
-                    print("source.DataSource.run: unable to process RPC call")
-                    traceback.print_exc()
-                    ret = e
-                self.lock.release()
-                self._pipe.send(ret)
-                self.cmd_event.clear()
+        self.streaming = True
+
+    def loop_task(self):
+            size = self.slice_size
 
             if self.stream.is_set():
                 self.stream.clear()
-                streaming = not streaming
-                if streaming:
+                self.streaming = not self.streaming
+                if self.streaming:
                     self.idx.value = 0
-                    system.start()
+                    self.target.start()
                 else:
-                    system.stop()
+                    self.target.stop()
 
-            if streaming:
-                data = system.get()
+            if self.streaming:
+                data = self.target.get()
                 if self.send_data_to_sink_manager:
                     sink_manager = sink.SinkManager.get_instance()
                     sink_manager.send(self.name, data)
                 if data is not None:
-                    # if not isinstance(data, np.ndarray):
-                    #     raise ValueError("source.DataSource.run: Data returned from \
-                    #         source system must be an array to ensure type consistency!")
-
                     try:
                         self.lock.acquire()
                         i = self.idx.value % self.max_len
-                        self.data[i*size:(i+1)*size] = np.array(data).tostring()
+                        self.data[i*size:(i+1)*size] = np.array(data).tobytes()
                         self.idx.value += 1
                         self.lock.release()
                     except Exception as e:
                         print("source.DataSource.run, exception saving data to ring buffer")
                         print(e)
             else:
-                time.sleep(.001)
+                time.sleep(.001)        
 
+    def target_destr(self, ret_status, msg):
         # stop the system once self.status.value has been set to a negative number
-        system.stop()
+        self.target.stop()
 
     def get(self, all=False, **kwargs):
         '''
@@ -207,36 +428,7 @@ class DataSource(mp.Process):
         self.last_idx = self.idx.value
         self.lock.release()
         try:
-            data = np.fromstring(data, dtype=self.source.dtype)
-        except:
-            print("can't get fromstring...")
-
-        if self.filter is not None:
-            return self.filter(data, **kwargs)
-        return data
-
-    def read(self, n_pts=1, **kwargs):
-        '''
-        Read the last n_pts out of the buffer? Not sure how this is different from .get, and it doesn't appear to be used in any existing code....
-        '''
-        if self.status.value <= 0:
-            raise Exception('\n\nError starting datasource: %s\n\n' % self.name)
-            
-        self.lock.acquire()
-        idx = self.idx.value % self.max_len 
-        i = idx * self.slice_size
-        
-        if n_pts > self.max_len:
-            n_pts = self.max_len
-
-        if idx >= n_pts:  # no wrap-around required
-            data = self.data[(idx-n_pts)*self.slice_size:idx*self.slice_size]
-        else:
-            data = self.data[-(n_pts-idx)*self.slice_size:] + self.data[:idx*self.slice_size]
-
-        self.lock.release()
-        try:
-            data = np.fromstring(data, dtype=self.source.dtype)
+            data = np.frombuffer(data, dtype=self.source.dtype)
         except:
             print("can't get fromstring...")
 
@@ -260,32 +452,7 @@ class DataSource(mp.Process):
         '''
         Make sure the remote process stops if the Source object is destroyed
         '''
-        self.stop()
-
-    def __getattr__(self, attr):
-        '''
-        Try to retreive attributes from the remote DataSourceSystem if the are not found in the proximal Source object
-
-        Parameters
-        ----------
-        attr : string 
-            Name of attribute to retreive
-
-        Returns
-        -------
-        object
-            The arbitrary value associated with the named attribute, if it exists.
-        '''
-        methods = object.__getattribute__(self, "methods") # this is done instead of "self.methods" to avoid infinite recursion in Windows
-        if attr in methods:
-            # if the attribute requested is an instance method of the 'source', return a proxy to the remote source's method
-            return FuncProxy(attr, self.pipe, self.cmd_event)
-        elif not attr.startswith("__"):
-            # try to look up the attribute remotely
-            self.pipe.send(("getattr", (attr,), {}))
-            self.cmd_event.set()
-            return self.pipe.recv()
-        raise AttributeError(attr)
+        self.stop()    
 
 
 class MultiChanDataSource(mp.Process):

@@ -72,7 +72,7 @@ class FuncProxy(object):
         if not self.lock is None:
             self.lock.acquire()
 
-        print("FuncProxy.__call__", self.name, args, kwargs)
+        # print("FuncProxy.__call__", self.name, args, kwargs)
         self.pipe.send((self.name, args, kwargs))
         if not self.event is None:
             self.event.set()
@@ -134,7 +134,7 @@ def call_from_parent(x):
 class RPCProcess(mp.Process):
     """mp.Process which implements remote procedure call (RPC) through a mp.Pipe object"""
     proxy = ObjProxy
-    def __init__(self, target_class=object, log_filename=''):
+    def __init__(self, target_class=object, target_kwargs=dict(), log_filename=''):
         super().__init__()
         self.cmd_pipe = None
         self.data_pipe = None
@@ -145,6 +145,7 @@ class RPCProcess(mp.Process):
 
         self.target = None
         self.target_class = target_class
+        self.target_kwargs = target_kwargs
 
         self.cmd_event = mp.Event()
         self.status = mp.Value('b', 1) # mp boolean used for terminating the remote process
@@ -182,7 +183,19 @@ class RPCProcess(mp.Process):
 
     @call_from_remote
     def target_constr(self):
-        pass
+        try:
+            self.target = self.target_class(**self.target_kwargs)
+            self.target.start()
+        except Exception as e:
+            print("RPCProcess.target_constr: unable to start source!")
+            print(e)
+
+            import io
+            err = io.StringIO()
+            self.log_error(err, mode='a')
+            err.seek(0)
+
+            self.status.value = -1
 
     @call_from_remote
     def target_destr(self, ret_status, msg):
@@ -198,6 +211,9 @@ class RPCProcess(mp.Process):
         self.data_proxy = DataPipe(data_pipe2)
         super().start()
         return self.target_proxy, self.data_proxy
+
+    def check_run_condition(self):
+        return self.status.value > 0
 
     def is_enabled(self):
         return self.status.value > 0
