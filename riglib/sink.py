@@ -8,7 +8,7 @@ import traceback
 import multiprocessing as mp
 
 # from . import source
-from .mp_proxy import FuncProxy
+from .mp_proxy import FuncProxy, RPCProcess
 from . import singleton
 
 class DataSink(mp.Process):
@@ -139,6 +139,39 @@ class DataSink(mp.Process):
         self.stop()
 
 
+# class DataSink(RPCProcess):
+#     '''Generic single-channel data sink'''
+#     def loop_task(self):
+#         if self.data_pipe.poll(0.001):
+#             system, data = self.data_pipe.recv()
+#             self.target.send(system, data)
+    
+#     def target_destr(self, ret_status, msg):
+#         self.target.close()
+#         print("ended datasink")
+
+#     def send(self, system, data):
+#         '''
+#         Send data to the sink system running in the remote process
+    
+#         Parameters
+#         ----------
+#         system : string
+#             Name of system (source) from which the data originated 
+#         data : object
+#             Arbitrary data. The remote sink should know how to handle the data
+    
+#         Returns
+#         -------
+#         None
+#         '''
+#         if self.status.value > 0:
+#             self.data_proxy.pipe.send((system, data))
+
+
+
+
+
 class SinkManager(singleton.Singleton):
     __instance = None
     ''' Data Sink manager singleton to be used by features '''
@@ -164,7 +197,7 @@ class SinkManager(singleton.Singleton):
 
     def start(self, output, **kwargs):
         '''
-        Docstring
+        Create a new sink and register with it all the known sources. 
 
         Parameters
         ----------
@@ -189,7 +222,7 @@ class SinkManager(singleton.Singleton):
 
     def register(self, system, dtype=None, **kwargs):
         '''
-        Register a system with all the known sinks
+        Register a source system with all the known sinks
 
         Parameters
         ----------
