@@ -161,6 +161,6 @@ class TaskWrapper(RPCProcess):
         self.target.terminate()
         return cleanup_successful
 
-    def disable(self):
+    def stop(self):
         self.target_proxy.end_task()
-        super().disable()
+        super().stop()

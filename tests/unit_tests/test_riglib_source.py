@@ -50,13 +50,11 @@ class TestDataSourceSystem(unittest.TestCase):
             time.sleep(0.100)
 
         src.stop()
-        src.disable()
         del src
 
         for data in data_all:
             if len(data) > 0:
                 self.assertEqual((data[0]["value"] + len(data) - 1) % 255, data[-1]["value"])
-
 
     def test_source_polling_fast(self):
         src = source.DataSource(MockDataSourceSystem3, send_data_to_sink_manager=False)

@@ -40,7 +40,7 @@ class TestVisualFeedback(unittest.TestCase):
         time.sleep(1) # delay to allow file to be created
         h5file_name = self.task_proxy.h5file_name
 
-        self.task_wrapper.end_task()  # self.task_wrapper.disable()
+        self.task_wrapper.end_task()
 
         print("sleeping to let the task finish")
         time.sleep(2)

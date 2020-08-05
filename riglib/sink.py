@@ -63,7 +63,7 @@ class SinkManager(singleton.Singleton):
         self.sources = []
         self.registrations = dict()        
 
-    def start(self, output, **kwargs):
+    def start(self, output, log_filename='', **kwargs):
         '''
         Create a new sink and register with it all the known sources. 
 
@@ -78,7 +78,7 @@ class SinkManager(singleton.Singleton):
         -------
         '''
         print(("sinkmanager start %s"%output))
-        sink = DataSink(target_class=output, target_kwargs=kwargs)
+        sink = DataSink(target_class=output, target_kwargs=kwargs, log_filename=log_filename)
         sink.start()
         self.registrations[sink] = set()
         for source, dtype in self.sources:
@@ -121,13 +121,7 @@ class SinkManager(singleton.Singleton):
         for s in self.sinks:
             if (name, dtype) not in self.registrations[s]:
                 self.registrations[s].add((name, dtype))
-
-                # an unpleasant hack to deal with a change in the default arguments for registering an HDF table
-                import hdfwriter
-                if s.output == hdfwriter.HDFWriter:
-                    s.register(name, dtype, **kwargs)
-                else:
-                    s.register(name, dtype)
+                s.register(name, dtype, **kwargs)
                 
     def send(self, system, data):
         '''

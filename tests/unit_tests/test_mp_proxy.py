@@ -70,7 +70,7 @@ class TestMpProxy(unittest.TestCase):
 
         self.assertEqual(task_proxy.simple_fn(2), 4)                
 
-        proc.disable()
+        proc.stop()
 
     def test_modifying_attr(self):
         log_filename = os.path.splitext(os.path.basename(__file__))[0] + '.log'
@@ -81,7 +81,7 @@ class TestMpProxy(unittest.TestCase):
 
         self.assertEqual(task_proxy.remote_value, 4)
         self.assertTrue('remote_value' not in task_proxy.__dict__)
-        proc.disable()
+        proc.stop()
 
     def test_end_task(self):
         log_filename = os.path.splitext(os.path.basename(__file__))[0] + '.log'
@@ -119,7 +119,7 @@ class TestMpProxy(unittest.TestCase):
         # print(proc.__dict__)
         self.assertFalse('call_count' in task_proxy.__dict__)
 
-        proc.disable()
+        proc.stop()
 
 if __name__ == '__main__':
     unittest.main()

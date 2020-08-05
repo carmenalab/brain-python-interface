@@ -34,7 +34,7 @@ class FuncProxy(object):
     '''
     Interface for calling functions in remote processes.
     '''
-    def __init__(self, name, pipe, event=None, lock=None):
+    def __init__(self, name, pipe, event, lock, log_filename=''):
         '''
         Constructor for FuncProxy
 
@@ -55,6 +55,21 @@ class FuncProxy(object):
         self.name = name
         self.event = event
         self.lock = lock
+        self.log_filename = log_filename
+
+    def log_error(self, err, mode='a'):
+        if self.log_filename != '':
+            traceback.print_exc(None, err)
+            with open(self.log_filename, mode) as fp:
+                err.seek(0)
+                fp.write(err.read())
+
+    def log_str(self, s, mode="a", newline=True):
+        if self.log_filename != '':
+            if newline and not s.endswith("\n"):
+                s += "\n"
+            with open(self.log_filename, mode) as fp:
+                fp.write(s)
 
     def __call__(self, *args, **kwargs):
         '''
@@ -69,17 +84,30 @@ class FuncProxy(object):
         -------
         function result
         '''
-        if not self.lock is None:
-            self.lock.acquire()
+        self.lock.acquire()
+        self.log_str('lock acquired')
+
+        # block until the remote process unsets the event. Acts as a lock
+        n_ticks = 0
+        while self.event.is_set() and n_ticks < 100:
+            n_ticks += 1
+            time.sleep(0.1)
+
+        if n_ticks >= 100:
+            raise Exception("Out of sync!")
 
         # print("FuncProxy.__call__", self.name, args, kwargs)
-        self.pipe.send((self.name, args, kwargs))
-        if not self.event is None:
-            self.event.set()
-        resp = self.pipe.recv()
 
-        if not self.lock is None:
-            self.lock.release()        
+        self.pipe.send((self.name, args, kwargs))
+        self.event.set()
+        # resp = self.pipe.recv()
+        if self.pipe.poll(10):
+            resp = self.pipe.recv()
+        else:
+            raise Exception("FuncProxy: remote object failed to respond")
+
+        self.lock.release()        
+        self.log_str('lock released') 
         return resp
 
 
@@ -102,10 +130,10 @@ class ObjProxy(PipeWrapper):
 
         if attr in methods:
             self.log_str("returning function proxy for %s" % attr)
-            return FuncProxy(attr, pipe, cmd_event, lock)
+            return FuncProxy(attr, pipe, cmd_event, lock, log_filename=self.log_filename)
         else:
             self.log_str("sending __getattribute__ over pipe")
-            fn_getattr = FuncProxy("__getattribute__", pipe, cmd_event, lock)
+            fn_getattr = FuncProxy("__getattribute__", pipe, cmd_event, lock, log_filename=self.log_filename)
             return fn_getattr(attr)
 
     def set(self, attr, value):
@@ -113,7 +141,7 @@ class ObjProxy(PipeWrapper):
         pipe = object.__getattribute__(self, "pipe")
         cmd_event = object.__getattribute__(self, "cmd_event")        
         lock = object.__getattribute__(self, "lock")
-        setattr_fn = FuncProxy('__setattr__', pipe, cmd_event, lock)
+        setattr_fn = FuncProxy('__setattr__', pipe, cmd_event, lock, log_filename=self.log_filename)
 
         setattr_fn(attr, value)
         self.log_str("Finished setting remote attr %s to %s" % (str(attr), str(value)))
@@ -133,7 +161,6 @@ def call_from_parent(x):
 
 class RPCProcess(mp.Process):
     """mp.Process which implements remote procedure call (RPC) through a mp.Pipe object"""
-    proxy = ObjProxy
     def __init__(self, target_class=object, target_kwargs=dict(), log_filename=''):
         super().__init__()
         self.cmd_pipe = None
@@ -157,7 +184,7 @@ class RPCProcess(mp.Process):
         """ Redirect attribute access to the target object if the 
         attribute can't be found in the process wrapper """
         try:
-            if self.target_proxy is not None:
+            if self.target_proxy is not None and self.status.value > 0:
                 try:
                     return getattr(self.target_proxy, attr)
                 except:
@@ -207,7 +234,7 @@ class RPCProcess(mp.Process):
         self.cmd_pipe, pipe_end2 = mp.Pipe()
         self.data_pipe, data_pipe2 = mp.Pipe()
 
-        self.target_proxy = self.proxy(self.target_class, pipe=pipe_end2, 
+        self.target_proxy = ObjProxy(self.target_class, pipe=pipe_end2, 
             log_filename=self.log_filename, cmd_event=self.cmd_event)
         self.data_proxy = DataPipe(data_pipe2)
         super().start()
@@ -225,12 +252,14 @@ class RPCProcess(mp.Process):
 
     def __del__(self):
         '''Stop the process when the object is destructed'''
-        self.stop()
+        if self.status.value > 0:
+            self.stop()
 
     def is_cmd_present(self):
         return self.cmd_event.is_set()
 
     def clear_cmd(self):
+        self.log_str("clearing")
         self.cmd_event.clear()
 
     @call_from_remote
@@ -268,6 +297,7 @@ class RPCProcess(mp.Process):
             ret_status, msg = 1, err.read()
         finally:
             self.target_destr(ret_status, msg)
+            self.status.value = -1
 
     @call_from_remote
     def proc_rpc_command(self):
