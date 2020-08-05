@@ -16,7 +16,7 @@ class DataSink(RPCProcess):
         if self.data_pipe.poll(0.001):
             system, data = self.data_pipe.recv()
             self.target.send(system, data)
-    
+
     def target_destr(self, ret_status, msg):
         self.target.close()
         print("ended datasink")
@@ -24,14 +24,14 @@ class DataSink(RPCProcess):
     def send(self, system, data):
         '''
         Send data to the sink system running in the remote process
-    
+
         Parameters
         ----------
         system : string
-            Name of system (source) from which the data originated 
+            Name of system (source) from which the data originated
         data : object
             Arbitrary data. The remote sink should know how to handle the data
-    
+
         Returns
         -------
         None
@@ -44,38 +44,30 @@ class SinkManager(singleton.Singleton):
     __instance = None
     ''' Data Sink manager singleton to be used by features '''
     def __init__(self):
-        '''
-        Constructor for SinkManager
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        SinkManager instance
-        '''
+        '''Don't call this constructor directly. Use SinkManager.get_instance()'''
         super().__init__()
         self.reset()
 
     def reset(self):
         self.sinks = []
         self.sources = []
-        self.registrations = dict()        
+        self.registrations = dict()
 
     def start(self, output, log_filename='', **kwargs):
         '''
-        Create a new sink and register with it all the known sources. 
+        Create a new sink and register with it all the known sources.
 
         Parameters
         ----------
-        output : DATA_TYPE
-            ARG_DESCR
+        output : type
+            Data sink target class
         kwargs : optional kwargs
-            ARG_DESCR
+            arguments passed to the data sink target
 
         Returns
         -------
+        sink : DataSink
+            Newly-created data sink
         '''
         print(("sinkmanager start %s"%output))
         sink = DataSink(target_class=output, target_kwargs=kwargs, log_filename=log_filename)
@@ -84,7 +76,7 @@ class SinkManager(singleton.Singleton):
         for source, dtype in self.sources:
             sink.register(source, dtype)
             self.registrations[sink].add((source, dtype))
-        
+
         self.sinks.append(sink)
         return sink
 
@@ -94,8 +86,8 @@ class SinkManager(singleton.Singleton):
 
         Parameters
         ----------
-        system : source.DataSource, source.MultiChanDataSource, or string 
-            System to register with all the sinks 
+        system : source.DataSource, source.MultiChanDataSource, or string
+            System to register with all the sinks
         dtype : None (deprecated)
             Even if specified, this is overwritten in the 'else:' condition below
 
@@ -106,10 +98,11 @@ class SinkManager(singleton.Singleton):
         if hasattr(system, 'name'):
             name = system.name
         elif isinstance(system, str):
-            name = system 
+            name = system
         else:
             # assume that the system is a class
-            name = system.__module__.split(".")[1]
+            print("Inferring name", system.__module__.split("."), type(system))
+            name = system.__module__.split(".")[-1]
 
         if hasattr(system, 'send_to_sinks_dtype'): # used by source.MultiChanDataSource
             dtype = system.send_to_sinks_dtype
@@ -122,14 +115,14 @@ class SinkManager(singleton.Singleton):
             if (name, dtype) not in self.registrations[s]:
                 self.registrations[s].add((name, dtype))
                 s.register(name, dtype, **kwargs)
-                
+
     def send(self, system, data):
         '''
         Send data from the specified 'system' to all sinks which have been registered
 
         Parameters
         ----------
-        system: string 
+        system: string
             Name of the system sending the data
         data: np.array
             Generic data to be handled by each sink. Can be a record array, e.g., for task data.
@@ -140,7 +133,7 @@ class SinkManager(singleton.Singleton):
         '''
         for s in self.sinks:
             s.send(system, data)
-    
+
     def stop(self):
         '''
         Run the 'stop' method of all the registered sinks
@@ -150,7 +143,7 @@ class SinkManager(singleton.Singleton):
 
     def __iter__(self):
         '''
-        Returns a python iterator to allow looping over all the 
+        Returns a python iterator to allow looping over all the
         registered sinks, e.g., to send them all the same data
         '''
         for s in self.sinks:
@@ -161,15 +154,15 @@ class PrintSink(object):
     '''A null sink which directly prints the received data'''
     def __init__(self):
         print("Starting print sink")
-    
+
     def register(self, name, dtype):
         print(("Registered name %s with dtype %r"%(name, dtype)))
-    
+
     def send(self, system, data):
         print(("Received %s data: \n%r"%(system, data)))
-    
+
     def sendMsg(self, msg):
         print(("### MESSAGE: %s"%msg))
-    
+
     def close(self):
         print("Ended print sink")
