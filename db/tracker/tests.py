@@ -6,6 +6,8 @@ Replace this with more appropriate tests for your application.
 """
 from django.test import TestCase, Client
 import json, time, sys, datetime
+import os
+os.environ['DISPLAY'] = ':0'
 
 from tracker import models
 from tracker import exp_tracker
