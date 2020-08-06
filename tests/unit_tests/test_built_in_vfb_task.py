@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+os.environ['DISPLAY'] = ':0'
 import unittest
 import time
 import tables

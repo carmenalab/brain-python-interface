@@ -1,4 +1,3 @@
-
 '''
 Django config file mostly auto-generated when a django project is created.
 See https://docs.djangoproject.com/en/dev/intro/tutorial01/ for an introduction
@@ -8,10 +7,7 @@ on how to customize this file test
 import os, glob, re
 cwd = os.path.split(os.path.abspath(__file__))[0]
 
-import djcelery
-djcelery.setup_loader()
 # Django settings for db project.
-
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -169,4 +165,4 @@ TEMPLATES = [
 APPEND_SLASH=False
 
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', "testserver"]
+ALLOWED_HOSTS = ['*']# ['127.0.0.1', 'localhost', "testserver", 0.0.0.0]

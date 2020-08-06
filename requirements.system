@@ -1,3 +1,7 @@
 libsdl1.2-dev
 libfreetype6-dev
 python3-pygame
+libatlas-base-dev
+gfortran
+libhdf5-dev
+ufw

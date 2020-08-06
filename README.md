@@ -17,7 +17,7 @@ Code documentation can be found at http://carmenalab.github.io/bmi3d_docs/
 Getting started
 ---------------
 # Dependencies
-## Linux/OS X
+## Ubuntu
 ```bash
 sudo xargs apt-get -y install < requirements.system
 ```
@@ -50,6 +50,7 @@ If successful, you'll see the pygame window pop up looking like a poorly-made vi
 # Setting up the database
 ```bash
 cd db
+touch db.sql 				   # Make empty file for database
 python3 manage.py makemigrations
 python3 manage.py migrate
 python3 manage.py makemigrations tracker
@@ -72,6 +73,19 @@ Once the server is running, open up Chrome and navigate to localhost:8000/setup
 
 # Run a task
 Navigate to http://localhost:8000/exp_log/ in chrome. Then press 'Start new experiment' and run your task. 
+
+# Remote access
+On Ubuntu, use the `ufw` package to open the port that Django is using
+```bash
+sudo ufw allow 8000/tcp
+sudo ufw allow ssh
+sudo ufw enable    # this is needed even if raspi-config enables SSH
+```
+
+Then start the server with 
+```bash
+python3 manage.py runserver 0.0.0.0:8000
+```
 
 
 # Troubleshooting
