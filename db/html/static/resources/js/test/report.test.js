@@ -1,7 +1,13 @@
+// Use "require" only if run from command line
+if (typeof(require) !== 'undefined') {
+    Report = require('../report.js').Report;
+    var $ = require('../report.js').$;
+}
+
 QUnit.test("Report tests", function(assert) {
 	var callback_info = null;
 	var report = new Report(function(info) {callback_info = info});
-	
+
 	// test update of error messages
 	var error_report = {"status":"error", "msg":"Test error message"}
 	report.update(error_report);
@@ -17,8 +23,8 @@ QUnit.test("Report tests", function(assert) {
 	// test update of table stats
 	var stat_report = {"stat1":"things", "stat2":"more things"};
 	report.update(stat_report);
-	var report_table_matches = $("#report_info")[0].innerHTML.endsWith(
-		"<tbody><tr><td>stat1</td><td>things</td></tr><tr><td>stat2</td><td>more things</td></tr></tbody>")
+	var report_table_matches = $("#report_info")[0].innerHTML.includes(
+		"<tr><td>stat1</td><td>things</td></tr><tr><td>stat2</td><td>more things</td></tr>")
 	assert.equal(report_table_matches, true);
 	assert.equal(stat_report, callback_info)
 
@@ -27,5 +33,5 @@ QUnit.test("Report tests", function(assert) {
 	// TODO test hiding of update button
 	report.set_mode("completed");
 
-	report.set_mode("running");	
+	report.set_mode("running");
 });

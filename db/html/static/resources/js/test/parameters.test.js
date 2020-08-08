@@ -1,3 +1,9 @@
+// Use "require" only if run from command line
+if (typeof(require) !== 'undefined') {
+    Parameters = require('../report.js').Parameters;
+    var $ = require('../report.js').$;
+}
+
 QUnit.test("Parameters creation", function( assert ) {
 	  var p = new Parameters();
   	// assert.ok(p.obj.innerHTML == "", "Parameters table starts empty");
@@ -17,7 +23,7 @@ QUnit.test("Parameters creation", function( assert ) {
   	}
   	p.update(data);
 
-  	
+
   	var k = 0;
   	for (var param in data) {
   		assert.equal(p.obj.rows[k].title, data[param]["desc"], "Parameter title " + k + " matches");
@@ -43,6 +49,6 @@ QUnit.test("Parameters creation", function( assert ) {
     assert.equal(param_data["param1"], "11");
 
     // cleanup
-    $(p.obj).remove();  
-    delete p; 
+    $(p.obj).remove();
+    delete p;
 });

@@ -1,5 +1,27 @@
-//////////////// Sequence //////////////////
-////////////////////////////////////////////
+// Use "require" only if run from command line
+if (typeof(require) !== 'undefined') {
+    var jsdom = require('jsdom');
+    const { JSDOM } = jsdom;
+    const dom = new JSDOM(`<fieldset id="sequence">
+        <div id="seqparams" hidden="true">
+            Parameters
+        </div>
+
+        <select id="seqlist" name="seq_name">
+            <option value="new">Create New...</option>
+        </select>
+
+        <select id="seqgen" name="seq_gen"  hidden="true">
+            <option value="gen1">gen1</option>
+            <option value="gen2">gen2</option>
+        </select>
+
+        <input id="seqstatic" type="checkbox" name="seqstatic">
+        <label for="seqstatic">Static</label>
+    </fieldset>`);
+    var document = dom.window.document;
+    var $ = jQuery = require('jquery')(dom.window);
+}
 
 function Sequence() {
     // create a new Parameters object
@@ -10,8 +32,8 @@ function Sequence() {
     $("#seqparams").append(this.params.obj);
 
     this._handle_chgen = function() {
-        $.getJSON("/ajax/gen_info/"+this.value+"/", 
-            {}, 
+        $.getJSON("/ajax/gen_info/"+this.value+"/",
+            {},
             function(info) {
                 params.update(info.params);
             }
@@ -20,10 +42,10 @@ function Sequence() {
     $("#seqgen").change(this._handle_chgen);
 
     $("#seqparams").click(
-        // if you click on the parameters table and the drop-down list of 
+        // if you click on the parameters table and the drop-down list of
         // available sequences (not generators) is enabled, then enable editing
         function() {
-            if ($("#seqlist").attr("disabled") != "disabled") 
+            if ($("#seqlist").attr("disabled") != "disabled")
                 this.edit();
         }.bind(this)
     );
@@ -43,8 +65,8 @@ Sequence.prototype.seqlist_type = function() {
 }
 
 /* Update the Sequence fieldset
- * 
- */ 
+ *
+ */
 Sequence.prototype.update = function(info) {
     if (info === undefined) {
         return;
@@ -59,7 +81,7 @@ Sequence.prototype.update = function(info) {
 
     // make sure seqlist is a 'select'
     this.seqlist_make_default_list();
-    
+
     // populate the list of available sequences already in the database
     this.options = {};
     var opt, id;
@@ -91,7 +113,7 @@ Sequence.prototype.update = function(info) {
                 seq_obj.params.update(info[id].params);
 
                 // disable editing in the table
-                $("#seqparams input").attr("disabled", "disabled");  
+                $("#seqparams input").attr("disabled", "disabled");
 
                 // change the value of the generator drop-down list to the generator for this sequence.
                 $('#seqgen').val(info[id].generator[0]);
@@ -114,7 +136,7 @@ Sequence.prototype.destroy_parameters = function() {
     if (this.params) {
         $(this.params.obj).remove();  // remove the HTML table with the parameters in it
         delete this.params; // delete the JS object
-    }    
+    }
 }
 
 Sequence.prototype.destroy = function() {
@@ -125,7 +147,7 @@ Sequence.prototype.destroy = function() {
     this.destroy_parameters();
     $("#seqlist").unbind("change");
     $("#seqgen").unbind("change");
-    
+
     this.seqlist_make_default_list();
 }
 
@@ -148,11 +170,11 @@ Sequence.prototype.edit = function() {
     var _this = this;
     var curname = this._make_name();
     this.seqlist_make_input_field(curname);
-    
+
     $("#seqgen, #seqparams input, #seqstatic").removeAttr("disabled");
-    
+
     this._handle_setname = function() { $
-        ("#seqlist").attr("value", _this._make_name()); 
+        ("#seqlist").attr("value", _this._make_name());
     };
     this._handle_chgen = function() {
         _this._handle_setname();
@@ -191,7 +213,7 @@ Sequence.prototype.get_data = function() {
         return data;
     } else {
         // running an old sequence, so just send the database ID
-        return parseInt($("#sequence #seqlist").val()); 
+        return parseInt($("#sequence #seqlist").val());
     }
 }
 
@@ -202,7 +224,12 @@ Sequence.prototype.update_available_generators = function(gens) {
         $.each(gens, function(key, value) {
             $('#seqgen')
             .append($('<option>', { value : key })
-            .text(value)); 
+            .text(value));
         });
     }
+}
+
+if (typeof(module) !== 'undefined' && module.exports) {
+  exports.Sequence = Sequence;
+  exports.$ = $;
 }

@@ -1,3 +1,9 @@
+// Use "require" only if run from command line
+if (typeof(require) !== 'undefined') {
+    Features = require('../features.js').Features;
+    var $ = require('../features.js').$;
+}
+
 QUnit.test("Features manipulation", function(assert) {
   var feats = new Features();
   // clear to start
@@ -20,11 +26,11 @@ QUnit.test("Features manipulation", function(assert) {
   // if you disable the features, the callback should not trigger
   feats.disable_entry();
   $("#feat_feature1").trigger("click");
-  assert.equal(feats_callback_var, 2);  
+  assert.equal(feats_callback_var, 2);
 
   feats.unbind_change_callback();
   $("#feat_feature1").trigger("click");
-  assert.equal(feats_callback_var, 2); // no change because disabled and unbound  
+  assert.equal(feats_callback_var, 2); // no change because disabled and unbound
 
   // clear again
   feats.clear();
