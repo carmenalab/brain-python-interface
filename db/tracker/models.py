@@ -19,7 +19,7 @@ import numpy as np
 from riglib import calibrations, experiment
 from config import config
 import importlib
-import subprocess    
+import subprocess
 import traceback
 import imp
 import tables
@@ -34,13 +34,13 @@ def import_by_path(import_path):
     class_name = path_components[-1]
     module = importlib.import_module(module_name)
     cls = getattr(module, class_name)
-    return cls    
+    return cls
 
 class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
     import_path = models.CharField(max_length=200, blank=True, null=True)
-    
+
     def __str__(self):
         if not self.import_path is None and self.import_path != "":
             return "Task[{}]: {}".format(self.name, self.import_path)
@@ -54,12 +54,12 @@ class Task(models.Model):
         if not self.import_path is None and len(self.import_path) > 0:
             return import_by_path(self.import_path)
         else:
-            print(r"Could not find base class for task %s. No import_path provided" % self.name)
+            #print(r"Could not find base class for task %s. No import_path provided" % self.name)
             return experiment.Experiment
-        
+
     def get(self, feats=(), verbose=False):
         if verbose: print("models.Task.get()")
-        
+
         feature_classes = Feature.getall(feats)
         task_cls = self.get_base_class()
 
@@ -81,11 +81,11 @@ class Task(models.Model):
     @staticmethod
     def add_new_task(task_name, class_path):
         """ Add new task to the database
-        
+
         Parameters
         ----------
         task_name : string
-            Human-readable name of task. 
+            Human-readable name of task.
         class_path : string
             Python import path to the class, for example, riglib.experiment.Experiment
         """
@@ -122,7 +122,7 @@ class Task(models.Model):
 
         if values is None:
             values = dict()
-                   
+
         for trait_name in params:
             if params[trait_name]['type'] in ['InstanceFromDB', 'DataFile']:
                 mdl_name, filter_kwargs = params[trait_name]['options']
@@ -135,11 +135,11 @@ class Task(models.Model):
                 params[trait_name]['options'] = [(i.pk, i.path) for i in insts]
 
             if trait_name in values:
-                params[trait_name]['value'] = values[trait_name]                
-        return params                
+                params[trait_name]['value'] = values[trait_name]
+        return params
         # #from namelist import instance_to_model, instance_to_model_filter_kwargs
 
-        
+
         # # Use an ordered dict so that params actually stay in the order they're added, instead of random (hash) order
         # params = OrderedDict()
 
@@ -176,8 +176,8 @@ class Task(models.Model):
         #     elif trait_params['type'] == 'Instance':
         #         raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
 
-        #     # if the trait is an enumeration, look in the 'Exp' class for 
-        #     # the options because for some reason the trait itself can't 
+        #     # if the trait is an enumeration, look in the 'Exp' class for
+        #     # the options because for some reason the trait itself can't
         #     # store the available options (at least at the time this was written..)
         #     elif trait_params['type'] == "Enum":
         #         raise ValueError("You should use the 'OptionsList' trait instead of the 'Enum' trait!")
@@ -189,7 +189,7 @@ class Task(models.Model):
         #         # look up database records which match the model type & filter parameters
         #         filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
         #         insts = DataFile.objects.filter(**filter_kwargs).order_by("-date")
-        #         trait_params['options'] = [(i.pk, i.path) for i in insts]                
+        #         trait_params['options'] = [(i.pk, i.path) for i in insts]
 
         #     params[trait_name] = trait_params
 
@@ -219,12 +219,12 @@ class Task(models.Model):
             try:
                 seqs[s.id] = s.to_json()
             except:
-                print('Sequence cannot be Accessed: ', s.id) 
+                print('Sequence cannot be Accessed: ', s.id)
         return seqs
 
     def get_generators(self):
         # Supply sequence generators which are declared to be compatible with the selected task class
-        exp_generators = dict() 
+        exp_generators = dict()
         Exp = self.get()
         if hasattr(Exp, 'sequence_generators'):
             for seqgen_name in Exp.sequence_generators:
@@ -233,7 +233,7 @@ class Task(models.Model):
                     exp_generators[g.id] = seqgen_name
                 except:
                     print("missing generator %s" % seqgen_name)
-        return exp_generators        
+        return exp_generators
 
 def can_be_int(x):
     try:
@@ -246,7 +246,7 @@ class Feature(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(blank=True, default=True)
     import_path = models.CharField(max_length=200, blank=True, null=True)
-    
+
     def __str__(self):
         return "Feature[{}]".format(self.name)
     def __repr__(self):
@@ -259,7 +259,7 @@ class Feature(models.Model):
             return feature_cls.__doc__
         else:
             return ''
-    
+
     def get(self, update_builtin=False):
         from features import built_in_features
         if self.import_path is not None:
@@ -271,7 +271,7 @@ class Feature(models.Model):
                 self.save()
                 return import_by_path(self.import_path)
             else:
-                print("Feature %s import path not found, but found a default" % self.name)
+                #print("Feature %s import path not found, but found a default" % self.name)
                 return import_by_path(import_path)
         else:
             print("Feature %s has no import_path" % self.name)
@@ -291,7 +291,7 @@ class Feature(models.Model):
                 feat_cls = Feature.objects.get(name=feat).get()
             else:
                 print("Cannot find feature: ", feat)
-            
+
             feature_class_list.append(feat_cls)
         return feature_class_list
 
@@ -342,8 +342,8 @@ class System(models.Model):
             obj_name = filename.rstrip('.pkl')
 
         df = DataFile()
-        df.path = filename 
-        df.system = self 
+        df.path = filename
+        df.system = self
         df.entry_id = entry_id
         df.save()
 
@@ -377,7 +377,7 @@ class Generator(models.Model):
             except:
                 # if a task is not importable, then it cannot have any detectable generators
                 continue
-                
+
             if hasattr(task_cls, 'sequence_generators'):
                 generator_function_names = task_cls.sequence_generators
                 gen_fns = [getattr(task_cls, x) for x in generator_function_names]
@@ -391,8 +391,8 @@ class Generator(models.Model):
         generators = dict()
         for fn_name, fn in zip(generator_names, generator_functions):
             generators[fn_name] = fn
-        return generators        
-    
+        return generators
+
     def get(self):
         '''
         Retrieve the function that can be used to construct the ..... generator? sequence?
@@ -416,7 +416,7 @@ class Generator(models.Model):
             except TypeError:
                 args = inspect.getargspec(generators[name].__init__).args
                 args.remove("self")
-            
+
             # A generator is determined to be static only if it takes an "exp" argument representing the Experiment class
             static = not ("exp" in args)
             if "exp" in args:
@@ -449,7 +449,7 @@ class Generator(models.Model):
         # arginfo = zip(names, defaults)
 
         params = OrderedDict()
-        
+
         for name, default in zip(names, defaults):
             if name == 'exp':
                 continue
@@ -471,7 +471,7 @@ class Sequence(models.Model):
 
     def __str__(self):
         return "Sequence[{}] of type Generator[{}]".format(self.name, self.generator.name)
-    
+
     def __repr__(self):
         return self.__str__()
 
@@ -483,7 +483,7 @@ class Sequence(models.Model):
             if len(self.sequence) > 0:
                 return generate.runseq, dict(seq=pickle.loads(str(self.sequence)))
             else:
-                return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))            
+                return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))
         else:
             return self.generator.get(), Parameters(self.params).params
 
@@ -510,7 +510,7 @@ class Sequence(models.Model):
             return seq
         except:
             pass
-        
+
         # Make sure 'js' is a python dictionary
         if not isinstance(js, dict):
             js = json.loads(js)
@@ -519,7 +519,7 @@ class Sequence(models.Model):
         genid = js['generator']
         if isinstance(genid, (tuple, list)):
             genid = genid[0]
-        
+
         # Construct the database record for the new Sequence object
         seq = cls(generator_id=int(genid), name=js['name'])
 
@@ -527,7 +527,7 @@ class Sequence(models.Model):
         # Parameters are stored in JSON format in the database
         seq.params = Parameters.from_html(js['params']).to_json()
 
-        # If the sequence is to be static, 
+        # If the sequence is to be static,
         if js['static']:
             print("db.tracker.models.Sequence.from_json: storing static sequence data to database")
             generator_params = Parameters(seq.params).params
@@ -560,13 +560,13 @@ class TaskEntry(models.Model):
     def __repr__(self):
         return self.__str__()
 
-    @property 
+    @property
     def ui_id(self):
         if self.entry_name is not None and self.entry_name != "":
             return "%s (%d)" % (self.entry_name, self.id)
         else:
             return str(self.id)
-    
+
     def get(self, feats=()):
         from .json_param import Parameters
         from riglib import experiment
@@ -616,7 +616,7 @@ class TaskEntry(models.Model):
             df = DataFile.objects.filter(entry=self.id, system=system)
             if len(df) > 0:
                 return df[0].get_path()
-        
+
         if len(self.report) > 0:
             event_log = json.loads(self.report)
             import os, sys, glob, time
@@ -633,7 +633,7 @@ class TaskEntry(models.Model):
 
     def offline_report(self):
         Exp = self.task.get(self.feats.all())
-        
+
         if len(self.report) == 0:
             return dict()
         else:
@@ -664,7 +664,7 @@ class TaskEntry(models.Model):
 
         Exp = self.task.get(self.feats.all())
         from . import exp_tracker
-        tracker = exp_tracker.get()      
+        tracker = exp_tracker.get()
         state = tracker.get_status()#'completed' if self.pk is not None else "new"
 
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
@@ -675,7 +675,7 @@ class TaskEntry(models.Model):
             print('param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params))
 
         # Supply sequence generators which are declared to be compatible with the selected task class
-        exp_generators = dict() 
+        exp_generators = dict()
         if hasattr(Exp, 'sequence_generators'):
             for seqgen_name in Exp.sequence_generators:
                 try:
@@ -692,16 +692,16 @@ class TaskEntry(models.Model):
 
         datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
 
-        ## Add data files linked to this task entry to the web interface. 
+        ## Add data files linked to this task entry to the web interface.
         backup_root = KeyValueStore.get('backup_root', '/None')
-        
+
         js['datafiles'] = dict()
         system_names = set(d.system.name for d in datafiles)
         for name in system_names:
             js['datafiles'][name] = [d.get_path() + ' (backup available: %s)' % d.is_backed_up(backup_root) for d in datafiles if d.system.name == name]
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
-        
+
         # Parse the "report" data and put it into the JS response
         js['report'] = self.offline_report()
 
@@ -732,21 +732,21 @@ class TaskEntry(models.Model):
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print("No plexon file found")
                 js['bmi'] = dict(_neuralinfo=None)
-        
+
         elif recording_sys_make == 'blackrock':
             try:
                 print('skipping .nev conversion')
                 js['bmi'] = dict(_neuralinfo=None)
-                
+
                 # length, units = parse_blackrock_file(self.nev_file, self.nsx_files, self)
-                
+
                 # js['bmi'] = dict(_neuralinfo=dict(
-                #     length=length, 
+                #     length=length,
                 #     units=units,
                 #     name=name,
                 #     is_seed=int(Exp.is_bmi_seed),
                 #     ))
-                      
+
             except (ObjectDoesNotExist, AssertionError, IOError):
                 print("No blackrock files found")
                 js['bmi'] = dict(_neuralinfo=None)
@@ -818,7 +818,7 @@ class TaskEntry(models.Model):
     def nsx_files(self):
         '''Return a list containing the names of the nsx files (there could be more
         than one) associated with the session.
-    
+
         nsx files extensions are .ns1, .ns2, ..., .ns6
         '''
         try:
@@ -843,8 +843,8 @@ class TaskEntry(models.Model):
         '''
         Return a string representing the 'name' of the block. Note that the block
         does not really have a unique name in the current implementation.
-        Thus, the 'name' is a hack this needs to be hacked because the current way of determining a 
-        a filename depends on the number of things in the database, i.e. if 
+        Thus, the 'name' is a hack this needs to be hacked because the current way of determining a
+        a filename depends on the number of things in the database, i.e. if
         after the fact a record is removed, the number might change. read from
         the file instead
         '''
@@ -907,12 +907,12 @@ class Calibration(models.Model):
     params = models.TextField()
 
     def __str__(self):
-        return "{date}:{system} calibration for {subj}".format(date=self.date, 
+        return "{date}:{system} calibration for {subj}".format(date=self.date,
             subj=self.subject.name, system=self.system.name)
 
     def __repr__(self):
         return self.__str__()
-    
+
     def get(self):
         from .json_param import Parameters
         return getattr(calibrations, self.name)(**Parameters(self.params).params)
@@ -920,10 +920,10 @@ class Calibration(models.Model):
 class AutoAlignment(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     name = models.TextField()
-    
+
     def __unicode__(self):
         return "{date}:{name}".format(date=self.date, name=self.name)
-       
+
     def get(self):
         return calibrations.AutoAlign(self.name)
 
@@ -948,10 +948,10 @@ class Decoder(models.Model):
     name = models.CharField(max_length=128)
     entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT)
     path = models.TextField()
-    
+
     def __str__(self):
         return "Decoder[{date}:{name}] trained from {entry}".format(date=self.date, name=self.name, entry=self.entry)
-    
+
     def __repr__(self):
         return self.__str__()
 
@@ -961,10 +961,10 @@ class Decoder(models.Model):
             print("Database path not set up correctly!")
         return data_path
 
-    @property 
+    @property
     def filename(self):
         data_path = self.get_data_path()
-        return os.path.join(data_path, 'decoders', self.path)        
+        return os.path.join(data_path, 'decoders', self.path)
 
     def load(self, db_name=None, **kwargs):
         data_path = self.get_data_path()
@@ -1056,7 +1056,7 @@ def parse_blackrock_file_n2h5(nev_fname, nsx_files):
     fs = 30000.
     nev_length = last_ts / fs
     nsx_lengths = []
-    
+
     if nsx_files is not None:
         nsx_fs = dict()
         nsx_fs['.ns1'] = 500
@@ -1085,33 +1085,33 @@ def parse_blackrock_file_n2h5(nev_fname, nsx_files):
                     last_ts = len(nsx_hdf.get(path).value)
                     fs = nsx_fs[nsx_fname[-4:]]
                     nsx_lengths.append(last_ts / fs)
-                    
+
                     break
 
     length = max([nev_length] + nsx_lengths)
-    return length, units, 
+    return length, units,
 
 def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(96) + 1):
     ''' Method to parse blackrock files using new
-    brpy from blackrock (with some modifications). Files are 
+    brpy from blackrock (with some modifications). Files are
     saved as a ____ file?
-    
+
     # this code goes through the spike_set for each channel in order to:
     #  1) determine the last timestamp in the file
     #  2) create a list of units that had spikes in this file
     '''
     from riglib.blackrock.brpylib import NevFile, NsxFile
 
-    # First parse the NEV file: 
+    # First parse the NEV file:
     if nev_fname is not None:
         nev_hdf_fname = nev_fname + '.hdf'
         if task_entry is not None:
             datafiles = DataFile.objects.using(task_entry._state.db).filter(entry_id=task_entry.id)
             files = [d.get_path() for d in datafiles]
         else:
-            # Guess where the file shoudl be: 
+            # Guess where the file shoudl be:
             files = ['/storage/rawdata/blackrock/'+nev_hdf_fname]
-        
+
         if nev_hdf_fname in files:
             hdf = tables.openFile(nev_hdf_fname)
             n_units = hdf.root.attr[0]['n_units']
@@ -1125,10 +1125,10 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(
             except:
                 print('nev file is not available for opening. Try in a few seconds!')
                 raise Exception
-            
-            # Make HDF file from NEV file # 
+
+            # Make HDF file from NEV file #
             last_ts, units, h5file = make_hdf_spks(spk_data, nev_hdf_fname)
-            
+
             if task_entry is not None:
                 from . import dbq
                 dbq.save_data(nev_hdf_fname, 'blackrock', task_entry.pk, move=False, local=True, custom_suffix='', dbname=task_entry._state.db)
@@ -1144,7 +1144,7 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(
         for nsx_fname in nsx_files:
             nsx_hdf_fname = nsx_fname + '.hdf'
             if not os.path.isfile(nsx_hdf_fname):
-                
+
                 # convert .nsx file to hdf file using Blackrock's n2h5 utility
                 # subprocess.call(['n2h5', nsx_fname, nsx_hdf_fname])
                 nsx_file = NsxFile(nsx_fname)
@@ -1155,7 +1155,7 @@ def parse_blackrock_file(nev_fname, nsx_files, task_entry, nsx_chan = np.arange(
                 # Close the nsx file now that all data is out
                 nsx_file.close()
 
-                # Make HDF file: 
+                # Make HDF file:
                 tmax_cts = make_hdf_cts(cont_data, nsx_hdf_fname, nsx_file)
                 if task_entry is not None:
                     from . import dbq
@@ -1198,7 +1198,7 @@ def make_hdf_spks(data, nev_hdf_fname):
                 trial['TimeStamp'] = ts
                 trial.append()
 
-        #Check for non-zero units: 
+        #Check for non-zero units:
         if len(data['spike_events']['TimeStamps'])>0:
             un = np.unique(data['spike_events']['Classification'][ic])
             for ci in un:
@@ -1225,7 +1225,7 @@ def make_hdf_spks(data, nev_hdf_fname):
 
             ts_chan = ts[dchan-1]
             val_chan = val[dchan-1]
-            
+
             for ii, (tsi, vli) in enumerate(zip(ts_chan, val_chan)):
                 trial = dtab.row
                 trial['TimeStamp'] = tsi
@@ -1236,7 +1236,7 @@ def make_hdf_spks(data, nev_hdf_fname):
     except:
         print('no digital info in nev file ')
 
-    # Adding length / unit info: 
+    # Adding length / unit info:
     tb = h5file.createTable('/', 'attr', mini_attr)
     rw = tb.row
     rw['last_ts'] = last_ts
@@ -1278,7 +1278,7 @@ def make_hdf_cts(data, nsx_hdf_fname, nsx_file):
         c_str = 'channel'+str(c).zfill(5)
         h5file.createGroup('/channel', c_str)
         h5file.createArray('/channel/'+c_str, 'Value', channel_data)
-    
+
     t = data['start_time_s'] + np.arange(data['data'].shape[1]) / data['samp_per_s']
     h5file.createArray('/channel', 'TimeStamp', t)
     #h5file.createArray('/channel', 'ElectrodeLabels', np.hstack((channel_labels)))
@@ -1301,7 +1301,7 @@ class continuous_set(tables.IsDescription):
     TimeStamp = tables.Int32Col()
     Value = tables.Int16Col()
 
-class mini_attr(tables.IsDescription): 
+class mini_attr(tables.IsDescription):
     last_ts = tables.Float64Col()
     units = tables.Int16Col(shape=(500, 2))
     n_units = tables.Int16Col()
@@ -1364,7 +1364,7 @@ class DataFile(models.Model):
         text_file2 = open("self.archive.txt", "w")
         text_file2.write("self.archive: %s" % self.archive)
         text_file2.close()
-        
+
         paths = self.system.archive.split()
         text_file2 = open("paths.txt", "w")
         text_file2.write("paths: %s" % paths)
@@ -1410,7 +1410,7 @@ class DataFile(models.Model):
         except:
             return False
 
-    @property 
+    @property
     def file_size(self):
         try:
             path = self.get_path()
@@ -1473,7 +1473,7 @@ class KeyValueStore(models.Model):
             traceback.print_exc()
             return default
 
-    @classmethod 
+    @classmethod
     def set(cls, key, value):
         matching_recs = cls.objects.filter(key=key)
         if len(matching_recs) == 0:

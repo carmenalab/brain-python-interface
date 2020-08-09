@@ -63,15 +63,18 @@ class TargetCaptureVFB2DWindow(TargetCaptureVisualFeedback, WindowDispl2D):
     def _start_wait(self):
         self.wait_time = 0.
         super(TargetCaptureVFB2DWindow, self)._start_wait()
-        
+
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
 
     @classmethod
     def get_desc(cls, params, report):
-        duration = report[-1][-1] - report[0][-1]
-        reward_count = 0
-        for item in report:
-            if item[0] == "reward":
-                reward_count += 1
-        return "{} rewarded trials in {} min".format(reward_count, int(np.ceil(duration / 60)))
+        if report is not None and len(report) > 0:
+            duration = report[-1][-1] - report[0][-1]
+            reward_count = 0
+            for item in report:
+                if item[0] == "reward":
+                    reward_count += 1
+            return "{} rewarded trials in {} min".format(reward_count, int(np.ceil(duration / 60)))
+        else:
+            return "No trials"

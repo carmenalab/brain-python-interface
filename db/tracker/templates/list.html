@@ -27,7 +27,7 @@
   $(document).ready(function() {
     $("table#main tr").each(function() {
       // Register a click callback for each row of the 'main' table
-      // If you click on the very top row, the id is set to "newentry" 
+      // If you click on the very top row, the id is set to "newentry"
       // so it knows to create a "blank" TaskEntry
       // Otherwise, the row will have an 'id' of format 'row\d\d\d\d'
       $(this).click(function() {
@@ -51,16 +51,16 @@
       function () {
         if (this.checked) {
           console.log("Showing task entry " + te.idx);
-          $.get("ajax/show_entry/"+te.idx, 
-            {}, 
+          $.get("ajax/show_entry/"+te.idx,
+            {},
             function() {
               $("#row" + te.idx).css('background-color', 'white');
             }
-          );          
+          );
         } else {
           console.log("Hiding task entry " + te.idx);
-          $.get("ajax/hide_entry/"+te.idx, 
-            {}, 
+          $.get("ajax/hide_entry/"+te.idx,
+            {},
             function() {
               $("#row" + te.idx).css('background-color', 'gray');
               te.destroy();
@@ -80,11 +80,16 @@
       }
     );
 
+    // these are wrapped in a function because 'te' is null to start
+    $("#startbtn").click(function() { te.start();});
+    $("#testbtn").click(function() { te.test();});
+    $("#stopbtn").click(function() { te.stop();});
+    $("#saverecbtn").click(function() { te.saverec();});
     // these all function as form submit buttons for the experiment form
-    $("#startbtn").click(function() {return te.start();})
-    $("#testbtn").click(function() {return te.test();})
-    $("#stopbtn").click(function() {return te.stop();})
-    $("#saverecbtn").click(function() {return te.saverec();})
+    //$("#startbtn").click(function() { te.start();})
+    //$("#testbtn").click(function() { te.test();})
+    //$("#stopbtn").click(function() { te.stop();})
+    //$("#saverecbtn").click(function() { te.saverec();})
     // $("#pausebtn").click(function() { taskaction = "pause"; return te["pause"]();})
 
     $("#toggle_table").change(
@@ -111,12 +116,12 @@
                 // visible ('v')
                 console.log('changing TE visibility');
                 te.toggle_visible();
-            } else if (event.keyCode == 66) { 
+            } else if (event.keyCode == 66) {
                 // backup ('b')
                 console.log('changing TE backup flag');
                 te.toggle_backup();
             } else if(event.keyCode == 37) {
-                // left 
+                // left
                 var prev_table_row = $('#row' + te.idx).prev();
                 var prev_table_row_id = prev_table_row.attr('id');
                 if (!(prev_table_row_id == "newentry")) {
@@ -248,7 +253,7 @@
 
           <div id="stop_buttons">
             <input id="stopbtn" class="btn startbtn" type="submit" value="Stop Experiment">
-          </div>         
+          </div>
 
           <div class="clear"></div>
 
@@ -307,7 +312,7 @@
               </fieldset> <!-- sequence -->
 
               <fieldset id="parameters">
-                <input id="show_params" type="checkbox" checked="off" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?   
+                <input id="show_params" type="checkbox" checked="off" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?
                 <legend>Parameters</legend>
                 <!-- <table id="params_table">
                 </table> -->
@@ -326,7 +331,7 @@
                     <pre id="stdout"></pre>
                   </div>
 
-                  
+
                   <div class="clear"></div>
                 </div>
               </fieldset>
@@ -336,7 +341,7 @@
                 <div id="annot_div">
                   Misc. annotation: <input type="text" id="misc_annotation" width="20"><input type="button" value="Save" onclick="record_annotation($('#misc_annotation').val())"><br>
                 </div>
-              </fieldset>             
+              </fieldset>
 
               <fieldset id="notes">
                 <legend>Notes</legend>
@@ -374,7 +379,7 @@
                           </select><br>
                           Data<br>
                           <textarea rows="10" cols="50" id="new_file_raw_data">
-                          </textarea>                          
+                          </textarea>
                         </td>
                     </table>
 
@@ -389,7 +394,7 @@
 
                     <div id="file_modal_server_resp"></div>
                     <br>
-                    
+
                     <button id="submit_files_to_link" onclick="te.link_new_files();">Add file</button>
                   </div>
 
@@ -505,7 +510,7 @@
                                   {% endfor %}
                               </select>
                           </td>
-                      </tr>  
+                      </tr>
                       <!-- Select whether to zscore data or not -->
                       <tr>
                           <td>
@@ -518,7 +523,7 @@
                                   {% endfor %}
                               </select>
                           </td>
-                      </tr>        
+                      </tr>
                       <!-- Slider for specifying the time range of the block to use for training the decoder-->
                       <tr>
                           <td id='tselect' colspan='2'>
@@ -574,7 +579,7 @@
                           <td colspan='3'><textarea id='channelnames'></textarea>
                           </td>
                       </tr>
-                  </table> 
+                  </table>
               </fieldset> <!-- BMI -->
 
 

@@ -64,7 +64,6 @@ Report.prototype.update = function(info) {
     } else if (info.status && info.status == "stdout") {
         this.stdout.append(info.msg);
     } else {
-        console.log("adding to report table..");
         for (var stat in info) {
             if (!this.boxes[stat]) { // if we haven't already made a table row for this stat
                 if (!stat.match("status|task|subj|date|idx")) { // if this is not one of the stats we ignore because it's reported elsewhere

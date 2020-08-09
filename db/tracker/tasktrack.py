@@ -1,5 +1,5 @@
 '''
-Web browser GUI-launched tasks run in a separate process. This module provides 
+Web browser GUI-launched tasks run in a separate process. This module provides
 mechanisms for interacting withe the task running in another process, e.g.,
 calling functions to start/stop the task, enabling/disabling decoder adaptation, etc.
 '''
@@ -12,7 +12,6 @@ import multiprocessing as mp
 import collections
 
 from riglib import experiment, singleton
-# from riglib.mp_proxy import FuncProxy, ObjProxy, RPCProcess2
 
 from . import websocket
 
@@ -45,7 +44,7 @@ class Track(singleton.Singleton):
     '''
     Tracker for task instantiation running in a separate process. This is a singleton.
     '''
-    __instance = None 
+    __instance = None
     def __init__(self, use_websock=use_websock):
         super().__init__()
         # shared memory to store the status of the task in a char array
@@ -55,8 +54,10 @@ class Track(singleton.Singleton):
         self.proc = None
         # self.init_pipe()
         if use_websock:
+            print("Starting websocket...")
             self.websock = websocket.Server(self.notify)
         else:
+            print("Not using websocket!")
             self.websock = None
 
     # def init_pipe(self):
@@ -74,14 +75,14 @@ class Track(singleton.Singleton):
         # self.init_pipe()
 
         if None in feats:
-            raise ValueError("Features not found properly in database!")        
+            raise ValueError("Features not found properly in database!")
 
         # initialize task status
         # self.status.value = b"testing" if 'saveid' in kwargs else b"running"
-        self.status.value = b"running" if 'saveid' in kwargs else b"testing" 
+        self.status.value = b"running" if 'saveid' in kwargs else b"testing"
 
         # create a proxy for interacting with attributes/functions of the task.
-        # The task runs in a separate process and we cannot directly access python 
+        # The task runs in a separate process and we cannot directly access python
         # attributes of objects in other processes
         # self.task_proxy = TaskObjProxy(self.tracker_end_of_pipe, log_filename)
 
@@ -93,15 +94,15 @@ class Track(singleton.Singleton):
             kwargs['seq_params'] = kwargs['seq'].params
             kwargs['seq'] = kwargs['seq'].get()  ## retreive the database data on this end of the pipe
 
-        use_websock = not (self.websock is None)        
+        use_websock = not (self.websock is None)
         if use_websock:
             feats.insert(0, websocket.NotifyFeat)
             kwargs['params']['websock'] = self.websock
             kwargs['params']['tracker_status'] = self.status
-        
+
         # kwargs['params']['tracker_end_of_pipe'] = tracker_end_of_pipe
-        
-        task_class = experiment.make(base_class, feats=feats)        
+
+        task_class = experiment.make(base_class, feats=feats)
 
         # process parameters
         params = kwargs['params']
@@ -115,7 +116,7 @@ class Track(singleton.Singleton):
         params = params.params # dict
         kwargs.pop('params', None)
 
-        
+
         # self.task_args = args
         # self.task_kwargs = kwargs
 
@@ -130,10 +131,10 @@ class Track(singleton.Singleton):
 
         # self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
         # self.proc.start()
-        
+
     def __del__(self):
         '''
-        Destructor for Track object. Not sure if this function ever gets called 
+        Destructor for Track object. Not sure if this function ever gets called
         since Track is a singleton created upon import of the db.tracker.ajax module...
         '''
         if self.websock is not None:
@@ -164,7 +165,7 @@ class Track(singleton.Singleton):
     def reset(self):
         self.task_proxy = None
         # self.task_kwargs = {}
-        # self.task_args = ()        
+        # self.task_args = ()
 
     def get_status(self):
         return self.status.value.decode("utf-8")
