@@ -15,7 +15,7 @@ def test_reward_system():
 
 def cailbrate_reward():
     board.digital[13].write(1) 
-    time.sleep(72) # it takes around 126 seconds to drain 200 ml of fluid 
+    time.sleep(72) # it takes around 72 seconds to drain 200 ml of fluid - Flow rate: 2.8 mL/s
     board.digital[13].write(0)
     print('Check the breaker for calibration. You should notice 200 ml of fluid')
 
