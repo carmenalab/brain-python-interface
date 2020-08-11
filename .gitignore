@@ -43,5 +43,6 @@ riglib/fsm/fsm.egg-info/*
 env/*
 tests/*.mat
 tests/*.hdf
+tests/unit_tests/htmlcov
 *.h5
 *.dot
