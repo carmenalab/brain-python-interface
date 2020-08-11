@@ -15,6 +15,7 @@ class System(object):
     rece_byte_size = 512
     debug = True
     optitrack_ip_addr = "10.155.206.1"
+    TIME_OUT_TIME = 2
 
 
     rigidBodyCount = 1
@@ -32,7 +33,7 @@ class System(object):
                 #set up the socket
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        
+        self.s.settimeout(self.TIME_OUT_TIME)
   
         print("connecting to the c# server")
         '''
@@ -76,9 +77,12 @@ class System(object):
         result_string = self.send_and_receive(msg)
         motive_frame = np.fromstring(result_string, sep=',')
         current_value = motive_frame[:6] #only using the motion data
+        current_value.transpose()
+
 
         #for some weird reason, the string needs to be expanded..
         #just send the motion data for now
+        current_value = np.expand_dims(current_value, axis = 0)
         current_value = np.expand_dims(current_value, axis = 0)
         return current_value
         
@@ -116,5 +120,7 @@ class Simulation(System):
 if __name__ == "__main__":
     s = System()
     s.start()
-    print(s.get())
+    s.send_command("start_rec")
+    time.sleep(5)
     s.stop()
+    print("finished")

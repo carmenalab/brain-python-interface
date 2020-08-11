@@ -1,4 +1,4 @@
-from .NatNetClient import NatNetClient as TestClient
+from riglib.optitrack_client.NatNetClient import NatNetClient as TestClient
 import numpy as np
 from multiprocessing import Process,Lock
 import pickle
@@ -62,8 +62,9 @@ class System(object):
         #return the latest saved data
         if (not current_value is None) and (not rotation_value is None):
             pos_rot = np.concatenate((np.asarray(current_value),np.asarray(rotation_value)))
-            
+        
         pos_rot = np.expand_dims(pos_rot, axis = 0)
+        print(pos_rot.shape)
         return pos_rot #return that (x,y,z, rotation matrix)
 
 class Simulation(System):
@@ -79,3 +80,8 @@ class Simulation(System):
         current_value = np.expand_dims(current_value, axis = 0)
         return current_value
         
+
+if __name__ == "__main__":
+    s = System()
+    s.start()
+    s.get()

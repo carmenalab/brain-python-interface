@@ -43,7 +43,7 @@ class CursorControl(ManualControlMulti, WindowDispl2D):
         super(CursorControl, self)._cycle()
 
     def move_effector(self):
-        self.scale_factor = 50
+        self.scale_factor = 0.1
 
         if isinstance(self, MotionSimulate):
             self.scale_factor = 1
@@ -146,12 +146,12 @@ if __name__ == "__main__":
 
     #incorporate the saveHDF feature by blending code
     #see tests\start_From_cmd_line_sim
-    from features.optitrack_feature import MotionSimulate
+    from features.optitrack_feature import MotionData
     from features.hdf_features import SaveHDF
 
     
     base_class = CursorControl
-    feats = [MotionSimulate, SaveHDF]
+    feats = [MotionData, SaveHDF]
     Exp = experiment.make(base_class, feats=feats)
     print(Exp)
 

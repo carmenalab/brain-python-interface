@@ -1,4 +1,4 @@
-from riglib.optitrack_client.optitrack_interface import System
+from riglib.optitrack_client.optitrack_direct_pack import System
 import time
 
 num_length  = 10
