@@ -381,6 +381,26 @@ class StateSpaceEndptPos1D(StateSpace):
         if not hasattr(self, 'w'):
             self.w = 7
 
+class StateSpaceEndptPos3D(StateSpace):
+    ''' StateSpace for 3D pos control'''
+    def __init__(self, **kwargs):
+        self.states = [
+            State('hand_px', stochastic=False, drives_obs=True, min_val=-10e6, max_val=10e6, order=0),
+            State('hand_py', stochastic=False, drives_obs=True, min_val=-10e6, max_val=10e6, order=0),
+            State('hand_pz', stochastic=False, drives_obs=True, min_val=-10e6, max_val=10e6, order=0)
+        ]
+            
+    def __setstate__(self, state):
+        self.__dict__ = state
+        if not hasattr(self, 'Delta'):
+            self.Delta = 0.1
+
+        if not hasattr(self, 'vel_decay'):
+            self.vel_decay = 0.8
+
+        if not hasattr(self, 'w'):
+            self.w = 7
+
 ############################
 ##### Helper functions #####
 ############################

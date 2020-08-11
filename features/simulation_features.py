@@ -223,6 +223,20 @@ class SimCosineTunedEnc(SimNeuralEnc):
             n_subbins=self.decoder.n_subbins, units=self.decoder.units, task=self)
         self._add_feature_extractor_dtype()
 
+class SimNormCosineTunedEnc(SimNeuralEnc):
+
+    def _init_neural_encoder(self):
+        from riglib.bmi.sim_neurons import NormalizedCosEnc
+        self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, return_ts=False, DT=0.1, call_ds_rate=1)
+    
+    def create_feature_extractor(self):
+        '''
+        Create the feature extractor object
+        '''
+        self.extractor = extractor.SimDirectObsExtractor(self.fb_ctrl, self.encoder, 
+            n_subbins=self.decoder.n_subbins, units=self.decoder.units, task=self)
+        self._add_feature_extractor_dtype()
+
 class SimFAEnc(SimCosineTunedEnc):
     def __init__(self, *args, **kwargs):
         self.FACosEnc_kwargs = kwargs.pop('SimFAEnc_kwargs', dict())

@@ -744,8 +744,7 @@ class SimDirectObsExtractor(SimBinnedSpikeCountsExtractor):
     '''
     def __call__(self, start_time, *args, **kwargs):
         y_t = self.get_spike_ts(*args, **kwargs)
-        return dict(spike_counts=y_t)
-
+        return dict(spike_counts=np.reshape(y_t, (len(self.units),self.n_subbins)))
 
 
 #############################################

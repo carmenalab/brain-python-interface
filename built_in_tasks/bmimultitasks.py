@@ -26,7 +26,7 @@ from riglib.stereo_opengl.window import WindowDispl2D
 from riglib.stereo_opengl.primitives import Line
 
 
-from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain, StateSpaceEndptPos3D
 
 
 from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
@@ -238,7 +238,7 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ManualControlMulti):
 
         if isinstance(self.decoder.ssm, StateSpaceEndptVel2D) and isinstance(self.decoder, ppfdecoder.PPFDecoder):
             self.assister = OFCEndpointAssister()
-        elif isinstance(self.decoder.ssm, StateSpaceEndptVel2D):
+        elif isinstance(self.decoder.ssm, StateSpaceEndptVel2D) or isinstance(self.decoder.ssm, StateSpaceEndptPos3D):
             self.assister = SimpleEndpointAssister(**kwargs)
         ## elif (self.decoder.ssm == namelist.tentacle_2D_state_space) or (self.decoder.ssm == namelist.joint_2D_state_space):
         ##     # kin_chain = self.plant.kin_chain
@@ -256,6 +256,8 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ManualControlMulti):
 
     def create_goal_calculator(self):
         if isinstance(self.decoder.ssm, StateSpaceEndptVel2D):
+            self.goal_calculator = goal_calculators.ZeroVelocityGoal(self.decoder.ssm)
+        elif isinstance(self.decoder.ssm, StateSpaceEndptPos3D):
             self.goal_calculator = goal_calculators.ZeroVelocityGoal(self.decoder.ssm)
         elif isinstance(self.decoder.ssm, StateSpaceNLinkPlanarChain) and self.decoder.ssm.n_links == 2:
             self.goal_calculator = goal_calculators.PlanarMultiLinkJointGoal(self.decoder.ssm, self.plant.base_loc, self.plant.kin_chain, multiproc=False, init_resp=None)
@@ -479,32 +481,24 @@ class BaselineControl(BMIControlMulti):
 #########################
 ######## Simulation tasks
 #########################
-from features.simulation_features import SimKalmanEnc, SimKFDecoderSup, SimCosineTunedEnc
-from riglib.bmi.feedback_controllers import LQRController
-class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
+from features.simulation_features import SimKalmanEnc, SimKFDecoderSup, SimCosineTunedEnc, SimNormCosineTunedEnc
+from riglib.bmi.feedback_controllers import LQRController, PosFeedbackController
+class SimBMIControlMulti(BMIControlMulti2DWindow):
     win_res = (250, 140)
-    sequence_generators = ['sim_target_seq_generator_multi']
+    sequence_generators = ManualControlMulti.sequence_generators + ['sim_target_seq_generator_multi']
     def __init__(self, *args, **kwargs):
         from riglib.bmi.state_space_models import StateSpaceEndptVel2D
-        ssm = StateSpaceEndptVel2D()
         
         if 'sim_C'  in kwargs:
             self.sim_C = kwargs['sim_C']
+        else:
+            raise Exception("Need sim_C")
         if 'assist_level' in kwargs:
             self.assist_level = kwargs['assist_level']
-
-        
-
-        A, B, W = ssm.get_ssm_matrices()
-
-        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
-        R = 10000*np.mat(np.diag([1., 1., 1.]))
-        self.fb_ctrl = LQRController(A, B, Q, R)
-
-        self.ssm = ssm
+        else:
+            self.assist_level = (0, 0)
 
         super(SimBMIControlMulti, self).__init__(*args, **kwargs)
-
 
     def _start_wait(self):
         self.wait_time = 0.
@@ -514,7 +508,7 @@ class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
         return ts > self.wait_time and not self.pause
 
     @staticmethod
-    def sim_target_seq_generator_multi(n_targs, n_trials):
+    def sim_target_seq_generator_multi(n_targs=8, n_trials=8):
         '''
         Simulated generator for simulations of the BMIControlMulti and CLDAControlMulti tasks
         '''
@@ -527,4 +521,57 @@ class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
         for k in range(n_trials):
             targ = targets[target_inds[k], :]
             yield np.array([[center[0], 0, center[1]],
-                            [targ[0], 0, targ[1]]])        
+                            [targ[0], 0, targ[1]]])       
+
+class SimBMICosEncKFDec(SimCosineTunedEnc, SimKFDecoderSup, SimBMIControlMulti):
+    def __init__(self, *args, **kwargs):
+        N_NEURONS = 4
+        N_STATES = 7  # 3 positions and 3 velocities and an offset
+        
+        # build the observation matrix
+        sim_C = np.zeros((N_NEURONS, N_STATES))
+        # control x positive directions
+        sim_C[0, :] = np.array([0, 0, 0, 1, 0, 0, 0])
+        sim_C[1, :] = np.array([0, 0, 0, -1, 0, 0, 0])
+        # control z positive directions
+        sim_C[2, :] = np.array([0, 0, 0, 0, 0, 1, 0])
+        sim_C[3, :] = np.array([0, 0, 0, 0, 0, -1, 0])
+        
+        kwargs['sim_C'] = sim_C
+
+        ssm = StateSpaceEndptVel2D()
+        A, B, W = ssm.get_ssm_matrices()
+        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
+        R = 10000*np.mat(np.diag([1., 1., 1.]))
+        self.fb_ctrl = LQRController(A, B, Q, R)
+        self.ssm = ssm
+
+        super(SimBMICosEncKFDec, self).__init__(*args, **kwargs)
+
+from riglib.bmi.lindecoder import LinearScaleFilter
+from riglib.bmi.bmi import Decoder
+class SimBMICosEncLinDec(SimNormCosineTunedEnc, SimBMIControlMulti):
+    def __init__(self, *args, **kwargs):
+
+        # build the observation matrix
+        sim_C = np.zeros((2, 3))
+        # control x positive directions
+        sim_C[0, :] = np.array([1, 0, 0])
+        sim_C[1, :] = np.array([0, 1, 1])
+
+        kwargs['sim_C'] = sim_C
+        kwargs['assist_level'] = (0, 0) # TODO: implement assister for 3D Pos ssm
+
+        ssm = StateSpaceEndptPos3D()
+        self.fb_ctrl = PosFeedbackController()
+        self.ssm = ssm
+
+        super(SimBMICosEncLinDec, self).__init__(*args, **kwargs)
+        
+    def load_decoder(self):
+        units = self.encoder.get_units()
+        ssm = StateSpaceEndptPos3D()
+        filt = LinearScaleFilter(10000, 6, ssm.n_states, len(units))
+        self.decoder = Decoder(filt, units, ssm, binlen=0.1, subbins=1)
+        self.decoder.n_features = len(units)
+        self.decoder.binlen = 0.1

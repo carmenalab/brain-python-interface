@@ -363,6 +363,34 @@ class FACosEnc(GenericCosEnc):
                 y.append(-1*np.sqrt(r2 - x**2))
         return np.array(y)
 
+class NormalizedCosEnc(GenericCosEnc):
+
+    def __init__(self, bounds, *args, **kwargs):
+        self.min = np.array([bounds[0], bounds[2], bounds[4]])
+        self.range = np.array([bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4]])
+        self.range[self.range == 0] = 1
+        self.gain = 100
+        super(NormalizedCosEnc, self).__init__(*args, **kwargs)
+
+    def gen_spikes(self, next_state, mode=None):
+        """
+        Simulate the spikes    
+        
+        Parameters
+        ----------
+        next_state : np.array of shape (N, 1)
+            The "next state" to be encoded by this population of neurons
+        
+        Returns
+        -------
+        time stamps or counts
+            Either spike time stamps or a vector of unit spike counts is returned, depending on whether the 'return_ts' attribute is True
+
+        """
+        norm_state = np.divide(np.subtract(np.squeeze(next_state), self.min), self.range)
+        rates = np.dot(self.C, norm_state) * self.gain
+        return self.return_spikes(rates, mode=mode)
+
 def from_file_to_FACosEnc(plot=False):
     from riglib.bmi import state_space_models as ssm
     import pickle
