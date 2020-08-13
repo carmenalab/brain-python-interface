@@ -27,6 +27,7 @@ import tempfile
 import shutil
 import importlib
 
+from . import cloud
 
 def import_by_path(import_path):
     path_components = import_path.split(".")
@@ -496,6 +497,12 @@ class Sequence(models.Model):
         js['generator'] = self.generator.id, self.generator.name
         return js
 
+    def to_cloud_json(self):
+        from .json_param import Parameters
+        params = Parameters(self.params).params
+        params['generator_name'] = self.generator.name
+        return params
+
     @classmethod
     def from_json(cls, js):
         '''
@@ -638,7 +645,13 @@ class TaskEntry(models.Model):
             return dict()
         else:
             report = json.loads(self.report)
-            rpt = Exp.offline_report(report)
+            if isinstance(report, list):
+                # old method: calculate from full event log
+                rpt = Exp.offline_report(report)
+            else:
+                # new method: reformat stats
+                rpt = Exp.format_log_summary(report)
+
 
             ## If this is a BMI block, add the decoder name to the report (doesn't show up properly in drop-down menu for old blocks)
             # try:
@@ -881,7 +894,6 @@ class TaskEntry(models.Model):
         record-specific parameters """
         Exp = self.task.get_base_class()
         from . import json_param
-        import json
         params = json_param.Parameters(self.params)
 
         if self.report is not None and len(self.report) > 0:
@@ -897,6 +909,38 @@ class TaskEntry(models.Model):
 
     def get_data_files(self):
         return DataFile.objects.filter(entry_id=self.id)
+
+    def get_cloud_json(self):
+        if self.report is not None and len(self.report) > 0:
+            report_data = json.loads(self.report)
+        else:
+            report_data = dict()
+
+        cloud_data = dict(block_number=self.id, subject=self.subject.name,
+            task=self.task.name, sw_version=self.sw_version)
+
+        cloud_data['date'] = str(self.date)
+        cloud_data['runtime'] = report_data.get('runtime', 'unknown')
+        cloud_data['n_trials'] = report_data.get('n_trials', 'unknown')
+        cloud_data['n_success_trials'] = report_data.get('n_success_trials', 'unknown')
+
+        cloud_data['task_params'] = self.task_params
+        json_data = self.to_json()
+        cloud_data['datafiles'] = json_data['datafiles']
+
+        datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
+        cloud_data['datafiles'] = [d.get_path() for d in datafiles]
+
+        cloud_data['sequence'] = self.sequence.to_cloud_json()
+
+        cloud_data['rig_name'] = KeyValueStore.get('rig_name', 'unknown')
+        return cloud_data
+
+    def upload_to_cloud(self):
+        cloud_data = self.get_cloud_json()
+        cloud.upload_json(cloud_data)
+        print("Finished cloud publish!")
+
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)

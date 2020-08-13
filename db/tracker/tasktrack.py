@@ -50,18 +50,13 @@ class Track(singleton.Singleton):
         # shared memory to store the status of the task in a char array
         self.status = mp.Array('c', 256)
         self.task_proxy = None
-        # self.reset()
         self.proc = None
-        # self.init_pipe()
         if use_websock:
             print("Starting websocket...")
             self.websock = websocket.Server(self.notify)
         else:
             print("Not using websocket!")
             self.websock = None
-
-    # def init_pipe(self):
-    #     self.tracker_end_of_pipe, self.task_end_of_pipe = mp.Pipe()
 
     def notify(self, msg):
         if msg['status'] == "error" or msg['State'] == "stopped":
@@ -72,23 +67,12 @@ class Track(singleton.Singleton):
         Begin running of task
         '''
         log_str("Running new task: \n", mode="w")
-        # self.init_pipe()
 
         if None in feats:
             raise ValueError("Features not found properly in database!")
 
         # initialize task status
-        # self.status.value = b"testing" if 'saveid' in kwargs else b"running"
         self.status.value = b"running" if 'saveid' in kwargs else b"testing"
-
-        # create a proxy for interacting with attributes/functions of the task.
-        # The task runs in a separate process and we cannot directly access python
-        # attributes of objects in other processes
-        # self.task_proxy = TaskObjProxy(self.tracker_end_of_pipe, log_filename)
-
-        # Spawn the process
-        # args = (self.tracker_end_of_pipe, self.task_end_of_pipe, self.websock)
-        print("Track.runtask")
 
         if 'seq' in kwargs:
             kwargs['seq_params'] = kwargs['seq'].params
@@ -100,8 +84,6 @@ class Track(singleton.Singleton):
             kwargs['params']['websock'] = self.websock
             kwargs['params']['tracker_status'] = self.status
 
-        # kwargs['params']['tracker_end_of_pipe'] = tracker_end_of_pipe
-
         task_class = experiment.make(base_class, feats=feats)
 
         # process parameters
@@ -110,27 +92,23 @@ class Track(singleton.Singleton):
             params = Parameters(params)
         elif isinstance(params, dict):
             params = Parameters.from_dict(params)
-
         params.trait_norm(task_class.class_traits())
-
         params = params.params # dict
         kwargs.pop('params', None)
-
-
-        # self.task_args = args
-        # self.task_kwargs = kwargs
 
         log_str("Spawning process...")
         log_str(str(kwargs))
 
+        # Spawn the process
         self.proc = experiment.task_wrapper.TaskWrapper(
             log_filename=log_filename, params=params,
             target_class=task_class, websock=self.websock, status=self.status,
             **kwargs)
-        self.task_proxy, _ = self.proc.start()
 
-        # self.proc = mp.Process(target=remote_runtask, args=args, kwargs=kwargs)
-        # self.proc.start()
+        # create a proxy for interacting with attributes/functions of the task.
+        # The task runs in a separate process and we cannot directly access python
+        # attributes of objects in other processes
+        self.task_proxy, _ = self.proc.start()
 
     def __del__(self):
         '''
@@ -139,9 +117,6 @@ class Track(singleton.Singleton):
         '''
         if self.websock is not None:
             self.websock.stop()
-
-    # def pausetask(self):
-    #     self.status.value = bytes(self.task_proxy.pause())
 
     def stoptask(self):
         '''
@@ -160,12 +135,19 @@ class Track(singleton.Singleton):
         status = self.status.value.decode("utf-8")
         self.status.value = b""
         self.reset()
+
+        # upload metadata to server, if appropriate
+        time.sleep(3)
+        if self.proc.saveid is not None:
+            print("Attempting to save to cloud...")
+            from tracker import models
+            te = models.TaskEntry.objects.get(id=self.proc.saveid)
+            te.upload_to_cloud()
+
         return status
 
     def reset(self):
         self.task_proxy = None
-        # self.task_kwargs = {}
-        # self.task_args = ()
 
     def get_status(self):
         return self.status.value.decode("utf-8")
