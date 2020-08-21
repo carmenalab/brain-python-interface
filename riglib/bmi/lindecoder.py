@@ -11,21 +11,43 @@ class State(object):
 
 class LinearScaleFilter(object):
 
-    def __init__(self, n_counts, window, n_states, n_units):
+    def __init__(self, n_counts, n_states, n_units, map=None, window=1, gain=20):
         '''
-        Parameters:
+        Constructor for LinearScaleFilter
 
-        n_counts How many observations to hold
-        window   How many observations to average
-        n_states How many state space variables are there
-        n_units  Number of neural units
+        Parameters
+        ----------
+        n_counts : Number of observations to hold
+            Range is computed over the whole observation matrix size (N, D) 
+            where N is the number of observations and D is the number of units
+        n_states : How many state variables are there
+            For example, a one-dim decoder has one state variable
+        n_units : Number of neural units
+            Can be number of isolated spiking units or number of channels for lfp
+        map : Which units to assign to which states (default = None)
+            Floating point matrix of size (S, D) where S is the number of 
+            states and D is the number of units, assigning a weight to each pair
+            Sum along each row must equal 1.0
+        window : How many observations to average to smooth output (default = 1)
+        gain : How far to move the plant for a normalized output of 1.0 (default = 20)
+
+        Returns
+        -------
+        LinearScaleFilter instance
         '''
         self.state = State(np.zeros([n_states,1]))
         self.obs = np.zeros((n_counts, n_units))
         self.n_states = n_states
-        self.window = window
         self.n_units = n_units
+        self.window = window
+        self.map = map
+        if map is None:
+            # Generate a default map where one unit controls one state
+            self.map = np.identity(max(n_states, n_units))
+            self.map = np.resize(self.map, (n_states, n_units))
+        self.gain = gain
         self.count = 0
+        self.fixed = False
 
     def _init_state(self):
         pass
@@ -39,27 +61,32 @@ class LinearScaleFilter(object):
     def _normalize(self, obs,**kwargs):
         ''' Function to compute normalized scaling of new observations'''
 
-        self.obs[:-1, :] = self.obs[1:, :]
-        self.obs[-1, :] = np.squeeze(obs)
-        if self.count < len(self.obs): 
-            self.count += 1
+        # Update observation matrix, unless it has been fixed
+        if not self.fixed:
+            self.obs[:-1, :] = self.obs[1:, :]
+            self.obs[-1, :] = np.squeeze(obs)
+            if self.count < len(self.obs): 
+                self.count += 1
 
+        # Normalize latest observation(s)
         m_win = np.squeeze(np.mean(self.obs[-self.window:, :], axis=0))
         m = np.median(self.obs[-self.count:, :], axis=0)
         # range = max(1, np.amax(self.obs[-self.count:, :]) - np.amin(self.obs[-self.count:, :]))
-        range = np.std(self.obs[-self.count:, :], axis=0)*3
+        range = 3 * np.std(self.obs[-self.count:, :], axis=0)
         range[range < 1] = 1
-        x = (m_win - m) / range
-        x = np.squeeze(np.asarray(x)) * 20 # hack for 14x14 cursor
+        x = (m_win - m) / range * self.gain
         
-        # Arrange output
-        if self.n_states == self.n_units:
-            return State(x)
-        elif self.n_states == 3 and self.n_units == 2:
-            mean = np.zeros([self.n_states,1])
-            mean[0] = x[0]
-            mean[2] = x[1]
-            return State(mean)
-        else:
-            raise NotImplementedError()
-    
+        # Arrange output according to map
+        out = np.matmul(self.map, x).reshape(-1,1)
+        return State(out)
+
+    def save_obs(self):
+        raise NotImplementedError()
+
+    def fix_obs(self):
+        self.fixed = True
+
+    def load_and_fix_obs(self, file):
+        raise NotImplementedError()
+        self.count = len(self.obs)
+        self.fix_obs()

@@ -161,6 +161,33 @@ class SimpleEndpointAssister(Assister):
         x_assist = np.mat(x_assist.reshape(-1,1))
         return x_assist
 
+class SimplePosAssister(SimpleEndpointAssister):
+    
+    @staticmethod 
+    def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5, target_radius=2., assist_level=0.):
+        '''
+        Estimate the next state using a constant velocity estimate moving toward the specified target
+
+        Parameters
+        ----------
+        see SimpleEndtpointAssister for docs
+
+        Returns
+        -------
+        x_assist : np.ndarray of shape (7, 1)
+            Control vector to add onto the state vector to assist control.
+        '''
+        diff_vec = target_pos - cursor_pos 
+        dist_to_target = np.linalg.norm(diff_vec)
+        dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+        
+        if dist_to_target > target_radius:
+            assist_cursor_pos = cursor_pos + speed*dir_to_target
+        else:
+            assist_cursor_pos = cursor_pos + speed*diff_vec/2
+
+        return assist_cursor_pos.ravel()
+
 class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
     '''
     Docstring
@@ -238,8 +265,10 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ManualControlMulti):
 
         if isinstance(self.decoder.ssm, StateSpaceEndptVel2D) and isinstance(self.decoder, ppfdecoder.PPFDecoder):
             self.assister = OFCEndpointAssister()
-        elif isinstance(self.decoder.ssm, StateSpaceEndptVel2D) or isinstance(self.decoder.ssm, StateSpaceEndptPos3D):
+        elif isinstance(self.decoder.ssm, StateSpaceEndptVel2D):
             self.assister = SimpleEndpointAssister(**kwargs)
+        elif isinstance(self.decoder.ssm, StateSpaceEndptPos3D):
+            self.assister = SimplePosAssister(**kwargs)
         ## elif (self.decoder.ssm == namelist.tentacle_2D_state_space) or (self.decoder.ssm == namelist.joint_2D_state_space):
         ##     # kin_chain = self.plant.kin_chain
         ##     # A, B, W = self.decoder.ssm.get_ssm_matrices(update_rate=self.decoder.binlen)
@@ -319,12 +348,6 @@ class BMIControlMulti2DWindow(BMIControlMulti, WindowDispl2D):
     fps = 20.
     def __init__(self,*args, **kwargs):
         super(BMIControlMulti2DWindow, self).__init__(*args, **kwargs)
-    
-    def create_assister(self):
-        kwargs = dict(decoder_binlen=self.decoder.binlen, target_radius=self.target_radius)
-        if hasattr(self, 'assist_speed'):
-            kwargs['assist_speed'] = self.assist_speed    
-        self.assister = SimpleEndpointAssister(**kwargs)
     
     def create_goal_calculator(self):
         self.goal_calculator = goal_calculators.ZeroVelocityGoal(self.decoder.ssm)
@@ -481,7 +504,7 @@ class BaselineControl(BMIControlMulti):
 #########################
 ######## Simulation tasks
 #########################
-from features.simulation_features import SimKalmanEnc, SimKFDecoderSup, SimCosineTunedEnc, SimNormCosineTunedEnc
+from features.simulation_features import SimKalmanEnc, SimKFDecoderSup, SimCosineTunedEnc
 from riglib.bmi.feedback_controllers import LQRController, PosFeedbackController
 class SimBMIControlMulti(BMIControlMulti2DWindow):
     win_res = (250, 140)
@@ -548,9 +571,10 @@ class SimBMICosEncKFDec(SimCosineTunedEnc, SimKFDecoderSup, SimBMIControlMulti):
 
         super(SimBMICosEncKFDec, self).__init__(*args, **kwargs)
 
+from features.simulation_features import SimLFPCosineTunedEnc, SimNormCosineTunedEnc
 from riglib.bmi.lindecoder import LinearScaleFilter
 from riglib.bmi.bmi import Decoder
-class SimBMICosEncLinDec(SimNormCosineTunedEnc, SimBMIControlMulti):
+class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
     def __init__(self, *args, **kwargs):
 
         # build the observation matrix
@@ -560,18 +584,23 @@ class SimBMICosEncLinDec(SimNormCosineTunedEnc, SimBMIControlMulti):
         sim_C[1, :] = np.array([0, 1, 1])
 
         kwargs['sim_C'] = sim_C
-        kwargs['assist_level'] = (0, 0) # TODO: implement assister for 3D Pos ssm
+        kwargs['assist_level'] = (0.1, 0.1)
+
+        # make the decoder map
+        self.decoder_map = np.array([[1, 0], [0, 0], [0, 1]]) 
 
         ssm = StateSpaceEndptPos3D()
         self.fb_ctrl = PosFeedbackController()
         self.ssm = ssm
 
         super(SimBMICosEncLinDec, self).__init__(*args, **kwargs)
-        
+
     def load_decoder(self):
         units = self.encoder.get_units()
         ssm = StateSpaceEndptPos3D()
-        filt = LinearScaleFilter(10000, 6, ssm.n_states, len(units))
+        filt_counts = 10000 # number of observations to calculate range
+        filt_window = 1 # number of observations to average for each tick
+        filt_map = self.decoder_map # map from states to units
+        filt = LinearScaleFilter(filt_counts, ssm.n_states, len(units), map=filt_map, window=filt_window, gain=self.fov)
         self.decoder = Decoder(filt, units, ssm, binlen=0.1, subbins=1)
         self.decoder.n_features = len(units)
-        self.decoder.binlen = 0.1

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-Classes to simulate neural activity (spike firing rates) by various methods.
+Classes to simulate neural activity (spike firing rates and lfp) by various methods.
 """
 
 import os
@@ -9,7 +9,6 @@ import numpy as np
 from scipy.io import loadmat
 
 import numpy as np
-from numpy.random import poisson, rand
 from scipy.io import loadmat, savemat
 
 
@@ -133,7 +132,7 @@ class GenericCosEnc(object):
 
     def return_spikes(self, rates, mode=None):
         rates[rates < 0] = 0 # Floor firing rates at 0 Hz
-        counts = poisson(rates * self.DT)
+        counts = np.random.poisson(rates * self.DT)
 
         if np.logical_or(mode=='ts', np.logical_and(mode is None, self.return_ts)):
             ts = []
@@ -352,7 +351,7 @@ class FACosEnc(GenericCosEnc):
 
     def mod_poisson(self, x, dt=0.1):
         x[x<0] = 0
-        return poisson(x*dt)
+        return np.random.poisson(x*dt)
 
     def y2_eq_r2_min_x2(self, x_arr, r2):
         y = []
@@ -364,13 +363,48 @@ class FACosEnc(GenericCosEnc):
         return np.array(y)
 
 class NormalizedCosEnc(GenericCosEnc):
+    '''
+    Generates neural observations (spikes or LFP) based on normalized scaling within the bounds of 
+    the task, instead of DC rectifying the output. Generates simulated spiking or LFP power data
+    '''
 
-    def __init__(self, bounds, *args, **kwargs):
+    def __init__(self, bounds, C, ssm, spike=True, return_ts=False, DT=0.1, tick=1/60, n_bands=1):
+        '''
+        Constructor for NormalizedCosEnc
+
+        Parameters
+        ----------
+        bounds : array of [min_x, max_x, min_y, max_y, min_z, max_z] 
+            Extreme plant coordinates
+        C : np.ndarray of shape (N, K)
+            N is the number of simulated neurons, K is the number of covariates driving neuronal activity. 
+            The product of C and the hidden state vector x should give the intended spike rates in Hz
+        ssm : state_space_models.StateSpace instance
+            ARG_DESCR
+        spike : bool, optional, default=True
+            Determines whether simultated output is spike or LFP data
+        return_ts : bool, optional, default=False
+            If True, fake timestamps are returned for each spike event in the same format 
+            as real spike data would be delivered over the network during a real experiment. 
+            If False, a vector of counts is returned instead. Specify True or False depending on 
+            which type of feature extractor you're using for your simulated task. 
+        DT : float, optional, default=0.1
+            Sampling interval to come up with new spike processes
+        tick : float, optional, default=1/60
+            Refresh rate of main experiment tick
+
+        Returns
+        -------
+        GenericCosEnc instance
+        '''
         self.min = np.array([bounds[0], bounds[2], bounds[4]])
         self.range = np.array([bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4]])
         self.range[self.range == 0] = 1
-        self.gain = 100
-        super(NormalizedCosEnc, self).__init__(*args, **kwargs)
+        self.gain = 10
+        self.spike = spike
+        self.n_bands = n_bands
+        call_ds_rate = DT / tick
+        super(NormalizedCosEnc, self).__init__(C, ssm, return_ts, DT, call_ds_rate)
 
     def gen_spikes(self, next_state, mode=None):
         """
@@ -390,6 +424,56 @@ class NormalizedCosEnc(GenericCosEnc):
         norm_state = np.divide(np.subtract(np.squeeze(next_state), self.min), self.range)
         rates = np.dot(self.C, norm_state) * self.gain
         return self.return_spikes(rates, mode=mode)
+
+    def gen_power(self, next_state, mode=None):
+        """
+        Simulate the LFP powers    
+        
+        Parameters
+        ----------
+        next_state : np.array of shape (N, 1)
+            The "next state" to be encoded by this population of neurons
+        
+        Returns
+        -------
+        powers : np.array of shape (N, P) -> flattened
+            N number of neurons, P number of power bands, determined by n_bands
+        """
+        norm_state = np.divide(np.subtract(np.squeeze(next_state), self.min), self.range)
+        ideal = np.dot(self.C, norm_state) * self.gain
+        # Generate gaussian noise
+        noise = np.random.normal(0, 0, size=(len(ideal), self.n_bands))
+        # Replicate across frequency bands
+        power = np.tile(ideal.reshape((-1,1)), (1, self.n_bands)) + noise
+        return power.reshape(-1,1)
+        
+    def __call__(self, next_state, mode=None):
+        '''
+        See CosEnc.__call__ for docs
+        '''        
+        if self.spike:
+            if self.call_count % self.call_ds_rate == 0:
+                ts_data = self.gen_spikes(next_state, mode=mode)
+
+            else:
+                if self.return_ts:
+                    # return an empty list of time stamps
+                    ts_data = np.array([])
+                else:
+                    # return a vector of 0's
+                    ts_data = np.zeros(self.n_neurons)
+
+            self.call_count += 1
+            return ts_data
+        else:
+            if self.call_count % self.call_ds_rate == 0:
+                lfp_data = self.gen_power(next_state, mode=mode)
+
+            else:
+                lfp_data = np.zeros((self.n_neurons*self.n_bands, 1))
+
+            self.call_count += 1
+            return lfp_data
 
 def from_file_to_FACosEnc(plot=False):
     from riglib.bmi import state_space_models as ssm
