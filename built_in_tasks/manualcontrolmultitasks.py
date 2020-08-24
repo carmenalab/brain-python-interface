@@ -6,7 +6,7 @@ import numpy as np
 from collections import OrderedDict
 import time
 
-from riglib import reward
+from riglib import reward  # This import file corresponds to the Orsborn lab reward system now 
 from riglib.experiment import traits, Sequence
 
 from riglib.stereo_opengl.window import Window, FPScontrol, WindowDispl2D
@@ -97,7 +97,7 @@ class ManualControlMulti(Sequence, Window):
 
 
     # Runtime settable traits
-    reward_time = traits.Float(.5, desc="Length of juice reward")
+    reward_time = traits.Float(.2, desc="Length of juice reward")
     target_radius = traits.Float(2, desc="Radius of targets in cm")
     
     hold_time = traits.Float(.2, desc="Length of hold required at targets")
