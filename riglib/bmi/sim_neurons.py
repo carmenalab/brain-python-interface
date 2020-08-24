@@ -368,7 +368,7 @@ class NormalizedCosEnc(GenericCosEnc):
     the task, instead of DC rectifying the output. Generates simulated spiking or LFP power data
     '''
 
-    def __init__(self, bounds, C, ssm, spike=True, return_ts=False, DT=0.1, tick=1/60, n_bands=1):
+    def __init__(self, bounds, C, ssm, spike=True, return_ts=False, DT=0.1, tick=1/60, n_bands=1, gain=10):
         '''
         Constructor for NormalizedCosEnc
 
@@ -400,9 +400,9 @@ class NormalizedCosEnc(GenericCosEnc):
         self.min = np.array([bounds[0], bounds[2], bounds[4]])
         self.range = np.array([bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4]])
         self.range[self.range == 0] = 1
-        self.gain = 10
         self.spike = spike
         self.n_bands = n_bands
+        self.gain = gain
         call_ds_rate = DT / tick
         super(NormalizedCosEnc, self).__init__(C, ssm, return_ts, DT, call_ds_rate)
 
@@ -441,8 +441,10 @@ class NormalizedCosEnc(GenericCosEnc):
         """
         norm_state = np.divide(np.subtract(np.squeeze(next_state), self.min), self.range)
         ideal = np.dot(self.C, norm_state) * self.gain
+
         # Generate gaussian noise
-        noise = np.random.normal(0, 0, size=(len(ideal), self.n_bands))
+        noise = np.random.normal(0, 0.05 * self.gain, size=(len(ideal), self.n_bands))
+        
         # Replicate across frequency bands
         power = np.tile(ideal.reshape((-1,1)), (1, self.n_bands)) + noise
         return power.reshape(-1,1)

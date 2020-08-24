@@ -37,7 +37,7 @@ class TestLinDec(unittest.TestCase):
     #@unittest.skip('msg')
     def test_experiment(self):
         N_TARGETS = 8
-        N_TRIALS = 2
+        N_TRIALS = 100
         seq = SimBMICosEncLinDec.sim_target_seq_generator_multi(
             N_TARGETS, N_TRIALS)
         base_class = SimBMICosEncLinDec

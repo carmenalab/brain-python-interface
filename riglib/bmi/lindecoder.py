@@ -11,7 +11,7 @@ class State(object):
 
 class LinearScaleFilter(object):
 
-    def __init__(self, n_counts, n_states, n_units, map=None, window=1, gain=20):
+    def __init__(self, n_counts, n_states, n_units, map=None, window=1):
         '''
         Constructor for LinearScaleFilter
 
@@ -27,9 +27,7 @@ class LinearScaleFilter(object):
         map : Which units to assign to which states (default = None)
             Floating point matrix of size (S, D) where S is the number of 
             states and D is the number of units, assigning a weight to each pair
-            Sum along each row must equal 1.0
         window : How many observations to average to smooth output (default = 1)
-        gain : How far to move the plant for a normalized output of 1.0 (default = 20)
 
         Returns
         -------
@@ -42,11 +40,16 @@ class LinearScaleFilter(object):
         self.window = window
         self.map = map
         if map is None:
-            # Generate a default map where one unit controls one state
+            # Generate a default mapping where one unit controls one state
             self.map = np.identity(max(n_states, n_units))
             self.map = np.resize(self.map, (n_states, n_units))
-        self.gain = gain
         self.count = 0
+        self.params = dict(
+            neural_mean = np.zeros(n_units),
+            neural_range = np.ones(n_units),
+            scaling_mean = np.zeros(n_units),
+            scaling_range = np.ones(n_units),
+        )
         self.fixed = False
 
     def _init_state(self):
@@ -55,38 +58,50 @@ class LinearScaleFilter(object):
     def get_mean(self):
         return np.array(self.state.mean).ravel()
 
-    def __call__(self, obs, **kwargs):
+    def __call__(self, obs, **kwargs):                                              # TODO need to pick single frequency band if given more than one
         self.state = self._normalize(obs, **kwargs)
 
     def _normalize(self, obs,**kwargs):
         ''' Function to compute normalized scaling of new observations'''
 
-        # Update observation matrix, unless it has been fixed
-        if not self.fixed:
-            self.obs[:-1, :] = self.obs[1:, :]
-            self.obs[-1, :] = np.squeeze(obs)
-            if self.count < len(self.obs): 
-                self.count += 1
+        # Update observation matrix
+        norm_obs = (obs.ravel() - self.params['neural_mean']) / self.params['neural_range'] # center on zero
+        self.obs[:-1, :] = self.obs[1:, :]
+        self.obs[-1, :] = norm_obs
+        if self.count < len(self.obs): 
+            self.count += 1
 
-        # Normalize latest observation(s)
+        if not self.fixed:
+            self._update_scale_param(obs)
         m_win = np.squeeze(np.mean(self.obs[-self.window:, :], axis=0))
-        m = np.median(self.obs[-self.count:, :], axis=0)
-        # range = max(1, np.amax(self.obs[-self.count:, :]) - np.amin(self.obs[-self.count:, :]))
-        range = 3 * np.std(self.obs[-self.count:, :], axis=0)
-        range[range < 1] = 1
-        x = (m_win - m) / range * self.gain
+        x = (m_win - self.params['scaling_mean']) * self.params['scaling_range']
         
         # Arrange output according to map
         out = np.matmul(self.map, x).reshape(-1,1)
         return State(out)
 
-    def save_obs(self):
-        raise NotImplementedError()
+    def _update_scale_param(self, obs):
+        ''' Function to update the normalization parameters'''
 
-    def fix_obs(self):
+        # Normalize latest observation(s)
+        mean = np.median(self.obs[-self.count:, :], axis=0)
+        # range = max(1, np.amax(self.obs[-self.count:, :]) - np.amin(self.obs[-self.count:, :]))
+        range = 3 * np.std(self.obs[-self.count:, :], axis=0)
+        range[range < 1] = 1
+        self.update_norm_param(scaling_mean=mean, scaling_range=range)
+
+    def update_norm_param(self, neural_mean=None, neural_range=None, scaling_mean=None, scaling_range=None):
+        if neural_mean is not None:
+            self.params.update(neural_mean = neural_mean)
+        if neural_range is not None:
+            self.params.update(neural_range = neural_range)
+        if scaling_mean is not None:
+            self.params.update(scaling_mean = scaling_mean)
+        if scaling_range is not None:
+            self.params.update(scaling_range = scaling_range)
+
+    def fix_norm_param(self):
         self.fixed = True
 
-    def load_and_fix_obs(self, file):
-        raise NotImplementedError()
-        self.count = len(self.obs)
-        self.fix_obs()
+    def get_norm_param(self):
+        return self.params

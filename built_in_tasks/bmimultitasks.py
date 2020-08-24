@@ -581,10 +581,10 @@ class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
         sim_C = np.zeros((2, 3))
         # control x positive directions
         sim_C[0, :] = np.array([1, 0, 0])
-        sim_C[1, :] = np.array([0, 1, 1])
+        sim_C[1, :] = np.array([0, 0, 1])
 
         kwargs['sim_C'] = sim_C
-        kwargs['assist_level'] = (0.1, 0.1)
+        kwargs['assist_level'] = (0, 0)
 
         # make the decoder map
         self.decoder_map = np.array([[1, 0], [0, 0], [0, 1]]) 
@@ -599,8 +599,11 @@ class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
         units = self.encoder.get_units()
         ssm = StateSpaceEndptPos3D()
         filt_counts = 10000 # number of observations to calculate range
-        filt_window = 1 # number of observations to average for each tick
+        filt_window = 3 # number of observations to average for each tick
         filt_map = self.decoder_map # map from states to units
-        filt = LinearScaleFilter(filt_counts, ssm.n_states, len(units), map=filt_map, window=filt_window, gain=self.fov)
+        filt = LinearScaleFilter(filt_counts, ssm.n_states, len(units), map=filt_map, window=filt_window)
+        gain = 2 * np.max(self.plant.endpt_bounds)
+        filt.update_norm_param(neural_mean=[5, 5], neural_range=[10,10], scaling_mean=[0,0], scaling_range=[gain,gain])
+        filt.fix_norm_param()
         self.decoder = Decoder(filt, units, ssm, binlen=0.1, subbins=1)
         self.decoder.n_features = len(units)
