@@ -4,7 +4,7 @@ Classes for BMI decoding using linear scaling.
 import numpy as np
 
 class State(object):
-    '''For compatibility with other BMI decoding implementations, literally just holds the state'''
+    '''For compatibility with other BMI decoding implementations'''
 
     def __init__(self, mean, *args, **kwargs):
         self.mean = mean
@@ -65,7 +65,7 @@ class LinearScaleFilter(object):
         ''' Function to compute normalized scaling of new observations'''
 
         # Update observation matrix
-        norm_obs = (obs.ravel() - self.params['neural_mean']) / self.params['neural_range'] # center on zero
+        norm_obs = (np.squeeze(obs) - self.params['neural_mean']) / self.params['neural_range'] # center on zero
         self.obs[:-1, :] = self.obs[1:, :]
         self.obs[-1, :] = norm_obs
         if self.count < len(self.obs): 
@@ -105,3 +105,26 @@ class LinearScaleFilter(object):
 
     def get_norm_param(self):
         return self.params
+
+class PosVelState(State):
+
+    def __init__(self, vel_control, *args, **kwargs):
+        self.vel_control = vel_control
+        self.mean = np.zeros((7,1))
+
+    def update(self, mean):
+        if self.vel_control:
+            self.mean[3:6] = mean
+            self.mean[0:3] = self.mean[3:6] + self.mean[0:3]
+        else:
+            self.mean = np.zeros((7,1))
+            self.mean[0:3] = mean
+
+class PosVelScaleFilter(LinearScaleFilter):
+    def __init__(self, vel_control, *args, **kwargs):
+        super(PosVelScaleFilter, self).__init__(*args, **kwargs)
+        self.state = PosVelState(vel_control)
+
+    def __call__(self, obs, **kwargs):
+        state = self._normalize(obs, **kwargs)
+        self.state.update(state.mean)

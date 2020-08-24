@@ -572,7 +572,7 @@ class SimBMICosEncKFDec(SimCosineTunedEnc, SimKFDecoderSup, SimBMIControlMulti):
         super(SimBMICosEncKFDec, self).__init__(*args, **kwargs)
 
 from features.simulation_features import SimLFPCosineTunedEnc, SimNormCosineTunedEnc
-from riglib.bmi.lindecoder import LinearScaleFilter
+from riglib.bmi.lindecoder import PosVelScaleFilter
 from riglib.bmi.bmi import Decoder
 class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
     def __init__(self, *args, **kwargs):
@@ -589,7 +589,7 @@ class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
         # make the decoder map
         self.decoder_map = np.array([[1, 0], [0, 0], [0, 1]]) 
 
-        ssm = StateSpaceEndptPos3D()
+        ssm = StateSpaceEndptVel2D()
         self.fb_ctrl = PosFeedbackController()
         self.ssm = ssm
 
@@ -597,13 +597,13 @@ class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
 
     def load_decoder(self):
         units = self.encoder.get_units()
-        ssm = StateSpaceEndptPos3D()
         filt_counts = 10000 # number of observations to calculate range
         filt_window = 3 # number of observations to average for each tick
         filt_map = self.decoder_map # map from states to units
-        filt = LinearScaleFilter(filt_counts, ssm.n_states, len(units), map=filt_map, window=filt_window)
+        vel_control = False
+        filt = PosVelScaleFilter(vel_control, filt_counts, self.ssm.n_states, len(units), map=filt_map, window=filt_window)
         gain = 2 * np.max(self.plant.endpt_bounds)
         filt.update_norm_param(neural_mean=[5, 5], neural_range=[10,10], scaling_mean=[0,0], scaling_range=[gain,gain])
         filt.fix_norm_param()
-        self.decoder = Decoder(filt, units, ssm, binlen=0.1, subbins=1)
+        self.decoder = Decoder(filt, units, self.ssm, binlen=0.1, subbins=1)
         self.decoder.n_features = len(units)

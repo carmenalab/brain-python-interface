@@ -421,7 +421,7 @@ class NormalizedCosEnc(GenericCosEnc):
             Either spike time stamps or a vector of unit spike counts is returned, depending on whether the 'return_ts' attribute is True
 
         """
-        norm_state = np.divide(np.subtract(np.squeeze(next_state), self.min), self.range)
+        norm_state = np.divide(np.subtract(np.squeeze(next_state[0:3]), self.min), self.range)
         rates = np.dot(self.C, norm_state) * self.gain
         return self.return_spikes(rates, mode=mode)
 
@@ -439,7 +439,7 @@ class NormalizedCosEnc(GenericCosEnc):
         powers : np.array of shape (N, P) -> flattened
             N number of neurons, P number of power bands, determined by n_bands
         """
-        norm_state = np.divide(np.subtract(np.squeeze(next_state), self.min), self.range)
+        norm_state = np.divide(np.subtract(np.squeeze(next_state[0:3]), self.min), self.range)
         ideal = np.dot(self.C, norm_state) * self.gain
 
         # Generate gaussian noise
