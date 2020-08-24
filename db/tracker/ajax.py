@@ -373,6 +373,7 @@ def save_notes(request, idx):
 def reward_drain(request, onoff):
     '''
     Start/stop the "drain" of a solenoid reward remotely
+    This function is modified to use the reward system in Orsborn lab - check reward.py for functions
     '''
     from riglib import reward
     r = reward.Basic()
