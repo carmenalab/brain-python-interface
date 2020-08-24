@@ -19,10 +19,10 @@ class Basic(object):
         com_port = '/dev/ttyACM0'  # specify the port, based on windows/Unix, can find it on IDE or terminal
         self.board = pyfirmata.Arduino(com_port)
 
-    def reward(self, reward_time_s):
+    def reward(self, reward_time_s=0.2):
         """Open the solenoid for some length of time. This function does not run the loop infinitely"""
         self.board.digital[13].write(1)  # send a high signal to Pin 13 on the arduino which should be connected to the reward system
-        time.sleep(rewardtime)  # in second
+        time.sleep(reward_time_s)  # in second
         print('ON')
         self.board.digital[13].write(0)
         print('OFF')
