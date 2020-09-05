@@ -228,7 +228,7 @@ class SimNormCosineTunedEnc(SimNeuralEnc):
     def _init_neural_encoder(self):
         from riglib.bmi.sim_neurons import NormalizedCosEnc
         self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, spike=True, return_ts=False, 
-            DT=self.update_rate, tick=self.update_rate)
+            DT=self.update_rate, tick=self.update_rate, gain=self.fov)
     
     def create_feature_extractor(self):
         '''
@@ -245,7 +245,7 @@ class SimLFPCosineTunedEnc(SimNeuralEnc):
     def _init_neural_encoder(self):
         from riglib.bmi.sim_neurons import NormalizedCosEnc
         self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, spike=False, return_ts=False, 
-            DT=self.update_rate, tick=self.update_rate, n_bands=len(self.bands))
+            DT=self.update_rate, tick=self.update_rate, n_bands=len(self.bands), gain=self.fov)
     
     def create_feature_extractor(self):
         '''

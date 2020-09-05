@@ -26,7 +26,7 @@ from riglib.stereo_opengl.window import WindowDispl2D
 from riglib.stereo_opengl.primitives import Line
 
 
-from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain, StateSpaceEndptPos3D
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
 
 from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
@@ -267,8 +267,6 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ManualControlMulti):
             self.assister = OFCEndpointAssister()
         elif isinstance(self.decoder.ssm, StateSpaceEndptVel2D):
             self.assister = SimpleEndpointAssister(**kwargs)
-        elif isinstance(self.decoder.ssm, StateSpaceEndptPos3D):
-            self.assister = SimplePosAssister(**kwargs)
         ## elif (self.decoder.ssm == namelist.tentacle_2D_state_space) or (self.decoder.ssm == namelist.joint_2D_state_space):
         ##     # kin_chain = self.plant.kin_chain
         ##     # A, B, W = self.decoder.ssm.get_ssm_matrices(update_rate=self.decoder.binlen)
@@ -285,8 +283,6 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ManualControlMulti):
 
     def create_goal_calculator(self):
         if isinstance(self.decoder.ssm, StateSpaceEndptVel2D):
-            self.goal_calculator = goal_calculators.ZeroVelocityGoal(self.decoder.ssm)
-        elif isinstance(self.decoder.ssm, StateSpaceEndptPos3D):
             self.goal_calculator = goal_calculators.ZeroVelocityGoal(self.decoder.ssm)
         elif isinstance(self.decoder.ssm, StateSpaceNLinkPlanarChain) and self.decoder.ssm.n_links == 2:
             self.goal_calculator = goal_calculators.PlanarMultiLinkJointGoal(self.decoder.ssm, self.plant.base_loc, self.plant.kin_chain, multiproc=False, init_resp=None)
@@ -508,7 +504,7 @@ from features.simulation_features import SimKalmanEnc, SimKFDecoderSup, SimCosin
 from riglib.bmi.feedback_controllers import LQRController, PosFeedbackController
 class SimBMIControlMulti(BMIControlMulti2DWindow):
     win_res = (250, 140)
-    sequence_generators = ManualControlMulti.sequence_generators + ['sim_target_seq_generator_multi']
+    sequence_generators = ManualControlMulti.sequence_generators + ['sim_target_seq_generator_multi', 'sim_target_no_center']
     def __init__(self, *args, **kwargs):
         from riglib.bmi.state_space_models import StateSpaceEndptVel2D
         
@@ -546,6 +542,20 @@ class SimBMIControlMulti(BMIControlMulti2DWindow):
             yield np.array([[center[0], 0, center[1]],
                             [targ[0], 0, targ[1]]])       
 
+    @staticmethod
+    def sim_target_no_center(n_targs=8, n_trials=8):
+        '''
+        Simulated generator for simulations of the BMIControlMulti and CLDAControlMulti tasks
+        '''
+        pi = np.pi
+        targets = 8*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
+
+        target_inds = np.random.randint(0, n_targs, n_trials)
+        target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
+        for k in range(n_trials):
+            targ = targets[target_inds[k], :]
+            yield np.array([[targ[0], 0, targ[1]]])       
+
 class SimBMICosEncKFDec(SimCosineTunedEnc, SimKFDecoderSup, SimBMIControlMulti):
     def __init__(self, *args, **kwargs):
         N_NEURONS = 4
@@ -577,33 +587,73 @@ from riglib.bmi.bmi import Decoder
 class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
     def __init__(self, *args, **kwargs):
 
-        # build the observation matrix
-        sim_C = np.zeros((2, 3))
-        # control x positive directions
-        sim_C[0, :] = np.array([1, 0, 0])
-        sim_C[1, :] = np.array([0, 0, 1])
+        ssm = StateSpaceEndptVel2D()
 
+        # build the observation matrix
+        sim_C = np.zeros((2, 7))
+
+        # control x and z position
+        sim_C[0, :] = np.array([1, 0, 0, 0, 0, 0, 0])
+        sim_C[1, :] = np.array([0, 0, 1, 0, 0, 0, 0])
+        self.vel_control = False
+        self.fb_ctrl = PosFeedbackController()
+
+        # map neurons (2) to states (7) using C
+        self.decoder_map = sim_C.T
+        self.ssm = ssm
         kwargs['sim_C'] = sim_C
         kwargs['assist_level'] = (0, 0)
 
-        # make the decoder map
-        self.decoder_map = np.array([[1, 0], [0, 0], [0, 1]]) 
-
-        ssm = StateSpaceEndptVel2D()
-        self.fb_ctrl = PosFeedbackController()
-        self.ssm = ssm
-
         super(SimBMICosEncLinDec, self).__init__(*args, **kwargs)
+
+    def init(self, *args, **kwargs):
+        self.max_attempts = 1
+        self.timeout_time = 1
+        super(SimBMICosEncLinDec, self).init(*args, **kwargs)
 
     def load_decoder(self):
         units = self.encoder.get_units()
         filt_counts = 10000 # number of observations to calculate range
-        filt_window = 3 # number of observations to average for each tick
+        filt_window = 1 # number of observations to average for each tick
         filt_map = self.decoder_map # map from states to units
-        vel_control = False
-        filt = PosVelScaleFilter(vel_control, filt_counts, self.ssm.n_states, len(units), map=filt_map, window=filt_window)
-        gain = 2 * np.max(self.plant.endpt_bounds)
-        filt.update_norm_param(neural_mean=[5, 5], neural_range=[10,10], scaling_mean=[0,0], scaling_range=[gain,gain])
-        filt.fix_norm_param()
-        self.decoder = Decoder(filt, units, self.ssm, binlen=0.1, subbins=1)
+        filt = PosVelScaleFilter(self.vel_control, filt_counts, self.ssm.n_states, \
+                                 len(units), map=filt_map, window=filt_window, call_rate=self.fps, 
+                                 plant_gain=2*np.max(self.plant.endpt_bounds))
+
+        # supply some known good attributes
+        neural_gain = self.fov
+        scaling_gain = 1
+        filt.update_norm_attr(neural_mean=[neural_gain/2, neural_gain/2], neural_std=[neural_gain,neural_gain], \
+                              scaling_mean=[0,0], scaling_std=[scaling_gain,scaling_gain])
+        filt.fix_norm_attr()
+
+        # or allow decoder to figure it out
+        # neural_gain = self.fov * 1.1
+        # filt.update_norm_attr(neural_mean=[neural_gain/2, neural_gain/2], neural_std=[neural_gain,neural_gain])
+         
+        self.decoder = Decoder(filt, units, self.ssm, binlen=0.1, subbins=1, call_rate=self.fps)
         self.decoder.n_features = len(units)
+
+class SimBMIVelocityLinDec(SimBMICosEncLinDec):
+    def __init__(self, *args, **kwargs):
+
+        ssm = StateSpaceEndptVel2D()
+
+        # control x and z velocity
+        sim_C = np.zeros((2, 7))
+        sim_C[0, :] = np.array([0, 0, 0, 1, 0, 0, 0])
+        sim_C[1, :] = np.array([0, 0, 0, 0, 0, 1, 0])
+        self.vel_control = True
+        A, B, W = ssm.get_ssm_matrices()        
+        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
+        R = 10000*np.mat(np.diag([1., 1., 1.]))
+        self.fb_ctrl = LQRController(A, B, Q, R)
+
+        # map neurons (2) to states (7) using C
+        self.decoder_map = sim_C.T
+        self.ssm = ssm
+        kwargs['sim_C'] = sim_C
+        kwargs['assist_level'] = (0, 0)
+
+        super(SimBMICosEncLinDec, self).__init__(*args, **kwargs)
+        

@@ -651,11 +651,11 @@ class ReplaySpikeCountsExtractor(BinnedSpikeCountsExtractor):
         self.idx += 1 
         return output
 
-class ReplayLFPPowerExtractor(BinnedSpikeCountsExtractor):
+class ReplayLFPPowerExtractor(LFPMTMPowerExtractor):
     '''
     A "feature extractor" that replays LFP power estimates from an HDF file
     '''
-    feature_type = 'lfp_power'
+
     def __init__(self, hdf_table, source='lfp_power'):
         '''    
         Constructor for ReplayLFPPowerExtractor
@@ -682,7 +682,7 @@ class ReplayLFPPowerExtractor(BinnedSpikeCountsExtractor):
 
     def __call__(self, *args, **kwargs):
         '''    
-        See BinnedSpikeCountsExtractor.__call__ for documentation
+        See LFPMTMPowerExtractor.__call__ for documentation
         '''
         output = self.hdf_table[self.idx][self.source]
         self.idx += 1 

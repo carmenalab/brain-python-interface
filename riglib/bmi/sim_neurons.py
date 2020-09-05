@@ -362,6 +362,7 @@ class FACosEnc(GenericCosEnc):
                 y.append(-1*np.sqrt(r2 - x**2))
         return np.array(y)
 
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D
 class NormalizedCosEnc(GenericCosEnc):
     '''
     Generates neural observations (spikes or LFP) based on normalized scaling within the bounds of 
@@ -406,56 +407,60 @@ class NormalizedCosEnc(GenericCosEnc):
         call_ds_rate = DT / tick
         super(NormalizedCosEnc, self).__init__(C, ssm, return_ts, DT, call_ds_rate)
 
-    def gen_spikes(self, next_state, mode=None):
+    def gen_spikes(self, rates, mode=None):
         """
         Simulate the spikes    
         
         Parameters
         ----------
-        next_state : np.array of shape (N, 1)
-            The "next state" to be encoded by this population of neurons
-        
+        rates : np.array of shape (N, 1)
+
         Returns
         -------
         time stamps or counts
             Either spike time stamps or a vector of unit spike counts is returned, depending on whether the 'return_ts' attribute is True
 
         """
-        norm_state = np.divide(np.subtract(np.squeeze(next_state[0:3]), self.min), self.range)
-        rates = np.dot(self.C, norm_state) * self.gain
         return self.return_spikes(rates, mode=mode)
 
-    def gen_power(self, next_state, mode=None):
+    def gen_power(self, ideal, mode=None):
         """
-        Simulate the LFP powers    
+        Simulate the LFP powers by adding gaussian noise to ideal powers 
         
         Parameters
         ----------
-        next_state : np.array of shape (N, 1)
-            The "next state" to be encoded by this population of neurons
+        ideal : np.array of shape (N, 1)
         
         Returns
         -------
         powers : np.array of shape (N, P) -> flattened
             N number of neurons, P number of power bands, determined by n_bands
         """
-        norm_state = np.divide(np.subtract(np.squeeze(next_state[0:3]), self.min), self.range)
-        ideal = np.dot(self.C, norm_state) * self.gain
 
         # Generate gaussian noise
-        noise = np.random.normal(0, 0.05 * self.gain, size=(len(ideal), self.n_bands))
+        noise = np.random.normal(0, 0.02 * self.gain, size=(len(ideal), self.n_bands))
         
         # Replicate across frequency bands
         power = np.tile(ideal.reshape((-1,1)), (1, self.n_bands)) + noise
         return power.reshape(-1,1)
-        
+
     def __call__(self, next_state, mode=None):
         '''
         See CosEnc.__call__ for docs
-        '''        
+        '''    
+        next_state = np.squeeze(np.asarray(next_state))
+
+        if isinstance(self.ssm, StateSpaceEndptVel2D):
+            norm_pos = np.divide(np.subtract(next_state[0:3], self.min), self.range)
+            norm_vel = np.divide(np.subtract(next_state[3:6], self.min), self.range)
+            out = np.dot(self.C, [norm_pos[0], norm_pos[1], norm_pos[2], norm_vel[0], norm_vel[1], norm_vel[2], 0]) * self.gain
+        else:
+            raise NotImplementedError()
+        
+
         if self.spike:
             if self.call_count % self.call_ds_rate == 0:
-                ts_data = self.gen_spikes(next_state, mode=mode)
+                ts_data = self.gen_spikes(out, mode=mode)
 
             else:
                 if self.return_ts:
@@ -469,7 +474,7 @@ class NormalizedCosEnc(GenericCosEnc):
             return ts_data
         else:
             if self.call_count % self.call_ds_rate == 0:
-                lfp_data = self.gen_power(next_state, mode=mode)
+                lfp_data = self.gen_power(out, mode=mode)
 
             else:
                 lfp_data = np.zeros((self.n_neurons*self.n_bands, 1))

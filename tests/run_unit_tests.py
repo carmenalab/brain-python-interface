@@ -3,8 +3,8 @@ import unittest, os
 from tests.test_decoders import TestLinDec
 from tests.test_features import TestKeyboardControl, TestMouseControl
 test_classes = [
-    #TestLinDec,
-    #TestKeyboardControl,
+    TestLinDec,
+    TestKeyboardControl,
     TestMouseControl,
 ]
  
