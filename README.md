@@ -87,6 +87,19 @@ Then start the server with
 python3 manage.py runserver 0.0.0.0:8000
 ```
 
+# Remote access
+On Ubuntu, use the `ufw` package to open the port that Django is using
+```bash
+sudo ufw allow 8000/tcp
+sudo ufw allow ssh
+sudo ufw enable    # this is needed even if raspi-config enables SSH
+```
+
+Then start the server with 
+```bash
+python3 manage.py runserver 0.0.0.0:8000
+```
+
 
 # Troubleshooting
 This package has a lot of dependencies which makes installation somewhat brittle due to versions of different dependencies not getting along.
