@@ -1,3 +1,12 @@
+// Use "require" only if run from command line
+if (typeof(require) !== 'undefined') {
+    var jsdom = require('jsdom');
+    const { JSDOM } = jsdom;
+    const dom = new JSDOM(``);
+    var document = dom.window.document;
+    var $ = jQuery = require('jquery')(dom.window);
+}
+
 function Parameters() {
     this.obj = document.createElement("table");
     this.traits = {};
@@ -51,7 +60,7 @@ Parameters.prototype.update = function(desc) {
     for (var name in desc) {
         if (funcs[desc[name]['type']]) {// if there is a recognized constructor function for the trait type,
             var fn = funcs[desc[name]['type']].bind(this);
-            fn(name, desc[name]); // call the function 
+            fn(name, desc[name]); // call the function
         }
         else
             console.log(desc[name]['type']);
@@ -77,7 +86,7 @@ Parameters.prototype.show_all_attrs = function() {
     for (var k in this.hidden_inputs) {
         var input = this.hidden_inputs[k];
         input.style.visibility = vis;
-    }        
+    }
 }
 /*
 Function to add an attribute row and label where the 'visibility' attribute of the label can be toggled
@@ -98,11 +107,11 @@ Parameters.prototype.add_to_table = function(name, info) {
     if (label_text != undefined) {
         label.innerHTML = label_text;
     } else {
-        label.innerHTML = name;    
+        label.innerHTML = name;
     }
-    
+
     label.setAttribute("for", "param_"+name);
-    
+
     td.appendChild(label);
 
     // label.style.visibility = hidden;
@@ -361,4 +370,9 @@ Parameters.prototype.to_json = function(get_all) {
         }
     }
     return jsdata;
+}
+
+if (typeof(module) !== 'undefined' && module.exports) {
+  exports.Parameters = Parameters;
+  exports.$ = $;
 }

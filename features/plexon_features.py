@@ -30,7 +30,8 @@ class RelayPlexon(object):
         Prior to starting the task, this 'init' sets up the NIDAQ card as a sink
         '''
         from riglib import sink
-        self.nidaq = sink.sinks.start(self.ni_out)
+        sink_manager = sink.SinkManager.get_instance()
+        self.nidaq = sink_manager.start(self.ni_out)
         super(RelayPlexon, self).init()
 
         # Find all the plexon files modified in the last day

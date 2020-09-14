@@ -9,7 +9,7 @@ import numpy as np
 import fnmatch
 import os, sys
 import subprocess
-from riglib import calibrations, bmi
+from riglib import calibrations, bmi, sink
 from riglib.bmi import extractor
 from riglib.experiment import traits
 import hdfwriter
@@ -24,21 +24,16 @@ class SaveHDF(object):
         Secondary init function. See riglib.experiment.Experiment.init()
         Prior to starting the task, this 'init' starts an HDFWriter sink.
         '''
-        from riglib import sink
-        self.sinks = sink.sinks
         self.h5file = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
         self.h5file.flush()
         self.h5file.close()
-        self.hdf = sink.sinks.start(self.sink_class, filename=self.h5file.name)
+
+        sink_manager = sink.SinkManager.get_instance()
+        self.hdf = sink_manager.start(hdfwriter.HDFWriter, filename=self.h5file.name, log_filename=os.path.join(os.path.dirname(__file__), '../log/hdf_sink.log'))
+
+        self.h5file_name = self.h5file.name
 
         super(SaveHDF, self).init()    
-
-    @property
-    def sink_class(self):
-        '''
-        Specify the sink class as a function in case future descendant classes want to use a different type of sink
-        '''
-        return hdfwriter.HDFWriter
 
     def run(self):
         '''

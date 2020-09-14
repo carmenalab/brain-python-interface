@@ -31,6 +31,7 @@ class MockDataSourceSystem2(MockDataSourceSystem):
 class MockDataSourceSystem3(MockDataSourceSystem):
     delay_for_get = 0.0
 
+
 class TestDataSourceSystem(unittest.TestCase):
     @swreq(req_source)
     def test_basic_data_source_get(self):
@@ -107,7 +108,7 @@ class TestDataSourceSystem(unittest.TestCase):
         del src            
 
     def test_rpc(self):
-        src = source.DataSource(MockDataSourceSystem, send_data_to_sink_manager=False)
+        src = source.DataSource(MockDataSourceSystem, send_data_to_sink_manager=False, log_filename='test_riglib_source.log')
         src.start()
 
         self.assertEqual(src.procedure(), 42)

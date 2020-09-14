@@ -6,9 +6,11 @@ Replace this with more appropriate tests for your application.
 """
 from django.test import TestCase, Client
 import json, time, sys, datetime
+import os
+os.environ['DISPLAY'] = ':0'
 
 from tracker import models
-from tracker import exp_tracker
+from tracker import tasktrack
 from tracker import views
 # import psutil
 
@@ -56,7 +58,7 @@ class TestModels(TestCase):
     def test_add_new_task_to_table(self):
         c = Client()
 
-        post_data = {"name": "test_add_new_task_to_table", 
+        post_data = {"name": "test_add_new_task_to_table",
             "import_path": "riglib.experiment.LogExperiment"}
         resp = c.post("/setup/add/new_task", post_data)
 
@@ -66,7 +68,7 @@ class TestModels(TestCase):
 
     def test_add_new_feature_to_table(self):
         c = Client()
-        post_data = {"name": "saveHDF", 
+        post_data = {"name": "saveHDF",
             "import_path": "features.hdf_features.SaveHDF"}
         resp = c.post("/setup/add/new_feature", post_data)
 
@@ -100,7 +102,7 @@ class TestModels(TestCase):
         self.assertEqual(feat.get(), SaveHDF)
 
         feat.delete()
-        self.assertEqual(len(models.Feature.objects.all()), 0)        
+        self.assertEqual(len(models.Feature.objects.all()), 0)
 
     def test_add_new_task_no_features(self):
         task = models.Task(name="test_task", import_path="riglib.experiment.LogExperiment")
@@ -234,7 +236,7 @@ class TestVisualFeedbackTask(TestCase):
         te.save()
 
         from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
-        
+
         seq, seq_params = seq_rec.get()
         # seq = TargetCaptureVFB2DWindow.centerout_2D_discrete()
 
@@ -247,12 +249,14 @@ class TestVisualFeedbackTask(TestCase):
         params.trait_norm(Task.class_traits())
 
 
+        from features import Autostart
+
         saveid = te.id
-        task_start_data = dict(subj=subj.id, base_class=base_class, feats=[],
+        task_start_data = dict(subj=subj.id, base_class=base_class, feats=[Autostart],
                       params=dict(window_size=(480, 240)), seq=seq_rec, seq_params=seq_params,
                       saveid=saveid)
 
-        tracker = exp_tracker.get()
+        tracker = Track.get_instance()
         tracker.runtask(**task_start_data)
 
 
@@ -262,13 +266,13 @@ class TestTaskStartStop(TestCase):
         subj.save()
 
         task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
-        task.save()        
+        task.save()
 
         task_start_data = dict(subj=subj.id, base_class=task.get_base_class(), feats=[],
                       params=dict())
 
         # task_start_data = dict(subj=1, task=1, feats=dict(), params=dict(), sequence=None)
-        tracker = exp_tracker.get()
+        tracker = Track.get_instance()
         tracker.runtask(**task_start_data)
 
         time.sleep(5)
@@ -281,7 +285,7 @@ class TestTaskStartStop(TestCase):
         subj.save()
 
         task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
-        task.save()        
+        task.save()
 
         task_start_data = dict(subject=1, task=1, feats=dict(), params=dict(), sequence=None)
 
@@ -291,13 +295,13 @@ class TestTaskStartStop(TestCase):
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
 
-        tracker = exp_tracker.get()
+        tracker = Track.get_instance()
         self.assertTrue(tracker.task_running())
 
         # check the 'state' of the task
         self.assertEqual(tracker.task_proxy.get_state(), "wait")
 
-        # update report stats 
+        # update report stats
         tracker.task_proxy.update_report_stats()
 
         # access report stats
@@ -306,7 +310,7 @@ class TestTaskStartStop(TestCase):
 
         time.sleep(2)
         stop_resp = c.post("/exp_log/stop/")
-        
+
         time.sleep(2)
         self.assertFalse(tracker.task_running())
 
@@ -330,13 +334,13 @@ class TestTaskStartStop(TestCase):
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
 
-        tracker = exp_tracker.get()
+        tracker = Track.get_instance()
         self.assertTrue(tracker.task_running())
 
         # check the 'state' of the task
         self.assertEqual(tracker.task_proxy.get_state(), "wait")
 
-        # update report stats 
+        # update report stats
         tracker.task_proxy.update_report_stats()
 
         # access report stats
@@ -345,7 +349,7 @@ class TestTaskStartStop(TestCase):
 
         time.sleep(2)
         stop_resp = c.post("/exp_log/stop/")
-        
+
         time.sleep(2)
         self.assertFalse(tracker.task_running())
 
@@ -364,7 +368,7 @@ class TestTaskAnnotation(TestCase):
         feat = models.Feature(name="saveHDF", import_path="features.hdf_features.SaveHDF")
         feat.save()
 
-        task_start_data = dict(subject=1, task=1, feats={"saveHDF":"saveHDF"}, params=dict(), 
+        task_start_data = dict(subject=1, task=1, feats={"saveHDF":"saveHDF"}, params=dict(),
             sequence=dict(generator=1, name="seq1", params=dict(n_targets=1000), static=False))
 
         post_data = {"data": json.dumps(task_start_data)}
@@ -373,7 +377,7 @@ class TestTaskAnnotation(TestCase):
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
 
-        tracker = exp_tracker.get()
+        tracker = Track.get_instance()
         h5file = tracker.task_proxy.get_h5_filename()
         self.assertTrue(tracker.task_running())
 
@@ -382,7 +386,7 @@ class TestTaskAnnotation(TestCase):
 
         time.sleep(2)
         stop_resp = c.post("/exp_log/stop/")
-        
+
         time.sleep(2)
         self.assertFalse(tracker.task_running())
 
@@ -401,8 +405,8 @@ class TestParamCast(TestCase):
         t1 = json_param.norm_trait(t, 1.0)
         self.assertEqual(t1, 1.0)
 
-        self.assertRaises(Exception, json_param.norm_trait, t, '1.0')        
-        
+        self.assertRaises(Exception, json_param.norm_trait, t, '1.0')
+
 
 
 class TestWebsocket(TestCase):

@@ -1,24 +1,20 @@
 '''
-Handlers for AJAX (Javascript) functions used in the web interface to start 
+Handlers for AJAX (Javascript) functions used in the web interface to start
 experiments and train BMI decoders
 '''
 import json, datetime
-
+import logging
+import io, traceback
 import numpy as np
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from riglib import experiment
-
 from .json_param import Parameters
-
 from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
+from .tasktrack import Track
 import trainbmi
-import logging
-import io, traceback
 
-from . import exp_tracker
 
 http_request_queue = []
 
@@ -65,7 +61,7 @@ def train_decoder_ajax_handler(request, idx):
 
 class encoder(json.JSONEncoder):
     '''
-    Encoder for JSON data that defines how the data should be returned. 
+    Encoder for JSON data that defines how the data should be returned.
     '''
     def default(self, o):
         if isinstance(o, np.ndarray):
@@ -112,7 +108,7 @@ def task_info(request, idx, dbname='default'):
         if isset == "true": # box for the feature checked
             feat = Feature.objects.using(dbname).get(name=name)
             feats.append(feat)
-    
+
     task_info = dict(params=task.params(feats=feats), generators=task.get_generators())
 
     task_cls = task.get(feats=feats)
@@ -139,13 +135,13 @@ def exp_info(request, idx, dbname='default'):
 
     Returns
     -------
-    JSON-encoded dictionary 
+    JSON-encoded dictionary
         Data containing features, parameters, and any report data from the TaskEntry
     '''
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
     try:
         entry_data = entry.to_json()
-        tracker = exp_tracker.get()
+        tracker = Track.get_instance()
         entry_data["state"] = tracker.get_status()
     except:
         print("##### Error trying to access task entry data: id=%s, dbname=%s" % (idx, dbname))
@@ -183,7 +179,7 @@ def backup_entry(request, idx):
     '''
     entry = TaskEntry.objects.get(pk=idx)
     entry.backup = True
-    entry.save()    
+    entry.save()
     return _respond(dict())
 
 def unbackup_entry(request, idx):
@@ -192,7 +188,7 @@ def unbackup_entry(request, idx):
     '''
     entry = TaskEntry.objects.get(pk=idx)
     entry.backup = False
-    entry.save()    
+    entry.save()
     return _respond(dict())
 
 def gen_info(request, idx):
@@ -212,17 +208,17 @@ def start_next_exp(request):
 @csrf_exempt
 def start_experiment(request, save=True, execute=True):
     '''
-    Handles presses of the 'Start Experiment' and 'Test' buttons in the browser 
+    Handles presses of the 'Start Experiment' and 'Test' buttons in the browser
     interface
     '''
     #make sure we don't have an already-running experiment
-    tracker = exp_tracker.get()
+    tracker = Track.get_instance()
     if len(tracker.status.value) != 0:
         print("Task is running, exp_tracker.status.value:", tracker.status.value)
         return _respond(dict(status="running", msg="Already running task!"))
 
     # Try to start the task, and if there are any errors, send them to the browser interface
-    try:        
+    try:
         data = json.loads(request.POST['data'])
 
         task =  Task.objects.get(pk=data['task'])
@@ -240,7 +236,7 @@ def start_experiment(request, save=True, execute=True):
         params = Parameters.from_html(data['params'])
         entry.params = params.to_json()
         feats = Feature.getall(feature_names)
-        kwargs = dict(subj=entry.subject.id, base_class=task.get(), 
+        kwargs = dict(subj=entry.subject.id, base_class=task.get(),
             feats=feats, params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
@@ -254,8 +250,8 @@ def start_experiment(request, save=True, execute=True):
                 seq.save()
             entry.sequence = seq
             kwargs['seq'] = seq
-        
-        response = dict(status="testing", subj=entry.subject.name, 
+
+        response = dict(status="testing", subj=entry.subject.name,
                         task=entry.task.name)
 
         if save:
@@ -267,7 +263,7 @@ def start_experiment(request, save=True, execute=True):
             if repo_dirty:
                 sw_version += '.dirty'
             entry.sw_version = sw_version
-            
+
             # Save the task entry to database
             entry.save()
 
@@ -284,7 +280,7 @@ def start_experiment(request, save=True, execute=True):
             kwargs['saveid'] = entry.id
         else:
             entry.delete()
-        
+
         # Start the task FSM and tracker
         if execute:
             tracker.runtask(**kwargs)
@@ -311,18 +307,18 @@ def rpc(fn):
     Parameters
     ----------
     fn : callable
-        Function which takes a single argument, the tracker object. 
+        Function which takes a single argument, the tracker object.
         Return values from this function are ignored.
 
     Returns
     -------
-    JSON-encoded dictionary 
+    JSON-encoded dictionary
     '''
-    tracker = exp_tracker.get()
+    tracker = Track.get_instance()
 
     # make sure that there exists an experiment to interact with
     if tracker.status.value not in [b"running", b"testing"]:
-        print("rpc not possible", str(tracker.status.value))
+        print("Task not running!", str(tracker.status.value))
         return _respond(dict(status="error", msg="No task running, so cannot run command!"))
 
     try:
@@ -344,7 +340,7 @@ def _respond_err(e):
     Parameters
     ----------
     e : Exception
-        Error & traceback to convert to string format. 
+        Error & traceback to convert to string format.
 
     Returns
     -------
@@ -354,7 +350,7 @@ def _respond_err(e):
     err = io.StringIO()
     traceback.print_exc(None, err)
     err.seek(0)
-    return _respond(dict(status="error", msg=err.read()))        
+    return _respond(dict(status="error", msg=err.read()))
 
 @csrf_exempt
 def stop_experiment(request):
@@ -395,11 +391,11 @@ def reward_drain(request, onoff):
     return HttpResponse('Turning reward %s' % onoff)
 
 def populate_models(request):
-    """ Database initialization code. When 'db.tracker' is imported, it goes through the database and ensures that 
+    """ Database initialization code. When 'db.tracker' is imported, it goes through the database and ensures that
     1) at least one subject is present
     2) all the tasks from 'tasklist' appear in the db
     3) all the features from 'featurelist' appear in the db
-    4) all the generators from all the tasks appear in the db 
+    4) all the generators from all the tasks appear in the db
     """
     from . import models
     subjects = models.Subject.objects.all()
@@ -416,7 +412,7 @@ def populate_models(request):
 def add_new_task(request):
     from . import models
     name, import_path = request.POST['name'], request.POST['import_path']
-    
+
     #  verify import path
     if import_path == '':
         import_path = "riglib.experiment.Experiment"
@@ -462,7 +458,7 @@ def update_task_import_path(request):
 
 @csrf_exempt
 def add_new_subject(request):
-    from . import models 
+    from . import models
     subject_name = request.POST['subject_name']
     subj = models.Subject(name=subject_name)
     subj.save()
@@ -472,7 +468,7 @@ def add_new_subject(request):
 @csrf_exempt
 def add_new_system(request):
     from . import models
-    sys = models.System(name=request.POST['name'], path=request.POST['path'], 
+    sys = models.System(name=request.POST['name'], path=request.POST['path'],
         processor_path=request.POST['processor_path'])
     sys.save()
 
@@ -519,7 +515,7 @@ def update_feature_import_path(request):
     except:
         import traceback
         traceback.print_exc()
-        return _respond(dict(msg="import path invalid!", status="error"))    
+        return _respond(dict(msg="import path invalid!", status="error"))
 
     feat = models.Feature.objects.get(id=feature_id)
     feat.import_path = import_path
@@ -549,11 +545,11 @@ def get_report(request):
 @csrf_exempt
 def record_annotation(request):
     return rpc(lambda tracker: tracker.task_proxy.record_annotation(request.POST["annotation"]))
-    
+
 @csrf_exempt
 def get_status(request):
     """ Send the task tracker's status back to the frontend """
-    tracker = exp_tracker.get()
+    tracker = Track.get_instance()
     if tracker.task_kwargs is None:
         saveid = None
     else:
