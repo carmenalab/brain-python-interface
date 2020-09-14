@@ -12,7 +12,8 @@ from riglib import sink
 
 class TestTaskWithFeatures(unittest.TestCase):
     def setUp(self):
-        sink.sinks = sink.SinkManager() # reset the sink manager
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.reset()
 
     def test_metaclass_constructor(self):
         exp = experiment.make(experiment.LogExperiment, feats=(SaveHDF,))
@@ -23,8 +24,8 @@ class TestTaskWithFeatures(unittest.TestCase):
         exp = task_cls(MockSequenceWithGenerators.gen_fn1())
         exp.run_sync()
 
-        time.sleep(3)
-        hdf = h5py.File(exp.h5file.name)
+        time.sleep(2)
+        hdf = h5py.File(exp.h5file_name)
 
         # test that the annotation appears in the messages
         self.assertTrue(b'annotation: test annotation' in hdf["/task_msgs"]["msg"])

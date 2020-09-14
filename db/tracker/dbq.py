@@ -102,11 +102,11 @@ def save_bmi(name, entry, filename, dbname='default'):
     base = System.objects.using(dbname).get(name='bmi').path
 
     #Make sure decoder name doesn't exist already:
-    #Make sure new decoder name doesn't already exist: 
+    #Make sure new decoder name doesn't already exist:
     import os.path
     dec_ix = 0
 
-    while os.path.isfile(os.path.join(base, pklname)): 
+    while os.path.isfile(os.path.join(base, pklname)):
         pklname = "{subj}{time}_{num:02}_{name}_{ix}.pkl".format(
         subj=entry.subject.name[:4].lower(),
         time=entry.date.strftime('%Y%m%d'),
@@ -146,6 +146,6 @@ dispatcher.register_function(hide_task_entry, 'hide_task_entry')
 
 @csrf_exempt
 def rpc_handler(request):
-    response = HttpResponse(content_type="application/xml") 
+    response = HttpResponse(content_type="application/xml")
     response.write(dispatcher._marshaled_dispatch(request.body))
     return response

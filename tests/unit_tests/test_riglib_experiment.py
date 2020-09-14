@@ -12,7 +12,8 @@ from mocks import MockDatabase
 
 class TestLogExperiment(unittest.TestCase):
     def setUp(self):
-        sink.sinks = sink.SinkManager()        
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.reset()
         self.exp = MockLogExperiment(verbose=False)
 
     def test_exp_fsm_output(self):
