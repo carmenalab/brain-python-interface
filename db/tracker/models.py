@@ -913,20 +913,21 @@ class TaskEntry(models.Model):
     def get_cloud_json(self):
         if self.report is not None and len(self.report) > 0:
             report_data = json.loads(self.report)
+            if isinstance(report_data, list):
+                Exp = self.task.get(self.feats.all())
+                report_data = Exp.log_summary(report_data)
         else:
             report_data = dict()
 
         cloud_data = dict(block_number=self.id, subject=self.subject.name,
             task=self.task.name, sw_version=self.sw_version)
 
-        cloud_data['date'] = str(self.date)
+        cloud_data['date'] = self.date.strftime("%Y_%m_%d")
         cloud_data['runtime'] = report_data.get('runtime', 'unknown')
         cloud_data['n_trials'] = report_data.get('n_trials', 'unknown')
         cloud_data['n_success_trials'] = report_data.get('n_success_trials', 'unknown')
 
         cloud_data['task_params'] = self.task_params
-        json_data = self.to_json()
-        cloud_data['datafiles'] = json_data['datafiles']
 
         datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
         cloud_data['datafiles'] = [d.get_path() for d in datafiles]
@@ -940,6 +941,30 @@ class TaskEntry(models.Model):
         cloud_data = self.get_cloud_json()
         cloud.upload_json(cloud_data)
         print("Finished cloud publish!")
+
+    def make_hdf_self_contained(self):
+        try:
+            df = DataFile.objects.get(entry__id=self.id, system__name="hdf")
+            h5file = df.get_path()
+        except:
+            print("Error getting single HDF data file")
+            traceback.print_exc()
+            return
+
+        import h5py
+        hdf = h5py.File(h5file, mode='a')
+        print(h5file)
+        hdf['/'].attrs["task_name"] = self.task.name
+        hdf['/'].attrs["rig_name"] = KeyValueStore.get('rig_name', 'unknown'),
+        hdf['/'].attrs['block_number'] = self.id
+
+        data_files = []
+        for df in DataFile.objects.filter(entry__id=self.id):
+            data_files.append(df.get_path())
+        hdf['/'].attrs['data_files'] = data_files
+        hdf.close()
+
+        # TODO save decoder parameters to hdf file, if applicable
 
 
 class Calibration(models.Model):
@@ -1401,24 +1426,12 @@ class DataFile(models.Model):
         Get the full path to the file
         '''
         if not check_archive and not self.archived:
-            text_file = open("path.txt", "w")
-            text_file.write("path: %s" % os.path.join(self.system.path, self.path))
-            text_file.close()
             return os.path.join(self.system.path, self.path)
-        text_file2 = open("self.archive.txt", "w")
-        text_file2.write("self.archive: %s" % self.archive)
-        text_file2.close()
 
         paths = self.system.archive.split()
-        text_file2 = open("paths.txt", "w")
-        text_file2.write("paths: %s" % paths)
-        text_file2.close()
         for path in paths:
             fname = os.path.join(path, self.path)
             if os.path.isfile(fname):
-                text_file3 = open("fname.txt", "w")
-                text_file3.write("fname: %s" % fname)
-                text_file3.close()
                 return fname
 
         raise IOError('File has been lost! '+fname)

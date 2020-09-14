@@ -15,7 +15,7 @@ class TaskWrapper(RPCProcess):
     '''
     proxy = ObjProxy
 
-    def __init__(self, subj, params, target_class=Experiment, 
+    def __init__(self, subj, params, target_class=Experiment,
         websock=None, status='',
         seq=None, seq_params=None, saveid=None, **kwargs):
         '''
@@ -25,7 +25,7 @@ class TaskWrapper(RPCProcess):
             Database record for subject performing the task
         base_class : a child class of riglib.experiment.Experiment
             The base class for the task, without the feature mixins
-        feats : list 
+        feats : list
             List of features to enable for the task
         params : json_param.Parameters, or string representation of JSON object
             user input on configurable task parameters
@@ -79,14 +79,14 @@ class TaskWrapper(RPCProcess):
 
                 gen = gen_constructor(Task, **gen_params)
                 self.params['seq_params'] = self.seq_params
-                
+
                 # 'gen' is now a true python generator usable by experiment.Sequence
                 task = Task(gen, **self.params)
                 self.log_str("instantiating task with a generator\n")
         else:
             task = Task(**self.params)
-        
-        
+
+
         self.log_str("TaskWrapper.task initialized")
 
         # Rerout prints to stdout to the websocket
@@ -98,24 +98,22 @@ class TaskWrapper(RPCProcess):
         if not sys.platform == "win32":
             os.nice(0)
 
-        self.task_status = "running" if saveid is not None else "testing"        
+        self.task_status = "running" if saveid is not None else "testing"
 
-        self.log_str("Initial task state: %s" % task.state)        
+        self.log_str("Initial task state: %s" % task.state)
 
         print("*************************** STARTING TASK *****************************")
-        
+
         self.target = task
         self.target.start()
 
     def target_destr(self, ret_status, msg):
-        self.log_str("target_destr")
+        self.log_str('End of task while loop (target_destr fn)')
         use_websock = not (self.websock is None)
         if ret_status != 0:
             if use_websock:
-                self.websock.send(dict(status="error", msg=msg))            
+                self.websock.send(dict(status="error", msg=msg))
             self.log_str(msg)
-
-        self.log_str('End of task while loop\n')
 
         # Redirect printing from the websocket back to the shell
         if use_websock:
@@ -139,15 +137,11 @@ class TaskWrapper(RPCProcess):
 
     def report(self):
         return self.target_proxy.online_report()
-    
-    def end_task(self):
-        self.target_proxy.end_task()
-        self.target_proxy.terminate()
 
     def cleanup(self):
         self.target.join()
         print("Calling saveout/task cleanup code")
-        
+
         if self.saveid is not None and self.subj is not None:
             # get object representing function calls to the remote database
             # returns the result of tracker.dbq.rpc_handler

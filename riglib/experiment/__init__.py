@@ -1,9 +1,9 @@
 '''
-Experiment constructors. 'Experiment' instances are the combination of 
+Experiment constructors. 'Experiment' instances are the combination of
 a task and a list of features.  Rather than have a separate class for
 all the possible combinations of tasks and features, a custom class for
-the experiment is created programmatically using 'type'. The created class 
-has methods of the base task as well as all the selected features. 
+the experiment is created programmatically using 'type'. The created class
+has methods of the base task as well as all the selected features.
 '''
 import numpy as np
 
@@ -67,7 +67,7 @@ except:
     warnings.warn('riglib/experiment/__init__.py: could not import Pygame (note capital P)')
     Pygame = object
 
-def make(exp_class, feats=()):
+def make(exp_class, feats=(), verbose=False):
     '''
     Creates a class which inherits from a base experiment class as well as a set of optional features.
     This function is a *metafunction* as it returns a custom class construction.
@@ -91,9 +91,8 @@ def make(exp_class, feats=()):
         # inherit from the features first, then the base class
         clslist = tuple(feats) + (exp_class,)
 
-        print("metaclass constructor")
-        print(clslist)
-        print(feats)
+        if verbose:
+            print("metaclass constructor", clslist, feats)
 
         # return custom class
         return type(exp_class.__name__, clslist, dict())

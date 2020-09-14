@@ -522,7 +522,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
                 h5file = tables.openFile(self.h5file.name, mode='a')
 
             for trait in traits:
-                if (trait not in self.object_trait_names): # don't save traits which are complicated python objects to the HDF file    # and (trait not in ['bmi', 'decoder', 'ref_trajectories']):
+                if (trait not in self.object_trait_names): # don't save traits which are complicated python objects to the HDF file
                     h5file.root.task.attrs[trait] = getattr(self, trait)
             h5file.close()
 

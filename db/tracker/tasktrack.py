@@ -51,12 +51,13 @@ class Track(singleton.Singleton):
         self.status = mp.Array('c', 256)
         self.task_proxy = None
         self.proc = None
-        if use_websock:
+        self.use_websock = use_websock
+        self.websock = None
+
+    def start_websock(self):
+        if self.websock is None and self.use_websock:
             print("Starting websocket...")
             self.websock = websocket.Server(self.notify)
-        else:
-            print("Not using websocket!")
-            self.websock = None
 
     def notify(self, msg):
         if msg['status'] == "error" or msg['State'] == "stopped":
@@ -67,6 +68,8 @@ class Track(singleton.Singleton):
         Begin running of task
         '''
         log_str("Running new task: \n", mode="w")
+
+        self.start_websock()
 
         if None in feats:
             raise ValueError("Features not found properly in database!")
@@ -136,12 +139,23 @@ class Track(singleton.Singleton):
         self.status.value = b""
         self.reset()
 
-        # upload metadata to server, if appropriate
+        # allow time for files, etc. to be saved
         time.sleep(3)
+
         if self.proc.saveid is not None:
-            print("Attempting to save to cloud...")
             from tracker import models
             te = models.TaskEntry.objects.get(id=self.proc.saveid)
+
+            # Wrap up HDF file saving
+            models.DataFile.objects.get(entry__id=te.id, system__name="hdf")
+            metadata = dict(
+                task_name = te.task.name,
+                rig_name = models.KeyValueStore.get('rig_name', 'unknown'),
+                block_number = te.id,
+            )
+
+            # upload metadata to server, if appropriate
+            print("Attempting to save to cloud...")
             te.upload_to_cloud()
 
         return status
