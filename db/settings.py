@@ -50,8 +50,8 @@ def get_sqlite3_databases():
 
     return dbs
 
-DATABASES = get_sqlite3_databases()
-#DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'mydatabase', } }
+#DATABASES = get_sqlite3_databases()
+DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 
 '''
 DATABASES = {

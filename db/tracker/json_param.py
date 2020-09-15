@@ -111,7 +111,7 @@ def norm_trait(trait, value):
         
     #use Cast to validate the value
     try:
-        return trait.cast(value)
+        return trait.validate(trait.name, '', value)
     except:
         f = open(os.path.join(config.log_path, "trait_log"), 'w')
         f.write('Error with type for trait %s, %s, value %s' % (str(trait), str(ttype), str(value)))
