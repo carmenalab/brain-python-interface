@@ -16,16 +16,45 @@ import serial, glob
 ###### CONSTANTS
 sec_per_min = 60
 
-
 class RewardSystem(traits.HasTraits):
+    '''
+    Feature for the current reward system in Amy Orsborn Lab - Aug 2020
+    '''
+    trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
+
+    def __init__(self, *args, **kwargs):
+        from riglib import reward
+        super(RewardSystem, self).__init__(*args, **kwargs)
+        self.reward = reward.open() # There is no open function in our reward.py 
+
+    def _start_reward(self):
+        self.reward_start = self.get_time()
+        if self.reward is not None:
+             self.reportstats['Reward #'] += 1
+             if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+                 self.reward.reward(self.reward_time*10)
+        #super(RewardSystem, self).reward(self.reward_time)
+
+    def _test_reward_end(self, ts):
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            return ts > self.reward_time
+        else:
+            return True
+
+
+""""" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
+
+
+class RewardSystem_Crist(traits.HasTraits):
     '''
     Feature for the Crist solenoid reward system
     '''
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
+
     def __init__(self, *args, **kwargs):
-        from riglib import reward
+        from riglib import reward_crist
         super(RewardSystem, self).__init__(*args, **kwargs)
-        self.reward = reward.open()
+        self.reward = reward_crist.open()
 
     def _start_reward(self):
         self.reward_start = self.get_time()

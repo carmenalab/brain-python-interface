@@ -17,7 +17,7 @@ django_celery==3.3.1
 namelist==0.1.0
 OWL==0.2.1
 Phidgets==2.1.8
-pyaudio==0.2.11
+#pyaudio==0.2.11
 pyautogui==0.9.50
 PyOpenGL==3.1.5
 pyserial==3.4
@@ -26,3 +26,8 @@ robotframework==3.2.1
 scikit_learn==0.23.1
 tabulate==0.8.7
 tasks==2.5.0
+Sphinx == 0.0.0
+ipdb == 0.0.0
+numpydoc == 0.0.0
+pylibftdi == 0.0.0
+pyfirmata == 1.1.0
