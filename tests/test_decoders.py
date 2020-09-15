@@ -20,7 +20,7 @@ class TestLinDec(unittest.TestCase):
         for i in range(250):
             simple_filt(i)
 
-        self.assertTrue(simple_filt.get_mean() > 0.5) # 0.9 not working because of normalization by std instead of range
+        self.assertTrue(simple_filt.get_mean() > 0)
 
     def test_filter(self):
         filt = lindecoder.LinearScaleFilter(100, 3, 2)
@@ -32,8 +32,8 @@ class TestLinDec(unittest.TestCase):
             self.assertEqual(0, filt.state.mean[2, 0])
     
     #@unittest.skip('msg')
-    def test_experiment(self):
-        for cls in [SimBMICosEncLinDec, SimBMIVelocityLinDec]:
+    def test_experiment_unfixed(self):
+        for cls in [SimBMICosEncLinDec]:
             N_TARGETS = 8
             N_TRIALS = 16
             seq = cls.sim_target_no_center(
@@ -49,6 +49,26 @@ class TestLinDec(unittest.TestCase):
             rewards, time_penalties, hold_penalties = calculate_rewards(exp)
             self.assertTrue(rewards <= rewards + time_penalties + hold_penalties)
             self.assertTrue(rewards > 0)
+    
+    def test_experiment(self):
+        for cls in [SimBMICosEncLinDec, SimBMIVelocityLinDec]:
+            N_TARGETS = 8
+            N_TRIALS = 16
+            seq = cls.sim_target_seq_generator_multi(
+                N_TARGETS, N_TRIALS)
+            base_class = cls
+            feats = []
+            Exp = experiment.make(base_class, feats=feats)
+            exp = Exp(seq)
+            exp.init()
+            exp.decoder.filt.fix_norm_attr()
+
+            exp.run()
+            
+            rewards, time_penalties, hold_penalties = calculate_rewards(exp)
+            self.assertTrue(rewards <= rewards + time_penalties + hold_penalties)
+            self.assertTrue(rewards > 0)
+
 
 
 def calculate_rewards(exp):

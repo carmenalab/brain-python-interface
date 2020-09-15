@@ -617,15 +617,15 @@ class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
         filt_window = 1 # number of observations to average for each tick
         filt_map = self.decoder_map # map from states to units
         filt = PosVelScaleFilter(self.vel_control, filt_counts, self.ssm.n_states, \
-                                 len(units), map=filt_map, window=filt_window, call_rate=self.fps, 
-                                 plant_gain=2*np.max(self.plant.endpt_bounds))
+                                 len(units), unit_to_state=filt_map, smoothing_window=filt_window, call_rate=self.fps, 
+                                 decoder_to_plant=2*np.max(self.plant.endpt_bounds))
 
         # supply some known good attributes
         neural_gain = self.fov
         scaling_gain = 1
         filt.update_norm_attr(neural_mean=[neural_gain/2, neural_gain/2], neural_std=[neural_gain,neural_gain], \
-                              scaling_mean=[0,0], scaling_std=[scaling_gain,scaling_gain])
-        filt.fix_norm_attr()
+                              offset=[0,0], scale=[scaling_gain,scaling_gain])
+        #filt.fix_norm_attr()
 
         # or allow decoder to figure it out
         # neural_gain = self.fov * 1.1
