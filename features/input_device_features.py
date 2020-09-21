@@ -2,6 +2,7 @@
 import pygame
 import numpy as np
 import copy
+from riglib.source import DataSourceSystem
 
 class KeyboardControl(object):
     '''
@@ -57,7 +58,6 @@ class KeyboardControl(object):
 class MouseControl(KeyboardControl):
 
     def init(self, *args, **kwargs):
-        self.center = [self.window_size[0] / 2, self.window_size[1] / 2]
         self.pos = self.plant.get_endpoint_pos()
         super(MouseControl, self).init(*args, **kwargs)
     
@@ -75,3 +75,10 @@ class MouseControl(KeyboardControl):
     def cleanup(self, *args, **kwargs):
         pygame.mouse.set_visible(True)
         super(MouseControl, self).cleanup(*args, **kwargs)
+
+from .neural_sys_features import CorticalBMI
+class MouseBMI(CorticalBMI):
+    @property 
+    def sys_module(self):
+        from riglib import debug
+        return debug

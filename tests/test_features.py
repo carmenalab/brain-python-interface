@@ -34,6 +34,12 @@ class TestMouseControl(unittest.TestCase):
         exp = init_exp(ManualControlMulti, [MouseControl, WindowDispl2D])
         exp.run()
 
+class TestMouseBMI(unittest.TestCase):
+    
+    def test_exp(self):
+        exp = init_exp(BMIControlMulti2DWindow, [MouseBMI])
+
+
 class TestLaser(unittest.TestCase):
     
     def test_gpio(self):
