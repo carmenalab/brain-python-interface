@@ -31,3 +31,4 @@ ipdb == 0.0.0
 numpydoc == 0.0.0
 pylibftdi == 0.0.0
 pyfirmata == 1.1.0
+pycomedi == 0.9

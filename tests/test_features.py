@@ -36,21 +36,20 @@ class TestMouseControl(unittest.TestCase):
 
 class TestMouseBMI(unittest.TestCase):
     
+    @unittest.skip("msg")
     def test_exp(self):
         exp = init_exp(BMIControlMulti2DWindow, [MouseBMI])
 
 
 class TestLaser(unittest.TestCase):
     
-    def test_gpio(self):
-        gpio = ArduinoGPIO()
-    
     def test_digital_wave(self):
         gpio = ArduinoGPIO()
         laser = DigitalWave(gpio, pin=13)
-        laser.set_square_wave(5, 5)
+        laser.set_square_wave(20, 10)
         laser.start()
         laser.join()
+        gpio.close()
 
     def test_laser_trials(self):
         pass
