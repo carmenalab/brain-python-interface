@@ -45,10 +45,14 @@ class TestLaser(unittest.TestCase):
     
     def test_digital_wave(self):
         gpio = ArduinoGPIO()
-        laser = DigitalWave(gpio, pin=13)
-        laser.set_square_wave(20, 10)
-        laser.start()
-        laser.join()
+        laser1 = DigitalWave(gpio, pin=13)
+        laser1.set_square_wave(200, 5)
+        laser2 = DigitalWave(gpio, pin=12)
+        laser2.set_square_wave(200, 5, False)
+        laser1.start()
+        laser2.start()
+        laser1.join()
+        #laser2.join()
         gpio.close()
 
     def test_laser_trials(self):
