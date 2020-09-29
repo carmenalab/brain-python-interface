@@ -3,14 +3,15 @@ import time
 
 import os, sys, stat
 """
-This code is to assign read, write  and execute permission to yhe arduino port
+This code is to assign read, write  and execute permission to the arduino port
 Refer: https://www.tutorialspoint.com/python/os_chmod.htm 
 """
-os.chmod("/dev/ttyACM0", stat.S_IRWXG)
+#os.chmod("/dev/ttyACM0", stat.S_IRWXG)
 
 #Connecting to arduino board
-com_port = '/dev/ttyACM0'#specify whihch port, can find it on IDE
-board = pyfirmata.Arduino(com_port) 
+com_port = '/dev/ttyACM0'#specify which port, can find it on IDE
+board = pyfirmata.Arduino(com_port)
+print(board) 
  
 def test_reward_system():
     while True: 

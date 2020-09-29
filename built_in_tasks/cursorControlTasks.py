@@ -1,7 +1,7 @@
 
-from manualcontrolmultitasks import ManualControlMulti
+from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
 from riglib.stereo_opengl.window import WindowDispl2D
-from bmimultitasks import BMIControlMulti
+from built_in_tasks.bmimultitasks import BMIControlMulti
 import pygame
 import numpy as np
 import copy
