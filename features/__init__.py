@@ -15,9 +15,12 @@ from .bmi_task_features import NormFiringRates
 from .arduino_features import PlexonSerialDIORowByte
 from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
+from .input_device_features import KeyboardControl, MouseControl
 
 
 built_in_features = dict(
+    keyboard=KeyboardControl,
+    mouse=MouseControl,
     autostart=Autostart,
     adaptive_generator=AdaptiveGenerator,
     button=Button,
