@@ -35,7 +35,7 @@ feats = [SaveHDF, Autostart, PlexonBMI, MotionData]
 Exp = experiment.make(base_class, feats=feats)
 
 #params.trait_norm(Exp.class_traits())
-params = dict(session_length=10, plant_visible=True, lfp_plant_type='cursor_onedimLFP', mc_plant_type='cursor_14x14'
+params = dict(session_length=10, plant_visible=True, lfp_plant_type='cursor_onedimLFP', mc_plant_type='cursor_14x14',
         rand_start=(0.,0.), max_tries=1)
 
 gen = SimBMIControlMulti.sim_target_seq_generator_multi(8, 1000)

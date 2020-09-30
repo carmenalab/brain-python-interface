@@ -20,12 +20,11 @@ MANAGERS = ADMINS
 db_dir = cwd
 def get_sqlite3_databases():
     dbs = dict()
-    
     db_files = glob.glob(os.path.join(db_dir, '*.sql'))
     for db in db_files:
         db_name_re = re.match('db(.*?).sql', os.path.basename(db))
         db_name = db_name_re.group(1)
-
+        print(db_name)
         if db_name.startswith('_'):
             db_name = db_name[1:]
         elif db_name == "":
@@ -36,7 +35,7 @@ def get_sqlite3_databases():
             continue
 
         dbs[db_name] = {
-            'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+            'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or'oracle'.
             'NAME': db,                      # Or path to database file if using sqlite3.
             'USER': '',                      # Not used with sqlite3.
             'PASSWORD': '',                  # Not used with sqlite3.
@@ -46,7 +45,29 @@ def get_sqlite3_databases():
 
     return dbs
 
-DATABASES = get_sqlite3_databases()
+#DATABASES = get_sqlite3_databases()
+DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
+
+'''
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+        'NAME': os.path.join(cwd, "db.sql"),                      # Or path to database file if using sqlite3.
+        'USER': '',                      # Not used with sqlite3.
+        'PASSWORD': '',                  # Not used with sqlite3.
+        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+    },
+    'testing': {
+        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+        'NAME': os.path.join(cwd, "db_testing.sql"),                      # Or path to database file if using sqlite3.
+        'USER': '',                      # Not used with sqlite3.
+        'PASSWORD': '',                  # Not used with sqlite3.
+        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+    },
+}
+'''
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -165,4 +186,4 @@ TEMPLATES = [
 APPEND_SLASH=False
 
 
-ALLOWED_HOSTS = ['*']# ['127.0.0.1', 'localhost', "testserver", 0.0.0.0]
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', "testserver"]

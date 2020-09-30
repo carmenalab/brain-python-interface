@@ -13,7 +13,9 @@ from riglib import experiment
 from .json_param import Parameters
 from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 from .tasktrack import Track
-import trainbmi
+import db.trainbmi as trainbmi
+import logging
+import io, traceback
 
 
 http_request_queue = []
@@ -378,6 +380,7 @@ def save_notes(request, idx):
 def reward_drain(request, onoff):
     '''
     Start/stop the "drain" of a solenoid reward remotely
+    This function is modified to use the reward system in Orsborn lab - check reward.py for functions
     '''
     from riglib import reward
     r = reward.Basic()

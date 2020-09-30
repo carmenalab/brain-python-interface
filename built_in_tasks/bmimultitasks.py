@@ -29,7 +29,7 @@ from riglib.stereo_opengl.primitives import Line
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
 
-from . import manualcontrolmultitasks
+from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
 
 target_colors = {"blue":(0,0,1,0.5),
 "yellow": (1,1,0,0.5),
@@ -161,6 +161,33 @@ class SimpleEndpointAssister(Assister):
         x_assist = np.mat(x_assist.reshape(-1,1))
         return x_assist
 
+class SimplePosAssister(SimpleEndpointAssister):
+    
+    @staticmethod 
+    def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5, target_radius=2., assist_level=0.):
+        '''
+        Estimate the next state using a constant velocity estimate moving toward the specified target
+
+        Parameters
+        ----------
+        see SimpleEndtpointAssister for docs
+
+        Returns
+        -------
+        x_assist : np.ndarray of shape (7, 1)
+            Control vector to add onto the state vector to assist control.
+        '''
+        diff_vec = target_pos - cursor_pos 
+        dist_to_target = np.linalg.norm(diff_vec)
+        dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
+        
+        if dist_to_target > target_radius:
+            assist_cursor_pos = cursor_pos + speed*dir_to_target
+        else:
+            assist_cursor_pos = cursor_pos + speed*diff_vec/2
+
+        return assist_cursor_pos.ravel()
+
 class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
     '''
     Docstring
@@ -195,7 +222,7 @@ class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
 #################
 ##### Tasks #####
 #################
-class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, manualcontrolmultitasks.ManualControlMulti):
+class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ManualControlMulti):
     '''
     Target capture task with cursor position controlled by BMI output.
     Cursor movement can be assisted toward target by setting assist_level > 0.
@@ -317,12 +344,6 @@ class BMIControlMulti2DWindow(BMIControlMulti, WindowDispl2D):
     fps = 20.
     def __init__(self,*args, **kwargs):
         super(BMIControlMulti2DWindow, self).__init__(*args, **kwargs)
-    
-    def create_assister(self):
-        kwargs = dict(decoder_binlen=self.decoder.binlen, target_radius=self.target_radius)
-        if hasattr(self, 'assist_speed'):
-            kwargs['assist_speed'] = self.assist_speed    
-        self.assister = SimpleEndpointAssister(**kwargs)
     
     def create_goal_calculator(self):
         self.goal_calculator = goal_calculators.ZeroVelocityGoal(self.decoder.ssm)
@@ -480,25 +501,33 @@ class BaselineControl(BMIControlMulti):
 ######## Simulation tasks
 #########################
 from features.simulation_features import SimKalmanEnc, SimKFDecoderSup, SimCosineTunedEnc
-from riglib.bmi.feedback_controllers import LQRController
-class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
+from riglib.bmi.feedback_controllers import LQRController, PosFeedbackController
+class SimBMIControlMulti(BMIControlMulti2DWindow):
     win_res = (250, 140)
-    sequence_generators = ['sim_target_seq_generator_multi']
+    sequence_generators = ManualControlMulti.sequence_generators + ['sim_target_seq_generator_multi', 'sim_target_no_center']
     def __init__(self, *args, **kwargs):
         from riglib.bmi.state_space_models import StateSpaceEndptVel2D
-        ssm = StateSpaceEndptVel2D()
-
-        A, B, W = ssm.get_ssm_matrices()
-        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
-        R = 10000*np.mat(np.diag([1., 1., 1.]))
-        self.fb_ctrl = LQRController(A, B, Q, R)
-
-        self.ssm = ssm
+        
+        if 'sim_C'  in kwargs:
+            self.sim_C = kwargs['sim_C']
+        else:
+            raise Exception("Need sim_C")
+        if 'assist_level' in kwargs:
+            self.assist_level = kwargs['assist_level']
+        else:
+            self.assist_level = (0, 0)
 
         super(SimBMIControlMulti, self).__init__(*args, **kwargs)
 
+    def _start_wait(self):
+        self.wait_time = 0.
+        super()._start_wait()
+
+    def _test_start_trial(self, ts):
+        return ts > self.wait_time and not self.pause
+
     @staticmethod
-    def sim_target_seq_generator_multi(n_targs, n_trials):
+    def sim_target_seq_generator_multi(n_targs=8, n_trials=8):
         '''
         Simulated generator for simulations of the BMIControlMulti and CLDAControlMulti tasks
         '''
@@ -511,4 +540,120 @@ class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
         for k in range(n_trials):
             targ = targets[target_inds[k], :]
             yield np.array([[center[0], 0, center[1]],
-                            [targ[0], 0, targ[1]]])        
+                            [targ[0], 0, targ[1]]])       
+
+    @staticmethod
+    def sim_target_no_center(n_targs=8, n_trials=8):
+        '''
+        Simulated generator for simulations of the BMIControlMulti and CLDAControlMulti tasks
+        '''
+        pi = np.pi
+        targets = 8*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
+
+        target_inds = np.random.randint(0, n_targs, n_trials)
+        target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
+        for k in range(n_trials):
+            targ = targets[target_inds[k], :]
+            yield np.array([[targ[0], 0, targ[1]]])       
+
+class SimBMICosEncKFDec(SimCosineTunedEnc, SimKFDecoderSup, SimBMIControlMulti):
+    def __init__(self, *args, **kwargs):
+        N_NEURONS = 4
+        N_STATES = 7  # 3 positions and 3 velocities and an offset
+        
+        # build the observation matrix
+        sim_C = np.zeros((N_NEURONS, N_STATES))
+        # control x positive directions
+        sim_C[0, :] = np.array([0, 0, 0, 1, 0, 0, 0])
+        sim_C[1, :] = np.array([0, 0, 0, -1, 0, 0, 0])
+        # control z positive directions
+        sim_C[2, :] = np.array([0, 0, 0, 0, 0, 1, 0])
+        sim_C[3, :] = np.array([0, 0, 0, 0, 0, -1, 0])
+        
+        kwargs['sim_C'] = sim_C
+
+        ssm = StateSpaceEndptVel2D()
+        A, B, W = ssm.get_ssm_matrices()
+        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
+        R = 10000*np.mat(np.diag([1., 1., 1.]))
+        self.fb_ctrl = LQRController(A, B, Q, R)
+        self.ssm = ssm
+
+        super(SimBMICosEncKFDec, self).__init__(*args, **kwargs)
+
+from features.simulation_features import SimLFPCosineTunedEnc, SimNormCosineTunedEnc
+from riglib.bmi.lindecoder import PosVelScaleFilter
+from riglib.bmi.bmi import Decoder
+class SimBMICosEncLinDec(SimLFPCosineTunedEnc, SimBMIControlMulti):
+    def __init__(self, *args, **kwargs):
+
+        ssm = StateSpaceEndptVel2D()
+
+        # build the observation matrix
+        sim_C = np.zeros((2, 7))
+
+        # control x and z position
+        sim_C[0, :] = np.array([1, 0, 0, 0, 0, 0, 0])
+        sim_C[1, :] = np.array([0, 0, 1, 0, 0, 0, 0])
+        self.vel_control = False
+        self.fb_ctrl = PosFeedbackController()
+
+        # map neurons (2) to states (7) using C
+        self.decoder_map = sim_C.T
+        self.ssm = ssm
+        kwargs['sim_C'] = sim_C
+        kwargs['assist_level'] = (0, 0)
+
+        super(SimBMICosEncLinDec, self).__init__(*args, **kwargs)
+
+    def init(self, *args, **kwargs):
+        self.max_attempts = 1
+        self.timeout_time = 1
+        super(SimBMICosEncLinDec, self).init(*args, **kwargs)
+
+    def load_decoder(self):
+        units = self.encoder.get_units()
+        filt_counts = 10000 # number of observations to calculate range
+        filt_window = 1 # number of observations to average for each tick
+        filt_map = self.decoder_map # map from states to units
+        filt = PosVelScaleFilter(self.vel_control, filt_counts, self.ssm.n_states, \
+                                 len(units), unit_to_state=filt_map, smoothing_window=filt_window, call_rate=self.fps, 
+                                 decoder_to_plant=2*np.max(self.plant.endpt_bounds))
+
+        # supply some known good attributes
+        neural_gain = self.fov
+        scaling_gain = 1
+        filt.update_norm_attr(neural_mean=[neural_gain/2, neural_gain/2], neural_std=[neural_gain,neural_gain], \
+                              offset=[0,0], scale=[scaling_gain,scaling_gain])
+        #filt.fix_norm_attr()
+
+        # or allow decoder to figure it out
+        # neural_gain = self.fov * 1.1
+        # filt.update_norm_attr(neural_mean=[neural_gain/2, neural_gain/2], neural_std=[neural_gain,neural_gain])
+         
+        self.decoder = Decoder(filt, units, self.ssm, binlen=0.1, subbins=1, call_rate=self.fps)
+        self.decoder.n_features = len(units)
+
+class SimBMIVelocityLinDec(SimBMICosEncLinDec):
+    def __init__(self, *args, **kwargs):
+
+        ssm = StateSpaceEndptVel2D()
+
+        # control x and z velocity
+        sim_C = np.zeros((2, 7))
+        sim_C[0, :] = np.array([0, 0, 0, 1, 0, 0, 0])
+        sim_C[1, :] = np.array([0, 0, 0, 0, 0, 1, 0])
+        self.vel_control = True
+        A, B, W = ssm.get_ssm_matrices()        
+        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
+        R = 10000*np.mat(np.diag([1., 1., 1.]))
+        self.fb_ctrl = LQRController(A, B, Q, R)
+
+        # map neurons (2) to states (7) using C
+        self.decoder_map = sim_C.T
+        self.ssm = ssm
+        kwargs['sim_C'] = sim_C
+        kwargs['assist_level'] = (0, 0)
+
+        super(SimBMICosEncLinDec, self).__init__(*args, **kwargs)
+        

@@ -6,7 +6,7 @@ import numpy as np
 from collections import OrderedDict
 import time
 
-from riglib import reward
+from riglib import reward  # This import file corresponds to the Orsborn lab reward system now 
 from riglib.experiment import traits, Sequence
 
 from riglib.stereo_opengl.window import Window, FPScontrol, WindowDispl2D
@@ -16,7 +16,7 @@ from riglib.stereo_opengl.textures import Texture, TexModel
 from riglib.stereo_opengl.render import stereo, Renderer
 from riglib.stereo_opengl.utils import cloudy_tex
 
-from .plantlist import plantlist
+from built_in_tasks.plantlist import plantlist
 
 from riglib.stereo_opengl import ik
 import os
@@ -31,7 +31,7 @@ GREEN = (0,1,0,0.5)
 GOLD = (1., 0.843, 0., 0.5)
 mm_per_cm = 1./10
 
-from .target_graphics import *
+from built_in_tasks.target_graphics import *
 
 target_colors = {
 "yellow": (1,1,0,0.75),
@@ -97,7 +97,7 @@ class ManualControlMulti(Sequence, Window):
 
 
     # Runtime settable traits
-    reward_time = traits.Float(.5, desc="Length of juice reward")
+    reward_time = traits.Float(.2, desc="Length of juice reward")
     target_radius = traits.Float(2, desc="Radius of targets in cm")
     
     hold_time = traits.Float(.2, desc="Length of hold required at targets")

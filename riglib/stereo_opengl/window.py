@@ -39,7 +39,9 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
+    #window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
+    #XPS computer
+    window_size = traits.Tuple((1280, 1080), descr='window size, in pixels')
     # window_size = (1920*2, 1080)
     background = (0,0,0,1)
 
@@ -64,6 +66,7 @@ class Window(LogExperiment):
 
     def set_os_params(self):            
         os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
+        #print(os.environ['SDL_VIDEO_WINDOW_POS'])
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
 
     def screen_init(self):

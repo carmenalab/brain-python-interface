@@ -20,7 +20,7 @@ from riglib.bmi.extractor import DummyExtractor
 from riglib.stereo_opengl.window import WindowDispl2D, FakeWindow
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D
 
-from .bmimultitasks import BMIControlMulti
+from built_in_tasks.bmimultitasks import BMIControlMulti
 
 
 bmi_ssm_options = ['Endpt2D', 'Tentacle', 'Joint2L']

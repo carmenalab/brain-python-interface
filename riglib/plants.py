@@ -241,6 +241,9 @@ class CursorPlant(Plant):
     def _bound(self, pos, vel):
         pos = pos.copy()
         vel = vel.copy()
+        if len(vel) == 0:
+            vel_wall = self.vel_wall # don't worry about vel if it's empty
+            self.vel_wall = False
         if self.endpt_bounds is not None:
             if pos[0] < self.endpt_bounds[0]: 
                 pos[0] = self.endpt_bounds[0]
@@ -262,6 +265,8 @@ class CursorPlant(Plant):
             if pos[2] > self.endpt_bounds[5]: 
                 pos[2] = self.endpt_bounds[5]
                 if self.vel_wall: vel[2] = 0
+        if len(vel) == 0:
+            self.vel_wall = vel_wall # restore previous value
         return pos, vel
 
     def drive(self, decoder):

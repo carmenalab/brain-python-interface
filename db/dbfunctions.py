@@ -26,7 +26,7 @@ try:
 except:
     pass
 
-from tracker import models
+from db.tracker import models
 
 # default DB, change this variable from python session to switch to other database
 db_name = 'default'

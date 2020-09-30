@@ -6,8 +6,8 @@ from riglib.bmi.state_space_models import StateSpaceEndptVel2D, State, offset_st
 from riglib.bmi.feedback_controllers import LQRController
 from riglib import experiment
 
-from tasks.bmimultitasks import BMIControlMulti
-from tasks import manualcontrolmultitasks
+from built_in_tasks.bmimultitasks import BMIControlMulti
+from built_in_tasks import manualcontrolmultitasks
 
 import plantlist
 
@@ -16,7 +16,7 @@ import os, shutil, pickle
 import pickle
 import time, datetime
 
-from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceEndptVelY
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceEndptPos1D
 from riglib.bmi import feedback_controllers
 
 class SuperSimpleEndPtAssister(object):
@@ -206,7 +206,7 @@ def main_xz(session_length):
     return task
 
 def main_Y(session_length):
-    ssm_y = StateSpaceEndptVelY()
+    ssm_y = StateSpaceEndptPos1D()
     Task = experiment.make(SimVFB, [SaveHDF])
     targets = SimVFB.centerout_Y_discrete()
     #targets = manualcontrolmultitasks.ManualControlMulti.centerout_2D_discrete()
@@ -244,3 +244,9 @@ def save_stuff(task, suffix=''):
 
     #Return filename
     return pnm
+
+
+if __name__ == "__main__":
+    session_length = 100
+    main_xz(session_length)
+    pass

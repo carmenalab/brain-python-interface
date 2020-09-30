@@ -467,6 +467,7 @@ class Decoder(object):
         self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
+        self.channels = np.unique(self.units[:,0])
         self.binlen = binlen
         self.bounding_box = ssm.bounding_box
         self.states = ssm.state_names
@@ -774,7 +775,7 @@ class Decoder(object):
                 self.filt.state.mean = np.mat(tmp).T
             
             else:
-                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist
+                self.filt.state.mean = (1-assist_level)*self.filt.state.mean + assist_level * x_assist.reshape(-1,1)
 
         # Bound cursor, if any hard bounds for states are applied
         if hasattr(self, 'bounder'):
