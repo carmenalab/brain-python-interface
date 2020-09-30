@@ -3,7 +3,7 @@ from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
 from built_in_tasks.bmimultitasks import BMIControlMulti2DWindow
 from riglib.stereo_opengl.window import WindowDispl2D
 from features.input_device_features import KeyboardControl, MouseControl, MouseBMI
-from features.laser_features import ArduinoGPIO, DigitalWave, LaserTrials
+from features.laser_features import TestGPIO, ArduinoGPIO, DigitalWave, LaserTrials
 import numpy as np
 
 import unittest
@@ -44,16 +44,23 @@ class TestMouseBMI(unittest.TestCase):
 class TestLaser(unittest.TestCase):
     
     def test_digital_wave(self):
-        gpio = ArduinoGPIO()
+        gpio = TestGPIO()
         laser1 = DigitalWave(gpio, pin=13)
-        laser1.set_square_wave(200, 5)
-        laser2 = DigitalWave(gpio, pin=12)
-        laser2.set_square_wave(200, 5, False)
+        laser1.set_square_wave(1, 5)
+        self.assertCountEqual(laser1.edges, np.linspace(0, 5.0, 11))
         laser1.start()
-        laser2.start()
         laser1.join()
-        #laser2.join()
-        gpio.close()
+
+    def test_arduino(self):
+        gpio = ArduinoGPIO()
+        laser = DigitalWave(gpio, pin=10)
+        laser.set_square_wave(5, 10)
+        laser.start()
+        laser.join()
+        laser = DigitalWave(gpio, pin=10)
+        laser.set_edges([0], False)
+        laser.start()
+        laser.join()
 
     def test_laser_trials(self):
         pass
