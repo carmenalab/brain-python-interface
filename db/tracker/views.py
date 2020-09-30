@@ -8,7 +8,7 @@ import traceback
 import os
 
 from django.template import RequestContext
-from django.shortcuts import render_to_response, render
+from django.shortcuts import render
 from django.http import HttpResponse
 
 from . import exp_tracker
@@ -113,7 +113,7 @@ def list_exp_history(request, **kwargs):
     if tracker.task_proxy is not None and "saveid" in tracker.task_kwargs:
         fields['running'] = tracker.task_kwargs["saveid"]
 
-    resp = render_to_response('list.html', fields, RequestContext(request))
+    resp = render(request, 'list.html', fields)
     return resp
 
 def setup(request):

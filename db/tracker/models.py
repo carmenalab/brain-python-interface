@@ -27,8 +27,6 @@ import tempfile
 import shutil
 import importlib
 
-from . import cloud
-
 def import_by_path(import_path):
     path_components = import_path.split(".")
     module_name = (".").join(path_components[:-1])
@@ -497,12 +495,6 @@ class Sequence(models.Model):
         js['generator'] = self.generator.id, self.generator.name
         return js
 
-    def to_cloud_json(self):
-        from .json_param import Parameters
-        params = Parameters(self.params).params
-        params['generator_name'] = self.generator.name
-        return params
-
     @classmethod
     def from_json(cls, js):
         '''
@@ -909,38 +901,6 @@ class TaskEntry(models.Model):
 
     def get_data_files(self):
         return DataFile.objects.filter(entry_id=self.id)
-
-    def get_cloud_json(self):
-        if self.report is not None and len(self.report) > 0:
-            report_data = json.loads(self.report)
-            if isinstance(report_data, list):
-                Exp = self.task.get(self.feats.all())
-                report_data = Exp.log_summary(report_data)
-        else:
-            report_data = dict()
-
-        cloud_data = dict(block_number=self.id, subject=self.subject.name,
-            task=self.task.name, sw_version=self.sw_version)
-
-        cloud_data['date'] = self.date.strftime("%Y_%m_%d")
-        cloud_data['runtime'] = report_data.get('runtime', 'unknown')
-        cloud_data['n_trials'] = report_data.get('n_trials', 'unknown')
-        cloud_data['n_success_trials'] = report_data.get('n_success_trials', 'unknown')
-
-        cloud_data['task_params'] = self.task_params
-
-        datafiles = DataFile.objects.using(self._state.db).filter(entry=self.id)
-        cloud_data['datafiles'] = [d.get_path() for d in datafiles]
-
-        cloud_data['sequence'] = self.sequence.to_cloud_json()
-
-        cloud_data['rig_name'] = KeyValueStore.get('rig_name', 'unknown')
-        return cloud_data
-
-    def upload_to_cloud(self):
-        cloud_data = self.get_cloud_json()
-        cloud.upload_json(cloud_data)
-        print("Finished cloud publish!")
 
     def make_hdf_self_contained(self):
         try:
