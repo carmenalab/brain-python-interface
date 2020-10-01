@@ -75,11 +75,32 @@
     }
 
     function enable_built_in_feature(feature) {
-      $("#alert_field").html("Not implemented!");
+      var data = {'name': feature}
+      $.post('setup/add/enable_features', data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        if ($("#feature_" + feature).val() == "Enable")
+          $("#feature_" + feature).val("Disable");
+        else
+          $("#feature_" + feature).val("Enable");
+      })
     }
 
     function add_new_feature() {
-      $("#alert_field").html("Not implemented!");
+      var data = {'name': $("#new_feature_name").val(), 'import_path': $("#new_feature_path").val()};
+      $.post("/setup/add/new_feature", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#new_feature_name").val('');
+          $("#new_feature_path").val('');
+
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + resp["data"].import_path + "</td>");
+          $('#feature-table tr:last').before(tr);
+        }
+      })
     }
 
     function generic_post(data) {
@@ -231,7 +252,7 @@
 
   <h2>Features</h2>
   <input type="submit" value="Update built-in feature paths" onclick="$.post('/setup/update/built_in_feature_paths', {}, function(resp) {console.log(resp)})"><br>
-  <table class="table table-hover table-sm" style="width: auto;">
+  <table class="table table-hover table-sm" style="width: auto;" id="feature-table">
     <thead>
       <tr>
         <th>Index</th><th>Feature name</th><th>Python path (must be importable)</th>
@@ -245,7 +266,7 @@
       <td><input type="text" id="new_feature_path"</td>
     </tr>
 
-    {% for feature in features %}
+    {% for feature in active_features %}
     <tr>
       <td>{{feature.id}}</td>
       <td>{{feature.name}}</td>
@@ -253,7 +274,7 @@
         {% if feature.import_path is None %}
           <input type="text" id="import_path_task_{{feature.id}}"><input type="submit" value="Store" onclick="store_single_feature_import_path({{feature.id}})">
         {% else %}
-          {{feature.import_path}}
+          <input type="submit" id="feature_{{feature.name}}" value="Disable" onclick="enable_built_in_feature('{{feature.name}}')">
         {% endif %}
     </tr>
     {% endfor %}
@@ -263,7 +284,7 @@
     <tr>
       <td>--</td>
       <td>{{feature}}</td>
-      <td><input type="submit" value="Enable" onclick="enable_built_in_feature('{{feature}}')">
+      <td><input type="submit" id="feature_{{feature}}" value="Enable" onclick="enable_built_in_feature('{{feature}}')">
     </tr>
     {% endfor %}
 
