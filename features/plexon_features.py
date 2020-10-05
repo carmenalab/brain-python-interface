@@ -46,7 +46,7 @@ class RelayPlexon(object):
     @property
     def ni_out(self):
         '''
-        Specify the output interface; can be overridden in child classes as long as 
+        Specify the output interface; can be overridden in child classes as long as
         this method returns a class which has the same instance methods (close, register, send, sendMsg, etc.)
         '''
         from riglib.dio import nidaq
@@ -56,7 +56,7 @@ class RelayPlexon(object):
     def plexfile(self):
         '''
         Calculates the plexon file that's most likely associated with the current task
-        based on the time at which the task ended and the "last modified" time of the 
+        based on the time at which the task ended and the "last modified" time of the
         plexon files located at /storage/plexon/
         '''
         if hasattr(self, '_plexfile'):
@@ -74,11 +74,11 @@ class RelayPlexon(object):
             if len(self.event_log) < 1:
                 self._plexfile = None
                 return self._plexfile
-            
+
             start = self.event_log[-1][2]
             files = "/storage/plexon/*.plx"
             files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
-            
+
             if len(files) > 0:
                 tdiff = os.stat(files[0]).st_mtime - start
                 if abs(tdiff) < sec_per_min:
@@ -88,10 +88,10 @@ class RelayPlexon(object):
             ## If both methods fail, return None; cleanup should warn the user that they'll have to link the plexon file manually
             self._plexfile = None
             return self._plexfile
-    
+
     def run(self):
         '''
-        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running.
         See riglib.experiment.Experiment.run(). This 'run' method stops the NIDAQ sink after the FSM has stopped running.
         '''
         try:
@@ -102,22 +102,21 @@ class RelayPlexon(object):
 
             # Remotely stop the recording on the plexon box
             import comedi
-            import config
             import time
             com = comedi.comedi_open("/dev/comedi0")
             time.sleep(0.5)
-            comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)            
+            comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
 
     def set_state(self, condition, **kwargs):
         '''
-        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to 
+        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to
         plexon system and then proceed to the upstream set_state tasks.
 
         Parameters
         ----------
         condition : string
             Name of new state.
-        **kwargs : dict 
+        **kwargs : dict
             Passed to 'super' set_state function
 
         Returns
@@ -134,7 +133,6 @@ class RelayPlexon(object):
         '''
         # Stop recording
         import comedi
-        import config
         import time
 
         com = comedi.comedi_open("/dev/comedi0")
@@ -153,14 +151,13 @@ class RelayPlexon(object):
         else:
             print('\n\nPlexon file not found properly! It will have to be manually linked!\n\n')
 
-    @classmethod 
+    @classmethod
     def pre_init(cls, saveid=None):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
         if saveid is not None:
             import comedi
-            import config
             import time
 
             com = comedi.comedi_open("/dev/comedi0")
@@ -173,7 +170,7 @@ class RelayPlexon(object):
             time.sleep(3)
             super(RelayPlexon, cls).pre_init(saveid=saveid)
 
-        
+
 class RelayPlexByte(RelayPlexon):
     '''
     Relays a single byte (0-255) to synchronize the rows of the HDF table(s) with the plexon recording clock.
@@ -191,7 +188,7 @@ class RelayPlexByte(RelayPlexon):
     @property
     def ni_out(self):
         '''
-        see documentation for RelayPlexon.ni_out 
+        see documentation for RelayPlexon.ni_out
         '''
         from riglib.dio import nidaq
         return nidaq.SendRowByte
@@ -199,7 +196,7 @@ class RelayPlexByte(RelayPlexon):
 
 from .neural_sys_features import CorticalBMI
 class PlexonBMI(CorticalBMI):
-    @property 
+    @property
     def sys_module(self):
         from riglib import plexon
         return plexon

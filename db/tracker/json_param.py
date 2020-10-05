@@ -13,7 +13,7 @@ log_path = os.path.join(os.path.dirname(__file__), '../../log')
 
 def param_objhook(obj):
     '''
-    A custom JSON "decoder" which can recognize certain types of serialized python objects 
+    A custom JSON "decoder" which can recognize certain types of serialized python objects
     (django models, function calls, object constructors) and re-create the objects
 
     Parameters
@@ -46,8 +46,8 @@ def param_objhook(obj):
 
 def norm_trait(trait, value):
     '''
-    Take user input and convert to the type of the trait. 
-    For example, a user might select a decoder's name/id but the ID needs to be mapped 
+    Take user input and convert to the type of the trait.
+    For example, a user might select a decoder's name/id but the ID needs to be mapped
     to an object for type checking when the experiment is constructed)
 
     Parameters
@@ -82,7 +82,7 @@ def norm_trait(trait, value):
             Model = getattr(models, mdl_name)
             record = Model.objects.get(pk=value)
             value = record.get()
-        # Otherwise, let's hope it's already an instance            
+        # Otherwise, let's hope it's already an instance
     elif ttype == 'DataFile':
         # Similar to Instance traits, except we always know to use models.DataFile as the database table to look up the primary key
         from . import models
@@ -97,15 +97,17 @@ def norm_trait(trait, value):
         else:
             # let invalid values get caught by the cast below
             pass
-
     elif ttype == 'Tuple':
         # Explicit cast to tuple for backwards compatibility reasons (should not be necessary for newer versions of the code/traits lib?)
         value = tuple(value)
+    else:
+        if isinstance(value, str):
+            value = _parse_str(value)
 
     #use Cast to validate the value
     try:
         if trait.cast is not None:
-            return trait.cast 
+            return trait.cast
         else:
             # this interface changed in later versions of the trait library
             return trait.validate(trait, 'casting', value)
@@ -132,13 +134,13 @@ class Parameters(object):
         if rawtext == '':
             rawtext = '{}'
         self.params = json.loads(rawtext, object_hook=param_objhook)
-    
+
     @classmethod
     def from_dict(cls, params):
         c = cls('null')
         c.params = params
         return c
-    
+
     @classmethod
     def from_html(cls, params):
         processed = dict()
@@ -156,7 +158,7 @@ class Parameters(object):
         from django.db import models
         def encode(obj):
             if isinstance(obj, models.Model):
-                # If an object is a Django model instance, serialize it using just the model name and the primary key 
+                # If an object is a Django model instance, serialize it using just the model name and the primary key
                 return dict(
                     __django_model__=obj.__class__.__name__,
                     pk=obj.pk)
@@ -165,7 +167,7 @@ class Parameters(object):
                 return dict(__builtin__="tuple", args=[obj])
             elif isinstance(obj, np.ndarray):
                 # serialize numpy arrays as lists
-                return obj.tolist()    
+                return obj.tolist()
             elif isinstance(obj, dict):
                 # if the object is a dictionary, just run the encoder on each of the 'values' of the dictionary
                 return dict((k, encode(v)) for k, v in list(obj.items()))
@@ -174,7 +176,7 @@ class Parameters(object):
                 # (python object data (attributes) are stored in the parameter __dict__)
                 data = dict(
                     __module__=obj.__class__.__module__,
-                    __class__=obj.__class__.__name__, 
+                    __class__=obj.__class__.__name__,
                     __dict__=obj.__dict__)
 
                 if hasattr(obj, '__getstate__'):
@@ -182,12 +184,12 @@ class Parameters(object):
                 return data
             else:
                 return obj
-        
+
         return json.dumps(encode(self.params))
-    
+
     def trait_norm(self, traits):
         '''
-        Apply typecasting to parameters which correspond to experiment traits 
+        Apply typecasting to parameters which correspond to experiment traits
 
         Parameters
         ----------
@@ -210,7 +212,7 @@ class Parameters(object):
         """ Return data with values converted to numbers if possible """
         params_parsed = dict()
         for key in self.params:
-            # The internet suggests this might be the best way to check 
+            # The internet suggests this might be the best way to check
             # if a string is a number...
             try:
                 params_parsed[key] = float(self.params[key])
@@ -220,7 +222,7 @@ class Parameters(object):
 
     def __contains__(self, attr):
         return attr in self.params
-    
+
     def __getitem__(self, attr):
         return self.params[attr]
 

@@ -1,5 +1,5 @@
 '''
-Features to include when using the Arduino board to remotely start neural 
+Features to include when using the Arduino board to remotely start neural
 recording for Plexon/Blackrock/TDT systems and also synchronize data between the task and the neural recordings
 '''
 import time
@@ -19,7 +19,6 @@ import glob
 import datetime
 import serial
 
-import config
 import time
 from riglib import serial_dio
 
@@ -36,7 +35,7 @@ class SerialDIORowByte(object):
 
         Parameters
         ----------
-        None 
+        None
 
         Returns
         -------
@@ -56,9 +55,9 @@ class SerialDIORowByte(object):
         Parameters
         ----------
         file_names : iterable
-            Each element should be a string of a filename which exists 
+            Each element should be a string of a filename which exists
         start_time : datetime.datetime object, optional, default = 1 day ago
-            Cutoff time for the file timestamp. The file needs 
+            Cutoff time for the file timestamp. The file needs
             to be modified after this time in order to pass the filter.
         '''
         return [fname for fname in file_names if datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time]
@@ -73,10 +72,10 @@ class SerialDIORowByte(object):
         self.nidaq = sink_manager.start(serial_dio.SendRowByte)
         self.dbq_kwargs = dict()
         super(SerialDIORowByte, self).init()
-    
+
     def run(self):
         '''
-        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running.
         See riglib.experiment.Experiment.run(). This 'run' method stops the NIDAQ sink after the FSM has stopped running.
         '''
         try:
@@ -87,14 +86,14 @@ class SerialDIORowByte(object):
 
     def set_state(self, condition, **kwargs):
         '''
-        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to 
+        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to
         plexon system and then proceed to the upstream set_state tasks.
 
         Parameters
         ----------
         condition : string
             Name of new state.
-        **kwargs : dict 
+        **kwargs : dict
             Passed to 'super' set_state function
 
         Returns
@@ -126,12 +125,12 @@ class SerialDIORowByte(object):
         port.write("p")
         super(SerialDIORowByte, self).cleanup(database, saveid, **kwargs)
 
-        # Sleep time so that the neural recording system has time to save cleanly        
+        # Sleep time so that the neural recording system has time to save cleanly
         time.sleep(5)
 
         print("Beginning neural data file cleanup")
         # specify which database to save to. If you're running from the web interface, this will always pick the 'default' database
-        
+
         if "dbname" in kwargs:
             self.dbq_kwargs['dbname']=kwargs["dbname"]
 
@@ -144,8 +143,8 @@ class SerialDIORowByte(object):
             for df in self.data_files:
                 ext = os.path.splitext(df)[1][1:]
                 database.save_data(df, self.db_sys_name, saveid, True, False, ext, **self.dbq_kwargs)
-        
-    @classmethod 
+
+    @classmethod
     def pre_init(cls, saveid=None):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
@@ -179,7 +178,7 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
     def data_files(self):
         '''
         Calculates the plexon file that's most likely associated with the current task
-        based on the time at which the task ended and the "last modified" time of the 
+        based on the time at which the task ended and the "last modified" time of the
         plexon files located at /storage/plexon/
         '''
         if hasattr(self, '_data_files'):
@@ -197,12 +196,12 @@ class PlexonSerialDIORowByte(SerialDIORowByte):
             if len(self.event_log) < 1:
                 self._data_files = None
                 return self._data_files
-            
+
             start = self.event_log[-1][2]
             #files = "/storage/plexon/*.plx"
             files = "/storage/plexon/test*.plx" #Only use files that have not yet been renamed
             files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
-            
+
             if len(files) > 0:
                 tdiff = os.stat(files[0]).st_mtime - start
                 if abs(tdiff) < sec_per_min:
@@ -226,14 +225,14 @@ class BlackrockSerialDIORowByte(SerialDIORowByte):
         for file_ext in self.file_exts:
             file_pattern1 = os.path.join(self.storage_root, "*/", file_ext)
             file_pattern2 = os.path.join(self.storage_root, file_ext)
-            
+
             self.possible_filenames += self.filter_files(glob.glob(file_pattern1))
             self.possible_filenames += self.filter_files(glob.glob(file_pattern2))
 
         self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
 
         super(BlackrockSerialDIORowByte, self).init()
-        
+
     @property
     def data_files(self):
         if not hasattr(self, "_data_files"):
@@ -280,7 +279,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
     @property
     def ni_out(self):
         '''
-        Specify the output interface; can be overridden in child classes as long as 
+        Specify the output interface; can be overridden in child classes as long as
         this method returns a class which has the same instance methods (close, register, send, sendMsg, etc.)
         '''
         # TODO ni_out ---> iface
@@ -289,7 +288,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
 
     def run(self):
         '''
-        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running.
         See riglib.experiment.Experiment.run(). This 'run' method stops the NIDAQ sink after the FSM has stopped running.
         '''
         try:
@@ -300,14 +299,14 @@ class TDTSerialDIORowByte(SerialDIORowByte):
 
     def set_state(self, condition, **kwargs):
         '''
-        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to 
+        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to
         plexon system and then proceed to the upstream set_state tasks.
 
         Parameters
         ----------
         condition : string
             Name of new state.
-        **kwargs : dict 
+        **kwargs : dict
             Passed to 'super' set_state function
 
         Returns
@@ -324,7 +323,6 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         '''
         # Stop recording
         # import comedi
-        import config
         import time
 
         # com = comedi.comedi_open("/dev/comedi0")
@@ -337,7 +335,7 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         super(TDTSerialDIORowByte, self).cleanup(database, saveid, **kwargs)
 
         # Sleep time so that the plx file has time to save cleanly
-        
+
         time.sleep(2)
         """
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
@@ -349,8 +347,8 @@ class TDTSerialDIORowByte(SerialDIORowByte):
         else:
             print '\n\nTDT file not found properly! It will have to be manually linked!\n\n'
         """
-        
-    @classmethod 
+
+    @classmethod
     def pre_init(cls, saveid=None):
         '''
         Run prior to starting the task to remotely start recording from the plexon system

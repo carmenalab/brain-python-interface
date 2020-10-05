@@ -18,14 +18,6 @@ import time, datetime
 import db
 from collections import defaultdict, OrderedDict
 
-
-from config import config
-
-try:
-    import plotutil
-except:
-    pass
-
 from tracker import models
 
 # default DB, change this variable from python session to switch to other database
@@ -66,7 +58,7 @@ def default_trial_filter_fn(te, trial_msgs):
 def default_block_filter_fn(te):
     return True
 
-def default_trial_proc_fn(te, trial_msgs): 
+def default_trial_proc_fn(te, trial_msgs):
     return 1
 
 def default_trial_condition_fn(te, trial_msgs):
@@ -121,7 +113,7 @@ def get_decoder_entry(entry):
             return None
 
 def get_decoder_name(entry):
-    ''' 
+    '''
     Returns the filename of the decoder used in the session.
     Takes TaskEntry object.
     '''
@@ -165,28 +157,28 @@ def get_task_name(entry):
     Takes TaskEntry object.
     '''
     return models.Task.objects.using(db_name).get(pk=entry.task_id).name
-    
+
 def get_date(entry):
     '''
     Returns date and time of session (as a datetime object).
     Takes TaskEntry object.
     '''
     return entry.date
-    
+
 def get_notes(entry):
     '''
     Returns notes for session.
     Takes TaskEntry object.
     '''
     return entry.notes
-    
+
 def get_subject(entry):
     '''
     Returns name of subject for session.
     Takes TaskEntry object.
     '''
     return models.Subject.objects.using(db_name).get(pk=entry.subject_id).name
-    
+
 def get_length(entry):
     '''
     Returns length of session in seconds.
@@ -197,7 +189,7 @@ def get_length(entry):
     except:
         return 0.0
     return report[-1][2]-report[0][2]
-    
+
 def get_success_rate(entry):
     '''
     Returns (# of trials rewarded)/(# of trials intiated).
@@ -259,7 +251,7 @@ def get_reward_rate(entry):
     else:
         length = rewardtimes[-1] - report[0][2]
         return count/(length/60.0)
-    
+
 def session_summary(entry):
     '''
     Prints a summary of info about session.
@@ -281,14 +273,14 @@ def session_summary(entry):
     print("Success rate: ", get_success_rate(entry)*100, "%")
     print("Reward rate: ", get_reward_rate(entry), "trials/minute")
     print("Initiate rate: ", get_initiate_rate(entry), "trials/minute")
-    
+
 def query_daterange(startdate, enddate=datetime.date.today()):
     '''
     Returns QuerySet for task entries within date range (inclusive). startdate and enddate
     are date objects. End date is optional- today's date by default.
     '''
     return models.TaskEntry.objects.using(db_name).filter(date__gte=startdate).filter(date__lte=enddate)
-    
+
 def get_decoder_parent(decoder):
     '''
     decoder = database record of decoder object
@@ -300,7 +292,7 @@ def get_decoder_parent(decoder):
 def get_decoder_sequence(decoder):
     '''
     decoder = database record of decoder object
-    ''' 
+    '''
     parent = get_decoder_parent(decoder)
     if parent is None:
         return [decoder]
@@ -317,7 +309,7 @@ def search_by_decoder(decoder):
         decid = decoder
     else:
         decid = decoder.id
-    blocks = list(models.TaskEntry.objects.using(db_name).filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.using(db_name).filter(params__contains='"decoder": '+str(decid))) 
+    blocks = list(models.TaskEntry.objects.using(db_name).filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.using(db_name).filter(params__contains='"decoder": '+str(decid)))
     return blocks
 
 def search_by_units(unitlist, decoderlist = None, exact=False):
@@ -355,12 +347,12 @@ def get_task_entries_by_date(subj=None, date=datetime.date.today(), dbname='defa
     subj: string, optional, default=None
         Specify the beginning of the name of the subject or the full name. If not specified, blocks from all subjects are returned
     date: multiple types, optional, default=today
-        Query date for blocks. The date can be specified as a datetime.date object 
-        or a 3-tuple (year, month, day). 
+        Query date for blocks. The date can be specified as a datetime.date object
+        or a 3-tuple (year, month, day).
     kwargs: dict, optional
         Additional keyword arguments to pass to models.TaskEntry.objects.filter
     '''
-    
+
     if isinstance(date, datetime.date):
         kwargs.update(dict(date__year=date.year, date__month=date.month, date__day=date.day))
     elif isinstance(date, tuple) and len(date) == 3:
@@ -388,7 +380,7 @@ def load_last_decoder():
 
 class TaskEntry(object):
     '''
-    Wrapper class for the TaskEntry django class so that object-oriented methods 
+    Wrapper class for the TaskEntry django class so that object-oriented methods
     can be defined for TaskEntry blocks (e.g., for analysis methods for a particular experiment)
     without needing to modfiy the database model.
     '''
@@ -401,8 +393,8 @@ class TaskEntry(object):
         task_entry_id : int
             'id' number associated with the TaskEntry (database primary key)
         dbname : string, optional, default='default'
-            Name of database (if multiple databases are available). Database must 
-            be declared in db/settings.py and paths must be configured using 
+            Name of database (if multiple databases are available). Database must
+            be declared in db/settings.py and paths must be configured using
             config_files/make_config.py
         **kwargs : dict
             For any additional parameters unused by child classes
@@ -459,7 +451,7 @@ class TaskEntry(object):
         except:
             self.report = ''
 
-        
+
         # Parse out trial messages into separate trials
         if os.path.exists(self.hdf_filename):
             try:
@@ -478,13 +470,13 @@ class TaskEntry(object):
                     task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
                     for k in range(len(task_msgs)):
                         task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
-                        task_msgs_ext[k]['time'] = task_msgs[k]['time']    
+                        task_msgs_ext[k]['time'] = task_msgs[k]['time']
                         try:
                             task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
                         except:
                             task_msgs_ext[k]['target_index'] = np.nan
-                        
-                    self.task_msgs = task_msgs_ext  
+
+                    self.task_msgs = task_msgs_ext
                 except:
                     self.task_msgs = task_msgs
 
@@ -517,7 +509,7 @@ class TaskEntry(object):
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
-        Retrieve decoders associated with this block. A block may have multiple decoders 
+        Retrieve decoders associated with this block. A block may have multiple decoders
         associated with it, e.g., a single decoder seeding block may be used to generate several seed decoders
 
         Parameters
@@ -528,7 +520,7 @@ class TaskEntry(object):
         Returns
         -------
         list or object
-            If only one decoder is linked to this task entry, an object is returned (either a db record or a Decoder instance). If multiple decoders are linked, 
+            If only one decoder is linked to this task entry, an object is returned (either a db record or a Decoder instance). If multiple decoders are linked,
             a list of objects is returned
         '''
         records = models.Decoder.objects.using(self.dbname).filter(entry_id=self.id)
@@ -564,21 +556,21 @@ class TaskEntry(object):
         filt: callable; call signature: trial_filter_fn(trial_msgs)
             Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
         proc: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
-            The main workhorse function 
+            The main workhorse function
         cond: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
             Determine what the trial *subtype* is (useful for separating out various types of catch trials)
         comb: callable; call signature: data_comb_fn(list)
             Combine the list into the desired output structure
         kwargs: optional keyword arguments
-            For 'legacy' compatibility, you can also specify 'trial_filter_fn' for 'filt', 'trial_proc_fn' for 'proc', 
+            For 'legacy' compatibility, you can also specify 'trial_filter_fn' for 'filt', 'trial_proc_fn' for 'proc',
             'trial_condition_fn' for 'cond', and 'data_comb_fn' for comb. These are ignored if any newer equivalents are specified.
-            All other keyword arguments are passed to the 'proc' function. 
+            All other keyword arguments are passed to the 'proc' function.
 
         Returns
         -------
         result: list
             The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
-            grouped by tuples are combined into a single result. 
+            grouped by tuples are combined into a single result.
 
         '''
         if filt == None:
@@ -601,7 +593,7 @@ class TaskEntry(object):
             trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
         if isinstance(trial_proc_fn, str):
-            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
+            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
 
         if isinstance(trial_condition_fn, str):
             trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
@@ -610,15 +602,15 @@ class TaskEntry(object):
         te = self
         trial_msgs = [msgs for msgs in te.trial_msgs if trial_filter_fn(te, msgs)]
         n_trials = len(trial_msgs)
-        
+
         blockset_data = defaultdict(list)
-        
-        ## Call a function on each trial    
+
+        ## Call a function on each trial
         for k in range(n_trials):
             output = trial_proc_fn(te, trial_msgs[k], **kwargs)
             trial_condition = trial_condition_fn(te, trial_msgs[k])
             blockset_data[trial_condition].append(output)
-        
+
         newdata = dict()
         for key in blockset_data:
             newdata[key] = data_comb_fn(blockset_data[key])
@@ -629,7 +621,7 @@ class TaskEntry(object):
         else:
             return newdata
 
-    @property 
+    @property
     def supplementary_data_file(self):
         '''
         Docstring
@@ -649,7 +641,7 @@ class TaskEntry(object):
         Parameters
         ----------
         key : string
-            Variable name in cache file 
+            Variable name in cache file
         fn : callable
             Function to execute (no arguments) to get the required data, if it is not present in the file
         clean : bool, default=False
@@ -669,7 +661,7 @@ class TaskEntry(object):
                 supplementary_data[key] = fn()
                 savemat(self.supplementary_data_file, supplementary_data)
             setattr(self, '_%s' % key, supplementary_data[key])
-            return getattr(self, '_%s' % key)            
+            return getattr(self, '_%s' % key)
 
     def get_matching_state_transition_seq(self, seq):
         '''
@@ -689,8 +681,8 @@ class TaskEntry(object):
         for k in range(len(task_msgs)-len(seq)):
             if np.all(task_msgs[k:k+len(seq)]['msg'] == seq):
                 msg_list_inds.append(k)
-                trial_msgs.append(task_msgs[k:k+len(seq)])  
-                epochs.append((task_msgs[k]['time'], task_msgs[k+len(seq)-1]['time']))      
+                trial_msgs.append(task_msgs[k:k+len(seq)])
+                epochs.append((task_msgs[k]['time'], task_msgs[k+len(seq)-1]['time']))
         epochs = np.vstack(epochs)
         return msg_list_inds, trial_msgs, epochs
 
@@ -729,7 +721,7 @@ class TaskEntry(object):
         Get the task-generated HDF file linked to this TaskEntry
         '''
         q = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id, system__name='hdf')
-        if len(q) == 0: 
+        if len(q) == 0:
             # empty string for HDF filename if none is linked in the database
             return ''
         elif len(q) == 1:
@@ -844,7 +836,7 @@ class TaskEntry(object):
 
         Returns
         -------
-        filename of associated file 
+        filename of associated file
         '''
         file_records = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id, system__name=system_name, **query_kwargs)
         dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
@@ -868,14 +860,14 @@ class TaskEntry(object):
         '''
         return self.get_datafile('plexon2', intermediate_path='')
 
-    @property 
+    @property
     def bmiparams_filename(self):
         '''
         Return the name of the npz file that was used to store CLDA parameters, if one exists
         '''
         return self.get_datafile('bmi_params', intermediate_path='rawdata')
 
-    @property 
+    @property
     def blackrock_filenames(self):
         x = self.get_datafile(system_name='blackrock', intermediate_path='')
         y = self.get_datafile(system_name='blackrock2', intermediate_path='rawdata')
@@ -884,7 +876,7 @@ class TaskEntry(object):
             x = [x]
         if type(y) is not list:
             y = [y]
-        
+
         return x+y
     @property
     def nev_filename(self):
@@ -915,8 +907,8 @@ class TaskEntry(object):
         '''
         Return the 'name' of the TaskEntry used to set all the names of linked data files
         '''
-        # TODO this needs to be hacked because the current way of determining a 
-        # a filename depends on the number of things in the database, i.e. if 
+        # TODO this needs to be hacked because the current way of determining a
+        # a filename depends on the number of things in the database, i.e. if
         # after the fact a record is removed, the number might change. read from
         # the file instead
         return str(os.path.basename(self.hdf_filename).rstrip('.hdf'))
@@ -948,7 +940,7 @@ class TaskEntry(object):
         Returns
         -------
         '''
-        if 'bmi' in self.task.name: 
+        if 'bmi' in self.task.name:
             return 'BMI'
         elif 'clda' in self.task.name:
             return 'CLDA'
@@ -983,13 +975,13 @@ class TaskEntry(object):
         '''
         return self.n_rewards * self.reward_time
 
-    @property 
+    @property
     def datafiles(self):
         '''
         Returns a dictionary where keys are system names and values are the location(s) of associated data files
         '''
         datafiles = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id)
-        files = dict((d.system.name, d.get_path()) for d in datafiles)    
+        files = dict((d.system.name, d.get_path()) for d in datafiles)
         return files
 
     def save_to_database(self, new_db):
@@ -1005,7 +997,7 @@ class TaskEntry(object):
         self.record.subject.save(using=new_db)
 
         # save the task
-        self.record.task.save(using=new_db)        
+        self.record.task.save(using=new_db)
 
         # save the task entry record
         self.record.save(using=new_db)
@@ -1018,7 +1010,7 @@ class TaskEntry(object):
             d.save(using=new_db)
             new_sys = models.System.objects.using(new_db).get(name=d.system.name)
             d.system = new_sys
-            d.save()            
+            d.save()
 
         # save any decoder records used by this block
         if not (self.decoder_record is None):
@@ -1067,7 +1059,7 @@ class TaskEntryCollection(object):
         blocks : np.iterable
             Some iterable object which contains TaskEntry ID numbers to look up in the database
         name : string, optional, default=''
-            Name to give this collection 
+            Name to give this collection
         cls : type, optional, default=TaskEntry
             class constructor to use for all the IDs. Uses the generic TaskEntry defined above by default
 
@@ -1091,7 +1083,7 @@ class TaskEntryCollection(object):
         filt: callable; call signature: trial_filter_fn(trial_msgs)
             Function must return True/False values to determine if a set of trial messages constitutes a valid set for the analysis
         proc: callable; call signature: trial_proc_fn(task_entry, trial_msgs)
-            The main workhorse function 
+            The main workhorse function
         cond: callable; call signature: trial_condition_fn(task_entry, trial_msgs)
             Determine what the trial *subtype* is (useful for separating out various types of catch trials)
         comb: callable; call signature: data_comb_fn(list)
@@ -1105,7 +1097,7 @@ class TaskEntryCollection(object):
         -------
         result: list
             The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
-            grouped by tuples are combined into a single result. 
+            grouped by tuples are combined into a single result.
         '''
 
         import trial_filter_functions, trial_proc_functions, trial_condition_functions
@@ -1129,7 +1121,7 @@ class TaskEntryCollection(object):
             trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
         if isinstance(trial_proc_fn, str):
-            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)            
+            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
 
         if isinstance(trial_condition_fn, str):
             trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
@@ -1140,17 +1132,17 @@ class TaskEntryCollection(object):
         for blockset in self.blocks:
             if not np.iterable(blockset):
                 blockset = (blockset,)
-            
+
             blockset_data = defaultdict(list)
             for te in blockset:
                 if verbose:
                     print(".")
-          
+
                 # Filter out the trials you want
                 trial_msgs = [msgs for msgs in te.trial_msgs if trial_filter_fn(te, msgs)]
                 n_trials = len(trial_msgs)
-        
-                ## Call a function on each trial    
+
+                ## Call a function on each trial
                 for k in range(n_trials):
                     try:
                         output = trial_proc_fn(te, trial_msgs[k], **kwargs)
@@ -1163,7 +1155,7 @@ class TaskEntryCollection(object):
                         traceback.print_exc()
                         if error_count > max_errors:
                             raise Exception
-        
+
             # Aggregate the data from the blockset, which may include multiple task entries
             blockset_data_comb = dict()
             for key in blockset_data:
@@ -1180,7 +1172,7 @@ class TaskEntryCollection(object):
 
     def proc_blocks(self, filt=None, proc=None, cond=None, comb=None, verbose=False, return_type=list, **kwargs):
         '''
-        Generic framework to perform a block-level analysis on the entire dataset, 
+        Generic framework to perform a block-level analysis on the entire dataset,
         e.g., percent of trials correct, which require analyses across trials
 
         Parameters
@@ -1188,7 +1180,7 @@ class TaskEntryCollection(object):
         block_filter_fn: callable; call signature: block_filter_fn(task_entry)
             Function must return True/False values to determine if a task entry is valid for the analysis
         block_proc_fn: callable; call signature: trial_proc_fn(task_entry)
-            The main workhorse function 
+            The main workhorse function
         data_comb_fn: callable; call signature: data_comb_fn(list)
             Combine the list into the desired output structure
 
@@ -1196,7 +1188,7 @@ class TaskEntryCollection(object):
         -------
         result: list
             The results of all the analysis. The length of the returned list equals len(self.blocks). Sub-blocks
-            grouped by tuples are combined into a single result. 
+            grouped by tuples are combined into a single result.
         '''
         if filt == None:
             filt = kwargs.pop('block_filter_fn', default_block_filter_fn)
@@ -1225,7 +1217,7 @@ class TaskEntryCollection(object):
         for blockset in self.blocks:
             if not np.iterable(blockset):
                 blockset = (blockset,)
-            
+
             blockset_data = []
             for te in blockset:
                 if verbose:
@@ -1344,7 +1336,7 @@ def get_plx_file(entry):
     deprecation_warning()
     te = TaskEntry(entry, db_name)
     return te.plx_filename
-        
+
 def get_plx2_file(entry):
     '''
     Returns the name of the plx2 file associated with the session.
@@ -1352,7 +1344,7 @@ def get_plx2_file(entry):
     deprecation_warning()
     te = TaskEntry(entry, db_name)
     return te.plx2_filename
-        
+
 def get_bmiparams_file(entry):
     '''
     Returns the name of the bmi parameter update history file associated with the session.
@@ -1376,7 +1368,7 @@ def get_nev_file(entry):
     '''
     deprecation_warning()
     te = TaskEntry(entry, db_name)
-    return te.nev_filename    
+    return te.nev_filename
 
 def get_nsx_files(entry):
     '''
@@ -1388,7 +1380,7 @@ def get_nsx_files(entry):
     return te.nsx_filenames
 
 def get_decoder_name(entry):
-    ''' 
+    '''
     Returns the filename of the decoder used in the session.
     Takes TaskEntry object.
     '''
@@ -1399,7 +1391,7 @@ def get_decoder_name(entry):
 def get_decoder_name_full(entry):
     deprecation_warning()
     te = TaskEntry(entry, db_name)
-    return te.decoder_filename  
+    return te.decoder_filename
 
 def get_decoder(entry):
     deprecation_warning()
@@ -1430,7 +1422,7 @@ def get_task_name(entry):
     Takes TaskEntry object.
     '''
     return models.Task.objects.using(db_name).get(pk=entry.task_id).name
-    
+
 def get_date(entry):
     '''
     Returns date and time of session (as a datetime object).
@@ -1438,8 +1430,8 @@ def get_date(entry):
     '''
     deprecation_warning()
     te = TaskEntry(entry, db_name)
-    return te.date    
-    
+    return te.date
+
 def get_notes(entry):
     '''
     Returns notes for session.
@@ -1448,7 +1440,7 @@ def get_notes(entry):
     deprecation_warning()
     te = TaskEntry(entry, db_name)
     return te.notes
-    
+
 def get_subject(entry):
     '''
     Returns name of subject for session.
@@ -1457,7 +1449,7 @@ def get_subject(entry):
     deprecation_warning()
     te = TaskEntry(entry, db_name)
     return te.subject
-    
+
 def get_length(entry):
     '''
     Returns length of session in seconds.
@@ -1477,7 +1469,7 @@ def get_binned_spikes_file(entry):
     else:
         print('Not found')
         return None
-    
+
 def get_success_rate(entry):
     '''
     Returns (# of trials rewarded)/(# of trials intiated).
@@ -1539,7 +1531,7 @@ def get_reward_rate(entry):
     else:
         length = rewardtimes[-1] - report[0][2]
         return count/(length/60.0)
-    
+
 def session_summary(entry):
     '''
     Prints a summary of info about session.
@@ -1561,4 +1553,4 @@ def session_summary(entry):
     print("Success rate: ", get_success_rate(entry)*100, "%")
     print("Reward rate: ", get_reward_rate(entry), "trials/minute")
     print("Initiate rate: ", get_initiate_rate(entry), "trials/minute")
-   
+

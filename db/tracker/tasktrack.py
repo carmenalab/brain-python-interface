@@ -15,13 +15,13 @@ from riglib import experiment, singleton
 
 from . import websocket
 
-from config import config
 from .json_param import Parameters
 
 import io
 import traceback
 
-log_filename = os.path.join(config.log_path, "tasktrack_log")
+log_path = os.path.join(os.path.dirname(__file__), '../../log')
+log_filename = os.path.join(log_path, "tasktrack_log")
 def log_error(err, mode='a'):
     traceback.print_exc(None, err)
     with open(log_filename, mode) as fp:
@@ -125,7 +125,12 @@ class Track(singleton.Singleton):
         '''
         Terminate the task gracefully by running riglib.experiment.Experiment.end_task
         '''
-        assert self.status.value in [b"testing", b"running"]
+        if self.status.value == b"":
+            print("Task already stopped!")
+            return
+        elif self.status.value not in [b"testing", b"running"]:
+            raise ValueError("Unknown task status")
+
         try:
             self.task_proxy.end_task()
         except Exception as e:

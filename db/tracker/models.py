@@ -8,16 +8,9 @@ for a basic introduction
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import json
-import pickle, pickle
+import pickle
 import inspect
-from collections import OrderedDict
-from django.db import models
-from django.core.exceptions import ObjectDoesNotExist
-
 import numpy as np
-
-from riglib import calibrations, experiment
-from config import config
 import importlib
 import subprocess
 import traceback
@@ -25,7 +18,11 @@ import imp
 import tables
 import tempfile
 import shutil
-import importlib
+from collections import OrderedDict
+from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
+
+from riglib import calibrations, experiment
 
 from . import cloud
 
@@ -1096,7 +1093,6 @@ def parse_blackrock_file_n2h5(nev_fname, nsx_files):
     if not os.path.isfile(nev_hdf_fname):
         subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
 
-    import tables #Previously import h5py -- pytables works fine too
     nev_hdf = tables.openFile(nev_hdf_fname, 'r')
 
     last_ts = 0
@@ -1527,6 +1523,7 @@ class KeyValueStore(models.Model):
                 raise ValueError("Duplicate keys: %s" % key)
         except:
             print("KeyValueStore error")
+            print("key = %s, default=%s, dbname=%s" % (key, default, dbname))
             traceback.print_exc()
             return default
 

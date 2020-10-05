@@ -1,35 +1,21 @@
 '''
 Functions to call appropriate constructor functions based on UI data and to link decoder objects in the database
 '''
-
 import os
-
 import re
-import pickle
 import tempfile
 import xmlrpc.client
 import pickle
-
-
-
-
-
+import json
+import logging
+import numpy as np
 
 from celery import task, chain
-
-
-import numpy as np
-from riglib.bmi import extractor, train
-from config import config 
-
-
-import json
-
 from django.http import HttpResponse
 
+from riglib.bmi import extractor, train
 from riglib import experiment
 
-import logging
 
 @task
 def cache_plx(plxfile):
@@ -46,7 +32,7 @@ def cache_plx(plxfile):
     from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
     from plexon import plexfile
-    plexfile.openFile(str(plxfile)) 
+    plexfile.openFile(str(plxfile))
 
 @task
 def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key, kin_extractor, zscore):
@@ -108,9 +94,9 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         else:
             unique_cells = []
             for c in cells:
-                if c not in unique_cells: 
+                if c not in unique_cells:
                     unique_cells.append(c)
-            
+
             units = np.array(unique_cells).astype(np.int32)
     elif ('lfp' in extractor_cls.feature_type) or ('ai_' in extractor_cls.feature_type):  # e.g., 'lfp_power'
         # look at "channels" argument (ignore "cells")
@@ -125,7 +111,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         raise Exception('Unknown extractor class!')
 
     task_update_rate = 60 # NOTE may not be true for all tasks?!
-    
+
     extractor_kwargs = dict()
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
         extractor_kwargs['units'] = units
@@ -143,7 +129,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
 
     # list of DataFile objects
     datafiles = models.DataFile.objects.filter(entry_id=entry)
-    
+
     # key: a string representing a system name (e.g., 'plexon', 'blackrock', 'task', 'hdf')
     # value: a single filename, or a list of filenames if there are more than one for that system
     files = dict()
@@ -172,7 +158,6 @@ def cache_and_train(*args, **kwargs):
     """
     Cache plexon file (if using plexon system) and train BMI.
     """
-
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
     from .tracker import dbq
     from . import namelist
@@ -182,7 +167,8 @@ def cache_and_train(*args, **kwargs):
     from .tasktrack import Track
     from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
-    if config.recording_sys['make'] == 'plexon':
+    recording_sys = models.KeyValueStore.get('recording_sys', None)
+    if recording_sys == 'plexon':
         print("cache and train")
         entry = kwargs['entry']
         print(entry)
@@ -196,10 +182,8 @@ def cache_and_train(*args, **kwargs):
         else:
             print("calling")
             make_bmi.delay(*args, **kwargs)
-    
-    elif config.recording_sys['make'] == 'blackrock':
+    elif recording_sys == 'blackrock':
         make_bmi.delay(*args, **kwargs)
-    
     else:
         raise Exception('Unknown recording_system!')
 
@@ -210,7 +194,7 @@ def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     Parameters
     ----------
     obj: riglib.bmi.Decoder instance
-        New decoder object to be saved 
+        New decoder object to be saved
     orig_decoder_record: tracker.models.Decoder instance
         Database record of the original decoder
     suffix: string, default='_'
@@ -341,7 +325,7 @@ def conv_kfdecoder_to_sskfdecoder(decoder_record):
     dec = open_decoder_from_record(decoder_record)
 
     F, K = dec.filt.get_sskf()
-    from riglib.bmi import sskfdecoder 
+    from riglib.bmi import sskfdecoder
     filt = sskfdecoder.SteadyStateKalmanFilter(F=F, K=K)
     dec_sskf = sskfdecoder.SSKFDecoder(filt, dec.units, dec.ssm, binlen=decoder.binlen)
 
@@ -356,7 +340,7 @@ def make_kfdecoder_interpolate(decoder_record):
     from .json_param import Parameters
     from .tasktrack import Track
     from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-        
+
     # Load the decoder
     decoder_fname = os.path.join('/storage/decoders/', decoder_record.path)
     print(decoder_fname)

@@ -46,7 +46,7 @@ class Basic(object):
     This class is sufficient for all the tasks implemented as of Aug. 2014.
     '''
     response_message_length = 7
-    def __init__(self):
+    def __init__(self, version=1):
         '''
         Constructor for basic reward system interface
 
@@ -59,9 +59,9 @@ class Basic(object):
         Basic instance
         '''
         self.port = serial.Serial('/dev/crist_reward', baudrate=38400)
-        from config import config
-        self.version = int(config.reward_sys['version'])
-        if self.version==1: self.set_beeper_volume(128)
+        self.version = version
+        if self.version==1:
+            self.set_beeper_volume(128)
         time.sleep(.5)
         self.reset()
 
@@ -72,7 +72,7 @@ class Basic(object):
         Parameters
         ----------
         msg : string
-            Message to be sent over the serial port        
+            Message to be sent over the serial port
 
         Returns
         -------
@@ -108,7 +108,7 @@ class Basic(object):
         else:
             raise Exception("Unrecognized reward system version!")
         self.port.read(self.port.inWaiting())
-    
+
     def setup_touch_sensor(self):
         '''
         Send the serial command to initialize the Crist touch sensor
@@ -147,12 +147,12 @@ class Basic(object):
 
         Returns
         -------
-        string 
+        string
             Response message from system
         '''
         if not (volume >= 0 and volume <= 255):
             raise ValueError("Invalid beeper volume: %g" % volume)
-        return self._write('@CS' + '%c' % volume + 'E' + struct.pack('xxx')) 
+        return self._write('@CS' + '%c' % volume + 'E' + struct.pack('xxx'))
 
     def reset(self):
         '''
@@ -174,7 +174,7 @@ class Basic(object):
 
         Parameters
         ----------
-        drain_time : float 
+        drain_time : float
             Time to drain the system, in seconds.
 
         Returns
@@ -249,23 +249,23 @@ class System(traits.HasTraits, threading.Thread):
         self.plock = threading.Lock()
         self.daemon = True
         self._messages = dict([
-            ("&D",(37, "Data", self._parse_status)), 
-            ("#E", (4, "Error")), 
-            ("#A", (4, "Acknowledge")), 
+            ("&D",(37, "Data", self._parse_status)),
+            ("#E", (4, "Error")),
+            ("#A", (4, "Acknowledge")),
             ("*Z", (8, "Volume Calibration"))
         ])
         reward_mode = dict(T="Time", V="Volume", C="Count")
         drain_status = dict(
-            P="PC enabled", 
-            S="Switch enabled", 
-            X="External enabled", 
-            D="Disabled", 
+            P="PC enabled",
+            S="Switch enabled",
+            X="External enabled",
+            D="Disabled",
             T="Time out")
         ctrl_status = dict(
-            R="Run", 
-            H="halted, input voltage high", 
-            L="halted, input voltage low", 
-            D="Controller device off-line", 
+            R="Run",
+            H="halted, input voltage high",
+            L="halted, input voltage low",
+            D="Controller device off-line",
             M="Halted, message problem",
             O="override timeout")
         enable_disable = dict(
@@ -300,12 +300,12 @@ class System(traits.HasTraits, threading.Thread):
                 output[name] = part
             else:
                 output[name] = op[part]
-        
+
         self.set(**output)
 
     def __del__(self):
         self._running = False
-    
+
     def run(self):
         while self._running:
             header = self.port.read(2)
@@ -323,10 +323,10 @@ class System(traits.HasTraits, threading.Thread):
                 traceback.print_exc()
                 time.sleep(10)
                 print(repr(msg),repr(self.port.read(self.port.inWaiting())))
-    
+
     def reward(self, time=500, volume=None):
         '''Returns the string used to output a time or volume reward.
-        
+
         Parameters
         ----------
         time : int
@@ -338,22 +338,22 @@ class System(traits.HasTraits, threading.Thread):
             (volume is not None and time is None)
         time /= .1
         self._write(struct.pack('<ccxHxx', '@', 'G', time))
-    
+
     def _write(self, msg):
         fmsg = msg+_xsum(msg)
         self.plock.acquire()
         self.port.write(fmsg)
         self.plock.release()
-    
+
     def update(self):
         self._write("@CNSNNN")
-    
+
     def reset(self):
         self._write("@CPSNNN")
-    
+
     def reset_stats(self):
         self._write("@CRSNNN")
-    
+
     def drain(self, status=None):
         mode = ("D", "E")[self.drain_status == "Disabled" if status is None else status]
         self._write("@CNS%sNN"%mode)

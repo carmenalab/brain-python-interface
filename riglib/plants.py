@@ -23,12 +23,11 @@ import robot
 
 import struct
 from riglib.bmi.robot_arms import KinematicChain
-import pygame
 import math
 
 class RefTrajectories(dict):
     '''
-    Generic class to hold trajectories to be replayed by a plant. 
+    Generic class to hold trajectories to be replayed by a plant.
     For now, this class is just a dictionary that has had its type changed
     '''
     pass
@@ -37,8 +36,8 @@ class RefTrajectories(dict):
 from riglib.source import DataSourceSystem
 class FeedbackData(DataSourceSystem):
     '''
-    Generic class for parsing UDP feedback data from a plant. Meant to be used with 
-    riglib.source.DataSource to grab and log data asynchronously. 
+    Generic class for parsing UDP feedback data from a plant. Meant to be used with
+    riglib.source.DataSource to grab and log data asynchronously.
 
     See DataSourceSystem for notes on the source interface
     '''
@@ -81,11 +80,11 @@ class FeedbackData(DataSourceSystem):
 
         while self.listening:
             r, _, _ = select.select([self.sock], [], [], 0)
-            
+
             if r:  # if the list r is not empty
                 feedback = self.sock.recv(self.MAX_MSG_LEN)
                 ts_arrival = time.time()  # secs
-                
+
                 # print "feedback:", feedback
                 # self.file_.write(feedback.rstrip('\r') + "\n")
 
@@ -100,7 +99,7 @@ class FeedbackData(DataSourceSystem):
 
     def process_received_feedback(self, feedback, ts_arrival):
         raise NotImplementedError('Implement in subclasses!')
-            
+
 
 
 
@@ -111,15 +110,15 @@ class Plant(object):
     hdf_attrs = []
     def __init__(self, *args, **kwargs):
         pass
-        
+
     def drive(self, decoder):
         '''
         Call this function to 'drive' the plant to the state specified by the decoder
 
         Parameters
         ----------
-        decoder : bmi.Decoder instance 
-            Decoder used to estimate the state of/control the plant 
+        decoder : bmi.Decoder instance
+            Decoder used to estimate the state of/control the plant
 
         Returns
         -------
@@ -146,7 +145,7 @@ class Plant(object):
 
         Returns
         -------
-        dict: 
+        dict:
             keys are strings, values are np.ndarray objects of data values
         '''
         return dict()
@@ -166,7 +165,7 @@ class Plant(object):
     def stop(self):
         '''
         Stop any auxiliary processes used by the plant
-        '''        
+        '''
         pass
 
     def init_decoder(self, decoder):
@@ -182,14 +181,14 @@ class AsynchronousPlant(Plant):
 
     def start(self):
         '''
-        Only start the DataSource after it has been registered with 
+        Only start the DataSource after it has been registered with
         the sink manager in the call to init()
         '''
         self.source.start()
         super(AsynchronousPlant, self).start()
 
     def stop(self):
-        self.source.stop()    
+        self.source.stop()
         super(AsynchronousPlant, self).stop()
 
 ###################################################
@@ -242,24 +241,24 @@ class CursorPlant(Plant):
         pos = pos.copy()
         vel = vel.copy()
         if self.endpt_bounds is not None:
-            if pos[0] < self.endpt_bounds[0]: 
+            if pos[0] < self.endpt_bounds[0]:
                 pos[0] = self.endpt_bounds[0]
                 if self.vel_wall: vel[0] = 0
-            if pos[0] > self.endpt_bounds[1]: 
+            if pos[0] > self.endpt_bounds[1]:
                 pos[0] = self.endpt_bounds[1]
                 if self.vel_wall: vel[0] = 0
 
-            if pos[1] < self.endpt_bounds[2]: 
+            if pos[1] < self.endpt_bounds[2]:
                 pos[1] = self.endpt_bounds[2]
                 if self.vel_wall: vel[1] = 0
-            if pos[1] > self.endpt_bounds[3]: 
+            if pos[1] > self.endpt_bounds[3]:
                 pos[1] = self.endpt_bounds[3]
                 if self.vel_wall: vel[1] = 0
 
-            if pos[2] < self.endpt_bounds[4]: 
+            if pos[2] < self.endpt_bounds[4]:
                 pos[2] = self.endpt_bounds[4]
                 if self.vel_wall: vel[2] = 0
-            if pos[2] > self.endpt_bounds[5]: 
+            if pos[2] > self.endpt_bounds[5]:
                 pos[2] = self.endpt_bounds[5]
                 if self.vel_wall: vel[2] = 0
         return pos, vel
@@ -269,7 +268,7 @@ class CursorPlant(Plant):
         vel = decoder['qdot'].copy()
 
         pos, vel = self._bound(pos, vel)
-        
+
         decoder['q'] = pos
         decoder['qdot'] = vel
         super(CursorPlant, self).drive(decoder)
@@ -288,7 +287,8 @@ class AuditoryCursor(Plant):
         self.min_freq = min_freq
         self.max_freq = max_freq
         self.bits = 16
-        
+
+        import pygame
         pygame.mixer.pre_init(44100, -self.bits, 2)
         pygame.init()
 
@@ -307,8 +307,8 @@ class AuditoryCursor(Plant):
     def drive(self, decoder):
         self.freq = decoder.filt.F
 
-        if np.logical_and(decoder.cnt == 0, decoder.feedback): 
-            #Just got reset: 
+        if np.logical_and(decoder.cnt == 0, decoder.feedback):
+            #Just got reset:
             if self.freq > self.max_freq:
                 self.freq = self.max_freq
             elif self.freq < self.min_freq:
@@ -318,12 +318,14 @@ class AuditoryCursor(Plant):
     def play_freq(self):
         self.buf[:,0] = np.round(self.max_sample*np.sin(2*math.pi*self.freq*self.t)).astype(int)
         self.buf[:,1] = np.round(self.max_sample*np.sin(2*math.pi*self.freq*self.t0)).astype(int)
+        import pygame
         sound = pygame.sndarray.make_sound(self.buf)
         sound.play()
 
     def play_white_noise(self):
         self.buf_ext[:,0] = np.round(self.max_sample*np.random.normal(0, self.max_sample/2., (10*self.n_samples, ))).astype(int)
         self.buf_ext[:,1] = np.round(self.max_sample*np.zeros((10*self.n_samples, ))).astype(int)
+        import pygame
         sound = pygame.sndarray.make_sound(self.buf_ext)
         sound.play()
 
@@ -355,12 +357,12 @@ class onedimLFP_CursorPlant(CursorPlant):
         pos = [-8, -2.2, pos]
 
         if self.endpt_bounds is not None:
-            if pos[2] < self.endpt_bounds[4]: 
+            if pos[2] < self.endpt_bounds[4]:
                 pos[2] = self.endpt_bounds[4]
-                
-            if pos[2] > self.endpt_bounds[5]: 
+
+            if pos[2] > self.endpt_bounds[5]:
                 pos[2] = self.endpt_bounds[5]
-               
+
             self.position = pos
             self.draw()
 
@@ -384,12 +386,12 @@ class onedimLFP_CursorPlant_inverted(onedimLFP_CursorPlant):
         inv_pos = [-8, -2.2, -1.0*std_pos]
 
         if self.endpt_bounds is not None:
-            if inv_pos[2] < self.endpt_bounds[4]: 
+            if inv_pos[2] < self.endpt_bounds[4]:
                 inv_pos[2] = self.endpt_bounds[4]
-                
-            if inv_pos[2] > self.endpt_bounds[5]: 
+
+            if inv_pos[2] > self.endpt_bounds[5]:
                 inv_pos[2] = self.endpt_bounds[5]
-               
+
             self.position = inv_pos
             self.draw()
 
@@ -402,12 +404,12 @@ class twodimLFP_CursorPlant(onedimLFP_CursorPlant):
         #pos = [-8, -2.2, pos[2]]
 
         if self.endpt_bounds is not None:
-            if pos[2] < self.endpt_bounds[4]: 
+            if pos[2] < self.endpt_bounds[4]:
                 pos[2] = self.endpt_bounds[4]
-                
-            if pos[2] > self.endpt_bounds[5]: 
+
+            if pos[2] > self.endpt_bounds[5]:
                 pos[2] = self.endpt_bounds[5]
-               
+
             self.position = pos
             self.draw()
 
@@ -438,7 +440,7 @@ class RobotArmGen2D(Plant):
         self.kin_chain.joint_limits = joint_limits
 
         self.base_loc = base_loc
-        
+
         self.chain = Chain(link_radii, joint_radii, link_lengths, joint_colors, link_colors)
         self.cursor = Sphere(radius=arm_radius/2, color=link_colors)
         self.graphics_models = [self.chain.link_groups[0], self.cursor]
@@ -452,7 +454,7 @@ class RobotArmGen2D(Plant):
         self.stay_on_screen = stay_on_screen
         self.joint_angles = np.zeros(self.num_joints)
 
-    @property 
+    @property
     def kin_chain_class(self):
         return robot_arms.PlanarXZKinematicChain
 
@@ -464,13 +466,13 @@ class RobotArmGen2D(Plant):
 
     def set_endpoint_pos(self, pos, **kwargs):
         '''
-        Positions the arm according to specified endpoint position. 
+        Positions the arm according to specified endpoint position.
         '''
         if pos is not None:
             # Run the inverse kinematics
             angles = self.perform_ik(pos, **kwargs)
 
-            # Update the joint configuration    
+            # Update the joint configuration
             self.set_intrinsic_coordinates(angles)
 
     def perform_ik(self, pos, **kwargs):
@@ -485,7 +487,7 @@ class RobotArmGen2D(Plant):
         Returns the joint angles of the arm in radians
         '''
         return self.calc_joint_angles(self.curr_vecs)
-        
+
     def set_intrinsic_coordinates(self, theta):
         '''
         Set the joints by specifying the angles in radians.
@@ -501,14 +503,14 @@ class RobotArmGen2D(Plant):
         '''
         new_endpt_pos = self.kin_chain.endpoint_pos(theta)
         if self.stay_on_screen and (new_endpt_pos[0] > 25 or new_endpt_pos[0] < -25 or new_endpt_pos[-1] < -14 or new_endpt_pos[-1] > 14):
-            # ignore the command because it would push the endpoint off the screen 
-            return 
+            # ignore the command because it would push the endpoint off the screen
+            return
 
         if not np.any(np.isnan(theta)):
             self.joint_angles = theta
             for i in range(self.num_joints):
                 self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
-                
+
         self.chain._update_link_graphics(self.curr_vecs)
         self.cursor.translate(*self.get_endpoint_pos(), reset=True)
 
@@ -545,12 +547,12 @@ class EndptControlled2LArm(RobotArmGen2D):
             for i in range(self.num_joints):
                 if theta[i] is not None and ~np.isnan(theta[i]):
                     self.curr_vecs[i] = self.link_lengths[i]*np.array([np.cos(theta[i]), 0, np.sin(theta[i])])
-                    
+
             self.chain._update_link_graphics(self.curr_vecs)
 
     def get_data_to_save(self):
-        return dict(cursor=self.get_endpoint_pos(), arm_visible=self.visible)            
+        return dict(cursor=self.get_endpoint_pos(), arm_visible=self.visible)
 
-    @property 
+    @property
     def kin_chain_class(self):
         return robot_arms.PlanarXZKinematicChain2Link
