@@ -6,7 +6,7 @@ import os, sys, stat
 This code is to assign read, write  and execute permission to the arduino port
 Refer: https://www.tutorialspoint.com/python/os_chmod.htm 
 """
-#os.chmod("/dev/ttyACM0", stat.S_IRWXG)
+#os.chmod("/dev/ttyACM0", stat.S_IRWXG)   ## Equivalent to  sudo chmod 777 /dev/ttyACM0 
 
 #Connecting to arduino board
 com_port = '/dev/ttyACM0'#specify which port, can find it on IDE
