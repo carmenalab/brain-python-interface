@@ -11,7 +11,6 @@ import traceback
 
 from riglib.experiment import traits
 
-from .plantlist import plantlist
 from .target_graphics import *
 from .target_capture_task import ScreenTargetCapture
 
