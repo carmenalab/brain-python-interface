@@ -1,381 +1,27 @@
 '''
 Interface between the Django database methods/models and data analysis code
 '''
+# django initialization
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-
+import django
+django.setup()
 
 import sys
 import json
 import numpy as np
 import datetime
 import pickle
-import pickle
 import tables
 import matplotlib.pyplot as plt
-import time, datetime
-
-import db
+import time
 from collections import defaultdict, OrderedDict
 
+import db
 from tracker import models
 
 # default DB, change this variable from python session to switch to other database
 db_name = 'default'
-
-def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
-    '''
-    Automatically group together a flat list of database IDs
-
-    Parameters
-    ----------
-    ids: iterable
-        iterable of ints representing the ID numbers of TaskEntry objects to group
-    grouping_fn: callable, optional (default=sort by date); call signature: grouping_fn(task_entry)
-        Takes a dbfn.TaskEntry as its only argument and returns a hashable and sortable object
-        by which to group the ids
-    '''
-    keyed_ids = defaultdict(list)
-    for id in ids:
-        te = TaskEntry(id)
-        key = grouping_fn(te)
-        keyed_ids[key].append(id)
-
-    keys = list(keyed_ids.keys())
-    keys.sort()
-
-    grouped_ids = []
-    for date in keys:
-        grouped_ids.append(tuple(keyed_ids[date]))
-    return grouped_ids
-
-def default_data_comb_fn(x):
-    return x
-
-def default_trial_filter_fn(te, trial_msgs):
-    return True
-
-def default_block_filter_fn(te):
-    return True
-
-def default_trial_proc_fn(te, trial_msgs):
-    return 1
-
-def default_trial_condition_fn(te, trial_msgs):
-    return 0
-
-def get_records_of_trained_decoders(task_entry):
-    '''
-    Returns unpickled decoder objects that were trained in a specified session.
-    '''
-    task_entry = lookup_task_entries(task_entry)
-    records = models.Decoder.objects.filter(entry_id=task_entry.id)
-    records = list(records)
-    if len(records) == 1:
-        return records[0]
-    else:
-        return records
-
-def lookup_task_entries(*task_entry):
-    '''
-    Enable multiple ways to specify a task entry, e.g. by primary key or by
-    object
-    '''
-    if len(task_entry) == 1:
-        task_entry = task_entry[0]
-        if isinstance(task_entry, models.TaskEntry):
-            pass
-        elif isinstance(task_entry, int):
-            task_entry = models.TaskEntry.objects.using(db_name).get(pk=task_entry) #get_task_entry(task_entry)
-        return task_entry
-    else:
-        return [lookup_task_entries(x) for x in task_entry]
-
-def get_task_id(name):
-    '''
-    Returns the task ID for the specified task name.
-    '''
-    return models.Task.objects.using(db_name).get(name=name).pk
-
-def get_decoder_entry(entry):
-    '''Returns the database entry for the decoder used in the session. Argument can be a task entry
-    or the ID number of the decoder entry itself.
-    '''
-    if isinstance(entry, int):
-        return models.Decoder.objects.using(db_name).get(pk=entry)
-    else:
-        params = json.loads(entry.params)
-        if 'decoder' in params:
-            return models.Decoder.objects.using(db_name).get(pk=params['decoder'])
-        elif 'bmi' in params:
-            return models.Decoder.objects.using(db_name).get(pk=params['bmi'])
-        else:
-            return None
-
-def get_decoder_name(entry):
-    '''
-    Returns the filename of the decoder used in the session.
-    Takes TaskEntry object.
-    '''
-    entry = lookup_task_entries(entry)
-    try:
-        decid = json.loads(entry.params)['decoder']
-    except:
-        decid = json.loads(entry.params)['bmi']
-    return models.Decoder.objects.using(db_name).get(pk=decid).path
-
-def get_decoder_name_full(entry):
-    entry = lookup_task_entries(entry)
-    decoder_basename = get_decoder_name(entry)
-    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
-
-def get_decoder(entry):
-    entry = lookup_task_entries(entry)
-    filename = get_decoder_name_full(entry)
-    dec = pickle.load(open(filename, 'r'))
-    dec.db_entry = get_decoder_entry(entry)
-    dec.name = dec.db_entry.name
-    return dec
-
-def get_params(entry):
-    '''
-    Returns a dict of all task params for session.
-    Takes TaskEntry object.
-    '''
-    return json.loads(entry.params)
-
-def get_param(entry,paramname):
-    '''
-    Returns parameter value.
-    Takes TaskEntry object.
-    '''
-    return json.loads(entry.params)[paramname]
-
-def get_task_name(entry):
-    '''
-    Returns name of task used for session.
-    Takes TaskEntry object.
-    '''
-    return models.Task.objects.using(db_name).get(pk=entry.task_id).name
-
-def get_date(entry):
-    '''
-    Returns date and time of session (as a datetime object).
-    Takes TaskEntry object.
-    '''
-    return entry.date
-
-def get_notes(entry):
-    '''
-    Returns notes for session.
-    Takes TaskEntry object.
-    '''
-    return entry.notes
-
-def get_subject(entry):
-    '''
-    Returns name of subject for session.
-    Takes TaskEntry object.
-    '''
-    return models.Subject.objects.using(db_name).get(pk=entry.subject_id).name
-
-def get_length(entry):
-    '''
-    Returns length of session in seconds.
-    Takes TaskEntry object.
-    '''
-    try:
-        report = json.loads(entry.report)
-    except:
-        return 0.0
-    return report[-1][2]-report[0][2]
-
-def get_success_rate(entry):
-    '''
-    Returns (# of trials rewarded)/(# of trials intiated).
-    Takes TaskEntry object.
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    total=0.0
-    rew=0.0
-    for s in report:
-        if s[0]=='reward':
-            rew+=1
-            total+=1
-        if s[0]=='hold_penalty' or s[0]=='timeout_penalty':
-            total+=1
-    return rew/total
-
-def get_completed_trials(entry):
-    '''
-    Returns # of trials rewarded
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    return len([s for s in report if s[0]=="reward"])
-
-def get_initiate_rate(entry):
-    '''
-    Returns average # of trials initated per minute.
-    Takes TaskEntry object.
-    '''
-    length = get_length(entry)
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    count=0.0
-    for s in report:
-        if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
-            count+=1
-    return count/(length/60.0)
-
-def get_reward_rate(entry):
-    '''
-    Returns average # of trials completed per minute.
-    Takes TaskEntry object.
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    count=0.0
-    rewardtimes = []
-    for s in report:
-        if s[0]=='reward':
-            count+=1
-            rewardtimes.append(s[2])
-    if len(rewardtimes)==0:
-        return 0
-    else:
-        length = rewardtimes[-1] - report[0][2]
-        return count/(length/60.0)
-
-def session_summary(entry):
-    '''
-    Prints a summary of info about session.
-    Takes TaskEntry object.
-    '''
-    entry = lookup_task_entries(entry)
-    print("Subject: ", get_subject(entry))
-    print("Task: ", get_task_name(entry))
-    print("Date: ", str(get_date(entry)))
-    hours = np.floor(get_length(entry)/3600)
-    mins = np.floor(get_length(entry)/60) - hours*60
-    secs = get_length(entry) - mins*60
-    print("Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs)))
-    try:
-        print("Assist level: ", get_param(entry,'assist_level'))
-    except:
-        print("Assist level: 0")
-    print("Completed trials: ", get_completed_trials(entry))
-    print("Success rate: ", get_success_rate(entry)*100, "%")
-    print("Reward rate: ", get_reward_rate(entry), "trials/minute")
-    print("Initiate rate: ", get_initiate_rate(entry), "trials/minute")
-
-def query_daterange(startdate, enddate=datetime.date.today()):
-    '''
-    Returns QuerySet for task entries within date range (inclusive). startdate and enddate
-    are date objects. End date is optional- today's date by default.
-    '''
-    return models.TaskEntry.objects.using(db_name).filter(date__gte=startdate).filter(date__lte=enddate)
-
-def get_decoder_parent(decoder):
-    '''
-    decoder = database record of decoder object
-    '''
-    entryid = decoder.entry_id
-    te = get_task_entry(entryid)
-    return get_decoder_entry(te)
-
-def get_decoder_sequence(decoder):
-    '''
-    decoder = database record of decoder object
-    '''
-    parent = get_decoder_parent(decoder)
-    if parent is None:
-        return [decoder]
-    else:
-        return [decoder] + get_decoder_sequence(parent)
-
-def search_by_decoder(decoder):
-    '''
-    Returns task entries that used specified decoder. Decoder argument can be
-    decoder entry or entry ID.
-    '''
-
-    if isinstance(decoder, int):
-        decid = decoder
-    else:
-        decid = decoder.id
-    blocks = list(models.TaskEntry.objects.using(db_name).filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.using(db_name).filter(params__contains='"decoder": '+str(decid)))
-    return blocks
-
-def search_by_units(unitlist, decoderlist = None, exact=False):
-    '''
-    Returns decoder entries that contain the specified units. If exact is True,
-    returns only decoders whose unit lists match unitlist exactly, otherwise
-    returns decoders that contain units in unitlist in addition to others. If
-    given a list of decoder entries, only searches within those, otherwise searches
-    all decoders in database.
-    '''
-    if decoderlist is not None:
-        all_decoders = decoderlist
-    else:
-        all_decoders = models.Decoder.objects.using(db_name).all()
-    subset = set(tuple(unit) for unit in unitlist)
-    dec_list = []
-    for dec in all_decoders:
-        try:
-            decobj = pickle.load(open(db.paths.data_path+'/decoders/'+dec.path))
-            decset = set(tuple(unit) for unit in decobj.units)
-            if subset==decset:
-                dec_list = dec_list + [dec]
-            elif not exact and subset.issubset(decset):
-                dec_list = dec_list + [dec]
-        except:
-            pass
-    return dec_list
-
-def get_task_entries_by_date(subj=None, date=datetime.date.today(), dbname='default', **kwargs):
-    '''
-    Get all the task entries for a particular date
-
-    Parameters
-    ----------
-    subj: string, optional, default=None
-        Specify the beginning of the name of the subject or the full name. If not specified, blocks from all subjects are returned
-    date: multiple types, optional, default=today
-        Query date for blocks. The date can be specified as a datetime.date object
-        or a 3-tuple (year, month, day).
-    kwargs: dict, optional
-        Additional keyword arguments to pass to models.TaskEntry.objects.filter
-    '''
-
-    if isinstance(date, datetime.date):
-        kwargs.update(dict(date__year=date.year, date__month=date.month, date__day=date.day))
-    elif isinstance(date, tuple) and len(date) == 3:
-        kwargs.update(dict(date__year=date[0], date__month=date[1], date__day=date[2]))
-    else:
-        raise ValueError("Cannot interpret date: %r" % date)
-
-    if isinstance(subj, str) or isinstance(subj, str):
-        kwargs['subject__name__startswith'] = str(subj)
-    elif subj is not None:
-        kwargs['subject__name'] = subj.name
-
-    return list(models.TaskEntry.objects.using(dbname).filter(**kwargs))
-
-def load_last_decoder():
-    '''
-    Returns the decoder object corresponding to the last decoder trained and
-    added to the database
-    '''
-    all_decoder_records = models.Decoder.objects.all()
-    record = all_decoder_records[len(all_decoder_records)-1]
-    return record.load()
-
 
 
 class TaskEntry(object):
@@ -1045,6 +691,361 @@ def parse_blocks(blocks, cls=TaskEntry, **kwargs):
         data.append(te)
     return data
 
+def group_ids(ids, grouping_fn=lambda te: te.calendar_date):
+    '''
+    Automatically group together a flat list of database IDs
+
+    Parameters
+    ----------
+    ids: iterable
+        iterable of ints representing the ID numbers of TaskEntry objects to group
+    grouping_fn: callable, optional (default=sort by date); call signature: grouping_fn(task_entry)
+        Takes a dbfn.TaskEntry as its only argument and returns a hashable and sortable object
+        by which to group the ids
+    '''
+    keyed_ids = defaultdict(list)
+    for id in ids:
+        te = TaskEntry(id)
+        key = grouping_fn(te)
+        keyed_ids[key].append(id)
+
+    keys = list(keyed_ids.keys())
+    keys.sort()
+
+    grouped_ids = []
+    for date in keys:
+        grouped_ids.append(tuple(keyed_ids[date]))
+    return grouped_ids
+
+def default_data_comb_fn(x):
+    return x
+
+def default_trial_filter_fn(te, trial_msgs):
+    return True
+
+def default_block_filter_fn(te):
+    return True
+
+def default_trial_proc_fn(te, trial_msgs):
+    return 1
+
+def default_trial_condition_fn(te, trial_msgs):
+    return 0
+
+def get_records_of_trained_decoders(task_entry):
+    '''
+    Returns unpickled decoder objects that were trained in a specified session.
+    '''
+    task_entry = lookup_task_entries(task_entry)
+    records = models.Decoder.objects.filter(entry_id=task_entry.id)
+    records = list(records)
+    if len(records) == 1:
+        return records[0]
+    else:
+        return records
+
+def lookup_task_entries(*task_entry):
+    '''
+    Enable multiple ways to specify a task entry, e.g. by primary key or by
+    object
+    '''
+    if len(task_entry) == 1:
+        task_entry = task_entry[0]
+        if isinstance(task_entry, models.TaskEntry):
+            pass
+        elif isinstance(task_entry, int):
+            task_entry = models.TaskEntry.objects.using(db_name).get(pk=task_entry) #get_task_entry(task_entry)
+        return task_entry
+    else:
+        return [lookup_task_entries(x) for x in task_entry]
+
+def get_task_id(name):
+    '''
+    Returns the task ID for the specified task name.
+    '''
+    return models.Task.objects.using(db_name).get(name=name).pk
+
+def get_decoder_entry(entry):
+    '''Returns the database entry for the decoder used in the session. Argument can be a task entry
+    or the ID number of the decoder entry itself.
+    '''
+    if isinstance(entry, int):
+        return models.Decoder.objects.using(db_name).get(pk=entry)
+    else:
+        params = json.loads(entry.params)
+        if 'decoder' in params:
+            return models.Decoder.objects.using(db_name).get(pk=params['decoder'])
+        elif 'bmi' in params:
+            return models.Decoder.objects.using(db_name).get(pk=params['bmi'])
+        else:
+            return None
+
+def get_decoder_name(entry):
+    '''
+    Returns the filename of the decoder used in the session.
+    Takes TaskEntry object.
+    '''
+    entry = lookup_task_entries(entry)
+    try:
+        decid = json.loads(entry.params)['decoder']
+    except:
+        decid = json.loads(entry.params)['bmi']
+    return models.Decoder.objects.using(db_name).get(pk=decid).path
+
+def get_decoder_name_full(entry):
+    entry = lookup_task_entries(entry)
+    decoder_basename = get_decoder_name(entry)
+    return os.path.join(db.paths.pathdict[dbname], 'decoders', decoder_basename)
+
+def get_decoder(entry):
+    entry = lookup_task_entries(entry)
+    filename = get_decoder_name_full(entry)
+    dec = pickle.load(open(filename, 'r'))
+    dec.db_entry = get_decoder_entry(entry)
+    dec.name = dec.db_entry.name
+    return dec
+
+def get_params(entry):
+    '''
+    Returns a dict of all task params for session.
+    Takes TaskEntry object.
+    '''
+    return json.loads(entry.params)
+
+def get_param(entry,paramname):
+    '''
+    Returns parameter value.
+    Takes TaskEntry object.
+    '''
+    return json.loads(entry.params)[paramname]
+
+def get_task_name(entry):
+    '''
+    Returns name of task used for session.
+    Takes TaskEntry object.
+    '''
+    return models.Task.objects.using(db_name).get(pk=entry.task_id).name
+
+def get_date(entry):
+    '''
+    Returns date and time of session (as a datetime object).
+    Takes TaskEntry object.
+    '''
+    return entry.date
+
+def get_notes(entry):
+    '''
+    Returns notes for session.
+    Takes TaskEntry object.
+    '''
+    return entry.notes
+
+def get_subject(entry):
+    '''
+    Returns name of subject for session.
+    Takes TaskEntry object.
+    '''
+    return models.Subject.objects.using(db_name).get(pk=entry.subject_id).name
+
+def get_length(entry):
+    '''
+    Returns length of session in seconds.
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except:
+        return 0.0
+    return report[-1][2]-report[0][2]
+
+def get_success_rate(entry):
+    '''
+    Returns (# of trials rewarded)/(# of trials intiated).
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    total=0.0
+    rew=0.0
+    for s in report:
+        if s[0]=='reward':
+            rew+=1
+            total+=1
+        if s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            total+=1
+    return rew/total
+
+def get_completed_trials(entry):
+    '''
+    Returns # of trials rewarded
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    return len([s for s in report if s[0]=="reward"])
+
+def get_initiate_rate(entry):
+    '''
+    Returns average # of trials initated per minute.
+    Takes TaskEntry object.
+    '''
+    length = get_length(entry)
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    count=0.0
+    for s in report:
+        if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
+            count+=1
+    return count/(length/60.0)
+
+def get_reward_rate(entry):
+    '''
+    Returns average # of trials completed per minute.
+    Takes TaskEntry object.
+    '''
+    try:
+        report = json.loads(entry.report)
+    except: return 0.0
+    count=0.0
+    rewardtimes = []
+    for s in report:
+        if s[0]=='reward':
+            count+=1
+            rewardtimes.append(s[2])
+    if len(rewardtimes)==0:
+        return 0
+    else:
+        length = rewardtimes[-1] - report[0][2]
+        return count/(length/60.0)
+
+def session_summary(entry):
+    '''
+    Prints a summary of info about session.
+    Takes TaskEntry object.
+    '''
+    entry = lookup_task_entries(entry)
+    print("Subject: ", get_subject(entry))
+    print("Task: ", get_task_name(entry))
+    print("Date: ", str(get_date(entry)))
+    hours = np.floor(get_length(entry)/3600)
+    mins = np.floor(get_length(entry)/60) - hours*60
+    secs = get_length(entry) - mins*60
+    print("Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs)))
+    try:
+        print("Assist level: ", get_param(entry,'assist_level'))
+    except:
+        print("Assist level: 0")
+    print("Completed trials: ", get_completed_trials(entry))
+    print("Success rate: ", get_success_rate(entry)*100, "%")
+    print("Reward rate: ", get_reward_rate(entry), "trials/minute")
+    print("Initiate rate: ", get_initiate_rate(entry), "trials/minute")
+
+def query_daterange(startdate, enddate=datetime.date.today()):
+    '''
+    Returns QuerySet for task entries within date range (inclusive). startdate and enddate
+    are date objects. End date is optional- today's date by default.
+    '''
+    return models.TaskEntry.objects.using(db_name).filter(date__gte=startdate).filter(date__lte=enddate)
+
+def get_decoder_parent(decoder):
+    '''
+    decoder = database record of decoder object
+    '''
+    entryid = decoder.entry_id
+    te = get_task_entry(entryid)
+    return get_decoder_entry(te)
+
+def get_decoder_sequence(decoder):
+    '''
+    decoder = database record of decoder object
+    '''
+    parent = get_decoder_parent(decoder)
+    if parent is None:
+        return [decoder]
+    else:
+        return [decoder] + get_decoder_sequence(parent)
+
+def search_by_decoder(decoder):
+    '''
+    Returns task entries that used specified decoder. Decoder argument can be
+    decoder entry or entry ID.
+    '''
+
+    if isinstance(decoder, int):
+        decid = decoder
+    else:
+        decid = decoder.id
+    blocks = list(models.TaskEntry.objects.using(db_name).filter(params__contains='"bmi": '+str(decid))) + list(models.TaskEntry.objects.using(db_name).filter(params__contains='"decoder": '+str(decid)))
+    return blocks
+
+def search_by_units(unitlist, decoderlist = None, exact=False):
+    '''
+    Returns decoder entries that contain the specified units. If exact is True,
+    returns only decoders whose unit lists match unitlist exactly, otherwise
+    returns decoders that contain units in unitlist in addition to others. If
+    given a list of decoder entries, only searches within those, otherwise searches
+    all decoders in database.
+    '''
+    if decoderlist is not None:
+        all_decoders = decoderlist
+    else:
+        all_decoders = models.Decoder.objects.using(db_name).all()
+    subset = set(tuple(unit) for unit in unitlist)
+    dec_list = []
+    for dec in all_decoders:
+        try:
+            decobj = pickle.load(open(db.paths.data_path+'/decoders/'+dec.path))
+            decset = set(tuple(unit) for unit in decobj.units)
+            if subset==decset:
+                dec_list = dec_list + [dec]
+            elif not exact and subset.issubset(decset):
+                dec_list = dec_list + [dec]
+        except:
+            pass
+    return dec_list
+
+def get_task_entries_by_date(subj=None, date=datetime.date.today(), dbname='default', **kwargs):
+    '''
+    Get all the task entries for a particular date
+
+    Parameters
+    ----------
+    subj: string, optional, default=None
+        Specify the beginning of the name of the subject or the full name. If not specified, blocks from all subjects are returned
+    date: multiple types, optional, default=today
+        Query date for blocks. The date can be specified as a datetime.date object
+        or a 3-tuple (year, month, day).
+    kwargs: dict, optional
+        Additional keyword arguments to pass to models.TaskEntry.objects.filter
+    '''
+
+    if isinstance(date, datetime.date):
+        kwargs.update(dict(date__year=date.year, date__month=date.month, date__day=date.day))
+    elif isinstance(date, tuple) and len(date) == 3:
+        kwargs.update(dict(date__year=date[0], date__month=date[1], date__day=date[2]))
+    else:
+        raise ValueError("Cannot interpret date: %r" % date)
+
+    if isinstance(subj, str) or isinstance(subj, str):
+        kwargs['subject__name__startswith'] = str(subj)
+    elif subj is not None:
+        kwargs['subject__name'] = subj.name
+
+    return list(models.TaskEntry.objects.using(dbname).filter(**kwargs))
+
+def load_last_decoder():
+    '''
+    Returns the decoder object corresponding to the last decoder trained and
+    added to the database
+    '''
+    all_decoder_records = models.Decoder.objects.all()
+    record = all_decoder_records[len(all_decoder_records)-1]
+    return record.load()
+
+
+
 
 class TaskEntryCollection(object):
     '''
@@ -1287,270 +1288,4 @@ def get_bmi_blocks(date, subj='C'):
 def bmi_filt(te):
     bmi_feat = models.Feature.objects.using(te._state.db).get(name='bmi')
     return bmi_feat in te.feats.all()
-
-
-#############################################################
-## Deprecated code
-#############################################################
-
-def deprecation_warning():
-    import warnings
-    warnings.warn("dbfunctions: this function is now deprecated and eventually will be removed. Use TaskEntry instead!!!!!!")
-
-def get_decoders_trained_in_block(task_entry, dbname='default'):
-    '''
-    Returns unpickled decoder objects that were trained in a specified session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(task_entry, db_name)
-    return te.get_decoders_trained_in_block(return_type='object')
-
-def get_decoder_ids_trained_in_block(task_entry):
-    '''
-    Returns the database entries of decoders trained in a particular session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(task_entry, db_name)
-    return te.get_decoders_trained_in_block(return_type='record')
-
-def get_hdf_file(entry):
-    '''
-    Returns the name of the hdf file associated with the session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.hdf_filename
-
-def get_hdf(entry):
-    '''
-    Return hdf opened file
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.hdf
-
-def get_plx_file(entry):
-    '''
-    Returns the name of the plx file associated with the session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.plx_filename
-
-def get_plx2_file(entry):
-    '''
-    Returns the name of the plx2 file associated with the session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.plx2_filename
-
-def get_bmiparams_file(entry):
-    '''
-    Returns the name of the bmi parameter update history file associated with the session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.bmiparams_filename
-
-def get_blackrock_files(entry):
-    '''
-    Returns a list containing the names of the blackrock files (there could be more
-    than one) associated with the session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.blackrock_filenames
-
-def get_nev_file(entry):
-    '''
-    Returns the name of the nev file associated with the session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.nev_filename
-
-def get_nsx_files(entry):
-    '''
-    Returns a list containing the names of the nsx files (there could be more
-    than one) associated with the session.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.nsx_filenames
-
-def get_decoder_name(entry):
-    '''
-    Returns the filename of the decoder used in the session.
-    Takes TaskEntry object.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.decoder_record.name
-
-def get_decoder_name_full(entry):
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.decoder_filename
-
-def get_decoder(entry):
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.decoder
-
-def get_params(entry):
-    '''
-    Returns a dict of all task params for session.
-    Takes TaskEntry object.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.params
-
-def get_param(entry, paramname):
-    '''
-    Returns parameter value.
-    Takes TaskEntry object.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.params[paramname]
-
-def get_task_name(entry):
-    '''
-    Returns name of task used for session.
-    Takes TaskEntry object.
-    '''
-    return models.Task.objects.using(db_name).get(pk=entry.task_id).name
-
-def get_date(entry):
-    '''
-    Returns date and time of session (as a datetime object).
-    Takes TaskEntry object.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.date
-
-def get_notes(entry):
-    '''
-    Returns notes for session.
-    Takes TaskEntry object.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.notes
-
-def get_subject(entry):
-    '''
-    Returns name of subject for session.
-    Takes TaskEntry object.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.subject
-
-def get_length(entry):
-    '''
-    Returns length of session in seconds.
-    Takes TaskEntry object.
-    '''
-    deprecation_warning()
-    te = TaskEntry(entry, db_name)
-    return te.length
-
-def get_binned_spikes_file(entry):
-    ''' Return binned spike file if it exists'''
-    entry = lookup_task_entries(entry)
-    fname = db.paths.data_path+'binned_spikes/'+entry.name+'.npz'
-    print(fname)
-    if os.path.isfile(fname):
-        return np.load(fname)
-    else:
-        print('Not found')
-        return None
-
-def get_success_rate(entry):
-    '''
-    Returns (# of trials rewarded)/(# of trials intiated).
-    Takes TaskEntry object.
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    total=0.0
-    rew=0.0
-    for s in report:
-        if s[0]=='reward':
-            rew+=1
-            total+=1
-        if s[0]=='hold_penalty' or s[0]=='timeout_penalty':
-            total+=1
-    return rew/total
-
-def get_completed_trials(entry):
-    '''
-    Returns # of trials rewarded
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    return len([s for s in report if s[0]=="reward"])
-
-def get_initiate_rate(entry):
-    '''
-    Returns average # of trials initated per minute.
-    Takes TaskEntry object.
-    '''
-    length = get_length(entry)
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    count=0.0
-    for s in report:
-        if s[0]=='reward' or s[0]=='hold_penalty' or s[0]=='timeout_penalty':
-            count+=1
-    return count/(length/60.0)
-
-def get_reward_rate(entry):
-    '''
-    Returns average # of trials completed per minute.
-    Takes TaskEntry object.
-    '''
-    try:
-        report = json.loads(entry.report)
-    except: return 0.0
-    count=0.0
-    rewardtimes = []
-    for s in report:
-        if s[0]=='reward':
-            count+=1
-            rewardtimes.append(s[2])
-    if len(rewardtimes)==0:
-        return 0
-    else:
-        length = rewardtimes[-1] - report[0][2]
-        return count/(length/60.0)
-
-def session_summary(entry):
-    '''
-    Prints a summary of info about session.
-    Takes TaskEntry object.
-    '''
-    entry = lookup_task_entries(entry)
-    print("Subject: ", get_subject(entry))
-    print("Task: ", get_task_name(entry))
-    print("Date: ", str(get_date(entry)))
-    hours = np.floor(get_length(entry)/3600)
-    mins = np.floor(get_length(entry)/60) - hours*60
-    secs = get_length(entry) - mins*60
-    print("Length: " + str(int(hours))+ ":" + str(int(mins)) + ":" + str(int(secs)))
-    try:
-        print("Assist level: ", get_param(entry,'assist_level'))
-    except:
-        print("Assist level: 0")
-    print("Completed trials: ", get_completed_trials(entry))
-    print("Success rate: ", get_success_rate(entry)*100, "%")
-    print("Reward rate: ", get_reward_rate(entry), "trials/minute")
-    print("Initiate rate: ", get_initiate_rate(entry), "trials/minute")
 

@@ -1481,6 +1481,13 @@ class DataFile(models.Model):
             block_number=self.entry.id, msg_type='upload_file')
         cloud.upload_file(data)
 
+    def verify_cloud_backup(self):
+        """Check that cloud storage has this file with matching MD5 sum"""
+        full_filename = self.get_path()
+        data = dict(full_filename=full_filename, filename=os.path.basename(full_filename),
+            block_number=self.entry.id, msg_type='check_file')
+        cloud.upload_file(data)
+
 
 class TaskEntryCollection(models.Model):
     """ Collection of TaskEntry records grouped together, e.g. for analysis """
