@@ -932,6 +932,7 @@ class TaskEntry(models.Model):
         cloud_data['sequence'] = self.sequence.to_cloud_json()
 
         cloud_data['rig_name'] = KeyValueStore.get('rig_name', 'unknown')
+        cloud_data['msg_type'] = 'upload_metadata'
         return cloud_data
 
     def upload_to_cloud(self):
@@ -1472,6 +1473,13 @@ class DataFile(models.Model):
             print("Error getting data file size: ", self)
             traceback.print_exc()
             return -1
+
+    def upload_to_cloud(self):
+        """Upload file to google cloud storage"""
+        full_filename = self.get_path()
+        data = dict(full_filename=full_filename, filename=os.path.basename(full_filename),
+            block_number=self.entry.id, msg_type='upload_file')
+        cloud.upload_file(data)
 
 
 class TaskEntryCollection(models.Model):
