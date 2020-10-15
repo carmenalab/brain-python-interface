@@ -278,7 +278,7 @@ class TestTaskStartStop(TestCase):
 
         # task_start_data = dict(subj=1, task=1, feats=dict(), params=dict(), sequence=None)
         tracker = tasktrack.Track.get_instance()
-        tracker.runtask(**task_start_data)
+        tracker.runtask(cli=True, **task_start_data)
 
         time.sleep(5)
         tracker.stoptask()
