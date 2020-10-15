@@ -63,13 +63,14 @@ class Track(singleton.Singleton):
         if msg['status'] == "error" or msg['State'] == "stopped":
             self.status.value = b""
 
-    def runtask(self, base_class=experiment.Experiment, feats=[], **kwargs):
+    def runtask(self, base_class=experiment.Experiment, feats=[], cli=False, **kwargs):
         '''
         Begin running of task
         '''
         log_str("Running new task: \n", mode="w")
 
-        self.start_websock()
+        if not cli:
+            self.start_websock()
 
         if None in feats:
             raise ValueError("Features not found properly in database!")
