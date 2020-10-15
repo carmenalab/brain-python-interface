@@ -1,9 +1,11 @@
 """Upload data to google cloud platfom via IoT core. This code is based
 on an 'end-to-end' example provided by the GCP documentation"""
+import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+
 import argparse
 import datetime
 import json
-import os
 import ssl
 import time
 import requests
@@ -78,7 +80,16 @@ def make_client(args):
             print("Uploading file {}".format(data['filename']))
             headers = {'Content-type': 'application/octet-stream'}
             r = requests.put(data['url'], data=open(data['full_filename'], 'rb'), headers=headers)
-
+        elif data['action'] == 'check_status':
+            print("Checking status of file {}".format(data['filename']))
+            import django
+            django.setup()
+            from . import models
+            df = models.DataFile.objects.get(path=data['filename'])
+            df.backup_status = data['status'] + ' on {}'.format(str(datetime.datetime.now()))
+            # df.archived = data['status'] == 'present'
+            df.save()
+            print(df.archived, df.backup_status, data)
 
     client.on_connect = on_connect
     client.on_publish = on_publish
@@ -115,7 +126,7 @@ def upload_json(json_data, cloud_info_fname=default_cloud_info_fname):
     args.connected = False
 
 
-def upload_file(file_data, cloud_info_fname=default_cloud_info_fname):
+def send_message_and_wait(file_data, cloud_info_fname=default_cloud_info_fname):
     """Upload a file by posting a message, retreiving a secret URL, and initiating a resumable upload"""
     if not os.path.exists(cloud_info_fname):
         print("Cloud upload configuration not found, skipping!")

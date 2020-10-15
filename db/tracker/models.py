@@ -708,7 +708,7 @@ class TaskEntry(models.Model):
         js['datafiles'] = dict()
         system_names = set(d.system.name for d in datafiles)
         for name in system_names:
-            js['datafiles'][name] = [d.get_path() + ' (backup available: %s)' % d.is_backed_up(backup_root) for d in datafiles if d.system.name == name]
+            js['datafiles'][name] = [d.get_path() + ' (backup status: %s)' % d.backup_status for d in datafiles if d.system.name == name]
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
 
@@ -1380,6 +1380,7 @@ class DataFile(models.Model):
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System, on_delete=models.PROTECT, blank=True, null=True)
     entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT, blank=True, null=True)
+    backup_status = models.CharField(max_length=256, blank=True, null=True)
 
     @staticmethod
     def create(system, task_entry, path, **kwargs):
@@ -1479,14 +1480,23 @@ class DataFile(models.Model):
         full_filename = self.get_path()
         data = dict(full_filename=full_filename, filename=os.path.basename(full_filename),
             block_number=self.entry.id, msg_type='upload_file')
-        cloud.upload_file(data)
+        cloud.send_message_and_wait(data)
 
     def verify_cloud_backup(self):
         """Check that cloud storage has this file with matching MD5 sum"""
         full_filename = self.get_path()
+
+        import hashlib
+        def md5(fname):
+            hash_md5 = hashlib.md5()
+            with open(fname, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+
         data = dict(full_filename=full_filename, filename=os.path.basename(full_filename),
-            block_number=self.entry.id, msg_type='check_file')
-        cloud.upload_file(data)
+            md5_hash=md5(full_filename), block_number=self.entry.id, msg_type='check_status')
+        cloud.send_message_and_wait(data)
 
 
 class TaskEntryCollection(models.Model):
