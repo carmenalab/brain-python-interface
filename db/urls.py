@@ -1,5 +1,5 @@
 '''
-Django's standard place to look for URL pattern matching. See 
+Django's standard place to look for URL pattern matching. See
 https://docs.djangoproject.com/en/dev/topics/http/urls/
 for more complete documentation
 '''
@@ -15,6 +15,10 @@ urlpatterns = [
     path('', views.main),
 
     path('setup', views.setup),
+    path('setup/subjects', views.setup_subjects),
+    path('setup/tasks', views.setup_tasks),
+    path('setup/features', views.setup_features),
+    path('setup/parameters', views.setup_parameters),
     path('setup/add/new_subject', ajax.add_new_subject),
     path('setup/add/new_task', ajax.add_new_task),
     path('setup/add/new_feature', ajax.add_new_feature),
@@ -26,7 +30,7 @@ urlpatterns = [
     path('setup/update/built_in_feature_paths', ajax.update_built_in_feature_import_paths),
     path('setup/update/task_import_path', ajax.update_task_import_path),
     path('setup/update/feature_import_path', ajax.update_feature_import_path),
-    
+
     path(r'exp_log/', views.list_exp_history, dict(max_entries=200)),
     path(r'exp_log/all/', views.list_exp_history),
     path("exp_log/link_data_files/<int:task_entry_id>", views.link_data_files_view_generator),
@@ -43,8 +47,8 @@ urlpatterns = [
     path(r'exp_log/ajax/task_info/<int:idx>/', ajax.task_info),
     path(r'exp_log/ajax/exp_info/<int:idx>/', ajax.exp_info),
     path(r'exp_log/all/ajax/exp_info/<int:idx>/', ajax.exp_info),
-    path(r'exp_log/ajax/hide_entry/<int:idx>', ajax.hide_entry),    
-    path(r'exp_log/ajax/show_entry/<int:idx>', ajax.show_entry),    
+    path(r'exp_log/ajax/hide_entry/<int:idx>', ajax.hide_entry),
+    path(r'exp_log/ajax/show_entry/<int:idx>', ajax.show_entry),
     path(r'ajax/backup_entry/<int:idx>/', ajax.backup_entry),
     path(r'ajax/unbackup_entry/<int:idx>/', ajax.unbackup_entry),
     path(r'ajax/gen_info/<int:idx>/', ajax.gen_info),

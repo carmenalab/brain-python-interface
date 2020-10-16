@@ -8,16 +8,9 @@ for a basic introduction
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import json
-import pickle, pickle
+import pickle
 import inspect
-from collections import OrderedDict
-from django.db import models
-from django.core.exceptions import ObjectDoesNotExist
-
 import numpy as np
-
-from riglib import calibrations, experiment
-from config import config
 import importlib
 import subprocess
 import traceback
@@ -25,7 +18,11 @@ import imp
 import tables
 import tempfile
 import shutil
-import importlib
+from collections import OrderedDict
+from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
+
+from riglib import calibrations, experiment
 
 from . import cloud
 
@@ -711,7 +708,7 @@ class TaskEntry(models.Model):
         js['datafiles'] = dict()
         system_names = set(d.system.name for d in datafiles)
         for name in system_names:
-            js['datafiles'][name] = [d.get_path() + ' (backup available: %s)' % d.is_backed_up(backup_root) for d in datafiles if d.system.name == name]
+            js['datafiles'][name] = [d.get_path() + ' (backup status: %s)' % d.backup_status for d in datafiles if d.system.name == name]
 
         js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
 
@@ -935,6 +932,7 @@ class TaskEntry(models.Model):
         cloud_data['sequence'] = self.sequence.to_cloud_json()
 
         cloud_data['rig_name'] = KeyValueStore.get('rig_name', 'unknown')
+        cloud_data['msg_type'] = 'upload_metadata'
         return cloud_data
 
     def upload_to_cloud(self):
@@ -1096,7 +1094,6 @@ def parse_blackrock_file_n2h5(nev_fname, nsx_files):
     if not os.path.isfile(nev_hdf_fname):
         subprocess.call(['n2h5', nev_fname, nev_hdf_fname])
 
-    import tables #Previously import h5py -- pytables works fine too
     nev_hdf = tables.openFile(nev_hdf_fname, 'r')
 
     last_ts = 0
@@ -1383,6 +1380,7 @@ class DataFile(models.Model):
     path = models.CharField(max_length=256)
     system = models.ForeignKey(System, on_delete=models.PROTECT, blank=True, null=True)
     entry = models.ForeignKey(TaskEntry, on_delete=models.PROTECT, blank=True, null=True)
+    backup_status = models.CharField(max_length=256, blank=True, null=True)
 
     @staticmethod
     def create(system, task_entry, path, **kwargs):
@@ -1477,6 +1475,29 @@ class DataFile(models.Model):
             traceback.print_exc()
             return -1
 
+    def upload_to_cloud(self):
+        """Upload file to google cloud storage"""
+        full_filename = self.get_path()
+        data = dict(full_filename=full_filename, filename=os.path.basename(full_filename),
+            block_number=self.entry.id, msg_type='upload_file')
+        cloud.send_message_and_wait(data)
+
+    def verify_cloud_backup(self):
+        """Check that cloud storage has this file with matching MD5 sum"""
+        full_filename = self.get_path()
+
+        import hashlib
+        def md5(fname):
+            hash_md5 = hashlib.md5()
+            with open(fname, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+
+        data = dict(full_filename=full_filename, filename=os.path.basename(full_filename),
+            md5_hash=md5(full_filename), block_number=self.entry.id, msg_type='check_status')
+        cloud.send_message_and_wait(data)
+
 
 class TaskEntryCollection(models.Model):
     """ Collection of TaskEntry records grouped together, e.g. for analysis """
@@ -1527,6 +1548,7 @@ class KeyValueStore(models.Model):
                 raise ValueError("Duplicate keys: %s" % key)
         except:
             print("KeyValueStore error")
+            print("key = %s, default=%s, dbname=%s" % (key, default, dbname))
             traceback.print_exc()
             return default
 

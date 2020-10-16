@@ -1,0 +1,38 @@
+{% extends 'setup_base.html' %}
+
+{% block content %}
+
+  <h2>Tasks</h2>
+  <table class="table table-hover table-sm" style="width: auto;" id="task-table">
+    <thead>
+      <tr>
+        <th>Index</th><th>Task name</th><th>Python path (must be importable)</th>
+      </tr>
+    </thead>
+
+    <!-- Row to add new tasks -->
+    <tr>
+      <td><input type="submit" value="Add New" onclick="add_new_task()"></td>
+      <td><input type="text" id="task_name"></td>
+      <td><input type="text" id="task_import_path">
+    </tr>
+
+    {% for task in tasks %}
+    <tr>
+      <td>{{task.id}}</td>
+      <td>{{task.name}}</td>
+      <td>
+        <input type="text" id="import_path_task_{{task.id}}"
+          {% if task.import_path is None %}
+            value=""
+          {% else %}
+            value="{{task.import_path}}"
+          {% endif %}>
+        <input type="submit" value="Save" onclick="store_single_task_import_path({{task.id}})">
+      </td>
+    </tr>
+    {% endfor %}
+
+  </table>
+
+{% endblock %}

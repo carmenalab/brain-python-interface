@@ -1,0 +1,159 @@
+<!-- Setup things -->
+{% load static %}{% get_static_prefix as STATIC_PREFIX %}<!DOCTYPE HTML>
+<head>
+  <script src='{{ STATIC_PREFIX }}resources/js/jquery.min.js' type='text/javascript'></script>
+  <script src='{{ STATIC_PREFIX }}resources/js/jquery-ui.min.js' type='text/javascript'></script>
+  <link rel="stylesheet" href='{{ STATIC_PREFIX }}resources/css/bootstrap.min.css'>
+
+  <script>
+    function add_new_subject() {
+      var data = {'subject_name': $("#new_subject_name").val()};
+      $.post("/setup/add/new_subject", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#new_subject_name").val('');
+
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>");
+          $('#subject-table tr:last').before(tr);
+        }
+      })
+    }
+
+    function add_new_task() {
+      var data = {'name': $("#task_name").val(), 'import_path': $("#task_import_path").val()};
+      $.post("/setup/add/new_task", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#task_name").val('');
+          $("#task_import_path").val('');
+
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + resp["data"].import_path + "</td>");
+          $('#task-table tr:last').before(tr);
+        }
+      })
+    }
+
+    function add_new_system() {
+      data = {'name': $("#system_name").val(), "path": $("#system_path").val(),
+        "processor_path": $("#system_processor_path").val()}
+      $.post("/setup/add/new_system", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#system_name").val('');
+          $("#system_path").val('');
+          $("#system_processor_path").val('');
+        }
+      })
+    }
+
+    function store_single_task_import_path(id) {
+      console.log('task', id)
+      data = {'id': id, "import_path": $("#import_path_task_" + id).val()};
+      console.log(data);
+      $.post("/setup/update/task_import_path", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+      });
+    }
+
+    function store_single_feature_import_path(id) {
+      console.log('feature', id);
+      data = {'id': id, "import_path": $("#import_path_feature_" + id).val()};
+      console.log(data);
+      $.post("/setup/update/feature_import_path", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+      });
+    }
+
+    function enable_built_in_feature(feature) {
+      $("#alert_field").html("Not implemented!");
+    }
+
+    function add_new_feature() {
+      $("#alert_field").html("Not implemented!");
+    }
+
+    function generic_post(data) {
+      $.post("/setup/update/generic", data, function (resp) {
+        $("#alert_field").html(resp["msg"]);
+      });
+    }
+
+    function save_recording_sys() {
+      generic_post({'action': 'save_recording_sys',
+        'selected_recording_sys': $("#recording_sys_make").val(),
+      });
+    }
+
+    function update_database_path(db_name) {
+      generic_post({'action': 'update_database_storage_path',
+        'db_name': db_name,
+        'db_storage_path': $("#db_" + db_name + "_path").val()
+      });
+    }
+
+    $(document).ready(function() {
+      // initialize the currently selected system parameters
+      $("#recording_sys_make").val("{{recording_sys}}");
+    });
+  </script>
+
+  <style>
+    .navbar {
+      font-size: 1.5em;
+    }
+
+    .navbar-nav {
+      list-style-type: none;
+    }
+
+    .navbar-nav > li{
+      padding-left:10px;
+      padding-right:10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="alert alert-info" role="alert" id="alert_field">
+    <!-- TODO make this always on top -->
+  </div>
+
+  <h1>Setup</h1>
+
+  <nav class="navbar">
+    <div id="navbarNav">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/setup/parameters">Global system parameters</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/setup/subjects">Subjects</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/setup/tasks">Tasks</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/setup/features">Features</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/setup/bmi_algorithms">BMI Algorithms</a>
+          </li>
+        </ul>
+    </div>
+  </nav>
+
+
+  {% block content %}
+  {% endblock %}
+
+</body>

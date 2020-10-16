@@ -29,7 +29,7 @@ from riglib.stereo_opengl.primitives import Line
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
 
-from . import manualcontrolmultitasks
+from .target_capture_task import ScreenTargetCapture
 
 target_colors = {"blue":(0,0,1,0.5),
 "yellow": (1,1,0,0.5),
@@ -90,7 +90,7 @@ class OFCEndpointAssister(FeedbackControllerAssist):
         np.mat
         '''
         assist_level_idx = min(int(assist_level * self.n_assist_levels), self.n_assist_levels-1)
-        F = np.mat(self.fb_ctrl.F_dict[assist_level_idx])    
+        F = np.mat(self.fb_ctrl.F_dict[assist_level_idx])
         return F
 
 class SimpleEndpointAssister(Assister):
@@ -117,12 +117,12 @@ class SimpleEndpointAssister(Assister):
             speed = self.assist_speed * decoder_binlen
             target_radius = self.target_radius
             Bu = self.endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen, speed, target_radius, assist_level)
-            assist_weight = assist_level 
+            assist_weight = assist_level
 
         # return Bu, assist_weight
         return dict(x_assist=Bu, assist_level=assist_weight)
 
-    @staticmethod 
+    @staticmethod
     def endpoint_assist_simple(cursor_pos, target_pos, decoder_binlen=0.1, speed=0.5, target_radius=2., assist_level=0.):
         '''
         Estimate the next state using a constant velocity estimate moving toward the specified target
@@ -147,10 +147,10 @@ class SimpleEndpointAssister(Assister):
         x_assist : np.ndarray of shape (7, 1)
             Control vector to add onto the state vector to assist control.
         '''
-        diff_vec = target_pos - cursor_pos 
+        diff_vec = target_pos - cursor_pos
         dist_to_target = np.linalg.norm(diff_vec)
         dir_to_target = diff_vec / (np.spacing(1) + dist_to_target)
-        
+
         if dist_to_target > target_radius:
             assist_cursor_pos = cursor_pos + speed*dir_to_target
         else:
@@ -176,7 +176,7 @@ class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
         -------
         '''
         dt = 0.1
-        A = np.mat([[1., 0, 0, dt, 0, 0, 0], 
+        A = np.mat([[1., 0, 0, dt, 0, 0, 0],
                     [0., 1, 0, 0,  dt, 0, 0],
                     [0., 0, 1, 0, 0, dt, 0],
                     [0., 0, 0, 0, 0,  0, 0],
@@ -195,7 +195,7 @@ class SimpleEndpointAssisterLFC(feedback_controllers.MultiModalLFC):
 #################
 ##### Tasks #####
 #################
-class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, manualcontrolmultitasks.ManualControlMulti):
+class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ScreenTargetCapture):
     '''
     Target capture task with cursor position controlled by BMI output.
     Cursor movement can be assisted toward target by setting assist_level > 0.
@@ -214,20 +214,16 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, manualcontrolmultitasks
 
     cursor_color_adjust = traits.OptionsList(*list(target_colors.keys()), bmi3d_input_options=list(target_colors.keys()))
 
-    def __init__(self, *args, **kwargs):     
+    def __init__(self, *args, **kwargs):
         super(BMIControlMulti, self).__init__(*args, **kwargs)
 
     def init(self, *args, **kwargs):
         sph = self.plant.graphics_models[0]
         sph.color = target_colors[self.cursor_color_adjust]
         sph.radius = self.cursor_radius
-        self.plant.cursor_radius = self.cursor_radius   
+        self.plant.cursor_radius = self.cursor_radius
         self.plant.cursor.radius = self.cursor_radius
         super(BMIControlMulti, self).init(*args, **kwargs)
-
-
-    def move_effector(self, *args, **kwargs):
-        pass
 
     def create_assister(self):
         # Create the appropriate type of assister object
@@ -250,8 +246,8 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, manualcontrolmultitasks
         ##     # self.assister = FeedbackControllerAssist(fb_ctrl, style='additive')
         ##     self.assister = TentacleAssist(ssm=self.decoder.ssm, kin_chain=self.plant.kin_chain, update_rate=self.decoder.binlen)
         else:
-            raise NotImplementedError("Cannot assist for this type of statespace: %r" % self.decoder.ssm)        
-        
+            raise NotImplementedError("Cannot assist for this type of statespace: %r" % self.decoder.ssm)
+
         print(self.assister)
 
     def create_goal_calculator(self):
@@ -275,7 +271,7 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, manualcontrolmultitasks
                 goal_calc_class = goal_calculators.PlanarMultiLinkJointGoal
                 multiproc = True
 
-            self.goal_calculator = goal_calc_class(namelist.tentacle_2D_state_space, shoulder_anchor, 
+            self.goal_calculator = goal_calc_class(namelist.tentacle_2D_state_space, shoulder_anchor,
                                                    chain, multiproc=multiproc, init_resp=x_init)
         else:
             raise ValueError("Unrecognized decoder state space!")
@@ -302,213 +298,24 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, manualcontrolmultitasks
             self.decoder.filt.state.mean = self.init_decoder_mean
             self.hdf.sendMsg("reset")
 
-    def move_effector(self):
-        pass
-
-    # def _test_enter_target(self, ts):
-    #     '''
-    #     return true if the distance between center of cursor and target is smaller than the cursor radius
-    #     '''
-    #     cursor_pos = self.plant.get_endpoint_pos()
-    #     d = np.linalg.norm(cursor_pos - self.target_location)
-    #     return d <= self.target_radius
 
 class BMIControlMulti2DWindow(BMIControlMulti, WindowDispl2D):
     fps = 20.
     def __init__(self,*args, **kwargs):
         super(BMIControlMulti2DWindow, self).__init__(*args, **kwargs)
-    
+
     def create_assister(self):
         kwargs = dict(decoder_binlen=self.decoder.binlen, target_radius=self.target_radius)
         if hasattr(self, 'assist_speed'):
-            kwargs['assist_speed'] = self.assist_speed    
+            kwargs['assist_speed'] = self.assist_speed
         self.assister = SimpleEndpointAssister(**kwargs)
-    
+
     def create_goal_calculator(self):
         self.goal_calculator = goal_calculators.ZeroVelocityGoal(self.decoder.ssm)
 
     def _start_wait(self):
         self.wait_time = 0.
         super(BMIControlMulti2DWindow, self)._start_wait()
-        
+
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
-
-
-class BMIResetting(BMIControlMulti):
-    '''
-    Task where the virtual plant starts in configuration sampled from a discrete set and resets every trial
-    '''
-    status = dict(
-        wait = dict(start_trial="premove", stop=None),
-        premove=dict(premove_complete="target"),
-        target = dict(enter_target="hold", timeout="timeout_penalty", stop=None),
-        hold = dict(leave_early="hold_penalty", hold_complete="targ_transition"),
-        targ_transition = dict(trial_complete="reward",trial_abort="wait", trial_incomplete="target", trial_restart="premove"),
-        timeout_penalty = dict(timeout_penalty_end="targ_transition"),
-        hold_penalty = dict(hold_penalty_end="targ_transition"),
-        reward = dict(reward_end="wait")
-    )
-
-    plant_visible = 1
-    plant_hide_rate = -1
-    premove_time = traits.Float(.1, desc='Time before subject must start doing BMI control')
-    # static_states = ['premove'] # states in which the decoder is not run
-    add_noise = 0.35
-    sequence_generators = BMIControlMulti.sequence_generators + ['outcenter_half_hidden', 'short_long_centerout']
-
-    # def __init__(self, *args, **kwargs):
-    #     super(BMIResetting, self).__init__(*args, **kwargs)
-
-    def init(self, *args, **kwargs):
-        #self.add_dtype('bmi_P', 'f8', (self.decoder.ssm.n_states, self.decoder.ssm.n_states))
-        super(BMIResetting, self).init(*args, **kwargs)
-
-    # def move_plant(self, *args, **kwargs):
-    #     super(BMIResetting, self).move_plant(*args, **kwargs)
-    #     c = self.plant.get_endpoint_pos()
-    #     self.plant.set_endpoint_pos(c + self.add_noise*np.array([np.random.rand()-0.5, 0., np.random.rand()-0.5]))
-
-    def _cycle(self, *args, **kwargs):
-        #self.task_data['bmi_P'] = self.decoder.filt.state.cov 
-        super(BMIResetting, self)._cycle(*args, **kwargs)
-
-    def _while_premove(self):
-        self.plant.set_endpoint_pos(self.targs[0])
-        self.decoder['q'] = self.plant.get_intrinsic_coordinates()
-        # self.decoder.filt.state.mean = self.calc_perturbed_ik(self.targs[0])
-
-    def _start_premove(self):
-
-        #move a target to current location (target1 and target2 alternate moving) and set location attribute
-        target = self.targets[(self.target_index+1) % 2]
-        target.move_to_position(self.targs[self.target_index+1])
-        target.cue_trial_start()
-        
-    def _end_timeout_penalty(self):
-        pass
-
-    def _test_premove_complete(self, ts):
-        return ts>=self.premove_time
-
-    def _parse_next_trial(self):
-        try:
-            self.targs, self.plant_visible = self.next_trial        
-        except:
-            self.targs = self.next_trial
-
-    def _test_hold_complete(self,ts):
-        ## Disable origin holds for this task
-        if self.target_index == 0:
-            return True
-        else:
-            return ts>=self.hold_time
-
-    def _test_trial_incomplete(self, ts):
-        return (self.target_index<self.chain_length-1) and (self.target_index != -1) and (self.tries<self.max_attempts)
-
-    def _test_trial_restart(self, ts):
-        return (self.target_index==-1) and (self.tries<self.max_attempts)
-
-    @staticmethod
-    def outcenter_half_hidden(nblocks=100, ntargets=4, distance=8, startangle=45):
-        startangle = np.deg2rad(startangle)
-        target_angles = np.arange(startangle, startangle+2*np.pi, 2*np.pi/ntargets)
-        origins = distance * np.vstack([np.cos(target_angles), 
-                                        np.zeros_like(target_angles),
-                                        np.sin(target_angles)]).T
-        terminus = np.zeros(3)
-        trial_target_sequences = [np.vstack([origin, terminus]) for origin in origins]
-        visibility = [True, False]
-        from riglib.experiment.generate import block_random
-        seq = block_random(trial_target_sequences, visibility, nblocks=nblocks)
-        return seq
-    
-    @staticmethod
-    def short_long_centerout(nblocks=100, ntargets=4, distance2=(8, 12)):
-        theta = []
-        dist = []
-        for i in range(nblocks):
-            for j in range(2):
-                if j==0:
-                    temp = np.arange(0, 2*np.pi, 2*np.pi/ntargets)
-                    tempdist = np.zeros((ntargets, )) + distance2[j]
-                else:
-                    temp = np.hstack((temp, np.arange(0, 2*np.pi, 2*np.pi/ntargets)))
-                    tempdist = np.hstack((tempdist, np.zeros((ntargets, ))+distance2[j]))
-            
-            ix = np.random.permutation(ntargets*2)
-            theta = theta + [temp[ix]]
-            dist = dist + list(tempdist[ix])
-        theta = np.hstack(theta)
-        distance = np.hstack(dist)
-        
-        x = distance*np.cos(theta)
-        y = np.zeros(len(theta))
-        z = distance*np.sin(theta)
-        
-        pairs = np.zeros([len(theta), 2, 3])
-        pairs[:,1,:] = np.vstack([x, y, z]).T
-        
-        return pairs
-
-
-class BaselineControl(BMIControlMulti):
-    background = (0.0, 0.0, 0.0, 1) # Set background to black to make it appear to subject like the task is not running
-
-    def show_object(self, obj, show=False):
-        '''
-        Show or hide an object
-        '''
-        obj.detach()
-
-    def init(self, *args, **kwargs):
-        super(BaselineControl, self).init(*args, **kwargs)
-
-    def _cycle(self, *args, **kwargs):
-        for model in self.plant.graphics_models:
-            model.detach()
-        super(BaselineControl, self)._cycle(*args, **kwargs)
-
-    def _start_wait(self, *args, **kwargs):
-        for model in self.plant.graphics_models:
-            model.detach()
-        super(BaselineControl, self)._start_wait(*args, **kwargs)
-
-
-#########################
-######## Simulation tasks
-#########################
-from features.simulation_features import SimKalmanEnc, SimKFDecoderSup, SimCosineTunedEnc
-from riglib.bmi.feedback_controllers import LQRController
-class SimBMIControlMulti(SimCosineTunedEnc, SimKFDecoderSup, BMIControlMulti):
-    win_res = (250, 140)
-    sequence_generators = ['sim_target_seq_generator_multi']
-    def __init__(self, *args, **kwargs):
-        from riglib.bmi.state_space_models import StateSpaceEndptVel2D
-        ssm = StateSpaceEndptVel2D()
-
-        A, B, W = ssm.get_ssm_matrices()
-        Q = np.mat(np.diag([1., 1, 1, 0, 0, 0, 0]))
-        R = 10000*np.mat(np.diag([1., 1., 1.]))
-        self.fb_ctrl = LQRController(A, B, Q, R)
-
-        self.ssm = ssm
-
-        super(SimBMIControlMulti, self).__init__(*args, **kwargs)
-
-    @staticmethod
-    def sim_target_seq_generator_multi(n_targs, n_trials):
-        '''
-        Simulated generator for simulations of the BMIControlMulti and CLDAControlMulti tasks
-        '''
-        center = np.zeros(2)
-        pi = np.pi
-        targets = 8*np.vstack([[np.cos(pi/4*k), np.sin(pi/4*k)] for k in range(8)])
-
-        target_inds = np.random.randint(0, n_targs, n_trials)
-        target_inds[0:n_targs] = np.arange(min(n_targs, n_trials))
-        for k in range(n_trials):
-            targ = targets[target_inds[k], :]
-            yield np.array([[center[0], 0, center[1]],
-                            [targ[0], 0, targ[1]]])        

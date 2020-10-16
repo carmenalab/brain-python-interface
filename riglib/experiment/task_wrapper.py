@@ -158,3 +158,6 @@ class TaskWrapper(RPCProcess):
     def stop(self):
         self.target_proxy.end_task()
         super().stop()
+
+    def get_state(self):
+        return self.target.state

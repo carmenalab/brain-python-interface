@@ -31,7 +31,6 @@ setuptools.setup(
         "tables",
         "pyserial",
         "h5py",
-        "pygame",
         "ipdb",
     ]
 )
