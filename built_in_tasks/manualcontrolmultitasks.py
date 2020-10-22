@@ -33,19 +33,6 @@ mm_per_cm = 1./10
 
 from built_in_tasks.target_graphics import *
 
-target_colors = {
-"yellow": (1,1,0,0.75),
-"magenta": (1,0,1,0.75),
-"purple":(0.608,0.188,1,0.75),
-"dodgerblue": (0.118,0.565,1,0.75),
-"teal":(0,0.502,0.502,0.75),
-"olive":(0.420,0.557,0.137,.75),
-"juicyorange": (1,0.502,0.,0.75),
-"hotpink":(1,0.0,0.606,.75),
-"lightwood": (0.627,0.322,0.176,0.75),
-"elephant":(0.409,0.409,0.409,0.5),
-"green":(0., 1., 0., 0.5)}
-
 
 class ManualControlMulti(Sequence, Window):
     '''

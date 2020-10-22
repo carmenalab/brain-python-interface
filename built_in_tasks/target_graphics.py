@@ -18,7 +18,20 @@ GREEN = (0,1,0,0.5)
 GOLD = (1., 0.843, 0., 0.5)
 mm_per_cm = 1./10
 
-class CircularTarget(object):
+target_colors = {
+"yellow": (1,1,0,0.75),
+"magenta": (1,0,1,0.75),
+"purple":(0.608,0.188,1,0.75),
+"dodgerblue": (0.118,0.565,1,0.75),
+"teal":(0,0.502,0.502,0.75),
+"olive":(0.420,0.557,0.137,.75),
+"juicyorange": (1,0.502,0.,0.75),
+"hotpink":(1,0.0,0.606,.75),
+"lightwood": (0.627,0.322,0.176,0.75),
+"elephant":(0.409,0.409,0.409,0.5),
+"green":(0., 1., 0., 0.5)}
+
+class CircularTarget(object): 
     def __init__(self, target_radius=2, target_color=(1, 0, 0, .5), starting_pos=np.zeros(3)):
         self.target_color = target_color
         self.default_target_color = tuple(self.target_color)
