@@ -17,8 +17,8 @@ class LaserExperiment(Sequence):
     sequence_generators = ['pulse', 'square_wave']
 
     def __init__(self, *args, **kwargs):
-        self.gpio = ArduinoGPIO()
         self.laser_thread = None
+        # gpio must be defined elsewhere
         #self.gpio = ArduinoGPIO(port=self.laser_serial_port)
         super(LaserExperiment, self).__init__(*args, **kwargs)
 

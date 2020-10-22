@@ -63,7 +63,6 @@ class Track(object):
         Begin running of task
         '''
         log_str("Running new task: \n", mode="w")
-        self.init_pipe()
 
         # initialize task status
         # self.status.value = b"testing" if 'saveid' in kwargs else b"running"

@@ -2,8 +2,9 @@ from riglib import experiment
 from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
 from built_in_tasks.bmimultitasks import BMIControlMulti2DWindow
 from riglib.stereo_opengl.window import WindowDispl2D
-from features.input_device_features import KeyboardControl, MouseControl, MouseBMI
-from features.laser_features import TestGPIO, ArduinoGPIO, DigitalWave, LaserTrials
+from features.peripheral_device_features import KeyboardControl, MouseControl, MouseBMI
+from features.arduino_features import FakeGPIOFeature, ArduinoGPIOFeature
+from features.laser_features import DigitalWave, LaserTrials
 import numpy as np
 
 import unittest
@@ -44,20 +45,20 @@ class TestMouseBMI(unittest.TestCase):
 class TestLaser(unittest.TestCase):
     
     def test_digital_wave(self):
-        gpio = TestGPIO()
-        laser1 = DigitalWave(gpio, pin=13)
+        exp = FakeGPIOFeature()
+        laser1 = DigitalWave(exp.gpio, pin=13)
         laser1.set_square_wave(1, 5)
         self.assertCountEqual(laser1.edges, np.linspace(0, 5.0, 11))
         laser1.start()
         laser1.join()
 
     def test_arduino(self):
-        gpio = ArduinoGPIO()
-        laser = DigitalWave(gpio, pin=10)
+        exp = ArduinoGPIOFeature()
+        laser = DigitalWave(exp.gpio, pin=10)
         laser.set_square_wave(5, 10)
         laser.start()
         laser.join()
-        laser = DigitalWave(gpio, pin=10)
+        laser = DigitalWave(exp.gpio, pin=10)
         laser.set_edges([0], False)
         laser.start()
         laser.join()

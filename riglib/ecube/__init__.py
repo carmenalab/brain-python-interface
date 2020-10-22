@@ -1,4 +1,4 @@
-from pyeCubeStream import eCubeStream
+from .pyeCubeStream import eCubeStream
 import numpy as np
 import time
 
