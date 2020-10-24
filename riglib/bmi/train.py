@@ -22,7 +22,7 @@ import subprocess
 ############
 ## Constants
 ############
-pi = np.pi 
+pi = np.pi
 
 ################################################################################
 ## Functions to synchronize task-generated HDF files and neural recording files
@@ -85,8 +85,8 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
     tslice : list of length 2
         Specify the start and end time to examine the file, in seconds
     sys_name : string, optional
-        The "system" being synchronized. When the task is running, each data source 
-        (i.e., each HDF table) is allowed to be asynchronous and thus is independently 
+        The "system" being synchronized. When the task is running, each data source
+        (i.e., each HDF table) is allowed to be asynchronous and thus is independently
         synchronized with the neural recording system.
 
     Returns
@@ -115,7 +115,7 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
 
         if syskey is None:
             print((list(reg.items())))
-            raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')        
+            raise Exception('riglib.bmi.train._get_tmask: Training data source not found in neural data file!')
     elif len(list(reg.keys())) == 0:
         # try to find how many systems' rowbytes were in the HDF file
         rowbyte_data = parse.rowbyte(events)
@@ -127,7 +127,7 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
 
     # get the corresponding hdf rows
     rows = parse.rowbyte(events)[syskey][:,0]
-    
+
     # Determine which rows are within the time bounds
     lower, upper = 0 < rows, rows < rows.max() + 1
     l, u = tslice
@@ -143,7 +143,7 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
 
     if nev_fname[-4:] != '.hdf':
         nev_hdf_fname = nev_fname + '.hdf'
-        
+
         if not os.path.isfile(nev_hdf_fname):
             # convert .nev file to hdf file using our own blackrock_parse_files:
             from db.tracker import models
@@ -151,7 +151,7 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
             _, _ = models.parse_blackrock_file(nev_fname, 0, task_entry)
     else:
         nev_hdf_fname = nev_fname
-        
+
     #import h5py
     #nev_hdf = h5py.File(nev_hdf_fname, 'r')
     nev_hdf = tables.openFile(nev_hdf_fname)
@@ -187,7 +187,7 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     rows = parse.rowbyte(data)[syskey][:,0]
 
     rows = rows / 30000.
-    
+
     lower, upper = 0 < rows, rows < rows.max() + 1
     if tslice is None:
         l = None;
@@ -207,7 +207,7 @@ def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
     # need to create fake "rows" and "tmask" variables
 
     print('WARNING: Using _get_tmask_blackrock_fake function!!')
-    
+
     binlen = 0.1
     strobe_rate = 10
     hdf = tables.openFile(hdf_fname)
@@ -224,7 +224,7 @@ def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
     tmask = np.logical_and(lower, upper)
 
     return tmask, rows
-    
+
 ################################################################################
 ## Feature extraction
 ################################################################################
@@ -239,7 +239,7 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
     binlen: float
         Specifies the temporal resolution of the feature extraction
     extractor_fn: callable
-        Function must have the call signature 
+        Function must have the call signature
         neural_features, units, extractor_kwargs = extractor_fn(plx, neurows, binlen, units, extractor_kwargs)
     extractor_kwargs: dictionary
         Additional keyword arguments to the extractor_fn (specific to each feature extractor)
@@ -256,13 +256,13 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
 
     hdf = tables.openFile(files['hdf'])
 
-    plx_fname = str(files['plexon']) 
+    plx_fname = str(files['plexon'])
     from plexon import plexfile
     try:
         plx = plexfile.openFile(plx_fname)
     except IOError:
         raise Exception("Could not open .plx file: %s" % plx_fname)
-    
+
     # Use all of the units if none are specified
     if units is None:
         units = np.array(plx.units).astype(np.int32)
@@ -277,7 +277,7 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
 
     return neural_features, units, extractor_kwargs
 
-def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=20.):    
+def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=20.):
     if units is None:
         raise Exception('"units" variable is None in preprocess_files!')
 
@@ -296,9 +296,9 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
     else:
         nev_fname = [name for name in files['blackrock'] if '.nev' in name][0]  # only one of them
 
-        #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]]) 
+        #tmask, rows = _get_tmask_blackrock(nev_fname, tslice, syskey_fn=lambda x: x[0] in [source, source[1:]])
 
-        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, sys_name=source) 
+        tmask, rows = _get_tmask_blackrock(nev_fname, tslice, sys_name=source)
     neurows = rows[tmask]
 
     neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs, strobe_rate=strobe_rate)
@@ -318,7 +318,7 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
     Returns
     -------
     '''
-    
+
     hdf = tables.openFile(files['hdf'])
 
     if 'plexon' in files:
@@ -339,7 +339,7 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
 ## Kinematic data retrieval
 ################################################################################
 def null_kin_extractor(files, binlen, tmask, update_rate_hz=60., pos_key='cursor', vel_key=None):
-    hdf = tables.openFile(files['hdf'])    
+    hdf = tables.openFile(files['hdf'])
     kin = np.squeeze(hdf.root.task[:][pos_key])
 
     inds, = np.nonzero(tmask)
@@ -372,7 +372,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
     if pos_key == 'plant_pos':  # used for ibmi tasks
         vel_key = 'plant_vel'
 
-    hdf = tables.openFile(files['hdf'])    
+    hdf = tables.openFile(files['hdf'])
     kin = hdf.root.task[:][pos_key]
 
     inds, = np.nonzero(tmask)
@@ -397,9 +397,9 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
                 velocity = hdf.root.task[inds][vel_key]
             else:
                 velocity = np.diff(kin, axis=0) * 1./binlen
-                velocity = np.vstack([np.zeros(kin.shape[1]), velocity])        
+                velocity = np.vstack([np.zeros(kin.shape[1]), velocity])
 
-        except: 
+        except:
             kin2 = np.zeros((len(inds), kin.shape[1]))
             vel2 = np.zeros((len(inds), kin.shape[1]))
 
@@ -411,7 +411,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
                 vel2[ix, :] = hdf.root.task[inds[ix]][vel_key]
             else:
                 vel2 = np.diff(kin, axis=0) * 1./binlen
-                vel2 = np.vstack([np.zeros(kin.shape[1]), vel2])    
+                vel2 = np.vstack([np.zeros(kin.shape[1]), vel2])
 
             velocity = vel2.copy()
 
@@ -453,10 +453,10 @@ def test_ratBMIdecoder(te_id=None, update_rate=0.1, tslice=None, kin_source='tas
     e1_inds = kwargs.pop('e1_inds', None)
     e2_inds = kwargs.pop('e2_inds', None)
 
-    e1_inds, e2_inds, FR_to_freq_fn, units, t1, t2, mid = rat_bmi_decoder.calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, prob_t2, timeout, 
+    e1_inds, e2_inds, FR_to_freq_fn, units, t1, t2, mid = rat_bmi_decoder.calc_decoder_from_baseline_file(neural_features, units, nsteps, prob_t1, prob_t2, timeout,
         timeout_pause, freq_lim, e1_inds, e2_inds)
 
-    task_params = dict(nsteps=nsteps, prob_t1=prob_t1, prob_t2=prob_t2, timeout_pause=timeout_pause, timeout=timeout, freq_lim=freq_lim, 
+    task_params = dict(nsteps=nsteps, prob_t1=prob_t1, prob_t2=prob_t2, timeout_pause=timeout_pause, timeout=timeout, freq_lim=freq_lim,
         e1_inds=e1_inds, e2_inds=e2_inds, te_name=te.name, FR_to_freq_fn=FR_to_freq_fn, units=units, te_id=te_id, t1=t1, t2=t2, mid=mid,
         extractor_kwargs=extractor_kwargs)
 
@@ -476,28 +476,28 @@ def test_IsmoreSleepDecoder(te_id, e1_units, e2_units, nsteps=1, prob_t1 = 0.985
     units = np.vstack((e1_units, e2_units))
     argsort = np.argsort(units[:, 0])
     units = units[argsort, :]
-    
+
     unit_ids = np.hstack((['e1']*len(e1_units) + ['e2']*len(e2_units)))
     sorted_unit_ids = unit_ids[argsort]
 
     e1_inds = np.nonzero(sorted_unit_ids=='e1')[0]
     e2_inds = np.nonzero(sorted_unit_ids=='e2')[0]
-    
-    neural_features, units, extractor_kwargs = get_neural_features(files, 0.1, extractor_cls.extract_from_file, 
+
+    neural_features, units, extractor_kwargs = get_neural_features(files, 0.1, extractor_cls.extract_from_file,
         dict(), tslice=None, units=units)
 
-    neural_features_unbinned, units, extractor_kwargs = get_neural_features(files, 0.05, extractor_cls.extract_from_file, 
+    neural_features_unbinned, units, extractor_kwargs = get_neural_features(files, 0.05, extractor_cls.extract_from_file,
         dict(), tslice=None, units=units)
 
     import riglib.bmi.rat_bmi_decoder
-    
-    kwargs = dict(targets_matrix=targets_matrix, session_length=session_length, 
+
+    kwargs = dict(targets_matrix=targets_matrix, session_length=session_length,
         saturate_perc=saturate_perc, skip_sim=skip_sim)
 
-    decoder, nrewards = riglib.bmi.rat_bmi_decoder.calc_decoder_from_baseline_file(neural_features, 
-        neural_features_unbinned, units, nsteps, prob_t1, prob_t2, timeout, timeout_pause, freq_lim, 
+    decoder, nrewards = riglib.bmi.rat_bmi_decoder.calc_decoder_from_baseline_file(neural_features,
+        neural_features_unbinned, units, nsteps, prob_t1, prob_t2, timeout, timeout_pause, freq_lim,
         e1_inds, e2_inds, sim_fcn='ismore', **kwargs)
-    
+
     decoder.extractor_cls = extractor_cls
     decoder.extractor_kwargs = extractor_kwargs
     pickle.dump(decoder, open('/storage/decoders/sleep_from_te'+str(te_id)+'.pkl', 'wb'))
@@ -565,7 +565,7 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     from tasks.factor_analysis_tasks import FactorBMIBase
     FA_dict = FactorBMIBase.generate_FA_matrices(FA_nfactors, FA_te_id)
 
-    # #Now, retrain: 
+    # #Now, retrain:
     binlen = decoder.binlen
 
     from db import dbfunctions as dbfn
@@ -587,16 +587,16 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     ## get neural features
     neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, extractor_kwargs, tslice=tslice, units=units, source=kin_source)
 
-    #Get shared input: 
+    #Get shared input:
     T = neural_features.shape[0]
     demean = neural_features.T - np.tile(FA_dict['fa_mu'], [1, T])
-    
+
     if use_main:
         main_shar = (FA_dict['fa_main_shared'] * demean)
         main_priv = (demean - main_shar)
         FA = FA_dict['FA_model']
 
-    else:    
+    else:
         shar = (FA_dict['fa_sharL']* demean)
         shar_sc = np.multiply(shar, np.tile(FA_dict['fa_shar_var_sc'], [1, T])) + np.tile(FA_dict['fa_mu'], [1, T])
         shar_unsc = shar + np.tile(FA_dict['fa_mu'], [1, T])
@@ -605,7 +605,7 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
         else:
             neural_features = shar_unsc[:,:-1]
 
-    # Remove 1st kinematic sample and last neural features sample to align the 
+    # Remove 1st kinematic sample and last neural features sample to align the
     # velocity with the neural features
     kin = kin[1:].T
 
@@ -626,7 +626,7 @@ def train_FADecoder_from_KF(FA_nfactors, FA_te_id, decoder, use_scaled=True, use
     return decoder2, fname
 
 def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = 'w_fa_dict_from_', use_shar_z=False, tslice=None):
-    
+
     from db import dbfunctions as dbfn
     te = dbfn.TaskEntry(fa_te)
     hdf = te.hdf
@@ -685,7 +685,7 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     T = neural_features.shape[0]
     demean = neural_features.T - np.tile(FA_dict['fa_mu'], [1, T])
 
-    #Neural features in time x spikes: 
+    #Neural features in time x spikes:
     FA = FA_dict['FA_model']
     z = FA.transform(demean.T)
     z = z.T
@@ -697,7 +697,7 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     priv = demean - shar_z
 
     #Time by features:
-    if use_shar_z: 
+    if use_shar_z:
         neural_features2 = np.vstack((z, priv))
         suffx = '_split_shar_z'
     else:
@@ -713,26 +713,26 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     from db import trainbmi
     trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix=suffx)
 
-def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, 
-    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, filter_kin=True, simple_lin_reg=False, 
-    use_data_kwargs=None, **kwargs):
+def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None,
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, filter_kin=True, simple_lin_reg=False,
+    use_data_kwargs=None, update_rate_hz=60, **kwargs):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
     Parameters
-    ---------- 
+    ----------
     files : dict
         Dictionary of files which contain training data. Keys are file tyes, values are file names.
         Kinematic data is assumed to be stored in an 'hdf' file and neural data assumed to be in 'plx' or 'nev' files
     extractor_cls : class
         Class of feature extractor to instantiate
-    extractor_kwargs : dict 
+    extractor_kwargs : dict
         Parameters to specify for feature extractor to instantiate it to specification
     kin_extractor : callable
         Function to extract kinematics from the HDF file.
     ssm : state_space_models.StateSpace instance
         State space model for the Decoder object being created.
-    units : np.iterable 
+    units : np.iterable
         Spiking units are specified as tuples of (electrode channe, electrode unit)
     update_rate : float, optional
         Time in seconds between decoder updates. default=0.1
@@ -744,7 +744,7 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
         Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
     vel_key : string
         Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
-    zscore : Bool 
+    zscore : Bool
         Determines whether to zscore neural_data or not
     kwargs:
         mFR: mean firing rate to use to zscore units
@@ -762,11 +762,9 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     # sys.stdout.write(units)
     binlen = update_rate
 
-    from config import config
-
     ## get kinematic data
     tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
-    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=config.hdf_update_rate_hz)
+    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=hdf_update_rate_hz)
 
     ## get neural features
     if 'blackrock' in list(files.keys()):
@@ -774,14 +772,14 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     else:
         strobe_rate = 60.
 
-    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, 
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file,
         extractor_kwargs, tslice=tslice, units=units, source=kin_source, strobe_rate=strobe_rate)
 
-    # Remove 1st kinematic sample and last neural features sample to align the 
+    # Remove 1st kinematic sample and last neural features sample to align the
     # velocity with the neural features
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
-    
+
     if filter_kin:
         filts = get_filterbank(fs=1./update_rate)
         kin_filt = np.zeros_like(kin)
@@ -795,7 +793,7 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
         from sklearn.linear_model import Ridge
         decoder = Ridge(1000.0, fit_intercept=True, normalize=False)
 
-        if use_data_kwargs is not None: 
+        if use_data_kwargs is not None:
 
             # HDF rows to use in training
             X = []
@@ -805,7 +803,7 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
                 X.append(neural_features[:, pair[0]])
                 Y.append(kin_filt[:, pair[1]])
 
-            # Convert these hdf rows to 
+            # Convert these hdf rows to
         decoder.fit(np.vstack((X)), np.vstack((Y)))
 
     else:
@@ -832,25 +830,25 @@ def get_filterbank(n_channels=14, fs=1000.):
     return channel_filterbank
 
 
-def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None, 
-    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, **kwargs):
+def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None,
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, update_rae_hz=60, **kwargs):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
     Parameters
-    ---------- 
+    ----------
     files : dict
         Dictionary of files which contain training data. Keys are file tyes, values are file names.
         Kinematic data is assumed to be stored in an 'hdf' file and neural data assumed to be in 'plx' or 'nev' files
     extractor_cls : class
         Class of feature extractor to instantiate
-    extractor_kwargs : dict 
+    extractor_kwargs : dict
         Parameters to specify for feature extractor to instantiate it to specification
     kin_extractor : callable
         Function to extract kinematics from the HDF file.
     ssm : state_space_models.StateSpace instance
         State space model for the Decoder object being created.
-    units : np.iterable 
+    units : np.iterable
         Spiking units are specified as tuples of (electrode channe, electrode unit)
     update_rate : float, optional
         Time in seconds between decoder updates. default=0.1
@@ -862,7 +860,7 @@ def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, 
         Column of HDF table to use for position data. Default is 'cursor', recognized options are {'cursor', 'joint_angles', 'plant_pos'}
     vel_key : string
         Column of HDF table to use for velocity data. Default is None; velocity is computed by single-step numerical differencing (or alternate method )
-    zscore : Bool 
+    zscore : Bool
         Determines whether to zscore neural_data or not
     kwargs:
         mFR: mean firing rate to use to zscore units
@@ -880,17 +878,15 @@ def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, 
     # sys.stdout.write(units)
     binlen = update_rate
 
-    from config import config
-
     ## get kinematic data
     tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
-    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=config.hdf_update_rate_hz)
+    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=update_rate_hz)
 
     ## get neural features
-    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, 
+    neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file,
         extractor_kwargs, tslice=tslice, units=units, source=kin_source)
 
-    # Remove 1st kinematic sample and last neural features sample to align the 
+    # Remove 1st kinematic sample and last neural features sample to align the
     # velocity with the neural features
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
@@ -904,11 +900,11 @@ def train_KFDecoderDrift(files, extractor_cls, extractor_kwargs, kin_extractor, 
 
     return decoder
 
-def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0., 
+def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tslice=None, regularizer=0.,
     zscore=False, **kwargs):
     print(kwargs)
     print('end of kwargs')
-    
+
     #### Train the actual KF decoder matrices ####
     if type(zscore) is bool:
         pass
@@ -970,7 +966,7 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     decoder = kfdecoder.KFDecoder(kf, units, ssm, binlen=update_rate, tslice=tslice)
 
     if zscore:
-        decoder.init_zscore(mFR, sdFR)  
+        decoder.init_zscore(mFR, sdFR)
         print('zscore init')
     else:
         print('no init_zscore')
@@ -985,7 +981,7 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
 
     R[np.ix_(ssm.drives_obs_inds, ssm.drives_obs_inds)] = R_small
     S[:,ssm.drives_obs_inds] = S_small
-    
+
     decoder.filt.R = R
     decoder.filt.S = S
     decoder.filt.T = T
@@ -1006,19 +1002,19 @@ def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     Create a new PPFDecoder using maximum-likelihood, from kinematic observations and neural observations
 
     Parameters
-    ---------- 
+    ----------
     files : dict
         Dictionary of files which contain training data. Keys are file tyes, values are file names.
         Kinematic data is assumed to be stored in an 'hdf' file and neural data assumed to be in 'plx' or 'nev' files
     extractor_cls : class
         Class of feature extractor to instantiate
-    extractor_kwargs : dict 
+    extractor_kwargs : dict
         Parameters to specify for feature extractor to instantiate it to specification
     kin_extractor : callable
         Function to extract kinematics from the HDF file.
     ssm : state_space_models.StateSpace instance
         State space model for the Decoder object being created.
-    units : np.iterable 
+    units : np.iterable
         Spiking units are specified as tuples of (electrode channe, electrode unit)
     update_rate : float, optional
         Time in seconds between decoder updates. default=0.1
@@ -1044,7 +1040,7 @@ def train_PPFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm,
     ## get neural features
     neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file, extractor_kwargs, tslice=tslice, units=units, source=kin_source)
 
-    # Remove 1st kinematic sample and last neural features sample to align the 
+    # Remove 1st kinematic sample and last neural features sample to align the
     # velocity with the neural features
     kin = kin[1:].T
     neural_features = neural_features[:-1].T
@@ -1082,7 +1078,7 @@ def train_PPFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsl
     S_small, = decoder.compute_suff_stats(kin[ssm.train_inds, :], neural_features)
 
     S[:,ssm.drives_obs_inds] = S_small
-        
+
     decoder.filt.S = S
     decoder.n_features = n_features
 
@@ -1092,7 +1088,7 @@ def train_PPFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsl
 ## Helper functions
 ###################
 def unit_conv(starting_unit, ending_unit):
-    ''' 
+    '''
     Convert between units, e.g. cm to m
     Lookup table for conversion factors between units; this function exists
     only to avoid hard-coded constants in most of the code
@@ -1118,11 +1114,11 @@ def unit_conv(starting_unit, ending_unit):
         return 100
     else:
         raise ValueError("Unrecognized starting/ending unit")
-    
+
 def lookup_cells(cells):
-    ''' 
+    '''
     Convert string names of units to 'machine' format.
-    Take a list of neural units specified as a list of strings and convert 
+    Take a list of neural units specified as a list of strings and convert
     to the 2D array format used to specify neural units to train decoders
 
     Parameters
@@ -1217,7 +1213,7 @@ def rand_KFDecoder(ssm, units, dt=0.1):
 
     C = np.random.standard_normal([n_neurons, nX])
     C[:, ~drives_neurons] = 0
-    Q = 10 * np.identity(n_neurons) 
+    Q = 10 * np.identity(n_neurons)
 
     kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
 
@@ -1237,9 +1233,9 @@ def rand_KFDecoder(ssm, units, dt=0.1):
 
     return decoder
 
-_train_KFDecoder_2D_sim_2 = rand_KFDecoder    
+_train_KFDecoder_2D_sim_2 = rand_KFDecoder
 
-def load_from_mat_file(decoder_fname, bounding_box=None, 
+def load_from_mat_file(decoder_fname, bounding_box=None,
     states=['p_x', 'p_y', 'v_x', 'v_y', 'off'], states_to_bound=[]):
     """
     Create KFDecoder from MATLAB decoder file used in a Dexterit-based
@@ -1277,7 +1273,7 @@ def load_from_mat_file(decoder_fname, bounding_box=None,
     px_min, py_min = center_pos - 0.09
     px_max, py_max = center_pos + 0.09
     bounding_box = [(px_min, px_max), (py_min, py_max)]
-    bounder = RectangularBounder([px_min, py_min], [px_max, py_max], ['p_x', 'p_y'])    
+    bounder = RectangularBounder([px_min, py_min], [px_max, py_max], ['p_x', 'p_y'])
     dec.bounder = bounder
 
     return dec
@@ -1286,7 +1282,7 @@ def rescale_KFDecoder_units(dec, scale_factor=10):
     '''
     Convert the units of a KFDecoder, e.g. from mm to cm
 
-    C and W matrices of KalmanFilter must be updated for the new units. 
+    C and W matrices of KalmanFilter must be updated for the new units.
     A and Q are unitless and thus remain the same
 
     Parameters
@@ -1332,7 +1328,7 @@ def _train_PPFDecoder_sim_known_beta(beta, units, dt=0.005, dist_units='m'):
 
     # rescale beta for units
     beta[:,3:6] *= units_mult
-    
+
     # Control input matrix for SSM for control inputs
     I = np.mat(np.eye(3))
     B = np.vstack([0*I, dt*1000 * I, np.zeros([1,3])])
@@ -1385,10 +1381,10 @@ def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
     #states = states_3D_endpt#['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
     #states = ['hand_px', 'hand_py', 'hand_pz', 'hand_vx', 'hand_vy', 'hand_vz', 'offset']
     states = state_space_models.StateSpaceEndptVel2D()
-    neuron_driving_states = ['hand_vx', 'hand_vz', 'offset'] 
+    neuron_driving_states = ['hand_vx', 'hand_vz', 'offset']
     beta_full = inflate(beta, neuron_driving_states, states, axis=1)
 
-    stochastic_states = ['hand_vx', 'hand_vz']  
+    stochastic_states = ['hand_vx', 'hand_vz']
     try:
         is_stochastic = [x in stochastic_states for x in states]
     except:
@@ -1409,4 +1405,4 @@ def load_PPFDecoder_from_mat_file(fname, state_units='cm'):
 
     if state_units == 'cm':
         dec.filt.W[3:6, 3:6] *= unit_conv('m', state_units)**2
-    return dec 
+    return dec
