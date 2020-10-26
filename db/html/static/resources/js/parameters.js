@@ -20,6 +20,8 @@ Parameters.prototype.update = function(desc) {
                 }
                 if (any)
                     desc[name].value = tuple;
+            } else if (desc[name]['type'] == 'Bool') {
+                desc[name].value = trait.inputs[0].checked;
             } else {
                 desc[name].value = trait.inputs[0].value;
             }
@@ -337,7 +339,9 @@ Parameters.prototype.add_enum = function(name, info) {
 }
 
 function get_param_input(input_obj) {
-    if (input_obj.value.length > 0) {
+    if (input_obj.type == 'checkbox') {
+        return input_obj.checked;
+    } else if (input_obj.value.length > 0) {
         return input_obj.value;
     } else {
         return input_obj.placeholder;
