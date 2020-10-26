@@ -43,14 +43,15 @@ class Window(LogExperiment):
     #XPS computer
     window_size = traits.Tuple((1280, 1080), descr='window size, in pixels')
     # window_size = (1920*2, 1080)
-    background = (0,0,0,1)
+    background = traits.Tuple((0,0,0,1), desc="Background color (R,G,B,A)")
+    fullscreen = traits.Bool(True, desc="Fullscreen window")
 
     #Screen parameters, all in centimeters -- adjust for monkey
-    fov = np.degrees(np.arctan(14.65/(44.5+3)))*2
-    screen_dist = 44.5+3
-    iod = 2.5     # intraocular distance
+    screen_dist = traits.Float(44.5+3, desc="Screen to eye distance (cm)")
+    screen_half_height = traits.Float(14.65, desc="Screen half height (cm)")
+    iod = traits.Float(2.5, desc="Intraocular distance (cm)")     # intraocular distance
 
-    show_environment = traits.Int(0)
+    show_environment = traits.Int(0, desc="Show wireframe box around environment")
 
     def __init__(self, *args, **kwargs):
         super(Window, self).__init__(*args, **kwargs)
@@ -60,6 +61,8 @@ class Window(LogExperiment):
         self.event = None
 
         # os.popen('sudo vbetool dpms on')
+        self.fov = np.degrees(np.arctan(self.screen_half_height/self.screen_dist))*2
+        self.screen_cm = [2 * self.screen_half_height * self.window_size[0]/self.window_size[1], 2 * self.screen_half_height]
 
         if self.show_environment:
             self.add_model(Box())
@@ -75,12 +78,14 @@ class Window(LogExperiment):
         
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.NOFRAME
+        if self.fullscreen:
+            flags = flags | pygame.FULLSCREEN
         try:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,1)
-            self.surf = pygame.display.set_mode(self.window_size, flags)
+            self.screen = pygame.display.set_mode(self.window_size, flags)
         except:
             pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLEBUFFERS,0)
-            self.surf = pygame.display.set_mode(self.window_size, flags)
+            self.screen = pygame.display.set_mode(self.window_size, flags)
 
         glEnable(GL_BLEND)
         glDepthFunc(GL_LESS)
@@ -158,6 +163,44 @@ class Window(LogExperiment):
         super(Window, self)._cycle()
         self.event = self._get_event()
         
+class SyncSquare(traits.HasTraits):
+    '''A window that adds a square in one corner that switches color with every flip.
+    Only works for 2D windows currently'''
+    
+    sync_position = {
+        'TopLeft': (-1,-1),
+        'TopRight': (1,-1),
+        'BottomLeft': (-1,1),
+        'BottomRight': (1,1)
+    }
+    sync_corner = traits.OptionsList(tuple(sync_position.keys()), desc="Position of sync square")
+    sync_size = traits.Float(1, desc="Sync square size (cm)") 
+    sync_color_off = traits.Tuple((0,0,0), desc="Sync off color (R,G,B,A)")
+    sync_color_on = traits.Tuple((255,255,255), desc="Sync on color (R,G,B,A)")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sync_state = False
+        screen_center = np.divide(self.window_size,2)
+        sync_size_pix = self.sync_size * self.window_size[0] / self.screen_cm[0]
+        sync_center = [sync_size_pix/2, sync_size_pix/2]
+        from_center = np.multiply(self.sync_position[self.sync_corner], np.subtract(screen_center, sync_center))
+        top_left = screen_center + from_center - sync_center
+        self.sync_rect = pygame.Rect(top_left, np.multiply(sync_center,2))
+
+    def screen_init(self):
+        super().screen_init()
+        TRANSPARENT = (255,0,255)
+        self.sync = pygame.Surface(self.window_size)
+        self.sync.fill(TRANSPARENT)
+        self.sync.set_colorkey(TRANSPARENT)
+
+    def _draw_other(self):
+        self.sync_state = not self.sync_state
+        color = self.sync_color_on if self.sync_state else self.sync_color_off
+        self.sync.fill(color, rect=self.sync_rect)
+        self.screen.blit(self.sync, (0,0))
+
 
 class WindowWithExperimenterDisplay(Window):
     hostname = socket.gethostname()
@@ -196,12 +239,8 @@ class WindowWithExperimenterDisplay(Window):
 
 
 class WindowDispl2D(Window):
-    background = (1,1,1,1)
-    def __init__(self, *args, **kwargs):
-        self.models = []
-        self.world = None
-        self.event = None
-        super(WindowDispl2D, self).__init__(*args, **kwargs)
+    '''Draws world on a 2D screen. May cause mild confusion -- transforms 
+    incoming 3D coordinates (x,y,z) into 2D coordinates (x,y) by mapping z onto y'''
 
     def _set_workspace_size(self):
         '''
@@ -217,10 +256,9 @@ class WindowDispl2D(Window):
         self.clock = pygame.time.Clock()
 
         flags = pygame.NOFRAME
-        self._set_workspace_size()
 
-        self.workspace_x_len = self.workspace_top_right[0] - self.workspace_bottom_left[0]
-        self.workspace_y_len = self.workspace_top_right[1] - self.workspace_bottom_left[1]
+        if self.fullscreen:
+            flags = flags | pygame.FULLSCREEN
 
         self.display_border = 10
 
@@ -229,20 +267,22 @@ class WindowDispl2D(Window):
         self.screen_background = pygame.Surface(self.screen.get_size()).convert()
         self.screen_background.fill(self.background)
 
-        x1, y1 = self.workspace_top_right
-        x0, y0 = self.workspace_bottom_left
-        self.normalize = np.array(np.diag([1./(x1-x0), 1./(y1-y0), 1]))
-        self.center_xform = np.array([[1., 0, -x0], 
-                                      [0, 1., -y0],
+        x_max, y_max = (self.screen_cm[0]/2, self.screen_cm[1]/2)
+        x_min, y_min = (-self.screen_cm[0]/2, -self.screen_cm[1]/2)
+        self.normalize = np.array(np.diag([1./(x_max-x_min), 1./(y_max-y_min), 1]))
+        self.center_xform = np.array([[1., 0, -x_min], 
+                                      [0, 1., -y_min],
                                       [0, 0, 1]])
         self.norm_to_screen = np.array(np.diag(np.hstack([self.size, 1])))
 
         # the y-coordinate in pixel space has to be swapped for some graphics convention reason
-        self.flip_y_coord = np.array([[1, 0, 0],
-                                      [0, -1, self.size[1]],
-                                      [0, 0, 1]])
-
-        self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
+        # self.flip_y_coord = np.array([[1, 0, 0],
+        #                               [0, -1, self.size[1]],
+        #                               [0, 0, 1]])
+        # self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
+        
+        # Keep the coordinate system the same as the 3D screen
+        self.pos_space_to_pixel_space = np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform))
 
         self.world = Group(self.models)
         # Dont 'init' self.world in this Window. Just allocates a bunch of OpenGL stuff which is not necessary (and may not work in some cases)
@@ -337,6 +377,9 @@ class WindowDispl2D(Window):
             for mdl in model:
                 self.draw_model(mdl)
 
+    def _draw_other(self):
+        pass
+
     def draw_world(self):
         #Refreshes the screen with original background
         self.screen.blit(self.screen_background, (0, 0))
@@ -353,6 +396,8 @@ class WindowDispl2D(Window):
         #Renders the new surfaces
         self.screen.blit(self.surf['0'], (0,0))
         self.screen.blit(self.surf['1'], (0,0))
+
+        self._draw_other()
         pygame.display.update()
 
     def requeue(self):

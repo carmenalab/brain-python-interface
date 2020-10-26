@@ -168,33 +168,36 @@ class ManualControlMulti(Sequence, Window):
     def move_effector(self):
         ''' Sets the plant configuration based on motiontracker data. For manual control, uses
         motiontracker data. If no motiontracker data available, returns None'''
+        pass
+    
+        # Having this here doesn't make sense when ManualControlMulti doesn't have a self.motiondata
 
         #get data from motion tracker- take average of all data points since last poll
-        pt = self.motiondata.get()
-        if len(pt) > 0:
-            pt = pt[:, self.marker_num, :]
-            conds = pt[:, 3]
-            inds = np.nonzero((conds>=0) & (conds!=4))[0]
-            if len(inds) > 0:
-                pt = pt[inds,:3]
-                #scale actual movement to desired amount of screen movement
-                pt = pt.mean(0) * self.scale_factor
-                #Set y coordinate to 0 for 2D tasks
-                if self.limit2d: pt[1] = 0
-                pt[1] = pt[1]*2
-                # Return cursor location
-                self.no_data_count = 0
-                pt = pt * mm_per_cm #self.convert_to_cm(pt)
-            else: #if no usable data
-                self.no_data_count += 1
-                pt = None
-        else: #if no new data
-            self.no_data_count +=1
-            pt = None
+        # pt = self.motiondata.get()
+        # if len(pt) > 0:
+        #     pt = pt[:, self.marker_num, :]
+        #     conds = pt[:, 3]
+        #     inds = np.nonzero((conds>=0) & (conds!=4))[0]
+        #     if len(inds) > 0:
+        #         pt = pt[inds,:3]
+        #         #scale actual movement to desired amount of screen movement
+        #         pt = pt.mean(0) * self.scale_factor
+        #         #Set y coordinate to 0 for 2D tasks
+        #         if self.limit2d: pt[1] = 0
+        #         pt[1] = pt[1]*2
+        #         # Return cursor location
+        #         self.no_data_count = 0
+        #         pt = pt * mm_per_cm #self.convert_to_cm(pt)
+        #     else: #if no usable data
+        #         self.no_data_count += 1
+        #         pt = None
+        # else: #if no new data
+        #     self.no_data_count +=1
+        #     pt = None
 
-        # Set the plant's endpoint to the position determined by the motiontracker, unless there is no data available
-        if pt is not None:
-            self.plant.set_endpoint_pos(pt)
+        # # Set the plant's endpoint to the position determined by the motiontracker, unless there is no data available
+        # if pt is not None:
+        #     self.plant.set_endpoint_pos(pt)
 
     def run(self):
         '''
