@@ -53,6 +53,8 @@ class Window(LogExperiment):
 
     show_environment = traits.Int(0, desc="Show wireframe box around environment")
 
+    hidden_traits = LogExperiment.hidden_traits + ['screen_dist', 'screen_half_height', 'iod', 'show_environment', 'background']
+
     def __init__(self, *args, **kwargs):
         super(Window, self).__init__(*args, **kwargs)
 
@@ -152,7 +154,10 @@ class Window(LogExperiment):
         '''
         super_stop = super(Window, self)._test_stop(ts)
         from pygame import K_ESCAPE
-        return super_stop or self.event is not None and self.event[0] == K_ESCAPE
+        key_stop = self.event is not None and self.event[0] == K_ESCAPE
+        if key_stop:
+            print("Window closed. Stopping task")
+        return super_stop or key_stop
     
     def requeue(self):
         self.renderer._queue_render(self.world)

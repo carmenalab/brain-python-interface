@@ -51,9 +51,9 @@ class Conditions(Sequence):
 
 class LaserConditions(Conditions):
 
-    trial_time = None
     laser_trigger_pin = traits.Int(10, desc="GPIO pin used to trigger laser")
     sequence_generators = ['pulse', 'square_wave']
+    exclude_parent_traits = Conditions.exclude_parent_traits + ['trial_time']
 
     def __init__(self, *args, **kwargs):
         self.laser_thread = None

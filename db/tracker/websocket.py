@@ -175,5 +175,7 @@ class WinNotifyFeat(object):
         except:
             err = io.StringIO()
             traceback.print_exc(None, err)
+            err.seek(0)
+            print(err.read())
         finally:
             self.tracker_end_of_pipe.send(None)

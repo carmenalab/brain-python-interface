@@ -257,9 +257,9 @@ class MouseControl(KeyboardControl):
         pygame.mouse.set_visible(False)
         pygame.event.set_grab(True)
         rel = pygame.mouse.get_rel()
+        self.pos = self.plant.get_endpoint_pos()
         self.pos[0] += rel[0] / self.window_size[0] * self.screen_cm[0]
         self.pos[2] += rel[1] / self.window_size[1] * self.screen_cm[1]
-        self.pos, _ = self.plant._bound(self.pos, [])
         self.plant.set_endpoint_pos(self.pos)
 
 from .neural_sys_features import CorticalBMI
