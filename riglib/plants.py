@@ -220,14 +220,14 @@ class CursorPlant(Plant):
         return self.position
 
     def set_endpoint_pos(self, pt, **kwargs):
-        self.position = pt
+        self.set_intrinsic_coordinates(pt)
         self.draw()
 
     def get_intrinsic_coordinates(self):
         return self.position
 
     def set_intrinsic_coordinates(self, pt):
-        self.position = pt
+        self.position = self._bound(pt, [])[0]
         self.draw()
 
     def set_visibility(self, visible):

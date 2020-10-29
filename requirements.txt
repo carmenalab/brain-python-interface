@@ -33,3 +33,4 @@ pylibftdi == 0.0.0
 pyfirmata == 1.1.0
 gitpython==3.1.8
 hdfwriter==0.1.4
+pycomedi == 0.9

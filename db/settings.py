@@ -186,4 +186,4 @@ TEMPLATES = [
 APPEND_SLASH=False
 
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', "testserver"]
+ALLOWED_HOSTS = ['*'] #['127.0.0.1', 'localhost', "testserver"]

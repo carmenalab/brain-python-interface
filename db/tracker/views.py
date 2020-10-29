@@ -144,12 +144,17 @@ def setup_features(request):
     # populate the list of built-in features which could be added
     from features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
+    active_features = []
     for feat in features:
         if feat.name in built_in_feature_names:
             built_in_feature_names.remove(feat.name)
+            active_features.append(feat)
+        else:
+            active_features.append(feat)
 
     return render(request, "setup_features.html",
-        dict(features=features, built_in_feature_names=built_in_feature_names))
+        dict(features=features, active_features=active_features,
+        built_in_feature_names=built_in_feature_names))        
 
 def setup_parameters(request):
     """view for experimenter to add new global system parameters"""
@@ -180,7 +185,6 @@ def setup_parameters(request):
 def setup(request):
     """Highest level "Setup" view"""
     return render(request, "setup_base.html")
-
 
 def _color_entries(entries):
     from .models import TaskEntry, Task, Subject, Feature, Generator

@@ -40,8 +40,8 @@ function Report(callback) {
 }
 
 Report.prototype.activate = function() {
-    var on_windows = window.navigator.userAgent.indexOf("Windows") > 0;
-    if (!this.ws && !on_windows) {  // some websocket issues on windows..
+    //var on_windows = window.navigator.userAgent.indexOf("Windows") > 0;
+    if (!this.ws) {  // && !on_windows) { some websocket issues on windows..
         // Create a new JS WebSocket object
         this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
 

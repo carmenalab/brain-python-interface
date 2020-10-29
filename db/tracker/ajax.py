@@ -17,6 +17,7 @@ import db.trainbmi as trainbmi
 import logging
 import io, traceback
 
+from . import exp_tracker # Wrapper for tasktrack.Track
 
 http_request_queue = []
 
@@ -225,7 +226,6 @@ def start_experiment(request, save=True, execute=True):
 
         task =  Task.objects.get(pk=data['task'])
         feature_names = list(data['feats'].keys())
-        Exp = task.get(feats=feature_names)
 
         entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
         if 'entry_name' in data:
@@ -242,7 +242,7 @@ def start_experiment(request, save=True, execute=True):
             feats=feats, params=params)
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
-        if issubclass(Exp, experiment.Sequence):
+        if issubclass(task.get(feats=feature_names), experiment.Sequence):
             print("creating seq")
             print("data['sequence'] POST data")
             print(data['sequence'])
@@ -482,23 +482,25 @@ def enable_features(request):
     from features import built_in_features
     from . import models
 
-    feature_names_added = []
+    name = request.POST.get('name')
+    
+    # check if the feature is already installed
+    existing_features = models.Feature.objects.filter(name=name)
 
-    for key in request.POST:
-        if key in built_in_features:
-            # check if the feature is already installed
-            existing_features = models.Feature.objects.filter(name=key)
+    if len(existing_features) > 0:
+        # disable the feature
+        models.Feature.objects.filter(name=name).delete()
+        msg = "Disabled feature: %s" % str(name)
+    elif name in built_in_features:
+        import_path = built_in_features[name].__module__ + '.' + built_in_features[name].__qualname__
+        feat = models.Feature(name=name, import_path=import_path)
+        feat.save()
+        msg = "Enabled built-in feature: %s" % str(feat.name)
+    else:
+        # something is wrong
+        return _respond(dict(msg="feature not valid!", status="error"))
 
-            if len(existing_features) > 0:
-                continue
-
-            import_path = built_in_features[key].__module__ + '.' + built_in_features[key].__qualname__
-            feat = models.Feature(name=key, import_path=import_path)
-            feat.save()
-
-            feature_names_added.append(feat.name)
-
-    return _respond(dict(msg="Enabled built-in features: %s" % str(feature_names_added), status="success"))
+    return _respond(dict(msg=msg, status="success"))
 
 @csrf_exempt
 def add_new_feature(request):
@@ -506,8 +508,9 @@ def add_new_feature(request):
     name, import_path = request.POST['name'], request.POST['import_path']
     feat = models.Feature(name=name, import_path=import_path)
     feat.save()
-
-    return _respond(dict(msg="Added new feature: %s" % feat.name, status="success"))
+    
+    feature_data = dict(id=feat.id, name=feat.name, import_path=feat.import_path)
+    return _respond(dict(msg="Added new feature: %s" % feat.name, status="success", data=feature_data))
 
 @csrf_exempt
 def update_feature_import_path(request):

@@ -131,7 +131,7 @@ class NotifyFeat(object):
     Send task report and state data to display on the web inteface
     '''
     def __init__(self, *args,  **kwargs):
-        super(NotifyFeat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.websock = kwargs.pop('websock')
         self.tracker_status = kwargs.pop('tracker_status')
 
@@ -141,11 +141,11 @@ class NotifyFeat(object):
 
         # Call 'Server.send' above
         self.websock.send(self.reportstats)
-        super(NotifyFeat, self).set_state(state, *args, **kwargs)
+        super().set_state(state, *args, **kwargs)
 
     def run(self):
         try:
-            super(NotifyFeat, self).run()
+            super().run()
         except:
             err = io.StringIO()
             traceback.print_exc(None, err)
@@ -157,5 +157,26 @@ class NotifyFeat(object):
 
     def print_to_terminal(self, *args):
         sys.stdout = sys.__stdout__
-        super(NotifyFeat, self).print_to_terminal(*args)
+        super().print_to_terminal(*args)
         sys.stdout = self.websock
+
+
+class WinNotifyFeat(object):
+    '''
+    Stop the task gracefully on windows without websockets
+    '''
+    def __init__(self, *args,  **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tracker_end_of_pipe = kwargs.pop('tracker_end_of_pipe')
+        self.tracker_status = kwargs.pop('tracker_status')
+
+    def run(self):
+        try:
+            super().run()
+        except:
+            err = io.StringIO()
+            traceback.print_exc(None, err)
+            err.seek(0)
+            print(err.read())
+        finally:
+            self.tracker_end_of_pipe.send(None)

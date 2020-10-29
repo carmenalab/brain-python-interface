@@ -94,9 +94,10 @@ def norm_trait(trait, value):
             value = True
         elif value == 'off':
             value = False
-        else:
-            # let invalid values get caught by the cast below
-            pass
+        elif value == 'true':
+            value = True
+        elif value == 'false':
+            value = False
     elif ttype == 'Tuple':
         # Explicit cast to tuple for backwards compatibility reasons (should not be necessary for newer versions of the code/traits lib?)
         value = tuple(value)
