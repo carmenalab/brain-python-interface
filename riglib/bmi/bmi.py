@@ -432,6 +432,34 @@ class RectangularBounder(object):
         state_mean[repl_with_max, :] = min_bounds[repl_with_max].reshape(-1, 1)
         return state_mean
 
+class Filter(object):
+    ''' All Decoder filters should inherit from this abstract class'''
+
+    model_attrs = []
+    attrs_to_pickle = []
+
+    def __init__(self):
+        '''
+        Constructor for LinearScaleFilter
+        '''
+        self._init_state()
+
+    def get_mean(self):
+        ''' Must return self.state.mean to maintain compatibility'''
+        return np.array(self.state.mean).ravel()
+
+    def __call__(self, obs, **kwargs):
+        ''' 
+        Update the state with the new neural observation
+        '''
+        pass
+
+    def _pickle_init(self):
+        pass
+
+    def _init_state(self):
+        self.state.mean = 0
+
 
 class Decoder(object):
     '''
@@ -856,7 +884,7 @@ class Decoder(object):
         filename: string
             filename of pickled Decoder object 
         '''
-        if filename is not '':
+        if filename != '':
             f = open(filename, 'w')
             pickle.dump(self, f)
             f.close()

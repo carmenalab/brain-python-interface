@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export BMI3D=/home/pagaiisland/code/bmi3d
+
 # Set display to display 0
 DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
 if [ $DISPLAY=='' ]; then
@@ -14,12 +16,12 @@ if [ -z "$BMI3D" ]
     exit 1
 fi
 
-#Check /storage (exist )
-storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
-if [ $storage == 'False' ]; then
-    echo "/storage does not exist --> if on Ismore, must mount"
-    exit 1
-fi
+# #Check /storage (exist )
+# storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
+# if [ $storage == 'False' ]; then
+#     echo "/storage does not exist --> if on Ismore, must mount"
+#     exit 1
+# fi
 
 # Make sure that the server is not already running in a different program
 if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then 
@@ -28,21 +30,21 @@ if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then
 fi
 
 # Check that a config file is in the correct place, $BMI3D/config
-if [ ! -e $BMI3D/config_files/config ]; then 
-    echo "ERROR: cannot find config file! Did you run $BMI3D/config_files/make_config.py?"
-    exit 1
-fi
+# if [ ! -e $BMI3D/config_files/config ]; then 
+#     echo "ERROR: cannot find config file! Did you run $BMI3D/config_files/make_config.py?"
+#     exit 1
+# fi
     
 # Mount the neural recording system, if a mount point is specified in the config file
-if [ `cat $BMI3D/config | grep mount_point | wc -l` -gt 0 ]; then
-    MOUNT_POINT=`cat $BMI3D/config | grep mount_point | tr -d '[:blank:]' | cut -d '=' -f 2`
-    if [[ -z `mount | grep $MOUNT_POINT` ]]; then
-        echo "Mounting neural recording system computer at $MOUNT_POINT"
-        sudo mount $MOUNT_POINT
-    else
-        echo "Neural recording system computer already mounted at $MOUNT_POINT"
-    fi
-fi
+# if [ `cat $BMI3D/config | grep mount_point | wc -l` -gt 0 ]; then
+#     MOUNT_POINT=`cat $BMI3D/config | grep mount_point | tr -d '[:blank:]' | cut -d '=' -f 2`
+#     if [[ -z `mount | grep $MOUNT_POINT` ]]; then
+#         echo "Mounting neural recording system computer at $MOUNT_POINT"
+#         sudo mount $MOUNT_POINT
+#     else
+#         echo "Neural recording system computer already mounted at $MOUNT_POINT"
+#     fi
+# fi
 
 # Print the date/time of the server (re)start
 echo "Time at which runserver.sh was executed:"
@@ -75,21 +77,22 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log
     
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
-MANAGER=$BMI3D/db/manage.py
+source $BMI3D/env/bin/activate
+cd $BMI3D/db/
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)
-python $MANAGER runserver 0.0.0.0:8000 --noreload &
+python manage.py runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
-python $MANAGER celery worker &
-CELERY=$!
-#python $MANAGER celery flower --address=0.0.0.0 &
+#python manage.py celery worker &
+#CELERY=$!
+#python manage.py celery flower --address=0.0.0.0 &
 #FLOWER=$!
 
 # Define what happens when you hit control-C
 function ctrl_c() {
 	kill -9 $DJANGO
-	kill $CELERY
+	#kill $CELERY
 	#kill $FLOWER
     kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
 	# kill -9 `ps -C 'python manage.py' -o pid --no-headers`
@@ -97,5 +100,5 @@ function ctrl_c() {
 
 # Run until the PID stored in $DJANGO is dead
 wait $DJANGO
-kill $CELERY
+#kill $CELERY
 #kill $FLOWER

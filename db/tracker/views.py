@@ -133,6 +133,8 @@ def setup(request):
         if feat.name in built_in_feature_names:
             built_in_feature_names.remove(feat.name)
             active_features.append(feat)
+        else:
+            active_features.append(feat)
 
     # list of available databases
     from db import settings

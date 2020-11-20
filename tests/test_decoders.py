@@ -31,7 +31,7 @@ class TestLinDec(unittest.TestCase):
             self.assertEqual(0, filt.state.mean[1, 0])
             self.assertEqual(0, filt.state.mean[2, 0])
     
-    #@unittest.skip('msg')
+    @unittest.skip('msg')
     def test_experiment_unfixed(self):
         for cls in [SimBMICosEncLinDec]:
             N_TARGETS = 8
@@ -50,6 +50,7 @@ class TestLinDec(unittest.TestCase):
             self.assertTrue(rewards <= rewards + time_penalties + hold_penalties)
             self.assertTrue(rewards > 0)
     
+    @unittest.skip('msg')
     def test_experiment(self):
         for cls in [SimBMICosEncLinDec, SimBMIVelocityLinDec]:
             N_TARGETS = 8

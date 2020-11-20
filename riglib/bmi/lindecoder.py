@@ -2,6 +2,7 @@
 Classes for BMI decoding using linear scaling. 
 '''
 import numpy as np
+from riglib.bmi.bmi import Filter
 
 class State(object):
     '''For compatibility with other BMI decoding implementations'''
@@ -9,7 +10,7 @@ class State(object):
     def __init__(self, mean, *args, **kwargs):
         self.mean = mean
 
-class LinearScaleFilter(object):
+class LinearScaleFilter(Filter):
 
     model_attrs = ['attr']
     attrs_to_pickle = ['attr', 'obs', 'unit_to_state']
