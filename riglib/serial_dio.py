@@ -7,6 +7,8 @@ import struct
 from numpy import binary_repr
 from .dio.parse import MSG_TYPE_ROWBYTE, MSG_TYPE_REGISTER
 import time
+import threading
+import pyfirmata
 
 def construct_word(aux, msg_type, data, n_bits_data=8, n_bits_msg_type=3):
     word = (aux << (n_bits_data + n_bits_msg_type)) | (msg_type << n_bits_data) | data
@@ -142,3 +144,45 @@ class SendRowByte(object):
             print(binary_repr(word, 16))
         word_str = 'd' + struct.pack('<H', word)
         self.port.write(word_str)
+
+class GPIO(object):
+    ''' Wrapper for digital i/o'''
+
+    def write(self, pin: int, value: bool):
+        pass
+
+    def read(self, pin: int) -> bool:
+        pass
+
+class TestGPIO(GPIO):
+
+    def write(self, pin, value):
+        print(".", end="")
+
+    def read(self, pin):
+        print(",", end="")
+
+class ArduinoGPIO(GPIO):
+    ''' Pin-addressable arduino serial interface'''
+    def __init__(self, port=None, baudrate=57600, timeout=10):
+        if port is None:
+            ports = serial.tools.list_ports.comports()
+            for p in ports:
+                if 'USB' in p.description:
+                    port = p.device
+            if port is None:
+                raise Exception('No serial device found')
+        self.arduino = pyfirmata.Arduino(port, baudrate=baudrate, timeout=timeout)
+        self.lock = threading.Lock()
+
+    def write(self, pin, value):
+        with self.lock:
+            return self.arduino.digital[pin].write(int(value))
+    
+    def read(self, pin):
+        with self.lock:
+            return bool(self.arduino.digital[pin].read())
+
+    def close(self):
+        ''' Call this method before destroying the object'''
+        self.arduino.exit()

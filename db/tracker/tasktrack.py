@@ -63,7 +63,6 @@ class Track(object):
         Begin running of task
         '''
         log_str("Running new task: \n", mode="w")
-        self.init_pipe()
 
         # initialize task status
         # self.status.value = b"testing" if 'saveid' in kwargs else b"running"
@@ -107,8 +106,10 @@ class Track(object):
         Terminate the task gracefully by running riglib.experiment.Experiment.end_task
         '''
         assert self.status.value in [b"testing", b"running"]
+        self.update_alive()            
         try:
-            self.task_proxy.end_task()
+            if self.task_proxy is not None:
+                self.task_proxy.end_task()
         except Exception as e:
             traceback.print_exc()
             err = io.StringIO()
@@ -164,6 +165,8 @@ def remote_runtask(tracker_end_of_pipe, task_end_of_pipe, websock, **kwargs):
     if use_websock:
         kwargs['params']['websock'] = websock
         kwargs['feats'].insert(0, websocket.NotifyFeat)
+    else:
+        kwargs['feats'].insert(0, websocket.WinNotifyFeat)
     kwargs['params']['tracker_status'] = status
     kwargs['params']['tracker_end_of_pipe'] = tracker_end_of_pipe        
 
