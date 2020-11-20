@@ -26,9 +26,5 @@ robotframework==3.2.1
 scikit_learn==0.23.1
 tabulate==0.8.7
 tasks==2.5.0
-Sphinx == 0.0.0
-ipdb == 0.0.0
-numpydoc == 0.0.0
-pylibftdi == 0.0.0
-pyfirmata == 1.1.0
-pycomedi == 0.9
+jinja2==2.11.2
+pyfirmata=1.1.0
