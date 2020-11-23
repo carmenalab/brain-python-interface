@@ -4,7 +4,7 @@ task/experiment by multiple inheritance.
 '''
 from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, WindowDispl2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness
-from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
+from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl, MouseBMI
 from .reward_features import RewardSystem, TTLReward, JuiceLogging
 from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart
 from .phasespace_features import MotionData, MotionSimulate, MotionAutoAlign
@@ -20,6 +20,7 @@ from .laser_features import LaserTrials
 built_in_features = dict(
     keyboard=KeyboardControl,
     mouse=MouseControl,
+    mouseBMI=MouseBMI,
     reward_system=RewardSystem,
     saveHDF=SaveHDF,
     autostart=Autostart,

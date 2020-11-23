@@ -22,6 +22,8 @@ class RewardSystem(traits.HasTraits):
     '''
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
 
+    controls = ['manual_reward'] # List of functions to make available on the web interface
+
     def __init__(self, *args, **kwargs):
         from riglib import reward
         super(RewardSystem, self).__init__(*args, **kwargs)
@@ -41,6 +43,9 @@ class RewardSystem(traits.HasTraits):
         else:
             return True
 
+    def manual_reward(self):
+        # Function to trigger manual reward
+        print("Manual reward triggered")
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 

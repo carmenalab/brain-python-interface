@@ -7,6 +7,7 @@ import json, datetime
 import numpy as np
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models import ProtectedError
 
 from riglib import experiment
 
@@ -14,15 +15,15 @@ from .json_param import Parameters
 
 from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
 
-import db.trainbmi as trainbmi
 import logging
 import io, traceback
 
 from . import exp_tracker # Wrapper for tasktrack.Track
+from . import trainbmi
 
 http_request_queue = []
 
-
+@csrf_exempt
 def train_decoder_ajax_handler(request, idx):
     '''
     AJAX handler for creating a new decoder.
@@ -119,6 +120,9 @@ def task_info(request, idx, dbname='default'):
     if issubclass(task_cls, experiment.Sequence):
         task_info['sequence'] = task.sequences()
 
+    if hasattr(task_cls, 'controls'):
+        task_info['controls'] = task_cls.controls
+
     if hasattr(task_cls, 'annotations'):
         task_info['annotations'] = task_cls.annotations
     else:
@@ -128,7 +132,7 @@ def task_info(request, idx, dbname='default'):
 
 def exp_info(request, idx, dbname='default'):
     '''
-    Get information about the task
+    Get information about the tasks that have already run
 
     Parameters
     ----------
@@ -429,27 +433,14 @@ def add_new_task(request):
     return _respond(dict(msg="Added new task: %s" % task.name, status="success", data=task_data))
 
 @csrf_exempt
-def update_task_import_path(request):
+def remove_task(request):
     from . import models
-    task_id, import_path = request.POST['id'], request.POST['import_path']
-
-    # verify import path
-    if import_path == '':
-        import_path = "riglib.experiment.Experiment"
-
+    id = request.POST.get('id')
     try:
-        models.import_by_path(import_path)
-    except:
-        import traceback
-        traceback.print_exc()
-        return _respond(dict(msg="import path invalid!", status="error"))
-
-    task = models.Task.objects.get(id=task_id)
-    task.import_path = import_path
-    task.save()
-
-    task_data = dict(id=task.id, name=task.name, import_path=task.import_path)
-    return _respond(dict(msg="Updated task import path: %s" % task.name, status="success", data=task_data))
+        models.Task.objects.filter(id=id).delete()
+        return _respond(dict(msg="Removed task", status="success"))
+    except ProtectedError:
+        return _respond(dict(msg="Couldn't remove task, there must be valid experiments that use it", status="error"))
 
 @csrf_exempt
 def add_new_subject(request):
@@ -461,16 +452,37 @@ def add_new_subject(request):
     return _respond(dict(msg="Added new subject: %s" % subj.name, status="success", data=dict(id=subj.id, name=subj.name)))
 
 @csrf_exempt
+def remove_subject(request):
+    from . import models
+    id = request.POST.get('id')
+    try:
+        models.Subject.objects.filter(id=id).delete()
+        return _respond(dict(msg="Removed subject", status="success"))
+    except ProtectedError:
+        return _respond(dict(msg="Couldn't remove subject, there must be valid experiments that use it", status="error"))
+
+@csrf_exempt
 def add_new_system(request):
     from . import models
     sys = models.System(name=request.POST['name'], path=request.POST['path'], 
         processor_path=request.POST['processor_path'])
     sys.save()
 
-    return _respond(dict(msg="Added new system: %s" % sys.name, status="success"))
+    system_data = dict(id=sys.id, name=sys.name)
+    return _respond(dict(msg="Added new system: %s" % sys.name, status="success", data=system_data))
 
 @csrf_exempt
-def enable_features(request):
+def remove_system(request):
+    from . import models
+    id = request.POST.get('id')
+    try:
+        models.System.objects.filter(id=id).delete()
+        return _respond(dict(msg="Removed system", status="success"))
+    except ProtectedError:
+        return _respond(dict(msg="Couldn't remove system, there must be valid experiments that use it", status="error"))
+
+@csrf_exempt
+def toggle_features(request):
     from features import built_in_features
     from . import models
 
@@ -483,43 +495,35 @@ def enable_features(request):
         # disable the feature
         models.Feature.objects.filter(name=name).delete()
         msg = "Disabled feature: %s" % str(name)
+        return _respond(dict(msg=msg, status="success"))
     elif name in built_in_features:
         import_path = built_in_features[name].__module__ + '.' + built_in_features[name].__qualname__
         feat = models.Feature(name=name, import_path=import_path)
         feat.save()
         msg = "Enabled built-in feature: %s" % str(feat.name)
+        return _respond(dict(msg=msg, status="success", id=feat.id))
     else:
         # something is wrong
-        return _respond(dict(msg="feature not valid!", status="error"))
-
-    return _respond(dict(msg=msg, status="success"))
+        return _respond(dict(msg="feature not valid!", status="error"))   
 
 @csrf_exempt
 def add_new_feature(request):
     from . import models
     name, import_path = request.POST['name'], request.POST['import_path']
-    feat = models.Feature(name=name, import_path=import_path)
-    feat.save()
-    
-    feature_data = dict(id=feat.id, name=feat.name, import_path=feat.import_path)
-    return _respond(dict(msg="Added new feature: %s" % feat.name, status="success", data=feature_data))
 
-@csrf_exempt
-def update_feature_import_path(request):
-    feature_id, feature_path = request.POST['id'], request.POST['import_path']
-
+    #  verify import path
     try:
         models.import_by_path(import_path)
     except:
         import traceback
         traceback.print_exc()
-        return _respond(dict(msg="import path invalid!", status="error"))    
+        return _respond(dict(msg="import path invalid!", status="error"))
 
-    feat = models.Feature.objects.get(id=feature_id)
-    feat.import_path = import_path
+    feat = models.Feature(name=name, import_path=import_path)
     feat.save()
-
-    return _respond(dict(msg="Updated feature import path: %s" % feat.name, status="success"))
+    
+    feature_data = dict(id=feat.id, name=feat.name, import_path=feat.import_path)
+    return _respond(dict(msg="Added new feature: %s" % feat.name, status="success", data=feature_data))
 
 @csrf_exempt
 def setup_run_upkeep(request):
@@ -545,6 +549,20 @@ def record_annotation(request):
     return rpc(lambda tracker: tracker.task_proxy.record_annotation(request.POST["annotation"]))
     
 @csrf_exempt
+def trigger_control(request):
+    '''
+    Trigger an action via controls on the web interface
+    '''
+    def control_fn(tracker):
+        method = getattr(tracker.task_proxy, request.POST["control"])
+        if "args" in request.POST:
+            return method(request.POST["args"])
+        else:
+            return method()
+
+    return rpc(control_fn)
+
+@csrf_exempt
 def get_status(request):
     """ Send the task tracker's status back to the frontend """
     tracker = exp_tracker.get()
@@ -563,7 +581,6 @@ def save_entry_name(request):
     te_rec.save()
     return _respond(dict(status="success", msg="Saved entry name: %s" % te_rec.entry_name))
 
-@csrf_exempt
 def update_built_in_feature_import_paths(request):
     """For built-in features, update the import path based on the features module"""
     from . import models
@@ -597,6 +614,8 @@ def setup_handler(request):
         return update_database_storage_path(request)
     elif action == "save_recording_sys":
         return save_recording_sys(request)
+    elif action == "update_built_in_feature_paths":
+        update_built_in_feature_import_paths(request)
     else:
         return _respond(dict(status="error", msg="Unrecognized data type: %s" % data_type))
 

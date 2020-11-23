@@ -128,13 +128,6 @@ def setup(request):
     # populate the list of built-in features which could be added
     from features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
-    active_features = []
-    for feat in features:
-        if feat.name in built_in_feature_names:
-            built_in_feature_names.remove(feat.name)
-            active_features.append(feat)
-        else:
-            active_features.append(feat)
 
     # list of available databases
     from db import settings
@@ -165,7 +158,8 @@ def setup(request):
     recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon']
 
     return render(request, "setup.html", 
-        dict(subjects=subjects, tasks=tasks, systems=systems, active_features=active_features,
+        dict(subjects=subjects, tasks=tasks, systems=systems, active_features=features,
+            active_feature_names=[feature.name for feature in features],
             built_in_feature_names=built_in_feature_names, databases=database_objs,
             recording_sys=recording_sys, recording_sys_options=recording_sys_options))
 

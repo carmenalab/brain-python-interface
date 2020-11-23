@@ -14,6 +14,12 @@ def construct_word(aux, msg_type, data, n_bits_data=8, n_bits_msg_type=3):
     word = (aux << (n_bits_data + n_bits_msg_type)) | (msg_type << n_bits_data) | data
     return word
 
+def parse_word(word, n_bits_data=8, n_bits_msg_type=3):
+    data = word & ((1 << n_bits_data) - 1)
+    msg_type = (word >> n_bits_data) & ((1 << n_bits_msg_type) - 1) 
+    aux = word >> n_bits_msg_type + n_bits_data
+    return aux, msg_type, data
+
 baudrate = 115200
 
 class SendRowByte(object):
@@ -154,6 +160,17 @@ class GPIO(object):
     def read(self, pin: int) -> bool:
         pass
 
+    def write_many(self, pins: list, data: int):
+        '''Write data sequentially as bits
+        
+        Pins: list of pins for each bit -- least significant bit first
+        Data: value to write
+        '''
+        pass
+
+    def read_many(self, pins: list) -> int:
+        pass
+
 class TestGPIO(GPIO):
 
     def write(self, pin, value):
@@ -161,6 +178,12 @@ class TestGPIO(GPIO):
 
     def read(self, pin):
         print(",", end="")
+
+    def write_many(self, pins, data):
+        print("."*len(pins)+" ")
+
+    def read_many(self, pins):
+        print(","*len(pins)+" ")
 
 class ArduinoGPIO(GPIO):
     ''' Pin-addressable arduino serial interface'''
@@ -177,11 +200,28 @@ class ArduinoGPIO(GPIO):
 
     def write(self, pin, value):
         with self.lock:
-            return self.arduino.digital[pin].write(int(value))
+            self.arduino.digital[pin].write(int(value))
     
     def read(self, pin):
         with self.lock:
             return bool(self.arduino.digital[pin].read())
+
+    def write_many(self, pins, data):
+        '''Simple implementation writing sequential bits. Requires
+        some sort of trigger for the device reading this data to know 
+        when all the bits have been set'''
+        with self.lock:
+            for i in range(len(pins)):
+                bit = (data & (1 << i)) >> i
+                self.arduino.digital[pins[i]].write(bit)
+
+    def read_many(self, pins):
+        with self.lock:
+            data = 0
+            for i in range(len(pins)):
+                bit = self.arduino.digital[pins[i]].read()
+                data = data | (bit << i)
+            return data
 
     def close(self):
         ''' Call this method before destroying the object'''

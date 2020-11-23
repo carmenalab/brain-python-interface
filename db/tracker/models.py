@@ -40,7 +40,7 @@ class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
     import_path = models.CharField(max_length=200, blank=True, null=True)
-    
+
     def __str__(self):
         if not self.import_path is None and self.import_path != "":
             return "Task[{}]: {}".format(self.name, self.import_path)
@@ -127,12 +127,8 @@ class Task(models.Model):
             if params[trait_name]['type'] in ['InstanceFromDB', 'DataFile']:
                 mdl_name, filter_kwargs = params[trait_name]['options']
 
-                # look up the model name in the trait
-                mdl_name = ctraits[trait_name].bmi3d_db_model
-
                 # get the database Model class from 'db.tracker.models'
                 Model = globals()[mdl_name]
-                filter_kwargs = ctraits[trait_name].bmi3d_query_kwargs
 
                 # look up database records which match the model type & filter parameters
                 insts = Model.objects.filter(**filter_kwargs).order_by("-date")
@@ -710,9 +706,9 @@ class TaskEntry(models.Model):
 
         recording_sys_make = KeyValueStore.get('recording_sys')
 
-        if recording_sys_make is None:
-            pass
-        elif recording_sys_make == 'plexon':
+        _neuralinfo = dict(is_seed=Exp.is_bmi_seed, length=0, name='', units=[])
+        js['bmi'] = dict(_neuralinfo=_neuralinfo)
+        if recording_sys_make == 'plexon':
             try:
                 from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
                 plexon = System.objects.using(self._state.db).get(name='plexon')

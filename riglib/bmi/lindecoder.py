@@ -194,3 +194,16 @@ class PosVelScaleFilter(LinearScaleFilter):
     def _update_state(self):
         out = self._scale()
         self.state.update(out)  
+
+def create_lindecoder(ssm, units, neural_data):
+    from riglib.bmi import Decoder
+    filt_counts = 10000 # number of observations to calculate range
+    vel_control = False
+    filt = PosVelScaleFilter(vel_control, filt_counts, ssm.n_states, len(units))
+
+    # calculate gains from training data
+    filt.update_norm_attr(neural_mean=np.mean(neural_data), neural_std=np.std(neural_data))
+    
+    decoder = Decoder(filt, units, ssm, binlen=0.1, subbins=1)
+    decoder.n_features = len(units)
+    return decoder

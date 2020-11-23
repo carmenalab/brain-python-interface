@@ -5,14 +5,7 @@ Laser delivery features
 import time
 from riglib.experiment import traits
 import numpy as np
-import serial.tools.list_ports
-import pyfirmata
 import threading
-
-try:
-    import comedi
-except ImportError:
-    pass
 
 
 class DigitalWave(threading.Thread):

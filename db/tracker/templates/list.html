@@ -307,7 +307,7 @@
               </fieldset> <!-- sequence -->
 
               <fieldset id="parameters">
-                <input id="show_params" type="checkbox" checked="off" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?   
+                <input id="show_params" type="checkbox" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?   
                 <legend>Parameters</legend>
                 <!-- <table id="params_table">
                 </table> -->
@@ -315,6 +315,13 @@
             </div>
 
             <div class="rightside">
+
+              <fieldset id="controls">
+                <legend>Controls</legend>
+                <table id="controls_table">
+                </table>
+              </fieldset>
+
               <fieldset id="report">
                 <legend>Report</legend>
                 <div id="report_div">

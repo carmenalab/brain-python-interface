@@ -162,7 +162,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'djcelery',
     'tracker.apps.TrackerConfig',
-    'trainbmi'
 )
 
 TEMPLATES = [

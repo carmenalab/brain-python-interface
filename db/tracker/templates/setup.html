@@ -8,7 +8,7 @@
   <script>
     function add_new_subject() {
       var data = {'subject_name': $("#new_subject_name").val()};
-      $.post("/setup/add/new_subject", data, function(resp) {
+      $.post("/setup/add/subject", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
 
         if (resp["status"] == "success") {
@@ -17,15 +17,26 @@
 
           // add new row to table
           tr = $(document.createElement("tr"));
-          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>");
-          $('#subject-table tr:last').before(tr);
+          tr.html("<td id=\"subject_" + resp["data"].id + "\">" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + 
+            "</td><td><input type=\"submit\" value=\"Remove\" onclick=\"remove_subject(" + resp["data"].id + ")\">" + "</td>");
+          $('#new-subject-row').after(tr);
+        }
+      })
+    }
+
+    function remove_subject(id) {
+    data = {'id': id}
+      $.post("/setup/remove/subject", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        if (resp["status"] == "success") {
+          $("#subject_"+id).closest("tr").remove();
         }
       })
     }
 
     function add_new_task() {
       var data = {'name': $("#task_name").val(), 'import_path': $("#task_import_path").val()};
-      $.post("/setup/add/new_task", data, function(resp) {
+      $.post("/setup/add/task", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
 
         if (resp["status"] == "success") {
@@ -35,8 +46,19 @@
 
           // add new row to table
           tr = $(document.createElement("tr"));
-          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + resp["data"].import_path + "</td>");
-          $('#task-table tr:last').before(tr);
+          tr.html("<td id=\"task_" + resp["data"].id + "\">" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + resp["data"].import_path + 
+            "</td><td><input type=\"submit\" value=\"Remove\" onclick=\"remove_task(" + resp["data"].id + ")\">" + "</td>");
+          $('#new-task-row').after(tr);
+        }
+      })
+    }
+
+    function remove_task(id) {
+    data = {'id': id}
+      $.post("/setup/remove/task", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        if (resp["status"] == "success") {
+          $("#task_"+id).closest("tr").remove();
         }
       })
     }
@@ -44,7 +66,7 @@
     function add_new_system() {
       data = {'name': $("#system_name").val(), "path": $("#system_path").val(), 
         "processor_path": $("#system_processor_path").val()}
-      $.post("/setup/add/new_system", data, function(resp) {
+      $.post("/setup/add/system", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
 
         if (resp["status"] == "success") {
@@ -52,6 +74,23 @@
           $("#system_name").val('');
           $("#system_path").val('');
           $("#system_processor_path").val('');
+
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td id=\"system_" + resp["data"].id + "\">" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + 
+            "<td>" + data["path"] + "</td>" + "<td>" + data["processor_path"] + "</td>" + 
+            "<td><input type=\"submit\" value=\"Remove\" onclick=\"remove_system(" + resp["data"].id + ")\">" + "</td>");
+          $('#new-system-row').after(tr);
+        }
+      })
+    }
+
+    function remove_system(id) {
+      data = {'id': id}
+      $.post("/setup/remove/system", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        if (resp["status"] == "success") {
+          $("#system_"+id).closest("tr").remove();
         }
       })
     }
@@ -74,20 +113,34 @@
       });
     }
 
-    function enable_built_in_feature(feature) {
+    function toggle_feature(feature) {
       var data = {'name': feature}
-      $.post('setup/add/enable_features', data, function(resp) {
+      $.post('setup/update/toggle_features', data, function(resp) {
         $("#alert_field").html(resp["msg"]);
-        if ($("#feature_" + feature).val() == "Enable")
+        if ($("#feature_" + feature).val() == "Enable") {
+
+          // Add the id and change the label
           $("#feature_" + feature).val("Disable");
-        else
+          $("#feature_" + feature).closest("tr").children("td:first").html(resp["id"])
+        } else if ($("#feature_" + feature).val() == "Disable") {
+
+          // Remove the id, move to the bottom of the list, change label
           $("#feature_" + feature).val("Enable");
+          $("#feature_" + feature).closest("tr").children("td:first").html('--')
+          row = $("#feature_" + feature).closest("tr").html();
+          $("#feature_" + feature).closest("tr").remove();
+          $("#feature-table").append($('<tr>').append(row));
+        } else {
+
+          // Just remove
+          $("#feature_" + feature).closest("tr").remove();
+        }
       })
     }
 
     function add_new_feature() {
       var data = {'name': $("#new_feature_name").val(), 'import_path': $("#new_feature_path").val()};
-      $.post("/setup/add/new_feature", data, function(resp) {
+      $.post("/setup/add/feature", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
 
         if (resp["status"] == "success") {
@@ -97,8 +150,9 @@
 
           // add new row to table
           tr = $(document.createElement("tr"));
-          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + resp["data"].import_path + "</td>");
-          $('#feature-table tr:last').before(tr);
+          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + 
+            "<input type=\"submit\" value=\"Remove\" onclick=\"toggle_feature(\'" + resp["data"].name + "\')\">" + "</td>");
+          $('#new-feature-row').after(tr);
         }
       })
     }
@@ -120,6 +174,10 @@
         'db_name': db_name, 
         'db_storage_path': $("#db_" + db_name + "_path").val()
       });
+    }
+
+    function update_built_in_feature_paths() {
+      generic_post({'action': 'update_built_in_feature_paths'});
     }
 
     $(document).ready(function() {
@@ -182,13 +240,20 @@
     </thead>
 
     <!-- Row to add new subjects -->
-    <tr>
+    <tr id="new-subject-row">
       <td><input type="submit" value="Add New" onclick="add_new_subject()"></td>
       <td><input type="text" id="new_subject_name"></td>
+      <td></td>
     </tr>
 
     {% for subject in subjects %}
-    <tr><td>{{subject.id}}</td><td>{{subject.name}}</td></tr>
+    <tr id="subject_{{subject.id}}">
+      <td>{{subject.id}}</td>
+      <td>{{subject.name}}</td>
+      <td>
+        <input type="submit" value="Remove" onclick="remove_subject({{subject.id}})">
+      </td>
+    </tr>
     {% endfor %}
 
   </table>
@@ -203,24 +268,20 @@
     </thead>
 
     <!-- Row to add new tasks -->
-    <tr>
+    <tr id="new-task-row">
       <td><input type="submit" value="Add New" onclick="add_new_task()"></td>
       <td><input type="text" id="task_name"></td>
       <td><input type="text" id="task_import_path">
+      <td></td>
     </tr>
 
     {% for task in tasks %}
-    <tr>
+    <tr id="task_{{task.id}}">
       <td>{{task.id}}</td>
       <td>{{task.name}}</td>
+      <td>{{task.import_path}}</td>
       <td>
-        <input type="text" id="import_path_task_{{task.id}}" 
-          {% if task.import_path is None %}
-            value=""
-          {% else %}
-            value="{{task.import_path}}"
-          {% endif %}>
-        <input type="submit" value="Save" onclick="store_single_task_import_path({{task.id}})">
+        <input type="submit" value="Remove" onclick="remove_task({{task.id}})">
       </td>
     </tr>
     {% endfor %}
@@ -230,28 +291,35 @@
 
   <h2>Data source systems</h2>
   <!-- TODO add table for systems -->
-  <table class="table table-hover table-sm" style="width: auto;">
+  <table class="table table-hover table-sm" style="width: auto;" id="system-table">
     <thead>
       <tr>
         <th>Index</th><th>System name</th><th>Path where data is generated/saved</th><th>Post-processing function (optional)</th>
       </tr>
     </thead>
 
-    {% for system in systems %}
-    <tr><td>{{system.id}}</td><td>{{system.name}}</td><td>{{system.path}}</td><td>{{system.processor_path}}</td></tr>
-    {% endfor %}
-
-    <tr>
+    <tr id="new-system-row">
       <td><input type="submit" value="Add New" onclick="add_new_system()"></td>
       <td><input type="text" id="system_name"></td>
       <td><input type="text" id="system_path"></td>
       <td><input type="text" id="system_processor_path"></td>
     </tr>
+
+    {% for system in systems %}
+    <tr id="system_{{system.id}}">
+      <td>{{system.id}}</td>
+      <td>{{system.name}}</td>
+      <td>{{system.path}}</td>
+      <td>{{system.processor_path}}</td>
+      <td><input type="submit" value="Remove" onclick="remove_system({{system.id}})"></td>
+    </tr>
+    {% endfor %}
+
   </table>  
 
 
   <h2>Features</h2>
-  <input type="submit" value="Update built-in feature paths" onclick="$.post('/setup/update/built_in_feature_paths', {}, function(resp) {console.log(resp)})"><br>
+  <input type="submit" value="Update built-in feature paths" onclick="update_built_in_feature_paths()"><br>
   <table class="table table-hover table-sm" style="width: auto;" id="feature-table">
     <thead>
       <tr>
@@ -260,7 +328,7 @@
     </thead>
 
     <!-- New feature row -->
-    <tr>
+    <tr id="new-feature-row">
       <td><input type="submit" value="Add New" onclick="add_new_feature()"></td>
       <td><input type="text" name="name" id="new_feature_name"></td>
       <td><input type="text" id="new_feature_path"></td>
@@ -271,21 +339,23 @@
       <td>{{feature.id}}</td>
       <td>{{feature.name}}</td>
       <td>
-        {% if feature.import_path is None %}
-          <input type="text" id="import_path_task_{{feature.id}}"><input type="submit" value="Store" onclick="store_single_feature_import_path({{feature.id}})">
+        {% if not feature.name in built_in_feature_names %}
+          <input type="submit" id="feature_{{feature.name}}" value="Remove" onclick="toggle_feature('{{feature.name}}')">
         {% else %}
-          <input type="submit" id="feature_{{feature.name}}" value="Disable" onclick="enable_built_in_feature('{{feature.name}}')">
+          <input type="submit" id="feature_{{feature.name}}" value="Disable" onclick="toggle_feature('{{feature.name}}')">
         {% endif %}
     </tr>
     {% endfor %}
 
     <!-- Built-in features -->
     {% for feature in built_in_feature_names %}
+    {% if feature not in active_feature_names %}
     <tr>
       <td>--</td>
       <td>{{feature}}</td>
-      <td><input type="submit" id="feature_{{feature}}" value="Enable" onclick="enable_built_in_feature('{{feature}}')">
+      <td><input type="submit" id="feature_{{feature}}" value="Enable" onclick="toggle_feature('{{feature}}')">
     </tr>
+    {% endif %}
     {% endfor %}
 
   </table>
