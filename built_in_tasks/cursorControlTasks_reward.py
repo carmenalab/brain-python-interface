@@ -4,7 +4,7 @@ This script is a modified version of cursorControlTasks_optitrack to include rew
 modified by Pavi Aug 2020
 """
 
-from manualcontrolmultitasks import ManualControlMulti
+from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
 from riglib.stereo_opengl.window import WindowDispl2D
 # from bmimultitasks import BMIControlMulti
 import pygame
