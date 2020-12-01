@@ -29,10 +29,10 @@ function interface_fn_completed() {
     $("#stop_buttons").hide();
     $("#finished_task_buttons").show();
     $("#bmi").hide();
-
-
+    
     $("#report").show()
-    $("#notes").show()
+    $("#notes").show()      
+    this.controls.hide();
 
     // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
     if (this.__date) {
@@ -67,6 +67,7 @@ function interface_fn_stopped() {
 
     $("#report").show()
     $("#notes").hide()
+    this.controls.hide();
 }
 
 function interface_fn_running(info) {
@@ -81,7 +82,8 @@ function interface_fn_running(info) {
     this.report.activate();
 
     $("#report").show()
-    $("#notes").show()
+    $("#notes").show()   
+    this.controls.show();           
 }
 
 function interface_fn_testing(info) {
@@ -100,6 +102,7 @@ function interface_fn_testing(info) {
 
     $("#report").show();
     $("#notes").hide();
+    this.controls.show();
 }
 
 function interface_fn_error(info) {
@@ -114,6 +117,7 @@ function interface_fn_error(info) {
     clearInterval(report_activation);
 
     $("#report").show()
+    this.controls.hide();
 }
 function interface_fn_errtest(info) {
     console.log("state = errtest");
@@ -129,6 +133,7 @@ function interface_fn_errtest(info) {
     clearInterval(report_activation);
 
     $("#report").show()
+    this.controls.hide();
 }
 
 function TaskInterfaceConstructor() {
@@ -320,7 +325,7 @@ Files.prototype.update_filelist = function(datafiles, task_entry_id) {
         $("#file_list").append(this.filelist);
 
         for (var sys in datafiles)
-            if ((sys == "plexon") || (sys == "blackrock") || (sys == "tdt")) {
+            if ((sys == "plexon") || (sys == "blackrock") || (sys == "tdt") || sys == "optitrack" || sys == "mouse") {
                 this.neural_data_found = true;
                 break;
             }
@@ -347,6 +352,8 @@ function TaskEntry(idx, info) {
     this.report = new Report(task_interface.trigger.bind(this));
     this.annotations = new Annotations();
     this.files = new Files();
+    this.controls = new Controls();
+    this.controls.hide()
 
     $("#parameters").append(this.params.obj);
     $("#plots").empty()
@@ -436,14 +443,11 @@ function TaskEntry(idx, info) {
         if (info) { // if info is present and the id is null, then this block is being copied from a previous block
             console.log('creating a new JS TaskEntry by copy')
             this.update(info);
-
+            
             // update the annotation buttons
             var taskid = $("#tasks").attr("value");
             var sel_feats = feats.get_checked_features();
             this.annotations.update_from_server(taskid, sel_feats);
-            this.enable();
-            $("#content").show("slide", "fast");
-
             this.files.hide();
         } else { // no id and no info suggests that the table header was clicked to create a new block
             console.log('creating a brand-new JS TaskEntry')
@@ -452,15 +456,15 @@ function TaskEntry(idx, info) {
             this.report.hide();
             this.files.hide();
             task_interface.trigger.bind(this)({state:''});
-
-            // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
-            this._task_query(
-                function() {
-                    this.enable();
-                    $("#content").show("slide", "fast");
-                }.bind(this)
-            );
         }
+        // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
+        this._task_query(
+            function() {
+                this.enable();
+                $("#content").show("slide", "fast");
+            }.bind(this)
+        );
+
         // make the notes blank and editable
         $("#notes textarea").val("").removeAttr("disabled");
 
@@ -744,6 +748,10 @@ TaskEntry.prototype._task_query = function(callback) {
             if (taskinfo.generators) {
                 this.sequence.update_available_generators(taskinfo.generators);
             }
+
+            if (taskinfo.controls) {
+                this.controls.update(taskinfo.controls);
+            }
         }.bind(this)
     );
 }
@@ -904,7 +912,7 @@ TaskEntry.prototype.link_new_files = function() {
     var file_path = $("#file_path").val();
     var new_file_path = $("#new_file_path").val();
     var new_file_data = $("#new_file_raw_data").val();
-    var new_file_data_format= $("new_file_data_format").val();
+    var new_file_data_format= $("#new_file_data_format").val();
     var browser_sel_file = document.getElementById("file_path_browser_sel").files[0];
 
     if ($.trim(new_file_data) != "" && $.trim(new_file_path) != "") {
@@ -972,4 +980,50 @@ Notes.prototype.save = function() {
         'csrfmiddlewaretoken'   : $("#experiment input[name=csrfmiddlewaretoken]").attr("value")
     };
     $.post("ajax/save_notes/"+this.idx+"/", notes_data);
+}
+
+//
+// Controls class
+//
+
+function create_control_callback(control_str) {
+    return function() {trigger_control(control_str)}
+}
+
+function trigger_control(control) {
+    debug("Triggering control: " + control)
+    $.post("trigger_control", {"control": control}, function(resp) {
+        console.log("Control response", resp)
+    })
+}
+
+function Controls() {
+    this.control_list = [];
+}
+Controls.prototype.update = function(controls) {
+    console.log("Updating controls");
+    $("#controls_table").html('');
+    this.control_list = [];
+    for (var i = 0; i < controls.length; i += 1) {
+        var new_button = $('<button/>',
+            {
+                text: controls[i],
+                id: "controls_btn_" + i.toString(),
+                click: create_control_callback(controls[i]),
+                type: "button"
+            }
+        );
+
+        var new_break = $("<br>");
+
+        $("#controls_table").append(new_button);
+        $("#controls_table").append(new_break);
+        this.control_list.push(new_button);
+    }
+}
+Controls.prototype.hide = function() {
+    $("#controls").hide();
+}
+Controls.prototype.show = function() {
+    if (this.control_list.length > 0) $("#controls").show();
 }

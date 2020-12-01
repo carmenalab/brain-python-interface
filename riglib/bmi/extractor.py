@@ -30,6 +30,20 @@ class DummyExtractor(FeatureExtractor):
     def __call__(self, *args, **kwargs):
         return dict(obs=np.array([[np.nan]]))
 
+class DirectObsExtractor(FeatureExtractor):
+    '''
+    Doesn't 'extract' anything, just passes on the input
+    '''
+    feature_type = 'obs'
+
+    def __init__(self, source):
+        test = source.get()
+        self.feature_dtype = [('obs', source.source.dtype, np.shape(test))]
+        self.source = source
+
+    def __call__(self, *args, **kwargs):
+        return dict(obs=self.source.get())
+
 class BinnedSpikeCountsExtractor(FeatureExtractor):
     '''
     Extracts spike counts from spike timestamps separated into rectangular window. 

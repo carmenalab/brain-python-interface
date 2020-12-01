@@ -144,16 +144,10 @@ def setup_features(request):
     # populate the list of built-in features which could be added
     from features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
-    active_features = []
-    for feat in features:
-        if feat.name in built_in_feature_names:
-            built_in_feature_names.remove(feat.name)
-            active_features.append(feat)
-        else:
-            active_features.append(feat)
 
     return render(request, "setup_features.html",
-        dict(features=features, active_features=active_features,
+        dict(active_features=features,
+        active_feature_names=[feature.name for feature in features],
         built_in_feature_names=built_in_feature_names))        
 
 def setup_parameters(request):

@@ -132,7 +132,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
         self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
         self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
-
+        self.reportstats['Manual Reward #'] = 0 #Total number of manual rewards delivered
         # If the FSM is set up in the old style (explicit dictionaries instead of wrapper data types), convert to the newer FSMTable
         if isinstance(self.status, dict):
             self.status = FSMTable.construct_from_dict(self.status)

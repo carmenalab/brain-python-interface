@@ -10,6 +10,7 @@ import pickle
 import tables
 import re
 import tempfile, traceback, datetime
+import pygame
 
 import riglib.bmi
 from riglib.stereo_opengl import ik
@@ -17,11 +18,11 @@ from riglib.experiment import traits, experiment
 from riglib.bmi import clda, assist, extractor, train, goal_calculators, ppfdecoder
 from riglib.bmi.bmi import Decoder, BMISystem, GaussianStateHMM, BMILoop, GaussianState, MachineOnlyFilter
 from riglib.bmi.extractor import DummyExtractor
-from riglib.stereo_opengl.window import WindowDispl2D, FakeWindow
-from riglib.bmi.state_space_models import StateSpaceEndptVel2D
+from riglib.stereo_opengl.window import Window, WindowDispl2D, FakeWindow
+from riglib.experiment import Sequence
 
 from built_in_tasks.bmimultitasks import BMIControlMulti
-
+from built_in_tasks.target_graphics import VirtualCircularTarget, target_colors
 
 bmi_ssm_options = ['Endpt2D', 'Tentacle', 'Joint2L']
 
@@ -77,3 +78,86 @@ class TargetCaptureVFB2DWindow(TargetCaptureVisualFeedback, WindowDispl2D):
             return "{} rewarded trials in {} min".format(reward_count, int(np.ceil(duration / 60)))
         else:
             return "No trials"
+
+class MonkeyTraining(Window, Sequence):
+    '''Simplified target capture task'''
+
+    status = dict(
+        wait = dict(start_trial="trial", stop=None),
+        trial = dict(end_trial="wait"),
+    )
+
+    state = "wait"
+    sequence_generators = ['static', 'rand_pt_to_pt']
+    
+    background = (0,0,0,1)
+    target_color = traits.OptionsList(tuple(target_colors.keys()), desc="Color of the target")
+    target_radius = traits.Float(5, desc="Radius of targets in cm")
+    
+    wait_time = traits.Float(5.0, desc="Time in between trials (s). If set to 0, then trials begin with keypress")
+    trial_time = traits.Float(1.0, desc="Trial length (s)")
+
+    is_bmi_seed = True
+
+    def _test_start_trial(self, ts):
+        if self.wait_time == 0:
+            from pygame import K_ESCAPE
+            return self.event is not None and self.event[0] != K_ESCAPE # keypress
+        else:
+            return ts > self.wait_time and not self.pause
+    
+    def _test_end_trial(self, ts):
+        return ts > self.trial_time
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.target_location = np.array([0, 0, 0])
+        self.target = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+        for model in self.target.graphics_models:
+            self.add_model(model)
+
+    def _parse_next_trial(self):
+        self.target_location = self.next_trial
+
+    def _start_trial(self):
+        self.target.move_to_position(self.target_location)
+        self.target.show()
+
+    def _start_wait(self):
+        self.target.hide()
+        Sequence._start_wait(self)
+
+    @staticmethod
+    def static(pos=(0,0,0), ntrials=0):
+        '''Single location, finite (ntrials!=0) or infinite (ntrials==0)'''
+        if ntrials == 0:
+            while True:
+                yield np.array(pos)
+        else:
+            return np.tile(pos, (ntrials,1))
+
+    @staticmethod
+    def rand_pt_to_pt(length=100, boundaries=(-18,18,-12,12), buf=2, seq_len=2):
+        '''
+        Generates sequences of random postiions in the XZ plane
+
+        Parameters
+        ----------
+        length : int
+            The number of target pairs in the sequence.
+        boundaries: 6 element Tuple
+            The limits of the allowed target locations (-x, x, -z, z)
+        distance : float
+            The distance in cm between the targets in a pair.        
+
+        Returns
+        -------
+        list
+            Each element of the list is an array of shape (seq_len, 3) indicating the target 
+            positions to be acquired for the trial.
+        '''
+        xmin, xmax, zmin, zmax = boundaries
+        L = length*seq_len
+        pts = np.vstack([np.random.uniform(xmin+buf, xmax-buf, L),
+            np.zeros(L), np.random.uniform(zmin+buf, zmax-buf, L)]).T
+        return pts

@@ -8,7 +8,7 @@
   <script>
     function add_new_subject() {
       var data = {'subject_name': $("#new_subject_name").val()};
-      $.post("/setup/add/new_subject", data, function(resp) {
+      $.post("/setup/add/subject", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
 
         if (resp["status"] == "success") {
@@ -17,15 +17,26 @@
 
           // add new row to table
           tr = $(document.createElement("tr"));
-          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>");
-          $('#subject-table tr:last').before(tr);
+          tr.html("<td id=\"subject_" + resp["data"].id + "\">" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + 
+            "</td><td><input type=\"submit\" value=\"Remove\" onclick=\"remove_subject(" + resp["data"].id + ")\">" + "</td>");
+          $('#new-subject-row').after(tr);
+        }
+      })
+    }
+
+    function remove_subject(id) {
+    data = {'id': id}
+      $.post("/setup/remove/subject", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        if (resp["status"] == "success") {
+          $("#subject_"+id).closest("tr").remove();
         }
       })
     }
 
     function add_new_task() {
       var data = {'name': $("#task_name").val(), 'import_path': $("#task_import_path").val()};
-      $.post("/setup/add/new_task", data, function(resp) {
+      $.post("/setup/add/task", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
 
         if (resp["status"] == "success") {
@@ -35,16 +46,27 @@
 
           // add new row to table
           tr = $(document.createElement("tr"));
-          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + resp["data"].import_path + "</td>");
-          $('#task-table tr:last').before(tr);
+          tr.html("<td id=\"task_" + resp["data"].id + "\">" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + resp["data"].import_path + 
+            "</td><td><input type=\"submit\" value=\"Remove\" onclick=\"remove_task(" + resp["data"].id + ")\">" + "</td>");
+          $('#new-task-row').after(tr);
+        }
+      })
+    }
+
+    function remove_task(id) {
+    data = {'id': id}
+      $.post("/setup/remove/task", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        if (resp["status"] == "success") {
+          $("#task_"+id).closest("tr").remove();
         }
       })
     }
 
     function add_new_system() {
-      data = {'name': $("#system_name").val(), "path": $("#system_path").val(),
+      data = {'name': $("#system_name").val(), "path": $("#system_path").val(), 
         "processor_path": $("#system_processor_path").val()}
-      $.post("/setup/add/new_system", data, function(resp) {
+      $.post("/setup/add/system", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
 
         if (resp["status"] == "success") {
@@ -52,6 +74,23 @@
           $("#system_name").val('');
           $("#system_path").val('');
           $("#system_processor_path").val('');
+
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td id=\"system_" + resp["data"].id + "\">" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + 
+            "<td>" + data["path"] + "</td>" + "<td>" + data["processor_path"] + "</td>" + 
+            "<td><input type=\"submit\" value=\"Remove\" onclick=\"remove_system(" + resp["data"].id + ")\">" + "</td>");
+          $('#new-system-row').after(tr);
+        }
+      })
+    }
+
+    function remove_system(id) {
+      data = {'id': id}
+      $.post("/setup/remove/system", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        if (resp["status"] == "success") {
+          $("#system_"+id).closest("tr").remove();
         }
       })
     }
@@ -74,31 +113,71 @@
       });
     }
 
-    function enable_built_in_feature(feature) {
-      $("#alert_field").html("Not implemented!");
+    function toggle_feature(feature) {
+      var data = {'name': feature}
+      $.post('/setup/update/toggle_features', data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+        if ($("#feature_" + feature).val() == "Enable") {
+
+          // Add the id and change the label
+          $("#feature_" + feature).val("Disable");
+          $("#feature_" + feature).closest("tr").children("td:first").html(resp["id"])
+        } else if ($("#feature_" + feature).val() == "Disable") {
+
+          // Remove the id, move to the bottom of the list, change label
+          $("#feature_" + feature).val("Enable");
+          $("#feature_" + feature).closest("tr").children("td:first").html('--')
+          row = $("#feature_" + feature).closest("tr").html();
+          $("#feature_" + feature).closest("tr").remove();
+          $("#feature-table").append($('<tr>').append(row));
+        } else {
+
+          // Just remove
+          $("#feature_" + feature).closest("tr").remove();
+        }
+      })
     }
 
     function add_new_feature() {
-      $("#alert_field").html("Not implemented!");
+      var data = {'name': $("#new_feature_name").val(), 'import_path': $("#new_feature_path").val()};
+      $.post("/setup/add/feature", data, function(resp) {
+        $("#alert_field").html(resp["msg"]);
+
+        if (resp["status"] == "success") {
+          // clear fields
+          $("#new_feature_name").val('');
+          $("#new_feature_path").val('');
+
+          // add new row to table
+          tr = $(document.createElement("tr"));
+          tr.html("<td>" + resp["data"].id + "</td>" + "<td>" + resp["data"].name + "</td>" + "<td>" + 
+            "<input type=\"submit\" value=\"Remove\" onclick=\"toggle_feature(\'" + resp["data"].name + "\')\">" + "</td>");
+          $('#new-feature-row').after(tr);
+        }
+      })
     }
 
     function generic_post(data) {
       $.post("/setup/update/generic", data, function (resp) {
         $("#alert_field").html(resp["msg"]);
-      });
+      });      
     }
 
     function save_recording_sys() {
-      generic_post({'action': 'save_recording_sys',
+      generic_post({'action': 'save_recording_sys', 
         'selected_recording_sys': $("#recording_sys_make").val(),
       });
     }
 
     function update_database_path(db_name) {
       generic_post({'action': 'update_database_storage_path',
-        'db_name': db_name,
+        'db_name': db_name, 
         'db_storage_path': $("#db_" + db_name + "_path").val()
       });
+    }
+
+    function update_built_in_feature_paths() {
+      generic_post({'action': 'update_built_in_feature_paths'});
     }
 
     $(document).ready(function() {

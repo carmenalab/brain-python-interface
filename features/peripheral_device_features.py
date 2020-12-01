@@ -267,5 +267,25 @@ from .neural_sys_features import CorticalBMI
 class MouseBMI(CorticalBMI):
     @property 
     def sys_module(self):
-        from riglib import debug
-        return debug
+        return MouseSystem
+
+class MouseSystem():
+    '''
+    2D mouse position emulating a neural data source
+    '''
+    dtype = np.dtype('float')
+    update_freq = 100
+
+    def start(self):
+        self.pos = np.zeros(2)
+        pygame.mouse.set_visible(False)
+        pygame.event.set_grab(True)
+
+    def stop(self):
+        pygame.mouse.set_visible(True)
+        pygame.event.set_grab(False)
+
+    def get(self):
+        rel = pygame.mouse.get_rel()
+        self.pos += rel
+        return self.pos

@@ -524,6 +524,11 @@ def create_ratBMIdecoder(task_params):
     name = task_params['te_name'] + '_rat_bmi_decoder'
     dbq.save_bmi(name, int(task_params['te_id']), tf.name)
 
+def create_lindecoder(): # For testing. Do not use
+    from . import lindecoder, state_space_models
+    neural_data = [[0., 0.], [0., 0.]]
+    units = [(1, 0), (2, 0)]
+    decoder = lindecoder.create_lindecoder(state_space_models.StateSpaceEndptVel2D, units, neural_data)
 
 def add_fa_dict_to_decoder(decoder_training_te, dec_ix, fa_te):
     #First make sure we're training from the correct task entry: spike counts n_units == BMI units

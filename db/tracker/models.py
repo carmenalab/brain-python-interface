@@ -709,9 +709,9 @@ class TaskEntry(models.Model):
 
         recording_sys_make = KeyValueStore.get('recording_sys')
 
-        if recording_sys_make is None:
-            pass
-        elif recording_sys_make == 'plexon':
+        _neuralinfo = dict(is_seed=Exp.is_bmi_seed, length=0, name='', units=[])
+        js['bmi'] = dict(_neuralinfo=_neuralinfo)
+        if recording_sys_make == 'plexon':
             try:
                 from plexon import plexfile # keep this import here so that only plexon rigs need the plexfile module installed
                 plexon = System.objects.using(self._state.db).get(name='plexon')

@@ -66,13 +66,10 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         TODO
     """
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    from db.tracker import models
+    from db import dbfunctions as dbfn
+    from db.json_param import Parameters
+    from db.tasktrack import Track
 
     cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
@@ -159,13 +156,7 @@ def cache_and_train(*args, **kwargs):
     Cache plexon file (if using plexon system) and train BMI.
     """
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+    from . import models
 
     recording_sys = models.KeyValueStore.get('recording_sys', None)
     if recording_sys == 'plexon':
