@@ -3,7 +3,7 @@
 {% block content %}
   <h2>Features</h2>
   <input type="submit" value="Update built-in feature paths" onclick="$.post('/setup/update/built_in_feature_paths', {}, function(resp) {console.log(resp)})"><br>
-  <table class="table table-hover table-sm" style="width: auto;" id="feature-table">
+  <table class="table table-hover table-sm" style="width: auto;">
     <thead>
       <tr>
         <th>Index</th><th>Feature name</th><th>Python path (must be importable)</th>
@@ -14,10 +14,10 @@
     <tr>
       <td><input type="submit" value="Add New" onclick="add_new_feature()"></td>
       <td><input type="text" name="name" id="new_feature_name"></td>
-      <td><input type="text" id="new_feature_path"></td>
+      <td><input type="text" id="new_feature_path"</td>
     </tr>
 
-    {% for feature in active_features %}
+    {% for feature in features %}
     <tr>
       <td>{{feature.id}}</td>
       <td>{{feature.name}}</td>
@@ -25,7 +25,7 @@
         {% if feature.import_path is None %}
           <input type="text" id="import_path_task_{{feature.id}}"><input type="submit" value="Store" onclick="store_single_feature_import_path({{feature.id}})">
         {% else %}
-          <input type="submit" id="feature_{{feature.name}}" value="Disable" onclick="enable_built_in_feature('{{feature.name}}')">
+          {{feature.import_path}}
         {% endif %}
     </tr>
     {% endfor %}
@@ -35,7 +35,7 @@
     <tr>
       <td>--</td>
       <td>{{feature}}</td>
-      <td><input type="submit" id="feature_{{feature}}" value="Enable" onclick="enable_built_in_feature('{{feature}}')">
+      <td><input type="submit" value="Enable" onclick="enable_built_in_feature('{{feature}}')">
     </tr>
     {% endfor %}
 
