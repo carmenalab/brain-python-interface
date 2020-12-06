@@ -411,7 +411,7 @@ def populate_models(request):
         subj = models.Subject(name='testing')
         subj.save()
 
-    for m in [models.Task, models.Feature, models.Generator, models.System]:
+    for m in [models.Generator, models.System]:
         m.populate()
 
     return HttpResponse("Updated Tasks, features generators, and systems")
@@ -445,11 +445,13 @@ def add_new_task(request):
 def remove_task(request):
     from . import models
     id = request.POST.get('id')
+    task = models.Task.objects.filter(id=id)
     try:
-        models.Task.objects.filter(id=id).delete()
+        task.delete()
         return _respond(dict(msg="Removed task", status="success"))
     except ProtectedError:
-        return _respond(dict(msg="Couldn't remove task, there must be valid experiments that use it", status="error"))
+        task.update(visible=False)
+        return _respond(dict(msg="Couldn't remove task, there must be valid experiments that use it. Turning off instead.", status="error"))
 
 @csrf_exempt
 def add_new_subject(request):

@@ -113,6 +113,7 @@ def save_bmi(name, entry, filename, dbname='default'):
         num=num, name=name,ix=dec_ix)
         dec_ix += 1
 
+    # Some problems with this on windows with permissions
     shutil.copy2(filename, os.path.join(base, pklname))
 
     Decoder(name=name,entry=entry,path=pklname).save(using=dbname)

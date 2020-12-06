@@ -22,6 +22,8 @@ import traceback
 
 log_path = os.path.join(os.path.dirname(__file__), '../../log')
 log_filename = os.path.join(log_path, "tasktrack_log")
+# TODO make folder if it doesn't exist
+
 def log_error(err, mode='a'):
     traceback.print_exc(None, err)
     with open(log_filename, mode) as fp:

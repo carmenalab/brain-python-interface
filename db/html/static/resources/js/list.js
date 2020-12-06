@@ -323,12 +323,7 @@ Files.prototype.update_filelist = function(datafiles, task_entry_id) {
     if (numfiles > 0) {
         // Append the files onto the #files field
         $("#file_list").append(this.filelist);
-
-        for (var sys in datafiles)
-            if ((sys == "plexon") || (sys == "blackrock") || (sys == "tdt") || sys == "optitrack" || sys == "mouse") {
-                this.neural_data_found = true;
-                break;
-            }
+        this.neural_data_found = true;
     }
 }
 

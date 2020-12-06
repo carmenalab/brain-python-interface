@@ -10,14 +10,15 @@ import json
 import logging
 import numpy as np
 
-from celery import task, chain
+from celery import chain
+from .celery import app
 from django.http import HttpResponse
 
 from riglib.bmi import extractor, train
 from riglib import experiment
 
 
-@task
+@app.task
 def cache_plx(plxfile):
     """
     Create cache for plexon file
@@ -34,7 +35,7 @@ def cache_plx(plxfile):
     from plexon import plexfile
     plexfile.openFile(str(plxfile))
 
-@task
+@app.task
 def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key, kin_extractor, zscore):
     """
     Create a new Decoder object from training data and save a record to the database
@@ -66,10 +67,10 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         TODO
     """
     os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from db.tracker import models
-    from db import dbfunctions as dbfn
-    from db.json_param import Parameters
-    from db.tasktrack import Track
+    from . import models
+    from .json_param import Parameters
+    from .tasktrack import Track
+    from config import bmiconfig as namelist
 
     cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
@@ -104,6 +105,9 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
             channels = np.unique(channels)
             #  units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
             units = np.hstack([channels.reshape(-1, 1), np.ones(channels.reshape(-1, 1).shape, dtype=np.int32)])
+    elif ('obs' in extractor_cls.feature_type):
+        # ignore units and channels
+        units = None
     else:
         raise Exception('Unknown extractor class!')
 
@@ -119,6 +123,8 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         extractor_kwargs['channels'] = channels
     elif extractor_cls == extractor.AIMTMPowerExtractor:
         extractor_kwargs['channels'] = channels
+    elif extractor_cls == extractor.DirectObsExtractor:
+        pass
     else:
         raise Exception("Unknown extractor_cls: %s" % extractor_cls)
 
@@ -173,10 +179,8 @@ def cache_and_train(*args, **kwargs):
         else:
             print("calling")
             make_bmi.delay(*args, **kwargs)
-    elif recording_sys == 'blackrock':
-        make_bmi.delay(*args, **kwargs)
     else:
-        raise Exception('Unknown recording_system!')
+        make_bmi.delay(*args, **kwargs)
 
 def save_new_decoder_from_existing(obj, orig_decoder_record, suffix='_'):
     '''

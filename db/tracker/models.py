@@ -881,7 +881,6 @@ class TaskEntry(models.Model):
     def desc(self):
         """Get a description of the TaskEntry using the experiment class and the
         record-specific parameters """
-        Exp = self.task.get_base_class()
         from . import json_param
         params = json_param.Parameters(self.params)
 
@@ -890,6 +889,7 @@ class TaskEntry(models.Model):
         else:
             report_data = None
         try:
+            Exp = self.task.get_base_class()
             return Exp.get_desc(params.get_data(), report_data)
         except:
             import traceback

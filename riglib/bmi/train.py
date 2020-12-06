@@ -524,11 +524,19 @@ def create_ratBMIdecoder(task_params):
     name = task_params['te_name'] + '_rat_bmi_decoder'
     dbq.save_bmi(name, int(task_params['te_id']), tf.name)
 
-def create_lindecoder(): # For testing. Do not use
+def create_lindecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units=None, update_rate=0.1, tslice=None, kin_source='task',
+    pos_key='cursor', vel_key=None, zscore=False):
     from . import lindecoder, state_space_models
-    neural_data = [[0., 0.], [0., 0.]]
-    units = [(1, 0), (2, 0)]
-    decoder = lindecoder.create_lindecoder(state_space_models.StateSpaceEndptVel2D, units, neural_data)
+    
+    # Hack job incoming:
+    if 'mouse' in files:
+        neural_data = [[0., 0.], [1650., 1080.]]
+        units = [(1, 0), (2, 0)]
+        unit_to_state = None
+        decoder_to_plant = 20
+        smoothing_window = 1
+        vel_control = False
+    return lindecoder.create_lindecoder(ssm, units, neural_data, unit_to_state, decoder_to_plant, smoothing_window, vel_control, update_rate)
 
 def add_fa_dict_to_decoder(decoder_training_te, dec_ix, fa_te):
     #First make sure we're training from the correct task entry: spike counts n_units == BMI units
