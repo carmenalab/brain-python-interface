@@ -200,92 +200,74 @@ class KeyboardControl(object):
     this class implements a python cursor control task for human
     '''
 
-    def __init__(self, *args, **kwargs):
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = Keyboard(self.plant.get_endpoint_pos())
+
+    def _start_wait(self):
+        self.wait_time = 0.
+        super()._start_wait()
+
+    def _test_start_trial(self, ts):
+        return ts > self.wait_time and not self.pause
+
+class Keyboard():
+    '''
+    Pretend to be a data source
+    '''
+
+    def __init__(self, start_pos):
+        self.pos = copy.deepcopy(start_pos)
         self.move_step = 1
-        self.assist_level = (0.5, 0.5)
-        super(KeyboardControl, self).__init__(*args, **kwargs)
-    
-    # override the _cycle function
-    def _cycle(self):
-        self.move_effector_cursor()
-        super(KeyboardControl, self)._cycle()
 
-    def move_effector(self):
-        pass
-
-    def move_plant(self, **kwargs):
-        pass
-
-    # use keyboard to control the task
-    def move_effector_cursor(self):
-        curr_pos = copy.deepcopy(self.plant.get_endpoint_pos())
-
+    def get(self):
         for event in pygame.event.get():
             if event.type == pygame.KEYUP:
                 if event.type == pygame.K_q:
                     pygame.quit()
                     quit()
                 if event.key == pygame.K_LEFT:
-                    curr_pos[0] -= self.move_step
+                    self.pos[0] -= self.move_step
                 if event.key == pygame.K_RIGHT:
-                    curr_pos[0] += self.move_step
+                    self.pos[0] += self.move_step
                 if event.key == pygame.K_UP:
-                    curr_pos[2] += self.move_step
+                    self.pos[2] += self.move_step
                 if event.key == pygame.K_DOWN:
-                    curr_pos[2] -= self.move_step
-            #print('Current position: ')
-            #print(curr_pos)
-
-        # set the current position
-        self.plant.set_endpoint_pos(curr_pos)
-
-    def _start_wait(self):
-        self.wait_time = 0.
-        super(KeyboardControl, self)._start_wait()
-
-    def _test_start_trial(self, ts):
-        return ts > self.wait_time and not self.pause
+                    self.pos[2] -= self.move_step
+        return [self.pos]
 
 class MouseControl(KeyboardControl):
+    '''
+    this class implements a python cursor control task for human
+    '''
 
     def init(self, *args, **kwargs):
-        self.pos = self.plant.get_endpoint_pos()
-        super(MouseControl, self).init(*args, **kwargs)
-    
-    def move_effector_cursor(self):
+        super().init(*args, **kwargs)
+        self.joystick = Mouse(self.window_size, self.screen_cm, self.plant.get_endpoint_pos())
 
-        # Update position but keep mouse in center
-        pygame.mouse.set_visible(False)
-        pygame.event.set_grab(True)
-        rel = pygame.mouse.get_rel()
-        self.pos = self.plant.get_endpoint_pos()
-        self.pos[0] += rel[0] / self.window_size[0] * self.screen_cm[0]
-        self.pos[2] += rel[1] / self.window_size[1] * self.screen_cm[1]
-        self.plant.set_endpoint_pos(self.pos)
-
-from .neural_sys_features import CorticalBMI
-class MouseBMI(CorticalBMI):
-    @property 
-    def sys_module(self):
-        return MouseSystem
-
-class MouseSystem():
+class Mouse():
     '''
-    2D mouse position emulating a neural data source
+    Pretend to be a data source
     '''
-    dtype = np.dtype('float')
-    update_freq = 100
 
-    def start(self):
-        self.pos = np.zeros(2)
-        pygame.mouse.set_visible(False)
-        pygame.event.set_grab(True)
-
-    def stop(self):
-        pygame.mouse.set_visible(True)
-        pygame.event.set_grab(False)
+    def __init__(self, window_size, screen_cm, start_pos):
+        self.window_size = window_size
+        self.screen_cm = screen_cm
+        self.pos = copy.deepcopy(start_pos)
 
     def get(self):
+
+        # Update position but keep mouse in center
+        pygame.event.set_grab(True)
         rel = pygame.mouse.get_rel()
-        self.pos += rel
-        return self.pos
+        self.pos[0] += rel[0] / self.window_size[0] * self.screen_cm[0]
+        self.pos[2] += rel[1] / self.window_size[1] * self.screen_cm[1]
+        if self.pos[0] < -self.screen_cm[0]:
+            self.pos[0] = -self.screen_cm[0]
+        elif self.pos[0] > self.screen_cm[0]:   
+            self.pos[0] = self.screen_cm[0]
+        if self.pos[2] < -self.screen_cm[1]:
+            self.pos[2] = -self.screen_cm[1]
+        elif self.pos[2] > self.screen_cm[1]:
+            self.pos[2] = self.screen_cm[1]
+        return [self.pos]

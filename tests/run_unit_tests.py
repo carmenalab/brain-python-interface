@@ -1,12 +1,11 @@
 import unittest, os
 
-from tests.test_decoders import TestLinDec
-from tests.test_features import TestKeyboardControl, TestMouseControl
+from tests.test_features import TestKeyboardControl, TestMouseControl, TestMouseJoystick
 from tests.test_tasks import TestOtherTasks
 test_classes = [
-    TestLinDec,
     TestKeyboardControl,
     TestMouseControl,
+    TestMouseJoystick,
     TestOtherTasks,
 ]
  

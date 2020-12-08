@@ -59,7 +59,7 @@ class DigitalWave(threading.Thread):
 class LaserTrials(traits.HasTraits):
     ''' Activate a laser during the experiment'''
 
-    laser_serial_port = traits.Str(desc="Serial port used to communicate with arduino")
+    # laser_serial_port = traits.Str(desc="Serial port used to communicate with arduino")
     laser_gpio_pin = traits.Int(13, desc="Pin number for laser")
     laser_wave = traits.OptionsList(("Constant", "Pulse", "Square wave"), desc="Laser wave type")
     laser_first_edge = traits.Bool(True, desc="Laser first edge")

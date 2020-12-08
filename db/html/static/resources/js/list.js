@@ -32,7 +32,7 @@ function interface_fn_completed() {
     
     $("#report").show()
     $("#notes").show()      
-    this.controls.hide();
+    this.controls.deactivate();
 
     // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
     if (this.__date) {
@@ -67,7 +67,7 @@ function interface_fn_stopped() {
 
     $("#report").show()
     $("#notes").hide()
-    this.controls.hide();
+    this.controls.deactivate();
 }
 
 function interface_fn_running(info) {
@@ -83,7 +83,7 @@ function interface_fn_running(info) {
 
     $("#report").show()
     $("#notes").show()   
-    this.controls.show();           
+    this.controls.activate();           
 }
 
 function interface_fn_testing(info) {
@@ -102,7 +102,7 @@ function interface_fn_testing(info) {
 
     $("#report").show();
     $("#notes").hide();
-    this.controls.show();
+    this.controls.activate();
 }
 
 function interface_fn_error(info) {
@@ -117,7 +117,7 @@ function interface_fn_error(info) {
     clearInterval(report_activation);
 
     $("#report").show()
-    this.controls.hide();
+    this.controls.deactivate();
 }
 function interface_fn_errtest(info) {
     console.log("state = errtest");
@@ -133,7 +133,7 @@ function interface_fn_errtest(info) {
     clearInterval(report_activation);
 
     $("#report").show()
-    this.controls.hide();
+    this.controls.deactivate();
 }
 
 function TaskInterfaceConstructor() {
@@ -1015,10 +1015,23 @@ Controls.prototype.update = function(controls) {
         $("#controls_table").append(new_break);
         this.control_list.push(new_button);
     }
+    if (this.control_list.length > 0) this.show();
+    else this.hide();
 }
 Controls.prototype.hide = function() {
     $("#controls").hide();
 }
 Controls.prototype.show = function() {
     if (this.control_list.length > 0) $("#controls").show();
+    this.deactivate();
+}
+Controls.prototype.activate = function() {
+    for (var i = 0; i < this.control_list.length; i += 1) {
+        $(this.control_list[i]).prop('disabled', false)
+    }
+}
+Controls.prototype.deactivate = function() {
+    for (var i = 0; i < this.control_list.length; i += 1) {
+        $(this.control_list[i]).prop('disabled', true);
+    }
 }

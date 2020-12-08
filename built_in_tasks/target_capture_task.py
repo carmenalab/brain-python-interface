@@ -14,15 +14,6 @@ from riglib import plants
 
 from .target_graphics import *
 
-
-####### CONSTANTS
-sec_per_min = 60.0
-RED = (1,0,0,.5)
-GREEN = (0,1,0,0.5)
-GOLD = (1., 0.843, 0., 0.5)
-mm_per_cm = 1./10
-
-
 ## Plants
 # List of possible "plants" that a subject could control either during manual or brain control
 cursor_14x14 = plants.CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14))
@@ -43,8 +34,6 @@ plantlist = dict(
     chain_20_20=chain_20_20,
     chain_20_20_endpt=chain_20_20_endpt)
 
-
-
 class TargetCapture(Sequence):
     '''
     This is a generic cued target capture skeleton, to form as a common ancestor to the most
@@ -61,7 +50,6 @@ class TargetCapture(Sequence):
     )
 
     trial_end_states = ['reward', 'timeout_penalty', 'hold_penalty']
-
 
     # initial state
     state = "wait"
@@ -241,15 +229,9 @@ class TargetCapture(Sequence):
 class ScreenTargetCapture(TargetCapture, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
-    background = (0,0,0,1)
-    cursor_color = (.5,0,.5,1)
-
-    plant_type = traits.OptionsList(*plantlist, desc='', bmi3d_input_options=list(plantlist.keys()))
 
     starting_pos = (5, 0, 5)
-
-    target_color = (1,0,0,.5)
-
+    background = (0,0,0,1)
     cursor_visible = False # Determines when to hide the cursor.
     no_data_count = 0 # Counter for number of missing data frames in a row
     scale_factor = 3.0 #scale factor for converting hand movement to screen movement (1cm hand movement = 3.5cm cursor movement)
@@ -259,12 +241,11 @@ class ScreenTargetCapture(TargetCapture, Window):
     sequence_generators = ['centerout_2D_discrete']
 
     is_bmi_seed = True
-    _target_color = RED
-
 
     # Runtime settable traits
     reward_time = traits.Float(.5, desc="Length of juice reward")
     target_radius = traits.Float(2, desc="Radius of targets in cm")
+    target_color = traits.OptionsList(tuple(target_colors.keys()), desc="Color of the target")
 
     hold_time = traits.Float(.2, desc="Length of hold required at targets")
     hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
@@ -296,8 +277,8 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
-            target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=self._target_color)
-            target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=self._target_color)
+            target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=self.target_color)
+            target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=self.target_color)
 
             self.targets = [target1, target2]
             for target in self.targets:

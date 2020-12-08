@@ -148,9 +148,6 @@ class LaserConditions(Conditions):
         edge_seq = map(lambda freq, dur: DigitalWave.square_wave(freq, dur), freq_seq, dur_seq)
         return list(zip(pow_seq, edge_seq))
 
-class WhiteMatterCamera(LogExperiment):
-    pass
-
 
 ####################
 # Helper functions #

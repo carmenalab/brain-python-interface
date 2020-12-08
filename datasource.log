@@ -1,0 +1,4 @@
+remotely getting attribute: __getstate__
+sending __getattribute__ over pipe
+remotely getting attribute: __getstate__
+sending __getattribute__ over pipe

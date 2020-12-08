@@ -161,7 +161,7 @@ def call_from_parent(x):
 
 class RPCProcess(mp.Process):
     """mp.Process which implements remote procedure call (RPC) through a mp.Pipe object"""
-    def __init__(self, target_class=object, target_kwargs=dict(), log_filename=''):
+    def __init__(self, target_class=object, target_kwargs=dict(), log_filename='', **kwargs):
         super().__init__()
         self.cmd_pipe = None
         self.data_pipe = None

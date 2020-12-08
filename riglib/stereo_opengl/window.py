@@ -310,6 +310,8 @@ class WindowDispl2D(Window):
         self.surf_background = pygame.Surface(self.surf['0'].get_size()).convert()
         self.surf_background.fill(TRANSPARENT)
 
+        pygame.mouse.set_visible(False)
+
         self.i = 0
 
     def pos2pix(self, kfpos):

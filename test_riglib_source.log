@@ -1,0 +1,20 @@
+remotely getting attribute: procedure
+returning function proxy for procedure
+lock acquired
+RPCProcess.run
+Received command: ('procedure', (), {})
+Function: <bound method MockDataSourceSystem.procedure of <__main__.MockDataSourceSystem object at 0x7f8d7e2640f0>>
+lock released
+Done with command: procedure, output=42
+
+clearing
+remotely getting attribute: attr_to_test_access
+sending __getattribute__ over pipe
+lock acquired
+Received command: ('__getattribute__', ('attr_to_test_access',), {})
+Function: <method-wrapper '__getattribute__' of MockDataSourceSystem object at 0x7f8d7e2640f0>
+lock released
+Done with command: __getattribute__, output=43
+
+clearing
+RPCProcess.run: end of while loop

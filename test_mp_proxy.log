@@ -1,0 +1,20 @@
+ObjProxy.setattr
+lock acquired
+RPCProcess.run
+Received command: ('__setattr__', ('remote_value', 4), {})
+Function: <bound method MockTask.__setattr__ of <__main__.MockTask object at 0x7f62b54435c0>>
+Done with command: __setattr__, output=None
+
+lock released
+Finished setting remote attr remote_value to 4
+remotely getting attribute: remote_value
+clearing
+sending __getattribute__ over pipe
+lock acquired
+Received command: ('__getattribute__', ('remote_value',), {})
+Function: <method-wrapper '__getattribute__' of MockTask object at 0x7f62b54435c0>
+lock released
+Done with command: __getattribute__, output=4
+
+clearing
+RPCProcess.run: end of while loop
