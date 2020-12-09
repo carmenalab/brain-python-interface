@@ -9,6 +9,32 @@ from datetime import datetime
 import numpy as np
 import os
 
+TESTING_OFFSET = [0, -40, 0] # optitrack cm
+TESTING_SCALE = 2 # optitrack cm --> screen cm
+
+transformations = dict(
+    testing = np.linalg.multi_dot((
+        np.array(                       # Offset
+            [[1, 0, 0, 0], 
+            [0, 1, 0, 0], 
+            [0, 0, 1, 0], 
+            [TESTING_OFFSET[0], TESTING_OFFSET[1], TESTING_OFFSET[2], 1]]
+        ),
+        np.array(                       # Scale
+            [[TESTING_SCALE, 0, 0, 0], 
+            [0, TESTING_SCALE, 0, 0], 
+            [0, 0, TESTING_SCALE, 0], 
+            [0, 0, 0, 1]]
+        ),
+        np.array(                       # Rotation
+            [[0, 0, 1, 0], 
+            [1, 0, 0, 0], 
+            [0, 1, 0, 0], 
+            [0, 0, 0, 1]]
+        ),
+    )),
+)
+
 ########################################################################################################
 # Optitrack datasources
 ########################################################################################################
@@ -23,6 +49,7 @@ class Optitrack(traits.HasTraits):
     optitrack_recording = traits.Bool(True, desc="Automatically start/stop optitrack recording")
     optitrack_feature = traits.OptionsList(("rigid body", "skeleton", "marker"))
     optitrack_num_features = traits.Int(1, desc="How many features to average")
+    transformation = traits.OptionsList(tuple(transformations.keys()), desc="Control transformation matrix")
 
     def init(self):
         '''
@@ -92,7 +119,7 @@ class Optitrack(traits.HasTraits):
         if self.optitrack_num_features > 1:
             coords = np.mean(coords)
         coords = np.concatenate((np.squeeze(coords), [1]))
-        coords = np.matmul(transformations[self.transformation], coords)
+        coords = np.matmul(coords, transformations[self.transformation])
 
         if not self.velocity_control:
             self.current_pt = coords[0:3]

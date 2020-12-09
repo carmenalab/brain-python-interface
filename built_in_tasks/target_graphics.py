@@ -71,7 +71,7 @@ class VirtualCircularTarget(CircularTarget):
         self.sphere.attach()
 
     def cue_trial_start(self):
-        self.sphere.color = RED
+        self.sphere.color = self.target_color
         self.show()
 
     def cue_trial_end_success(self):
@@ -79,14 +79,6 @@ class VirtualCircularTarget(CircularTarget):
 
     def cue_trial_end_failure(self):
         self.sphere.color = RED
-        self.hide()
-        # self.sphere.color = GREEN
-    def turn_yellow(self):
-        self.sphere.color = GOLD
-
-    def idle(self):
-        self.sphere.color = RED
-        self.hide()
 
     def pt_inside(self, pt):
         '''

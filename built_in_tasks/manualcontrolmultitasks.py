@@ -82,7 +82,7 @@ class ManualControl(ScreenTargetCapture):
         else:
             pt = np.array([pt[0], pt[1], pt[2], 1])
         
-        pt = np.matmul(transformations[self.transformation], pt)
+        pt = np.matmul(pt, transformations[self.transformation])
 
         if not self.velocity_control:
             self.current_pt = pt[0:3]

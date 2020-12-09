@@ -277,8 +277,9 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
-            target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=self.target_color)
-            target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=self.target_color)
+            print(target_colors[self.target_color])
+            target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+            target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
 
             self.targets = [target1, target2]
             for target in self.targets:
@@ -378,7 +379,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         super()._start_target()
 
         # move one of the two targets to the new target location
-        target = self.targets[self.target_index % 2]
+        target = self.targets[self.target_index % self.chain_length]
         target.move_to_position(self.target_location)
         target.cue_trial_start()
 
@@ -386,12 +387,12 @@ class ScreenTargetCapture(TargetCapture, Window):
         #make next target visible unless this is the final target in the trial
         idx = (self.target_index + 1)
         if idx < self.chain_length:
-            target = self.targets[idx % 2]
+            target = self.targets[idx % self.chain_length]
             target.move_to_position(self.targs[idx])
 
     def _end_hold(self):
         # change current target color to green
-        self.targets[self.target_index % 2].cue_trial_end_success()
+        self.targets[self.target_index % self.chain_length].cue_trial_end_success()
 
     def _start_hold_penalty(self):
         super()._start_hold_penalty()
@@ -411,7 +412,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             target.hide()
 
     def _start_reward(self):
-        self.targets[self.target_index % 2].show()
+        self.targets[self.target_index % self.chain_length].show()
 
     #### Generator functions ####
     @staticmethod
