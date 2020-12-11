@@ -37,7 +37,7 @@ class System(object):
         '''
 
         # Run the client to collect a frame of data
-        self.client.run_once()
+        self.client.run_once(timeout=1)
 
         # Pick a feature
         if self.feature == "rigid body":
@@ -50,7 +50,8 @@ class System(object):
             raise AttributeError("Feature type unknown!")
         
         # Extract coordinates from feature
-        coords = np.zeros((self.n_features, 3))
+        coords = np.empty((self.n_features, 3))
+        coords[:] = np.nan
         for i in range(np.min((self.n_features, len(feature)))):
             coords[i] = feature[i].position
         return coords
@@ -64,6 +65,10 @@ class System(object):
         self.markers = markers
         self.timing = timing
 
+
+#################
+# Simulated data
+#################
 class RigidBody():
 
     position = None
@@ -103,6 +108,7 @@ class SimulatedClient():
     def set_session(self, session_name):
         print("Setting session_name: " + session_name)
 
+# System definition function
 def make(cls, client, optitrack_feature, optitrack_num_features, **kwargs):
     """
     This ridiculous function dynamically creates a class with a new init function

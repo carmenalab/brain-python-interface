@@ -150,6 +150,8 @@ class Track(singleton.Singleton):
         self.status.value = b""
         self.reset()
 
+        '''
+        WIP cloud upload code
         # allow time for files, etc. to be saved
         time.sleep(3)
 
@@ -168,6 +170,7 @@ class Track(singleton.Singleton):
             # upload metadata to server, if appropriate
             print("Attempting to save to cloud...")
             te.upload_to_cloud()
+        '''
 
         return status
 

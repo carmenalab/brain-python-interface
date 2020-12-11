@@ -137,18 +137,18 @@ class MonkeyTraining(Window, Sequence):
             return np.tile(pos, (ntrials,1))
 
     @staticmethod
-    def rand_pt_to_pt(length=100, boundaries=(-18,18,-12,12), buf=2, seq_len=2):
+    def rand_pt_to_pt(seq_len=100, boundaries=(-18,18,-12,12), buf=2):
         '''
         Generates sequences of random postiions in the XZ plane
 
         Parameters
         ----------
         length : int
-            The number of target pairs in the sequence.
+            The number of targets in the sequence.
         boundaries: 6 element Tuple
             The limits of the allowed target locations (-x, x, -z, z)
-        distance : float
-            The distance in cm between the targets in a pair.        
+        buf : float
+            The distance from the boundary to the center of a target.        
 
         Returns
         -------
@@ -157,7 +157,6 @@ class MonkeyTraining(Window, Sequence):
             positions to be acquired for the trial.
         '''
         xmin, xmax, zmin, zmax = boundaries
-        L = length*seq_len
-        pts = np.vstack([np.random.uniform(xmin+buf, xmax-buf, L),
-            np.zeros(L), np.random.uniform(zmin+buf, zmax-buf, L)]).T
+        pts = np.vstack([np.random.uniform(xmin+buf, xmax-buf, seq_len),
+            np.zeros(seq_len), np.random.uniform(zmin+buf, zmax-buf, seq_len)]).T
         return pts

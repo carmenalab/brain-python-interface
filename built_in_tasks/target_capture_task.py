@@ -277,7 +277,6 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
-            print(target_colors[self.target_color])
             target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
             target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
 
@@ -306,6 +305,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         self.task_data['target_index'] = self.target_index
 
         ## Run graphics commands to show/hide the plant if the visibility has changed
+        # TODO: self.update_cursor_visibility()
         if self.plant_type != 'CursorPlant':
             if self.plant_visible != self.plant_vis_prev:
                 self.plant_vis_prev = self.plant_visible

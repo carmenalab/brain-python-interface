@@ -14,7 +14,13 @@ from riglib.experiment import traits
 from .target_graphics import *
 from .target_capture_task import ScreenTargetCapture
 
-transformations = dict(
+rotations = dict(
+    optitrack_zx = np.array(
+            [[0, 0, -1, 0], 
+            [0, 1, 0, 0], 
+            [1, 0, 0, 0], 
+            [0, 0, 0, 1]]
+        ),
     none = np.identity(4),
 )
 
@@ -26,7 +32,9 @@ class ManualControl(ScreenTargetCapture):
     # Settable Traits
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
-    transformation = traits.OptionsList(tuple(transformations.keys()), desc="Control transformation matrix")
+    rotation = traits.OptionsList(tuple(rotations.keys()), desc="Control rotation matrix")
+    scale = traits.Float(1.0, desc="Control scale factor")
+    offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
 
     def __init__(self, *args, **kwargs):
@@ -65,8 +73,24 @@ class ManualControl(ScreenTargetCapture):
                 #print self.reward_time, self.rand_reward_set_flag, ts
         return ts > self.reward_time
 
+    def _transform_coords(self, coords):
+        ''' Returns transformed coordinates based on rotation, offset, and scale traits'''
+        offset = np.array(
+            [[1, 0, 0, 0], 
+            [0, 1, 0, 0], 
+            [0, 0, 1, 0], 
+            [self.offset[0], self.offset[1], self.offset[2], 1]]
+        )
+        scale = np.array(
+            [[self.scale, 0, 0, 0], 
+            [0, self.scale, 0, 0], 
+            [0, 0, self.scale, 0], 
+            [0, 0, 0, 1]]
+        )
+        return np.linalg.multi_dot((coords, offset, scale, rotations[self.rotation]))
+
     def move_effector(self):
-        ''' Returns the 3D coordinates of the cursor. For manual control, uses
+        ''' Sets the 3D coordinates of the cursor. For manual control, uses
         motiontracker / joystick / mouse data. If no data available, returns None'''
 
         if not hasattr(self, 'joystick'):
@@ -82,7 +106,7 @@ class ManualControl(ScreenTargetCapture):
         else:
             pt = np.array([pt[0], pt[1], pt[2], 1])
         
-        pt = np.matmul(pt, transformations[self.transformation])
+        pt = self._transform_coords(pt)
 
         if not self.velocity_control:
             self.current_pt = pt[0:3]

@@ -194,7 +194,6 @@ class SyncSquare(traits.HasTraits):
 
     def screen_init(self):
         super().screen_init()
-        TRANSPARENT = (255,0,255)
         self.sync = pygame.Surface(self.window_size)
         self.sync.fill(TRANSPARENT)
         self.sync.set_colorkey(TRANSPARENT)
@@ -241,6 +240,8 @@ class WindowWithExperimenterDisplay(Window):
         return stereo.DualMultisizeDisplay(self.window_size1, self.window_size2, self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip,
             flip_main_z = self._stereo_main_flip_z)
 
+
+TRANSPARENT = (106,0,42)
 
 class WindowDispl2D(Window):
     '''Draws world on a 2D screen. May cause mild confusion -- transforms 
@@ -293,7 +294,6 @@ class WindowDispl2D(Window):
         # self.world.init()
 
         #initialize surfaces for translucent markers
-        TRANSPARENT = (255,0,255)
         self.surf={}
         self.surf['0'] = pygame.Surface(self.screen.get_size())
         self.surf['0'].fill(TRANSPARENT)
