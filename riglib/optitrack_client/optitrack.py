@@ -54,6 +54,9 @@ class System(object):
         coords[:] = np.nan
         for i in range(np.min((self.n_features, len(feature)))):
             coords[i] = feature[i].position
+
+        # For HDFWriter we need a dim 0
+        coords = np.expand_dims(coords, axis = 0)
         return coords
     
     def _update(self, rigid_bodies, skeletons, markers, timing):
@@ -86,7 +89,7 @@ class SimulatedClient():
     def set_callback(self, callback):
         self.callback = callback
 
-    def run_once(self):
+    def run_once(self, timeout=None):
         '''
         Fake some motion data
         '''
@@ -109,12 +112,12 @@ class SimulatedClient():
         print("Setting session_name: " + session_name)
 
 # System definition function
-def make(cls, client, optitrack_feature, optitrack_num_features, **kwargs):
+def make(cls, client, feature, num_features=1, **kwargs):
     """
     This ridiculous function dynamically creates a class with a new init function
     """
     def init(self):
-        super(self.__class__, self).__init__(client, optitrack_feature, optitrack_num_features, **kwargs)
+        super(self.__class__, self).__init__(client, feature, num_features, **kwargs)
     
-    dtype = np.dtype((np.float, (optitrack_num_features, 3)))
+    dtype = np.dtype((np.float, (num_features, 3)))
     return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))

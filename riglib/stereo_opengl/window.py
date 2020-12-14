@@ -457,7 +457,6 @@ class FPScontrol(Window):
 
     def init(self):
         super(FPScontrol, self).init()
-        pygame.event.set_grab(True)
         pygame.mouse.set_visible(False)
         self.eyepos = [0,-self.screen_dist, 0]
         self.eyevec = [0,0]

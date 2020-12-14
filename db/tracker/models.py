@@ -543,6 +543,7 @@ class TaskEntry(models.Model):
     notes = models.TextField()
     visible = models.BooleanField(blank=True, default=True)
     backup = models.BooleanField(blank=True, default=False)
+    template = models.BooleanField(blank=True, default=False)
     entry_name = models.CharField(blank=True, null=True, max_length=50)
     sw_version = models.CharField(blank=True, null=True, max_length=100)
 
@@ -667,8 +668,10 @@ class TaskEntry(models.Model):
         Exp = self.task.get(self.feats.all())
         from . import exp_tracker
         tracker = exp_tracker.get()
-        state = tracker.get_status()#'completed' if self.pk is not None else "new"
-
+        if tracker.proc is not None and hasattr(tracker.proc, 'saveid') and tracker.proc.saveid == self.id:
+            state = tracker.get_status()#'completed' if self.pk is not None else "new"
+        else:
+            state = 'completed'  
         js = dict(task=self.task.id, state=state, subject=self.subject.id, notes=self.notes)
         js['feats'] = dict([(f.id, f.name) for f in self.feats.all()])
         js['params'] = self.task.params(self.feats.all(), values=self.task_params)
@@ -778,6 +781,7 @@ class TaskEntry(models.Model):
         js['plot_files'] = dict()  # deprecated
         js['flagged_for_backup'] = self.backup
         js['visible'] = self.visible
+        js['template'] = self.template
         entry_name = self.entry_name if not self.entry_name is None else ""
         js['entry_name'] = entry_name
         print("TaskEntry.to_json finished!")

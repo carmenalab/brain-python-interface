@@ -45,7 +45,7 @@ function Sequence() {
         // if you click on the parameters table and the drop-down list of
         // available sequences (not generators) is enabled, then enable editing
         function() {
-            if ($("#seqlist").attr("disabled") != "disabled")
+            if ($("#seqparams").attr("disabled") == "disabled")
                 this.edit();
         }.bind(this)
     );
@@ -125,10 +125,9 @@ Sequence.prototype.update = function(info) {
         $("#seqlist").change(this._handle_chlist);
         $("#seqgen").change(this._handle_chgen);
 
-        $("#seqstatic,#seqparams input, #seqgen").attr("disabled", "disabled");
+        $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
     } else {
         this.edit();
-        $("#seqgen").change();
     }
 }
 
@@ -171,7 +170,7 @@ Sequence.prototype.edit = function() {
     var curname = this._make_name();
     this.seqlist_make_input_field(curname);
 
-    $("#seqgen, #seqparams input, #seqstatic").removeAttr("disabled");
+    $("#seqgen, #seqparams, #seqparams input, #seqstatic").removeAttr("disabled");
 
     this._handle_setname = function() { $
         ("#seqlist").attr("value", _this._make_name());
@@ -187,6 +186,7 @@ Sequence.prototype.edit = function() {
             $("#seqparams input").unbind("blur.setname", _this._handle_setname);
     };
     $("#seqlist").blur(this._handle_blurlist);
+    $("#seqgen").change();
 }
 
 
@@ -196,7 +196,7 @@ Sequence.prototype.enable = function() {
 }
 Sequence.prototype.disable = function() {
     // disable the list of old sequences, the parameter inputs, the generator drop-down, the static checkbox
-    $("#seqlist, #seqparams input, #seqgen, #seqstatic").attr("disabled", "disabled");
+    $("#seqlist, #seqparams, #seqparams input, #seqgen, #seqstatic").attr("disabled", "disabled");
     $('#show_params').attr("disabled", false);
 }
 

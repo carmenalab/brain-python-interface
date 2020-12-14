@@ -29,6 +29,8 @@ class Optitrack(traits.HasTraits):
 
     @classmethod
     def pre_init(cls, saveid):
+        super(Optitrack, cls).pre_init(saveid=saveid)
+
         # Temporary code to start recording over the nets
         if saveid is not None:
             now = datetime.now()
@@ -142,6 +144,10 @@ class OptitrackSimulate(Optitrack):
     '''
     Fake optitrack data for testing
     '''
+    
+    @classmethod
+    def pre_init(cls, saveid):
+        super(Optitrack, cls).pre_init(saveid=saveid)
 
     def init(self):
         '''
@@ -155,7 +161,7 @@ class OptitrackSimulate(Optitrack):
 
         # Create a source to buffer the motion tracking data
         from riglib import source
-        self.motiondata = source.DataSource(optitrack.make(optitrack.System, self.client, self.optitrack_feature, self.optitrack_num_features))
+        self.motiondata = source.DataSource(optitrack.make(optitrack.System, self.client, self.optitrack_feature, 1))
 
         # Save to the sink
         from riglib import sink

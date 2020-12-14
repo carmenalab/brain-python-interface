@@ -29,6 +29,7 @@ class MotionData(traits.HasTraits):
     '''
     marker_count = traits.Int(8, desc="Number of markers to return")
     marker_num = traits.Int(1, desc="Which marker to use")
+    scale_factor = 3.0 #scale factor for converting hand movement to screen movement (1cm hand movement = 3.5cm cursor movement)
 
     def init(self):
         '''

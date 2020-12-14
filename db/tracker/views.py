@@ -17,12 +17,14 @@ from . import exp_tracker
 def main(request):
     return render(request, "main.html", dict())
 
-def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None):
+def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None, show_hidden=False):
     from . import models
     # from .models import TaskEntry, Task, Subject, Feature, Generator
     td = datetime.timedelta(days=60)
 
-    filter_kwargs = dict(visible=True)
+    filter_kwargs = dict(template=False)
+    if not show_hidden:
+        filter_kwargs['visible'] = True
     if not (subject is None) and isinstance(subject, str):
         filter_kwargs['subject__name'] = subject
     if not (task is None) and isinstance(task, str):
@@ -47,6 +49,9 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
             ent.rowspan = k - last
             last = k
 
+    filter_kwargs['template'] = True
+    templates = models.TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
+
     tasks = models.Task.objects.filter(visible=True).order_by("name")
 
     epoch = datetime.datetime.utcfromtimestamp(0)
@@ -65,13 +70,15 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
 
     fields = dict(
         entries=entries,
+        templates=templates,
         subjects=subjects,
         tasks=tasks,
         features=features,
         generators=generators,
         collections=collections,
         systems=models.System.objects.all(),
-        n_blocks=len(entries),
+        n_entries=len(entries),
+        n_hidden=len([e for e in entries if e.visible==False]),
     )
 
     try:
@@ -102,6 +109,8 @@ def list_exp_history(request, **kwargs):
     '''
     from .models import TaskEntry, Task, Subject, Feature, Generator
 
+    kwargs['show_hidden'] = request.GET.get('show_hidden') != None
+
     fields = _list_exp_history(**kwargs)
     fields['hostname'] = request.get_host()
 
@@ -110,8 +119,10 @@ def list_exp_history(request, **kwargs):
     tracker = exp_tracker.get()
     tracker.update_alive()
 
-    if tracker.task_proxy is not None and "saveid" in tracker.task_kwargs:
-        fields['running'] = tracker.task_kwargs["saveid"]
+    if tracker is not None:
+        fields['status'] = tracker.get_status()
+    if tracker.proc is not None and hasattr(tracker.proc, 'saveid'):
+        fields['saveid'] = tracker.proc.saveid
 
     resp = render(request, 'list.html', fields)
     return resp

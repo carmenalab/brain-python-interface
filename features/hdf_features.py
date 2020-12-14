@@ -12,7 +12,7 @@ import subprocess
 from riglib import calibrations, bmi, sink
 from riglib.bmi import extractor
 from riglib.experiment import traits
-import hdfwriter
+import hdfwriter # from riglib.hdfwriter import hdfwriter # <-- now a package on PyPI
 
 
 class SaveHDF(object):

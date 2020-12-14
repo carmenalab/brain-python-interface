@@ -230,11 +230,10 @@ class ScreenTargetCapture(TargetCapture, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
 
-    starting_pos = (5, 0, 5)
-    background = (0,0,0,1)
+    starting_pos = (5, 0, 5) # TODO 
+    background = (0,0,0,1) # TODO
     cursor_visible = False # Determines when to hide the cursor.
     no_data_count = 0 # Counter for number of missing data frames in a row
-    scale_factor = 3.0 #scale factor for converting hand movement to screen movement (1cm hand movement = 3.5cm cursor movement)
 
     limit2d = 1
 

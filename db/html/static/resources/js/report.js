@@ -55,7 +55,7 @@ Report.prototype.activate = function() {
 
 Report.prototype.update = function(info) {
     // run the 'notify' callback every time this function is provided with info
-    if (typeof(this.notify) == "function" && info)
+    if (typeof(this.notify) == "function" && !$.isEmptyObject(info))
         this.notify(info);
 
     if (info.status && info.status == "error") { // received an error message through the websocket

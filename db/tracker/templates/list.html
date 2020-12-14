@@ -46,39 +46,23 @@
     })
 
     $("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
-
     $("#hidebtn").change(
       function () {
-        if (this.checked) {
-          console.log("Showing task entry " + te.idx);
-          $.get("ajax/show_entry/"+te.idx,
-            {},
-            function() {
-              $("#row" + te.idx).css('background-color', 'white');
-            }
-          );
-        } else {
-          console.log("Hiding task entry " + te.idx);
-          $.get("ajax/hide_entry/"+te.idx,
-            {},
-            function() {
-              $("#row" + te.idx).css('background-color', 'gray');
-              te.destroy();
-            }
-          );
-        }
+        te.toggle_visible();
       }
     );
 
     $("#backupbtn").change(
       function () {
-        if (this.checked) {
-          $.get("/ajax/backup_entry/"+te.idx);
-        } else {
-          $.get("/ajax/unbackup_entry/"+te.idx);
-        }
+        te.toggle_backup();
       }
     );
+
+    $("#templatebtn").change(
+      function () {
+        te.toggle_template();
+      }
+    )
 
     // these are wrapped in a function because 'te' is null to start
     $("#startbtn").click(function() { te.start();});
@@ -96,11 +80,20 @@
       function() {
         if (this.checked) {
           $('#leftpane').show()
-          $('#rightpane').css('margin-left', "540px");
+          $('#rightpane').css({'left': "640px", 'top': '0px'});
         } else {
           $('#leftpane').hide()
-          $('#rightpane').css('margin-left', "0px");
+          $('#rightpane').css({'left': "0px", 'top': 'auto'});
         }
+      }
+    );
+
+    $("#toggle_visible").change(
+      function() {
+        if (this.checked)
+          location.href = "/exp_log/?show_hidden";
+        else
+          location.href = "/exp_log/";
       }
     );
 
@@ -150,6 +143,16 @@
       }
     }
 
+    {% if status == "running" and saveid %}
+    // If there is a task already running, then immediately open the taskentry and change the status
+    te = new TaskEntry(null);
+    reset_date_on_new_task();
+    te = new TaskEntry({{saveid}});
+    {% elif status == "testing" %}
+    te = new TaskEntry(null);
+    reset_date_on_new_task();
+    task_interface.trigger.bind(te)({status: "testing"});
+    {% endif %}
   })
 
   function reset_date_on_new_task() {
@@ -160,12 +163,16 @@
 </head>
 
 <body>
-  <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show History</span><br>
+  <div id="banner">
+    <a href="/">Back</a>
+    <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show History</span>
+    <input id="toggle_visible" type="checkbox" {% if n_hidden %} checked {% endif %}><span class="checkboxtext">Include hidden</span>
+    <button id="new_exp">Start new experiment</button><br>
+    <hr>
+  </div>
   <div id="main_box">
     <div id='leftpane'>
-      {{ n_blocks }} saved task entry records shown below<br>
-      <button id="new_exp">Start new experiment</button>
-      <hr>
+      <a>{{ n_entries }} saved task entry records shown below{% if n_hidden %} ({{ n_hidden }} hidden) {% endif %}</a>
       <table id='main' style="direction:ltr;">
         <thead>
         <tr id="te_table_header">
@@ -204,24 +211,48 @@
               </select>
             </td>
           </tr>
-        {% for e in entries %}
-          <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
-            {% if e.html_date %}
-              <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
-              <td class='colTime firstRowOfday' >{{e.html_time}}</td>
-              <td class='colID firstRowOfday'   >{{e.ui_id}}</td>
-              <td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
-              <td class='colTask firstRowOfday' >{{e.task.name}}</td>
-              <td class='colShortDesc firstRowOfday'>{{e.desc}}</td>
-            {% else %}
-              <td class='colTime' >{{e.html_time}}</td>
+        <!-- Templates -->
+        {% for e in templates %}
+          {% if e.visible %}
+            <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
+          {% else %}
+            <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %} style="background-color: gray">
+          {% endif %}
+          {% if e == templates|first %}
+              <td class='colDate' rowspan={{templates|length}}>Templates</td>
+          {% endif %}
+              <td class='colTime' ></td>
               <td class='colID'   >{{e.ui_id}}</td>
               <td class='colSubj' >{{e.subject.name}}</td>
               <td class='colTask' >{{e.task.name}}</td>
               <td class='colShortDesc'>{{e.desc}}</td>
-            {% endif %}
+            </tr>
+        {% endfor %}
+            <tr id='divider' style="display: none"></tr>
 
-          </tr>
+        <!-- Task entries -->
+        {% for e in entries %}
+        {% if e.visible %}
+          <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
+        {% else %}
+          <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %} style="background-color: gray">
+          {% endif %}
+              {% if e.html_date %}
+                <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
+                <td class='colTime firstRowOfday' >{{e.html_time}}</td>
+                <td class='colID firstRowOfday'   >{{e.ui_id}}</td>
+                <td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
+                <td class='colTask firstRowOfday' >{{e.task.name}}</td>
+                <td class='colShortDesc firstRowOfday'>{{e.desc}}</td>
+              {% else %}
+                <td class='colTime' >{{e.html_time}}</td>
+                <td class='colID'   >{{e.ui_id}}</td>
+                <td class='colSubj' >{{e.subject.name}}</td>
+                <td class='colTask' >{{e.task.name}}</td>
+                <td class='colShortDesc'>{{e.desc}}</td>
+              {% endif %}
+
+            </tr>
         {% endfor %}
         </tbody>
       </table>
@@ -231,18 +262,20 @@
             <img id="wait_wheel_img" src="{{ STATIC_PREFIX }}resources/images/ajax-loader.gif" alt="HTML5 Icon">
         </div>
 
-    <div id="rightpane">
+    <div id="rightpane" style="left: 640px;">
       <div id='content' class="active">
         <form id="experiment" method="post" action="javascript:void();" accept-charset="utf-8">
           {% csrf_token %}
 
           <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()">
-          <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null; $('.colShortDesc').show()">Clear content</button><br>
+          <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null; $('.colShortDesc').show()">Clear content</button>
+          <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Remove entry</button><br>
 
           <div id="finished_task_buttons">
             <input id="copybtn" class="btn" type="button" value="Copy parameters">
             <input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
             <input id="backupbtn" type="checkbox" checked="on" name="hist_checkbox">Flagged for backup?
+            <input id="templatebtn" type="checkbox" checked="on" name="hist_checkbox">Use as template
           </div>
 
           <div id="start_buttons">
@@ -302,7 +335,6 @@
                 </table>
 
                 <div id="seqparams">
-                  Parameters
                 </div>
 
                 <div id="seqstatic_div" class="clear">

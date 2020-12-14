@@ -12,7 +12,7 @@ from django.db.models import ProtectedError
 
 from riglib import experiment
 from .json_param import Parameters
-from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
+from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder, KeyValueStore
 from .tasktrack import Track
 
 import logging
@@ -33,7 +33,7 @@ def train_decoder_ajax_handler(request, idx):
     request : Django HttpRequest
         POST data containing details for how to train the decoder (type, units, update rate, etc.)
     idx : int
-        ID number of the models.TaskEntry record with the data used to train the Decoder.
+        ID number of the TaskEntry record with the data used to train the Decoder.
 
     Returns
     -------
@@ -149,8 +149,6 @@ def exp_info(request, idx, dbname='default'):
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
     try:
         entry_data = entry.to_json()
-        tracker = Track.get_instance()
-        entry_data["state"] = tracker.get_status()
     except:
         print("##### Error trying to access task entry data: id=%s, dbname=%s" % (idx, dbname))
         import traceback
@@ -181,6 +179,38 @@ def show_entry(request, idx):
     entry.save()
     return _respond(dict())
 
+def remove_entry(request, idx):
+    print("Remove entry %d" % idx)
+    entry = TaskEntry.objects.get(pk=idx)
+    try:
+        DataFile.objects.get(entry=entry.id).delete()
+    except DataFile.DoesNotExist:
+        pass
+    try:
+        Decoder.objects.get(entry=entry.id).delete()
+    except Decoder.DoesNotExist:
+        pass
+    entry.delete()
+    return _respond(dict())
+
+def template_entry(request, idx):
+    '''
+    See documentation for exp_info
+    '''
+    entry = TaskEntry.objects.get(pk=idx)
+    entry.template = True
+    entry.save()
+    return _respond(dict())
+
+def untemplate_entry(request, idx):
+    '''
+    See documentation for exp_info
+    '''
+    entry = TaskEntry.objects.get(pk=idx)
+    entry.template = False
+    entry.save()
+    return _respond(dict())
+    
 def backup_entry(request, idx):
     '''
     See documentation for exp_info
@@ -405,13 +435,12 @@ def populate_models(request):
     3) all the features from 'featurelist' appear in the db
     4) all the generators from all the tasks appear in the db
     """
-    from . import models
-    subjects = models.Subject.objects.all()
+    subjects = Subject.objects.all()
     if len(subjects) == 0:
-        subj = models.Subject(name='testing')
+        subj = Subject(name='testing')
         subj.save()
 
-    for m in [models.Generator, models.System]:
+    for m in [Generator, System]:
         m.populate()
 
     return HttpResponse("Updated Tasks, features generators, and systems")
@@ -426,56 +455,59 @@ def add_new_task(request):
         import_path = "riglib.experiment.Experiment"
 
     try:
-        models.import_by_path(import_path)
+        import_by_path(import_path)
     except:
         import traceback
         traceback.print_exc()
         return _respond(dict(msg="import path invalid!", status="error"))
 
-    task = models.Task(name=name, import_path=import_path)
+    task = Task(name=name, import_path=import_path)
     task.save()
 
     # add any new generators for the task
-    models.Generator.populate()
+    Generator.populate()
 
     task_data = dict(id=task.id, name=task.name, import_path=task.import_path)
     return _respond(dict(msg="Added new task: %s" % task.name, status="success", data=task_data))
 
 @csrf_exempt
 def remove_task(request):
-    from . import models
     id = request.POST.get('id')
-    task = models.Task.objects.filter(id=id)
+    task = Task.objects.filter(id=id)
     try:
+        entry = TaskEntry.objects.filter(task=id).values_list('id', flat=True)
+    except TaskEntry.DoesNotExist:
+        entry = None
+    if entry is None or len(entry) == 0:
+        try:
+            Sequence.objects.filter(task=id).delete()
+        except Sequence.DoesNotExist:
+            pass
         task.delete()
         return _respond(dict(msg="Removed task", status="success"))
-    except ProtectedError:
-        task.update(visible=False)
-        return _respond(dict(msg="Couldn't remove task, there must be valid experiments that use it. Turning off instead.", status="error"))
+    else:
+        return _respond(dict(msg="Couldn't remove task, experiments {0} use it.".format(list(entry)), status="error"))
 
 @csrf_exempt
 def add_new_subject(request):
-    from . import models
     subject_name = request.POST['subject_name']
-    subj = models.Subject(name=subject_name)
+    subj = Subject(name=subject_name)
     subj.save()
 
     return _respond(dict(msg="Added new subject: %s" % subj.name, status="success", data=dict(id=subj.id, name=subj.name)))
 
 @csrf_exempt
 def remove_subject(request):
-    from . import models
     id = request.POST.get('id')
     try:
-        models.Subject.objects.filter(id=id).delete()
+        Subject.objects.filter(id=id).delete()
         return _respond(dict(msg="Removed subject", status="success"))
     except ProtectedError:
         return _respond(dict(msg="Couldn't remove subject, there must be valid experiments that use it", status="error"))
 
 @csrf_exempt
 def add_new_system(request):
-    from . import models
-    sys = models.System(name=request.POST['name'], path=request.POST['path'],
+    sys = System(name=request.POST['name'], path=request.POST['path'],
         processor_path=request.POST['processor_path'])
     sys.save()
 
@@ -487,7 +519,7 @@ def remove_system(request):
     from . import models
     id = request.POST.get('id')
     try:
-        models.System.objects.filter(id=id).delete()
+        System.objects.filter(id=id).delete()
         return _respond(dict(msg="Removed system", status="success"))
     except ProtectedError:
         return _respond(dict(msg="Couldn't remove system, there must be valid experiments that use it", status="error"))
@@ -500,16 +532,16 @@ def toggle_features(request):
     name = request.POST.get('name')
     
     # check if the feature is already installed
-    existing_features = models.Feature.objects.filter(name=name)
+    existing_features = Feature.objects.filter(name=name)
 
     if len(existing_features) > 0:
         # disable the feature
-        models.Feature.objects.filter(name=name).delete()
+        Feature.objects.filter(name=name).delete()
         msg = "Disabled feature: %s" % str(name)
         return _respond(dict(msg=msg, status="success"))
     elif name in built_in_features:
         import_path = built_in_features[name].__module__ + '.' + built_in_features[name].__qualname__
-        feat = models.Feature(name=name, import_path=import_path)
+        feat = Feature(name=name, import_path=import_path)
         feat.save()
         msg = "Enabled built-in feature: %s" % str(feat.name)
         return _respond(dict(msg=msg, status="success", id=feat.id))
@@ -524,13 +556,13 @@ def add_new_feature(request):
 
     #  verify import path
     try:
-        models.import_by_path(import_path)
+        import_by_path(import_path)
     except:
         import traceback
         traceback.print_exc()
         return _respond(dict(msg="import path invalid!", status="error"))
 
-    feat = models.Feature(name=name, import_path=import_path)
+    feat = Feature(name=name, import_path=import_path)
     feat.save()
     
     feature_data = dict(id=feat.id, name=feat.name, import_path=feat.import_path)
@@ -540,7 +572,7 @@ def add_new_feature(request):
 def setup_run_upkeep(request):
     # Update the list of generators
     from . import models
-    models.Generator.populate()
+    Generator.populate()
     return HttpResponse("Updated generators!")
 
 @csrf_exempt
@@ -587,7 +619,7 @@ def get_status(request):
 @csrf_exempt
 def save_entry_name(request):
     from . import models
-    te_rec = models.TaskEntry.objects.get(id=request.POST["id"])
+    te_rec = TaskEntry.objects.get(id=request.POST["id"])
     te_rec.entry_name = request.POST["entry_name"]
     te_rec.save()
     return _respond(dict(status="success", msg="Saved entry name: %s" % te_rec.entry_name))
@@ -595,7 +627,7 @@ def save_entry_name(request):
 def update_built_in_feature_import_paths(request):
     """For built-in features, update the import path based on the features module"""
     from . import models
-    for feat in models.Feature.objects.all():
+    for feat in Feature.objects.all():
         feat.get(update_builtin=True)
     return _respond(dict(status="success", msg="Updated built-in feature paths!"))
 
@@ -605,16 +637,16 @@ def update_database_storage_path(request):
     db_storage_path = request.POST['db_storage_path']
 
     if db_name == 'default':
-        models.KeyValueStore.set("data_path", db_storage_path)
+        KeyValueStore.set("data_path", db_storage_path)
         return _respond(dict(status="success", msg="Updated storage path for %s db" % db_name))
     else:
         return _respond(dict(status="error", msg="Not yet implemented for non-default tables!"))
 
 def save_recording_sys(request):
     from . import models
-    models.KeyValueStore.set('recording_sys', request.POST['selected_recording_sys'])
-    print(models.KeyValueStore.get('recording_sys'))
-    ret_msg = "Set recording_sys to %s" % models.KeyValueStore.get('recording_sys')
+    KeyValueStore.set('recording_sys', request.POST['selected_recording_sys'])
+    print(KeyValueStore.get('recording_sys'))
+    ret_msg = "Set recording_sys to %s" % KeyValueStore.get('recording_sys')
     return _respond(dict(status="success", msg=ret_msg))
 
 @csrf_exempt

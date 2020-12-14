@@ -10,6 +10,7 @@
       var data = {'subject_name': $("#new_subject_name").val()};
       $.post("/setup/add/subject", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
 
         if (resp["status"] == "success") {
           // clear fields
@@ -28,6 +29,7 @@
     data = {'id': id}
       $.post("/setup/remove/subject", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
         if (resp["status"] == "success") {
           $("#subject_"+id).closest("tr").remove();
         }
@@ -38,6 +40,7 @@
       var data = {'name': $("#task_name").val(), 'import_path': $("#task_import_path").val()};
       $.post("/setup/add/task", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
 
         if (resp["status"] == "success") {
           // clear fields
@@ -57,6 +60,7 @@
     data = {'id': id}
       $.post("/setup/remove/task", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
         if (resp["status"] == "success") {
           $("#task_"+id).closest("tr").remove();
         }
@@ -68,6 +72,7 @@
         "processor_path": $("#system_processor_path").val()}
       $.post("/setup/add/system", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
 
         if (resp["status"] == "success") {
           // clear fields
@@ -89,6 +94,7 @@
       data = {'id': id}
       $.post("/setup/remove/system", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
         if (resp["status"] == "success") {
           $("#system_"+id).closest("tr").remove();
         }
@@ -101,6 +107,7 @@
       console.log(data);
       $.post("/setup/update/task_import_path", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
       });
     }
 
@@ -110,6 +117,7 @@
       console.log(data);
       $.post("/setup/update/feature_import_path", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
       });
     }
 
@@ -117,6 +125,7 @@
       var data = {'name': feature}
       $.post('/setup/update/toggle_features', data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
         if ($("#feature_" + feature).val() == "Enable") {
 
           // Add the id and change the label
@@ -142,6 +151,7 @@
       var data = {'name': $("#new_feature_name").val(), 'import_path': $("#new_feature_path").val()};
       $.post("/setup/add/feature", data, function(resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
 
         if (resp["status"] == "success") {
           // clear fields
@@ -160,6 +170,7 @@
     function generic_post(data) {
       $.post("/setup/update/generic", data, function (resp) {
         $("#alert_field").html(resp["msg"]);
+        $('#alert_field').show();
       });      
     }
 
@@ -187,12 +198,17 @@
   </script>
 
   <style>
+
+    body {
+      padding: 5px;
+    }
     .navbar {
       font-size: 1.5em;
     }
 
     .navbar-nav {
       list-style-type: none;
+      padding: 0px;
     }
 
     .navbar-nav > li{
@@ -203,8 +219,8 @@
 </head>
 
 <body>
-  <div class="alert alert-info" role="alert" id="alert_field">
-    <!-- TODO make this always on top -->
+  <a href="/">Back</a>
+  <div class="alert alert-info" role="alert" id="alert_field" style="visibility: hidden">
   </div>
 
   <h1>Setup</h1>
