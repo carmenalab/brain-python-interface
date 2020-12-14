@@ -668,7 +668,7 @@ class TaskEntry(models.Model):
         Exp = self.task.get(self.feats.all())
         from . import exp_tracker
         tracker = exp_tracker.get()
-        if tracker.proc is not None and hasattr(tracker.proc, 'saveid') and tracker.proc.saveid == self.id:
+        if tracker.get_status() and tracker.proc is not None and hasattr(tracker.proc, 'saveid') and tracker.proc.saveid == self.id:
             state = tracker.get_status()#'completed' if self.pk is not None else "new"
         else:
             state = 'completed'  

@@ -18,6 +18,10 @@
     background-color:#FDD; 
 }
 
+td[colspan]:not([colspan="1"]) {
+    text-align: center;
+}
+
 
 div.clear { clear:both; }
 
@@ -57,7 +61,8 @@ table#main tr {
 
 /* Top banner stays at top */
 div#banner {
-	float: left;
+	position: relative;
+	float: none;
 	width: 640px;
 	padding: 5px;
 	box-sizing: border-box;
@@ -67,8 +72,8 @@ button#new_exp {
 }
 
 div#main_box {
-	position: fixed;
-	top: 50px;
+	position: relative;
+	float: none;
 }
 
 /* Left hand table styling */
@@ -120,7 +125,7 @@ table#main th {
 	border-bottom : 1px solid black;
 }
 
-.firstRowOfday {
+#newentry, .firstRowOfday {
 	border-top : 1px solid black; 
 }
 
@@ -134,24 +139,21 @@ table#main th {
 }
 
 .colID {
-	width : 50px;
+	width : 100px;
 }
 
 .colSubj {
-	width : 100px;
+	width : 50px;
 	font-size : 10pt;
 	font-family:Arial;
-}
-#subjects {
-	width : 100px;
 }
 
 .colTask {
 	width : 100px;
 	text-align : left;
 }
-#tasks {
-	width : 200px;
+#subjects, #tasks {
+	width : auto;
 	text-align : left;
 }
 

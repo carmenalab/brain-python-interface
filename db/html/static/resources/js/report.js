@@ -5,7 +5,7 @@ if (typeof(require) !== 'undefined') {
     const dom = new JSDOM(`    <fieldset id="report">
           <legend>Report</legend>
           <div id="report_div">
-            <input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); console.log(info);})"><br>
+            <input type="button" value="Update report" id="report_update" onclick="$.post('report', {}, function(info) {te.report.update(info['data']); debug(info);})"><br>
             <table class="option" id="report_info">
             </table>
 
@@ -46,7 +46,7 @@ Report.prototype.activate = function() {
         this.ws = new WebSocket("ws://"+hostname.split(":")[0]+":8001/connect");
 
         this.ws.onmessage = function(evt) {
-            console.log(evt.data);
+            debug(evt.data);
             var report = JSON.parse(evt.data);
             this.update(report);
         }.bind(this);

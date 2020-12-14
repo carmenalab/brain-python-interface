@@ -78,6 +78,7 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         collections=collections,
         systems=models.System.objects.all(),
         n_entries=len(entries),
+        show_hidden=show_hidden,
         n_hidden=len([e for e in entries if e.visible==False]),
     )
 

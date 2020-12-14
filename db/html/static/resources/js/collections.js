@@ -12,7 +12,7 @@ Collections.prototype.show = function() {
 
 Collections.prototype.select_collections = function(collections) {
     // clear
-    console.log(collections);
+    debug(collections);
     $("#collections input[type=checkbox]").each(
         function() {
             this.checked = false;

@@ -79,9 +79,13 @@
     $("#toggle_table").change(
       function() {
         if (this.checked) {
+          $("#toggle_visible,#toggle_visible+span").show();
+          $("#toggle_templates,#toggle_templates+span").show();
           $('#leftpane').show()
           $('#rightpane').css({'left': "640px", 'top': '0px'});
         } else {
+          $("#toggle_visible,#toggle_visible+span").hide();
+          $("#toggle_templates,#toggle_templates+span").hide();
           $('#leftpane').hide()
           $('#rightpane').css({'left': "0px", 'top': 'auto'});
         }
@@ -91,9 +95,18 @@
     $("#toggle_visible").change(
       function() {
         if (this.checked)
-          location.href = "/exp_log/?show_hidden";
+          location.href = "?show_hidden";
         else
-          location.href = "/exp_log/";
+          location.href = "?";
+      }
+    );
+
+    $("#toggle_templates").change(
+      function() {
+        if (this.checked)
+          $("tr.template").show();
+        else
+          $("tr.template").hide();
       }
     );
 
@@ -145,8 +158,6 @@
 
     {% if status == "running" and saveid %}
     // If there is a task already running, then immediately open the taskentry and change the status
-    te = new TaskEntry(null);
-    reset_date_on_new_task();
     te = new TaskEntry({{saveid}});
     {% elif status == "testing" %}
     te = new TaskEntry(null);
@@ -165,14 +176,15 @@
 <body>
   <div id="banner">
     <a href="/">Back</a>
-    <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show History</span>
-    <input id="toggle_visible" type="checkbox" {% if n_hidden %} checked {% endif %}><span class="checkboxtext">Include hidden</span>
+    <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show history</span>
+    <input id="toggle_visible" type="checkbox" {% if show_hidden %} checked {% endif %}><span class="checkboxtext">Include hidden</span>
+    <input id="toggle_templates" type="checkbox" checked="on"><span class="checkboxtext">Show templates</span>
     <button id="new_exp">Start new experiment</button><br>
     <hr>
   </div>
   <div id="main_box">
     <div id='leftpane'>
-      <a>{{ n_entries }} saved task entry records shown below{% if n_hidden %} ({{ n_hidden }} hidden) {% endif %}</a>
+      <a>{{ n_entries }} saved task entry records shown below{% if show_hidden %} ({{ n_hidden }} hidden) {% endif %}</a>
       <table id='main' style="direction:ltr;">
         <thead>
         <tr id="te_table_header">
@@ -194,6 +206,22 @@
         </div>
 
         <tbody>
+        <!-- Templates -->
+        {% for e in templates %}
+          {% if e.visible %}
+            <tr title="{{e.desc}}" id='row{{e.id}}' class='template'>
+          {% else %}
+            <tr title="{{e.desc}}" id='row{{e.id}}' class='template' style="background-color: gray">
+          {% endif %}
+          {% if e == templates|first %}
+              <td class='colDate' rowspan={{templates|length}} colspan=2>Templates</td>
+          {% endif %}
+              <td class='colID'   >{{e.ui_id}}</td>
+              <td class='colSubj' >{{e.subject.name}}</td>
+              <td class='colTask' >{{e.task.name}}</td>
+              <td class='colShortDesc'>{{e.desc}}</td>
+            </tr>
+        {% endfor %}
           <tr id='newentry' class='rowactive'>
             <td id="newentry_today" onclick="$('#date_entry_modal').css('display', 'block')">Today</td>
             <td id="newentry_now">Now</td>
@@ -211,25 +239,7 @@
               </select>
             </td>
           </tr>
-        <!-- Templates -->
-        {% for e in templates %}
-          {% if e.visible %}
-            <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
-          {% else %}
-            <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %} style="background-color: gray">
-          {% endif %}
-          {% if e == templates|first %}
-              <td class='colDate' rowspan={{templates|length}}>Templates</td>
-          {% endif %}
-              <td class='colTime' ></td>
-              <td class='colID'   >{{e.ui_id}}</td>
-              <td class='colSubj' >{{e.subject.name}}</td>
-              <td class='colTask' >{{e.task.name}}</td>
-              <td class='colShortDesc'>{{e.desc}}</td>
-            </tr>
-        {% endfor %}
-            <tr id='divider' style="display: none"></tr>
-
+          <tr name='hidden' style="display: none"></tr>
         <!-- Task entries -->
         {% for e in entries %}
         {% if e.visible %}
@@ -269,7 +279,7 @@
 
           <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()">
           <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null; $('.colShortDesc').show()">Clear content</button>
-          <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Remove entry</button><br>
+          <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Delete entry</button><br>
 
           <div id="finished_task_buttons">
             <input id="copybtn" class="btn" type="button" value="Copy parameters">

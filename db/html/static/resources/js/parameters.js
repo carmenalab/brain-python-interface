@@ -64,7 +64,7 @@ Parameters.prototype.update = function(desc) {
             fn(name, desc[name]); // call the function
         }
         else
-            console.log(desc[name]['type']);
+            debug(desc[name]['type']);
     }
 
     this.show_all_attrs();
@@ -80,6 +80,14 @@ Parameters.prototype.show_all_attrs = function() {
     }
 
 }
+
+Parameters.prototype.enable = function() {
+    $(this.obj).find("input, select, checkbox").removeAttr("disabled");
+}
+Parameters.prototype.disable = function() {
+    $(this.obj).find("input, select, checkbox").attr("disabled", "disabled");
+}
+
 /*
 Function to add an attribute row and label where the 'visibility' attribute of the label can be toggled
 */
@@ -170,7 +178,7 @@ Parameters.prototype.add_int = function (name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_float = function (name, info) {
-    //console.log(info)
+    //debug(info)
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
@@ -190,7 +198,7 @@ Parameters.prototype.add_float = function (name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_bool = function (name, info) {
-    //console.log(info)
+    //debug(info)
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
@@ -252,7 +260,7 @@ Parameters.prototype.add_string = function (name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_instance = function(name, info) {
-    //console.log(info)
+    //debug(info)
     var options = info['options'];
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
@@ -275,7 +283,7 @@ Parameters.prototype.add_instance = function(name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_enum = function(name, info) {
-    //console.log(info)
+    //debug(info)
     var options = info['options'];
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
