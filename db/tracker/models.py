@@ -705,8 +705,6 @@ class TaskEntry(models.Model):
         for name in system_names:
             js['datafiles'][name] = [d.get_path() + ' (backup status: %s)' % d.backup_status for d in datafiles if d.system.name == name]
 
-        js['datafiles']['sequence'] = issubclass(Exp, experiment.Sequence) and len(self.sequence.sequence) > 0
-
         # Parse the "report" data and put it into the JS response
         js['report'] = self.offline_report()
 

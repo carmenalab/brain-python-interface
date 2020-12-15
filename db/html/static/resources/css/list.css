@@ -78,7 +78,7 @@ div#main_box {
 
 /* Left hand table styling */
 div#leftpane { 
-	width : 640px;
+	width : 940px;
 	overflow:auto;
 }
 
@@ -130,28 +130,33 @@ table#main th {
 }
 
 .colDate {
-    width : 50px;
+    width : 100px;
     background: #FFF;
 }
 
 .colTime {
-	width : 75px;
+	width : 90px;
 }
 
 .colID {
-	width : 100px;
+	width : 190px;
 }
 
 .colSubj {
-	width : 50px;
+	width : 90px;
 	font-size : 10pt;
 	font-family:Arial;
 }
 
 .colTask {
-	width : 100px;
+	width : 150px;
 	text-align : left;
 }
+
+.colShortDesc {
+	width: 320px;
+}
+
 #subjects, #tasks {
 	width : auto;
 	text-align : left;

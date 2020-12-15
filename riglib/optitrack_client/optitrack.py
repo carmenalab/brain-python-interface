@@ -80,7 +80,7 @@ class RigidBody():
 
 class SimulatedClient():
 
-    def __init__(self, n=1, radius=(20,4,10), speed=(5,1,2)):
+    def __init__(self, n=1, radius=(0.2,0.04,0.1), speed=(0.5,1,2)):
         self.stime = time.time()
         self.n = n
         self.radius = radius

@@ -313,24 +313,24 @@ Files.prototype.update_filelist = function(datafiles, task_entry_id) {
     this.filelist = document.createElement("ul");
 
     for (var sys in datafiles) {
-        if (sys == "sequence") {
-            // Do nothing. No point in showing the sequence..
-        } else {
-            // info.datafiles[sys] is an array of files for that system
-            for (var i = 0; i < datafiles[sys].length; i++) {
-                // Create a list element to hold the file name
-                var file = document.createElement("li");
-                file.textContent = datafiles[sys][i];
-                this.filelist.appendChild(file);
-                numfiles++;
-            }
+        for (var i = 0; i < datafiles[sys].length; i++) {
+            // Create a list element to hold the file name
+            var file = document.createElement("li");
+            file.textContent = datafiles[sys][i];
+            this.filelist.appendChild(file);
+            numfiles++;
         }
     }
 
     if (numfiles > 0) {
         // Append the files onto the #files field
         $("#file_list").append(this.filelist);
-        this.neural_data_found = true;
+        for (var sys in datafiles) {
+            if (sys != "hdf") {
+                this.neural_data_found = true;
+                break;
+            }
+        }
     }
 }
 
@@ -342,9 +342,6 @@ function TaskEntry(idx, info) {
     /* Constructor for TaskEntry class
      * idx: string of format row\d\d\d where \d\d\d represents the string numbers of the database ID of the block
      */
-
-    // hide short descriptions
-    $('.colShortDesc').hide()
 
     // hide the old content
     $("#content").hide();

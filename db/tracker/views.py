@@ -179,10 +179,7 @@ def setup_parameters(request):
         database_objs.append({"name":db, "path":path})
 
     recording_sys = models.KeyValueStore.get("recording_sys")
-    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon']
-
-    recording_sys = models.KeyValueStore.get("recording_sys")
-    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon']
+    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon', 'ecube'] # TODO make this dynamic
 
     return render(request, "setup_parameters.html",
         dict(systems=systems, databases=database_objs, recording_sys=recording_sys,

@@ -82,12 +82,12 @@
           $("#toggle_visible,#toggle_visible+span").show();
           $("#toggle_templates,#toggle_templates+span").show();
           $('#leftpane').show()
-          $('#rightpane').css({'left': "640px", 'top': '0px'});
+          $('#rightpane').css({'left': "640px", 'top': '0px', 'position': 'fixed'});
         } else {
           $("#toggle_visible,#toggle_visible+span").hide();
           $("#toggle_templates,#toggle_templates+span").hide();
           $('#leftpane').hide()
-          $('#rightpane').css({'left': "0px", 'top': 'auto'});
+          $('#rightpane').css({'left': "0px", 'top': 'auto', 'position': 'relative'});
         }
       }
     );
@@ -278,7 +278,7 @@
           {% csrf_token %}
 
           <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()">
-          <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null; $('.colShortDesc').show()">Clear content</button>
+          <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null;">Clear content</button>
           <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Delete entry</button><br>
 
           <div id="finished_task_buttons">
