@@ -1,194 +1,93 @@
 '''
 Generic data sink. Sinks run in separate processes and interact with the main process through code here
 '''
-
 import os
 import inspect
 import traceback
 import multiprocessing as mp
 
-from . import source
-from .mp_proxy import FuncProxy
+from .mp_proxy import FuncProxy, RPCProcess
+from . import singleton
 
-class DataSink(mp.Process):
-    '''
-    Generic single-channel data sink
-    '''
-    def __init__(self, output, **kwargs):
-        '''
-        Constructor for DataSink
-    
-        Parameters
-        ----------
-        output : type
-            data sink class to be implemented in the remote process
-        kwargs : optional kwargs
-            kwargs to instantiate the data sink
-    
-        Returns
-        -------
-        DataSink instance
-        '''
-        super(DataSink, self).__init__()
-        self.output = output
-        self.kwargs = kwargs
-        self.cmd_event = mp.Event()
-        self.cmd_pipe, self._cmd_pipe = mp.Pipe()
-        self.pipe, self._pipe = mp.Pipe()
-        self.status = mp.Value('b', 1) # mp boolean used for terminating the remote process
 
-        self.methods = set(filter(lambda n: inspect.isfunction(getattr(output, n)), dir(output)))
-        # python 2 version: inspect.ismethod doesn't work because the object is not instantiated
-        # self.methods = set(n for n in dir(output) if inspect.ismethod(getattr(output, n)))
-    
-    def run(self):
-        '''
-        Run the sink system in a remote process
+class DataSink(RPCProcess):
+    '''Generic single-channel data sink'''
+    def loop_task(self):
+        if self.data_pipe.poll(0.001):
+            system, data = self.data_pipe.recv()
+            self.target.send(system, data)
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        '''
-        # instantiate the output interface
-        output = self.output(**self.kwargs)
-
-        while self.status.value > 0:
-            if self._pipe.poll(.001):
-                system, data = self._pipe.recv()
-                output.send(system, data)
-
-            if self.cmd_event.is_set():
-                cmd, args, kwargs = self._cmd_pipe.recv()
-                try:
-                    if cmd == "getattr":
-                        ret = getattr(output, args[0])
-                    else:
-                        ret = getattr(output, cmd)(*args, **kwargs)
-                        
-                except Exception as e:
-                    traceback.print_exc(file=open(os.path.expandvars('$BMI3D/log/data_sink_log'), 'a'))
-                    ret = e
-                self.cmd_event.clear()
-                self._cmd_pipe.send(ret)
-        
-        # close the sink if the status bit has been set to 0
-        output.close()
+    def target_destr(self, ret_status, msg):
+        self.target.close()
         print("ended datasink")
-    
-    def __getattr__(self, attr):
-        '''
-        Get the specified attribute of the sink in the remote process
-    
-        Parameters
-        ----------
-        attr : string
-            Name of attribute 
-    
-        Returns
-        -------
-        object:
-            Value of specified named attribute
-        '''
-        methods = object.__getattribute__(self, "methods")
-        if attr in methods:
-            return FuncProxy(attr, self.cmd_pipe, self.cmd_event)
-        else:
-            raise AttributeError("Can't get attribute: %s. Remote methods available: %s" % (attr, str(self.methods)))
 
     def send(self, system, data):
         '''
         Send data to the sink system running in the remote process
-    
+
         Parameters
         ----------
         system : string
-            Name of system (source) from which the data originated 
+            Name of system (source) from which the data originated
         data : object
             Arbitrary data. The remote sink should know how to handle the data
-    
+
         Returns
         -------
         None
         '''
         if self.status.value > 0:
-            self.pipe.send((system, data))
-
-    def stop(self):
-        '''
-        Instruct the sink to stop gracefully by setting the 'status' boolean
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        '''
-        self.status.value = 0
-
-    def __del__(self):
-        '''
-        Stop the remote sink when the object is destructed
-        '''
-        self.stop()
+            self.data_proxy.pipe.send((system, data))
 
 
-class SinkManager(object):
+class SinkManager(singleton.Singleton):
+    __instance = None
     ''' Data Sink manager singleton to be used by features '''
     def __init__(self):
-        '''
-        Constructor for SinkManager
+        '''Don't call this constructor directly. Use SinkManager.get_instance()'''
+        super().__init__()
+        self.reset()
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        '''
+    def reset(self):
         self.sinks = []
         self.sources = []
         self.registrations = dict()
 
-    def start(self, output, **kwargs):
+    def start(self, output, log_filename='', **kwargs):
         '''
-        Docstring
+        Create a new sink and register with it all the known sources.
 
         Parameters
         ----------
-        output : DATA_TYPE
-            ARG_DESCR
+        output : type
+            Data sink target class
         kwargs : optional kwargs
-            ARG_DESCR
+            arguments passed to the data sink target
 
         Returns
         -------
+        sink : DataSink
+            Newly-created data sink
         '''
         print(("sinkmanager start %s"%output))
-        sink = DataSink(output, **kwargs)
+        sink = DataSink(target_class=output, target_kwargs=kwargs, log_filename=log_filename)
         sink.start()
         self.registrations[sink] = set()
         for source, dtype in self.sources:
             sink.register(source, dtype)
             self.registrations[sink].add((source, dtype))
-        
+
         self.sinks.append(sink)
         return sink
 
-    def register(self, system, dtype=None):
+    def register(self, system, dtype=None, **kwargs):
         '''
-        Register a system with all the known sinks
+        Register a source system with all the known sinks
 
         Parameters
         ----------
-        system : source.DataSource, source.MultiChanDataSource, or string 
-            System to register with all the sinks 
+        system : source.DataSource, source.MultiChanDataSource, or string
+            System to register with all the sinks
         dtype : None (deprecated)
             Even if specified, this is overwritten in the 'else:' condition below
 
@@ -196,33 +95,34 @@ class SinkManager(object):
         -------
         None
         '''
-        if isinstance(system, source.DataSource):
+        if hasattr(system, 'name'):
             name = system.name
-            dtype = system.source.dtype
-        elif isinstance(system, source.MultiChanDataSource):
-            name = system.name
-            dtype = system.send_to_sinks_dtype
         elif isinstance(system, str):
             name = system
-        else: 
+        else:
             # assume that the system is a class
-            name = system.__module__.split(".")[1]
-            dtype = system.dtype
+            print("Inferring name", system.__module__.split("."), type(system))
+            name = system.__module__.split(".")[-1]
+
+        if hasattr(system, 'send_to_sinks_dtype'): # used by source.MultiChanDataSource
+            dtype = system.send_to_sinks_dtype
+        elif hasattr(system, 'source'):
+            dtype = system.source.dtype
 
         self.sources.append((name, dtype))
 
         for s in self.sinks:
             if (name, dtype) not in self.registrations[s]:
                 self.registrations[s].add((name, dtype))
-                s.register(name, dtype)
-                
+                s.register(name, dtype, **kwargs)
+
     def send(self, system, data):
         '''
         Send data from the specified 'system' to all sinks which have been registered
 
         Parameters
         ----------
-        system: string 
+        system: string
             Name of the system sending the data
         data: np.array
             Generic data to be handled by each sink. Can be a record array, e.g., for task data.
@@ -233,7 +133,7 @@ class SinkManager(object):
         '''
         for s in self.sinks:
             s.send(system, data)
-    
+
     def stop(self):
         '''
         Run the 'stop' method of all the registered sinks
@@ -243,29 +143,26 @@ class SinkManager(object):
 
     def __iter__(self):
         '''
-        Returns a python iterator to allow looping over all the 
+        Returns a python iterator to allow looping over all the
         registered sinks, e.g., to send them all the same data
         '''
         for s in self.sinks:
             yield s
-
-# Data Sink manager singleton to be used by features
-sinks = SinkManager()
 
 
 class PrintSink(object):
     '''A null sink which directly prints the received data'''
     def __init__(self):
         print("Starting print sink")
-    
+
     def register(self, name, dtype):
         print(("Registered name %s with dtype %r"%(name, dtype)))
-    
+
     def send(self, system, data):
         print(("Received %s data: \n%r"%(system, data)))
-    
+
     def sendMsg(self, msg):
         print(("### MESSAGE: %s"%msg))
-    
+
     def close(self):
         print("Ended print sink")

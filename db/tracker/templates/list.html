@@ -27,7 +27,7 @@
   $(document).ready(function() {
     $("table#main tr").each(function() {
       // Register a click callback for each row of the 'main' table
-      // If you click on the very top row, the id is set to "newentry" 
+      // If you click on the very top row, the id is set to "newentry"
       // so it knows to create a "blank" TaskEntry
       // Otherwise, the row will have an 'id' of format 'row\d\d\d\d'
       $(this).click(function() {
@@ -46,56 +46,67 @@
     })
 
     $("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
-
     $("#hidebtn").change(
       function () {
-        if (this.checked) {
-          console.log("Showing task entry " + te.idx);
-          $.get("ajax/show_entry/"+te.idx, 
-            {}, 
-            function() {
-              $("#row" + te.idx).css('background-color', 'white');
-            }
-          );          
-        } else {
-          console.log("Hiding task entry " + te.idx);
-          $.get("ajax/hide_entry/"+te.idx, 
-            {}, 
-            function() {
-              $("#row" + te.idx).css('background-color', 'gray');
-              te.destroy();
-            }
-          );
-        }
+        te.toggle_visible();
       }
     );
 
     $("#backupbtn").change(
       function () {
-        if (this.checked) {
-          $.get("/ajax/backup_entry/"+te.idx);
-        } else {
-          $.get("/ajax/unbackup_entry/"+te.idx);
-        }
+        te.toggle_backup();
       }
     );
 
+    $("#templatebtn").change(
+      function () {
+        te.toggle_template();
+      }
+    )
+
+    // these are wrapped in a function because 'te' is null to start
+    $("#startbtn").click(function() { te.start();});
+    $("#testbtn").click(function() { te.test();});
+    $("#stopbtn").click(function() { te.stop();});
+    $("#saverecbtn").click(function() { te.saverec();});
     // these all function as form submit buttons for the experiment form
-    $("#startbtn").click(function() {return te.start();})
-    $("#testbtn").click(function() {return te.test();})
-    $("#stopbtn").click(function() {return te.stop();})
-    $("#saverecbtn").click(function() {return te.saverec();})
+    //$("#startbtn").click(function() { te.start();})
+    //$("#testbtn").click(function() { te.test();})
+    //$("#stopbtn").click(function() { te.stop();})
+    //$("#saverecbtn").click(function() { te.saverec();})
     // $("#pausebtn").click(function() { taskaction = "pause"; return te["pause"]();})
 
     $("#toggle_table").change(
       function() {
         if (this.checked) {
+          $("#toggle_visible,#toggle_visible+span").show();
+          $("#toggle_templates,#toggle_templates+span").show();
           $('#leftpane').show()
-          $('#rightpane').css('margin-left', "540px");
+          $('#rightpane').css({'left': "640px", 'top': '0px', 'position': 'fixed'});
         } else {
+          $("#toggle_visible,#toggle_visible+span").hide();
+          $("#toggle_templates,#toggle_templates+span").hide();
           $('#leftpane').hide()
-          $('#rightpane').css('margin-left', "0px");
+          $('#rightpane').css({'left': "0px", 'top': 'auto', 'position': 'relative'});
         }
+      }
+    );
+
+    $("#toggle_visible").change(
+      function() {
+        if (this.checked)
+          location.href = "?show_hidden";
+        else
+          location.href = "?";
+      }
+    );
+
+    $("#toggle_templates").change(
+      function() {
+        if (this.checked)
+          $("tr.template").show();
+        else
+          $("tr.template").hide();
       }
     );
 
@@ -111,12 +122,12 @@
                 // visible ('v')
                 console.log('changing TE visibility');
                 te.toggle_visible();
-            } else if (event.keyCode == 66) { 
+            } else if (event.keyCode == 66) {
                 // backup ('b')
                 console.log('changing TE backup flag');
                 te.toggle_backup();
             } else if(event.keyCode == 37) {
-                // left 
+                // left
                 var prev_table_row = $('#row' + te.idx).prev();
                 var prev_table_row_id = prev_table_row.attr('id');
                 if (!(prev_table_row_id == "newentry")) {
@@ -145,6 +156,14 @@
       }
     }
 
+    {% if status == "running" and saveid %}
+    // If there is a task already running, then immediately open the taskentry and change the status
+    te = new TaskEntry({{saveid}});
+    {% elif status == "testing" %}
+    te = new TaskEntry(null);
+    reset_date_on_new_task();
+    task_interface.trigger.bind(te)({status: "testing"});
+    {% endif %}
   })
 
   function reset_date_on_new_task() {
@@ -155,12 +174,17 @@
 </head>
 
 <body>
-  <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show History</span><br>
+  <div id="banner">
+    <a href="/">Back</a>
+    <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show history</span>
+    <input id="toggle_visible" type="checkbox" {% if show_hidden %} checked {% endif %}><span class="checkboxtext">Include hidden</span>
+    <input id="toggle_templates" type="checkbox" checked="on"><span class="checkboxtext">Show templates</span>
+    <button id="new_exp">Start new experiment</button><br>
+    <hr>
+  </div>
   <div id="main_box">
     <div id='leftpane'>
-      {{ n_blocks }} saved task entry records shown below<br>
-      <button id="new_exp">Start new experiment</button>
-      <hr>
+      <a>{{ n_entries }} saved task entry records shown below{% if show_hidden %} ({{ n_hidden }} hidden) {% endif %}</a>
       <table id='main' style="direction:ltr;">
         <thead>
         <tr id="te_table_header">
@@ -182,6 +206,22 @@
         </div>
 
         <tbody>
+        <!-- Templates -->
+        {% for e in templates %}
+          {% if e.visible %}
+            <tr title="{{e.desc}}" id='row{{e.id}}' class='template'>
+          {% else %}
+            <tr title="{{e.desc}}" id='row{{e.id}}' class='template' style="background-color: gray">
+          {% endif %}
+          {% if e == templates|first %}
+              <td class='colDate' rowspan={{templates|length}} colspan=2>Templates</td>
+          {% endif %}
+              <td class='colID'   >{{e.ui_id}}</td>
+              <td class='colSubj' >{{e.subject.name}}</td>
+              <td class='colTask' >{{e.task.name}}</td>
+              <td class='colShortDesc'>{{e.desc}}</td>
+            </tr>
+        {% endfor %}
           <tr id='newentry' class='rowactive'>
             <td id="newentry_today" onclick="$('#date_entry_modal').css('display', 'block')">Today</td>
             <td id="newentry_now">Now</td>
@@ -199,24 +239,30 @@
               </select>
             </td>
           </tr>
+          <tr name='hidden' style="display: none"></tr>
+        <!-- Task entries -->
         {% for e in entries %}
+        {% if e.visible %}
           <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %}>
-            {% if e.html_date %}
-              <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
-              <td class='colTime firstRowOfday' >{{e.html_time}}</td>
-              <td class='colID firstRowOfday'   >{{e.ui_id}}</td>
-              <td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
-              <td class='colTask firstRowOfday' >{{e.task.name}}</td>
-              <td class='colShortDesc firstRowOfday'>{{e.desc}}</td>
-            {% else %}
-              <td class='colTime' >{{e.html_time}}</td>
-              <td class='colID'   >{{e.ui_id}}</td>
-              <td class='colSubj' >{{e.subject.name}}</td>
-              <td class='colTask' >{{e.task.name}}</td>
-              <td class='colShortDesc'>{{e.desc}}</td>
-            {% endif %}
+        {% else %}
+          <tr title="{{e.desc}}" id='row{{e.id}}' {% if e.id == running %} class='running' {% endif %} style="background-color: gray">
+          {% endif %}
+              {% if e.html_date %}
+                <td class='colDate firstRowOfday' rowspan={{e.rowspan}}>{{e.html_date}}</td>
+                <td class='colTime firstRowOfday' >{{e.html_time}}</td>
+                <td class='colID firstRowOfday'   >{{e.ui_id}}</td>
+                <td class='colSubj firstRowOfday' >{{e.subject.name}}</td>
+                <td class='colTask firstRowOfday' >{{e.task.name}}</td>
+                <td class='colShortDesc firstRowOfday'>{{e.desc}}</td>
+              {% else %}
+                <td class='colTime' >{{e.html_time}}</td>
+                <td class='colID'   >{{e.ui_id}}</td>
+                <td class='colSubj' >{{e.subject.name}}</td>
+                <td class='colTask' >{{e.task.name}}</td>
+                <td class='colShortDesc'>{{e.desc}}</td>
+              {% endif %}
 
-          </tr>
+            </tr>
         {% endfor %}
         </tbody>
       </table>
@@ -226,18 +272,20 @@
             <img id="wait_wheel_img" src="{{ STATIC_PREFIX }}resources/images/ajax-loader.gif" alt="HTML5 Icon">
         </div>
 
-    <div id="rightpane">
+    <div id="rightpane" style="left: 640px;">
       <div id='content' class="active">
         <form id="experiment" method="post" action="javascript:void();" accept-charset="utf-8">
           {% csrf_token %}
 
           <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()">
-          <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null; $('.colShortDesc').show()">Clear content</button><br>
+          <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null;">Clear content</button>
+          <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Delete entry</button><br>
 
           <div id="finished_task_buttons">
             <input id="copybtn" class="btn" type="button" value="Copy parameters">
             <input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
             <input id="backupbtn" type="checkbox" checked="on" name="hist_checkbox">Flagged for backup?
+            <input id="templatebtn" type="checkbox" checked="on" name="hist_checkbox">Use as template
           </div>
 
           <div id="start_buttons">
@@ -248,7 +296,7 @@
 
           <div id="stop_buttons">
             <input id="stopbtn" class="btn startbtn" type="submit" value="Stop Experiment">
-          </div>         
+          </div>
 
           <div class="clear"></div>
 
@@ -297,7 +345,6 @@
                 </table>
 
                 <div id="seqparams">
-                  Parameters
                 </div>
 
                 <div id="seqstatic_div" class="clear">
@@ -307,7 +354,7 @@
               </fieldset> <!-- sequence -->
 
               <fieldset id="parameters">
-                <input id="show_params" type="checkbox" checked="off" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?   
+                <input id="show_params" type="checkbox" onclick="javascript:te.params.show_all_attrs();">Show All Parameters?   
                 <legend>Parameters</legend>
                 <!-- <table id="params_table">
                 </table> -->
@@ -315,6 +362,13 @@
             </div>
 
             <div class="rightside">
+
+              <fieldset id="controls">
+                <legend>Controls</legend>
+                <table id="controls_table">
+                </table>
+              </fieldset>
+
               <fieldset id="report">
                 <legend>Report</legend>
                 <div id="report_div">
@@ -326,7 +380,7 @@
                     <pre id="stdout"></pre>
                   </div>
 
-                  
+
                   <div class="clear"></div>
                 </div>
               </fieldset>
@@ -336,7 +390,7 @@
                 <div id="annot_div">
                   Misc. annotation: <input type="text" id="misc_annotation" width="20"><input type="button" value="Save" onclick="record_annotation($('#misc_annotation').val())"><br>
                 </div>
-              </fieldset>             
+              </fieldset>
 
               <fieldset id="notes">
                 <legend>Notes</legend>
@@ -374,7 +428,7 @@
                           </select><br>
                           Data<br>
                           <textarea rows="10" cols="50" id="new_file_raw_data">
-                          </textarea>                          
+                          </textarea>
                         </td>
                     </table>
 
@@ -389,7 +443,7 @@
 
                     <div id="file_modal_server_resp"></div>
                     <br>
-                    
+
                     <button id="submit_files_to_link" onclick="te.link_new_files();">Add file</button>
                   </div>
 
@@ -505,7 +559,7 @@
                                   {% endfor %}
                               </select>
                           </td>
-                      </tr>  
+                      </tr>
                       <!-- Select whether to zscore data or not -->
                       <tr>
                           <td>
@@ -518,7 +572,7 @@
                                   {% endfor %}
                               </select>
                           </td>
-                      </tr>        
+                      </tr>
                       <!-- Slider for specifying the time range of the block to use for training the decoder-->
                       <tr>
                           <td id='tselect' colspan='2'>
@@ -574,7 +628,7 @@
                           <td colspan='3'><textarea id='channelnames'></textarea>
                           </td>
                       </tr>
-                  </table> 
+                  </table>
               </fieldset> <!-- BMI -->
 
 

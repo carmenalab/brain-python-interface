@@ -1,5 +1,5 @@
 
-var log_mode = 5
+var log_mode = 2
 
 function log(msg, level) {
     if (level <= log_mode) {
@@ -11,28 +11,29 @@ function debug(msg) {
     log(msg, 5);
 }
 
-
-
-
-var report_activation = null;
+function remove_entries(start, end) { // for debugging
+    for (i=start; i<end; i++) $.ajax("ajax/remove_entry/"+i);
+}
 
 //
 // TaskInterface class
 //
 function interface_fn_completed() {
-    console.log("state = completed");
+    log("state = completed", 2);
     $(window).unbind("unload");
-    this.tr.addClass("rowactive active");
-    $(".active").removeClass("running error testing");
+    this.tr.removeClass("running error testing").addClass("rowactive active");
+    $("#content").removeClass("running error testing");
     this.disable();
     $("#start_buttons").hide()
     $("#stop_buttons").hide();
     $("#finished_task_buttons").show();
     $("#bmi").hide();
     
-
     $("#report").show()
     $("#notes").show()      
+    this.controls.deactivate();
+    this.report.deactivate();
+    this.report.set_mode("completed");
 
     // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
     if (this.__date) {
@@ -41,38 +42,38 @@ function interface_fn_completed() {
         });
     }
 
-    if (this.start_button_pressed) {
-        setTimeout(
-            function () {
-                te.report.deactivate();
-                clearTimeout(report_activation);
-                te = new TaskEntry(te.idx);
-            },
-            3000
-        );
-    }
+    // If we just finished running, reload the info from the server
+    if (this.start_button_pressed) setTimeout(function(){ te.reload(); }, 1000);
 }
 
 function interface_fn_stopped() {
-    console.log("state = stopped")
+    log("state = stopped", 2)
     $(window).unbind("unload");
-    $(".active").removeClass("running error testing");
-    this.tr.addClass("rowactive active");
+    $("#content").removeClass("running error testing");
+    this.tr.removeClass("running error testing").addClass("rowactive active");
     this.enable();
     $("#stop_buttons").hide();
     $("#start_buttons").show();
     $("#finished_task_buttons").hide();
-    clearTimeout(report_activation);
     $("#bmi").hide();
 
     $("#report").show()
     $("#notes").hide()
+    this.controls.deactivate();
+
+    // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
+    if (this.__date) {
+        this.__date.each(function(index, elem) {
+            $(this).css('background-color', '#FFF');
+        });
+    }
 }
 
 function interface_fn_running(info) {
-    console.log("state = running")
+    log("state = running", 2)
     $(window).unbind("unload"); // remove any bindings to 'stop' methods when the page is reloaded (these bindings are added in the 'testing' mode)
-    $(".active").removeClass("error testing").addClass("running");
+    this.tr.removeClass("error testing").addClass("running");
+    $('#content').removeClass("error testing").addClass("running");
     this.disable();
     $("#stop_buttons").show()
     $("#start_buttons").hide();
@@ -81,15 +82,24 @@ function interface_fn_running(info) {
     this.report.activate();
 
     $("#report").show()
-    $("#notes").show()              
+    $("#notes").show()   
+    this.controls.activate();   
+    
+    // Hack fix. When you select a block from the task interface, force the 'date' column to still be white
+    if (this.__date) {
+        this.__date.each(function(index, elem) {
+            $(this).css('background-color', '#FFF');
+        });
+    }
 }
 
 function interface_fn_testing(info) {
-    console.log("state = testing");
+    log("state = testing", 2);
     // if you navigate away from the page during 'test' mode, the 'TaskEntry.stop' function is set to run
     $(window).unload(te.stop);
 
-    $(".active").removeClass("error running").addClass("testing");
+    this.tr.removeClass("error running").addClass("testing");
+    $('#content').removeClass("error running").addClass("testing");
     te.disable(); // disable editing of the exp_content interface
 
     $("#stop_buttons").show();
@@ -100,35 +110,38 @@ function interface_fn_testing(info) {
 
     $("#report").show();
     $("#notes").hide();
+    this.controls.activate();
 }
 
 function interface_fn_error(info) {
-    console.log("state = error");
+    log("state = error", 2);
     $(window).unbind("unload");
-    $(".active").removeClass("running testing").addClass("error");
+    this.tr.removeClass("running testing").addClass("error");
+    $('#content').removeClass("running testing").addClass("error");
     this.disable();
     $("#start_buttons").hide();
     $("#finished_task_buttons").show();
     $("#bmi").hide();
     this.report.deactivate();
-    clearInterval(report_activation);
 
     $("#report").show()
+    this.controls.deactivate();
 }
 function interface_fn_errtest(info) {
-    console.log("state = errtest");
+    log("state = errtest", 2);
 
     $(window).unbind("unload");
-    $(".active").removeClass("running testing").addClass("error");
+    this.tr.removeClass("running testing").addClass("error");
+    $('#content').removeClass("running testing").addClass("error");
     this.enable();
     $("#stop_buttons").hide();
     $("#start_buttons").show();
     $("#finished_task_buttons").hide();
     $("#bmi").hide();
     this.report.deactivate();
-    clearInterval(report_activation);
 
     $("#report").show()
+    this.controls.deactivate();
 }
 
 function TaskInterfaceConstructor() {
@@ -136,40 +149,50 @@ function TaskInterfaceConstructor() {
     var state = "";
     var lastentry = null;
 
+    // 'this' is always bound to the active task entry before calling
+    // The 'trigger' function is usually called as a callback, either through
+    // changes in Report data from the server or button presses
     this.trigger = function(info) {
         debug("TaskInterfaceConstructor.trigger");
+        debug(this)
+        debug(info)
         if (this != lastentry) {
-            if (lastentry) {
-                $(window).unload(); // direct away from the page. This stops testing runs, just in case.. TODO not sure if this works with no arguments
-                lastentry.tr.removeClass("rowactive active");
-
-                // TODO related to clicking a different task entry than the one already highlighted?
-                lastentry.destroy();
+            debug(2)
+            if (lastentry && !lastentry.destroyed) {
+                $(window).unload(); // direct away from the page. This stops testing runs, just in case..
+                lastentry.destroy(); // remove the previously highlighted entry
             }
-            states[this.status].bind(this)(info);
-            lastentry = this;
             state = this.status;
+            states[state].bind(this)(info);
+            lastentry = this;
         }
-        
-        var transitions = triggers[state];
-        for (var next in transitions) {
-            if (transitions[next].bind(this)(info)) {
-                states[next].bind(this)(info);
-                this.status = next;
-                state = next;
+
+        var transitions = fsm_transition_table[state];
+        for (var next_state in transitions) {
+            let _test_next_state = transitions[next_state].bind(this);
+            if (_test_next_state(info)) {
+                debug("executing transition...");
+                debug(info)
+                let _start_next_state = states[next_state].bind(this);
+                _start_next_state(info);
+                this.status = next_state;
+                state = next_state;
                 return;
             }
         }
+        debug("No transition found!");
     };
 
-    var triggers = {
+    var fsm_transition_table = {
         "completed": {
             stopped: function(info) { return this.idx == null; },
+            running: function(info) { return info.status == "running"; },
+            testing: function(info) { return info.status == "testing"; },
             error: function(info) { return info.status == "error"; }
         },
         "stopped": {
             running: function(info) { return info.status == "running"; },
-            testing: function(info) {return info.status == "testing"; }, 
+            testing: function(info) {return info.status == "testing"; },
             errtest: function(info) { return info.status == "error"; }
         },
         "running": {
@@ -202,7 +225,7 @@ function TaskInterfaceConstructor() {
 }
 
 
-var TaskInterface = new TaskInterfaceConstructor();
+var task_interface = new TaskInterfaceConstructor();
 
 function create_annotation_callback(annotation_str) {
     return function() {record_annotation(annotation_str)}
@@ -211,7 +234,7 @@ function create_annotation_callback(annotation_str) {
 function record_annotation(annotation) {
     debug("calling record_annotation: " + annotation)
     $.post("record_annotation", {"annotation": annotation}, function(resp) {
-        console.log("Annotation response", resp)
+        debug("Annotation response", resp)
     })
 }
 
@@ -243,7 +266,7 @@ function Annotations() {
     }
 
     this.update_from_server = function(taskid, sel_feats) {
-        $.getJSON("ajax/task_info/"+taskid+"/", sel_feats, 
+        $.getJSON("ajax/task_info/"+taskid+"/", sel_feats,
             function(taskinfo) {
                 this.update(taskinfo);
             }.bind(this)
@@ -290,30 +313,25 @@ Files.prototype.update_filelist = function(datafiles, task_entry_id) {
     this.filelist = document.createElement("ul");
 
     for (var sys in datafiles) {
-        if (sys == "sequence") { 
-            // Do nothing. No point in showing the sequence..
-        } else {  
-            // info.datafiles[sys] is an array of files for that system
-            for (var i = 0; i < datafiles[sys].length; i++) {
-                // Create a list element to hold the file name
-                var file = document.createElement("li");
-                file.textContent = datafiles[sys][i];
-                this.filelist.appendChild(file);
-                numfiles++;
-            }
+        for (var i = 0; i < datafiles[sys].length; i++) {
+            // Create a list element to hold the file name
+            var file = document.createElement("li");
+            file.textContent = datafiles[sys][i];
+            this.filelist.appendChild(file);
+            numfiles++;
         }
     }
 
     if (numfiles > 0) {
         // Append the files onto the #files field
         $("#file_list").append(this.filelist);
-
-        for (var sys in datafiles)
-            if ((sys == "plexon") || (sys == "blackrock") || (sys == "tdt")) {
+        for (var sys in datafiles) {
+            if (sys != "hdf") {
                 this.neural_data_found = true;
                 break;
             }
-    }    
+        }
+    }
 }
 
 //
@@ -325,53 +343,55 @@ function TaskEntry(idx, info) {
      * idx: string of format row\d\d\d where \d\d\d represents the string numbers of the database ID of the block
      */
 
-    // hide short descriptions
-    $('.colShortDesc').hide()
-
     // hide the old content
-    $("#content").hide(); 
+    $("#content").hide();
 
+    // Reset HTML fields
+    $("#file_list").empty();
+    $("#content").removeClass("error running testing")
+    $("#files").hide();
+    $('#newentry').hide()
+    $('#te_table_header').click(
+        function() {
+            if (te) te.destroy();
+            te = new TaskEntry(null);
+        }
+    )
+    $("#tasks").unbind("change");
+
+    // Make new widgets
     this.sequence = new Sequence();
     this.params = new Parameters();
-    this.report = new Report(TaskInterface.trigger.bind(this));
+    this.report = new Report(task_interface.trigger.bind(this));
     this.annotations = new Annotations();
     this.files = new Files();
-    
+    this.controls = new Controls();
+    this.controls.hide()
+
     $("#parameters").append(this.params.obj);
     $("#plots").empty()
 
-    console.log("JS constructing task entry", idx)
+    debug("JS constructing task entry", idx)
 
-    if (idx) { 
+    if (idx) {
         // If the task entry which was clicked has an id (stored in the database)
         // No 'info' is provided--the ID is pulled from the HTML
+        this.status = 'completed'
 
         // parse the actual integer database ID out of the HTML object name
         if (typeof(idx) == "number") {
             this.idx = idx;
+            idx = "row" + idx;
         } else {
-            this.idx = parseInt(idx.match(/row(\d+)/)[1]);    
+            this.idx = parseInt(idx.match(/row(\d+)/)[1]);
         }
-        
+
         var id_num = this.idx
 
         // Create a jQuery object to represent the table row
         this.tr = $("#"+idx);
         this.__date = $("#"+idx + " .colDate");
-        console.log(this.__date);
-
-        this.status = this.tr.hasClass("running") ? "running" : "completed";
-        if (this.status == 'running'){
-            this.report.activate();
-        } else {
-            this.tr.addClass("rowactive active");
-        }
-
-        if (this.status == "completed") {
-            this.annotations.hide();
-            this.report.set_mode("completed");
-            this.files.show();
-        }
+        debug(this.__date);
 
         // Show the wait wheel before sending the request for exp_info. It will be hidden once data is successfully returned and processed (see below)
         $('#wait_wheel').show();
@@ -381,9 +401,8 @@ function TaskEntry(idx, info) {
             {}, // POST data to send to the server
             function (expinfo) { // function to run on successful response
                 this.notes = new Notes(this.idx);
-                console.log(this)
+                debug(this)
                 this.update(expinfo);
-                this.disable();
                 $("#content").show("slide", "fast");
 
                 $('#wait_wheel').hide()
@@ -391,100 +410,102 @@ function TaskEntry(idx, info) {
                 // If the server responds with data, disable reacting to clicks on the current row so that things don't get reset
                 this.tr.unbind("click");
 
-                // console.log('setting ')
+                // debug('setting ')
                 this.tr.addClass("rowactive active");
+                $("#newentry").hide();
 
                 // enable editing of the notes field for a previously saved entry
                 $("#notes textarea").removeAttr("disabled");
             }.bind(this)
             ).error(
                 function() {
-                    alert("There was an error accessing task entry " + id_num + ". See terminal for full error message"); 
+                    alert("There was an error accessing task entry " + id_num + ". See terminal for full error message");
                     this.tr.removeClass("rowactive active error");
                     $('#wait_wheel').hide();
                 }.bind(this)
             );
-    } else { 
+    } else {
         // a "new" task entry is being created
         // this code block executes when you click the header of the left table (date, time, etc.)
         this.idx = null;
         $("#entry_name").val("");
-
-        // show the bar at the top left with drop-downs for subject and task
-        this.tr = $("#newentry");
-        this.tr.show();  // declared in list.html
         this.status = "stopped";
-
-        // 
+        this.tr = $("#newentry");
+        this.tr.show(); // make sure the task entry row is visible 
         $('#tr_seqlist').show();
+        
+        if (info) { // if info is present and the id is null, then this block is being copied from a previous block
+            debug('creating a new JS TaskEntry by copy')
+            info.state = "completed";
+            this.update(info);
+            
+            // update the annotation buttons
+            var taskid = $("#tasks").attr("value");
+            var sel_feats = feats.get_checked_features();
+            this.annotations.update_from_server(taskid, sel_feats);
+            this.files.hide();
+        } else { // no id and no info suggests that the table header was clicked to create a new block
+            debug('creating a brand-new JS TaskEntry')
+            feats.clear();
+            this.annotations.hide();
+            this.report.hide();
+            this.files.hide();
+            // task_interface.trigger.bind(this)({state:''});
+        }
 
         // Set 'change' bindings to re-run the _task_query function if the selected task or the features change
         $("#tasks").change(this._task_query.bind(this));
         feats.bind_change_callback(this._task_query.bind(this))
 
-        if (info) { // if info is present and the id is null, then this block is being copied from a previous block
-            console.log('creating a new JS TaskEntry by copy')
-            this.update(info);
+        // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
+        this._task_query(
+            function() {
+                this.enable();
+                $("#content").show("slide", "fast");
+            }.bind(this)
+        );
 
-            // update the annotation buttons
-            var taskid = $("#tasks").attr("value");
-            var sel_feats = feats.get_checked_features();
-            this.annotations.update_from_server(taskid, sel_feats);
-            this.enable();
-            $("#content").show("slide", "fast");
-
-            this.files.hide();
-        } else { // no id and no info suggests that the table header was clicked to create a new block
-            console.log('creating a brand-new JS TaskEntry')
-            feats.clear();
-            this.annotations.hide();
-            this.report.hide();
-            this.files.hide();
-            TaskInterface.trigger.bind(this)({state:''});
-
-            // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
-            this._task_query(
-                function() {
-                    this.enable();
-                    $("#content").show("slide", "fast");
-                }.bind(this)
-            );
-        }
         // make the notes blank and editable
         $("#notes textarea").val("").removeAttr("disabled");
 
         // Disable reacting to clicks on the current row so that the interface doesn't get reset
         this.tr.unbind("click");
         $('te_table_header').unbind("click");
+
+        task_interface.trigger.bind(this)({status: this.status});
     }
-    
+
     this.being_copied = false;
 }
 /* Populate the 'exp_content' template with data from the 'info' object
- */ 
+ */
 TaskEntry.prototype.update = function(info) {
     debug("TaskEntry.prototype.update");
 
     // populate the list of generators
     if (Object.keys(info.generators).length > 0) {
-        console.log('limiting generators')
+        debug('limiting generators')
         this.sequence.update_available_generators(info.generators);
     } else {
-        console.log('not limiting generators!')
+        debug('not limiting generators!')
     }
+
+    this.status = info.state;
 
     // Update all the sub-parts of the exp_content template separately
     this.sequence.update(info.sequence);
     this.params.update(info.params);
-    this.report.update(info.report);
     if (this.notes)
         this.notes.update(info.notes);
     else
         $("#notes").attr("value", info.notes);
-
+    feats.unbind_change_callback();
+    this.report.update(info.report);
+    
     // set the checkboxes for the "visible" and "flagged for backup"
     $('#hidebtn').attr('checked', info.visible);
     $('#backupbtn').attr('checked', info.flagged_for_backup);
+    $('#templatebtn').attr('checked', info.template);
 
     this.expinfo = info;
 
@@ -511,7 +532,7 @@ TaskEntry.prototype.update = function(info) {
     if (this.files.neural_data_found){
         // Create the JS object to represent the BMI menu
         this.bmi = new BMI(this.idx, info.bmi, info.notes);
-    }    
+    }
 
     if (info.sequence) {
         $("#sequence").show()
@@ -519,18 +540,22 @@ TaskEntry.prototype.update = function(info) {
         $("#sequence").hide()
     }
 
-    console.log("TaskEntry.prototype.update done!");
+    if (this.status != "stopped") this.disable();
+    task_interface.trigger.bind(this)({status: this.status});
+
+    debug("TaskEntry.prototype.update done!");
 }
 TaskEntry.prototype.reload = function() {
     this.files.clear();
+
+    if (this.idx == null) return;
 
     $.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
         {}, // POST data to send to the server
         function (expinfo) { // function to run on successful response
             this.notes = new Notes(this.idx);
-            console.log(this)
+            debug(this)
             this.update(expinfo);
-            this.disable();
             $("#content").show("slide", "fast");
 
             $('#wait_wheel').hide()
@@ -538,7 +563,7 @@ TaskEntry.prototype.reload = function() {
             // If the server responds with data, disable reacting to clicks on the current row so that things don't get reset
             this.tr.unbind("click");
 
-            // console.log('setting ')
+            // debug('setting ')
             this.tr.addClass("rowactive active");
 
             // enable editing of the notes field for a previously saved entry
@@ -546,7 +571,7 @@ TaskEntry.prototype.reload = function() {
         }.bind(this)
         ).error(
             function() {
-                alert("There was an error accessing task entry " + id_num + ". See terminal for full error message"); 
+                alert("There was an error accessing task entry " + id_num + ". See terminal for full error message");
                 this.tr.removeClass("rowactive active error");
                 $('#wait_wheel').hide();
             }.bind(this)
@@ -556,28 +581,21 @@ TaskEntry.prototype.reload = function() {
 TaskEntry.prototype.toggle_visible = function() {
     debug("TaskEntry.prototype.toggle_visible")
     var btn = $('#hidebtn');
-    if (btn.attr('checked') == 'checked') {
-        // uncheck the box
-        btn.attr('checked', false);
-
-        // send the data
-        $.get("/ajax/hide_entry/"+this.idx, 
-            {}, 
+    if (btn.is(':checked')) { // is hidden, and we want to show
+        $.get("/exp_log/ajax/show_entry/"+this.idx,
+            {},
             function() {
-                console.log("Hiding task entry " + te.idx);
-                $("#row" + te.idx).css('background-color', 'gray');
+                debug("Showing task entry " + te.idx);
+                $("#row" + te.idx).css({'background-color': 'white'});
             }
         );
-    } else { // is hidden, and we want to show
-        // uncheck the box
-        $('#hidebtn').attr('checked', true);
-
-        // send the data
-        $.get("/ajax/show_entry/"+this.idx, 
-            {}, 
+    } else { // want to hide
+        $.get("/exp_log/ajax/hide_entry/"+this.idx,
+            {},
             function() {
-                console.log("Showing task entry " + te.idx);
-                $("#row" + te.idx).css('background-color', 'white');
+                debug("Hiding task entry " + te.idx);
+                $("#row" + te.idx).css({"background-color": "gray"});
+                te.destroy();
             }
         );
     }
@@ -590,27 +608,38 @@ TaskEntry.prototype.save_name = function() {
 TaskEntry.prototype.toggle_backup = function() {
     debug("TaskEntry.prototype.toggle_backup")
     var btn = $('#backupbtn');
-    if (btn.attr('checked') == 'checked') { // is flagged for backup and we want to unflag
-        // uncheck the box
-        btn.attr('checked', false);
-
-        // send the data
-        $.get("/ajax/unbackup_entry/"+this.idx, 
-            {}, 
+    if (btn.is(':checked')) {  // is hidden, and we want to show
+        $.get("/exp_log/ajax/backup_entry/"+te.idx,
+            {},
             function() {
-                console.log("Unflagging task entry for backup" + te.idx);
+                debug("Flagging task entry for backup" + te.idx);
+        });
+    } else {
+        $.get("/exp_log/ajax/unbackup_entry/"+this.idx,
+            {},
+            function() {
+                debug("Unflagging task entry for backup" + te.idx);
             }
         );
-    } else { // is hidden, and we want to show
-        // uncheck the box
-        btn.attr('checked', true);
+    }
+}
 
-        // send the data
-        $.get("/ajax/backup_entry/"+te.idx,
-            {}, 
+TaskEntry.prototype.toggle_template = function() {
+    debug("TaskEntry.prototype.toggle_template")
+    var btn = $('#templatebtn');
+    if (btn.is(':checked')) {  // is hidden, and we want to show
+        $.get("/exp_log/ajax/template_entry/"+this.idx,
+            {},
             function() {
-                console.log("Flagging task entry for backup" + te.idx);
-            });
+                debug("Flagging task entry as a template: " + te.idx);
+        });
+    } else {
+        $.get("/exp_log/ajax/untemplate_entry/"+this.idx,
+            {},
+            function() {
+                debug("Unflagging task entry as a template: " + te.idx);
+            }
+        );
     }
 }
 
@@ -622,10 +651,12 @@ TaskEntry.copy = function() {
     // start with the info saved in the current TaskEntry object
     var info = te.expinfo;
 
-    info.report = {};          // clear the report data
-    info.datafiles = {};       // clear the datafile data
-    info.notes = "";           // clear the notes
-    
+    if (info != null) {
+        info.report = {};          // clear the report data
+        info.datafiles = {};       // clear the datafile data
+        info.notes = "";           // clear the notes
+    }
+
     te.being_copied = true;
     te = new TaskEntry(null, info);
     $('#report').hide();        // creating a TaskEntry with "null" goes into the "stopped" state
@@ -638,74 +669,41 @@ TaskEntry.prototype.destroy = function() {
     debug("TaskEntry.prototype.destroy")
     $("#content").hide();
 
-    // Destruct the Report object for this TaskEntry
+    // Destruct objects
     this.report.destroy();
-    
-    // Destruct the Sequence object for this TaskEntry 
     if (this.being_copied) {
-        // don't destroy when copying because two objects try to manipulate the 
+        // don't destroy when copying because two objects try to manipulate the
         // Sequence at the same time
         this.sequence.destroy_parameters();
     } else {
-        this.sequence.destroy();    
+        this.sequence.destroy();
     }
-
     this.annotations.destroy();
-
-    // Free the parameters
-    if (this.params) {
-        $(this.params.obj).remove();
-        delete this.params;
-    }
-
-    // Clear out list of files
-    $("#file_list").html("")
+    if (this.params)  $(this.params.obj).remove();
+    if (this.notes) this.notes.destroy();
+    if (this.bmi) this.bmi.destroy();
+    $(this.filelist).remove();
 
     // Remove any designations that this TaskEntry is active/running/errored/etc.
     this.tr.removeClass("rowactive active error");
-    $("#content").removeClass("error running testing")
 
-    // Hide the 'files' field
-    $("#files").hide();
-    $(this.filelist).remove();
-
-    if (this.idx != null) {
-        var idx = "row"+this.idx;
-
-        // re-bind a callback to when the row is clicked
-        this.tr.click(
-            function() {
-                te = new TaskEntry(idx);
-            }
-        )
-
-        // clear the notes field
-        this.notes.destroy();
-
-        // clear the BMI
-        if (this.bmi !== undefined) {
-            this.bmi.destroy();
-            delete this.bmi;
+    // Re-bind a callback to when the row is clicked
+    var idx = this.idx
+    this.tr.click(
+        function() {
+            if (te) te.destroy();
+            te = new TaskEntry(idx);
         }
+    );
 
-    } else {
-        //Remove the newentry row
-        $('#newentry').hide()
+    this.destroyed = true;
+}
 
-        //Rebind the click action to create a blank TaskEntry form
-        this.tr.click(function() {
-            te = new TaskEntry(null);
-        })
-
-        $('#te_table_header').click(
-            function() {
-                te = new TaskEntry(null);      
-            }
-        )
-        //Clean up event bindings
-        feats.unbind_change_callback();
-        $("#tasks").unbind("change");
-    }
+TaskEntry.prototype.remove = function(callback) {
+    debug('TaskEntry.prototype.remove')
+    $.getJSON("ajax/remove_entry/"+this.idx,function() {
+        location.reload();
+    });
 }
 
 TaskEntry.prototype._task_query = function(callback) {
@@ -713,10 +711,10 @@ TaskEntry.prototype._task_query = function(callback) {
     var taskid = $("#tasks").attr("value");
     var sel_feats = feats.get_checked_features();
 
-    $.getJSON("ajax/task_info/"+taskid+"/", sel_feats, 
+    $.getJSON("ajax/task_info/"+taskid+"/", sel_feats,
         function(taskinfo) {
-            console.log("Information about task received from the server");
-            console.log(taskinfo);
+            debug("Information about task received from the server");
+            debug(taskinfo);
 
             this.params.update(taskinfo.params);
             if (taskinfo.sequence) {
@@ -733,8 +731,18 @@ TaskEntry.prototype._task_query = function(callback) {
             if (taskinfo.generators) {
                 this.sequence.update_available_generators(taskinfo.generators);
             }
+
+            if (taskinfo.controls) {
+                this.controls.update(taskinfo.controls);
+            } else {
+                this.controls.update([]);
+            }
         }.bind(this)
     );
+}
+
+function stop_fn_callback(resp) {
+    debug("Stop callback received");
 }
 
 TaskEntry.prototype.stop = function() {
@@ -743,8 +751,7 @@ TaskEntry.prototype.stop = function() {
     debug("TaskEntry.prototype.stop")
     var csrf = {};
     csrf['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value");
-    $.post("stop/", csrf, TaskInterface.trigger.bind(this));
-    console.log("TaskEntry.prototype.stop")
+    $.post("stop/", csrf, task_interface.trigger.bind(this));
 }
 
 /* Callback for the 'Test' button
@@ -774,12 +781,12 @@ TaskEntry.prototype.run = function(save, exec) {
     if (this.report){
         this.report.destroy();
     }
-    this.report = new Report(TaskInterface.trigger.bind(this)); // TaskInterface.trigger is a function. 
+    this.report = new Report(task_interface.trigger.bind(this));
     this.report.activate();
     this.report.set_mode("running");
 
     this.annotations.show();
-    this.files.hide();    
+    this.files.hide();
 
     var form = {};
     form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
@@ -794,10 +801,10 @@ TaskEntry.prototype.run = function(save, exec) {
     } else if (!save && exec) {
         post_url = "/test";
     }
-    
-    $.post(post_url, form, 
+
+    $.post(post_url, form,
         function(info) {
-            TaskInterface.trigger.bind(this)(info);
+            task_interface.trigger.bind(this)(info);
             this.report.update(info);
             if (info.status == "running") {
                 this.new_row(info);
@@ -814,18 +821,19 @@ TaskEntry.prototype.run = function(save, exec) {
     return false;
 }
 
-TaskEntry.prototype.new_row = function(info) { 
+TaskEntry.prototype.new_row = function(info) {
     //
     // Add a row to the left hand side table. This function is run after you start a new task using the 'Start Experiment' button
-    // 
+    //
     debug('TaskEntry.prototype.new_row: ' + info.idx);
-    
+
     this.idx = info.idx;
     this.tr.removeClass("running active error testing")
 
     // make the row hidden (becomes visible when the start or test buttons are pushed)
     this.tr.hide();
     this.tr.click(function() {
+        if (te) te.destroy();
         te = new TaskEntry(null);
     })
     //Clean up event bindings
@@ -838,16 +846,18 @@ TaskEntry.prototype.new_row = function(info) {
     this.tr.attr("id", "row"+info.idx);
 
     // Write the HTML for the table row
-    this.tr.html("<td class='colDate'>Today</td>" + 
-                "<td class='colTime' >--</td>" + 
-                "<td class='colID'   >"+info.idx+"</td>" + 
-                "<td class='colSubj' >"+info.subj+"</td>" + 
+    this.tr.html("<td class='colDate'>Now</td>" +
+                "<td class='colTime' >--</td>" +
+                "<td class='colID'   >"+info.idx+"</td>" +
+                "<td class='colSubj' >"+info.subj+"</td>" +
                 "<td class='colTask' >"+info.task+"</td>");
 
-    
+
     // Insert the new row after the top row of the table
     $("#newentry").after(this.tr);
     this.tr.addClass("active rowactive running");
+    this.tr.find('td').addClass("firstRowOfday");
+    this.tr.next().find('td').removeClass("firstRowOfday");
     this.notes = new Notes(this.idx);
 }
 
@@ -865,7 +875,7 @@ TaskEntry.prototype.get_data = function() {
 }
 TaskEntry.prototype.enable = function() {
     debug("TaskEntry.prototype.enable");
-    $("#parameters input").removeAttr("disabled");
+    this.params.enable();
     feats.enable_entry();
     if (this.sequence)
         this.sequence.enable();
@@ -874,7 +884,7 @@ TaskEntry.prototype.enable = function() {
 }
 TaskEntry.prototype.disable = function() {
     debug("TaskEntry.prototype.disable");
-    $("#parameters input").attr("disabled", "disabled");
+    this.params.disable();
     feats.disable_entry();
     if (this.sequence)
         this.sequence.disable();
@@ -890,12 +900,12 @@ TaskEntry.prototype.link_new_files = function() {
     var file_path = $("#file_path").val();
     var new_file_path = $("#new_file_path").val();
     var new_file_data = $("#new_file_raw_data").val();
-    var new_file_data_format= $("new_file_data_format").val();
+    var new_file_data_format= $("#new_file_data_format").val();
     var browser_sel_file = document.getElementById("file_path_browser_sel").files[0];
 
     if ($.trim(new_file_data) != "" && $.trim(new_file_path) != "") {
         data['file_path'] = new_file_path;
-        data['raw_data'] = new_file_data; 
+        data['raw_data'] = new_file_data;
         data['raw_data_format'] = new_file_data_format;
     } else if (file_path != "") {
         data['file_path'] = file_path;
@@ -909,10 +919,10 @@ TaskEntry.prototype.link_new_files = function() {
         data = {};
     }
 
-    $.post("/exp_log/link_data_files/" + this.idx + "/submit", data, 
+    $.post("/exp_log/link_data_files/" + this.idx + "/submit", data,
         function(resp) {
             $("#file_modal_server_resp").append(resp + "<br>");
-            console.log("posted the file!");
+            debug("posted the file!");
         }
     )
 }
@@ -926,7 +936,7 @@ function Notes(idx) {
     this.activate();
 }
 Notes.prototype.update = function(notes) {
-    //console.log("Updating notes to \""+notes+"\"");
+    //debug("Updating notes to \""+notes+"\"");
     $("#notes textarea").attr("value", notes);
 }
 Notes.prototype.activate = function() {
@@ -939,7 +949,10 @@ Notes.prototype.activate = function() {
 }
 Notes.prototype.destroy = function() {
     // unbind the handler to save notes to the database (see 'activate')
-    $("#notes textarea").unbind("keydown");    
+    $("#notes textarea").unbind("keydown");
+
+    // save one last time
+    this.save();
 
     // clear the text
     $("#notes").val("");
@@ -948,14 +961,72 @@ Notes.prototype.destroy = function() {
     if (this.last_TO != null)
         clearTimeout(this.last_TO);
 
-    // save right at the end
-    this.save();
 }
 Notes.prototype.save = function() {
     this.last_TO = null;
     var notes_data = {
-        "notes"                 : $("#notes textarea").attr("value"), 
+        "notes"                 : $("#notes textarea").attr("value"),
         'csrfmiddlewaretoken'   : $("#experiment input[name=csrfmiddlewaretoken]").attr("value")
     };
     $.post("ajax/save_notes/"+this.idx+"/", notes_data);
+    log("Saved notes", 2);
+}
+
+//
+// Controls class
+//
+
+function create_control_callback(control_str) {
+    return function() {trigger_control(control_str)}
+}
+
+function trigger_control(control) {
+    debug("Triggering control: " + control)
+    $.post("trigger_control", {"control": control}, function(resp) {
+        debug("Control response", resp)
+    })
+}
+
+function Controls() {
+    this.control_list = [];
+}
+Controls.prototype.update = function(controls) {
+    debug("Updating controls");
+    $("#controls_table").html('');
+    this.control_list = [];
+    for (var i = 0; i < controls.length; i += 1) {
+        var new_button = $('<button/>',
+            {
+                text: controls[i],
+                id: "controls_btn_" + i.toString(),
+                click: create_control_callback(controls[i]),
+                type: "button"
+            }
+        );
+
+        var new_break = $("<br>");
+
+        $("#controls_table").append(new_button);
+        $("#controls_table").append(new_break);
+        this.control_list.push(new_button);
+    }
+    if (this.control_list.length > 0) this.show();
+    else this.hide();
+}
+Controls.prototype.hide = function() {
+    $("#controls").hide();
+}
+Controls.prototype.show = function() {
+    if (this.control_list.length > 0) $("#controls").show();
+    this.deactivate();
+}
+Controls.prototype.activate = function() {
+    for (var i = 0; i < this.control_list.length; i += 1) {
+        $(this.control_list[i]).prop('disabled', false)
+    }
+}
+Controls.prototype.deactivate = function() {
+    for (var i = 0; i < this.control_list.length; i += 1) {
+        $(this.control_list[i]).prop('disabled', true);
+    }
 }

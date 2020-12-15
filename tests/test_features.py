@@ -1,8 +1,7 @@
 from riglib import experiment
-from built_in_tasks.manualcontrolmultitasks import ManualControlMulti
-from built_in_tasks.bmimultitasks import BMIControlMulti2DWindow
+from built_in_tasks.manualcontrolmultitasks import ManualControl
 from riglib.stereo_opengl.window import WindowDispl2D
-from features.peripheral_device_features import KeyboardControl, MouseControl, MouseBMI
+from features.peripheral_device_features import KeyboardControl, MouseControl, MouseJoystick
 from features.arduino_features import FakeGPIOFeature, ArduinoGPIOFeature
 from features.laser_features import DigitalWave, LaserTrials
 import numpy as np
@@ -12,7 +11,7 @@ import unittest
 def init_exp(base_class, feats):
     blocks = 1
     targets = 3
-    seq = ManualControlMulti.centerout_2D_discrete(blocks, targets)
+    seq = ManualControl.centerout_2D_discrete(blocks, targets)
     Exp = experiment.make(base_class, feats=feats)
     exp = Exp(seq)
     exp.init()
@@ -25,22 +24,22 @@ class TestKeyboardControl(unittest.TestCase):
     
     @unittest.skip("msg")
     def test_exp(self):
-        exp = init_exp(ManualControlMulti, [KeyboardControl, WindowDispl2D])
+        exp = init_exp(ManualControl, [KeyboardControl, WindowDispl2D])
         exp.run()
 
 class TestMouseControl(unittest.TestCase):
 
     @unittest.skip("msg")
     def test_exp(self):
-        exp = init_exp(ManualControlMulti, [MouseControl, WindowDispl2D])
+        exp = init_exp(ManualControl, [MouseControl, WindowDispl2D])
         exp.run()
 
-class TestMouseBMI(unittest.TestCase):
+class TestMouseJoystick(unittest.TestCase):
     
-    @unittest.skip("msg")
+    #@unittest.skip("msg")
     def test_exp(self):
-        exp = init_exp(BMIControlMulti2DWindow, [MouseBMI])
-
+        exp = init_exp(ManualControl, [MouseJoystick, WindowDispl2D])
+        exp.run()
 
 class TestLaser(unittest.TestCase):
     
@@ -52,6 +51,7 @@ class TestLaser(unittest.TestCase):
         laser1.start()
         laser1.join()
 
+    @unittest.skip("Need arduino connected for this to pass")
     def test_arduino(self):
         exp = ArduinoGPIOFeature()
         laser = DigitalWave(exp.gpio, pin=10)

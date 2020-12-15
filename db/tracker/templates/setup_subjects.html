@@ -1,0 +1,28 @@
+{% extends 'setup_base.html' %}
+
+{% block content %}
+<h2>Subjects</h2>
+<table class="table table-hover table-sm" style="width: auto;" id="subject-table">
+  <thead>
+    <th>Index</th><th>Name</th>
+  </thead>
+
+  <!-- Row to add new subjects -->
+  <tr id="new-subject-row">
+    <td><input type="submit" value="Add New" onclick="add_new_subject()"></td>
+    <td><input type="text" id="new_subject_name"></td>
+    <td></td>
+  </tr>
+
+  {% for subject in subjects %}
+  <tr id="subject_{{subject.id}}">
+    <td>{{subject.id}}</td>
+    <td>{{subject.name}}</td>
+    <td>
+      <input type="submit" value="Remove" onclick="remove_subject({{subject.id}})">
+    </td>
+  </tr>
+  {% endfor %}
+
+  </table>
+{% endblock %}

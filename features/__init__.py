@@ -8,6 +8,7 @@ from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick
 from .reward_features import RewardSystem, TTLReward, JuiceLogging
 from .eyetracker_features import EyeData, CalibratedEyeData, SimulatedEyeData, FixationStart
 from .phasespace_features import MotionData, MotionSimulate, MotionAutoAlign
+from .optitrack_features import Optitrack
 from .plexon_features import PlexonBMI, RelayPlexon, RelayPlexByte
 from .hdf_features import SaveHDF
 from .video_recording_features import SingleChannelVideo
@@ -20,6 +21,7 @@ from .laser_features import LaserTrials
 built_in_features = dict(
     keyboard=KeyboardControl,
     mouse=MouseControl,
+    optitrack=Optitrack,
     reward_system=RewardSystem,
     saveHDF=SaveHDF,
     autostart=Autostart,

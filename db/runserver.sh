@@ -1,7 +1,5 @@
 #!/bin/bash
 
-export BMI3D=/home/pagaiisland/code/bmi3d
-
 # Set display to display 0
 DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
 if [ $DISPLAY=='' ]; then

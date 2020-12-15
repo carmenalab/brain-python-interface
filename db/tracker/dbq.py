@@ -33,7 +33,7 @@ def save_calibration(subject, system, name, params, dbname='default'):
     Calibration(subject=subj, system=sys, name=name, params=params).save(using=dbname)
 
 def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None, dbname='default'):
-    suffix = dict(supp_hdf="supp.hdf", eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png", video="avi")
+    suffix = dict(supp_hdf="supp.hdf", eyetracker="edf", hdf="hdf", plexon="plx", bmi="pkl", bmi_params="npz", juice_log="png", video="avi", optitrack="tak")
     if system in suffix:
         suff = suffix[system]
     else:  # blackrock system saves multiple files (.nev, .ns1, .ns2, etc.)
@@ -102,17 +102,18 @@ def save_bmi(name, entry, filename, dbname='default'):
     base = System.objects.using(dbname).get(name='bmi').path
 
     #Make sure decoder name doesn't exist already:
-    #Make sure new decoder name doesn't already exist: 
+    #Make sure new decoder name doesn't already exist:
     import os.path
     dec_ix = 0
 
-    while os.path.isfile(os.path.join(base, pklname)): 
+    while os.path.isfile(os.path.join(base, pklname)):
         pklname = "{subj}{time}_{num:02}_{name}_{ix}.pkl".format(
         subj=entry.subject.name[:4].lower(),
         time=entry.date.strftime('%Y%m%d'),
         num=num, name=name,ix=dec_ix)
         dec_ix += 1
 
+    # Some problems with this on windows with permissions
     shutil.copy2(filename, os.path.join(base, pklname))
 
     Decoder(name=name,entry=entry,path=pklname).save(using=dbname)
@@ -146,6 +147,6 @@ dispatcher.register_function(hide_task_entry, 'hide_task_entry')
 
 @csrf_exempt
 def rpc_handler(request):
-    response = HttpResponse(content_type="application/xml") 
+    response = HttpResponse(content_type="application/xml")
     response.write(dispatcher._marshaled_dispatch(request.body))
     return response

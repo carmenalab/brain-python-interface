@@ -3,8 +3,6 @@
 from riglib.experiment import LogExperiment, Sequence
 from features.laser_features import DigitalWave
 from riglib.experiment import traits
-from riglib.stereo_opengl.window import Window
-from built_in_tasks.target_graphics import VirtualCircularTarget, target_colors
 import itertools
 import numpy as np
 
@@ -150,48 +148,10 @@ class LaserConditions(Conditions):
         edge_seq = map(lambda freq, dur: DigitalWave.square_wave(freq, dur), freq_seq, dur_seq)
         return list(zip(pow_seq, edge_seq))
 
-class MonkeyTraining(Window):
 
-    status = dict(
-        wait = dict(start_trial="trial", stop=None),
-        trial = dict(end_trial="wait"),
-    )
-
-    state = "wait"
-    
-    background = (0,0,0,1)
-    target_color = traits.OptionsList(tuple(target_colors.keys()), desc="Color of the target")
-    target_radius = traits.Float(5, desc="Radius of targets in cm")
-    target_location = np.array([0, 0, 0])
-    
-    wait_time = traits.Float(5.0, desc="Time in between trials (s). If set to 0, then trials begin with keypress")
-    trial_time = traits.Float(1.0, desc="Trial length (s)")
-
-    def _test_start_trial(self, ts):
-        if self.wait_time == 0:
-            from pygame import K_ESCAPE
-            return self.event is not None and self.event[0] != K_ESCAPE # keypress
-        else:
-            return ts > self.wait_time and not self.pause
-    
-    def _test_end_trial(self, ts):
-        return ts > self.trial_time
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.target = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
-        for model in self.target.graphics_models:
-            self.add_model(model)
-
-    def _start_trial(self):
-        self.target.show()
-
-    def _start_wait(self):
-        self.target.hide()
-
-class WhiteMatterCamera(LogExperiment):
-    pass
-
+####################
+# Helper functions #
+####################
 def make_list_of_float(maybe_a_float):
     try:
         _ = iter(maybe_a_float)

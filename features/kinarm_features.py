@@ -33,8 +33,8 @@ class KinarmData(traits.HasTraits):
         System = Motion = kinarmdata.Kinarmdata
         self.kinarmdata = source.DataSource(System)
         from riglib import sink
-        self.sinks = sink.sinks
-        self.sinks.register(self.kinarmdata)
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.kinarmdata)
         super(KinarmData, self).init()
     
     @property

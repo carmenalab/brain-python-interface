@@ -1,0 +1,61 @@
+{% extends 'setup_base.html' %}
+
+{% block content %}
+<h2>Features</h2>
+<input type="submit" value="Update built-in feature paths" onclick="update_built_in_feature_paths()"><br>
+<table class="table table-hover table-sm" style="width: auto;" id="feature-table">
+  <thead>
+    <tr>
+      <th>Index</th><th>Feature name</th><th>Python path (must be importable)</th>
+    </tr>
+  </thead>
+
+  <!-- New feature row -->
+  <tr id="new-feature-row">
+    <td><input type="submit" value="Add New" onclick="add_new_feature()"></td>
+    <td><input type="text" name="name" id="new_feature_name"></td>
+    <td><input type="text" id="new_feature_path"></td>
+  </tr>
+
+  {% for feature in active_features %}
+  <tr>
+    <td>{{feature.id}}</td>
+    <td>{{feature.name}}</td>
+    <td>
+      {% if not feature.name in built_in_feature_names %}
+        <input type="submit" id="feature_{{feature.name}}" value="Remove" onclick="toggle_feature('{{feature.name}}')">
+      {% else %}
+        <input type="submit" id="feature_{{feature.name}}" value="Disable" onclick="toggle_feature('{{feature.name}}')">
+      {% endif %}
+  </tr>
+  {% endfor %}
+
+  <!-- Built-in features -->
+  {% for feature in built_in_feature_names %}
+  {% if feature not in active_feature_names %}
+  <tr>
+    <td>--</td>
+    <td>{{feature}}</td>
+    <td><input type="submit" id="feature_{{feature}}" value="Enable" onclick="toggle_feature('{{feature}}')">
+  </tr>
+  {% endif %}
+  {% endfor %}
+
+</table>
+
+<!--   Enable built-in feature<br><br>
+<form action="/setup/add/enable_features" method="POST">
+  {% for feature in built_in_feature_names %}
+    <input type="checkbox" name="{{feature}}" value="{{feature}}">{{feature}}<br>
+  {% endfor %}
+  <input type="submit">
+</form>
+-->
+<!--   Add new custom feature<br>
+<form action="/setup/add/new_feature" method="POST">
+  Feature name <input type="text" name="name"><br>
+  Feature class path (must be importable) <input type="text" name="import_path"><br>
+  <input type="submit">
+</form> -->
+
+{% endblock %}
