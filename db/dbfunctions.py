@@ -382,10 +382,7 @@ class TaskEntry(object):
         Return a reference to the HDF file recorded during this TaskEntry
         '''
         if not hasattr(self, 'hdf_file'):
-            try:
-                self.hdf_file = tables.open_file(self.hdf_filename, mode='r')
-            except:
-                self.hdf_file = tables.openFile(self.hdf_filename, mode='r')
+            self.hdf_file = tables.open_file(self.hdf_filename, mode='r')
         return self.hdf_file
 
     def close_hdf(self):
