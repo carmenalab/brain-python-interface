@@ -524,15 +524,11 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         '''
         if hasattr(self, "h5file"):
             traits = self.class_editable_traits()
-
-            if hasattr(tables, 'open_file'): # function name depends on version
-                h5file = tables.open_file(self.h5file.name, mode='a')
-            else:
-                h5file = tables.openFile(self.h5file.name, mode='a')
-
+            h5file = tables.open_file(self.h5file.name, mode='a')
+            
             for trait in traits:
                 if (trait not in self.object_trait_names): # don't save traits which are complicated python objects to the HDF file
-                    h5file.root.task.attrs[trait] = getattr(self, trait)
+                    h5file.root.task.attrs[trait] = getattr(self, trait) # append to task data metadata
             h5file.close()
 
     def terminate(self):

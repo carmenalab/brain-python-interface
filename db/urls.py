@@ -9,7 +9,7 @@ from django.urls import path
 from django.contrib import admin
 admin.autodiscover()
 
-from tracker import ajax, views, dbq
+from db.tracker import ajax, views, dbq
 
 urlpatterns = [
     path('', views.main),

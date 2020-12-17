@@ -33,8 +33,10 @@
       $(this).click(function() {
         var clicked_on_header = this.id == "newentry" || this.id == "te_table_header";
         if (clicked_on_header) {
+          if (te) te.destroy();
           te = new TaskEntry(null);
         } else {
+          if (te) te.destroy();
           te = new TaskEntry(this.id);
         }
       });

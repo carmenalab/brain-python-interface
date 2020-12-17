@@ -144,7 +144,7 @@ class TaskWrapper(RPCProcess):
 
         if self.saveid is not None and self.subj is not None:
             # get object representing function calls to the remote database
-            # returns the result of tracker.dbq.rpc_handler
+            # returns the result of db.tracker.dbq.rpc_handler
             database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
             # from tracker import dbq as database
 

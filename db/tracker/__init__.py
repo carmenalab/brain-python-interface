@@ -1,4 +1,4 @@
-default_app_config = "tracker.apps.TrackerConfig"
+default_app_config = "db.tracker.apps.TrackerConfig"
 
 
 # This will make sure the app is always imported when

@@ -9,9 +9,9 @@ import json, time, sys, datetime
 import os
 os.environ['DISPLAY'] = ':0'
 
-from tracker import models
-from tracker import tasktrack
-from tracker import views
+from db.tracker import models
+from db.tracker import tasktrack
+from db.tracker import views
 # import psutil
 
 from riglib.experiment import LogExperiment
@@ -219,7 +219,7 @@ class TestVisualFeedbackTask(TestCase):
         from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
         from riglib import experiment
         from features import Autostart
-        from tracker import json_param
+        from db.tracker import json_param
 
         try:
             import pygame
@@ -403,7 +403,7 @@ class TestTaskAnnotation(TestCase):
 
 class TestParamCast(TestCase):
     def test_norm_trait(self):
-        from tracker import json_param
+        from db.tracker import json_param
         from riglib.experiment import traits
 
         t = traits.Float(1, descr='test trait')

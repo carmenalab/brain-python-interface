@@ -5,7 +5,7 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import django
 django.setup()
 
-from tracker import models
+from db.tracker import models
 
 task_entry_with_invalid_sequence_id = []
 

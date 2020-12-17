@@ -370,12 +370,20 @@ class ScreenTargetCapture(TargetCapture, Window):
     #### STATE FUNCTIONS ####
     def _start_wait(self):
         super()._start_wait()
+
+        # stop the display sync if there is one
+        self.sync_every_cycle = False
+
         # hide targets
         for target in self.targets:
             target.hide()
 
     def _start_target(self):
         super()._start_target()
+
+        # start the display sync if there is one
+        if self.target_index % self.chain_length == 0:
+            self.sync_every_cycle = True
 
         # move one of the two targets to the new target location
         target = self.targets[self.target_index % self.chain_length]

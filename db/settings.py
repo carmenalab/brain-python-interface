@@ -45,8 +45,8 @@ def get_sqlite3_databases():
 
     return dbs
 
-#DATABASES = get_sqlite3_databases()
-DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
+DATABASES = get_sqlite3_databases()
+#DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 
 '''
 DATABASES = {
@@ -149,7 +149,7 @@ STATICFILES_DIRS = (
 )
 ADMIN_MEDIA_PREFIX = '/static/admin/'
 INSTALLED_APPS = (
-    'tracker',
+    'db.tracker',
     'django.contrib.auth',
     'django.contrib.admin',    
     'django.contrib.contenttypes',
@@ -164,7 +164,7 @@ TEMPLATES = [
         'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
-            'environment': 'tracker.jinja2.environment'
+            'environment': 'db.tracker.jinja2.environment'
         },
     },
     {

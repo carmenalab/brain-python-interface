@@ -18,7 +18,7 @@ import time
 from collections import defaultdict, OrderedDict
 
 import db
-from tracker import models
+from .tracker import models
 
 # default DB, change this variable from python session to switch to other database
 db_name = 'default'
@@ -30,7 +30,7 @@ class TaskEntry(object):
     can be defined for TaskEntry blocks (e.g., for analysis methods for a particular experiment)
     without needing to modfiy the database model.
     '''
-    def __init__(self, task_entry_id, dbname='default', **kwargs):
+    def __init__(self, task_entry_id, dbname=db_name, **kwargs):
         '''
         Constructor for TaskEntry
 
@@ -103,28 +103,33 @@ class TaskEntry(object):
             try:
                 task_msgs = self.hdf.root.task_msgs[:]
                 # Ignore the last message if it's the "None" transition used to stop the task
-                if task_msgs[-1]['msg'] == 'None':
+                if task_msgs[-1]['msg'] == b'None':
                     task_msgs = task_msgs[:-1]
 
                 # ignore "update bmi" messages. These have been removed in later datasets
-                task_msgs = task_msgs[task_msgs['msg'] != 'update_bmi']
+                task_msgs = task_msgs[task_msgs['msg'] != b'update_bmi']
 
                 # Try to add the target index.. these are not present in every task type
                 try:
+                    target = self.hdf.root.task[:]['target'].ravel()
                     target_index = self.hdf.root.task[:]['target_index'].ravel()
-                    task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8')])
+                    task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8'), ('target', ('f8', 3))])
                     task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
                     for k in range(len(task_msgs)):
                         task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
-                        task_msgs_ext[k]['time'] = task_msgs[k]['time']
+                        task_msgs_ext[k]['time'] = task_msgs[k]['time'] # 'time' is the frame number
                         try:
+                            task_msgs_ext[k]['target'] = target[task_msgs[k]['time']]
                             task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
                         except:
+                            task_msgs_ext[k]['target'] = np.empty((3,))
                             task_msgs_ext[k]['target_index'] = np.nan
 
                     self.task_msgs = task_msgs_ext
                 except:
                     self.task_msgs = task_msgs
+                    import traceback
+                    traceback.print_exc()
 
                 ## Split the task messages into separate trials
                 self.trial_end_states = self.record.task.get().trial_end_states
@@ -152,6 +157,8 @@ class TaskEntry(object):
                 print("Couldn't process HDF file!")
                 import traceback
                 traceback.print_exc()
+        else:
+            print("No HDF file found!")
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
@@ -267,19 +274,6 @@ class TaskEntry(object):
         else:
             return newdata
 
-    @property
-    def supplementary_data_file(self):
-        '''
-        Docstring
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        '''
-        return '/storage/task_supplement/%d.mat' % self.record.id
-
     def get_cached_attr(self, key, fn, clean=False):
         '''
         Generic method for saving the results of a computation to the supplementary_data_file associated with this block
@@ -296,16 +290,27 @@ class TaskEntry(object):
         from scipy.io import savemat, loadmat
         if hasattr(self, '_%s' % key):
             return getattr(self, '_%s' % key)
-        if not os.path.exists(self.supplementary_data_file):
+        try:
+            task_supplement = models.System.objects.get(name='task_supplement')
+            supplementary_data_file = os.path.join(task_supplement.path, '%d.mat' % self.record.id)
+        except:
+            import warnings
+            warnings.warn('No "task_supplement" system. Please add one.')
+            supplementary_data_file = None
+        if supplementary_data_file is None:
             data = fn()
-            savemat(self.supplementary_data_file, dict(key=data))
+            setattr(self, '_%s' % key, data)
+            return getattr(self, '_%s' % key)
+        if not os.path.exists(supplementary_data_file):
+            data = fn()
+            savemat(supplementary_data_file, dict(key=data))
             setattr(self, '_%s' % key, data)
             return getattr(self, '_%s' % key)
         else:
-            supplementary_data = loadmat(self.supplementary_data_file)
+            supplementary_data = loadmat(supplementary_data_file)
             if (not key in supplementary_data) or clean:
                 supplementary_data[key] = fn()
-                savemat(self.supplementary_data_file, supplementary_data)
+                savemat(supplementary_data_file, supplementary_data)
             setattr(self, '_%s' % key, supplementary_data[key])
             return getattr(self, '_%s' % key)
 
@@ -373,8 +378,8 @@ class TaskEntry(object):
         elif len(q) == 1:
             q = q[0]
             # dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-            data_path = models.KeyValueStore.get('data_path', default='/storage', dbname=self.record._state.db)
-            return os.path.join(data_path, 'rawdata', q.system.name, q.path)
+            # data_path = models.KeyValueStore.get('data_path', default='/storage', dbname=self.record._state.db)
+            return os.path.join(q.system.path, q.path)
 
     @property
     def hdf(self):
@@ -464,7 +469,7 @@ class TaskEntry(object):
             return 0.0
         return report[-1][2]-report[0][2]
 
-    def get_datafile(self, system_name, intermediate_path='rawdata', **query_kwargs):
+    def get_datafile(self, system_name, **query_kwargs):
         '''
         Look up the file linked to this TaskEntry from a specific system
 
@@ -483,7 +488,7 @@ class TaskEntry(object):
         '''
         file_records = models.DataFile.objects.using(self.record._state.db).filter(entry_id=self.id, system__name=system_name, **query_kwargs)
         dbconfig = getattr(config, 'db_config_%s' % self.record._state.db)
-        file_names = [os.path.join(dbconfig['data_path'], intermediate_path, os.path.basename(q.system.path), q.path) for q in file_records]
+        file_names = [os.path.join(q.system.path, q.path) for q in file_records]
         if len(file_names) == 1:
             return file_names[0]
         else:
@@ -494,26 +499,26 @@ class TaskEntry(object):
         '''
         Return the name of the plx file associated with this TaskEntry
         '''
-        return self.get_datafile('plexon', intermediate_path='plexon')
+        return self.get_datafile('plexon')
 
     @property
     def plx2_filename(self):
         '''
         Returns the name of any files associated with the plexon2 system. Used briefly only in a rig where there were multiple recording systems used simultaneously.
         '''
-        return self.get_datafile('plexon2', intermediate_path='')
+        return self.get_datafile('plexon2')
 
     @property
     def bmiparams_filename(self):
         '''
         Return the name of the npz file that was used to store CLDA parameters, if one exists
         '''
-        return self.get_datafile('bmi_params', intermediate_path='rawdata')
+        return self.get_datafile('bmi_params')
 
     @property
     def blackrock_filenames(self):
-        x = self.get_datafile(system_name='blackrock', intermediate_path='')
-        y = self.get_datafile(system_name='blackrock2', intermediate_path='rawdata')
+        x = self.get_datafile(system_name='blackrock')
+        y = self.get_datafile(system_name='blackrock2')
 
         if type(x) is not list:
             x = [x]
@@ -526,14 +531,14 @@ class TaskEntry(object):
         '''
         Get any blackrock nev files associated with this TaskEntry
         '''
-        return self.get_datafile(system_name='blackrock', intermediate_path='', path__endswith='.nev')
+        return self.get_datafile(system_name='blackrock', path__endswith='.nev')
 
     @property
     def nsx_filenames(self):
         '''
         Get any blackrock nsx files associated with this TaskEntry
         '''
-        return self.get_datafile(system_name='blackrock', intermediate_path='', path__endswith='.nsx')
+        return self.get_datafile(system_name='blackrock', path__endswith='.nsx')
 
     @property
     def decoder_filename(self):
@@ -1003,7 +1008,7 @@ def search_by_units(unitlist, decoderlist = None, exact=False):
             pass
     return dec_list
 
-def get_task_entries_by_date(subj=None, date=datetime.date.today(), dbname='default', **kwargs):
+def get_task_entries_by_date(subj=None, date=None, dbname=db_name, **kwargs):
     '''
     Get all the task entries for a particular date
 
@@ -1022,8 +1027,6 @@ def get_task_entries_by_date(subj=None, date=datetime.date.today(), dbname='defa
         kwargs.update(dict(date__year=date.year, date__month=date.month, date__day=date.day))
     elif isinstance(date, tuple) and len(date) == 3:
         kwargs.update(dict(date__year=date[0], date__month=date[1], date__day=date[2]))
-    else:
-        raise ValueError("Cannot interpret date: %r" % date)
 
     if isinstance(subj, str) or isinstance(subj, str):
         kwargs['subject__name__startswith'] = str(subj)

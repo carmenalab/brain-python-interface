@@ -931,8 +931,9 @@ TaskEntry.prototype.link_new_files = function() {
 // Notes class
 //
 function Notes(idx) {
-    this.last_TO = null;
     this.idx = idx;
+    $("#notes").val("");
+    log("Cleared notes", 2)
     this.activate();
 }
 Notes.prototype.update = function(notes) {
@@ -943,7 +944,7 @@ Notes.prototype.activate = function() {
     var notes_keydown_handler = function() {
         if (this.last_TO != null)
             clearTimeout(this.last_TO);
-        this.last_TO = setTimeout(this.save.bind(this), 2000);
+        this.last_TO = setTimeout(this.save.bind(this), 500);
     }.bind(this);
     $("#notes textarea").keydown(notes_keydown_handler);
 }
@@ -951,16 +952,10 @@ Notes.prototype.destroy = function() {
     // unbind the handler to save notes to the database (see 'activate')
     $("#notes textarea").unbind("keydown");
 
-    // save one last time
-    this.save();
-
-    // clear the text
-    $("#notes").val("");
-
-    // clear the timeout handler
+    // clear the timeout handler and save if notes are changing
     if (this.last_TO != null)
         clearTimeout(this.last_TO);
-
+        this.save();
 }
 Notes.prototype.save = function() {
     this.last_TO = null;

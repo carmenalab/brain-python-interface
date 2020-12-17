@@ -156,7 +156,7 @@ class Track(singleton.Singleton):
         time.sleep(3)
 
         if self.proc.saveid is not None:
-            from tracker import models
+            from db.tracker import models
             te = models.TaskEntry.objects.get(id=self.proc.saveid)
 
             # Wrap up HDF file saving

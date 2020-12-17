@@ -19,6 +19,8 @@ import time
 from .primitives import Cylinder, Sphere, Cone
 import socket
 
+import copy
+
 try:
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
     import pygame
@@ -185,6 +187,7 @@ class SyncSquare(traits.HasTraits):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sync_state = False
+        self.flip_every_cycle = True
         screen_center = np.divide(self.window_size,2)
         sync_size_pix = self.sync_size * self.window_size[0] / self.screen_cm[0]
         sync_center = [sync_size_pix/2, sync_size_pix/2]
@@ -199,10 +202,19 @@ class SyncSquare(traits.HasTraits):
         self.sync.set_colorkey(TRANSPARENT)
 
     def _draw_other(self):
-        self.sync_state = not self.sync_state
         color = self.sync_color_on if self.sync_state else self.sync_color_off
         self.sync.fill(color, rect=self.sync_rect)
         self.screen.blit(self.sync, (0,0))
+
+    def init(self):
+        self.add_dtype('sync_square', bool, (1,))
+        super().init()
+
+    def _cycle(self):
+        if self.flip_every_cycle:
+            self.sync_state = not self.sync_state
+        self.task_data['sync_square'] = copy.deepcopy(self.sync_state)
+        super()._cycle()
 
 
 class WindowWithExperimenterDisplay(Window):

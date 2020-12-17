@@ -79,7 +79,7 @@ class TargetCaptureVFB2DWindow(TargetCaptureVisualFeedback, WindowDispl2D):
         else:
             return "No trials"
 
-class MonkeyTraining(Window, Sequence):
+class MonkeyTraining(Sequence, Window):
     '''Simplified target capture task'''
 
     status = dict(
@@ -126,6 +126,14 @@ class MonkeyTraining(Window, Sequence):
     def _start_wait(self):
         self.target.hide()
         Sequence._start_wait(self)
+
+    def init(self):
+        self.add_dtype('target', 'f8', (3,))
+        super().init()
+
+    def _cycle(self):
+        self.task_data['target'] = self.target_location.copy()
+        super()._cycle()
 
     @staticmethod
     def static(pos=(0,0,0), ntrials=0):
