@@ -15,13 +15,25 @@ from .target_graphics import *
 from .target_capture_task import ScreenTargetCapture
 
 rotations = dict(
-    optitrack_zx = np.array(
-            [[0, 0, -1, 0], 
-            [0, 1, 0, 0], 
-            [1, 0, 0, 0], 
-            [0, 0, 0, 1]]
-        ),
-    none = np.identity(4),
+    yzx = np.array(
+        [[0, 1, 0, 0], 
+        [0, 0, 1, 0], 
+        [1, 0, 0, 0], 
+        [0, 0, 0, 1]]
+    ),
+    zyx = np.array(
+        [[0, 0, 1, 0], 
+        [0, 1, 0, 0], 
+        [1, 0, 0, 0], 
+        [0, 0, 0, 1]]
+    ),
+    xzy = np.array(
+        [[1, 0, 0, 0], 
+        [0, 0, 1, 0], 
+        [0, 1, 0, 0], 
+        [0, 0, 0, 1]]
+    ),
+    xyz = np.identity(4),
 )
 
 class ManualControl(ScreenTargetCapture):
@@ -41,20 +53,18 @@ class ManualControl(ScreenTargetCapture):
         super(ManualControl, self).__init__(*args, **kwargs)
         self.current_pt=np.zeros([3]) #keep track of current pt
         self.last_pt=np.zeros([3]) #keep track of last pt to calc. velocity
+        self.no_data_count = 0
+
+    def init(self):
+        self.add_dtype('manual_input', 'f8', (3,))
+        super().init()
 
     def update_report_stats(self):
         super(ManualControl, self).update_report_stats()
-        start_time = self.state_log[0][1]
-        rewardtimes=np.array([state[1] for state in self.state_log if state[0]=='reward'])
-        if len(rewardtimes):
-            rt = rewardtimes[-1]-start_time
-        else:
-            rt= np.float64("0.0")
-
+        rt = self.calc_time_since_last_event('reward')
+        mins = str(np.int(np.floor(rt/60)))
         sec = str(np.int(np.mod(rt,60)))
-        if len(sec) < 2:
-            sec = '0'+sec
-        self.reportstats['Time Of Last Reward'] = str(np.int(np.floor(rt/60))) + ':' + sec
+        self.reportstats['Time since last reward'] = '%d:%d' % (mins, round(sec))
 
     def _test_trial_complete(self, ts):
         if self.target_index==self.chain_length-1 :
@@ -74,7 +84,9 @@ class ManualControl(ScreenTargetCapture):
         return ts > self.reward_time
 
     def _transform_coords(self, coords):
-        ''' Returns transformed coordinates based on rotation, offset, and scale traits'''
+        ''' 
+        Returns transformed coordinates based on rotation, offset, and scale traits
+        '''
         offset = np.array(
             [[1, 0, 0, 0], 
             [0, 1, 0, 0], 
@@ -87,12 +99,14 @@ class ManualControl(ScreenTargetCapture):
             [0, 0, self.scale, 0], 
             [0, 0, 0, 1]]
         )
-        return np.linalg.multi_dot((coords, offset, scale, rotations[self.rotation]))
+        old = np.concatenate((np.reshape(coords, -1), [1]))
+        new = np.linalg.multi_dot((old, offset, scale, rotations[self.rotation]))
+        return new[0:3]
 
-    def move_effector(self):
-        ''' Sets the 3D coordinates of the cursor. For manual control, uses
-        motiontracker / joystick / mouse data. If no data available, returns None'''
-
+    def _get_manual_position(self):
+        '''
+        Fetches joystick position
+        '''
         if not hasattr(self, 'joystick'):
             return
         pt = self.joystick.get()
@@ -102,25 +116,45 @@ class ManualControl(ScreenTargetCapture):
         pt = pt[-1] # Use only the latest coordinate
 
         if len(pt) == 2:
-            pt = np.array([pt[1], 0, pt[0], 1])
-        else:
-            pt = np.array([pt[0], pt[1], pt[2], 1])
-        
-        pt = self._transform_coords(pt)
+            pt = np.concatenate((np.reshape(pt, -1), [1]))
 
+        return pt
+
+    def move_effector(self):
+        ''' 
+        Sets the 3D coordinates of the cursor. For manual control, uses
+        motiontracker / joystick / mouse data. If no data available, returns None
+        '''
+
+        # Get raw input and save it as task data
+        raw_coords = self._get_manual_position()
+        if raw_coords is None or len(raw_coords) < 3:
+            self.no_data_count += 1
+            self.reportstats['Missing manual inputs'] = self.no_data_count
+            self.task_data['manual_input'] = np.empty((3,))
+            return
+
+        self.task_data['manual_input'] = raw_coords.copy()
+
+        # Transform coordinates
+        coords = self._transform_coords(raw_coords)
+        if self.limit2d:
+            coords[1] = 0
+
+        # Set cursor position
         if not self.velocity_control:
-            self.current_pt = pt[0:3]
+            self.current_pt = coords
         else:
             epsilon = 2*(10**-2) # Define epsilon to stabilize cursor movement
-            if sum((pt[0:3])**2) > epsilon:
+            if sum((coords)**2) > epsilon:
 
                 # Add the velocity (units/s) to the position (units)
-                self.current_pt = pt[0:3] / self.fps + self.last_pt
+                self.current_pt = coords / self.fps + self.last_pt
             else:
                 self.current_pt = self.last_pt
 
         self.plant.set_endpoint_pos(self.current_pt)
-        self.last_pt = self.plant.get_endpoint_pos().copy()
+        self.last_pt = self.current_pt.copy()
 
     @classmethod
     def get_desc(cls, params, report):

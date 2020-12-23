@@ -61,12 +61,13 @@ class ManualControlMultiTaskEntry(dbfunctions.TaskEntry):
             
             # Organize frame data
             frame_data = self.hdf.root.task[:]
-            frame_data_dtype = np.dtype([('cursor', ('f8', 3))])
+            frame_data_dtype = np.dtype([('cursor', ('f8', 3)), ('manual_input', ('f8', 3))])
             if 'sync_square' in frame_data.dtype.names:
                 frame_data_dtype = np.dtype([('cursor', ('f8', 3)), ('sync', '?')])
             frame_data_ext = np.zeros(len(frame_data), dtype=frame_data_dtype)
             for k in range(len(frame_data)):
                 frame_data_ext[k]['cursor'] = frame_data[k]['cursor']
+                frame_data_ext[k]['manual_input'] = frame_data[k]['manual_input']
                 if 'sync_square' in frame_data.dtype.names:
                     frame_data_ext[k]['sync'] = frame_data[k]['sync_square']
             self.frame_data = frame_data_ext

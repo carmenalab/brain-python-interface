@@ -12,7 +12,7 @@ from django.db.models import ProtectedError
 
 from riglib import experiment
 from .json_param import Parameters
-from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder, KeyValueStore
+from .models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder, KeyValueStore, import_by_path
 from .tasktrack import Track
 
 import logging
@@ -481,6 +481,7 @@ def remove_task(request):
     if entry is None or len(entry) == 0:
         try:
             Sequence.objects.filter(task=id).delete()
+            Generator.remove_unused()
         except Sequence.DoesNotExist:
             pass
         task.delete()

@@ -80,6 +80,9 @@ class TargetCapture(Sequence):
         # number of targets to be acquired in this trial
         self.chain_length = len(self.targs)
 
+        # Update the report stat on trials
+        self.reportstats['Trial #'] = self.calc_trial_num()
+
     def _parse_next_trial(self):
         '''Check that the generator has the required data'''
         self.targs = self.next_trial
@@ -232,12 +235,13 @@ class ScreenTargetCapture(TargetCapture, Window):
 
     starting_pos = (5, 0, 5) # TODO 
     background = (0,0,0,1) # TODO
-    cursor_visible = False # Determines when to hide the cursor.
-    no_data_count = 0 # Counter for number of missing data frames in a row
 
     limit2d = 1
 
-    sequence_generators = ['centerout_2D_discrete']
+    sequence_generators = [
+        'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 
+        'centerout_3D', 'centeroutback_3D', 'rand_target_chain_3D',
+    ]
 
     is_bmi_seed = True
 
@@ -261,12 +265,12 @@ class ScreenTargetCapture(TargetCapture, Window):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cursor_visible = True
 
         # Initialize the plant
         if not hasattr(self, 'plant'):
             self.plant = plantlist[self.plant_type]
         self.plant_vis_prev = True
+        self.cursor_vis_prev = True
 
         # Add graphics models for the plant and targets to the window
         if hasattr(self.plant, 'graphics_models'):
@@ -276,6 +280,8 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Instantiate the targets
         instantiate_targets = kwargs.pop('instantiate_targets', True)
         if instantiate_targets:
+
+            # Need two targets to have the ability for delayed holds
             target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
             target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
 
@@ -294,24 +300,21 @@ class ScreenTargetCapture(TargetCapture, Window):
     def init(self):
         self.add_dtype('target', 'f8', (3,))
         self.add_dtype('target_index', 'i', (1,))
+        self.add_dtype('plant_visible', '?', (1,))
         super().init()
 
     def _cycle(self):
         '''
-        Calls any update functions necessary and redraws screen. Runs 60x per second.
+        Calls any update functions necessary and redraws screen
         '''
         self.task_data['target'] = self.target_location.copy()
         self.task_data['target_index'] = self.target_index
 
-        ## Run graphics commands to show/hide the plant if the visibility has changed
-        # TODO: self.update_cursor_visibility()
-        if self.plant_type != 'CursorPlant':
-            if self.plant_visible != self.plant_vis_prev:
-                self.plant_vis_prev = self.plant_visible
-                self.plant.set_visibility(self.plant_visible)
-                # self.show_object(self.plant, show=self.plant_visible)
-
         self.move_effector()
+
+        ## Run graphics commands to show/hide the plant if the visibility has changed
+        self.update_plant_visibility()
+        self.task_data['plant_visible'] = self.plant_visible
 
         ## Save plant status to HDF file
         plant_data = self.plant.get_data_to_save()
@@ -336,18 +339,11 @@ class ScreenTargetCapture(TargetCapture, Window):
             self.plant.stop()
 
     ##### HELPER AND UPDATE FUNCTIONS ####
-    def update_cursor_visibility(self):
-        ''' Update cursor visible flag to hide cursor if there has been no good data for more than 3 frames in a row'''
-        prev = self.cursor_visible
-        if self.no_data_count < 3:
-            self.cursor_visible = True
-            if prev != self.cursor_visible:
-                self.show_object(self.cursor, show=True)
-        else:
-            self.cursor_visible = False
-            if prev != self.cursor_visible:
-                self.show_object(self.cursor, show=False)
-
+    def update_plant_visibility(self):
+        ''' Update plant visibility'''
+        if self.plant_visible != self.plant_vis_prev:
+            self.plant_vis_prev = self.plant_visible
+            self.plant.set_visibility(self.plant_visible)
 
     #### TEST FUNCTIONS ####
     def _test_enter_target(self, ts):
@@ -377,29 +373,33 @@ class ScreenTargetCapture(TargetCapture, Window):
         # hide targets
         for target in self.targets:
             target.hide()
+            target.reset()
 
     def _start_target(self):
         super()._start_target()
 
         # start the display sync if there is one
-        if self.target_index % self.chain_length == 0:
+        if self.target_index == 0:
             self.sync_every_cycle = True
 
         # move one of the two targets to the new target location
-        target = self.targets[self.target_index % self.chain_length]
+        target = self.targets[self.target_index % 2]
         target.move_to_position(self.target_location)
-        target.cue_trial_start()
+        target.show()
 
     def _start_hold(self):
         #make next target visible unless this is the final target in the trial
-        idx = (self.target_index + 1)
-        if idx < self.chain_length:
-            target = self.targets[idx % self.chain_length]
-            target.move_to_position(self.targs[idx])
+        next_idx = (self.target_index + 1)
+        if next_idx < self.chain_length:
+            target = self.targets[next_idx % 2]
+            target.move_to_position(self.targs[next_idx])
+            target.show()
 
-    def _end_hold(self):
-        # change current target color to green
-        self.targets[self.target_index % self.chain_length].cue_trial_end_success()
+    def _start_targ_transition(self):
+        super()._start_targ_transition()
+        # hide the current target if there are more
+        if self.target_index + 1 < self.chain_length:
+            self.targets[self.target_index % 2].hide()
 
     def _start_hold_penalty(self):
         super()._start_hold_penalty()
@@ -413,42 +413,31 @@ class ScreenTargetCapture(TargetCapture, Window):
         for target in self.targets:
             target.hide()
 
-    def _start_targ_transition(self):
-        #hide targets
-        for target in self.targets:
-            target.hide()
-
     def _start_reward(self):
-        self.targets[self.target_index % self.chain_length].show()
+        self.targets[self.target_index % 2].cue_trial_end_success()
 
     #### Generator functions ####
     @staticmethod
-    def centerout_2D_discrete(nblocks=100, ntargets=8, boundaries=(-18,18,-12,12),
-        distance=10):
+    def out_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
         '''
-
-        Generates a sequence of 2D (x and z) target pairs with the first target
-        always at the origin.
+        Generates a sequence of 2D (x and z) targets at a given distance from the origin
 
         Parameters
         ----------
-        length : int
-            The number of target pairs in the sequence.
-        boundaries: 6 element Tuple
-            The limits of the allowed target locations (-x, x, -z, z)
+        nblocks : int
+            The number of ntarget pairs in the sequence.
+        ntargets : int
+            The number of equally spaced targets
         distance : float
-            The distance in cm between the targets in a pair.
+            The distance in cm between the center and peripheral targets.
+        origin : 3-tuple
+            Location of the central targets around which the peripheral targets span
 
         Returns
         -------
-        pairs : [nblocks*ntargets x 2 x 3] array of pairs of target locations
-
+        [nblocks*ntargets x 1 x 3] array of target coordinates
 
         '''
-
-        # Choose a random sequence of points on the edge of a circle of radius
-        # "distance"
-
         theta = []
         for i in range(nblocks):
             temp = np.arange(0, 2*np.pi, 2*np.pi/ntargets)
@@ -456,12 +445,138 @@ class ScreenTargetCapture(TargetCapture, Window):
             theta = theta + [temp]
         theta = np.hstack(theta)
 
+        x = distance*np.cos(theta) + origin[0]
+        y = np.zeros((nblocks*ntargets,)) + origin[1]
+        z = distance*np.sin(theta) + origin[2]
 
-        x = distance*np.cos(theta)
-        y = np.zeros(len(theta))
-        z = distance*np.sin(theta)
+        return np.vstack([x, y, z]).T
 
-        pairs = np.zeros([len(theta), 2, 3])
-        pairs[:,1,:] = np.vstack([x, y, z]).T
+    @staticmethod
+    def centerout_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
+        '''
+        Pairs of central targets at the origin and peripheral targets centered around the origin
 
-        return pairs
+        Returns
+        -------
+        [nblocks*ntargets x 2 x 3] array of target coordinates
+        '''
+        targs = np.zeros([nblocks*ntargets, 2, 3]) + origin
+        targs[:,1,:] = ScreenTargetCapture.out_2D(nblocks, ntargets, distance, origin)
+        return targs
+
+    @staticmethod
+    def centeroutback_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
+        '''
+        Triplets of central targets, peripheral targets, and central targets
+
+        Returns
+        -------
+        [nblocks*ntargets x 3 x 3] array of target coordinates
+        '''
+        targs = np.zeros([nblocks*ntargets, 3, 3]) + origin
+        targs[:,1,:] = ScreenTargetCapture.out_2D(nblocks, ntargets, distance, origin)
+        return targs
+    
+    @staticmethod
+    def rand_target_chain_2D(ntrials=100, chain_length=1, boundaries=(-12,12,-12,12)):
+        '''
+        Generates a sequence of 2D (x and z) target pairs.
+
+        Parameters
+        ----------
+        ntrials : int
+            The number of target chains in the sequence.
+        chain_length : int
+            The number of targets in each chain
+        boundaries: 6 element Tuple
+            The limits of the allowed target locations (-x, x, -z, z)
+
+        Returns
+        -------
+        [ntrials x chain_length x 3] array of target coordinates
+        '''
+
+        # Choose a random sequence of points within the boundaries
+        pts = np.random.rand(ntrials*chain_length, 3)*((boundaries[1]-boundaries[0]),
+            0, (boundaries[3]-boundaries[2]))
+        pts = pts+(boundaries[0], 0, boundaries[2])
+
+        # Group points into chains
+        return np.reshape(pts, (ntrials, chain_length, 3))
+
+    @staticmethod
+    def out_3D(ntrials=100, distance=10, origin=(0,0,0)):
+        '''
+        Choose a random sequence of points on the surface of a sphere of radius "distance"
+
+        Parameters
+        ----------
+        ntrials : int
+            The number of target chains in the sequence.
+        distance : float
+            The distance in cm between the center and peripheral targets.
+        origin : 3-tuple
+            Location of the central targets around which the peripheral targets span
+
+        Returns
+        -------
+        [ntrials x 2 x 3] array of target coordinates
+        '''
+        theta = np.random.rand(ntrials)*2*np.pi
+        phi = np.arccos(2*np.random.rand(ntrials) - 1)
+        x = distance*np.cos(theta)*np.sin(phi) + origin[0]
+        y = distance*np.sin(theta)*np.sin(phi) + origin[1]
+        z = distance*np.cos(theta) + origin[2]
+        return np.vstack([x, y, z]).T
+
+    @staticmethod
+    def centerout_3D(ntrials=100, distance=10, origin=(0,0,0)):
+        '''
+        Pairs of central targets at the origin and peripheral targets centered around the origin
+
+        Returns
+        -------
+        [ntrials x 2 x 3] array of target coordinates
+        '''
+        targs = np.zeros([ntrials, 2, 3]) + origin
+        targs[:,1,:] = ScreenTargetCapture.out_3D(ntrials, distance, origin)
+        return targs
+
+    @staticmethod
+    def centeroutback_3D(ntrials=100, distance=10, origin=(0,0,0)):
+        '''
+        Triplets of central targets, peripheral targets, and central targets
+
+        Returns
+        -------
+        [ntrials x 3 x 3] array of target coordinates
+        '''
+        targs = np.zeros([ntrials, 3, 3]) + origin
+        targs[:,1,:] = ScreenTargetCapture.out_3D(ntrials, distance, origin)
+        return targs
+    
+    @staticmethod
+    def rand_target_chain_3D(ntrials=100, chain_length=1, boundaries=(-12,12,-10,10,-12,12)):
+        '''
+        Generates a sequence of 3D target pairs.
+        Parameters
+        ----------
+        ntrials : int
+            The number of target chains in the sequence.
+        chain_length : int
+            The number of targets in each chain
+        boundaries: 6 element Tuple
+            The limits of the allowed target locations (-x, x, -y, y, -z, z)
+
+        Returns
+        -------
+        [ntrials x chain_length x 3] array of target coordinates
+        '''
+
+        # Choose a random sequence of points within the boundaries
+        pts = np.random.rand(ntrials*chain_length, 3)*((boundaries[1]-boundaries[0]),
+            (boundaries[3]-boundaries[2]), (boundaries[5]-boundaries[4]))
+        pts = pts+(boundaries[0], boundaries[2], boundaries[4])
+
+        # Group points into chains
+        return np.reshape(pts, (ntrials, chain_length, 3))

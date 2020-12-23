@@ -218,7 +218,7 @@ class Keyboard():
 
     def __init__(self, start_pos):
         self.pos = copy.deepcopy(start_pos)
-        self.move_step = 1
+        self.move_step = 1 # cm
 
     def get(self):
         for event in pygame.event.get():
@@ -231,9 +231,9 @@ class Keyboard():
                 if event.key == pygame.K_RIGHT:
                     self.pos[0] += self.move_step
                 if event.key == pygame.K_UP:
-                    self.pos[2] += self.move_step
+                    self.pos[1] += self.move_step
                 if event.key == pygame.K_DOWN:
-                    self.pos[2] -= self.move_step
+                    self.pos[1] -= self.move_step
         return [self.pos]
 
 class MouseControl(KeyboardControl):
@@ -261,13 +261,13 @@ class Mouse():
         pygame.event.set_grab(True)
         rel = pygame.mouse.get_rel()
         self.pos[0] += rel[0] / self.window_size[0] * self.screen_cm[0]
-        self.pos[2] += rel[1] / self.window_size[1] * self.screen_cm[1]
+        self.pos[1] -= rel[1] / self.window_size[1] * self.screen_cm[1] # pygame counts (0,0) as the top left
         if self.pos[0] < -self.screen_cm[0]:
             self.pos[0] = -self.screen_cm[0]
         elif self.pos[0] > self.screen_cm[0]:   
             self.pos[0] = self.screen_cm[0]
-        if self.pos[2] < -self.screen_cm[1]:
-            self.pos[2] = -self.screen_cm[1]
-        elif self.pos[2] > self.screen_cm[1]:
-            self.pos[2] = self.screen_cm[1]
+        if self.pos[1] < -self.screen_cm[1]:
+            self.pos[1] = -self.screen_cm[1]
+        elif self.pos[1] > self.screen_cm[1]:
+            self.pos[1] = self.screen_cm[1]
         return [self.pos]

@@ -132,7 +132,6 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
         self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
         self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
-        self.reportstats['Manual Reward #'] = 0 #Total number of manual rewards delivered
         # If the FSM is set up in the old style (explicit dictionaries instead of wrapper data types), convert to the newer FSMTable
         if isinstance(self.status, dict):
             self.status = FSMTable.construct_from_dict(self.status)
@@ -360,6 +359,10 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)
 
+    def set_state(self, condition, *args, **kwargs):
+        self.reportstats['State'] = condition or 'stopped'
+        super().set_state(condition, *args, **kwargs)
+
     def _test_stop(self, ts):
         '''
         FSM 'test' function. Returns the 'stop' attribute of the task
@@ -397,7 +400,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         '''
         Function to update any relevant report stats for the task. Values are saved in self.reportstats,
         an ordered dictionary. Keys are strings that will be displayed as the label for the stat in the web interface,
-        values can be numbers or strings. Called every time task state changes.
+        values can be numbers or strings. Called on every state change.
         '''
         self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
 
@@ -605,13 +608,20 @@ class LogExperiment(Experiment):
         rate : float
             Rate of specified event, per minute
         '''
-        rewardtimes = np.array([state[1] for state in self.state_log if state[0]==event_name])
+        times = np.array([state[1] for state in self.state_log if state[0]==event_name])
         if (self.get_time() - self.task_start_time) < window:
             divideby = (self.get_time() - self.task_start_time)/sec_per_min
         else:
             divideby = window/sec_per_min
-        return np.sum(rewardtimes >= (self.get_time() - window))/divideby
+        return np.sum(times >= (self.get_time() - window))/divideby
 
+    def calc_time_since_last_event(self, event_name):
+        start_time = self.state_log[0][1]
+        times = np.array([state[1] for state in self.state_log if state[0]==event_name])
+        if len(times):
+            return times[-1] - start_time
+        else:
+            return np.float64("0.0")
 
 class Sequence(LogExperiment):
     '''

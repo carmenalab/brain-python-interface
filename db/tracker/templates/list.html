@@ -43,6 +43,7 @@
     });
 
     $("#new_exp").click(function() {
+      if (te) te.destroy();
       te = new TaskEntry(null);
       reset_date_on_new_task();
     })
@@ -190,9 +191,9 @@
       <table id='main' style="direction:ltr;">
         <thead>
         <tr id="te_table_header">
-          <th>Date</th>
-          <th>Time</th>
-          <th>ID</th>
+          <th class='colDate'>Date</th>
+          <th class='colTime'>Time</th>
+          <th class='colID'>ID</th>
           <th class='colSubj'>Who</th>
           <th class='colTask'>Task</th>
           <th class='colShortDesc'>Description</th>

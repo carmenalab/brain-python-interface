@@ -553,7 +553,10 @@ TaskEntry.prototype.reload = function() {
     $.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
         {}, // POST data to send to the server
         function (expinfo) { // function to run on successful response
+            this.notes.destroy();
             this.notes = new Notes(this.idx);
+            this.sequence.destroy();
+            this.sequence = new Sequence();
             debug(this)
             this.update(expinfo);
             $("#content").show("slide", "fast");
@@ -658,6 +661,7 @@ TaskEntry.copy = function() {
     }
 
     te.being_copied = true;
+    te.destroy();
     te = new TaskEntry(null, info);
     $('#report').hide();        // creating a TaskEntry with "null" goes into the "stopped" state
 }
@@ -933,7 +937,7 @@ TaskEntry.prototype.link_new_files = function() {
 function Notes(idx) {
     this.idx = idx;
     $("#notes").val("");
-    log("Cleared notes", 2)
+    debug("Cleared notes")
     this.activate();
 }
 Notes.prototype.update = function(notes) {
@@ -964,7 +968,7 @@ Notes.prototype.save = function() {
         'csrfmiddlewaretoken'   : $("#experiment input[name=csrfmiddlewaretoken]").attr("value")
     };
     $.post("ajax/save_notes/"+this.idx+"/", notes_data);
-    log("Saved notes", 2);
+    debug("Saved notes");
 }
 
 //

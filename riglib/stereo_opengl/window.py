@@ -259,13 +259,6 @@ class WindowDispl2D(Window):
     '''Draws world on a 2D screen. May cause mild confusion -- transforms 
     incoming 3D coordinates (x,y,z) into 2D coordinates (x,y) by mapping z onto y'''
 
-    def _set_workspace_size(self):
-        '''
-        By default, the workspace is 50x28 cm, centered around the origin (0,0)
-        '''
-        self.workspace_bottom_left = (-25., -14.)
-        self.workspace_top_right   = (25., 14.)
-
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = self.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
@@ -292,14 +285,11 @@ class WindowDispl2D(Window):
                                       [0, 0, 1]])
         self.norm_to_screen = np.array(np.diag(np.hstack([self.size, 1])))
 
-        # the y-coordinate in pixel space has to be swapped for some graphics convention reason
-        # self.flip_y_coord = np.array([[1, 0, 0],
-        #                               [0, -1, self.size[1]],
-        #                               [0, 0, 1]])
-        # self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
-        
-        # Keep the coordinate system the same as the 3D screen
-        self.pos_space_to_pixel_space = np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform))
+        # the y-coordinate in pixel space has to be swapped graphics convention reasons
+        self.flip_y_coord = np.array([[1, 0, 0],
+                                      [0, -1, self.size[1]],
+                                      [0, 0, 1]])
+        self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
 
         self.world = Group(self.models)
         # Dont 'init' self.world in this Window. Just allocates a bunch of OpenGL stuff which is not necessary (and may not work in some cases)

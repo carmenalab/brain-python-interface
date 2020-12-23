@@ -41,7 +41,6 @@ target_colors = {
 class CircularTarget(object): 
     def __init__(self, target_radius=2, target_color=(1, 0, 0, .5), starting_pos=np.zeros(3)):
         self.target_color = target_color
-        self.default_target_color = tuple(self.target_color)
         self.target_radius = target_radius
         self.target_color = target_color
         self.position = starting_pos
@@ -89,7 +88,7 @@ class VirtualCircularTarget(CircularTarget):
         return (np.abs(pt[0] - pos[0]) < self.target_radius) and (np.abs(pt[2] - pos[2]) < self.target_radius)
 
     def reset(self):
-        self.sphere.color = self.default_target_color
+        self.sphere.color = self.target_color
 
     def get_position(self):
         return self.sphere.xfm.move
@@ -99,7 +98,6 @@ class RectangularTarget(object):
         self.target_width = target_width
         self.target_height = target_height
         self.target_color = target_color
-        self.default_target_color = tuple(self.target_color)
         self.position = starting_pos
         self.int_position = starting_pos
         self._pickle_init()
@@ -155,7 +153,7 @@ class VirtualRectangularTarget(RectangularTarget):
         return (np.abs(pt[0] - pos[0]) < self.target_width/2) and (np.abs(pt[2] - pos[2]) < self.target_height/2)
 
     def reset(self):
-        self.cube.color = self.default_target_color
+        self.cube.color = self.target_color
 
     def get_position(self):
         return self.cube.xfm.move

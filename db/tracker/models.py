@@ -220,13 +220,13 @@ class Task(models.Model):
 
     def get_generators(self):
         # Supply sequence generators which are declared to be compatible with the selected task class
-        exp_generators = dict()
+        exp_generators = []
         Exp = self.get()
         if hasattr(Exp, 'sequence_generators'):
             for seqgen_name in Exp.sequence_generators:
                 try:
                     g = Generator.objects.using(self._state.db).get(name=seqgen_name)
-                    exp_generators[g.id] = seqgen_name
+                    exp_generators.append([g.id, seqgen_name])
                 except:
                     print("missing generator %s" % seqgen_name)
         return exp_generators
@@ -395,6 +395,17 @@ class Generator(models.Model):
         '''
         generators = Generator.get_all_generators()
         return generators[self.name]
+
+    @staticmethod
+    def remove_unused():
+        generators = Generator.get_all_generators()
+        listed_generators = set(generators.keys())
+        db_generators = set(gen.name for gen in Generator.objects.all())
+
+        # determine which generators are unused in the database using set subtraction
+        unused_generators = db_generators - listed_generators
+        for name in unused_generators:
+            Generator.objects.filter(name=name).delete()
 
     @staticmethod
     def populate():
