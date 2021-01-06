@@ -127,8 +127,8 @@ class ManualControl(ScreenTargetCapture):
         '''
 
         # Get raw input and save it as task data
-        raw_coords = self._get_manual_position()
-        if raw_coords is None or len(raw_coords) < 3:
+        raw_coords = self._get_manual_position() # array of [3x1] arrays
+        if raw_coords is None or len(raw_coords) < 1:
             self.no_data_count += 1
             self.reportstats['Missing manual inputs'] = self.no_data_count
             self.task_data['manual_input'] = np.empty((3,))

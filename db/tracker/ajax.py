@@ -183,11 +183,11 @@ def remove_entry(request, idx):
     print("Remove entry %d" % idx)
     entry = TaskEntry.objects.get(pk=idx)
     try:
-        DataFile.objects.get(entry=entry.id).delete()
+        DataFile.objects.filter(entry=entry.id).delete()
     except DataFile.DoesNotExist:
         pass
     try:
-        Decoder.objects.get(entry=entry.id).delete()
+        Decoder.objects.filter(entry=entry.id).delete()
     except Decoder.DoesNotExist:
         pass
     entry.delete()
