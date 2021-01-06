@@ -202,7 +202,6 @@ class CursorPlant(Plant):
     def __init__(self, endpt_bounds=None, cursor_radius=0.4, cursor_color=(.5, 0, .5, 1), starting_pos=np.array([0., 0., 0.]), vel_wall=True, **kwargs):
         self.endpt_bounds = endpt_bounds
         self.position = starting_pos
-        self.starting_pos = starting_pos
         self.cursor_radius = cursor_radius
         self.cursor_color = cursor_color
         self._pickle_init()

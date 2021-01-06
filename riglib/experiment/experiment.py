@@ -66,6 +66,8 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         penalty = dict(post_penalty="wait"),
     )
 
+    # To keep track of changes, useful to store the version as a trait
+
     # For analysis purposes, it's useful to declare which task states are "terminal" states and signify the end of a trial
     trial_end_states = []
 
@@ -657,11 +659,11 @@ class Sequence(LogExperiment):
         if gen is None:
             raise ValueError("Experiment classes which inherit from Sequence must specify a target generator!")
 
-        if np.iterable(gen):
+        if hasattr(gen, '__next__'): # is iterable already
+            self.gen = gen
+        elif np.iterable(gen):
             from .generate import runseq
             self.gen = runseq(self, seq=gen)
-        elif hasattr(gen, '__next__'): # python 3 renamed 'next' to '__next__'
-            self.gen = gen
         else:
             raise ValueError("Input argument to Sequence 'gen' must be of 'generator' type!")
 

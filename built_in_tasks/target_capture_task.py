@@ -74,6 +74,9 @@ class TargetCapture(Sequence):
         # number of times this sequence of targets has been attempted
         self.tries = 0
 
+        # index of current trial to keep track of target location
+        self.trial_index = -1
+
         # index of current target presented to subject
         self.target_index = -1
 
@@ -85,7 +88,7 @@ class TargetCapture(Sequence):
 
     def _parse_next_trial(self):
         '''Check that the generator has the required data'''
-        self.targs = self.next_trial
+        self.trial_index, self.targs = self.next_trial
 
         # TODO error checking
 
@@ -233,15 +236,13 @@ class ScreenTargetCapture(TargetCapture, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
 
-    starting_pos = (5, 0, 5) # TODO 
-    background = (0,0,0,1) # TODO
-
     limit2d = 1
 
     sequence_generators = [
-        'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 
-        'centerout_3D', 'centeroutback_3D', 'rand_target_chain_3D',
+        'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
     ]
+
+    hidden_traits = Window.hidden_traits + ['target_color', 'background', 'plant_hide_rate', 'starting_pos']
 
     is_bmi_seed = True
 
@@ -249,6 +250,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     reward_time = traits.Float(.5, desc="Length of juice reward")
     target_radius = traits.Float(2, desc="Radius of targets in cm")
     target_color = traits.OptionsList(tuple(target_colors.keys()), desc="Color of the target")
+    background = traits.Tuple((0,0,0,1), desc='Screen background color')
 
     hold_time = traits.Float(.2, desc="Length of hold required at targets")
     hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
@@ -258,10 +260,10 @@ class ScreenTargetCapture(TargetCapture, Window):
         skipping to the next one')
 
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
-    plant_type_options = list(plantlist.keys())
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
-    cursor_radius = traits.Float(.5, desc="Radius of cursor")
+    cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
+    starting_pos = traits.Tuple((5, 0, 5), desc='Where to initialize the cursor') 
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -269,6 +271,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Initialize the plant
         if not hasattr(self, 'plant'):
             self.plant = plantlist[self.plant_type]
+        self.plant.set_endpoint_pos(np.array(self.starting_pos))
         self.plant_vis_prev = True
         self.cursor_vis_prev = True
 
@@ -298,6 +301,8 @@ class ScreenTargetCapture(TargetCapture, Window):
             self.add_dtype(*attr)
 
     def init(self):
+        self.add_dtype('trial', 'i', (1,))
+        self.add_dtype('trial_index', 'i', (1,))
         self.add_dtype('target', 'f8', (3,))
         self.add_dtype('target_index', 'i', (1,))
         self.add_dtype('plant_visible', '?', (1,))
@@ -307,6 +312,8 @@ class ScreenTargetCapture(TargetCapture, Window):
         '''
         Calls any update functions necessary and redraws screen
         '''
+        self.task_data['trial'] = self.calc_trial_num()
+        self.task_data['trial_index'] = self.trial_index
         self.task_data['target'] = self.target_location.copy()
         self.task_data['target_index'] = self.target_index
 
@@ -418,6 +425,16 @@ class ScreenTargetCapture(TargetCapture, Window):
 
     #### Generator functions ####
     @staticmethod
+    def static(pos=(0,0,0), ntrials=0):
+        '''Single location, finite (ntrials!=0) or infinite (ntrials==0)'''
+        if ntrials == 0:
+            while True:
+                yield np.array(pos)
+        else:
+            for _ in range(ntrials):
+                yield np.array(pos)
+
+    @staticmethod
     def out_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
         '''
         Generates a sequence of 2D (x and z) targets at a given distance from the origin
@@ -435,21 +452,22 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         Returns
         -------
-        [nblocks*ntargets x 1 x 3] array of target coordinates
+        [nblocks*ntargets x 1] array of tuples containing trial indices and [1 x 3] target coordinates
 
         '''
-        theta = []
-        for i in range(nblocks):
-            temp = np.arange(0, 2*np.pi, 2*np.pi/ntargets)
-            np.random.shuffle(temp)
-            theta = theta + [temp]
-        theta = np.hstack(theta)
-
-        x = distance*np.cos(theta) + origin[0]
-        y = np.zeros((nblocks*ntargets,)) + origin[1]
-        z = distance*np.sin(theta) + origin[2]
-
-        return np.vstack([x, y, z]).T
+        rng = np.random.default_rng()
+        for _ in range(nblocks):
+            order = np.arange(ntargets)
+            rng.shuffle(order)
+            for t in range(ntargets):
+                idx = order[t]
+                theta = 2*np.pi*idx/ntargets
+                pos = np.array([
+                    distance*np.cos(theta),
+                    0,
+                    distance*np.sin(theta)
+                ]).T
+                yield idx, pos + origin
 
     @staticmethod
     def centerout_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
@@ -458,11 +476,14 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         Returns
         -------
-        [nblocks*ntargets x 2 x 3] array of target coordinates
+        [nblocks*ntargets x 1] array of tuples containing trial indices and [2 x 3] target coordinates
         '''
-        targs = np.zeros([nblocks*ntargets, 2, 3]) + origin
-        targs[:,1,:] = ScreenTargetCapture.out_2D(nblocks, ntargets, distance, origin)
-        return targs
+        gen = ScreenTargetCapture.out_2D(nblocks, ntargets, distance, origin)
+        for _ in range(nblocks*ntargets):
+            idx, pos = next(gen)
+            targs = np.zeros([2, 3]) + origin
+            targs[1,:] = pos
+            yield idx, targs
 
     @staticmethod
     def centeroutback_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
@@ -471,11 +492,14 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         Returns
         -------
-        [nblocks*ntargets x 3 x 3] array of target coordinates
+        [nblocks*ntargets x 1] array of tuples containing trial indices and [3 x 3] target coordinates
         '''
-        targs = np.zeros([nblocks*ntargets, 3, 3]) + origin
-        targs[:,1,:] = ScreenTargetCapture.out_2D(nblocks, ntargets, distance, origin)
-        return targs
+        gen = ScreenTargetCapture.out_2D(nblocks, ntargets, distance, origin)
+        for _ in range(nblocks*ntargets):
+            idx, pos = next(gen)
+            targs = np.zeros([3, 3]) + origin
+            targs[1,:] = pos
+            yield idx, targs
     
     @staticmethod
     def rand_target_chain_2D(ntrials=100, chain_length=1, boundaries=(-12,12,-12,12)):
@@ -495,65 +519,13 @@ class ScreenTargetCapture(TargetCapture, Window):
         -------
         [ntrials x chain_length x 3] array of target coordinates
         '''
+        for t in range(ntrials):
 
-        # Choose a random sequence of points within the boundaries
-        pts = np.random.rand(ntrials*chain_length, 3)*((boundaries[1]-boundaries[0]),
-            0, (boundaries[3]-boundaries[2]))
-        pts = pts+(boundaries[0], 0, boundaries[2])
-
-        # Group points into chains
-        return np.reshape(pts, (ntrials, chain_length, 3))
-
-    @staticmethod
-    def out_3D(ntrials=100, distance=10, origin=(0,0,0)):
-        '''
-        Choose a random sequence of points on the surface of a sphere of radius "distance"
-
-        Parameters
-        ----------
-        ntrials : int
-            The number of target chains in the sequence.
-        distance : float
-            The distance in cm between the center and peripheral targets.
-        origin : 3-tuple
-            Location of the central targets around which the peripheral targets span
-
-        Returns
-        -------
-        [ntrials x 2 x 3] array of target coordinates
-        '''
-        theta = np.random.rand(ntrials)*2*np.pi
-        phi = np.arccos(2*np.random.rand(ntrials) - 1)
-        x = distance*np.cos(theta)*np.sin(phi) + origin[0]
-        y = distance*np.sin(theta)*np.sin(phi) + origin[1]
-        z = distance*np.cos(theta) + origin[2]
-        return np.vstack([x, y, z]).T
-
-    @staticmethod
-    def centerout_3D(ntrials=100, distance=10, origin=(0,0,0)):
-        '''
-        Pairs of central targets at the origin and peripheral targets centered around the origin
-
-        Returns
-        -------
-        [ntrials x 2 x 3] array of target coordinates
-        '''
-        targs = np.zeros([ntrials, 2, 3]) + origin
-        targs[:,1,:] = ScreenTargetCapture.out_3D(ntrials, distance, origin)
-        return targs
-
-    @staticmethod
-    def centeroutback_3D(ntrials=100, distance=10, origin=(0,0,0)):
-        '''
-        Triplets of central targets, peripheral targets, and central targets
-
-        Returns
-        -------
-        [ntrials x 3 x 3] array of target coordinates
-        '''
-        targs = np.zeros([ntrials, 3, 3]) + origin
-        targs[:,1,:] = ScreenTargetCapture.out_3D(ntrials, distance, origin)
-        return targs
+            # Choose a random sequence of points within the boundaries
+            pts = np.random.rand(chain_length, 3)*((boundaries[1]-boundaries[0]),
+                0, (boundaries[3]-boundaries[2]))
+            pts = pts+(boundaries[0], 0, boundaries[2])
+            yield t, pts
     
     @staticmethod
     def rand_target_chain_3D(ntrials=100, chain_length=1, boundaries=(-12,12,-10,10,-12,12)):
@@ -572,11 +544,10 @@ class ScreenTargetCapture(TargetCapture, Window):
         -------
         [ntrials x chain_length x 3] array of target coordinates
         '''
+        for t in range(ntrials):
 
-        # Choose a random sequence of points within the boundaries
-        pts = np.random.rand(ntrials*chain_length, 3)*((boundaries[1]-boundaries[0]),
-            (boundaries[3]-boundaries[2]), (boundaries[5]-boundaries[4]))
-        pts = pts+(boundaries[0], boundaries[2], boundaries[4])
-
-        # Group points into chains
-        return np.reshape(pts, (ntrials, chain_length, 3))
+            # Choose a random sequence of points within the boundaries
+            pts = np.random.rand(chain_length, 3)*((boundaries[1]-boundaries[0]),
+                (boundaries[3]-boundaries[2]), (boundaries[5]-boundaries[4]))
+            pts = pts+(boundaries[0], boundaries[2], boundaries[4])
+            return t, pts

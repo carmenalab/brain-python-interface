@@ -202,7 +202,7 @@ class KeyboardControl(object):
 
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
-        self.joystick = Keyboard(self.plant.get_endpoint_pos())
+        self.joystick = Keyboard(np.array(self.starting_pos[::2]))
 
     def _start_wait(self):
         self.wait_time = 0.
@@ -243,7 +243,7 @@ class MouseControl(KeyboardControl):
 
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
-        self.joystick = Mouse(self.window_size, self.screen_cm, self.plant.get_endpoint_pos())
+        self.joystick = Mouse(self.window_size, self.screen_cm, np.array(self.starting_pos[::2]))
 
 class Mouse():
     '''
