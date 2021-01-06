@@ -34,7 +34,7 @@ class RewardSystem(traits.HasTraits):
         if self.reward is not None:
              self.reportstats['Reward #'] += 1
              if self.reportstats['Reward #'] % self.trials_per_reward == 0:
-                 self.reward.reward(self.reward_time*10)
+                 self.reward.reward(self.reward_time)
         #super(RewardSystem, self).reward(self.reward_time)
 
     def _test_reward_end(self, ts):

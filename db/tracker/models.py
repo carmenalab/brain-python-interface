@@ -405,7 +405,10 @@ class Generator(models.Model):
         # determine which generators are unused in the database using set subtraction
         unused_generators = db_generators - listed_generators
         for name in unused_generators:
-            Generator.objects.filter(name=name).delete()
+            try:
+                Generator.objects.filter(name=name).delete()
+            except models.ProtectedError:
+                pass
 
     @staticmethod
     def populate():

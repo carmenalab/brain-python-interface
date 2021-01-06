@@ -53,7 +53,8 @@ class System(object):
         coords = np.empty((self.n_features, 3))
         coords[:] = np.nan
         for i in range(np.min((self.n_features, len(feature)))):
-            coords[i] = feature[i].position
+            if hasattr(feature[i], 'mean_error') and feature[i].mean_error < 1e-2: # 1 cm
+                coords[i] = feature[i].position
 
         # For HDFWriter we need a dim 0
         coords = np.expand_dims(coords, axis = 0)

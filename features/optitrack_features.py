@@ -36,15 +36,18 @@ class Optitrack(traits.HasTraits):
 
         # Start the natnet client and recording
         import natnet
-        client = natnet.Client.connect(logger=Logger())
         now = datetime.now()
         session = "C:/Users/Orsborn Lab/Documents/OptiTrack/Session " + now.strftime("%Y-%m-%d")
         take = now.strftime("Take %Y-%m-%d %H:%M:%S")
-        client = natnet.Client.connect(logger=Logger())
+        logger = Logger(take)
+        client = natnet.Client.connect(logger=logger)
         client.set_session(session)
         client.set_take(take)
         self.filename = os.path.join(session, take)
-        client.start_recording() # TODO set LiveMode
+        status = client.start_recording()
+        if not status:
+            # Abort experiment
+            raise ConnectionError("Optitrack failed to start")
         self.client = client
 
         # Create a source to buffer the motion tracking data
@@ -67,6 +70,7 @@ class Optitrack(traits.HasTraits):
             super().run()
         finally:
             self.motiondata.stop()
+            self.client.stop_recording()
 
     def join(self):
         '''
@@ -75,22 +79,15 @@ class Optitrack(traits.HasTraits):
         self.motiondata.join()
         super().join()
 
-    def _start_None(self):
-        '''
-        Code to run before the 'None' state starts (i.e., the task stops)
-        '''
-        self.motiondata.stop()
-        super()._start_None()
-
     def cleanup(self, database, saveid, **kwargs):
         '''
         Save the optitrack recorded file into the database
         '''
         super().cleanup(database, saveid, **kwargs)
         if saveid is not None:
-            self.client.stop_recording()
+            print("Saving optitrack file to database...")
             database.save_data(self.filename, "optitrack", saveid, False, False) # Make sure you actually have an "optitrack" system added!
-            print("Saved optitrack file to database")
+            print("...done.")
 
     def _get_manual_position(self):
         ''' Overridden method to get input coordinates based on motion data'''
@@ -101,10 +98,9 @@ class Optitrack(traits.HasTraits):
             return
         recent = data[-self.smooth_features:] # How many recent coordinates to average
         averaged = np.mean(recent, axis=0) # List of averaged features
-        coords = np.concatenate((averaged[0], [1])) # Take only the first feature
-        if np.isnan(coords).any(): # No usable coords
+        if np.isnan(averaged).any(): # No usable coords
             return
-        return coords
+        return averaged
 
 class OptitrackSimulate(Optitrack):
     '''
@@ -139,11 +135,26 @@ class OptitrackSimulate(Optitrack):
 import logging
 class Logger(object):
 
-    def __init__(self):
-        logging.basicConfig(filename='../log/optitrack.log')
+    def __init__(self, msg="", log_filename='../log/optitrack.log'):
+        self.log_filename = log_filename
+        self.reset(msg)
 
-    debug = logging.debug
-    info = logging.info
-    warning = logging.warning
-    error = logging.error
-    fatal = logging.critical
+    def log_str(self, s, mode="a", newline=True):
+        if self.log_filename != '':
+            if newline and not s.endswith("\n"):
+                s += "\n"
+            with open(self.log_filename, mode) as fp:
+                fp.write(s)
+    
+    def _log(self, msg, *args):
+        self.log_str(msg % args)
+
+    def reset(self, s="Logger"):
+        with open(self.log_filename, "w") as fp:
+            fp.write(s + "\n\n")
+
+    debug = _log
+    info = _log
+    warning = _log
+    error = _log
+    fatal = _log
