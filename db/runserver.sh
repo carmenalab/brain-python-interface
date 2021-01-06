@@ -7,12 +7,10 @@ if [ $DISPLAY=='' ]; then
 fi
 #DISPLAY=':0'
 
-# Make sure that the environment variable BMI3D is installed
-if [ -z "$BMI3D" ]
-    then
-    echo "ERROR: Need to define the BMI3D environment variable!"
-    exit 1
-fi
+# Find the BMI3D directory
+FILE=$(realpath "$0")
+DB=$(dirname $FILE)
+BMI3D=$(dirname $DB)
 
 # #Check /storage (exist )
 # storage=$(python $BMI3D/config_files/check_storage.py 2>&1)

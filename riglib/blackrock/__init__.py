@@ -2,10 +2,7 @@
 Extensions of the generic riglib.source.DataSourceSystem for getting Spikes/LFP data from the Blackrock NeuroPort system over the rig's internal network (UDP)
 '''
 import numpy as np
-
-from . import cerelink
 from riglib.source import DataSourceSystem
-
 
 class Spikes(DataSourceSystem):
     '''
@@ -20,6 +17,7 @@ class Spikes(DataSourceSystem):
                       ("arrival_ts", np.float64)])
 
     def __init__(self, channels):
+        from . import cerelink
         self.conn = cerelink.Connection()
         self.conn.connect()
         self.conn.select_channels(channels)
@@ -50,6 +48,7 @@ class LFP(DataSourceSystem):
     dtype = np.dtype('float')
 
     def __init__(self, channels):
+        from . import cerelink
         self.conn = cerelink.Connection()
         self.conn.connect()
         self.conn.select_channels(channels)

@@ -52,6 +52,8 @@ class DigitalWave(threading.Thread):
     def square_wave(freq, duration):
         pulse_interval = 1.0/freq
         edge_interval = pulse_interval/2
+        if duration < edge_interval: # less than one half wavelength
+            edge_interval = duration
         length = int(duration/edge_interval)
         delays = np.insert(edge_interval*np.ones(length), 0, 0)
         return DigitalWave.delays_to_edges(delays)

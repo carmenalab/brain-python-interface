@@ -148,7 +148,7 @@ Sequence.prototype._make_name = function() {
     var gen = $("#sequence #seqgen option").filter(":selected").text()
     var txt = [];
     var d = new Date();
-    var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
+    // var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
 
     $("#sequence #seqparams input").each(
         function() {
@@ -158,7 +158,8 @@ Sequence.prototype._make_name = function() {
                 txt.push(this.name+"="+this.placeholder);
         }
     )
-    return gen+":["+txt.join(", ")+"]-" + datestr
+    // return gen+":["+txt.join(", ")+"]-" + datestr
+    return gen+":["+txt.join(", ")+"]"
 }
 
 Sequence.prototype.edit = function() {
@@ -186,9 +187,12 @@ Sequence.prototype.get_data = function() {
     var val = $("#seqlist").val();
     var name = $("#seqlist option[value=\"new\"]").attr("name");
     var id = null
+
+    // Try to match the name to a previous sequence
     $("#seqlist option").each(function(){
         if ($(this).html() == name) id = parseInt($(this).val());
     });
+    
     if (val == "new" && id != null) {
         // old sequence exists, just a duplicate of a previous ID
         return id;

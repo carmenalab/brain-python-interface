@@ -465,6 +465,7 @@ def add_new_task(request):
     task.save()
 
     # add any new generators for the task
+    Generator.remove_unused()       
     Generator.populate()
 
     task_data = dict(id=task.id, name=task.name, import_path=task.import_path)
@@ -481,7 +482,6 @@ def remove_task(request):
     if entry is None or len(entry) == 0:
         try:
             Sequence.objects.filter(task=id).delete()
-            Generator.remove_unused()
         except Sequence.DoesNotExist:
             pass
         task.delete()
