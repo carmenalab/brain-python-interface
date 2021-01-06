@@ -38,25 +38,24 @@ class System(object):
 
         # Run the client to collect a frame of data
         self.client.run_once(timeout=1)
-
-        # Pick a feature
-        if self.feature == "rigid body":
-            feature = self.rigid_bodies
-        elif self.feature == "skeleton":
-            feature = self.skeletons
-        elif self.feature == "marker":
-            feature = self.markers
-        else:
-            raise AttributeError("Feature type unknown!")
         
         # Extract coordinates from feature
         coords = np.empty((self.n_features, 3))
         coords[:] = np.nan
-        for i in range(np.min((self.n_features, len(feature)))):
-            coords[i] = feature[i].position
+        if self.feature == "rigid body":
+            for i in range(np.min((self.n_features, len(self.rigid_bodies)))):
+                if self.rigid_bodies[i].tracking_valid:
+                    coords[i] = self.rigid_bodies[i].position
+        elif self.feature == "marker":
+            for i in range(np.min((self.n_features, len(self.markers)))):
+                coords[i] = self.markers[i].position
+        elif self.feature == "skeleton":
+            raise NotImplementedError()
+        else:
+            raise AttributeError("Feature type unknown!")
 
         # For HDFWriter we need a dim 0
-        coords = np.expand_dims(coords, axis = 0)
+        coords = np.expand_dims(coords, axis=0)
         return coords
     
     def _update(self, rigid_bodies, skeletons, markers, timing):
