@@ -15,8 +15,11 @@ class Conditions(Sequence):
     )
     
     wait_time = traits.Float(5.0, desc="Inter-trial interval (s)")
-    trial_time = traits.Float(1.0, desc="Trial length (s)")
+    trial_time = traits.Float(1.0, desc="Trial duration (s)")
     sequence_generators = ['null_sequence']
+
+    def _parse_next_trial(self):
+        self.trial_index = self.next_trial
 
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
@@ -29,18 +32,17 @@ class Conditions(Sequence):
         ''' Generate random sequence of all combinations of the given arguments'''
         unique = list(itertools.product(*args))
         conds = np.random.choice(nreps*len(unique), nreps*len(unique), replace=replace)
-        seq = [list(unique[i % len(unique)]) for i in conds]
+        seq = [[i % len(unique)] + list(unique[i % len(unique)]) for i in conds] # list of [index, arg1, arg2, ..., argn]
         return tuple(zip(*seq))
 
     @staticmethod
     def gen_conditions(nreps, *args, ascend=True):
         ''' Generate a sequential sequence of all combinations of the given arguments'''
         unique = list(itertools.product(*args))
-        tiled = np.tile(np.asarray(unique), nreps)
-        if ascend:
-            seq = tiled.flatten()
-        else:
-            seq = np.flipud(tiled).flatten()
+        conds = np.tile(range(len(unique)), nreps)
+        if not ascend: # descending
+            conds = np.flipud(conds)
+        seq = [[i % len(unique)] + list(unique[i % len(unique)]) for i in conds] # list of [index, arg1, arg2, ..., argn]
         return tuple(zip(*seq))
 
     @staticmethod
@@ -68,7 +70,7 @@ class LaserConditions(Conditions):
         self.task_data['power'] = self.power.copy()
 
     def _parse_next_trial(self):
-        self.power, self.edges = self.next_trial
+        self.trial_index, self.power, self.edges = self.next_trial
 
     def _start_trial(self):
         # TODO set laser power
@@ -104,17 +106,17 @@ class LaserConditions(Conditions):
 
         Returns
         -------
-        seq : [nreps*len(duration)*len(power) x 2] list of laser powers and edge sequences
+        seq : (nreps*len(duration)*len(power) x 3) tuple of trial indices, laser powers, and edge sequences
 
         '''
         duration = make_list_of_float(duration)
         power = make_list_of_float(power)
         if uniformsampling:
-            dur_seq, pow_seq = Conditions.gen_random_conditions(nreps, duration, power)
+            idx, dur_seq, pow_seq = Conditions.gen_random_conditions(nreps, duration, power)
         else:
-            dur_seq, pow_seq = Conditions.gen_conditions(nreps, duration, power, ascend=ascending)
+            idx, dur_seq, pow_seq = Conditions.gen_conditions(nreps, duration, power, ascend=ascending)
         edge_seq = map(lambda dur: [0, dur], dur_seq)
-        return list(zip(pow_seq, edge_seq))
+        return list(zip(idx, pow_seq, edge_seq))
 
     @staticmethod
     def square_wave(nreps=100, freq=[20], duration=[0.005], power=[1], uniformsampling=True, ascending=False):
@@ -134,19 +136,18 @@ class LaserConditions(Conditions):
 
         Returns
         -------
-        pow_seq : [nreps*len(duration)*len(power)] list of laser powers
-        edge_seq : [nreps*len(duration)*len(power) x 2] array of laser wave edge times
+        seq : (nreps*len(duration)*len(power)*len(freq) x 3) tuple of trial indices, laser powers, and edge sequences
 
         '''
         freq = make_list_of_float(freq)
         duration = make_list_of_float(duration)
         power = make_list_of_float(power)
         if uniformsampling:
-            freq_seq, dur_seq, pow_seq = Conditions.gen_random_conditions(nreps, freq, duration, power)
+            idx, freq_seq, dur_seq, pow_seq = Conditions.gen_random_conditions(nreps, freq, duration, power)
         else:
-            freq_seq, dur_seq, pow_seq = Conditions.gen_conditions(nreps, freq, duration, power, ascend=ascending)
+            idx, freq_seq, dur_seq, pow_seq = Conditions.gen_conditions(nreps, freq, duration, power, ascend=ascending)
         edge_seq = map(lambda freq, dur: DigitalWave.square_wave(freq, dur), freq_seq, dur_seq)
-        return list(zip(pow_seq, edge_seq))
+        return list(zip(idx, pow_seq, edge_seq))
 
 
 ####################

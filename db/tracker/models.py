@@ -376,9 +376,9 @@ class Generator(models.Model):
 
             if hasattr(task_cls, 'sequence_generators'):
                 generator_function_names = task_cls.sequence_generators
-                gen_fns = [getattr(task_cls, x) for x in generator_function_names]
+                gen_fns = [getattr(task_cls, x) if hasattr(task_cls, x) else None for x in generator_function_names]
                 for fn_name, fn in zip(generator_function_names, gen_fns):
-                    if fn in generator_functions:
+                    if fn in generator_functions or fn is None:
                         pass
                     else:
                         generator_names.append(fn_name)
@@ -416,6 +416,9 @@ class Generator(models.Model):
         # determine which generators are missing from the database using set subtraction
         missing_generators = listed_generators - db_generators
         for name in missing_generators:
+
+            # TODO not sure why we're populating the 'params' field here since it never gets used    
+
             # The sequence/generator constructor can either be a callable or a class constructor... not aware of any uses of the class constructor
             try:
                 args = inspect.getargspec(generators[name]).args
@@ -430,8 +433,8 @@ class Generator(models.Model):
                 args.remove("exp")
 
             # TODO not sure why the 'length' argument is being removed; is it assumed that all generators will take a 'length' argument?
-            if "length" in args:
-                args.remove("length")
+            # if "length" in args:
+            #     args.remove("length")
 
             gen_obj = Generator(name=name, params=",".join(args), static=static)
             gen_obj.save()
