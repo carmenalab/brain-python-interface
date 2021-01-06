@@ -236,15 +236,13 @@ class ScreenTargetCapture(TargetCapture, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
 
-    starting_pos = (5, 0, 5) # TODO 
-    background = (0,0,0,1) # TODO
-
     limit2d = 1
 
     sequence_generators = [
-        'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 
-        'centerout_3D', 'centeroutback_3D', 'rand_target_chain_3D',
+        'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
     ]
+
+    hidden_traits = Window.hidden_traits + ['target_color', 'background', 'plant_hide_rate', 'starting_pos']
 
     is_bmi_seed = True
 
@@ -252,6 +250,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     reward_time = traits.Float(.5, desc="Length of juice reward")
     target_radius = traits.Float(2, desc="Radius of targets in cm")
     target_color = traits.OptionsList(tuple(target_colors.keys()), desc="Color of the target")
+    background = traits.Tuple((0,0,0,1), desc='Screen background color')
 
     hold_time = traits.Float(.2, desc="Length of hold required at targets")
     hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
@@ -261,10 +260,10 @@ class ScreenTargetCapture(TargetCapture, Window):
         skipping to the next one')
 
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
-    plant_type_options = list(plantlist.keys())
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
-    cursor_radius = traits.Float(.5, desc="Radius of cursor")
+    cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
+    starting_pos = traits.Tuple((5, 0, 5), desc='Where to initialize the cursor') 
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -272,6 +271,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Initialize the plant
         if not hasattr(self, 'plant'):
             self.plant = plantlist[self.plant_type]
+        self.plant.set_endpoint_pos(np.array(self.starting_pos))
         self.plant_vis_prev = True
         self.cursor_vis_prev = True
 

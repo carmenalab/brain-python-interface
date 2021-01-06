@@ -255,7 +255,7 @@ class WindowWithExperimenterDisplay(Window):
 
 TRANSPARENT = (106,0,42)
 
-class WindowDispl2D(Window):
+class WindowDispl2D():
     '''Draws world on a 2D screen. May cause mild confusion -- transforms 
     incoming 3D coordinates (x,y,z) into 2D coordinates (x,y) by mapping z onto y'''
 
