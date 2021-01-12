@@ -31,6 +31,11 @@ except ImportError:
 # for WindowDispl2D only
 from riglib.stereo_opengl.primitives import Shape2D
 
+monitor_res = dict(
+    test_monitor = (1680, 1050),
+    monitor_2D = (2560, 1440),
+    monitor_3D = (1920*2, 1080),
+)
 
 class Window(LogExperiment):
     '''
@@ -40,10 +45,9 @@ class Window(LogExperiment):
     state = "draw"
     stop = False
 
-    #window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
-    #XPS computer
-    window_size = traits.Tuple((1680, 1050), descr='window size, in pixels')
+    # XPS computer
     # window_size = (1920*2, 1080)
+    window_size = traits.Tuple(monitor_res['monitor_2D'], descr='window size, in pixels')
     background = traits.Tuple((0,0,0,1), desc="Background color (R,G,B,A)")
     fullscreen = traits.Bool(True, desc="Fullscreen window")
 
@@ -170,7 +174,7 @@ class Window(LogExperiment):
         self.event = self._get_event()
         
 class SyncSquare(traits.HasTraits):
-    '''A window that adds a square in one corner that switches color with every flip.
+    '''A feature that adds a square in one corner that switches color with every flip.
     Only works for 2D windows currently'''
     
     sync_position = {
@@ -187,7 +191,7 @@ class SyncSquare(traits.HasTraits):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sync_state = False
-        self.flip_every_cycle = True
+        self.sync_every_cycle = True
         screen_center = np.divide(self.window_size,2)
         sync_size_pix = self.sync_size * self.window_size[0] / self.screen_cm[0]
         sync_center = [sync_size_pix/2, sync_size_pix/2]
@@ -201,6 +205,8 @@ class SyncSquare(traits.HasTraits):
         self.sync.fill(TRANSPARENT)
         self.sync.set_colorkey(TRANSPARENT)
 
+    
+
     def _draw_other(self):
         color = self.sync_color_on if self.sync_state else self.sync_color_off
         self.sync.fill(color, rect=self.sync_rect)
@@ -211,7 +217,7 @@ class SyncSquare(traits.HasTraits):
         super().init()
 
     def _cycle(self):
-        if self.flip_every_cycle:
+        if self.sync_every_cycle:
             self.sync_state = not self.sync_state
         self.task_data['sync_square'] = copy.deepcopy(self.sync_state)
         super()._cycle()

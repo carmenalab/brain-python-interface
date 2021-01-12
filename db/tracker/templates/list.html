@@ -212,17 +212,15 @@
         <!-- Templates -->
         {% for e in templates %}
           {% if e.visible %}
-            <tr title="{{e.desc}}" id='row{{e.id}}' class='template'>
+            <tr title="Template" id='row{{e.id}}' class='template'>
           {% else %}
-            <tr title="{{e.desc}}" id='row{{e.id}}' class='template' style="background-color: gray">
+            <tr title="Template" id='row{{e.id}}' class='template' style="background-color: gray">
           {% endif %}
           {% if e == templates|first %}
               <td class='colDate' rowspan={{templates|length}} colspan=2>Templates</td>
           {% endif %}
-              <td class='colID'   >{{e.ui_id}}</td>
-              <td class='colSubj' >{{e.subject.name}}</td>
-              <td class='colTask' >{{e.task.name}}</td>
-              <td class='colShortDesc'>{{e.desc}}</td>
+              <td class='colID' colspan=2 style="text-align: left">{{e.entry_name}}</td>
+              <td class='colTask' colspan=2 style="text-align: left">{{e.task.name}}</td>
             </tr>
         {% endfor %}
           <tr id='newentry' class='rowactive'>

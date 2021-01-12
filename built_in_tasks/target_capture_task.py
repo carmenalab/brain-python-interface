@@ -221,17 +221,6 @@ class TargetCapture(Sequence):
         self.reportstats['Trial #'] = self.calc_trial_num()
         self.reportstats['Reward/min'] = np.round(self.calc_events_per_min('reward', 120.), decimals=2)
 
-    @classmethod
-    def get_desc(cls, params, report):
-        '''Used by the database infrasturcture to generate summary stats on this task'''
-        duration = report[-1][-1] - report[0][-1]
-        reward_count = 0
-        for item in report:
-            if item[0] == "reward":
-                reward_count += 1
-        return "{} rewarded trials in {} min".format(reward_count, duration)
-
-
 class ScreenTargetCapture(TargetCapture, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
@@ -375,7 +364,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         super()._start_wait()
 
         # stop the display sync if there is one
-        self.sync_every_cycle = False
+        self.sync_every_cycle = False    
 
         # hide targets
         for target in self.targets:
@@ -386,9 +375,8 @@ class ScreenTargetCapture(TargetCapture, Window):
         super()._start_target()
 
         # start the display sync if there is one
-        if self.target_index == 0:
-            self.sync_every_cycle = True
-
+        self.sync_every_cycle = True
+        
         # move one of the two targets to the new target location
         target = self.targets[self.target_index % 2]
         target.move_to_position(self.target_location)
@@ -414,11 +402,17 @@ class ScreenTargetCapture(TargetCapture, Window):
         for target in self.targets:
             target.hide()
 
+        # stop the display sync
+        self.sync_every_cycle = False
+
     def _start_timeout_penalty(self):
         super()._start_timeout_penalty()
         # hide targets
         for target in self.targets:
             target.hide()
+        
+        # stop the display sync
+        self.sync_every_cycle = False
 
     def _start_reward(self):
         self.targets[self.target_index % 2].cue_trial_end_success()
@@ -519,10 +513,11 @@ class ScreenTargetCapture(TargetCapture, Window):
         -------
         [ntrials x chain_length x 3] array of target coordinates
         '''
+        rng = np.random.default_rng()
         for t in range(ntrials):
 
             # Choose a random sequence of points within the boundaries
-            pts = np.random.rand(chain_length, 3)*((boundaries[1]-boundaries[0]),
+            pts = rng.uniform(size=(1, 3))*((boundaries[1]-boundaries[0]),
                 0, (boundaries[3]-boundaries[2]))
             pts = pts+(boundaries[0], 0, boundaries[2])
             yield t, pts
@@ -544,10 +539,11 @@ class ScreenTargetCapture(TargetCapture, Window):
         -------
         [ntrials x chain_length x 3] array of target coordinates
         '''
+        rng = np.random.default_rng()
         for t in range(ntrials):
 
             # Choose a random sequence of points within the boundaries
-            pts = np.random.rand(chain_length, 3)*((boundaries[1]-boundaries[0]),
+            pts = rng.uniform(size=(1, 3))*((boundaries[1]-boundaries[0]),
                 (boundaries[3]-boundaries[2]), (boundaries[5]-boundaries[4]))
             pts = pts+(boundaries[0], boundaries[2], boundaries[4])
             return t, pts

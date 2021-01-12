@@ -157,13 +157,10 @@ class ManualControl(ScreenTargetCapture):
         self.last_pt = self.current_pt.copy()
 
     @classmethod
-    def get_desc(cls, params, report):
-        duration = report[-1][-1] - report[0][-1]
-        reward_count = 0
-        for item in report:
-            if item[0] == "reward":
-                reward_count += 1
-        return "{} rewarded trials in {} min".format(reward_count, duration)
+    def get_desc(cls, params, log_summary):
+        duration = round(log_summary['runtime'] / 60, 1)
+        return "{}/{} succesful trials in {} min".format(
+            log_summary['n_success_trials'], log_summary['n_trials'], duration)
 
 
 class ManualControl2DWindow(ManualControl, WindowDispl2D):

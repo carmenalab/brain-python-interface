@@ -70,6 +70,9 @@ Sequence.prototype.update = function(info) {
     // number of objects probably depends on whether exp_info or task_info server fn is called
     $("#seqlist").unbind("change");
 
+    // save previous selection
+    var prev = $("#seqlist :selected").val()
+
     // remove all the existing options
     for (var id in this.options)
         $(this.options[id]).remove()
@@ -92,13 +95,25 @@ Sequence.prototype.update = function(info) {
     }
 
     if (Object.keys(info).length > 0) {
-        $("#seqgen").val(info[id].generator[0]);
-        $("#seqlist").val(id);
+
+        
+        if (prev == "new") {
+        
+            // Select the last (most recent) available sequence if none was selected
+            $("#seqgen").val(info[id].generator[0]);
+            $("#seqlist").val(id);
+
+        } else {
+
+            // Keep the previous selection
+            $("#seqgen").val(info[prev].generator[0]);
+            $("#seqlist").val(prev);
+        }
 
         this.params.update(info[id].params);
         $("#seqstatic").attr("checked", info[id].static);
 
-        //Bind the sequence list updating function
+        // Bind the sequence list updating function
         var seq_obj = this;
         this._handle_chlist = function () {
             var id = this.value; // 'this' is bound to the options list when it's used inside the callback below

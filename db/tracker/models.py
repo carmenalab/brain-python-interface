@@ -911,8 +911,6 @@ class TaskEntry(models.Model):
             Exp = self.task.get_base_class()
             return Exp.get_desc(params.get_data(), report_data)
         except:
-            #import traceback
-            #traceback.print_exc()
             return "Error generating description"
 
     def get_data_files(self):
