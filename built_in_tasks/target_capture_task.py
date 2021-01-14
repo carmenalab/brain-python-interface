@@ -228,7 +228,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     limit2d = 1
 
     sequence_generators = [
-        'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
+        'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
     ]
 
     hidden_traits = Window.hidden_traits + ['target_color', 'background', 'plant_hide_rate', 'starting_pos']
@@ -461,7 +461,7 @@ class ScreenTargetCapture(TargetCapture, Window):
                     0,
                     distance*np.sin(theta)
                 ]).T
-                yield idx, pos + origin
+                yield idx, [pos + origin]
 
     @staticmethod
     def centerout_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
@@ -476,7 +476,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         for _ in range(nblocks*ntargets):
             idx, pos = next(gen)
             targs = np.zeros([2, 3]) + origin
-            targs[1,:] = pos
+            targs[1,:] = pos[0]
             yield idx, targs
 
     @staticmethod
@@ -492,7 +492,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         for _ in range(nblocks*ntargets):
             idx, pos = next(gen)
             targs = np.zeros([3, 3]) + origin
-            targs[1,:] = pos
+            targs[1,:] = pos[0]
             yield idx, targs
     
     @staticmethod

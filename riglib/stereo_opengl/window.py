@@ -112,6 +112,8 @@ class Window(LogExperiment):
         #up vector is always (0,0,1), why would I ever need to roll the camera?!
         self.set_eye((0, -self.screen_dist, 0), (0,0))
 
+        pygame.mouse.set_visible(False)
+
     def _get_renderer(self):
         near = 1
         far = 1024
@@ -172,6 +174,9 @@ class Window(LogExperiment):
         self.draw_world()
         super(Window, self)._cycle()
         self.event = self._get_event()
+        if self.cycle_count % self.fps == 0: 
+            # Update the measured frame rate every second
+            self.reportstats['FPS'] = round(self.clock.get_fps(),2)
         
 class SyncSquare(traits.HasTraits):
     '''A feature that adds a square in one corner that switches color with every flip.
@@ -204,8 +209,6 @@ class SyncSquare(traits.HasTraits):
         self.sync = pygame.Surface(self.window_size)
         self.sync.fill(TRANSPARENT)
         self.sync.set_colorkey(TRANSPARENT)
-
-    
 
     def _draw_other(self):
         color = self.sync_color_on if self.sync_state else self.sync_color_off
@@ -271,7 +274,7 @@ class WindowDispl2D():
         pygame.init()
         self.clock = pygame.time.Clock()
 
-        flags = pygame.NOFRAME
+        flags = pygame.NOFRAME | pygame.DOUBLEBUF | pygame.HWSURFACE
 
         if self.fullscreen:
             flags = flags | pygame.FULLSCREEN

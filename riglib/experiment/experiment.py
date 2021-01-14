@@ -81,7 +81,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
     stop = False
 
     # Rate at which FSM is called. Set to 60 Hz by default to match the typical monitor update rate
-    fps = 60 # Hz
+    fps = traits.Float(60, desc="Rate at which the FSM is called") # Hz
 
     cycle_count = 0
 

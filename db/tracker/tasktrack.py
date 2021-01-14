@@ -136,10 +136,12 @@ class Track(singleton.Singleton):
             raise ValueError("Unknown task status")
 
         assert self.status.value in [b"testing", b"running"]
+        print("Tasktrack is stopping the task...")
         try:
             if self.task_proxy is not None:
                 self.task_proxy.end_task()
         except Exception as e:
+            print(e)
             traceback.print_exc()
             err = io.StringIO()
             traceback.print_exc(None, err)

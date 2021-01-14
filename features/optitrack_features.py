@@ -69,6 +69,7 @@ class Optitrack(traits.HasTraits):
         try:
             super().run()
         finally:
+            print("Stopping optitrack")
             self.motiondata.stop()
             self.client.stop_recording()
 
@@ -76,6 +77,7 @@ class Optitrack(traits.HasTraits):
         '''
         See riglib.experiment.Experiment.join(). Re-join the motiondata source process before cleaning up the experiment thread
         '''
+        print("Joining optitrack datasource")
         self.motiondata.join()
         super().join()
 

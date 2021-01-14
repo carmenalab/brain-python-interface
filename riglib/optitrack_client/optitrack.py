@@ -5,8 +5,9 @@ Base code for 'optitrack' feature, compatible with Optitrack motiontracker
 import os
 import time
 import numpy as np
+from riglib.source import DataSourceSystem
 
-class System(object):
+class System(DataSourceSystem):
     '''
     Optitrack DataSourceSystem runs at 240 Hz collects data via UDP packets using natnet depacketizer
     '''
