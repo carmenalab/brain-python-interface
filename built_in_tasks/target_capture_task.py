@@ -12,6 +12,7 @@ from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
 from riglib import plants
 
+from riglib.stereo_opengl.window import Window, FPScontrol, WindowDispl2D
 from .target_graphics import *
 
 ## Plants

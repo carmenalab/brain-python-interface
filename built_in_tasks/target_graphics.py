@@ -9,7 +9,6 @@ import math
 import traceback
 
 from riglib.stereo_opengl.primitives import Sphere, Cube
-from riglib.stereo_opengl.window import Window, FPScontrol, WindowDispl2D
 from riglib.stereo_opengl.primitives import Cylinder, Plane, Sphere, Cube
 from riglib.stereo_opengl.models import FlatMesh, Group
 from riglib.stereo_opengl.textures import Texture, TexModel
@@ -105,9 +104,10 @@ class RectangularTarget(object):
     def _pickle_init(self):
         self.cube = Cube(side_len=self.target_width, color=self.target_color)
         self.graphics_models = [self.cube]
-        self.cube.translate(*self.position)
         #self.center_offset = np.array([self.target_width, 0, self.target_width], dtype=np.float64) / 2
         self.center_offset = np.array([0, 0, self.target_width], dtype=np.float64) / 2
+        corner_pos = self.position - self.center_offset
+        self.cube.translate(*corner_pos)
     def move_to_position(self, new_pos):
         self.int_position = new_pos
         self.drive_to_new_pos()

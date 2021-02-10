@@ -6,7 +6,7 @@ import operator
 import numpy as np
 from OpenGL.GL import *
 
-from ..utils import perspective
+from ..utils import perspective, orthographic
 from .shader import ShaderProgram
 
 cwd = os.path.join(os.path.abspath(os.path.split(__file__)[0]), "..")
@@ -25,11 +25,11 @@ class Renderer(object):
         #Add the default shaders
         if shaders is None:
             shaders = dict()
+            shaders['passthru'] = GL_VERTEX_SHADER, "passthrough.v.glsl"
+            shaders['default'] = GL_FRAGMENT_SHADER, "default.f.glsl", "phong.f.glsl"
         if programs is None:
             programs = dict()
-        shaders['passthru'] = GL_VERTEX_SHADER, "passthrough.v.glsl"
-        shaders['default'] = GL_FRAGMENT_SHADER, "default.f.glsl", "phong.f.glsl"
-        programs['default'] = "passthru", "default"
+            programs['default'] = "passthru", "default"
 
         #compile the given shaders and the programs
         self.shaders = dict()
@@ -147,6 +147,18 @@ class Renderer(object):
     
     def draw_done(self):
         self.reset_texunits()
+
+class Renderer2D(Renderer):
+
+    def __init__(self, screen_cm):
+        shaders = dict()
+        shaders['passthru'] = GL_VERTEX_SHADER, "passthrough.v.glsl"
+        shaders['default'] = GL_FRAGMENT_SHADER, "none.f.glsl"
+        programs = dict()
+        programs['default'] = "passthru", "default"
+        super().__init__(screen_cm, np.nan, 1, 1024, shaders=shaders, programs=programs)
+        w, h = screen_cm
+        self.projection = orthographic(w, h, 1, 1024)
 
 def test():
     import pygame

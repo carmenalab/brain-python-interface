@@ -10,7 +10,7 @@ from OpenGL.GL import *
 from riglib.experiment import LogExperiment
 from riglib.experiment import traits
 
-from .render import stereo
+from .render import stereo, render
 from .models import Group
 from .xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere, Cube, Chain
@@ -20,6 +20,8 @@ from .primitives import Cylinder, Sphere, Cone
 import socket
 
 import copy
+
+from built_in_tasks.target_graphics import VirtualRectangularTarget, VirtualCircularTarget
 
 try:
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -172,17 +174,22 @@ class Window(LogExperiment):
     def _cycle(self):
         self.requeue()
         self.draw_world()
-        super(Window, self)._cycle()
+        super(Window, self)._cycle() # is this order intentional? why not cycle first then draw the screen?
         self.event = self._get_event()
         if self.cycle_count % self.fps == 0: 
             # Update the measured frame rate every second
             self.reportstats['FPS'] = round(self.clock.get_fps(),2)
         
 class SyncSquare(traits.HasTraits):
-    '''A feature that adds a square in one corner that switches color with every flip.
-    Only works for 2D windows currently'''
+    '''A feature that adds a square in one corner that switches color with every flip.'''
     
     sync_position = {
+        'TopLeft': (-1,1),
+        'TopRight': (1,1),
+        'BottomLeft': (-1,-1),
+        'BottomRight': (1,-1)
+    }
+    sync_position_2D = {
         'TopLeft': (-1,-1),
         'TopRight': (1,-1),
         'BottomLeft': (-1,1),
@@ -190,29 +197,39 @@ class SyncSquare(traits.HasTraits):
     }
     sync_corner = traits.OptionsList(tuple(sync_position.keys()), desc="Position of sync square")
     sync_size = traits.Float(1, desc="Sync square size (cm)") 
-    sync_color_off = traits.Tuple((0,0,0), desc="Sync off color (R,G,B,A)")
-    sync_color_on = traits.Tuple((255,255,255), desc="Sync on color (R,G,B,A)")
+    sync_color_off = traits.Tuple((0.,0.,0., 1.), desc="Sync off color (R,G,B,A)")
+    sync_color_on = traits.Tuple((1.,1.,1., 1.), desc="Sync on color (R,G,B,A)")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sync_state = False
         self.sync_every_cycle = True
-        screen_center = np.divide(self.window_size,2)
-        sync_size_pix = self.sync_size * self.window_size[0] / self.screen_cm[0]
-        sync_center = [sync_size_pix/2, sync_size_pix/2]
-        from_center = np.multiply(self.sync_position[self.sync_corner], np.subtract(screen_center, sync_center))
-        top_left = screen_center + from_center - sync_center
-        self.sync_rect = pygame.Rect(top_left, np.multiply(sync_center,2))
+        if hasattr(self, 'is_2d_display'):
+            screen_center = np.divide(self.window_size,2)
+            sync_size_pix = self.sync_size * self.window_size[0] / self.screen_cm[0]
+            sync_center = [sync_size_pix/2, sync_size_pix/2]
+            from_center = np.multiply(self.sync_position_2D[self.sync_corner], np.subtract(screen_center, sync_center))
+            top_left = screen_center + from_center - sync_center
+            self.sync_rect = pygame.Rect(top_left, np.multiply(sync_center,2))
+        else:
+            from_center = np.multiply(self.sync_position[self.sync_corner], np.subtract(self.screen_cm, self.sync_size))
+            pos = np.array([from_center[0]/2, self.screen_dist, from_center[1]/2])
+            self.sync_square = VirtualRectangularTarget(target_width=self.sync_size, target_height=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
+            # self.sync_square = VirtualCircularTarget(target_radius=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
+            for model in self.sync_square.graphics_models:
+                self.add_model(model)
 
     def screen_init(self):
         super().screen_init()
-        self.sync = pygame.Surface(self.window_size)
-        self.sync.fill(TRANSPARENT)
-        self.sync.set_colorkey(TRANSPARENT)
+        if hasattr(self, 'is_2d_display'):
+            self.sync = pygame.Surface(self.window_size)
+            self.sync.fill(TRANSPARENT)
+            self.sync.set_colorkey(TRANSPARENT)
 
     def _draw_other(self):
+        # For 2D display
         color = self.sync_color_on if self.sync_state else self.sync_color_off
-        self.sync.fill(color, rect=self.sync_rect)
+        self.sync.fill(255*np.array(color), rect=self.sync_rect)
         self.screen.blit(self.sync, (0,0))
 
     def init(self):
@@ -222,6 +239,11 @@ class SyncSquare(traits.HasTraits):
     def _cycle(self):
         if self.sync_every_cycle:
             self.sync_state = not self.sync_state
+        if not hasattr(self, 'is_2d_display'):
+            # For 3D display only
+            color = self.sync_color_on if self.sync_state else self.sync_color_off
+            self.sync_square.cube.color = color
+            # self.sync_square.sphere.color = color
         self.task_data['sync_square'] = copy.deepcopy(self.sync_state)
         super()._cycle()
 
@@ -267,6 +289,10 @@ TRANSPARENT = (106,0,42)
 class WindowDispl2D():
     '''Draws world on a 2D screen. May cause mild confusion -- transforms 
     incoming 3D coordinates (x,y,z) into 2D coordinates (x,y) by mapping z onto y'''
+
+    def __init__(self, *args, **kwargs):
+        self.is_2d_display = True
+        super().__init__(*args, **kwargs)
 
     def screen_init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = self.display_start_pos
@@ -425,6 +451,12 @@ class WindowDispl2D():
         pass
 
 
+class Window2D():
+
+    def _get_renderer(self):
+        near = 1
+        far = 1024
+        return render.Renderer2D(self.screen_cm)
 
 class FakeWindow(Window):
     '''

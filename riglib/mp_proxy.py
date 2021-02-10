@@ -253,7 +253,8 @@ class RPCProcess(mp.Process):
     def __del__(self):
         '''Stop the process when the object is destructed'''
         if self.status.value > 0:
-            self.stop()
+            #self.stop() <- currently causing issues with task_wrapper. Somewhere the status is not being set properly after the task ends...
+            self.status.value = -1
 
     def is_cmd_present(self):
         return self.cmd_event.is_set()

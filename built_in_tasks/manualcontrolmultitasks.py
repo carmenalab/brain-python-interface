@@ -13,6 +13,8 @@ from riglib.experiment import traits
 
 from .target_graphics import *
 from .target_capture_task import ScreenTargetCapture
+from riglib.stereo_opengl.window import WindowDispl2D
+
 
 rotations = dict(
     yzx = np.array(
