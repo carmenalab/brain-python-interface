@@ -102,7 +102,7 @@ class Optitrack(traits.HasTraits):
         averaged = np.mean(recent, axis=0) # List of averaged features
         if np.isnan(averaged).any(): # No usable coords
             return
-        return averaged
+        return averaged*100 # convert meters to centimeters
 
 class OptitrackSimulate(Optitrack):
     '''

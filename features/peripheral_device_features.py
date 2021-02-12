@@ -217,8 +217,10 @@ class Keyboard():
     '''
 
     def __init__(self, start_pos):
-        self.pos = copy.deepcopy(start_pos)
-        self.move_step = 1 # cm
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
+        self.move_step = 1 # cm, before scaling
 
     def get(self):
         for event in pygame.event.get():
@@ -243,7 +245,7 @@ class MouseControl(KeyboardControl):
 
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
-        self.joystick = Mouse(self.window_size, self.screen_cm, np.array(self.starting_pos[::2]))
+        self.joystick = Mouse(self.window_size, self.screen_cm, np.array([0,0]))
 
 class Mouse():
     '''
@@ -253,7 +255,9 @@ class Mouse():
     def __init__(self, window_size, screen_cm, start_pos):
         self.window_size = window_size
         self.screen_cm = screen_cm
-        self.pos = copy.deepcopy(start_pos)
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
 
     def get(self):
 

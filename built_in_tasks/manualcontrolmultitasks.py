@@ -118,9 +118,9 @@ class ManualControl(ScreenTargetCapture):
         pt = pt[-1] # Use only the latest coordinate
 
         if len(pt) == 2:
-            pt = np.concatenate((np.reshape(pt, -1), [1]))
+            pt = np.concatenate((np.reshape(pt, -1), [0]))
 
-        return pt
+        return [pt]
 
     def move_effector(self):
         ''' 

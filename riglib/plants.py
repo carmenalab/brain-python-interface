@@ -215,6 +215,18 @@ class CursorPlant(Plant):
     def draw(self):
         self.cursor.translate(*self.position, reset=True)
 
+    def set_color(self, color):
+        self.cursor_color = color
+        self.cursor.color = color
+
+    def set_bounds(self, bounds):
+        self.endpt_bounds = bounds
+
+    def set_cursor_radius(self, radius):
+        self.cursor_radius = radius
+        self.cursor = Sphere(radius=radius, color=self.cursor_color)
+        self.graphics_models = [self.cursor]
+
     def get_endpoint_pos(self):
         return self.position
 
@@ -445,6 +457,7 @@ class RobotArmGen2D(Plant):
 
         self.base_loc = base_loc
 
+        self.link_colors = link_colors
         self.chain = Chain(link_radii, joint_radii, link_lengths, joint_colors, link_colors)
         self.cursor = Sphere(radius=arm_radius/2, color=link_colors)
         self.graphics_models = [self.chain.link_groups[0], self.cursor]
@@ -461,6 +474,22 @@ class RobotArmGen2D(Plant):
     @property
     def kin_chain_class(self):
         return robot_arms.PlanarXZKinematicChain
+
+    def set_color(self, color):
+        self.link_colors = color
+        self.cursor.color = color
+
+    def set_bounds(self, bounds):
+        '''
+        For compatibility with other cursor plants
+        '''
+        pass 
+
+    def set_cursor_radius(self, radius):
+        self.cursor_radius = radius
+        del self.cursor
+        self.cursor = Sphere(radius=radius, color=self.link_colors)
+        self.graphics_models[1] = self.cursor
 
     def get_endpoint_pos(self):
         '''

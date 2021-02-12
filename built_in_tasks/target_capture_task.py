@@ -17,21 +17,14 @@ from .target_graphics import *
 
 ## Plants
 # List of possible "plants" that a subject could control either during manual or brain control
-cursor_14x14 = plants.CursorPlant(endpt_bounds=(-14, 14, 0., 0., -14, 14))
-
+cursor = plants.CursorPlant()
 shoulder_anchor = np.array([2., 0., -15])
 chain_kwargs = dict(link_radii=.6, joint_radii=0.6, joint_colors=(181/256., 116/256., 96/256., 1), link_colors=(181/256., 116/256., 96/256., 1))
-
 chain_20_20_endpt = plants.EndptControlled2LArm(link_lengths=[20, 20], base_loc=shoulder_anchor, **chain_kwargs)
-init_pos = np.array([0, 0, 0], np.float64)
-chain_20_20_endpt.set_intrinsic_coordinates(init_pos)
-
 chain_20_20 = plants.RobotArmGen2D(link_lengths=[20, 20], base_loc=shoulder_anchor, **chain_kwargs)
-init_pos = np.array([ 0.38118002,  2.08145271])
-chain_20_20.set_intrinsic_coordinates(init_pos)
 
 plantlist = dict(
-    cursor_14x14=cursor_14x14,
+    cursor=cursor,
     chain_20_20=chain_20_20,
     chain_20_20_endpt=chain_20_20_endpt)
 
@@ -232,7 +225,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
     ]
 
-    hidden_traits = Window.hidden_traits + ['target_color', 'background', 'plant_hide_rate', 'starting_pos']
+    hidden_traits = Window.hidden_traits + ['target_color', 'plant_hide_rate', 'starting_pos']
 
     is_bmi_seed = True
 
@@ -240,7 +233,6 @@ class ScreenTargetCapture(TargetCapture, Window):
     reward_time = traits.Float(.5, desc="Length of juice reward")
     target_radius = traits.Float(2, desc="Radius of targets in cm")
     target_color = traits.OptionsList(tuple(target_colors.keys()), desc="Color of the target")
-    background = traits.Tuple((0,0,0,1), desc='Screen background color')
 
     hold_time = traits.Float(.2, desc="Length of hold required at targets")
     hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
@@ -253,7 +245,9 @@ class ScreenTargetCapture(TargetCapture, Window):
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
-    starting_pos = traits.Tuple((5, 0, 5), desc='Where to initialize the cursor') 
+    cursor_color = traits.Tuple((0.5, 0., 0.5, 1.), desc='Color of cursor endpoint')
+    cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
+    starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -262,6 +256,9 @@ class ScreenTargetCapture(TargetCapture, Window):
         if not hasattr(self, 'plant'):
             self.plant = plantlist[self.plant_type]
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
+        self.plant.set_bounds(np.array(self.cursor_bounds))
+        self.plant.set_color(self.cursor_color)
+        self.plant.set_cursor_radius(self.cursor_radius)
         self.plant_vis_prev = True
         self.cursor_vis_prev = True
 
