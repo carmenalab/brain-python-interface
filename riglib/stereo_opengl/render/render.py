@@ -152,7 +152,7 @@ class Renderer2D(Renderer):
 
     def __init__(self, screen_cm):
         shaders = dict()
-        shaders['passthru'] = GL_VERTEX_SHADER, "passthrough.v.glsl"
+        shaders['passthru'] = GL_VERTEX_SHADER, "passthrough2d.v.glsl"
         shaders['default'] = GL_FRAGMENT_SHADER, "none.f.glsl"
         programs = dict()
         programs['default'] = "passthru", "default"

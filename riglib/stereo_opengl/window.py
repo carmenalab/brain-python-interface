@@ -50,12 +50,12 @@ class Window(LogExperiment):
     # XPS computer
     # window_size = (1920*2, 1080)
     window_size = traits.Tuple(monitor_res['monitor_2D'], descr='window size, in pixels')
-    background = traits.Tuple((0,0,0,1), desc="Background color (R,G,B,A)")
+    background = traits.Tuple((0.,0.,0.,1.), desc="Background color (R,G,B,A)")
     fullscreen = traits.Bool(True, desc="Fullscreen window")
 
     #Screen parameters, all in centimeters -- adjust for monkey
     screen_dist = traits.Float(44.5+3, desc="Screen to eye distance (cm)")
-    screen_half_height = traits.Float(14.65, desc="Screen half height (cm)")
+    screen_half_height = traits.Float(10.75, desc="Screen half height (cm)")
     iod = traits.Float(2.5, desc="Intraocular distance (cm)")     # intraocular distance
 
     show_environment = traits.Int(0, desc="Show wireframe box around environment")
@@ -452,6 +452,11 @@ class WindowDispl2D():
 
 
 class Window2D():
+
+    def screen_init(self):
+        super().screen_init()
+        glBlendEquation(GL_MAX)
+        glBlendFunc(GL_ONE, GL_ONE) # temporary solution to weird blending issue with spheres
 
     def _get_renderer(self):
         near = 1
