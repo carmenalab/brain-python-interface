@@ -9,9 +9,9 @@ from riglib.source import DataSourceSystem
 
 class System(DataSourceSystem):
     '''
-    Optitrack DataSourceSystem runs at 240 Hz collects data via UDP packets using natnet depacketizer
+    Optitrack DataSourceSystem collects motion tracking data via UDP packets using natnet depacketizer
     '''
-    update_freq = 240
+    update_freq = 240 # This may not always be the case, but lower frequencies will still work, just waste space in the circular buffer
     
     def __init__(self, client, feature="rigid body", n_features=1):
         '''
@@ -75,6 +75,7 @@ class System(DataSourceSystem):
 class RigidBody():
 
     position = None
+    tracking_valid = True
     def __init__(self, position):
         self.position = position
 
@@ -110,6 +111,39 @@ class SimulatedClient():
 
     def set_session(self, session_name):
         print("Setting session_name: " + session_name)
+
+########################
+# Playback from csv file
+########################
+
+class PlaybackClient(SimulatedClient):
+
+    def __init__(self, filename):
+        import pandas as pd
+        self.stime = time.time()
+        csv = pd.read_csv(filename, header=[1,4,5])
+        self.motiondata = csv['Rigid Body']['Position']
+        self.time = csv['Type'].iloc[:,0]
+
+    def run_once(self, timeout=None):
+        '''
+        Read one line of motion data from the csv file
+        '''
+        read_freq = 240 # doesn't really matter if we read too fast... 
+        time.sleep(1./read_freq)
+        ts = (time.time() - self.stime)
+        coords = np.empty((3,))
+        coords[:] = np.nan
+        now = (i for i,t in enumerate(self.time) if t > ts) # ...because we check the timestamps here
+        try:
+            row = next(now)
+            coords[0] = self.motiondata.iloc[row].X
+            coords[1] = self.motiondata.iloc[row].Y
+            coords[2] = self.motiondata.iloc[row].Z
+        except:
+            pass
+        data = [RigidBody(coords)]
+        self.callback(data, [], [], [])
 
 # System definition function
 def make(cls, client, feature, num_features=1, **kwargs):

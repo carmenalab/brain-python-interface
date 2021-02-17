@@ -8,8 +8,8 @@ from datetime import datetime
 import numpy as np
 import os
 
-TESTING_OFFSET = [0, 0.1, -0.22] # optitrack m [forward, up, right]
-TESTING_SCALE = 100 # optitrack m --> screen cm
+DEFAULT_OFFSET = [0, -60, -30] # optitrack cm [forward, up, right]
+DEFAULT_SCALE = 1 # optitrack cm --> screen cm
 
 ########################################################################################################
 # Optitrack datasources
@@ -24,8 +24,8 @@ class Optitrack(traits.HasTraits):
 
     optitrack_feature = traits.OptionsList(("rigid body", "skeleton", "marker"))
     smooth_features = traits.Int(1, desc="How many features to average")
-    scale = traits.Float(TESTING_SCALE, desc="Control scale factor")
-    offset = traits.Array(value=TESTING_OFFSET, desc="Control offset")
+    scale = traits.Float(DEFAULT_SCALE, desc="Control scale factor")
+    offset = traits.Array(value=DEFAULT_OFFSET, desc="Control offset")
 
     def init(self):
         '''
@@ -108,10 +108,6 @@ class OptitrackSimulate(Optitrack):
     '''
     Fake optitrack data for testing
     '''
-    
-    @classmethod
-    def pre_init(cls, saveid):
-        super(Optitrack, cls).pre_init(saveid=saveid)
 
     def init(self):
         '''
@@ -122,6 +118,33 @@ class OptitrackSimulate(Optitrack):
 
         # Start the fake natnet client
         self.client = optitrack.SimulatedClient()
+
+        # Create a source to buffer the motion tracking data
+        from riglib import source
+        self.motiondata = source.DataSource(optitrack.make(optitrack.System, self.client, self.optitrack_feature, 1))
+
+        # Save to the sink
+        from riglib import sink
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.motiondata)
+        super(Optitrack, self).init()
+
+class OptitrackPlayback(Optitrack):
+    '''
+    Read a csv file back into BMI3D as if it were live data
+    '''
+
+    filepath = traits.String("", desc="path to optitrack csv file for playback")
+    
+    def init(self):
+        '''
+        Secondary init function. See riglib.experiment.Experiment.init()
+        Prior to starting the task, this 'init' sets up the DataSource for interacting with the 
+        motion tracker system and registers the source with the SinkRegister so that the data gets saved to file as it is collected.
+        '''
+
+        # Start the fake natnet client
+        self.client = optitrack.PlaybackClient(self.filepath)
 
         # Create a source to buffer the motion tracking data
         from riglib import source
