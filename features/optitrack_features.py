@@ -73,6 +73,13 @@ class Optitrack(traits.HasTraits):
             self.motiondata.stop()
             self.client.stop_recording()
 
+    def _start_None(self):
+        '''
+        Code to run before the 'None' state starts (i.e., the task stops)
+        '''
+        self.motiondata.stop()
+        super()._start_None()
+
     def join(self):
         '''
         See riglib.experiment.Experiment.join(). Re-join the motiondata source process before cleaning up the experiment thread
