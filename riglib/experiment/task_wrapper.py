@@ -130,6 +130,7 @@ class TaskWrapper(RPCProcess):
         else:
             if use_websock: self.websock.write("\n\nError! Check for errors in the terminal!\n")
 
+        self.log_str("...done")
         print("*************************** EXITING TASK *****************************")
 
     def check_run_condition(self):
@@ -143,12 +144,16 @@ class TaskWrapper(RPCProcess):
         print("Calling saveout/task cleanup code")
 
         if self.saveid is not None and self.subj is not None:
-            # get object representing function calls to the remote database
-            # returns the result of db.tracker.dbq.rpc_handler
-            database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
-            # from tracker import dbq as database
-
-            cleanup_successful = self.target.cleanup(database, self.saveid, subject=self.subj)
+            try:
+                # get object representing function calls to the remote database
+                # returns the result of db.tracker.dbq.rpc_handler
+                database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+                # from tracker import dbq as database
+                cleanup_successful = self.target.cleanup(database, self.saveid, subject=self.subj)
+            except Exception as e:
+                self.log_str("Error in cleanup:")
+                self.log_error(e)
+                cleanup_successful = False
         else:
             cleanup_successful = True
 

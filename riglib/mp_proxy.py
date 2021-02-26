@@ -196,10 +196,8 @@ class RPCProcess(mp.Process):
 
     def log_error(self, err, mode='a'):
         if self.log_filename != '':
-            traceback.print_exc(None, err)
             with open(self.log_filename, mode) as fp:
-                err.seek(0)
-                fp.write(err.read())
+                fp.write(str(err))
 
     def log_str(self, s, mode="a", newline=True):
         if self.log_filename != '':
@@ -248,7 +246,7 @@ class RPCProcess(mp.Process):
 
     @call_from_parent
     def stop(self):
-        self.status.value = -1;
+        self.status.value = -1
 
     def __del__(self):
         '''Stop the process when the object is destructed'''
