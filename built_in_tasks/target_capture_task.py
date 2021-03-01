@@ -12,8 +12,10 @@ from riglib.experiment import traits, Sequence, FSMTable, StateTransitions
 from riglib.stereo_opengl import ik
 from riglib import plants
 
-from riglib.stereo_opengl.window import Window, FPScontrol, WindowDispl2D
+from riglib.stereo_opengl.window import Window
 from .target_graphics import *
+
+from features.sync_features import sync_events
 
 ## Plants
 # List of possible "plants" that a subject could control either during manual or brain control
@@ -68,9 +70,6 @@ class TargetCapture(Sequence):
         # number of times this sequence of targets has been attempted
         self.tries = 0
 
-        # index of current trial to keep track of target location
-        self.trial_index = -1
-
         # index of current target presented to subject
         self.target_index = -1
 
@@ -82,13 +81,12 @@ class TargetCapture(Sequence):
 
     def _parse_next_trial(self):
         '''Check that the generator has the required data'''
-        self.trial_index, self.targs = self.next_trial
+        self.gen_indices, self.targs = self.next_trial
 
         # TODO error checking
 
     def _start_target(self):
         self.target_index += 1
-        self.target_location = self.targs[self.target_index]
 
     def _end_target(self):
         '''Nothing generic to do.'''
@@ -280,17 +278,13 @@ class ScreenTargetCapture(TargetCapture, Window):
                 for model in target.graphics_models:
                     self.add_model(model)
 
-        # Initialize target location variable
-        self.target_location = np.array([0, 0, 0])
-
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
             self.add_dtype(*attr)
 
     def init(self):
         self.add_dtype('trial', 'i', (1,))
-        self.add_dtype('trial_index', 'i', (1,))
-        self.add_dtype('target', 'f8', (3,))
+        self.add_dtype('target_location', 'f8', (3,))
         self.add_dtype('target_index', 'i', (1,))
         self.add_dtype('plant_visible', '?', (1,))
         super().init()
@@ -300,9 +294,9 @@ class ScreenTargetCapture(TargetCapture, Window):
         Calls any update functions necessary and redraws screen
         '''
         self.task_data['trial'] = self.calc_trial_num()
-        self.task_data['trial_index'] = self.trial_index
-        self.task_data['target'] = self.target_location.copy()
         self.task_data['target_index'] = self.target_index
+        if self.target_index > 0 and self.target_index < self.chain_length:
+            self.task_data['target_location'] = self.targs[self.target_index].copy()
 
         self.move_effector()
 
@@ -345,7 +339,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         return true if the distance between center of cursor and target is smaller than the cursor radius
         '''
         cursor_pos = self.plant.get_endpoint_pos()
-        d = np.linalg.norm(cursor_pos - self.target_location)
+        d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
         return d <= (self.target_radius - self.cursor_radius)
 
     def _test_leave_early(self, ts):
@@ -353,7 +347,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         return true if cursor moves outside the exit radius
         '''
         cursor_pos = self.plant.get_endpoint_pos()
-        d = np.linalg.norm(cursor_pos - self.target_location)
+        d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
         rad = self.target_radius - self.cursor_radius
         return d > rad
 
@@ -361,8 +355,10 @@ class ScreenTargetCapture(TargetCapture, Window):
     def _start_wait(self):
         super()._start_wait()
 
-        # stop the display sync if there is one
-        self.sync_every_cycle = False    
+        if self.calc_trial_num() == 0:
+            self.sync_event(sync_events.EXP_START)
+        else:
+            self.sync_event(sync_events.TRIAL_END)
 
         # hide targets
         for target in self.targets:
@@ -372,48 +368,59 @@ class ScreenTargetCapture(TargetCapture, Window):
     def _start_target(self):
         super()._start_target()
 
-        # start the display sync if there is one
-        self.sync_every_cycle = True
-        
-        # move one of the two targets to the new target location
+        # show target if it is hidden (this is the first target, or previous state was a penalty)
         target = self.targets[self.target_index % 2]
-        target.move_to_position(self.target_location)
-        target.show()
+        if self.target_index == 0:
+            target.move_to_position(self.targs[self.target_index])
+            target.show()
+            self.sync_event(sync_events.TARGET_ON, self.gen_indices[self.target_index])
 
     def _start_hold(self):
+        super()._start_hold()
+
         #make next target visible unless this is the final target in the trial
         next_idx = (self.target_index + 1)
         if next_idx < self.chain_length:
             target = self.targets[next_idx % 2]
             target.move_to_position(self.targs[next_idx])
             target.show()
+            self.sync_event(sync_events.TARGET_ON, self.gen_indices[next_idx])
 
     def _start_targ_transition(self):
         super()._start_targ_transition()
-        # hide the current target if there are more
-        if self.target_index + 1 < self.chain_length:
+        if self.target_index == -1:
+
+            # came from a penalty state, ignore
+            pass
+        elif self.target_index + 1 < self.chain_length:
+
+            # hide the current target if there are more
             self.targets[self.target_index % 2].hide()
+            self.sync_event(sync_events.TARGET_OFF, self.gen_indices[self.target_index])
 
     def _start_hold_penalty(self):
+        self.sync_event(sync_events.HOLD_PENALTY, self.gen_indices[self.target_index])
         super()._start_hold_penalty()
         # hide targets
         for target in self.targets:
             target.hide()
 
-        # stop the display sync
-        self.sync_every_cycle = False
 
     def _start_timeout_penalty(self):
+        self.sync_event(sync_events.TIMEOUT_PENALTY, self.gen_indices[self.target_index])
         super()._start_timeout_penalty()
         # hide targets
         for target in self.targets:
             target.hide()
-        
-        # stop the display sync
-        self.sync_every_cycle = False
 
     def _start_reward(self):
         self.targets[self.target_index % 2].cue_trial_end_success()
+
+        self.sync_event(sync_events.REWARD)
+
+    def _start_None(self):
+        self.sync_event(sync_events.TRIAL_END)
+        super()._start_None()
 
     #### Generator functions ####
     @staticmethod
@@ -449,7 +456,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         '''
         rng = np.random.default_rng()
         for _ in range(nblocks):
-            order = np.arange(ntargets)
+            order = np.arange(ntargets) + 1 # target indices, starting from 1
             rng.shuffle(order)
             for t in range(ntargets):
                 idx = order[t]
@@ -459,7 +466,7 @@ class ScreenTargetCapture(TargetCapture, Window):
                     0,
                     distance*np.sin(theta)
                 ]).T
-                yield idx, [pos + origin]
+                yield [idx], [pos + origin]
 
     @staticmethod
     def centerout_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
@@ -475,7 +482,9 @@ class ScreenTargetCapture(TargetCapture, Window):
             idx, pos = next(gen)
             targs = np.zeros([2, 3]) + origin
             targs[1,:] = pos[0]
-            yield idx, targs
+            indices = np.zeros([2,1])
+            indices[1] = idx
+            yield indices, targs
 
     @staticmethod
     def centeroutback_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
@@ -491,7 +500,9 @@ class ScreenTargetCapture(TargetCapture, Window):
             idx, pos = next(gen)
             targs = np.zeros([3, 3]) + origin
             targs[1,:] = pos[0]
-            yield idx, targs
+            indices = np.zeros([3,1])
+            indices[1] = idx
+            yield indices, targs
     
     @staticmethod
     def rand_target_chain_2D(ntrials=100, chain_length=1, boundaries=(-12,12,-12,12)):
@@ -515,10 +526,10 @@ class ScreenTargetCapture(TargetCapture, Window):
         for t in range(ntrials):
 
             # Choose a random sequence of points within the boundaries
-            pts = rng.uniform(size=(1, 3))*((boundaries[1]-boundaries[0]),
+            pts = rng.uniform(size=(chain_length, 3))*((boundaries[1]-boundaries[0]),
                 0, (boundaries[3]-boundaries[2]))
             pts = pts+(boundaries[0], 0, boundaries[2])
-            yield t, pts
+            yield np.arange(chain_length), pts # target indices not super meaningful
     
     @staticmethod
     def rand_target_chain_3D(ntrials=100, chain_length=1, boundaries=(-12,12,-10,10,-12,12)):
@@ -541,7 +552,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         for t in range(ntrials):
 
             # Choose a random sequence of points within the boundaries
-            pts = rng.uniform(size=(1, 3))*((boundaries[1]-boundaries[0]),
+            pts = rng.uniform(size=(chain_length, 3))*((boundaries[1]-boundaries[0]),
                 (boundaries[3]-boundaries[2]), (boundaries[5]-boundaries[4]))
             pts = pts+(boundaries[0], boundaries[2], boundaries[4])
-            return t, pts
+            return np.arange(chain_length), pts

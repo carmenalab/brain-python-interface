@@ -5,6 +5,7 @@ from features.laser_features import DigitalWave
 from riglib.experiment import traits
 import itertools
 import numpy as np
+from features.sync_features import sync_events
 
 
 class Conditions(Sequence):
@@ -26,6 +27,16 @@ class Conditions(Sequence):
     
     def _test_end_trial(self, ts):
         return ts > self.trial_time
+
+    def _start_trial(self):
+        self.sync_event(sync_events.TRIAL_START, self.trial_index)
+
+    def _start_wait(self):
+        super()._start_wait()
+        if self.calc_trial_num() == 0:
+            self.sync_event(sync_events.EXP_START)
+        else:
+            self.sync_event(sync_events.TRIAL_END)
 
     @staticmethod
     def gen_random_conditions(nreps, *args, replace=False):
@@ -59,12 +70,13 @@ class LaserConditions(Conditions):
         self.laser_thread = None
         self.power = 0.
         self.edges = []
-        # gpio must be defined elsewhere
         super().__init__(*args, **kwargs)
 
     def init(self):
         self.add_dtype('power', 'f8', (1,))
         super().init()
+        if not hasattr(self, 'gpio'):
+            raise AttributeError("No GPIO feature enabled, cannot init LaserConditions")
 
     def _cycle(self):
         self.task_data['power'] = self.power.copy()
@@ -73,6 +85,7 @@ class LaserConditions(Conditions):
         self.trial_index, self.power, self.edges = self.next_trial
 
     def _start_trial(self):
+        super()._start_trial()
         # TODO set laser power
         # Trigger digital wave
         wave = DigitalWave(self.gpio, pin=self.laser_trigger_pin)
@@ -81,11 +94,12 @@ class LaserConditions(Conditions):
         self.laser_thread = wave
 
     def _start_wait(self):
+        super()._start_wait()
         # Turn laser off in between trials
         wave = DigitalWave(self.gpio, pin=self.laser_trigger_pin)
         wave.set_edges([0], False)
         wave.start()
-        super()._start_wait()
+        
         
     def _test_end_trial(self, ts):
         return (self.laser_thread is None) or (not self.laser_thread.is_alive())

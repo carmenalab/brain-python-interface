@@ -44,6 +44,7 @@ class ManualControl(ScreenTargetCapture):
     dwell in the screen target for the allotted time'''
 
     # Settable Traits
+    wait_time = traits.Float(2., desc="Time between successful trials")
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
     rotation = traits.OptionsList(tuple(rotations.keys()), desc="Control rotation matrix")
@@ -56,6 +57,8 @@ class ManualControl(ScreenTargetCapture):
         self.current_pt=np.zeros([3]) #keep track of current pt
         self.last_pt=np.zeros([3]) #keep track of last pt to calc. velocity
         self.no_data_count = 0
+        if self.random_rewards:
+            self.reward_time_base = self.reward_time
 
     def init(self):
         self.add_dtype('manual_input', 'f8', (3,))
@@ -67,6 +70,9 @@ class ManualControl(ScreenTargetCapture):
         mins = str(np.int(np.floor(rt/60)))
         sec = str(np.int(np.mod(rt,60)))
         self.reportstats['Time since last reward'] = '%d:%d' % (mins, round(sec))
+
+    def _test_start_trial(self, ts):
+        return ts > self.wait_time and not self.pause
 
     def _test_trial_complete(self, ts):
         if self.target_index==self.chain_length-1 :
