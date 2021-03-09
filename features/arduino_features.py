@@ -367,15 +367,3 @@ class TDTSerialDIORowByte(SerialDIORowByte):
     @property
     def data_files(self):
         return None
-
-class FakeGPIOFeature(object):
-
-    def __init__(self, *args, **kwargs):
-        self.gpio = serial_dio.TestGPIO()
-        super().__init__(*args, **kwargs)
-
-class ArduinoGPIOFeature(object):
-
-    def __init__(self, *args, **kwargs):
-        self.gpio = serial_dio.ArduinoGPIO()
-        super().__init__(*args, **kwargs)

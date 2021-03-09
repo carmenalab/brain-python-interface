@@ -62,6 +62,7 @@ class TaskWrapper(RPCProcess):
         self.target_class.pre_init(saveid=saveid)
 
         self.log_str("Constructing task target")
+        self.params['saveid'] = saveid
         if issubclass(Task, Sequence):
             if isinstance(seq, np.ndarray):
                 self.log_str("'seq' input is an array")

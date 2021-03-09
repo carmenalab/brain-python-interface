@@ -15,8 +15,6 @@ from riglib import plants
 from riglib.stereo_opengl.window import Window
 from .target_graphics import *
 
-from features.sync_features import sync_events
-
 ## Plants
 # List of possible "plants" that a subject could control either during manual or brain control
 cursor = plants.CursorPlant()
@@ -356,9 +354,9 @@ class ScreenTargetCapture(TargetCapture, Window):
         super()._start_wait()
 
         if self.calc_trial_num() == 0:
-            self.sync_event(sync_events.EXP_START)
+            self.sync_event('EXP_START')
         else:
-            self.sync_event(sync_events.TRIAL_END)
+            self.sync_event('TRIAL_END')
 
         # hide targets
         for target in self.targets:
@@ -373,7 +371,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         if self.target_index == 0:
             target.move_to_position(self.targs[self.target_index])
             target.show()
-            self.sync_event(sync_events.TARGET_ON, self.gen_indices[self.target_index])
+            self.sync_event('TARGET_ON', self.gen_indices[self.target_index])
 
     def _start_hold(self):
         super()._start_hold()
@@ -384,7 +382,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             target = self.targets[next_idx % 2]
             target.move_to_position(self.targs[next_idx])
             target.show()
-            self.sync_event(sync_events.TARGET_ON, self.gen_indices[next_idx])
+            self.sync_event('TARGET_ON', self.gen_indices[next_idx])
 
     def _start_targ_transition(self):
         super()._start_targ_transition()
@@ -396,10 +394,10 @@ class ScreenTargetCapture(TargetCapture, Window):
 
             # hide the current target if there are more
             self.targets[self.target_index % 2].hide()
-            self.sync_event(sync_events.TARGET_OFF, self.gen_indices[self.target_index])
+            self.sync_event('TARGET_OFF', self.gen_indices[self.target_index])
 
     def _start_hold_penalty(self):
-        self.sync_event(sync_events.HOLD_PENALTY, self.gen_indices[self.target_index])
+        self.sync_event('HOLD_PENALTY', 0) 
         super()._start_hold_penalty()
         # hide targets
         for target in self.targets:
@@ -407,7 +405,7 @@ class ScreenTargetCapture(TargetCapture, Window):
 
 
     def _start_timeout_penalty(self):
-        self.sync_event(sync_events.TIMEOUT_PENALTY, self.gen_indices[self.target_index])
+        self.sync_event('TIMEOUT_PENALTY', 0)
         super()._start_timeout_penalty()
         # hide targets
         for target in self.targets:
@@ -416,10 +414,10 @@ class ScreenTargetCapture(TargetCapture, Window):
     def _start_reward(self):
         self.targets[self.target_index % 2].cue_trial_end_success()
 
-        self.sync_event(sync_events.REWARD)
+        self.sync_event('REWARD')
 
     def _start_None(self):
-        self.sync_event(sync_events.TRIAL_END)
+        self.sync_event('TRIAL_END')
         super()._start_None()
 
     #### Generator functions ####

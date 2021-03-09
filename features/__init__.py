@@ -13,7 +13,7 @@ from .plexon_features import PlexonBMI, RelayPlexon, RelayPlexByte
 from .hdf_features import SaveHDF
 from .video_recording_features import SingleChannelVideo
 from .bmi_task_features import NormFiringRates
-from .arduino_features import PlexonSerialDIORowByte, FakeGPIOFeature, ArduinoGPIOFeature
+from .arduino_features import PlexonSerialDIORowByte
 from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
 from .laser_features import LaserTrials
@@ -25,8 +25,6 @@ built_in_features = dict(
     reward_system=RewardSystem,
     saveHDF=SaveHDF,
     autostart=Autostart,
-    arduino_gpio=ArduinoGPIOFeature,
-    fake_gpio=FakeGPIOFeature,
     laser=LaserTrials,
     window2D=WindowDispl2D,
     adaptive_generator=AdaptiveGenerator,

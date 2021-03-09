@@ -12,20 +12,11 @@ class TestAoReward(unittest.TestCase):
     def setUp(self):
         self.reward_sys = reward.Basic()
 
-    #@unittest.skip("not sure which method to use")
     def test_connection(self):
-        self.reward_sys.test()
-        pass
+        self.assertTrue(self.reward_sys.board is not None)
 
     def test_flow_out(self):
-        reward_time_s  = 0.2 #s
-        self.reward_sys.reward(reward_time_s)
-
-    #@unittest.skip("not sure how to calibrate yet")
-    def test_calibration(self):
-        self.reward_sys.calibrate(self)
-        print('fill up bottle')
-
+        self.reward_sys.drain(0.2)
 
 if __name__ == '__main__':
     unittest.main()

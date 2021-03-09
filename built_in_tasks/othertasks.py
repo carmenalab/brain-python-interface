@@ -5,7 +5,6 @@ from features.laser_features import DigitalWave
 from riglib.experiment import traits
 import itertools
 import numpy as np
-from features.sync_features import sync_events
 
 
 class Conditions(Sequence):
@@ -29,14 +28,14 @@ class Conditions(Sequence):
         return ts > self.trial_time
 
     def _start_trial(self):
-        self.sync_event(sync_events.TRIAL_START, self.trial_index)
+        self.sync_event('TRIAL_START', self.trial_index)
 
     def _start_wait(self):
         super()._start_wait()
         if self.calc_trial_num() == 0:
-            self.sync_event(sync_events.EXP_START)
+            self.sync_event('EXP_START')
         else:
-            self.sync_event(sync_events.TRIAL_END)
+            self.sync_event('TRIAL_END')
 
     @staticmethod
     def gen_random_conditions(nreps, *args, replace=False):

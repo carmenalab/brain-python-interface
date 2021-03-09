@@ -24,28 +24,39 @@ class RewardSystem(traits.HasTraits):
 
     controls = ['manual_reward'] # List of functions to make available on the web interface
 
-    def __init__(self, *args, **kwargs):
+    def init(self, *args, **kwargs):
         from riglib import reward
-        super(RewardSystem, self).__init__(*args, **kwargs)
-        self.reward = reward.open() # There is no open function in our reward.py 
+        super(RewardSystem, self).init(*args, **kwargs)
+        self.reward = reward.open()
+        if self.reward is None:
+            raise Exception('Reward system could not be activated')
 
     def _start_reward(self):
         self.reward_start = self.get_time()
-        if self.reward is not None:
-             self.reportstats['Reward #'] += 1
-             if self.reportstats['Reward #'] % self.trials_per_reward == 0:
-                 self.reward.reward(self.reward_time)
-        #super(RewardSystem, self).reward(self.reward_time)
+        self.reportstats['Reward #'] += 1
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            self.reward.on()
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
 
     def _test_reward_end(self, ts):
         if self.reportstats['Reward #'] % self.trials_per_reward == 0:
             return ts > self.reward_time
         else:
             return True
+        if hasattr(super(), '_test_reward_end'):
+            super()._test_reward_end()
+
+    def _end_reward(self):
+        self.reward.off()
+        if hasattr(super(), '_end_reward'):
+            super()._end_reward()
 
     def manual_reward(self):
         # Function to trigger manual reward
         print("Manual reward triggered")
+        # TODO self.reportstats[]
+        self.set_state('reward') # this might be a bad idea
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 

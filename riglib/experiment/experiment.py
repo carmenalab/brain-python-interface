@@ -129,6 +129,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         ThreadedFSM.__init__(self)
         self.verbose = verbose
         self.task_start_time = self.get_time()
+        self.saveid = kwargs['saveid'] if 'saveid' in kwargs else None
         self.reportstats = collections.OrderedDict()
         self.reportstats['State'] = None #State stat is automatically updated for all experiment classes
         self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
@@ -222,7 +223,9 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         Stub function for sending sync signals to various devices. Could be digital triggers to a recording system
         or markers on a screen measured by photodiode, for example. Implemented in features.sync_features
         '''
-        pass
+        pass 
+
+        # TODO warning that you're not sending sync signals!
 
     # Trait functions --------------------------------------------------------
     @classmethod
