@@ -21,6 +21,10 @@ class System(DataSourceSystem):
         self.client = client
         self.feature = feature # rigid body, skeleton, marker
         self.n_features = n_features
+        self.rigid_bodies = []
+        self.skeletons = []
+        self.markers = []
+        self.timing = []
     
     def start(self):
         '''
@@ -28,6 +32,7 @@ class System(DataSourceSystem):
         '''
         self.client.set_callback(
             lambda rb, s, m, t: self._update(rb, s, m, t))
+        self.client._send_command_and_wait("LiveMode") # In case we're not recording
 
     def stop(self):
         pass

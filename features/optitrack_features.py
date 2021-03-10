@@ -41,13 +41,15 @@ class Optitrack(traits.HasTraits):
         take = now.strftime("Take %Y-%m-%d %H:%M:%S")
         logger = Logger(take)
         client = natnet.Client.connect(logger=logger)
-        client.set_session(session)
-        client.set_take(take)
-        self.filename = os.path.join(session, take)
-        status = client.start_recording()
-        if not status:
-            # Abort experiment
-            raise ConnectionError("Optitrack failed to start")
+        if self.saveid is not None:
+            take += " (%d)" % self.saveid
+            client.set_session(session)
+            client.set_take(take)
+            self.filename = os.path.join(session, take)
+            status = client.start_recording()
+            if not status:
+                # Abort experiment
+                raise ConnectionError("Optitrack failed to start")
         self.client = client
 
         # Create a source to buffer the motion tracking data
@@ -71,7 +73,6 @@ class Optitrack(traits.HasTraits):
         finally:
             print("Stopping optitrack")
             self.motiondata.stop()
-            self.client.stop_recording()
 
     def _start_None(self):
         '''
@@ -95,6 +96,7 @@ class Optitrack(traits.HasTraits):
         super().cleanup(database, saveid, **kwargs)
         if saveid is not None:
             print("Saving optitrack file to database...")
+            self.client.stop_recording()
             database.save_data(self.filename, "optitrack", saveid, False, False) # Make sure you actually have an "optitrack" system added!
             print("...done.")
 

@@ -70,7 +70,6 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD >> $BMI3D/lo
 echo "Working tree status at time of execution" >> $BMI3D/log/runserver_log   
 git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log   
 
-    
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
 source $BMI3D/env/bin/activate
@@ -85,12 +84,17 @@ DJANGO=$!
 #python manage.py celery flower --address=0.0.0.0 &
 #FLOWER=$!
 
+# Start servernode-control
+gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
+SNC=$!
+
 # Define what happens when you hit control-C
 function ctrl_c() {
 	kill -9 $DJANGO
+    kill -9 $SNC
 	#kill $CELERY
 	#kill $FLOWER
-    kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
+    # kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
 	# kill -9 `ps -C 'python manage.py' -o pid --no-headers`
 }
 

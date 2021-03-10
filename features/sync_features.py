@@ -52,12 +52,11 @@ class NIDAQSync(traits.HasTraits):
         if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
             from riglib import sink
             self.sinks = sink.SinkManager.get_instance()
-        dtype = np.dtype([('time', 'u8'), ('event', np.str), ('code', 'u1')]) # 64-bit time (cycle number), string event, 8-bit code
+        dtype = np.dtype([('time', 'u8'), ('event', 'S16'), ('code', 'u1')]) # 64-bit time (cycle number), string event, 8-bit code
         self.sync_event_record = np.zeros((1,), dtype=dtype)
         self.sinks.register("sync_events", dtype)
         self.has_sync_event = False
         super().init(*args, **kwargs)
-        print('done init')
 
     def sync_event(self, event_name, event_data=0):
         if self.has_sync_event:
@@ -65,7 +64,6 @@ class NIDAQSync(traits.HasTraits):
 
         # digital output
         code = encode_event(self.sync_protocol, event_name, event_data)
-        print("Queueing sync signal " + event_name + ": " + str(event_data))
         self.sync_event_record['time'] = self.cycle_count
         self.sync_event_record['event'] = event_name
         self.sync_event_record['code'] = code
@@ -84,8 +82,9 @@ class NIDAQSync(traits.HasTraits):
         if self.has_sync_event:
             self.sinks.send("sync_events", self.sync_event_record)
             code = self.sync_event_record['code']
-            print("Sending code: " + str(code))
-            write_to_comedi(int(code), debug=True)
+            ret = write_to_comedi(int(code))
+            if ret == b'':
+                raise IOError("Unable to send NIDAQ sync event")
             self.has_sync_event = False
             
 
