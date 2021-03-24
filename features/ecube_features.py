@@ -5,7 +5,7 @@ def make_ecube_session_name(saveid):
     now = datetime.now()
     session = now.strftime("%Y-%m-%d")
     number = str(saveid) if saveid else "Test"
-    return session + "_BMI3D_(" + number + ")"
+    return session + "_BMI3D_te" + number
 
 class RecordECube():
 
@@ -14,28 +14,31 @@ class RecordECube():
         Function to run at 'cleanup' time, after the FSM has finished executing. See riglib.experiment.Experiment.cleanup
         This 'cleanup' method remotely stops the plexon file recording and then links the file created to the database ID for the current TaskEntry
         '''
+        super_result = super().cleanup(database, saveid, **kwargs)
         from riglib.ecube import pyeCubeStream
-        if saveid is not None:
-            # Stop recording
-            try:
-                ec = pyeCubeStream.eCubeStream()
-                active = ec.listremotesessions()
-                for session in active:
-                    if str(saveid) in session:
-                        ec.remotestopsave(session)
-            except Exception as e:
-                print(e)
-                print('\n\neCube recording could not be stopped! Please manually stop the recording\n\n')
+        ecube_session = make_ecube_session_name(saveid) # usually correct, but might be wrong if running overnight!
 
-            # Sleep time so that the plx file has time to save cleanly
-            time.sleep(2)
-            dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        # Stop recording
+        try:
+            ec = pyeCubeStream.eCubeStream()
+            active = ec.listremotesessions()
+            for session in active:
+                if str(saveid) in session:
+                    ecube_session = session
+                    ec.remotestopsave(session)
+                    print('Stopped eCube recording session ' + session)
+        except Exception as e:
+            print(e)
+            print('\n\neCube recording could not be stopped! Please manually stop the recording\n\n')
+            return False
 
-            if dbname == 'default':
-                database.save_data(self.ecube_session, "ecube", saveid, True, False)
-            else:
-                database.save_data(self.ecube_session, "ecube", saveid, True, False, dbname=dbname)
-        super().cleanup(database, saveid, **kwargs)
+        # Save file to database
+        dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        if dbname == 'default':
+            database.save_data(ecube_session, "ecube", saveid, False, False, custom_suffix='') # make sure to add the ecube datasource!
+        else:
+            database.save_data(ecube_session, "ecube", saveid, False, False, custom_suffix='', dbname=dbname)
+        return super_result
 
     
     @classmethod
@@ -57,7 +60,7 @@ class RecordECube():
             #    active_sessions = []
             if session_name not in active_sessions:
                 raise Exception("Could not start eCube recording. Make sure servernode is running!")
-            super().pre_init(saveid=saveid)
+        super().pre_init(saveid=saveid)
 
 
 class TestExperiment():
@@ -86,11 +89,11 @@ class TestClass(RecordECube, TestExperiment):
 
 if __name__ == "__main__":
 
-    # TestClass.pre_init(saveid=10)
-    # exp = TestClass()
-    # exp.start()
-    # exp.cleanup(None, 10)
-    from riglib import experiment
-    proc = experiment.task_wrapper.TaskWrapper(
-        subj=None, params=dict(), target_class=TestClass, saveid=10)
-    proc.start()
+    TestClass.pre_init(saveid=10)
+    exp = TestClass()
+    exp.start()
+    exp.cleanup(None, 10)
+    # from riglib import experiment
+    # proc = experiment.task_wrapper.TaskWrapper(
+    #     subj=None, params=dict(), target_class=TestClass, saveid=10)
+    # proc.start()

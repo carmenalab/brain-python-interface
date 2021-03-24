@@ -94,7 +94,7 @@ function ctrl_c() {
     kill -9 $SNC
 	#kill $CELERY
 	#kill $FLOWER
-    # kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
+    kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
 	# kill -9 `ps -C 'python manage.py' -o pid --no-headers`
 }
 

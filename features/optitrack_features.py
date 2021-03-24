@@ -72,12 +72,14 @@ class Optitrack(traits.HasTraits):
             super().run()
         finally:
             print("Stopping optitrack")
+            self.client.stop_recording()
             self.motiondata.stop()
 
     def _start_None(self):
         '''
         Code to run before the 'None' state starts (i.e., the task stops)
         '''
+        self.client.stop_recording()
         self.motiondata.stop()
         super()._start_None()
 
@@ -93,12 +95,15 @@ class Optitrack(traits.HasTraits):
         '''
         Save the optitrack recorded file into the database
         '''
-        super().cleanup(database, saveid, **kwargs)
-        if saveid is not None:
-            print("Saving optitrack file to database...")
-            self.client.stop_recording()
+        super_result = super().cleanup(database, saveid, **kwargs)
+        print("Saving optitrack file to database...")
+        try:
             database.save_data(self.filename, "optitrack", saveid, False, False) # Make sure you actually have an "optitrack" system added!
-            print("...done.")
+        except Exception as e:
+            print(e)
+            return False
+        print("...done.")
+        return super_result
 
     def _get_manual_position(self):
         ''' Overridden method to get input coordinates based on motion data'''

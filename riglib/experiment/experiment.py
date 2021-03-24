@@ -514,7 +514,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
     # UI cleanup functions ---------------------------------------------------
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Commands to execute at the end of a task.
+        Commands to execute at the end of a task if it is to be saved to the database.
 
         Parameters
         ----------
@@ -527,9 +527,11 @@ class Experiment(ThreadedFSM, traits.HasTraits):
 
         Returns
         -------
-        None
+        success : bool
+            False will trigger an error in the web GUI
         '''
         if self.verbose: print("experimient.Experiment.cleanup executing")
+        return True
 
     def cleanup_hdf(self):
         '''
@@ -548,7 +550,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
 
     def terminate(self):
         '''
-        Cleanup commands for tasks executed using the "test" button
+        Cleanup commands for all tasks regardless of whether they are saved or not
         '''
         pass
 
@@ -577,6 +579,7 @@ class LogExperiment(Experiment):
             database.save_log(saveid, report_stats)
         else:
             database.save_log(saveid, report_stats, dbname=dbname)
+        return True
 
     ##########################################################
     ##### Functions to calculate statistics from the log #####

@@ -18,11 +18,9 @@ sec_per_min = 60
 
 class RewardSystem(traits.HasTraits):
     '''
-    Feature for the current reward system in Amy Orsborn Lab - Aug 2020
+    Feature for the current reward system in Amy Orsborn Lab
     '''
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
-
-    controls = ['manual_reward'] # List of functions to make available on the web interface
 
     def init(self, *args, **kwargs):
         from riglib import reward
@@ -52,11 +50,6 @@ class RewardSystem(traits.HasTraits):
         if hasattr(super(), '_end_reward'):
             super()._end_reward()
 
-    def manual_reward(self):
-        # Function to trigger manual reward
-        print("Manual reward triggered")
-        # TODO self.reportstats[]
-        self.set_state('reward') # this might be a bad idea
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 

@@ -1,5 +1,5 @@
 from riglib.experiment import traits
-from riglib.dio.NIUSB6501.py_comedi_control import write_to_comedi
+from riglib.gpio import NIGPIO, DigitalWave
 import numpy as np
 
 rig1_sync_events_ver_0 = dict(
@@ -17,8 +17,6 @@ rig1_sync_events_ver_0 = dict(
     PAUSE                   = 0xfe,
     EXP_END                 = 0xff,    # For ease of implementation, the last event must be the highest possible value
 )
-
-sync_protocol = rig1_sync_events_ver_0
 
 def encode_event(dictionary, event_name, event_data):
     value = int(dictionary[event_name] + event_data)
@@ -40,11 +38,23 @@ def decode_event(dictionary, value):
 
 class NIDAQSync(traits.HasTraits):
 
+    sync_params = dict(
+        sync_protocol = 'rig1',
+        sync_protocol_version = 0,
+        sync_pulse_width = 0.003,
+        event_sync_nidaq_mask = 0xff,
+        event_sync_dch = range(16,24),
+        event_sync_dict = rig1_sync_events_ver_0,
+        screen_sync_nidaq_pin = 8,
+        screen_sync_dch = 25,
+        screen_measure_dch = [5],
+        screen_measure_ach = [5],
+        reward_measure_ach = [0],
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # Save the sync protocol version 
-        self.sync_protocol = sync_protocol
+        self.sync_gpio = NIGPIO()
 
     def init(self, *args, **kwargs):
 
@@ -63,29 +73,108 @@ class NIDAQSync(traits.HasTraits):
             raise Exception("Cannot sync more than 1 event per cycle")
 
         # digital output
-        code = encode_event(self.sync_protocol, event_name, event_data)
+        code = encode_event(self.sync_params['event_sync_dict'], event_name, event_data)
         self.sync_event_record['time'] = self.cycle_count
         self.sync_event_record['event'] = event_name
         self.sync_event_record['code'] = code
         self.has_sync_event = True
 
-        # display sync
-        if event_name == 'TRIAL_END' or \
-            event_name == 'HOLD_PENALTY' or \
-            event_name == 'TIMEOUT_PENALTY':
-            self.sync_every_cycle = False
-        elif event_name == 'TARGET_ON':
-            self.sync_every_cycle = True
-
     def _cycle(self):
         super()._cycle()
         if self.has_sync_event:
             self.sinks.send("sync_events", self.sync_event_record)
-            code = self.sync_event_record['code']
-            ret = write_to_comedi(int(code))
-            if ret == b'':
-                raise IOError("Unable to send NIDAQ sync event")
+            code = int(self.sync_event_record['code'])
+            pulse = DigitalWave(self.sync_gpio, mask=self.sync_params['event_sync_nidaq_mask'], data=code)
+            pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
+            pulse.start()
             self.has_sync_event = False
             
+    def cleanup_hdf(self):
+        super().cleanup_hdf()
+        if hasattr(self, "h5file"):
+            h5file = tables.open_file(self.h5file.name, mode='a')
+            for param in self.sync_params.keys():
+                h5file.root.sync_events.attrs[param] = self.sync_params[param]
+            h5file.close()
+    
+import copy
+import pygame
+from built_in_tasks.target_graphics import VirtualRectangularTarget
+from riglib.stereo_opengl.window import TRANSPARENT
 
+class ScreenSync(NIDAQSync):
+    '''Adds a square in one corner that switches color with every flip.'''
+    
+    sync_position = {
+        'TopLeft': (-1,1),
+        'TopRight': (1,1),
+        'BottomLeft': (-1,-1),
+        'BottomRight': (1,-1)
+    }
+    sync_position_2D = {
+        'TopLeft': (-1,-1),
+        'TopRight': (1,-1),
+        'BottomLeft': (-1,1),
+        'BottomRight': (1,1)
+    }
+    sync_corner = traits.OptionsList(tuple(sync_position.keys()), desc="Position of sync square")
+    sync_size = traits.Float(1, desc="Sync square size (cm)") 
+    sync_color_off = traits.Tuple((0.,0.,0., 1.), desc="Sync off color (R,G,B,A)")
+    sync_color_on = traits.Tuple((1.,1.,1., 1.), desc="Sync on color (R,G,B,A)")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sync_state = False
+        self.sync_every_cycle = True
+        if hasattr(self, 'is_pygame_display'):
+            screen_center = np.divide(self.window_size,2)
+            sync_size_pix = self.sync_size * self.window_size[0] / self.screen_cm[0]
+            sync_center = [sync_size_pix/2, sync_size_pix/2]
+            from_center = np.multiply(self.sync_position_2D[self.sync_corner], np.subtract(screen_center, sync_center))
+            top_left = screen_center + from_center - sync_center
+            self.sync_rect = pygame.Rect(top_left, np.multiply(sync_center,2))
+        else:
+            from_center = np.multiply(self.sync_position[self.sync_corner], np.subtract(self.screen_cm, self.sync_size))
+            pos = np.array([from_center[0]/2, self.screen_dist, from_center[1]/2])
+            self.sync_square = VirtualRectangularTarget(target_width=self.sync_size, target_height=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
+            # self.sync_square = VirtualCircularTarget(target_radius=self.sync_size, target_color=self.sync_color_off, starting_pos=pos)
+            for model in self.sync_square.graphics_models:
+                self.add_model(model)
+
+    def screen_init(self):
+        super().screen_init()
+        if hasattr(self, 'is_pygame_display'):
+            self.sync = pygame.Surface(self.window_size)
+            self.sync.fill(TRANSPARENT)
+            self.sync.set_colorkey(TRANSPARENT)
+
+    def _draw_other(self):
+        # For pygame display
+        color = self.sync_color_on if self.sync_state else self.sync_color_off
+        self.sync.fill(255*np.array(color), rect=self.sync_rect)
+        self.screen.blit(self.sync, (0,0))
+
+    def init(self):
+        self.add_dtype('sync_square', bool, (1,))
+        super().init()
+
+    def _cycle(self):
+        super()._cycle()
+
+        # Update the sync state
+        if self.sync_every_cycle:
+            self.sync_state = not self.sync_state
         
+        # For OpenGL display, update the graphics
+        if not hasattr(self, 'is_pygame_display'):
+            color = self.sync_color_on if self.sync_state else self.sync_color_off
+            self.sync_square.cube.color = color
+        
+        # Copy the sync state to the digital line and sink dataset
+        self.sync_gpio.write(self.sync_params['screen_sync_nidaq_pin'], self.sync_state)
+        self.task_data['sync_square'] = copy.deepcopy(self.sync_state)
+
+    def terminate(self):
+
+        # Reset the sync pin after experiment ends so the next experiment isn't messed up
+        self.sync_gpio.write(self.sync_params['screen_sync_nidaq_pin'], False)

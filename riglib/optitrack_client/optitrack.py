@@ -32,7 +32,6 @@ class System(DataSourceSystem):
         '''
         self.client.set_callback(
             lambda rb, s, m, t: self._update(rb, s, m, t))
-        self.client._send_command_and_wait("LiveMode") # In case we're not recording
 
     def stop(self):
         pass
