@@ -9,7 +9,6 @@ typedef unsigned char uchar;
 
 comedi_t* ni;
 int subdev = 0;		/* change this to your input subdevice */
-int base_channel = 0;
 
 extern uchar comedi_init(char* dev) {
     uint i, nchan;
@@ -27,7 +26,7 @@ extern uchar comedi_init(char* dev) {
     return 0;
 }
 
-extern int set_bits_in_nidaq_using_mask_and_data(int mask, int data) {
+extern int set_bits_in_nidaq_using_mask_and_data(int mask, int data, int base_channel) {
 
     int retval = comedi_dio_bitfield2(ni, subdev, mask, &data, base_channel);
     return retval;

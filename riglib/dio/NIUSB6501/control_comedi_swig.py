@@ -95,8 +95,8 @@ def comedi_init(dev):
     return _control_comedi_swig.comedi_init(dev)
 comedi_init = _control_comedi_swig.comedi_init
 
-def set_bits_in_nidaq_using_mask_and_data(mask, data):
-    return _control_comedi_swig.set_bits_in_nidaq_using_mask_and_data(mask, data)
+def set_bits_in_nidaq_using_mask_and_data(mask, data, base_channel):
+    return _control_comedi_swig.set_bits_in_nidaq_using_mask_and_data(mask, data, base_channel)
 set_bits_in_nidaq_using_mask_and_data = _control_comedi_swig.set_bits_in_nidaq_using_mask_and_data
 # This file is compatible with both classic and new-style classes.
 

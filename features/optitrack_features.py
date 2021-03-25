@@ -79,7 +79,7 @@ class Optitrack(traits.HasTraits):
         '''
         Code to run before the 'None' state starts (i.e., the task stops)
         '''
-        self.client.stop_recording()
+        #self.client.stop_recording()
         self.motiondata.stop()
         super()._start_None()
 
@@ -113,7 +113,7 @@ class Optitrack(traits.HasTraits):
         if len(data) == 0: # Data is not being streamed
             return
         recent = data[-self.smooth_features:] # How many recent coordinates to average
-        averaged = np.mean(recent, axis=0) # List of averaged features
+        averaged = np.nanmean(recent, axis=0) # List of averaged features
         if np.isnan(averaged).any(): # No usable coords
             return
         return averaged*100 # convert meters to centimeters

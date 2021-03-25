@@ -1,6 +1,7 @@
 from riglib.experiment import traits
 from riglib.gpio import NIGPIO, DigitalWave
 import numpy as np
+import tables
 
 rig1_sync_events_ver_0 = dict(
     EXP_START               = 0x1,

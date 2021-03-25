@@ -75,13 +75,11 @@ class NIGPIO(GPIO):
         init_comedi()
 
     def write(self, pin, value):
-        mask = 0b1 << pin
-        data = value << pin
-        self.write_many(mask, data)
+        self.write_many(1, value, pin)
 
-    def write_many(self, mask, data):
+    def write_many(self, mask, data, base_channel=0):
         with self.lock:
-            ret = write_to_comedi(data, mask=mask)
+            ret = write_to_comedi(data, mask=mask, base_channel=base_channel)
             if ret == b'':
                 raise IOError("Unable to send NIDAQ sync event")
 

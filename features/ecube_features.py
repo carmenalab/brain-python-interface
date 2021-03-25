@@ -33,11 +33,13 @@ class RecordECube():
             return False
 
         # Save file to database
+        print("Saving ecube file to database...")
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+        suffix = '' # note: database functions don't take keyword arguements like custom_suffix=suffix
         if dbname == 'default':
-            database.save_data(ecube_session, "ecube", saveid, False, False, custom_suffix='') # make sure to add the ecube datasource!
+            database.save_data(ecube_session, "ecube", saveid, False, False, suffix) # make sure to add the ecube datasource!
         else:
-            database.save_data(ecube_session, "ecube", saveid, False, False, custom_suffix='', dbname=dbname)
+            database.save_data(ecube_session, "ecube", saveid, False, False, suffix, dbname=dbname)
         return super_result
 
     
@@ -49,15 +51,15 @@ class RecordECube():
         if saveid is not None:
             from riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
-            #try:
-            ec = pyeCubeStream.eCubeStream(debug = True) #[('DigitalPanel',), ('AnalogPanel',)])
-            ec.add(('AnalogPanel',))
-            ec.add(('DigitalPanel',))
-            ec.remotesave(session_name)
-            active_sessions = ec.listremotesessions()
-            #except Exception as e:
-            #    print(e)
-            #    active_sessions = []
+            try:
+                ec = pyeCubeStream.eCubeStream(debug = True) #[('DigitalPanel',), ('AnalogPanel',)])
+                ec.add(('AnalogPanel',))
+                ec.add(('DigitalPanel',))
+                ec.remotesave(session_name)
+                active_sessions = ec.listremotesessions()
+            except Exception as e:
+                print(e)
+                active_sessions = []
             if session_name not in active_sessions:
                 raise Exception("Could not start eCube recording. Make sure servernode is running!")
         super().pre_init(saveid=saveid)
