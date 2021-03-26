@@ -2,7 +2,7 @@
 Module for the core "features" that can be used to extend and customize a 
 task/experiment by multiple inheritance.
 '''
-from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, WindowDispl2D
+from riglib.stereo_opengl.window import WindowWithExperimenterDisplay, Window2D
 from .generator_features import Autostart, AdaptiveGenerator, IgnoreCorrectness
 from .peripheral_device_features import Button, Joystick, DualJoystick, Joystick_plus_TouchSensor, KeyboardControl, MouseControl
 from .reward_features import RewardSystem, TTLReward, JuiceLogging
@@ -26,7 +26,7 @@ built_in_features = dict(
     saveHDF=SaveHDF,
     autostart=Autostart,
     laser=LaserTrials,
-    window2D=WindowDispl2D,
+    window2D=Window2D,
     adaptive_generator=AdaptiveGenerator,
     button=Button,
     ignore_correctness=IgnoreCorrectness,

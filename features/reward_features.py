@@ -11,6 +11,7 @@ import fnmatch
 import os
 import subprocess
 from riglib.experiment import traits
+from riglib.audio import AudioPlayer
 import serial, glob
 
 ###### CONSTANTS
@@ -22,20 +23,19 @@ class RewardSystem(traits.HasTraits):
     '''
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
 
-    def init(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         from riglib import reward
-        super(RewardSystem, self).init(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.reward = reward.open()
         if self.reward is None:
             raise Exception('Reward system could not be activated')
 
     def _start_reward(self):
-        self.reward_start = self.get_time()
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
         self.reportstats['Reward #'] += 1
         if self.reportstats['Reward #'] % self.trials_per_reward == 0:
             self.reward.on()
-        if hasattr(super(), '_start_reward'):
-            super()._start_reward()
 
     def _test_reward_end(self, ts):
         if self.reportstats['Reward #'] % self.trials_per_reward == 0:
@@ -50,6 +50,18 @@ class RewardSystem(traits.HasTraits):
         if hasattr(super(), '_end_reward'):
             super()._end_reward()
 
+class RewardAudio(traits.HasTraits):
+
+    reward_sound = traits.String('click.wav', desc="File in riglib/audio to play on each reward")
+
+    def __init__(self, *args, **kwargs):
+        self.reward_player = AudioPlayer(self.reward_sound)
+        super().__init__(*args, **kwargs)
+
+    def _start_reward(self):
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
+        self.reward_player.play()
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 
