@@ -650,6 +650,13 @@ def save_recording_sys(request):
     ret_msg = "Set recording_sys to %s" % KeyValueStore.get('recording_sys')
     return _respond(dict(status="success", msg=ret_msg))
 
+def save_rig_name(request):
+    from . import models
+    KeyValueStore.set('rig_name', request.POST['rig_name'])
+    print(KeyValueStore.get('rig_name'))
+    ret_msg = "Set rig_name to %s" % KeyValueStore.get('rig_name')
+    return _respond(dict(status="success", msg=ret_msg))
+
 @csrf_exempt
 def setup_handler(request):
     """One-stop handler for setup functions to avoid adding a bunch of URLs"""
@@ -658,6 +665,8 @@ def setup_handler(request):
         return update_database_storage_path(request)
     elif action == "save_recording_sys":
         return save_recording_sys(request)
+    elif action == "save_rig_name":
+        return save_rig_name(request)
     elif action == "update_built_in_feature_paths":
         return update_built_in_feature_import_paths(request)
     else:

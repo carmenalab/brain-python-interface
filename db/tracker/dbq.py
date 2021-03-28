@@ -128,6 +128,13 @@ def save_bmi(name, entry, filename, dbname='default'):
             print(d.pk, d.name)
     print("Saved decoder to %s"%os.path.join(base, pklname))
 
+def cleanup(entry, dbname='default'):
+    '''
+    Final cleanup after a task is finished
+    '''
+    te = TaskEntry.objects.using(dbname).get(id=entry)
+    te.make_hdf_self_contained()
+
 def hide_task_entry(entry, dbname='default'):
     te = TaskEntry.objects.using(dbname).get(id=entry)
     te.visible = False
@@ -143,6 +150,7 @@ dispatcher.register_function(save_log, 'save_log')
 dispatcher.register_function(save_calibration, 'save_cal')
 dispatcher.register_function(save_data, 'save_data')
 dispatcher.register_function(save_bmi, 'save_bmi')
+dispatcher.register_function(cleanup, 'cleanup')
 dispatcher.register_function(hide_task_entry, 'hide_task_entry')
 
 @csrf_exempt

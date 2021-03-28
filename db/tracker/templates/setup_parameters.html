@@ -3,6 +3,10 @@
 {% block content %}
 
 <h2>System Configuration</h2>
+Rig name:
+<input type="text" value='{{rig_name}}' id="rig_name"/>
+<input type="submit" value="Save" onclick='save_rig_name()'>
+<br />
 Neural recording system: 
 <select id="recording_sys_make">
   {% for sys in recording_sys_options %}

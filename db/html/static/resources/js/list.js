@@ -343,6 +343,9 @@ function TaskEntry(idx, info) {
      * idx: string of format row\d\d\d where \d\d\d represents the string numbers of the database ID of the block
      */
 
+    // resize the window to fit the TE pane correctly
+    $(window).resize()
+
     // hide the old content
     $("#content").hide();
 

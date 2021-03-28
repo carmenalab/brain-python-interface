@@ -178,11 +178,13 @@ def setup_parameters(request):
         path = models.KeyValueStore.get('data_path', '--', dbname=db)
         database_objs.append({"name":db, "path":path})
 
+    rig_name = models.KeyValueStore.get("rig_name", "")
     recording_sys = models.KeyValueStore.get("recording_sys")
     recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon', 'ecube'] # TODO make this dynamic
 
     return render(request, "setup_parameters.html",
-        dict(systems=systems, databases=database_objs, recording_sys=recording_sys,
+        dict(rig_name=rig_name, systems=systems, databases=database_objs, 
+            recording_sys=recording_sys,
             recording_sys_options=recording_sys_options))
 
 def setup(request):

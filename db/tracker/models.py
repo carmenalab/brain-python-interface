@@ -917,25 +917,38 @@ class TaskEntry(models.Model):
         return DataFile.objects.filter(entry_id=self.id)
 
     def make_hdf_self_contained(self):
+        '''
+        If the entry has an hdf file associated with it, dump the entry metadata into it
+        '''
         try:
             df = DataFile.objects.get(entry__id=self.id, system__name="hdf")
             h5file = df.get_path()
         except:
-            print("Error getting single HDF data file")
-            traceback.print_exc()
+            print("No HDF file to make self contained")
             return
 
         import h5py
         hdf = h5py.File(h5file, mode='a')
+        print("Adding database metadata to hdf file:")
         print(h5file)
-        hdf['/'].attrs["task_name"] = self.task.name
-        hdf['/'].attrs["rig_name"] = KeyValueStore.get('rig_name', 'unknown'),
-        hdf['/'].attrs['block_number'] = self.id
 
+        # Add any task metadata
+        hdf['/'].attrs["task_name"] = self.task.name
+        hdf['/'].attrs["features"] = [f.name for f in self.feats.all()]
+        hdf['/'].attrs["rig_name"] = KeyValueStore.get('rig_name', 'unknown')
+        hdf['/'].attrs["block_number"] = self.id
+        hdf['/'].attrs["subject"] = self.subject.name
+        hdf['/'].attrs["date"] = str(self.date)
+        hdf['/'].attrs["sequence"] = self.sequence.name
+        hdf['/'].attrs["report"] = self.report
+        hdf['/'].attrs["notes"] = self.notes
+        hdf['/'].attrs["sw_version"] = self.sw_version
+
+        # Link any data files
         data_files = []
         for df in DataFile.objects.filter(entry__id=self.id):
             data_files.append(df.get_path())
-        hdf['/'].attrs['data_files'] = data_files
+        hdf['/'].attrs["data_files"] = data_files
         hdf.close()
 
         # TODO save decoder parameters to hdf file, if applicable

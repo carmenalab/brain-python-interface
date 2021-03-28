@@ -151,6 +151,7 @@ class TaskWrapper(RPCProcess):
                 database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
                 # from tracker import dbq as database
                 cleanup_successful = self.target.cleanup(database, self.saveid, subject=self.subj)
+                database.cleanup(self.saveid)
             except Exception as e:
                 self.log_str("Error in cleanup:")
                 self.log_error(e)
