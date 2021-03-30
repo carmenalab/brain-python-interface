@@ -305,6 +305,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             self.add_dtype(*attr)
 
     def init(self):
+        self.add_dtype('trial', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
         super().init()
 
@@ -322,6 +323,9 @@ class ScreenTargetCapture(TargetCapture, Window):
         plant_data = self.plant.get_data_to_save()
         for key in plant_data:
             self.task_data[key] = plant_data[key]
+
+        # Update the trial index
+        self.task_data['trial'] = self.calc_trial_num()
 
         super()._cycle()
 

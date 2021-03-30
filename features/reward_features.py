@@ -52,7 +52,8 @@ class RewardSystem(traits.HasTraits):
 
 class RewardAudio(traits.HasTraits):
 
-    reward_sound = traits.String('click.wav', desc="File in riglib/audio to play on each reward")
+    files = [f for f in os.listdir('../riglib/audio') if '.wav' in f]
+    reward_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each reward")
 
     def __init__(self, *args, **kwargs):
         self.reward_player = AudioPlayer(self.reward_sound)
