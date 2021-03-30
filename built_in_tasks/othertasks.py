@@ -18,8 +18,17 @@ class Conditions(Sequence):
     trial_time = traits.Float(1.0, desc="Trial duration (s)")
     sequence_generators = ['null_sequence']
 
+    def init(self):
+        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4')])
+        super().init()
+
     def _parse_next_trial(self):
         self.trial_index = self.next_trial
+
+        # Send record of trial to sinks
+        self.trial_record['trial'] = self.calc_trial_num()
+        self.trial_record['index'] = self.trial_index
+        self.sinks.send("trials", self.trial_record)
 
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
@@ -98,7 +107,6 @@ class LaserConditions(Conditions):
         wave = DigitalWave(self.gpio, pin=self.laser_trigger_pin)
         wave.set_edges([0], False)
         wave.start()
-        
         
     def _test_end_trial(self, ts):
         return (self.laser_thread is None) or (not self.laser_thread.is_alive())

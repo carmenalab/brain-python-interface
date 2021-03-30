@@ -61,6 +61,10 @@ class TargetCapture(Sequence):
     max_attempts = traits.Int(10, desc='The number of attempts at a target before\
         skipping to the next one')
 
+    def init(self):
+        self.trial_dtype = np.dtype([('trial', 'u4'), ('index', 'u4'), ('target', 'f8', (3,))])
+        super().init()
+
     def _start_wait(self):
         # Call parent method to draw the next target capture sequence from the generator
         super()._start_wait()
@@ -80,8 +84,14 @@ class TargetCapture(Sequence):
     def _parse_next_trial(self):
         '''Check that the generator has the required data'''
         self.gen_indices, self.targs = self.next_trial
-
         # TODO error checking
+        
+        # Update the data sinks with trial information
+        self.trial_record['trial'] = self.calc_trial_num()
+        for i in range(len(self.gen_indices)):
+            self.trial_record['index'] = self.gen_indices[i]
+            self.trial_record['target'] = self.targs[i]
+            self.sinks.send("trials", self.trial_record)
 
     def _start_target(self):
         self.target_index += 1
@@ -118,6 +128,13 @@ class TargetCapture(Sequence):
         self.tries += 1
         self.target_index = -1
 
+        if self.tries < self.max_attempts: 
+            self.trial_record['trial'] += 1
+            for i in range(len(self.gen_indices)):
+                self.trial_record['index'] = self.gen_indices[i]
+                self.trial_record['target'] = self.targs[i]
+                self.sinks.send("trials", self.trial_record)
+
     def _while_timeout_penalty(self):
         '''Nothing generic to do.'''
         pass
@@ -129,6 +146,13 @@ class TargetCapture(Sequence):
     def _start_hold_penalty(self):
         self.tries += 1
         self.target_index = -1
+
+        if self.tries < self.max_attempts: 
+            self.trial_record['trial'] += 1
+            for i in range(len(self.gen_indices)):
+                self.trial_record['index'] = self.gen_indices[i]
+                self.trial_record['target'] = self.targs[i]
+                self.sinks.send("trials", self.trial_record)
 
     def _while_hold_penalty(self):
         '''Nothing generic to do.'''
@@ -281,9 +305,6 @@ class ScreenTargetCapture(TargetCapture, Window):
             self.add_dtype(*attr)
 
     def init(self):
-        self.add_dtype('trial', 'i', (1,))
-        self.add_dtype('target_location', 'f8', (3,))
-        self.add_dtype('target_index', 'i', (1,))
         self.add_dtype('plant_visible', '?', (1,))
         super().init()
 
@@ -291,11 +312,6 @@ class ScreenTargetCapture(TargetCapture, Window):
         '''
         Calls any update functions necessary and redraws screen
         '''
-        self.task_data['trial'] = self.calc_trial_num()
-        self.task_data['target_index'] = self.target_index
-        if self.target_index > 0 and self.target_index < self.chain_length:
-            self.task_data['target_location'] = self.targs[self.target_index].copy()
-
         self.move_effector()
 
         ## Run graphics commands to show/hide the plant if the visibility has changed
@@ -426,10 +442,10 @@ class ScreenTargetCapture(TargetCapture, Window):
         '''Single location, finite (ntrials!=0) or infinite (ntrials==0)'''
         if ntrials == 0:
             while True:
-                yield np.array(pos)
+                yield [0], np.array(pos)
         else:
             for _ in range(ntrials):
-                yield np.array(pos)
+                yield [0], np.array(pos)
 
     @staticmethod
     def out_2D(nblocks=100, ntargets=8, distance=10, origin=(0,0,0)):
@@ -521,13 +537,15 @@ class ScreenTargetCapture(TargetCapture, Window):
         [ntrials x chain_length x 3] array of target coordinates
         '''
         rng = np.random.default_rng()
+        idx = 0
         for t in range(ntrials):
 
             # Choose a random sequence of points within the boundaries
             pts = rng.uniform(size=(chain_length, 3))*((boundaries[1]-boundaries[0]),
                 0, (boundaries[3]-boundaries[2]))
             pts = pts+(boundaries[0], 0, boundaries[2])
-            yield np.arange(chain_length), pts # target indices not super meaningful
+            yield idx+np.arange(chain_length), pts
+            idx += chain_length
     
     @staticmethod
     def rand_target_chain_3D(ntrials=100, chain_length=1, boundaries=(-12,12,-10,10,-12,12)):
@@ -547,10 +565,12 @@ class ScreenTargetCapture(TargetCapture, Window):
         [ntrials x chain_length x 3] array of target coordinates
         '''
         rng = np.random.default_rng()
+        idx = 0
         for t in range(ntrials):
 
             # Choose a random sequence of points within the boundaries
             pts = rng.uniform(size=(chain_length, 3))*((boundaries[1]-boundaries[0]),
                 (boundaries[3]-boundaries[2]), (boundaries[5]-boundaries[4]))
             pts = pts+(boundaries[0], boundaries[2], boundaries[4])
-            return np.arange(chain_length), pts
+            yield idx+np.arange(chain_length), pts
+            idx += chain_length

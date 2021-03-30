@@ -680,7 +680,20 @@ class Sequence(LogExperiment):
         else:
             raise ValueError("Input argument to Sequence 'gen' must be of 'generator' type!")
 
+        self.trial_dtype = np.dtype([('time', 'u8'), ('trial', 'u4')]) # to be overridden in init()
+
         super(Sequence, self).__init__(*args, **kwargs)
+
+    def init(self, *args, **kwargs):
+
+        # Create a record array for trials
+        if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
+            from riglib import sink
+            self.sinks = sink.SinkManager.get_instance()
+        dtype = self.trial_dtype # if you want to change this, do it in init() before calling super().init()
+        self.trial_record = np.zeros((1,), dtype=dtype)
+        self.sinks.register("trials", dtype)
+        super().init(*args, **kwargs)
 
     def _start_wait(self):
         '''
@@ -707,6 +720,10 @@ class Sequence(LogExperiment):
         if isinstance(self.next_trial, dict):
             for key in self.next_trial:
                 setattr(self, '_gen_%s' % key, self.next_trial[key])
+
+        self.trial_record['time'] = self.cycle_count
+        self.trial_record['trial'] = self.calc_trial_num()
+        self.sinks.send("trials", self.trial_record)
 
 
 class TrialTypes(Sequence):

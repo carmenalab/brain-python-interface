@@ -159,21 +159,20 @@
       }
     }
 
-    $(window).resize(function(){
-      var window_width = $(window).width();
-      var rightpane_width = $('#rightpane').width();
-      var leftpane_width = $('#leftpane').width();
-      if (window_width <= rightpane_width) {
-        $('#rightpane').css("left", 0);
-      } else if (window_width <= rightpane_width + leftpane_width) {
-        $('#rightpane').css("left", window_width - rightpane_width);
-        console.log("2");
-      } else {
-        $('#rightpane').css("left", leftpane_width);
-        console.log("3");
-      }
-     
-    })
+    // $(window).resize(function(){
+    //   var window_width = $(window).width();
+    //   var rightpane_width = $('#rightpane').width();
+    //   var leftpane_width = $('#leftpane').width();
+    //   if (window_width <= rightpane_width) {
+    //     $('#rightpane').css("left", 0);
+    //   } else if (window_width <= rightpane_width + leftpane_width) {
+    //     $('#rightpane').css("left", window_width - rightpane_width);
+    //     console.log("2");
+    //   } else {
+    //     $('#rightpane').css("left", leftpane_width);
+    //     console.log("3");
+    //   }
+    // })
 
     {% if status == "running" and saveid %}
     // If there is a task already running, then immediately open the taskentry and change the status

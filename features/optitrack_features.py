@@ -37,15 +37,16 @@ class Optitrack(traits.HasTraits):
         # Start the natnet client and recording
         import natnet
         now = datetime.now()
-        session = "C:/Users/Orsborn Lab/Documents/OptiTrack/Session " + now.strftime("%Y-%m-%d")
+        local_path = "C:/Users/Orsborn Lab/Documents"
+        session = "OptiTrack/Session " + now.strftime("%Y-%m-%d")
         take = now.strftime("Take %Y-%m-%d %H:%M:%S")
         logger = Logger(take)
         client = natnet.Client.connect(logger=logger)
         if self.saveid is not None:
             take += " (%d)" % self.saveid
-            client.set_session(session)
+            client.set_session(os.path.join(local_path, session))
             client.set_take(take)
-            self.filename = os.path.join(session, take)
+            self.filename = os.path.join(session, take + '.tak')
             status = client.start_recording()
             if not status:
                 # Abort experiment

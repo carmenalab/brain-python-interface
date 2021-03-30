@@ -46,6 +46,7 @@ class NIDAQSync(traits.HasTraits):
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
         event_sync_dict = rig1_sync_events_ver_0,
+        event_sync_max_data = 0xf,
         screen_sync_nidaq_pin = 8,
         screen_sync_dch = 25,
         screen_measure_dch = [5],
@@ -63,7 +64,7 @@ class NIDAQSync(traits.HasTraits):
         if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
             from riglib import sink
             self.sinks = sink.SinkManager.get_instance()
-        dtype = np.dtype([('time', 'u8'), ('event', 'S16'), ('code', 'u1')]) # 64-bit time (cycle number), string event, 8-bit code
+        dtype = np.dtype([('time', 'u8'), ('event', 'S16'), ('data', 'u4'), ('code', 'u1')]) # 64-bit time (cycle number), string event, 32-bit data, 8-bit code
         self.sync_event_record = np.zeros((1,), dtype=dtype)
         self.sinks.register("sync_events", dtype)
         self.has_sync_event = False
@@ -74,21 +75,27 @@ class NIDAQSync(traits.HasTraits):
             raise Exception("Cannot sync more than 1 event per cycle")
 
         # digital output
-        code = encode_event(self.sync_params['event_sync_dict'], event_name, event_data)
+        code = encode_event(self.sync_params['event_sync_dict'], event_name, min(event_data, self.sync_params['event_sync_max_data']))
         self.sync_event_record['time'] = self.cycle_count
         self.sync_event_record['event'] = event_name
+        self.sync_event_record['data'] = event_data
         self.sync_event_record['code'] = code
         self.has_sync_event = True
 
     def _cycle(self):
         super()._cycle()
+        code = 0x100
         if self.has_sync_event:
             self.sinks.send("sync_events", self.sync_event_record)
-            code = int(self.sync_event_record['code'])
-            pulse = DigitalWave(self.sync_gpio, mask=self.sync_params['event_sync_nidaq_mask'], data=code)
-            pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
-            pulse.start()
+            code |= int(self.sync_event_record['code'])
             self.has_sync_event = False
+        pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=code)
+        pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
+        pulse.start()
+
+    def terminate(self):
+        # Reset the sync pin after experiment ends so the next experiment isn't messed up
+        self.sync_gpio.write_many(0xffffff, 0)
             
     def cleanup_hdf(self):
         super().cleanup_hdf()
@@ -165,17 +172,9 @@ class ScreenSync(NIDAQSync):
         # Update the sync state
         if self.sync_every_cycle:
             self.sync_state = not self.sync_state
+        self.task_data['sync_square'] = copy.deepcopy(self.sync_state)
         
         # For OpenGL display, update the graphics
         if not hasattr(self, 'is_pygame_display'):
             color = self.sync_color_on if self.sync_state else self.sync_color_off
             self.sync_square.cube.color = color
-        
-        # Copy the sync state to the digital line and sink dataset
-        self.sync_gpio.write(self.sync_params['screen_sync_nidaq_pin'], self.sync_state)
-        self.task_data['sync_square'] = copy.deepcopy(self.sync_state)
-
-    def terminate(self):
-
-        # Reset the sync pin after experiment ends so the next experiment isn't messed up
-        self.sync_gpio.write(self.sync_params['screen_sync_nidaq_pin'], False)

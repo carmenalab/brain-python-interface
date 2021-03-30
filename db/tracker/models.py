@@ -939,7 +939,8 @@ class TaskEntry(models.Model):
         hdf['/'].attrs["block_number"] = self.id
         hdf['/'].attrs["subject"] = self.subject.name
         hdf['/'].attrs["date"] = str(self.date)
-        hdf['/'].attrs["sequence"] = self.sequence.name
+        if self.sequence is not None:
+            hdf['/'].attrs["sequence"] = self.sequence.name
         hdf['/'].attrs["report"] = self.report
         hdf['/'].attrs["notes"] = self.notes
         hdf['/'].attrs["sw_version"] = self.sw_version
