@@ -437,7 +437,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         self.sync_event('REWARD')
 
     def _start_None(self):
-        self.sync_event('TRIAL_END')
+        self.sync_event('EXP_END')
         super()._start_None()
 
     #### Generator functions ####

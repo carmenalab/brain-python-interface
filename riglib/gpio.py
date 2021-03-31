@@ -114,9 +114,9 @@ class DigitalWave(threading.Thread):
             while (time.perf_counter() - t0 < edge):
                 pass
             if self.data is None:
-                self.gpio.write(self.pin, state)
+                self.gpio.write(self.pin, int(state))
             else:
-                self.gpio.write_many(self.mask, state*self.data)
+                self.gpio.write_many(self.mask, int(state*self.data))
             state = not state
 
     @staticmethod

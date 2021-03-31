@@ -52,7 +52,7 @@ class RecordECube():
             from riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
             try:
-                ec = pyeCubeStream.eCubeStream(debug = True) #[('DigitalPanel',), ('AnalogPanel',)])
+                ec = pyeCubeStream.eCubeStream(debug = True)
                 ec.add(('AnalogPanel',))
                 ec.add(('DigitalPanel',))
                 ec.remotesave(session_name)

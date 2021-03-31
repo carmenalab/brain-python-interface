@@ -2,6 +2,7 @@ from riglib.experiment import traits
 from riglib.gpio import NIGPIO, DigitalWave
 import numpy as np
 import tables
+import time
 
 rig1_sync_events_ver_0 = dict(
     EXP_START               = 0x1,
@@ -14,6 +15,7 @@ rig1_sync_events_ver_0 = dict(
     CURSOR_ENTER_TARGET     = 0x50,
     CURSOR_LEAVE_TARGET     = 0x51,
     CUE                     = 0x52,
+    TIME_ZERO               = 0xee,
     TRIAL_END               = 0xef,
     PAUSE                   = 0xfe,
     EXP_END                 = 0xff,    # For ease of implementation, the last event must be the highest possible value
@@ -41,7 +43,7 @@ class NIDAQSync(traits.HasTraits):
 
     sync_params = dict(
         sync_protocol = 'rig1',
-        sync_protocol_version = 0,
+        sync_protocol_version = 1,
         sync_pulse_width = 0.003,
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
@@ -57,6 +59,7 @@ class NIDAQSync(traits.HasTraits):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sync_gpio = NIGPIO()
+        self.sync_every_cycle = True
 
     def init(self, *args, **kwargs):
 
@@ -67,8 +70,22 @@ class NIDAQSync(traits.HasTraits):
         dtype = np.dtype([('time', 'u8'), ('event', 'S16'), ('data', 'u4'), ('code', 'u1')]) # 64-bit time (cycle number), string event, 32-bit data, 8-bit code
         self.sync_event_record = np.zeros((1,), dtype=dtype)
         self.sinks.register("sync_events", dtype)
-        self.has_sync_event = False
+        dtype = np.dtype([('time', 'u8'), ('timestamp', 'f8'), ('prev_tick', 'f8')])
+        self.sinks.register("sync_clock", dtype)
+        self.sync_clock_record = np.zeros((1,), dtype=dtype)
         super().init(*args, **kwargs)
+
+        # Send a sync impulse to set t0
+        time.sleep(self.sync_params['sync_pulse_width']*10)
+        self.has_sync_event = False
+        self.sync_event('TIME_ZERO', 0)
+        self.sinks.send("sync_events", self.sync_event_record)
+        self.has_sync_event = False
+        pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=self.sync_event_record['code'])
+        pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
+        pulse.start()
+        self.t0 = time.perf_counter()
+        time.sleep(self.sync_params['sync_pulse_width']*10)
 
     def sync_event(self, event_name, event_data=0):
         if self.has_sync_event:
@@ -84,14 +101,22 @@ class NIDAQSync(traits.HasTraits):
 
     def _cycle(self):
         super()._cycle()
-        code = 0x100
+        code = 0
+        if self.sync_every_cycle:
+            code = 1 << self.sync_params['screen_sync_nidaq_pin']
         if self.has_sync_event:
             self.sinks.send("sync_events", self.sync_event_record)
             code |= int(self.sync_event_record['code'])
             self.has_sync_event = False
-        pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=code)
-        pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
-        pulse.start()
+        if code > 0:
+            pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=code)
+            pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
+            pulse.start()
+        if self.sync_every_cycle:
+            self.sync_clock_record['time'] = self.cycle_count
+            self.sync_clock_record['timestamp'] = time.perf_counter() - self.t0
+            self.sync_clock_record['prev_tick'] = self.clock.get_time()
+            self.sinks.send("sync_clock", self.sync_clock_record)
 
     def terminate(self):
         # Reset the sync pin after experiment ends so the next experiment isn't messed up
@@ -133,7 +158,6 @@ class ScreenSync(NIDAQSync):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sync_state = False
-        self.sync_every_cycle = True
         if hasattr(self, 'is_pygame_display'):
             screen_center = np.divide(self.window_size,2)
             sync_size_pix = self.sync_size * self.window_size[0] / self.screen_cm[0]
