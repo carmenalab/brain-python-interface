@@ -8,6 +8,7 @@ tables==3.6.1
 celery==5.0.2
 pandas==0.25.3
 h5py==2.10.0
+hdfwriter==0.1.4
 Cython==0.29.14
 nitime==0.8.1
 statsmodels==0.10.2
@@ -16,7 +17,6 @@ pygame==1.9.6
 namelist==0.1.0
 OWL==0.2.1
 Phidgets==2.1.8
-#pyaudio==0.2.11
 pyautogui==0.9.50
 PyOpenGL==3.1.5
 pyserial==3.4
@@ -28,5 +28,4 @@ tasks==2.5.0
 pyfirmata == 1.1.0
 gitpython==3.1.8
 hdfwriter==0.1.4
-#pycomedi == 0.9
 jinja2==2.11.2
