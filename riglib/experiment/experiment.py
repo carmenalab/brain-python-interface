@@ -1,5 +1,5 @@
 '''
-Experimental task base classes, contains mostly code to run the generic 
+Experimental task base classes, contains mostly code to run the generic
 finite state machine representing different phases of the task
 '''
 
@@ -13,22 +13,33 @@ import tables
 import traceback
 import io
 import numpy as np
+from collections import OrderedDict
 
 from . import traits
+from riglib import fsm
 from riglib.fsm import FSMTable, StateTransitions, ThreadedFSM
 
 try:
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
     import pygame
+    pygame_avail = True
 except ImportError:
     import warnings
     warnings.warn("experiment.py: Cannot import 'pygame'")
+    pygame_avail = False
 
-from collections import OrderedDict
 
 min_per_hour = 60.
 sec_per_min = 60.
 
+def time_to_string(sec):
+    '''
+    Convert a time in seconds to a string of format hh:mm:ss.
+    '''
+    nhours = int(sec/(min_per_hour * sec_per_min))
+    nmins = int((sec-nhours*min_per_hour*sec_per_min)/sec_per_min)
+    nsecs = int(sec - nhours*min_per_hour*sec_per_min - nmins*sec_per_min)
+    return str(nhours).zfill(2) + ':' + str(nmins).zfill(2) + ':' + str(nsecs).zfill(2)
 
 def _get_trait_default(trait):
     '''
@@ -55,6 +66,8 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         penalty = dict(post_penalty="wait"),
     )
 
+    # To keep track of changes, useful to store the version as a trait
+
     # For analysis purposes, it's useful to declare which task states are "terminal" states and signify the end of a trial
     trial_end_states = []
 
@@ -68,7 +81,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
     stop = False
 
     # Rate at which FSM is called. Set to 60 Hz by default to match the typical monitor update rate
-    fps = 60 # Hz
+    fps = traits.Float(60, desc="Rate at which the FSM is called") # Hz
 
     cycle_count = 0
 
@@ -89,12 +102,12 @@ class Experiment(ThreadedFSM, traits.HasTraits):
     session_length = traits.Float(0, desc="Time until task automatically stops. Length of 0 means no auto stop.")
 
     # Initialization functions -----------------------------------------------
-    @classmethod 
+    @classmethod
     def pre_init(cls, **kwargs):
         '''
         Jobs to do before creating the task object go here (or this method should be overridden in child classes).
         Examples might include sending a trigger to start a recording device (e.g., neural system), since you might want
-        recording to be guaranteed to start before any task event loop activity occurs. 
+        recording to be guaranteed to start before any task event loop activity occurs.
         '''
         print('running experiment.Experiment.pre_init')
         pass
@@ -106,7 +119,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         Parameters
         ----------
         kwargs: optional keyword-arguments
-            Any user-specified parameters for experiment traits, to be passed to the traits.HasTraits parent. 
+            Any user-specified parameters for experiment traits, to be passed to the traits.HasTraits parent.
 
         Returns
         -------
@@ -116,12 +129,12 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         ThreadedFSM.__init__(self)
         self.verbose = verbose
         self.task_start_time = self.get_time()
+        self.saveid = kwargs['saveid'] if 'saveid' in kwargs else None
         self.reportstats = collections.OrderedDict()
         self.reportstats['State'] = None #State stat is automatically updated for all experiment classes
         self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
         self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
         self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
-
         # If the FSM is set up in the old style (explicit dictionaries instead of wrapper data types), convert to the newer FSMTable
         if isinstance(self.status, dict):
             self.status = FSMTable.construct_from_dict(self.status)
@@ -131,7 +144,10 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         self.dtype = []
 
         self.cycle_count = 0
-        self.clock = pygame.time.Clock()
+        if pygame_avail:
+            self.clock = pygame.time.Clock()
+        else:
+            self.clock = fsm.Clock()
 
         self.pause = False
 
@@ -145,13 +161,13 @@ class Experiment(ThreadedFSM, traits.HasTraits):
 
     def init(self):
         '''
-        Initialization method to run *after* object construction (see self.start). 
-        This may be necessary in some cases where features are used with multiple inheritance to extend tasks 
-        (this is the standard way of creating custom base experiment + features classes through the browser interface). 
-        With multiple inheritance, it's difficult/annoying to make guarantees about the order of operations for 
-        each of the individual __init__ functions from each of the parents. Instead, this function runs after all the 
-        __init__ functions have finished running if any subsequent initialization is necessary before the main event loop 
-        can execute properly. Examples include initialization of the decoder state/parameters. 
+        Initialization method to run *after* object construction (see self.start).
+        This may be necessary in some cases where features are used with multiple inheritance to extend tasks
+        (this is the standard way of creating custom base experiment + features classes through the browser interface).
+        With multiple inheritance, it's difficult/annoying to make guarantees about the order of operations for
+        each of the individual __init__ functions from each of the parents. Instead, this function runs after all the
+        __init__ functions have finished running if any subsequent initialization is necessary before the main event loop
+        can execute properly. Examples include initialization of the decoder state/parameters.
         '''
         # Timestamp for rough loop timing
         self.last_time = self.get_time()
@@ -172,20 +188,20 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         # Register the "task" source with the sinks
         if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
             from riglib import sink
-            self.sinks = sink.sinks
+            self.sinks = sink.SinkManager.get_instance()
 
         try:
-            self.sinks.register("task", self.dtype)
+            self.sinks.register("task", self.dtype, include_msgs=True)
         except:
-            traceback.print_exc()            
+            traceback.print_exc()
             raise Exception("Error registering task source")
 
         self._task_init_complete = True
 
     def add_dtype(self, name, dtype, shape):
         '''
-        Add to the dtype of the task. The task's dtype attribute is used to determine 
-        which attributes to save to file. 
+        Add to the dtype of the task. The task's dtype attribute is used to determine
+        which attributes to save to file.
         '''
         new_field = (name, dtype, shape)
         existing_field_names = [x[0] for x in self.dtype]
@@ -196,19 +212,28 @@ class Experiment(ThreadedFSM, traits.HasTraits):
 
     def screen_init(self):
         '''
-        This method is implemented by the riglib.stereo_opengl.Window class, which is not used by all tasks. However, 
+        This method is implemented by the riglib.stereo_opengl.Window class, which is not used by all tasks. However,
         since Experiment is the ancestor of all tasks, a stub function is here so that any children
-        using the window can safely use 'super'. 
+        using the window can safely use 'super'.
         '''
         pass
+
+    def sync_event(self, event_name, event_data=None):
+        '''
+        Stub function for sending sync signals to various devices. Could be digital triggers to a recording system
+        or markers on a screen measured by photodiode, for example. Implemented in features.sync_features
+        '''
+        pass 
+
+        # TODO warning that you're not sending sync signals!
 
     # Trait functions --------------------------------------------------------
     @classmethod
     def class_editable_traits(cls):
         '''
-        Class method to retrieve the list of editable traits for the given experiment. 
+        Class method to retrieve the list of editable traits for the given experiment.
         The default behavior for an experiment class is to make all traits editable except for those
-        listed in the attribute 'exclude_parent_traits'. 
+        listed in the attribute 'exclude_parent_traits'.
 
         Parameters
         ----------
@@ -242,9 +267,9 @@ class Experiment(ThreadedFSM, traits.HasTraits):
             trait_params['label'] = trait_name
 
         if trait_params['type'] == "InstanceFromDB":
-            # a database instance. pass back the model and the query parameters and let the db 
+            # a database instance. pass back the model and the query parameters and let the db
             # handle the rest
-            trait_params['options'] = (mdl_name, ctraits[trait_name].bmi3d_query_kwargs)
+            trait_params['options'] = (ctraits[trait_name].bmi3d_db_model, ctraits[trait_name].bmi3d_query_kwargs)
 
         elif trait_params['type'] == 'Instance':
             raise ValueError("You should use the 'InstanceFromDB' trait instead of the 'Instance' trait!")
@@ -296,7 +321,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
     @classmethod
     def is_hidden(cls, trait):
         '''
-        Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden 
+        Return true if the given trait is not meant to be shown on the GUI by default, i.e. hidden
 
         Parameters
         ----------
@@ -316,7 +341,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
     # FSM functions ----------------------------------------------------------
     def run(self):
         '''
-        Method to run the finite state machine of the task. Code that needs to execute 
+        Method to run the finite state machine of the task. Code that needs to execute
         imediately before the task starts running in child classes should be of the form:
 
         def run(self):
@@ -327,8 +352,8 @@ class Experiment(ThreadedFSM, traits.HasTraits):
                 clean up stuff
 
         The try block may or may not be necessary. For example, if you're opening a UDP port, you may want to always
-        close the socket whether or not the main loop executes properly so that you don't loose the 
-        reference to the socket. 
+        close the socket whether or not the main loop executes properly so that you don't loose the
+        reference to the socket.
         '''
 
         ## Initialize the FSM before the loop
@@ -344,10 +369,14 @@ class Experiment(ThreadedFSM, traits.HasTraits):
 
         # Send task data to any registered sinks
         if self.task_data is not None:
-            self.sinks.send("task", self.task_data)        
+            self.sinks.send("task", self.task_data)
+
+    def set_state(self, condition, *args, **kwargs):
+        self.reportstats['State'] = condition or 'stopped'
+        super().set_state(condition, *args, **kwargs)
 
     def _test_stop(self, ts):
-        ''' 
+        '''
         FSM 'test' function. Returns the 'stop' attribute of the task
         '''
         if self.session_length > 0 and (self.get_time() - self.task_start_time) > self.session_length:
@@ -356,7 +385,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
 
     def _test_time_expired(self, ts):
         '''
-        Generic function to test if time has expired. For a state 'wait', the function looks up the 
+        Generic function to test if time has expired. For a state 'wait', the function looks up the
         variable 'wait_time' and uses that as a time.
         '''
         state_time_var_name = self.state + '_time'
@@ -383,16 +412,22 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         '''
         Function to update any relevant report stats for the task. Values are saved in self.reportstats,
         an ordered dictionary. Keys are strings that will be displayed as the label for the stat in the web interface,
-        values can be numbers or strings. Called every time task state changes.
+        values can be numbers or strings. Called on every state change.
         '''
         self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
+
+    def online_report(self):
+        return self.reportstats
+
+    def get_state(self):
+        return self.state
 
     @classmethod
     def offline_report(self, event_log):
         '''Returns an ordered dict with report stats to be displayed when past session of this task is selected
         in the web interface. Not called while task is running, only offline, so stats must come from information
         available in a sessions event log. Inputs are task object and event_log.'''
-        offline_report = collections.OrderedDict()  
+        offline_report = collections.OrderedDict()
         if len(event_log) == 0:
             explength = 0
         else:
@@ -420,6 +455,58 @@ class Experiment(ThreadedFSM, traits.HasTraits):
             offline_report['Success rate'] = str(np.round(float(n_success_trials)/n_trials*100,decimals=2)) + '%'
         return offline_report
 
+    @staticmethod
+    def log_summary(event_log):
+        '''Return summary of trials in this experimental block
+        exp_log: sequence of state transitions recorded by LogExperiment class
+        '''
+        report = dict()
+
+        if len(event_log) == 0:
+            report['runtime'] = 0
+        else:
+            report['runtime'] = event_log[-1][-1] - event_log[0][-1]
+
+        n_trials = 0
+        n_success_trials = 0
+        n_error_trials = 0
+        for k, (state, event, t) in enumerate(event_log):
+            if state == "reward":
+                n_trials += 1
+                n_success_trials += 1
+            elif re.match('.*?_penalty', state):
+                n_trials += 1
+                n_error_trials += 1
+
+        report['n_trials'] = n_trials
+        report['n_success_trials'] = n_success_trials
+        return report
+
+    @staticmethod
+    def format_log_summary(report):
+        '''Pretty-print the output of `log_summary`'''
+        offline_report = collections.OrderedDict()
+        offline_report['Runtime'] = time_to_string(report['runtime'])
+        offline_report['Total trials'] = report['n_trials']
+        offline_report['Total rewards'] = report['n_success_trials']
+
+        # derived metrics
+        n_success_trials = float(report['n_success_trials'])
+        n_trials = float(report['n_trials'])
+        if report['runtime'] > 0:
+            rewards_per_min = np.round(n_success_trials/report['runtime'] * 60, decimals=2)
+        else:
+            rewards_per_min = 0
+
+        if n_trials > 0:
+            success_rate = np.round(n_success_trials/n_trials*100, decimals=2)
+        else:
+            success_rate = 0
+
+        offline_report['Rewards/min'] = rewards_per_min
+        offline_report['Success rate'] = '%g %%' % success_rate
+        return offline_report
+
     def record_annotation(self, msg):
         """ Record a user-input annotation """
         pass
@@ -427,7 +514,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
     # UI cleanup functions ---------------------------------------------------
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Commands to execute at the end of a task.
+        Commands to execute at the end of a task if it is to be saved to the database.
 
         Parameters
         ----------
@@ -440,32 +527,30 @@ class Experiment(ThreadedFSM, traits.HasTraits):
 
         Returns
         -------
-        None
+        success : bool
+            False will trigger an error in the web GUI
         '''
         if self.verbose: print("experimient.Experiment.cleanup executing")
-    
+        return True
+
     def cleanup_hdf(self):
-        ''' 
-        Method for adding data to hdf file after hdf sink is closed by 
-        system at end of task. The HDF file is re-opened and any extra task 
+        '''
+        Method for adding data to hdf file after hdf sink is closed by
+        system at end of task. The HDF file is re-opened and any extra task
         data kept in RAM is written
         '''
         if hasattr(self, "h5file"):
             traits = self.class_editable_traits()
-
-            if hasattr(tables, 'open_file'): # function name depends on version
-                h5file = tables.open_file(self.h5file.name, mode='a')   
-            else:
-                h5file = tables.openFile(self.h5file.name, mode='a')
-
+            h5file = tables.open_file(self.h5file.name, mode='a')
+            
             for trait in traits:
-                if (trait not in self.object_trait_names): # don't save traits which are complicated python objects to the HDF file    # and (trait not in ['bmi', 'decoder', 'ref_trajectories']):
-                    h5file.root.task.attrs[trait] = getattr(self, trait)
+                if (trait not in self.object_trait_names): # don't save traits which are complicated python objects to the HDF file
+                    h5file.root.task.attrs[trait] = getattr(self, trait) # append to task data metadata
             h5file.close()
 
     def terminate(self):
         '''
-        Cleanup commands for tasks executed using the "test" button
+        Cleanup commands for all tasks regardless of whether they are saved or not
         '''
         pass
 
@@ -478,7 +563,7 @@ class LogExperiment(Experiment):
 
     def cleanup(self, database, saveid, **kwargs):
         '''
-        Commands to execute at the end of a task. 
+        Commands to execute at the end of a task.
         Save the task event log to the database
 
         see riglib.Experiment.cleanup for argument descriptions
@@ -486,10 +571,15 @@ class LogExperiment(Experiment):
         if self.verbose: print("experiment.LogExperiment.cleanup")
         super(LogExperiment, self).cleanup(database, saveid, **kwargs)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
+
+        report_stats = self.log_summary(self.event_log)
+        print("save_log", report_stats)
+
         if dbname == 'default':
-            database.save_log(saveid, self.event_log)
+            database.save_log(saveid, report_stats)
         else:
-            database.save_log(saveid, self.event_log, dbname=dbname)
+            database.save_log(saveid, report_stats, dbname=dbname)
+        return True
 
     ##########################################################
     ##### Functions to calculate statistics from the log #####
@@ -505,7 +595,7 @@ class LogExperiment(Experiment):
 
         Returns
         -------
-        Counts of state occurrences 
+        Counts of state occurrences
         '''
         times = np.array([state[1] for state in self.state_log if state[0] == state_name])
         return len(times)
@@ -533,13 +623,20 @@ class LogExperiment(Experiment):
         rate : float
             Rate of specified event, per minute
         '''
-        rewardtimes = np.array([state[1] for state in self.state_log if state[0]==event_name])
+        times = np.array([state[1] for state in self.state_log if state[0]==event_name])
         if (self.get_time() - self.task_start_time) < window:
             divideby = (self.get_time() - self.task_start_time)/sec_per_min
         else:
             divideby = window/sec_per_min
-        return np.sum(rewardtimes >= (self.get_time() - window))/divideby
+        return np.sum(times >= (self.get_time() - window))/divideby
 
+    def calc_time_since_last_event(self, event_name):
+        start_time = self.state_log[0][1]
+        times = np.array([state[1] for state in self.state_log if state[0]==event_name])
+        if len(times):
+            return times[-1] - start_time
+        else:
+            return np.float64("0.0")
 
 class Sequence(LogExperiment):
     '''
@@ -550,7 +647,7 @@ class Sequence(LogExperiment):
     # List of staticmethods of the class which can be used to create a sequence of targets for each trial
     sequence_generators = []
 
-    @classmethod 
+    @classmethod
     def get_default_seq_generator(cls):
         '''
         Define a default sequence generator as the first one listed in the 'sequence_generators' attribute
@@ -575,20 +672,33 @@ class Sequence(LogExperiment):
         if gen is None:
             raise ValueError("Experiment classes which inherit from Sequence must specify a target generator!")
 
-        if np.iterable(gen):
+        if hasattr(gen, '__next__'): # is iterable already
+            self.gen = gen
+        elif np.iterable(gen):
             from .generate import runseq
             self.gen = runseq(self, seq=gen)
-        elif hasattr(gen, '__next__'): # python 3 renamed 'next' to '__next__'
-            self.gen = gen 
         else:
             raise ValueError("Input argument to Sequence 'gen' must be of 'generator' type!")
 
+        self.trial_dtype = np.dtype([('time', 'u8'), ('trial', 'u4')]) # to be overridden in init()
+
         super(Sequence, self).__init__(*args, **kwargs)
-    
+
+    def init(self, *args, **kwargs):
+
+        # Create a record array for trials
+        if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
+            from riglib import sink
+            self.sinks = sink.SinkManager.get_instance()
+        dtype = self.trial_dtype # if you want to change this, do it in init() before calling super().init()
+        self.trial_record = np.zeros((1,), dtype=dtype)
+        self.sinks.register("trials", dtype)
+        super().init(*args, **kwargs)
+
     def _start_wait(self):
         '''
-        At the start of the wait state, the generator (self.gen) is querried for 
-        new information needed to start the trial. If the generator runs out, the task stops. 
+        At the start of the wait state, the generator (self.gen) is querried for
+        new information needed to start the trial. If the generator runs out, the task stops.
         '''
         if self.debug:
             print("_start_wait")
@@ -599,10 +709,10 @@ class Sequence(LogExperiment):
             self.end_task()
 
         self._parse_next_trial()
-        
+
     def _parse_next_trial(self):
         '''
-        Interpret the data coming from the generator. If the generator yields a dictionary, 
+        Interpret the data coming from the generator. If the generator yields a dictionary,
         then the keys of the dictionary automatically get set as attributes.
 
         Over-ride or add additional code in child classes if different behavior is desired.
@@ -611,13 +721,17 @@ class Sequence(LogExperiment):
             for key in self.next_trial:
                 setattr(self, '_gen_%s' % key, self.next_trial[key])
 
+        self.trial_record['time'] = self.cycle_count
+        self.trial_record['trial'] = self.calc_trial_num()
+        self.sinks.send("trials", self.trial_record)
+
 
 class TrialTypes(Sequence):
     '''
     This module is deprecated, used by some older tasks (dots, rds)
     '''
     trial_types = []
-        
+
     status = dict(
         wait = dict(start_trial="picktrial", premature="penalty", stop=None),
         reward = dict(post_reward="wait"),
@@ -630,14 +744,14 @@ class TrialTypes(Sequence):
 
         for ttype in self.trial_types:
             self.status[ttype] = {
-                "%s_correct"%ttype :"reward", 
-                "%s_incorrect"%ttype :"incorrect", 
+                "%s_correct"%ttype :"reward",
+                "%s_incorrect"%ttype :"incorrect",
                 "timeout":"incorrect" }
             #Associate all trial type endings to the end_trial function defined by Sequence
             #setattr(self, "_end_%s"%ttype, self._end_trial)
-    
+
     def _start_picktrial(self):
         self.set_state(self.next_trial)
-    
+
     def _start_incorrect(self):
         self.set_state("penalty")

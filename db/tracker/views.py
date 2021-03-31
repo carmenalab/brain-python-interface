@@ -17,17 +17,19 @@ from . import exp_tracker
 def main(request):
     return render(request, "main.html", dict())
 
-def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None):
+def _list_exp_history(dbname='default', subject=None, task=None, max_entries=None, show_hidden=False):
     from . import models
     # from .models import TaskEntry, Task, Subject, Feature, Generator
     td = datetime.timedelta(days=60)
 
-    filter_kwargs = dict(visible=True)
+    filter_kwargs = dict(template=False)
+    if not show_hidden:
+        filter_kwargs['visible'] = True
     if not (subject is None) and isinstance(subject, str):
         filter_kwargs['subject__name'] = subject
     if not (task is None) and isinstance(task, str):
         filter_kwargs['task__name'] = task
-    
+
     entries = models.TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
     if isinstance(max_entries, int):
         entries = entries[:max_entries]
@@ -47,6 +49,9 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
             ent.rowspan = k - last
             last = k
 
+    filter_kwargs['template'] = True
+    templates = models.TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
+
     tasks = models.Task.objects.filter(visible=True).order_by("name")
 
     epoch = datetime.datetime.utcfromtimestamp(0)
@@ -61,17 +66,20 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
     features = models.Feature.objects.filter(visible=True).order_by("name")
     generators = models.Generator.objects.filter(visible=True).order_by("name")
     collections = models.TaskEntryCollection.objects.all().order_by("name")
-    
+
 
     fields = dict(
-        entries=entries, 
-        subjects=subjects, 
-        tasks=tasks, 
-        features=features, 
+        entries=entries,
+        templates=templates,
+        subjects=subjects,
+        tasks=tasks,
+        features=features,
         generators=generators,
         collections=collections,
         systems=models.System.objects.all(),
-        n_blocks=len(entries),
+        n_entries=len(entries),
+        show_hidden=show_hidden,
+        n_hidden=len([e for e in entries if e.visible==False]),
     )
 
     try:
@@ -81,7 +89,7 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         fields['bmi_algorithms'] = bmiconfig.bmi_algorithms
         fields['extractors'] = bmiconfig.extractors
         fields['default_extractor'] = bmiconfig.default_extractor
-        fields['pos_vars'] = bmiconfig.bmi_training_pos_vars      # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data 
+        fields['pos_vars'] = bmiconfig.bmi_training_pos_vars      # 'pos_vars' indicates which column of the task HDF table to look at to extract kinematic data
         fields['kin_extractors'] = bmiconfig.kin_extractors       # post-processing methods on the selected kinematic variable
     except ImportError:
         pass
@@ -96,11 +104,13 @@ def list_exp_history(request, **kwargs):
     request: HTTPRequest instance
         No data needs to be extracted from this request
 
-    Returns 
+    Returns
     -------
     Django HTTPResponse instance
     '''
     from .models import TaskEntry, Task, Subject, Feature, Generator
+
+    kwargs['show_hidden'] = request.GET.get('show_hidden') != None
 
     fields = _list_exp_history(**kwargs)
     fields['hostname'] = request.get_host()
@@ -110,70 +120,82 @@ def list_exp_history(request, **kwargs):
     tracker = exp_tracker.get()
     tracker.update_alive()
 
-    if tracker.task_proxy is not None and "saveid" in tracker.task_kwargs:
-        fields['running'] = tracker.task_kwargs["saveid"]
+    if tracker is not None:
+        fields['status'] = tracker.get_status()
+    if tracker.proc is not None and hasattr(tracker.proc, 'saveid'):
+        fields['saveid'] = tracker.proc.saveid
 
-    resp = render(None,'list.html', fields)
+    resp = render(request, 'list.html', fields)
     return resp
 
-def setup(request):
+def setup_subjects(request):
+    """view for experimenter to add new subjects"""
     from . import models
     from .models import TaskEntry, Task, Subject, Feature, Generator
 
     subjects = models.Subject.objects.all()
+
+    return render(request, "setup_subjects.html", dict(subjects=subjects))
+
+def setup_tasks(request):
+    """view for experimenter to add new tasks"""
+    from . import models
+    from .models import TaskEntry, Task, Subject, Feature, Generator
+
     tasks = models.Task.objects.all()
+
+    return render(request, "setup_tasks.html", dict(tasks=tasks))
+
+def setup_features(request):
+    """view for experimenter to add new features"""
+    from . import models
+    from .models import TaskEntry, Task, Subject, Feature, Generator
+
     features = models.Feature.objects.all()
-    systems = models.System.objects.all()
 
     # populate the list of built-in features which could be added
     from features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
-    active_features = []
-    for feat in features:
-        if feat.name in built_in_feature_names:
-            built_in_feature_names.remove(feat.name)
-            active_features.append(feat)
-        else:
-            active_features.append(feat)
+
+    return render(request, "setup_features.html",
+        dict(active_features=features,
+        active_feature_names=[feature.name for feature in features],
+        built_in_feature_names=built_in_feature_names))        
+
+def setup_parameters(request):
+    """view for experimenter to add new global system parameters"""
+    from . import models
+    from .models import TaskEntry, Task, Subject, Feature, Generator
+
+    systems = models.System.objects.all()
 
     # list of available databases
     from db import settings
     databases = list(settings.DATABASES.keys())
-
-    # # check that a 'database file' system exists
-    # db_sys = models.System.objects.filter(name="metadata")
-    # if len(db_sys) == 0:
-    #     db_sys = models.System(name="metadata", path="db")
-    #     db_sys.save()
 
     database_objs = []
     for db in databases:
         path = models.KeyValueStore.get('data_path', '--', dbname=db)
         database_objs.append({"name":db, "path":path})
 
-        # database_obj = models.DataFile.objects.filter(path='db_%s.sql' % db)
-        # if len(database_obj) == 0:
-        #     database_objs.append({"name":db, "path":"--"})
-        # else:
-        #     database_obj = database_obj[0]
-        #     database_obj.name = db
-        #     database_objs.append(database_obj)
-
-    print(database_objs)
-
+    rig_name = models.KeyValueStore.get("rig_name", "")
     recording_sys = models.KeyValueStore.get("recording_sys")
-    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon']
+    recording_sys_options = ['None', 'tdt', 'blackrock', 'plexon', 'ecube'] # TODO make this dynamic
 
-    return render(request, "setup.html", 
-        dict(subjects=subjects, tasks=tasks, systems=systems, active_features=active_features,
-            built_in_feature_names=built_in_feature_names, databases=database_objs,
-            recording_sys=recording_sys, recording_sys_options=recording_sys_options))
+    return render(request, "setup_parameters.html",
+        dict(rig_name=rig_name, systems=systems, databases=database_objs, 
+            recording_sys=recording_sys,
+            recording_sys_options=recording_sys_options))
+
+def setup(request):
+    """Highest level "Setup" view"""
+    return render(request, "setup_base.html")
 
 def _color_entries(entries):
     from .models import TaskEntry, Task, Subject, Feature, Generator
 
     epoch = datetime.datetime.utcfromtimestamp(0)
-    
+
     last_tdiff = entries[0].date - epoch
     colors = ['#E1EEf4', '#FFFFFF']
     color_idx = 0
@@ -197,7 +219,7 @@ def get_sequence(request, idx):
 
     response = HttpResponse(pickle.dumps(seq[:num]), content_type='application/x-pickle')
     response['Content-Disposition'] = 'attachment; filename={subj}{time}_{idx}.pkl'.format(
-        subj=entry.subject.name[:4].lower(), 
+        subj=entry.subject.name[:4].lower(),
         time="%04d%02d%02d"%(entry.date.year, entry.date.month, entry.date.day),
         idx=idx)
     return response
@@ -217,7 +239,7 @@ def link_data_files_response_handler(request, task_entry_id):
     raw_data = request.POST["raw_data"]
     raw_data_format = request.POST['raw_data_format']
     data_system_id = request.POST["data_system_id"]
-    
+
     task_entry = models.TaskEntry.objects.get(id=task_entry_id)
     system = models.System.objects.get(id=data_system_id)
     if not os.path.isabs(file_path):
@@ -227,12 +249,12 @@ def link_data_files_response_handler(request, task_entry_id):
         else:
             sys_path = system.path
         file_path = os.path.join(sys_path, file_path)
-    
+
     print("Adding file", file_path)
 
     if len(raw_data.strip()) > 0:
         # new file
-        try:        
+        try:
             with open(file_path, 'w') as fp:
                 fp.write(raw_data)
         except:

@@ -11,6 +11,7 @@ import fnmatch
 import os
 import subprocess
 from riglib.experiment import traits
+from riglib.audio import AudioPlayer
 import serial, glob
 
 ###### CONSTANTS
@@ -18,29 +19,50 @@ sec_per_min = 60
 
 class RewardSystem(traits.HasTraits):
     '''
-    Feature for the current reward system in Amy Orsborn Lab - Aug 2020
+    Feature for the current reward system in Amy Orsborn Lab
     '''
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
 
     def __init__(self, *args, **kwargs):
         from riglib import reward
-        super(RewardSystem, self).__init__(*args, **kwargs)
-        self.reward = reward.open() # There is no open function in our reward.py 
+        super().__init__(*args, **kwargs)
+        self.reward = reward.open()
+        if self.reward is None:
+            raise Exception('Reward system could not be activated')
 
     def _start_reward(self):
-        self.reward_start = self.get_time()
-        if self.reward is not None:
-             self.reportstats['Reward #'] += 1
-             if self.reportstats['Reward #'] % self.trials_per_reward == 0:
-                 self.reward.reward(self.reward_time*10)
-        #super(RewardSystem, self).reward(self.reward_time)
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
+        self.reportstats['Reward #'] += 1
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            self.reward.on()
 
     def _test_reward_end(self, ts):
         if self.reportstats['Reward #'] % self.trials_per_reward == 0:
             return ts > self.reward_time
         else:
             return True
+        if hasattr(super(), '_test_reward_end'):
+            super()._test_reward_end()
 
+    def _end_reward(self):
+        self.reward.off()
+        if hasattr(super(), '_end_reward'):
+            super()._end_reward()
+
+class RewardAudio(traits.HasTraits):
+
+    files = [f for f in os.listdir('../riglib/audio') if '.wav' in f]
+    reward_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each reward")
+
+    def __init__(self, *args, **kwargs):
+        self.reward_player = AudioPlayer(self.reward_sound)
+        super().__init__(*args, **kwargs)
+
+    def _start_reward(self):
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
+        self.reward_player.play()
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 

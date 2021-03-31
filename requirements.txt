@@ -1,19 +1,18 @@
-traits==5.2.0
-Django==3.0.2
+traits==6.1.0
+Django==3.1.4
 PyLink==0.3.3
-numpy==1.18.0
+numpy==1.19.4
 matplotlib==3.1.2
-scipy==1.4.1
+scipy==1.5.4
 tables==3.6.1
-celery==3.1.26.post2
+celery==5.0.2
 pandas==0.25.3
 h5py==2.10.0
 Cython==0.29.14
 nitime==0.8.1
 statsmodels==0.10.2
-tornado==6.0.3
+tornado==6.1
 pygame==1.9.6
-django_celery==3.3.1
 namelist==0.1.0
 OWL==0.2.1
 Phidgets==2.1.8
@@ -26,5 +25,8 @@ robotframework==3.2.1
 scikit_learn==0.23.1
 tabulate==0.8.7
 tasks==2.5.0
+pyfirmata == 1.1.0
+gitpython==3.1.8
+hdfwriter==0.1.4
+#pycomedi == 0.9
 jinja2==2.11.2
-pyfirmata=1.1.0

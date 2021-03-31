@@ -21,7 +21,8 @@ class RelayBlackrock(object):
         '''
 
         from riglib import sink
-        self.nidaq = sink.sinks.start(self.ni_out)
+        sink_manager = sink.SinkManager.get_instance()
+        self.nidaq = sink_manager.start(self.ni_out)
         super(RelayBlackrock, self).init()
 
     @property
@@ -207,7 +208,8 @@ class BlackrockData(object):
             raise Exception("Unknown extractor class, unable to create data source object!")
 
         from riglib import sink
-        sink.sinks.register(self.neurondata)
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.neurondata)
 
         super(BlackrockData, self).init()
 

@@ -29,13 +29,13 @@ class Joystick(object):
         inputs from the phidgets joystick. 
         '''
         from riglib import source, phidgets, sink
-        self.sinks = sink.sinks
+        sink_manager = sink.SinkManager.get_instance()
         #System = phidgets.make(2, 1)
         #self.joystick = source.DataSource(System)
 
         self.register_num_channels()
         super(Joystick, self).init()
-        self.sinks.register(self.joystick)
+        sink_manager.register(self.joystick)
 
     def register_num_channels(self):
         from riglib import source, phidgets, sink
@@ -66,7 +66,7 @@ class ArduinoJoystick(Joystick):
         Same as above, w/o Phidgets import
         '''
         from riglib import source, sink
-        self.sinks = sink.sinks
+        self.sinks = sink.sinks # sink_manager = sink.SinkManager.get_instance()
         self.register_num_channels()
         super(Joystick, self).init()
         self.sinks.register(self.joystick)
@@ -84,10 +84,11 @@ class ArduinoIMU(object):
         inputs from the IMU
         '''
         from riglib import sink
-        self.sinks = sink.sinks
         self.register_num_channels()
         super(ArduinoIMU, self).init()
-        self.sinks.register(self.arduino_imu)
+
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.arduino_imu)
 
     def register_num_channels(self):
         from riglib import source, arduino_imu
@@ -199,72 +200,78 @@ class KeyboardControl(object):
     this class implements a python cursor control task for human
     '''
 
-    def __init__(self, *args, **kwargs):
-        self.move_step = 1
-        self.assist_level = (0.5, 0.5)
-        super(KeyboardControl, self).__init__(*args, **kwargs)
-    
-    # override the _cycle function
-    def _cycle(self):
-        self.move_effector_cursor()
-        super(KeyboardControl, self)._cycle()
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = Keyboard(np.array(self.starting_pos[::2]))
 
-    def move_effector(self):
-        pass
+    def _start_wait(self):
+        self.wait_time = 0.
+        super()._start_wait()
 
-    def move_plant(self, **kwargs):
-        pass
+    def _test_start_trial(self, ts):
+        return ts > self.wait_time and not self.pause
 
-    # use keyboard to control the task
-    def move_effector_cursor(self):
-        curr_pos = copy.deepcopy(self.plant.get_endpoint_pos())
+class Keyboard():
+    '''
+    Pretend to be a data source
+    '''
 
+    def __init__(self, start_pos):
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
+        self.move_step = 1 # cm, before scaling
+
+    def get(self):
         for event in pygame.event.get():
             if event.type == pygame.KEYUP:
                 if event.type == pygame.K_q:
                     pygame.quit()
                     quit()
                 if event.key == pygame.K_LEFT:
-                    curr_pos[0] -= self.move_step
+                    self.pos[0] -= self.move_step
                 if event.key == pygame.K_RIGHT:
-                    curr_pos[0] += self.move_step
+                    self.pos[0] += self.move_step
                 if event.key == pygame.K_UP:
-                    curr_pos[2] += self.move_step
+                    self.pos[1] += self.move_step
                 if event.key == pygame.K_DOWN:
-                    curr_pos[2] -= self.move_step
-            #print('Current position: ')
-            #print(curr_pos)
-
-        # set the current position
-        self.plant.set_endpoint_pos(curr_pos)
-
-    def _start_wait(self):
-        self.wait_time = 0.
-        super(KeyboardControl, self)._start_wait()
-
-    def _test_start_trial(self, ts):
-        return ts > self.wait_time and not self.pause
+                    self.pos[1] -= self.move_step
+        return [self.pos]
 
 class MouseControl(KeyboardControl):
+    '''
+    this class implements a python cursor control task for human
+    '''
 
     def init(self, *args, **kwargs):
-        self.pos = self.plant.get_endpoint_pos()
-        super(MouseControl, self).init(*args, **kwargs)
-    
-    def move_effector_cursor(self):
+        super().init(*args, **kwargs)
+        self.joystick = Mouse(self.window_size, self.screen_cm, np.array([0,0]))
+
+class Mouse():
+    '''
+    Pretend to be a data source
+    '''
+
+    def __init__(self, window_size, screen_cm, start_pos):
+        self.window_size = window_size
+        self.screen_cm = screen_cm
+        self.pos = [0., 0.]
+        self.pos[0] = start_pos[0]
+        self.pos[1] = start_pos[1]
+
+    def get(self):
 
         # Update position but keep mouse in center
-        pygame.mouse.set_visible(False)
         pygame.event.set_grab(True)
         rel = pygame.mouse.get_rel()
-        self.pos = self.plant.get_endpoint_pos()
         self.pos[0] += rel[0] / self.window_size[0] * self.screen_cm[0]
-        self.pos[2] += rel[1] / self.window_size[1] * self.screen_cm[1]
-        self.plant.set_endpoint_pos(self.pos)
-
-from .neural_sys_features import CorticalBMI
-class MouseBMI(CorticalBMI):
-    @property 
-    def sys_module(self):
-        from riglib import debug
-        return debug
+        self.pos[1] -= rel[1] / self.window_size[1] * self.screen_cm[1] # pygame counts (0,0) as the top left
+        if self.pos[0] < -self.screen_cm[0]:
+            self.pos[0] = -self.screen_cm[0]
+        elif self.pos[0] > self.screen_cm[0]:   
+            self.pos[0] = self.screen_cm[0]
+        if self.pos[1] < -self.screen_cm[1]:
+            self.pos[1] = -self.screen_cm[1]
+        elif self.pos[1] > self.screen_cm[1]:
+            self.pos[1] = self.screen_cm[1]
+        return [self.pos]

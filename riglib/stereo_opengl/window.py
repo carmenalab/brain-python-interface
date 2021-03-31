@@ -1,5 +1,5 @@
 '''
-Graphical display classes. Experimental tasks involving graphical displays 
+Graphical display classes. Experimental tasks involving graphical displays
 inherit from these classes.
 '''
 import os
@@ -10,45 +10,52 @@ from OpenGL.GL import *
 from riglib.experiment import LogExperiment
 from riglib.experiment import traits
 
-from .render import stereo
+from .render import stereo, render
 from .models import Group
 from .xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere, Cube, Chain
 from riglib.stereo_opengl.environment import Box
 import time
-from config import config
 from .primitives import Cylinder, Sphere, Cone
 import socket
 
+import copy
+
+from built_in_tasks.target_graphics import VirtualRectangularTarget, VirtualCircularTarget
+
 try:
-    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"    
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
     import pygame
-except:
+except ImportError:
     import warnings
     warnings.warn('riglib/stereo_opengl/window.py: not importing name pygame')
 
 # for WindowDispl2D only
 from riglib.stereo_opengl.primitives import Shape2D
 
+monitor_res = dict(
+    test_monitor = (1680, 1050),
+    monitor_2D = (2560, 1440),
+    monitor_3D = (1920*2, 1080),
+)
 
 class Window(LogExperiment):
     '''
-    Generic stereo window 
+    Generic stereo window
     '''
     status = dict(draw=dict(stop=None))
     state = "draw"
     stop = False
 
-    #window_size = traits.Tuple((1920*2, 1080), descr='window size, in pixels')
-    #XPS computer
-    window_size = traits.Tuple((1280, 1080), descr='window size, in pixels')
+    # XPS computer
     # window_size = (1920*2, 1080)
-    background = traits.Tuple((0,0,0,1), desc="Background color (R,G,B,A)")
+    window_size = traits.Tuple(monitor_res['monitor_2D'], descr='window size, in pixels')
+    background = traits.Tuple((0.,0.,0.,1.), desc="Background color (R,G,B,A)")
     fullscreen = traits.Bool(True, desc="Fullscreen window")
 
     #Screen parameters, all in centimeters -- adjust for monkey
     screen_dist = traits.Float(44.5+3, desc="Screen to eye distance (cm)")
-    screen_half_height = traits.Float(14.65, desc="Screen half height (cm)")
+    screen_half_height = traits.Float(10.75, desc="Screen half height (cm)")
     iod = traits.Float(2.5, desc="Intraocular distance (cm)")     # intraocular distance
 
     show_environment = traits.Int(0, desc="Show wireframe box around environment")
@@ -56,6 +63,7 @@ class Window(LogExperiment):
     hidden_traits = LogExperiment.hidden_traits + ['screen_dist', 'screen_half_height', 'iod', 'show_environment', 'background']
 
     def __init__(self, *args, **kwargs):
+        self.display_start_pos = kwargs.pop('display_start_pos', "0,0")
         super(Window, self).__init__(*args, **kwargs)
 
         self.models = []
@@ -69,15 +77,14 @@ class Window(LogExperiment):
         if self.show_environment:
             self.add_model(Box())
 
-    def set_os_params(self):            
-        os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
-        #print(os.environ['SDL_VIDEO_WINDOW_POS'])
+    def set_os_params(self):
+        os.environ['SDL_VIDEO_WINDOW_POS'] = self.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
 
     def screen_init(self):
         self.set_os_params()
         pygame.init()
-        
+
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL | pygame.NOFRAME
         if self.fullscreen:
@@ -91,27 +98,29 @@ class Window(LogExperiment):
 
         glEnable(GL_BLEND)
         glDepthFunc(GL_LESS)
-        glEnable(GL_DEPTH_TEST) 
+        glEnable(GL_DEPTH_TEST)
         glEnable(GL_TEXTURE_2D)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glClearColor(*self.background)
         glClearDepth(1.0)
         glDepthMask(GL_TRUE)
-        
+
         self.renderer = self._get_renderer()
-        
+
         #this effectively determines the modelview matrix
         self.world = Group(self.models)
         self.world.init()
 
         #up vector is always (0,0,1), why would I ever need to roll the camera?!
         self.set_eye((0, -self.screen_dist, 0), (0,0))
-    
+
+        pygame.mouse.set_visible(False)
+
     def _get_renderer(self):
         near = 1
         far = 1024
         return stereo.MirrorDisplay(self.window_size, self.fov, near, far, self.screen_dist, self.iod)
-    
+
     def set_eye(self, pos, vec, reset=True):
         '''Set the eye's position and direction. Camera starts at (0,0,0), pointing towards positive y'''
         self.world.translate(pos[0], pos[2], pos[1], reset=True).rotate_x(-90)
@@ -134,17 +143,17 @@ class Window(LogExperiment):
             obj.attach()
         else:
             obj.detach()
-    
+
     def draw_world(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self.renderer.draw(self.world)
         pygame.display.flip()
         self.renderer.draw_done()
-    
+
     def _get_event(self):
         for e in pygame.event.get(pygame.KEYDOWN):
             return (e.key, e.type)
-    
+
     def _start_None(self):
         pygame.display.quit()
 
@@ -165,46 +174,11 @@ class Window(LogExperiment):
     def _cycle(self):
         self.requeue()
         self.draw_world()
-        super(Window, self)._cycle()
+        super(Window, self)._cycle() # is this order intentional? why not cycle first then draw the screen?
         self.event = self._get_event()
-        
-class SyncSquare(traits.HasTraits):
-    '''A window that adds a square in one corner that switches color with every flip.
-    Only works for 2D windows currently'''
-    
-    sync_position = {
-        'TopLeft': (-1,-1),
-        'TopRight': (1,-1),
-        'BottomLeft': (-1,1),
-        'BottomRight': (1,1)
-    }
-    sync_corner = traits.OptionsList(tuple(sync_position.keys()), desc="Position of sync square")
-    sync_size = traits.Float(1, desc="Sync square size (cm)") 
-    sync_color_off = traits.Tuple((0,0,0), desc="Sync off color (R,G,B,A)")
-    sync_color_on = traits.Tuple((255,255,255), desc="Sync on color (R,G,B,A)")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sync_state = False
-        screen_center = np.divide(self.window_size,2)
-        sync_size_pix = self.sync_size * self.window_size[0] / self.screen_cm[0]
-        sync_center = [sync_size_pix/2, sync_size_pix/2]
-        from_center = np.multiply(self.sync_position[self.sync_corner], np.subtract(screen_center, sync_center))
-        top_left = screen_center + from_center - sync_center
-        self.sync_rect = pygame.Rect(top_left, np.multiply(sync_center,2))
-
-    def screen_init(self):
-        super().screen_init()
-        TRANSPARENT = (255,0,255)
-        self.sync = pygame.Surface(self.window_size)
-        self.sync.fill(TRANSPARENT)
-        self.sync.set_colorkey(TRANSPARENT)
-
-    def _draw_other(self):
-        self.sync_state = not self.sync_state
-        color = self.sync_color_on if self.sync_state else self.sync_color_off
-        self.sync.fill(color, rect=self.sync_rect)
-        self.screen.blit(self.sync, (0,0))
+        if self.cycle_count % self.fps == 0: 
+            # Update the measured frame rate every second
+            self.reportstats['FPS'] = round(self.clock.get_fps(),2)
 
 
 class WindowWithExperimenterDisplay(Window):
@@ -233,34 +207,33 @@ class WindowWithExperimenterDisplay(Window):
         # You can set which screen the window appears on if you have a dual display, but you cannot set the exact position
         # Instead, you have to hard-code a render start location in the compiz-config settings manager
         # http://askubuntu.com/questions/452995/how-to-adjust-window-placement-in-unity-ubuntu-14-04-based-on-overlapping-top-b
-        os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
+        os.environ['SDL_VIDEO_WINDOW_POS'] = self.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment_with_mini"
 
     def _get_renderer(self):
         near = 1
         far = 1024
-        return stereo.DualMultisizeDisplay(self.window_size1, self.window_size2, self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip, 
+        return stereo.DualMultisizeDisplay(self.window_size1, self.window_size2, self.fov, near, far, self.screen_dist, self.iod, flip=self._stereo_window_flip,
             flip_main_z = self._stereo_main_flip_z)
 
 
-class WindowDispl2D(Window):
+TRANSPARENT = (106,0,42)
+
+class WindowDispl2D():
     '''Draws world on a 2D screen. May cause mild confusion -- transforms 
     incoming 3D coordinates (x,y,z) into 2D coordinates (x,y) by mapping z onto y'''
 
-    def _set_workspace_size(self):
-        '''
-        By default, the workspace is 50x28 cm, centered around the origin (0,0)
-        '''
-        self.workspace_bottom_left = (-25., -14.)
-        self.workspace_top_right   = (25., 14.)
+    def __init__(self, *args, **kwargs):
+        self.is_pygame_display = True
+        super().__init__(*args, **kwargs)
 
     def screen_init(self):
-        os.environ['SDL_VIDEO_WINDOW_POS'] = config.display_start_pos
+        os.environ['SDL_VIDEO_WINDOW_POS'] = self.display_start_pos
         os.environ['SDL_VIDEO_X11_WMCLASS'] = "monkey_experiment"
         pygame.init()
         self.clock = pygame.time.Clock()
 
-        flags = pygame.NOFRAME
+        flags = pygame.NOFRAME | pygame.DOUBLEBUF | pygame.HWSURFACE
 
         if self.fullscreen:
             flags = flags | pygame.FULLSCREEN
@@ -280,21 +253,17 @@ class WindowDispl2D(Window):
                                       [0, 0, 1]])
         self.norm_to_screen = np.array(np.diag(np.hstack([self.size, 1])))
 
-        # the y-coordinate in pixel space has to be swapped for some graphics convention reason
-        # self.flip_y_coord = np.array([[1, 0, 0],
-        #                               [0, -1, self.size[1]],
-        #                               [0, 0, 1]])
-        # self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
-        
-        # Keep the coordinate system the same as the 3D screen
-        self.pos_space_to_pixel_space = np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform))
+        # the y-coordinate in pixel space has to be swapped graphics convention reasons
+        self.flip_y_coord = np.array([[1, 0, 0],
+                                      [0, -1, self.size[1]],
+                                      [0, 0, 1]])
+        self.pos_space_to_pixel_space = np.dot(self.flip_y_coord, np.dot(self.norm_to_screen, np.dot(self.normalize, self.center_xform)))
 
         self.world = Group(self.models)
         # Dont 'init' self.world in this Window. Just allocates a bunch of OpenGL stuff which is not necessary (and may not work in some cases)
         # self.world.init()
 
         #initialize surfaces for translucent markers
-        TRANSPARENT = (255,0,255)
         self.surf={}
         self.surf['0'] = pygame.Surface(self.screen.get_size())
         self.surf['0'].fill(TRANSPARENT)
@@ -302,7 +271,7 @@ class WindowDispl2D(Window):
 
         self.surf['1'] = pygame.Surface(self.screen.get_size())
         self.surf['1'].fill(TRANSPARENT)
-        self.surf['1'].set_colorkey(TRANSPARENT)        
+        self.surf['1'].set_colorkey(TRANSPARENT)
 
          #values of alpha: higher = less translucent
         self.surf['0'].set_alpha(170) #Cursor
@@ -310,6 +279,8 @@ class WindowDispl2D(Window):
 
         self.surf_background = pygame.Surface(self.surf['0'].get_size()).convert()
         self.surf_background.fill(TRANSPARENT)
+
+        pygame.mouse.set_visible(False)
 
         self.i = 0
 
@@ -334,13 +305,13 @@ class WindowDispl2D(Window):
         if isinstance(model, Sphere):
             pos = model._xfm.move[[0,2]]
             pix_pos = self.pos2pix(pos)
-            
+
             rad = model.radius
             pix_radius = self.pos2pix(np.array([model.radius, 0]))[0] - self.pos2pix([0,0])[0]
 
             #Draws cursor and targets on transparent surfaces
             pygame.draw.circle(self.get_surf(), color, pix_pos, pix_radius)
-        
+
         elif isinstance(model, Shape2D):
             # model.draw() returns True if the object was drawn
             #   (which happens if the object's .visible attr is True)
@@ -390,7 +361,7 @@ class WindowDispl2D(Window):
         self.screen.blit(self.screen_background, (0, 0))
         self.surf['0'].blit(self.surf_background,(0,0))
         self.surf['1'].blit(self.surf_background,(0,0))
-        
+
         # surface index
         self.i = 0
 
@@ -409,28 +380,39 @@ class WindowDispl2D(Window):
         '''
         Simulation 'requeue' does nothing because the simulation is lazy and
         inefficient and chooses to redraw the entire screen every loop
-        '''        
+        '''
         pass
 
 
+class Window2D():
+
+    def screen_init(self):
+        super().screen_init()
+        glBlendEquation(GL_MAX)
+        glBlendFunc(GL_ONE, GL_ONE) # temporary solution to weird blending issue with spheres
+
+    def _get_renderer(self):
+        near = 1
+        far = 1024
+        return render.Renderer2D(self.screen_cm)
 
 class FakeWindow(Window):
     '''
-    A dummy class to secretly avoid rendering graphics without 
-    the graphics-based tasks knowing about it. Used e.g. for simulation 
+    A dummy class to secretly avoid rendering graphics without
+    the graphics-based tasks knowing about it. Used e.g. for simulation
     purposes where the graphics only slow down the simulation.
     '''
     background = (1,1,1,1)
     def __init__(self, *args, **kwargs):
         self.models = []
         self.world = None
-        self.event = None        
+        self.event = None
         super(FakeWindow, self).__init__(*args, **kwargs)
 
     def screen_init(self):
         self.world = Group(self.models)
         # self.world.init()
-        
+
     def draw_world(self):
         pass
 
@@ -451,12 +433,11 @@ class FakeWindow(Window):
 
 
 class FPScontrol(Window):
-    '''A mixin that adds a WASD + Mouse controller to the window. 
+    '''A mixin that adds a WASD + Mouse controller to the window.
     Use WASD to move in XY plane, q to go down, e to go up'''
 
     def init(self):
         super(FPScontrol, self).init()
-        pygame.event.set_grab(True)
         pygame.mouse.set_visible(False)
         self.eyepos = [0,-self.screen_dist, 0]
         self.eyevec = [0,0]

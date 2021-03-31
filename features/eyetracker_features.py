@@ -29,13 +29,13 @@ class EyeData(traits.HasTraits):
         '''
         from riglib import source
         from riglib import sink
-        self.sinks = sink.sinks
+        sink_manager = sink.SinkManager.get_instance()
 
         src, ekw = self.eye_source
         #f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata = source.DataSource(src, **ekw)
-        self.sinks.register(self.eyedata)
-        #f.write('instantiated source\n')
+        sink_manager.register(self.eyedata)
+        f.write('instantiated source\n')
         super(EyeData, self).init()
         #f.close()
     

@@ -67,7 +67,8 @@ class Clock(object):
     def tick(self, fps):
         import time
         time.sleep(1.0/fps)
-
+    def get_time(self):
+        return 0
 
 class FSM(object):
     status = FSMTable(

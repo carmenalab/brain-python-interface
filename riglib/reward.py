@@ -7,34 +7,25 @@ Class Basic -> reward(reward_time_s), test, calibrate, drain(drain_time_s)
 """
 
 # import functions
-import pyfirmata
+from riglib.gpio import ArduinoGPIO
 import time
 
 
 class Basic(object):
-    # com_port = '/dev/ttyACM0'  # specify the port, based on windows/Unix, can find it on IDE or terminal
-    # board = pyfirmata.Arduino(com_port)
 
     def __init__(self):
         com_port = '/dev/ttyACM0'  # specify the port, based on windows/Unix, can find it on IDE or terminal
-        self.board = pyfirmata.Arduino(com_port)
+        self.board = ArduinoGPIO(port=com_port)
+        self.reward_pin = 12 # pin on the arduino which should be connected to the reward system
+        self.off()
 
-    def reward(self, reward_time_s=0.2):
-        """Open the solenoid for some length of time. This function does not run the loop infinitely"""
-        self.board.digital[13].write(1)  # send a high signal to Pin 13 on the arduino which should be connected to the reward system
-        time.sleep(reward_time_s)  # in second
-        print('ON')
-        self.board.digital[13].write(0)
-        print('OFF')
+    def on(self):
+        """Open the solenoid."""
+        self.board.write(self.reward_pin, 1)  # send a high signal to open the solenoid
 
-    def test(self):
-        while True:
-            self.board.digital[13].write(1)
-            time.sleep(1)  # in second
-            print('ON')
-            self.board.digital[13].write(0)
-            time.sleep(2)  # in secondS
-            print('OFF')
+    def off(self):
+        """Close the solenoid."""
+        self.board.write(self.reward_pin, 0) # send a low signal to close the solenoid
 
     def calibrate(self):
         """
@@ -43,22 +34,16 @@ class Basic(object):
         #TODO: Check flowrate inside booth setup
         #TODO: Check flowrate for different fluid (Apple juice)
         """
-        self.board.digital[13].write(1)
-        time.sleep(72)  # it takes around 72 seconds to drain 200 ml of fluid - Flow rate: 2.8 mL/s
-        self.board.digital[13].write(0)
+        self.drain(72)  # it takes around 72 seconds to drain 200 ml of fluid - Flow rate: 2.8 mL/s
         print('Check the breaker for calibration. You should notice 200 ml of fluid')
 
     def drain(self, drain_time=200):  # call this function to drain the reward system
         """
         this function is called from the webserver in ajax.reward_drain
         """
-        # if cmd == 'ON':
-        self.board.digital[13].write(1)
+        self.on()
         time.sleep(drain_time)
-        #   cmd = 'OFF'
-        # if cmd == 'OFF':
-        self.board.digital[13].write(0)
-
+        self.off()
 
 def open():
     try:
@@ -69,4 +54,4 @@ def open():
         import traceback
         import os
         import builtins
-        traceback.print_exc(file=builtins.open(os.path.expanduser('~/code/bmi3d/log/reward.log'), 'w'))
+        traceback.print_exc(file=builtins.open(os.path.expanduser('log/reward.log'), 'w'))

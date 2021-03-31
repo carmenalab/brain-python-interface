@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+os.environ['DISPLAY'] = ':0'
 import unittest
 import time
 import tables
@@ -15,12 +16,13 @@ from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
 
 class TestVisualFeedback(unittest.TestCase):
     def setUp(self):
-        sink.sinks = sink.SinkManager() # reset the sink manager
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.reset()
 
     def test_n_successful_targets(self):
         TestFeat = experiment.make(TargetCaptureVFB2DWindow, feats=[SaveHDF])
 
-        n_targets = 8
+        n_targets = 1
         seq = TargetCaptureVFB2DWindow.centerout_2D_discrete(nblocks=1, ntargets=n_targets) 
         feat = TestFeat(seq, window_size=(480, 240))
 

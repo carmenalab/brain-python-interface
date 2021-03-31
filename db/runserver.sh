@@ -1,7 +1,5 @@
 #!/bin/bash
 
-export BMI3D=/home/pagaiisland/code/bmi3d
-
 # Set display to display 0
 DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
 if [ $DISPLAY=='' ]; then
@@ -9,12 +7,10 @@ if [ $DISPLAY=='' ]; then
 fi
 #DISPLAY=':0'
 
-# Make sure that the environment variable BMI3D is installed
-if [ -z "$BMI3D" ]
-    then
-    echo "ERROR: Need to define the BMI3D environment variable!"
-    exit 1
-fi
+# Find the BMI3D directory
+FILE=$(realpath "$0")
+DB=$(dirname $FILE)
+BMI3D=$(dirname $DB)
 
 # #Check /storage (exist )
 # storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
@@ -74,7 +70,6 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD >> $BMI3D/lo
 echo "Working tree status at time of execution" >> $BMI3D/log/runserver_log   
 git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log   
 
-    
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
 source $BMI3D/env/bin/activate
@@ -89,9 +84,14 @@ DJANGO=$!
 #python manage.py celery flower --address=0.0.0.0 &
 #FLOWER=$!
 
+# Start servernode-control
+gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
+SNC=$!
+
 # Define what happens when you hit control-C
 function ctrl_c() {
 	kill -9 $DJANGO
+    kill -9 $SNC
 	#kill $CELERY
 	#kill $FLOWER
     kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`

@@ -1,37 +1,33 @@
-# run with manage.py shell
+# run with manage.py:
+# > python manage.py shell
+# > import update_db_paths
 
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
 import django
 django.setup()
 
-from tracker import models
+from db.tracker import models
 
-task_entry_with_invalid_sequence_id = []
+#models.System.objects.filter(name='optitrack').update(path='/media/Optitrack')
+#models.System.objects.filter(name='ecube').update(path='/media/NeuroAcq')
 
-for te in models.TaskEntry.objects.all():
-    if te.visible is None:
-        te.visible = False
-        te.save()
+optitrack_storage = "/media/Optitrack/"
+ecube_storage = "/media/NeuroAcq"
 
-    if te.backup is None:
-        te.backup = False
-        te.save()
-
-    if te.sequence_id == -1:
-        te.sequence_id = 1
-        te.save()
-        task_entry_with_invalid_sequence_id.append(te.id)
-
-print("TaskEntry sequence ID was invalid")
-print(task_entry_with_invalid_sequence_id)
-
-df_with_invalid_task_entry_id = []
 for df in models.DataFile.objects.all():
-    if df.entry_id == -1:
-        df.entry_id = 1
+    if df.system.name == 'optitrack':
+        path = df.path
+        (path, filename) = os.path.split(path)
+        (path, session) = os.path.split(path)
+        (path, base_dir) = os.path.split(path)
+        df.path = os.path.join(optitrack_storage, base_dir, session, filename + '.tak')
+        print(df.path)
         df.save()
-        df_with_invalid_task_entry_id.append(df.id)
 
-print("DataFile task entry is invalid: ", df.id)
-print(df_with_invalid_task_entry_id)
+    if df.system.name == 'ecube':
+        path = df.path
+        (path, filename) = os.path.split(path)
+        df.path = os.path.join(ecube_storage, filename)
+        print(df.path)
+        df.save()

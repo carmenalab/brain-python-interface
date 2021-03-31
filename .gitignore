@@ -1,3 +1,5 @@
+config/*.json
+*.pem
 *.pyc
 .*
 *~
@@ -6,11 +8,12 @@
 *.so
 _build
 riglib/nidaq/pcidio.py
-riglib/build
-riglib/plexon/plexfile.c
-riglib/plexon/psth.c
+riglib/plexon/build
+riglib/plexon/plexon/plexfile.c
+riglib/plexon/plexon/psth.c
 db/settings.py
 db/paths.py
+db/path.txt
 tests/map_test
 db/db.sql
 db/*.sql
@@ -27,7 +30,6 @@ riglib/ismore/traj_*.pkl
 *tasklist.py
 *featurelist.py
 *bmilist.py
-analysis
 tasks
 tests/sim_clda/*
 *.egg-info/*
@@ -45,4 +47,6 @@ tests/*.mat
 tests/*.hdf
 tests/unit_tests/htmlcov
 *.h5
+riglib/plexon/Plexfile_utilities.egg-info/*
 *.dot
+riglib/dio/nidaq/pcidio.py

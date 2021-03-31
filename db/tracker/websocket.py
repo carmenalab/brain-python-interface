@@ -1,5 +1,5 @@
 '''
-An extension of Tornado's web socket which enables the task to 
+An extension of Tornado's web socket which enables the task to
 print data to the web interface while the task is running.
 '''
 
@@ -13,6 +13,7 @@ import tornado.ioloop
 import tornado.web
 from tornado import websocket
 import io, traceback
+import copy
 
 sockets = []
 
@@ -27,8 +28,8 @@ class ClientSocket(websocket.WebSocketHandler):
 
     def check_origin(self, origin):
         '''
-        Returns a boolean indicating whether the requesting URL is one that the 
-        handler will respond to. For this websocket, everyone with access gets a response since 
+        Returns a boolean indicating whether the requesting URL is one that the
+        handler will respond to. For this websocket, everyone with access gets a response since
         we're running the server locally (or over ssh tunnels) and not over the regular internet.
 
         Parameters
@@ -48,7 +49,7 @@ class ClientSocket(websocket.WebSocketHandler):
 
 class Server(mp.Process):
     '''
-    Spawn a process to deal with the websocket asynchronously, without halting other webserver operations. 
+    Spawn a process to deal with the websocket asynchronously, without halting other webserver operations.
     '''
     def __init__(self, notify=None):
         super(self.__class__, self).__init__()
@@ -67,6 +68,9 @@ class Server(mp.Process):
             (r"/connect", ClientSocket),
         ])
 
+        import asyncio
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
         application.listen(8001)
         self.ioloop = tornado.ioloop.IOLoop.current()
         self.ioloop.add_handler(self._pipe, self._send, self.ioloop.READ)
@@ -82,7 +86,7 @@ class Server(mp.Process):
         if not isinstance(msg, str):
             msg = json.dumps(msg)
 
-        # Write to 'self.pipe'. The write apparently triggers the function self._stdout to run 
+        # Write to 'self.pipe'. The write apparently triggers the function self._stdout to run
         os.write(self.pipe, struct.pack('I', len(msg)) + bytes(msg, 'utf8'))
 
     def _stdout(self, fd, event):
@@ -109,7 +113,7 @@ class Server(mp.Process):
         self.flush()
 
     def flush(self):
-        msg = json.dumps(dict(status="stdout", msg=cgi.escape(self.outqueue)))
+        msg = json.dumps(dict(status="stdout", msg=cgi.html.escape(self.outqueue)))
         os.write(self.outp, struct.pack('I', len(msg)) + bytes(msg, 'utf8'))
         self.outqueue = ""
 
@@ -121,7 +125,7 @@ class Server(mp.Process):
         else:
             for sock in sockets:
                 sock.write_message(msg)
-    
+
 
 class NotifyFeat(object):
     '''
@@ -130,16 +134,15 @@ class NotifyFeat(object):
     def __init__(self, *args,  **kwargs):
         super().__init__(*args, **kwargs)
         self.websock = kwargs.pop('websock')
-        self.tracker_end_of_pipe = kwargs.pop('tracker_end_of_pipe')
         self.tracker_status = kwargs.pop('tracker_status')
+        self.prev_stats = None
 
-    def set_state(self, state, *args, **kwargs):
-        self.reportstats['status'] = self.tracker_status
-        self.reportstats['State'] = state or 'stopped'
-        
-        # Call 'Server.send' above
-        self.websock.send(self.reportstats)
-        super().set_state(state, *args, **kwargs)
+    def _cycle(self):
+        super()._cycle()
+        self.reportstats['status'] = str(self.tracker_status)
+        if self.reportstats != self.prev_stats:
+            self.websock.send(self.reportstats)
+            self.prev_stats = copy.deepcopy(self.reportstats)
 
     def run(self):
         try:
@@ -152,7 +155,9 @@ class NotifyFeat(object):
         finally:
             if self.terminated_in_error:
                 self.websock.send(dict(status="error", msg=self.termination_err.read()))
-            self.tracker_end_of_pipe.send(None)
+            else:
+                self.reportstats['status'] = str(self.tracker_status)
+                self.websock.send(self.reportstats)
 
     def print_to_terminal(self, *args):
         sys.stdout = sys.__stdout__

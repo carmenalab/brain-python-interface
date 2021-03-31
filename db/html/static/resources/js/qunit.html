@@ -14,11 +14,11 @@
     <script type="text/javascript" src="report.js"></script>
     <script type="text/javascript" src="list.js"></script>
     <!-- Your tests file goes here -->
-    <script type="text/javascript" src="parameters.test.js"></script>
-    <script type="text/javascript" src="features.test.js"></script>
-    <script type="text/javascript" src="sequence.test.js"></script>
-    <script type="text/javascript" src="report.test.js"></script>
-    <script type="text/javascript" src="task_content.test.js"></script>
+    <script type="text/javascript" src="test/parameters.test.js"></script>
+    <script type="text/javascript" src="test/features.test.js"></script>
+    <script type="text/javascript" src="test/sequence.test.js"></script>
+    <script type="text/javascript" src="test/report.test.js"></script>
+    <script type="text/javascript" src="test/task_content.test.js"></script>
 </head>
 
 <body>
@@ -29,7 +29,7 @@
             </li>
             <li><input type="checkbox" id="feat_feature2" value="feature2" name="feature2">
                 <label for="feat_feature2">Feature 2</label></li>
-        </ul> 
+        </ul>
     </div>
 
     <fieldset id="sequence">
@@ -39,15 +39,15 @@
 
         <select id="seqlist" name="seq_name">
             <option value="new">Create New...</option>
-        </select>    
+        </select>
 
         <select id="seqgen" name="seq_gen"  hidden="true">
             <option value="gen1">gen1</option>
             <option value="gen2">gen2</option>
-        </select>    
-        
+        </select>
+
         <input id="seqstatic" type="checkbox" name="seqstatic">
-        <label for="seqstatic">Static</label>        
+        <label for="seqstatic">Static</label>
     </fieldset>
 
 
@@ -62,10 +62,10 @@
           <pre id="stdout"></pre>
         </div>
 
-        
+
         <div class="clear"></div>
       </div>
-    </fieldset>    
+    </fieldset>
 
 
     <h1 id="qunit-header">QUnit Test Suite</h1>

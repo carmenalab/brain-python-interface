@@ -262,7 +262,7 @@ BMI.prototype._bindui = function() {
     }.bind(this));
 
     $("#cellnames").blur(function(e) {
-        console.log($("#cellnames").val())
+        debug($("#cellnames").val())
         this.parse($("#cellnames").val());
     }.bind(this));
 

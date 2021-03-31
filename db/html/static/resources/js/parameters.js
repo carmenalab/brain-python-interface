@@ -1,3 +1,12 @@
+// Use "require" only if run from command line
+if (typeof(require) !== 'undefined') {
+    var jsdom = require('jsdom');
+    const { JSDOM } = jsdom;
+    const dom = new JSDOM(``);
+    var document = dom.window.document;
+    var $ = jQuery = require('jquery')(dom.window);
+}
+
 function Parameters() {
     this.obj = document.createElement("table");
     this.traits = {};
@@ -47,40 +56,38 @@ Parameters.prototype.update = function(desc) {
     }
 
 
-    this.hidden_inputs = [];
-    this.hidden_trait_labels = {};
+    this.hidden_parameters = [];
 
     for (var name in desc) {
         if (funcs[desc[name]['type']]) {// if there is a recognized constructor function for the trait type,
             var fn = funcs[desc[name]['type']].bind(this);
-            fn(name, desc[name]); // call the function 
+            fn(name, desc[name]); // call the function
         }
         else
-            console.log(desc[name]['type']);
+            debug(desc[name]['type']);
     }
 
-    // console.log(this.hidden_inputs);
     this.show_all_attrs();
-    // console.log(this.hidden_trait_labels);
-
 }
 Parameters.prototype.show_all_attrs = function() {
-    if ($('#show_params').prop('checked')) {
-        var vis = 'visible';
-    } else {
-        var vis = 'hidden';
+
+
+    for (var name in this.hidden_parameters) {
+        if ($('#show_params').prop('checked'))
+            $(this.hidden_parameters[name]).show();
+        else
+            $(this.hidden_parameters[name]).hide();
     }
 
-    for (var attr_name in this.hidden_trait_labels) {
-        var label = this.hidden_trait_labels[attr_name];
-        label.style.visibility = vis;
-    }
-
-    for (var k in this.hidden_inputs) {
-        var input = this.hidden_inputs[k];
-        input.style.visibility = vis;
-    }        
 }
+
+Parameters.prototype.enable = function() {
+    $(this.obj).find("input, select, checkbox").removeAttr("disabled");
+}
+Parameters.prototype.disable = function() {
+    $(this.obj).find("input, select, checkbox").attr("disabled", "disabled");
+}
+
 /*
 Function to add an attribute row and label where the 'visibility' attribute of the label can be toggled
 */
@@ -100,16 +107,16 @@ Parameters.prototype.add_to_table = function(name, info) {
     if (label_text != undefined) {
         label.innerHTML = label_text;
     } else {
-        label.innerHTML = name;    
+        label.innerHTML = name;
     }
-    
+
     label.setAttribute("for", "param_"+name);
-    
+
     td.appendChild(label);
 
     // label.style.visibility = hidden;
     if (hidden === 'hidden') {
-        this.hidden_trait_labels[name] = label;
+        this.hidden_parameters[name] = $(label).closest("tr");
     }
 
     return trait;
@@ -118,11 +125,6 @@ Parameters.prototype.add_tuple = function(name, info) {
     var len = info['default'].length;
     var trait = this.add_to_table(name, info);
     var wrapper = document.createElement("td");
-    wrapper.style.webkitColumnCount = len < 4? len : 4;
-    wrapper.style.mozColumnCount = len < 4? len : 4;
-    wrapper.style.columnCount = len < 4? len : 4;
-
-    wrapper.style.visibility = info['hidden'];
     trait.appendChild(wrapper);
     this.obj.appendChild(trait);
 
@@ -139,11 +141,6 @@ Parameters.prototype.add_tuple = function(name, info) {
                 input.value = JSON.stringify(info['value'][i]);
             else
                 input.value = info['value'][i];
-        // input.style.visibility = info['hidden'];
-        if (info['hidden'] === 'hidden') {
-            this.hidden_inputs.push(input);
-        }
-
         wrapper.appendChild(input);
         this.traits[name]['inputs'].push(input);
     }
@@ -166,10 +163,6 @@ Parameters.prototype.add_int = function (name, info) {
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
     trait.appendChild(div);
     div.appendChild(input);
     this.obj.appendChild(trait);
@@ -185,18 +178,13 @@ Parameters.prototype.add_int = function (name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_float = function (name, info) {
-    //console.log(info)
+    //debug(info)
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
     trait.appendChild(div);
     div.appendChild(input);
     this.obj.appendChild(trait);
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
-
     input.type = "text";
     input.name = name;
     input.id = "param_"+name;
@@ -210,14 +198,10 @@ Parameters.prototype.add_float = function (name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_bool = function (name, info) {
-    //console.log(info)
+    //debug(info)
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
     trait.appendChild(div);
     div.appendChild(input);
     this.obj.appendChild(trait);
@@ -241,10 +225,6 @@ Parameters.prototype.add_array = function (name, info) {
         var trait = this.add_to_table(name, info);
         var div = document.createElement("td");
         var input = document.createElement("input");
-        // input.style.visibility = info['hidden'];
-        if (info['hidden'] === 'hidden') {
-            this.hidden_inputs.push(input);
-        }
         trait.appendChild(div);
         div.appendChild(input);
         this.obj.appendChild(trait);
@@ -266,10 +246,6 @@ Parameters.prototype.add_string = function (name, info) {
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("input");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
     trait.appendChild(div);
     div.appendChild(input);
     this.obj.appendChild(trait);
@@ -284,15 +260,11 @@ Parameters.prototype.add_string = function (name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_instance = function(name, info) {
-    //console.log(info)
+    //debug(info)
     var options = info['options'];
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("select");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
     trait.appendChild(div);
     div.appendChild(input);
     this.obj.appendChild(trait);
@@ -311,15 +283,11 @@ Parameters.prototype.add_instance = function(name, info) {
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_enum = function(name, info) {
-    //console.log(info)
+    //debug(info)
     var options = info['options'];
     var trait = this.add_to_table(name, info);
     var div = document.createElement("td");
     var input = document.createElement("select");
-    // input.style.visibility = info['hidden'];
-    if (info['hidden'] === 'hidden') {
-        this.hidden_inputs.push(input);
-    }
     trait.appendChild(div);
     div.appendChild(input);
     this.obj.appendChild(trait);
@@ -365,4 +333,9 @@ Parameters.prototype.to_json = function(get_all) {
         }
     }
     return jsdata;
+}
+
+if (typeof(module) !== 'undefined' && module.exports) {
+  exports.Parameters = Parameters;
+  exports.$ = $;
 }
