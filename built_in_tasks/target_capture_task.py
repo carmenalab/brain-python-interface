@@ -375,18 +375,11 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         if self.calc_trial_num() == 0:
             self.sync_event('EXP_START')
-        else:
-            self.sync_event('TRIAL_END')
-
-        # hide targets
-        for target in self.targets:
-            target.hide()
-            target.reset()
 
     def _start_target(self):
         super()._start_target()
 
-        # show target if it is hidden (this is the first target, or previous state was a penalty)
+        # Show target if it is hidden (this is the first target, or previous state was a penalty)
         target = self.targets[self.target_index % 2]
         if self.target_index == 0:
             target.move_to_position(self.targs[self.target_index])
@@ -396,45 +389,65 @@ class ScreenTargetCapture(TargetCapture, Window):
     def _start_hold(self):
         super()._start_hold()
 
-        #make next target visible unless this is the final target in the trial
+        # Make next target visible unless this is the final target in the trial
         next_idx = (self.target_index + 1)
         if next_idx < self.chain_length:
             target = self.targets[next_idx % 2]
             target.move_to_position(self.targs[next_idx])
             target.show()
             self.sync_event('TARGET_ON', self.gen_indices[next_idx])
+        else:
+            self.sync_event('CURSOR_ENTER_TARGET', self.gen_indices[self.target_index])
 
     def _start_targ_transition(self):
         super()._start_targ_transition()
         if self.target_index == -1:
 
-            # came from a penalty state, ignore
+            # Came from a penalty state
             pass
         elif self.target_index + 1 < self.chain_length:
 
-            # hide the current target if there are more
+            # Hide the current target if there are more
             self.targets[self.target_index % 2].hide()
             self.sync_event('TARGET_OFF', self.gen_indices[self.target_index])
 
     def _start_hold_penalty(self):
         self.sync_event('HOLD_PENALTY', 0) 
         super()._start_hold_penalty()
-        # hide targets
+        # Hide targets
         for target in self.targets:
             target.hide()
+            target.reset()
 
-
+    def _end_hold_penalty(self):
+        super()._end_hold_penalty()
+        self.sync_event('TRIAL_END')
+        
     def _start_timeout_penalty(self):
         self.sync_event('TIMEOUT_PENALTY', 0)
         super()._start_timeout_penalty()
-        # hide targets
+        # Hide targets
         for target in self.targets:
             target.hide()
+            target.reset()
+
+    def _end_timeout_penalty(self):
+        super()._end_timeout_penalty()
+        self.sync_event('TRIAL_END')
 
     def _start_reward(self):
         self.targets[self.target_index % 2].cue_trial_end_success()
 
         self.sync_event('REWARD')
+    
+    def _end_reward(self):
+        super()._end_reward()
+        self.sync_event('TRIAL_END')
+
+        # Hide targets
+        for target in self.targets:
+            target.hide()
+            target.reset()
 
     def _start_None(self):
         self.sync_event('EXP_END')
