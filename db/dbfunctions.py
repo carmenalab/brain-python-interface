@@ -131,27 +131,6 @@ class TaskEntry(object):
                     import traceback
                     traceback.print_exc()
 
-                ## Split the task messages into separate trials
-                self.trial_end_states = self.record.task.get().trial_end_states
-                self.trial_msgs = []
-                try:
-                    # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1
-                    trial_start = np.logical_or(self.task_msgs['msg'] == 'wait', np.logical_and(self.task_msgs['msg'] == 'targ_transition', self.task_msgs['target_index'] == -1))
-                    trial_start_inds, = np.nonzero(trial_start)
-                    trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
-
-                    for trial_st, trial_end in zip(trial_start_inds, trial_end_inds):
-                        self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
-                except:
-                    # For tasks where there is no target index in the trial structure..
-                    trial_end = np.array([msg in self.trial_end_states for msg in self.task_msgs['msg']])
-                    trial_end_inds, = np.nonzero(trial_end)
-                    trial_start_inds = np.hstack([0, trial_end_inds[:-1]+1])
-                    trial_end = np.zeros(len(self.task_msgs))
-
-                    for trial_st, trial_end in zip(trial_start_inds, trial_end_inds):
-                        self.trial_msgs.append(self.task_msgs[trial_st:trial_end+1])
-
 
             except:
                 print("Couldn't process HDF file!")
