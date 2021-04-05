@@ -42,6 +42,9 @@ fi
 #     fi
 # fi
 
+# Make the log directory if it doesn't already exist
+mkdir -p $BMI3D/log
+
 # Print the date/time of the server (re)start
 echo "Time at which runserver.sh was executed:"
 date
@@ -72,11 +75,16 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log
 
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
-source $BMI3D/env/bin/activate
-cd $BMI3D/db/
+# Activate the relevant environment
+if [ test -f "$BMI3D/env/bin/activate" ]; then 
+    source $BMI3D/env/bin/activate
+else
+    echo "No environment found."
+fi
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)
+cd $BMI3D/db/
 python manage.py runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
 #python manage.py celery worker &
