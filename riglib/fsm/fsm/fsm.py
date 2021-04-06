@@ -37,7 +37,7 @@ class FSMTable(object):
 
     @property
     def trial_end_states(self):
-        return [state for state in self.states if state.end_state]
+        return [state for state, transitions in self.states.items() if transitions.end_state]
 
     @staticmethod
     def construct_from_dict(status):

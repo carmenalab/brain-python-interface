@@ -375,6 +375,9 @@ class ScreenTargetCapture(TargetCapture, Window):
 
         if self.calc_trial_num() == 0:
             self.sync_event('EXP_START')
+            for target in self.targets:
+                target.hide()
+                target.reset()
 
     def _start_target(self):
         super()._start_target()
