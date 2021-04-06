@@ -35,6 +35,10 @@ class FSMTable(object):
     def __iter__(self):
         return list(self.states.keys()).__iter__()
 
+    @property
+    def trial_end_states(self):
+        return [state for state, transitions in self.states.items() if transitions.end_state]
+
     @staticmethod
     def construct_from_dict(status):
         outward_transitions = OrderedDict()
@@ -44,13 +48,14 @@ class FSMTable(object):
 
 
 class StateTransitions(object):
-    def __init__(self, stoppable=True, **kwargs):
+    def __init__(self, stoppable=True, end_state=False, **kwargs):
         self.state_transitions = OrderedDict()
         for event, next_state in list(kwargs.items()):
             self.state_transitions[event] = next_state
 
         if stoppable and not ('stop' in self.state_transitions):
             self.state_transitions['stop'] = None
+        self.end_state = end_state
 
     def __getitem__(self, key):
         return self.state_transitions[key]

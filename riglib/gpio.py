@@ -6,7 +6,6 @@ import numpy as np
 import threading
 import time
 import pyfirmata
-from riglib.dio.NIUSB6501.py_comedi_control import init_comedi, write_to_comedi
 
 class GPIO(object):
     ''' Wrapper for digital i/o'''
@@ -71,15 +70,17 @@ class ArduinoGPIO(GPIO):
 class NIGPIO(GPIO):
 
     def __init__(self):
+        from riglib.dio.NIUSB6501.py_comedi_control import init_comedi, write_to_comedi
         self.lock = threading.Lock()
         init_comedi()
+        self._write_to_comedi = write_to_comedi
 
     def write(self, pin, value):
         self.write_many(1, value, pin)
 
     def write_many(self, mask, data, base_channel=0):
         with self.lock:
-            ret = write_to_comedi(data, mask=mask, base_channel=base_channel)
+            ret = self._write_to_comedi(data, mask=mask, base_channel=base_channel)
             if ret == b'':
                 raise IOError("Unable to send NIDAQ sync event")
 

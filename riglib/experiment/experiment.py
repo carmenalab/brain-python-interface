@@ -62,14 +62,9 @@ class Experiment(ThreadedFSM, traits.HasTraits):
     status = dict(
         wait = dict(start_trial="trial", premature="penalty", stop=None),
         trial = dict(correct="reward", incorrect="penalty", timeout="penalty"),
-        reward = dict(post_reward="wait"),
-        penalty = dict(post_penalty="wait"),
+        reward = dict(post_reward="wait", end_state=True),
+        penalty = dict(post_penalty="wait", end_state=True),
     )
-
-    # To keep track of changes, useful to store the version as a trait
-
-    # For analysis purposes, it's useful to declare which task states are "terminal" states and signify the end of a trial
-    trial_end_states = []
 
     # Set the initial state to 'wait'. The 'wait' state has special behavior for the Sequence class (see below)
     state = "wait"
@@ -604,7 +599,7 @@ class LogExperiment(Experiment):
         '''
         Counts the number of trials which have finished.
         '''
-        trialtimes = [state[1] for state in self.state_log if state[0] in self.trial_end_states]
+        trialtimes = [state[1] for state in self.state_log if state[0] in self.status.trial_end_states]
         return len(trialtimes)
 
     def calc_events_per_min(self, event_name, window):
