@@ -76,7 +76,7 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
 # Activate the relevant environment
-if [ test -f "$BMI3D/env/bin/activate" ]; then 
+if  test -f "$BMI3D/env/bin/activate"; then 
     source $BMI3D/env/bin/activate
 else
     echo "No environment found."
