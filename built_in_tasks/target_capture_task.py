@@ -452,10 +452,6 @@ class ScreenTargetCapture(TargetCapture, Window):
             target.hide()
             target.reset()
 
-    def _start_None(self):
-        self.sync_event('EXP_END')
-        super()._start_None()
-
     #### Generator functions ####
     @staticmethod
     def static(pos=(0,0,0), ntrials=0):
