@@ -4,7 +4,6 @@ mechanisms for interacting withe the task running in another process, e.g.,
 calling functions to start/stop the task, enabling/disabling decoder adaptation, etc.
 '''
 import os
-os.environ['DISPLAY'] = ':0'
 import sys
 import time
 import xmlrpc.client
