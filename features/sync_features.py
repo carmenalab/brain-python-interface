@@ -4,7 +4,7 @@ import numpy as np
 import tables
 import time
 
-rig1_sync_events_ver_2 = dict(
+rig1_sync_events_ver_3 = dict(
     EXP_START               = 0x1,
     TRIAL_START             = 0x2,
     TARGET_ON               = 0x10,
@@ -12,6 +12,8 @@ rig1_sync_events_ver_2 = dict(
     REWARD                  = 0x30,
     HOLD_PENALTY            = 0x40,
     TIMEOUT_PENALTY         = 0x41,
+    DELAY_PENALTY           = 0x42,
+    OTHER_PENALTY           = 0x4f,
     CURSOR_ENTER_TARGET     = 0x50,
     CURSOR_LEAVE_TARGET     = 0x60,
     CUE                     = 0x70,
@@ -43,14 +45,14 @@ class NIDAQSync(traits.HasTraits):
 
     sync_params = dict(
         sync_protocol = 'rig1',
-        sync_protocol_version = 2,
+        sync_protocol_version = 3,
         sync_pulse_width = 0.003,
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
-        event_sync_dict = rig1_sync_events_ver_2,
+        event_sync_dict = rig1_sync_events_ver_3,
         event_sync_max_data = 0xf,
         screen_sync_nidaq_pin = 8,
-        screen_sync_dch = 25,
+        screen_sync_dch = 24,
         screen_measure_dch = [5],
         screen_measure_ach = [5],
         reward_measure_ach = [0],
@@ -78,16 +80,14 @@ class NIDAQSync(traits.HasTraits):
         # Send a sync impulse to set t0
         time.sleep(self.sync_params['sync_pulse_width']*10)
         self.has_sync_event = False
-        self.sync_event('TIME_ZERO', 0)
-        self.sinks.send("sync_events", self.sync_event_record)
-        self.has_sync_event = False
-        pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=self.sync_event_record['code'])
-        pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
-        pulse.start()
+        self.sync_event('TIME_ZERO', 0, immediate=True)
         self.t0 = time.perf_counter()
         time.sleep(self.sync_params['sync_pulse_width']*10)
 
-    def sync_event(self, event_name, event_data=0):
+    def sync_event(self, event_name, event_data=0, immediate=False):
+        '''
+        Send a sync event through NIDAQ on the next cycle, unless 'immediate' flag is set
+        '''
         if self.has_sync_event:
             raise Exception("Cannot sync more than 1 event per cycle")
 
@@ -97,9 +97,19 @@ class NIDAQSync(traits.HasTraits):
         self.sync_event_record['event'] = event_name
         self.sync_event_record['data'] = event_data
         self.sync_event_record['code'] = code
-        self.has_sync_event = True
+        if immediate:
+            self.sinks.send("sync_events", self.sync_event_record)
+            pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=self.sync_event_record['code'])
+            pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
+            pulse.start()
+        else:
+            self.has_sync_event = True
 
     def _cycle(self):
+        '''
+        Send a clock pulse on every cycle to the 'screen_sync_nidaq_pin'. If there are any
+        sync events, also send them in the same clock cycle on the first 8 nidaq pins.
+        '''
         super()._cycle()
         code = 0
         if self.sync_every_cycle:
