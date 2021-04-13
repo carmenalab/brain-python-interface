@@ -64,6 +64,29 @@ class RewardAudio(traits.HasTraits):
             super()._start_reward()
         self.reward_player.play()
 
+class PenaltyAudio(traits.HasTraits):
+    files = list(reversed([f for f in os.listdir('../riglib/audio') if '.wav' in f]))
+    penalty_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each penalty")
+
+    def __init__(self, *args, **kwargs):
+        self.penalty_player = AudioPlayer(self.penalty_sound)
+        super().__init__(*args, **kwargs)
+
+    def _start_hold_penalty(self):
+        if hasattr(super(), '_start_hold_penalty'):
+            super()._start_hold_penalty()
+        self.penalty_player.play()
+    
+    def _start_delay_penalty(self):
+        if hasattr(super(), '_start_delay_penalty'):
+            super()._start_delay_penalty()
+        self.penalty_player.play()
+    
+    def _start_timeout_penalty(self):
+        if hasattr(super(), '_start_timeout_penalty'):
+            super()._start_timeout_penalty()
+        self.penalty_player.play()
+
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 
 
