@@ -12,7 +12,7 @@ import traceback
 from riglib.experiment import traits
 
 from .target_graphics import *
-from .target_capture_task import ScreenTargetCapture
+from .target_capture_task import ScreenTargetCapture, ReachDirectionMixin
 from riglib.stereo_opengl.window import WindowDispl2D
 
 
@@ -185,3 +185,9 @@ class ManualControl2DWindow(ManualControl, WindowDispl2D):
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
 
+
+class ManualControlDirectionConstraint(ReachDirectionMixin, ManualControl):
+    '''
+    Adds an additional constraint that the direction of travel must be within a certain angle
+    '''
+    pass

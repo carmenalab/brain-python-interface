@@ -33,16 +33,16 @@ class TargetCapture(Sequence):
     This is a generic cued target capture skeleton, to form as a common ancestor to the most
     common type of motor control task.
     '''
-    status = FSMTable(
-        wait = StateTransitions(start_trial="target"),
-        target = StateTransitions(enter_target="hold", timeout="timeout_penalty"),
-        hold = StateTransitions(leave_target="hold_penalty", hold_complete="delay"),
-        delay = StateTransitions(leave_target="delay_penalty", delay_complete="targ_transition"),
-        targ_transition = StateTransitions(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
-        timeout_penalty = StateTransitions(timeout_penalty_end="targ_transition", end_state=True),
-        hold_penalty = StateTransitions(hold_penalty_end="targ_transition", end_state=True),
-        delay_penalty = StateTransitions(delay_penalty_end="targ_transition", end_state=True),
-        reward = StateTransitions(reward_end="wait", stoppable=False, end_state=True)
+    status = dict(
+        wait = dict(start_trial="target"),
+        target = dict(enter_target="hold", timeout="timeout_penalty"),
+        hold = dict(leave_target="hold_penalty", hold_complete="delay"),
+        delay = dict(leave_target="delay_penalty", delay_complete="targ_transition"),
+        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
+        timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
+        hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
+        delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
     trial_end_states = ['reward', 'timeout_penalty', 'delay_penalty', 'hold_penalty']
@@ -278,7 +278,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
     ]
 
-    hidden_traits = Window.hidden_traits + ['target_color', 'plant_hide_rate', 'starting_pos']
+    hidden_traits = Window.hidden_traits + ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
 
     is_bmi_seed = True
 
@@ -493,6 +493,14 @@ class ScreenTargetCapture(TargetCapture, Window):
             target.reset()
 
     #### Generator functions ####
+    '''
+    Note to self: because of the way these get into the database, the parameters don't
+    have human-readable descriptions like the other traits. So it is useful to define
+    the descriptions elsewhere, in models.py under Generator.to_json().
+
+    Ideally someone should take the time to reimplement generators as their own classes
+    rather than static methods that belong to a task.
+    '''
     @staticmethod
     def static(pos=(0,0,0), ntrials=0):
         '''Single location, finite (ntrials!=0) or infinite (ntrials==0)'''
@@ -630,3 +638,58 @@ class ScreenTargetCapture(TargetCapture, Window):
             pts = pts+(boundaries[0], boundaries[2], boundaries[4])
             yield idx+np.arange(chain_length), pts
             idx += chain_length
+
+class ReachDirectionMixin(traits.HasTraits):
+    '''
+    A feature that requires the cursor to move in the right direction or else
+    a penalty is applied.
+    '''
+
+    max_reach_angle = traits.Float(90., desc="Angle defining the boundaries between \
+        the starting position of the cursor and the target.")
+    reach_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
+
+
+    def __init__(self, *args, **kwargs):
+        self.status['target']['leave_bounds'] = 'reach_penalty'
+        self.status['reach_penalty'] = dict(reach_penalty_end="targ_transition", end_state=True)
+        super().__init__(*args, **kwargs)
+
+    def _start_target(self):
+        super()._start_target()
+
+        # Define a reach start that is behind where the actual cursor started
+        self.reach_start = self.plant.get_endpoint_pos().copy()
+        target_direction = self.targs[self.target_index] - self.reach_start
+        self.reach_start -= self.cursor_radius * target_direction / np.linalg.norm(target_direction)
+
+    def _test_leave_bounds(self, ts):
+        '''
+        Check whether the cursor is in the boundary defined by reach_start, target_pos,
+        and max_reach_angle.
+        '''
+        cursor_pos = self.plant.get_endpoint_pos()
+        target_pos = self.targs[self.target_index]
+
+        # Calculate the angle between the vectors from the start pos to the current cursor and target
+        a = cursor_pos - self.reach_start
+        b = target_pos - self.reach_start
+        cursor_target_angle = np.arccos(np.dot(a, b)/np.linalg.norm(a)/np.linalg.norm(b))
+
+        # If that angle is more than half the maximum, we are outside the bounds
+        return np.degrees(cursor_target_angle) > self.max_reach_angle / 2
+
+    def _test_reach_penalty_end(self, ts):
+        return ts > self.reach_penalty_time
+
+    def _start_reach_penalty(self):
+        self.sync_event('OTHER_PENALTY')
+        self._increment_tries()
+        
+        # Hide targets
+        for target in self.targets:
+            target.hide()
+            target.reset()
+
+    def _end_reach_penalty(self):
+        self.sync_event('TRIAL_END')

@@ -43,7 +43,7 @@ class FSMTable(object):
     def construct_from_dict(status):
         outward_transitions = OrderedDict()
         for state in status:
-            outward_transitions[state] = StateTransitions(stoppable=False, **status[state])
+            outward_transitions[state] = StateTransitions(**status[state])
         return FSMTable(**outward_transitions)
 
 
