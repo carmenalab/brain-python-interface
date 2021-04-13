@@ -170,7 +170,6 @@ Parameters.prototype.add_int = function (name, info) {
     input.type = "number";
     input.name = name;
     input.id = "param_"+name;
-    input.title = "An integer value"
     if (typeof(info['value']) != "undefined")
         input.value = info['value'];
     else
@@ -188,7 +187,6 @@ Parameters.prototype.add_float = function (name, info) {
     input.type = "text";
     input.name = name;
     input.id = "param_"+name;
-    input.title = "A floating point value";
     input.pattern = "-?[0-9]*\.?[0-9]*";
     input.placeholder = info['default'];
     if (typeof(info['value']) == "string")
@@ -209,7 +207,6 @@ Parameters.prototype.add_bool = function (name, info) {
     input.type = "checkbox";
     input.name = name;
     input.id = "param_"+name;
-    input.title = "A boolean value"
     if (typeof(info['value']) != "undefined")
         input.checked=info['value'];
     else
@@ -232,7 +229,6 @@ Parameters.prototype.add_array = function (name, info) {
         input.type = "text";
         input.name = name;
         input.id = "param_"+name;
-        input.title = "An array value";
         input.placeholder = info['default'];
         if (typeof(info['value']) == "string")
             input.value = info['value'];

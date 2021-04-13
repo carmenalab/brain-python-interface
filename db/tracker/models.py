@@ -461,6 +461,22 @@ class Generator(models.Model):
         #     names.remove("exp")
         # arginfo = zip(names, defaults)
 
+        def param_lookup(name):
+            table = {
+                'nblocks': 'Number of trials times number of unique targets',
+                'ntrials': 'Number of trials',
+                'ntargets': 'Number of (evenly spaced) targets',
+                'pos': 'Position of the target',
+                'distance': 'The distance in cm between the center and peripheral targets',
+                'origin': 'Location of the central targets around which the peripheral targets span',
+                'boundaries': 'The limits of the allowed target locations (-x, x, -y, y, -z, z)',
+                'chain_length': 'Number of targets in each sequence before a reward',
+            }
+            if name in table.keys():
+                return table[name]
+            else:
+                return name
+
         params = OrderedDict()
 
         for name, default in zip(names, defaults):
@@ -468,7 +484,7 @@ class Generator(models.Model):
                 continue
             typename = "String"
 
-            params[name] = dict(type=typename, default=default, desc='')
+            params[name] = dict(type=typename, default=default, desc=param_lookup(name))
             if name in values:
                 params[name]['value'] = values[name]
 
