@@ -154,8 +154,18 @@ class ScreenSync(NIDAQSync):
     sync_size = traits.Float(1, desc="Sync square size (cm)") 
     sync_color_off = traits.Tuple((0.,0.,0., 1.), desc="Sync off color (R,G,B,A)")
     sync_color_on = traits.Tuple((1.,1.,1., 1.), desc="Sync on color (R,G,B,A)")
+    sync_state_duration = 1 # How long to delay the start of the experiment (seconds)
 
     def __init__(self, *args, **kwargs):
+
+        # Create a new "sync" state at the beginning of the experiment
+        if isinstance(self.status, dict):
+            self.status["sync"] = dict(start_experiment="wait", stoppable=False)
+        else:
+            from riglib.fsm.fsm import StateTransitions
+            self.status.states["sync"] = StateTransitions(start_experiment="wait", stoppable=False)
+        self.state = "sync"
+
         super().__init__(*args, **kwargs)
         self.sync_state = False
         if hasattr(self, 'is_pygame_display'):
@@ -189,6 +199,29 @@ class ScreenSync(NIDAQSync):
     def init(self):
         self.add_dtype('sync_square', bool, (1,))
         super().init()
+
+    def _start_sync(self):
+        self.sync_every_cycle = False
+
+    def _while_sync(self):
+        
+        # Send an impulse to measure latency halfway through the sync state
+        key_cycle = int(self.fps*self.sync_state_duration/2)
+        impulse_duration = 5 # cycles, to make sure it appears on the screen
+        if self.cycle_count == key_cycle:
+            self.sync_every_cycle = True
+        elif self.cycle_count == key_cycle + 1:
+            self.sync_every_cycle = False
+        elif self.cycle_count == key_cycle + impulse_duration:
+            self.sync_every_cycle = True
+        elif self.cycle_count == key_cycle + impulse_duration + 1:
+            self.sync_every_cycle = False
+
+    def _end_sync(self):
+        self.sync_every_cycle = True
+
+    def _test_start_experiment(self, ts):
+        return ts > self.sync_state_duration
 
     def _cycle(self):
         super()._cycle()

@@ -19,6 +19,7 @@ class RecordECube():
         ecube_session = make_ecube_session_name(saveid) # usually correct, but might be wrong if running overnight!
 
         # Stop recording
+        time.sleep(1) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
         try:
             ec = pyeCubeStream.eCubeStream()
             active = ec.listremotesessions()
