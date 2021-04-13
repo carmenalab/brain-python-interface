@@ -1,5 +1,6 @@
 import time
 from datetime import datetime
+from riglib.experiment import traits
 
 def make_ecube_session_name(saveid):
     now = datetime.now()
@@ -7,7 +8,11 @@ def make_ecube_session_name(saveid):
     number = str(saveid) if saveid else "Test"
     return session + "_BMI3D_te" + number
 
-class RecordECube():
+class RecordECube(traits.HasTraits):
+
+    record_headstage = traits.Bool(False, desc="Should we record headstage data?")
+    headstage_connector = traits.Int(7, desc="Which headstage input to record (1-indexed)")
+    headstage_channels = traits.Tuple((1, 1), desc="Range of headstage channels to record (1-indexed)")
 
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -47,7 +52,7 @@ class RecordECube():
 
     
     @classmethod
-    def pre_init(cls, saveid=None):
+    def pre_init(cls, saveid=None, record_headstage=False, headstage_connector=None, headstage_channels=None, **kwargs):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
@@ -58,6 +63,8 @@ class RecordECube():
                 ec = pyeCubeStream.eCubeStream(debug = True)
                 ec.add(('AnalogPanel',))
                 ec.add(('DigitalPanel',))
+                if record_headstage:
+                    ec.add(('Headstages', headstage_connector, headstage_channels))
                 ec.remotesave(session_name)
                 active_sessions = ec.listremotesessions()
             except Exception as e:
@@ -65,7 +72,7 @@ class RecordECube():
                 active_sessions = []
             if session_name not in active_sessions:
                 raise Exception("Could not start eCube recording. Make sure servernode is running!")
-        super().pre_init(saveid=saveid)
+        super().pre_init(saveid=saveid, **kwargs)
 
 
 class TestExperiment():
@@ -73,7 +80,7 @@ class TestExperiment():
     def __init__(self, *args, **kwargs):
         pass
 
-    def pre_init(saveid):
+    def pre_init(saveid, **kwargs):
         pass
 
     def start(self):
