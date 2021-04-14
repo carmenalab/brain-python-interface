@@ -27,8 +27,11 @@ class RewardSystem(traits.HasTraits):
         from riglib import reward
         super().__init__(*args, **kwargs)
         self.reward = reward.open()
+
+    def run(self):
         if self.reward is None:
             raise Exception('Reward system could not be activated')
+        super().run()
 
     def _start_reward(self):
         if hasattr(super(), '_start_reward'):

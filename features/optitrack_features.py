@@ -5,6 +5,7 @@ Features for the Optitrack motiontracker
 from riglib.experiment import traits
 from riglib.optitrack_client import optitrack
 from datetime import datetime
+import time
 import numpy as np
 import os
 
@@ -41,16 +42,22 @@ class Optitrack(traits.HasTraits):
         session = "OptiTrack/Session " + now.strftime("%Y-%m-%d")
         take = now.strftime("Take %Y-%m-%d %H:%M:%S")
         logger = Logger(take)
-        client = natnet.Client.connect(logger=logger)
-        if self.saveid is not None:
-            take += " (%d)" % self.saveid
-            client.set_session(os.path.join(local_path, session))
-            client.set_take(take)
-            self.filename = os.path.join(session, take + '.tak')
-            status = client.start_recording()
-            if not status:
-                # Abort experiment
-                raise ConnectionError("Optitrack failed to start")
+        try:
+            client = natnet.Client.connect(logger=logger)
+            if self.saveid is not None:
+                take += " (%d)" % self.saveid
+                client.set_session(os.path.join(local_path, session))
+                client.set_take(take)
+                self.filename = os.path.join(session, take + '.tak')
+                client._send_command_and_wait("LiveMode")
+                time.sleep(0.1)
+                if client.start_recording():
+                    self.optitrack_status = 'recording'
+            else:
+                self.optitrack_status = 'streaming'
+        except natnet.DiscoveryError:
+            self.optitrack_status = 'Optitrack couldn\'t be started, make sure Motive is open!'
+            client = optitrack.SimulatedClient()
         self.client = client
 
         # Create a source to buffer the motion tracking data
@@ -68,6 +75,8 @@ class Optitrack(traits.HasTraits):
         Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
         See riglib.experiment.Experiment.run(). This 'run' method starts the motiondata source and stops it after the FSM has finished running
         '''
+        if not self.optitrack_status in ['recording', 'streaming']:
+            raise ConnectionError(self.optitrack_status)
         self.motiondata.start()
         try:
             super().run()

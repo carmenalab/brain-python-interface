@@ -13,6 +13,7 @@ class RecordECube(traits.HasTraits):
     record_headstage = traits.Bool(False, desc="Should we record headstage data?")
     headstage_connector = traits.Int(7, desc="Which headstage input to record (1-indexed)")
     headstage_channels = traits.Tuple((1, 1), desc="Range of headstage channels to record (1-indexed)")
+    ecube_status = None
 
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -28,7 +29,7 @@ class RecordECube(traits.HasTraits):
         self.sync_event('EXP_END', event_data=0, immediate=True) # Tell the eCube we're done
         time.sleep(1) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
         try:
-            ec = pyeCubeStream.eCubeStream()
+            ec = pyeCubeStream.eCubeStream(debug=True)
             active = ec.listremotesessions()
             for session in active:
                 if str(saveid) in session:
@@ -56,6 +57,7 @@ class RecordECube(traits.HasTraits):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
+        cls.ecube_status = None
         if saveid is not None:
             from riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
@@ -70,10 +72,20 @@ class RecordECube(traits.HasTraits):
             except Exception as e:
                 print(e)
                 active_sessions = []
-            if session_name not in active_sessions:
-                raise Exception("Could not start eCube recording. Make sure servernode is running!")
+            if session_name in active_sessions:
+                cls.ecube_status = "recording"
+            else:
+                cls.ecube_status = "Could not start eCube recording. Make sure servernode is running!"
+        else:
+            cls.ecube_status = "testing"
         super().pre_init(saveid=saveid, **kwargs)
 
+    def run(self):
+        print(self.ecube_status)
+        print("Hello from run inside ecube features")
+        if not self.ecube_status in ["testing", "recording"]:
+            raise ConnectionError(self.ecube_status)
+        super().run()
 
 class TestExperiment():
     state = None
