@@ -367,6 +367,9 @@ class ScreenTargetCapture(TargetCapture, Window):
             super().run()
         finally:
             self.plant.stop()
+            time.sleep(1./self.fps) # Make sure the previous cycle is for sure over
+            self.sync_event('EXP_END', event_data=0, immediate=True) # Signal the end of the experiment, even if it crashed
+
 
     ##### HELPER AND UPDATE FUNCTIONS ####
     def update_plant_visibility(self):

@@ -210,11 +210,19 @@ class ScreenSync(NIDAQSync):
         self.add_dtype('sync_square', bool, (1,))
         super().init()
 
-    def _start_sync(self):
-        self.sync_every_cycle = False
-
     def _while_sync(self):
+        '''
+        Deliberate "startup sequence":
+            1. Send a clock pulse to denote the start of the FSM loop
+            2. Turn off the clock and send a single, longer, impulse
+                to enable measurement of the screen latency
+            3. Turn the clock back on
+        '''
         
+        # Turn off the clock after the first cycle is synced
+        if self.cycle_count == 1:
+            self.sync_every_cycle = False
+
         # Send an impulse to measure latency halfway through the sync state
         key_cycle = int(self.fps*self.sync_state_duration/2)
         impulse_duration = 5 # cycles, to make sure it appears on the screen

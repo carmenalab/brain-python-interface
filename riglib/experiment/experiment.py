@@ -213,7 +213,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         '''
         pass
 
-    def sync_event(self, event_name, event_data=None):
+    def sync_event(self, event_name, event_data=None, immediate=False):
         '''
         Stub function for sending sync signals to various devices. Could be digital triggers to a recording system
         or markers on a screen measured by photodiode, for example. Implemented in features.sync_features

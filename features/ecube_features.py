@@ -25,8 +25,6 @@ class RecordECube(traits.HasTraits):
         ecube_session = make_ecube_session_name(saveid) # usually correct, but might be wrong if running overnight!
 
         # Stop recording
-        time.sleep(1./self.fps) # Make sure the previous cycle is for sure over
-        self.sync_event('EXP_END', event_data=0, immediate=True) # Tell the eCube we're done
         time.sleep(1) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
         try:
             ec = pyeCubeStream.eCubeStream(debug=True)
