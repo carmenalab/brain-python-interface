@@ -661,26 +661,28 @@ class ReachDirectionMixin(traits.HasTraits):
     def _start_target(self):
         super()._start_target()
 
-        # Define a reach start that is behind where the actual cursor started
+        # Define a reach start and reach target position whenever the target appears
         self.reach_start = self.plant.get_endpoint_pos().copy()
-        target_direction = self.targs[self.target_index] - self.reach_start
-        self.reach_start -= self.cursor_radius * target_direction / np.linalg.norm(target_direction)
+        self.reach_target = self.targs[self.target_index]
 
     def _test_leave_bounds(self, ts):
         '''
         Check whether the cursor is in the boundary defined by reach_start, target_pos,
         and max_reach_angle.
         '''
-        cursor_pos = self.plant.get_endpoint_pos()
-        target_pos = self.targs[self.target_index]
 
         # Calculate the angle between the vectors from the start pos to the current cursor and target
-        a = cursor_pos - self.reach_start
-        b = target_pos - self.reach_start
+        a = self.plant.get_endpoint_pos() - self.reach_start
+        b = self.reach_target - self.reach_start
         cursor_target_angle = np.arccos(np.dot(a, b)/np.linalg.norm(a)/np.linalg.norm(b))
 
         # If that angle is more than half the maximum, we are outside the bounds
-        return np.degrees(cursor_target_angle) > self.max_reach_angle / 2
+        out_of_bounds = np.degrees(cursor_target_angle) > self.max_reach_angle / 2
+
+        # But also allow a target radius around the reach_start 
+        away_from_start = np.linalg.norm(self.plant.get_endpoint_pos() - self.reach_start) > self.target_radius
+
+        return away_from_start and out_of_bounds
 
     def _test_reach_penalty_end(self, ts):
         return ts > self.reach_penalty_time
