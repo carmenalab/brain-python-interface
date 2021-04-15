@@ -49,7 +49,7 @@ class Window(LogExperiment):
 
     # XPS computer
     # window_size = (1920*2, 1080)
-    window_size = traits.Tuple(monitor_res['monitor_2D'], descr='window size, in pixels')
+    window_size = traits.Tuple(monitor_res['monitor_2D'], desc='Window size, in pixels')
     background = traits.Tuple((0.,0.,0.,1.), desc="Background color (R,G,B,A)")
     fullscreen = traits.Bool(True, desc="Fullscreen window")
 

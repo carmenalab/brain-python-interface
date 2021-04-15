@@ -47,7 +47,7 @@ class ManualControl(ScreenTargetCapture):
     wait_time = traits.Float(2., desc="Time between successful trials")
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
-    rotation = traits.OptionsList(tuple(rotations.keys()), desc="Control rotation matrix")
+    rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
     scale = traits.Float(1.0, desc="Control scale factor")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True

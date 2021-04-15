@@ -97,7 +97,7 @@ Sequence.prototype.update = function(info) {
     if (Object.keys(info).length > 0) {
 
         
-        if (prev == "new") {
+        if (!(prev in info)) {
         
             // Select the last (most recent) available sequence if none was selected
             $("#seqgen").val(info[id].generator[0]);

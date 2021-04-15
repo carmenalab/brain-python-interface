@@ -39,12 +39,9 @@ class Conditions(Sequence):
     def _start_trial(self):
         self.sync_event('TRIAL_START', self.trial_index)
 
-    def _start_wait(self):
+    def _end_trial(self):
+        self.sync_event('TRIAL_END')
         super()._start_wait()
-        if self.calc_trial_num() == 0:
-            self.sync_event('EXP_START')
-        else:
-            self.sync_event('TRIAL_END')
 
     @staticmethod
     def gen_random_conditions(nreps, *args, replace=False):

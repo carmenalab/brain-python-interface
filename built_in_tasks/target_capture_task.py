@@ -284,12 +284,12 @@ class ScreenTargetCapture(TargetCapture, Window):
 
     # Runtime settable traits
     target_radius = traits.Float(2, desc="Radius of targets in cm")
-    target_color = traits.OptionsList(tuple(target_colors.keys()), desc="Color of the target")
+    target_color = traits.OptionsList(*target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
-    cursor_color = traits.Tuple((0.8, 0., 0.8, 1.), desc='Color of cursor endpoint')
+    cursor_color = traits.Tuple((1., 0.5, 1., 1.), desc='Color of cursor endpoint')
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
 
@@ -366,9 +366,6 @@ class ScreenTargetCapture(TargetCapture, Window):
             super().run()
         finally:
             self.plant.stop()
-            time.sleep(1./self.fps) # Make sure the previous cycle is for sure over
-            self.sync_event('EXP_END', event_data=0, immediate=True) # Signal the end of the experiment, even if it crashed
-
 
     ##### HELPER AND UPDATE FUNCTIONS ####
     def update_plant_visibility(self):
@@ -405,11 +402,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             for target in self.targets:
                 for model in target.graphics_models:
                     self.add_model(model)
-            
-            # Show the cursor
-            
-
-            self.sync_event('EXP_START')
+                    target.hide()
 
     def _start_target(self):
         super()._start_target()
@@ -601,7 +594,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             The number of target chains in the sequence.
         chain_length : int
             The number of targets in each chain
-        boundaries: 6 element Tuple
+        boundaries: 4 element Tuple
             The limits of the allowed target locations (-x, x, -z, z)
 
         Returns
