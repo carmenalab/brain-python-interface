@@ -89,7 +89,8 @@ class NIDAQSync(traits.HasTraits):
         Send a sync event through NIDAQ on the next cycle, unless 'immediate' flag is set
         '''
         if self.has_sync_event:
-            raise Exception("Cannot sync more than 1 event per cycle")
+            print("Warning: Cannot sync more than 1 event per cycle")
+            print("Overwriting {} with {} event".format(self.sync_event_record['event'], event_name))
 
         # digital output
         code = encode_event(self.sync_params['event_sync_dict'], event_name, min(event_data, self.sync_params['event_sync_max_data']))
@@ -102,6 +103,7 @@ class NIDAQSync(traits.HasTraits):
             pulse = DigitalWave(self.sync_gpio, mask=0xffffff, data=self.sync_event_record['code'])
             pulse.set_pulse(self.sync_params['sync_pulse_width'], True)
             pulse.start()
+            self.has_sync_event = False
         else:
             self.has_sync_event = True
 

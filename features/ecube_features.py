@@ -83,8 +83,6 @@ class RecordECube(traits.HasTraits):
         super().pre_init(saveid=saveid, **kwargs)
 
     def run(self):
-        print(self.ecube_status)
-        print("Hello from run inside ecube features")
         if not self.ecube_status in ["testing", "recording"]:
             raise ConnectionError(self.ecube_status)
         super().run()
