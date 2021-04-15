@@ -65,7 +65,7 @@ class Conditions(Sequence):
         return tuple(zip(*seq))
 
     @staticmethod
-    def null_sequence(ntrials):
+    def null_sequence(ntrials=100):
         return range(ntrials)
 
 class LaserConditions(Conditions):

@@ -1,6 +1,9 @@
 import time
+import os
 from datetime import datetime
 from riglib.experiment import traits
+
+ecube_path = "/media/NeuroAcq" # TODO this should be configurable elsewhere
 
 def make_ecube_session_name(saveid):
     now = datetime.now()
@@ -43,10 +46,11 @@ class RecordECube(traits.HasTraits):
         print("Saving ecube file to database...")
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         suffix = '' # note: database functions don't take keyword arguements like custom_suffix=suffix
+        filepath = os.path.join(ecube_path, ecube_session)
         if dbname == 'default':
-            database.save_data(ecube_session, "ecube", saveid, False, False, suffix) # make sure to add the ecube datasource!
+            database.save_data(filepath, "ecube", saveid, False, False, suffix) # make sure to add the ecube datasource!
         else:
-            database.save_data(ecube_session, "ecube", saveid, False, False, suffix, dbname=dbname)
+            database.save_data(filepath, "ecube", saveid, False, False, suffix, dbname=dbname)
         return super_result
 
     
