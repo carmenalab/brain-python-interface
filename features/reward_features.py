@@ -59,8 +59,8 @@ class RewardAudio(traits.HasTraits):
     reward_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each reward")
 
     def __init__(self, *args, **kwargs):
-        self.reward_player = AudioPlayer(self.reward_sound)
         super().__init__(*args, **kwargs)
+        self.reward_player = AudioPlayer(self.reward_sound)
 
     def _start_reward(self):
         if hasattr(super(), '_start_reward'):
@@ -72,8 +72,8 @@ class PenaltyAudio(traits.HasTraits):
     penalty_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each penalty")
 
     def __init__(self, *args, **kwargs):
-        self.penalty_player = AudioPlayer(self.penalty_sound)
         super().__init__(*args, **kwargs)
+        self.penalty_player = AudioPlayer(self.penalty_sound)
 
     def _start_hold_penalty(self):
         if hasattr(super(), '_start_hold_penalty'):
