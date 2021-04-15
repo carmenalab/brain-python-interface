@@ -320,9 +320,6 @@ class ScreenTargetCapture(TargetCapture, Window):
             target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
 
             self.targets = [target1, target2]
-            for target in self.targets:
-                for model in target.graphics_models:
-                    self.add_model(model)
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -363,6 +360,8 @@ class ScreenTargetCapture(TargetCapture, Window):
         '''
         # Fire up the plant. For virtual/simulation plants, this does little/nothing.
         self.plant.start()
+        
+        # Include some cleanup in case the parent class has errors
         try:
             super().run()
         finally:
@@ -401,10 +400,16 @@ class ScreenTargetCapture(TargetCapture, Window):
         super()._start_wait()
 
         if self.calc_trial_num() == 0:
-            self.sync_event('EXP_START')
+
+            # Instantiate the targets here so they don't show up in any states that might come before "wait"
             for target in self.targets:
-                target.hide()
-                target.reset()
+                for model in target.graphics_models:
+                    self.add_model(model)
+            
+            # Show the cursor
+            
+
+            self.sync_event('EXP_START')
 
     def _start_target(self):
         super()._start_target()
