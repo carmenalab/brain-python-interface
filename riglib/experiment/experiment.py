@@ -213,7 +213,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         '''
         pass
 
-    def sync_event(self, event_name, event_data=None):
+    def sync_event(self, event_name, event_data=None, immediate=False):
         '''
         Stub function for sending sync signals to various devices. Could be digital triggers to a recording system
         or markers on a screen measured by photodiode, for example. Implemented in features.sync_features
@@ -538,9 +538,14 @@ class Experiment(ThreadedFSM, traits.HasTraits):
             traits = self.class_editable_traits()
             h5file = tables.open_file(self.h5file.name, mode='a')
             
+            # Create an empty task database if there isn't one already (may be empty if there was no task data)
+            if not hasattr(h5file.root, "task"):
+                h5file.create_table("/", "task", 0., 'Nothing to see here')
+
+            # Append to task data metadata
             for trait in traits:
                 if (trait not in self.object_trait_names): # don't save traits which are complicated python objects to the HDF file
-                    h5file.root.task.attrs[trait] = getattr(self, trait) # append to task data metadata
+                    h5file.root.task.attrs[trait] = getattr(self, trait) 
             h5file.close()
 
     def terminate(self):

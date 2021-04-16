@@ -1,5 +1,9 @@
 import time
+import os
 from datetime import datetime
+from riglib.experiment import traits
+
+ecube_path = "/media/NeuroAcq" # TODO this should be configurable elsewhere
 
 def make_ecube_session_name(saveid):
     now = datetime.now()
@@ -7,7 +11,12 @@ def make_ecube_session_name(saveid):
     number = str(saveid) if saveid else "Test"
     return session + "_BMI3D_te" + number
 
-class RecordECube():
+class RecordECube(traits.HasTraits):
+
+    record_headstage = traits.Bool(False, desc="Should we record headstage data?")
+    headstage_connector = traits.Int(7, desc="Which headstage input to record (1-indexed)")
+    headstage_channels = traits.Tuple((1, 1), desc="Range of headstage channels to record (1-indexed)")
+    ecube_status = None
 
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -19,8 +28,9 @@ class RecordECube():
         ecube_session = make_ecube_session_name(saveid) # usually correct, but might be wrong if running overnight!
 
         # Stop recording
+        time.sleep(1) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
         try:
-            ec = pyeCubeStream.eCubeStream()
+            ec = pyeCubeStream.eCubeStream(debug=True)
             active = ec.listremotesessions()
             for session in active:
                 if str(saveid) in session:
@@ -36,18 +46,20 @@ class RecordECube():
         print("Saving ecube file to database...")
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         suffix = '' # note: database functions don't take keyword arguements like custom_suffix=suffix
+        filepath = os.path.join(ecube_path, ecube_session)
         if dbname == 'default':
-            database.save_data(ecube_session, "ecube", saveid, False, False, suffix) # make sure to add the ecube datasource!
+            database.save_data(filepath, "ecube", saveid, False, False, suffix) # make sure to add the ecube datasource!
         else:
-            database.save_data(ecube_session, "ecube", saveid, False, False, suffix, dbname=dbname)
+            database.save_data(filepath, "ecube", saveid, False, False, suffix, dbname=dbname)
         return super_result
 
     
     @classmethod
-    def pre_init(cls, saveid=None):
+    def pre_init(cls, saveid=None, record_headstage=False, headstage_connector=None, headstage_channels=None, **kwargs):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
+        cls.ecube_status = None
         if saveid is not None:
             from riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
@@ -55,22 +67,32 @@ class RecordECube():
                 ec = pyeCubeStream.eCubeStream(debug = True)
                 ec.add(('AnalogPanel',))
                 ec.add(('DigitalPanel',))
+                if record_headstage:
+                    ec.add(('Headstages', headstage_connector, headstage_channels))
                 ec.remotesave(session_name)
                 active_sessions = ec.listremotesessions()
             except Exception as e:
                 print(e)
                 active_sessions = []
-            if session_name not in active_sessions:
-                raise Exception("Could not start eCube recording. Make sure servernode is running!")
-        super().pre_init(saveid=saveid)
+            if session_name in active_sessions:
+                cls.ecube_status = "recording"
+            else:
+                cls.ecube_status = "Could not start eCube recording. Make sure servernode is running!"
+        else:
+            cls.ecube_status = "testing"
+        super().pre_init(saveid=saveid, **kwargs)
 
+    def run(self):
+        if not self.ecube_status in ["testing", "recording"]:
+            raise ConnectionError(self.ecube_status)
+        super().run()
 
 class TestExperiment():
     state = None
     def __init__(self, *args, **kwargs):
         pass
 
-    def pre_init(saveid):
+    def pre_init(saveid, **kwargs):
         pass
 
     def start(self):

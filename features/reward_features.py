@@ -27,8 +27,11 @@ class RewardSystem(traits.HasTraits):
         from riglib import reward
         super().__init__(*args, **kwargs)
         self.reward = reward.open()
+
+    def run(self):
         if self.reward is None:
             raise Exception('Reward system could not be activated')
+        super().run()
 
     def _start_reward(self):
         if hasattr(super(), '_start_reward'):
@@ -56,13 +59,36 @@ class RewardAudio(traits.HasTraits):
     reward_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each reward")
 
     def __init__(self, *args, **kwargs):
-        self.reward_player = AudioPlayer(self.reward_sound)
         super().__init__(*args, **kwargs)
+        self.reward_player = AudioPlayer(self.reward_sound)
 
     def _start_reward(self):
         if hasattr(super(), '_start_reward'):
             super()._start_reward()
         self.reward_player.play()
+
+class PenaltyAudio(traits.HasTraits):
+    files = list(reversed([f for f in os.listdir('../riglib/audio') if '.wav' in f]))
+    penalty_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each penalty")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.penalty_player = AudioPlayer(self.penalty_sound)
+
+    def _start_hold_penalty(self):
+        if hasattr(super(), '_start_hold_penalty'):
+            super()._start_hold_penalty()
+        self.penalty_player.play()
+    
+    def _start_delay_penalty(self):
+        if hasattr(super(), '_start_delay_penalty'):
+            super()._start_delay_penalty()
+        self.penalty_player.play()
+    
+    def _start_timeout_penalty(self):
+        if hasattr(super(), '_start_timeout_penalty'):
+            super()._start_timeout_penalty()
+        self.penalty_player.play()
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 

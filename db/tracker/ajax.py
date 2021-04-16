@@ -278,9 +278,6 @@ def start_experiment(request, save=True, execute=True):
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(task.get(feats=feature_names), experiment.Sequence):
-            print("creating seq")
-            print("data['sequence'] POST data")
-            print(data['sequence'])
             seq = Sequence.from_json(data['sequence'])
             seq.task = task
             if save:

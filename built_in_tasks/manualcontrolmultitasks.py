@@ -12,7 +12,7 @@ import traceback
 from riglib.experiment import traits
 
 from .target_graphics import *
-from .target_capture_task import ScreenTargetCapture
+from .target_capture_task import ScreenTargetCapture, ReachDirectionMixin
 from riglib.stereo_opengl.window import WindowDispl2D
 
 
@@ -47,7 +47,7 @@ class ManualControl(ScreenTargetCapture):
     wait_time = traits.Float(2., desc="Time between successful trials")
     velocity_control = traits.Bool(False, desc="Position or velocity control")
     random_rewards = traits.Bool(False, desc="Add randomness to reward")
-    rotation = traits.OptionsList(tuple(rotations.keys()), desc="Control rotation matrix")
+    rotation = traits.OptionsList(*rotations, desc="Control rotation matrix", bmi3d_input_options=list(rotations.keys()))
     scale = traits.Float(1.0, desc="Control scale factor")
     offset = traits.Array(value=[0,0,0], desc="Control offset")
     is_bmi_seed = True
@@ -185,3 +185,9 @@ class ManualControl2DWindow(ManualControl, WindowDispl2D):
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
 
+
+class ManualControlDirectionConstraint(ReachDirectionMixin, ManualControl):
+    '''
+    Adds an additional constraint that the direction of travel must be within a certain angle
+    '''
+    pass

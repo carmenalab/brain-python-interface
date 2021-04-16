@@ -2,27 +2,18 @@
 Tasks which control a plant under pure machine control. Used typically for initializing BMI decoder parameters.
 '''
 import numpy as np
-import time
 import os
-import pdb
-import multiprocessing as mp
-import pickle
 import tables
-import re
-import tempfile, traceback, datetime
-import pygame
+import time
 
-import riglib.bmi
-from riglib.stereo_opengl import ik
-from riglib.experiment import traits, experiment
-from riglib.bmi import clda, assist, extractor, train, goal_calculators, ppfdecoder
-from riglib.bmi.bmi import Decoder, BMISystem, GaussianStateHMM, BMILoop, GaussianState, MachineOnlyFilter
+from riglib.experiment import traits
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D
+from riglib.bmi.bmi import Decoder, BMILoop, MachineOnlyFilter
 from riglib.bmi.extractor import DummyExtractor
-from riglib.stereo_opengl.window import Window, WindowDispl2D, FakeWindow
-from riglib.experiment import Sequence
+from riglib.stereo_opengl.window import Window, WindowDispl2D
 
+from built_in_tasks.manualcontrolmultitasks import ScreenTargetCapture
 from built_in_tasks.bmimultitasks import BMIControlMulti
-from built_in_tasks.target_graphics import VirtualCircularTarget, target_colors
 
 bmi_ssm_options = ['Endpt2D', 'Tentacle', 'Joint2L']
 
@@ -78,3 +69,65 @@ class TargetCaptureVFB2DWindow(TargetCaptureVisualFeedback, WindowDispl2D):
             return "{} rewarded trials in {} min".format(reward_count, int(np.ceil(duration / 60)))
         else:
             return "No trials"
+
+class TargetCaptureReplay(ScreenTargetCapture):
+    '''
+    Reads the frame-by-frame cursor and trial-by-trial target positions from a saved
+    HDF file to display an exact copy of a previous experiment. 
+    Doesn't really work, do not recommend using this.
+    '''
+
+    hdf_filepath = traits.String("", desc="Filepath of hdf file to replay")
+
+    exclude_parent_traits = list(set(ScreenTargetCapture.class_traits().keys()) - \
+        set(['window_size', 'fullscreen']))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.t0 = time.perf_counter()
+        with tables.open_file(self.hdf_filepath, 'r') as f:
+            task = f.root.task.read()
+            state = f.root.task_msgs.read()
+            trial = f.root.trials.read()
+            params = f.root.task.attrs._f_list("user")
+            task_meta = {k : getattr(f.root.task.attrs, k) for k in params}
+        self.replay_state = state
+        self.replay_task = task
+        self.replay_trial = trial
+        for k, v in task_meta.items():
+            if k in self.exclude_parent_traits:
+                setattr(self, k, v)
+
+        # Have to additionally rest the targets since they are created in super().__init__()
+        for target in self.targets:
+            target.sphere.radius = task_meta['target_radius']
+            target.sphere.color = task_meta['target_color']
+
+    def _test_start_trial(self, time_in_state):
+        '''Wait for the state change in the HDF file in case there is autostart enabled'''
+        trials = self.replay_state[self.replay_state['msg'] == b'target']
+        upcoming_trials = [t['time'] for t in trials if self.replay_task[t['time']]['trial'] > self.calc_trial_num()]
+        return (np.array(upcoming_trials) <= self.cycle_count).any()
+
+    def _parse_next_trial(self):
+        '''Ignore the generator'''
+        self.targs = []
+        self.gen_indices = []
+        trial_num = self.calc_trial_num()
+        for trial in self.replay_trial:
+            if trial['trial'] == trial_num:
+                self.targs.append(trial['target'])
+                self.gen_indices.append(trial['index'])
+
+    def _cycle(self):
+        '''Have to fudge the cycle_count a bit in case the fps isn't exactly the same'''
+        super()._cycle()
+        t1 = time.perf_counter() - self.t0
+        self.cycle_count = int(t1*self.fps)
+
+    def move_effector(self):
+        current_pt = self.replay_task['cursor'][self.cycle_count]
+        self.plant.set_endpoint_pos(current_pt)
+
+    def _test_stop(self, ts):
+        return super()._test_stop(ts) or self.cycle_count == len(self.replay_task)

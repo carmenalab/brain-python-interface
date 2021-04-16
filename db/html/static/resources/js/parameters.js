@@ -141,6 +141,8 @@ Parameters.prototype.add_tuple = function(name, info) {
                 input.value = JSON.stringify(info['value'][i]);
             else
                 input.value = info['value'][i];
+        if (input.value == input.placeholder)
+            input.value = null
         wrapper.appendChild(input);
         this.traits[name]['inputs'].push(input);
     }
@@ -170,7 +172,6 @@ Parameters.prototype.add_int = function (name, info) {
     input.type = "number";
     input.name = name;
     input.id = "param_"+name;
-    input.title = "An integer value"
     if (typeof(info['value']) != "undefined")
         input.value = info['value'];
     else
@@ -188,13 +189,14 @@ Parameters.prototype.add_float = function (name, info) {
     input.type = "text";
     input.name = name;
     input.id = "param_"+name;
-    input.title = "A floating point value";
     input.pattern = "-?[0-9]*\.?[0-9]*";
     input.placeholder = info['default'];
     if (typeof(info['value']) == "string")
         input.value = info.value;
     else if (typeof(info['value']) != "undefined")
         input.value = JSON.stringify(info.value);
+    if (input.value == input.placeholder)
+        input.value = null
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_bool = function (name, info) {
@@ -209,7 +211,6 @@ Parameters.prototype.add_bool = function (name, info) {
     input.type = "checkbox";
     input.name = name;
     input.id = "param_"+name;
-    input.title = "A boolean value"
     if (typeof(info['value']) != "undefined")
         input.checked=info['value'];
     else
@@ -232,12 +233,13 @@ Parameters.prototype.add_array = function (name, info) {
         input.type = "text";
         input.name = name;
         input.id = "param_"+name;
-        input.title = "An array value";
         input.placeholder = info['default'];
         if (typeof(info['value']) == "string")
             input.value = info['value'];
         else if (typeof(info['value']) != "undefined")
             input.value = JSON.stringify(info['value']);
+        if (input.value == input.placeholder)
+            input.value = null
         input.pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
         this.traits[name] = {"obj":trait, "inputs":[input]};
     }
@@ -257,6 +259,8 @@ Parameters.prototype.add_string = function (name, info) {
     if (typeof(info['value']) != "undefined") {
         input.setAttribute("value", info['value']);
     }
+    if (input.value == input.placeholder)
+        input.value = null
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
 Parameters.prototype.add_instance = function(name, info) {

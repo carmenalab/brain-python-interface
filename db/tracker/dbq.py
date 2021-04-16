@@ -21,6 +21,8 @@ from .models import TaskEntry, Subject, Calibration, System, DataFile, Decoder
 import pickle
 import tempfile
 
+from riglib.mp_calc import MultiprocShellCommand
+
 def save_log(idx, log, dbname='default'):
     entry = TaskEntry.objects.using(dbname).get(pk=idx)
     entry.report = json.dumps(log)
@@ -54,26 +56,28 @@ def save_data(curfile, system, entry, move=True, local=True, custom_suffix=None,
     num = enums[entry]
 
     if move:
-        dataname = "{subj}{time}_{num:02}_te{id}.{suff}".format(
+
+        # Set the new filename and filepath
+        permfile = "{subj}{time}_{num:02}_te{id}.{suff}".format(
             subj=entry.subject.name[:4].lower(),
             time=time.strftime('%Y%m%d'), num=num+1,
             id=entry.id, suff=suff
         )
-        if system != 'blackrock2':
-            fullname = os.path.join(sys.path, dataname)
-            sys_path = sys.path
-        else:
-            fullname = os.path.join('/storage/rawdata/blackrock', dataname)
+        if system == 'blackrock2':
+            fullname = os.path.join('/storage/rawdata/blackrock', permfile)
             sys_path = '/storage/rawdata/blackrock'
             print('BLACKROCK SYSTEM: ')
-        permfile = dataname
+        else:
+            fullname = os.path.join(sys.path, permfile)
+            sys_path = sys.path
 
+        # Move or copy or rsync the file
         if os.path.abspath(sys_path) == os.path.abspath(os.path.split(curfile)[0]):
             print("moving file...")
-            os.rename(curfile, fullname)
-        elif not os.path.exists(fullname):
+            os.rename(curfile, fullname) # from sys_path to sys_path
+        elif os.path.exists(sys_path) and not os.path.exists(fullname):
             print("copying file...")
-            shutil.copy2(curfile, os.path.join(sys_path, dataname))
+            shutil.copy2(curfile, os.path.join(sys_path, permfile)) # from somewhere to sys_path
         else:
             raise ValueError('Will not overwrite existing files')
     else:

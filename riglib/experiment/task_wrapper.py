@@ -59,7 +59,7 @@ class TaskWrapper(RPCProcess):
         Task = self.target_class
 
         # Run commands which must be executed before the experiment class can be instantiated (e.g., starting neural recording)
-        self.target_class.pre_init(saveid=saveid)
+        self.target_class.pre_init(saveid=saveid, **self.params)
 
         self.log_str("Constructing task target")
         self.params['saveid'] = saveid

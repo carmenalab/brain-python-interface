@@ -33,17 +33,19 @@ class TargetCapture(Sequence):
     This is a generic cued target capture skeleton, to form as a common ancestor to the most
     common type of motor control task.
     '''
-    status = FSMTable(
-        wait = StateTransitions(start_trial="target"),
-        target = StateTransitions(enter_target="hold", timeout="timeout_penalty"),
-        hold = StateTransitions(leave_early="hold_penalty", hold_complete="targ_transition"),
-        targ_transition = StateTransitions(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
-        timeout_penalty = StateTransitions(timeout_penalty_end="targ_transition", end_state=True),
-        hold_penalty = StateTransitions(hold_penalty_end="targ_transition", end_state=True),
-        reward = StateTransitions(reward_end="wait", stoppable=False, end_state=True)
+    status = dict(
+        wait = dict(start_trial="target"),
+        target = dict(enter_target="hold", timeout="timeout_penalty"),
+        hold = dict(leave_target="hold_penalty", hold_complete="delay"),
+        delay = dict(leave_target="delay_penalty", delay_complete="targ_transition"),
+        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
+        timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
+        hold_penalty = dict(hold_penalty_end="targ_transition", end_state=True),
+        delay_penalty = dict(delay_penalty_end="targ_transition", end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
-    trial_end_states = ['reward', 'timeout_penalty', 'hold_penalty']
+    trial_end_states = ['reward', 'timeout_penalty', 'delay_penalty', 'hold_penalty']
 
     # initial state
     state = "wait"
@@ -54,8 +56,10 @@ class TargetCapture(Sequence):
     sequence_generators = []
 
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
-    hold_time = traits.Float(.2, desc="Length of hold required at targets")
+    hold_time = traits.Float(.2, desc="Length of hold required at targets before next target appears")
     hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
+    delay_time = traits.Float(0, desc="Length of time after a hold while the next target is on before the go cue")
+    delay_penalty_time = traits.Float(1, desc="Length of penalty time for delay error")
     timeout_time = traits.Float(10, desc="Time allowed to go between targets")
     timeout_penalty_time = traits.Float(1, desc="Length of penalty time for timeout error")
     max_attempts = traits.Int(10, desc='The number of attempts at a target before\
@@ -112,6 +116,18 @@ class TargetCapture(Sequence):
         '''Nothing generic to do.'''
         pass
 
+    def _start_delay(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _while_delay(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _end_delay(self):
+        '''Nothing generic to do.'''
+        pass
+
     def _start_targ_transition(self):
         '''Nothing generic to do. Child class might show/hide targets'''
         pass
@@ -124,7 +140,7 @@ class TargetCapture(Sequence):
         '''Nothing generic to do.'''
         pass
 
-    def _start_timeout_penalty(self):
+    def _increment_tries(self):
         self.tries += 1
         self.target_index = -1
 
@@ -134,6 +150,9 @@ class TargetCapture(Sequence):
                 self.trial_record['index'] = self.gen_indices[i]
                 self.trial_record['target'] = self.targs[i]
                 self.sinks.send("trials", self.trial_record)
+
+    def _start_timeout_penalty(self):
+        self._increment_tries()
 
     def _while_timeout_penalty(self):
         '''Nothing generic to do.'''
@@ -144,21 +163,24 @@ class TargetCapture(Sequence):
         pass
 
     def _start_hold_penalty(self):
-        self.tries += 1
-        self.target_index = -1
-
-        if self.tries < self.max_attempts: 
-            self.trial_record['trial'] += 1
-            for i in range(len(self.gen_indices)):
-                self.trial_record['index'] = self.gen_indices[i]
-                self.trial_record['target'] = self.targs[i]
-                self.sinks.send("trials", self.trial_record)
+        self._increment_tries()
 
     def _while_hold_penalty(self):
         '''Nothing generic to do.'''
         pass
 
     def _end_hold_penalty(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _start_delay_penalty(self):
+        self._increment_tries()
+
+    def _while_delay_penalty(self):
+        '''Nothing generic to do.'''
+        pass
+
+    def _end_delay_penalty(self):
         '''Nothing generic to do.'''
         pass
 
@@ -198,6 +220,14 @@ class TargetCapture(Sequence):
         '''
         return time_in_state > self.hold_time
 
+    def _test_delay_complete(self, time_in_state):
+        '''
+        Test whether the delay period, when the cursor must stay in place
+        while another target is being presented, is over. There should be 
+        no delay on the last target in a chain.
+        '''
+        return self.target_index + 1 == self.chain_length or time_in_state > self.delay_time
+
     def _test_trial_complete(self, time_in_state):
         '''Test whether all targets in sequence have been acquired'''
         return self.target_index == self.chain_length-1
@@ -216,6 +246,9 @@ class TargetCapture(Sequence):
     def _test_hold_penalty_end(self, time_in_state):
         return time_in_state > self.hold_penalty_time
 
+    def _test_delay_penalty_end(self, time_in_state):
+        return time_in_state > self.delay_penalty_time
+
     def _test_reward_end(self, time_in_state):
         return time_in_state > self.reward_time
 
@@ -223,7 +256,7 @@ class TargetCapture(Sequence):
         '''This function is task-specific and not much can be done generically'''
         return False
 
-    def _test_leave_early(self, time_in_state):
+    def _test_leave_target(self, time_in_state):
         '''This function is task-specific and not much can be done generically'''
         return False
 
@@ -245,27 +278,18 @@ class ScreenTargetCapture(TargetCapture, Window):
         'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
     ]
 
-    hidden_traits = Window.hidden_traits + ['target_color', 'plant_hide_rate', 'starting_pos']
+    hidden_traits = Window.hidden_traits + ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
 
     is_bmi_seed = True
 
     # Runtime settable traits
-    reward_time = traits.Float(.5, desc="Length of juice reward")
     target_radius = traits.Float(2, desc="Radius of targets in cm")
-    target_color = traits.OptionsList(tuple(target_colors.keys()), desc="Color of the target")
-
-    hold_time = traits.Float(.2, desc="Length of hold required at targets")
-    hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
-    timeout_time = traits.Float(10, desc="Time allowed to go between targets")
-    timeout_penalty_time = traits.Float(1, desc="Length of penalty time for timeout error")
-    max_attempts = traits.Int(10, desc='The number of attempts at a target before\
-        skipping to the next one')
-
+    target_color = traits.OptionsList(*target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
-    cursor_color = traits.Tuple((0.5, 0., 0.5, 1.), desc='Color of cursor endpoint')
+    cursor_color = traits.Tuple((1., 0.5, 1., 1.), desc='Color of cursor endpoint')
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
 
@@ -296,9 +320,6 @@ class ScreenTargetCapture(TargetCapture, Window):
             target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
 
             self.targets = [target1, target2]
-            for target in self.targets:
-                for model in target.graphics_models:
-                    self.add_model(model)
 
         # Declare any plant attributes which must be saved to the HDF file at the _cycle rate
         for attr in self.plant.hdf_attrs:
@@ -339,6 +360,8 @@ class ScreenTargetCapture(TargetCapture, Window):
         '''
         # Fire up the plant. For virtual/simulation plants, this does little/nothing.
         self.plant.start()
+        
+        # Include some cleanup in case the parent class has errors
         try:
             super().run()
         finally:
@@ -360,7 +383,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         d = np.linalg.norm(cursor_pos - self.targs[self.target_index])
         return d <= (self.target_radius - self.cursor_radius)
 
-    def _test_leave_early(self, ts):
+    def _test_leave_target(self, ts):
         '''
         return true if cursor moves outside the exit radius
         '''
@@ -374,10 +397,12 @@ class ScreenTargetCapture(TargetCapture, Window):
         super()._start_wait()
 
         if self.calc_trial_num() == 0:
-            self.sync_event('EXP_START')
+
+            # Instantiate the targets here so they don't show up in any states that might come before "wait"
             for target in self.targets:
-                target.hide()
-                target.reset()
+                for model in target.graphics_models:
+                    self.add_model(model)
+                    target.hide()
 
     def _start_target(self):
         super()._start_target()
@@ -391,6 +416,10 @@ class ScreenTargetCapture(TargetCapture, Window):
 
     def _start_hold(self):
         super()._start_hold()
+        self.sync_event('CURSOR_ENTER_TARGET', self.gen_indices[self.target_index])
+
+    def _start_delay(self):
+        super()._start_delay()
 
         # Make next target visible unless this is the final target in the trial
         next_idx = (self.target_index + 1)
@@ -400,7 +429,8 @@ class ScreenTargetCapture(TargetCapture, Window):
             target.show()
             self.sync_event('TARGET_ON', self.gen_indices[next_idx])
         else:
-            self.sync_event('CURSOR_ENTER_TARGET', self.gen_indices[self.target_index])
+            # This delay state should only last 1 cycle, don't sync anything
+            pass
 
     def _start_targ_transition(self):
         super()._start_targ_transition()
@@ -415,7 +445,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             self.sync_event('TARGET_OFF', self.gen_indices[self.target_index])
 
     def _start_hold_penalty(self):
-        self.sync_event('HOLD_PENALTY', 0) 
+        self.sync_event('HOLD_PENALTY') 
         super()._start_hold_penalty()
         # Hide targets
         for target in self.targets:
@@ -425,9 +455,21 @@ class ScreenTargetCapture(TargetCapture, Window):
     def _end_hold_penalty(self):
         super()._end_hold_penalty()
         self.sync_event('TRIAL_END')
+
+    def _start_delay_penalty(self):
+        self.sync_event('DELAY_PENALTY') 
+        super()._start_delay_penalty()
+        # Hide targets
+        for target in self.targets:
+            target.hide()
+            target.reset()
+
+    def _end_delay_penalty(self):
+        super()._end_delay_penalty()
+        self.sync_event('TRIAL_END')
         
     def _start_timeout_penalty(self):
-        self.sync_event('TIMEOUT_PENALTY', 0)
+        self.sync_event('TIMEOUT_PENALTY')
         super()._start_timeout_penalty()
         # Hide targets
         for target in self.targets:
@@ -440,7 +482,6 @@ class ScreenTargetCapture(TargetCapture, Window):
 
     def _start_reward(self):
         self.targets[self.target_index % 2].cue_trial_end_success()
-
         self.sync_event('REWARD')
     
     def _end_reward(self):
@@ -453,6 +494,14 @@ class ScreenTargetCapture(TargetCapture, Window):
             target.reset()
 
     #### Generator functions ####
+    '''
+    Note to self: because of the way these get into the database, the parameters don't
+    have human-readable descriptions like the other traits. So it is useful to define
+    the descriptions elsewhere, in models.py under Generator.to_json().
+
+    Ideally someone should take the time to reimplement generators as their own classes
+    rather than static methods that belong to a task.
+    '''
     @staticmethod
     def static(pos=(0,0,0), ntrials=0):
         '''Single location, finite (ntrials!=0) or infinite (ntrials==0)'''
@@ -545,7 +594,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             The number of target chains in the sequence.
         chain_length : int
             The number of targets in each chain
-        boundaries: 6 element Tuple
+        boundaries: 4 element Tuple
             The limits of the allowed target locations (-x, x, -z, z)
 
         Returns
@@ -590,3 +639,60 @@ class ScreenTargetCapture(TargetCapture, Window):
             pts = pts+(boundaries[0], boundaries[2], boundaries[4])
             yield idx+np.arange(chain_length), pts
             idx += chain_length
+
+class ReachDirectionMixin(traits.HasTraits):
+    '''
+    A feature that requires the cursor to move in the right direction or else
+    a penalty is applied.
+    '''
+
+    max_reach_angle = traits.Float(90., desc="Angle defining the boundaries between \
+        the starting position of the cursor and the target.")
+    reach_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
+
+
+    def __init__(self, *args, **kwargs):
+        self.status['target']['leave_bounds'] = 'reach_penalty'
+        self.status['reach_penalty'] = dict(reach_penalty_end="targ_transition", end_state=True)
+        super().__init__(*args, **kwargs)
+
+    def _start_target(self):
+        super()._start_target()
+
+        # Define a reach start and reach target position whenever the target appears
+        self.reach_start = self.plant.get_endpoint_pos().copy()
+        self.reach_target = self.targs[self.target_index]
+
+    def _test_leave_bounds(self, ts):
+        '''
+        Check whether the cursor is in the boundary defined by reach_start, target_pos,
+        and max_reach_angle.
+        '''
+
+        # Calculate the angle between the vectors from the start pos to the current cursor and target
+        a = self.plant.get_endpoint_pos() - self.reach_start
+        b = self.reach_target - self.reach_start
+        cursor_target_angle = np.arccos(np.dot(a, b)/np.linalg.norm(a)/np.linalg.norm(b))
+
+        # If that angle is more than half the maximum, we are outside the bounds
+        out_of_bounds = np.degrees(cursor_target_angle) > self.max_reach_angle / 2
+
+        # But also allow a target radius around the reach_start 
+        away_from_start = np.linalg.norm(self.plant.get_endpoint_pos() - self.reach_start) > self.target_radius
+
+        return away_from_start and out_of_bounds
+
+    def _test_reach_penalty_end(self, ts):
+        return ts > self.reach_penalty_time
+
+    def _start_reach_penalty(self):
+        self.sync_event('OTHER_PENALTY')
+        self._increment_tries()
+        
+        # Hide targets
+        for target in self.targets:
+            target.hide()
+            target.reset()
+
+    def _end_reach_penalty(self):
+        self.sync_event('TRIAL_END')
