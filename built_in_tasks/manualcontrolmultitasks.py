@@ -12,7 +12,7 @@ import traceback
 from riglib.experiment import traits
 
 from .target_graphics import *
-from .target_capture_task import ScreenTargetCapture, ReachDirectionMixin
+from .target_capture_task import ScreenTargetCapture, ScreenReachAngle
 from riglib.stereo_opengl.window import WindowDispl2D
 
 
@@ -38,7 +38,7 @@ rotations = dict(
     xyz = np.identity(4),
 )
 
-class ManualControl(ScreenTargetCapture):
+class ManualControlMixin(traits.HasTraits):
     '''Target capture task where the subject operates a joystick
     to control a cursor. Targets are captured by having the cursor
     dwell in the screen target for the allotted time'''
@@ -53,7 +53,7 @@ class ManualControl(ScreenTargetCapture):
     is_bmi_seed = True
 
     def __init__(self, *args, **kwargs):
-        super(ManualControl, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.current_pt=np.zeros([3]) #keep track of current pt
         self.last_pt=np.zeros([3]) #keep track of last pt to calc. velocity
         self.no_data_count = 0
@@ -65,7 +65,7 @@ class ManualControl(ScreenTargetCapture):
         super().init()
 
     def update_report_stats(self):
-        super(ManualControl, self).update_report_stats()
+        super().update_report_stats()
         rt = self.calc_time_since_last_event('reward')
         mins = str(np.int(np.floor(rt/60)))
         sec = str(np.int(np.mod(rt,60)))
@@ -171,22 +171,13 @@ class ManualControl(ScreenTargetCapture):
             log_summary['n_success_trials'], log_summary['n_trials'], duration)
 
 
-class ManualControl2DWindow(ManualControl, WindowDispl2D):
-    '''Seems redundant with 2D display feature. Not used any more'''
+class ManualControl(ManualControlMixin, ScreenTargetCapture):
+    '''
+    Slightly refactored original manual control task
+    '''
+    pass
 
-    fps = 20.
-    def __init__(self,*args, **kwargs):
-        super(ManualControl2DWindow, self).__init__(*args, **kwargs)
-
-    def _start_wait(self):
-        self.wait_time = 0.
-        super(ManualControl2DWindow, self)._start_wait()
-
-    def _test_start_trial(self, ts):
-        return ts > self.wait_time and not self.pause
-
-
-class ManualControlDirectionConstraint(ReachDirectionMixin, ManualControl):
+class ManualControlDirectionConstraint(ManualControlMixin, ScreenReachAngle):
     '''
     Adds an additional constraint that the direction of travel must be within a certain angle
     '''

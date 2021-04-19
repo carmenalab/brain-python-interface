@@ -54,6 +54,9 @@ class RewardSystem(traits.HasTraits):
             super()._end_reward()
 
 class RewardAudio(traits.HasTraits):
+    '''
+    Play a sound in any reward state. Need to add other reward states you want to be included.
+    '''
 
     files = [f for f in os.listdir('../riglib/audio') if '.wav' in f]
     reward_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each reward")
@@ -68,6 +71,10 @@ class RewardAudio(traits.HasTraits):
         self.reward_player.play()
 
 class PenaltyAudio(traits.HasTraits):
+    '''
+    Play a sound in any penalty state. Have to define a new _start method for each different
+    penalty state that might occur.
+    '''
     files = list(reversed([f for f in os.listdir('../riglib/audio') if '.wav' in f]))
     penalty_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each penalty")
 
@@ -83,6 +90,11 @@ class PenaltyAudio(traits.HasTraits):
     def _start_delay_penalty(self):
         if hasattr(super(), '_start_delay_penalty'):
             super()._start_delay_penalty()
+        self.penalty_player.play()
+
+    def _start_reach_penalty(self):
+        if hasattr(super(), '_start_reach_penalty'):
+            super()._start_reach_penalty()
         self.penalty_player.play()
     
     def _start_timeout_penalty(self):

@@ -20,7 +20,7 @@ class Autostart(traits.HasTraits):
     work if there are multiple trials in between wait states.
     '''
     rand_start = traits.Tuple((0., 0.), desc="Start interval")
-    exclude_parent_traits = ['wait_time'] # note this will unfortunately include other excluded traits
+    # exclude_parent_traits = ['wait_time'] # note this will unfortunately include other excluded traits
 
     def _start_wait(self):
         '''

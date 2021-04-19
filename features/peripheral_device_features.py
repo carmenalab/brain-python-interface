@@ -204,13 +204,6 @@ class KeyboardControl(object):
         super().init(*args, **kwargs)
         self.joystick = Keyboard(np.array(self.starting_pos[::2]))
 
-    def _start_wait(self):
-        self.wait_time = 0.
-        super()._start_wait()
-
-    def _test_start_trial(self, ts):
-        return ts > self.wait_time and not self.pause
-
 class Keyboard():
     '''
     Pretend to be a data source

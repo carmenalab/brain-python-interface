@@ -640,21 +640,34 @@ class ScreenTargetCapture(TargetCapture, Window):
             yield idx+np.arange(chain_length), pts
             idx += chain_length
 
-class ReachDirectionMixin(traits.HasTraits):
+class ScreenReachAngle(ScreenTargetCapture):
     '''
-    A feature that requires the cursor to move in the right direction or else
-    a penalty is applied.
+    A modified task that requires the cursor to move in the right direction towards the target, 
+    without actually needing to arrive at the target. If the maximum angle is exceeded, a reach 
+    penalty is applied. No hold or delay period.
+
+    Only works for sequences with 1 target in a chain. 
     '''
 
-    max_reach_angle = traits.Float(90., desc="Angle defining the boundaries between \
-        the starting position of the cursor and the target.")
+    status = dict(
+        wait = dict(start_trial="target"),
+        target = dict(reach_success="targ_transition", timeout="timeout_penalty", leave_bounds="reach_penalty"),
+        targ_transition = dict(trial_complete="reward", trial_abort="wait", trial_incomplete="target"),
+        timeout_penalty = dict(timeout_penalty_end="targ_transition", end_state=True),
+        reach_penalty = dict(reach_penalty_end="targ_transition", end_state=True),
+        reward = dict(reward_end="wait", stoppable=False, end_state=True)
+    )
+
+    sequence_generators = [
+        'out_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
+    ]
+
+    max_reach_angle = traits.Float(90., desc="Angle defining the boundaries between the starting position of the cursor and the target")
     reach_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
+    reach_fraction = traits.Float(0.5, desc="Fraction of the distance between the reach start and the target before a reward")
+    start_radius = 1. # buffer around reach start allowed in bounds    
 
-
-    def __init__(self, *args, **kwargs):
-        self.status['target']['leave_bounds'] = 'reach_penalty'
-        self.status['reach_penalty'] = dict(reach_penalty_end="targ_transition", end_state=True)
-        super().__init__(*args, **kwargs)
+    exclude_parent_traits = ['hold_time', 'hold_penalty_time', 'delay_time', 'delay_penalty_time', 'max_attempts']
 
     def _start_target(self):
         super()._start_target()
@@ -678,12 +691,15 @@ class ReachDirectionMixin(traits.HasTraits):
         out_of_bounds = np.degrees(cursor_target_angle) > self.max_reach_angle / 2
 
         # But also allow a target radius around the reach_start 
-        away_from_start = np.linalg.norm(self.plant.get_endpoint_pos() - self.reach_start) > self.target_radius
+        away_from_start = np.linalg.norm(self.plant.get_endpoint_pos() - self.reach_start) > self.start_radius
 
         return away_from_start and out_of_bounds
 
-    def _test_reach_penalty_end(self, ts):
-        return ts > self.reach_penalty_time
+    def _test_reach_success(self, ts):
+        dist_traveled = np.linalg.norm(self.plant.get_endpoint_pos() - self.reach_start)
+        dist_total = np.linalg.norm(self.reach_target - self.reach_start)
+        dist_total -= (self.target_radius - self.cursor_radius)
+        return dist_traveled/dist_total > self.reach_fraction
 
     def _start_reach_penalty(self):
         self.sync_event('OTHER_PENALTY')
@@ -696,3 +712,6 @@ class ReachDirectionMixin(traits.HasTraits):
 
     def _end_reach_penalty(self):
         self.sync_event('TRIAL_END')
+
+    def _test_reach_penalty_end(self, ts):
+        return ts > self.reach_penalty_time
