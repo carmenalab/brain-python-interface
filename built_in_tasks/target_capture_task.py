@@ -659,7 +659,7 @@ class ScreenReachAngle(ScreenTargetCapture):
     )
 
     sequence_generators = [
-        'out_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
+        'out_2D', 'rand_target_chain_2D', 'rand_target_chain_3D', 'discrete_targets_2D',
     ]
 
     max_reach_angle = traits.Float(90., desc="Angle defining the boundaries between the starting position of the cursor and the target")
@@ -715,3 +715,44 @@ class ScreenReachAngle(ScreenTargetCapture):
 
     def _test_reach_penalty_end(self, ts):
         return ts > self.reach_penalty_time
+
+    @staticmethod
+    def discrete_targets_2D(nblocks=100, ntargets=3, boundaries=(-6,6,-3,3)):
+        '''
+        Generates a sequence of 2D (x and z) target pairs that don't overlap
+
+        Parameters
+        ----------
+        nblocks : int
+            The number of ntarget pairs in the sequence.
+        ntargets : int
+            The number of unique targets (up to 9 maximum)
+        boundaries: 4 element Tuple
+            The limits of the allowed target locations (-x, x, -z, z)
+
+        Returns
+        -------
+        [ntrials x ntargets x 3] array of target coordinates
+        '''
+        targets = np.array([
+            [0.5, 1],
+            [0, 0.5],
+            [1, 0.5],
+            [1, 0],
+            [0, 0],
+            [0.25, 0.25],
+            [0.75, 0.25],
+            [0.25, 0.75],
+            [0.75, 0.75],
+        ])
+        rng = np.random.default_rng()
+        for _ in range(nblocks):
+            order = np.arange(ntargets) # target indices
+            rng.shuffle(order)
+            for t in range(ntargets):
+                idx = order[t]
+                pts = targets[idx]*((boundaries[1]-boundaries[0]),
+                    (boundaries[3]-boundaries[2]))
+                pts = pts+(boundaries[0], boundaries[2])
+                pos = np.array([pts[0], 0, pts[1]])
+                yield [idx], [pos]

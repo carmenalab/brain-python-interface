@@ -70,6 +70,8 @@ class TargetCaptureVFB2DWindow(TargetCaptureVisualFeedback, WindowDispl2D):
         else:
             return "No trials"
 
+from .target_graphics import target_colors
+
 class TargetCaptureReplay(ScreenTargetCapture):
     '''
     Reads the frame-by-frame cursor and trial-by-trial target positions from a saved
@@ -90,18 +92,19 @@ class TargetCaptureReplay(ScreenTargetCapture):
             state = f.root.task_msgs.read()
             trial = f.root.trials.read()
             params = f.root.task.attrs._f_list("user")
-            task_meta = {k : getattr(f.root.task.attrs, k) for k in params}
+            self.task_meta = {k : getattr(f.root.task.attrs, k) for k in params}
         self.replay_state = state
         self.replay_task = task
         self.replay_trial = trial
-        for k, v in task_meta.items():
+        for k, v in self.task_meta.items():
             if k in self.exclude_parent_traits:
+                print("setting {} to {}".format(k, v))
                 setattr(self, k, v)
 
-        # Have to additionally rest the targets since they are created in super().__init__()
+        # Have to additionally reset the targets since they are created in super().__init__()
         for target in self.targets:
-            target.sphere.radius = task_meta['target_radius']
-            target.sphere.color = task_meta['target_color']
+            target.sphere.radius = self.task_meta['target_radius']
+            target.sphere.color = target_colors[self.task_meta['target_color']]
 
     def _test_start_trial(self, time_in_state):
         '''Wait for the state change in the HDF file in case there is autostart enabled'''
