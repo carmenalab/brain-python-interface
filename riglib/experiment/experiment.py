@@ -126,10 +126,9 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         self.task_start_time = self.get_time()
         self.saveid = kwargs['saveid'] if 'saveid' in kwargs else None
         self.reportstats = collections.OrderedDict()
-        self.reportstats['State'] = None #State stat is automatically updated for all experiment classes
-        self.reportstats['Runtime'] = '' #Runtime stat is automatically updated for all experiment classes
-        self.reportstats['Trial #'] = 0 #Trial # stat must be updated by individual experiment classes
-        self.reportstats['Reward #'] = 0 #Rewards stat is updated automatically for all experiment classes
+        self.reportstats['State'] = None # State stat is automatically updated for all experiment classes
+        self.reportstats['Runtime'] = '' # Runtime stat is automatically updated for all experiment classes
+        self.reportstats['Trial #'] = 0 # Trial # stat must be updated by individual experiment classes
         # If the FSM is set up in the old style (explicit dictionaries instead of wrapper data types), convert to the newer FSMTable
         if isinstance(self.status, dict):
             self.status = FSMTable.construct_from_dict(self.status)
@@ -368,6 +367,7 @@ class Experiment(ThreadedFSM, traits.HasTraits):
 
     def set_state(self, condition, *args, **kwargs):
         self.reportstats['State'] = condition or 'stopped'
+        self.update_report_stats()
         super().set_state(condition, *args, **kwargs)
 
     def _test_stop(self, ts):
@@ -561,6 +561,18 @@ class LogExperiment(Experiment):
     '''
     trial_end_states = []
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reportstats['Success rate'] = "0 %"
+        self.reportstats['Success rate (10 trials)'] = "0 %"
+
+    def update_report_stats(self):
+        super().update_report_stats()
+        n_rewards = self.calc_state_occurrences('reward')
+        n_trials = max(1, self.calc_trial_num())
+        self.reportstats['Success rate'] = "{} %".format(int(100*n_rewards/n_trials))
+        self.reportstats['Success rate (10 trials)'] = "{} %".format(int(100*self.calc_events_per_trial("reward", 10)))
+
     def cleanup(self, database, saveid, **kwargs):
         '''
         Commands to execute at the end of a task.
@@ -631,12 +643,39 @@ class LogExperiment(Experiment):
         return np.sum(times >= (self.get_time() - window))/divideby
 
     def calc_time_since_last_event(self, event_name):
+        '''
+        Calculates the time elapsed since the previous instance of event_name
+        '''
         start_time = self.state_log[0][1]
         times = np.array([state[1] for state in self.state_log if state[0]==event_name])
         if len(times):
             return times[-1] - start_time
         else:
             return np.float64("0.0")
+
+    def calc_events_per_trial(self, event_name, window):
+        '''
+        Calculates the rate of event_name, per trial
+
+        Parameters
+        ----------
+        event_name: string
+            Name of the state to calculate
+        window: int
+            Number of trials into the past to calculate the rate estimate
+        
+        Returns
+        -------
+        rate : float
+            Rate of specified event, per trial
+        '''
+        trialtimes = [state[1] for state in self.state_log if state[0] in self.status.trial_end_states]
+        if len(trialtimes) < window:
+            times = np.array([state[1] for state in self.state_log if state[0]==event_name and state[1] > trialtimes[0]])
+            return len(times) / max(1, len(trialtimes) - 1)
+        else:
+            times = np.array([state[1] for state in self.state_log if state[0]==event_name and state[1] > trialtimes[-window]])
+            return  len(times) / (window - 1)
 
 class Sequence(LogExperiment):
     '''

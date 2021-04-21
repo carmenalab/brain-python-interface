@@ -27,6 +27,7 @@ class RewardSystem(traits.HasTraits):
         from riglib import reward
         super().__init__(*args, **kwargs)
         self.reward = reward.open()
+        self.reportstats['Reward #'] = 0
 
     def run(self):
         if self.reward is None:
@@ -115,6 +116,7 @@ class RewardSystem_Crist(traits.HasTraits):
         from riglib import reward_crist
         super(RewardSystem, self).__init__(*args, **kwargs)
         self.reward = reward_crist.open()
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         self.reward_start = self.get_time()
@@ -150,6 +152,7 @@ class TTLReward(traits.HasTraits):
         import comedi
         self.com = comedi.comedi_open('/dev/comedi0')
         super(TTLReward, self).__init__(*args, **kwargs)
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         '''
@@ -202,6 +205,7 @@ class TTLReward_arduino(TTLReward):
         import serial
         self.port = serial.Serial('/dev/arduino_neurosync', baudrate=self.baudrate_rew)
         super(TTLReward_arduino, self).__init__(*args, **kwargs)
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         #port = serial.Serial('/dev/arduino_rew', baudrate=self.baudrate_rew)
@@ -222,6 +226,7 @@ class TTLReward_arduino_tdt(traits.HasTraits):
         self.port = serial.Serial('/dev/arduino_neurosync', baudrate=self.baudrate_rew)
         
         super(TTLReward_arduino_tdt, self).__init__(*args, **kwargs)
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         #port = serial.Serial('/dev/arduino_rew', baudrate=self.baudrate_rew)
@@ -287,6 +292,7 @@ class ArduinoReward(traits.HasTraits):
         self.port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=115200)
         #self.port.write('n')
         super(ArduinoReward, self).__init__(*args, **kwargs)
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         '''
