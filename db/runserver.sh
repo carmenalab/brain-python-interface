@@ -1,11 +1,10 @@
 #!/bin/bash
 
-# Set display to highest available
-DISPLAY=`ps aux | grep -Po "DISPLAY=[\.0-9A-Za-z:]* " | sort -ru | cut -d"=" -f2 | head -n 1`
-if [ $DISPLAY=='' ]; then
-    DISPLAY=':0'
+# Set display
+HOST=`hostname -s`
+if [ $HOST=='pagaiisland2' ]; then
+    DISPLAY=':0.1'
 fi
-DISPLAY=':0.1'
 
 # Find the BMI3D directory
 FILE=$(realpath "$0")
