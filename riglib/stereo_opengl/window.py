@@ -220,7 +220,7 @@ class WindowWithExperimenterDisplay(Window):
 TRANSPARENT = (106,0,42)
 
 class WindowDispl2D():
-    '''Draws world on a 2D screen. May cause mild confusion -- transforms 
+    '''For testing only -- draws world on a 2D screen. May cause mild confusion -- transforms 
     incoming 3D coordinates (x,y,z) into 2D coordinates (x,y) by mapping z onto y'''
 
     def __init__(self, *args, **kwargs):
@@ -385,15 +385,15 @@ class WindowDispl2D():
 
 
 class Window2D():
-
+    '''
+    Render the world in 2D without lighting
+    '''
     def screen_init(self):
         super().screen_init()
         glBlendEquation(GL_MAX)
         glBlendFunc(GL_ONE, GL_ONE) # temporary solution to weird blending issue with spheres
 
     def _get_renderer(self):
-        near = 1
-        far = 1024
         return render.Renderer2D(self.screen_cm)
 
 class FakeWindow(Window):
