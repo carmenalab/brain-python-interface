@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Set display to display 0
-DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
+# Set display to highest available
+DISPLAY=`ps aux | grep -Po "DISPLAY=[\.0-9A-Za-z:]* " | sort -ru | cut -d"=" -f2 | head -n 1`
 if [ $DISPLAY=='' ]; then
     DISPLAY=':0'
 fi
-#DISPLAY=':0'
+DISPLAY=':0.1'
 
 # Find the BMI3D directory
 FILE=$(realpath "$0")
