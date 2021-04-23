@@ -667,7 +667,7 @@ class ScreenReachAngle(ScreenTargetCapture):
     reach_fraction = traits.Float(0.5, desc="Fraction of the distance between the reach start and the target before a reward")
     start_radius = 1. # buffer around reach start allowed in bounds    
 
-    exclude_parent_traits = ['hold_time', 'hold_penalty_time', 'delay_time', 'delay_penalty_time', 'max_attempts']
+    exclude_parent_traits = ['hold_time', 'hold_penalty_time', 'delay_time', 'delay_penalty_time']
 
     def _start_target(self):
         super()._start_target()
