@@ -328,10 +328,14 @@ def start_experiment(request, save=True, execute=True):
         # Generate an HTML response with the traceback of any exceptions thrown
         import io
         import traceback
+        from .tasktrack import log_str
         err = io.StringIO()
         traceback.print_exc(None, err)
+        traceback.print_exc() # print again to console
         err.seek(0)
-        traceback.print_exc()
+        log_str(err.read()) # log to tasktracker
+        err.seek(0)
+        tracker.reset() # make sure task is stopped
         return _respond(dict(status="error", msg=err.read()))
 
 def rpc(fn):

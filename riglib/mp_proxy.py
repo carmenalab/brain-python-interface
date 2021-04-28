@@ -166,9 +166,6 @@ class RPCProcess(mp.Process):
         self.cmd_pipe = None
         self.data_pipe = None
         self.log_filename = log_filename
-        if self.log_filename != '':
-            with open(self.log_filename, 'w') as f:
-                f.write('')
 
         self.target = None
         self.target_class = target_class

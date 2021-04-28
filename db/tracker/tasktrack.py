@@ -18,6 +18,7 @@ from .json_param import Parameters
 
 import io
 import traceback
+from datetime import datetime
 
 log_path = os.path.join(os.path.dirname(__file__), '../../log')
 log_filename = os.path.join(log_path, "tasktrack_log")
@@ -68,7 +69,8 @@ class Track(singleton.Singleton):
         '''
         Begin running of task
         '''
-        log_str("Running new task: \n", mode="w")
+        now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        log_str("\n{}\n-------------------\nRunning new task: {}\n".format(now, base_class))
 
         if not cli:
             self.start_websock()
@@ -148,7 +150,6 @@ class Track(singleton.Singleton):
             return dict(status="error", msg=err.read())
 
         status = self.status.value.decode("utf-8")
-        self.status.value = b""
         self.reset()
 
         '''
@@ -177,6 +178,7 @@ class Track(singleton.Singleton):
 
     def reset(self):
         self.task_proxy = None
+        self.status.value = b""
 
     def get_status(self):
         return self.status.value.decode("utf-8")
