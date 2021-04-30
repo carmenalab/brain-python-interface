@@ -118,7 +118,7 @@ def norm_trait(trait, value):
         f.close()
         import traceback
         traceback.print_exc()
-        raise Exception
+        raise ValueError("Invalid input for parameter %s: %s" % (str(trait.name), str(value)))
 
 
 def _parse_str(value):
@@ -205,6 +205,7 @@ class Parameters(object):
         self.params = dict()
         for name, value in list(params.items()):
             if name in traits:
+                traits[name].name = name
                 self.params[name] = norm_trait(traits[name], value)
             else:
                 self.params[name] = value
