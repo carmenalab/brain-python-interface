@@ -81,7 +81,7 @@ class eCubeStream:
             self.proc = subprocess.Popen(exelist[0])
         else:
             self.proc = subprocess.Popen(exelist[0], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-        time.sleep(1)
+        time.sleep(3)
 
         self.retryconnect = True
         self.__testconnection(endpoint)

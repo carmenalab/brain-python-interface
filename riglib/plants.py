@@ -19,7 +19,11 @@ from collections import namedtuple
 
 from utils.constants import *
 from riglib import source
-import robot
+try:
+    import robot
+except ImportError:
+    import warnings
+    warnings.warn("The 'robot' module cannot be found! See https://github.com/sgowda/robotics_toolbox")
 
 import struct
 from riglib.bmi.robot_arms import KinematicChain

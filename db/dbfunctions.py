@@ -4,6 +4,7 @@ Interface between the Django database methods/models and data analysis code
 # django initialization
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 import django
 django.setup()
 
