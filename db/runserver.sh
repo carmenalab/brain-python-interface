@@ -1,25 +1,22 @@
 #!/bin/bash
 
-# Set display to display 0
-DISPLAY=`ps aux | grep -o "/usr/bin/X :[0-9]" | grep -o ":[0-9]"`
-if [ $DISPLAY=='' ]; then
-    DISPLAY=':0'
-fi
-#DISPLAY=':0'
-
-# Make sure that the environment variable BMI3D is installed
-if [ -z "$BMI3D" ]
-    then
-    echo "ERROR: Need to define the BMI3D environment variable!"
-    exit 1
+# Set display
+HOST=`hostname -s`
+if [ $HOST=='pagaiisland2' ]; then
+    DISPLAY=':0.1'
 fi
 
-#Check /storage (exist )
-storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
-if [ $storage == 'False' ]; then
-    echo "/storage does not exist --> if on Ismore, must mount"
-    exit 1
-fi
+# Find the BMI3D directory
+FILE=$(realpath "$0")
+DB=$(dirname $FILE)
+BMI3D=$(dirname $DB)
+
+# #Check /storage (exist )
+# storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
+# if [ $storage == 'False' ]; then
+#     echo "/storage does not exist --> if on Ismore, must mount"
+#     exit 1
+# fi
 
 # Make sure that the server is not already running in a different program
 if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then 
@@ -28,21 +25,24 @@ if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then
 fi
 
 # Check that a config file is in the correct place, $BMI3D/config
-if [ ! -e $BMI3D/config_files/config ]; then 
-    echo "ERROR: cannot find config file! Did you run $BMI3D/config_files/make_config.py?"
-    exit 1
-fi
+# if [ ! -e $BMI3D/config_files/config ]; then 
+#     echo "ERROR: cannot find config file! Did you run $BMI3D/config_files/make_config.py?"
+#     exit 1
+# fi
     
 # Mount the neural recording system, if a mount point is specified in the config file
-if [ `cat $BMI3D/config | grep mount_point | wc -l` -gt 0 ]; then
-    MOUNT_POINT=`cat $BMI3D/config | grep mount_point | tr -d '[:blank:]' | cut -d '=' -f 2`
-    if [[ -z `mount | grep $MOUNT_POINT` ]]; then
-        echo "Mounting neural recording system computer at $MOUNT_POINT"
-        sudo mount $MOUNT_POINT
-    else
-        echo "Neural recording system computer already mounted at $MOUNT_POINT"
-    fi
-fi
+# if [ `cat $BMI3D/config | grep mount_point | wc -l` -gt 0 ]; then
+#     MOUNT_POINT=`cat $BMI3D/config | grep mount_point | tr -d '[:blank:]' | cut -d '=' -f 2`
+#     if [[ -z `mount | grep $MOUNT_POINT` ]]; then
+#         echo "Mounting neural recording system computer at $MOUNT_POINT"
+#         sudo mount $MOUNT_POINT
+#     else
+#         echo "Neural recording system computer already mounted at $MOUNT_POINT"
+#     fi
+# fi
+
+# Make the log directory if it doesn't already exist
+mkdir -p $BMI3D/log
 
 # Print the date/time of the server (re)start
 echo "Time at which runserver.sh was executed:"
@@ -72,24 +72,34 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD >> $BMI3D/lo
 echo "Working tree status at time of execution" >> $BMI3D/log/runserver_log   
 git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log   
 
-    
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
-MANAGER=$BMI3D/db/manage.py
+# Activate the relevant environment
+if  test -f "$BMI3D/env/bin/activate"; then 
+    source $BMI3D/env/bin/activate
+else
+    echo "No environment found."
+fi
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)
-python $MANAGER runserver 0.0.0.0:8000 --noreload &
+cd $BMI3D/db/
+python manage.py runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
-python $MANAGER celery worker &
-CELERY=$!
-#python $MANAGER celery flower --address=0.0.0.0 &
+#python manage.py celery worker &
+#CELERY=$!
+#python manage.py celery flower --address=0.0.0.0 &
 #FLOWER=$!
+
+# Start servernode-control
+gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
+SNC=$!
 
 # Define what happens when you hit control-C
 function ctrl_c() {
 	kill -9 $DJANGO
-	kill $CELERY
+    kill -9 $SNC
+	#kill $CELERY
 	#kill $FLOWER
     kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
 	# kill -9 `ps -C 'python manage.py' -o pid --no-headers`
@@ -97,5 +107,5 @@ function ctrl_c() {
 
 # Run until the PID stored in $DJANGO is dead
 wait $DJANGO
-kill $CELERY
+#kill $CELERY
 #kill $FLOWER

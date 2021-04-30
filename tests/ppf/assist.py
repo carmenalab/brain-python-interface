@@ -75,7 +75,7 @@ def calc_arrival_time(scale_factor):
 scale_factors = np.linspace(1., 15, 500)
 arrival_time = np.zeros(len(scale_factors))
 for k, scale in enumerate(scale_factors):
-    print k
+    print(k)
     arrival_time[k] = calc_arrival_time(scale) * dt
 
 
@@ -96,12 +96,12 @@ for t in old_arrival_times:
 plt.show()
 
 fn = lambda t: np.nonzero((arrival_time[1:] > t) & (arrival_time[:-1] < t))[0][0]
-inds = np.array(map(fn, old_arrival_times[1:]))
+inds = np.array(list(map(fn, old_arrival_times[1:])))
 scale_factors_assist = 0.5 * (scale_factors[inds] + scale_factors[inds+1])
 
 F = []
 F.append(np.zeros([3, 7]))
-F += map(calc_F, scale_factors_assist)
+F += list(map(calc_F, scale_factors_assist))
 F_assist = np.dstack([np.array(x) for x in F]).transpose([2,0,1])
 
 import pickle

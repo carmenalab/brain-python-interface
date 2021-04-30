@@ -5,7 +5,7 @@ Extensions of the render.Renderer class for stereo displays
 import numpy as np
 from OpenGL.GL import *
 
-from render import Renderer
+from .render import Renderer
 from ..utils import offaxis_frusta
 
 class LeftRight(Renderer):
@@ -49,6 +49,8 @@ class MirrorDisplay(Renderer):
             Optional shaders and stuff to pass to the lower-level drawing functions
         '''
         w, h = self.size
+        w = int(w)
+        h = int(h)
 
         # draw the portion of the screen with lower-left corner (0, 0), width 'w' and height 'h'
         glViewport(0, 0, w, h)

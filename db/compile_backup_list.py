@@ -7,7 +7,7 @@ from db.tracker import models
 import datetime
 
 #Get backup list:
-backed_up_tes = list(models.TaskEntry.objects.filter(backup=True, date__gte=datetime.datetime(2015, 11, 01)))
+backed_up_tes = list(models.TaskEntry.objects.filter(backup=True, date__gte=datetime.datetime(2015, 11, 0o1)))
 
 #Get list of Task Entries already added to list: 
 try:
@@ -16,7 +16,7 @@ try:
     already_te_added = [int(i) for i in items if len(i) > 0]
     te_added.close()
 except:
-    print 'No previous backup list found, making new one'
+    print('No previous backup list found, making new one')
     te_added = open(os.path.expandvars('$HOME/files_to_backup_te_list'), 'w')
     te_added.close()
     already_te_added = []
@@ -53,7 +53,7 @@ for k,te in enumerate(backed_up_tes):
 
 
             if k % 100 == 0:
-                print k
+                print(k)
 
             if not te.decoder_record is None:
                 datafiles.append(te.decoder_filename)

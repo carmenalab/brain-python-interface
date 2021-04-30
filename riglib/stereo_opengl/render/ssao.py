@@ -3,8 +3,8 @@
 import numpy as np
 from OpenGL.GL import *
 
-from render import Renderer
-from fbo import FBOrender, FBO
+from .render import Renderer
+from .fbo import FBOrender, FBO
 from ..textures import Texture
 
 class SSAO(FBOrender):

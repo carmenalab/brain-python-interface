@@ -10,7 +10,7 @@ try:
     from OWL import *
 except:
     OWL_MODE2 = False
-    print "Cannot find phasespace driver"
+    print("Cannot find phasespace driver")
 
 cwd = os.path.split(os.path.abspath(__file__))[0]
 
@@ -73,7 +73,11 @@ class Simulate(object):
             z = self.radius[2] * np.sin(ts / self.speed[2] * 2*np.pi + p)
             data[i] = x,y,z
 
-        return np.hstack([data + np.random.randn(self.n, 3)*0.1, np.ones((self.n,1))])
+        #expands the dimension for HDFwriter saving
+        data_temp = np.hstack([data + np.random.randn(self.n, 3) * 0.1, np.ones((self.n, 1))])
+        data_temp_expand = np.expand_dims(data_temp, axis = 0)
+
+        return data_temp_expand
 
     def stop(self):
         '''
@@ -286,7 +290,7 @@ def make_autoalign_reference(data, filename=os.path.join(cwd, "alignment2.npz"))
     Returns
     -------
     '''
-    from stereo_opengl import xfm
+    from .stereo_opengl import xfm
     assert data.shape[1:] == (6, 3)
     mdata = np.median(data,0)
     cdata = mdata - mdata[0]

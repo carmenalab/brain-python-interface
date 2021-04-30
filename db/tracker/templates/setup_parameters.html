@@ -1,0 +1,76 @@
+{% extends 'setup_base.html' %}
+
+{% block content %}
+
+<h2>System Configuration</h2>
+Rig name:
+<input type="text" value='{{rig_name}}' id="rig_name"/>
+<input type="submit" value="Save" onclick='save_rig_name()'>
+<br />
+Neural recording system: 
+<select id="recording_sys_make">
+  {% for sys in recording_sys_options %}
+    <option value='{{sys}}'>{{sys}}</option>
+  {% endfor %}
+</select>
+
+<!-- Button to save recording system -->
+<input type="submit" value="Save Recording Sys." onclick="save_recording_sys()">
+
+<table class="table table-hover table-sm" style="width: auto;">
+  <thead>
+    <th>Database</th><th>Storage path</th>
+    {% for database in databases %}
+      <tr>
+        <td>{{database.name}}</td>
+        <td><input type="text" value="{{database.path}}" id="db_{{database.name}}_path">
+          <input type="submit" value="Save" onclick='update_database_path("{{database.name}}")'>
+        </td>
+      </tr>
+    {% endfor %}
+  </thead>
+
+  <!-- make a table with the current values  -->
+    <!-- stuff['reward_sys'] = dict(version=0)
+    stuff['recording_sys'] = dict(make='plexon', mount_point='/storage/plexon')
+    stuff['graphics'] = dict(window_start_x=0, window_start_y=0)
+    stuff['backup_root'] = dict(root='/backup')
+    stuff['plexon IP address'] = dict(addr='10.0.0.13', port=6000)
+    stuff['update_rates'] = dict(hdf_hz=60) -->
+
+  <!--       <tr>
+      <td><input type="submit" value="Add New" onclick="add_new_subject()"></td>
+      <td><input type="text"></td>
+    </tr> -->
+
+  </table>
+
+  <h2>Data sources</h2>
+  <!-- TODO add table for systems -->
+  <table class="table table-hover table-sm" style="width: auto;" id="system-table">
+    <thead>
+      <tr>
+        <th>Index</th><th>System name</th><th>Path where data is generated/saved</th><th>Post-processing function (optional)</th>
+      </tr>
+    </thead>
+
+    <tr id="new-system-row">
+      <td><input type="submit" value="Add New" onclick="add_new_system()"></td>
+      <td><input type="text" id="system_name"></td>
+      <td><input type="text" id="system_path"></td>
+      <td><input type="text" id="system_processor_path"></td>
+    </tr>
+
+    {% for system in systems %}
+    <tr id="system_{{system.id}}">
+      <td>{{system.id}}</td>
+      <td>{{system.name}}</td>
+      <td>{{system.path}}</td>
+      <td>{{system.processor_path}}</td>
+      <td><input type="submit" value="Remove" onclick="remove_system({{system.id}})"></td>
+    </tr>
+    {% endfor %}
+
+  </table> 
+
+{% endblock %}

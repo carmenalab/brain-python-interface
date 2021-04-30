@@ -81,7 +81,7 @@ plt.plot(decoded_output[0,:], label='pyth')
 plt.legend()
 plt.show()
 
-print np.max(np.abs(x_est[0,:n_iter] - decoded_output[0,:]))
+print(np.max(np.abs(x_est[0,:n_iter] - decoded_output[0,:])))
 
 
 # TODO expand A, W, C to same dimensions as for KF
@@ -116,6 +116,6 @@ plt.legend()
 plt.show()
 
 
-print np.max(np.abs(x_est[0,:n_iter] - decoded_output_new[3,:]))
+print(np.max(np.abs(x_est[0,:n_iter] - decoded_output_new[3,:])))
 
 

@@ -13,7 +13,7 @@ import subprocess
 from riglib import bmi
 from riglib.bmi import extractor
 from riglib.experiment import traits
-from hdf_features import SaveHDF
+from .hdf_features import SaveHDF
 import sys
 import glob
 import datetime
@@ -30,14 +30,15 @@ class RelayPlexon(object):
         Prior to starting the task, this 'init' sets up the NIDAQ card as a sink
         '''
         from riglib import sink
-        self.nidaq = sink.sinks.start(self.ni_out)
+        sink_manager = sink.SinkManager.get_instance()
+        self.nidaq = sink_manager.start(self.ni_out)
         super(RelayPlexon, self).init()
 
         # Find all the plexon files modified in the last day
         file_pattern = "/storage/plexon/*.plx"
         file_names = glob.glob(file_pattern)
         start_time = datetime.datetime.today() - datetime.timedelta(days=1)
-        file_names = filter(lambda fname: datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time, file_names)
+        file_names = [fname for fname in file_names if datetime.datetime.fromtimestamp(os.stat(fname).st_mtime) > start_time]
 
         self.possible_filenames = file_names
         self.possible_filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
@@ -45,7 +46,7 @@ class RelayPlexon(object):
     @property
     def ni_out(self):
         '''
-        Specify the output interface; can be overridden in child classes as long as 
+        Specify the output interface; can be overridden in child classes as long as
         this method returns a class which has the same instance methods (close, register, send, sendMsg, etc.)
         '''
         from riglib.dio import nidaq
@@ -55,7 +56,7 @@ class RelayPlexon(object):
     def plexfile(self):
         '''
         Calculates the plexon file that's most likely associated with the current task
-        based on the time at which the task ended and the "last modified" time of the 
+        based on the time at which the task ended and the "last modified" time of the
         plexon files located at /storage/plexon/
         '''
         if hasattr(self, '_plexfile'):
@@ -65,7 +66,7 @@ class RelayPlexon(object):
             filesizes = np.array([os.stat(fname).st_size for fname in self.possible_filenames])
             inds, = np.nonzero(filesizes - self.possible_filesizes)
             if len(inds) == 1:
-                print "only one plx file changed since the start of the task."
+                print("only one plx file changed since the start of the task.")
                 self._plexfile = self.possible_filenames[inds[0]]
                 return self._plexfile
 
@@ -73,11 +74,11 @@ class RelayPlexon(object):
             if len(self.event_log) < 1:
                 self._plexfile = None
                 return self._plexfile
-            
+
             start = self.event_log[-1][2]
             files = "/storage/plexon/*.plx"
             files = sorted(glob.glob(files), key=lambda f: abs(os.stat(f).st_mtime - start))
-            
+
             if len(files) > 0:
                 tdiff = os.stat(files[0]).st_mtime - start
                 if abs(tdiff) < sec_per_min:
@@ -87,10 +88,10 @@ class RelayPlexon(object):
             ## If both methods fail, return None; cleanup should warn the user that they'll have to link the plexon file manually
             self._plexfile = None
             return self._plexfile
-    
+
     def run(self):
         '''
-        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
+        Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running.
         See riglib.experiment.Experiment.run(). This 'run' method stops the NIDAQ sink after the FSM has stopped running.
         '''
         try:
@@ -101,22 +102,21 @@ class RelayPlexon(object):
 
             # Remotely stop the recording on the plexon box
             import comedi
-            import config
             import time
             com = comedi.comedi_open("/dev/comedi0")
             time.sleep(0.5)
-            comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)            
+            comedi.comedi_dio_bitfield2(com, 0, 16, 16, 16)
 
     def set_state(self, condition, **kwargs):
         '''
-        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to 
+        Extension of riglib.experiment.Experiment.set_state. Send the name of the next state to
         plexon system and then proceed to the upstream set_state tasks.
 
         Parameters
         ----------
         condition : string
             Name of new state.
-        **kwargs : dict 
+        **kwargs : dict
             Passed to 'super' set_state function
 
         Returns
@@ -133,7 +133,6 @@ class RelayPlexon(object):
         '''
         # Stop recording
         import comedi
-        import config
         import time
 
         com = comedi.comedi_open("/dev/comedi0")
@@ -150,16 +149,15 @@ class RelayPlexon(object):
             else:
                 database.save_data(self.plexfile, "plexon", saveid, True, False, dbname=dbname)
         else:
-            print '\n\nPlexon file not found properly! It will have to be manually linked!\n\n'
+            print('\n\nPlexon file not found properly! It will have to be manually linked!\n\n')
 
-    @classmethod 
-    def pre_init(cls, saveid=None):
+    @classmethod
+    def pre_init(cls, saveid=None, **kwargs):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
         if saveid is not None:
             import comedi
-            import config
             import time
 
             com = comedi.comedi_open("/dev/comedi0")
@@ -170,9 +168,9 @@ class RelayPlexon(object):
             comedi.comedi_dio_bitfield2(com, 0, 16, 0, 16)
 
             time.sleep(3)
-            super(RelayPlexon, cls).pre_init(saveid=saveid)
+            super(RelayPlexon, cls).pre_init(saveid=saveid, **kwargs)
 
-        
+
 class RelayPlexByte(RelayPlexon):
     '''
     Relays a single byte (0-255) to synchronize the rows of the HDF table(s) with the plexon recording clock.
@@ -190,76 +188,15 @@ class RelayPlexByte(RelayPlexon):
     @property
     def ni_out(self):
         '''
-        see documentation for RelayPlexon.ni_out 
+        see documentation for RelayPlexon.ni_out
         '''
         from riglib.dio import nidaq
         return nidaq.SendRowByte
 
 
-# class PlexonData(traits.HasTraits):
-#     '''
-#     Stream Plexon neural data
-#     '''
-#     plexon_channels = None
-
-#     def init(self):
-#         '''
-#         Secondary init function. See riglib.experiment.Experiment.init()
-#         Prior to starting the task, this 'init' creates an appropriate DataSource for either Spike, LFP, or auxiliary analog 
-#         data (depends on the type of feature extractor used by the decoder).
-#         '''
-#         from riglib import plexon, source
-
-#         if hasattr(self.decoder, 'extractor_cls'):
-#             if 'spike' in self.decoder.extractor_cls.feature_type:  # e.g., 'spike_counts'
-#                 self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-#             elif 'lfp' in self.decoder.extractor_cls.feature_type:  # e.g., 'lfp_power'
-#                 self.neurondata = source.MultiChanDataSource(plexon.LFP, channels=self.plexon_channels)
-#             elif 'ai' in self.decoder.extractor_cls.feature_type:  # e.g., 'ai_amplitude'
-#                 self.neurondata = source.MultiChanDataSource(plexon.Aux, channels=self.plexon_channels)
-#             else:
-#                 raise Exception("Unknown extractor class, unable to create data source object!")
-#         else:
-#             # if using an older decoder that doesn't have extractor_cls (and 
-#             # extractor_kwargs) as attributes, or if there is no decoder in this task, 
-#             # then just create a DataSource with plexon.Spikes by default 
-#             self.neurondata = source.DataSource(plexon.Spikes, channels=self.plexon_channels)
-
-#         super(PlexonData, self).init()
-
-#     def run(self):
-#         '''
-#         Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
-#         See riglib.experiment.Experiment.run(). This 'run' method starts the 'neurondata' source before the FSM begins execution
-#         and stops it after the FSM has completed. 
-#         '''
-#         self.neurondata.start()
-#         try:
-#             super(PlexonData, self).run()
-#         finally:
-#             self.neurondata.stop()
-
-# from riglib.bmi.bmi import Decoder
-# class PlexonBMI(PlexonData):
-#     '''
-#     Special case of PlexonData which specifies a subset of channels to stream, i.e., the ones used by the Decoder
-#     May not be available for all recording systems. 
-#     '''
-#     decoder = traits.Instance(Decoder)
-
-#     def init(self):
-#         '''
-#         Secondary init function. See riglib.experiment.Experiment.init()
-#         Prior to starting the task, this 'init' sets the channels to be the channels of the decoder
-#         so that the PlexonData source only grabs the channels actually used by the decoder. 
-#         '''
-#         self.plexon_channels = self.decoder.units[:,0]
-#         super(PlexonBMI, self).init()
-
-
-from neural_sys_features import CorticalData, CorticalBMI
+from .neural_sys_features import CorticalBMI
 class PlexonBMI(CorticalBMI):
-    @property 
+    @property
     def sys_module(self):
         from riglib import plexon
         return plexon

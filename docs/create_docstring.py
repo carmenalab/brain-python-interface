@@ -4,8 +4,8 @@ import re
 
 def parse_str(args_and_kwargs):
     args_and_kwargs = args_and_kwargs.split(',')
-    kwargs = filter(lambda x: '=' in x, args_and_kwargs)
-    args = filter(lambda x: not '=' in x, args_and_kwargs)
+    kwargs = [x for x in args_and_kwargs if '=' in x]
+    args = [x for x in args_and_kwargs if not '=' in x]
     kwargs = [kwarg.split('=') for kwarg in kwargs]
     return _parse(args, kwargs)
 
@@ -65,7 +65,7 @@ def parse_callable(obj, *args, **kw):
         args = argspec.args[:-len(argspec.defaults)]
         kwarg_names = argspec.args[-len(argspec.defaults):]
         kwarg_vals = argspec.defaults
-        kwargs = zip(kwarg_names, kwarg_vals)
+        kwargs = list(zip(kwarg_names, kwarg_vals))
 
     return _parse(args, kwargs, argspec.varargs, argspec.keywords, **kw)
     

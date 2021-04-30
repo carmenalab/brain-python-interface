@@ -7,7 +7,7 @@ hdffile = sys.argv[1]
 data = dict()
 
 hdf = h5py.File(hdffile, 'r')
-keys = hdf.get('channel').keys()
+keys = list(hdf.get('channel').keys())
 for key in keys:
 	if 'channel' in key:
 		chan = key[-5:]

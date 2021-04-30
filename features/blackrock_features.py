@@ -7,7 +7,8 @@ import fnmatch
 import os
 from riglib import bmi
 from riglib.bmi import extractor
-from riglib.experiment import traits
+from .neural_sys_features import CorticalData, CorticalBMI
+from riglib import blackrock
 
 
 class RelayBlackrock(object):
@@ -20,7 +21,8 @@ class RelayBlackrock(object):
         '''
 
         from riglib import sink
-        self.nidaq = sink.sinks.start(self.ni_out)
+        sink_manager = sink.SinkManager.get_instance()
+        self.nidaq = sink_manager.start(self.ni_out)
         super(RelayBlackrock, self).init()
 
     @property
@@ -35,7 +37,7 @@ class RelayBlackrock(object):
         -------
         '''
         from riglib.dio import nidaq
-        print 'nidaq.SendAll', nidaq.SendAll
+        print('nidaq.SendAll', nidaq.SendAll)
         return nidaq.SendAll
 
     @property    
@@ -129,7 +131,7 @@ class RelayBlackrock(object):
             database.save_data(file_, "blackrock", saveid, False, False, suffix)
 
     @classmethod 
-    def pre_init(cls, saveid=None):
+    def pre_init(cls, saveid=None, **kwargs):
         if saveid is not None:
             import comedi
             import config
@@ -149,7 +151,7 @@ class RelayBlackrock(object):
             comedi.comedi_dio_bitfield2(com, 0, 1, 0, 16)
 
             time.sleep(3)
-            super(RelayPlexon, cls).pre_init(saveid=saveid)
+            super(RelayPlexon, cls).pre_init(saveid=saveid, **kwargs)
 
 
 class RelayBlackrockByte(RelayBlackrock):
@@ -206,7 +208,8 @@ class BlackrockData(object):
             raise Exception("Unknown extractor class, unable to create data source object!")
 
         from riglib import sink
-        sink.sinks.register(self.neurondata)
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.neurondata)
 
         super(BlackrockData, self).init()
 
@@ -223,8 +226,7 @@ class BlackrockData(object):
         finally:
             self.neurondata.stop()
 
-from neural_sys_features import CorticalData, CorticalBMI
-from riglib import blackrock
+
 class BlackrockData(CorticalData):
     @property 
     def sys_module(self):

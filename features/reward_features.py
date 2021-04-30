@@ -11,21 +11,112 @@ import fnmatch
 import os
 import subprocess
 from riglib.experiment import traits
+from riglib.audio import AudioPlayer
 import serial, glob
 
 ###### CONSTANTS
 sec_per_min = 60
 
-
 class RewardSystem(traits.HasTraits):
+    '''
+    Feature for the current reward system in Amy Orsborn Lab
+    '''
+    trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
+
+    def __init__(self, *args, **kwargs):
+        from riglib import reward
+        super().__init__(*args, **kwargs)
+        self.reward = reward.open()
+        self.reportstats['Reward #'] = 0
+
+    def run(self):
+        if self.reward is None:
+            raise Exception('Reward system could not be activated')
+        super().run()
+
+    def _start_reward(self):
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
+        self.reportstats['Reward #'] += 1
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            self.reward.on()
+
+    def _test_reward_end(self, ts):
+        if self.reportstats['Reward #'] % self.trials_per_reward == 0:
+            return ts > self.reward_time
+        else:
+            return True
+        if hasattr(super(), '_test_reward_end'):
+            super()._test_reward_end()
+
+    def _end_reward(self):
+        self.reward.off()
+        if hasattr(super(), '_end_reward'):
+            super()._end_reward()
+
+class RewardAudio(traits.HasTraits):
+    '''
+    Play a sound in any reward state. Need to add other reward states you want to be included.
+    '''
+
+    files = [f for f in os.listdir('../riglib/audio') if '.wav' in f]
+    reward_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each reward")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reward_player = AudioPlayer(self.reward_sound)
+
+    def _start_reward(self):
+        if hasattr(super(), '_start_reward'):
+            super()._start_reward()
+        self.reward_player.play()
+
+class PenaltyAudio(traits.HasTraits):
+    '''
+    Play a sound in any penalty state. Have to define a new _start method for each different
+    penalty state that might occur.
+    '''
+    files = list(reversed([f for f in os.listdir('../riglib/audio') if '.wav' in f]))
+    penalty_sound = traits.OptionsList(files, desc="File in riglib/audio to play on each penalty")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.penalty_player = AudioPlayer(self.penalty_sound)
+
+    def _start_hold_penalty(self):
+        if hasattr(super(), '_start_hold_penalty'):
+            super()._start_hold_penalty()
+        self.penalty_player.play()
+    
+    def _start_delay_penalty(self):
+        if hasattr(super(), '_start_delay_penalty'):
+            super()._start_delay_penalty()
+        self.penalty_player.play()
+
+    def _start_reach_penalty(self):
+        if hasattr(super(), '_start_reach_penalty'):
+            super()._start_reach_penalty()
+        self.penalty_player.play()
+    
+    def _start_timeout_penalty(self):
+        if hasattr(super(), '_start_timeout_penalty'):
+            super()._start_timeout_penalty()
+        self.penalty_player.play()
+
+""""" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
+
+
+class RewardSystem_Crist(traits.HasTraits):
     '''
     Feature for the Crist solenoid reward system
     '''
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
+
     def __init__(self, *args, **kwargs):
-        from riglib import reward
+        from riglib import reward_crist
         super(RewardSystem, self).__init__(*args, **kwargs)
-        self.reward = reward.open()
+        self.reward = reward_crist.open()
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         self.reward_start = self.get_time()
@@ -61,6 +152,7 @@ class TTLReward(traits.HasTraits):
         import comedi
         self.com = comedi.comedi_open('/dev/comedi0')
         super(TTLReward, self).__init__(*args, **kwargs)
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         '''
@@ -113,6 +205,7 @@ class TTLReward_arduino(TTLReward):
         import serial
         self.port = serial.Serial('/dev/arduino_neurosync', baudrate=self.baudrate_rew)
         super(TTLReward_arduino, self).__init__(*args, **kwargs)
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         #port = serial.Serial('/dev/arduino_rew', baudrate=self.baudrate_rew)
@@ -133,6 +226,7 @@ class TTLReward_arduino_tdt(traits.HasTraits):
         self.port = serial.Serial('/dev/arduino_neurosync', baudrate=self.baudrate_rew)
         
         super(TTLReward_arduino_tdt, self).__init__(*args, **kwargs)
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         #port = serial.Serial('/dev/arduino_rew', baudrate=self.baudrate_rew)
@@ -198,6 +292,7 @@ class ArduinoReward(traits.HasTraits):
         self.port = serial.Serial(glob.glob("/dev/ttyACM*")[0], baudrate=115200)
         #self.port.write('n')
         super(ArduinoReward, self).__init__(*args, **kwargs)
+        self.reportstats['Reward #'] = 0
 
     def _start_reward(self):
         '''

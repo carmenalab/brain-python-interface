@@ -6,7 +6,7 @@ import itertools
 import numpy as np
 
 from Phidgets.Devices.InterfaceKit import InterfaceKit
-from source import DataSourceSystem
+from .source import DataSourceSystem
 
 class System(DataSourceSystem):
     '''
@@ -79,7 +79,7 @@ class System(DataSourceSystem):
             for i in range(self.n_inputs):
                 self.inputdat[i] = self.kit.getInputState(i)
         except:
-            print 'sensor_error'
+            print('sensor_error')
         self.data['sensors'] = self.sensordat
         self.data['inputs'] = self.inputdat
         self.tic = time.time()

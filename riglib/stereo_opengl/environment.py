@@ -1,8 +1,8 @@
 '''
 Various graphical "environmental" or "world" add-ins to graphical tasks. 
 '''
-from models import Group
-from xfm import Quaternion
+from .models import Group
+from .xfm import Quaternion
 from riglib.stereo_opengl.primitives import Sphere, Cylinder
 
 

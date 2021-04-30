@@ -13,14 +13,14 @@ pos_key = 'plant_pos'
 
 
 if TRAIN_SPIKE:
-    channels = range(1, 7)
+    channels = list(range(1, 7))
     units = np.hstack([np.array(channels).reshape(-1,1), np.ones((len(channels),1), dtype=np.int)])
     extractor_cls = extractor.BinnedSpikeCountsExtractor
     extractor_kwargs = dict()
     extractor_kwargs['units'] = units
     extractor_kwargs['n_subbins'] = 1
 else:  # train an LFP decoder
-    channels = np.array(range(1, 9))
+    channels = np.array(list(range(1, 9)))
     units = np.hstack([channels.reshape(-1, 1), np.zeros(channels.reshape(-1, 1).shape, dtype=np.int32)])
     extractor_cls = extractor.LFPButterBPFPowerExtractor
     extractor_kwargs = dict()

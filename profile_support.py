@@ -1,7 +1,7 @@
-import __builtin__
+import builtins
 
 try:
-	profile = __builtin__.profile
+	profile = builtins.profile
 except AttributeError:
 	# No line profiler, provide a pass-through version
 	def profile(func): return func

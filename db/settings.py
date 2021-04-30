@@ -1,17 +1,13 @@
-
 '''
 Django config file mostly auto-generated when a django project is created.
 See https://docs.djangoproject.com/en/dev/intro/tutorial01/ for an introduction
 on how to customize this file test
 '''
 
-import os
+import os, glob, re
 cwd = os.path.split(os.path.abspath(__file__))[0]
 
-import djcelery
-djcelery.setup_loader()
 # Django settings for db project.
-
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -21,6 +17,38 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
+db_dir = cwd
+def get_sqlite3_databases():
+    dbs = dict()
+    db_files = glob.glob(os.path.join(db_dir, '*.sql'))
+    for db in db_files:
+        db_name_re = re.match('db(.*?).sql', os.path.basename(db))
+        db_name = db_name_re.group(1)
+        print(db_name)
+        if db_name.startswith('_'):
+            db_name = db_name[1:]
+        elif db_name == "":
+            db_name = "default"
+        else:
+            # unrecognized db name pattern
+            print("Unrecognized database file: ", db)
+            continue
+
+        dbs[db_name] = {
+            'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or'oracle'.
+            'NAME': db,                      # Or path to database file if using sqlite3.
+            'USER': '',                      # Not used with sqlite3.
+            'PASSWORD': '',                  # Not used with sqlite3.
+            'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+            'PORT': '',                      # Set to empty string for default. Not used with sqlite3.        
+        }
+
+    return dbs
+
+DATABASES = get_sqlite3_databases()
+#DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
+
+'''
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
@@ -39,6 +67,7 @@ DATABASES = {
         'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
     },
 }
+'''
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -95,6 +124,17 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',
 )
 
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+
 ROOT_URLCONF = 'db.urls'
 
 TEMPLATE_DIRS = (
@@ -109,17 +149,40 @@ STATICFILES_DIRS = (
 )
 ADMIN_MEDIA_PREFIX = '/static/admin/'
 INSTALLED_APPS = (
+    'db.tracker',
     'django.contrib.auth',
+    'django.contrib.admin',    
     'django.contrib.contenttypes',
     'django.contrib.sessions',
-    'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Uncomment the next line to enable the admin:
-    'django.contrib.admin',
-    # Uncomment the next line to enable admin documentation:
-    'django.contrib.admindocs',
-    'djcelery',
-    'tracker',
-    'trainbmi'
 )
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.jinja2.Jinja2',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'environment': 'db.tracker.jinja2.environment'
+        },
+    },
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+APPEND_SLASH=False
+
+
+ALLOWED_HOSTS = ['*'] #['127.0.0.1', 'localhost', "testserver"]

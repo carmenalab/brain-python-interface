@@ -42,7 +42,7 @@ class KinarmSocket(object):
             assert len(unpacked_) == 150
             self.connected = True
         except:
-            print 'Make sure Kinarm Task is running - error in recieving packets'
+            print('Make sure Kinarm Task is running - error in recieving packets')
             self.connected = False
 
     def connect(self):

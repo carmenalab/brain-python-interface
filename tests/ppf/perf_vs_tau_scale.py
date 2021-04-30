@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import plotutil
 import numpy as np
 from db.tracker import models
-from itertools import izip
+
 
 reload(performance)
 reload(plotutil)

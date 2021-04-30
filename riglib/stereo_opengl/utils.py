@@ -1,9 +1,9 @@
 
 '''Needs docs'''
 
-from __future__ import division
+
 import numpy as np
-from textures import Texture
+from .textures import Texture
 from OpenGL.GL import glBindTexture, glGetTexImage, GL_TEXTURE_2D, GL_RGBA, GL_UNSIGNED_BYTE
 
 def frustum(l, r, t, b, n, f):
@@ -48,6 +48,14 @@ def perspective(angle, aspect, near, far):
                      [0,        f,    0,               0],
                      [0,        0, -fn/nfn, -2*far*near/nfn],
                      [0,        0,   -1,               0]])
+
+def orthographic(w, h, near, far):
+    fn = far + near
+    nfn = far - near
+    return np.array([[2/w, 0,   0,      0],
+                     [0,   2/h, 0,      0],
+                     [0,   0,   -2/nfn, -fn/nfn],
+                     [0,   0,   0,       1]])
 
 def offaxis_frusta(winsize, fov, near, far, focal_dist, iod, flip=False, flip_z=False):
     aspect = winsize[0] / winsize[1]

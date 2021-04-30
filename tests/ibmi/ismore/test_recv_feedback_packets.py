@@ -25,8 +25,8 @@ recv_packet_count = 0
 while True:
     feedback = recv_feedback()
     if feedback is not None:
-        print feedback
+        print(feedback)
 
         recv_packet_count += 1
         t_elapsed = time.time() - t_start
-        print recv_packet_count / t_elapsed
+        print(recv_packet_count / t_elapsed)

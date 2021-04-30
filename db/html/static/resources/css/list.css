@@ -18,6 +18,10 @@
     background-color:#FDD; 
 }
 
+td[colspan]:not([colspan="1"]) {
+    text-align: center;
+}
+
 
 div.clear { clear:both; }
 
@@ -33,6 +37,9 @@ table#main {
 	width:100%;
 	/*border-collapse:collapse;*/
 	border-color:#AAA;
+}
+a {
+	padding:2px;
 }
 
 table#main td{
@@ -52,9 +59,26 @@ table#main tr {
 	/*background:;*/
 }
 
+/* Top banner stays at top */
+div#banner {
+	position: relative;
+	float: none;
+	width: 640px;
+	padding: 5px;
+	box-sizing: border-box;
+}
+button#new_exp {
+	float: right;
+}
+
+div#main_box {
+	position: relative;
+	float: none;
+}
+
 /* Left hand table styling */
 div#leftpane { 
-	/*width : 500px; */
+	width : 940px;
 	overflow:auto;
 }
 
@@ -79,6 +103,11 @@ div#leftpane {
 	float : left;
 }
 
+#saverecbtn {
+	background-color: orange;
+	float : left;
+}
+
 #stopbtn {
 	background-color: red;
 	float : left;
@@ -92,52 +121,59 @@ input.btn:hover {
 	box-shadow: 0px 0px 15px black;
 }
 
+table#main th {
+	border-bottom : 1px solid black;
+}
 
-
-.firstRowOfday {
-	border-top : 1px solid black;
+#newentry, .firstRowOfday {
+	border-top : 1px solid black; 
 }
 
 .colDate {
-    width : 50px;
+    width : 100px;
     background: #FFF;
 }
 
 .colTime {
-	width : 75px;
+	width : 90px;
 }
 
 .colID {
-	width : 50px;
+	width : 190px;
 }
 
 .colSubj {
-	width : 100px;
+	width : 90px;
 	font-size : 10pt;
 	font-family:Arial;
 }
-#subjects {
-	width : 100px;
-}
 
 .colTask {
-	width : 200px;
+	width : 150px;
 	text-align : left;
 }
-#tasks {
-	width : 200px;
+
+.colShortDesc {
+	width: 320px;
+}
+
+#subjects, #tasks {
+	width : auto;
 	text-align : left;
 }
 
 
 div#rightpane { 
-	margin-left : 555px; 
 	width : 900px; 
 	height : 100%;
 	position : fixed;
+	top: 0px;
 	overflow : auto;
 }
 
+div.rightpane_fields {
+	margin-bottom: 20px;
+}
 
 table#main tbody>tr:hover {
 	background:#DDD;
@@ -152,7 +188,7 @@ th { text-align:left;}
 
 .rowactive td { 
 	position:relative; 
-	z-index:10;
+	/*z-index:1;*/
 }
 
 input[type="text"] {
@@ -192,12 +228,15 @@ fieldset {
 
 /*options class is used for div containing Features/Sequence/Parameters fieldsets*/
 .options { 
-	float:left; 
-	width:300px; 
+	width:350px; 
 }
 
-#parameters table,#sequence table {
-	/*width:100%;*/
+div#seqparams {
+	width: 100%;
+}
+
+#parameters table,#sequence table, #seqparams table {
+	width:100%;
 	border-collapse:collapse;
 }
 td.param_label {
@@ -211,10 +250,15 @@ input[type=text], input[type=number] {
 	border:1px solid;
 	border-color:#888;
 	padding:2px;
+	margin-right:2px;
 	border-radius:2px;
 	transition:all 0.25s ease-in-out;
 	-webkit-transition:all 0.25s ease-in-out;
 	-moz-transition:all 0.25s ease-in-out;
+}
+
+input#seqlist {
+	width: auto;
 }
 
 /*rightside contains Report, Notes, Linked Files*/
@@ -257,28 +301,6 @@ fieldset#report {
 .report_table {
 	font-size:10pt;
 	width : 450px;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-input#toggle_table
-{
-  /* Double-sized Checkboxes */
-  -ms-transform: scale(2); /* IE */
-  -moz-transform: scale(2); /* FF */
-  -webkit-transform: scale(2); /* Safari and Chrome */
-  -o-transform: scale(2); /* Opera */
-  padding: 10px;
 }
 
 .checkboxtext
@@ -353,4 +375,45 @@ fieldset#bmi {
 #tslider { 
     width:15em;
     margin: .25em .75em;
+}
+
+
+
+/* The Modal (background) */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 200; /* Sit on top */
+  padding-top: 200px; /* Location of the box */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content */
+.modal-content {
+  background-color: #fefefe;
+  margin: auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+}
+
+/* The Close Button */
+.close {
+  color: #aaaaaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
 }

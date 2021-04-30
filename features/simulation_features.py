@@ -132,7 +132,7 @@ class SimTime(object):
         '''
         try:
             if not (self.cycle_count % (60*10)):
-                print self.cycle_count/(60*10.)
+                print(self.cycle_count/(60*10.))
             return self.cycle_count * self.update_rate
 
         except:
@@ -160,7 +160,7 @@ class SimNeuralEnc(object):
         self._init_neural_encoder()
         self.wait_time = 0
         self.pause = False
-        print 'neural encoder init function ', self
+        print('neural encoder init function ', self)
         super(SimNeuralEnc, self).init()
 
     def change_enc_ssm(self, new_ssm):
@@ -212,7 +212,7 @@ class SimCosineTunedEnc(SimNeuralEnc):
     def _init_neural_encoder(self):
         ## Simulation neural encoder
         from riglib.bmi.sim_neurons import GenericCosEnc#CLDASimCosEnc
-        print 'SimCosineTunedEnc SSM:', self.ssm
+        print('SimCosineTunedEnc SSM:', self.ssm)
         self.encoder = GenericCosEnc(self.sim_C, self.ssm, return_ts=True, DT=0.1, call_ds_rate=6)
         
     def create_feature_extractor(self):
@@ -221,6 +221,38 @@ class SimCosineTunedEnc(SimNeuralEnc):
         '''
         self.extractor = extractor.SimBinnedSpikeCountsExtractor(self.fb_ctrl, self.encoder, 
             n_subbins=self.decoder.n_subbins, units=self.decoder.units, task=self)
+        self._add_feature_extractor_dtype()
+
+class SimNormCosineTunedEnc(SimNeuralEnc):
+
+    def _init_neural_encoder(self):
+        from riglib.bmi.sim_neurons import NormalizedCosEnc
+        self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, spike=True, return_ts=False, 
+            DT=self.update_rate, tick=self.update_rate, gain=self.fov)
+    
+    def create_feature_extractor(self):
+        '''
+        Create the feature extractor object
+        '''
+        self.extractor = extractor.SimDirectObsExtractor(self.fb_ctrl, self.encoder, 
+            n_subbins=self.decoder.n_subbins, units=self.decoder.units, task=self)
+        self._add_feature_extractor_dtype()
+
+class SimLFPCosineTunedEnc(SimNeuralEnc):
+
+    bands = [(51, 100)]
+
+    def _init_neural_encoder(self):
+        from riglib.bmi.sim_neurons import NormalizedCosEnc
+        self.encoder = NormalizedCosEnc(self.plant.endpt_bounds, self.sim_C, self.ssm, spike=False, return_ts=False, 
+            DT=self.update_rate, tick=self.update_rate, n_bands=len(self.bands), gain=self.fov)
+    
+    def create_feature_extractor(self):
+        '''
+        Create the feature extractor object
+        '''
+        self.extractor = extractor.SimPowerExtractor(self.fb_ctrl, self.encoder, 
+            channels=self.decoder.channels, bands=self.bands, task=self)
         self._add_feature_extractor_dtype()
 
 class SimFAEnc(SimCosineTunedEnc):
@@ -232,11 +264,11 @@ class SimFAEnc(SimCosineTunedEnc):
         if 'encoder_fname' in self.FACosEnc_kwargs:
             import pickle
             self.encoder = pickle.load(open(self.FACosEnc_kwargs['encoder_fname']))
-            print 'using saved encoder;'
+            print('using saved encoder;')
             
             if 'wt_sources' in self.FACosEnc_kwargs:
                 self.encoder.wt_sources = self.FACosEnc_kwargs['wt_sources']
-                print 'setting new weights: ', self.encoder.wt_sources
+                print('setting new weights: ', self.encoder.wt_sources)
         
         else:
             from riglib.bmi.sim_neurons import FACosEnc
@@ -347,14 +379,14 @@ class SimKFDecoderSup(SimKFDecoder):
         '''
         
         if hasattr(self, 'decoder'):
-            print 'Already have a decoder!'
+            print('Already have a decoder!')
         else:
-            print "Creating simulation decoder.."
-            print self.encoder, type(self.encoder)
+            print("Creating simulation decoder..")
+            print(self.encoder, type(self.encoder))
             n_samples = 2000
             units = self.encoder.get_units()
             n_units = len(units)
-            print 'units: ', n_units
+            print('units: ', n_units)
 
             # draw samples from the W distribution
             ssm = self.ssm
@@ -373,7 +405,7 @@ class SimKFDecoderSup(SimKFDecoder):
             if hasattr(self, 'clda_adapt_mFR_stats'):
                 if self.clda_adapt_mFR_stats:
                     zscore = True
-            print ' zscore decoder ? : ', zscore
+            print(' zscore decoder ? : ', zscore)
             self.decoder = train.train_KFDecoder_abstract(ssm, kin, spike_counts, units, 0.1, zscore=zscore)
             self.encoder.call_ds_rate = 6
 
@@ -392,7 +424,7 @@ class SimKFDecoderShuffled(SimKFDecoder):
         '''
         Instantiate the neural encoder and "train" the decoder
         '''
-        print "Creating simulation decoder.."
+        print("Creating simulation decoder..")
         encoder = self.encoder
         n_samples = 20000
         units = self.encoder.get_units()

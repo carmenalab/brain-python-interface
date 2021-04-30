@@ -3,7 +3,7 @@ Quaternions and generic 3D transformations
 '''
 
 
-from __future__ import division
+
 import numpy as np
 
 class Quaternion(object):

@@ -29,15 +29,15 @@ class EyeData(traits.HasTraits):
         '''
         from riglib import source
         from riglib import sink
-        self.sinks = sink.sinks
+        sink_manager = sink.SinkManager.get_instance()
 
         src, ekw = self.eye_source
-        f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
+        #f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata = source.DataSource(src, **ekw)
-        self.sinks.register(self.eyedata)
+        sink_manager.register(self.eyedata)
         f.write('instantiated source\n')
         super(EyeData, self).init()
-        f.close()
+        #f.close()
     
     @property
     def eye_source(self):
@@ -58,10 +58,10 @@ class EyeData(traits.HasTraits):
         Code to execute immediately prior to the beginning of the task FSM executing, or after the FSM has finished running. 
         See riglib.experiment.Experiment.run(). This 'run' method starts the 'eyedata' source and stops it after the FSM has finished running
         '''
-        f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
+        #f = open('/home/helene/code/bmi3d/log/eyetracker', 'a')
         self.eyedata.start()
-        f.write('started eyedata\n')
-        f.close()
+        #f.write('started eyedata\n')
+        #f.close()
         try:
             super(EyeData, self).run()
         finally:
@@ -92,9 +92,9 @@ class EyeData(traits.HasTraits):
         '''
         self.eyedata.pause()
         self.eyefile = tempfile.mktemp()
-        print "retrieving data from eyetracker..."
+        print("retrieving data from eyetracker...")
         self.eyedata.retrieve(self.eyefile)
-        print "Done!"
+        print("Done!")
         self.eyedata.stop()
         super(EyeData, self)._start_None()
     
@@ -121,6 +121,7 @@ class EyeData(traits.HasTraits):
         Returns
         -------
         '''
+        
         super(EyeData, self).cleanup(database, saveid, **kwargs)
         dbname = kwargs['dbname'] if 'dbname' in kwargs else 'default'
         if dbname == 'default':
@@ -145,7 +146,30 @@ class SimulatedEyeData(EyeData):
         -------
         '''
         from riglib import eyetracker
-        return eyetracker.Simulate, dict(fixations=fixations, fixation_len=fixation_len)
+        return eyetracker.Simulate, dict(fixations= self.fixations)
+
+    def _cycle(self):
+        '''
+        Docstring
+        basically, extract the data and do something with it
+
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        #retrieve data
+        data_temp = self.eyedata.get()
+
+        #send the data to sinks
+        if data_temp is not None:
+            self.sinks.send(self.eyedata.name, data_temp)
+
+        super(SimulatedEyeData, self)._cycle()
+
+
 
 class CalibratedEyeData(EyeData):
     '''Filters eyetracking data with a calibration profile'''
@@ -163,7 +187,6 @@ class CalibratedEyeData(EyeData):
         '''
         super(CalibratedEyeData, self).__init__(*args, **kwargs)
         self.eyedata.set_filter(self.cal_profile)
-
 class FixationStart(CalibratedEyeData):
     '''Triggers the start_trial event whenever fixation exceeds *fixation_length*'''
     fixation_length = traits.Float(2., desc="Length of fixation required to start the task")
@@ -219,3 +242,11 @@ class FixationStart(CalibratedEyeData):
         -------
         '''
         return ts > self.fixation_length
+
+'''
+if __name__ == "__main__":
+    sim_eye_data = SimulatedEyeData()
+
+    sim_eye_data.init()
+    sim_eye_data.run()
+'''

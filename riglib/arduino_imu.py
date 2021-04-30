@@ -4,7 +4,7 @@ import itertools
 import numpy as np
 
 import serial
-from source import DataSourceSystem
+from .source import DataSourceSystem
 
 
 class System(DataSourceSystem):
@@ -80,7 +80,7 @@ class System(DataSourceSystem):
                 self.sensordat[i] = s
             self.sensordat[self.n_sensors] = time.time()
         except:
-            print 'sensor_error', self.tic - self.t0, self.sensordat, self.n_sensors
+            print('sensor_error', self.tic - self.t0, self.sensordat, self.n_sensors)
         #self.port.flush()
 
         self.data['sensors'] = self.sensordat
@@ -124,9 +124,9 @@ def make(sensors, inputs, cls=System, **kwargs):
     -------
     '''
     def init(self, **kwargs):
-        print 'making arduino imu'
+        print('making arduino imu')
         super(self.__class__, self).__init__(n_sensors=sensors, n_inputs=inputs, **kwargs)
-        print 'making arduino imu2'
+        print('making arduino imu2')
 
     dtype = np.dtype([('sensors', np.float, (sensors+1,)), ('inputs', np.bool, (inputs,))])
     return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))

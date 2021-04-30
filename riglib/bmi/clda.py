@@ -9,10 +9,10 @@ import numpy as np
 from . import kfdecoder, ppfdecoder, train, bmi, feedback_controllers
 import time
 import cmath
-from itertools import izip
+
 import tables
 import re
-import assist
+from . import assist
 import os
 import scipy
 import copy
@@ -81,10 +81,10 @@ class Learner(object):
         '''
         self.done_states = kwargs.pop('done_states', [])
         self.reset_states = kwargs.pop('reset_states', [])
-        print "Reset states for learner: "
-        print self.reset_states
-        print "Done states for learner: "
-        print self.done_states        
+        print("Reset states for learner: ")
+        print(self.reset_states)
+        print("Done states for learner: ")
+        print(self.done_states)        
         self.batch_size = batch_size
         self.passed_done_state = False
         self.enabled = True
@@ -131,7 +131,7 @@ class Learner(object):
         None
         """
         if task_state in self.reset_states:
-            print "resetting CLDA batch"
+            print("resetting CLDA batch")
             self.reset()
 
         int_kin = self.calc_int_kin(decoder_state, target_state, decoder_output, task_state, state_order=state_order)
@@ -335,8 +335,8 @@ class RegexKeyDict(dict):
         '''
         Lookup key in dictionary by finding exactly one dict key which, by regex, matches the input argument 'key'
         '''
-        keys = self.keys()
-        matching_keys = filter(lambda x: re.match(x, key), keys)
+        keys = list(self.keys())
+        matching_keys = [x for x in keys if re.match(x, key)]
         if len(matching_keys) == 0:
             raise KeyError("No matching keys were found!")
         elif len(matching_keys) > 1:
@@ -348,8 +348,8 @@ class RegexKeyDict(dict):
         '''
         Determine if a key is in the dictionary using regular expression matching
         '''
-        keys = self.keys()
-        matching_keys = filter(lambda x: re.match(x, key), keys)
+        keys = list(self.keys())
+        matching_keys = [x for x in keys if re.match(x, key)]
         if len(matching_keys) == 0:
             return False
         elif len(matching_keys) > 1:
@@ -390,7 +390,7 @@ class Updater(object):
     def __call__(self, *args, **kwargs):
         input_data = (args, kwargs)
         if self.multiproc:
-            if self.verbose: print "queuing job"
+            if self.verbose: print("queuing job")
             self.work_queue.put(input_data)    
             self.prev_input = input_data
             self.waiting = True
@@ -457,7 +457,7 @@ class PPFContinuousBayesianUpdater(Updater):
             elif units == 'cm':
                 vel_gain = 1e-8
 
-            print "Updater param noise scale %g" % param_noise_scale
+            print("Updater param noise scale %g" % param_noise_scale)
             vel_gain *= param_noise_scale
             param_noise_variances = np.array([vel_gain*0.13, vel_gain*0.13, 1e-4*0.06/50])
         self.W = np.tile(np.diag(param_noise_variances), [self.n_units, 1, 1])
@@ -480,7 +480,7 @@ class PPFContinuousBayesianUpdater(Updater):
             raise ValueError("must specify intended_kin, spike_counts and decoder objects for the updater to work!")        
 
         if 0:
-            print np.array(intended_kin).ravel()
+            print(np.array(intended_kin).ravel())
 
         int_kin_full = intended_kin
         spike_obs_full = spike_counts
@@ -497,7 +497,7 @@ class PPFContinuousBayesianUpdater(Updater):
             Loglambda_predict = np.dot(int_kin, beta_est.T)
             rates = np.exp(Loglambda_predict)
             if np.any(rates > 1):
-                print 'rates > 1!'
+                print('rates > 1!')
                 rates[rates > 1] = 1
             unpred_spikes = np.asarray(spike_obs).ravel() - rates
 
@@ -660,7 +660,7 @@ class KFRML(Updater):
 
 
         if hasattr(decoder, 'adapt_mFR_stats'):
-            print 'setitng adapting mFR. updater', decoder.adapt_mFR_stats
+            print('setitng adapting mFR. updater', decoder.adapt_mFR_stats)
             self.adapt_mFR_stats = decoder.adapt_mFR_stats
         else:
             self.adapt_mFR_stats = False
@@ -729,7 +729,7 @@ class KFRML(Updater):
             self.R = rho*self.R + (x*B*x.T)
 
         if np.any(np.isnan(self.R)):
-            print 'np.nan in self.R in riglib/bmi/clda.py!'
+            print('np.nan in self.R in riglib/bmi/clda.py!')
 
         #self.S[self.neur_by_state_adapting_inds_mesh] = rho*self.S[self.neur_by_state_adapting_inds_mesh] + (y*B*x.T)
         #self.T[self.adapting_inds_mesh] = rho*self.T[self.adapting_inds_mesh] + np.dot(y, B*y.T)
@@ -747,8 +747,8 @@ class KFRML(Updater):
                 dn = np.sum(drives_neurons)
                 R_inv[np.ix_(drives_neurons, drives_neurons)] = np.linalg.pinv(self.R[np.ix_(drives_neurons, drives_neurons)]+self.regularizer*np.eye(dn))
         except:
-            print self.R
-            print 'Error with pinv in riglib/bmi/clda.py'
+            print(self.R)
+            print('Error with pinv in riglib/bmi/clda.py')
 
         C_new = self.S * R_inv
         C = copy.deepcopy(decoder.filt.C)
@@ -757,7 +757,7 @@ class KFRML(Updater):
         Q = (1./self.ESS) * (self.T - self.S*C.T)
         if hasattr(self, 'stable_inds_mesh'):
             if len(self.stable_inds) > 0:
-                print 'stable inds mesh: ', self.stable_inds, self.stable_inds_mesh
+                print('stable inds mesh: ', self.stable_inds, self.stable_inds_mesh)
                 Q_old = decoder.filt.Q[self.stable_inds_mesh].copy()
                 Q[self.stable_inds_mesh] = Q_old
 
@@ -800,10 +800,10 @@ class KFRML(Updater):
         '''
         if adapting_inds is None: # Stable inds provided
             self.stable_inds = stable_inds   
-            self.adapting_inds = np.array(filter(lambda x: x not in self.stable_inds, self.feature_inds)).astype(int)
+            self.adapting_inds = np.array([x for x in self.feature_inds if x not in self.stable_inds]).astype(int)
         elif stable_inds is None: # Adapting inds provided:
             self.adapting_inds = np.array(adapting_inds).astype(int)
-            self.stable_inds = np.array(filter(lambda x: x not in self.adapting_inds, self.feature_inds))
+            self.stable_inds = np.array([x for x in self.feature_inds if x not in self.adapting_inds])
 
         self.adapting_inds_mesh = np.ix_(self.adapting_inds, self.adapting_inds)
         self.stable_inds_mesh = np.ix_(self.stable_inds, self.stable_inds)
@@ -814,7 +814,7 @@ class KFRML(Updater):
         Maybe you want to keep specific states states (e.g. in iBMI, keep ArmAssist stable but adapt ReHand)
         '''
         if adapting_state_inds is None:
-            self.state_adapting_inds = np.array(filter(lambda x: x not in stable_state_inds, self.state_inds))
+            self.state_adapting_inds = np.array([x for x in self.state_inds if x not in stable_state_inds])
         elif stable_state_inds is None:
             self.state_adapting_inds = np.array(adapting_state_inds).astype(int)
         self.state_adapting_inds_mesh = np.ix_(self.state_adapting_inds, self.state_adapting_inds)
@@ -854,7 +854,7 @@ class KFRML_IVC(KFRML):
             A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
             W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
             D_diag = []
-            for a, w, n in izip(A_diag, W_diag, [self.default_gain]*3):
+            for a, w, n in zip(A_diag, W_diag, [self.default_gain]*3):
                 d = self.scalar_riccati_eq_soln(a, w, n)
                 D_diag.append(d)
 
@@ -894,7 +894,7 @@ class KFRML_baseline(KFRML):
         '''
         See KFRML.calc for input argument documentation
         '''
-        print "calculating new baseline parameters"
+        print("calculating new baseline parameters")
         if half_life is not None:
             rho = np.exp(np.log(0.5)/(half_life/self.batch_time))
         else:
@@ -1017,7 +1017,7 @@ class KFSmoothbatch(Updater):
         determine the C_hat and Q_hat of new batch. Then combine with 
         old parameters using step-size rho
         """
-        print "calculating new SB parameters"
+        print("calculating new SB parameters")
         C_old          = decoder.kf.C
         Q_old          = decoder.kf.Q
         drives_neurons = decoder.drives_neurons
@@ -1064,7 +1064,7 @@ class KFOrthogonalPlantSmoothbatch(KFSmoothbatch):
             A_diag = np.diag(np.asarray(decoder.filt.A[3:6, 3:6]))
             W_diag = np.diag(np.asarray(decoder.filt.W[3:6, 3:6]))
             D_diag = []
-            for a, w, n in izip(A_diag, W_diag, self.default_gain):
+            for a, w, n in zip(A_diag, W_diag, self.default_gain):
                 d = self.scalar_riccati_eq_soln(a, w, n)
                 D_diag.append(d)
 

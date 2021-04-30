@@ -14,7 +14,7 @@ def archive(age=60):
     for df in models.DataFile.objects.filter(system=plexon):
         if df.entry.date < date and not df.archived:
             try:
-                print df.get_path(True)
+                print(df.get_path(True))
             except IOError:
                 pass
 

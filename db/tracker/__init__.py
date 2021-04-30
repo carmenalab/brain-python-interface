@@ -1,23 +1,8 @@
-'''
-Database initialization code. When 'db.tracker' is imported, it goes through the database and ensures that 
-	1) at least one subject is present
-	2) all the tasks from 'tasklist' appear in the db
-	3) all the features from 'featurelist' appear in the db
-	4) all the generators from all the tasks appear in the db 
-'''
+default_app_config = "db.tracker.apps.TrackerConfig"
 
-import os
-#os.nice(4)
 
-try:
-    from . import models
-    subjects = models.Subject.objects.all()
-    if len(subjects) == 0:
-        subj = models.Subject(name='testing')
-        subj.save()
+# This will make sure the app is always imported when
+# Django starts so that shared_task will use this app.
+from .celery import app as celery_app
 
-    for m in [models.Task, models.Feature, models.Generator, models.System]:
-        m.populate()
-except:
-    import traceback
-    traceback.print_exc()
+__all__ = ('celery_app',)

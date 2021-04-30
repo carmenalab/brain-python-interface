@@ -1,9 +1,9 @@
 '''
-Experiment constructors. 'Experiment' instances are the combination of 
+Experiment constructors. 'Experiment' instances are the combination of
 a task and a list of features.  Rather than have a separate class for
 all the possible combinations of tasks and features, a custom class for
-the experiment is created programmatically using 'type'. The created class 
-has methods of the base task as well as all the selected features. 
+the experiment is created programmatically using 'type'. The created class
+has methods of the base task as well as all the selected features.
 '''
 import numpy as np
 
@@ -14,6 +14,7 @@ try:
     import traits.api as traits
 except ImportError:
     import enthought.traits.api as traits
+
 
 class InstanceFromDB(traits.Instance):
     def __init__(self, *args, **kwargs):
@@ -39,14 +40,14 @@ class DataFile(InstanceFromDB):
 
 
 class OptionsList(traits.Enum):
+    '''
+    Wrapper around Enum so that we can keep track of the possible enumerations in list
+    called 'bmi3d_input_options' which will be hidden in the UI
+    '''
     def __init__(self, *args, **kwargs):
-        if 'bmi3d_input_options' in kwargs:
-            self.bmi3d_input_options = kwargs['bmi3d_input_options']
-        else:
-            raise Exception
-
+        if 'bmi3d_input_options' not in kwargs:
+            kwargs['bmi3d_input_options'] = args[0]
         super(OptionsList, self).__init__(*args, **kwargs)
-        #setattr(self, 'bmi3d_input_options', bmi3d_input_options)
 
 
 traits.InstanceFromDB = InstanceFromDB
@@ -55,19 +56,21 @@ traits.OptionsList = OptionsList
 
 
 
-import experiment
-import generate
-import report
-from experiment import Experiment, LogExperiment, Sequence, TrialTypes, FSMTable, StateTransitions
+from . import experiment
+from . import generate
+from . import report
+from .experiment import Experiment, LogExperiment, Sequence, TrialTypes, FSMTable, StateTransitions
+
+from . import task_wrapper
 
 try:
-    from Pygame import Pygame
+    from .Pygame import Pygame
 except:
     import warnings
     warnings.warn('riglib/experiment/__init__.py: could not import Pygame (note capital P)')
     Pygame = object
 
-def make(exp_class, feats=()):
+def make(exp_class, feats=(), verbose=False):
     '''
     Creates a class which inherits from a base experiment class as well as a set of optional features.
     This function is a *metafunction* as it returns a custom class construction.
@@ -91,9 +94,8 @@ def make(exp_class, feats=()):
         # inherit from the features first, then the base class
         clslist = tuple(feats) + (exp_class,)
 
-        print "metaclass constructor"
-        print clslist
-        print feats
+        if verbose:
+            print("metaclass constructor", clslist, feats)
 
         # return custom class
         return type(exp_class.__name__, clslist, dict())

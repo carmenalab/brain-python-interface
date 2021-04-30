@@ -28,7 +28,7 @@ class BrainAmpData(object):
         try:
             super(BrainAmpData, self).init()
         except:
-            print "BrainAmpData: running without a task"
+            print("BrainAmpData: running without a task")
 
     def run(self):
         self.emgdata.start()
@@ -65,11 +65,11 @@ if __name__ == '__main__':
         t_start = time.time()
 
         new_data = self.emgdata.get_new(channels=channels)
-        print new_data[0].shape
-        print new_data[0].dtype
+        print(new_data[0].shape)
+        print(new_data[0].dtype)
 
         for ts in new_data[0][:]['ts_arrival']:
-            print ts
+            print(ts)
 
 
         # for row in range(n_chan):
@@ -88,9 +88,9 @@ if __name__ == '__main__':
     save_dict['data'] = data
     save_dict['channels'] = channels
 
-    print 'saving data...',
+    print('saving data...', end=' ')
     sio.matlab.savemat('emg_data.mat', save_dict)
-    print 'done.'
+    print('done.')
 
-    print data
-    print idxs
+    print(data)
+    print(idxs)

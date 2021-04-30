@@ -1,17 +1,16 @@
 #!/usr/bin/python
 """
-Classes to simulate neural activity (spike firing rates) by various methods.
+Classes to simulate neural activity (spike firing rates and lfp) by various methods.
 """
-from __future__ import division
+
 import os
 import numpy as np
 
 from scipy.io import loadmat
 
 import numpy as np
-from numpy.random import poisson, rand
 from scipy.io import loadmat, savemat
-from itertools import izip
+
 
 
 from scipy.integrate import trapz, simps
@@ -133,7 +132,7 @@ class GenericCosEnc(object):
 
     def return_spikes(self, rates, mode=None):
         rates[rates < 0] = 0 # Floor firing rates at 0 Hz
-        counts = poisson(rates * self.DT)
+        counts = np.random.poisson(rates * self.DT)
 
         if np.logical_or(mode=='ts', np.logical_and(mode is None, self.return_ts)):
             ts = []
@@ -198,7 +197,7 @@ class FACosEnc(GenericCosEnc):
         self.eps = 1e-15
         
         if 'psi_tun' in kwargs:
-            print 'using kwargs psi tun'
+            print('using kwargs psi tun')
             self.psi_tun = kwargs['psi_tun']
             self.psi_unt_std = kwargs['psi_unt_std']
 
@@ -320,7 +319,13 @@ class FACosEnc(GenericCosEnc):
         self.shar_unt = t_unt
 
         #Now weight everything together:
-        w = self.wt_sources
+        if self.wt_sources is None: # if mp wt_sources, equally weight the sources
+            w = np.array([1,1,1,1]) / 4
+        else:
+            w = self.wt_sources
+
+        
+
         counts = np.squeeze(np.array(w[0]*self.priv_unt + w[1]*self.priv_tun + w[2]*self.shar_unt + w[3]*self.shar_tun))
         
         #Adding back the mean FR
@@ -346,7 +351,7 @@ class FACosEnc(GenericCosEnc):
 
     def mod_poisson(self, x, dt=0.1):
         x[x<0] = 0
-        return poisson(x*dt)
+        return np.random.poisson(x*dt)
 
     def y2_eq_r2_min_x2(self, x_arr, r2):
         y = []
@@ -356,6 +361,126 @@ class FACosEnc(GenericCosEnc):
             else:
                 y.append(-1*np.sqrt(r2 - x**2))
         return np.array(y)
+
+from riglib.bmi.state_space_models import StateSpaceEndptVel2D
+class NormalizedCosEnc(GenericCosEnc):
+    '''
+    Generates neural observations (spikes or LFP) based on normalized scaling within the bounds of 
+    the task, instead of DC rectifying the output. Generates simulated spiking or LFP power data
+    '''
+
+    def __init__(self, bounds, C, ssm, spike=True, return_ts=False, DT=0.1, tick=1/60, n_bands=1, gain=10):
+        '''
+        Constructor for NormalizedCosEnc
+
+        Parameters
+        ----------
+        bounds : array of [min_x, max_x, min_y, max_y, min_z, max_z] 
+            Extreme plant coordinates
+        C : np.ndarray of shape (N, K)
+            N is the number of simulated neurons, K is the number of covariates driving neuronal activity. 
+            The product of C and the hidden state vector x should give the intended spike rates in Hz
+        ssm : state_space_models.StateSpace instance
+            ARG_DESCR
+        spike : bool, optional, default=True
+            Determines whether simultated output is spike or LFP data
+        return_ts : bool, optional, default=False
+            If True, fake timestamps are returned for each spike event in the same format 
+            as real spike data would be delivered over the network during a real experiment. 
+            If False, a vector of counts is returned instead. Specify True or False depending on 
+            which type of feature extractor you're using for your simulated task. 
+        DT : float, optional, default=0.1
+            Sampling interval to come up with new spike processes
+        tick : float, optional, default=1/60
+            Refresh rate of main experiment tick
+
+        Returns
+        -------
+        GenericCosEnc instance
+        '''
+        self.min = np.array([bounds[0], bounds[2], bounds[4]])
+        self.range = np.array([bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4]])
+        self.range[self.range == 0] = 1
+        self.spike = spike
+        self.n_bands = n_bands
+        self.gain = gain
+        call_ds_rate = DT / tick
+        super(NormalizedCosEnc, self).__init__(C, ssm, return_ts, DT, call_ds_rate)
+
+    def gen_spikes(self, rates, mode=None):
+        """
+        Simulate the spikes    
+        
+        Parameters
+        ----------
+        rates : np.array of shape (N, 1)
+
+        Returns
+        -------
+        time stamps or counts
+            Either spike time stamps or a vector of unit spike counts is returned, depending on whether the 'return_ts' attribute is True
+
+        """
+        return self.return_spikes(rates, mode=mode)
+
+    def gen_power(self, ideal, mode=None):
+        """
+        Simulate the LFP powers by adding gaussian noise to ideal powers 
+        
+        Parameters
+        ----------
+        ideal : np.array of shape (N, 1)
+        
+        Returns
+        -------
+        powers : np.array of shape (N, P) -> flattened
+            N number of neurons, P number of power bands, determined by n_bands
+        """
+
+        # Generate gaussian noise
+        noise = np.random.normal(0, 0.02 * self.gain, size=(len(ideal), self.n_bands))
+        
+        # Replicate across frequency bands
+        power = np.tile(ideal.reshape((-1,1)), (1, self.n_bands)) + noise
+        return power.reshape(-1,1)
+
+    def __call__(self, next_state, mode=None):
+        '''
+        See CosEnc.__call__ for docs
+        '''    
+        next_state = np.squeeze(np.asarray(next_state))
+
+        if isinstance(self.ssm, StateSpaceEndptVel2D):
+            norm_pos = np.divide(np.subtract(next_state[0:3], self.min), self.range)
+            norm_vel = np.divide(np.subtract(next_state[3:6], self.min), self.range)
+            out = np.dot(self.C, [norm_pos[0], norm_pos[1], norm_pos[2], norm_vel[0], norm_vel[1], norm_vel[2], 0]) * self.gain
+        else:
+            raise NotImplementedError()
+        
+
+        if self.spike:
+            if self.call_count % self.call_ds_rate == 0:
+                ts_data = self.gen_spikes(out, mode=mode)
+
+            else:
+                if self.return_ts:
+                    # return an empty list of time stamps
+                    ts_data = np.array([])
+                else:
+                    # return a vector of 0's
+                    ts_data = np.zeros(self.n_neurons)
+
+            self.call_count += 1
+            return ts_data
+        else:
+            if self.call_count % self.call_ds_rate == 0:
+                lfp_data = self.gen_power(out, mode=mode)
+
+            else:
+                lfp_data = np.zeros((self.n_neurons*self.n_bands, 1))
+
+            self.call_count += 1
+            return lfp_data
 
 def from_file_to_FACosEnc(plot=False):
     from riglib.bmi import state_space_models as ssm
@@ -372,17 +497,17 @@ def from_file_to_FACosEnc(plot=False):
     if plot:
         f, ax = plt.subplots(nrows=3, ncols=3)
 
-    for j, i in enumerate(np.sort(dat.keys())):
+    for j, i in enumerate(np.sort(list(dat.keys()))):
         
         snr[i] = []
         d = dat[i]
         kwargs = {}
-        kwargs['n_neurons'] = len(d.keys())
+        kwargs['n_neurons'] = len(list(d.keys()))
         C = np.random.rand(kwargs['n_neurons'], SSM.n_states)
         kwargs['wt_sources'] = [1, 1, 0, 0]
         enc = FACosEnc(C, SSM, return_ts =True, **kwargs)
 
-        for n in range(len(d.keys())):
+        for n in range(len(list(d.keys()))):
             #For individual units: 
             enc.psi_tun[n, [3, 5, 6]] = d[n][3][0, :] #Terrible construction. 
             enc.mu[n] = 0
@@ -402,7 +527,7 @@ def from_file_to_FACosEnc(plot=False):
             snr_des = d[n][2]
             if np.isnan(snr_des):
                 snr_des = .3
-                print 'sucdess'
+                print('sucdess')
             snr_act.append(snr_des)
             s2 = spk[:, n] #Spikes: 
             x = np.linalg.lstsq(vel , s2[:, np.newaxis]) #Regress Spikes against Velocities
@@ -431,7 +556,7 @@ def from_file_to_FACosEnc(plot=False):
         if plot:
             axi = ax[j/3, j%3]
             axi.plot(snr_sim, snr_act, '.')
-            axi.set_title(dat.keys()[j])
+            axi.set_title(list(dat.keys())[j])
 
         #kwargs['psi_unt_std'] = psi_unt_std
         #kwargs['psi_tun'] = psi_tun
@@ -782,7 +907,7 @@ class PointProcessEnsemble(object):
         
         # x_t = np.hstack([x_t, 1])
         x_t = np.array(x_t).ravel()
-        counts = np.array(map(lambda unit: unit(x_t), self.point_process_units)).astype(int)
+        counts = np.array([unit(x_t) for unit in self.point_process_units]).astype(int)
         return counts
 
 class CLDASimPointProcessEnsemble(PointProcessEnsemble):

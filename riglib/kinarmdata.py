@@ -52,7 +52,7 @@ class Kinarmdata(DataSourceSystem):
             # except:
             #     break
 
-        return self.data.next()
+        return next(self.data)
 
 def make(cls=DataSourceSystem, *args, **kwargs):
     '''

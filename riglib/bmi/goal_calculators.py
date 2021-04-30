@@ -5,7 +5,7 @@ task goal is required for many versions of assistive control (see assist.py) and
 many versions of CLDA (see clda.py). 
 '''
 import numpy as np
-import train
+from . import train
 from riglib import mp_calc
 # from riglib.stereo_opengl import ik # appears to be unused
 import re
@@ -33,7 +33,7 @@ class Obs_Goal_Calc(GoalCalculator):
     def clear(self):
         self.pre_obs_targ_state = None
         self.post_obs_targ_state = None    
-        print 'CLEAR'    
+        print('CLEAR')    
 
     def __call__(self, target_pos, **kwargs):
         #Use q_start th
@@ -200,8 +200,10 @@ class ZeroVelocityGoal(GoalCalculator):
             target_vel = np.zeros_like(target_pos)
             offset_val = 1
             target_state = np.hstack([target_pos, target_vel, 1]).reshape(-1, 1)
-        else:
+        elif len(target_pos) == n_pos_vel_states:
             target_state = np.hstack([target_pos, 1]).reshape(-1, 1)
+        else:
+            target_state = np.hstack(target_pos).reshape(-1, 1) # don't add offset
         error = 0
         return (target_state, error), True
 
@@ -317,7 +319,7 @@ class PlanarMultiLinkJointGoalCached(GoalCalculator, mp_calc.FuncProxy):
             
             int_endpt_location = target_pos - shoulder_anchor
             endpt_error = np.linalg.norm(kin_chain.endpoint_pos(-joint_pos) - int_endpt_location)
-            print endpt_error
+            print(endpt_error)
 
             return (target_state, endpt_error)
 

@@ -63,7 +63,7 @@ class TouchData(DataSourceSystem):
         '''
         Get a new kinarm sample
         '''
-        return self.data.next()
+        return next(self.data)
 
 def make(cls=DataSourceSystem, *args, **kwargs):
     '''
@@ -92,7 +92,7 @@ class TouchDataInterface(object):
             tmp = int(self.touch_port.read())
             self.connected = True
         except:
-            print 'Error in interfacing w/ touch sensor'
+            print('Error in interfacing w/ touch sensor')
             self.connected = False
 
     def connect(self):

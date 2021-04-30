@@ -20,7 +20,7 @@ matfile = sys.argv[1]
 
 # load variables from .mat file
 mat = sio.loadmat(matfile, struct_as_record=False, squeeze_me=True)
-for var_name in mat.keys():
+for var_name in list(mat.keys()):
     if fnmatch.fnmatch(var_name, 'emg*_train*'):
         emg_train = mat[var_name]
     elif fnmatch.fnmatch(var_name, 'kin*_train*'):
@@ -62,8 +62,8 @@ for i, y in enumerate(emg_test.T):
 # calculate the correlation coefficient for each state variable
 cc_values = np.array([pearsonr(kin_test[i, :], kin_pred[i, :])[0] for i in range(len_x-1)])
 
-print 'datafile:', matfile
-print 'cc values:', cc_values
+print('datafile:', matfile)
+print('cc values:', cc_values)
 
 # save the results into a .mat file
 vars_to_save = {

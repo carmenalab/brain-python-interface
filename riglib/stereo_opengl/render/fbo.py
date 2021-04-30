@@ -4,7 +4,7 @@
 import numpy as np
 from OpenGL.GL import *
 
-from render import Renderer
+from .render import Renderer
 from ..textures import Texture
 
 fbotypes = dict(
@@ -15,7 +15,7 @@ fbotypes = dict(
 
 class FBO(object):
     def __init__(self, attachments, size=None, ncolors=1, **kwargs):
-        maxcolors = xrange(glGetInteger(GL_MAX_COLOR_ATTACHMENTS))
+        maxcolors = range(glGetInteger(GL_MAX_COLOR_ATTACHMENTS))
         self.names = dict(("color%d"%i, GL_COLOR_ATTACHMENT0+i) for i in maxcolors)
         self.names["depth"] = GL_DEPTH_ATTACHMENT
         self.names["stencil"] = GL_STENCIL_ATTACHMENT
@@ -52,7 +52,7 @@ class FBO(object):
                     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture.tex, 0)
                     self.textures[attachment] = texture
                 
-        types = [t for t in self.textures.keys() if 
+        types = [t for t in list(self.textures.keys()) if 
             t !=GL_DEPTH_ATTACHMENT and 
             t != GL_STENCIL_ATTACHMENT and 
             t != GL_DEPTH_STENCIL_ATTACHMENT]
@@ -79,7 +79,7 @@ class FBOrender(Renderer):
     def draw_fsquad(self, shader, **kwargs):
         ctx = self.programs[shader]
         glUseProgram(ctx.program)
-        for name, v in kwargs.items():
+        for name, v in list(kwargs.items()):
             if isinstance(v, Texture):
                 ctx.uniforms[name] = self.get_texunit(v)
             else:

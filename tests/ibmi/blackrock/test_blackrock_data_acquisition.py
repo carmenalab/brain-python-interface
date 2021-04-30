@@ -5,7 +5,7 @@ import scipy.io as sio
 from riglib.bmi import extractor
 
 
-channels = range(33)
+channels = list(range(33))
 n_chan = len(channels)
 
 extractor_cls = extractor.BinnedSpikeCountsExtractor
@@ -27,7 +27,7 @@ class BlackrockData(object):
         try:
             super(BlackrockData, self).init()
         except:
-            print "BlackrockData: running without a task"
+            print("BlackrockData: running without a task")
 
     def run(self):
         self.neurondata.start()

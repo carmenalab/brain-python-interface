@@ -35,7 +35,7 @@ def openfilecheck(open_mode, file_name='', file_ext='', file_type=''):
         if not file_name:  # no file name passed
             from qtpy.QtWidgets import QFileDialog, QApplication
             # Ask user to specify a file path or browse
-            file_name = input("Enter complete " + file_ext + " file path or hit enter to browse: ")
+            file_name = eval(input("Enter complete " + file_ext + " file path or hit enter to browse: "))
 
             if not file_name:
                 if 'app' not in locals(): app = QApplication([])
@@ -55,14 +55,14 @@ def openfilecheck(open_mode, file_name='', file_ext='', file_type=''):
 
                 if fext[0:len(test_extension)] != test_extension:
                     file_name = ''
-                    print("\n*** File given is not a " + file_ext + " file, try again ***\n")
+                    print(("\n*** File given is not a " + file_ext + " file, try again ***\n"))
                     continue
             break
         else:
             file_name = ''
             print("\n*** File given does exist, try again ***\n")
 
-    print('\n' + file_name.split('/')[-1] + ' opened')
+    print(('\n' + file_name.split('/')[-1] + ' opened'))
     return open(file_name, open_mode)
 
 

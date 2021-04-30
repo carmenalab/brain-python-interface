@@ -72,7 +72,7 @@ meta_ppf._init_state(init_state=beta_cont_hist[0,:,:].ravel(), init_cov=R)
 
 n_iter = 60000
 for n in range(1, n_iter):
-    if n % batch_size == 0: print n
+    if n % batch_size == 0: print(n)
     int_kin = np.hstack([np.zeros(3), X[n,0], 0, X[n,1], 1])
     beta_C = np.array([X[n,0], X[n,1], 1])
 
@@ -115,7 +115,7 @@ if 0:
     axes[2].plot(beta_cont_hist[:,0,2])
     
     # Plot results
-    beta_hist = map(lambda x: np.array(x), beta_hist)
+    beta_hist = [np.array(x) for x in beta_hist]
     beta_hist = np.dstack(beta_hist).transpose([2,0,1])
     
     plt.figure()

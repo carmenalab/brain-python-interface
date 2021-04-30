@@ -35,8 +35,8 @@ class TouchDataFeature(traits.HasTraits):
         System  = touch_data.TouchData
         self.touch_data = source.DataSource(System)
         from riglib import sink
-        self.sinks = sink.sinks
-        self.sinks.register(self.touch_data)
+        sink_manager = sink.SinkManager.get_instance()
+        sink_manager.register(self.touch_data)
         super(TouchDataFeature, self).init()
     
     @property

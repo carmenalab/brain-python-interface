@@ -148,7 +148,7 @@ class SmoothFilter(object):
     def _pickle_init(self):
         pass
 
-from bmi import Decoder
+from .bmi import Decoder
 class One_Dim_LFP_Decoder(Decoder):
 
     def __init__(self, *args, **kwargs):

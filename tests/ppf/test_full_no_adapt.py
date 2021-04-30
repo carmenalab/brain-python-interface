@@ -82,7 +82,7 @@ class TestPPFReconstruction(bmimultitasks.BMIControlMulti):
 
     def get_cursor_location(self):
         if self.idx % 1000 == 0: 
-            print self.idx, np.max(np.abs(self.decoder_error[3:6,:]))
+            print(self.idx, np.max(np.abs(self.decoder_error[3:6,:])))
 
         self.current_assist_level = 0 # same indexing as MATLAB
         self.sl = slice(self.idx, self.idx+self.n_subbins)
@@ -112,7 +112,7 @@ class matfilesource(object):
         self.n = 0
 
     def get(self):
-        print 'soruc'
+        print('soruc')
         return self.spike_counts[:, self.n]
 
 def run_sim(data_fname=None, decoder_fname = None, n_iter2 = None, start_ix = 0):
@@ -158,7 +158,7 @@ def run_sim(data_fname=None, decoder_fname = None, n_iter2 = None, start_ix = 0)
         st = time.time()
         self.get_cursor_location()
         #print time.time() - st
-    print np.max(np.abs(self.decoder_error[3:6,:]))
+    print(np.max(np.abs(self.decoder_error[3:6,:])))
 
     return self, kwargs['cursor_kin']
 

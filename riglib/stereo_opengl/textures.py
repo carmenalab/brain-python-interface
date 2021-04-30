@@ -4,7 +4,7 @@
 import numpy as np
 from OpenGL.GL import *
 
-from models import Model
+from .models import Model
 
 textypes = {GL_UNSIGNED_BYTE:np.uint8, GL_FLOAT:np.float32}
 class Texture(object):

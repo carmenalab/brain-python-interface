@@ -23,7 +23,7 @@ class TestDecoderTrain(unittest.TestCase):
       
         training_block = dbfn.TaskEntry(dec_record.entry_id, dbname='testing')
         files = training_block.datafiles
-        print files
+        print(files)
       
         from riglib.bmi import extractor
         extractor_cls = extractor.BinnedSpikeCountsExtractor

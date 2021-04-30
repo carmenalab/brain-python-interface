@@ -9,7 +9,7 @@ import numpy as np
 try:
     import pylink
 except ImportError:
-    print "Couldn't find eyetracker module"
+    print("Couldn't find eyetracker module")
 
 class Simulate(object):
     '''
@@ -29,7 +29,7 @@ class Simulate(object):
         -------
         '''
         from scipy.interpolate import interp1d
-        flen = range(len(fixations)+1)
+        flen = list(range(len(fixations)+1))
         t = list(itertools.chain(*[(i*isi + slen*i, (i+1)*isi + slen*i) for i in flen]))[:-1]
         xy = np.append(np.tile(fixations, (1, 2)).reshape(-1, 2), [fixations[0]], axis=0)
         self.mod = t[-1] / 1000.
@@ -38,6 +38,7 @@ class Simulate(object):
         self.isi = isi
 
     def start(self):
+
         '''
         Docstring
 
@@ -47,7 +48,20 @@ class Simulate(object):
         Returns
         -------
         '''
+        print("eyetracker.simulate.start()")
         self.stime = time.time()
+    
+    def retrieve(self, filename):
+        '''
+        for sim, there is no need to retrieve an file
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        pass
 
     def get(self):
         '''
@@ -59,8 +73,12 @@ class Simulate(object):
         Returns
         -------
         '''
-        time.sleep(1./update_freq)
-        return self.interp((time.time() - self.stime) % self.mod) + np.random.randn(2)*.01
+        time.sleep(1./self.update_freq)
+
+        data = self.interp((time.time() - self.stime) % self.mod) + np.random.randn(2)*.01
+        #expand dims
+        data_2 = np.expand_dims(data, axis = 0)
+        return data_2
 
     def stop(self):
         '''
@@ -72,7 +90,19 @@ class Simulate(object):
         Returns
         -------
         '''
-        return 
+        return
+
+    def sendMsg(self, msg):
+        '''
+        Docstring
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        '''
+        pass
 
 class System(object):
     '''
@@ -107,13 +137,13 @@ class System(object):
         Returns
         -------
         '''
-        print "eyetracker.System.start()"
+        print("eyetracker.System.start()")
         self.filename = filename
         if filename is None:
             self.filename = "%s.edf"%time.strftime("%Y%m%d") #%Y-%m-%d_%I:%M:%p
         self.tracker.openDataFile(self.filename)
         # pylink.beginRealTimeMode(100)
-        print "\n\ntracker.startRecording"
+        print("\n\ntracker.startRecording")
         self.tracker.startRecording(1,0,1,0)
 
     def stop(self):

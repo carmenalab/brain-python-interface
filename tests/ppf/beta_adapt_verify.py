@@ -45,7 +45,7 @@ n_iter = 20000
 for idx in range(1, n_iter):
     if idx % 1000 == 0: 
         try:
-            print idx, np.max(np.abs(beta_hat_recon_error[:,:,inds]))
+            print(idx, np.max(np.abs(beta_hat_recon_error[:,:,inds])))
         except:
             pass
     if not np.any(np.isnan(aimPos[:, idx])):
@@ -71,9 +71,9 @@ for idx in range(1, n_iter):
         batch_idx += 1
 
 inds = np.array(inds)
-print np.max(np.abs(beta_hat_recon_error[:,:,inds]))
+print(np.max(np.abs(beta_hat_recon_error[:,:,inds])))
 
-error_over_time = map(np.linalg.norm, beta_hat_recon_error.T)
+error_over_time = list(map(np.linalg.norm, beta_hat_recon_error.T))
 
 
 

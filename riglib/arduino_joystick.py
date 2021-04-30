@@ -4,7 +4,7 @@ import itertools
 import numpy as np
 
 import serial
-from source import DataSourceSystem
+from .source import DataSourceSystem
 
 
 class System(DataSourceSystem):
@@ -79,7 +79,7 @@ class System(DataSourceSystem):
             y = self.sensordat[0]
             self.sensordat = np.array([x, y])
         except:
-            print 'sensor_error'
+            print('sensor_error')
 
         self.data['sensors'] = self.sensordat
         self.data['inputs'] = self.inputdat
@@ -122,9 +122,9 @@ def make(sensors, inputs, cls=System, **kwargs):
     -------
     '''
     def init(self, **kwargs):
-        print 'making arduino joystick'
+        print('making arduino joystick')
         super(self.__class__, self).__init__(n_sensors=sensors, n_inputs=inputs, **kwargs)
-        print 'making arduino joystick2'
+        print('making arduino joystick2')
 
     dtype = np.dtype([('sensors', np.float, (sensors,)), ('inputs', np.bool, (inputs,))])
     return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))
