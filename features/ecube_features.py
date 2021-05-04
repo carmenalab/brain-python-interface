@@ -2,14 +2,28 @@ import time
 import os
 from datetime import datetime
 from riglib.experiment import traits
+import traceback
 
 ecube_path = "/media/NeuroAcq" # TODO this should be configurable elsewhere
+log_path = os.path.join(os.path.dirname(__file__), '../log')
+log_filename = os.path.join(log_path, "ecube_log")
 
 def make_ecube_session_name(saveid):
     now = datetime.now()
     session = now.strftime("%Y-%m-%d")
     number = str(saveid) if saveid else "Test"
     return session + "_BMI3D_te" + number
+
+def log_str(s, mode="a", newline=True):
+    if newline and not s.endswith("\n"):
+        s += "\n"
+    with open(log_filename, mode) as fp:
+        fp.write(s)
+
+def log_exception(err, mode="a"):
+    with open(log_filename, mode) as fp:
+        traceback.print_exc(file=fp)
+        fp.write(str(err))
 
 class RecordECube(traits.HasTraits):
 
@@ -37,8 +51,11 @@ class RecordECube(traits.HasTraits):
                     ecube_session = session
                     ec.remotestopsave(session)
                     print('Stopped eCube recording session ' + session)
+                    log_str("Stopped recording " + session)
         except Exception as e:
             print(e)
+            traceback.print_exc()
+            log_exception(e)
             print('\n\neCube recording could not be stopped! Please manually stop the recording\n\n')
             return False
 
@@ -63,6 +80,7 @@ class RecordECube(traits.HasTraits):
         if saveid is not None:
             from riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
+            log_str("New recording for task entry {}: {}".format(saveid, session_name))
             try:
                 ec = pyeCubeStream.eCubeStream(debug = True)
                 ec.add(('AnalogPanel',))
@@ -73,6 +91,8 @@ class RecordECube(traits.HasTraits):
                 active_sessions = ec.listremotesessions()
             except Exception as e:
                 print(e)
+                traceback.print_exc()
+                log_exception(e)
                 active_sessions = []
             if session_name in active_sessions:
                 cls.ecube_status = "recording"

@@ -194,6 +194,7 @@ class RPCProcess(mp.Process):
     def log_error(self, err, mode='a'):
         if self.log_filename != '':
             with open(self.log_filename, mode) as fp:
+                traceback.print_exc(file=fp)
                 fp.write(str(err))
 
     def log_str(self, s, mode="a", newline=True):
