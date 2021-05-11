@@ -1,5 +1,6 @@
 import time
 import os
+import numpy as np
 from datetime import datetime
 from riglib.experiment import traits
 import traceback
@@ -57,6 +58,12 @@ class RecordECube(traits.HasTraits):
                     ec.remotestopsave(session)
                     print('Stopped eCube recording session ' + session)
                     log_str("Stopped recording " + session)
+            sources = ec.listadded()
+
+            # Remove headstage sources so they can be added again later
+            if len(sources[0]) > 0:
+                for hs in np.unique(sources[0][0]):
+                    ec.remove(('Headstages', int(hs)))
         except Exception as e:
             print(e)
             traceback.print_exc()
@@ -85,7 +92,7 @@ class RecordECube(traits.HasTraits):
         if saveid is not None:
             from riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
-            log_str("New recording for task entry {}: {}".format(saveid, session_name))
+            log_str("\n\nNew recording for task entry {}: {}".format(saveid, session_name))
             try:
                 ec = pyeCubeStream.eCubeStream(debug = True)
                 ec.add(('AnalogPanel',))
