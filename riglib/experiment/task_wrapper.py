@@ -125,11 +125,11 @@ class TaskWrapper(RPCProcess):
         self.log_str("Starting cleanup...")
         cleanup_successful = self.cleanup()
 
-        # inform the user in the browser that the task is done!
+        # inform the user in the browser that the task is done!         TODO: Get errors to show up as errors in the web UI
         if cleanup_successful == True or cleanup_successful is None:
             if use_websock: self.websock.write("\n\n...done!\n")
         else:
-            if use_websock: self.websock.write(dict(status="error", msg="\n\nError! Check for errors in the terminal!\n"))
+            if use_websock: self.websock.write("\n\nError! Check for errors in the terminal!\n")
 
         self.log_str("...done")
         print("*************************** EXITING TASK *****************************")

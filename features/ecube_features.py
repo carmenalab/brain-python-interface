@@ -38,6 +38,11 @@ class RecordECube(traits.HasTraits):
         This 'cleanup' method remotely stops the plexon file recording and then links the file created to the database ID for the current TaskEntry
         '''
         super_result = super().cleanup(database, saveid, **kwargs)
+        
+        # Check that we actually started recording
+        if not self.ecube_status == "recording":
+            return super_result
+        
         from riglib.ecube import pyeCubeStream
         ecube_session = make_ecube_session_name(saveid) # usually correct, but might be wrong if running overnight!
 
@@ -97,14 +102,19 @@ class RecordECube(traits.HasTraits):
             if session_name in active_sessions:
                 cls.ecube_status = "recording"
             else:
-                cls.ecube_status = "Could not start eCube recording. Make sure servernode is running!"
+                cls.ecube_status = "Could not start eCube recording. Make sure servernode is running!\n"
         else:
             cls.ecube_status = "testing"
         super().pre_init(saveid=saveid, **kwargs)
 
     def run(self):
         if not self.ecube_status in ["testing", "recording"]:
-            raise ConnectionError(self.ecube_status)
+            import io
+            self.terminated_in_error = True
+            self.termination_err = io.StringIO()
+            self.termination_err.write(self.ecube_status)
+            self.termination_err.seek(0)
+            self.state = None
         super().run()
 
 class TestExperiment():
