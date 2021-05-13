@@ -1,7 +1,7 @@
 
 brain-python-interface (a.k.a. bmi3d)
 ====================================
-**This the unstable python 3 branch. It may not yet do what you want it to do. Use the master branch for the heavily-tested (but out of date) python 2 version**
+**This the python 3 branch. It has not been as extensively tested as the python 2 version on the master branch. However, the python 2 version is no longer being actively maintained.**
 
 This package contains Python code to run electrophysiology behavioral tasks,
 with emphasis on brain-machine interface (BMIs) tasks. This package differs
@@ -27,11 +27,24 @@ Visual C++ Build tools (for the 'traits' package)
 
 
 # Installation
+This package depends on many other python packages and is sensitive to the version numbers of some of those dependencies. For that reason, it is recommended that you install into a virtual environment to isolate the python packages for bmi3d from the rest of your system python use:
+
 ```bash
 git clone -b develop https://github.com/carmenalab/brain-python-interface.git
 cd brain-python-interface
-pip3 install -r requirements.txt
-pip3 install -e .
+python3 -m venv env 				# create virtual environment for python package isolation
+source env/bin/activate				# open virtual environment
+pip install -r requirements.txt
+pip install -e .					# install in editable mode. Now 'git pull' updates in this directory will automatically propagate to the installation
+deactivate							# exit virtual environment
+```
+## OS X
+
+After installing the main requirements, you also need to install pygame
+```bash
+source env/bin/activate				# open virtual environment
+pip instal -r requirements_osx.txt
+deactivate							# exit virtual environment
 ```
 
 ## Installation in Docker
