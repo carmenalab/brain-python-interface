@@ -108,7 +108,7 @@ sudo ufw allow ssh
 sudo ufw enable    # this is needed even if raspi-config enables SSH
 ```
 
-Then start the server with
+Then start the server with 
 ```bash
 python3 manage.py runserver 0.0.0.0:8000
 ```

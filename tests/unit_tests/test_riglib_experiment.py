@@ -18,26 +18,34 @@ class TestLogExperiment(unittest.TestCase):
 
     def test_exp_fsm_output(self):
         """Experiment state sequence follows reference sequence"""
+        self.exp = MockLogExperiment(verbose=False)
         self.exp.run_sync()
         self.assertEqual(self.exp.event_log,
-            [('state1', 'event1to2', 1), ('state2', 'event2to3', 2), ('state3', 'event3to1', 3), 
+            [('state1', 'event1to2', 1), ('state2', 'event2to3', 2), ('state3', 'event3to1', 3),
              ('state1', 'event1to3', 4), ('state3', 'event3to2', 5), ('state2', 'stop', 7)])
 
     def test_logging(self):
         """LogExperiment should save the sequence of states at cleanup time"""
         mock_db = MockDatabase()
-        self.exp.cleanup(mock_db, "id_is_test_file")
-        self.assertEqual(str(self.exp.event_log), open("id_is_test_file").readlines()[0].rstrip())
+        exp = MockLogExperiment(verbose=False)
+        exp.run_sync()
+        exp.cleanup(mock_db, "id_is_test_file")
+
+        summary_data = str(exp.log_summary(exp.event_log))
+
+        self.assertEqual(summary_data, open("id_is_test_file").readlines()[0].rstrip())
         if os.path.exists("id_is_test_file"):
             os.remove("id_is_test_file")
 
     def test_cleanup_hdf_when_no_hdf_present(self):
         """experiment.Experiment.cleanup_hdf should run without error when data is *not* being saved to HDF"""
+        self.exp = MockLogExperiment(verbose=False)
         self.exp.run_sync()
         self.exp.cleanup_hdf()
 
     def test_add_dtype(self):
         """Experiment should construct a struct of relevant data expected to change on each iteration"""
+        self.exp = MockLogExperiment(verbose=False)
         self.exp.add_dtype("field1", "float", (1,))
 
         with self.assertRaises(Exception) as context:
@@ -57,10 +65,11 @@ class TestLogExperiment(unittest.TestCase):
 
     def test_thread_start(self):
         """Experiment FSM execution should run in a new thread and return when state sequence is complete."""
+        self.exp = MockLogExperiment(verbose=False)
         self.exp.start()
         self.exp.join()
         self.assertEqual(self.exp.event_log,
-            [('state1', 'event1to2', 1), ('state2', 'event2to3', 2), ('state3', 'event3to1', 3), 
+            [('state1', 'event1to2', 1), ('state2', 'event2to3', 2), ('state3', 'event3to1', 3),
              ('state1', 'event1to3', 4), ('state3', 'event3to2', 5), ('state2', 'stop', 7)])
 
         self.assertEqual(self.exp.cycle_count, 7)

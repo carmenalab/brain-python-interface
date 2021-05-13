@@ -9,6 +9,12 @@ import math
 import traceback
 
 from riglib.stereo_opengl.primitives import Sphere, Cube
+from riglib.stereo_opengl.window import Window, FPScontrol, WindowDispl2D
+from riglib.stereo_opengl.primitives import Cylinder, Plane, Sphere, Cube
+from riglib.stereo_opengl.models import FlatMesh, Group
+from riglib.stereo_opengl.textures import Texture, TexModel
+from riglib.stereo_opengl.render import stereo, Renderer
+from riglib.stereo_opengl.utils import cloudy_tex
 
 
 ####### CONSTANTS
@@ -38,7 +44,7 @@ class CircularTarget(object):
         self.drive_to_new_pos()
 
     def drive_to_new_pos(self):
-        raise NotImplementedError 
+        raise NotImplementedError
 
 class VirtualCircularTarget(CircularTarget):
     def drive_to_new_pos(self):
@@ -80,7 +86,7 @@ class VirtualCircularTarget(CircularTarget):
         self.sphere.color = self.default_target_color
 
     def get_position(self):
-        return self.sphere.xfm.move        
+        return self.sphere.xfm.move
 
 class RectangularTarget(object):
     def __init__(self, target_width=4, target_height=4, target_color=(1, 0, 0, .5), starting_pos=np.zeros(3)):
@@ -91,7 +97,7 @@ class RectangularTarget(object):
         self.position = starting_pos
         self.int_position = starting_pos
         self._pickle_init()
-        
+
     def _pickle_init(self):
         self.cube = Cube(side_len=self.target_width, color=self.target_color)
         self.graphics_models = [self.cube]
@@ -103,7 +109,7 @@ class RectangularTarget(object):
         self.drive_to_new_pos()
 
     def drive_to_new_pos(self):
-        raise NotImplementedError 
+        raise NotImplementedError
 
 
 class VirtualRectangularTarget(RectangularTarget):

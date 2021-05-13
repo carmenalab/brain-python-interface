@@ -1,28 +1,18 @@
 '''
 Base code for 'bmi' feature (both spikes and field potentials) when using the plexon system
 '''
-
 import time
 import numpy as np
-from . import plexnet
 from collections import Counter
 import os
 import array
 
-try:
-    from config import config
-    PL_IP = config.plexon_ip
-    PL_PORT = int(config.plexon_port)
-except:
-    PL_IP = "127.0.0.1" # default to localhost
-    PL_PORT = 6000
-PL_ADDR = (PL_IP, PL_PORT)
+from riglib.source import DataSourceSystem
+from . import plexnet
 
 PL_SingleWFType = 1
 PL_ExtEventType = 4
 PL_ADDataType   = 5
-
-from riglib.source import DataSourceSystem
 
 class Spikes(DataSourceSystem):
     '''
@@ -31,7 +21,7 @@ class Spikes(DataSourceSystem):
     update_freq = 40000
     dtype = np.dtype([("ts", np.float), ("chan", np.int32), ("unit", np.int32), ("arrival_ts", np.float64)])
 
-    def __init__(self, addr=PL_ADDR, channels=None):
+    def __init__(self, addr=("127.0.0.1", 6000), channels=None):
         '''
         Constructor for plexon.Spikes
 
@@ -60,7 +50,7 @@ class Spikes(DataSourceSystem):
         '''
         self.conn.start_data()
 
-        # self.data is a generator (the result of self.conn.get_data() is a 'yield'). 
+        # self.data is a generator (the result of self.conn.get_data() is a 'yield').
         # Calling 'self.data.next()' in the 'get' function pulls a new spike timestamp
         self.data = self.conn.get_data()
 
@@ -91,15 +81,15 @@ class LFP(DataSourceSystem):
     gain_digiamp = 1000.
     gain_headstage = 1.
 
-    # like the Spikes class, dtype is the numpy data type of items that will go 
+    # like the Spikes class, dtype is the numpy data type of items that will go
     #   into the (multi-channel, in this case) datasource's ringbuffer
-    # unlike the Spikes class, the get method below does not return objects of 
-    #   this type (this has to do with the fact that a potentially variable 
+    # unlike the Spikes class, the get method below does not return objects of
+    #   this type (this has to do with the fact that a potentially variable
     #   amount of LFP data is returned in d.waveform every time
     #   self.data.next() is called
     dtype = np.dtype('float')
 
-    def __init__(self, addr=PL_ADDR, channels=None, chan_offset=512):
+    def __init__(self, addr=("127.0.0.1", 6000), channels=None, chan_offset=512):
         '''
         Constructor for plexon.LFP
 
@@ -143,7 +133,7 @@ class LFP(DataSourceSystem):
 
     def get(self):
         '''
-        Get a new LFP sample/block of LFP samples from the 
+        Get a new LFP sample/block of LFP samples from the
         '''
         d = next(self.data)
         while d.type != PL_ADDataType:
@@ -171,7 +161,7 @@ class Aux(DataSourceSystem):
     # see comment above
     dtype = np.dtype('float')
 
-    def __init__(self, addr=PL_ADDR, channels=None, chan_offset=768):
+    def __init__(self, addr=("127.0.0.1", 6000), channels=None, chan_offset=768):
         '''
         Constructor for plexon.Aux
 

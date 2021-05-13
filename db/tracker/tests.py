@@ -215,6 +215,19 @@ class TestGenerators(TestCase):
 
 class TestVisualFeedbackTask(TestCase):
     def test_start_experiment_python(self):
+        import json
+        from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
+        from riglib import experiment
+        from features import Autostart
+        from tracker import json_param
+
+        try:
+            import pygame
+        except ImportError:
+            print("Skipping test due to pygame missing")
+            return
+
+        # Create all the needed database entries
         subj = models.Subject(name="test_subject")
         subj.save()
 
@@ -224,7 +237,6 @@ class TestVisualFeedbackTask(TestCase):
         models.Generator.populate()
         gen = models.Generator.objects.get(name='centerout_2D_discrete')
 
-        import json
         seq_params = dict(nblocks=1, ntargets=1)
         seq_rec = models.Sequence(generator=gen,
             params=json.dumps(seq_params), task=task)
@@ -235,29 +247,22 @@ class TestVisualFeedbackTask(TestCase):
         te = models.TaskEntry(task=task_rec, subject=subj)
         te.save()
 
-        from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
-
         seq, seq_params = seq_rec.get()
-        # seq = TargetCaptureVFB2DWindow.centerout_2D_discrete()
 
+        # Start the task
         base_class = task.get_base_class()
-        from riglib import experiment
-        from tracker import json_param
         Task = experiment.make(base_class, feats=[])
 
         params = json_param.Parameters.from_dict(dict(window_size=(480, 240)))
         params.trait_norm(Task.class_traits())
-
-
-        from features import Autostart
 
         saveid = te.id
         task_start_data = dict(subj=subj.id, base_class=base_class, feats=[Autostart],
                       params=dict(window_size=(480, 240)), seq=seq_rec, seq_params=seq_params,
                       saveid=saveid)
 
-        tracker = Track.get_instance()
-        tracker.runtask(**task_start_data)
+        tracker = tasktrack.Track.get_instance()
+        tracker.runtask(cli=True, **task_start_data)
 
 
 class TestTaskStartStop(TestCase):
@@ -272,8 +277,8 @@ class TestTaskStartStop(TestCase):
                       params=dict())
 
         # task_start_data = dict(subj=1, task=1, feats=dict(), params=dict(), sequence=None)
-        tracker = Track.get_instance()
-        tracker.runtask(**task_start_data)
+        tracker = tasktrack.Track.get_instance()
+        tracker.runtask(cli=True, **task_start_data)
 
         time.sleep(5)
         tracker.stoptask()
@@ -295,7 +300,7 @@ class TestTaskStartStop(TestCase):
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
 
-        tracker = Track.get_instance()
+        tracker = tasktrack.Track.get_instance()
         self.assertTrue(tracker.task_running())
 
         # check the 'state' of the task
@@ -334,7 +339,7 @@ class TestTaskStartStop(TestCase):
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
 
-        tracker = Track.get_instance()
+        tracker = tasktrack.Track.get_instance()
         self.assertTrue(tracker.task_running())
 
         # check the 'state' of the task
@@ -377,7 +382,7 @@ class TestTaskAnnotation(TestCase):
         start_resp = c.post("/test", post_data)
         start_resp_obj = json.loads(start_resp.content.decode("utf-8"))
 
-        tracker = Track.get_instance()
+        tracker = tasktrack.Track.get_instance()
         h5file = tracker.task_proxy.get_h5_filename()
         self.assertTrue(tracker.task_running())
 
@@ -405,13 +410,4 @@ class TestParamCast(TestCase):
         t1 = json_param.norm_trait(t, 1.0)
         self.assertEqual(t1, 1.0)
 
-        self.assertRaises(Exception, json_param.norm_trait, t, '1.0')
-
-
-
-class TestWebsocket(TestCase):
-    def test_send(self):
-        pass
-        # serv = Server()
-        # serv.send(dict(state="working well"))
-        # serv.stop()
+        #self.assertRaises(Exception, json_param.norm_trait, t, '1.0')
