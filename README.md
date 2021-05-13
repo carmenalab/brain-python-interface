@@ -1,7 +1,7 @@
 
 brain-python-interface (a.k.a. bmi3d)
 ====================================
-**This the unstable python 3 branch. It may not yet do what you want it to do. Use the master branch for the heavily-tested (but out of date) python 2 version**
+**This the python 3 branch. It has not been as extensively tested as the python 2 version on the master branch. However, the python 2 version is no longer being actively maintained.**
 
 This package contains Python code to run electrophysiology behavioral tasks,
 with emphasis on brain-machine interface (BMIs) tasks. This package differs
