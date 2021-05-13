@@ -27,11 +27,24 @@ Visual C++ Build tools (for the 'traits' package)
 
 
 # Installation
+This package depends on many other python packages and is sensitive to the version numbers of some of those dependencies. For that reason, it is recommended that you install into a virtual environment to isolate the python packages for bmi3d from the rest of your system python use:
+
 ```bash
 git clone -b develop https://github.com/carmenalab/brain-python-interface.git
 cd brain-python-interface
-pip3 install -r requirements.txt
-pip3 install -e .
+python3 -m venv env 				# create virtual environment for python package isolation
+source env/bin/activate				# open virtual environment
+pip install -r requirements.txt
+pip install -e .					# install in editable mode. Now 'git pull' updates in this directory will automatically propagate to the installation
+deactivate							# exit virtual environment
+```
+## OS X
+
+After installing the main requirements, you also need to install pygame
+```bash
+source env/bin/activate				# open virtual environment
+pip instal -r requirements_osx.txt
+deactivate							# exit virtual environment
 ```
 
 ## Installation in Docker
@@ -95,7 +108,7 @@ sudo ufw allow ssh
 sudo ufw enable    # this is needed even if raspi-config enables SSH
 ```
 
-Then start the server with 
+Then start the server with
 ```bash
 python3 manage.py runserver 0.0.0.0:8000
 ```
