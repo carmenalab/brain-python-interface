@@ -294,6 +294,7 @@
           {% csrf_token %}
 
           <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()">
+          <button type="submit" style="display: none"></button> <!-- trigger the form to submit (void) when enter is pressed -->
           <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null;">Clear content</button>
           <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Delete entry</button><br>
 
@@ -361,6 +362,10 @@
                 </table>
 
                 <div id="seqparams">
+                </div>
+
+                <div id="seqadd">
+                    <input type="submit" value="Add" onclick="te.sequence.add_sequence()"/>
                 </div>
 
                 <div id="seqstatic_div" class="clear">

@@ -48,6 +48,7 @@ urlpatterns = [
     path(r'exp_log/report', ajax.get_report),
     path(r'exp_log/ajax/task_info/<int:idx>/', ajax.task_info),
     path(r'exp_log/ajax/exp_info/<int:idx>/', ajax.exp_info),
+    path(r'exp_log/ajax/add_sequence', ajax.add_sequence),
     path(r'exp_log/all/ajax/exp_info/<int:idx>/', ajax.exp_info),
     path(r'exp_log/ajax/hide_entry/<int:idx>', ajax.hide_entry),
     path(r'exp_log/ajax/show_entry/<int:idx>', ajax.show_entry),

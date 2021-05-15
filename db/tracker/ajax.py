@@ -159,6 +159,19 @@ def exp_info(request, idx, dbname='default'):
     else:
         return _respond(entry_data)
 
+@csrf_exempt
+def add_sequence(request):
+    
+    print(request.POST)
+    sequence = json.loads(request.POST['sequence'])
+    task_id = json.loads(request.POST.get('task'))
+    seq = Sequence.from_json(sequence)
+    task =  Task.objects.get(pk=task_id)
+    seq.task = task
+    seq.save()
+    
+    return _respond(dict(id=seq.id, name=seq.name))   
+
 def hide_entry(request, idx):
     '''
     See documentation for exp_info
