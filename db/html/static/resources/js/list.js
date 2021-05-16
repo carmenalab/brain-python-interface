@@ -227,72 +227,6 @@ function TaskInterfaceConstructor() {
 
 var task_interface = new TaskInterfaceConstructor();
 
-function create_annotation_callback(annotation_str) {
-    return function() {record_annotation(annotation_str)}
-}
-
-function record_annotation(annotation) {
-    debug("calling record_annotation: " + annotation)
-    $.post("record_annotation", {"annotation": annotation}, function(resp) {
-        debug("Annotation response", resp)
-    })
-}
-
-function Annotations() {
-    this.annotation_buttons = [];
-
-    this.update = function(taskinfo) {
-        this.destroy_annotation_buttons();
-        if (taskinfo.annotations) {
-            this.annotations = taskinfo.annotations;
-            for (var i = 0; i < taskinfo.annotations.length; i += 1) {
-                var new_button = $('<button/>',
-                    {
-                        text: taskinfo.annotations[i],
-                        id: "annotation_btn_" + i.toString(),
-                        click: create_annotation_callback(taskinfo.annotations[i]),
-                        type: "button"
-                    }
-                );
-
-                var new_break = $("<br>");
-
-                $("#annot_div").append(new_button);
-                $("#annot_div").append(new_break);
-                this.annotation_buttons.push(new_button);
-                this.annotation_buttons.push(new_break);
-            }
-        }
-    }
-
-    this.update_from_server = function(taskid, sel_feats) {
-        $.getJSON("ajax/task_info/"+taskid+"/", sel_feats,
-            function(taskinfo) {
-                this.update(taskinfo);
-            }.bind(this)
-        );
-    }
-
-    this.destroy_annotation_buttons = function() {
-        for (var i = 0; i < this.annotation_buttons.length; i += 1) {
-            this.annotation_buttons[i].remove()
-        }
-    }
-
-    this.destroy = function() {
-        this.destroy_annotation_buttons();
-    }
-
-    this.hide = function() {
-        $("#annotations").hide();
-    }
-
-    this.show = function() {
-        $("#annotations").show();
-    }
-}
-
-
 function Files() {
     this.neural_data_found = false;
     $("#file_modal_server_resp").html("");
@@ -366,7 +300,6 @@ function TaskEntry(idx, info) {
     this.sequence = new Sequence();
     this.params = new Parameters();
     this.report = new Report(task_interface.trigger.bind(this));
-    this.annotations = new Annotations();
     this.files = new Files();
     this.controls = new Controls();
     this.controls.hide()
@@ -442,15 +375,12 @@ function TaskEntry(idx, info) {
             info.state = "completed";
             this.update(info);
             
-            // update the annotation buttons
             var taskid = $("#tasks").attr("value");
             var sel_feats = feats.get_checked_features();
-            this.annotations.update_from_server(taskid, sel_feats);
             this.files.hide();
         } else { // no id and no info suggests that the table header was clicked to create a new block
             debug('creating a brand-new JS TaskEntry')
             feats.clear();
-            this.annotations.hide();
             this.report.hide();
             this.files.hide();
             // task_interface.trigger.bind(this)({state:''});
@@ -685,7 +615,6 @@ TaskEntry.prototype.destroy = function() {
     } else {
         this.sequence.destroy();
     }
-    this.annotations.destroy();
     if (this.params)  $(this.params.obj).remove();
     if (this.notes) this.notes.destroy();
     if (this.bmi) this.bmi.destroy();
@@ -732,8 +661,6 @@ TaskEntry.prototype._task_query = function(callback) {
 
             if (typeof(callback) == "function")
                 callback();
-
-            this.annotations.update(taskinfo);
 
             if (taskinfo.generators) {
                 this.sequence.update_available_generators(taskinfo.generators);
@@ -791,8 +718,6 @@ TaskEntry.prototype.run = function(save, exec) {
     this.report = new Report(task_interface.trigger.bind(this));
     this.report.activate();
     this.report.set_mode("running");
-
-    this.annotations.show();
     this.files.hide();
 
     var form = {};
@@ -978,39 +903,44 @@ Notes.prototype.save = function() {
 // Controls class
 //
 
-function create_control_callback(control_str) {
-    return function() {trigger_control(control_str)}
+function create_control_callback(control_str, args) {
+    return function() {trigger_control(control_str, args)}
 }
 
-function trigger_control(control) {
+function trigger_control(control, params) {
     debug("Triggering control: " + control)
-    $.post("trigger_control", {"control": control}, function(resp) {
+    $.post("trigger_control", {"control": control, "params": JSON.stringify(params.to_json())}, function(resp) {
         debug("Control response", resp)
     })
 }
 
 function Controls() {
     this.control_list = [];
+    this.params_list = [];
 }
 Controls.prototype.update = function(controls) {
     debug("Updating controls");
     $("#controls_table").html('');
     this.control_list = [];
     for (var i = 0; i < controls.length; i += 1) {
+
+        var new_params = new Parameters();
+        new_params.update(controls[i].params)
+        
         var new_button = $('<button/>',
             {
-                text: controls[i],
+                text: controls[i].name,
                 id: "controls_btn_" + i.toString(),
-                click: create_control_callback(controls[i]),
+                click: create_control_callback(controls[i].name, new_params),
                 type: "button"
             }
         );
 
-        var new_break = $("<br>");
-
         $("#controls_table").append(new_button);
-        $("#controls_table").append(new_break);
+        $("#controls_table").append(new_params.obj)
         this.control_list.push(new_button);
+        this.params_list.push(new_params)
+
     }
     if (this.control_list.length > 0) this.show();
     else this.hide();
@@ -1026,9 +956,15 @@ Controls.prototype.activate = function() {
     for (var i = 0; i < this.control_list.length; i += 1) {
         $(this.control_list[i]).prop('disabled', false)
     }
+    for (var i = 0; i < this.params_list.length; i += 1) {
+        this.params_list[i].enable();
+    }
 }
 Controls.prototype.deactivate = function() {
     for (var i = 0; i < this.control_list.length; i += 1) {
         $(this.control_list[i]).prop('disabled', true);
+    }
+    for (var i = 0; i < this.params_list.length; i += 1) {
+        this.params_list[i].disable();
     }
 }

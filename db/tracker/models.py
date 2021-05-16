@@ -32,6 +32,35 @@ def import_by_path(import_path):
     cls = getattr(module, class_name)
     return cls
 
+def func_or_class_to_json(func_or_class, current_values, desc_lookup):
+    '''
+    Helper for translating a function or class into json parameters for the UI
+    '''
+    try:
+        args = inspect.getargspec(func_or_class)
+        names, defaults = args.args, args.defaults
+        if "self" in names: names.remove("self")
+    except TypeError:
+        args = inspect.getargspec(func_or_class.__init__)
+        names, defaults = args.args, args.defaults
+        names.remove("self")
+
+    params = OrderedDict()
+
+    for name, default in zip(names, defaults):
+        if name == 'exp':
+            continue
+        if type(default) is tuple:
+            typename = "Tuple"
+        else:
+            typename = "String"
+
+        params[name] = dict(type=typename, default=default, desc=desc_lookup(name))
+        if name in current_values:
+            params[name]['value'] = current_values[name]
+
+    return params
+
 class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
@@ -230,6 +259,27 @@ class Task(models.Model):
                 except:
                     print("missing generator %s" % seqgen_name)
         return exp_generators
+
+    def controls(self, feats=()):
+        exp = self.get(feats=feats)
+        ctl = exp.controls
+        values = dict()
+
+        def desc_lookup(name):
+            table = {
+                'msg': 'Metadata to mark this moment in experiment',
+            }
+            if name in table.keys():
+                return table[name]
+            else:
+                return name
+
+        controls = []
+        for c in ctl:
+            params = func_or_class_to_json(c, values, desc_lookup)
+            controls.append(dict(name=c.__name__, params=params))
+
+        return controls
 
 def can_be_int(x):
     try:
@@ -446,20 +496,6 @@ class Generator(models.Model):
         if values is None:
             values = dict()
         gen = self.get()
-        try:
-            args = inspect.getargspec(gen)
-            names, defaults = args.args, args.defaults
-        except TypeError:
-            args = inspect.getargspec(gen.__init__)
-            names, defaults = args.args, args.defaults
-            names.remove("self")
-
-        # if self.static:
-        #     defaults = (None,)+defaults
-        # else:
-        #     #first argument is the experiment
-        #     names.remove("exp")
-        # arginfo = zip(names, defaults)
 
         def desc_lookup(name):
             table = {
@@ -477,20 +513,7 @@ class Generator(models.Model):
             else:
                 return name
 
-        params = OrderedDict()
-
-        for name, default in zip(names, defaults):
-            if name == 'exp':
-                continue
-            if type(default) is tuple:
-                typename = "Tuple"
-            else:
-                typename = "String"
-
-            params[name] = dict(type=typename, default=default, desc=desc_lookup(name))
-            if name in values:
-                params[name]['value'] = values[name]
-
+        params = func_or_class_to_json(gen, values, desc_lookup)
         return dict(name=self.name, params=params)
 
 class Sequence(models.Model):

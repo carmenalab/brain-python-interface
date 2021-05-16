@@ -235,7 +235,7 @@ div#seqparams {
 	width: 100%;
 }
 
-#parameters table,#sequence table, #seqparams table {
+#parameters table,#sequence table, #seqparams table, #controls table {
 	width:100%;
 	border-collapse:collapse;
 }

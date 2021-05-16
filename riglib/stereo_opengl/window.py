@@ -60,7 +60,7 @@ class Window(LogExperiment):
 
     show_environment = traits.Int(0, desc="Show wireframe box around environment")
 
-    hidden_traits = LogExperiment.hidden_traits + ['screen_dist', 'screen_half_height', 'iod', 'show_environment', 'background']
+    hidden_traits = ['screen_dist', 'screen_half_height', 'iod', 'show_environment', 'background']
 
     def __init__(self, *args, **kwargs):
         self.display_start_pos = kwargs.pop('display_start_pos', "0,0")

@@ -278,7 +278,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
     ]
 
-    hidden_traits = Window.hidden_traits + ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
+    hidden_traits = ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
 
     is_bmi_seed = True
 

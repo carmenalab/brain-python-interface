@@ -36,7 +36,6 @@ urlpatterns = [
     path(r'exp_log/all/', views.list_exp_history),
     path("exp_log/link_data_files/<int:task_entry_id>", views.link_data_files_view_generator),
     path("exp_log/link_data_files/<int:task_entry_id>/submit", views.link_data_files_response_handler),
-    path("exp_log/record_annotation", ajax.record_annotation),
     path("exp_log/trigger_control", ajax.trigger_control),
     # path(r'listdb/(?P<dbname>.+?)/.*?/ajax/exp_info/(?P<idx>\d+)/', ajax.exp_info),
     # path(r'listdb/(?P<dbname>.+?)/.*?/ajax/task_info/(?P<idx>\d+)/', ajax.task_info),

@@ -13,6 +13,7 @@ import tables
 import traceback
 import io
 import numpy as np
+import copy
 from collections import OrderedDict
 
 from . import traits
@@ -54,8 +55,40 @@ def _get_trait_default(trait):
             pass
     return default
 
+class ExperimentMeta(type(traits.HasTraits)):
+    '''
+    Metaclass that merges traits and controls across class which
+    inheritance from multiple parents
+    '''
+    def __new__(meta, name, bases, dct):
+        controls = set()
+        exclude_parent_traits = set()
+        ordered_traits = set()
+        hidden_traits = set()
 
-class Experiment(ThreadedFSM, traits.HasTraits):
+        all_dct = [cls.__dict__ for cls in bases]
+        all_dct.append(dct)
+        for child_dct in all_dct:
+            for key, value in child_dct.items():
+                if hasattr(value, 'bmi3d_control') and value.bmi3d_control:
+                    controls.add(value)
+                elif key == 'hidden_traits':
+                    hidden_traits.update(value)
+                elif key == 'ordered_traits':
+                    ordered_traits.update(value)
+                elif key == 'exclude_parent_traits':
+                    exclude_parent_traits.update(value)
+        dct['controls'] = controls
+        dct['exclude_parent_traits'] = exclude_parent_traits
+        dct['ordered_traits'] = ordered_traits
+        dct['hidden_traits'] = hidden_traits
+        return super(ExperimentMeta, meta).__new__(meta, name, bases, dct)
+
+def control_decorator(fn):
+    fn.bmi3d_control = True
+    return fn
+
+class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
     '''
     Common ancestor of all task/experiment classes
     '''
@@ -501,10 +534,6 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         offline_report['Rewards/min'] = rewards_per_min
         offline_report['Success rate'] = '%g %%' % success_rate
         return offline_report
-
-    def record_annotation(self, msg):
-        """ Record a user-input annotation """
-        pass
 
     # UI cleanup functions ---------------------------------------------------
     def cleanup(self, database, saveid, **kwargs):

@@ -387,7 +387,7 @@ class TestTaskAnnotation(TestCase):
         self.assertTrue(tracker.task_running())
 
         time.sleep(2)
-        c.post("/exp_log/record_annotation", dict(annotation="test post annotation"))
+        c.post("/exp_log/trigger_control", dict(control="record_annotation", args="test post annotation"))
 
         time.sleep(2)
         stop_resp = c.post("/exp_log/stop/")

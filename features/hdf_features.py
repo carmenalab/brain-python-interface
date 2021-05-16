@@ -11,14 +11,16 @@ import os, sys
 import subprocess
 from riglib import calibrations, bmi, sink
 from riglib.bmi import extractor
-from riglib.experiment import traits
+from riglib.experiment import traits, Experiment
+from riglib.experiment.experiment import control_decorator
 import hdfwriter # from riglib.hdfwriter import hdfwriter # <-- now a package on PyPI
 
 
-class SaveHDF(object):
+class SaveHDF():
     '''
     Saves data from registered sources into tables in an HDF file
     '''
+
     def init(self):
         '''
         Secondary init function. See riglib.experiment.Experiment.init()
@@ -68,10 +70,10 @@ class SaveHDF(object):
         self.hdf.sendMsg(condition)
         super(SaveHDF, self).set_state(condition, **kwargs)
 
-    def record_annotation(self, msg):
+    @control_decorator
+    def record_annotation(self, msg=""):
         """ Record a user-input annotation """
         self.hdf.sendMsg("annotation: " + msg)
-        super(SaveHDF, self).record_annotation(msg)
         print("Saved annotation to HDF: " + msg)
 
     def get_h5_filename(self):

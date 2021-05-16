@@ -119,14 +119,7 @@ def task_info(request, idx, dbname='default'):
     task_cls = task.get(feats=feats)
     if issubclass(task_cls, experiment.Sequence):
         task_info['sequence'] = task.sequences()
-
-    if hasattr(task_cls, 'controls'):
-        task_info['controls'] = task_cls.controls
-
-    if hasattr(task_cls, 'annotations'):
-        task_info['annotations'] = task_cls.annotations
-    else:
-        task_info['annotations'] = []
+    task_info['controls'] = task.controls(feats=feats)
 
     return _respond(task_info)
 
@@ -603,20 +596,21 @@ def get_report(request):
     return rpc(report_fn)
 
 @csrf_exempt
-def record_annotation(request):
-    return rpc(lambda tracker: tracker.task_proxy.record_annotation(request.POST["annotation"]))
-
-@csrf_exempt
 def trigger_control(request):
     '''
     Trigger an action via controls on the web interface
     '''
     def control_fn(tracker):
-        method = getattr(tracker.task_proxy, request.POST["control"])
-        if "args" in request.POST:
-            return method(request.POST["args"])
-        else:
-            return method()
+        try:
+            method = getattr(tracker.task_proxy, request.POST["control"])
+            if "params" in request.POST:
+                params = json.loads(request.POST.get("params"))
+                print(method)
+                return method(**params)
+            else:
+                return method()
+        except Exception as e:
+            traceback.print_exc()
 
     return rpc(control_fn)
 
