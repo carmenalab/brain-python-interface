@@ -46,19 +46,16 @@ function Sequence() {
                 params.update(info.params);
                 _handle_set_new_name();
                 $("#seqparams input").change(_handle_set_new_name);
+
+                // Disable entry unless we're looking at a new sequence
+                if ($("#seqlist").val() != "new") {
+                    $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
+                    $('#seqadd').hide();
+                }
             }
         );
     }
     $("#seqgen").change(_handle_chgen);
-
-    $("#seqparams").click(
-        // if you click on the parameters table and the drop-down list of
-        // available sequences (not generators) is enabled, then enable editing
-        function() {
-            if ($("#seqparams").attr("disabled") == "disabled")
-                this.edit();
-        }.bind(this)
-    );
     this.options = {};
 }
 
@@ -113,9 +110,6 @@ Sequence.prototype.update = function(info) {
             $("#seqlist").val(prev);
         }
 
-        
-        this.destroy_parameters();
-        this.params = new Parameters();
         this.params.update(info[id].params);
         $("#seqstatic").attr("checked", info[id].static);
 
@@ -130,18 +124,20 @@ Sequence.prototype.update = function(info) {
                 // the selected sequence is a previously used sequence, so populate the parameters from the db
                 seq_obj.params.update(info[id].params);
 
-                // disable editing in the table
-                $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
-
                 // change the value of the generator drop-down list to the generator for this sequence.
                 $('#seqgen').val(info[id].generator[0]);
 
                 // mark the static checkbox, if the sequence was static
                 $("#seqstatic").attr("checked", info[id].static);
+
+                // disable editing in the table
+                $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
+                $('#seqadd').hide();
             }
         };
         $("#seqlist").change(this._handle_chlist);
-        $("#seqlist").change()
+        $("#seqlist").change();
+        $("#seqgen").change();
         $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
         $("#seqadd").hide();
     } else {
@@ -280,6 +276,7 @@ Sequence.prototype.update_available_generators = function(gens) {
             .text(gens[i][1]));
         }
     }
+    $('#seqgen').change();
 }
 
 if (typeof(module) !== 'undefined' && module.exports) {

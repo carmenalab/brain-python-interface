@@ -239,7 +239,7 @@ td.param_label+td {
 }
 td.param_label+td select { width:100%; }
 input[type=text], input[type=number] { 
-    width:120px;
+    width:50px;
 	border:1px solid;
 	border-color:#888;
 	padding:2px;
@@ -248,6 +248,9 @@ input[type=text], input[type=number] {
 	transition:all 0.25s ease-in-out;
 	-webkit-transition:all 0.25s ease-in-out;
 	-moz-transition:all 0.25s ease-in-out;
+}
+input.string {
+    width:120px;
 }
 
 input#seqlist {

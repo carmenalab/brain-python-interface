@@ -261,6 +261,7 @@ Parameters.prototype.add_string = function (name, info) {
     this.obj.appendChild(trait);
 
     input.type = "text";
+    $(input).addClass("string");
     input.name = name;
     input.id = "param_"+name;
     input.placeholder = info['default'];

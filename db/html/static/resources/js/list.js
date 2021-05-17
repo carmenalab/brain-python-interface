@@ -204,11 +204,13 @@ function TaskInterfaceConstructor() {
         },
         "error": {
             running: function(info) { return info.status == "running"; },
-            testing: function(info) {return info.status == "testing"; }
+            testing: function(info) { return info.status == "testing"; },
+            stopped: function(info) { return info.status == "stopped"; },
         },
         "errtest": {
             running: function(info) { return info.status == "running"; },
-            testing: function(info) {return info.status == "testing"; }
+            testing: function(info) { return info.status == "testing"; },
+            stopped: function(info) { return info.status == "stopped"; },
         },
     };
 
@@ -331,7 +333,6 @@ function TaskEntry(idx, info) {
 
         // Show the wait wheel before sending the request for exp_info. It will be hidden once data is successfully returned and processed (see below)
         $('#wait_wheel').show();
-        $('#tr_seqlist').hide();
 
         $.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
             {}, // POST data to send to the server
@@ -368,28 +369,12 @@ function TaskEntry(idx, info) {
         this.status = "stopped";
         this.tr = $("#newentry");
         this.tr.show(); // make sure the task entry row is visible 
-        $('#tr_seqlist').show();
         
-        if (info) { // if info is present and the id is null, then this block is being copied from a previous block
-            debug('creating a new JS TaskEntry by copy')
-            info.state = "completed";
-            this.update(info);
-            
-            var taskid = $("#tasks").attr("value");
-            var sel_feats = feats.get_checked_features();
-            this.files.hide();
-        } else { // no id and no info suggests that the table header was clicked to create a new block
-            debug('creating a brand-new JS TaskEntry')
-            feats.clear();
-            this.report.hide();
-            this.files.hide();
-            // task_interface.trigger.bind(this)({state:''});
-        }
-
-        // Set 'change' bindings to re-run the _task_query function if the selected task or the features change
-        $("#tasks").change(this._task_query.bind(this));
-        feats.bind_change_callback(this._task_query.bind(this))
-
+        feats.clear();
+        this.report.hide();
+        this.files.hide();
+        // task_interface.trigger.bind(this)({state:''});
+        
         // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
         this._task_query(
             function() {
@@ -397,6 +382,10 @@ function TaskEntry(idx, info) {
                 $("#content").show("slide", "fast");
             }.bind(this)
         );
+
+        // Set 'change' bindings to re-run the _task_query function if the selected task or the features change
+        $("#tasks").change(this._task_query.bind(this));
+        feats.bind_change_callback(this._task_query.bind(this))
 
         // make the notes blank and editable
         $("#notes textarea").val("").removeAttr("disabled");
@@ -407,8 +396,6 @@ function TaskEntry(idx, info) {
 
         task_interface.trigger.bind(this)({status: this.status});
     }
-
-    this.being_copied = false;
 }
 /* Populate the 'exp_content' template with data from the 'info' object
  */
@@ -440,8 +427,6 @@ TaskEntry.prototype.update = function(info) {
     $('#hidebtn').attr('checked', info.visible);
     $('#backupbtn').attr('checked', info.flagged_for_backup);
     $('#templatebtn').attr('checked', info.template);
-
-    this.expinfo = info;
 
     // set the 'tasks' drop-down menu to match the 'info'
     $("#tasks option").each(function() {
@@ -576,23 +561,33 @@ TaskEntry.prototype.toggle_template = function() {
 }
 
 
-/* callback for 'Copy Parameters' button. Note this is not a prototype function
+/* callback for 'Copy Parameters' button.
  */
-TaskEntry.copy = function() {
+TaskEntry.prototype.copy = function() {
     debug("TaskEntry.copy")
-    // start with the info saved in the current TaskEntry object
-    var info = te.expinfo;
 
-    if (info != null) {
-        info.report = {};          // clear the report data
-        info.datafiles = {};       // clear the datafile data
-        info.notes = "";           // clear the notes
-    }
+    // reset the task entry row
+    var idx = this.idx
+    this.tr.click(
+        function() {
+            if (te) te.destroy();
+            te = new TaskEntry(idx);
+        }
+    );
+    this.tr.removeClass("rowactive active error");
+    this.tr = $("#newentry");
+    this.tr.show();
+    $('te_table_header').unbind("click");
 
-    te.being_copied = true;
-    te.destroy();
-    te = new TaskEntry(null, info);
-    $('#report').hide();        // creating a TaskEntry with "null" goes into the "stopped" state
+    this.idx = null;           // reset the id
+    this.status = "stopped";   // set the status
+    this.report.destroy();     // clear the report data
+    this.files.clear();        // clear the datafile data
+    $("#notes").val("");       // clear the notes
+    $('#report').hide();       // turn off the report pane
+
+    // go into the "stopped" state
+    task_interface.trigger.bind(this)({status: this.status}); 
 }
 
 /*
@@ -604,13 +599,7 @@ TaskEntry.prototype.destroy = function() {
 
     // Destruct objects
     this.report.destroy();
-    if (this.being_copied) {
-        // don't destroy when copying because two objects try to manipulate the
-        // Sequence at the same time
-        this.sequence.destroy_parameters();
-    } else {
-        this.sequence.destroy();
-    }
+    this.sequence.destroy();
     if (this.params)  $(this.params.obj).remove();
     if (this.notes) this.notes.destroy();
     if (this.bmi) this.bmi.destroy();
@@ -708,6 +697,9 @@ TaskEntry.prototype.saverec = function() {
 
 TaskEntry.prototype.run = function(save, exec) {
     debug("TaskEntry.run")
+    // make sure we're stopped
+    task_interface.trigger.bind(this)({status: "stopped"});
+
     // activate the report; start listening to the websocket and update the 'report' field when new data is received
     if (this.report){
         this.report.destroy();

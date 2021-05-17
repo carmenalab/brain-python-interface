@@ -48,7 +48,9 @@
       reset_date_on_new_task();
     })
 
-    $("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
+    $("#copybtn").click(function() {
+        if (te) te.copy();
+    }); // run the TaskEntry prototype copy function to make new parameters
     $("#hidebtn").change(
       function () {
         te.toggle_visible();

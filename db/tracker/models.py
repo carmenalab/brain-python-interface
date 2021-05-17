@@ -52,6 +52,8 @@ def func_or_class_to_json(func_or_class, current_values, desc_lookup):
             continue
         if type(default) is tuple:
             typename = "Tuple"
+        elif type(default) is int or type(default) is float:
+            typename = "Float"
         else:
             typename = "String"
 
@@ -542,7 +544,8 @@ class Sequence(models.Model):
 
         if hasattr(self, 'generator') and self.generator.static: # If the generator is static, (NOTE: the generator being static is different from the *sequence* being static)
             if len(self.sequence) > 0:
-                return generate.runseq, dict(seq=pickle.loads(str(self.sequence)))
+                import ast
+                return generate.runseq, dict(seq=pickle.loads(ast.literal_eval(self.sequence)))
             else:
                 return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))
         else:
