@@ -1,4 +1,3 @@
-
 var log_mode = 2
 
 function log(msg, level) {
@@ -299,6 +298,7 @@ function TaskEntry(idx, info) {
     // Make new widgets
     this.sequence = new Sequence();
     this.params = new Parameters();
+    this.metadata = new Metadata();
     this.report = new Report(task_interface.trigger.bind(this));
     this.files = new Files();
     this.controls = new Controls();
@@ -428,6 +428,7 @@ TaskEntry.prototype.update = function(info) {
     // Update all the sub-parts of the exp_content template separately
     this.sequence.update(info.sequence);
     this.params.update(info.params);
+    this.metadata.update(info.metadata);
     if (this.notes)
         this.notes.update(info.notes);
     else
@@ -447,11 +448,6 @@ TaskEntry.prototype.update = function(info) {
         if (this.value == info.task)
             this.selected = true;
     })
-    // set the 'subjects' drop-down menu to match the 'info'
-    $("#subjects option").each(function() {
-        if (this.value == info.subject)
-            this.selected = true;
-    });
 
     feats.select_features(info.feats);
 
@@ -665,6 +661,7 @@ TaskEntry.prototype._task_query = function(callback) {
             if (taskinfo.generators) {
                 this.sequence.update_available_generators(taskinfo.generators);
             }
+            this.metadata.update(taskinfo.metadata)
 
             if (taskinfo.controls) {
                 this.controls.update(taskinfo.controls);
@@ -795,10 +792,10 @@ TaskEntry.prototype.new_row = function(info) {
 
 TaskEntry.prototype.get_data = function() {
     var data = {};
-    data['subject'] = parseInt($("#subjects").attr("value"));
     data['task'] = parseInt($("#tasks").attr("value"));
     data['feats'] = feats.get_checked_features();
     data['params'] = this.params.to_json();
+    data['metadata'] = this.metadata.get_data();
     data['sequence'] = this.sequence.get_data();
     data['entry_name'] = $("#entry_name").val();
     data['date'] = $("#newentry_today").html();
@@ -808,6 +805,7 @@ TaskEntry.prototype.get_data = function() {
 TaskEntry.prototype.enable = function() {
     debug("TaskEntry.prototype.enable");
     this.params.enable();
+    this.metadata.enable();
     feats.enable_entry();
     if (this.sequence)
         this.sequence.enable();
@@ -817,6 +815,7 @@ TaskEntry.prototype.enable = function() {
 TaskEntry.prototype.disable = function() {
     debug("TaskEntry.prototype.disable");
     this.params.disable();
+    this.metadata.disable()
     feats.disable_entry();
     if (this.sequence)
         this.sequence.disable();
@@ -857,6 +856,35 @@ TaskEntry.prototype.link_new_files = function() {
             debug("posted the file!");
         }
     )
+}
+
+//
+// Metadata class
+//
+function Metadata() {
+    $("#metadata_table").html("")
+    var params = new Parameters();
+    this.params = params;
+    $("#metadata_table").append(this.params.obj);
+    var add_new_row = $('<input type="button" value="Add"/>');
+    add_new_row.on(function() {params.add_row();});
+    this.add_new_row = add_new_row;
+    $("#metadata_table").append(add_new_row);
+}
+Metadata.prototype.update = function(info) {
+    this.params.update(info)
+}
+Metadata.prototype.enable = function() {
+    this.params.enable();
+    this.add_new_row.show();
+}
+Metadata.prototype.disable = function() {
+    this.params.disable();
+    this.add_new_row.hide();
+}
+Metadata.prototype.get_data = function () {
+    var data = this.params.to_json();
+    return data;
 }
 
 //

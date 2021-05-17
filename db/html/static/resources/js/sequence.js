@@ -113,6 +113,9 @@ Sequence.prototype.update = function(info) {
             $("#seqlist").val(prev);
         }
 
+        
+        this.destroy_parameters();
+        this.params = new Parameters();
         this.params.update(info[id].params);
         $("#seqstatic").attr("checked", info[id].static);
 

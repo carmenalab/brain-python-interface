@@ -12,6 +12,22 @@ function Parameters() {
     this.traits = {};
 }
 Parameters.prototype.update = function(desc) {
+    
+    // clear out the parameters box
+    this.obj.innerHTML = "";
+    // reinitialize
+    this.traits = {};
+    this.hidden_parameters = [];
+
+    // append the new values
+    this.append(desc);
+
+    // show everything
+    this.show_all_attrs();
+
+}
+
+Parameters.prototype.append = function(desc) {
     // Update the parameters descriptor to include the updated values
     // "desc" is a JSON object of form {"param1": {"value": value, "type": type, "desc": string description}, "param2": ...}
     // if the parameter is a drop-down, the parameter's info should also have an "options" field
@@ -36,10 +52,7 @@ Parameters.prototype.update = function(desc) {
             }
         }
     }
-    //clear out the parameters box
-    this.obj.innerHTML = "";
-    //reinitialize with the updated values
-    this.traits = {};
+
 
     var funcs = {
         "Float" :           this.add_float,
@@ -55,9 +68,6 @@ Parameters.prototype.update = function(desc) {
         "Bool":             this.add_bool,
     }
 
-
-    this.hidden_parameters = [];
-
     for (var name in desc) {
         if (funcs[desc[name]['type']]) {// if there is a recognized constructor function for the trait type,
             var fn = funcs[desc[name]['type']].bind(this);
@@ -66,8 +76,6 @@ Parameters.prototype.update = function(desc) {
         else
             debug(desc[name]['type']);
     }
-
-    this.show_all_attrs();
 }
 Parameters.prototype.show_all_attrs = function() {
 
@@ -308,6 +316,45 @@ Parameters.prototype.add_enum = function(name, info) {
         input.appendChild(opt);
     }
     this.traits[name] = {"obj":trait, "inputs":[input]};
+}
+
+/*
+* Function to ask user for a new row
+*/
+Parameters.prototype.add_row = function() {
+    var trait = $("<tr>");
+    trait.attr("title", "New metadata entry");
+    var td = $("<td>");
+    td.addClass("param_label");
+    td.css("textAlign", "right");
+    trait.append(td);
+    var label = $('<input type="text" placeholder="New entry">');
+    label.css({"border": "none", "border-color": "transparent"});
+    var div = $("<td>");
+    var input = $('<input type="text">');
+    td.append(label);
+    trait.append(div);
+    div.append(input);
+    $(this.obj).append(trait);
+
+    var _this = this;
+    label.blur(function(){
+        var name = label.val();
+        if (name) {
+
+            // If a label has been set, make it permanent
+            trait.attr('id', 'param_'+name);
+            new_label = $("<label>")
+            new_label.css("textAlign", "right");
+            new_label.html(name);
+            label.replaceWith(new_label);
+            _this.traits[name] = {"obj":trait.get(0), "inputs":[input.get(0)]}
+        } else {
+
+            // Otherwise delete the row
+            trait.remove();
+        }
+    })
 }
 
 function get_param_input(input_obj) {

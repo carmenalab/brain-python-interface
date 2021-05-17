@@ -49,9 +49,6 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
             ent.rowspan = k - last
             last = k
 
-    filter_kwargs['template'] = True
-    templates = models.TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
-
     tasks = models.Task.objects.filter(visible=True).order_by("name")
 
     epoch = datetime.datetime.utcfromtimestamp(0)
@@ -62,16 +59,12 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         else:
             entry.bgcolor = '#FFFFFF'
 
-    subjects = models.Subject.objects.all().order_by("name")
     features = models.Feature.objects.filter(visible=True).order_by("name")
     generators = models.Generator.objects.filter(visible=True).order_by("name")
     collections = models.TaskEntryCollection.objects.all().order_by("name")
 
-
     fields = dict(
         entries=entries,
-        templates=templates,
-        subjects=subjects,
         tasks=tasks,
         features=features,
         generators=generators,

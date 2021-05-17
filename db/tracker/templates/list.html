@@ -224,29 +224,13 @@
         </div>
 
         <tbody>
-        <!-- Templates -->
-        {% for e in templates %}
-          {% if e.visible %}
-            <tr title="Template" id='row{{e.id}}' class='template'>
-          {% else %}
-            <tr title="Template" id='row{{e.id}}' class='template' style="background-color: gray">
-          {% endif %}
-          {% if e == templates|first %}
-              <td class='colDate' rowspan={{templates|length}} colspan=2>Templates</td>
-          {% endif %}
-              <td class='colID' colspan=2 style="text-align: left">{{e.entry_name}}</td>
-              <td class='colTask' colspan=2 style="text-align: left">{{e.task.name}}</td>
-            </tr>
-        {% endfor %}
+        <!-- Header -->
           <tr id='newentry' class='rowactive'>
             <td id="newentry_today" onclick="$('#date_entry_modal').css('display', 'block')">Today</td>
             <td id="newentry_now">Now</td>
             <td></td> <!-- Empty for database ID slot -->
             <td class='colSubj'>
-              <select id='subjects'>
-                {% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>
-                {% endfor %}
-              </select>
+              
             </td>
             <td class='colTask'>
               <select id='tasks'>
@@ -404,6 +388,11 @@
 
                   <div class="clear"></div>
                 </div>
+              </fieldset>
+
+              <fieldset id="metadata">
+                <legend>Metadata</legend>
+                <table id="metadata_table"></table>
               </fieldset>
 
               <fieldset id="notes">

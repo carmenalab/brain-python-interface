@@ -191,14 +191,6 @@ th { text-align:left;}
 	/*z-index:1;*/
 }
 
-input[type="text"] {
-    width: 50px;
-}
-
-input[type="number"] {
-    width: 50px;
-}
-
 #report td:first-child {
 	font-weight:bold;
 }
@@ -235,7 +227,7 @@ div#seqparams {
 	width: 100%;
 }
 
-#parameters table,#sequence table, #seqparams table, #controls table {
+#parameters table,#sequence table, #seqparams table, #controls table, #metadata table {
 	width:100%;
 	border-collapse:collapse;
 }
@@ -247,6 +239,7 @@ td.param_label+td {
 }
 td.param_label+td select { width:100%; }
 input[type=text], input[type=number] { 
+    width:120px;
 	border:1px solid;
 	border-color:#888;
 	padding:2px;

@@ -114,7 +114,21 @@ def task_info(request, idx, dbname='default'):
             feat = Feature.objects.using(dbname).get(name=name)
             feats.append(feat)
 
-    task_info = dict(params=task.params(feats=feats), generators=task.get_generators())
+    filter_kwargs = {'template': True, 'task__id': idx}
+    templates = TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
+    template_info = [{'id': t.id, 'name': t.name} for t in templates]
+
+    subject = {
+        'type': 'Enum',
+        'default': '',
+        'desc': 'Who',
+        'hidden': 'visible',
+        'options':  Subject.get_all_subjects()
+    }
+    metadata = {'subject': subject}
+
+    task_info = dict(params=task.params(feats=feats), generators=task.get_generators(), \
+        templates=template_info, metadata=metadata)
 
     task_cls = task.get(feats=feats)
     if issubclass(task_cls, experiment.Sequence):
@@ -267,8 +281,10 @@ def start_experiment(request, save=True, execute=True):
 
         task =  Task.objects.get(pk=data['task'])
         feature_names = list(data['feats'].keys())
+        subject_name = data['metadata'].pop('subject')
+        subject = Subject.objects.get(name=subject_name)
 
-        entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
+        entry = TaskEntry.objects.create(subject_id=subject.id, task_id=task.id)
         if 'entry_name' in data:
             entry.entry_name = data['entry_name']
         if 'date' in data and data['date'] != "Today" and len(data['date'].split("-")) == 3:
@@ -281,6 +297,8 @@ def start_experiment(request, save=True, execute=True):
         feats = Feature.getall(feature_names)
         kwargs = dict(subj=entry.subject.id, base_class=task.get(),
             feats=feats, params=params)
+        metadata = Parameters.from_html(data['metadata'])
+        entry.metadata = metadata.to_json()
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(task.get(feats=feature_names), experiment.Sequence):

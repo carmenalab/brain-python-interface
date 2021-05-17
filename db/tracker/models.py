@@ -400,6 +400,12 @@ class Subject(models.Model):
     def __repr__(self):
         return self.__str__()
 
+    @staticmethod
+    def get_all_subjects():
+        subjects = Subject.objects.all().order_by("name")
+        return [s.name for s in subjects]
+
+
 class Generator(models.Model):
     name = models.CharField(max_length=128)
     params = models.TextField()
@@ -600,6 +606,7 @@ class TaskEntry(models.Model):
     params = models.TextField()
     report = models.TextField()
     notes = models.TextField()
+    metadata = models.TextField(default="") # serialized custom key/value metadata
     visible = models.BooleanField(blank=True, default=True)
     backup = models.BooleanField(blank=True, default=False)
     template = models.BooleanField(blank=True, default=False)
@@ -658,6 +665,12 @@ class TaskEntry(models.Model):
         if 'bmi' in data:
             data['decoder'] = data['bmi']
         ##    del data['bmi']
+        return data
+
+    @property
+    def task_metadata(self):
+        from .json_param import Parameters
+        data = Parameters(self.metadata).params
         return data
 
     def plexfile(self, path='/storage/plexon/', search=False):
@@ -737,6 +750,30 @@ class TaskEntry(models.Model):
 
         if len(js['params'])!=len(self.task_params):
             print('param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params))
+
+        # Add metadata
+        js['metadata'] = {}
+        subjects = {
+            'type': 'Enum',
+            'default': self.subject.name,
+            'desc': 'Who',
+            'hidden': 'visible',
+            'options':  Subject.get_all_subjects()
+        }
+        js['metadata']['subject'] = subjects
+        js['metadata'].update(dict([
+            (
+                name, 
+                {
+                    'type': 'String',
+                    'default': '',
+                    'desc': '',
+                    'hidden': 'visible',
+                    'value': value
+                }
+            ) for name, value in self.task_metadata.items()
+        ]))
+        
 
         # Supply sequence generators which are declared to be compatible with the selected task class
         exp_generators = dict()
