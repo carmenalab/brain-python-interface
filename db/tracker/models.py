@@ -46,7 +46,9 @@ def func_or_class_to_json(func_or_class, current_values, desc_lookup):
         names.remove("self")
 
     params = OrderedDict()
-
+    if len(names) == 0:
+        return params
+        
     for name, default in zip(names, defaults):
         if name == 'exp':
             continue
@@ -860,6 +862,30 @@ class TaskEntry(models.Model):
             print('This code does not yet know how to open TDT files!')
             js['bmi'] = dict(_neuralinfo=None)
             #raise NotImplementedError("This code does not yet know how to open TDT files!")
+        elif recording_sys_make == 'ecube':
+            try:
+                sys = System.objects.using(self._state.db).get(name='ecube')
+                df = DataFile.objects.using(self._state.db).get(entry=self.id, system=sys)
+                filepath = df.get_path()
+
+                from riglib.ecube import ecubefile
+                _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
+                if Exp.is_bmi_seed:
+                    ecube = ecubefile.parse_file()
+                    path, name = os.path.split(df.get_path())
+                    name, ext = os.path.splitext(name)
+
+                    _neuralinfo['length'] = ecube.length
+                    _neuralinfo['units'] = ecube.units
+                    _neuralinfo['name'] = name
+
+                js['bmi'] = dict(_neuralinfo=_neuralinfo)
+            except ModuleNotFoundError:
+                print("ecube reader not installed")
+                js['bmi'] = dict(_neuralinfo=None)
+            except (ObjectDoesNotExist, IOError):
+                print("No ecube file found")
+                js['bmi'] = dict(_neuralinfo=None)
         else:
             print('Unrecognized recording_system!')
 

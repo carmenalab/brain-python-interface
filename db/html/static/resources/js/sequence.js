@@ -32,7 +32,7 @@ function Sequence() {
     // parameters will be populated into rows of the table once they are known, later
     var form = $("<form action='javascript:te.sequence.add_sequence()'></form>")
     $(form).append(this.params.obj);
-    $("#seqparams").append(form);
+    $("#seqparams").html(form);
 
     var _this = this;
     _handle_set_new_name = function() { 
@@ -40,6 +40,7 @@ function Sequence() {
     };
     this._handle_set_new_name = _handle_set_new_name
     _handle_chgen = function() {
+        // Used to get the default values for making new generators
         $.getJSON("/ajax/gen_info/"+this.value+"/",
             {},
             function(info) {
@@ -137,7 +138,6 @@ Sequence.prototype.update = function(info) {
         };
         $("#seqlist").change(this._handle_chlist);
         $("#seqlist").change();
-        $("#seqgen").change();
         $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
         $("#seqadd").hide();
     } else {
@@ -166,18 +166,17 @@ Sequence.prototype._make_name = function() {
     // Make name for generator
     var gen = $("#sequence #seqgen option").filter(":selected").text()
     var txt = [];
-    var d = new Date();
+    // var d = new Date();
     // var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
 
-    $("#sequence #seqparams input").each(
-        function() {
-            if (this.value)
-                txt.push(this.name+"="+this.value);
-            else
-                txt.push(this.name+"="+this.placeholder);
-        }
-    )
-    var static = ($("#seqstatic").val()) ? "static" : ""
+    var data = this.params.to_json();
+    for (let key in data) {
+        if (Array.isArray(data[key]))
+            txt.push(key+"="+data[key].join(' '));
+        else
+            txt.push(key+"="+data[key]);
+    }
+    var static = ($("#seqstatic").prop("checked")) ? "static" : ""
     // return gen+":["+txt.join(", ")+"]-" + datestr
     return gen+":["+txt.join(", ")+"]"+static
 }
@@ -216,8 +215,8 @@ Sequence.prototype.add_sequence = function() {
                 log("Added new sequence", 2)
             }
 
-            // Then reload the task info
-            te._task_query(function(){});
+            // Then reload the seq info
+            te._seq_query();
         } else {
             log("Problem adding sequence", 5)
         }
@@ -276,7 +275,7 @@ Sequence.prototype.update_available_generators = function(gens) {
             .text(gens[i][1]));
         }
     }
-    $('#seqgen').change();
+    $('#seqlist').change();
 }
 
 if (typeof(module) !== 'undefined' && module.exports) {

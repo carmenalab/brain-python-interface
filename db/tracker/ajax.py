@@ -332,7 +332,7 @@ def start_experiment(request, save=True, execute=True):
 
             response['date'] = entry.date.strftime("%h %d, %Y %I:%M %p")
             response['status'] = "running"
-            response['idx'] = entry.id
+            response['idx'] = entry.ui_id
 
             # Give the entry ID to the runtask as a kwarg so that files can be linked after the task is done
             kwargs['saveid'] = entry.id

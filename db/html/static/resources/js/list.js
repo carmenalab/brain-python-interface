@@ -261,7 +261,7 @@ Files.prototype.update_filelist = function(datafiles, task_entry_id) {
         // Append the files onto the #files field
         $("#file_list").append(this.filelist);
         for (var sys in datafiles) {
-            if (sys != "hdf") {
+            if (sys == "plexon" || sys == "blackrock" || sys == "ecube") {
                 this.neural_data_found = true;
                 break;
             }
@@ -578,13 +578,23 @@ TaskEntry.prototype.copy = function() {
     this.tr = $("#newentry");
     this.tr.show();
     $('te_table_header').unbind("click");
+    this.tr.unbind("click");
 
+    // bind callbacks to the tasks and features fieldsets
+    $("#tasks").change(this._task_query.bind(this));
+    feats.bind_change_callback(this._task_query.bind(this))
+
+    // reset the task info
     this.idx = null;           // reset the id
     this.status = "stopped";   // set the status
     this.report.destroy();     // clear the report data
     this.files.clear();        // clear the datafile data
-    $("#notes").val("");       // clear the notes
-    $('#report').hide();       // turn off the report pane
+    this.files.hide();
+    $("#notes textarea").val("").removeAttr("disabled");       // clear the notes
+    this.report.hide();        // turn off the report pane
+
+    // update the sequence
+    this._seq_query();
 
     // go into the "stopped" state
     task_interface.trigger.bind(this)({status: this.status}); 
@@ -657,6 +667,30 @@ TaskEntry.prototype._task_query = function(callback) {
             } else {
                 this.controls.update([]);
             }
+        }.bind(this)
+    );
+}
+
+/*
+* Simplified version of _task_query which only updates sequence info
+*/
+TaskEntry.prototype._seq_query = function() {
+    debug('TaskEntry.prototype._seq_query')
+    var taskid = $("#tasks").attr("value");
+    var sel_feats = feats.get_checked_features();
+
+    $.getJSON("ajax/task_info/"+taskid+"/", sel_feats,
+        function(taskinfo) {
+            if (taskinfo.sequence) {
+                $("#sequence").show()
+                this.sequence.update(taskinfo.sequence);
+            } else
+                $("#sequence").hide()
+
+            if (taskinfo.generators) {
+                this.sequence.update_available_generators(taskinfo.generators);
+            }
+            
         }.bind(this)
     );
 }

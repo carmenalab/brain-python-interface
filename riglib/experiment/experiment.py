@@ -61,28 +61,39 @@ class ExperimentMeta(type(traits.HasTraits)):
     inheritance from multiple parents
     '''
     def __new__(meta, name, bases, dct):
-        controls = set()
+        '''
+        Merge the parent trait lists into the class trait lists
+        '''
         exclude_parent_traits = set()
         ordered_traits = set()
         hidden_traits = set()
 
         all_dct = [cls.__dict__ for cls in bases]
         all_dct.append(dct)
-        for child_dct in all_dct:
-            for key, value in child_dct.items():
-                if hasattr(value, 'bmi3d_control') and value.bmi3d_control:
-                    controls.add(value)
-                elif key == 'hidden_traits':
+        for parent in all_dct:
+            for key, value in parent.items():
+                if key == 'hidden_traits':
                     hidden_traits.update(value)
                 elif key == 'ordered_traits':
                     ordered_traits.update(value)
                 elif key == 'exclude_parent_traits':
                     exclude_parent_traits.update(value)
-        dct['controls'] = controls
         dct['exclude_parent_traits'] = exclude_parent_traits
         dct['ordered_traits'] = ordered_traits
         dct['hidden_traits'] = hidden_traits
-        return super(ExperimentMeta, meta).__new__(meta, name, bases, dct)
+        return super().__new__(meta, name, bases, dct)
+
+    @property
+    def controls(cls):
+        '''
+        Lookup the methods which are tagged with bmi3d_control.
+        '''
+        controls = set()
+        for parent in cls.__mro__:
+            for key, value in parent.__dict__.items():
+                if hasattr(value, 'bmi3d_control') and value.bmi3d_control:
+                    controls.add(value)
+        return controls
 
 def control_decorator(fn):
     fn.bmi3d_control = True
@@ -398,9 +409,12 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)
 
+        # Update report stats periodically
+        if self.cycle_count % self.fps == 0: 
+            self.update_report_stats()
+
     def set_state(self, condition, *args, **kwargs):
         self.reportstats['State'] = condition or 'stopped'
-        self.update_report_stats()
         super().set_state(condition, *args, **kwargs)
 
     def _test_stop(self, ts):
@@ -582,6 +596,18 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
         Cleanup commands for all tasks regardless of whether they are saved or not
         '''
         pass
+
+    # Web-facing controls --------------------------------------
+    @control_decorator
+    def play_pause(self):
+        self.pause = not self.pause
+        
+        if self.pause:
+            print("Paused!")
+        else:
+            print("...resuming!")
+
+        return self.pause
 
 
 class LogExperiment(Experiment):
