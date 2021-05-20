@@ -44,26 +44,12 @@ class RecordECube(traits.HasTraits):
         if not self.ecube_status == "recording":
             return super_result
         
-        from riglib.ecube import pyeCubeStream
         ecube_session = make_ecube_session_name(saveid) # usually correct, but might be wrong if running overnight!
 
         # Stop recording
         time.sleep(1) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
         try:
-            ec = pyeCubeStream.eCubeStream(debug=True)
-            active = ec.listremotesessions()
-            for session in active:
-                if str(saveid) in session:
-                    ecube_session = session
-                    ec.remotestopsave(session)
-                    print('Stopped eCube recording session ' + session)
-                    log_str("Stopped recording " + session)
-            sources = ec.listadded()
-
-            # Remove headstage sources so they can be added again later
-            if len(sources[0]) > 0:
-                for hs in np.unique(sources[0][0]):
-                    ec.remove(('Headstages', int(hs)))
+            self._ecube_cleanup(saveid)
         except Exception as e:
             print(e)
             traceback.print_exc()
@@ -82,6 +68,22 @@ class RecordECube(traits.HasTraits):
             database.save_data(filepath, "ecube", saveid, False, False, suffix, dbname=dbname)
         return super_result
 
+    def _ecube_cleanup(self, saveid):
+        from riglib.ecube import pyeCubeStream
+        ec = pyeCubeStream.eCubeStream()
+        active = ec.listremotesessions()
+        for session in active:
+            if str(saveid) in session:
+                ecube_session = session
+                ec.remotestopsave(session)
+                print('Stopped eCube recording session ' + session)
+                log_str("Stopped recording " + session)
+
+        # Remove headstage sources so they can be added again later
+        sources = ec.listadded()
+        if len(sources[0]) > 0:
+            for hs in np.unique(sources[0][0]):
+                ec.remove(('Headstages', int(hs)))
     
     @classmethod
     def pre_init(cls, saveid=None, record_headstage=False, headstage_connector=None, headstage_channels=None, **kwargs):
@@ -94,22 +96,23 @@ class RecordECube(traits.HasTraits):
             session_name = make_ecube_session_name(saveid)
             log_str("\n\nNew recording for task entry {}: {}".format(saveid, session_name))
             try:
-                ec = pyeCubeStream.eCubeStream(debug = True)
+                ec = pyeCubeStream.eCubeStream()
                 ec.add(('AnalogPanel',))
                 ec.add(('DigitalPanel',))
                 if record_headstage:
                     ec.add(('Headstages', headstage_connector, headstage_channels))
                 ec.remotesave(session_name)
                 active_sessions = ec.listremotesessions()
+                if session_name in active_sessions:
+                    cls.ecube_status = "recording"
+                else:
+                    cls.ecube_status = "Could not start eCube recording. Make sure servernode is running!\n"
             except Exception as e:
                 print(e)
                 traceback.print_exc()
                 log_exception(e)
-                active_sessions = []
-            if session_name in active_sessions:
-                cls.ecube_status = "recording"
-            else:
-                cls.ecube_status = "Could not start eCube recording. Make sure servernode is running!\n"
+                cls.ecube_status = e
+            
         else:
             cls.ecube_status = "testing"
         super().pre_init(saveid=saveid, **kwargs)
@@ -122,7 +125,17 @@ class RecordECube(traits.HasTraits):
             self.termination_err.write(self.ecube_status)
             self.termination_err.seek(0)
             self.state = None
-        super().run()
+        try:
+            super().run()
+        except Exception as e:
+            try:
+                self._ecube_cleanup(self.saveid)
+            except Exception as ee:
+                log_str("Tried to cleanup ecube recording but couldn't...")
+                log_exception(ee)
+            finally:
+                raise e
+
 
 class TestExperiment():
     state = None
