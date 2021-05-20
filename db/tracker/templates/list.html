@@ -304,8 +304,7 @@
           <div class="clear"></div>
 
           <div id="entry_name_div">
-            Name: <input type="text" id="entry_name" style="width:200px; ! important;">
-            <input type="button" value="Save name" onclick="te.save_name()">
+            Name: <input type="text" id="entry_name" style="width:200px; ! important;" onchange="te.save_name()">
           </div>
 
           <div class="rightpane_fields">
@@ -357,7 +356,7 @@
                 </div>
 
                 <div id="seqadd">
-                    <input type="submit" value="Add" onclick="te.sequence.add_sequence()"/>
+                    <input type="submit" value="Submit" onclick="te.sequence.add_sequence()"/>
                 </div>
 
                 <div id="seqstatic_div" class="clear">

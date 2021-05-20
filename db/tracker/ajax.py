@@ -120,6 +120,7 @@ def task_info(request, idx, dbname='default'):
 
     subject = {
         'type': 'Enum',
+        'required': True,
         'default': '',
         'desc': 'Who',
         'hidden': 'visible',

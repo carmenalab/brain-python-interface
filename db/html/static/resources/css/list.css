@@ -276,10 +276,14 @@ input:invalid {
 	box-shadow:0px 0px 10px red;
 }
 
-#seqadd {
-    margin-left: 275px;
+#paramadd {
+    margin-top: 5px;
+    margin-left: 290px;
 }
-
+#seqadd {
+    margin-top: 5px;
+    margin-left: 255px;
+}
 
 #report table.option {
 	font-size:10pt;

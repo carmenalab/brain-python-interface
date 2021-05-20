@@ -519,7 +519,13 @@ TaskEntry.prototype.toggle_visible = function() {
 }
 
 TaskEntry.prototype.save_name = function() {
-    $.post("save_entry_name", {"id": this.idx, "entry_name": $("#entry_name").val()});
+    var idx = this.idx;
+    var name = $("#entry_name").val()
+    var tr = this.tr;
+    if (this.idx) $.post("save_entry_name", {"id": this.idx, "entry_name": name}, function() {
+        if (name) tr.find("td.colID").html(name+" ("+idx+")");
+        else tr.find("td.colID").html(idx);
+    });
 }
 
 TaskEntry.prototype.toggle_backup = function() {
@@ -593,8 +599,8 @@ TaskEntry.prototype.copy = function() {
     $("#notes textarea").val("").removeAttr("disabled");       // clear the notes
     this.report.hide();        // turn off the report pane
 
-    // update the sequence
-    this._seq_query();
+    // update the task info, but leave the parameters alone
+    this._task_query(function(){}, false);
 
     // go into the "stopped" state
     task_interface.trigger.bind(this)({status: this.status}); 
@@ -637,7 +643,7 @@ TaskEntry.prototype.remove = function(callback) {
     });
 }
 
-TaskEntry.prototype._task_query = function(callback) {
+TaskEntry.prototype._task_query = function(callback, reset_params = true, reset_metadata = true) {
     debug('TaskEntry.prototype._task_query')
     var taskid = $("#tasks").attr("value");
     var sel_feats = feats.get_checked_features();
@@ -647,7 +653,7 @@ TaskEntry.prototype._task_query = function(callback) {
             debug("Information about task received from the server");
             debug(taskinfo);
 
-            this.params.update(taskinfo.params);
+            if (reset_params) this.params.update(taskinfo.params);
             if (taskinfo.sequence) {
                 $("#sequence").show()
                 this.sequence.update(taskinfo.sequence);
@@ -660,37 +666,13 @@ TaskEntry.prototype._task_query = function(callback) {
             if (taskinfo.generators) {
                 this.sequence.update_available_generators(taskinfo.generators);
             }
-            this.metadata.update(taskinfo.metadata)
+            if (reset_metadata) this.metadata.update(taskinfo.metadata);
 
             if (taskinfo.controls) {
                 this.controls.update(taskinfo.controls);
             } else {
                 this.controls.update([]);
             }
-        }.bind(this)
-    );
-}
-
-/*
-* Simplified version of _task_query which only updates sequence info
-*/
-TaskEntry.prototype._seq_query = function() {
-    debug('TaskEntry.prototype._seq_query')
-    var taskid = $("#tasks").attr("value");
-    var sel_feats = feats.get_checked_features();
-
-    $.getJSON("ajax/task_info/"+taskid+"/", sel_feats,
-        function(taskinfo) {
-            if (taskinfo.sequence) {
-                $("#sequence").show()
-                this.sequence.update(taskinfo.sequence);
-            } else
-                $("#sequence").hide()
-
-            if (taskinfo.generators) {
-                this.sequence.update_available_generators(taskinfo.generators);
-            }
-            
         }.bind(this)
     );
 }
@@ -708,24 +690,20 @@ TaskEntry.prototype.stop = function() {
     $.post("stop/", csrf, task_interface.trigger.bind(this));
 }
 
-/* Callback for the 'Test' button
- */
+// Callback for the 'Test' button
 TaskEntry.prototype.test = function() {
     debug("TaskEntry.prototype.test")
-    this.disable();
     return this.run(false, true);
 }
 
-/* Callback for the 'Start experiment' button
- */
+// Callback for the 'Start experiment' button
 TaskEntry.prototype.start = function() {
     debug("TaskEntry.prototype.start")
-    this.disable();
     return this.run(true, true);
 }
 
+// Callback for 'Save Record' button
 TaskEntry.prototype.saverec = function() {
-    this.disable();
     return this.run(true, false);
 }
 
@@ -733,6 +711,16 @@ TaskEntry.prototype.run = function(save, exec) {
     debug("TaskEntry.run")
     // make sure we're stopped
     task_interface.trigger.bind(this)({status: "stopped"});
+
+    // check that inputs have been filled out
+    let valid = true;
+    $('[required]').each(function() {
+        if ($(this).is(':invalid') || !$(this).val()) valid = false;
+    })
+    if (!valid) {
+        $("#experiment").trigger("submit"); // this will pop up a message to fill out the missing fields
+        return;
+    }
 
     // activate the report; start listening to the websocket and update the 'report' field when new data is received
     if (this.report){
@@ -742,6 +730,7 @@ TaskEntry.prototype.run = function(save, exec) {
     this.report.activate();
     this.report.set_mode("running");
     this.files.hide();
+    this.disable();
 
     var form = {};
     form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
@@ -782,7 +771,11 @@ TaskEntry.prototype.new_row = function(info) {
     //
     debug('TaskEntry.prototype.new_row: ' + info.idx);
 
-    this.idx = info.idx;
+    if (typeof(info.idx) == "number") {
+        this.idx = info.idx;
+    } else {
+        this.idx = parseInt(info.idx.match(/(\d+)/)[1]);
+    }
     this.tr.removeClass("running active error testing")
 
     // make the row hidden (becomes visible when the start or test buttons are pushed)
@@ -892,8 +885,8 @@ function Metadata() {
     var params = new Parameters();
     this.params = params;
     $("#metadata_table").append(this.params.obj);
-    var add_new_row = $('<input type="button" value="Add"/>');
-    add_new_row.on(function() {params.add_row();});
+    var add_new_row = $('<input id="paramadd" type="button" value="+"/>');
+    add_new_row.on("click", function() {params.add_row();});
     this.add_new_row = add_new_row;
     $("#metadata_table").append(add_new_row);
 }

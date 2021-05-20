@@ -216,7 +216,7 @@ Sequence.prototype.add_sequence = function() {
             }
 
             // Then reload the seq info
-            te._seq_query();
+            te._task_query(function(){}, false, false);
         } else {
             log("Problem adding sequence", 5)
         }
@@ -226,6 +226,10 @@ Sequence.prototype.add_sequence = function() {
 Sequence.prototype.enable = function() {
     // only enable the drop-down of the old sequences
     $("#seqlist").removeAttr("disabled");
+    if ($("#seqlist").val() == "new") {
+        $("#seqgen, #seqparams, #seqparams input, #seqstatic").removeAttr("disabled");
+        $('#seqadd').show();    
+    }
 }
 Sequence.prototype.disable = function() {
     // disable the list of old sequences, the parameter inputs, the generator drop-down, the static checkbox
