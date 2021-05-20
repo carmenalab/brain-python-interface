@@ -654,18 +654,18 @@ TaskEntry.prototype._task_query = function(callback, reset_params = true, reset_
             debug(taskinfo);
 
             if (reset_params) this.params.update(taskinfo.params);
-            if (taskinfo.sequence) {
-                $("#sequence").show()
-                this.sequence.update(taskinfo.sequence);
-            } else
-                $("#sequence").hide()
-
             if (typeof(callback) == "function")
                 callback();
 
             if (taskinfo.generators) {
                 this.sequence.update_available_generators(taskinfo.generators);
             }
+            if (taskinfo.sequence) {
+                $("#sequence").show()
+                this.sequence.update(taskinfo.sequence);
+            } else
+                $("#sequence").hide()
+
             if (reset_metadata) this.metadata.update(taskinfo.metadata);
 
             if (taskinfo.controls) {

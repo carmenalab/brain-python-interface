@@ -117,7 +117,7 @@
 
     $('#wait_wheel').hide();
     $('#create_new_seq').hide();
-
+    $("tr.template").hide();
 
 
     // hotkeys for simple TE tasks
@@ -198,7 +198,7 @@
     <a href="/">Back</a>
     <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show history</span>
     <input id="toggle_visible" type="checkbox" {% if show_hidden %} checked {% endif %}><span class="checkboxtext">Include hidden</span>
-    <input id="toggle_templates" type="checkbox" checked="on"><span class="checkboxtext">Show templates</span>
+    <input id="toggle_templates" type="checkbox"><span class="checkboxtext">Show templates</span>
     <button id="new_exp">Start new experiment</button><br>
     <hr>
   </div>
@@ -226,6 +226,20 @@
         </div>
 
         <tbody>
+        <!-- Templates -->
+        {% for e in templates %}
+            {% if e.visible %}
+            <tr title="Template" id='row{{e.id}}' class='template'>
+            {% else %}
+            <tr title="Template" id='row{{e.id}}' class='template' style="background-color: gray">
+            {% endif %}
+            {% if e == templates|first %}
+                <td class='colDate' rowspan={{templates|length}} colspan=2>Templates</td>
+            {% endif %}
+                <td class='colID' colspan=2 style="text-align: left">{{e.entry_name}}</td>
+                <td class='colTask' colspan=2 style="text-align: left">{{e.task.name}}</td>
+            </tr>
+        {% endfor %}
         <!-- Header -->
           <tr id='newentry' class='rowactive'>
             <td id="newentry_today" onclick="$('#date_entry_modal').css('display', 'block')">Today</td>
