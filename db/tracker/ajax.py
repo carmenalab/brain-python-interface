@@ -116,7 +116,7 @@ def task_info(request, idx, dbname='default'):
 
     filter_kwargs = {'template': True, 'task__id': idx}
     templates = TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
-    template_info = [{'id': t.id, 'name': t.name} for t in templates]
+    template_info = [{'id': t.id, 'name': t.entry_name} for t in templates]
 
     subject = {
         'type': 'Enum',

@@ -301,7 +301,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             self.plant = plantlist[self.plant_type]
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
         self.plant.set_bounds(np.array(self.cursor_bounds))
-        self.plant.set_color(self.cursor_color)
+        self.plant.set_color(target_colors[self.cursor_color])
         self.plant.set_cursor_radius(self.cursor_radius)
         self.plant_vis_prev = True
         self.cursor_vis_prev = True

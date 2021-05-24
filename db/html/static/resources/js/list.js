@@ -380,7 +380,7 @@ function TaskEntry(idx, info) {
             function() {
                 this.enable();
                 $("#content").show("slide", "fast");
-            }.bind(this)
+            }.bind(this), true, true
         );
 
         // Set 'change' bindings to re-run the _task_query function if the selected task or the features change
@@ -600,7 +600,7 @@ TaskEntry.prototype.copy = function() {
     this.report.hide();        // turn off the report pane
 
     // update the task info, but leave the parameters alone
-    this._task_query(function(){}, false);
+    this._task_query(function(){}, false, true);
 
     // go into the "stopped" state
     task_interface.trigger.bind(this)({status: this.status}); 
@@ -643,7 +643,7 @@ TaskEntry.prototype.remove = function(callback) {
     });
 }
 
-TaskEntry.prototype._task_query = function(callback, reset_params = true, reset_metadata = true) {
+TaskEntry.prototype._task_query = function(callback, update_params=true, update_metadata=false) {
     debug('TaskEntry.prototype._task_query')
     var taskid = $("#tasks").attr("value");
     var sel_feats = feats.get_checked_features();
@@ -653,7 +653,7 @@ TaskEntry.prototype._task_query = function(callback, reset_params = true, reset_
             debug("Information about task received from the server");
             debug(taskinfo);
 
-            if (reset_params) this.params.update(taskinfo.params);
+            if (update_params) this.params.update(taskinfo.params);
             if (typeof(callback) == "function")
                 callback();
 
@@ -666,7 +666,7 @@ TaskEntry.prototype._task_query = function(callback, reset_params = true, reset_
             } else
                 $("#sequence").hide()
 
-            if (reset_metadata) this.metadata.update(taskinfo.metadata);
+            if (update_metadata) this.metadata.update(taskinfo.metadata);
 
             if (taskinfo.controls) {
                 this.controls.update(taskinfo.controls);
