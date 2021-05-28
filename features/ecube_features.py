@@ -43,6 +43,7 @@ class RecordECube(traits.HasTraits):
 
         # Stop recording
         time.sleep(1) # Need to wait for a bit since the recording system has some latency and we don't want to stop prematurely
+        stopped = False
         try:
             ec = pyeCubeStream.eCubeStream(debug=True)
             active = ec.listremotesessions()
@@ -52,6 +53,10 @@ class RecordECube(traits.HasTraits):
                     ec.remotestopsave(session)
                     print('Stopped eCube recording session ' + session)
                     log_str("Stopped recording " + session)
+                    stopped = True
+
+            if not stopped:
+                raise Exception('Could not find active session for ' + ecube_session)
         except Exception as e:
             print(e)
             traceback.print_exc()
