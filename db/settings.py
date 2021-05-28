@@ -69,14 +69,14 @@ DATABASES = {
 }
 '''
 
-DATABASES['testing'] = {
-    'ENGINE': 'django.db.backends.mysql',
-    'NAME': 'rig1',
-    'HOST': 'aolab.wanprc.washington.edu',
-    'PORT': '3306',
-    'USER': 'aolab',
-    'PASSWORD': 'Securepassword1@#' # Very secure wow
-}
+# DATABASES['testing'] = {
+#     'ENGINE': 'django.db.backends.mysql',
+#     'NAME': 'rig1',
+#     'HOST': 'aolab.wanprc.washington.edu',
+#     'PORT': '3306',
+#     'USER': 'aolab',
+#     'PASSWORD': 'Securepassword1@#' # Very secure wow
+# }
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
