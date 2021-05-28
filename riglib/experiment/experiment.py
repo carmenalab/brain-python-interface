@@ -419,7 +419,9 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
 
     def _test_stop(self, ts):
         '''
-        FSM 'test' function. Returns the 'stop' attribute of the task
+        FSM 'test' function. Returns the 'stop' attribute of the task. Will only be
+        called if the current state is 'stoppable', i.e. it has a 'stop' entry in its 
+        state transition table.
         '''
         if self.session_length > 0 and (self.get_time() - self.task_start_time) > self.session_length:
             self.end_task()
@@ -614,7 +616,6 @@ class LogExperiment(Experiment):
     '''
     Extension of the experiment class which logs state transitions
     '''
-    trial_end_states = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

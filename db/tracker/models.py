@@ -1049,6 +1049,9 @@ class TaskEntry(models.Model):
         hdf['/'].attrs["date"] = str(self.date)
         if self.sequence is not None:
             hdf['/'].attrs["sequence"] = self.sequence.name
+            hdf['/'].attrs["sequence_params"] = self.sequence.params
+            hdf['/'].attrs["generator"] = self.sequence.generator.name
+            hdf['/'].attrs["generator_params"] = self.sequence.generator.params
         hdf['/'].attrs["report"] = self.report
         hdf['/'].attrs["notes"] = self.notes
         hdf['/'].attrs["sw_version"] = self.sw_version

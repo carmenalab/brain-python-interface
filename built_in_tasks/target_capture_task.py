@@ -45,8 +45,6 @@ class TargetCapture(Sequence):
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
-    trial_end_states = ['reward', 'timeout_penalty', 'delay_penalty', 'hold_penalty']
-
     # initial state
     state = "wait"
 
@@ -238,7 +236,7 @@ class TargetCapture(Sequence):
 
     def _test_trial_incomplete(self, time_in_state):
         '''Test whether the target capture sequence needs to be restarted'''
-        return (not self._test_trial_complete(time_in_state)) and (self.tries<self.max_attempts)
+        return (not self._test_trial_complete(time_in_state)) and (self.tries<self.max_attempts) and not self.pause
 
     def _test_timeout_penalty_end(self, time_in_state):
         return time_in_state > self.timeout_penalty_time
