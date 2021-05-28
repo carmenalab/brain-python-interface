@@ -12,22 +12,6 @@ function Parameters() {
     this.traits = {};
 }
 Parameters.prototype.update = function(desc) {
-    
-    // clear out the parameters box
-    this.obj.innerHTML = "";
-    // reinitialize
-    this.traits = {};
-    this.hidden_parameters = [];
-
-    // append the new values
-    this.append(desc);
-
-    // show everything
-    this.show_all_attrs();
-
-}
-
-Parameters.prototype.append = function(desc) {
     // Update the parameters descriptor to include the updated values
     // "desc" is a JSON object of form {"param1": {"value": value, "type": type, "desc": string description}, "param2": ...}
     // if the parameter is a drop-down, the parameter's info should also have an "options" field
@@ -53,6 +37,22 @@ Parameters.prototype.append = function(desc) {
         }
     }
 
+    // clear out the parameters box
+    this.obj.innerHTML = "";
+    // reinitialize
+    this.traits = {};
+    this.hidden_parameters = [];
+
+    // append the new values
+    this.append(desc);
+
+    // show everything
+    this.show_all_attrs();
+
+}
+
+Parameters.prototype.append = function(desc) {
+    // append the given traits to the old traits
 
     var funcs = {
         "Float" :           this.add_float,

@@ -791,7 +791,7 @@ TaskEntry.prototype.new_row = function(info) {
     this.tr = $(document.createElement("tr"));
 
     // add an id number to the row
-    this.tr.attr("id", "row"+info.idx);
+    this.tr.attr("id", "row"+this.idx);
 
     // Write the HTML for the table row
     this.tr.html("<td class='colDate'>Now</td>" +
