@@ -48,7 +48,9 @@
       reset_date_on_new_task();
     })
 
-    $("#copybtn").click(TaskEntry.copy); // run the TaskEntry prototype copy function to make new parameters
+    $("#copybtn").click(function() {
+        if (te) te.copy();
+    }); // run the TaskEntry prototype copy function to make new parameters
     $("#hidebtn").change(
       function () {
         te.toggle_visible();
@@ -115,7 +117,7 @@
 
     $('#wait_wheel').hide();
     $('#create_new_seq').hide();
-
+    $("tr.template").hide();
 
 
     // hotkeys for simple TE tasks
@@ -196,7 +198,7 @@
     <a href="/">Back</a>
     <input id="toggle_table" type="checkbox" checked="on" name="hist_checkbox"><span class="checkboxtext">Show history</span>
     <input id="toggle_visible" type="checkbox" {% if show_hidden %} checked {% endif %}><span class="checkboxtext">Include hidden</span>
-    <input id="toggle_templates" type="checkbox" checked="on"><span class="checkboxtext">Show templates</span>
+    <input id="toggle_templates" type="checkbox"><span class="checkboxtext">Show templates</span>
     <button id="new_exp">Start new experiment</button><br>
     <hr>
   </div>
@@ -226,27 +228,25 @@
         <tbody>
         <!-- Templates -->
         {% for e in templates %}
-          {% if e.visible %}
+            {% if e.visible %}
             <tr title="Template" id='row{{e.id}}' class='template'>
-          {% else %}
+            {% else %}
             <tr title="Template" id='row{{e.id}}' class='template' style="background-color: gray">
-          {% endif %}
-          {% if e == templates|first %}
-              <td class='colDate' rowspan={{templates|length}} colspan=2>Templates</td>
-          {% endif %}
-              <td class='colID' colspan=2 style="text-align: left">{{e.entry_name}}</td>
-              <td class='colTask' colspan=2 style="text-align: left">{{e.task.name}}</td>
+            {% endif %}
+            {% if e == templates|first %}
+                <td class='colDate' rowspan={{templates|length}} colspan=2>Templates</td>
+            {% endif %}
+                <td class='colID' colspan=2 style="text-align: left">{{e.entry_name}}</td>
+                <td class='colTask' colspan=2 style="text-align: left">{{e.task.name}}</td>
             </tr>
         {% endfor %}
+        <!-- Header -->
           <tr id='newentry' class='rowactive'>
             <td id="newentry_today" onclick="$('#date_entry_modal').css('display', 'block')">Today</td>
             <td id="newentry_now">Now</td>
             <td></td> <!-- Empty for database ID slot -->
             <td class='colSubj'>
-              <select id='subjects'>
-                {% for s in subjects %}<option value='{{s.id}}'>{{ s.name }}</option>
-                {% endfor %}
-              </select>
+              
             </td>
             <td class='colTask'>
               <select id='tasks'>
@@ -294,14 +294,15 @@
           {% csrf_token %}
 
           <input id="reloadbtn" value="Reload" type="button" onclick="te.reload()">
+          <button type="submit" style="display: none"></button> <!-- trigger the form to submit (void) when enter is pressed -->
           <button id="clear_content" onclick="if (te != null) {te.destroy();} te = null;">Clear content</button>
           <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Delete entry</button><br>
 
           <div id="finished_task_buttons">
             <input id="copybtn" class="btn" type="button" value="Copy parameters">
             <input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
-            <input id="backupbtn" type="checkbox" checked="on" name="hist_checkbox">Flagged for backup?
-            <input id="templatebtn" type="checkbox" checked="on" name="hist_checkbox">Use as template
+            <input id="backupbtn" type="checkbox" checked="off" name="hist_checkbox">Flagged for backup?
+            <input id="templatebtn" type="checkbox" checked="off" name="hist_checkbox">Use as template
           </div>
 
           <div id="start_buttons">
@@ -317,12 +318,17 @@
           <div class="clear"></div>
 
           <div id="entry_name_div">
-            Name: <input type="text" id="entry_name" style="width:200px; ! important;">
-            <input type="button" value="Save name" onclick="te.save_name()">
+            Name: <input type="text" id="entry_name" style="width:200px; ! important;" onchange="te.save_name()">
           </div>
 
           <div class="rightpane_fields">
             <div class="options">
+
+              <fieldset id="metadata">
+                <legend>Metadata</legend>
+                <table id="metadata_table"></table>
+              </fieldset>
+
               <fieldset id="features">
                 <legend>Features</legend>
                 <ul>
@@ -363,6 +369,10 @@
                 <div id="seqparams">
                 </div>
 
+                <div id="seqadd">
+                    <input type="submit" value="Submit" onclick="te.sequence.add_sequence()"/>
+                </div>
+
                 <div id="seqstatic_div" class="clear">
                   <input id="seqstatic" type="checkbox" name="seqstatic">
                   <label for="seqstatic">Static</label>
@@ -378,12 +388,6 @@
             </div>
 
             <div class="rightside">
-
-              <fieldset id="controls">
-                <legend>Controls</legend>
-                <table id="controls_table">
-                </table>
-              </fieldset>
 
               <fieldset id="report">
                 <legend>Report</legend>
@@ -401,11 +405,10 @@
                 </div>
               </fieldset>
 
-              <fieldset id="annotations">
-                <legend>Annotations</legend>
-                <div id="annot_div">
-                  Misc. annotation: <input type="text" id="misc_annotation" width="20"><input type="button" value="Save" onclick="record_annotation($('#misc_annotation').val())"><br>
-                </div>
+              <fieldset id="controls">
+                <legend>Controls</legend>
+                <table id="controls_table">
+                </table>
               </fieldset>
 
               <fieldset id="notes">

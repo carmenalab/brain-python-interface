@@ -60,7 +60,7 @@ class Window(LogExperiment):
 
     show_environment = traits.Int(0, desc="Show wireframe box around environment")
 
-    hidden_traits = LogExperiment.hidden_traits + ['screen_dist', 'screen_half_height', 'iod', 'show_environment', 'background']
+    hidden_traits = ['screen_dist', 'screen_half_height', 'iod', 'show_environment', 'background']
 
     def __init__(self, *args, **kwargs):
         self.display_start_pos = kwargs.pop('display_start_pos', "0,0")
@@ -168,6 +168,10 @@ class Window(LogExperiment):
             print("Window closed. Stopping task")
         return super_stop or key_stop
     
+    def update_report_stats(self):
+        self.reportstats['FPS'] = round(self.clock.get_fps(),2)
+        return super().update_report_stats()
+    
     def requeue(self):
         self.renderer._queue_render(self.world)
 
@@ -176,9 +180,6 @@ class Window(LogExperiment):
         self.draw_world()
         super(Window, self)._cycle() # is this order intentional? why not cycle first then draw the screen?
         self.event = self._get_event()
-        if self.cycle_count % self.fps == 0: 
-            # Update the measured frame rate every second
-            self.reportstats['FPS'] = round(self.clock.get_fps(),2)
 
 
 class WindowWithExperimenterDisplay(Window):

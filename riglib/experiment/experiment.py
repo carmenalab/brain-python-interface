@@ -13,6 +13,7 @@ import tables
 import traceback
 import io
 import numpy as np
+import copy
 from collections import OrderedDict
 
 from . import traits
@@ -54,8 +55,51 @@ def _get_trait_default(trait):
             pass
     return default
 
+class ExperimentMeta(type(traits.HasTraits)):
+    '''
+    Metaclass that merges traits and controls across class which
+    inheritance from multiple parents
+    '''
+    def __new__(meta, name, bases, dct):
+        '''
+        Merge the parent trait lists into the class trait lists
+        '''
+        exclude_parent_traits = set()
+        ordered_traits = set()
+        hidden_traits = set()
 
-class Experiment(ThreadedFSM, traits.HasTraits):
+        all_dct = [cls.__dict__ for cls in bases]
+        all_dct.append(dct)
+        for parent in all_dct:
+            for key, value in parent.items():
+                if key == 'hidden_traits':
+                    hidden_traits.update(value)
+                elif key == 'ordered_traits':
+                    ordered_traits.update(value)
+                elif key == 'exclude_parent_traits':
+                    exclude_parent_traits.update(value)
+        dct['exclude_parent_traits'] = exclude_parent_traits
+        dct['ordered_traits'] = ordered_traits
+        dct['hidden_traits'] = hidden_traits
+        return super().__new__(meta, name, bases, dct)
+
+    @property
+    def controls(cls):
+        '''
+        Lookup the methods which are tagged with bmi3d_control.
+        '''
+        controls = set()
+        for parent in cls.__mro__:
+            for key, value in parent.__dict__.items():
+                if hasattr(value, 'bmi3d_control') and value.bmi3d_control:
+                    controls.add(value)
+        return controls
+
+def control_decorator(fn):
+    fn.bmi3d_control = True
+    return fn
+
+class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
     '''
     Common ancestor of all task/experiment classes
     '''
@@ -365,14 +409,19 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         if self.task_data is not None:
             self.sinks.send("task", self.task_data)
 
+        # Update report stats periodically
+        if self.cycle_count % self.fps == 0: 
+            self.update_report_stats()
+
     def set_state(self, condition, *args, **kwargs):
         self.reportstats['State'] = condition or 'stopped'
-        self.update_report_stats()
         super().set_state(condition, *args, **kwargs)
 
     def _test_stop(self, ts):
         '''
-        FSM 'test' function. Returns the 'stop' attribute of the task
+        FSM 'test' function. Returns the 'stop' attribute of the task. Will only be
+        called if the current state is 'stoppable', i.e. it has a 'stop' entry in its 
+        state transition table.
         '''
         if self.session_length > 0 and (self.get_time() - self.task_start_time) > self.session_length:
             self.end_task()
@@ -502,10 +551,6 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         offline_report['Success rate'] = '%g %%' % success_rate
         return offline_report
 
-    def record_annotation(self, msg):
-        """ Record a user-input annotation """
-        pass
-
     # UI cleanup functions ---------------------------------------------------
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -554,12 +599,23 @@ class Experiment(ThreadedFSM, traits.HasTraits):
         '''
         pass
 
+    # Web-facing controls --------------------------------------
+    @control_decorator
+    def play_pause(self):
+        self.pause = not self.pause
+        
+        if self.pause:
+            print("Paused!")
+        else:
+            print("...resuming!")
+
+        return self.pause
+
 
 class LogExperiment(Experiment):
     '''
     Extension of the experiment class which logs state transitions
     '''
-    trial_end_states = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

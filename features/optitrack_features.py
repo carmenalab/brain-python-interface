@@ -28,6 +28,8 @@ class Optitrack(traits.HasTraits):
     scale = traits.Float(DEFAULT_SCALE, desc="Control scale factor")
     offset = traits.Array(value=DEFAULT_OFFSET, desc="Control offset")
 
+    hidden_traits = ['optitrack_feature', 'smooth_features']
+
     def init(self):
         '''
         Secondary init function. See riglib.experiment.Experiment.init()

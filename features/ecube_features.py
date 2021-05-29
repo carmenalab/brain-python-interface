@@ -72,18 +72,25 @@ class RecordECube(traits.HasTraits):
         from riglib.ecube import pyeCubeStream
         ec = pyeCubeStream.eCubeStream()
         active = ec.listremotesessions()
+        stopped = saveid is None
         for session in active:
             if str(saveid) in session:
                 ecube_session = session
                 ec.remotestopsave(session)
                 print('Stopped eCube recording session ' + session)
                 log_str("Stopped recording " + session)
+                stopped = True
 
         # Remove headstage sources so they can be added again later
         sources = ec.listadded()
         if len(sources[0]) > 0:
             for hs in np.unique(sources[0][0]):
                 ec.remove(('Headstages', int(hs)))
+
+        # Check that everything worked out
+        if not stopped:
+            raise Exception('Could not find active session for ' + ecube_session)
+
     
     @classmethod
     def pre_init(cls, saveid=None, record_headstage=False, headstage_connector=None, headstage_channels=None, **kwargs):

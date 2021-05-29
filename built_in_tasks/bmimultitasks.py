@@ -25,28 +25,9 @@ from riglib.bmi import feedback_controllers
 from riglib.stereo_opengl.window import WindowDispl2D
 from riglib.stereo_opengl.primitives import Line
 
-
 from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
-
 from .target_capture_task import ScreenTargetCapture
-
-target_colors = {"blue":(0,0,1,0.5),
-"yellow": (1,1,0,0.5),
-"hibiscus":(0.859,0.439,0.576,0.5),
-"magenta": (1,0,1,0.5),
-"purple":(0.608,0.188,1,0.5),
-"lightsteelblue":(0.690,0.769,0.901,0.5),
-"dodgerblue": (0.118,0.565,1,0.5),
-"teal":(0,0.502,0.502,0.5),
-"aquamarine":(0.498,1,0.831,0.5),
-"olive":(0.420,0.557,0.137,0.5),
-"chiffonlemon": (0.933,0.914,0.749,0.5),
-"juicyorange": (1,0.502,0,0.5),
-"salmon":(1,0.549,0.384,0.5),
-"wood": (0.259,0.149,0.071,0.5),
-"elephant":(0.409,0.409,0.409,0.5)}
-
 
 np.set_printoptions(suppress=False)
 
@@ -239,19 +220,9 @@ class BMIControlMulti(BMILoop, LinearlyDecreasingAssist, ScreenTargetCapture):
 
     is_bmi_seed = False
 
-    cursor_color_adjust = traits.OptionsList(*list(target_colors.keys()), bmi3d_input_options=list(target_colors.keys()))
-
     def __init__(self, *args, **kwargs):
         super(BMIControlMulti, self).__init__(*args, **kwargs)
-
-    def init(self, *args, **kwargs):
-        sph = self.plant.graphics_models[0]
-        sph.color = target_colors[self.cursor_color_adjust]
-        sph.radius = self.cursor_radius
-        self.plant.cursor_radius = self.cursor_radius
-        self.plant.cursor.radius = self.cursor_radius
-        super(BMIControlMulti, self).init(*args, **kwargs)
-
+        
     def create_assister(self):
         # Create the appropriate type of assister object
         start_level, end_level = self.assist_level

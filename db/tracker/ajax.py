@@ -114,19 +114,27 @@ def task_info(request, idx, dbname='default'):
             feat = Feature.objects.using(dbname).get(name=name)
             feats.append(feat)
 
-    task_info = dict(params=task.params(feats=feats), generators=task.get_generators())
+    filter_kwargs = {'template': True, 'task__id': idx}
+    templates = TaskEntry.objects.using(dbname).filter(**filter_kwargs).order_by("-date")
+    template_info = [{'id': t.id, 'name': t.entry_name} for t in templates]
+
+    subject = {
+        'type': 'Enum',
+        'required': True,
+        'default': '',
+        'desc': 'Who',
+        'hidden': 'visible',
+        'options':  Subject.get_all_subjects()
+    }
+    metadata = {'subject': subject}
+
+    task_info = dict(params=task.params(feats=feats), generators=task.get_generators(), \
+        templates=template_info, metadata=metadata)
 
     task_cls = task.get(feats=feats)
     if issubclass(task_cls, experiment.Sequence):
         task_info['sequence'] = task.sequences()
-
-    if hasattr(task_cls, 'controls'):
-        task_info['controls'] = task_cls.controls
-
-    if hasattr(task_cls, 'annotations'):
-        task_info['annotations'] = task_cls.annotations
-    else:
-        task_info['annotations'] = []
+    task_info['controls'] = task.controls(feats=feats)
 
     return _respond(task_info)
 
@@ -158,6 +166,19 @@ def exp_info(request, idx, dbname='default'):
         print("#####")
     else:
         return _respond(entry_data)
+
+@csrf_exempt
+def add_sequence(request):
+    
+    print(request.POST)
+    sequence = json.loads(request.POST['sequence'])
+    task_id = json.loads(request.POST.get('task'))
+    seq = Sequence.from_json(sequence)
+    task =  Task.objects.get(pk=task_id)
+    seq.task = task
+    seq.save()
+    
+    return _respond(dict(id=seq.id, name=seq.name))   
 
 def hide_entry(request, idx):
     '''
@@ -261,8 +282,10 @@ def start_experiment(request, save=True, execute=True):
 
         task =  Task.objects.get(pk=data['task'])
         feature_names = list(data['feats'].keys())
+        subject_name = data['metadata'].pop('subject')
+        subject = Subject.objects.get(name=subject_name)
 
-        entry = TaskEntry.objects.create(subject_id=data['subject'], task_id=task.id)
+        entry = TaskEntry.objects.create(subject_id=subject.id, task_id=task.id)
         if 'entry_name' in data:
             entry.entry_name = data['entry_name']
         if 'date' in data and data['date'] != "Today" and len(data['date'].split("-")) == 3:
@@ -275,6 +298,8 @@ def start_experiment(request, save=True, execute=True):
         feats = Feature.getall(feature_names)
         kwargs = dict(subj=entry.subject.id, base_class=task.get(),
             feats=feats, params=params)
+        metadata = Parameters.from_html(data['metadata'])
+        entry.metadata = metadata.to_json()
 
         # Save the target sequence to the database and link to the task entry, if the task type uses target sequences
         if issubclass(task.get(feats=feature_names), experiment.Sequence):
@@ -308,7 +333,7 @@ def start_experiment(request, save=True, execute=True):
 
             response['date'] = entry.date.strftime("%h %d, %Y %I:%M %p")
             response['status'] = "running"
-            response['idx'] = entry.id
+            response['idx'] = entry.ui_id
 
             # Give the entry ID to the runtask as a kwarg so that files can be linked after the task is done
             kwargs['saveid'] = entry.id
@@ -590,20 +615,21 @@ def get_report(request):
     return rpc(report_fn)
 
 @csrf_exempt
-def record_annotation(request):
-    return rpc(lambda tracker: tracker.task_proxy.record_annotation(request.POST["annotation"]))
-
-@csrf_exempt
 def trigger_control(request):
     '''
     Trigger an action via controls on the web interface
     '''
     def control_fn(tracker):
-        method = getattr(tracker.task_proxy, request.POST["control"])
-        if "args" in request.POST:
-            return method(request.POST["args"])
-        else:
-            return method()
+        try:
+            method = getattr(tracker.task_proxy, request.POST["control"])
+            if "params" in request.POST:
+                params = json.loads(request.POST.get("params"))
+                print(method)
+                return method(**params)
+            else:
+                return method()
+        except Exception as e:
+            traceback.print_exc()
 
     return rpc(control_fn)
 

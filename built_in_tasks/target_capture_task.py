@@ -45,8 +45,6 @@ class TargetCapture(Sequence):
         reward = dict(reward_end="wait", stoppable=False, end_state=True)
     )
 
-    trial_end_states = ['reward', 'timeout_penalty', 'delay_penalty', 'hold_penalty']
-
     # initial state
     state = "wait"
 
@@ -238,7 +236,7 @@ class TargetCapture(Sequence):
 
     def _test_trial_incomplete(self, time_in_state):
         '''Test whether the target capture sequence needs to be restarted'''
-        return (not self._test_trial_complete(time_in_state)) and (self.tries<self.max_attempts)
+        return (not self._test_trial_complete(time_in_state)) and (self.tries<self.max_attempts) and not self.pause
 
     def _test_timeout_penalty_end(self, time_in_state):
         return time_in_state > self.timeout_penalty_time
@@ -278,18 +276,18 @@ class ScreenTargetCapture(TargetCapture, Window):
         'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
     ]
 
-    hidden_traits = Window.hidden_traits + ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
+    hidden_traits = ['cursor_color', 'target_color', 'cursor_bounds', 'cursor_radius', 'plant_hide_rate', 'starting_pos']
 
     is_bmi_seed = True
 
     # Runtime settable traits
     target_radius = traits.Float(2, desc="Radius of targets in cm")
-    target_color = traits.OptionsList(*target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
+    target_color = traits.OptionsList("yellow", *target_colors, desc="Color of the target", bmi3d_input_options=list(target_colors.keys()))
     plant_hide_rate = traits.Float(0.0, desc='If the plant is visible, specifies a percentage of trials where it will be hidden')
     plant_type = traits.OptionsList(*plantlist, bmi3d_input_options=list(plantlist.keys()))
     plant_visible = traits.Bool(True, desc='Specifies whether entire plant is displayed or just endpoint')
     cursor_radius = traits.Float(.5, desc='Radius of cursor in cm')
-    cursor_color = traits.Tuple((1., 0.5, 1., 1.), desc='Color of cursor endpoint')
+    cursor_color = traits.OptionsList("pink", *target_colors, desc='Color of cursor endpoint', bmi3d_input_options=list(target_colors.keys()))
     cursor_bounds = traits.Tuple((-10., 10., 0., 0., -10., 10.), desc='(x min, x max, y min, y max, z min, z max)')
     starting_pos = traits.Tuple((5., 0., 5.), desc='Where to initialize the cursor') 
 
@@ -301,7 +299,7 @@ class ScreenTargetCapture(TargetCapture, Window):
             self.plant = plantlist[self.plant_type]
         self.plant.set_endpoint_pos(np.array(self.starting_pos))
         self.plant.set_bounds(np.array(self.cursor_bounds))
-        self.plant.set_color(self.cursor_color)
+        self.plant.set_color(target_colors[self.cursor_color])
         self.plant.set_cursor_radius(self.cursor_radius)
         self.plant_vis_prev = True
         self.cursor_vis_prev = True

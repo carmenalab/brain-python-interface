@@ -28,8 +28,11 @@ function Sequence() {
     var params = new Parameters();
     this.params = params
 
-    // add the empty HTML table to the Sequence field (parameters will be populated into rows of the table once they are known, later)
-    $("#seqparams").append(this.params.obj);
+    // add the empty HTML form and table to the Sequence field 
+    // parameters will be populated into rows of the table once they are known, later
+    var form = $("<form action='javascript:te.sequence.add_sequence()'></form>")
+    $(form).append(this.params.obj);
+    $("#seqparams").html(form);
 
     var _this = this;
     _handle_set_new_name = function() { 
@@ -37,25 +40,23 @@ function Sequence() {
     };
     this._handle_set_new_name = _handle_set_new_name
     _handle_chgen = function() {
+        // Used to get the default values for making new generators
         $.getJSON("/ajax/gen_info/"+this.value+"/",
             {},
             function(info) {
                 params.update(info.params);
                 _handle_set_new_name();
                 $("#seqparams input").change(_handle_set_new_name);
+
+                // Disable entry unless we're looking at a new sequence
+                if ($("#seqlist").val() != "new") {
+                    $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
+                    $('#seqadd').hide();
+                }
             }
         );
     }
     $("#seqgen").change(_handle_chgen);
-
-    $("#seqparams").click(
-        // if you click on the parameters table and the drop-down list of
-        // available sequences (not generators) is enabled, then enable editing
-        function() {
-            if ($("#seqparams").attr("disabled") == "disabled")
-                this.edit();
-        }.bind(this)
-    );
     this.options = {};
 }
 
@@ -124,18 +125,21 @@ Sequence.prototype.update = function(info) {
                 // the selected sequence is a previously used sequence, so populate the parameters from the db
                 seq_obj.params.update(info[id].params);
 
-                // disable editing in the table
-                $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
-
                 // change the value of the generator drop-down list to the generator for this sequence.
                 $('#seqgen').val(info[id].generator[0]);
 
                 // mark the static checkbox, if the sequence was static
                 $("#seqstatic").attr("checked", info[id].static);
+
+                // disable editing in the table
+                $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
+                $('#seqadd').hide();
             }
         };
         $("#seqlist").change(this._handle_chlist);
+        $("#seqlist").change();
         $("#seqstatic,#seqparams,#seqparams input, #seqgen").attr("disabled", "disabled");
+        $("#seqadd").hide();
     } else {
         this.edit();
     }
@@ -162,19 +166,19 @@ Sequence.prototype._make_name = function() {
     // Make name for generator
     var gen = $("#sequence #seqgen option").filter(":selected").text()
     var txt = [];
-    var d = new Date();
+    // var d = new Date();
     // var datestr =  d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()+" ";
 
-    $("#sequence #seqparams input").each(
-        function() {
-            if (this.value)
-                txt.push(this.name+"="+this.value);
-            else
-                txt.push(this.name+"="+this.placeholder);
-        }
-    )
+    var data = this.params.to_json();
+    for (let key in data) {
+        if (Array.isArray(data[key]))
+            txt.push(key+"="+data[key].join(' '));
+        else
+            txt.push(key+"="+data[key]);
+    }
+    var static = ($("#seqstatic").prop("checked")) ? "static" : ""
     // return gen+":["+txt.join(", ")+"]-" + datestr
-    return gen+":["+txt.join(", ")+"]"
+    return gen+":["+txt.join(", ")+"]"+static
 }
 
 Sequence.prototype.edit = function() {
@@ -183,17 +187,55 @@ Sequence.prototype.edit = function() {
     this._handle_set_new_name();
     $("#seqgen, #seqparams, #seqparams input, #seqstatic").removeAttr("disabled");
     $("#seqgen").change();
+    $('#seqadd').show();
 }
 
+Sequence.prototype.add_sequence = function() {
+    var form = {};
+    form['task'] = parseInt($("#tasks").attr("value"));
+    form['sequence'] = JSON.stringify(this.get_data());
+
+    var _this=this;
+    $.post('/exp_log/ajax/add_sequence', form, function(resp) {
+        if (resp.id) {
+
+            // Set the correct sequence so we can remember it later
+            if ($("#seqlist option[value='"+resp.id+"']").length > 0) {
+                // Maybe this had already existed, try to switch to it
+                $("#seqlist").val(resp.id);
+                log("Switched to existing sequence", 2)
+            } else {
+                // Add the new sequence to the list and select it
+                opt = document.createElement("option");
+                opt.innerHTML = resp.name;
+                opt.value = resp.id;
+                _this.options[resp.id] = opt;
+                $("#seqlist").append(opt);
+                $("#seqlist").val(resp.id)
+                log("Added new sequence", 2)
+            }
+
+            // Then reload the seq info
+            te._task_query(function(){}, false, false);
+        } else {
+            log("Problem adding sequence", 5)
+        }
+    });
+}
 
 Sequence.prototype.enable = function() {
     // only enable the drop-down of the old sequences
     $("#seqlist").removeAttr("disabled");
+    if ($("#seqlist").val() == "new") {
+        $("#seqgen, #seqparams, #seqparams input, #seqstatic").removeAttr("disabled");
+        $('#seqadd').show();    
+    }
 }
 Sequence.prototype.disable = function() {
     // disable the list of old sequences, the parameter inputs, the generator drop-down, the static checkbox
     $("#seqlist, #seqparams, #seqparams input, #seqgen, #seqstatic").attr("disabled", "disabled");
     $('#show_params').attr("disabled", false);
+    $("#seqadd").hide();
 }
 
 
@@ -237,6 +279,7 @@ Sequence.prototype.update_available_generators = function(gens) {
             .text(gens[i][1]));
         }
     }
+    $('#seqlist').change();
 }
 
 if (typeof(module) !== 'undefined' && module.exports) {
