@@ -166,9 +166,6 @@ class RPCProcess(mp.Process):
         self.cmd_pipe = None
         self.data_pipe = None
         self.log_filename = log_filename
-        if self.log_filename != '':
-            with open(self.log_filename, 'w') as f:
-                f.write('')
 
         self.target = None
         self.target_class = target_class
@@ -197,6 +194,7 @@ class RPCProcess(mp.Process):
     def log_error(self, err, mode='a'):
         if self.log_filename != '':
             with open(self.log_filename, mode) as fp:
+                traceback.print_exc(file=fp)
                 fp.write(str(err))
 
     def log_str(self, s, mode="a", newline=True):

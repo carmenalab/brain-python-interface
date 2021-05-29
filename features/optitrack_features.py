@@ -28,6 +28,8 @@ class Optitrack(traits.HasTraits):
     scale = traits.Float(DEFAULT_SCALE, desc="Control scale factor")
     offset = traits.Array(value=DEFAULT_OFFSET, desc="Control offset")
 
+    hidden_traits = ['optitrack_feature', 'smooth_features']
+
     def init(self):
         '''
         Secondary init function. See riglib.experiment.Experiment.init()
@@ -76,14 +78,21 @@ class Optitrack(traits.HasTraits):
         See riglib.experiment.Experiment.run(). This 'run' method starts the motiondata source and stops it after the FSM has finished running
         '''
         if not self.optitrack_status in ['recording', 'streaming']:
-            raise ConnectionError(self.optitrack_status)
-        self.motiondata.start()
-        try:
+            import io
+            self.terminated_in_error = True
+            self.termination_err = io.StringIO()
+            self.termination_err.write(self.optitrack_status)
+            self.termination_err.seek(0)
+            self.state = None
             super().run()
-        finally:
-            print("Stopping optitrack")
-            self.client.stop_recording()
-            self.motiondata.stop()
+        else:
+            self.motiondata.start()
+            try:
+                super().run()
+            finally:
+                print("Stopping optitrack")
+                self.client.stop_recording()
+                self.motiondata.stop()
 
     def _start_None(self):
         '''

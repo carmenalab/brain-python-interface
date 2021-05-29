@@ -1,4 +1,3 @@
-
 var log_mode = 2
 
 function log(msg, level) {
@@ -205,11 +204,13 @@ function TaskInterfaceConstructor() {
         },
         "error": {
             running: function(info) { return info.status == "running"; },
-            testing: function(info) {return info.status == "testing"; }
+            testing: function(info) { return info.status == "testing"; },
+            stopped: function(info) { return info.status == "stopped"; },
         },
         "errtest": {
             running: function(info) { return info.status == "running"; },
-            testing: function(info) {return info.status == "testing"; }
+            testing: function(info) { return info.status == "testing"; },
+            stopped: function(info) { return info.status == "stopped"; },
         },
     };
 
@@ -226,72 +227,6 @@ function TaskInterfaceConstructor() {
 
 
 var task_interface = new TaskInterfaceConstructor();
-
-function create_annotation_callback(annotation_str) {
-    return function() {record_annotation(annotation_str)}
-}
-
-function record_annotation(annotation) {
-    debug("calling record_annotation: " + annotation)
-    $.post("record_annotation", {"annotation": annotation}, function(resp) {
-        debug("Annotation response", resp)
-    })
-}
-
-function Annotations() {
-    this.annotation_buttons = [];
-
-    this.update = function(taskinfo) {
-        this.destroy_annotation_buttons();
-        if (taskinfo.annotations) {
-            this.annotations = taskinfo.annotations;
-            for (var i = 0; i < taskinfo.annotations.length; i += 1) {
-                var new_button = $('<button/>',
-                    {
-                        text: taskinfo.annotations[i],
-                        id: "annotation_btn_" + i.toString(),
-                        click: create_annotation_callback(taskinfo.annotations[i]),
-                        type: "button"
-                    }
-                );
-
-                var new_break = $("<br>");
-
-                $("#annot_div").append(new_button);
-                $("#annot_div").append(new_break);
-                this.annotation_buttons.push(new_button);
-                this.annotation_buttons.push(new_break);
-            }
-        }
-    }
-
-    this.update_from_server = function(taskid, sel_feats) {
-        $.getJSON("ajax/task_info/"+taskid+"/", sel_feats,
-            function(taskinfo) {
-                this.update(taskinfo);
-            }.bind(this)
-        );
-    }
-
-    this.destroy_annotation_buttons = function() {
-        for (var i = 0; i < this.annotation_buttons.length; i += 1) {
-            this.annotation_buttons[i].remove()
-        }
-    }
-
-    this.destroy = function() {
-        this.destroy_annotation_buttons();
-    }
-
-    this.hide = function() {
-        $("#annotations").hide();
-    }
-
-    this.show = function() {
-        $("#annotations").show();
-    }
-}
-
 
 function Files() {
     this.neural_data_found = false;
@@ -326,7 +261,7 @@ Files.prototype.update_filelist = function(datafiles, task_entry_id) {
         // Append the files onto the #files field
         $("#file_list").append(this.filelist);
         for (var sys in datafiles) {
-            if (sys != "hdf") {
+            if (sys == "plexon" || sys == "blackrock" || sys == "ecube") {
                 this.neural_data_found = true;
                 break;
             }
@@ -365,8 +300,8 @@ function TaskEntry(idx, info) {
     // Make new widgets
     this.sequence = new Sequence();
     this.params = new Parameters();
+    this.metadata = new Metadata();
     this.report = new Report(task_interface.trigger.bind(this));
-    this.annotations = new Annotations();
     this.files = new Files();
     this.controls = new Controls();
     this.controls.hide()
@@ -398,7 +333,6 @@ function TaskEntry(idx, info) {
 
         // Show the wait wheel before sending the request for exp_info. It will be hidden once data is successfully returned and processed (see below)
         $('#wait_wheel').show();
-        $('#tr_seqlist').hide();
 
         $.getJSON("ajax/exp_info/"+this.idx+"/", // URL to query for data on this task entry
             {}, // POST data to send to the server
@@ -435,38 +369,23 @@ function TaskEntry(idx, info) {
         this.status = "stopped";
         this.tr = $("#newentry");
         this.tr.show(); // make sure the task entry row is visible 
-        $('#tr_seqlist').show();
         
-        if (info) { // if info is present and the id is null, then this block is being copied from a previous block
-            debug('creating a new JS TaskEntry by copy')
-            info.state = "completed";
-            this.update(info);
-            
-            // update the annotation buttons
-            var taskid = $("#tasks").attr("value");
-            var sel_feats = feats.get_checked_features();
-            this.annotations.update_from_server(taskid, sel_feats);
-            this.files.hide();
-        } else { // no id and no info suggests that the table header was clicked to create a new block
-            debug('creating a brand-new JS TaskEntry')
-            feats.clear();
-            this.annotations.hide();
-            this.report.hide();
-            this.files.hide();
-            // task_interface.trigger.bind(this)({state:''});
-        }
-
-        // Set 'change' bindings to re-run the _task_query function if the selected task or the features change
-        $("#tasks").change(this._task_query.bind(this));
-        feats.bind_change_callback(this._task_query.bind(this))
-
+        feats.clear();
+        this.report.hide();
+        this.files.hide();
+        // task_interface.trigger.bind(this)({state:''});
+        
         // query the server for information about the task (which generators can be used, which parameters can be set, etc.)
         this._task_query(
             function() {
                 this.enable();
                 $("#content").show("slide", "fast");
-            }.bind(this)
+            }.bind(this), true, true
         );
+
+        // Set 'change' bindings to re-run the _task_query function if the selected task or the features change
+        $("#tasks").change(this._task_query.bind(this));
+        feats.bind_change_callback(this._task_query.bind(this))
 
         // make the notes blank and editable
         $("#notes textarea").val("").removeAttr("disabled");
@@ -477,8 +396,6 @@ function TaskEntry(idx, info) {
 
         task_interface.trigger.bind(this)({status: this.status});
     }
-
-    this.being_copied = false;
 }
 /* Populate the 'exp_content' template with data from the 'info' object
  */
@@ -498,6 +415,7 @@ TaskEntry.prototype.update = function(info) {
     // Update all the sub-parts of the exp_content template separately
     this.sequence.update(info.sequence);
     this.params.update(info.params);
+    this.metadata.update(info.metadata);
     if (this.notes)
         this.notes.update(info.notes);
     else
@@ -510,18 +428,11 @@ TaskEntry.prototype.update = function(info) {
     $('#backupbtn').attr('checked', info.flagged_for_backup);
     $('#templatebtn').attr('checked', info.template);
 
-    this.expinfo = info;
-
     // set the 'tasks' drop-down menu to match the 'info'
     $("#tasks option").each(function() {
         if (this.value == info.task)
             this.selected = true;
     })
-    // set the 'subjects' drop-down menu to match the 'info'
-    $("#subjects option").each(function() {
-        if (this.value == info.subject)
-            this.selected = true;
-    });
 
     feats.select_features(info.feats);
 
@@ -608,7 +519,13 @@ TaskEntry.prototype.toggle_visible = function() {
 }
 
 TaskEntry.prototype.save_name = function() {
-    $.post("save_entry_name", {"id": this.idx, "entry_name": $("#entry_name").val()});
+    var idx = this.idx;
+    var name = $("#entry_name").val()
+    var tr = this.tr;
+    if (this.idx) $.post("save_entry_name", {"id": this.idx, "entry_name": name}, function() {
+        if (name) tr.find("td.colID").html(name+" ("+idx+")");
+        else tr.find("td.colID").html(idx);
+    });
 }
 
 TaskEntry.prototype.toggle_backup = function() {
@@ -650,23 +567,43 @@ TaskEntry.prototype.toggle_template = function() {
 }
 
 
-/* callback for 'Copy Parameters' button. Note this is not a prototype function
+/* callback for 'Copy Parameters' button.
  */
-TaskEntry.copy = function() {
+TaskEntry.prototype.copy = function() {
     debug("TaskEntry.copy")
-    // start with the info saved in the current TaskEntry object
-    var info = te.expinfo;
 
-    if (info != null) {
-        info.report = {};          // clear the report data
-        info.datafiles = {};       // clear the datafile data
-        info.notes = "";           // clear the notes
-    }
+    // reset the task entry row
+    var idx = this.idx
+    this.tr.click(
+        function() {
+            if (te) te.destroy();
+            te = new TaskEntry(idx);
+        }
+    );
+    this.tr.removeClass("rowactive active error");
+    this.tr = $("#newentry");
+    this.tr.show();
+    $('te_table_header').unbind("click");
+    this.tr.unbind("click");
 
-    te.being_copied = true;
-    te.destroy();
-    te = new TaskEntry(null, info);
-    $('#report').hide();        // creating a TaskEntry with "null" goes into the "stopped" state
+    // bind callbacks to the tasks and features fieldsets
+    $("#tasks").change(this._task_query.bind(this));
+    feats.bind_change_callback(this._task_query.bind(this))
+
+    // reset the task info
+    this.idx = null;           // reset the id
+    this.status = "stopped";   // set the status
+    this.report.destroy();     // clear the report data
+    this.files.clear();        // clear the datafile data
+    this.files.hide();
+    $("#notes textarea").val("").removeAttr("disabled");       // clear the notes
+    this.report.hide();        // turn off the report pane
+
+    // update the task info, but leave the parameters alone
+    this._task_query(function(){}, false, true);
+
+    // go into the "stopped" state
+    task_interface.trigger.bind(this)({status: this.status}); 
 }
 
 /*
@@ -678,14 +615,7 @@ TaskEntry.prototype.destroy = function() {
 
     // Destruct objects
     this.report.destroy();
-    if (this.being_copied) {
-        // don't destroy when copying because two objects try to manipulate the
-        // Sequence at the same time
-        this.sequence.destroy_parameters();
-    } else {
-        this.sequence.destroy();
-    }
-    this.annotations.destroy();
+    this.sequence.destroy();
     if (this.params)  $(this.params.obj).remove();
     if (this.notes) this.notes.destroy();
     if (this.bmi) this.bmi.destroy();
@@ -713,7 +643,7 @@ TaskEntry.prototype.remove = function(callback) {
     });
 }
 
-TaskEntry.prototype._task_query = function(callback) {
+TaskEntry.prototype._task_query = function(callback, update_params=true, update_metadata=false) {
     debug('TaskEntry.prototype._task_query')
     var taskid = $("#tasks").attr("value");
     var sel_feats = feats.get_checked_features();
@@ -723,21 +653,20 @@ TaskEntry.prototype._task_query = function(callback) {
             debug("Information about task received from the server");
             debug(taskinfo);
 
-            this.params.update(taskinfo.params);
+            if (update_params) this.params.update(taskinfo.params);
+            if (typeof(callback) == "function")
+                callback();
+
+            if (taskinfo.generators) {
+                this.sequence.update_available_generators(taskinfo.generators);
+            }
             if (taskinfo.sequence) {
                 $("#sequence").show()
                 this.sequence.update(taskinfo.sequence);
             } else
                 $("#sequence").hide()
 
-            if (typeof(callback) == "function")
-                callback();
-
-            this.annotations.update(taskinfo);
-
-            if (taskinfo.generators) {
-                this.sequence.update_available_generators(taskinfo.generators);
-            }
+            if (update_metadata) this.metadata.update(taskinfo.metadata);
 
             if (taskinfo.controls) {
                 this.controls.update(taskinfo.controls);
@@ -761,29 +690,38 @@ TaskEntry.prototype.stop = function() {
     $.post("stop/", csrf, task_interface.trigger.bind(this));
 }
 
-/* Callback for the 'Test' button
- */
+// Callback for the 'Test' button
 TaskEntry.prototype.test = function() {
     debug("TaskEntry.prototype.test")
-    this.disable();
     return this.run(false, true);
 }
 
-/* Callback for the 'Start experiment' button
- */
+// Callback for the 'Start experiment' button
 TaskEntry.prototype.start = function() {
     debug("TaskEntry.prototype.start")
-    this.disable();
     return this.run(true, true);
 }
 
+// Callback for 'Save Record' button
 TaskEntry.prototype.saverec = function() {
-    this.disable();
     return this.run(true, false);
 }
 
 TaskEntry.prototype.run = function(save, exec) {
     debug("TaskEntry.run")
+    // make sure we're stopped
+    task_interface.trigger.bind(this)({status: "stopped"});
+
+    // check that inputs have been filled out
+    let valid = true;
+    $('[required]').each(function() {
+        if ($(this).is(':invalid') || !$(this).val()) valid = false;
+    })
+    if (!valid) {
+        $("#experiment").trigger("submit"); // this will pop up a message to fill out the missing fields
+        return;
+    }
+
     // activate the report; start listening to the websocket and update the 'report' field when new data is received
     if (this.report){
         this.report.destroy();
@@ -791,9 +729,8 @@ TaskEntry.prototype.run = function(save, exec) {
     this.report = new Report(task_interface.trigger.bind(this));
     this.report.activate();
     this.report.set_mode("running");
-
-    this.annotations.show();
     this.files.hide();
+    this.disable();
 
     var form = {};
     form['csrfmiddlewaretoken'] = $("#experiment input").filter("[name=csrfmiddlewaretoken]").attr("value")
@@ -834,7 +771,11 @@ TaskEntry.prototype.new_row = function(info) {
     //
     debug('TaskEntry.prototype.new_row: ' + info.idx);
 
-    this.idx = info.idx;
+    if (typeof(info.idx) == "number") {
+        this.idx = info.idx;
+    } else {
+        this.idx = parseInt(info.idx.match(/(\d+)/)[1]);
+    }
     this.tr.removeClass("running active error testing")
 
     // make the row hidden (becomes visible when the start or test buttons are pushed)
@@ -850,7 +791,7 @@ TaskEntry.prototype.new_row = function(info) {
     this.tr = $(document.createElement("tr"));
 
     // add an id number to the row
-    this.tr.attr("id", "row"+info.idx);
+    this.tr.attr("id", "row"+this.idx);
 
     // Write the HTML for the table row
     this.tr.html("<td class='colDate'>Now</td>" +
@@ -870,10 +811,10 @@ TaskEntry.prototype.new_row = function(info) {
 
 TaskEntry.prototype.get_data = function() {
     var data = {};
-    data['subject'] = parseInt($("#subjects").attr("value"));
     data['task'] = parseInt($("#tasks").attr("value"));
     data['feats'] = feats.get_checked_features();
     data['params'] = this.params.to_json();
+    data['metadata'] = this.metadata.get_data();
     data['sequence'] = this.sequence.get_data();
     data['entry_name'] = $("#entry_name").val();
     data['date'] = $("#newentry_today").html();
@@ -883,6 +824,7 @@ TaskEntry.prototype.get_data = function() {
 TaskEntry.prototype.enable = function() {
     debug("TaskEntry.prototype.enable");
     this.params.enable();
+    this.metadata.enable();
     feats.enable_entry();
     if (this.sequence)
         this.sequence.enable();
@@ -892,6 +834,7 @@ TaskEntry.prototype.enable = function() {
 TaskEntry.prototype.disable = function() {
     debug("TaskEntry.prototype.disable");
     this.params.disable();
+    this.metadata.disable()
     feats.disable_entry();
     if (this.sequence)
         this.sequence.disable();
@@ -932,6 +875,35 @@ TaskEntry.prototype.link_new_files = function() {
             debug("posted the file!");
         }
     )
+}
+
+//
+// Metadata class
+//
+function Metadata() {
+    $("#metadata_table").html("")
+    var params = new Parameters();
+    this.params = params;
+    $("#metadata_table").append(this.params.obj);
+    var add_new_row = $('<input id="paramadd" type="button" value="+"/>');
+    add_new_row.on("click", function() {params.add_row();});
+    this.add_new_row = add_new_row;
+    $("#metadata_table").append(add_new_row);
+}
+Metadata.prototype.update = function(info) {
+    this.params.update(info)
+}
+Metadata.prototype.enable = function() {
+    this.params.enable();
+    this.add_new_row.show();
+}
+Metadata.prototype.disable = function() {
+    this.params.disable();
+    this.add_new_row.hide();
+}
+Metadata.prototype.get_data = function () {
+    var data = this.params.to_json();
+    return data;
 }
 
 //
@@ -978,39 +950,44 @@ Notes.prototype.save = function() {
 // Controls class
 //
 
-function create_control_callback(control_str) {
-    return function() {trigger_control(control_str)}
+function create_control_callback(control_str, args) {
+    return function() {trigger_control(control_str, args)}
 }
 
-function trigger_control(control) {
+function trigger_control(control, params) {
     debug("Triggering control: " + control)
-    $.post("trigger_control", {"control": control}, function(resp) {
+    $.post("trigger_control", {"control": control, "params": JSON.stringify(params.to_json())}, function(resp) {
         debug("Control response", resp)
     })
 }
 
 function Controls() {
     this.control_list = [];
+    this.params_list = [];
 }
 Controls.prototype.update = function(controls) {
     debug("Updating controls");
     $("#controls_table").html('');
     this.control_list = [];
     for (var i = 0; i < controls.length; i += 1) {
+
+        var new_params = new Parameters();
+        new_params.update(controls[i].params)
+        
         var new_button = $('<button/>',
             {
-                text: controls[i],
+                text: controls[i].name,
                 id: "controls_btn_" + i.toString(),
-                click: create_control_callback(controls[i]),
+                click: create_control_callback(controls[i].name, new_params),
                 type: "button"
             }
         );
 
-        var new_break = $("<br>");
-
         $("#controls_table").append(new_button);
-        $("#controls_table").append(new_break);
+        $("#controls_table").append(new_params.obj)
         this.control_list.push(new_button);
+        this.params_list.push(new_params)
+
     }
     if (this.control_list.length > 0) this.show();
     else this.hide();
@@ -1026,9 +1003,15 @@ Controls.prototype.activate = function() {
     for (var i = 0; i < this.control_list.length; i += 1) {
         $(this.control_list[i]).prop('disabled', false)
     }
+    for (var i = 0; i < this.params_list.length; i += 1) {
+        this.params_list[i].enable();
+    }
 }
 Controls.prototype.deactivate = function() {
     for (var i = 0; i < this.control_list.length; i += 1) {
         $(this.control_list[i]).prop('disabled', true);
+    }
+    for (var i = 0; i < this.params_list.length; i += 1) {
+        this.params_list[i].disable();
     }
 }

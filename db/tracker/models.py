@@ -32,6 +32,39 @@ def import_by_path(import_path):
     cls = getattr(module, class_name)
     return cls
 
+def func_or_class_to_json(func_or_class, current_values, desc_lookup):
+    '''
+    Helper for translating a function or class into json parameters for the UI
+    '''
+    try:
+        args = inspect.getargspec(func_or_class)
+        names, defaults = args.args, args.defaults
+        if "self" in names: names.remove("self")
+    except TypeError:
+        args = inspect.getargspec(func_or_class.__init__)
+        names, defaults = args.args, args.defaults
+        names.remove("self")
+
+    params = OrderedDict()
+    if len(names) == 0:
+        return params
+        
+    for name, default in zip(names, defaults):
+        if name == 'exp':
+            continue
+        if type(default) is tuple:
+            typename = "Tuple"
+        elif type(default) is int or type(default) is float:
+            typename = "Float"
+        else:
+            typename = "String"
+
+        params[name] = dict(type=typename, default=default, desc=desc_lookup(name))
+        if name in current_values:
+            params[name]['value'] = current_values[name]
+
+    return params
+
 class Task(models.Model):
     name = models.CharField(max_length=128)
     visible = models.BooleanField(default=True, blank=True)
@@ -231,6 +264,27 @@ class Task(models.Model):
                     print("missing generator %s" % seqgen_name)
         return exp_generators
 
+    def controls(self, feats=()):
+        exp = self.get(feats=feats)
+        ctl = exp.controls
+        values = dict()
+
+        def desc_lookup(name):
+            table = {
+                'msg': 'Metadata to mark this moment in experiment',
+            }
+            if name in table.keys():
+                return table[name]
+            else:
+                return name
+
+        controls = []
+        for c in ctl:
+            params = func_or_class_to_json(c, values, desc_lookup)
+            controls.append(dict(name=c.__name__, params=params))
+
+        return controls
+
 def can_be_int(x):
     try:
         int(x)
@@ -350,6 +404,12 @@ class Subject(models.Model):
     def __repr__(self):
         return self.__str__()
 
+    @staticmethod
+    def get_all_subjects():
+        subjects = Subject.objects.all().order_by("name")
+        return [s.name for s in subjects]
+
+
 class Generator(models.Model):
     name = models.CharField(max_length=128)
     params = models.TextField()
@@ -446,20 +506,6 @@ class Generator(models.Model):
         if values is None:
             values = dict()
         gen = self.get()
-        try:
-            args = inspect.getargspec(gen)
-            names, defaults = args.args, args.defaults
-        except TypeError:
-            args = inspect.getargspec(gen.__init__)
-            names, defaults = args.args, args.defaults
-            names.remove("self")
-
-        # if self.static:
-        #     defaults = (None,)+defaults
-        # else:
-        #     #first argument is the experiment
-        #     names.remove("exp")
-        # arginfo = zip(names, defaults)
 
         def desc_lookup(name):
             table = {
@@ -477,20 +523,7 @@ class Generator(models.Model):
             else:
                 return name
 
-        params = OrderedDict()
-
-        for name, default in zip(names, defaults):
-            if name == 'exp':
-                continue
-            if type(default) is tuple:
-                typename = "Tuple"
-            else:
-                typename = "String"
-
-            params[name] = dict(type=typename, default=default, desc=desc_lookup(name))
-            if name in values:
-                params[name]['value'] = values[name]
-
+        params = func_or_class_to_json(gen, values, desc_lookup)
         return dict(name=self.name, params=params)
 
 class Sequence(models.Model):
@@ -513,7 +546,8 @@ class Sequence(models.Model):
 
         if hasattr(self, 'generator') and self.generator.static: # If the generator is static, (NOTE: the generator being static is different from the *sequence* being static)
             if len(self.sequence) > 0:
-                return generate.runseq, dict(seq=pickle.loads(str(self.sequence)))
+                import ast
+                return generate.runseq, dict(seq=pickle.loads(ast.literal_eval(self.sequence)))
             else:
                 return generate.runseq, dict(seq=self.generator.get()(**Parameters(self.params).params))
         else:
@@ -577,6 +611,7 @@ class TaskEntry(models.Model):
     params = models.TextField()
     report = models.TextField()
     notes = models.TextField()
+    metadata = models.TextField(default="") # serialized custom key/value metadata
     visible = models.BooleanField(blank=True, default=True)
     backup = models.BooleanField(blank=True, default=False)
     template = models.BooleanField(blank=True, default=False)
@@ -635,6 +670,12 @@ class TaskEntry(models.Model):
         if 'bmi' in data:
             data['decoder'] = data['bmi']
         ##    del data['bmi']
+        return data
+
+    @property
+    def task_metadata(self):
+        from .json_param import Parameters
+        data = Parameters(self.metadata).params
         return data
 
     def plexfile(self, path='/storage/plexon/', search=False):
@@ -714,6 +755,30 @@ class TaskEntry(models.Model):
 
         if len(js['params'])!=len(self.task_params):
             print('param lengths: JS:', len(js['params']), 'Task: ', len(self.task_params))
+
+        # Add metadata
+        js['metadata'] = {}
+        subjects = {
+            'type': 'Enum',
+            'default': self.subject.name,
+            'desc': 'Who',
+            'hidden': 'visible',
+            'options':  Subject.get_all_subjects()
+        }
+        js['metadata']['subject'] = subjects
+        js['metadata'].update(dict([
+            (
+                name, 
+                {
+                    'type': 'String',
+                    'default': '',
+                    'desc': '',
+                    'hidden': 'visible',
+                    'value': value
+                }
+            ) for name, value in self.task_metadata.items()
+        ]))
+        
 
         # Supply sequence generators which are declared to be compatible with the selected task class
         exp_generators = dict()
@@ -797,6 +862,30 @@ class TaskEntry(models.Model):
             print('This code does not yet know how to open TDT files!')
             js['bmi'] = dict(_neuralinfo=None)
             #raise NotImplementedError("This code does not yet know how to open TDT files!")
+        elif recording_sys_make == 'ecube':
+            try:
+                sys = System.objects.using(self._state.db).get(name='ecube')
+                df = DataFile.objects.using(self._state.db).get(entry=self.id, system=sys)
+                filepath = df.get_path()
+
+                from riglib.ecube import ecubefile
+                _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
+                if Exp.is_bmi_seed:
+                    ecube = ecubefile.parse_file()
+                    path, name = os.path.split(df.get_path())
+                    name, ext = os.path.splitext(name)
+
+                    _neuralinfo['length'] = ecube.length
+                    _neuralinfo['units'] = ecube.units
+                    _neuralinfo['name'] = name
+
+                js['bmi'] = dict(_neuralinfo=_neuralinfo)
+            except ModuleNotFoundError:
+                print("ecube reader not installed")
+                js['bmi'] = dict(_neuralinfo=None)
+            except (ObjectDoesNotExist, IOError):
+                print("No ecube file found")
+                js['bmi'] = dict(_neuralinfo=None)
         else:
             print('Unrecognized recording_system!')
 
@@ -960,6 +1049,9 @@ class TaskEntry(models.Model):
         hdf['/'].attrs["date"] = str(self.date)
         if self.sequence is not None:
             hdf['/'].attrs["sequence"] = self.sequence.name
+            hdf['/'].attrs["sequence_params"] = self.sequence.params
+            hdf['/'].attrs["generator"] = self.sequence.generator.name
+            hdf['/'].attrs["generator_params"] = self.sequence.generator.params
         hdf['/'].attrs["report"] = self.report
         hdf['/'].attrs["notes"] = self.notes
         hdf['/'].attrs["sw_version"] = self.sw_version

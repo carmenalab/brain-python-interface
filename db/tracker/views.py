@@ -22,7 +22,7 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
     # from .models import TaskEntry, Task, Subject, Feature, Generator
     td = datetime.timedelta(days=60)
 
-    filter_kwargs = dict(template=False)
+    filter_kwargs = {}
     if not show_hidden:
         filter_kwargs['visible'] = True
     if not (subject is None) and isinstance(subject, str):
@@ -62,17 +62,14 @@ def _list_exp_history(dbname='default', subject=None, task=None, max_entries=Non
         else:
             entry.bgcolor = '#FFFFFF'
 
-    subjects = models.Subject.objects.all().order_by("name")
     features = models.Feature.objects.filter(visible=True).order_by("name")
     generators = models.Generator.objects.filter(visible=True).order_by("name")
     collections = models.TaskEntryCollection.objects.all().order_by("name")
 
-
     fields = dict(
         entries=entries,
-        templates=templates,
-        subjects=subjects,
         tasks=tasks,
+        templates=templates,
         features=features,
         generators=generators,
         collections=collections,
