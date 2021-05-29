@@ -6,8 +6,8 @@ from riglib.experiment import traits
 from riglib.gpio import ArduinoGPIO, DigitalWave
 import numpy as np
 
-class LaserTrials(traits.HasTraits):
-    ''' Activate a laser at the start of each trial. Must have a GPIO feature enabled'''
+class LaserTrialsArduino(traits.HasTraits):
+    ''' Activate an arduino-controlled laser at the start of the trial state.'''
 
     # laser_serial_port = traits.Str(desc="Serial port used to communicate with arduino")
     laser_gpio_pin = traits.Int(12, desc="Pin number for laser")
@@ -18,7 +18,7 @@ class LaserTrials(traits.HasTraits):
 
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
-        self.laser_gpio = ArduinoGPIO()
+        self.laser_gpio = ArduinoGPIO('/dev/crystalaser')
 
     def _start_trial(self):
         laser = DigitalWave(self.laser_gpio, pin=self.laser_gpio_pin)

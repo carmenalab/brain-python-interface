@@ -16,7 +16,6 @@ from .bmi_task_features import NormFiringRates
 from .arduino_features import PlexonSerialDIORowByte
 from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
-from .laser_features import LaserTrials
 
 built_in_features = dict(
     keyboard=KeyboardControl,
@@ -25,7 +24,6 @@ built_in_features = dict(
     reward_system=RewardSystem,
     saveHDF=SaveHDF,
     autostart=Autostart,
-    laser=LaserTrials,
     window2D=Window2D,
     adaptive_generator=AdaptiveGenerator,
     button=Button,
