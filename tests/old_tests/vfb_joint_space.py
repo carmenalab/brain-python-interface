@@ -6,11 +6,11 @@ slow IK
 import numpy as np
 from tasks import performance
 import matplotlib.pyplot as plt
-from ..riglib.bmi import robot_arms, assist, train, goal_calculators
-from ..riglib.stereo_opengl import ik
+from bmi3d.riglib.bmi import robot_arms, assist, train, goal_calculators
+from bmi3d.riglib.stereo_opengl import ik
 import time
 
-from ..riglib import mp_calc
+from bmi3d.riglib import mp_calc
 reload(mp_calc)
 
 reload(assist)

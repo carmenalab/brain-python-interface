@@ -3,24 +3,16 @@ Django config file mostly auto-generated when a django project is created.
 See https://docs.djangoproject.com/en/dev/intro/tutorial01/ for an introduction
 on how to customize this file test
 '''
-
 import os, glob, re
-cwd = os.path.split(os.path.abspath(__file__))[0]
+import glob
+import re
+import socket
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+HOSTNAME = socket.gethostname()
 
-# Django settings for db project.
-DEBUG = True
-TEMPLATE_DEBUG = DEBUG
-
-ADMINS = (
-    # ('Your Name', 'your_email@domain.com'),
-)
-
-MANAGERS = ADMINS
-
-db_dir = cwd
 def get_sqlite3_databases():
     dbs = dict()
-    db_files = glob.glob(os.path.join(db_dir, '*.sql'))
+    db_files = glob.glob(os.path.join(BASE_DIR, '*.sql'))
     for db in db_files:
         db_name_re = re.match('db(.*?).sql', os.path.basename(db))
         db_name = db_name_re.group(1)
@@ -46,38 +38,26 @@ def get_sqlite3_databases():
     return dbs
 
 DATABASES = get_sqlite3_databases()
-#DATABASES = { 'default': { 'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sql', } }
 
-'''
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': os.path.join(cwd, "db.sql"),                      # Or path to database file if using sqlite3.
-        'USER': '',                      # Not used with sqlite3.
-        'PASSWORD': '',                  # Not used with sqlite3.
-        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
-        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
-    },
-    'testing': {
-        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': os.path.join(cwd, "db_testing.sql"),                      # Or path to database file if using sqlite3.
-        'USER': '',                      # Not used with sqlite3.
-        'PASSWORD': '',                  # Not used with sqlite3.
-        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
-        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
-    },
-}
-'''
+if HOSTNAME == 'pagaiisland2':
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'rig1',
+        'HOST': 'aolab.wanprc.washington.edu',
+        'PORT': '3306',
+        'USER': 'aolab',
+        'PASSWORD': 'Securepassword1@#' # Very secure wow
+    }
 
-# DATABASES = {}
-# DATABASES['default'] = {
-#     'ENGINE': 'django.db.backends.mysql',
-#     'NAME': 'rig1',
-#     'HOST': 'aolab.wanprc.washington.edu',
-#     'PORT': '3306',
-#     'USER': 'aolab',
-#     'PASSWORD': 'Securepassword1@#' # Very secure wow
-# }
+# Django settings for db project.
+DEBUG = True
+TEMPLATE_DEBUG = DEBUG
+
+ADMINS = (
+    # ('Your Name', 'your_email@domain.com'),
+)
+
+MANAGERS = ADMINS
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -148,13 +128,13 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'bmi3d.db.urls'
 
 TEMPLATE_DIRS = (
-    os.path.join(cwd, "html", "templates"),
+    os.path.join(BASE_DIR, "html", "templates"),
 )
 
 STATIC_URL = "/static/"
 
 STATICFILES_DIRS = (
-    os.path.join(cwd, "html", "static"),
+    os.path.join(BASE_DIR, "html", "static"),
     "/usr/share/pyshared/django/contrib/"
 )
 ADMIN_MEDIA_PREFIX = '/static/admin/'
@@ -192,7 +172,20 @@ TEMPLATES = [
     },
 ]
 
+LOGGING_CONFIG = None
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+}
+
 APPEND_SLASH=False
-
-
 ALLOWED_HOSTS = ['*'] #['127.0.0.1', 'localhost', "testserver"]

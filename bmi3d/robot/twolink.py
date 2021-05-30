@@ -25,8 +25,8 @@
 # Copyright (C) 2000-2002, by Peter I. Corke
 
 from numpy import *
-from SerialLink import *
-from Link import *
+from .SerialLink import *
+from .Link import *
 
 L = []
 

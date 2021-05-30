@@ -3,7 +3,7 @@
 from numpy import * # for outer and arange
 import mpl_toolkits.mplot3d.axes3d as p3
 import pylab as p   # for figure
-from Quaternion import *
+from .Quaternion import *
 
 def trplot(r, name=''):
     '''

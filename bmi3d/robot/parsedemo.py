@@ -1,5 +1,4 @@
 from numpy import *
-from robot import *
 import textwrap;
 import sys;
 import re;

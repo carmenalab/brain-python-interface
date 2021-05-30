@@ -8,10 +8,10 @@ Robot manipulability operations.
 
 
 from numpy import *
-from robot.jacobian import jacob0
-from robot.dynamics import inertia
+from .jacobian import jacob0
+from .dynamics import inertia
 from numpy.linalg import inv,eig,det,svd
-from robot.utility import *
+from .utility import *
 
 def manipulability(robot, q, which = 'yoshikawa'):
     '''

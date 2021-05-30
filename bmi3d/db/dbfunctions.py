@@ -3,10 +3,8 @@ Interface between the Django database methods/models and data analysis code
 '''
 # django initialization
 import os
-os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
-import django
-django.setup()
+from bmi3d.boot_django import boot_django
 
 import sys
 import json
@@ -21,7 +19,8 @@ from .tracker import models
 # default DB, change this variable from python session to switch to other database
 db_name = 'default'
 
-
+# configure django
+boot_django()
 
 
 class TaskEntry(object):
@@ -861,6 +860,12 @@ class TaskEntryCollection(object):
 ##################
 # Query functions
 ##################
+def get_task_entries_by_id(ids):
+    '''
+    Returns list of task entries according to the given id or multiple ids
+    '''
+    return list(TaskEntry.objects.filter(pk__in=ids))
+
 def get_task_entries_by_date(startdate, enddate=datetime.date.today(), dbname=db_name):
     '''
     Returns list of task entries within date range (inclusive). startdate and enddate

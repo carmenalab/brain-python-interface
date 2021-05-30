@@ -6,8 +6,8 @@ Robot kinematic operations.
 """
 
 from numpy import *
-from robot.utility import *
-from robot.transform import *
+from .utility import *
+from .transform import *
 from . import jacobian as Jac
 from numpy.linalg import norm
 from numpy.linalg import pinv

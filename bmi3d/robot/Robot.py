@@ -10,10 +10,10 @@ the authors is made.
 """
 
 from numpy import *
-from utility import *
-from transform import *
+from .utility import *
+from .transform import *
 import copy
-from Link import *
+from .Link import *
 
 class Robot(object):
     """Robot object.

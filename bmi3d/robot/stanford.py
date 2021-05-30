@@ -25,8 +25,8 @@
 # Copyright (C) 1990-2002, by Peter I. Corke
 
 from numpy import *
-from Link import *
-from SerialLink import *
+from .Link import *
+from .SerialLink import *
 
 L = []
 L.append(Link(alpha=-pi/2, a=0, theta=0, d=0.412, sigma=0))

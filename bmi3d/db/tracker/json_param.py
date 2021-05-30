@@ -28,7 +28,7 @@ def param_objhook(obj):
         is simply returned.
 
     '''
-    from ..db.tracker import models
+    from . import models
     if '__django_model__' in obj:
         model = getattr(models, obj['__django_model__'])
         return model(pk = obj['pk'])

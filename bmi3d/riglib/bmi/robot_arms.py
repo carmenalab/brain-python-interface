@@ -7,10 +7,11 @@ This code depends on the 'robot' module (https://github.com/sgowda/robotics_tool
 '''
 import numpy as np
 try:
-    import robot
-except ImportError:
+    from bmi3d import robot
+except ImportError as e:
     import warnings
     warnings.warn("The 'robot' module cannot be found! See https://github.com/sgowda/robotics_toolbox")
+    print(e)
 
 import matplotlib.pyplot as plt
 import time

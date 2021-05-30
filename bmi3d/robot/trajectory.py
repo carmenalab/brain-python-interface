@@ -7,8 +7,8 @@ Trajectory primitives.
 """
 
 from numpy import *
-from utility import *
-import transform as T
+from .utility import *
+import .transform as T
 
 def jtraj(q0, q1, tv, qd0=None, qd1=None):
     """

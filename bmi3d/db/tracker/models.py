@@ -26,9 +26,9 @@ from ...riglib import calibrations, experiment
 
 def import_by_path(import_path):
     path_components = import_path.split(".")
-    module_name = (".").join(path_components[:-1])
+    module_name = "..." + (".").join(path_components[:-1])
     class_name = path_components[-1]
-    module = importlib.import_module(module_name)
+    module = importlib.import_module(module_name, package='bmi3d.db.tracker')
     cls = getattr(module, class_name)
     return cls
 
@@ -262,6 +262,7 @@ class Task(models.Model):
                     exp_generators.append([g.id, seqgen_name])
                 except:
                     print("missing generator %s" % seqgen_name)
+                    traceback.print_exc()
         return exp_generators
 
     def controls(self, feats=()):
@@ -311,7 +312,7 @@ class Feature(models.Model):
             return ''
 
     def get(self, update_builtin=False):
-        from ..features import built_in_features
+        from ...features import built_in_features
         if self.import_path is not None:
             return import_by_path(self.import_path)
         elif self.name in built_in_features:

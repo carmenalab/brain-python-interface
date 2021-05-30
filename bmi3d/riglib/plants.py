@@ -17,12 +17,6 @@ from collections import namedtuple
 
 from ..utils.constants import *
 
-try:
-    import robot
-except ImportError:
-    import warnings
-    warnings.warn("The 'robot' module cannot be found! See https://github.com/sgowda/robotics_toolbox")
-
 class RefTrajectories(dict):
     '''
     Generic class to hold trajectories to be replayed by a plant.

@@ -2,10 +2,11 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+from bmi3d.boot_django import boot_django
 
 def main():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bmi3d.db.settings')
     try:
+        boot_django()
         from django.core.management import execute_from_command_line
     except ImportError as exc:
         raise ImportError(

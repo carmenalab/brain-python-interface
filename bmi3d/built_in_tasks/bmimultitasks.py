@@ -2,32 +2,18 @@
 BMI tasks in the new structure, i.e. inheriting from manualcontrolmultitasks
 '''
 import numpy as np
-import time, random
-
-from ..riglib.experiment import traits, experiment
-from ..features.bmi_task_features import LinearlyDecreasingAssist, LinearlyDecreasingHalfLife
-
-import os
-from ..riglib.bmi import clda, assist, extractor, train, goal_calculators, ppfdecoder
-import ..riglib.bmi
-import pdb
-import multiprocessing as mp
 import pickle
-import tables
-import re
 
-from ..riglib.stereo_opengl import ik
-import tempfile, pickle, traceback, datetime
+from ..riglib.experiment import traits
 
-from ..riglib.bmi.bmi import GaussianStateHMM, Decoder, GaussianState, BMISystem, BMILoop
-from ..riglib.bmi.assist import Assister, SSMLFCAssister, FeedbackControllerAssist
-from ..riglib.bmi import feedback_controllers
-from ..riglib.stereo_opengl.window import WindowDispl2D
-from ..riglib.stereo_opengl.primitives import Line
-
+from ..riglib.bmi import goal_calculators, ppfdecoder, feedback_controllers
+from ..riglib.bmi.bmi import BMILoop
+from ..riglib.bmi.assist import Assister, FeedbackControllerAssist
 from ..riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceNLinkPlanarChain
 
+from ..riglib.stereo_opengl.window import WindowDispl2D
 from .target_capture_task import ScreenTargetCapture
+from ..features.bmi_task_features import LinearlyDecreasingAssist
 
 np.set_printoptions(suppress=False)
 
