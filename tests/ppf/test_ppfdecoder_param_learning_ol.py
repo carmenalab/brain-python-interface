@@ -5,9 +5,9 @@ methods
 '''
 import numpy as np
 from scipy.io import loadmat, savemat
-from riglib.bmi import sim_neurons
+from ..riglib.bmi import sim_neurons
 import matplotlib.pyplot as plt
-from riglib.bmi import ppfdecoder, train, clda, bmi
+from ..riglib.bmi import ppfdecoder, train, clda, bmi
 #import plot
 import time
 import cProfile

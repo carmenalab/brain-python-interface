@@ -390,8 +390,8 @@ For quick analyses from the command line, it can be useful to have ipython pre-l
 Then edit the newly create configuration file to look something like 
 
 c.InteractiveShellApp.exec_lines = [
-    "from db import dbfunctions as dbfn",
-    "from db.tracker import models",
+    "from ..db import dbfunctions as dbfn",
+    "from ..db.tracker import models",
     "import numpy as np",
     "import matplotlib.pyplot as plt",
 ]

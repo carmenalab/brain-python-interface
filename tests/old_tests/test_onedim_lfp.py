@@ -1,21 +1,21 @@
-from db import dbfunctions
-from db import json_param
-from db.tracker import models
+from ..db import dbfunctions
+from ..db import json_param
+from ..db.tracker import models
 
-from riglib import experiment
-from features.generator_features import Autostart
-from features.hdf_features import SaveHDF
-from features.phasespace_features import MotionData
+from ..riglib import experiment
+from ..features.generator_features import Autostart
+from ..features.hdf_features import SaveHDF
+from ..features.phasespace_features import MotionData
 
-from features.plexon_features import PlexonBMI
-from riglib.experiment import generate
+from ..features.plexon_features import PlexonBMI
+from ..riglib.experiment import generate
 
 from analysis import performance
 from tasks.manualcontrolmultitasks import ManualControlMulti
 from tasks.bmimultitasks import SimBMIControlMulti
 import riglib.bmi.onedim_lfp_decoder as old
-from riglib.bmi import clda
-from riglib.bmi import train
+from ..riglib.bmi import clda
+from ..riglib.bmi import train
 from analysis import performance
 
 

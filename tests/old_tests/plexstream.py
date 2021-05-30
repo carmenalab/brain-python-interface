@@ -1,6 +1,6 @@
 import time
-from riglib import source
-from riglib.plexon import Spikes
+from ..riglib import source
+from ..riglib.plexon import Spikes
 
 ds = source.DataSource(Spikes, addr=('10.0.0.13', 6000), channels=[22])
 ds.start()

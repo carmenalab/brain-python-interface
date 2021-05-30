@@ -4,7 +4,7 @@ import unittest
 
 
 ###############################################################################
-from riglib.hdfwriter import HDFWriter
+from ..riglib.hdfwriter import HDFWriter
 import tables
 import os
 import numpy as np

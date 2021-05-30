@@ -1,8 +1,8 @@
 import time
 import numpy as np
-from riglib.sink import sinks, PrintSink
-from riglib import source
-from riglib import kinarmdata, hdfwriter
+from ..riglib.sink import sinks, PrintSink
+from ..riglib import source
+from ..riglib import kinarmdata, hdfwriter
 
 Motion = kinarmdata.Kinarmdata
 datasource = source.DataSource(Motion)

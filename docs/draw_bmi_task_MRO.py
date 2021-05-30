@@ -1,11 +1,11 @@
 '''
 Test script to run the visual feedback task from the command line
 '''
-from db import dbfunctions
-from db.tracker import models
+from ..db import dbfunctions
+from ..db.tracker import models
 
-from riglib import experiment
-from riglib.experiment import features
+from ..riglib import experiment
+from ..riglib.experiment import features
 
 # Tell linux to use Display 0 (the monitor physically attached to the 
 # machine. Otherwise, if you are connected remotely, it will try to run 
@@ -16,9 +16,9 @@ os.environ['DISPLAY'] = ':0'
 task = models.Task.objects.get(name='bmi_control_multi')
 base_class = task.get()
 
-from features.generator_features import Autostart
-from features.hdf_features import SaveHDF
-from features.plexon_features import PlexonBMI, RelayPlexByte
+from ..features.generator_features import Autostart
+from ..features.hdf_features import SaveHDF
+from ..features.plexon_features import PlexonBMI, RelayPlexByte
 
 feats = [Autostart, SaveHDF, RelayPlexByte, PlexonBMI]
 Exp = experiment.make(base_class, feats=feats)

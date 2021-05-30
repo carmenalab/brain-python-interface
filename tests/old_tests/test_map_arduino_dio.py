@@ -2,7 +2,7 @@ import serial
 import struct
 import time
 port = serial.Serial('/dev/arduino_neurosync', baudrate=115200)
-from riglib.dio.parse import MSG_TYPE_ROWBYTE, MSG_TYPE_REGISTER
+from ..riglib.dio.parse import MSG_TYPE_ROWBYTE, MSG_TYPE_REGISTER
 
 # Registration
 system = 'task'

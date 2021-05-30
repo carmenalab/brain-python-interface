@@ -6,8 +6,8 @@ import tables
 import os
 
 from hdfwriter import HDFWriter
-from riglib import source
-from riglib import sink
+from ..riglib import source
+from ..riglib import sink
 
 
 class MockDataSourceSystem(source.DataSourceSystem):

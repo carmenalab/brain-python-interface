@@ -1,6 +1,6 @@
-from riglib.bmi import lindecoder
-from built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
-from riglib import experiment
+from bmi3d.riglib.bmi import lindecoder
+from bmi3d.built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
+from bmi3d.riglib import experiment
 import numpy as np
 
 import unittest

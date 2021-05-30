@@ -3,12 +3,12 @@ import os
 import numpy as np
 import time
 
-from riglib import experiment
-from riglib.experiment.mocks import MockSequenceWithGenerators
-from features.hdf_features import SaveHDF
+from ..riglib import experiment
+from ..riglib.experiment.mocks import MockSequenceWithGenerators
+from ..features.hdf_features import SaveHDF
 import h5py
 
-from riglib import sink
+from ..riglib import sink
 
 class TestTaskWithFeatures(unittest.TestCase):
     def setUp(self):

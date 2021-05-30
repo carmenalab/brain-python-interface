@@ -1,8 +1,8 @@
-from riglib import experiment
-from built_in_tasks.manualcontrolmultitasks import ManualControl
-from riglib.stereo_opengl.window import WindowDispl2D
-from features.peripheral_device_features import KeyboardControl, MouseControl
-from features.laser_features import LaserTrials
+from bmi3d.riglib import experiment
+from bmi3d.built_in_tasks.manualcontrolmultitasks import ManualControl
+from bmi3d.riglib.stereo_opengl.window import WindowDispl2D
+from bmi3d.features.peripheral_device_features import KeyboardControl, MouseControl
+from bmi3d.features.laser_features import LaserTrials
 import features.sync_features as sync_features
 import numpy as np
 
@@ -37,7 +37,7 @@ class TestMouseControl(unittest.TestCase):
 class TestLaser(unittest.TestCase):
     
     def test_digital_wave(self):
-        from riglib.gpio import TestGPIO, DigitalWave
+        from bmi3d.riglib.gpio import TestGPIO, DigitalWave
         gpio = TestGPIO()
         laser1 = DigitalWave(gpio, pin=1)
         laser1.set_pulse(1, 0)
@@ -52,7 +52,7 @@ class TestLaser(unittest.TestCase):
 
     @unittest.skip("Need arduino connected for this to pass")
     def test_arduino(self):
-        from riglib.gpio import ArduinoGPIO, DigitalWave
+        from bmi3d.riglib.gpio import ArduinoGPIO, DigitalWave
         gpio = ArduinoGPIO()
         laser = DigitalWave(gpio, pin=10)
         laser.set_square_wave(5, 10)

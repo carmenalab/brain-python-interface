@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from riglib import hdfwriter, sink
+from ..riglib import hdfwriter, sink
 
 def test(filename, shape=(8,4), length=2**28):
     dtype = np.dtype((np.float, shape))

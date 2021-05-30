@@ -2,8 +2,8 @@
 '''
 Test that the content of the npz file is the same as what is stored in the HDF file
 '''
-from db import dbfunctions as dbfn
-from db.tracker import models
+from ..db import dbfunctions as dbfn
+from ..db.tracker import models
 from tasks import performance
 import plotutil
 import tables

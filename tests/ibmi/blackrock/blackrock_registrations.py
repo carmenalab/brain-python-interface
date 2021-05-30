@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from riglib.dio import parse
+from ..riglib.dio import parse
 import subprocess
 import matplotlib.pyplot as plt
 
@@ -39,7 +39,7 @@ def parse_nev_hdf(nev_hdf):
     ts = nev_hdf.root.channel.digital00001.digital_set[:]['TimeStamp']
     msgs = nev_hdf.root.channel.digital00001.digital_set[:]['Value']
 
-    # copied from riglib/dio/parse.py
+    # copied from ..riglib/dio/parse.py
     msgtype_mask = parse.msgtype_mask 
     auxdata_mask = parse.auxdata_mask 
     rawdata_mask = parse.rawdata_mask

@@ -4,7 +4,7 @@ import numpy as np
 import math
 import time
 import cProfile
-from riglib.bmi import train, clda
+from ..riglib.bmi import train, clda
 
 
 # TODO

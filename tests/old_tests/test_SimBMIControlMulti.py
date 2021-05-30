@@ -1,7 +1,7 @@
 from bmimultitasks import SimBMIControlMulti
-from features import SaveHDF
+from ..features import SaveHDF
 import numpy as np
-from riglib import experiment
+from ..riglib import experiment
 
 # build a sequence generator
 if __name__ == "__main__":

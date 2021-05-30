@@ -1,13 +1,13 @@
 import numpy as np
-from db import dbfunctions as dbfn
-from db.tracker import models
-from riglib.bmi import train, kfdecoder, ppfdecoder
+from ..db import dbfunctions as dbfn
+from ..db.tracker import models
+from ..riglib.bmi import train, kfdecoder, ppfdecoder
 import unittest
 
 datafiles = models.DataFile.objects.filter(entry_id=3911)
 files = dict((d.system.name, d.get_path()) for d in datafiles)
 
-from riglib.bmi import extractor
+from ..riglib.bmi import extractor
 
 
 channels = list(range(1, 13))

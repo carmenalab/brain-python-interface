@@ -1,13 +1,13 @@
-from features.simulation_features import SimKFDecoderSup, SimCosineTunedEnc, SimTime, SimFAEnc
-from features.hdf_features import SaveHDF
-from features.generator_features import Autostart
-from riglib.stereo_opengl.window import FakeWindow
-from riglib.bmi.state_space_models import StateSpaceEndptVel2D, State, offset_state
-from riglib.bmi.feedback_controllers import LQRController
-from riglib import experiment
+from ..features.simulation_features import SimKFDecoderSup, SimCosineTunedEnc, SimTime, SimFAEnc
+from ..features.hdf_features import SaveHDF
+from ..features.generator_features import Autostart
+from ..riglib.stereo_opengl.window import FakeWindow
+from ..riglib.bmi.state_space_models import StateSpaceEndptVel2D, State, offset_state
+from ..riglib.bmi.feedback_controllers import LQRController
+from ..riglib import experiment
 
-from built_in_tasks.bmimultitasks import BMIControlMulti
-from built_in_tasks import manualcontrolmultitasks
+from ..built_in_tasks.bmimultitasks import BMIControlMulti
+from ..built_in_tasks import manualcontrolmultitasks
 
 import plantlist
 
@@ -16,8 +16,8 @@ import os, shutil, pickle
 import pickle
 import time, datetime
 
-from riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceEndptPos1D
-from riglib.bmi import feedback_controllers
+from ..riglib.bmi.state_space_models import StateSpaceEndptVel2D, StateSpaceEndptPos1D
+from ..riglib.bmi import feedback_controllers
 
 class SuperSimpleEndPtAssister(object):
     '''

@@ -2,14 +2,14 @@
 Test experiment finite state machines, task data generation and pygame graphics from the
 command line, without frontend overhead. 
 '''
-from riglib import experiment
-from features.generator_features import Autostart
-from features.hdf_features import SaveHDF
-from riglib.stereo_opengl.window import WindowDispl2D
+from ..riglib import experiment
+from ..features.generator_features import Autostart
+from ..features.hdf_features import SaveHDF
+from ..riglib.stereo_opengl.window import WindowDispl2D
 
-from riglib.experiment import generate
+from ..riglib.experiment import generate
 
-from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
+from ..built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
 
 
 

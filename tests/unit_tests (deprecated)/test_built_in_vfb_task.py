@@ -8,11 +8,11 @@ import numpy as np
 
 from reqlib import swreq
 from requirements import *
-from features.hdf_features import SaveHDF
-from riglib import experiment
-from riglib import sink
+from ..features.hdf_features import SaveHDF
+from ..riglib import experiment
+from ..riglib import sink
 
-from built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
+from ..built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
 
 class TestVisualFeedback(unittest.TestCase):
     def setUp(self):

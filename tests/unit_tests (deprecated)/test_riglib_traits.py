@@ -3,16 +3,16 @@ import unittest
 from reqlib import swreq
 from requirements import *
 
-from features.hdf_features import SaveHDF
+from ..features.hdf_features import SaveHDF
 import time
 import tables
 
-from riglib import experiment
-from riglib import sink
+from ..riglib import experiment
+from ..riglib import sink
 import mocks
 import os
 
-from riglib.experiment.mocks import MockSequenceWithTraits
+from ..riglib.experiment.mocks import MockSequenceWithTraits
 
 
 

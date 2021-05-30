@@ -5,7 +5,7 @@ Test case for PPFDecoder
 import numpy as np
 from scipy.io import loadmat, savemat
 import utils
-from riglib.bmi import sim_neurons
+from ..riglib.bmi import sim_neurons
 
 reload(sim_neurons)
 

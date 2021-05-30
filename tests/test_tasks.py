@@ -1,7 +1,7 @@
-from built_in_tasks.manualcontrolmultitasks import ManualControl
-from riglib.stereo_opengl.window import WindowDispl2D
-from built_in_tasks.othertasks import LaserConditions
-from riglib import experiment
+from bmi3d.built_in_tasks.manualcontrolmultitasks import ManualControl
+from bmi3d.riglib.stereo_opengl.window import WindowDispl2D
+from bmi3d.built_in_tasks.othertasks import LaserConditions
+from bmi3d.riglib import experiment
 import cProfile
 import pstats
 

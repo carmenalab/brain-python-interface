@@ -4,9 +4,9 @@ Script to map between new and old assists
 infinite horizon LQR feedback controllers are hackishly fit based on arrival times
 '''
 import numpy as np
-from riglib.bmi import feedback_controllers, kfdecoder, ppfdecoder
+from ..riglib.bmi import feedback_controllers, kfdecoder, ppfdecoder
 import matplotlib.pyplot as plt
-from db import dbfunctions as dbfn
+from ..db import dbfunctions as dbfn
 
 dec = dbfn.get_decoder(2326)
 

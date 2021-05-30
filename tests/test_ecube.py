@@ -1,6 +1,6 @@
 import time
-from riglib import source
-from riglib.ecube import Broadband, make
+from bmi3d.riglib import source
+from bmi3d.riglib.ecube import Broadband, make
 import numpy as np
 
 DURATION = 5

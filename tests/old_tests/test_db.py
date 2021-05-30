@@ -4,7 +4,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'db.settings')
 django.setup()
 
-from db.tracker import models
+from ..db.tracker import models
 
 fe = models.Feature.objects.all()
 print(fe)

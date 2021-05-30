@@ -3,7 +3,7 @@ Modified by Pavi for Orsborn ab reward system
 on Aug 2020 based on Si Jia's previous script
 
 """
-from riglib import reward
+from bmi3d.riglib import reward
 
 import unittest
 

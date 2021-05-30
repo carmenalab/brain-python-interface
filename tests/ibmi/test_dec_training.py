@@ -1,5 +1,5 @@
 import pickle
-from riglib.bmi import train
+from ..riglib.bmi import train
 pkl = pickle.load(open('/home/tecnalia/code/bmi3d/tests/ibmi/dec_br.p'))
 from ismore.ismore_bmi_lib import StateSpaceArmAssist
 import namelist

@@ -1,9 +1,9 @@
 from tasks import factor_analysis_tasks
-from riglib import experiment
+from ..riglib import experiment
 import pickle
-from features.plexon_features import PlexonBMI
-from features.hdf_features import SaveHDF
-from riglib.bmi import train
+from ..features.plexon_features import PlexonBMI
+from ..features.hdf_features import SaveHDF
+from ..riglib.bmi import train
 
 # decoder = pickle.load(open('/Users/preeyakhanna/Dropbox/Carmena_Lab/FA_exp/grom_data/grom20151201_01_RMLC12011916.pkl'))
 

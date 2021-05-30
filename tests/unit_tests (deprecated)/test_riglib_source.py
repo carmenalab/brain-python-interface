@@ -3,7 +3,7 @@ import unittest
 from reqlib import swreq
 from requirements import *
 
-from riglib import source
+from ..riglib import source
 import time
 
 class MockDataSourceSystem(source.DataSourceSystem):

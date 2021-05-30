@@ -4,11 +4,11 @@
 Test to compare PPF loop calculations against Maryam's MATLAB code
 """
 import numpy as np
-from riglib.bmi import ppfdecoder, state_space_models as ssm
+from ..riglib.bmi import ppfdecoder, state_space_models as ssm
 from scipy.io import loadmat, savemat
-from riglib.bmi.sim_neurons import PointProcessEnsemble
+from ..riglib.bmi.sim_neurons import PointProcessEnsemble
 import matplotlib.pyplot as plt
-from riglib.bmi import state_space_models
+from ..riglib.bmi import state_space_models
 
 reload(ppfdecoder)
 

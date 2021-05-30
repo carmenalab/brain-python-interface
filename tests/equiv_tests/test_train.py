@@ -3,11 +3,11 @@
 Equivalence test for changes to vfb training procedure (riglib.bmi.train._train_KFDecoder_visual_feedback)
 '''
 import numpy as np
-from db import dbfunctions as dbfn
-from db.tracker import models
-from riglib.bmi import kfdecoder, ppfdecoder
-from riglib.bmi import train
-from riglib.bmi import extractor, state_space_models
+from ..db import dbfunctions as dbfn
+from ..db.tracker import models
+from ..riglib.bmi import kfdecoder, ppfdecoder
+from ..riglib.bmi import train
+from ..riglib.bmi import extractor, state_space_models
 import unittest
 
 reload(train)
@@ -25,7 +25,7 @@ class TestDecoderTrain(unittest.TestCase):
         files = training_block.datafiles
         print(files)
       
-        from riglib.bmi import extractor
+        from ..riglib.bmi import extractor
         extractor_cls = extractor.BinnedSpikeCountsExtractor
         extractor_kwargs = dict()
         extractor_kwargs['n_subbins'] = dec.n_subbins 
@@ -54,7 +54,7 @@ class TestDecoderTrain(unittest.TestCase):
         training_block = dbfn.TaskEntry(dec_record.entry_id, dbname='testing')
         files = training_block.datafiles
         
-        from riglib.bmi import extractor
+        from ..riglib.bmi import extractor
         extractor_cls = extractor.BinnedSpikeCountsExtractor
         extractor_kwargs = dict()
         extractor_kwargs['units'] = dec.units

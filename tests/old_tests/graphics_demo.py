@@ -7,18 +7,18 @@ import numpy as np
 import os
 os.environ['DISPLAY'] = ':0'
 
-from riglib.stereo_opengl.window import Window, FPScontrol
-from riglib.stereo_opengl.primitives import Cylinder, Plane, Sphere, Cone
-from riglib.stereo_opengl.models import FlatMesh, Group
-from riglib.stereo_opengl.textures import Texture, TexModel
-from riglib.stereo_opengl.render import ssao, stereo, Renderer
-from riglib.stereo_opengl.utils import cloudy_tex
+from ..riglib.stereo_opengl.window import Window, FPScontrol
+from ..riglib.stereo_opengl.primitives import Cylinder, Plane, Sphere, Cone
+from ..riglib.stereo_opengl.models import FlatMesh, Group
+from ..riglib.stereo_opengl.textures import Texture, TexModel
+from ..riglib.stereo_opengl.render import ssao, stereo, Renderer
+from ..riglib.stereo_opengl.utils import cloudy_tex
 
-from riglib.stereo_opengl.ik import RobotArmGen2D
-from riglib.stereo_opengl.xfm import Quaternion
+from ..riglib.stereo_opengl.ik import RobotArmGen2D
+from ..riglib.stereo_opengl.xfm import Quaternion
 import time
 
-from riglib.stereo_opengl.ik import RobotArm
+from ..riglib.stereo_opengl.ik import RobotArm
 
 import pygame
 

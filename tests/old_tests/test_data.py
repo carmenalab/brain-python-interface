@@ -1,9 +1,9 @@
 import time
 import numpy as np
 np.set_printoptions(suppress=True)
-from riglib.sink import sinks, PrintSink
-from riglib import source
-from riglib import motiontracker, hdfwriter, nidaq, calibrations
+from ..riglib.sink import sinks, PrintSink
+from ..riglib import source
+from ..riglib import motiontracker, hdfwriter, nidaq, calibrations
 
 Motion = motiontracker.make(8, motiontracker.AligningSystem)
 

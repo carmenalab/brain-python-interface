@@ -3,7 +3,7 @@ import time
 import scipy.io as sio
 
 from ismore import brainamp_channel_lists
-from riglib.brainamp.rda import *
+from ..riglib.brainamp.rda import *
 
 
 
