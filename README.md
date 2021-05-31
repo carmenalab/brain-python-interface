@@ -41,7 +41,7 @@ pip3 install -r requirements.txt
 pip3 install -e .
 ```
 
-## Database installation only
+## Database access only
 ```bash
 git clone -b develop https://github.com/aolabNeuro/brain-python-interface.git
 cd brain-python-interface

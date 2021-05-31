@@ -2,14 +2,13 @@
 
 # Set display
 HOST=`hostname -s`
-if [ $HOST=='pagaiisland2' ]; then
+if [ "$HOST" = "pagaiisland2" ]; then
     DISPLAY=':0.1'
 fi
 
 # Find the BMI3D directory
 FILE=$(realpath "$0")
-DB=$(dirname $FILE)
-BMI3D=$(dirname $DB)
+BMI3D=$(dirname $FILE)
 
 # #Check /storage (exist )
 # storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
@@ -23,12 +22,6 @@ if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then
     echo "ERROR: runserver seems to have already been executed by a different program!"
     exit 1
 fi
-
-# Check that a config file is in the correct place, $BMI3D/config
-# if [ ! -e $BMI3D/config_files/config ]; then 
-#     echo "ERROR: cannot find config file! Did you run $BMI3D/config_files/make_config.py?"
-#     exit 1
-# fi
     
 # Mount the neural recording system, if a mount point is specified in the config file
 # if [ `cat $BMI3D/config | grep mount_point | wc -l` -gt 0 ]; then
@@ -83,29 +76,25 @@ fi
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)
-cd $BMI3D/db/
+cd $BMI3D
 python manage.py runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
-#python manage.py celery worker &
-#CELERY=$!
-#python manage.py celery flower --address=0.0.0.0 &
-#FLOWER=$!
-
+celery -A bmi3d.db.tracker worker -l INFO &
+celery flower -A bmi3d.db.tracker --address=0.0.0.0 --port=5555 &
 # Start servernode-control
-gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
-SNC=$!
+if [ "$HOST" = "pagaiisland2" ]; then
+    gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
+fi
 
 # Define what happens when you hit control-C
 function ctrl_c() {
-	kill -9 $DJANGO
-    kill -9 $SNC
-	#kill $CELERY
-	#kill $FLOWER
-    kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
-	# kill -9 `ps -C 'python manage.py' -o pid --no-headers`
+    # kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
+	kill -9 `ps -C 'python manage.py' -o pid --no-headers`
+    kill -9 `ps -C 'celery' -o pid --no-headers`
 }
 
 # Run until the PID stored in $DJANGO is dead
 wait $DJANGO
-#kill $CELERY
-#kill $FLOWER
+
+# Close everything in case the process died in error
+ctrl_c

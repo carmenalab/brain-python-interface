@@ -4,7 +4,7 @@ Interface between the Django database methods/models and data analysis code
 # django initialization
 import os
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
-from bmi3d.boot_django import boot_django
+from ..boot_django import boot_django
 
 import sys
 import json

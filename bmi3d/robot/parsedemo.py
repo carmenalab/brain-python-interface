@@ -29,8 +29,6 @@ def parsedemo(s):
     lines = s.split('\n');
     
     name = __file__;
-    print name;
-    print len(name)*'=';
     if has_termios:
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
@@ -50,15 +48,12 @@ def parsedemo(s):
                 
                 # a blank line means paragraph break
                 if len(line) == 1 and text:
-                    print textwrap.fill(text, fix_sentence_endings=True);
                     text = '';
-                    print  
             else:
                 ## command encountered
                 
                 # flush the remaining help text
                 if text:
-                    print textwrap.fill(text, fix_sentence_endings=True);
                     text = '';
                 
                 cmd = line.strip();
@@ -72,25 +67,19 @@ def parsedemo(s):
                     # remove the prompt from the screen
                     sys.stderr.write('\r        \r');
                     continue;
-                print
-                
-                # show the command we are about to execute
-                print '>>>', cmd;
                 
                 # if it involves an assignment then we use exec else use eval.
                 # we mimic the matlab behaviour in which a trailing semicolon inhibits
                 # display of the result
                 if cmd.startswith('from'):
-                    exec cmd;
+                    exec(cmd)
                 elif '=' in cmd:
                     e = cmd.split('=');
-                    exec rstrip.sub('', cmd);
-                    if cmd[-1] != ';':
-                        print eval(e[0]);
+                    exec(rstrip.sub('', cmd))
+
                 else:
                     result = eval(cmd.rstrip(';'));
-                    if cmd[-1] != ';':
-                        print result;
+
 
     finally:
         if has_termios:

@@ -17,7 +17,6 @@ setuptools.setup(
         "scipy",
         "traits",
         "pandas",
-        "pygame",
         "nitime",
         "tornado",
         "tables",
