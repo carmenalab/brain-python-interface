@@ -353,7 +353,7 @@ class RegexKeyDict(dict):
 ##############################################################################
 ## Updaters
 ##############################################################################
-from ..riglib.mp_calc import MPCompute
+from ...riglib.mp_calc import MPCompute
 class Updater(object):
     '''
     Wrapper for MPCompute computations running in another process

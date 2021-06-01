@@ -1,11 +1,8 @@
-import os
-import sys
-import shutil
-import datetime
-
-os.environ['DJANGO_SETTINGS_MODULE'] = 'bmi3d.db.settings'
+from ..boot_django import boot_django
+boot_django()
 
 from .tracker import models
+import datetime
 
 plexon = models.System.objects.get(name='plexon')
 

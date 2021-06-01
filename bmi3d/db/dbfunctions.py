@@ -39,8 +39,7 @@ class TaskEntry(object):
             'id' number associated with the TaskEntry (database primary key)
         dbname : string, optional, default='default'
             Name of database (if multiple databases are available). Database must
-            be declared in db/settings.py and paths must be configured using
-            config_files/make_config.py
+            be declared in db/settings.py
         **kwargs : dict
             For any additional parameters unused by child classes
 
@@ -96,47 +95,6 @@ class TaskEntry(object):
         except:
             self.report = ''
 
-
-        # Parse out trial messages into separate trials
-        if os.path.exists(self.hdf_filename):
-            try:
-                task_msgs = self.hdf.root.task_msgs[:]
-                # Ignore the last message if it's the "None" transition used to stop the task
-                if task_msgs[-1]['msg'] == b'None':
-                    task_msgs = task_msgs[:-1]
-
-                # ignore "update bmi" messages. These have been removed in later datasets
-                task_msgs = task_msgs[task_msgs['msg'] != b'update_bmi']
-
-                # Try to add the target index.. these are not present in every task type
-                try:
-                    target = self.hdf.root.task[:]['target'].ravel()
-                    target_index = self.hdf.root.task[:]['target_index'].ravel()
-                    task_msg_dtype = np.dtype([('msg', '|S256'), ('time', '<u4'), ('target_index', 'f8'), ('target', ('f8', 3))])
-                    task_msgs_ext = np.zeros(len(task_msgs), dtype=task_msg_dtype)
-                    for k in range(len(task_msgs)):
-                        task_msgs_ext[k]['msg'] = task_msgs[k]['msg']
-                        task_msgs_ext[k]['time'] = task_msgs[k]['time'] # 'time' is the frame number
-                        try:
-                            task_msgs_ext[k]['target'] = target[task_msgs[k]['time']]
-                            task_msgs_ext[k]['target_index'] = target_index[task_msgs[k]['time']]
-                        except:
-                            task_msgs_ext[k]['target'] = np.empty((3,))
-                            task_msgs_ext[k]['target_index'] = np.nan
-
-                    self.task_msgs = task_msgs_ext
-                except:
-                    self.task_msgs = task_msgs
-                    import traceback
-                    traceback.print_exc()
-
-
-            except:
-                print("Couldn't process HDF file!")
-                import traceback
-                traceback.print_exc()
-        else:
-            print("No HDF file found!")
 
     def get_decoders_trained_in_block(self, return_type='record'):
         '''
@@ -219,16 +177,15 @@ class TaskEntry(object):
         trial_proc_fn = proc
         data_comb_fn = comb
 
-        import trial_filter_functions, trial_proc_functions, trial_condition_functions
-        if isinstance(trial_filter_fn, str):
-            trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
+        # import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        # if isinstance(trial_filter_fn, str):
+        #     trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
-        if isinstance(trial_proc_fn, str):
-            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
+        # if isinstance(trial_proc_fn, str):
+        #     trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
 
-        if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
-
+        # if isinstance(trial_condition_fn, str):
+        #     trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
         te = self
         trial_msgs = [msgs for msgs in te.trial_msgs if trial_filter_fn(te, msgs)]
@@ -714,7 +671,6 @@ class TaskEntryCollection(object):
             grouped by tuples are combined into a single result.
         '''
 
-        import trial_filter_functions, trial_proc_functions, trial_condition_functions
         if filt == None:
             filt = kwargs.pop('trial_filter_fn', default_trial_filter_fn)
         if cond == None:
@@ -730,15 +686,15 @@ class TaskEntryCollection(object):
         trial_proc_fn = proc
         data_comb_fn = comb
 
+        # import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        # if isinstance(trial_filter_fn, str):
+        #     trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
 
-        if isinstance(trial_filter_fn, str):
-            trial_filter_fn = getattr(trial_filter_functions, trial_filter_fn)
+        # if isinstance(trial_proc_fn, str):
+        #     trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
 
-        if isinstance(trial_proc_fn, str):
-            trial_proc_fn = getattr(trial_proc_functions, trial_proc_fn)
-
-        if isinstance(trial_condition_fn, str):
-            trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
+        # if isinstance(trial_condition_fn, str):
+        #     trial_condition_fn = getattr(trial_condition_functions, trial_condition_fn)
 
 
         result = []
@@ -813,7 +769,6 @@ class TaskEntryCollection(object):
         if comb == None:
             comb = kwargs.pop('data_comb_fn', default_data_comb_fn)
 
-        import trial_filter_functions, trial_proc_functions, trial_condition_functions
 
         block_filter_fn = filt
         block_condition_fn = cond
@@ -821,11 +776,12 @@ class TaskEntryCollection(object):
         data_comb_fn = comb
 
         # Look up functions by name, if strings are given instead of functions
-        if isinstance(block_filter_fn, str):
-            block_filter_fn = getattr(trial_filter_functions, block_filter_fn)
+        # import trial_filter_functions, trial_proc_functions, trial_condition_functions
+        # if isinstance(block_filter_fn, str):
+        #     block_filter_fn = getattr(trial_filter_functions, block_filter_fn)
 
-        if isinstance(block_proc_fn, str):
-            block_proc_fn = getattr(block_proc_functions, block_proc_fn)
+        # if isinstance(block_proc_fn, str):
+        #     block_proc_fn = getattr(block_proc_functions, block_proc_fn)
 
         result = []
         for blockset in self.blocks:

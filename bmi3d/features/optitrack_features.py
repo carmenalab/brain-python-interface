@@ -192,7 +192,7 @@ class OptitrackPlayback(Optitrack):
 import logging
 class Logger(object):
 
-    def __init__(self, msg="", log_filename='../log/optitrack.log'):
+    def __init__(self, msg="", log_filename='../../log/optitrack.log'):
         self.log_filename = log_filename
         self.reset(msg)
 

@@ -2,8 +2,8 @@ from bmi3d.riglib import experiment
 from bmi3d.built_in_tasks.manualcontrolmultitasks import ManualControl
 from bmi3d.riglib.stereo_opengl.window import WindowDispl2D
 from bmi3d.features.peripheral_device_features import KeyboardControl, MouseControl
-from bmi3d.features.laser_features import LaserTrials
-import features.sync_features as sync_features
+from bmi3d.features.laser_features import LaserTrialsArduino
+from bmi3d.features import sync_features as sync_features
 import numpy as np
 
 import unittest

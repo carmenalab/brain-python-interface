@@ -553,7 +553,7 @@ def remove_system(request):
 
 @csrf_exempt
 def toggle_features(request):
-    from ..features import built_in_features
+    from ...features import built_in_features
     from . import models
 
     name = request.POST.get('name')
@@ -664,11 +664,8 @@ def update_database_storage_path(request):
     db_name = request.POST['db_name']
     db_storage_path = request.POST['db_storage_path']
 
-    if db_name == 'default':
-        KeyValueStore.set("data_path", db_storage_path)
-        return _respond(dict(status="success", msg="Updated storage path for %s db" % db_name))
-    else:
-        return _respond(dict(status="error", msg="Not yet implemented for non-default tables!"))
+    KeyValueStore.set("data_path", db_storage_path, dbname=db_name)
+    return _respond(dict(status="success", msg="Updated storage path for %s db" % db_name))
 
 def save_recording_sys(request):
     from . import models

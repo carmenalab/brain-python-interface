@@ -8,7 +8,7 @@ import json
 import numpy as np
 import os
 
-log_path = os.path.join(os.path.dirname(__file__), '../../log')
+log_path = os.path.join(os.path.dirname(__file__), '../../../log')
 
 
 def param_objhook(obj):

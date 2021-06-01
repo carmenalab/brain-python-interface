@@ -3,7 +3,10 @@
 # Set display
 HOST=`hostname -s`
 if [ "$HOST" = "pagaiisland2" ]; then
-    DISPLAY=':0.1'
+    export DISPLAY=':0.1'
+elif [ "$HOST" = "peco" ]; then
+    export DISPLAY=$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0.0
+    export LIBGL_ALWAYS_INDIRECT=1
 fi
 
 # Find the BMI3D directory
@@ -20,7 +23,11 @@ BMI3D=$(dirname $FILE)
 # Make sure that the server is not already running in a different program
 if [ `ps aux | grep "manage.py runserver" | grep python | wc -l` -gt 0 ]; then 
     echo "ERROR: runserver seems to have already been executed by a different program!"
-    exit 1
+    read -p "Do you want to restart? [y/n] " -n 1 -r
+    if [[ $REPLY =~ ^[Yy]$ ]]
+    then
+        kill -9 `ps -C "python manage.py runserver" -o pid --no-headers`
+    fi
 fi
     
 # Mount the neural recording system, if a mount point is specified in the config file
@@ -65,8 +72,6 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD >> $BMI3D/lo
 echo "Working tree status at time of execution" >> $BMI3D/log/runserver_log   
 git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log   
 
-trap ctrl_c INT SIGINT SIGKILL SIGHUP
-
 # Activate the relevant environment
 if  test -f "$BMI3D/env/bin/activate"; then 
     source $BMI3D/env/bin/activate
@@ -74,27 +79,18 @@ else
     echo "No environment found."
 fi
 
-# Start python processes and save their PIDs (stored in the bash '!' variable 
-# immediately after the command is executed)
+trap "exit" INT TERM ERR
+trap "kill 0" EXIT
+
+# Start python processes
 cd $BMI3D
 python manage.py runserver 0.0.0.0:8000 --noreload &
-DJANGO=$!
 celery -A bmi3d.db.tracker worker -l INFO &
 celery flower -A bmi3d.db.tracker --address=0.0.0.0 --port=5555 &
+
 # Start servernode-control
 if [ "$HOST" = "pagaiisland2" ]; then
     gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
 fi
 
-# Define what happens when you hit control-C
-function ctrl_c() {
-    # kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
-	kill -9 `ps -C 'python manage.py' -o pid --no-headers`
-    kill -9 `ps -C 'celery' -o pid --no-headers`
-}
-
-# Run until the PID stored in $DJANGO is dead
-wait $DJANGO
-
-# Close everything in case the process died in error
-ctrl_c
+wait

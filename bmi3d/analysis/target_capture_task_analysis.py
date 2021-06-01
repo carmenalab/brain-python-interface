@@ -49,33 +49,33 @@ class ManualControlMultiTaskEntry(dbfunctions.TaskEntry):
         self.fixed = kwargs.pop('fixed', True)
         super(ManualControlMultiTaskEntry, self).__init__(*args, **kwargs)
 
-        try:
-            # Split the task messages into separate trials
-            # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1
-            trial_start = np.logical_or(self.task_msgs['msg'] == b'wait', np.logical_and(self.task_msgs['msg'] == b'targ_transition', self.task_msgs['target_index'] == -1))
-            trial_start_inds, = np.nonzero(trial_start)
-            trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
-            self.trial_msgs = []
-            for trial_st, trial_end in zip(trial_start_inds, trial_end_inds):
-                self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
+        # try:
+        #     # Split the task messages into separate trials
+        #     # A new trial starts in either the 'wait' state or when 'targ_transition' has a target_index of -1
+        #     trial_start = np.logical_or(self.task_msgs['msg'] == b'wait', np.logical_and(self.task_msgs['msg'] == b'targ_transition', self.task_msgs['target_index'] == -1))
+        #     trial_start_inds, = np.nonzero(trial_start)
+        #     trial_end_inds = np.hstack([trial_start_inds[1:], len(trial_start)])
+        #     self.trial_msgs = []
+        #     for trial_st, trial_end in zip(trial_start_inds, trial_end_inds):
+        #         self.trial_msgs.append(self.task_msgs[trial_st:trial_end])
             
-            # Organize frame data
-            frame_data = self.hdf.root.task[:]
-            frame_data_dtype = np.dtype([('cursor', ('f8', 3)), ('manual_input', ('f8', 3))])
-            if 'sync_square' in frame_data.dtype.names:
-                frame_data_dtype = np.dtype([('cursor', ('f8', 3)), ('sync', '?')])
-            frame_data_ext = np.zeros(len(frame_data), dtype=frame_data_dtype)
-            for k in range(len(frame_data)):
-                frame_data_ext[k]['cursor'] = frame_data[k]['cursor']
-                frame_data_ext[k]['manual_input'] = frame_data[k]['manual_input']
-                if 'sync_square' in frame_data.dtype.names:
-                    frame_data_ext[k]['sync'] = frame_data[k]['sync_square']
-            self.frame_data = frame_data_ext
+        #     # Organize frame data
+        #     frame_data = self.hdf.root.task[:]
+        #     frame_data_dtype = np.dtype([('cursor', ('f8', 3)), ('manual_input', ('f8', 3))])
+        #     if 'sync_square' in frame_data.dtype.names:
+        #         frame_data_dtype = np.dtype([('cursor', ('f8', 3)), ('sync', '?')])
+        #     frame_data_ext = np.zeros(len(frame_data), dtype=frame_data_dtype)
+        #     for k in range(len(frame_data)):
+        #         frame_data_ext[k]['cursor'] = frame_data[k]['cursor']
+        #         frame_data_ext[k]['manual_input'] = frame_data[k]['manual_input']
+        #         if 'sync_square' in frame_data.dtype.names:
+        #             frame_data_ext[k]['sync'] = frame_data[k]['sync_square']
+        #     self.frame_data = frame_data_ext
 
-        except:
-            print("Couldn't process HDF file. Is it copied?")
-            import traceback
-            traceback.print_exc()
+        # except:
+        #     print("Couldn't process HDF file. Is it copied?")
+        #     import traceback
+        #     traceback.print_exc()
 
         if 'target_radius' in self.params:
             self.target_radius = self.params['target_radius']

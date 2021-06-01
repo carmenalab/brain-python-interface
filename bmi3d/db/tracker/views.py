@@ -151,7 +151,7 @@ def setup_features(request):
     features = models.Feature.objects.all()
 
     # populate the list of built-in features which could be added
-    from ..features import built_in_features
+    from ...features import built_in_features
     built_in_feature_names = list(built_in_features.keys())
 
     return render(request, "setup_features.html",
@@ -167,8 +167,8 @@ def setup_parameters(request):
     systems = models.System.objects.all()
 
     # list of available databases
-    from ..db import settings
-    databases = list(settings.DATABASES.keys())
+    from .. import db_settings
+    databases = list(db_settings.DATABASES.keys())
 
     database_objs = []
     for db in databases:

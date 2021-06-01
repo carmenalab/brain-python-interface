@@ -9,7 +9,7 @@ from ..riglib.experiment import traits
 import traceback
 
 ecube_path = "/media/NeuroAcq" # TODO this should be configurable elsewhere
-log_path = os.path.join(os.path.dirname(__file__), '../log')
+log_path = os.path.join(os.path.dirname(__file__), '../../log')
 log_filename = os.path.join(log_path, "ecube_log")
 
 def make_ecube_session_name(saveid):

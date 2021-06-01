@@ -221,7 +221,7 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
 
         # Register the "task" source with the sinks
         if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
-            from ..riglib import sink
+            from ...riglib import sink
             self.sinks = sink.SinkManager.get_instance()
 
         try:
@@ -722,7 +722,9 @@ class LogExperiment(Experiment):
             Rate of specified event, per trial
         '''
         trialtimes = [state[1] for state in self.state_log if state[0] in self.status.trial_end_states]
-        if len(trialtimes) < window:
+        if len(trialtimes) == 0:
+            return 0
+        elif len(trialtimes) < window:
             times = np.array([state[1] for state in self.state_log if state[0]==event_name and state[1] > trialtimes[0]])
             return len(times) / max(1, len(trialtimes) - 1)
         else:
@@ -779,7 +781,7 @@ class Sequence(LogExperiment):
 
         # Create a record array for trials
         if not hasattr(self, 'sinks'): # this attribute might be set in one of the other 'init' functions from other inherited classes
-            from ..riglib import sink
+            from bmi3d.riglib import sink
             self.sinks = sink.SinkManager.get_instance()
         dtype = self.trial_dtype # if you want to change this, do it in init() before calling super().init()
         self.trial_record = np.zeros((1,), dtype=dtype)

@@ -14,7 +14,7 @@ from . import websocket
 from ...riglib import experiment, singleton
 from .json_param import Parameters
 
-log_path = os.path.join(os.path.dirname(__file__), '../../log')
+log_path = os.path.join(os.path.dirname(__file__), '../../../log')
 log_filename = os.path.join(log_path, "tasktrack_log")
 # TODO make folder if it doesn't exist
 

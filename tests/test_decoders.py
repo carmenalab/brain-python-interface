@@ -1,5 +1,4 @@
 from bmi3d.riglib.bmi import lindecoder
-from bmi3d.built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
 from bmi3d.riglib import experiment
 import numpy as np
 
@@ -33,6 +32,7 @@ class TestLinDec(unittest.TestCase):
     
     @unittest.skip('msg')
     def test_experiment_unfixed(self):
+        from bmi3d.built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
         for cls in [SimBMICosEncLinDec]:
             N_TARGETS = 8
             N_TRIALS = 16
@@ -52,6 +52,7 @@ class TestLinDec(unittest.TestCase):
     
     @unittest.skip('msg')
     def test_experiment(self):
+        from bmi3d.built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
         for cls in [SimBMICosEncLinDec, SimBMIVelocityLinDec]:
             N_TARGETS = 8
             N_TRIALS = 16

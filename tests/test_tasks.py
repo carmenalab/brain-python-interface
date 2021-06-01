@@ -32,7 +32,8 @@ class TestManualControlTasks(unittest.TestCase):
 class TestOtherTasks(unittest.TestCase):
 
     def test_gen(self):
-        powers, edges = LaserConditions.pulse(10, [0.005], [1])
+        conditions = LaserConditions.pulse(10, [0.005], [1])
+        powers, edges = zip(*conditions)
         self.assertCountEqual(powers, np.ones(10))
         for edge in edges:
             self.assertCountEqual(edge, [0, 0.005])

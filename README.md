@@ -39,6 +39,7 @@ git clone -b develop https://github.com/aolabNeuro/brain-python-interface.git
 cd brain-python-interface
 pip3 install -r requirements.txt
 pip3 install -e .
+./install-rabbitmq.sh
 ```
 
 ## Database access only

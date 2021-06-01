@@ -1,20 +1,17 @@
 """
-This file demonstrates writing tests using the unittest module. These will pass
-when you run "manage.py test".
-
-Replace this with more appropriate tests for your application.
+Tests of the 'db' module
 """
 from django.test import TestCase, Client
 import json, time, sys, datetime
 import os
 os.environ['DISPLAY'] = ':0'
 
-from ..db.tracker import models
-from ..db.tracker import tasktrack
-from ..db.tracker import views
+from bmi3d.db.tracker import models
+from bmi3d.db.tracker import tasktrack
+from bmi3d.db.tracker import views
 # import psutil
 
-from ..riglib.experiment import LogExperiment
+from bmi3d.riglib.experiment import LogExperiment
 
 
 class TestDataFile(TestCase):
@@ -59,8 +56,8 @@ class TestModels(TestCase):
         c = Client()
 
         post_data = {"name": "test_add_new_task_to_table",
-            "import_path": "riglib.experiment.LogExperiment"}
-        resp = c.post("/setup/add/new_task", post_data)
+            "import_path": "bmi3d.riglib.experiment.LogExperiment"}
+        resp = c.post("/setup/add/task", post_data)
 
         task = models.Task.objects.get(name="test_add_new_task_to_table")
         task_cls = task.get()
@@ -69,12 +66,12 @@ class TestModels(TestCase):
     def test_add_new_feature_to_table(self):
         c = Client()
         post_data = {"name": "saveHDF",
-            "import_path": "features.hdf_features.SaveHDF"}
-        resp = c.post("/setup/add/new_feature", post_data)
+            "import_path": "bmi3d.features.hdf_features.SaveHDF"}
+        resp = c.post("/setup/add/feature", post_data)
 
         feat = models.Feature.objects.get(name="saveHDF")
         feat_cls = feat.get()
-        from ..features.hdf_features import SaveHDF
+        from bmi3d.features.hdf_features import SaveHDF
         self.assertEqual(feat_cls, SaveHDF)
 
         feat.delete()
@@ -85,7 +82,7 @@ class TestModels(TestCase):
         c = Client()
         post_data = {"subject_name": test_name}
 
-        resp = c.post("/setup/add/new_subject", post_data)
+        resp = c.post("/setup/add/subject", post_data)
 
         subj = models.Subject.objects.get(name=test_name)
         self.assertEqual(subj.name, test_name)
@@ -94,10 +91,10 @@ class TestModels(TestCase):
         c = Client()
         self.assertEqual(len(models.Feature.objects.all()), 0)
 
-        post_data = {"saveHDF": 1}
-        resp = c.post("/setup/add/enable_features", post_data)
+        post_data = {"name": "saveHDF"}
+        resp = c.post("/setup/update/toggle_features", post_data)
 
-        from ..features.hdf_features import SaveHDF
+        from bmi3d.features.hdf_features import SaveHDF
         feat = models.Feature.objects.get(name="saveHDF")
         self.assertEqual(feat.get(), SaveHDF)
 
@@ -105,12 +102,12 @@ class TestModels(TestCase):
         self.assertEqual(len(models.Feature.objects.all()), 0)
 
     def test_add_new_task_no_features(self):
-        task = models.Task(name="test_task", import_path="riglib.experiment.LogExperiment")
+        task = models.Task(name="test_task", import_path="bmi3d.riglib.experiment.LogExperiment")
         task.save()
         task = models.Task.objects.get(name="test_task")
 
         task_cls = task.get()
-        from ..riglib.experiment import LogExperiment
+        from bmi3d.riglib.experiment import LogExperiment
         self.assertEqual(task_cls, LogExperiment)
 
     def test_create_task_entry(self):
@@ -175,7 +172,6 @@ class TestExpLog(TestCase):
 
         list_data0 = views._list_exp_history()
         self.assertEqual(len(list_data0['entries']), 0)
-        self.assertEqual(len(list_data0['subjects']), 1)
         self.assertEqual(len(list_data0['tasks']), 1)
         self.assertEqual(len(list_data0['features']), 0)
         self.assertEqual(len(list_data0['generators']), 0)
@@ -185,11 +181,9 @@ class TestExpLog(TestCase):
 
         list_data1 = views._list_exp_history()
         self.assertEqual(len(list_data1['entries']), 1)
-        self.assertEqual(len(list_data1['subjects']), 1)
         self.assertEqual(len(list_data1['tasks']), 1)
         self.assertEqual(len(list_data1['features']), 0)
         self.assertEqual(len(list_data1['generators']), 0)
-
 
         for k in range(300):
             te2_date = datetime.datetime.now() - datetime.timedelta(days=k)
@@ -206,7 +200,7 @@ class TestExpLog(TestCase):
 
 class TestGenerators(TestCase):
     def test_generator_retreival(self):
-        task = models.Task(name="test_task1", import_path="riglib.experiment.mocks.MockSequenceWithGenerators")
+        task = models.Task(name="test_task1", import_path="bmi3d.riglib.experiment.mocks.MockSequenceWithGenerators")
         task.save()
 
         models.Generator.populate()
@@ -216,13 +210,14 @@ class TestGenerators(TestCase):
 class TestVisualFeedbackTask(TestCase):
     def test_start_experiment_python(self):
         import json
-        from ..built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
-        from ..riglib import experiment
-        from ..features import Autostart
-        from ..db.tracker import json_param
+        from bmi3d.built_in_tasks.passivetasks import TargetCaptureVFB2DWindow
+        from bmi3d.riglib import experiment
+        from bmi3d.features import Autostart
+        from bmi3d.db.tracker import json_param
 
         try:
             import pygame
+            pygame.display.init()
         except ImportError:
             print("Skipping test due to pygame missing")
             return
@@ -231,11 +226,11 @@ class TestVisualFeedbackTask(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="test_vfb", import_path="built_in_tasks.passivetasks.TargetCaptureVFB2DWindow")
+        task = models.Task(name="test_vfb", import_path="bmi3d.built_in_tasks.passivetasks.TargetCaptureVFB2DWindow")
         task.save()
 
         models.Generator.populate()
-        gen = models.Generator.objects.get(name='centerout_2D_discrete')
+        gen = models.Generator.objects.get(name='centerout_2D')
 
         seq_params = dict(nblocks=1, ntargets=1)
         seq_rec = models.Sequence(generator=gen,
@@ -270,7 +265,7 @@ class TestTaskStartStop(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
+        task = models.Task(name="generic_exp", import_path="bmi3d.riglib.experiment.LogExperiment")
         task.save()
 
         task_start_data = dict(subj=subj.id, base_class=task.get_base_class(), feats=[],
@@ -289,10 +284,10 @@ class TestTaskStartStop(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
+        task = models.Task(name="generic_exp", import_path="bmi3d.riglib.experiment.LogExperiment")
         task.save()
 
-        task_start_data = dict(subject=1, task=1, feats=dict(), params=dict(), sequence=None)
+        task_start_data = dict(metadata=dict(subject="test_subject"), task=1, feats=dict(), params=dict(), sequence=None)
 
         post_data = {"data": json.dumps(task_start_data)}
 
@@ -325,13 +320,13 @@ class TestTaskStartStop(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp", import_path="riglib.experiment.LogExperiment")
+        task = models.Task(name="generic_exp", import_path="bmi3d.riglib.experiment.LogExperiment")
         task.save()
 
-        feat = models.Feature(name="saveHDF", import_path="features.hdf_features.SaveHDF")
+        feat = models.Feature(name="saveHDF", import_path="bmi3d.features.hdf_features.SaveHDF")
         feat.save()
 
-        task_start_data = dict(subject=1, task=1, feats={"saveHDF":"saveHDF"}, params=dict(), sequence=None)
+        task_start_data = dict(metadata=dict(subject="test_subject"), task=1, feats={"saveHDF":"saveHDF"}, params=dict(), sequence=None)
 
         post_data = {"data": json.dumps(task_start_data)}
 
@@ -365,15 +360,15 @@ class TestTaskAnnotation(TestCase):
         subj = models.Subject(name="test_subject")
         subj.save()
 
-        task = models.Task(name="generic_exp", import_path="riglib.experiment.mocks.MockSequenceWithGenerators")
+        task = models.Task(name="generic_exp", import_path="bmi3d.riglib.experiment.mocks.MockSequenceWithGenerators")
         task.save()
 
         models.Generator.populate()
 
-        feat = models.Feature(name="saveHDF", import_path="features.hdf_features.SaveHDF")
+        feat = models.Feature(name="saveHDF", import_path="bmi3d.features.hdf_features.SaveHDF")
         feat.save()
 
-        task_start_data = dict(subject=1, task=1, feats={"saveHDF":"saveHDF"}, params=dict(),
+        task_start_data = dict(metadata=dict(subject="test_subject"), task=1, feats={"saveHDF":"saveHDF"}, params=dict(),
             sequence=dict(generator=1, name="seq1", params=dict(n_targets=1000), static=False))
 
         post_data = {"data": json.dumps(task_start_data)}
@@ -387,7 +382,7 @@ class TestTaskAnnotation(TestCase):
         self.assertTrue(tracker.task_running())
 
         time.sleep(2)
-        c.post("/exp_log/trigger_control", dict(control="record_annotation", args="test post annotation"))
+        c.post("/exp_log/trigger_control", dict(control="record_annotation", params="{\"msg\": \"test annotaion\"}"))
 
         time.sleep(2)
         stop_resp = c.post("/exp_log/stop/")
@@ -397,14 +392,14 @@ class TestTaskAnnotation(TestCase):
 
         # check that the annotation is recorded in the HDF5 file
         import h5py
-        hdf = h5py.File(h5file)
-        self.assertTrue(b"annotation: test post annotation" in hdf["/task_msgs"]["msg"][:])
+        hdf = h5py.File(h5file, 'r')
+        self.assertTrue(b"annotation: test annotation" in hdf["/task_msgs"]["msg"][()])
 
 
 class TestParamCast(TestCase):
     def test_norm_trait(self):
-        from ..db.tracker import json_param
-        from ..riglib.experiment import traits
+        from bmi3d.db.tracker import json_param
+        from bmi3d.riglib.experiment import traits
 
         t = traits.Float(1, descr='test trait')
         t1 = json_param.norm_trait(t, 1.0)

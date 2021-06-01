@@ -26,9 +26,9 @@ from ...riglib import calibrations, experiment
 
 def import_by_path(import_path):
     path_components = import_path.split(".")
-    module_name = "..." + (".").join(path_components[:-1])
+    module_name = (".").join(path_components[:-1])
     class_name = path_components[-1]
-    module = importlib.import_module(module_name, package='bmi3d.db.tracker')
+    module = importlib.import_module(module_name)
     cls = getattr(module, class_name)
     return cls
 
@@ -542,7 +542,7 @@ class Sequence(models.Model):
         return self.__str__()
 
     def get(self):
-        from ..riglib.experiment import generate
+        from ...riglib.experiment import generate
         from .json_param import Parameters
 
         if hasattr(self, 'generator') and self.generator.static: # If the generator is static, (NOTE: the generator being static is different from the *sequence* being static)
@@ -1655,8 +1655,11 @@ class KeyValueStore(models.Model):
             return default
 
     @classmethod
-    def set(cls, key, value):
-        matching_recs = cls.objects.filter(key=key)
+    def set(cls, key, value, dbname=None):
+        if dbname is not None:
+            matching_recs = cls.objects.using(dbname).filter(key=key)
+        else:
+            matching_recs = cls.objects.filter(key=key)
         if len(matching_recs) == 0:
             obj = cls(key=key, value=value)
             obj.save()

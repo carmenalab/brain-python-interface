@@ -22,7 +22,7 @@ class SaveHDF():
         self.h5file.close()
 
         sink_manager = sink.SinkManager.get_instance()
-        self.hdf = sink_manager.start(hdfwriter.HDFWriter, filename=self.h5file.name, log_filename=os.path.join(os.path.dirname(__file__), '../log/hdf_sink.log'))
+        self.hdf = sink_manager.start(hdfwriter.HDFWriter, filename=self.h5file.name, log_filename=os.path.join(os.path.dirname(__file__), '../../log/hdf_sink.log'))
 
         self.h5file_name = self.h5file.name
 

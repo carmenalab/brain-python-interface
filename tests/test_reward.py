@@ -10,9 +10,13 @@ import unittest
 class TestAoReward(unittest.TestCase):
 
     def setUp(self):
-        self.reward_sys = reward.Basic()
+        try:
+            self.reward_sys = reward.Basic()
+        except:
+            pass
 
     def test_connection(self):
+        self.assertTrue(self.reward_sys is not None)
         self.assertTrue(self.reward_sys.board is not None)
 
     def test_calibrate(self):

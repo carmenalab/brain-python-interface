@@ -489,7 +489,10 @@ class Decoder(object):
         self.ssm = ssm
 
         self.units = np.array(units, dtype=np.int32)
-        self.channels = np.unique(self.units[:,0])
+        if self.units.size > 0:
+            self.channels = np.unique(self.units[:,0])
+        else:
+            self.channels = []
         self.binlen = binlen
         self.bounding_box = ssm.bounding_box
         self.states = ssm.state_names
@@ -1419,7 +1422,7 @@ class BMILoop(object):
 
         # Open a log file in case of error b/c errors not visible to console
         # at this point
-        log_path = os.path.join(os.path.dirname(__file__), '../../log')
+        log_path = os.path.join(os.path.dirname(__file__), '../../../log')
         f = open(os.path.join(log_path, 'clda_cleanup_log'), 'w')
         f.write('Opening log file\n')
 

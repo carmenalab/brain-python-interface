@@ -7,7 +7,7 @@ import time
 import struct
 import numpy as np
 import re
-from ..riglib.experiment import Experiment, Sequence, FSMTable, StateTransitions
+from ...riglib.experiment import Experiment, Sequence, FSMTable, StateTransitions
 import random
 
 import socket
