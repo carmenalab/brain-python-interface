@@ -5,6 +5,8 @@ Interface between the Django database methods/models and data analysis code
 import os
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 from ..boot_django import boot_django
+from django.db import connection
+from django.db.utils import OperationalError
 
 import sys
 import json
@@ -22,6 +24,15 @@ db_name = 'default'
 # configure django
 boot_django()
 
+# decorator for mysql access
+def mysqlreconnect(f):
+    def inner(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except OperationalError:
+            connection.close()
+            return f(*args, **kwargs)
+    return inner
 
 class TaskEntry(object):
     '''
@@ -816,12 +827,14 @@ class TaskEntryCollection(object):
 ##################
 # Query functions
 ##################
+@mysqlreconnect
 def get_task_entries_by_id(ids):
     '''
     Returns list of task entries according to the given id or multiple ids
     '''
     return list(TaskEntry.objects.filter(pk__in=ids))
 
+@mysqlreconnect
 def get_task_entries_by_date(startdate, enddate=datetime.date.today(), dbname=db_name):
     '''
     Returns list of task entries within date range (inclusive). startdate and enddate
@@ -829,6 +842,7 @@ def get_task_entries_by_date(startdate, enddate=datetime.date.today(), dbname=db
     '''
     return list(models.TaskEntry.objects.using(dbname).filter(date__gte=startdate).filter(date__lte=enddate))
 
+@mysqlreconnect
 def get_task_entries(subj=None, date=None, task=None, dbname=db_name, **kwargs):
     '''
     Get all the task entries for a particular date
