@@ -56,6 +56,8 @@ def func_or_class_to_json(func_or_class, current_values, desc_lookup):
             typename = "Tuple"
         elif type(default) is int or type(default) is float:
             typename = "Float"
+        elif type(default) is bool:
+            typename = "Bool"
         else:
             typename = "String"
 
@@ -511,6 +513,7 @@ class Generator(models.Model):
             table = {
                 'nblocks': 'Number of trials times number of unique targets',
                 'ntrials': 'Number of trials',
+                'nreps': 'The number of repetitions of each unique condition.',
                 'ntargets': 'Number of (evenly spaced) targets',
                 'pos': 'Position of the target',
                 'distance': 'The distance in cm between the center and peripheral targets',
