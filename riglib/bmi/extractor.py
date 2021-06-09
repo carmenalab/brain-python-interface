@@ -357,6 +357,9 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         elif 'tdt' in files:
             raise NotImplementedError     
 
+        elif 'ecube' in files:
+            raise NotImplementedError
+
 # bands should be a list of tuples representing ranges
 #   e.g., bands = [(0, 10), (10, 20), (130, 140)] for 0-10, 10-20, and 130-140 Hz
 start = 0
@@ -583,6 +586,9 @@ class LFPMTMPowerExtractor(object):
             return lfp_power, units, extractor_kwargs
 
         elif 'blackrock' in files:
+            raise NotImplementedError
+
+        elif 'ecube' in files:
             raise NotImplementedError
 
 
@@ -1116,6 +1122,9 @@ class AIMTMPowerExtractor(LFPMTMPowerExtractor):
         elif 'blackrock' in files:
             raise NotImplementedError
 
+        elif 'ecube' in files:
+            raise NotImplementedError
+
 
 class AIAmplitudeExtractor(object):
     '''
@@ -1290,7 +1299,8 @@ class WaveformClusterCountExtractor(FeatureExtractor):
         else:
             raise NotImplementedError('Not implemented for blackrock/TDT data yet!')
 
-
+        elif 'ecube' in files:
+            raise NotImplementedError
 
 def get_butter_bpf_lfp_power(plx, neurows, binlen, units, extractor_kwargs, strobe_rate=60.0):
     '''

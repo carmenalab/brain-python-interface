@@ -308,6 +308,9 @@ def _get_neural_features_blackrock(files, binlen, extractor_fn, extractor_kwargs
 def _get_neural_features_tdt(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
     raise NotImplementedError
 
+def _get_neural_features_ecube(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
+    raise NotImplementedError
+
 def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=None, tslice=None, source='task', strobe_rate=60):
     '''
     Docstring
@@ -328,6 +331,8 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
         strobe_rate = 20.
     elif 'tdt' in files:
         fn = _get_neural_features_tdt
+    elif 'ecube' in files:
+        fn = _get_neural_features_ecube
     else:
         raise Exception('Could not find any recognized neural data files!')
 
