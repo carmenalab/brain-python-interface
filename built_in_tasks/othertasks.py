@@ -108,7 +108,7 @@ class LaserConditions(Conditions):
             # TODO set laser power
             power = self.laser_powers[idx]
             # Trigger digital wave
-            wave = DigitalWave(laser, pin=laser.port)
+            wave = DigitalWave(laser, mask=1>>laser.port)
             wave.set_edges(edges, True)
             wave.start()
             self.laser_threads.append(wave)
@@ -118,7 +118,7 @@ class LaserConditions(Conditions):
         # Turn laser off in between trials in case it ended on a rising edge
         for idx in range(len(self.lasers)):
             laser = self.lasers[idx]
-            wave = DigitalWave(laser, pin=laser.port)
+            wave = DigitalWave(laser, mask=1>>laser.port)
             wave.set_edges([0], False)
             wave.start()
         
