@@ -1036,7 +1036,7 @@ class TaskEntry(models.Model):
             h5file = df.get_path()
         except:
             print("No HDF file to make self contained")
-            return
+            return False
 
         import h5py
         hdf = h5py.File(h5file, mode='a')
@@ -1068,6 +1068,7 @@ class TaskEntry(models.Model):
 
         # TODO save decoder parameters to hdf file, if applicable
 
+        return True
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
