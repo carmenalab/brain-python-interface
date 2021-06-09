@@ -70,12 +70,12 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     from . import models
     from .json_param import Parameters
     from .tasktrack import Track
-    from config import bmiconfig as namelist
+    # from config import bmiconfig as namelist
 
     cellname = re.compile(r'(\d{1,3})\s*(\w{1})')
 
     print("make bmi")
-    extractor_cls = namelist.extractors[extractorname]
+    extractor_cls = models.import_by_path('riglib.bmi.extractor.' + extractorname)
     print('Training with extractor class:', extractor_cls)
 
     if 'spike' in extractor_cls.feature_type:  # e.g., 'spike_counts'

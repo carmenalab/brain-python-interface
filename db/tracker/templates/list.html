@@ -585,11 +585,7 @@
                               <label for='zscore'>zscore neural features</label>
                           </td>
                           <td>
-                              <select id='zscore'>
-                                  {% for var in zscores %}
-                                      <option>{{ var }}</option>
-                                  {% endfor %}
-                              </select>
+                              <input id='zscore' type="checkbox">
                           </td>
                       </tr>
                       <!-- Slider for specifying the time range of the block to use for training the decoder-->

@@ -871,15 +871,15 @@ class TaskEntry(models.Model):
                 df = DataFile.objects.using(self._state.db).get(entry=self.id, system=sys)
                 filepath = df.get_path()
 
-                from riglib.ecube import ecubefile
+                from riglib.ecube import parse_file
                 _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
                 if Exp.is_bmi_seed:
-                    ecube = ecubefile.parse_file()
+                    info = parse_file(str(df.get_path()))
                     path, name = os.path.split(df.get_path())
                     name, ext = os.path.splitext(name)
 
-                    _neuralinfo['length'] = ecube.length
-                    _neuralinfo['units'] = ecube.units
+                    _neuralinfo['length'] = info.length
+                    _neuralinfo['units'] = info.units
                     _neuralinfo['name'] = name
 
                 js['bmi'] = dict(_neuralinfo=_neuralinfo)

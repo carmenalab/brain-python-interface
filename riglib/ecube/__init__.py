@@ -1,8 +1,7 @@
 from .pyeCubeStream import eCubeStream
-from .dataset import Dataset
-from dataclasses import dataclass
 import numpy as np
 import time
+from .file import *
 
 '''
 #to do list
@@ -59,7 +58,7 @@ class Broadband(DataSourceSystem):
             self.conn.remove(('Headstages', self.headstages[idx]))
 
     def get(self):
-        '''
+        '''data
         Retrieve a packet from the server
         '''
         data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
@@ -80,24 +79,3 @@ def make(cls, headstages=[7], channels=[(1, 640)], **kwargs):
     nch = int(np.sum([1+ch[1]-ch[0] for ch in channels]))
     dtype = np.dtype([('timestamp', 'u8'), ('data', 'i4', (728,nch))])
     return type(cls.__name__, (cls,), dict(dtype=dtype, __init__=init))
-
-# File loading functions
-@dataclass
-class Info():
-    length = int
-    units = list
-
-def parse_file(filepath):
-    n_channels = 0
-    n_samples = 0
-    dat = Dataset(filepath)
-    recordings = dat.listrecordings()
-    for r in recordings: # r: (data_source, n_channels, n_samples)
-        if 'Headstages' in r[0]:
-            n_samples += r[2]  
-            n_channels = r[1]
-    samplerate = dat.samplerate
-    length = n_samples/samplerate
-    units = list(range(n_channels))
-    info = Info(length, units)
-    return info
