@@ -39,7 +39,7 @@ def get_sqlite3_databases():
 
 DATABASES = get_sqlite3_databases()
 
-if HOSTNAME == 'pagaiisland2':
+if HOSTNAME in ['pagaiisland2', 'aolab']:
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'rig1',

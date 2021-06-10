@@ -6,9 +6,3 @@ default_app_config = "bmi3d.db.tracker.apps.TrackerConfig"
 from .celery import app as celery_app
 
 __all__ = ('celery_app',)
-
-try:
-    import pymysql
-    pymysql.install_as_MySQLdb()
-except:
-    print("Warning: pymysql is not installed, cannot access remote database")

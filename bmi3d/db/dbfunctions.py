@@ -820,7 +820,7 @@ def get_task_entries_by_id(ids):
     '''
     Returns list of task entries according to the given id or multiple ids
     '''
-    return list(TaskEntry.objects.filter(pk__in=ids))
+    return list(models.TaskEntry.objects.filter(pk__in=ids))
 
 def get_task_entries_by_date(startdate, enddate=datetime.date.today(), dbname=db_name):
     '''
@@ -838,8 +838,8 @@ def get_task_entries(subj=None, date=None, task=None, dbname=db_name, **kwargs):
     subj: string, optional, default=None
         Specify the beginning of the name of the subject or the full name. If not specified, blocks from all subjects are returned
     date: multiple types, optional, default=today
-        Query date for blocks. The date can be specified as a datetime.date object
-        or a 3-tuple (year, month, day).
+        Query date for blocks. The date can be specified as a datetime.date object, a tuple of (start, end) datetime.date objects,
+        or a 3-tuple of ints (year, month, day).
     task: string
         name of task to filter
     kwargs: dict, optional
@@ -848,6 +848,8 @@ def get_task_entries(subj=None, date=None, task=None, dbname=db_name, **kwargs):
 
     if isinstance(date, datetime.date):
         kwargs.update(dict(date__year=date.year, date__month=date.month, date__day=date.day))
+    elif isinstance(date, tuple) and len(date) == 2:
+        kwargs.update(dict(date__gte=date[0], date__lte=date[1]))
     elif isinstance(date, tuple) and len(date) == 3:
         kwargs.update(dict(date__year=date[0], date__month=date[1], date__day=date[2]))
 
