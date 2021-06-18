@@ -80,9 +80,6 @@ class TargetCapture(Sequence):
         # number of targets to be acquired in this trial
         self.chain_length = len(self.targs)
 
-        # Update the report stat on trials
-        self.reportstats['Trial #'] = self.calc_trial_num()
-
     def _parse_next_trial(self):
         '''Check that the generator has the required data'''
         self.gen_indices, self.targs = self.next_trial

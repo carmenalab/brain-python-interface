@@ -2,7 +2,6 @@ from riglib import experiment
 from built_in_tasks.manualcontrolmultitasks import ManualControl
 from riglib.stereo_opengl.window import WindowDispl2D
 from features.peripheral_device_features import KeyboardControl, MouseControl
-from features.laser_features import LaserTrials
 import features.sync_features as sync_features
 import numpy as np
 
@@ -39,7 +38,7 @@ class TestLaser(unittest.TestCase):
     def test_digital_wave(self):
         from riglib.gpio import TestGPIO, DigitalWave
         gpio = TestGPIO()
-        laser1 = DigitalWave(gpio, pin=1)
+        laser1 = DigitalWave(gpio, mask=2)
         laser1.set_pulse(1, 0)
         self.assertCountEqual(laser1.edges, [0, 1])
         laser1.set_pulse(1, 1)
@@ -48,17 +47,18 @@ class TestLaser(unittest.TestCase):
         self.assertCountEqual(laser1.edges, np.linspace(0, 5.0, 11))
         laser1.start()
         laser1.join()
+        print(gpio.value[1,:])
         self.assertEqual(sum(gpio.value[1,:]), 6) # 1 Hz over 5 seconds has 6 positive edges including the last one at 5 s
 
     @unittest.skip("Need arduino connected for this to pass")
     def test_arduino(self):
         from riglib.gpio import ArduinoGPIO, DigitalWave
         gpio = ArduinoGPIO()
-        laser = DigitalWave(gpio, pin=10)
+        laser = DigitalWave(gpio, mask=1>>10)
         laser.set_square_wave(5, 10)
         laser.start()
         laser.join()
-        laser = DigitalWave(gpio, pin=10)
+        laser = DigitalWave(gpio, mask=1>>10)
         laser.set_edges([0], False)
         laser.start()
         laser.join()
@@ -69,7 +69,7 @@ class TestLaser(unittest.TestCase):
 class TestSync(unittest.TestCase):
 
     def test_dictionary(self):
-        default_dict = sync_features.sync_protocol
+        default_dict = sync_features.NIDAQSync.sync_params['event_sync_dict']
         self.assertEqual(default_dict['TARGET_ON'] + 4, sync_features.encode_event(default_dict, 'TARGET_ON', 4))
         for k in default_dict.keys():
             event_data = 0
