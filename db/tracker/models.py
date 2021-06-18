@@ -56,6 +56,8 @@ def func_or_class_to_json(func_or_class, current_values, desc_lookup):
             typename = "Tuple"
         elif type(default) is int or type(default) is float:
             typename = "Float"
+        elif type(default) is bool:
+            typename = "Bool"
         else:
             typename = "String"
 
@@ -511,6 +513,7 @@ class Generator(models.Model):
             table = {
                 'nblocks': 'Number of trials times number of unique targets',
                 'ntrials': 'Number of trials',
+                'nreps': 'The number of repetitions of each unique condition.',
                 'ntargets': 'Number of (evenly spaced) targets',
                 'pos': 'Position of the target',
                 'distance': 'The distance in cm between the center and peripheral targets',
@@ -1033,7 +1036,7 @@ class TaskEntry(models.Model):
             h5file = df.get_path()
         except:
             print("No HDF file to make self contained")
-            return
+            return False
 
         import h5py
         hdf = h5py.File(h5file, mode='a')
@@ -1065,6 +1068,7 @@ class TaskEntry(models.Model):
 
         # TODO save decoder parameters to hdf file, if applicable
 
+        return True
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)
