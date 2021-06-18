@@ -119,14 +119,6 @@ class DigitalWave(threading.Thread):
         self.edges = np.zeros(0)
         self.first_edge = True # Note, this doesn't affect the previous laser state
         threading.Thread.__init__(self)
-
-        # Convert gpio, pin, mask, and data into lists
-        try:
-            iter(self.gpio)
-        except:
-            self.gpio = [self.gpio]
-            self.mask = [self.mask]
-            self.data = [self.data]
     
     def set_edges(self, edges, first_edge):
         ''' Directly set the list of edges'''
@@ -149,8 +141,7 @@ class DigitalWave(threading.Thread):
         for edge in self.edges:
             while (time.perf_counter() - t0 < edge):
                 pass
-            for idx in range(len(self.gpio)):
-                self.gpio[idx].write_many(self.mask[idx], int(state*self.data[idx]))
+            self.gpio.write_many(self.mask, int(state*self.data))
             state = not state
 
     @staticmethod
@@ -171,3 +162,25 @@ class DigitalWave(threading.Thread):
         length = int(duration/edge_interval)
         delays = np.insert(edge_interval*np.ones(length), 0, 0)
         return DigitalWave.delays_to_edges(delays)
+
+class DigitalWaveMulti(DigitalWave):
+
+    def __init__(self, gpio_list, mask, data):
+        ''' Multiple GPIO or lasers'''
+        self.edges = np.zeros(0)
+        self.first_edge = True # Note, this doesn't affect the previous laser state
+        self.gpio = gpio_list
+        self.mask = mask
+        self.data = data
+        threading.Thread.__init__(self)
+    
+    def run(self):
+        ''' Generate square pulses defined by edges (in seconds)'''
+        t0 = time.perf_counter()
+        state = self.first_edge 
+        for edge in self.edges:
+            while (time.perf_counter() - t0 < edge):
+                pass
+            for idx in range(len(self.gpio)):
+                self.gpio[idx].write_many(self.mask, int(state*self.data))
+            state = not state
