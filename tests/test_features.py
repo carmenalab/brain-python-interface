@@ -50,15 +50,22 @@ class TestLaser(unittest.TestCase):
         print(gpio.value[1,:])
         self.assertEqual(sum(gpio.value[1,:]), 6) # 1 Hz over 5 seconds has 6 positive edges including the last one at 5 s
 
+    def test_convert_masked_data_to_pins(self):
+        from riglib.gpio import convert_masked_data_to_pins
+        pins, values = convert_masked_data_to_pins(1<<12, 1<<12)
+        self.assertEqual(pins, [12])
+        self.assertTrue(values)
+
     @unittest.skip("Need arduino connected for this to pass")
     def test_arduino(self):
         from riglib.gpio import ArduinoGPIO, DigitalWave
-        gpio = ArduinoGPIO()
-        laser = DigitalWave(gpio, mask=1>>10)
+        gpio = ArduinoGPIO('/dev/crystalaser')
+        ch = 12
+        laser = DigitalWave(gpio, mask=1<<ch)
         laser.set_square_wave(5, 10)
         laser.start()
         laser.join()
-        laser = DigitalWave(gpio, mask=1>>10)
+        laser = DigitalWave(gpio, mask=1<<ch)
         laser.set_edges([0], False)
         laser.start()
         laser.join()

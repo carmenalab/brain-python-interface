@@ -7,7 +7,7 @@ import threading
 import time
 import pyfirmata
 
-def convert_masked_data_to_pins(mask, data, bits=8):
+def convert_masked_data_to_pins(mask, data, bits=13):
     ''' Helper to take a mask and some data and turn it into a list of pins and values'''
     pins = []
     values = []
@@ -140,7 +140,7 @@ class DigitalWave(threading.Thread):
         state = self.first_edge 
         for edge in self.edges:
             while (time.perf_counter() - t0 < edge):
-                pass
+                time.sleep(0) # yield to other threads
             self.gpio.write_many(self.mask, int(state*self.data))
             state = not state
 

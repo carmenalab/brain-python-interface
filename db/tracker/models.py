@@ -532,7 +532,7 @@ class Generator(models.Model):
 class Sequence(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     generator = models.ForeignKey(Generator, on_delete=models.PROTECT)
-    name = models.CharField(max_length=128)
+    name = models.CharField(max_length=256)
     params = models.TextField() #json data
     sequence = models.TextField(blank=True) #pickle data
     task = models.ForeignKey(Task, on_delete=models.PROTECT)
