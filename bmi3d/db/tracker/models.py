@@ -1025,6 +1025,13 @@ class TaskEntry(models.Model):
     def get_data_files(self):
         return list(DataFile.objects.filter(entry_id=self.id))
 
+    def get_data_files_dict(self, data_dir=""):
+        file_list = self.get_data_files()
+        files = {}
+        for df in file_list:
+            files[df.system.name] = os.path.join(data_dir, df.system.name, os.path.basename(df.path))
+        return files
+
     def make_hdf_self_contained(self):
         '''
         If the entry has an hdf file associated with it, dump the entry metadata into it
