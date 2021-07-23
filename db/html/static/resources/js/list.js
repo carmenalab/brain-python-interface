@@ -596,7 +596,7 @@ TaskEntry.prototype.copy = function() {
     this.report.destroy();     // clear the report data
     this.files.clear();        // clear the datafile data
     this.files.hide();
-    $("#notes textarea").val("").removeAttr("disabled");       // clear the notes
+    this.notes.destroy();      // clear the notes
     this.report.hide();        // turn off the report pane
 
     // update the task info, but leave the parameters alone
@@ -935,6 +935,9 @@ Notes.prototype.destroy = function() {
     if (this.last_TO != null)
         clearTimeout(this.last_TO);
         this.save();
+
+    // reset the textarea
+    $("#notes textarea").val("").removeAttr("disabled"); 
 }
 Notes.prototype.save = function() {
     this.last_TO = null;
