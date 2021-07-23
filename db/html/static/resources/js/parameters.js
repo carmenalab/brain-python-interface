@@ -162,7 +162,7 @@ Parameters.prototype.add_tuple = function(name, info) {
         this.traits[name].inputs[i].onchange = function() {
             if (this.value.length > 0) {
                 for (var j in inputs)
-                    inputs[j].required = "required";
+                    if (inputs[j].placeholder.length == 0) inputs[j].required = "required";
             } else {
                 for (var j in inputs)
                     inputs[j].removeAttribute("required");
