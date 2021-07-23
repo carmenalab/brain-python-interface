@@ -459,6 +459,7 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
         values can be numbers or strings. Called on every state change.
         '''
         self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
+        self.reportstats['Trial #'] = self.calc_trial_num()
 
     def online_report(self):
         return self.reportstats

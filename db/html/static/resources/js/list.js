@@ -26,7 +26,7 @@ function interface_fn_completed() {
     $("#start_buttons").hide()
     $("#stop_buttons").hide();
     $("#finished_task_buttons").show();
-    $("#bmi").hide();
+    // $("#bmi").hide();
     
     $("#report").show()
     $("#notes").show()      

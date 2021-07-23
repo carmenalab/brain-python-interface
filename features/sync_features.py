@@ -4,7 +4,7 @@ import numpy as np
 import tables
 import time
 
-rig1_sync_events_ver_4 = dict(
+rig1_sync_events = dict(
     EXP_START               = 0x1,
     TRIAL_START             = 0x2,
     TARGET_ON               = 0x10,
@@ -46,11 +46,11 @@ class NIDAQSync(traits.HasTraits):
 
     sync_params = dict(
         sync_protocol = 'rig1',
-        sync_protocol_version = 4,
+        sync_protocol_version = 5,
         sync_pulse_width = 0.003,
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
-        event_sync_dict = rig1_sync_events_ver_4,
+        event_sync_dict = rig1_sync_events,
         event_sync_max_data = 0xf,
         screen_sync_nidaq_pin = 8,
         screen_sync_dch = 24,

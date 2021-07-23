@@ -6,12 +6,13 @@ from riglib.experiment import traits
 import itertools
 import numpy as np
 
+MAX_EDGES = 1000
 
 class Conditions(Sequence):
 
     status = dict(
-        wait = dict(start_trial="trial", stop=None),
-        trial = dict(end_trial="wait"),
+        wait = dict(start_trial="trial"),
+        trial = dict(end_trial="wait", stoppable=False, end_state=True),
     )
     
     wait_time = traits.Float(5.0, desc="Inter-trial interval (s)")
@@ -62,53 +63,70 @@ class Conditions(Sequence):
 
     @staticmethod
     def null_sequence(ntrials=100):
-        return range(ntrials)
+        return [0 for _ in range(ntrials)]
 
 class LaserConditions(Conditions):
 
-    laser_trigger_pin = traits.Int(10, desc="GPIO pin used to trigger laser")
-    sequence_generators = ['pulse', 'square_wave']
+    sequence_generators = ['single_laser_pulse', 'single_laser_square_wave']
     exclude_parent_traits = ['trial_time']
 
     def __init__(self, *args, **kwargs):
-        self.laser_thread = None
-        self.power = 0.
-        self.edges = []
+        self.laser_threads = []
         super().__init__(*args, **kwargs)
 
     def init(self):
-        self.add_dtype('power', 'f8', (1,))
-        super().init()
-        if not hasattr(self, 'gpio'):
-            raise AttributeError("No GPIO feature enabled, cannot init LaserConditions")
-
-    def _cycle(self):
-        self.task_data['power'] = self.power.copy()
+        self.trial_dtype = np.dtype([
+            ('trial', 'u4'), 
+            ('index', 'u4'),
+            ('laser', 'S32'),
+            ('power', 'f8'),
+            ('edges', 'V', MAX_EDGES)
+            ])
+        super(Conditions, self).init()
+        if not (hasattr(self, 'lasers') and len(self.lasers) > 0):
+            raise AttributeError("No laser feature enabled, cannot init LaserConditions")
 
     def _parse_next_trial(self):
-        self.trial_index, self.power, self.edges = self.next_trial
+        self.trial_index, self.laser_powers, self.laser_edges = self.next_trial
+        if len(self.laser_powers) < len(self.lasers) or len(self.laser_edges) < len(self.lasers):
+            raise AttributeError("Not enough laser sequences for the number of lasers enabled")
+
+        # Send record of trial to sinks
+        self.trial_record['trial'] = self.calc_trial_num()
+        self.trial_record['index'] = self.trial_index
+        for idx in range(len(self.lasers)):
+            self.trial_record['laser'] = self.lasers[idx].name
+            self.trial_record['power'] = self.laser_powers[idx]
+            self.trial_record['edges'] = np.array(self.laser_edges[idx]).tobytes()
+            self.sinks.send("trials", self.trial_record)
 
     def _start_trial(self):
         super()._start_trial()
-        # TODO set laser power
-        # Trigger digital wave
-        wave = DigitalWave(self.gpio, pin=self.laser_trigger_pin)
-        wave.set_edges(self.edges, True)
-        wave.start()
-        self.laser_thread = wave
+        for idx in range(len(self.lasers)):
+            laser = self.lasers[idx]
+            edges = self.laser_edges[idx]
+            # TODO set laser power
+            power = self.laser_powers[idx]
+            # Trigger digital wave
+            wave = DigitalWave(laser, mask=1<<laser.port)
+            wave.set_edges(edges, True)
+            wave.start()
+            self.laser_threads.append(wave)
 
-    def _start_wait(self):
-        super()._start_wait()
-        # Turn laser off in between trials
-        wave = DigitalWave(self.gpio, pin=self.laser_trigger_pin)
-        wave.set_edges([0], False)
-        wave.start()
+    def _end_trial(self):
+        super()._end_trial()
+        # Turn laser off in between trials in case it ended on a rising edge
+        for idx in range(len(self.lasers)):
+            laser = self.lasers[idx]
+            wave = DigitalWave(laser, mask=1>>laser.port)
+            wave.set_edges([0], False)
+            wave.start()
         
     def _test_end_trial(self, ts):
-        return (self.laser_thread is None) or (not self.laser_thread.is_alive())
+        return all([not t.is_alive() for t in self.laser_threads])
 
     @staticmethod
-    def pulse(nreps=100, duration=[0.005], power=[1], uniformsampling=True, ascending=False):
+    def single_laser_pulse(nreps=100, duration=[0.005], power=[1], uniformsampling=True, ascending=False):
         '''
         Generates a sequence of laser pulse trains.
 
@@ -133,10 +151,10 @@ class LaserConditions(Conditions):
         else:
             idx, dur_seq, pow_seq = Conditions.gen_conditions(nreps, duration, power, ascend=ascending)
         edge_seq = map(lambda dur: [0, dur], dur_seq)
-        return list(zip(idx, pow_seq, edge_seq))
+        return list(zip(idx, [[p] for p in pow_seq], [[e] for e in edge_seq]))
 
     @staticmethod
-    def square_wave(nreps=100, freq=[20], duration=[0.005], power=[1], uniformsampling=True, ascending=False):
+    def single_laser_square_wave(nreps=100, freq=[20], duration=[0.005], power=[1], uniformsampling=True, ascending=False):
         '''
         Generates a sequence of laser square waves.
 
@@ -164,7 +182,7 @@ class LaserConditions(Conditions):
         else:
             idx, freq_seq, dur_seq, pow_seq = Conditions.gen_conditions(nreps, freq, duration, power, ascend=ascending)
         edge_seq = map(lambda freq, dur: DigitalWave.square_wave(freq, dur), freq_seq, dur_seq)
-        return list(zip(idx, pow_seq, edge_seq))
+        return list(zip(idx, [[p] for p in pow_seq], [[e] for e in edge_seq]))
 
 
 ####################
