@@ -41,7 +41,6 @@ class Conditions(Sequence):
 
     def _end_trial(self):
         self.sync_event('TRIAL_END')
-        super()._start_wait()
 
     @staticmethod
     def gen_random_conditions(nreps, *args, replace=False):
