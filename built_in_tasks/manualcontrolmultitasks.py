@@ -64,7 +64,7 @@ class ManualControlMixin(traits.HasTraits):
     def init(self):
         self.add_dtype('manual_input', 'f8', (3,))
         super().init()
-        self.no_data_counter = np.array((self._quality_window_size,), dtype='?')
+        self.no_data_counter = np.zeros((self._quality_window_size,), dtype='?')
 
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
