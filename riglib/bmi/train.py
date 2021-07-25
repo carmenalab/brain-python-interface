@@ -44,7 +44,7 @@ def sys_eq(sys1, sys2):
     Boolean indicating whether sys1 and sys2 match
     '''
     if sys2 == 'task':
-        if sys1 in ['TAS\x00TASK', 'btqassskh', 'btqassskkkh', 'tasktasktask', 'task\x00task\x00task']:
+        if sys1 in ['TAS\x00TASK', 'btqassskh', 'btqassskkkh', 'tasktasktask', 'task\x00task\x00task', b'task']:
             return True
         elif sys1[:4] in ['tqas', 'tacs','ttua', 'bttu', 'tttu']:
             return True
@@ -99,7 +99,7 @@ def _get_tmask_plexon(plx, tslice, sys_name='task'):
     # Open plx file
     from plexon import plexfile
     if isinstance(plx, str) or isinstance(plx, str):
-        plx = plexfile.openFile(plx)
+        plx = plexfile.openFile(plx.encode('utf-8'))
 
     # Get the list of all the systems registered in the neural data file
     events = plx.events[:].data
@@ -777,7 +777,7 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
 
     ## get kinematic data
     tmask, rows = _get_tmask(files, tslice, sys_name=kin_source)
-    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=hdf_update_rate_hz)
+    kin = kin_extractor(files, binlen, tmask, pos_key=pos_key, vel_key=vel_key, update_rate_hz=update_rate_hz)
 
     ## get neural features
     if 'blackrock' in list(files.keys()):
