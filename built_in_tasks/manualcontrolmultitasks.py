@@ -162,7 +162,9 @@ class ManualControlMixin(traits.HasTraits):
 
     def update_report_stats(self):
         super().update_report_stats()
-        quality = 1 - np.sum(self.no_data_counter) / self._quality_window_size
+        window_size = min(max(1, self.cycle_count), self._quality_window_size)
+        num_missing = np.sum(self.no_data_counter[:window_size])
+        quality = 1 - num_missing / window_size
         self.reportstats['Input quality'] = "{} %".format(int(100*quality))
 
     @classmethod
