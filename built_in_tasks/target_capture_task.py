@@ -214,9 +214,9 @@ class TargetCapture(Sequence):
             - Manually triggered by experimenter
         '''
         if len(self.hold_time) == 1:
-            hold_time = self.hold_time[0]
+            hold_time = float(self.hold_time[0])
         else:
-            hold_time = self.hold_time[self.target_index]
+            hold_time = float(self.hold_time[self.target_index])
         return time_in_state > hold_time
 
     def _test_delay_complete(self, time_in_state):

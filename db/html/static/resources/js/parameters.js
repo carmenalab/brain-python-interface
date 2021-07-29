@@ -372,6 +372,7 @@ Parameters.prototype.add_list = function(name, info) { // comma separated list o
     input.type = "text";
     input.name = name;
     input.id = "param_"+name;
+    input.is_list = true;
     if (!info['required']) { // leave empty if required field
         input.placeholder = info['default'];
         if (typeof(info['value']) == "string")
@@ -390,7 +391,7 @@ Parameters.prototype.add_list = function(name, info) { // comma separated list o
         }
     }
     input.pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
-    this.traits[name] = {"obj":trait, "inputs":[input,null]}; // force it to be a list even if only 1 input
+    this.traits[name] = {"obj":trait, "inputs":[input], "list":true};
 }
 /*
 * Function to ask user for a new row
@@ -440,6 +441,14 @@ Parameters.prototype.add_row = function() {
 function get_param_input(input_obj) {
     if (input_obj.type == 'checkbox') {
         return input_obj.checked;
+    } else if (input_obj.is_list && input_obj.value.length > 0) {
+        var list = input_obj.value.split(/[ ,]+/);
+        if (Array.isArray(list)) return list;
+        else return [list] // force it to be a list even if one element
+    } else if (input_obj.is_list) {
+        var list = input_obj.placeholder
+        if (Array.isArray(list)) return list;
+        else return [list] // force it to be a list even if one element
     } else if (input_obj.value.length > 0) {
         return input_obj.value;
     } else {
@@ -456,8 +465,7 @@ Parameters.prototype.to_json = function(get_all) {
             // put all the input options into a list
             var plist = [];
             for (var i = 0; i < trait.inputs.length; i++) {
-                if (trait.inputs[i] != null)
-                    plist.push(get_param_input(trait.inputs[i]))
+                plist.push(get_param_input(trait.inputs[i]))
             }
             jsdata[name] = plist;
         } else {
