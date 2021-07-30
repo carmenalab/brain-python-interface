@@ -13,6 +13,17 @@ fi
 FILE=$(realpath "$0")
 DB=$(dirname $FILE)
 BMI3D=$(dirname $DB)
+cd $BMI3D/db/
+
+# Start logging
+if [ -z "$1" ] # no arguments
+then 
+    echo "Turning on logging..."
+    # Make the log directory if it doesn't already exist
+    mkdir -p $BMI3D/log
+    /bin/bash ./runserver.sh -log | tee -a $BMI3D/log/runserver_log
+    exit 0
+fi
 
 # #Check /storage (exist )
 # storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
@@ -44,9 +55,6 @@ fi
 #     fi
 # fi
 
-# Make the log directory if it doesn't already exist
-mkdir -p $BMI3D/log
-
 # Print the date/time of the server (re)start
 echo "Time at which runserver.sh was executed:"
 date
@@ -59,22 +67,6 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD
 echo "Working tree status at time of execution"
 git --git-dir=$BMI3D/.git --work-tree=$BMI3D status
 
-echo
-echo
-echo
-
-##### all the previous stuff logging info sent to file
-echo "Time at which runserver.sh was executed:" > $BMI3D/log/runserver_log
-date >> $BMI3D/log/runserver_log 
-
-# Print the most recent commit used at the time this script is executed
-echo "Hash of HEAD commit at time of execution" >> $BMI3D/log/runserver_log  
-git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD >> $BMI3D/log/runserver_log  
-
-# Print the status of the BMI3D code so that there's a visible record of which  files have changed since the last commti
-echo "Working tree status at time of execution" >> $BMI3D/log/runserver_log   
-git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log   
-
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
 # Activate the relevant environment
@@ -86,7 +78,6 @@ fi
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)
-cd $BMI3D/db/
 python manage.py runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
 #python manage.py celery worker &

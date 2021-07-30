@@ -66,6 +66,7 @@ Parameters.prototype.append = function(desc) {
         "Enum":             this.add_enum,
         "OptionsList":      this.add_enum,
         "Bool":             this.add_bool,
+        "List":             this.add_list,
     }
 
     for (var name in desc) {
@@ -255,35 +256,7 @@ Parameters.prototype.add_array = function (name, info) {
         for (var i=0; i < this.traits[name].inputs.length; i++)
             this.traits[name].inputs[i].pattern = '[0-9\\(\\)\\[\\]\\.\\,\\s\\-]*';
     } else {
-        var trait = this.add_to_table(name, info);
-        var div = document.createElement("td");
-        var input = document.createElement("input");
-        trait.appendChild(div);
-        div.appendChild(input);
-        this.obj.appendChild(trait);
-
-        input.type = "text";
-        input.name = name;
-        input.id = "param_"+name;
-        if (!info['required']) { // leave empty if required field
-            input.placeholder = info['default'];
-            if (typeof(info['value']) == "string")
-                input.value = info['value'];
-            else if (typeof(info['value']) != "undefined")
-                input.value = JSON.stringify(info['value']);
-            if (input.value == input.placeholder)
-                input.value = null
-        } else {
-            input.required = "required";
-            input.onchange = function() {
-                if (this.placeholder.length == 0 && this.value.length == 0)
-                    this.required = "required";
-                else if (this.required)
-                    this.removeAttribute("required");
-            }
-        }
-        input.pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
-        this.traits[name] = {"obj":trait, "inputs":[input]};
+        this.add_list(name, info);
     }
 }
 Parameters.prototype.add_string = function (name, info) {
@@ -388,7 +361,38 @@ Parameters.prototype.add_enum = function(name, info) {
     }
     this.traits[name] = {"obj":trait, "inputs":[input]};
 }
+Parameters.prototype.add_list = function(name, info) { // comma separated list of string values
+    var trait = this.add_to_table(name, info);
+    var div = document.createElement("td");
+    var input = document.createElement("input");
+    trait.appendChild(div);
+    div.appendChild(input);
+    this.obj.appendChild(trait);
 
+    input.type = "text";
+    input.name = name;
+    input.id = "param_"+name;
+    input.is_list = true;
+    if (!info['required']) { // leave empty if required field
+        input.placeholder = info['default'];
+        if (typeof(info['value']) == "string")
+            input.value = info['value'];
+        else if (typeof(info['value']) != "undefined")
+            input.value = JSON.stringify(info['value']);
+        if (input.value == input.placeholder)
+            input.value = null
+    } else {
+        input.required = "required";
+        input.onchange = function() {
+            if (this.placeholder.length == 0 && this.value.length == 0)
+                this.required = "required";
+            else if (this.required)
+                this.removeAttribute("required");
+        }
+    }
+    input.pattern = /[0-9\(\)\[\]\.\,\s\-]*/;
+    this.traits[name] = {"obj":trait, "inputs":[input], "list":true};
+}
 /*
 * Function to ask user for a new row
 */
@@ -437,6 +441,14 @@ Parameters.prototype.add_row = function() {
 function get_param_input(input_obj) {
     if (input_obj.type == 'checkbox') {
         return input_obj.checked;
+    } else if (input_obj.is_list && input_obj.value.length > 0) {
+        var list = input_obj.value.split(/[ ,]+/);
+        if (Array.isArray(list)) return list;
+        else return [list] // force it to be a list even if one element
+    } else if (input_obj.is_list) {
+        var list = input_obj.placeholder
+        if (Array.isArray(list)) return list;
+        else return [list] // force it to be a list even if one element
     } else if (input_obj.value.length > 0) {
         return input_obj.value;
     } else {

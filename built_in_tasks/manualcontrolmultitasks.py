@@ -56,7 +56,7 @@ class ManualControlMixin(traits.HasTraits):
         super().__init__(*args, **kwargs)
         self.current_pt=np.zeros([3]) #keep track of current pt
         self.last_pt=np.zeros([3]) #keep track of last pt to calc. velocity
-        self._quality_window_size = 2400 # how many cycles to accumulate quality statistics
+        self._quality_window_size = 500 # how many cycles to accumulate quality statistics
         self.reportstats['Input quality'] = "100 %"
         if self.random_rewards:
             self.reward_time_base = self.reward_time
@@ -162,7 +162,9 @@ class ManualControlMixin(traits.HasTraits):
 
     def update_report_stats(self):
         super().update_report_stats()
-        quality = 1 - np.sum(self.no_data_counter) / self._quality_window_size
+        window_size = min(max(1, self.cycle_count), self._quality_window_size)
+        num_missing = np.sum(self.no_data_counter[:window_size])
+        quality = 1 - num_missing / window_size
         self.reportstats['Input quality'] = "{} %".format(int(100*quality))
 
     @classmethod
