@@ -54,7 +54,7 @@ class TargetCapture(Sequence):
     sequence_generators = []
 
     reward_time = traits.Float(.5, desc="Length of reward dispensation")
-    hold_time = traits.List([.2,], desc="Length of hold required at targets before next target appears")
+    hold_time = traits.Float(.2, desc="Length of hold required at targets before next target appears")
     hold_penalty_time = traits.Float(1, desc="Length of penalty time for target hold error")
     delay_time = traits.Float(0, desc="Length of time after a hold while the next target is on before the go cue")
     delay_penalty_time = traits.Float(1, desc="Length of penalty time for delay error")
@@ -213,11 +213,7 @@ class TargetCapture(Sequence):
             - Sensorized object moved to the required location
             - Manually triggered by experimenter
         '''
-        if len(self.hold_time) == 1:
-            hold_time = float(self.hold_time[0])
-        else:
-            hold_time = float(self.hold_time[self.target_index])
-        return time_in_state > hold_time
+        return time_in_state > self.hold_time
 
     def _test_delay_complete(self, time_in_state):
         '''
