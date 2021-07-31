@@ -442,7 +442,7 @@ function get_param_input(input_obj) {
     if (input_obj.type == 'checkbox') {
         return input_obj.checked;
     } else if (input_obj.is_list && input_obj.value.length > 0) {
-        var list = input_obj.value.split(/[ ,]+/);
+        var list = input_obj.value.replace(/\[|\]/g,"").split(/[ ,]+/);
         if (Array.isArray(list)) return list;
         else return [list] // force it to be a list even if one element
     } else if (input_obj.is_list) {
