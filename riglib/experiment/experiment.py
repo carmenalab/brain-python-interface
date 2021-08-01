@@ -459,7 +459,6 @@ class Experiment(ThreadedFSM, traits.HasTraits, metaclass=ExperimentMeta):
         values can be numbers or strings. Called on every state change.
         '''
         self.reportstats['Runtime'] = self._time_to_string(self.get_time() - self.task_start_time)
-        self.reportstats['Trial #'] = self.calc_trial_num()
 
     def online_report(self):
         return self.reportstats
@@ -627,6 +626,7 @@ class LogExperiment(Experiment):
         super().update_report_stats()
         n_rewards = self.calc_state_occurrences('reward')
         n_trials = max(1, self.calc_trial_num())
+        self.reportstats['Trial #'] = n_trials - 1
         self.reportstats['Success rate'] = "{} %".format(int(100*n_rewards/n_trials))
         self.reportstats['Success rate (10 trials)'] = "{} %".format(int(100*self.calc_events_per_trial("reward", 10)))
 

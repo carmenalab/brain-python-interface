@@ -824,7 +824,7 @@ class TaskEntry(models.Model):
 
                 _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
                 if Exp.is_bmi_seed:
-                    plx = plexfile.openFile(str(df.get_path()), load=False)
+                    plx = plexfile.openFile(df.get_path().encode('utf-8'), load=False)
                     path, name = os.path.split(df.get_path())
                     name, ext = os.path.splitext(name)
 
