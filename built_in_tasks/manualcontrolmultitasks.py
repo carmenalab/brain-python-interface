@@ -56,7 +56,7 @@ class ManualControlMixin(traits.HasTraits):
         super().__init__(*args, **kwargs)
         self.current_pt=np.zeros([3]) #keep track of current pt
         self.last_pt=np.zeros([3]) #keep track of last pt to calc. velocity
-        self.no_data_count = 0
+        self._quality_window_size = 500 # how many cycles to accumulate quality statistics
         self.reportstats['Input quality'] = "100 %"
         if self.random_rewards:
             self.reward_time_base = self.reward_time
@@ -64,6 +64,7 @@ class ManualControlMixin(traits.HasTraits):
     def init(self):
         self.add_dtype('manual_input', 'f8', (3,))
         super().init()
+        self.no_data_counter = np.zeros((self._quality_window_size,), dtype='?')
 
     def _test_start_trial(self, ts):
         return ts > self.wait_time and not self.pause
@@ -131,12 +132,13 @@ class ManualControlMixin(traits.HasTraits):
         # Get raw input and save it as task data
         raw_coords = self._get_manual_position() # array of [3x1] arrays
         if raw_coords is None or len(raw_coords) < 1:
-            self.no_data_count += 1
+            self.no_data_counter[self.cycle_count % self._quality_window_size] = 1
             self.update_report_stats()
             self.task_data['manual_input'] = np.empty((3,))
             return
 
         self.task_data['manual_input'] = raw_coords.copy()
+        self.no_data_counter[self.cycle_count % self._quality_window_size] = 0
 
         # Transform coordinates
         coords = self._transform_coords(raw_coords)
@@ -160,7 +162,9 @@ class ManualControlMixin(traits.HasTraits):
 
     def update_report_stats(self):
         super().update_report_stats()
-        quality = 1 - self.no_data_count / max(1, self.cycle_count)
+        window_size = min(max(1, self.cycle_count), self._quality_window_size)
+        num_missing = np.sum(self.no_data_counter[:window_size])
+        quality = 1 - num_missing / window_size
         self.reportstats['Input quality'] = "{} %".format(int(100*quality))
 
     @classmethod

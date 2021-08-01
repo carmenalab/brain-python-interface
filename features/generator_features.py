@@ -71,3 +71,39 @@ class IgnoreCorrectness(object):
 
     def _test_incorrect(self, ts):
         return False
+
+
+class MultiHoldTime(traits.HasTraits):
+
+    hold_time = traits.List([.2,], desc="Length of hold required at targets before next target appears. \
+        Can be a single number or a list of numbers to apply to each target in the sequence (center, out, etc.)")
+
+    def _test_hold_complete(self, time_in_state):
+        '''
+        Test whether the target is held long enough to declare the
+        trial a success
+
+        Possible options
+            - Target held for the minimum requred time (implemented here)
+            - Sensorized object moved by a certain amount
+            - Sensorized object moved to the required location
+            - Manually triggered by experimenter
+        '''
+        if len(self.hold_time) == 1:
+            hold_time = self.hold_time[0]
+        else:
+            hold_time = self.hold_time[self.target_index]
+        return time_in_state > hold_time
+
+class RandomDelay(traits.HasTraits):
+    
+    rand_delay = traits.Tuple((0., 0.), desc="Delay interval")
+    exclude_parent_traits = ['delay_time']
+
+    def _start_wait(self):
+        '''
+        At the start of the 'wait' state, draw a sample from the rand_delay interval for this trial.
+        '''
+        s, e = self.rand_delay
+        self.delay_time = random.random()*(e-s) + s
+        super()._start_wait()

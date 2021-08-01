@@ -105,6 +105,43 @@ class PenaltyAudio(traits.HasTraits):
             super()._start_timeout_penalty()
         self.penalty_player.play()
 
+class PenaltyAudioMulti(traits.HasTraits):
+    '''
+    Separate penalty sounds for each type of penalty.
+    '''
+    
+    hold_penalty_sound = "incorrect.wav"
+    delay_penalty_sound = "buzzer.wav"
+    timeout_penalty_sound = "incorrect.wav"
+    reach_penalty_sound = "incorrect.wav"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.hold_penalty_player = AudioPlayer(self.hold_penalty_sound)
+        self.delay_penalty_player = AudioPlayer(self.delay_penalty_sound)
+        self.timeout_penalty_player = AudioPlayer(self.timeout_penalty_sound)
+        self.reach_penalty_player = AudioPlayer(self.reach_penalty_sound)
+
+    def _start_hold_penalty(self):
+        if hasattr(super(), '_start_hold_penalty'):
+            super()._start_hold_penalty()
+        self.hold_penalty_player.play()
+    
+    def _start_delay_penalty(self):
+        if hasattr(super(), '_start_delay_penalty'):
+            super()._start_delay_penalty()
+        self.delay_penalty_player.play()
+    
+    def _start_timeout_penalty(self):
+        if hasattr(super(), '_start_timeout_penalty'):
+            super()._start_timeout_penalty()
+        self.timeout_penalty_player.play()
+
+    def _start_reach_penalty(self):
+        if hasattr(super(), '_start_reach_penalty'):
+            super()._start_reach_penalty()
+        self.reach_penalty_player.play()
+
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 
 
