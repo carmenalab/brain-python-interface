@@ -475,6 +475,15 @@ Parameters.prototype.to_json = function(get_all) {
     return jsdata;
 }
 
+Parameters.prototype.clear_all = function() {
+    for (var name in this.traits) {
+        var trait = this.traits[name];
+        for (var i = 0; i < trait.inputs.length; i++)
+            trait.inputs[i].value = null;
+    }
+}
+
+
 if (typeof(module) !== 'undefined' && module.exports) {
   exports.Parameters = Parameters;
   exports.$ = $;
