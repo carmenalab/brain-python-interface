@@ -294,7 +294,6 @@ class ScreenTargetCapture(TargetCapture, Window):
         # Initialize the plant
         if not hasattr(self, 'plant'):
             self.plant = plantlist[self.plant_type]
-        self.plant.set_endpoint_pos(np.array(self.starting_pos))
         self.plant.set_bounds(np.array(self.cursor_bounds))
         self.plant.set_color(target_colors[self.cursor_color])
         self.plant.set_cursor_radius(self.cursor_radius)
@@ -324,6 +323,7 @@ class ScreenTargetCapture(TargetCapture, Window):
         self.add_dtype('trial', 'u4', (1,))
         self.add_dtype('plant_visible', '?', (1,))
         super().init()
+        self.plant.set_endpoint_pos(np.array(self.starting_pos))
 
     def _cycle(self):
         '''

@@ -176,10 +176,10 @@ class Window(LogExperiment):
         self.renderer._queue_render(self.world)
 
     def _cycle(self):
-        self.requeue()
-        self.draw_world()
         super(Window, self)._cycle() # is this order intentional? why not cycle first then draw the screen?
         self.event = self._get_event()
+        self.requeue()
+        self.draw_world()
 
 
 class WindowWithExperimenterDisplay(Window):

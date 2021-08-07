@@ -121,7 +121,18 @@ class RecordECube(traits.HasTraits):
                 cls.ecube_status = e
             
         else:
-            cls.ecube_status = "testing"
+            # Just a test, try to connect to servernode to make sure it's working
+            from riglib.ecube import pyeCubeStream
+            session_name = make_ecube_session_name(saveid)
+            log_str("\n\nNew recording for task entry {}: {}".format(saveid, session_name))
+            try:
+                ec = pyeCubeStream.eCubeStream()
+                cls.ecube_status = "testing"
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
+                log_exception(e)
+                cls.ecube_status = "Could not connect to eCube. Make sure servernode is running!\n"
         super().pre_init(saveid=saveid, **kwargs)
 
     def run(self):

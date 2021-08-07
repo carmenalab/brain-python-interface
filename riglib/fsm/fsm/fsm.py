@@ -176,12 +176,9 @@ class FSM(object):
         '''
         Execute the commands corresponding to a single tick of the event loop
         '''
+    
         # Execute commands
         self.exec_state_specific_actions(self.state)
-
-        # Execute the commands which must run every loop, independent of the FSM state
-        # (e.g., running the BMI decoder)
-        self._cycle()
 
         current_state = self.state
 
@@ -197,6 +194,12 @@ class FSM(object):
                 # stop searching for transition events (transition events must be 
                 # mutually exclusive for this FSM to function properly)
                 break
+
+        # Execute the commands which must run every loop, independent of the FSM state
+        # (e.g., running the BMI decoder, updating the display)
+        if self.state is not None:
+            self._cycle()    
+
 
     def test_state_transition_event(self, event):
         event_test_fn_name = "_test_%s" % event

@@ -106,8 +106,9 @@ class Optitrack(traits.HasTraits):
         '''
         See riglib.experiment.Experiment.join(). Re-join the motiondata source process before cleaning up the experiment thread
         '''
-        print("Joining optitrack datasource")
-        self.motiondata.join()
+        if self.optitrack_status in ['recording', 'streaming']:
+            print("Joining optitrack datasource")
+            self.motiondata.join()
         super().join()
 
     def cleanup(self, database, saveid, **kwargs):

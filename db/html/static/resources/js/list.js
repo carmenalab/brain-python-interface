@@ -960,7 +960,8 @@ function create_control_callback(control_str, args) {
 function trigger_control(control, params) {
     debug("Triggering control: " + control)
     $.post("trigger_control", {"control": control, "params": JSON.stringify(params.to_json())}, function(resp) {
-        debug("Control response", resp)
+        debug("Control response", resp);
+        params.clear_all();
     })
 }
 
