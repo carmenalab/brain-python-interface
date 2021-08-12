@@ -107,3 +107,33 @@ class RandomDelay(traits.HasTraits):
         s, e = self.rand_delay
         self.delay_time = random.random()*(e-s) + s
         super()._start_wait()
+
+class TransparentDelayTarget(traits.HasTraits):
+    '''
+    Feature to make the delay period show a semi-transparent target rather than the full target. Used 
+    for training the go cue. Gradually increase the alpha from 0 to 0.75 once a long enough delay 
+    period has been established.
+    '''
+
+    delay_target_alpha = traits.Float(0.25, desc="Transparency of the next target during delay periods")
+
+    def _start_delay(self):
+        super()._start_delay()
+
+        # Set the alpha of the next target
+        next_idx = (self.target_index + 1)
+        if next_idx < self.chain_length:
+            target = self.targets[next_idx % 2]
+            self._old_target_color = np.copy(target.sphere.color)
+            new_target_color = list(target.sphere.color)
+            new_target_color[3] = self.delay_target_alpha
+            target.sphere.color = tuple(new_target_color)
+
+    def _start_target(self):
+        super()._start_target()
+
+        # Reset the transparency of the current target
+        if self.target_index > 0:
+            target = self.targets[self.target_index % 2]
+            target.sphere.color = self._old_target_color
+
