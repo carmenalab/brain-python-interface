@@ -8,6 +8,7 @@ Class Basic -> reward(reward_time_s), test, calibrate, drain(drain_time_s)
 
 # import functions
 from riglib.gpio import ArduinoGPIO
+from multiprocessing import Process
 import time
 
 
@@ -44,6 +45,13 @@ class Basic(object):
         self.on()
         time.sleep(drain_time)
         self.off()
+
+    def async_drain(self, drain_time=200):
+        """
+        Calls drain() function in a separate process
+        """
+        p = Process(target=self.drain, args=((drain_time,)))
+        p.start()
 
 def open():
     try:

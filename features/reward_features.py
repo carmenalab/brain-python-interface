@@ -11,6 +11,7 @@ import fnmatch
 import os
 import subprocess
 from riglib.experiment import traits
+from riglib.experiment.experiment import control_decorator
 from riglib.audio import AudioPlayer
 import serial, glob
 
@@ -22,6 +23,8 @@ class RewardSystem(traits.HasTraits):
     Feature for the current reward system in Amy Orsborn Lab
     '''
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
+    reward_time_small = traits.Float(0.1, desc="Duration of 'small' manual reward")
+    reward_time_large = traits.Float(0.5, desc="Duration of 'large' manual reward")
 
     def __init__(self, *args, **kwargs):
         from riglib import reward
@@ -53,6 +56,21 @@ class RewardSystem(traits.HasTraits):
         self.reward.off()
         if hasattr(super(), '_end_reward'):
             super()._end_reward()
+
+    @control_decorator
+    def manual_reward_small(self):
+        self.reward.async_drain(self.reward_time_small)
+
+    @control_decorator
+    def manual_reward_large(self):
+        self.reward.async_drain(self.reward_time_large)
+
+    @control_decorator
+    def manual_reward(duration=0.5, static=True):
+        from riglib import reward
+        reward = reward.open()
+        float_dur = float(duration) # these parameters always end up being strings
+        reward.drain(float_dur)
 
 audio_path = os.path.join(os.path.dirname(__file__), '../riglib/audio')
 

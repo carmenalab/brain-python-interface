@@ -953,26 +953,43 @@ Notes.prototype.save = function() {
 // Controls class
 //
 
-function create_control_callback(control_str, args) {
-    return function() {trigger_control(control_str, args)}
+function create_control_callback(control_str, args, static=false) {
+    return function() {trigger_control(control_str, args, static)}
 }
 
-function trigger_control(control, params) {
+function trigger_control(control, params, static) {
     debug("Triggering control: " + control)
-    $.post("trigger_control", {"control": control, "params": JSON.stringify(params.to_json())}, function(resp) {
-        debug("Control response", resp);
-        params.clear_all();
-    })
+    if (static) {
+        var data = {
+            "control": control, 
+            "params": JSON.stringify(params.to_json()), 
+            "base_class": $('#tasks').val(),
+            "feats": JSON.stringify(feats.get_checked_features())
+        }
+        $.post("trigger_control", data, function(resp) {
+            debug("Control response", resp);
+        })
+    } else {
+        $.post("trigger_control", {"control": control, "params": JSON.stringify(params.to_json())}, function(resp) {
+            debug("Control response", resp);
+            // params.clear_all();
+        })
+    }
 }
 
 function Controls() {
     this.control_list = [];
+    this.static_control_list = [];
     this.params_list = [];
+    this.static_params_list = [];
 }
 Controls.prototype.update = function(controls) {
     debug("Updating controls");
     $("#controls_table").html('');
     this.control_list = [];
+    this.static_control_list = [];
+    this.params_list = [];
+    this.static_params_list = [];
     for (var i = 0; i < controls.length; i += 1) {
 
         var new_params = new Parameters();
@@ -982,15 +999,21 @@ Controls.prototype.update = function(controls) {
             {
                 text: controls[i].name,
                 id: "controls_btn_" + i.toString(),
-                click: create_control_callback(controls[i].name, new_params),
+                click: create_control_callback(controls[i].name, new_params, controls[i].static),
                 type: "button"
             }
         );
 
         $("#controls_table").append(new_button);
         $("#controls_table").append(new_params.obj)
-        this.control_list.push(new_button);
-        this.params_list.push(new_params)
+
+        if (controls[i].static) {
+            this.static_control_list.push(new_button);
+            this.static_params_list.push(new_params)
+        } else {
+            this.control_list.push(new_button);
+            this.params_list.push(new_params)
+        }
 
     }
     if (this.control_list.length > 0) this.show();
@@ -1010,12 +1033,24 @@ Controls.prototype.activate = function() {
     for (var i = 0; i < this.params_list.length; i += 1) {
         this.params_list[i].enable();
     }
+    for (var i = 0; i < this.static_control_list.length; i += 1) {
+        $(this.control_list[i]).prop('disabled', true)
+    }
+    for (var i = 0; i < this.static_params_list.length; i += 1) {
+        this.params_list[i].disable();
+    }
 }
 Controls.prototype.deactivate = function() {
     for (var i = 0; i < this.control_list.length; i += 1) {
         $(this.control_list[i]).prop('disabled', true);
     }
     for (var i = 0; i < this.params_list.length; i += 1) {
+        this.params_list[i].disable();
+    }
+    for (var i = 0; i < this.static_control_list.length; i += 1) {
+        $(this.control_list[i]).prop('disabled', true)
+    }
+    for (var i = 0; i < this.static_params_list.length; i += 1) {
         this.params_list[i].disable();
     }
 }
