@@ -190,6 +190,15 @@ class OptitrackPlayback(Optitrack):
         sink_manager.register(self.motiondata)
         super(Optitrack, self).init()
 
+class HidePlantOnPause():
+    '''
+    Makes the cursor hidden when the game is paused.
+    '''
+
+    def _cycle(self):
+        self.plant_visible = not self.pause
+        super()._cycle()
+
 # Helper class for natnet logging
 import logging
 class Logger(object):
