@@ -23,17 +23,8 @@ def cache_plx(plxfile):
     """
     Create cache for plexon file
     """
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'db.settings'
-    from .tracker import dbq
-    from . import namelist
-    from .tracker import models
-    from . import dbfunctions as dbfn
-    from .json_param import Parameters
-    from .tasktrack import Track
-    from .tracker.models import TaskEntry, Feature, Sequence, Task, Generator, Subject, DataFile, System, Decoder
-
     from plexon import plexfile
-    plexfile.openFile(str(plxfile))
+    plexfile.openFile(plxfile.encode('utf-8'))
 
 @app.task
 def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslice, ssm, pos_key, kin_extractor, zscore):

@@ -532,7 +532,7 @@ class Generator(models.Model):
 class Sequence(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     generator = models.ForeignKey(Generator, on_delete=models.PROTECT)
-    name = models.CharField(max_length=128)
+    name = models.CharField(max_length=256)
     params = models.TextField() #json data
     sequence = models.TextField(blank=True) #pickle data
     task = models.ForeignKey(Task, on_delete=models.PROTECT)
@@ -824,7 +824,7 @@ class TaskEntry(models.Model):
 
                 _neuralinfo = dict(is_seed=Exp.is_bmi_seed)
                 if Exp.is_bmi_seed:
-                    plx = plexfile.openFile(str(df.get_path()), load=False)
+                    plx = plexfile.openFile(df.get_path().encode('utf-8'), load=False)
                     path, name = os.path.split(df.get_path())
                     name, ext = os.path.splitext(name)
 
@@ -1036,7 +1036,7 @@ class TaskEntry(models.Model):
             h5file = df.get_path()
         except:
             print("No HDF file to make self contained")
-            return
+            return False
 
         import h5py
         hdf = h5py.File(h5file, mode='a')
@@ -1068,6 +1068,7 @@ class TaskEntry(models.Model):
 
         # TODO save decoder parameters to hdf file, if applicable
 
+        return True
 
 class Calibration(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT)

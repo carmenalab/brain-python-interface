@@ -2,14 +2,28 @@
 
 # Set display
 HOST=`hostname -s`
-if [ $HOST=='pagaiisland2' ]; then
-    DISPLAY=':0.1'
+if [ "$HOST" = "pagaiisland2" ]; then
+    export DISPLAY=':0.1'
+elif [ "$HOST" = "peco" ]; then
+    export DISPLAY=$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0.0
+    export LIBGL_ALWAYS_INDIRECT=1
 fi
 
 # Find the BMI3D directory
 FILE=$(realpath "$0")
 DB=$(dirname $FILE)
 BMI3D=$(dirname $DB)
+cd $BMI3D/db/
+
+# Start logging
+if [ -z "$1" ] # no arguments
+then 
+    echo "Turning on logging..."
+    # Make the log directory if it doesn't already exist
+    mkdir -p $BMI3D/log
+    /bin/bash ./runserver.sh -log | tee -a $BMI3D/log/runserver_log
+    exit 0
+fi
 
 # #Check /storage (exist )
 # storage=$(python $BMI3D/config_files/check_storage.py 2>&1)
@@ -41,9 +55,6 @@ fi
 #     fi
 # fi
 
-# Make the log directory if it doesn't already exist
-mkdir -p $BMI3D/log
-
 # Print the date/time of the server (re)start
 echo "Time at which runserver.sh was executed:"
 date
@@ -56,22 +67,6 @@ git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD
 echo "Working tree status at time of execution"
 git --git-dir=$BMI3D/.git --work-tree=$BMI3D status
 
-echo
-echo
-echo
-
-##### all the previous stuff logging info sent to file
-echo "Time at which runserver.sh was executed:" > $BMI3D/log/runserver_log
-date >> $BMI3D/log/runserver_log 
-
-# Print the most recent commit used at the time this script is executed
-echo "Hash of HEAD commit at time of execution" >> $BMI3D/log/runserver_log  
-git --git-dir=$BMI3D/.git --work-tree=$BMI3D rev-parse --short HEAD >> $BMI3D/log/runserver_log  
-
-# Print the status of the BMI3D code so that there's a visible record of which  files have changed since the last commti
-echo "Working tree status at time of execution" >> $BMI3D/log/runserver_log   
-git --git-dir=$BMI3D/.git --work-tree=$BMI3D status >> $BMI3D/log/runserver_log   
-
 trap ctrl_c INT SIGINT SIGKILL SIGHUP
 
 # Activate the relevant environment
@@ -83,7 +78,6 @@ fi
 
 # Start python processes and save their PIDs (stored in the bash '!' variable 
 # immediately after the command is executed)
-cd $BMI3D/db/
 python manage.py runserver 0.0.0.0:8000 --noreload &
 DJANGO=$!
 #python manage.py celery worker &
