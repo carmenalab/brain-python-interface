@@ -268,3 +268,59 @@ class Mouse():
         elif self.pos[1] > self.screen_cm[1]:
             self.pos[1] = self.screen_cm[1]
         return [self.pos]
+
+class MousePosControl(KeyboardControl):
+    '''
+    this class implements a python cursor control task for human
+    '''
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = MousePos(self.window_size, self.screen_cm, np.array([0,0]))
+
+class MousePos(Mouse):
+
+    def get(self):
+        pos = pygame.mouse.get_pos()
+        self.pos[0] = (pos[0] / self.window_size[0] - 0.5) * self.screen_cm[0]
+        self.pos[1] = -(pos[1] / self.window_size[1] - 0.5) * self.screen_cm[1] # pygame counts (0,0) as the top left
+        return [self.pos]
+
+class TouchControl(KeyboardControl):
+    '''
+    this class implements a python cursor control task for human
+    '''
+
+    def init(self, *args, **kwargs):
+        super().init(*args, **kwargs)
+        self.joystick = Touch(self.window_size, self.screen_cm)
+
+class Touch():
+    '''
+    Pretend to be a data source. Only works with SDL2
+    '''
+
+    def __init__(self, window_size, screen_cm):
+        self.window_size = window_size
+        self.screen_cm = screen_cm
+        print(hasattr(pygame, '_sdl2'))
+        print(pygame._sdl2)
+        print(hasattr(pygame._sdl2, 'touch'))
+        print(pygame._sdl2.touch)
+        print(pygame._sdl2.touch.get_num_devices)
+        devices = pygame._sdl2.touch.get_num_devices()
+        if devices > 0:
+            self.touchid = pygame._sdl2.touch.get_device(0)
+        else:
+            raise Exception("No touch device available")
+
+    def get(self):
+
+        # Update position but keep mouse in center
+        fingers = pygame._sdl2.touch.get_num_fingers(self.touchid)
+        if fingers > 0:
+            data = pygame._sdl2.touch.get_finger(self.touchid, 0)
+            norm_pos = np.array([data['x'], -data['y']])
+            return [norm_pos / self.window_size * self.screen_cm]
+        else:
+            return []
