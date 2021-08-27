@@ -239,7 +239,7 @@ class BinnedSpikeCountsExtractor(FeatureExtractor):
         '''
         if 'plexon' in files:
             from plexon import plexfile
-            plx = plexfile.openFile(str(files['plexon']))
+            plx = plexfile.openFile(files['plexon'].encode('utf-8'))
             # interpolate between the rows to 180 Hz
             if binlen < 1./strobe_rate:
                 interp_rows = []
@@ -420,7 +420,7 @@ class LFPMTMPowerExtractor(object):
 
         self.n_pts = int(self.win_len * self.fs)
         self.nfft = 2**int(np.ceil(np.log2(self.n_pts)))  # nextpow2(self.n_pts)
-        fft_freqs = np.arange(0., fs, float(fs)/self.nfft)[:self.nfft/2 + 1]
+        fft_freqs = np.arange(0., fs, float(fs)/self.nfft)[:int(self.nfft/2) + 1]
         self.fft_inds = dict()
         for band_idx, band in enumerate(bands):
             self.fft_inds[band_idx] = [freq_idx for freq_idx, freq in enumerate(fft_freqs) if band[0] <= freq < band[1]]
@@ -560,7 +560,7 @@ class LFPMTMPowerExtractor(object):
         # get the samples
         if 'plexon' in files:
             from plexon import plexfile
-            plx = plexfile.openFile(str(files['plexon']))
+            plx = plexfile.openFile(files['plexon'].encode('utf-8'))
             lfp = plx.lfp[:].data[:, channels-1]
 
         elif 'blackrock' in files:

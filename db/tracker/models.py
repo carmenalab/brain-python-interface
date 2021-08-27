@@ -1128,19 +1128,20 @@ class Decoder(models.Model):
         return self.__str__()
 
     def get_data_path(self, db_name=None):
-        data_path = KeyValueStore.get('data_path', '', dbname=db_name)
-        if len(data_path) == 0:
-            print("Database path not set up correctly!")
-        return data_path
+        # data_path = KeyValueStore.get('data_path', '', dbname=db_name)
+        # if len(data_path) == 0:
+        #     print("Database path not set up correctly!")
+        # return data_path
+        return System.objects.using(db_name).get(name='bmi').path
 
     @property
     def filename(self):
         data_path = self.get_data_path()
-        return os.path.join(data_path, 'decoders', self.path)
+        return os.path.join(data_path, self.path)
 
     def load(self, db_name=None, **kwargs):
         data_path = self.get_data_path()
-        decoder_fname = os.path.join(data_path, 'decoders', self.path)
+        decoder_fname = os.path.join(data_path, self.path)
 
         if os.path.exists(decoder_fname):
             try:
@@ -1169,7 +1170,7 @@ class Decoder(models.Model):
         dec = self.get()
         decoder_data = dict(name=self.name, path=self.path)
         if not (dec is None):
-            decoder_data['cls'] = dec.__class__.__name__,
+            decoder_data['cls'] = dec.__class__.__name__
             if hasattr(dec, 'units'):
                 decoder_data['units'] = dec.units
             else:

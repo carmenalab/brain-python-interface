@@ -129,7 +129,7 @@ def save_bmi(name, entry, filename, dbname='default'):
         d = dbfn.TaskEntry(entry.pk)
         d_list = d.get_decoders_trained_in_block()
         for d in d_list:
-            print(d.pk, d.name)
+            print(f"{d.pk}, {d.name}")
     print("Saved decoder to %s"%os.path.join(base, pklname))
 
 def cleanup(entry, dbname='default'):

@@ -254,9 +254,9 @@ def _get_neural_features_plx(files, binlen, extractor_fn, extractor_kwargs, tsli
         Keyword arguments used to construct the feature extractor used online
     '''
 
-    hdf = tables.openFile(files['hdf'])
+    hdf = tables.open_file(files['hdf'])
 
-    plx_fname = str(files['plexon'])
+    plx_fname = files['plexon'].encode('utf-8')
     from plexon import plexfile
     try:
         plx = plexfile.openFile(plx_fname)
@@ -322,7 +322,7 @@ def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=Non
     -------
     '''
 
-    hdf = tables.openFile(files['hdf'])
+    hdf = tables.open_file(files['hdf'])
 
     if 'plexon' in files:
         fn = _get_neural_features_plx
@@ -377,7 +377,7 @@ def get_plant_pos_vel(files, binlen, tmask, update_rate_hz=60., pos_key='cursor'
     if pos_key == 'plant_pos':  # used for ibmi tasks
         vel_key = 'plant_vel'
 
-    hdf = tables.openFile(files['hdf'])
+    hdf = tables.open_file(files['hdf'])
     kin = hdf.root.task[:][pos_key]
 
     inds, = np.nonzero(tmask)
@@ -799,9 +799,10 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     neural_features = neural_features[:-1].T
 
     if filter_kin:
-        filts = get_filterbank(fs=1./update_rate)
+        n_channels = len(kin)
+        filts = get_filterbank(fs=1./update_rate, n_channels=n_channels)
         kin_filt = np.zeros_like(kin)
-        for chan in range(14):
+        for chan in range(n_channels):
             for filt in filts[chan]:
                 kin_filt[chan, :] = filt(kin[chan, :])
     else:
@@ -829,11 +830,11 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
         decoder.extractor_cls = extractor_cls
         decoder.extractor_kwargs = extractor_kwargs
 
-    return decoder, neural_features, kin_filt
+    return decoder #, neural_features, kin_filt
 
 def get_filterbank(n_channels=14, fs=1000.):
-    from ismore.filter import Filter
-    from scipy.signal import butter
+    # from ismore.filter import Filter
+    from scipy.signal import butter, filtfilt
     band  = [.001, 1]  # Hz
     nyq   = 0.5 * fs
     low   = band[0] / nyq
@@ -843,7 +844,8 @@ def get_filterbank(n_channels=14, fs=1000.):
 
     channel_filterbank = [None]*n_channels
     for k in range(n_channels):
-        filts = [Filter(bpf_coeffs[0], bpf_coeffs[1])]
+        # filts = [Filter(bpf_coeffs[0], bpf_coeffs[1])]
+        filts = [lambda x: filtfilt(bpf_coeffs[0], bpf_coeffs[1], x)]
         channel_filterbank[k] = filts
     return channel_filterbank
 
@@ -927,9 +929,9 @@ def train_KFDecoder_abstract(ssm, kin, neural_features, units, update_rate, tsli
     if type(zscore) is bool:
         pass
     else:
-        if zscore == 'True':
+        if zscore == 'on':
             zscore = True
-        elif zscore == 'False':
+        elif zscore == 'off':
             zscore = False
         else:
             raise Exception
