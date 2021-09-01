@@ -567,9 +567,9 @@ class LFPMTMPowerExtractor(object):
             raise NotImplementedError
 
         elif 'ecube' in files:
-            from ecube.file import parse_file
-            data = parse_file(str(files['ecube']))
-            lfp = data.lfp[:, channels-1]
+            from ecube.file import load_lfp
+            data = load_lfp(str(files['ecube']))
+            lfp = data[:, channels-1]
         
         # for i, t in enumerate(interp_rows):
         #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]

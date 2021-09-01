@@ -69,6 +69,9 @@ def _get_tmask(files, tslice, sys_name='task'):
         else:
             fn = _get_tmask_blackrock
             fname = [str(name) for name in files['blackrock'] if '.nev' in name][0]  # only one of them
+    elif 'ecube' in files:
+        fn = _get_tmask_ecube
+        fname = files
     else:
         raise Exception("Neural data file(s) not found!")
 
@@ -198,10 +201,7 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     if l is not None:
         lower = l < rows
     if u is not None:
-        upper = rows < u
-    tmask = np.logical_and(lower, upper)
-
-    return tmask, rows
+        upper = rows < uhttps://stackoverflow.com/questions/20322079/downsample-a-1d-numpy-array
 
 def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
     # need to create fake "rows" and "tmask" variables
@@ -223,6 +223,37 @@ def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
         upper = rows < u
     tmask = np.logical_and(lower, upper)
 
+    return tmask, rows
+
+def _get_tmask_ecube(files, tslice, **kwargs):
+    '''
+    Find the "rows" of the ecube file to use for training the decoder.
+    For compatibility with plexon and blackrock data, since actually we aren't saving
+    any BMI3D rows into the ecube file, only sync'ing the cycle number via a strobe BNC
+    output. 
+
+    Args: 
+        data_dir: location where the ecube data resides
+        tslice : list of length 2
+            Specify the start and end time to examine the file, in seconds
+
+    Returns:
+        tmask: np.ndarray of shape (N, ) of booleans
+            Specifies which BMI3D cycles are within the time bounds
+        rows: np.ndarray of shape (N, ) of integers
+            The times at which BMI3D cycles were recorded on the ecube
+    '''
+    from riglib.ecube import load_bmi3d_cycle_times
+    rows = load_bmi3d_cycle_times(files)
+
+    # Determine which rows are within the time bounds
+    lower, upper = 0 < rows, rows < rows.max() + 1
+    l, u = tslice
+    if l is not None:
+        lower = l < rows
+    if u is not None:
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
     return tmask, rows
 
 ################################################################################
@@ -309,7 +340,26 @@ def _get_neural_features_tdt(files, binlen, extractor_fn, extractor_kwargs, tsli
     raise NotImplementedError
 
 def _get_neural_features_ecube(files, binlen, extractor_fn, extractor_kwargs, tslice=None, units=None, source='task', strobe_rate=10.):
-    raise NotImplementedError
+    '''
+    Mostly just copied from _get_neural_features_plx()... see their docs
+    '''
+    hdf = tables.open_file(files['hdf'])
+
+    from riglib.ecube import parse_file
+    info = parse_file(files['ecube'])
+    # Use all of the units if none are specified
+    if units is None:
+        units = np.array(info.units).astype(np.int32)
+
+    if tslice is None:
+        tslice = (1., info.length-1)
+
+    tmask, rows = _get_tmask_ecube(files, tslice)
+    neurows = rows[tmask]
+
+    neural_features, units, extractor_kwargs = extractor_fn(files, neurows, binlen, units, extractor_kwargs)
+
+    return neural_features, units, extractor_kwargs
 
 def get_neural_features(files, binlen, extractor_fn, extractor_kwargs, units=None, tslice=None, source='task', strobe_rate=60):
     '''
@@ -787,9 +837,11 @@ def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, 
     ## get neural features
     if 'blackrock' in list(files.keys()):
         strobe_rate = 20.
+    elif 'ecube' in list(files.keys()):
+        strobe_rate = update_rate_hz # they are always the same
     else:
         strobe_rate = 60.
-
+    
     neural_features, units, extractor_kwargs = get_neural_features(files, binlen, extractor_cls.extract_from_file,
         extractor_kwargs, tslice=tslice, units=units, source=kin_source, strobe_rate=strobe_rate)
 
