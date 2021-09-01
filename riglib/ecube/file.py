@@ -1,6 +1,6 @@
 # file.py
 # File loading functions
-from .dataset import Dataset
+import aopy
 from dataclasses import dataclass
 
 @dataclass
@@ -10,6 +10,7 @@ class Info():
     channels: list
 
 def parse_file(filepath):
+    metadata = aopy.data.load_ecube_metadata(filepath, 'Headstages')
     n_channels = 0
     n_samples = 0
     dat = Dataset(filepath)
