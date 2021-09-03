@@ -104,6 +104,12 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         raise Exception('Unknown extractor class!')
 
     # task_update_rate = 60 # NOTE may not be true for all tasks?!
+    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
+    entry_data = models.TaskEntry.objects.filter(entry_id=entry).to_json()
+    if hasattr(entry_data, 'params') and hasattr(entry_data['params'], 'fps'):
+        task_update_rate = entry_data['params']['fps']
+    else:
+        task_update_rate = 60.
 
     extractor_kwargs = dict()
     if extractor_cls == extractor.BinnedSpikeCountsExtractor:
@@ -120,15 +126,8 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     else:
         raise Exception("Unknown extractor_cls: %s" % extractor_cls)
 
-    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
-
     # list of DataFile objects
     datafiles = models.DataFile.objects.filter(entry_id=entry)
-    entry_data = models.TaskEntry.objects.filter(entry_id=entry).to_json()
-    if hasattr(entry_data, 'params') and hasattr(entry_data['params'], 'fps'):
-        task_update_rate = entry_data['params']['fps']
-    else:
-        task_update_rate = 60.
 
     # key: a string representing a system name (e.g., 'plexon', 'blackrock', 'task', 'hdf')
     # value: a single filename, or a list of filenames if there are more than one for that system
@@ -146,7 +145,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     ssm = namelist.bmi_state_space_models[ssm]
     kin_extractor_fn = namelist.kin_extractors[kin_extractor]
     decoder = training_method(files, extractor_cls, extractor_kwargs, kin_extractor_fn, ssm, units, update_rate=binlen, tslice=tslice, pos_key=pos_key,
-        zscore=zscore, update_rate_hz=)
+        zscore=zscore, update_rate_hz=task_update_rate)
     decoder.te_id = entry
 
     tf = tempfile.NamedTemporaryFile('wb')

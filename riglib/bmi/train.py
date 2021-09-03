@@ -201,7 +201,9 @@ def _get_tmask_blackrock(nev_fname, tslice, sys_name='task'):
     if l is not None:
         lower = l < rows
     if u is not None:
-        upper = rows < uhttps://stackoverflow.com/questions/20322079/downsample-a-1d-numpy-array
+        upper = rows < u
+    tmask = np.logical_and(lower, upper)
+    return tmask, rows
 
 def _get_tmask_blackrock_fake(hdf_fname, tslice, **kwargs):
     # need to create fake "rows" and "tmask" variables
