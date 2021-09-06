@@ -8,6 +8,7 @@ import random
 import traceback
 import numpy as np
 import pygame
+import pygame._sdl2.touch as touch
 import copy
 import fnmatch
 import os
@@ -303,24 +304,28 @@ class Touch():
     def __init__(self, window_size, screen_cm):
         self.window_size = window_size
         self.screen_cm = screen_cm
-        print(hasattr(pygame, '_sdl2'))
-        print(pygame._sdl2)
-        print(hasattr(pygame._sdl2, 'touch'))
-        print(pygame._sdl2.touch)
-        print(pygame._sdl2.touch.get_num_devices)
-        devices = pygame._sdl2.touch.get_num_devices()
+        devices = touch.get_num_devices()
         if devices > 0:
-            self.touchid = pygame._sdl2.touch.get_device(0)
+            self.touchid = touch.get_device(0)
         else:
-            raise Exception("No touch device available")
+            print("No touch device found")
+            self.touchid = None
 
     def get(self):
 
         # Update position but keep mouse in center
-        fingers = pygame._sdl2.touch.get_num_fingers(self.touchid)
-        if fingers > 0:
-            data = pygame._sdl2.touch.get_finger(self.touchid, 0)
-            norm_pos = np.array([data['x'], -data['y']])
-            return [norm_pos / self.window_size * self.screen_cm]
+        if self.touchid:
+            fingers = touch.get_num_fingers(self.touchid)
+            if fingers > 0:
+                data = touch.get_finger(self.touchid, 0)
+                norm_pos = np.array([data['x'], -data['y']])
+                return [norm_pos / self.window_size * self.screen_cm]
         else:
-            return []
+            for event in pygame.event.get():
+                if event.type == pygame.FINGERDOWN:
+                    print("Finger down")
+                elif event.type == pygame.FINGERMOTION:
+                    print("Finger moved")
+                elif event.type == pygame.FINGERUP:
+                    print("Finger up")
+        return []
