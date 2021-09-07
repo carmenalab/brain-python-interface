@@ -1007,7 +1007,7 @@ Controls.prototype.update = function(controls) {
         $("#controls_table").append(new_button);
         $("#controls_table").append(new_params.obj)
 
-        if (controls[i].static) {
+        if (controls[i].static) { // static controls are always active
             this.static_control_list.push(new_button);
             this.static_params_list.push(new_params)
         } else {
@@ -1033,24 +1033,12 @@ Controls.prototype.activate = function() {
     for (var i = 0; i < this.params_list.length; i += 1) {
         this.params_list[i].enable();
     }
-    for (var i = 0; i < this.static_control_list.length; i += 1) {
-        $(this.control_list[i]).prop('disabled', true)
-    }
-    for (var i = 0; i < this.static_params_list.length; i += 1) {
-        this.params_list[i].disable();
-    }
 }
 Controls.prototype.deactivate = function() {
     for (var i = 0; i < this.control_list.length; i += 1) {
         $(this.control_list[i]).prop('disabled', true);
     }
     for (var i = 0; i < this.params_list.length; i += 1) {
-        this.params_list[i].disable();
-    }
-    for (var i = 0; i < this.static_control_list.length; i += 1) {
-        $(this.control_list[i]).prop('disabled', true)
-    }
-    for (var i = 0; i < this.static_params_list.length; i += 1) {
         this.params_list[i].disable();
     }
 }

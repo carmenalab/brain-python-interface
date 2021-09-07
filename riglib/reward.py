@@ -9,10 +9,11 @@ Class Basic -> reward(reward_time_s), test, calibrate, drain(drain_time_s)
 # import functions
 from riglib.gpio import ArduinoGPIO
 from multiprocessing import Process
+from riglib import singleton
 import time
 
 
-class Basic(object):
+class Basic(singleton.Singleton):
 
     def __init__(self):
         com_port = '/dev/ttyACM0'  # specify the port, based on windows/Unix, can find it on IDE or terminal
@@ -55,7 +56,7 @@ class Basic(object):
 
 def open():
     try:
-        reward = Basic()
+        reward = Basic.get_instance()
         return reward
     except:
         print("Reward system not found/ not active")

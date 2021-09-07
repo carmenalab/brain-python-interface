@@ -23,8 +23,6 @@ class RewardSystem(traits.HasTraits):
     Feature for the current reward system in Amy Orsborn Lab
     '''
     trials_per_reward = traits.Float(1, desc='Number of successful trials before solenoid is opened')
-    reward_time_small = traits.Float(0.1, desc="Duration of 'small' manual reward")
-    reward_time_large = traits.Float(0.5, desc="Duration of 'large' manual reward")
 
     def __init__(self, *args, **kwargs):
         from riglib import reward
@@ -49,21 +47,11 @@ class RewardSystem(traits.HasTraits):
             return ts > self.reward_time
         else:
             return True
-        if hasattr(super(), '_test_reward_end'):
-            super()._test_reward_end()
 
     def _end_reward(self):
         self.reward.off()
         if hasattr(super(), '_end_reward'):
             super()._end_reward()
-
-    @control_decorator
-    def manual_reward_small(self):
-        self.reward.async_drain(self.reward_time_small)
-
-    @control_decorator
-    def manual_reward_large(self):
-        self.reward.async_drain(self.reward_time_large)
 
     @control_decorator
     def manual_reward(duration=0.5, static=True):
@@ -159,6 +147,17 @@ class PenaltyAudioMulti(traits.HasTraits):
         if hasattr(super(), '_start_reach_penalty'):
             super()._start_reach_penalty()
         self.reach_penalty_player.play()
+
+class HoldCompleteRewards(traits.HasTraits):
+
+    hold_reward_time = traits.Float(0.05)
+
+    def _start_targ_transition(self):
+        super()._start_targ_transition()
+        if self.target_index + 1 < self.chain_length:
+
+            # We just finished a hold/delay and there are more targets
+            self.reward.async_drain(self.hold_reward_time)
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 
