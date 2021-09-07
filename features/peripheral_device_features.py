@@ -238,7 +238,7 @@ class MouseControl(KeyboardControl):
 
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
-        self.joystick = Mouse(self.window_size, self.screen_cm, np.array([0,0]))
+        self.joystick = Mouse(self.window_size, self.screen_cm, np.array([self.starting_pos[0], self.starting_pos[2]]))
 
 class Mouse():
     '''

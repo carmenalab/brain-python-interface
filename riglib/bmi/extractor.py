@@ -567,7 +567,7 @@ class LFPMTMPowerExtractor(object):
             raise NotImplementedError
 
         elif 'ecube' in files:
-            from ecube.file import load_lfp
+            from riglib.ecube.file import load_lfp
             data = load_lfp(str(files['ecube']))
             lfp = data[:, channels-1]
         

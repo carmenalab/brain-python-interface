@@ -104,8 +104,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
         raise Exception('Unknown extractor class!')
 
     # task_update_rate = 60 # NOTE may not be true for all tasks?!
-    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
-    entry_data = models.TaskEntry.objects.filter(entry_id=entry).to_json()
+    entry_data = models.TaskEntry.objects.get(id=entry).to_json()
     if hasattr(entry_data, 'params') and hasattr(entry_data['params'], 'fps'):
         task_update_rate = entry_data['params']['fps']
     else:
@@ -151,6 +150,7 @@ def make_bmi(name, clsname, extractorname, entry, cells, channels, binlen, tslic
     tf = tempfile.NamedTemporaryFile('wb')
     pickle.dump(decoder, tf, 2)
     tf.flush()
+    database = xmlrpc.client.ServerProxy("http://localhost:8000/RPC2/", allow_none=True)
     database.save_bmi(name, int(entry), tf.name)
 
 def cache_and_train(*args, **kwargs):

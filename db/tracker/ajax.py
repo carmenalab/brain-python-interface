@@ -164,6 +164,7 @@ def exp_info(request, idx, dbname='default'):
         exception.replace('\n', '\n    ')
         print(exception.rstrip())
         print("#####")
+        return _respond_err(exception)
     else:
         return _respond(entry_data)
 

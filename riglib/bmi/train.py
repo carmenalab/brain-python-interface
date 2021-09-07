@@ -784,7 +784,7 @@ def conv_KF_to_splitFA_dec(decoder_training_te, dec_ix, fa_te, search_suffix = '
     trainbmi.save_new_decoder_from_existing(decoder_split, decoder_old, suffix=suffx)
 
 def train_KFDecoder(files, extractor_cls, extractor_kwargs, kin_extractor, ssm, units, update_rate=0.1, tslice=None,
-    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, filter_kin=True, simple_lin_reg=False,
+    kin_source='task', pos_key='cursor', vel_key=None, zscore=False, filter_kin=False, simple_lin_reg=False,
     use_data_kwargs=None, update_rate_hz=60, **kwargs):
     '''
     Create a new KFDecoder using maximum-likelihood, from kinematic observations and neural observations

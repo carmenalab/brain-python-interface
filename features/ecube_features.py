@@ -3,6 +3,8 @@ import os
 import numpy as np
 from datetime import datetime
 from riglib.experiment import traits
+from riglib import ecube, source
+from features.neural_sys_features import CorticalBMI
 import traceback
 
 ecube_path = "/media/NeuroAcq" # TODO this should be configurable elsewhere
@@ -153,6 +155,25 @@ class RecordECube(traits.HasTraits):
                 log_exception(ee)
             finally:
                 raise e
+
+class EcubeFileBMI(CorticalBMI):
+
+    ecube_bmi_filename = traits.String("", desc="File to playback in BMI")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # These get read by CorticalData when initializing the extractor
+        self._neural_src_type = source.MultiChanDataSource
+        self._neural_src_kwargs = dict(
+            send_data_to_sink_manager=self.send_data_to_sink_manager, 
+            channels=self.decoder.units[:,0],
+            ecube_bmi_filename=self.ecube_bmi_filename)
+        self._neural_src_system_type = ecube.File
+
+    @property 
+    def sys_module(self):
+        return ecube    
 
 
 class TestExperiment():
