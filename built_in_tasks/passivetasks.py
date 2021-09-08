@@ -15,6 +15,8 @@ from riglib.stereo_opengl.window import Window, WindowDispl2D
 from built_in_tasks.manualcontrolmultitasks import ScreenTargetCapture
 from built_in_tasks.bmimultitasks import BMIControlMulti
 
+from .target_graphics import *
+
 bmi_ssm_options = ['Endpt2D', 'Tentacle', 'Joint2L']
 
 class EndPostureFeedbackController(BMILoop, traits.HasTraits):
@@ -102,14 +104,14 @@ class TargetCaptureReplay(ScreenTargetCapture):
                 setattr(self, k, v)
 
         # Have to additionally reset the targets since they are created in super().__init__()
-        for target in self.targets:
-            target.sphere.radius = self.task_meta['target_radius']
-            target.sphere.color = target_colors[self.task_meta['target_color']]
+        target1 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+        target2 = VirtualCircularTarget(target_radius=self.target_radius, target_color=target_colors[self.target_color])
+        self.targets = [target1, target2]
 
     def _test_start_trial(self, time_in_state):
         '''Wait for the state change in the HDF file in case there is autostart enabled'''
         trials = self.replay_state[self.replay_state['msg'] == b'target']
-        upcoming_trials = [t['time'] for t in trials if self.replay_task[t['time']]['trial'] > self.calc_trial_num()]
+        upcoming_trials = [t['time']-1 for t in trials if self.replay_task[t['time']]['trial'] >= self.calc_trial_num()]
         return (np.array(upcoming_trials) <= self.cycle_count).any()
 
     def _parse_next_trial(self):

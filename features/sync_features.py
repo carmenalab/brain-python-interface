@@ -26,7 +26,7 @@ rig1_sync_events = dict(
 
 rig1_sync_params = dict(
         sync_protocol = 'rig1',
-        sync_protocol_version = 6,
+        sync_protocol_version = 7,
         sync_pulse_width = 0.003,
         event_sync_nidaq_mask = 0xff,
         event_sync_dch = range(16,24),
