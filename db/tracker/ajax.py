@@ -631,7 +631,7 @@ def trigger_control(request):
         except Exception as e:
             traceback.print_exc()
 
-    if request.POST["base_class"]:
+    if "base_class" in request.POST:
 
         # If this is a static method, it will have a base_class
         task_id = request.POST["base_class"]
@@ -642,11 +642,13 @@ def trigger_control(request):
             print(fn)
             if "params" in request.POST:
                 params = json.loads(request.POST.get("params"))
-                fn(**params)
+                result = fn(**params)
             else:
-                fn()
+                result = fn()
+            return _respond(dict(status="success", value=result))
         except Exception as e:
             traceback.print_exc()
+            return _respond_err(e)
         
     else:
 

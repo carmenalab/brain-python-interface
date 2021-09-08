@@ -953,11 +953,11 @@ Notes.prototype.save = function() {
 // Controls class
 //
 
-function create_control_callback(control_str, args, static=false) {
-    return function() {trigger_control(control_str, args, static)}
+function create_control_callback(i, control_str, args, static=false) {
+    return function() {trigger_control(i, control_str, args, static)}
 }
 
-function trigger_control(control, params, static) {
+function trigger_control(i, control, params, static) {
     debug("Triggering control: " + control)
     if (static) {
         var data = {
@@ -968,11 +968,19 @@ function trigger_control(control, params, static) {
         }
         $.post("trigger_control", data, function(resp) {
             debug("Control response", resp);
+            if (resp["status"] == "success") {
+                $('#controls_btn_' + i.toString()).css({"background-color": "green"});
+                $('#controls_btn_' + i.toString()).animate({"background-color": "black"}, 500 );
+            }
         })
     } else {
         $.post("trigger_control", {"control": control, "params": JSON.stringify(params.to_json())}, function(resp) {
             debug("Control response", resp);
-            // params.clear_all();
+            params.clear_all();
+            if (resp["status"] == "pending") {
+                $('#controls_btn_' + i.toString()).css({"background-color": "yellow"});
+                $('#controls_btn_' + i.toString()).animate({"background-color": "black"}, 500 );
+            }
         })
     }
 }
@@ -999,7 +1007,7 @@ Controls.prototype.update = function(controls) {
             {
                 text: controls[i].name,
                 id: "controls_btn_" + i.toString(),
-                click: create_control_callback(controls[i].name, new_params, controls[i].static),
+                click: create_control_callback(i, controls[i].name, new_params, controls[i].static),
                 type: "button"
             }
         );
