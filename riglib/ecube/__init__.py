@@ -45,7 +45,7 @@ class Broadband(DataSourceSystem):
                 raise RuntimeError('requested channel {} is not available ({} connected)'.format(
                     ch, available))
             else:
-                self.conn.add(('Headstages', self.headstage, ch))
+                self.conn.add(('Headstages', self.headstage, (ch, ch+1)))
         
         added = self.conn.listadded() # in debug mode this prints out the added channels
 
@@ -95,7 +95,7 @@ class File(DataSourceSystem):
     buffering neural data. Compatible with riglib.source.MultiChanDataSource
     '''
     # Required by DataSourceSystem: update_freq and dtype (see make() below)
-    update_freq = 25000.
+    update_freq = 1000.
     chunksize = 728
     dtype = np.dtype('float')
 

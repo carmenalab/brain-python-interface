@@ -175,6 +175,10 @@ class EcubeFileBMI(CorticalBMI):
     def sys_module(self):
         return ecube    
 
+class EcubeBMI(CorticalBMI):
+    @property 
+    def sys_module(self):
+        return ecube   
 
 class TestExperiment():
     state = None
