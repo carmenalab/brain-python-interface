@@ -74,6 +74,11 @@ class IgnoreCorrectness(object):
 
 
 class MultiHoldTime(traits.HasTraits):
+    '''
+    Deprecated--Use RandomDelay instead. 
+    Allows the hold time parameter to be multiple values per target in a given sequence chain. For instance,
+    center targets and peripheral targets can have different hold times.
+    '''
 
     hold_time = traits.List([.2,], desc="Length of hold required at targets before next target appears. \
         Can be a single number or a list of numbers to apply to each target in the sequence (center, out, etc.)")
@@ -96,6 +101,9 @@ class MultiHoldTime(traits.HasTraits):
         return time_in_state > hold_time
 
 class RandomDelay(traits.HasTraits):
+    '''
+    Replaces 'delay_time' with 'rand_delay', an interval on which the delay period is selected uniformly.
+    '''
     
     rand_delay = traits.Tuple((0., 0.), desc="Delay interval")
     exclude_parent_traits = ['delay_time']
