@@ -283,7 +283,11 @@ class Task(models.Model):
         controls = []
         for c in ctl:
             params = func_or_class_to_json(c, values, desc_lookup)
-            controls.append(dict(name=c.__name__, params=params))
+            if 'static' in params:
+                params.pop('static')
+                controls.append(dict(name=c.__name__, params=params, static=True))
+            else:
+                controls.append(dict(name=c.__name__, params=params))
 
         return controls
 
