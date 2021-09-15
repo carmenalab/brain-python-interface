@@ -34,7 +34,7 @@ class Renderer(object):
         #compile the given shaders and the programs
         self.shaders = dict()
         for k, v in list(shaders.items()):
-            print("Compiling shader %s..."%k)
+            # print("Compiling shader %s..."%k)
             self.add_shader(k, *v)
         
         self.programs = dict()

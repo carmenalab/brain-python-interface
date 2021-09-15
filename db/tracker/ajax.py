@@ -632,7 +632,29 @@ def trigger_control(request):
         except Exception as e:
             traceback.print_exc()
 
-    return rpc(control_fn)
+    if "base_class" in request.POST:
+
+        # If this is a static method, it will have a base_class
+        task_id = request.POST["base_class"]
+        feature_names = json.loads((request.POST['feats'])).keys()
+        task = Task.objects.get(pk=task_id).get(feats=feature_names)
+        try:
+            fn = getattr(task, request.POST["control"])
+            print(fn)
+            if "params" in request.POST:
+                params = json.loads(request.POST.get("params"))
+                result = fn(**params)
+            else:
+                result = fn()
+            return _respond(dict(status="success", value=result))
+        except Exception as e:
+            traceback.print_exc()
+            return _respond_err(e)
+        
+    else:
+
+        # Otherwise it is a method belonging to the active task
+        return rpc(control_fn)
 
 @csrf_exempt
 def get_status(request):

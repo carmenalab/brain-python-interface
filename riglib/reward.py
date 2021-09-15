@@ -8,16 +8,21 @@ Class Basic -> reward(reward_time_s), test, calibrate, drain(drain_time_s)
 
 # import functions
 from riglib.gpio import ArduinoGPIO
+from multiprocessing import Process
+from riglib import singleton
 import time
 
 
-class Basic(object):
+class Basic(singleton.Singleton):
+
+    __instance = None
 
     def __init__(self):
         com_port = '/dev/ttyACM0'  # specify the port, based on windows/Unix, can find it on IDE or terminal
         self.board = ArduinoGPIO(port=com_port)
         self.reward_pin = 12 # pin on the arduino which should be connected to the reward system
         self.off()
+        super().__init__()
 
     def on(self):
         """Open the solenoid."""
@@ -45,9 +50,16 @@ class Basic(object):
         time.sleep(drain_time)
         self.off()
 
+    def async_drain(self, drain_time=200):
+        """
+        Calls drain() function in a separate process
+        """
+        p = Process(target=self.drain, args=((drain_time,)))
+        p.start()
+
 def open():
     try:
-        reward = Basic()
+        reward = Basic.get_instance()
         return reward
     except:
         print("Reward system not found/ not active")

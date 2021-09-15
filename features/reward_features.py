@@ -11,6 +11,7 @@ import fnmatch
 import os
 import subprocess
 from riglib.experiment import traits
+from riglib.experiment.experiment import control_decorator
 from riglib.audio import AudioPlayer
 import serial, glob
 
@@ -46,13 +47,18 @@ class RewardSystem(traits.HasTraits):
             return ts > self.reward_time
         else:
             return True
-        if hasattr(super(), '_test_reward_end'):
-            super()._test_reward_end()
 
     def _end_reward(self):
         self.reward.off()
         if hasattr(super(), '_end_reward'):
             super()._end_reward()
+
+    @control_decorator
+    def manual_reward(duration=0.5, static=True):
+        from riglib import reward
+        reward = reward.open()
+        float_dur = float(duration) # these parameters always end up being strings
+        reward.drain(float_dur)
 
 audio_path = os.path.join(os.path.dirname(__file__), '../riglib/audio')
 
@@ -141,6 +147,17 @@ class PenaltyAudioMulti(traits.HasTraits):
         if hasattr(super(), '_start_reach_penalty'):
             super()._start_reach_penalty()
         self.reach_penalty_player.play()
+
+class HoldCompleteRewards(traits.HasTraits):
+
+    hold_reward_time = traits.Float(0.05)
+
+    def _start_targ_transition(self):
+        super()._start_targ_transition()
+        if self.target_index + 1 < self.chain_length:
+
+            # We just finished a hold/delay and there are more targets
+            self.reward.async_drain(self.hold_reward_time)
 
 """"" BELOW THIS IS ALL THE OLD CODE ASSOCIATED WITH REWARD FEATURES"""
 
