@@ -4,7 +4,7 @@ import numpy as np
 from datetime import datetime
 from riglib.experiment import traits
 from riglib import ecube, source
-from features.neural_sys_features import CorticalBMI
+from features.neural_sys_features import CorticalBMI, CorticalData
 import traceback
 
 ecube_path = "/media/NeuroAcq" # TODO this should be configurable elsewhere
@@ -156,7 +156,10 @@ class RecordECube(traits.HasTraits):
             finally:
                 raise e
 
-class EcubeFileBMI(CorticalBMI):
+class EcubeFileData(CorticalData, traits.HasTraits):
+    '''
+    Streams data from an ecube file into BMI3D as neurondata
+    '''
 
     ecube_bmi_filename = traits.String("", desc="File to playback in BMI")
 
@@ -175,10 +178,43 @@ class EcubeFileBMI(CorticalBMI):
     def sys_module(self):
         return ecube    
 
-class EcubeBMI(CorticalBMI):
+class EcubeData(CorticalData, traits.HasTraits):
+    '''
+    Streams neural data using ecube as the datasource. Use this if you want online neural data
+    but don't want to use a decoder.
+    '''
+
+    streaming_channels = traits.Tuple((1,1), desc="Range of channels to stream")
+
+    def init(self):
+        self.cortical_channels = list(range(*self.streaming_channels))
+        super().init()
+
     @property 
     def sys_module(self):
         return ecube   
+
+class EcubeFileBMI(EcubeFileData, CorticalBMI):
+    '''
+    Streams data from an ecube file into a BMI decoder
+    '''
+    pass
+
+class EcubeBMI(CorticalBMI):
+    '''
+    BMI using ecube as the datasource.
+    '''
+
+    bmi_ecube_headstage = traits.Int(7, desc="Which headstage to use for BMI data")
+
+    def init(self):
+        self.neural_src_kwargs = dict(headstage=self.bmi_ecube_headstage)
+        super().init()
+
+    @property 
+    def sys_module(self):
+        return ecube   
+
 
 class TestExperiment():
     state = None

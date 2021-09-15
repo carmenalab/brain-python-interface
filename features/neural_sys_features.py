@@ -30,6 +30,8 @@ class CorticalData(object):
         sys_module = self.sys_module # e.g., riglib.plexon, riglib.blackrock
 
         kwargs = dict(send_data_to_sink_manager=self.send_data_to_sink_manager, channels=self.cortical_channels)
+        if hasattr(self, "neural_src_kwargs"):
+            kwargs += self.neural_src_kwargs
 
         if hasattr(self, "_neural_src_type") and hasattr(self, "_neural_src_kwargs") and hasattr(self, "_neural_src_system_type"):
             # for testing only!
