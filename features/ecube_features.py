@@ -166,14 +166,18 @@ class EcubeFileData(CorticalData, traits.HasTraits):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Query the file to see the channels
+        file = ecube.file.parse_file(self.ecube_bmi_filename)
+        self.cortical_channels = file.channels
+
         # These get read by CorticalData when initializing the extractor
         self._neural_src_type = source.MultiChanDataSource
         self._neural_src_kwargs = dict(
             send_data_to_sink_manager=self.send_data_to_sink_manager, 
-            channels=self.decoder.units[:,0],
+            channels=self.cortical_channels,
             ecube_bmi_filename=self.ecube_bmi_filename)
         self._neural_src_system_type = ecube.File
-
+        
     @property 
     def sys_module(self):
         return ecube    
@@ -198,7 +202,16 @@ class EcubeFileBMI(EcubeFileData, CorticalBMI):
     '''
     Streams data from an ecube file into a BMI decoder
     '''
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # These get read by CorticalData when initializing the extractor
+        self._neural_src_type = source.MultiChanDataSource
+        self._neural_src_kwargs = dict(
+            send_data_to_sink_manager=self.send_data_to_sink_manager, 
+            channels=self.decoder.units[:,0],
+            ecube_bmi_filename=self.ecube_bmi_filename)
+        self._neural_src_system_type = ecube.File
 
 class EcubeBMI(CorticalBMI):
     '''
