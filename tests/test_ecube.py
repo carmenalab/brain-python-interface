@@ -10,6 +10,8 @@ STREAMING_DURATION = 2
 
 class TestStreaming(unittest.TestCase):
 
+    # Note: for the multiprocessing code to work, you must have servernode-control open separately
+
     @unittest.skip('works')
     def test_ecube_stream(self):
         channels = [1, 3]
