@@ -6,11 +6,11 @@ import numpy as np
 
 import unittest
 
-STREAMING_DURATION = 1
+STREAMING_DURATION = 2
 
 class TestStreaming(unittest.TestCase):
 
-    @unittest.skip('mst')
+    @unittest.skip('works')
     def test_ecube_stream(self):
         channels = [1, 3]
         bb = Broadband(channels=channels)
@@ -19,29 +19,32 @@ class TestStreaming(unittest.TestCase):
         bb.stop()
         print(data[2].shape)
     
+    @unittest.skip('works')
     def test_broadband_class(self):
         channels = [1, 3]
         bb = Broadband(channels=channels)
         bb.start()
         ch_data = []
-        for i in range(len(channels)):
-            ch, data = bb.get()
-            ch_data.append(data)
-            print(f"Got channel {channels[i]} with {ch_data[-1].shape} samples")
+        for d in range(2):
+            for i in range(len(channels)):
+                ch, data = bb.get()
+                ch_data.append(data)
+                print(f"Got channel {ch} with {data.shape} samples")
         bb.stop()
 
-    @unittest.skip('mst')
     def test_broadband_datasource(self):
         channels = [1, 62]
         ds = source.MultiChanDataSource(Broadband, channels=channels)
         ds.start()
         time.sleep(STREAMING_DURATION)
-        n_samples = int(Broadband.update_freq*STREAMING_DURATION)
-        data = ds.get(n_samples, channels)
+        data = ds.get_new(channels)
         ds.stop()
+        data = np.array(data)
 
-        self.assertEqual(data.shape[1], n_samples)
+        n_samples = int(Broadband.update_freq * STREAMING_DURATION / 728) * 728 # closest multiple of 728 (floor)
+
         self.assertEqual(data.shape[0], len(channels))
+        self.assertEqual(data.shape[1], n_samples)
 
 class TestFileLoadin(unittest.TestCase):
 
