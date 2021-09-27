@@ -1,6 +1,6 @@
 import time
 from riglib import source
-from riglib.ecube import Broadband, make
+from riglib.ecube import Broadband, LFP
 from riglib.ecube.file import parse_file
 import numpy as np
 
@@ -10,25 +10,38 @@ STREAMING_DURATION = 1
 
 class TestStreaming(unittest.TestCase):
 
-    def test_broadband_datasource(self):
+    @unittest.skip('mst')
+    def test_ecube_stream(self):
+        channels = [1, 3]
+        bb = Broadband(channels=channels)
+        bb.start()
+        data = bb.conn.get()
+        bb.stop()
+        print(data[2].shape)
+    
+    def test_broadband_class(self):
+        channels = [1, 3]
+        bb = Broadband(channels=channels)
+        bb.start()
+        ch_data = []
+        for i in range(len(channels)):
+            ch, data = bb.get()
+            ch_data.append(data)
+            print(f"Got channel {channels[i]} with {ch_data[-1].shape} samples")
+        bb.stop()
 
-        ecube = make(Broadband, headstages=[7], channels=[(1,1)])
-        ds = source.DataSource(ecube)
+    @unittest.skip('mst')
+    def test_broadband_datasource(self):
+        channels = [1, 62]
+        ds = source.MultiChanDataSource(Broadband, channels=channels)
         ds.start()
-        time.sleep(DURATION)
-        data = ds.get()
+        time.sleep(STREAMING_DURATION)
+        n_samples = int(Broadband.update_freq*STREAMING_DURATION)
+        data = ds.get(n_samples, channels)
         ds.stop()
 
-        print("Received {} packets in {} seconds ({} Hz)".format(data.shape[0], STREAMING_DURATION, data.shape[0]/STREAMING_DURATION))
-        ts = [d['timestamp'] for d in data]
-        print("First timestamp: {} ns ({:.5f} s)\tLast timestamp {} ns ({:.5f} s)".format(
-            ts[0], ts[0]/1e9, ts[-1], ts[-1]/1e9
-        ))
-        duration = (ts[-1]-ts[0])/1e9
-        samples = [d['data'].shape[0] for d in data]
-        print("Calculated duration: {:.5f} s, at {:.2f} Hz packet frequency and {} Hz sampling rate".format(
-            duration, data.shape[0]/duration, np.sum(samples[:-1])/duration))
-        print("For reference, the ecube datasource is meant to have a sampling rate of {:.2f} Hz".format(ecube.update_freq))
+        self.assertEqual(data.shape[1], n_samples)
+        self.assertEqual(data.shape[0], len(channels))
 
 class TestFileLoadin(unittest.TestCase):
 

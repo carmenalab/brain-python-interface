@@ -162,7 +162,7 @@ class EcubeFileData(CorticalData, traits.HasTraits):
     '''
 
     ecube_bmi_filename = traits.String("", desc="File to playback in BMI")
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -180,7 +180,31 @@ class EcubeFileData(CorticalData, traits.HasTraits):
         
     @property 
     def sys_module(self):
-        return ecube    
+        return ecube   
+
+class ManualPositionDecodeTest():
+    '''
+    Test feature for ecube data
+    '''
+    
+    def init(self):
+        super().init()
+        from riglib.bmi.extractor import LFPMTMPowerExtractor
+        self.extractor = LFPMTMPowerExtractor(self.neurondata, channels=[1], bands=[(50,200)])
+
+    def _get_manual_position(self):
+        '''
+        Fetches neurondata position
+        '''
+        if not hasattr(self, 'neurondata'):
+            return
+        ext = self.extractor(4) # start time can be anything
+        
+        power = ext['lfp_power'][0][0]
+        pt = [-power, 0, 0]
+
+        print(pt)
+        return [pt]
 
 class EcubeData(CorticalData, traits.HasTraits):
     '''

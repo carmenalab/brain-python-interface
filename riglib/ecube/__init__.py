@@ -45,20 +45,26 @@ class Broadband(DataSourceSystem):
                 raise RuntimeError('requested channel {} is not available ({} connected)'.format(
                     ch, available))
             else:
-                self.conn.add(('Headstages', self.headstage, (ch, ch+1)))
+                self.conn.add(('Headstages', self.headstage, (ch, ch)))
         
         added = self.conn.listadded() # in debug mode this prints out the added channels
 
         # Start streaming
         self.conn.start()
+
+        # Start with an empty generator
+        self.gen = iter(())
     
     def stop(self):
 
         # Stop streaming
-        self.conn.stop()
+        if self.conn.stop():
 
-        # Remove the added sources
-        self.conn.remove(('Headstages', self.headstage))
+            # Remove the added sources
+            self.conn.remove(('Headstages', self.headstage))
+
+        else:
+            del self.conn # try to force the streaming to end by deleting the ecube connection object
 
     def get(self):
         '''data
@@ -66,7 +72,7 @@ class Broadband(DataSourceSystem):
         '''
         try:
             return next(self.gen)
-        except (StopIteration, AttributeError):
+        except StopIteration:
             data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
             self.gen = multi_chan_generator(data_block[2], self.channels)
             return next(self.gen)
@@ -84,7 +90,7 @@ class LFP(Broadband):
         '''
         try:
             return next(self.gen)
-        except (StopIteration, AttributeError):
+        except StopIteration:
             data_block = self.conn.get() # in the form of (time_stamp, data_source, data_content)
             self.gen = multi_chan_generator(data_block[2], self.channels, downsample=25)
             return next(self.gen)
@@ -113,7 +119,7 @@ class File(DataSourceSystem):
         try:
             return next(self.gen)
         except (StopIteration, AttributeError):
-            time.sleep(1./(self.update_freq/self.chunksize))
+            time.sleep(1./(25000/self.chunksize))
             try:
                 data_block = next(self.file)
             except StopIteration:
