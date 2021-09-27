@@ -444,7 +444,7 @@ def reward_drain(request, onoff):
     This function is modified to use the reward system in Orsborn lab - check reward.py for functions
     '''
     from riglib import reward
-    r = reward.Basic()
+    r = reward.open()
 
     if onoff == 'on':
         r.drain(600)
