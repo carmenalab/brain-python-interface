@@ -6,7 +6,7 @@ if [ "$HOST" = "pagaiisland2" ]; then
     export DISPLAY=':0.1'
 elif [ "$HOST" = "peco" ]; then
     export DISPLAY=$(grep nameserver /etc/resolv.conf | awk '{print $2}'):0.0
-    export LIBGL_ALWAYS_INDIRECT=1
+    export LIBGL_ALWAYS_INDIRECT=0
 fi
 
 # Find the BMI3D directory
@@ -85,14 +85,16 @@ DJANGO=$!
 #python manage.py celery flower --address=0.0.0.0 &
 #FLOWER=$!
 
-# Start servernode-control
-gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
-SNC=$!
+# Start servernode and servernode-control
+if [ "$HOST" = "pagaiisland2" ]; then
+    gnome-terminal -- ssh 10.155.207.19 sh ~/start-servernode.sh
+    sleep 1
+    gnome-terminal -- $BMI3D/riglib/ecube/servernode-control
+fi
 
 # Define what happens when you hit control-C
 function ctrl_c() {
 	kill -9 $DJANGO
-    kill -9 $SNC
 	#kill $CELERY
 	#kill $FLOWER
     kill -9 `ps aux | grep python | grep manage.py | tr -s " " | cut -d " " -f 2`
