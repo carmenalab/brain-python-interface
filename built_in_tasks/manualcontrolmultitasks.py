@@ -158,7 +158,7 @@ class ManualControlMixin(traits.HasTraits):
                 self.current_pt = self.last_pt
 
         self.plant.set_endpoint_pos(self.current_pt)
-        self.last_pt = self.current_pt.copy()
+        self.last_pt = self.plant.get_endpoint_pos()
 
     def update_report_stats(self):
         super().update_report_stats()
