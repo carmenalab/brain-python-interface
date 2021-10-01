@@ -1,9 +1,82 @@
-from riglib.bmi import lindecoder
-from built_in_tasks.bmimultitasks import SimBMICosEncLinDec, SimBMIVelocityLinDec
+from riglib.bmi import lindecoder, kfdecoder, state_space_models, extractor
+from built_in_tasks.bmimultitasks import BMIControlMulti #, SimBMICosEncLinDec, SimBMIVelocityLinDec
+from features.ecube_features import EcubeBMI, EcubeFileBMI
 from riglib import experiment
 import numpy as np
 
 import unittest
+
+def make_fixed_kf_decoder(units, ssm, C, dt=0.1):
+    n_neurons = units.shape[0]
+    assert n_neurons == C.shape[0], "C matrix must have same first dimension as number of neurons"
+    binlen = dt
+
+    A, B, W = ssm.get_ssm_matrices(update_rate=dt)
+    drives_neurons = ssm.drives_obs
+    is_stochastic = ssm.is_stochastic
+    nX = ssm.n_states
+    assert nX == C.shape[1], "C matrix must have same second dimension as number of states"
+
+    Q = 10 * np.identity(n_neurons)
+
+    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
+
+    mFR = 0
+    sdFR = 1
+    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=binlen)
+
+    decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
+    decoder.kf.S = decoder.kf.C
+    decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
+    decoder.kf.ESS = 3000.
+
+    decoder.ssm = ssm
+    decoder.n_features = n_neurons
+
+    # decoder.bounder = make_rect_bounder_from_ssm(ssm)
+
+    return decoder
+
+
+class TestKFDecoder(unittest.TestCase):
+
+    def setUp(self):
+
+        # Construct a fixed decoder
+        ssm = state_space_models.StateSpaceEndptVel2D()
+        units = np.array([[1, 0], [2, 0]])
+        C = np.zeros([2, 7])
+        C[0, 3] = 1.
+        C[1, 5] = 1.
+        decoder = make_fixed_kf_decoder(units, ssm, C, dt=0.1)
+        decoder.extractor_cls = extractor.LFPMTMPowerExtractor
+        decoder.extractor_kwargs = dict(channels=[1, 2], bands=[(50,80)], win_len=0.1, fs=1000)
+        self.decoder = decoder
+
+        # Construct neural and cursor data from a known encoder model
+        
+
+    def test_fixed_decoder_ecube(self):
+        base_class = BMIControlMulti
+        #feats = [EcubeBMI] # use default headstage port 7
+        feats = [EcubeFileBMI]
+        kwargs = dict(ecube_bmi_filename='/media/server/raw/ecube/ecube test data', decoder=self.decoder)
+        seq = base_class.centerout_2D(nblocks=1, ntargets=8, distance=8)
+        Exp = experiment.make(base_class, feats=feats)
+        exp = Exp(seq, **kwargs)
+
+        print(exp.decoder.units)
+        print(exp.decoder.units[:,0])
+        print(exp.cortical_channels)
+
+        exp.init()
+
+        exp.run()
+        
+        rewards, time_penalties, hold_penalties = calculate_rewards(exp)
+        self.assertTrue(rewards <= rewards + time_penalties + hold_penalties)
+        self.assertTrue(rewards > 0)
+
 
 class TestLinDec(unittest.TestCase):
 

@@ -34,6 +34,7 @@ class TestStreaming(unittest.TestCase):
                 print(f"Got channel {ch} with {data.shape} samples")
         bb.stop()
 
+    @unittest.skip('works')
     def test_broadband_datasource(self):
         channels = [1, 62]
         ds = source.MultiChanDataSource(Broadband, channels=channels)

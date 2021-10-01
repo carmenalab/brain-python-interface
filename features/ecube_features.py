@@ -229,11 +229,13 @@ class EcubeFileBMI(EcubeFileData, CorticalBMI):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.cortical_channels = self.decoder.units[:,0]
+
         # These get read by CorticalData when initializing the extractor
         self._neural_src_type = source.MultiChanDataSource
         self._neural_src_kwargs = dict(
             send_data_to_sink_manager=self.send_data_to_sink_manager, 
-            channels=self.decoder.units[:,0],
+            channels=self.cortical_channels,
             ecube_bmi_filename=self.ecube_bmi_filename)
         self._neural_src_system_type = ecube.File
 
