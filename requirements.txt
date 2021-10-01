@@ -6,7 +6,7 @@ matplotlib==3.1.2
 scipy==1.5.4
 tables==3.6.1
 celery==5.0.2
-pandas==1.2.3
+pandas==1.1.5
 h5py==2.10.0
 hdfwriter==0.1.4
 Cython==0.29.22
@@ -29,3 +29,4 @@ gitpython==3.1.8
 hdfwriter==0.1.4
 jinja2==2.11.2
 pymysql==1.0.2
+psutil==5.8.0
