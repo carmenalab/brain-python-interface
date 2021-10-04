@@ -1,6 +1,7 @@
 from riglib.bmi import lindecoder, kfdecoder, state_space_models, extractor
 from built_in_tasks.bmimultitasks import BMIControlMulti #, SimBMICosEncLinDec, SimBMIVelocityLinDec
 from features.ecube_features import EcubeBMI, EcubeFileBMI
+from riglib.stereo_opengl.window import Window2D
 from riglib import experiment
 import numpy as np
 
@@ -44,14 +45,19 @@ class TestKFDecoder(unittest.TestCase):
 
         # Construct a fixed decoder
         ssm = state_space_models.StateSpaceEndptVel2D()
-        units = np.array([[1, 0], [2, 0]])
-        C = np.zeros([2, 7])
+        units = np.array([[1, 0]])
+        C = np.zeros([1, 7])
         C[0, 3] = 1.
-        C[1, 5] = 1.
         decoder = make_fixed_kf_decoder(units, ssm, C, dt=0.1)
         decoder.extractor_cls = extractor.LFPMTMPowerExtractor
-        decoder.extractor_kwargs = dict(channels=[1, 2], bands=[(50,80)], win_len=0.1, fs=1000)
+        decoder.extractor_kwargs = dict(channels=[1], bands=[(50,80)], win_len=0.1, fs=1000)
         self.decoder = decoder
+
+        import pickle
+        import os
+        test_decoder_filename = os.path.join('tests', 'test_kf_decoder.pkl')
+        with open(test_decoder_filename, 'wb') as f:
+            pickle.dump(decoder, f, 2)
 
         # Construct neural and cursor data from a known encoder model
         
@@ -59,7 +65,7 @@ class TestKFDecoder(unittest.TestCase):
     def test_fixed_decoder_ecube(self):
         base_class = BMIControlMulti
         #feats = [EcubeBMI] # use default headstage port 7
-        feats = [EcubeFileBMI]
+        feats = [EcubeFileBMI, Window2D]
         kwargs = dict(ecube_bmi_filename='/media/server/raw/ecube/ecube test data', decoder=self.decoder)
         seq = base_class.centerout_2D(nblocks=1, ntargets=8, distance=8)
         Exp = experiment.make(base_class, feats=feats)

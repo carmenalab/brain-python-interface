@@ -45,7 +45,7 @@ class Broadband(DataSourceSystem):
                 raise RuntimeError('requested channel {} is not available ({} connected)'.format(
                     ch, available))
             else:
-                self.conn.add(('Headstages', self.headstage, (ch, ch)))
+                self.conn.add(('Headstages', self.headstage, (ch, ch))) # add channels one at a time
         
         added = self.conn.listadded() # in debug mode this prints out the added channels
 

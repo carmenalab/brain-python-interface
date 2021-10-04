@@ -31,7 +31,7 @@ class CorticalData(object):
 
         kwargs = dict(send_data_to_sink_manager=self.send_data_to_sink_manager, channels=self.cortical_channels)
         if hasattr(self, "neural_src_kwargs"):
-            kwargs += self.neural_src_kwargs
+            kwargs.update(self.neural_src_kwargs)
 
         if hasattr(self, "_neural_src_type") and hasattr(self, "_neural_src_kwargs") and hasattr(self, "_neural_src_system_type"):
             # for testing only!
@@ -74,5 +74,5 @@ class CorticalBMI(CorticalData, traits.HasTraits):
         Prior to starting the task, this 'init' sets the channels to be the channels of the decoder
         so that the PlexonData source only grabs the channels actually used by the decoder. 
         '''
-        self.cortical_channels = self.decoder.units[:,0]
+        self.cortical_channels = [int(ch) for ch in self.decoder.units[:,0]]
         super(CorticalBMI, self).init()

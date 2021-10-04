@@ -16,7 +16,7 @@ from .bmi_task_features import NormFiringRates
 from .arduino_features import PlexonSerialDIORowByte
 from .blackrock_features import BlackrockBMI
 from .blackrock_features import RelayBlackrockByte
-from .ecube_features import EcubeFileBMI
+from .ecube_features import EcubeFileBMI, EcubeBMI
 
 built_in_features = dict(
     keyboard=KeyboardControl,
@@ -51,6 +51,7 @@ built_in_features = dict(
     blackrockbmi        = BlackrockBMI,
     relay_blackrockbyte = RelayBlackrockByte,
     ecube_playback_bmi = EcubeFileBMI,
+    ecube_bmi = EcubeBMI,
 )
 
 # >>> features.built_in_features['autostart'].__module__
