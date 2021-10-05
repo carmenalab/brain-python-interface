@@ -2,17 +2,8 @@
 Peripheral interface device features
 '''
 
-import time
-import tempfile
-import random
-import traceback
 import numpy as np
 import pygame
-import copy
-import fnmatch
-import os
-import subprocess
-from riglib.experiment import traits
 
 ###### CONSTANTS
 sec_per_min = 60
