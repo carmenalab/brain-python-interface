@@ -152,9 +152,16 @@
             }
         // hotkeys for controls
         } else if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null)) {
-            if (event.keyCode >= 49 && event.keyCode < 58 && te.controls) {
+            if (te.controls && event.keyCode >= 49 && event.keyCode < 58) {
                 // digits 1-9 control buttons 0-8
                 var button = $("#controls_btn_" + (event.keyCode - 49).toString());
+                if (button.length) {
+                    console.log("Clicking button ", button.text)
+                    button.click()
+                }
+            } else if (te.controls && event.keyCode >= 97 && event.keyCode < 105) {
+                // keypad 1-9 also control buttons 0-8
+                var button = $("#controls_btn_" + (event.keyCode - 97).toString());
                 if (button.length) {
                     console.log("Clicking button ", button.text)
                     button.click()
