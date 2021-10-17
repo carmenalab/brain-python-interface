@@ -569,7 +569,7 @@ TaskEntry.prototype.toggle_template = function() {
 
 /* callback for 'Copy Parameters' button.
  */
-TaskEntry.prototype.copy = function() {
+TaskEntry.prototype.copy = function(reset_metadata=true) {
     debug("TaskEntry.copy")
 
     // reset the task entry row
@@ -599,8 +599,8 @@ TaskEntry.prototype.copy = function() {
     this.notes.destroy();      // clear the notes
     this.report.hide();        // turn off the report pane
 
-    // update the task info, but leave the parameters alone
-    this._task_query(function(){}, false, true);
+    // update the task info
+    this._task_query(function(){}, false, reset_metadata);
 
     // go into the "stopped" state
     task_interface.trigger.bind(this)({status: this.status}); 

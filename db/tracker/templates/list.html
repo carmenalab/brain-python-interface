@@ -48,8 +48,8 @@
       reset_date_on_new_task();
     })
 
-    $("#copybtn").click(function() {
-        if (te) te.copy();
+    $("#copybtn").click(function(e) {
+        if (te) te.copy(!e.shiftKey); // shift key determines whether metdata is cleared or not
     }); // run the TaskEntry prototype copy function to make new parameters
     $("#hidebtn").change(
       function () {
@@ -309,14 +309,14 @@
           <button id="remove_entry" onclick="if (te != null && confirm('Are you sure you want to delete?')) {te.remove();}">Delete entry</button><br>
 
           <div id="finished_task_buttons">
-            <input id="copybtn" class="btn" type="button" value="Copy parameters">
+            <input id="copybtn" class="btn" type="button" value="Copy parameters" title="Hold shift to copy metadata">
             <input id="hidebtn" type="checkbox" checked="on" name="hist_checkbox">Visible?
             <input id="backupbtn" type="checkbox" checked="off" name="hist_checkbox">Flagged for backup?
             <input id="templatebtn" type="checkbox" checked="off" name="hist_checkbox">Use as template
           </div>
 
           <div id="start_buttons">
-            <input id="testbtn" class="btn startbtn" type="submit" value="Test">
+            <input id="testbtn" class="btn startbtn" type="submit" value="Test" title="Run the experiment without saving any data">
             <input id="startbtn" class="btn startbtn" type="submit" value="Start Experiment">
             <input id="saverecbtn" class="btn startbtn" type="submit" value="Save Record" title="Save a record of an already complete experiment">
           </div>
