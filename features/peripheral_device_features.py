@@ -2,18 +2,8 @@
 Peripheral interface device features
 '''
 
-import time
-import tempfile
-import random
-import traceback
 import numpy as np
 import pygame
-import pygame._sdl2.touch as touch
-import copy
-import fnmatch
-import os
-import subprocess
-from riglib.experiment import traits
 
 ###### CONSTANTS
 sec_per_min = 60
@@ -239,7 +229,7 @@ class MouseControl(KeyboardControl):
 
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
-        self.joystick = Mouse(self.window_size, self.screen_cm, np.array([0,0]))
+        self.joystick = Mouse(self.window_size, self.screen_cm, np.array(self.starting_pos[::2]))
 
 class Mouse():
     '''
@@ -254,78 +244,7 @@ class Mouse():
         self.pos[1] = start_pos[1]
 
     def get(self):
-
-        # Update position but keep mouse in center
-        pygame.event.set_grab(True)
-        rel = pygame.mouse.get_rel()
-        self.pos[0] += rel[0] / self.window_size[0] * self.screen_cm[0]
-        self.pos[1] -= rel[1] / self.window_size[1] * self.screen_cm[1] # pygame counts (0,0) as the top left
-        if self.pos[0] < -self.screen_cm[0]:
-            self.pos[0] = -self.screen_cm[0]
-        elif self.pos[0] > self.screen_cm[0]:   
-            self.pos[0] = self.screen_cm[0]
-        if self.pos[1] < -self.screen_cm[1]:
-            self.pos[1] = -self.screen_cm[1]
-        elif self.pos[1] > self.screen_cm[1]:
-            self.pos[1] = self.screen_cm[1]
-        return [self.pos]
-
-class MousePosControl(KeyboardControl):
-    '''
-    this class implements a python cursor control task for human
-    '''
-
-    def init(self, *args, **kwargs):
-        super().init(*args, **kwargs)
-        self.joystick = MousePos(self.window_size, self.screen_cm, np.array([0,0]))
-
-class MousePos(Mouse):
-
-    def get(self):
         pos = pygame.mouse.get_pos()
         self.pos[0] = (pos[0] / self.window_size[0] - 0.5) * self.screen_cm[0]
         self.pos[1] = -(pos[1] / self.window_size[1] - 0.5) * self.screen_cm[1] # pygame counts (0,0) as the top left
         return [self.pos]
-
-class TouchControl(KeyboardControl):
-    '''
-    this class implements a python cursor control task for human
-    '''
-
-    def init(self, *args, **kwargs):
-        super().init(*args, **kwargs)
-        self.joystick = Touch(self.window_size, self.screen_cm)
-
-class Touch():
-    '''
-    Pretend to be a data source. Only works with SDL2
-    '''
-
-    def __init__(self, window_size, screen_cm):
-        self.window_size = window_size
-        self.screen_cm = screen_cm
-        devices = touch.get_num_devices()
-        if devices > 0:
-            self.touchid = touch.get_device(0)
-        else:
-            print("No touch device found")
-            self.touchid = None
-
-    def get(self):
-
-        # Update position but keep mouse in center
-        if self.touchid:
-            fingers = touch.get_num_fingers(self.touchid)
-            if fingers > 0:
-                data = touch.get_finger(self.touchid, 0)
-                norm_pos = np.array([data['x'], -data['y']])
-                return [norm_pos / self.window_size * self.screen_cm]
-        else:
-            for event in pygame.event.get():
-                if event.type == pygame.FINGERDOWN:
-                    print("Finger down")
-                elif event.type == pygame.FINGERMOTION:
-                    print("Finger moved")
-                elif event.type == pygame.FINGERUP:
-                    print("Finger up")
-        return []

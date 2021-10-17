@@ -56,9 +56,9 @@ class RewardSystem(traits.HasTraits):
     @control_decorator
     def manual_reward(duration=0.5, static=True):
         from riglib import reward
-        reward = reward.open()
+        reward_sys = reward.open()
         float_dur = float(duration) # these parameters always end up being strings
-        reward.drain(float_dur)
+        reward_sys.async_drain(float_dur)
 
 audio_path = os.path.join(os.path.dirname(__file__), '../riglib/audio')
 
