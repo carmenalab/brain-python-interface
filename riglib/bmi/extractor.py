@@ -552,6 +552,7 @@ class LFPMTMPowerExtractor(object):
         channels = f_extractor.channels
         fs       = f_extractor.fs
         print(('bands:', bands))
+        print(('win_len:', win_len))
 
         n_itrs = len(interp_rows)
         n_chan = len(channels)
@@ -569,21 +570,23 @@ class LFPMTMPowerExtractor(object):
         elif 'ecube' in files:
             from riglib.ecube.file import load_lfp
             data = load_lfp(str(files['ecube']))
-            lfp = data[:, channels-1]
+            lfp = data[:, [c-1 for c in channels]]
         
         # for i, t in enumerate(interp_rows):
         #     cont_samples = plx.lfp[t-win_len:t].data[:, channels-1]
         #     lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
         n_pts = int(win_len * fs)
         for i, t in enumerate(interp_rows):
-            try:
-                sample_num = int(t * fs)
-                cont_samples = lfp[sample_num-n_pts:sample_num, :]
-                lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
-            except:
-                print("Error with LFP decoder training")
-                print((i, t))
+            # try:
+            sample_num = int(t * fs)
+            cont_samples = lfp[max(0,sample_num-n_pts):min(lfp.shape[0], sample_num), :]
+            if cont_samples.shape[0] < n_pts:
+                # maybe don't count these ones?
                 pass
+            lfp_power[i, :] = f_extractor.extract_features(cont_samples.T).T
+            # except:
+            #     print("Error with LFP decoder training")
+            #     print((i, t))
 
 
         # TODO -- discard any channel(s) for which the log power in any frequency 

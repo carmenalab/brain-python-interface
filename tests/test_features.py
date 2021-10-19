@@ -12,7 +12,7 @@ import unittest
 def init_exp(base_class, feats):
     blocks = 1
     targets = 3
-    seq = ManualControl.centerout_2D_discrete(blocks, targets)
+    seq = ManualControl.centerout_2D(blocks, targets)
     Exp = experiment.make(base_class, feats=feats)
     exp = Exp(seq)
     exp.init()
@@ -23,7 +23,6 @@ class TestKeyboardControl(unittest.TestCase):
     def setUp(self):
         pass
     
-    @unittest.skip("msg")
     def test_exp(self):
         exp = init_exp(ManualControl, [KeyboardControl, WindowDispl2D])
         exp.run()
