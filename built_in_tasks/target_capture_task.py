@@ -267,7 +267,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
 
-    limit2d = 1
+    limit2d = traits.Bool(True, desc="Limit cursor movement to 2D")
 
     sequence_generators = [
         'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
