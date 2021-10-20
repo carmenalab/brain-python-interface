@@ -1,7 +1,7 @@
-from riglib.bmi import lindecoder, kfdecoder, state_space_models, extractor
+from riglib.bmi import lindecoder, kfdecoder, state_space_models, extractor, train
 from built_in_tasks.bmimultitasks import BMIControlMulti #, SimBMICosEncLinDec, SimBMIVelocityLinDec
 from features.ecube_features import EcubeBMI, EcubeFileBMI
-from riglib.stereo_opengl.window import Window2D
+from riglib.stereo_opengl.window import WindowDispl2D
 from riglib import experiment
 import numpy as np
 
@@ -51,7 +51,7 @@ class TestKFDecoder(unittest.TestCase):
         decoder = make_fixed_kf_decoder(units, ssm, C, dt=0.1)
         decoder.extractor_cls = extractor.LFPMTMPowerExtractor
         decoder.extractor_kwargs = dict(channels=[1], bands=[(50,80)], win_len=0.1, fs=1000)
-        self.decoder = decoder
+        self.fixed_decoder = decoder
 
         import pickle
         import os
@@ -59,14 +59,36 @@ class TestKFDecoder(unittest.TestCase):
         with open(test_decoder_filename, 'wb') as f:
             pickle.dump(decoder, f, 2)
 
-        # Construct neural and cursor data from a known encoder model
-        
+        # Train a decoder form test neural and cursor data generated from a known encoder model
+        import aopy
+        data = aopy.data.load_hdf_group('tests/test_data', 'wo_FS_0.7_training_data.hdf')
+        position = data['kinematics'][:,::int(0.1*60)] # only need one kin sample per extractor window size
+        velocity = np.diff(position.T, axis=0) * 1./(1/60)
+        velocity = np.vstack([np.zeros(position.shape[0]), velocity])
+        kin = np.hstack([position.T, velocity])
+        print(kin.shape)
+        files = {'ecube': 'tests/test_data'}
+        units = np.array([[i+1, 0] for i in range(8)])
+        print(data['neurows'].shape)
+        neural_features, units, extractor_kwargs = extractor.LFPMTMPowerExtractor.extract_from_file(files, data['neurows'], 0.1, units, {'channels': [i+1 for i in range(8)], 'bands': [(70,90)], 'win_len': 0.1})
+        print(neural_features.shape)
+        update_rate = 60
+        decoder = train.train_KFDecoder_abstract(ssm, kin.T, neural_features.T, units, update_rate)
+        decoder.extractor_cls = extractor.LFPMTMPowerExtractor
+        decoder.extractor_kwargs = extractor_kwargs
 
+        test_decoder_filename = os.path.join('tests', 'trained_kf_decoder.pkl')
+        with open(test_decoder_filename, 'wb') as f:
+            pickle.dump(decoder, f, 2)
+
+        self.trained_decoder = decoder
+
+    @unittest.skip('msg')
     def test_fixed_decoder_ecube(self):
         base_class = BMIControlMulti
         #feats = [EcubeBMI] # use default headstage port 7
-        feats = [EcubeFileBMI, Window2D]
-        kwargs = dict(ecube_bmi_filename='/media/server/raw/ecube/ecube test data', decoder=self.decoder)
+        feats = [EcubeFileBMI, WindowDispl2D]
+        kwargs = dict(ecube_bmi_filename='/media/server/raw/ecube/ecube test data', decoder=self.fixed_decoder)
         seq = base_class.centerout_2D(nblocks=1, ntargets=8, distance=8)
         Exp = experiment.make(base_class, feats=feats)
         exp = Exp(seq, **kwargs)
@@ -77,6 +99,33 @@ class TestKFDecoder(unittest.TestCase):
 
         exp.init()
 
+        exp.run()
+        
+        rewards, time_penalties, hold_penalties = calculate_rewards(exp)
+        self.assertTrue(rewards <= rewards + time_penalties + hold_penalties)
+        self.assertTrue(rewards > 0)
+
+    def test_trained_decoder_ecube(self):
+        import aopy
+        data = aopy.data.load_hdf_group('tests/test_data', 'wo_FS_0.7_training_data.hdf')
+        targ_seq = data['target_sequence']
+        targ_locs = data['target_location']
+        seq = list(zip([[i] for i in targ_seq], [[l] for l in targ_locs]))
+
+        base_class = BMIControlMulti
+        #feats = [EcubeBMI] # use default headstage port 7
+        feats = [EcubeFileBMI, WindowDispl2D]
+        kwargs = dict(ecube_bmi_filename='tests/test_data', decoder=self.trained_decoder)
+        Exp = experiment.make(base_class, feats=feats)
+        exp = Exp(seq, **kwargs)
+
+        exp.window_size = (1920,1080)
+
+        print(exp.decoder.units)
+        print(exp.decoder.units[:,0])
+        print(exp.cortical_channels)
+
+        exp.init()
         exp.run()
         
         rewards, time_penalties, hold_penalties = calculate_rewards(exp)
