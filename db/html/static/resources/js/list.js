@@ -289,6 +289,7 @@ function TaskEntry(idx, info) {
     $("#content").removeClass("error running testing")
     $("#files").hide();
     $('#newentry').hide()
+    $('#te_table_header').unbind("click");
     $('#te_table_header').click(
         function() {
             if (te) te.destroy();
@@ -626,6 +627,7 @@ TaskEntry.prototype.destroy = function() {
 
     // Re-bind a callback to when the row is clicked
     var idx = this.idx
+    this.tr.unbind("click");
     this.tr.click(
         function() {
             if (te) te.destroy();
