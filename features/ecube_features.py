@@ -57,7 +57,8 @@ class RecordECube(traits.HasTraits):
             traceback.print_exc()
             log_exception(e)
             print('\n\neCube recording could not be stopped! Please manually stop the recording\n\n')
-            return False
+            # return False
+            # Actually we should still save the recording to the database, since no files have to be moved. LS 9/10/2021
 
         # Save file to database
         print("Saving ecube file to database...")

@@ -18,11 +18,11 @@ class Basic(singleton.Singleton):
     __instance = None
 
     def __init__(self):
+        super().__init__()
         com_port = '/dev/ttyACM0'  # specify the port, based on windows/Unix, can find it on IDE or terminal
         self.board = ArduinoGPIO(port=com_port)
         self.reward_pin = 12 # pin on the arduino which should be connected to the reward system
         self.off()
-        super().__init__()
 
     def on(self):
         """Open the solenoid."""
@@ -66,4 +66,4 @@ def open():
         import traceback
         import os
         import builtins
-        traceback.print_exc(file=builtins.open(os.path.expanduser('log/reward.log'), 'w'))
+        traceback.print_exc(file=builtins.open('../log/reward.log', 'a'))

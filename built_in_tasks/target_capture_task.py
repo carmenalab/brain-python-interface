@@ -267,7 +267,7 @@ class ScreenTargetCapture(TargetCapture, Window):
     """Concrete implementation of TargetCapture task where targets
     are acquired by "holding" a cursor in an on-screen target"""
 
-    limit2d = 1
+    limit2d = traits.Bool(True, desc="Limit cursor movement to 2D")
 
     sequence_generators = [
         'out_2D', 'centerout_2D', 'centeroutback_2D', 'rand_target_chain_2D', 'rand_target_chain_3D',
@@ -732,13 +732,13 @@ class ScreenReachAngle(ScreenTargetCapture):
         targets = np.array([
             [0, 0.5],
             [1, 0.5],
-            [0.5, 1],
             [1, 0],
             [0, 0],
             [0.25, 0.25],
             [0.75, 0.25],
             [0.25, 0.75],
             [0.75, 0.75],
+            [0.5, 1],
         ])
         rng = np.random.default_rng()
         for _ in range(nblocks):

@@ -120,8 +120,8 @@
     $("tr.template").hide();
 
 
-    // hotkeys for simple TE tasks
-      document.addEventListener('keydown', function(event) {
+    document.addEventListener('keydown', function(event) {
+        // hotkeys for simple TE tasks
         if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null) && (te.status == "completed")) {
             if (event.keyCode == 86) {
                 // visible ('v')
@@ -150,10 +150,27 @@
                 console.log('going to "next" TE', next_table_row_id);
 
             }
+        // hotkeys for controls
+        } else if ((event.target.tagName.toLowerCase() !== 'input') && (event.target.tagName.toLowerCase() !== 'textarea') && !(te == null)) {
+            if (te.controls && event.keyCode >= 49 && event.keyCode < 58) {
+                // digits 1-9 control buttons 0-8
+                var button = $("#controls_btn_" + (event.keyCode - 49).toString());
+                if (button.length) {
+                    console.log("Clicking button ", button.text)
+                    button.click()
+                }
+            } else if (te.controls && event.keyCode >= 97 && event.keyCode < 105) {
+                // keypad 1-9 also control buttons 0-8
+                var button = $("#controls_btn_" + (event.keyCode - 97).toString());
+                if (button.length) {
+                    console.log("Clicking button ", button.text)
+                    button.click()
+                }
+            }
         } else {
           console.log("keydown handler ignoring!");
         }
-      });
+    });
 
     window.onclick = function(event) {
       if (event.target == document.getElementById("file_modal")) {
