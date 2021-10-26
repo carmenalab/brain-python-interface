@@ -8,36 +8,7 @@ import numpy as np
 
 import unittest
 
-def make_fixed_kf_decoder(units, ssm, C, dt=0.1):
-    n_neurons = units.shape[0]
-    assert n_neurons == C.shape[0], "C matrix must have same first dimension as number of neurons"
-    binlen = dt
 
-    A, B, W = ssm.get_ssm_matrices(update_rate=dt)
-    drives_neurons = ssm.drives_obs
-    is_stochastic = ssm.is_stochastic
-    nX = ssm.n_states
-    assert nX == C.shape[1], "C matrix must have same second dimension as number of states"
-
-    Q = 10 * np.identity(n_neurons)
-
-    kf = kfdecoder.KalmanFilter(A, W, C, Q, is_stochastic=is_stochastic)
-
-    mFR = 0
-    sdFR = 1
-    decoder = kfdecoder.KFDecoder(kf, units, ssm, mFR=mFR, sdFR=sdFR, binlen=binlen)
-
-    decoder.kf.R = np.mat(np.identity(decoder.kf.C.shape[1]))
-    decoder.kf.S = decoder.kf.C
-    decoder.kf.T = decoder.kf.Q + decoder.kf.S*decoder.kf.S.T
-    decoder.kf.ESS = 3000.
-
-    decoder.ssm = ssm
-    decoder.n_features = n_neurons
-
-    # decoder.bounder = make_rect_bounder_from_ssm(ssm)
-
-    return decoder
 
 
 class TestKFDecoder(unittest.TestCase):
@@ -50,7 +21,7 @@ class TestKFDecoder(unittest.TestCase):
         C = np.zeros([2, 7])
         C[0, 3] = 0.1
         C[1, 5] = 0.1
-        decoder = make_fixed_kf_decoder(units, ssm, C, dt=0.1)
+        decoder = train.make_fixed_kf_decoder(units, ssm, C, dt=0.1)
         decoder.extractor_cls = extractor.LFPMTMPowerExtractor
         decoder.extractor_kwargs = dict(channels=[1, 2], bands=[(90,110)], win_len=0.1, fs=1000)
 

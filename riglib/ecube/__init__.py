@@ -44,16 +44,13 @@ class Broadband(DataSourceSystem):
             if ch > available:
                 raise RuntimeError('requested channel {} is not available ({} connected)'.format(
                     ch, available))
-            elif len(subscribed[0]) > 0 and not ch in subscribed[0][1]:
+            elif len(subscribed[0]) == 0 or (len(subscribed[0]) > 0 and not ch in subscribed[0][1]):
                 self.conn.add(('Headstages', self.headstage, (ch, ch))) # add channels one at a time
-            else:
-                #Already subscribed to channel
-                pass
-        
-        added = self.conn.listadded() # in debug mode this prints out the added channels
+        subscribed = self.conn.listadded() # in debug mode this prints out the added channels
 
         # Start streaming
         self.conn.start()
+        print("Started streaming from ecube")
 
         # Start with an empty generator
         self.gen = iter(())

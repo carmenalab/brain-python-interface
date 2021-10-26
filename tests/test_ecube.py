@@ -2,11 +2,12 @@ import time
 from riglib import source
 from riglib.ecube import Broadband, LFP
 from riglib.ecube.file import parse_file
+from riglib.bmi import state_space_models, train, extractor
 import numpy as np
 
 import unittest
 
-STREAMING_DURATION = 2
+STREAMING_DURATION = 3
 
 class TestStreaming(unittest.TestCase):
 
@@ -15,7 +16,7 @@ class TestStreaming(unittest.TestCase):
     @unittest.skip('works')
     def test_ecube_stream(self):
         channels = [1, 3]
-        bb = Broadband(channels=channels)
+        bb = Broadband(channels=channels) # Note: this is not how this is normally used, just testing
         bb.start()
         data = bb.conn.get()
         bb.stop()
@@ -34,7 +35,7 @@ class TestStreaming(unittest.TestCase):
                 print(f"Got channel {ch} with {data.shape} samples")
         bb.stop()
 
-    #@unittest.skip('works')
+    @unittest.skip('works')
     def test_broadband_datasource(self):
         channels = [1, 62]
         ds = source.MultiChanDataSource(Broadband, channels=channels)
@@ -48,6 +49,32 @@ class TestStreaming(unittest.TestCase):
 
         self.assertEqual(data.shape[0], len(channels))
         self.assertEqual(data.shape[1], n_samples)
+    
+    #@unittest.skip('works')
+    def test_ds_with_extractor(self):
+        # Create the datasource
+        channels = [1, 62]
+        ds = source.MultiChanDataSource(LFP, channels=channels)
+
+        # Make a feature extractor
+        extr = extractor.LFPMTMPowerExtractor(ds, channels=channels, bands=[(90,110)], win_len=0.1, fs=1000)
+
+        # Run the feature extractor
+        extract_rate = 1/60
+        feats = []
+        ds.start()
+        t0 = time.perf_counter()
+        while (time.perf_counter() - STREAMING_DURATION < t0):
+            neural_features_dict = extr(time.perf_counter())
+            feats.append(neural_features_dict['lfp_power'])
+            time.sleep(extract_rate)
+        
+        ds.stop()
+        data = np.array(feats)
+        print(feats)
+        print(data.shape)
+        self.assertEqual(data.shape[1], len(channels))
+        self.assertEqual(data.shape[0], STREAMING_DURATION/extract_rate)
 
 class TestFileLoadin(unittest.TestCase):
 
