@@ -1,8 +1,9 @@
 from riglib.bmi import lindecoder, kfdecoder, state_space_models, extractor, train
 from built_in_tasks.bmimultitasks import BMIControlMulti #, SimBMICosEncLinDec, SimBMIVelocityLinDec
-from features.ecube_features import EcubeBMI, EcubeFileBMI
+from features.ecube_features import EcubeBMI, EcubeFileBMI, RecordECube
 from riglib.stereo_opengl.window import WindowDispl2D
 from riglib import experiment
+from features.hdf_features import SaveHDF
 import numpy as np
 
 import unittest
@@ -47,11 +48,11 @@ class TestKFDecoder(unittest.TestCase):
         ssm = state_space_models.StateSpaceEndptVel2D()
         units = np.array([[1, 0], [2, 0]])
         C = np.zeros([2, 7])
-        C[0, 3] = 1.
-        C[1, 5] = 1.
+        C[0, 3] = 0.1
+        C[1, 5] = 0.1
         decoder = make_fixed_kf_decoder(units, ssm, C, dt=0.1)
         decoder.extractor_cls = extractor.LFPMTMPowerExtractor
-        decoder.extractor_kwargs = dict(channels=[1, 2], bands=[(50,80)], win_len=0.1, fs=1000)
+        decoder.extractor_kwargs = dict(channels=[1, 2], bands=[(90,110)], win_len=0.1, fs=1000)
 
         import pickle
         import os
@@ -60,9 +61,17 @@ class TestKFDecoder(unittest.TestCase):
             pickle.dump(decoder, f, 2)
 
         base_class = BMIControlMulti
-        #feats = [EcubeBMI] # use default headstage port 7
-        feats = [EcubeFileBMI, WindowDispl2D]
-        kwargs = dict(ecube_bmi_filename='tests/test_data/simple', decoder=decoder)
+
+        # Settings for streaming from ecube
+        feats = [EcubeBMI, WindowDispl2D, SaveHDF] # use default headstage port 7
+        kwargs = dict(decoder=decoder, window_size=(500,500), fullscreen=False, 
+            record_headstage=True, headstage_connector=7, headstage_channels=(1,2))
+        # RecordECube.pre_init(saveid='decoder_test_02', **kwargs)
+
+        # Settings for reading from file
+        # feats = [EcubeFileBMI, WindowDispl2D, SaveHDF]
+        # kwargs = dict(ecube_bmi_filename='tests/test_data/simple', decoder=decoder)
+
         seq = base_class.centerout_2D(nblocks=1, ntargets=8, distance=8)
         Exp = experiment.make(base_class, feats=feats)
         exp = Exp(seq, **kwargs)
@@ -74,6 +83,9 @@ class TestKFDecoder(unittest.TestCase):
         exp.init()
 
         exp.run()
+
+        h5file = exp.get_h5_filename()
+        os.rename(h5file, 'test_decoder.hdf')
         
         rewards, time_penalties, hold_penalties = calculate_rewards(exp)
         self.assertTrue(rewards <= rewards + time_penalties + hold_penalties)
@@ -96,6 +108,7 @@ class TestKFDecoder(unittest.TestCase):
         neural_features, units, extractor_kwargs = extractor.LFPMTMPowerExtractor.extract_from_file(files, data['neurows'], 0.1, units, {'channels': [i+1 for i in range(8)], 'bands': [(70,90)], 'win_len': 0.1})
         print(neural_features.shape)
         update_rate = 60
+        ssm = state_space_models.StateSpaceEndptVel2D()
         decoder = train.train_KFDecoder_abstract(ssm, kin.T, neural_features.T, units, update_rate)
         decoder.extractor_cls = extractor.LFPMTMPowerExtractor
         decoder.extractor_kwargs = extractor_kwargs

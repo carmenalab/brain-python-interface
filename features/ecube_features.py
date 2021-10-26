@@ -33,7 +33,7 @@ class RecordECube(traits.HasTraits):
     record_headstage = traits.Bool(False, desc="Should we record headstage data?")
     headstage_connector = traits.Int(7, desc="Which headstage input to record (1-indexed)")
     headstage_channels = traits.Tuple((1, 1), desc="Range of headstage channels to record (1-indexed)")
-    ecube_status = None
+    ecube_status = "Not initialized"
 
     def cleanup(self, database, saveid, **kwargs):
         '''
@@ -100,7 +100,7 @@ class RecordECube(traits.HasTraits):
         '''
         Run prior to starting the task to remotely start recording from the plexon system
         '''
-        cls.ecube_status = None
+        cls.ecube_status = "Not initialized"
         if saveid is not None:
             from riglib.ecube import pyeCubeStream
             session_name = make_ecube_session_name(saveid)
@@ -136,7 +136,8 @@ class RecordECube(traits.HasTraits):
                 traceback.print_exc()
                 log_exception(e)
                 cls.ecube_status = "Could not connect to eCube. Make sure servernode is running!\n"
-        super().pre_init(saveid=saveid, **kwargs)
+        if hasattr(super(), 'pre_init'):
+            super().pre_init(saveid=saveid, **kwargs)
 
     def run(self):
         if not self.ecube_status in ["testing", "recording"]:

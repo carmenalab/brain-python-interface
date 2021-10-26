@@ -5,8 +5,7 @@ from .file import *
 import aopy
 
 '''
-#to do list
-where to calculate spikes?
+eCube streaming sources
 '''
 
 def multi_chan_generator(data_block, channels, downsample=1):
@@ -40,12 +39,16 @@ class Broadband(DataSourceSystem):
 
         # Add the requested headstage channels if they are available
         available = self.conn.listavailable()[0][self.headstage-1] # (headstages, analog, digital); hs are 1-indexed
+        subscribed = self.conn.listadded()
         for ch in self.channels:
             if ch > available:
                 raise RuntimeError('requested channel {} is not available ({} connected)'.format(
                     ch, available))
-            else:
+            elif len(subscribed[0]) > 0 and not ch in subscribed[0][1]:
                 self.conn.add(('Headstages', self.headstage, (ch, ch))) # add channels one at a time
+            else:
+                #Already subscribed to channel
+                pass
         
         added = self.conn.listadded() # in debug mode this prints out the added channels
 
