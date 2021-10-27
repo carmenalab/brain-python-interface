@@ -277,8 +277,13 @@ def start_experiment(request, save=True, execute=True):
         feature_names = list(data['feats'].keys())
         subject_name = data['metadata'].pop('subject')
         subject = Subject.objects.get(name=subject_name)
+        experimenter_name = data['metadata'].pop('experimenter')
+        experimenter = Experimenter.objects.get(name=experimenter_name)
+        project = data['metadata'].pop('project')
+        session = data['metadata'].pop('session')
 
-        entry = TaskEntry.objects.create(subject_id=subject.id, task_id=task.id)
+        entry = TaskEntry.objects.create(subject_id=subject.id, task_id=task.id, experimenter_id=experimenter.id,
+            project=project, session=session)
         if 'entry_name' in data:
             entry.entry_name = data['entry_name']
         if 'date' in data and data['date'] != "Today" and len(data['date'].split("-")) == 3:

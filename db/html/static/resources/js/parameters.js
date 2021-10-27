@@ -7,9 +7,10 @@ if (typeof(require) !== 'undefined') {
     var $ = jQuery = require('jquery')(dom.window);
 }
 
-function Parameters() {
+function Parameters(editable=false) {
     this.obj = document.createElement("table");
     this.traits = {};
+    this.editable = editable;
 }
 Parameters.prototype.update = function(desc) {
     // Update the parameters descriptor to include the updated values
@@ -78,6 +79,15 @@ Parameters.prototype.append = function(desc) {
             debug(desc[name]['type']);
     }
 }
+
+Parameters.prototype.remove_row = function(name) {
+    if (typeof(this.traits[name]) != "undefined") {
+        var trait = this.traits[name]
+        trait.obj.remove();
+        delete this.traits[name];
+    }
+}
+
 Parameters.prototype.show_all_attrs = function() {
 
 
@@ -122,6 +132,17 @@ Parameters.prototype.add_to_table = function(name, info) {
     label.setAttribute("for", "param_"+name);
 
     td.appendChild(label);
+
+    // optionally add a minus button
+    if (this.editable && !info["required"]) {
+        var remove_row = document.createElement("input");
+        remove_row.setAttribute("class", "paramadd");
+        remove_row.setAttribute("type", "button");
+        remove_row.setAttribute("value", "-");
+        var this_ = this;
+        $(remove_row).on("click", function() {this_.remove_row(name);});
+        td.appendChild(remove_row);
+    }
 
     // label.style.visibility = hidden;
     if (hidden === 'hidden') {
@@ -475,8 +496,11 @@ Parameters.prototype.to_json = function(get_all) {
 Parameters.prototype.clear_all = function() {
     for (var name in this.traits) {
         var trait = this.traits[name];
-        for (var i = 0; i < trait.inputs.length; i++)
+        for (var i = 0; i < trait.inputs.length; i++) {
             trait.inputs[i].value = null;
+            if (trait.inputs[i].onchange)
+                trait.inputs[i].onchange();
+        }
     }
 }
 
