@@ -80,14 +80,6 @@ Parameters.prototype.append = function(desc) {
     }
 }
 
-Parameters.prototype.remove_row = function(name) {
-    if (typeof(this.traits[name]) != "undefined") {
-        var trait = this.traits[name]
-        trait.obj.remove();
-        delete this.traits[name];
-    }
-}
-
 Parameters.prototype.show_all_attrs = function() {
 
 
@@ -136,7 +128,7 @@ Parameters.prototype.add_to_table = function(name, info) {
     // optionally add a minus button
     if (this.editable && !info["required"]) {
         var remove_row = document.createElement("input");
-        remove_row.setAttribute("class", "paramadd");
+        remove_row.setAttribute("class", "paramremove");
         remove_row.setAttribute("type", "button");
         remove_row.setAttribute("value", "-");
         var this_ = this;
@@ -424,7 +416,7 @@ Parameters.prototype.add_row = function() {
     var label = $('<input type="text" placeholder="New entry">');
     label.css({"border": "none", "border-color": "transparent"});
     var div = $("<td>");
-    var input = $('<input type="text" required>');
+    var input = $('<input type="text" class="string" required>');
     input.on("change", function() {
         if (this.value.length == 0)
             this.required = "required";
@@ -445,15 +437,33 @@ Parameters.prototype.add_row = function() {
             trait.attr('id', 'param_'+name);
             new_label = $("<label>")
             new_label.css("textAlign", "right");
+            new_label.addClass("string");
             new_label.html(name);
             label.replaceWith(new_label);
             _this.traits[name] = {"obj":trait.get(0), "inputs":[input.get(0)]}
+            if (_this.editable) {
+                // add a minus button
+                var remove_row = document.createElement("input");
+                remove_row.setAttribute("class", "paramremove");
+                remove_row.setAttribute("type", "button");
+                remove_row.setAttribute("value", "-");
+                $(remove_row).on("click", function() {_this.remove_row(name);});
+                new_label.after(remove_row);
+            }
         } else {
 
             // Otherwise delete the row
             trait.remove();
         }
     })
+}
+
+Parameters.prototype.remove_row = function(name) {
+    if (typeof(this.traits[name]) != "undefined") {
+        var trait = this.traits[name]
+        trait.obj.remove();
+        delete this.traits[name];
+    }
 }
 
 function get_param_input(input_obj) {
